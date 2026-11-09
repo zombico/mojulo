@@ -4,6 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { kitSlot, armsLoadout, validateArmsKit, ARMS_KIT, ARMS_KIT_WORDS, ARMS_MAX, BOW, ADS } from './arms-kit.js';
 import { readQuick, SHOOT } from './quick.js';
+import { ROUNDS } from './rounds.js';
+import { composeLive } from '../worlds/controllable/compose.js';
 
 // one word per archetype, chosen from the table
 const byArchetype = Object.values(Object.groupBy(ARMS_KIT_WORDS, (w) => ARMS_KIT[w].as)).map((g) => g[0]);
@@ -46,4 +48,14 @@ describe('arms kit', () => {
     expect(() => readQuick({ goal: 'deathmatch', pole: 0, weapons: true, arms: ['rifle'] })).toThrow(/one or the other/);
     expect(() => readQuick({ goal: 'shoot', arms: ['rifle', 'plasma'] })).toThrow(/plasma/);
   });
+  it('a gun\'s round: each archetype\'s cartridge class (a longer flash for a longer cartridge), the bow none; the runtime keeps it, and adds nothing without', () => {
+    const rounds = byArchetype.filter((w) => w !== 'bow').map((w) => [w, kitSlot(w, SHOOT.rifle).weapon.round]);
+    for (const [w, r] of rounds) expect(Object.values(ROUNDS), w).toContainEqual(r);
+    expect(kitSlot('bow', SHOOT.rifle).weapon.round).toBeUndefined();
+    expect(kitSlot('handgun', SHOOT.rifle).weapon.round.flash).toBeLessThan(kitSlot('shotgun', SHOOT.rifle).weapon.round.flash);
+    const E = composeLive();
+    expect(E.initWeapon(kitSlot('rifle', SHOOT.rifle).weapon).round).toEqual(ROUNDS.rifle);
+    expect('round' in E.initWeapon({ fireClass: 'sight', magazine: 6 })).toBe(false);
+  });
 });
+

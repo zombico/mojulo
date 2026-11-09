@@ -9,7 +9,7 @@ import { designGameHandler } from './design-game.js';
 import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
-import { readQuick } from '@/lib/graph/gameworld/quick.js';
+import { readQuick, PERSON_WALK } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
@@ -728,6 +728,29 @@ describe('design_game quick', () => {
     expect(W.projectiles.some((r) => r.owner === P.id) || P.weapon.shots > 0).toBe(true);
   }, 240_000);
 
+  it('shoot over the shoulder: the hero turns by the mouse, A and D step aside, the legend says so', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['rifle'], camera: 'third-person', world: { id: 'tps', style: { kit: 'trail-valley' } } }, ref: 'tp' });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('tp-level-run-0'));
+    const P0 = payload.entities.find((e) => e.pilotable);
+    expect(P0.rule.turnMode).toBe('look');
+    expect(payload.camera).toMatchObject({ rule: 'follow', standOff: 0, mouseLook: true });
+    const legend = payload.events.hud.find((h) => /Space  jump/.test(h.text ?? '')).text;
+    expect(legend).toContain('A / D  step aside · mouse  look');
+    expect(legend).not.toContain('A / D  turn');
+    // played headless: the mouse's pixels turn it, a strafe moves it across its heading and leaves the heading be
+    const land = stageEnds(stored('tp-level-run-0')).ground, ground = (q) => land(q[0], q[1]) ?? 0;
+    const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders }, { ground }), W = sim.world, P = W.byId[W.pilotId];
+    sim.run(0.5);
+    const h0 = P.transform.heading;
+    Object.assign(sim.input, { lookDX: 40 }); sim.frame(1 / 30); Object.assign(sim.input, { lookDX: 0 });
+    expect(P.transform.heading).toBeGreaterThan(h0);
+    const h1 = P.transform.heading, p1 = [...P.transform.pos];
+    Object.assign(sim.input, { strafe: 1 }); sim.run(0.6); Object.assign(sim.input, { strafe: 0 });
+    const d = [P.transform.pos[0] - p1[0], P.transform.pos[1] - p1[1]], across = Math.abs(-d[0] * Math.sin(h1) + d[1] * Math.cos(h1));
+    expect(Math.abs(P.transform.heading - h1)).toBeLessThan(0.02);
+    expect(across).toBeGreaterThan(1);
+  }, 240_000);
+
   it('deathmatch: an arena laid on the trail\'s land whose laws hold, bots that fight each other, frags to a limit', async () => {
     const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, world: { id: 'arena', style: { kit: 'trail-valley' } } }, ref: 'dm' });
     // every arena law holds: no advice from it
@@ -765,7 +788,7 @@ describe('design_game quick', () => {
     expect(R.mechs).toEqual(['frags', 'supplies']);
     expect(S.mechs).toEqual(['frags', 'supplies', 'regen', 'abilities']);
     expect([R.player.rule.type, S.player.rule.type]).toEqual(['walk', 'platform']);
-    expect(S.player.rule).toMatchObject({ airJumps: 1, dodge: true });
+    expect(S.player.rule).toMatchObject({ airJumps: 1, dodge: true, walkSpeed: PERSON_WALK });   // a person: F is no thrust
     expect(R.player.weapon.damage * 4).toBeGreaterThanOrEqual(R.bot.body.hp - 1);   // four rounds drop a body
     expect(S.bot.body.hp).toBe(200);
     expect([R.bot.rule.peek, S.bot.rule.peek]).toEqual([true, false]);

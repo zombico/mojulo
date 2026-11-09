@@ -21,6 +21,9 @@ export function audioChannelScript(audio) {
   // the SFX mixer (audio.mix, opt-in): the cues on a bus in a space, ducks dipping the score, a voice cap, a cue placed
   // by its distance from the pilot. Absent, not a byte of it is emitted.
   const mix = audio.mix || null, mixFar = !!(mix && mix.distance);
+  // (the mix's reach, opt-in with its distance: the metres a cue is heard to, for a range of big guns whose shells burst
+  // kilometres off; absent, the arena's 900)
+  const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
   const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
   return `
@@ -163,7 +166,9 @@ ${mixFar ? `// the SFX mixer's distance (audio.mix.distance): __proxGain also le
 // distance for another cue) — a far cue duller and roomier, not only quieter.
 let __pf = null;
 __proxGain = (function (g) { return function (p) { var L = __listenerPos(), v = g(p); __pf = L && p ? { far: Math.min(1, Math.hypot(p[0] - L[0], p[1] - L[1], p[2] - L[2]) / 900), g: v } : null; return v; }; })(__proxGain);
-${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
+${reach ? `// the mix's reach (audio.mix.reach): a source as far off as the arena's distances times its reach is heard as one at them
+__proxGain = (function (g) { var k = ${900 / reach}; return function (p) { var L = __listenerPos(); return L && p ? g([L[0] + (p[0] - L[0]) * k, L[1] + (p[1] - L[1]) * k, L[2] + (p[2] - L[2]) * k]) : g(p); }; })(__proxGain);
+` : ''}${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
@@ -241,7 +246,10 @@ if (__AUDIO.weapon) {
     for (const e of ctrl.entities) {
       if (!e.weapon) continue;
       const last = __wLast[e.id] || (__wLast[e.id] = { w: e.weapon, shots: e.weapon.shots || 0, charge: e.weapon.chargeCount || 0, reloading: !!e.weapon.reloading, hitT: null });
-      if (last.w !== e.weapon) {
+      if (last.w !== e.weapon) {${audio.weapon && audio.weapon.switch ? `
+        // (a switch: the incoming gun drawn, its own draw or the world's)
+        const __sw = (e.weapon.sfx && e.weapon.sfx.draw) || __AUDIO.weapon.switch;
+        if (__sw) __beatsCue(__sw, __proxGain(e.transform.pos));` : ''}
         last.w = e.weapon; last.shots = e.weapon.shots || 0; last.charge = e.weapon.chargeCount || 0; last.reloading = !!e.weapon.reloading; last.hitT = null;
       }
       // per-weapon SFX (initWeapon carries e.weapon.sfx): a loadout's beam rifle and machine gun
@@ -264,7 +272,21 @@ if (__AUDIO.weapon) {
     }
   })();
 }
-// strike (melee) SFX: the beam saber's overhead cross. Read-only sim-state → SFX, the same
+${audio.burst ? `// BURSTS (audio.burst, opt-in): a travelling round's burst (a rocket, a grenade: the world's bursts, seq-keyed as the
+// effects read them) sounds where it went off, by its distance from you. Read-only.
+if (__AUDIO.burst) {
+  let __bSeq = null;
+  (function __beatsBurst() {
+    requestAnimationFrame(__beatsBurst);
+    const W = window.__mojCtrl && window.__mojCtrl.world;
+    if (!W || !W.bursts) return;
+    const top = W.bursts.length ? W.bursts[W.bursts.length - 1].seq : -1;
+    if (__bSeq === null || !__beatsEng || __beatsMuted) { __bSeq = top; return; }
+    for (const b of W.bursts) if (b.seq > __bSeq) __beatsCue(__AUDIO.burst, __proxGain(b.pos));
+    __bSeq = Math.max(__bSeq, top);
+  })();
+}
+` : ''}// strike (melee) SFX: the beam saber's overhead cross. Read-only sim-state → SFX, the same
 // posture as footsteps/weapon. 'swing' fires on each swing START (e.swingCount edge — the
 // crackling-ozone whoosh); 'hit' fires whenever the blade CONNECTS (e.meleeHitCount edge — the
 // distinct impact clash). A swing that whiffs plays only the swing cue; a connect plays both.

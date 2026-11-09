@@ -124,8 +124,8 @@
  *            wind that snaps it): a gust at its crown past that speed throws it downwind about its foot (a felling); its
  *            trunk breaks and burns as green wood, its crown as fine fuel
  *
- *   SCARS    cosmetic damage on a map that may not change (`rupa.scars: { ground, wall }`, a soil's and a matter's
- *            numbers): a burst paints the crater it would dig and throws the dirt it would throw, scorches the fixed walls
+ *   SCARS    cosmetic damage on a map that may not change (`rupa.scars: { ground, wall, walls? }`, a soil's and a matter's
+ *            numbers; `walls` [{ min, max, wall }] walls of their own matter by where they stand, the rest the world's `wall`): a burst paints the crater it would dig and throws the dirt it would throw, scorches the fixed walls
  *            in its reach and spalls them, a round chips what it stops on; nothing breaks, nothing moves, every mark and
  *            its debris from the same laws as a breaking (state.rupa.scars.marks)
  *
@@ -938,7 +938,7 @@ export function buildRupa(E) {
       footings: (() => { const out = []; let n = 0; for (const c of Array.isArray(spec.colliders) ? spec.colliders : []) { if (!(c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3)) continue; if (String(c.of || '').endsWith(':footing') && state.colliders[n]) out.push(state.colliders[n]); n++; } return out; })(),
       trees: Array.isArray(R.trees) ? R.trees.map((t) => ({ id: t.id, blocks: t.blocks.slice(), foot: t.foot, crown: t.crown.slice(), breakSpeed: t.breakSpeed, snapped: null })) : [], treesAt: -1,
       treeOf: Array.isArray(R.trees) ? Object.fromEntries(R.trees.flatMap((t) => t.blocks.map((id) => [id, t.id]))) : {},
-      scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null,
+      scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, ...(R.scars.walls ? { walls: R.scars.walls } : {}), marks: [], seq: 0 } : null,
       // an object's metal panels: each a plastic plate in its entity's frame, keeping its dents as a block does
       panels: panelled ? panelsOf(state, spec) : [] };
     if (state.rupa.ground && R.ground && ((Array.isArray(R.ground.water) && R.ground.water.length) || (Array.isArray(R.ground.rivers) && R.ground.rivers.length))) waterInit(state.rupa.ground, R.ground.water, R.ground.rivers);
@@ -1536,14 +1536,14 @@ export function buildRupa(E) {
       if (!s || s.t !== state.time || !Array.isArray(s.from) || !Array.isArray(s.to)) continue;
       const d = [s.to[0] - s.from[0], s.to[1] - s.from[1], s.to[2] - s.from[2]], hit = panelOnRay(state, s.from, d, e.id, s.mode !== 'miss' ? s.targetId : null);
       if (!hit) continue;
-      const D = panelBlow(state, hit.P, blowJoules('shot', R), 'shot', { dir: hit.dir, at: hit.at }, d);
+      const D = panelBlow(state, hit.P, shotJ(s, R), 'shot', { dir: hit.dir, at: hit.at }, d);
       if (!(D.through > 0)) stopped.add(e.id);
     }
     for (const e of state.entities) {
       const s = e.lastShot;
       if (!s || s.t !== state.time || s.mode !== 'miss' || stopped.has(e.id)) continue;
       const b = live.find((q) => !q.broken && boxDist(q, s.to) <= EPS);
-      if (b) spend(state, b, blowJoules('shot', R), 'shot', e.id, { dir: [s.to[0] - e.transform.pos[0], s.to[1] - e.transform.pos[1], s.to[2] - e.transform.pos[2]], at: boxNear(b, s.to) });
+      if (b) spend(state, b, shotJ(s, R), 'shot', e.id, { dir: [s.to[0] - e.transform.pos[0], s.to[1] - e.transform.pos[1], s.to[2] - e.transform.pos[2]], at: boxNear(b, s.to) });
     }
     for (const u of state.bursts || []) {
       if (u.t !== state.time) continue;
@@ -1811,6 +1811,10 @@ export function buildRupa(E) {
     return { at: q, normal: n, size, thick: c.max[ax] - c.min[ax] };
   }
   const fixedOf = (state) => state.colliders.filter((c) => c.blk == null && !String(c.of || '').startsWith('bound:'));
+  // a round's joules: its gun's blow (combat-ranged.js `weapon.blow`) at the world's power, else the world's own round
+  const shotJ = (sh, R) => (sh && sh.blow > 0 ? sh.blow * (R.power ?? 1) : blowJoules('shot', R));
+  // the matter a point on a wall is marked as: the wall of its own it falls in (`scars.walls`, by its box), else the world's
+  const ownWall = (S, p) => { const o = S.walls && S.walls.find((q) => boxDist(q, p) <= EPS); return o ? o.wall : S.wall; };
   E.registerWorldPass('rupa-scars', (state) => {
     const R = state.rupa;
     if (!R || !R.scars) return;
@@ -1824,19 +1828,32 @@ export function buildRupa(E) {
         scar(state, { kind: 'crater', at, radius: C.radius, depth: C.depth, rim: 3 * C.radius, debris: D });
       }
       if (!S.wall) continue;
+      // (a wall of its own matter, `scars.walls`: the box it stands in; any other as the world's walls)
       for (const c of fixedOf(state)) {
         if (boxDist(c, u.pos) > r + EPS) continue;
         const f = faceToward(c, u.pos), q = burstShare(c, u.pos, J), d = boxDist(c, u.pos);
         if (q < 1) continue;
-        scar(state, { on: c.of ?? null, ...scarOf(f.at, f.normal, q, S.wall, { how: 'burst', from: u.pos, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick, reach: Math.sqrt(Math.max(0, r * r - d * d)) }) });
+        scar(state, { on: c.of ?? null, ...scarOf(f.at, f.normal, q, ownWall(S, [0, 1, 2].map((k) => (c.min[k] + c.max[k]) / 2)), { how: 'burst', from: u.pos, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick, reach: Math.sqrt(Math.max(0, r * r - d * d)) }) });
       }
     }
     for (const e of state.entities) {
       const sh = e.lastShot;
       if (!sh || sh.t !== state.time || sh.mode !== 'miss' || !sh.to) continue;
-      const J = blowJoules('shot', R), dir = [sh.to[0] - e.transform.pos[0], sh.to[1] - e.transform.pos[1], sh.to[2] - e.transform.pos[2]];
+      const J = shotJ(sh, R), dir = [sh.to[0] - e.transform.pos[0], sh.to[1] - e.transform.pos[1], sh.to[2] - e.transform.pos[2]];
       const c = S.wall && fixedOf(state).find((x) => boxDist(x, sh.to) <= EPS);
-      if (c) { const f = faceToward(c, e.transform.pos); scar(state, { on: c.of ?? null, ...scarOf(sh.to, f.normal, J, S.wall, { how: 'shot', dir, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick }) }); }
+      if (c && sh.pellets > 1) {
+        // a shot (`pellets`): its blow shared among them, each its own chip in a pattern about where the shot stopped, as
+        // wide as the shot spreads by its way there (2.8 cm a metre), seeded by the wall and the mark's count
+        const f = faceToward(c, e.transform.pos), ax = Math.abs(f.normal[0]) > 0.5 ? 0 : Math.abs(f.normal[1]) > 0.5 ? 1 : 2, U = [0, 1, 2].filter((k) => k !== ax);
+        const spread = 0.028 * Math.hypot(dir[0], dir[1], dir[2]), W = ownWall(S, sh.to);
+        let q = seedOf(String(c.of) + ':shot', S.seq);
+        const rnd = () => { q = (Math.imul(q, 1664525) + 1013904223) >>> 0; return q / 4294967296; };
+        for (let k = 0; k < sh.pellets; k++) {
+          const a = rnd() * 2 * Math.PI, rr = spread * Math.sqrt(rnd()), at = sh.to.slice();
+          at[U[0]] += rr * Math.cos(a); at[U[1]] += rr * Math.sin(a);
+          scar(state, { on: c.of ?? null, ...scarOf(at, f.normal, J / sh.pellets, W, { how: 'shot', dir, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick }) });
+        }
+      } else if (c) { const f = faceToward(c, e.transform.pos); scar(state, { on: c.of ?? null, ...scarOf(sh.to, f.normal, J, ownWall(S, sh.to), { how: 'shot', dir, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick }) }); }
       else if (S.ground && Math.abs(sh.to[2] - floor) < 0.1) { const C = craterSize(J, S.ground.dig); scar(state, { kind: 'pock', at: [sh.to[0], sh.to[1], floor], radius: Math.max(0.04, C.radius), depth: C.depth, debris: null }); }
     }
   }, 34.5);

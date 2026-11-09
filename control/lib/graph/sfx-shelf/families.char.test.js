@@ -41,6 +41,14 @@ const PINS = {
   'blunt-hit': '906e92950ed9',
   'punch': '7381b2fa2b09',
   'kick': '6b9780abcac9',
+  // the gunshot family (2026-11-09, the firing range): a small arm by its cartridge, suppressed or not
+  'pistol-shot': 'af34c4146178',
+  'smg-shot': '354bf622b5f0',
+  'magnum-shot': 'e2ae819b2454',
+  'rifle-shot': 'e95d9d60c587',
+  'shotgun-shot': '2b820e66fc50',
+  'sniper-shot': '4fbf543a4364',
+  'suppressed-shot': '97200848d903',
   'mag-out': '71188b705cf0',
   'mag-in': 'f72d07b4338b',
   'rack': 'f2a3c92ca265',
@@ -106,7 +114,13 @@ const PINS = {
   'car-door': 'ef4a9a177b85',
   'kart-engine': '43dfb6c0858e',
   'boat-engine': '0447bec3c238',
+  // (new rows: the heavy diesel and the tracked engine, a walking machine's hydraulics: the artillery range's bases)
+  'diesel-engine': 'c096cf2c7466',
+  'tank-engine': '603e700a05e4',
+  'walker-hydraulics': '94b48bc613a7',
+  // (the helicopter and a multirotor drone's motors: the artillery range's rotorcraft)
   'helicopter': '6a1db48b91b1',
+  'drone-motors': 'f9e1b6875b8b',
   'spell-cast': 'e05c1b18f22f',
   'heal': '346509c7e2b9',
   'buff': '9dbc608cb701',

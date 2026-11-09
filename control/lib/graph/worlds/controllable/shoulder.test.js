@@ -36,6 +36,13 @@ describe('over the shoulder', () => {
     expect(fire(w)).toBeGreaterThan(0);
     expect(Math.hypot(w.byId.p.crosshairAt[0] - 20, w.byId.p.crosshairAt[1] - at[1])).toBeLessThan(0.6);
   });
+  it('a wall at the shooter\'s back, between it and the camera, is never the crosshair\'s: the round still goes ahead', () => {
+    // (the page pulls its camera in front of such a wall; the simulation's stays behind it, its ray through the wall)
+    const at = [20, crosshairAt(20), 0], wall = [{ min: [-1.6, -4, 0], max: [-1.2, 4, 3] }];
+    const w = world({ ...rifle, converge: true }, at, wall);
+    expect(fire(w)).toBeGreaterThan(0);
+    expect(w.byId.p.crosshairAt[0]).toBeGreaterThan(10);
+  });
   it('the third-person peek: past a corner the camera sees a foe the body is hidden from, and the gun cannot clear the edge', () => {
     // a wall ahead and to the right, its end just past the right shoulder; the foe beyond it, off to the right
     const wall = [{ min: [1, -0.8, 0], max: [1.5, 3, 3] }], foe = [8, -3, 0];

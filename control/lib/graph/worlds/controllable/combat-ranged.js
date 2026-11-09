@@ -79,13 +79,17 @@ export function buildCombatRanged(E) {
     if (!(L > 1e-6)) return null;
     const d = [v[0] / L, v[1] / L, v[2] / L], reach = range + Math.hypot(e.transform.pos[0] - C[0], e.transform.pos[1] - C[1]);
     const far = [C[0] + d[0] * reach, C[1] + d[1] * reach, C[2] + d[2] * reach];
+    // (searched from the shooter's depth along the ray: what stands between the camera and the shooter, a wall at its
+    // back the page's camera is pulled in front of, is never what the crosshair is on; the round would fly backwards)
+    const q = e.transform.pos, t0 = Math.max(0, (q[0] - C[0]) * d[0] + (q[1] - C[1]) * d[1] + (q[2] - C[2]) * d[2]);
+    const S = [C[0] + d[0] * t0, C[1] + d[1] * t0, C[2] + d[2] * t0];
     let best = reach;
-    const wt = nearestWallT(C, far, state.colliders);
-    if (wt != null) best = wt * reach;
+    const wt = nearestWallT(S, far, state.colliders);
+    if (wt != null) best = t0 + wt * (reach - t0);
     for (const tg of state.entities) {
       if (tg === e || tg.isCamera || !(tg.body && tg.body.hittable && tg.body.egg)) continue;
       const te = hitEgg(C, d, tg);
-      if (te != null && te < best) best = te;
+      if (te != null && te > t0 && te < best) best = te;
     }
     e.crosshairAt = [C[0] + d[0] * best, C[1] + d[1] * best, C[2] + d[2] * best];
     return e.crosshairAt;
@@ -137,8 +141,10 @@ export function buildCombatRanged(E) {
       // the BLOOM a spray builds (`bloom` a shot, `recover` a second back, `max` the cone's widest); where in the cone is
       // a seeded hash of the shooter and its shot count (deterministic). RECOIL (opt-in, degrees): each shot climbs the
       // aim `kick` (to `max`), settling `recover` a second. Without them a shot goes where it is aimed, as before.
-      spread: w.spread && typeof w.spread === 'object' ? { base: w.spread.base ?? 0, move: w.spread.move ?? 0, bloom: w.spread.bloom ?? 0, recover: w.spread.recover ?? 4, max: w.spread.max ?? 6 } : null,
-      recoil: w.recoil && typeof w.recoil === 'object' ? { kick: w.recoil.kick ?? 0, recover: w.recoil.recover ?? 6, max: w.recoil.max ?? 6 } : null,
+      // `wait` (opt-in, seconds, either): the settling starts only once the trigger has rested that long, so a held
+      // spray builds its bloom and its climb at any rate of fire; absent, it settles every frame, as before.
+      spread: w.spread && typeof w.spread === 'object' ? { base: w.spread.base ?? 0, move: w.spread.move ?? 0, bloom: w.spread.bloom ?? 0, recover: w.spread.recover ?? 4, max: w.spread.max ?? 6, ...(w.spread.wait > 0 ? { wait: w.spread.wait } : {}) } : null,
+      recoil: w.recoil && typeof w.recoil === 'object' ? { kick: w.recoil.kick ?? 0, recover: w.recoil.recover ?? 6, max: w.recoil.max ?? 6, ...(w.recoil.wait > 0 ? { wait: w.recoil.wait } : {}) } : null,
       bloomNow: 0, kickNow: 0,
       // FALLOFF (opt-in, metres): a round's damage holds to `from`, then thins in a line to `min` of itself at `to` and
       // past it (a burst for a corner hurts little across a hall). Without it a round deals the same at any range.
@@ -151,6 +157,10 @@ export function buildCombatRanged(E) {
       converge: w.converge === true,      // CONVERGE (opt-in): the round goes from the muzzle to the crosshair's point (an over-the-shoulder camera's)
       muzzleAlt: w.muzzleAlt || false,        // DUAL WIELD (alternate): flip the lateral muzzle each shot (two guns take turns)
       muzzleDual: w.muzzleDual || false,      // DUAL WIELD (simultaneous): fire BOTH guns each shot — the renderer mirrors the muzzle flash
+      // A ROUND'S BLOW (opt-in): `blow` the joules a round carries (its gun's: arms-kit.js), `pellets` the shot it parts
+      // into (a shotgun's); the shot's record carries them to what it stops on (rupa.js: the blows and the scars). Absent,
+      // a round spends the world's own (rupa.shot), as before
+      ...(w.blow > 0 ? { blow: w.blow } : {}), ...(w.pellets > 1 ? { pellets: Math.round(w.pellets) } : {}),
       // NO-FIRE-WHILE-BOOSTING (operator): heavy launchers (lob) + precise semi beams (the beam-rifle
       // class) can't be fired mid-thrust; auto suppression weapons (MG/vulcan) still stream. null →
       // the class default (w.auto — true for area autos, false for lob + semi beams); set explicitly
@@ -158,6 +168,9 @@ export function buildCombatRanged(E) {
       boostFire: w.boostFire ?? null,
       fxColor: w.fxColor ?? null,         // tracer/flash tint (renderer)
       fxScale: w.fxScale ?? null,         // effect base size (renderer)
+      // A ROUND (opt-in, gameworld/rounds.js): a small arm's look on the page, `speed` (m/s) its streak's and `flash` (m) its
+      // muzzle flash's length; absent, the renderer's bolt and burst at fxScale, as before
+      ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12 } } : {}),
       smokeTrail: w.smokeTrail ?? true,    // lob projectile smoke trail toggle (grenades opt out; bazookas keep it)
       reticleDist: w.reticleDist ?? null, // how far ahead the crosshair marks the aim point (renderer)
       sfx: w.sfx && typeof w.sfx === 'object' ? w.sfx : null,   // per-weapon SFX cues { shot?, hit?, reload? } — the audio channel prefers these over the world-level ones (a beam rifle and a machine gun sound different)
@@ -181,6 +194,9 @@ export function buildCombatRanged(E) {
       projRadius: w.projRadius ?? 0.5,    // the round's own collision radius (added to a target's radius)
       armTime: w.armTime ?? 0.06,         // sec before the round can burst (so it clears the muzzle/owner)
       fuse: w.fuse ?? 4,                  // sec max flight before it bursts wherever it is
+      // DRAG (opt-in, 1/m): a shell's quadratic drag constant (½ρ·Cd·A / m): dv/dt = −k·|v|·v, a round slowing along its
+      // flight (a long rod hardly, a fat shell more); absent, a round flies on gravity alone, as before
+      ...(w.projectileDrag > 0 ? { projectileDrag: w.projectileDrag } : {}),
       // PROXIMITY FUZE (bazooka QoL, 2026-08-06): the round DETONATES when it passes within this
       // distance of a hittable body — a near-miss bursts beside the target and the splash catches
       // it, instead of sailing past. 0 (default) = contact-only, byte-identical.
@@ -213,8 +229,10 @@ export function buildCombatRanged(E) {
   function tickWeapon(w, dt) {
     if (!w) return;
     if (w.cooldownT > 0) w.cooldownT = Math.max(0, w.cooldownT - dt);
-    if (w.spread && w.bloomNow > 0) w.bloomNow = Math.max(0, w.bloomNow - w.spread.recover * dt);
-    if (w.recoil && w.kickNow > 0) w.kickNow = Math.max(0, w.kickNow - w.recoil.recover * dt);
+    // (a `wait`: the time since the last round, `restT`, kept only for a weapon that has one)
+    if (w.restT != null) w.restT += dt;
+    if (w.spread && w.bloomNow > 0 && !(w.spread.wait > 0 && w.restT < w.spread.wait)) w.bloomNow = Math.max(0, w.bloomNow - w.spread.recover * dt);
+    if (w.recoil && w.kickNow > 0 && !(w.recoil.wait > 0 && w.restT < w.recoil.wait)) w.kickNow = Math.max(0, w.kickNow - w.recoil.recover * dt);
     if (w.energyMax > 0) {
       const rr = w.energyLock ? (w.energyOverheatRegen ?? w.energyRegen) : w.energyRegen;
       if (rr > 0) w.energy = Math.min(w.energyMax, (w.energy ?? w.energyMax) + rr * dt);
@@ -329,6 +347,7 @@ export function buildCombatRanged(E) {
     if (want) {
       if (!w.infinite) w.ammo -= (chargedShot && w.chargedAmmoCost) ? Math.min(w.chargedAmmoCost, w.ammo) : 1;
       w.shots += 1;
+      if ((w.spread && w.spread.wait > 0) || (w.recoil && w.recoil.wait > 0)) w.restT = 0;   // the trigger's rest starts again (a weapon with a `wait`)
       if (w.energyMax > 0) {
         const ec = chargedShot ? (w.chargedEnergyCost ?? w.energyCost ?? 0) : (w.energyCost || 0);
         w.energy = Math.max(0, (w.energy ?? w.energyMax) - ec);
@@ -382,14 +401,15 @@ export function buildCombatRanged(E) {
         // integrates it under gravity and adjudicates the burst. lastShot carries to:null so the
         // hitscan fx channel draws nothing — the projectile channel owns lob visuals.
         const la = (w.lobAngle || 0) * Math.PI / 180;
-        const dir = fwd3(baseH, baseP + la);
+        // (a gun's dispersion: the seeded cone above, when the weapon has one, carried by the round; absent, as aimed)
+        const dir = w.spread ? fwd3(Math.atan2(aim[1], aim[0]), Math.asin(clamp(aim[2], -1, 1)) + la) : fwd3(baseH, baseP + la);
         const sp = w.projectileSpeed || 60;
         state.projectiles.push({
           id: 'proj-' + (state.projSeq++), owner: e.id,
           pos: from.slice(), vel: [dir[0] * sp, dir[1] * sp, dir[2] * sp],
           gravity: w.projectileGravity || 0, splashRadius: w.splashRadius || 0, projRadius: w.projRadius || 0.5, prox: w.proximity || 0,
           // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
-          damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4,
+          damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
@@ -446,7 +466,7 @@ export function buildCombatRanged(E) {
           // NOT the target's FEET origin (`transform.pos`, z≈0), which made every impact fx + beam bolt
           // terminate at the legs. Purely the visual/impact anchor (damage/poise are unchanged below).
           const hitPt = [origin[0] + aim[0] * best.d, origin[1] + aim[1] * best.d, origin[2] + aim[2] * best.d];
-          e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: hitPt, charged: chargedShot };
+          e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: hitPt, charged: chargedShot, ...(w.blow ? { blow: w.blow } : {}), ...(w.pellets ? { pellets: w.pellets } : {}) };
           tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1;
           tg.lastHitBy = e.id;   // match-layer attribution: the most recent hitter takes the kill credit
           // HEADSHOT (opt-in `weapon.headshot`, a multiplier): a core hit that enters the egg in its top HEAD_BAND is to the
@@ -488,7 +508,7 @@ export function buildCombatRanged(E) {
           // miss (or blocked by cover): stop the tracer AT the wall if the aim ray hits one, else fly to range.
           const far = [origin[0] + aim[0] * shotRange, origin[1] + aim[1] * shotRange, origin[2] + aim[2] * shotRange];
           const wt = nearestWallT(from, far, state.colliders);
-          e.lastShot = { mode: 'miss', t: state.time, from, to: wt != null ? lerp3(from, far, wt) : far, charged: chargedShot };
+          e.lastShot = { mode: 'miss', t: state.time, from, to: wt != null ? lerp3(from, far, wt) : far, charged: chargedShot, ...(w.blow ? { blow: w.blow } : {}), ...(w.pellets ? { pellets: w.pellets } : {}) };
         }
       }
     }
@@ -511,6 +531,8 @@ export function buildCombatRanged(E) {
         p.age += dt;
         const prev = [p.pos[0], p.pos[1], p.pos[2]];   // travel segment start (for the wall-hit test)
         if (p.homing) steerHoming(state, p, dt);   // a missile (stepMissiles) turns toward its target
+        // (a shell's drag, opt-in: the speed shed along the velocity this step, v / (1 + k·|v|·dt), stable at any step)
+        if (p.drag) { const f = 1 / (1 + p.drag * Math.hypot(p.vel[0], p.vel[1], p.vel[2]) * dt); p.vel[0] *= f; p.vel[1] *= f; p.vel[2] *= f; }
         p.vel[2] -= (p.gravity || 0) * dt;
         p.pos[0] += p.vel[0] * dt; p.pos[1] += p.vel[1] * dt; p.pos[2] += p.vel[2] * dt;
         let hitId = null;

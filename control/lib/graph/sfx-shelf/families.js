@@ -37,11 +37,12 @@ import { work, cooking } from './families/life.js';
 import { heartbeat, breath, horror } from './families/horror.js';
 import { build, siege, flight, brawl } from './families/war.js';
 import { katana } from './families/blades.js';
+import { gunshot } from './families/gunshot.js';
 import { freeze } from './layers.js';
 
 export const FAMILIES = Object.freeze({
   // combat and its world
-  explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield, launch,
+  explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield, launch, gunshot,
   // held voices
   booster, engine, beam, servo, fire, charge,
   // by game type: sports, racing, adventure, platformers / puzzles / tables, life sims, horror, strategy / flight / brawlers

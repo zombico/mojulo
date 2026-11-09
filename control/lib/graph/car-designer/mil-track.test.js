@@ -200,6 +200,20 @@ describe('the light tank\'s turret and gun', () => {
     expect(muzzle).toBeGreaterThan(PHYSICS[TANK].L / 2);
     for (const k of ['L', 'W', 'H']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
   });
+  it('gun: its gun and mantlet on a bone of their own, its head the trunnion, for a turret runtime to elevate; absent, as it was', () => {
+    const g = make({ gun: true }), ids = g.figure.bones.map((b) => b.id), head = g.figure.bones[ids.indexOf('gun')].head;
+    expect(ids).toEqual([...c.figure.bones.map((b) => b.id), 'gun']);
+    // (every gun and mantlet face moved, nothing else; the turret keeps the rest)
+    expect(g.form.gun.every((f) => /^(gun|mantlet)/.test(f.part))).toBe(true);
+    expect(g.form.gun.length + g.form.turret.length).toBe(c.form.turret.length);
+    expect(g.form.turret.some((f) => /^(gun|mantlet)/.test(f.part))).toBe(false);
+    // (the trunnion at the mantlet's back on the barrel's axis; the muzzle past the hull)
+    expect(head).toEqual(g.gun.trunnion);
+    expect(g.gun.trunnion[1]).toBeCloseTo(Math.min(...g.form.gun.filter((f) => f.part === 'mantlet').flatMap((f) => f.corners.map((p) => p[1]))), 3);
+    expect(g.gun.muzzle[1]).toBeGreaterThan(PHYSICS[TANK].L / 2);
+    expect(g.gun.muzzle[2]).toBe(g.gun.trunnion[2]);
+    expect(c.gun).toBeUndefined();
+  });
   it('its camo and its number turn with it', () => {
     const camo = make({ livery: CAMO_IDS.find((k) => !CAMO[k].cell) });
     expect(new Set(camo.form.turret.filter((f) => f.material === 'milPaint').map((f) => f.albedo)).size).toBeGreaterThan(2);

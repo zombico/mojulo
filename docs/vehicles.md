@@ -43,6 +43,11 @@ and its parts, and a paint over a class's true numbers. The shelf's own guide is
 - A stance is solved by the legs' inverse kinematics, in `mecha-ik.js`. A frame may have two legs (`r`, `l`) or four
   (`fr`, `fl`, `rr`, `rl`).
 - Its laws are measured in `mecha-laws.js`.
+- Its walk is `mecha-gait.js`: read from its structure (its legs, their reach within their joints' ranges through the
+  IK) and scaled to its size (a walk at a Froude number: the bigger the frame, the longer its stride and the slower its
+  steps), each key a stance the IK solves, held to its gait laws; a four-legged frame's leg order, foot spread and stride
+  chosen so a side's two feet, their outlines turned with their legs, pass clear. The artillery range walks it
+  (`gameworld/combat/frames.js`).
 - The inventory is `mecha-odm.js`, the archetypes `mecha-archetypes.js`, and the door `index.js`.
 - Review renders: `scripts/render-mecha.mjs`.
 
@@ -88,6 +93,10 @@ The frames:
 
 [craft-shelf/](../control/lib/graph/craft-shelf/) is the ODM inventory of aircraft, rotorcraft and spacecraft parts.
 It assembles whole craft by archetype. The flight-game map is [flight-games.md](flight-games.md).
+The armed aircraft fly the artillery range on the fly rule, each at its type's envelope in the skyscape's `CRAFT`, its
+gun fixed along its nose: `gameworld/combat/aircraft.js`.
+Its helicopters and multirotor drones fly the range on the hover rule (`worlds/controllable/rules-hover.js`) at their
+types' figures (`skyscape/rotor.js`), armed as such machines are: `gameworld/combat/rotorcraft.js`.
 
 Boats are on the same shelf: `boat-odm.js`, `boat-parts.js` and `boat-archetypes.js`.
 
@@ -99,6 +108,9 @@ Boats are on the same shelf: `boat-odm.js`, `boat-parts.js` and `boat-archetypes
   - `worlds/seaway-scene.js` and the `seaway` channel run it round a course on the World page's live water.
   - The wake's Kelvin field is `kelvin.js`.
 - Review renders: `scripts/render-boats.mjs`.
+- Driven: a boat's class figures (its power, its top speed, its turning circle) and its wake at each of its speeds are
+  `boat-drive.js`; the boat rule drives it (`worlds/controllable/rules-boat.js`), the artillery range at sea arms it and
+  draws its water (`gameworld/combat/boats.js`, `scene/channels/controllable/boat-water.js`).
 
 ## Rail: the rail shelf
 

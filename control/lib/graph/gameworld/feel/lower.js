@@ -11,12 +11,13 @@
  *     set      the card's own fields laid over the template's (objects merge, anything else replaces)
  *     takes    true: the hero plays its OWN jumps on the card's flight (TAKES): the standing jump, the jump forward out
  *              of a run, the double jump's second push for an air jump, each clip's gather, air and landing played on
- *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames. Absent: the
- *              animation library's held leap, every byte as before
+ *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames; and the
+ *              card's moves: its wall, its dash, its sprint (Shift held) and its walk. Absent: the animation library's
+ *              held leap, every byte as before
  *
  *   readFeel(v)       → the feel checked ({ pole, variant?, toward?, t?, set? }); throws, teaching
  *   feelCard(feel)    → the card the feel makes
- *   lowerFeel(card, { gear? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
+ *   lowerFeel(card, { gear?, takes?, base? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
  *                       `rule` the platform rule's fields (speed, accel, decel, faceRate, jumpSpeed, gravity,
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
  *                       strikeContact, combo, hitstop, guard; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
@@ -119,7 +120,7 @@ function takesOf(J, look) {
 
 /** A card → the platform rule's fields, and what is carried, partly carried and not carried. `takes`: the hero's own
  * jumps played on the card's flight (TAKES), the landing held the card's frames. */
-export function lowerFeel(card, { gear = null, takes = false } = {}) {
+export function lowerFeel(card, { gear = null, takes = false, base = null } = {}) {
   const rule = {}, carried = [], partly = [], lost = [];
   const C = card, Gd = C.ground, J = C.jump;
   const put = (field, k, v) => { rule[k] = v; carried.push(field); };
@@ -129,13 +130,17 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   if (Gd.accel > 0) put('ground.accel', 'accel', Gd.accel);
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
-  // the sprint: with the takes and no dash, the run button (F held), its speed built as a mascot platformer's run is, over
-  // SPRINT.build seconds of running (a takes' dash keeps one speed, the run); without the takes, the SPRINT on the hero's
-  // STAMINA: the boost held, on its gauge (rules-platform.js `stamina`), the card's `stamina` its seconds of sprint, its
-  // refill and its winded refill (STAMINA the defaults)
-  const sprints = takes && Gd.sprint > Gd.run && !(C.dash && C.dash.kind === 'dash');
-  if (sprints) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
-  else if (takes && Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  // THE SPRINT, by the game the template is (its `base`) and whether the hero plays its takes:
+  //   with the takes, a PLATFORMER's hero (a mascot) runs on the run button (F held), its speed built up over SPRINT.build
+  //   seconds of running (rules-platform.js `sprint`), unless the card dashes (a takes' dash keeps one speed, the run);
+  //   with the takes, any other hero is a PERSON: the sprint held on Shift (`sprintSpeed`, never firing or aiming) and its
+  //   walk (`walkSpeed`), a person's pace;
+  //   without the takes, the sprint on the hero's STAMINA: the boost held, on its gauge (rules-platform.js `stamina`), the
+  //   card's `stamina` its seconds of sprint, its refill and its winded refill (STAMINA the defaults), and the dodge on it
+  const mascot = (base ?? POLES[C.pole]?.base ?? null) === 'platformer';
+  if (takes && Gd.sprint > Gd.run && mascot && !(C.dash && C.dash.kind === 'dash')) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
+  else if (takes && Gd.sprint > Gd.run && mascot) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  else if (takes && Gd.sprint > Gd.run) put('ground.sprint', 'sprintSpeed', Gd.sprint);
   else if (Gd.sprint > Gd.run) {
     const St = { ...STAMINA, ...(C.stamina ?? {}) };
     put('ground.sprint', 'stamina', true); rule.boostSpeed = Gd.sprint;
@@ -150,6 +155,7 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
       carried.push('dodge');
     }
   }
+  if (takes && !mascot && Gd.walk > 0 && Gd.walk < Gd.run) put('ground.walk', 'walkSpeed', Gd.walk);
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);
@@ -251,7 +257,7 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
 export function feelRule(feel) {
   const F = readFeel(feel);
   // (the template's worn gear with it: a glider it holds is carried, lowerFeel)
-  return lowerFeel(feelCard(F), { gear: POLES[F.pole]?.gear ?? null, takes: !!F.takes }).rule;
+  return lowerFeel(feelCard(F), { gear: POLES[F.pole]?.gear ?? null, takes: !!F.takes, base: POLES[F.pole]?.base ?? null }).rule;
 }
 
 /**
@@ -289,7 +295,7 @@ export function feelVayo(card) {
 
 /** What a gameworld's feel makes of its hero, for the readout: the template, its viewer (advice), and what is carried. */
 export function feelReport(feel) {
-  const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null, takes: !!F.takes });
+  const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null, takes: !!F.takes, base: P.base ?? null });
   return {
     pole: F.pole, name: P.name, after: P.after, ...(F.variant ? { variant: F.variant } : variantsOf(F.pole).length ? { variant: variantsOf(F.pole)[0] } : {}),
     ...(F.toward ? { toward: F.toward, t: F.t } : {}), ...(F.takes ? { takes: true } : {}), view: P.view.camera,

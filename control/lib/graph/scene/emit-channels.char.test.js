@@ -645,6 +645,32 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // (the sword, the spear, the axe, the staff; a boss's weapon).
 // Re-pinned 2026-11-09 (1109-gen-bodywork: the weapon arts): `brawl` only. Its page inlines the brawl's moves (each
 // weapon's own chain).
+// Re-pinned 2026-11-08 (1108-realism-combat-tester, phase 4: the gaps the combat tester measured): the fixtures that
+// embed the controllable runtime. The platform rule gained a person's sprint (`sprintSpeed`, held on `input.sprint`);
+// the weapon its spread's and recoil's `wait` (settling once the trigger rests: `restT`, kept only with one) and a
+// round's `blow` and `pellets`, carried on the shot's record. On the `controllable` fixture 22 lines are added and 6
+// replaced (the spread and recoil records, their settling, the two shot records), each as before without its opt-in.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester: a shooter's hero over the shoulder, drawn and framed): the same
+// fixtures. The body builder's loadout branch (a body per slot's figure) runs only when a slot names a figure; a carried
+// kit's slots name none, and the body is its own figure (before, a hero carrying `arms` had no body). The wall pull-in
+// passes the camera rule's opt-in `standOff` to followPullIn, whose wall skin now applies only at a wall (the default
+// 3 m stand-off was always the larger cut in the open, so every default camera stands where it did). On the
+// `controllable` fixture 5 lines are replaced and 3 added; absent `standOff` and a figure-less loadout, as before.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester: small arms drawn as small arms): the same fixtures. A weapon's
+// opt-in `round` (gameworld/rounds.js, kept by initWeapon) draws its shot in the sim register (__spawnRoundFx: a hand's
+// length of flash, a wisp, a one-pixel streak, dust), from a carried gun's own muzzle where the gunplay view gives one;
+// and the converge crosshair is searched from the shooter's depth along the camera's ray (a wall at its back caught it
+// and sent the round backwards). On the `controllable` fixture 4 lines are replaced and 61 added; a weapon without a
+// round draws as before.
+// Re-pinned 2026-11-09 (1108-realism-combat-tester, the artillery range's phase 2: a shell's flight): the same fixtures.
+// A travelling round takes an opt-in `projectileDrag` (initWeapon keeps it, the launch carries it, stepProjectiles sheds
+// the speed along the velocity), and a lobbed round leaves through its weapon's seeded cone when it has one. On the
+// `controllable` fixture 2 lines are replaced and 6 added; a round without drag or a cone flies as before.
+// Re-pinned 2026-11-10 (1109-cosmos-contraction merging 1108-realism-combat-tester): the 16 fixtures that embed the
+// controllable runtime, which both lines moved. This line's moveset, its specials palette, the
+// pose layers and the sheathed body's figures; that line's turret view, boat water, the figure-less loadout, a round's
+// drag, the person's sprint on Shift and its walk, over-the-shoulder rounds. The merged page carries both, each still
+// behind its own opt-in; no fixture's play changed by the meeting itself.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

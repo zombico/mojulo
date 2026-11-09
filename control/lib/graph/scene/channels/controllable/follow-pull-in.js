@@ -12,6 +12,9 @@
  *     radius  the subject's own radius (its collide volume, its capsule, its body), 0 unknown
  *     height  the subject's capsule height, 0 unknown
  *     near    the camera's near plane (the page's camera.near)
+ *     standOff  (opt-in, the camera rule's `standOff`) the open-line stand-off in metres in place of the default: 0
+ *             stands the eye where the rule puts it (a shooter's over the shoulder, gameworld/quick.js SHOULDER, whose
+ *             rounds converge from the rule's own eye); absent, the default below
  *
  * Two stand-offs. With nothing in the way the eye stands `skin` short of the line's far end (the stand-off is part of
  * every follow camera's framing: 3 m for anything a person's height or taller, the framing a suit's chase was tuned at,
@@ -23,8 +26,9 @@
  * the ground) and its near plane clear of it, so a wall behind a small hero cannot drag the eye into it; a first-person
  * camera, whose look point leads its own eye, is never drawn in at all.
  */
-export function followPullIn(full, hitD, lead, hz, radius, height, near) {
-  const k = height > 0 ? Math.min(1, height / 1.7) : 1, skin = 3 * k, wallSkin = 0.5 * k + (near || 0);
+export function followPullIn(full, hitD, lead, hz, radius, height, near, standOff) {
+  const k = height > 0 ? Math.min(1, height / 1.7) : 1, skin = standOff >= 0 ? standOff : 3 * k, wallSkin = 0.5 * k + (near || 0);
   const clear = (lead + radius + (near || 0)) / Math.max(hz, 1e-6);
-  return Math.min(1, Math.max(0.15, clear / full, Math.min(full - skin, hitD - wallSkin) / full));
+  // (the wall's skin only where there is a wall: `hitD` is the whole line when nothing is in the way)
+  return Math.min(1, Math.max(0.15, clear / full, Math.min(full - skin, hitD < full ? hitD - wallSkin : Infinity) / full));
 }

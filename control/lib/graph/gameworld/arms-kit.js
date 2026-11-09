@@ -18,6 +18,7 @@
 // its time to kill) so a kit fits the game it is carried in. Pure data and arithmetic; no dice.
 import { armHandling, armBoxes } from '../equipment/arms/handling.js';
 import { ARM_MODELS } from '../equipment/arms/models.js';
+import { roundOf } from './rounds.js';
 
 const r2 = (v) => Math.round(v * 100) / 100 + 0, r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 
@@ -47,14 +48,19 @@ export const ARMS_KIT_WORDS = Object.freeze(Object.keys(ARMS_KIT));
 /** the carried slots' limit (the page's keys 1–5) */
 export const ARMS_MAX = 5;
 
+// (an automatic's bloom and climb `wait` for the trigger to rest before they settle, so a held spray builds at its own
+// rate of fire; `blow` the joules a round carries, about its cartridge's at the muzzle, what it marks a wall with or
+// breaks it by (rupa.js); `pellets` the shot a shell parts into)
+// each archetype's round (gameworld/rounds.js): what the page draws of it going off
+const ROUND_OF = Object.freeze({ auto: 'rifle', spray: 'smg', pump: 'shotgun', marksman: 'marksman', bolt: 'sniper', sidearm: 'pistol', magnum: 'magnum' });
 const ARCHETYPES = Object.freeze({
-  auto: { auto: true, rof: 9, dmg: 0.5, magazine: 30, reserve: 90, reload: 2.4, range: 70, spread: { base: 0.6, move: 3, bloom: 0.45, recover: 5, max: 4 }, recoil: { kick: 0.45, recover: 4, max: 4 } },
-  spray: { auto: true, rof: 13, dmg: 0.33, magazine: 30, reserve: 120, reload: 2, range: 35, spread: { base: 0.9, move: 2.2, bloom: 0.35, recover: 6, max: 5 }, recoil: { kick: 0.3, recover: 5, max: 3 }, falloff: { from: 15, to: 35, min: 0.5 } },
-  pump: { cooldown: 0.9, dmg: 2.5, magazine: 6, reserve: 24, reload: 3.2, range: 25, coreAngle: 4, spread: { base: 2.2, move: 1.5, bloom: 0, recover: 6, max: 4 }, recoil: { kick: 4, recover: 5, max: 6 }, falloff: { from: 6, to: 18, min: 0.2 } },
-  marksman: { cooldown: 0.45, dmg: 1.6, magazine: 10, reserve: 40, reload: 2.6, range: 120, headshot: 2, spread: { base: 1.6, move: 5, bloom: 1, recover: 4, max: 6 }, recoil: { kick: 1.2, recover: 3, max: 4 } },
-  bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 2.5, max: 4 } },
-  sidearm: { cooldown: 0.25, dmg: 0.75, magazine: 15, reserve: 45, reload: 1.6, range: 40, spread: { base: 0.8, move: 1.8, bloom: 0.8, recover: 5, max: 4 }, recoil: { kick: 1, recover: 5, max: 3 } },
-  magnum: { cooldown: 0.5, dmg: 1.4, magazine: 6, reserve: 24, reload: 2.8, range: 50, headshot: 2, spread: { base: 0.8, move: 2.2, bloom: 1.4, recover: 4, max: 5 }, recoil: { kick: 2.4, recover: 4, max: 5 } },
+  auto: { auto: true, rof: 9, dmg: 0.5, magazine: 30, reserve: 90, reload: 2.4, range: 70, blow: 1750, spread: { base: 0.6, move: 3, bloom: 0.45, recover: 5, max: 4, wait: 0.15 }, recoil: { kick: 0.45, recover: 4, max: 4, wait: 0.15 } },
+  spray: { auto: true, rof: 13, dmg: 0.33, magazine: 30, reserve: 120, reload: 2, range: 35, blow: 550, spread: { base: 0.9, move: 2.2, bloom: 0.35, recover: 6, max: 5, wait: 0.15 }, recoil: { kick: 0.3, recover: 5, max: 3, wait: 0.15 }, falloff: { from: 15, to: 35, min: 0.5 } },
+  pump: { cooldown: 0.9, dmg: 2.5, magazine: 6, reserve: 24, reload: 3.2, range: 25, coreAngle: 4, blow: 3200, pellets: 9, spread: { base: 2.2, move: 1.5, bloom: 0, recover: 6, max: 4 }, recoil: { kick: 4, recover: 5, max: 6 }, falloff: { from: 6, to: 18, min: 0.2 } },
+  marksman: { cooldown: 0.45, dmg: 1.6, magazine: 10, reserve: 40, reload: 2.6, range: 120, headshot: 2, blow: 3300, spread: { base: 1.6, move: 5, bloom: 1, recover: 4, max: 6 }, recoil: { kick: 1.2, recover: 3, max: 4 } },
+  bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, blow: 6000, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 2.5, max: 4 } },
+  sidearm: { cooldown: 0.25, dmg: 0.75, magazine: 15, reserve: 45, reload: 1.6, range: 40, blow: 500, spread: { base: 0.8, move: 1.8, bloom: 0.8, recover: 5, max: 4 }, recoil: { kick: 1, recover: 5, max: 3 } },
+  magnum: { cooldown: 0.5, dmg: 1.4, magazine: 6, reserve: 24, reload: 2.8, range: 50, headshot: 2, blow: 750, spread: { base: 0.8, move: 2.2, bloom: 1.4, recover: 4, max: 5 }, recoil: { kick: 2.4, recover: 4, max: 5 } },
 });
 /** how much aiming down the sights takes of the hip's cone, its slowing of the feet, and its share of the move's cone */
 export const ADS = Object.freeze({ spread: 0.35, move: 0.55, moveSpread: 0.5, scopedSpread: 0.02 });
@@ -103,19 +109,50 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
       kind: 'bow', ads: { zoom: BOW.zoom, time: BOW.aimTime, spread: 1, move: ADS.move, moveSpread: 1 }, sway: BOW.sway, swap: { out: BOW.swapOut, in: BOW.swapIn },
       draw: { speed: BOW.speed, damage: [r3(BOW.dmg[0] * dmg0), r3(BOW.dmg[1] * dmg0)] }, view: { kind: 'bow', length: BOW.length } } };
   }
-  const arm = K.arm, h = armHandling(arm), A = ARCHETYPES[K.as ?? archetypeOf(arm, h)], st = h.stations, hd = h.handling;
+  const arm = K.arm, h = armHandling(arm), as = K.as ?? archetypeOf(arm, h), A = ARCHETYPES[as], st = h.stations, hd = h.handling;
   const scope = st.sight.zoom >= 3;
   const weapon = { fireClass: 'sight', auto: !!A.auto, ...(A.auto ? { rof: A.rof } : { cooldown: A.cooldown }), magazine: A.magazine, reserve: A.reserve, reload: A.reload, damage: r3(A.dmg * dmg0), impact: 1,
-    range: A.range, coreAngle: A.coreAngle ?? base.coreAngle ?? 1.5, ...(A.headshot ? { headshot: A.headshot } : {}), spread: { ...A.spread }, recoil: { ...A.recoil, kick: r2(A.recoil.kick * (hd.recoil / 2)) }, ...(A.falloff ? { falloff: { ...A.falloff } } : {}), ...where };
+    range: A.range, coreAngle: A.coreAngle ?? base.coreAngle ?? 1.5, ...(A.headshot ? { headshot: A.headshot } : {}), spread: { ...A.spread }, recoil: { ...A.recoil, kick: r2(A.recoil.kick * (hd.recoil / 2)) }, ...(A.falloff ? { falloff: { ...A.falloff } } : {}),
+    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...(ROUND_OF[as] ? { round: roundOf(ROUND_OF[as]) } : {}), ...where };
   // the viewmodel: the arm as its parts' boxes (cm), the fist's place, the sight line and the eye's relief
   const view = { kind: h.class === 'handgun' ? 'handgun' : 'long', boxes: armBoxes(arm).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]),
-    grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}) };
+    grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),
+    hands: handsOf(st) };
   return { name, weapon, switchReady: r2(hd.swapOut + hd.swapIn), gunplay: {
     kind: view.kind, arm, ads: { zoom: scope ? st.sight.zoom : st.sight.zoom > 1 ? st.sight.zoom : OPEN_ZOOM, time: hd.aimTime, spread: scope ? ADS.scopedSpread : ADS.spread, move: ADS.move, moveSpread: ADS.moveSpread, ...(scope ? { scope: true } : {}) },
     sway: hd.sway, swap: { out: hd.swapOut, in: hd.swapIn }, view } };
 }
 
+// where a body's hands close on the arm and where it meets the shoulder (arms/handling.js stations: a fist's centre, the
+// line out of its index side, its long axis), for a body that carries it (the page's gunplay view, over the shoulder)
+const station = (s) => ({ at: s.at.map(r2), c: s.c.map(r3), a: s.a.map(r3) });
+function handsOf(st) {
+  const sup = st.support;
+  return { strong: station(st.strong), ...(sup ? { support: { ...station(sup), ...(sup.alt ? { alt: station(sup.alt) } : {}) } } : {}), ...(st.butt ? { butt: st.butt.at.map(r2) } : {}) };
+}
+
 /** A kit's loadout on a base round: its slots in order (kitSlot). */
 export const armsLoadout = (arms, base, where = {}) => arms.map((w) => kitSlot(w, base, where));
+// THE QUICK KNIFE a kit's body carries in its free hand (worlds/controllable/gunplay.js `rule.knife`): a cut reaches
+// 1.3 m from the hips across a 50 degree cone, the blade in it from 0.3 to 0.55 of its half second, a rest of 0.35 s
+// after; two cuts drop a body of `hp`. Its look is the arms kernel's combat knife (its parts' boxes, cm), held round the
+// handle with the blade out of the index side (`hold`: the fist's centre, its index side, its long axis), for the page
+// to draw in the hand.
+export const KNIFE = Object.freeze({ reach: 1.3, cone: 50, dur: 0.5, window: Object.freeze([0.3, 0.55]), cooldown: 0.35, impact: 1 });
+let knifeView = null;
+/** A blade's look from its build words ({ item: 'knife', model?, parts? }; the combat knife by default): its parts' boxes
+ * and its hold, round the middle of its handle. */
+export function bladeLook(build = null) {
+  if (!build && knifeView) return knifeView;
+  const boxes = armBoxes(build ?? { item: 'knife', model: 'combat' }).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]);
+  const handle = boxes.find((b) => b[3] === 'handle'), mid = handle ? r2((handle[0][2] + handle[1][2]) / 2) : 6;
+  const look = { boxes, hold: { at: [0, 0, mid], c: [0, 0, 1], a: [0, 1, 0] } };
+  if (!build) knifeView = look;
+  return look;
+}
+const knifeLook = () => bladeLook();
+/** The quick knife against bodies of `hp` (a fresh object: a rule is the world's to change). */
+export const knifeOf = (hp) => ({ ...KNIFE, window: [...KNIFE.window], damage: Math.ceil(hp / 2), view: knifeLook() });
+
 /** A kit's legend (the keys it adds). */
 export const ARMS_LEGEND = 'click  fire · right click  aim · Shift  steady (scoped) · R  reload · 1-5 or wheel  switch';

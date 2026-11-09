@@ -229,6 +229,13 @@ export function buildRulesPlatform(E) {
       const pace = walking ? (combatOn ? r.combat.speed : r.walkSpeed) * Math.min(1, combatOn ? travel : travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
       speed = pace / travel;
     }
+    // A PERSON'S SPRINT (opt-in `sprintSpeed`, a feel's card carried with its takes: feel/lower.js): the sprint key held
+    // (`input.sprint`) with the stick pushed forward runs at the sprint, never while firing or with the sights up (a
+    // shooter drops out of it to shoot). Absent, the pace as it was.
+    if (r.sprintSpeed > 0) {
+      e.sprinting = walker && !!input.sprint && !walking && fwdIn > 0.5 && !input.fire && !input.aim && travel > 1e-6;
+      if (e.sprinting) speed = r.sprintSpeed / travel;
+    }
 
     // jump — two opt-in shapes on top of the default snappy launch:
     // `jumpWindup` (seconds) inserts a brief SQUAT between press and launch;

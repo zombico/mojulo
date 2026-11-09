@@ -53,7 +53,8 @@ export const MOVE_STEPS = Object.freeze([...Object.keys(MOVE), 'wait', 'form', '
 const SECTION = { intent: 'intent', composed: 'intent', concept: 'intent', feel: 'feel', juice: 'feel', numbers: 'systems', story: 'story', audits: 'build', fight: 'cast', first_frame: 'build', resonance: 'build', comparison: 'intent', compile: 'build', errand_proof: 'story', gauntlet_proof: 'levels', mainQuest: 'main-quest', loop: 'intent', goalposts: 'build' };
 const ADVICE = { authorship: 'intent', sameness: 'intent', questions: 'intent', land: 'world', wcd: 'levels', qow: 'levels', mainQuest: 'main-quest', loop: 'intent' };
 // where a chapter's parts are drawn: its bible (the character book's chapters in the character bible, the foes in the cast sheet)
-const BOOK = { direction: 'characterBible', hero: 'characterBible', motion: 'characterBible', actions: 'characterBible', adornment: 'characterBible', systems: 'characterBible', equipment: 'characterBible', feel: 'feelBook', foes: 'foeBook' };
+// (equipment: a game that fights with guns has them played in its combat book, the gym; else the character bible)
+const BOOK = { direction: 'characterBible', hero: 'characterBible', motion: 'characterBible', actions: 'characterBible', adornment: 'characterBible', systems: 'characterBible', equipment: ['combatBook', 'characterBible'], feel: 'feelBook', foes: 'foeBook' };
 
 const also = (ran, own) => ran.filter((r) => (r.action === 'make' || r.action === 'remake') && !own(r.key)).map((r) => r.key);
 
@@ -98,7 +99,7 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
   // the writes this call made outside the chapter: said, never refused (a department may reach past its pages)
   const inLevel = (p) => p === `/levels/${lv}` || p.startsWith(`/levels/${lv}/`);
   const outside = patched.filter((p) => (lv !== null ? !inLevel(p) : !chaptersOfPath(p).includes(c))).map((p) => `${p}: ${chaptersOfPath(p).map((x) => x.id).join(', ') || 'no chapter'}'s, not ${id}'s`);
-  const read = full[BOOK[id] ?? 'bible'] ?? full.bible;
+  const read = [BOOK[id] ?? 'bible'].flat().map((k) => full[k]).find(Boolean) ?? full.bible;
   const anchor = parts[0]?.id ? `#${parts[0].id.replace(':', '-')}` : '';
   return {
     ref: full.ref,

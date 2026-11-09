@@ -46,9 +46,13 @@ describe('a gameworld\'s feel', () => {
     expect(F.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
     if (taken.entities[0].rule.dash) expect(JSON.stringify(taken.events)).toContain('F  dash');
     expect(JSON.stringify(plain.events)).not.toContain('F  dash');
-    // (the card's moves ride the takes: its wall and its dash, F named on the legend; F the takes' own, the plain feel's
-    // F its sprint on the stamina, feel/lower.js)
-    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, sprint, stamina, boostSpeed, boostMax, boostRegen, overheatRegen, boostUnlockFrac, dodge, dodgeDur, dodgeSpeed, dodgeBoostCost, dodgeOverheat, dodgeCooldown, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
+    // (the card's moves ride the takes: its wall and its dash, F named on the legend; a person's sprint on Shift and its
+    // walk, a mascot's run on F; the plain feel's sprint on the stamina, feel/lower.js)
+    const card = feelCard(pole), R = taken.entities[0].rule;
+    if (card.ground.sprint > card.ground.run) expect([R.sprintSpeed, JSON.stringify(taken.events).includes('Shift  sprint')]).toEqual([card.ground.sprint, true]);
+    expect(R.walkSpeed).toBe(card.ground.walk);
+    expect(plain.entities[0].rule).not.toHaveProperty('sprintSpeed');
+    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, sprint, stamina, boostSpeed, boostMax, boostRegen, overheatRegen, boostUnlockFrac, dodge, dodgeDur, dodgeSpeed, dodgeBoostCost, dodgeOverheat, dodgeCooldown, sprintSpeed, walkSpeed, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
     expect(strip(taken)).toBe(strip({ ...plain, figures: Object.fromEntries(Object.entries(plain.figures ?? {}).map(([k, f]) => [k, { ...f, jumps: null }])) }));
   });
 });

@@ -84,7 +84,17 @@ describe('follow camera pull-in', () => {
     const html = emitThreeWorld(opts);
     expect(html).toContain(`const __followPullIn = ${followPullIn.toString()};`);
     expect(html).toContain('__followPullIn(full, hitD, lead, Math.hypot(ux, uy), rad, ');
-    expect(html).toContain(', camera.near);');
+    expect(html).toContain(', camera.near, c.rule.standOff);');
     expect(html).not.toContain('const skin = 3;');
+  });
+
+  it('a camera\'s own stand-off (`standOff`): 0 stands the eye where the rule puts it in the open, and a wall still pulls it in', () => {
+    // a shooter's over the shoulder (gameworld/quick.js SHOULDER): 2.8 m behind, its look point 10 m ahead
+    const full = Math.hypot(12.8, 0.25), lead = 10;
+    expect(followPullIn(full, full, lead, 1, 0.3, 1.7, 0.03)).toBeLessThan(0.81);   // the default stand-off: the eye on the hero
+    expect(followPullIn(full, full, lead, 1, 0.3, 1.7, 0.03, 0)).toBe(1);           // its own: where the rule put it
+    const wall = 11.5;   // a wall 1.5 m behind the hero
+    expect(followPullIn(full, wall, lead, 1, 0.3, 1.7, 0.03, 0) * full).toBeCloseTo(wall - 0.53, 6);
+    expect(followPullIn(full, full, lead, 1, 0.3, 1.7, 0.03, undefined)).toBe(followPullIn(full, full, lead, 1, 0.3, 1.7, 0.03));   // absent: as before
   });
 });

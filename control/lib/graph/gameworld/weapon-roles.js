@@ -24,6 +24,7 @@
  * Pure.
  */
 import { shooterPole, readPole } from './shooter-pole.js';
+import { roundOf } from './rounds.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -50,6 +51,7 @@ export function weaponRole(role, pole) {
       ...base, fireClass: 'sight', auto: false, burst: 1, cooldown: r2(1 / at(1.1, 1.5)), magazine: Math.round(lerp(6, 8, p)), reserve: Math.round(lerp(24, 32, p)),
       reload: at(2.6, 1.8), damage: Math.ceil(P.hp / shots), range: 30, headshot: at(1.5, 1.25),
       spread: { base: at(2.5, 3), move: at(1.5, 0.3), bloom: 0, recover: 4, max: at(4, 3.5) }, falloff: { from: 5, to: 14, min: 0.2 },
+      ...(p < 0.5 ? { round: roundOf('shotgun') } : {}),
     } };
   }
   if (role === 'long') {
@@ -58,6 +60,7 @@ export function weaponRole(role, pole) {
       ...base, fireClass: 'sight', auto: false, burst: 1, cooldown: r2(1 / at(0.8, 1)), magazine: Math.round(lerp(5, 6, p)), reserve: Math.round(lerp(20, 30, p)),
       reload: at(3, 2), damage: Math.ceil(P.hp / shots), range: 100, headshot: shots,
       spread: { base: 0, move: at(6, 2), bloom: at(3, 1), recover: at(1.5, 3), max: 6 }, recoil: { kick: at(2, 1), recover: 3, max: 4 },
+      ...(p < 0.5 ? { round: roundOf('sniper') } : {}),
     } };
   }
   // area: a flat rocket (no drop), a splash a body's width round; a direct hit and a near one drop a body in two or three

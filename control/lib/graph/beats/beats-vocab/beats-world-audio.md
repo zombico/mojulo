@@ -71,7 +71,9 @@ These read the controllable entity's state and never write back.
 - `thruster: { level, voice? }` and `jump.charge.voice`: a held voice (`get_beats_vocab({ id: 'beats-sfx' })`,
   "Held voices") played in place of the channel's own synth, driven by the thrust or the charge.
 - `dodge`: one gesture list fired per roll.
-- `weapon`: `{ shot, hit, reload }` gesture lists.
+- `weapon`: `{ shot, hit, reload, switch? }` gesture lists (`switch` when a gun is drawn); a weapon's own
+  `sfx: { shot, hit, reload, draw }` wins over them.
+- `burst`: a gesture list played where a travelling round (a rocket, a grenade) bursts.
 - `strike`: `{ swing, hit }` gesture lists (melee).
 - `moves`: an action game's moveset (combos, a guard, a bow) by the ids of its `sfx.cues`: `swing` and `hit` as
   `{ <weapon>: { light, heavy?, finisher? } }` (a heavy is a move its H beat took), and one cue each for `block`,

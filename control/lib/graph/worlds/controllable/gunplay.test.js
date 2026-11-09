@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
-import { armsLoadout } from '../../gameworld/arms-kit.js';
+import { armsLoadout, knifeOf } from '../../gameworld/arms-kit.js';
 import { SHOOT } from '../../gameworld/quick.js';
 
 // GUNPLAY (opt-in `gunplay` on the pilot's rule, gameworld/arms-kit.js): the sights come up over the arm's aim time and
@@ -100,4 +100,29 @@ describe('gunplay', () => {
     expect(emissionSource()).not.toContain('buildGunplay');
     expect(emissionSource({ gunplay: true })).toContain('function buildGunplay(E)');
   });
+  it('the quick knife (rule.knife): an edge cuts in the free hand, a body an arm\'s length ahead taken, one 3 m off not; no round while it cuts; two cuts drop a body; the next waits its rest', () => {
+    const loadout = armsLoadout(['rifle'], SHOOT.rifle, { eye: 1.5 }), K = knifeOf(4);
+    const body = (id, x) => ({ id, rule: { type: 'walk', speed: 0, eye: 0 }, body: { type: 'mesh', hittable: true, hp: 4, egg: { ...PERSON } }, transform: { pos: [x, 0, 0], heading: Math.PI } });
+    const w = E.createWorld({ entities: [
+      { id: 'p', pilotable: true, rule: { type: 'walk', speed: 0, eye: 0, turnMode: 'look', loadout, gunplay: true, knife: K }, weapon: loadout[0].weapon, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } },
+      body('near', 1), body('far', 3),
+    ] });
+    const P = w.byId.p, near = w.byId.near, far = w.byId.far, shots0 = P.weapon.shots || 0;
+    run(w, (k) => ({ melee: k === 0 ? 1 : 0, fire: 1 }), K.dur * 0.9);
+    expect(P.knifeT).toBeGreaterThan(0.8);
+    expect(near.body.hp).toBe(4 - K.damage);
+    expect(far.body.hp).toBe(4);
+    expect(P.weapon.shots || 0).toBe(shots0);
+    // pressed again at once: the cut ends and rests first, so this press is spent
+    run(w, (k) => ({ melee: k === 2 ? 1 : 0 }), 0.2);
+    expect(P.knifeT).toBe(null);
+    expect(near.body.hp).toBe(4 - K.damage);
+    run(w, {}, K.cooldown);
+    run(w, (k) => ({ melee: k === 0 ? 1 : 0 }), K.dur + 0.1);
+    expect(near.body.hp).toBe(0);
+    // without a knife on the rule the press does nothing
+    const h = world(['rifle']); run(h, (k) => ({ melee: k === 0 ? 1 : 0 }), 0.3);
+    expect(h.byId.p.knifeT).toBeUndefined();
+  });
 });
+

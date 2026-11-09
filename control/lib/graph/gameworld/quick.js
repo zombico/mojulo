@@ -151,7 +151,8 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
-import { armsLoadout, validateArmsKit, ARMS_LEGEND } from './arms-kit.js';
+import { armsLoadout, validateArmsKit, ARMS_LEGEND, knifeOf } from './arms-kit.js';
+import { ROUNDS } from './rounds.js';
 import { readBodyWord } from './game-bodies.js';
 import { TD_WAVES } from '../board/board-td.js';
 import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
@@ -240,19 +241,21 @@ export const QUICK_GOALS = Object.freeze({
   runner: 'an endless run down three lanes: the hero runs on its own, ever faster; swipe or A / D to change lane, jump the hurdles, slide (S) under the bars, take the coins; a crash ends the run, the best score kept (with distance: reach it to win)',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
-// supplies (health given, rounds given)
+// supplies (health given, rounds given); the guns small arms on the page (rounds.js)
 /** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
 /** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
 const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
-  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
-  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
+  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5, round: ROUNDS.rifle },
+  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4, round: ROUNDS.rifle },
 });
 const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
+// a person's walk (m/s): the hero library's (playscape/player.js), a hero-less shooter's on the platform rule
+export const PERSON_WALK = 1.6;
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
@@ -1353,10 +1356,11 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
   const over = shoulderOf(camera ?? quick.camera, hero);
-  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on: arms-kit.js)
+  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on, a knife in the free hand:
+  // arms-kit.js)
   const kit = quick.arms ? armsLoadout(quick.arms, SHOOT.rifle, { eye: hero ? 1.5 : 0, converge: !!over }) : null;
   const pilot = {
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(SHOOT.foeHp) } : {}) },
     weapon: kit ? kit[0].weapon : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
@@ -1365,9 +1369,14 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
 
 // OVER THE SHOULDER: a shooter's third-person camera, close behind the hero and off its right shoulder, its crosshair's
 // line crossing the body's own `lead` metres out; the player's rounds go from the muzzle to the point under the
-// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included
-export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1 });
-/** The over-the-shoulder camera for a shooter's hero played third-person (`camera`: the world's), else null. */
+// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included.
+// `standOff: 0`: the page stands this camera's eye where the rule puts it (follow-pull-in.js), not the stand-off a chase
+// keeps short of it: the eye the rounds converge from (the simulation's camera) is the eye the player sees, and the
+// hero stands in the frame. With the stand-off the page drew the eye on the hero's head, the hero under the frame and
+// the crosshair off the rounds' line (2026-11-08, the combat tester)
+// `mouseLook`: the mouse turns and pitches the hero (the level's rule `turnMode: 'look'`, levels.js), A and D step aside,
+// a click fires and the right button aims, as in first person; before, A and D turned it and only a pad's trigger fired
+export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1, standOff: 0, mouseLook: true });
 export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ? SHOULDER : null);
 
 /** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */
@@ -1448,14 +1457,16 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const s0 = spot('player', 0);
   // the player's feet: the pole's pace; past its jump threshold the platform rule (a jump, an air jump, a dash)
   // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
-  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
-    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
+  // (a person on the platform rule walks: `walkSpeed`, the hero library's, so Z walks and F is no mech's thrust; the
+  // dodge stays its double tap)
+  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
+    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
   const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
   // (a carried kit, arms-kit.js: its rounds scaled to the pole's own gun, else the shooter's rifle)
   const kit = quick.arms ? armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }) : null;
   const pilot = {
     ...(S ? { team: 'red' } : {}),
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(P ? P.hp : SHOOT.foeHp) } : {}) },
     weapon: kit ? kit[0].weapon : P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },
