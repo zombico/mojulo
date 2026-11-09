@@ -4,6 +4,9 @@ import { WEAPON_ROUNDS, ORDNANCE } from './ordnance.js';
 import { MECHA_ARCHETYPES } from '../../mecha-shelf/index.js';
 import { MECHA_BACKPACKS } from '../../mecha-shelf/mecha-backpacks.js';
 import { VEHICLES, handlesOf } from '../../vehicle-registry/roster.js';
+import { assembleFrame } from '../../mecha-shelf/index.js';
+import { gaitStances } from '../../mecha-shelf/mecha-gait.js';
+import { lowerAssemblerBuild } from '../../worlds/workbench-assembler.js';
 
 // THE FRAMES ON THE RANGE (frames.js): a mecha shelf frame as the range's base. One case per way a frame comes armed,
 // chosen from the shelf in code, the lightest of each: its own gun backpack as built, a gun backpack it takes, or none
@@ -54,6 +57,23 @@ describe('the frames on the range', () => {
     expect(rolled.stance).toBe('roll');
     expect(rolled.rounds[0].at[2]).toBeLessThan(braced.rounds[0].at[2]);
   }, 30000);
+
+  it('walks: a forward clip of its gait\'s keys, each body where the IK puts it at that key; in its tank form it stands', () => {
+    const F = frameBase({ frame: word(BARE) }), clip = F.figure.clips.forward, nb = F.figure.bones.length;
+    expect(F.gait.archetype).toBe(BARE);
+    expect(clip.k).toBe(gaitStances(F.gait).length);
+    // (a leg's lowest body at a key: the rest mesh carried by its bone lands where the key's own assembly puts it)
+    const K = Math.floor(clip.k / 3), body = Object.values(MECHA_ARCHETYPES[BARE].legs)[0].foot;
+    const rest = lowerAssemblerBuild(assembleFrame(BARE, { pose: F.stance }).manifest), key = lowerAssemblerBuild(assembleFrame(BARE, { pose: gaitStances(F.gait)[K], laws: false }).manifest);
+    const p0 = rest.placements.find((p) => p.id === body), pk = key.placements.find((p) => p.id === body), bi = F.figure.bones.findIndex((b) => b.id === body);
+    const [qx, qy, qz, qw, hx, hy, hz] = clip.b.slice((K * nb + bi) * 7, (K * nb + bi) * 7 + 7), rh = F.figure.bones[bi].head, v = rest.faces[p0.faceStart].corners[0];
+    const d = [v[0] - rh[0], v[1] - rh[1], v[2] - rh[2]], u = [qy * d[2] - qz * d[1], qz * d[0] - qx * d[2], qx * d[1] - qy * d[0]];
+    const got = [0, 1, 2].map((i) => [hx, hy, hz][i] + d[i] + 2 * (qw * u[i] + [qy * u[2] - qz * u[1], qz * u[0] - qx * u[2], qx * u[1] - qy * u[0]][i]));
+    const want = key.faces[pk.faceStart].corners[0];
+    expect(Math.hypot(...got.map((g, i) => g - want[i]))).toBeLessThan(2e-3);
+    const T = Object.keys(MECHA_ARCHETYPES).find((a) => MECHA_ARCHETYPES[a].stances?.roll);
+    expect(frameBase({ frame: word(T), stance: 'roll' }).gait).toBeUndefined();
+  }, 60000);
 
   it('refuses what is not a frame, a stance it has not, a word it does not take', () => {
     expect(validateFrame({ frame: 'no such machine at all' }).join()).toMatch(/not a vehicle of the library/);

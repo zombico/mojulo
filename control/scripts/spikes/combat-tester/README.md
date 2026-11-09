@@ -410,3 +410,9 @@ rod's 650 mm law was the 120 mm round's own; "the faster round is laid lower" fa
 leaves faster than a 120 mm one and arrives later), restated by arrival; a rocket's 6-mil scatter read as 2 because its
 low rounds struck the ground short of the band (now measured from a gun stood high); a big frame's 200k corners overflow
 `Math.max(...)`.
+
+The frames walk (`mecha-shelf/mecha-gait.js`): W / S at the gait its structure and size give it, O to the view beside it.
+Found on the way: the reach at a stride's two ends is not the cycle's (a foot lifting flat from behind asks the ankle
+most: a knee-forward work frame's stride fell to a third of its natural one until its swing lifted later, its foot
+carried forward first); a swinging foot lifted less than a millimetre read as planted; the turret's pivot must be the
+mount where the walk has carried it.

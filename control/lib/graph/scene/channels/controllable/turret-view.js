@@ -9,7 +9,7 @@
 //   THE SIGHT   the camera on the gun's sight line, beside the barrel, along it: a reticle (the bore's line, and below it
 //               a mark for each range of the loaded round, from `turret.range.table`: where the target must sit for the
 //               gun to drop the round onto it); the right button zooms it (wide, 4×, 10×); O steps outside (a commander's
-//               view behind the gun) and back
+//               view behind the gun), then beside the base (watching it move) and back
 //   THE MARKS   where a round bursts on one of the range's stands (`turret.range.stands`, each a matter at a thickness),
 //               what it did, by the same law the measures run (gameworld/combat/terminal.js terminalKernel): a hole, a
 //               breach and its rubble, a spall, a dent, a scorch; on the ground a crater and its rim
@@ -22,11 +22,12 @@ export function turretScript() {
   return `
 // ── TURRET ──
 const __terminalKernel = ${terminalKernel.toString()};
-const __TV = { built: {}, sight: true, zoom: 0, marks: [], seen: new Map(), bSeq: -1, kernels: {}, last: null, mils: 6400 / 360 };
+const __TV = { built: {}, sight: true, view: 0, zoom: 0, marks: [], seen: new Map(), bSeq: -1, kernels: {}, last: null, mils: 6400 / 360 };
 const __TV_ZOOM = [24, 6, 2.4];
 renderer.domElement.addEventListener('mousedown', (ev) => { if (ev.button === 2) { __TV.zoom = (__TV.zoom + 1) % __TV_ZOOM.length; __tvReticle(); } });
 renderer.domElement.addEventListener('contextmenu', (ev) => ev.preventDefault());
-window.addEventListener('keydown', (ev) => { if (ev.code === 'KeyO' && !ev.repeat) { __TV.sight = !__TV.sight; __tvReticle(); } });
+// (O steps through the views: the sight, behind the gun, beside the base watching it move)
+window.addEventListener('keydown', (ev) => { if (ev.code === 'KeyO' && !ev.repeat) { __TV.view = (__TV.view + 1) % 3; __TV.sight = __TV.view === 0; __tvReticle(); } });
 // the readout and the reticle (a sight's glass: the bore's line, the range marks below it)
 const __tvPanel = document.createElement('div');
 __tvPanel.style.cssText = 'position:fixed;left:16px;bottom:64px;z-index:7;pointer-events:none;font:500 12px ui-monospace,monospace;color:#e8e6e0;background:rgba(20,22,26,0.78);border:1px solid #4a4c50;border-radius:4px;padding:6px 9px;white-space:pre;line-height:1.45';
@@ -104,7 +105,11 @@ function __tvRigBone(e, fig, bi, Q, P, mesh) {
   if (!k) return;
   const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
   if (ti < 0) return;
-  const piv = fig.bones[ti].head;
+  // (the turret's pivot where the clip has carried it this frame, a walking frame's mount bobbing with its body: kept as
+  // the turret bone is posed, before the gun is)
+  const PV = fig.__tvPiv || (fig.__tvPiv = {});
+  if (k[1] === 'turret') PV[k[2]] = [P[0], P[1], P[2]];
+  const piv = PV[k[2]] || fig.bones[ti].head;
   if (k[1] === 'gun') { __tvQP.setFromAxisAngle(__TV_X, (T.pitch || 0) * Math.PI / 180); Q.premultiply(__tvQP); }
   __tvQY.setFromAxisAngle(__TV_Z, (T.yaw || 0) * Math.PI / 180);
   __tvO.set(P[0] - piv[0], P[1] - piv[1], P[2] - piv[2]).applyQuaternion(__tvQY);
@@ -135,6 +140,12 @@ function __tvCamera(g) {
     camera.position.set(piv[0] + side * left[0] / ln * 0.75 + d[0] * 0.6, piv[1] + side * left[1] / ln * 0.75 + d[1] * 0.6, piv[2] + 0.35);
     camera.up.set(0, 0, 1); camera.lookAt(camera.position.x + d[0] * 100, camera.position.y + d[1] * 100, camera.position.z + d[2] * 100);
     const f = __TV_ZOOM[__TV.zoom]; if (Math.abs(camera.fov - f) > 1e-6) { camera.fov = f; camera.updateProjectionMatrix(); }
+  } else if (__TV.view === 2) {
+    // (beside the base, square to its heading on its right, framing all of it: look.size its height, a tank's 4 m)
+    const t = g.transform, H = (T.look && T.look.size) || 4, r = 2.4 * H + 4, rx = Math.sin(t.heading), ry = -Math.cos(t.heading);
+    camera.position.set(t.pos[0] + rx * r, t.pos[1] + ry * r, t.pos[2] + H * 0.55);
+    camera.up.set(0, 0, 1); camera.lookAt(t.pos[0], t.pos[1], t.pos[2] + H * 0.45);
+    if (Math.abs(camera.fov - 40) > 1e-6) { camera.fov = 40; camera.updateProjectionMatrix(); }
   } else {
     // (behind the gun by its base's size: look.back and look.up, a tank's 18 m and 7 m when absent)
     const h = Math.hypot(d[0], d[1]) || 1, LK = T.look || {}, bk = LK.back || 18, up = LK.up || 7;
@@ -214,11 +225,11 @@ function __tvFrame() {
   // (a round fired high at what the gunner cannot see: its chart, the elevation for each range, and its flight)
   const C = R && T.range && T.range.chart && T.range.chart[R.ordnance], chart = C ? 'chart ' + C.map((c) => c[0] / 1000 + ' km ' + Math.round(c[1]) + ' mils ' + Math.round(c[2]) + ' s').join(' · ') : '';
   const name = R ? R.ordnance.toUpperCase() : 'GUN', keys = T.rounds ? T.rounds.map((x, i) => (i + 1) + ' ' + x.ordnance).join('  ') : '';
-  __tvPanel.textContent = name + (w && w.reloading ? '  loading ' + Math.max(0, w.reloadT).toFixed(1) + ' s' : '  loaded') + '\\nelevation ' + ((T.pitch || 0) * __TV.mils).toFixed(1) + ' mils   traverse ' + ((T.yaw || 0) * __TV.mils).toFixed(0) + ' mils\\n' + (chart ? chart + '\\n' : '') + (keys ? keys + '\\n' : '') + (__TV.last ? 'last: ' + __TV.last : 'click fire · 1-' + (T.rounds ? T.rounds.length : 1) + ' load · right click zoom · O outside');
+  __tvPanel.textContent = name + (w && w.reloading ? '  loading ' + Math.max(0, w.reloadT).toFixed(1) + ' s' : '  loaded') + '\\nelevation ' + ((T.pitch || 0) * __TV.mils).toFixed(1) + ' mils   traverse ' + ((T.yaw || 0) * __TV.mils).toFixed(0) + ' mils\\n' + (chart ? chart + '\\n' : '') + (keys ? keys + '\\n' : '') + (__TV.last ? 'last: ' + __TV.last : 'click fire · 1-' + (T.rounds ? T.rounds.length : 1) + ' load · right click zoom · O view');
 }
 const __tvStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __tvStep0(dt, inputOverride); __tvFrame(); };
-window.__mojCtrl.turret = () => ({ sight: __TV.sight, zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}) });
+window.__mojCtrl.turret = () => ({ sight: __TV.sight, view: ['sight', 'behind', 'beside'][__TV.view], zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}) });
 window.__tvReady = true;
 setTimeout(__tvReticle, 0);
 `;

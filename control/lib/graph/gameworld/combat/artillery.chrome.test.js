@@ -91,7 +91,7 @@ describe('the artillery range, played', () => {
     expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
   }, 240000);
 
-  it('on a walker of the mecha shelf: both mounts turned by the one aim, its kinetic round fired from its own mount', async () => {
+  it('on a walker of the mecha shelf: both mounts turned by the one aim, its kinetic round fired from its own mount; it walks its gait', async () => {
     if (!browser) return;
     // (the lightest frame carrying its own guns, found on the shelf)
     const armed = Object.keys(MECHA_ARCHETYPES).filter((a) => MECHA_ARCHETYPES[a].backpack && MECHA_BACKPACKS[MECHA_ARCHETYPES[a].backpack].takes.some((w) => WEAPON_ROUNDS[w])).sort((a, b) => MECHA_ARCHETYPES[a].mass - MECHA_ARCHETYPES[b].mass)[0];
@@ -112,12 +112,19 @@ describe('the artillery range, played', () => {
       // (the muzzle on the round's own mount's side)
       const side = Math.sign(-(T.muzzle[1]));
       const n0 = C.turret().marks.length; go(1, { fire: 1 }); go(150, {});
-      return { rig: C.turret().rig, yaw: T.yaw, side, right: Math.sign(r.at[1]), marks: C.turret().marks.slice(n0) };
+      const marks = C.turret().marks.slice(n0);
+      // (then it walks two seconds: its gait's pace, its clip's phase the distance over its stride)
+      const p0 = g.transform.pos.slice(), ph0 = g.gaitPhase || 0;
+      go(120, { forward: 1 });
+      const walked = Math.hypot(g.transform.pos[0] - p0[0], g.transform.pos[1] - p0[1]);
+      return { rig: C.turret().rig, yaw: T.yaw, side, right: Math.sign(r.at[1]), marks, walked, phase: g.gaitPhase - ph0, speed: g.rule.speed, stride: g.rule.stride };
     });
     await page.close();
     expect(errors).toEqual([]);
     expect(got.rig.yaw).toBeCloseTo(got.yaw, 3);
     expect(got.side).toBe(got.right);
     expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
+    expect(got.walked).toBeCloseTo(got.speed * 2, 1);
+    expect(got.phase).toBeCloseTo(got.walked / got.stride, 2);
   }, 240000);
 });

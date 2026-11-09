@@ -85,3 +85,16 @@
   far band it is the round that arrives sooner, not the one that leaves faster, that is laid lower (a blunt 30 mm shell
   leaves faster than a 120 mm one and arrives later). A wide cone's scatter is measured from a gun stood high, so its
   low rounds are not lost to the ground short of the band.
+- **The frames walk** (`mecha-shelf/mecha-gait.js`). Each frame of the mecha shelf now walks, its gait read from its
+  structure and scaled to its size. Its structure: two legs step in alternation, four in a lateral sequence (hind then
+  fore on a side, three feet always down); the farthest each foot reaches ahead and behind within its joints' ranges,
+  through the shelf's own IK, at the height its knees bend to for the longest reach. Its size: dynamic similarity, a walk
+  at Froude number 0.25 on its hip's height, its stride by Alexander's relative-stride law, so a bigger frame strides
+  longer and steps slower (its cadence as 1/√L) and goes faster over the ground; where its legs reach less, the stride
+  is theirs at the same cadence. The swing is shaped to the leg: a knee-forward work frame's flat foot cannot lift from
+  behind within its ankle's stop, so its foot comes forward before it rises. From the utility walker's 1.7 m stride at
+  112 steps a minute to the siege walker's 7.4 m at 56 and the brood walker's four legs at 51. Held to laws: every key
+  within its joints' ranges, a planted foot still on the ground, a swinging foot clear, a foot (a biped) or three (a
+  four-legged frame) always down, a walk and not a run. On the range a frame walks at its gait's pace (W / S, A / D
+  turn), each body a bone keyed at each step by the IK, its gun laid as it goes; in its tank form it stands. O steps
+  through the sight, the view behind the gun and a view beside the base, watching it walk.
