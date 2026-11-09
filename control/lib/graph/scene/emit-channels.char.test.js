@@ -531,6 +531,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // (`upswing`, a moveset's `up` swing only) and the runtime reads back against the engaged foe and holds a moveset move's
 // facing; no fixture names a moveset, and no contest swings the new verb, so the sources they carry changed, their play
 // as it was.
+// Re-pinned 2026-11-09 (1108-practice-room: air moves facing the foe): the 16 fixtures that embed the controllable
+// runtime. In the air a moveset's move plays its own clip, and a launch's thrown foe (`mvThrown`) turns the airborne hero
+// to it; both read a moveset no fixture names, so the runtime they embed changed, their worlds as they were.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

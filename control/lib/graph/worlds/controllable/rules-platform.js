@@ -140,7 +140,8 @@ export function buildRulesPlatform(E) {
       wmMag = Math.min(1, Math.hypot(wmX, wmY));
       turnAmt = 0;
       // (a moveset's move, committed, holds the facing it was taken at: the stick turns the body again once it ends)
-      if (wmMag > 1e-3 && !(r.moveset && e.swingT != null)) {
+      // (and in the air after a launch the hero is turned to the foe it threw, combat-melee.js `mvThrown`)
+      if (wmMag > 1e-3 && !(r.moveset && (e.swingT != null || (e.mvThrown != null && !e.grounded)))) {
         const d = ((Math.atan2(wmY, wmX) - t.heading + Math.PI) % TAU + TAU) % TAU - Math.PI, mx = (r.faceRate ?? 12) * dt;
         turnAmt = clamp(d, -mx, mx);
         t.heading = (t.heading + turnAmt) % TAU;
@@ -614,7 +615,9 @@ export function buildRulesPlatform(E) {
       // pose (its phase keeps advancing so the tremor lives); a plain
       // vertical jump holds 'leap' with the phase frozen. Bodies without
       // those clips fall back to 'forward' in the renderer.
-      if (boosting) { e.locomotion = boostClip(); boostPhase(); }
+      // (a moveset's AIR move plays its own clip, airborne: hero-swing-body.js airBody)
+      if (swinging && r.moveset && e.swingClip) { e.locomotion = e.swingClip; e.gaitPhase = Math.min(e.swingT, 0.999); }
+      else if (boosting) { e.locomotion = boostClip(); boostPhase(); }
       else if (fwdIn > 0) { e.locomotion = 'boost'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; }
       else e.locomotion = 'leap';
       e.moving = true;

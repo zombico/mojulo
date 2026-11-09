@@ -164,7 +164,27 @@ export function withFootwork(arm, travel, { R, rigNodesAt, plantedFoot }) {
   };
 }
 /**
- * The clip a move plays: { swing, travel?: { kind, m }, contact? } at the hero's held class. ctx: { R, cls, base, grip,
+ * AN AIR MOVE'S BODY (a moveset's `air` move, gameworld/combos.js: played in the air, a launch's or a jump's): the swing
+ * or the strike as its arms and trunk play it, the feet off the floor (no support, no planted foot, no sink or step) and
+ * the legs their own: TUCKED as it gathers, one kicking down and back through the blow while the other draws up, tucked
+ * again after. `at` the blow's share of the move.
+ */
+const AIR_STRIP = ['feet', 'crouch', 'sink', 'heelL', 'heelR', 'shift', 'splayL', 'splayR', 'stance', 'stagger', 'toeTurnL', 'toeTurnR', 'lift', 'seat', 'seatL', 'seatR', 'weight'];
+export const AIR_LEGS = Object.freeze({ tuck: { hipL: 55, kneeL: 95, hipR: 38, kneeR: 82 }, blow: { hipL: 14, kneeL: 28, hipR: 52, kneeR: 98 } });
+const airEase = (x) => { const q = Math.max(0, Math.min(1, x)); return q * q * (3 - 2 * q); };
+export function airBody(pose, u, at) {
+  const o = {};
+  for (const k of Object.keys(pose)) if (!AIR_STRIP.includes(k)) o[k] = pose[k];
+  // (0 tucked … 1 at the blow: the kick lands with the blade, the tuck drawn back over the follow-through)
+  const k = u <= at ? airEase(u / Math.max(at, 1e-6)) : 1 - airEase((u - at) / Math.max(1 - at, 1e-6)), T = AIR_LEGS.tuck, B = AIR_LEGS.blow, l = (a, b) => Math.round((a + (b - a) * k) * 100) / 100;
+  o.support = 'none';
+  o.hipL = { ...(pose.hipL || {}), pitch: l(T.hipL, B.hipL) }; o.hipR = { ...(pose.hipR || {}), pitch: l(T.hipR, B.hipR) };
+  o.kneeL = l(T.kneeL, B.kneeL); o.kneeR = l(T.kneeR, B.kneeR);
+  return o;
+}
+/**
+ * The clip a move plays: { swing, travel?: { kind, m }, contact?, air? } at the hero's held class (an `air` move its
+ * airBody: no feet on the floor, no footwork). ctx: { R, cls, base, grip,
  * contact (the rule's window), own (the hero's own cut word), body (the whole body over the swing), timing (a game
  * type's swingTiming, or null) } and the rig's functions { layeredClip, rigNodesAt, plantedFoot }, and the swing's
  * { swingClipKeys, fitSwing, swingPhases, HELD_SWINGS }.
@@ -179,9 +199,9 @@ export function moveClip(move, ctx) {
   // the travel as the runtime carries it (combat-melee.js: a step's to the window's start, a lunge's to its end)
   const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
   const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
-  const fn = travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
+  const fn = move.air ? (u) => airBody(arm(u), u, from) : travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
   fn.keys = 24;
-  fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}) };
+  fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}), ...(move.air ? { air: true } : {}) };
   return fn;
 }
 
@@ -208,9 +228,9 @@ export function strikeMoveClip(move, ctx) {
   const contact = move.contact ?? [K.contact.t / K.seconds, Math.min(0.95, K.contact.t / K.seconds + 0.1)];
   const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
   const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
-  const fn = travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
+  const fn = move.air ? (u) => airBody(arm(u), u, contact[0]) : travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
   fn.keys = 24;
-  fn.move = { family: 'strike', word: move.strike, hand: K.hand, strike: contact[0], window: [contact[0], contact[1]], ...(travel ? { travel } : {}) };
+  fn.move = { family: 'strike', word: move.strike, hand: K.hand, strike: contact[0], window: [contact[0], contact[1]], ...(travel ? { travel } : {}), ...(move.air ? { air: true } : {}) };
   return fn;
 }
 /** The fist's fighting stance: its strikes' guard (the solved strike's first pose), held. */

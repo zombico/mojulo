@@ -225,7 +225,7 @@ export function buildCombatMelee(E) {
       armReaction(tg, topples ? 'topple' : 'stagger', topples, { launch: P.launch });
       // (a launch that threw its target up: the launcher's rise may follow, combat-melee.js stepMoveset; a SLAM drives a
       // juggled target down into the ground, the landing its knockdown)
-      if (P.launch > 0 && tg.juggle) e.mvLaunched = true;
+      if (P.launch > 0 && tg.juggle) { e.mvLaunched = true; e.mvThrown = tg.id; }   // (the foe it threw: faced in the air)
       if (P.slam > 0 && tg.juggle) { tg.juggle.vz = -P.slam; tg.juggle.knock = true; }
       if (P.knock && E.knockHit) E.knockHit(state, tg, e, P.knock, [tg.transform.pos[0] - e.transform.pos[0], tg.transform.pos[1] - e.transform.pos[1]]);
     }
@@ -438,6 +438,7 @@ export function buildCombatMelee(E) {
   // THE ENGAGED FOE: the lock's target, else the nearest live foe the body is engaged with (in its combat stance, the
   // rule's `combat`: within its reach of a foe; a rule without one, within ENGAGE metres), else null
   const ENGAGE = 4;
+  const AIM_TURN = 18, TAU2 = 2 * Math.PI;
   function mvFoe(e, world) {
     const L = world && world.lock, tg = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
     if (tg && tg.transform) return tg;
@@ -590,6 +591,14 @@ export function buildCombatMelee(E) {
     } else if (e.mvPose && e.mvPose.sidearm && e.swingT == null && (e.mvPoseT = (e.mvPoseT || 0) - dt) > 0) e.mvPose = { ...e.mvPose, phase: 0 };
     else if (e.mvPose) e.mvPose = null;
     if (e.grounded && e.launchedBy === 'rise') e.launchedBy = null;   // (a rise landed: the next jump is the legs' again)
+    // THE AIR'S AIM (`mvThrown`, the foe a launch threw): while the hero is in the air after it, the body turns to that foe
+    // (AIM_TURN rad/s, the stick's turn held off it, rules-platform.js), and an air move is taken facing it; landed, or
+    // the foe gone, it is let go (on the ground once no move plays: the launcher's own frames keep it for the rise)
+    const aimed = e.mvThrown != null && world && world.byId ? world.byId[e.mvThrown] : null;
+    if (aimed && !e.grounded && !aimed.gone && !aimed.downed && aimed.transform) {
+      const d = ((headingTo(e, aimed) - t.heading + Math.PI) % TAU2 + TAU2) % TAU2 - Math.PI, mx = AIM_TURN * dt;
+      t.heading += Math.max(-mx, Math.min(mx, d));
+    } else if (e.mvThrown != null && ((e.grounded && e.swingT == null) || !aimed || aimed.gone || aimed.downed)) e.mvThrown = null;   // (the launcher still playing holds it for the rise)
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
     // (BACK + HEAVY, `bH`: the heavy pressed with the stick pulled away from where the hero faces, against the lock's
@@ -655,7 +664,8 @@ export function buildCombatMelee(E) {
         const mv = M.moves[next.move];
         if (boosting) { e.boostCut = true; boosting = false; }   // a strike out of the sprint cuts it
         // (a launcher, taken on back + heavy, turns to the foe it was pulled back from, never along the stick)
-        const foeB = b === 'bH' ? mvFoe(e, world) : null, face = foeB ? headingTo(e, foeB) : mvFacing(e, world, ctx);
+        const aimA = airborne && e.mvThrown != null && world && world.byId ? world.byId[e.mvThrown] : null;
+        const foeB = aimA && aimA.transform ? aimA : b === 'bH' ? mvFoe(e, world) : null, face = foeB ? headingTo(e, foeB) : mvFacing(e, world, ctx);
         if (face != null) t.heading = face;
         const spec = meleeSwingSpec(r, r, mv.swing, false);
         // THE FOOTWORK (hero-swing-body.js moveClip): a move steps in only where there is room for all of its travel (a

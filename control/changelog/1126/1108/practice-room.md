@@ -222,3 +222,10 @@
   none), not against where the hero faces: pulling the stick back with no lock turns the hero away, and the press still
   launches, the hero turned back to the foe. A moveset's move now holds the facing it was taken at while it plays, the
   stick turning the body again once it ends.
+- **Air moves with bodies of their own, facing the foe.** An air move played no animation at all: in the air the figure
+  held its jump pose (`leap`, `boost`) and the move's clip never showed. A moveset's move in the air now plays its own
+  clip (`rules-platform.js`), and an air move bakes an airborne body (`hero-swing-body.js` `airBody`, the sword's swings
+  and the fist's strikes alike): the arms and trunk the move's, no foot on the floor, the legs tucked as it gathers, the
+  lead leg kicking down and back through the blow while the other draws up, tucked again after. A launch remembers the
+  foe it threw (`mvThrown`): while the hero is in the air after it, it turns to that foe (18 rad/s, the stick's turn held
+  off), and each air move is taken facing it; landed, it lets go.

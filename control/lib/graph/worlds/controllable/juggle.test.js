@@ -74,6 +74,24 @@ describe('the launcher and the air string', () => {
     expect(B.log[0]).toMatch(/H taken: an opener: thrust/);
   });
 
+  it('after the launch the hero faces the foe it threw: rising with the stick held away, and each air move taken at it', () => {
+    const A = world({ rule: { move: 'world', moveYaw: 0 } });
+    // (the foe off to the side: the launch throws it, then the stick is held straight back, away from it, all the way up)
+    A.f.transform.pos = [1.1, 0.6, 0];
+    A.run((i) => ({ heavy: 1, forward: i < 3 ? -1 : 0 }), 24);
+    expect(A.p.grounded).toBe(false);
+    const toward = () => Math.cos(Math.atan2(A.f.transform.pos[1] - A.p.transform.pos[1], A.f.transform.pos[0] - A.p.transform.pos[0]) - A.p.transform.heading);
+    A.run(() => ({ forward: -1 }), 6);
+    expect(toward()).toBeGreaterThan(0.97);
+    A.run((i) => ({ forward: -1, fire: i < 3 ? 1 : 0 }), 3);
+    expect(A.log).toContain('L taken: an air opener: air-1');
+    expect(toward()).toBeGreaterThan(0.97);
+    // landed, the aim is let go
+    A.run(() => ({}), 120);
+    expect(A.p.grounded).toBe(true);
+    expect(A.p.mvThrown).toBeNull();
+  });
+
   it('the launcher is the upswing straight ahead, a lunge in and a long window: a foe at the edge of reach is thrown up', () => {
     const A = world({ at: 2.1 });
     launch(A, 3);

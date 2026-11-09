@@ -92,7 +92,9 @@ function chain({ footwork, foeAt = 6, style = null, fist = false, presses = { 0:
   if (fist) {
     // (the fist: the body's strikes, their guard its stance)
     const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: heroStrike, box: heroBox } };
-    for (const mv of Object.values(M.moves)) { clips[mv.clip] = strikeMoveClip(mv, { ...sc, footwork }); clips[`${mv.clip}_still`] = strikeMoveClip({ ...mv, travel: null }, sc); }
+    // (only the string's moves, L L L: each strike's clip is a solve of its own, and the arsenal's other moves play no part)
+    const lll = [M.tree.L, M.tree.L.next.L, M.tree.L.next.L.next.L].map((n) => M.moves[n.move]);
+    for (const mv of lll) { clips[mv.clip] = strikeMoveClip(mv, { ...sc, footwork }); clips[`${mv.clip}_still`] = strikeMoveClip({ ...mv, travel: null }, sc); }
     clips[M.ready] = strikeReadyClip('jab', sc);
   }
   const w = createWorld({ entities: [
@@ -229,5 +231,35 @@ describe('the run with the blade drawn', () => {
     expect(a.elbowR).toBe(arm.elbowR); expect(b.elbowR).toBe(arm.elbowR);
     expect(Math.abs(a.shR.pitch - b.shR.pitch)).toBeLessThanOrEqual(2 * CARRY.sway + 1e-9);
     expect(a.shL.pitch).not.toBeCloseTo(b.shL.pitch, 0);
+  });
+});
+
+// AN AIR MOVE'S BODY (hero-swing-body.js airBody, a moveset's `air` moves): the arms and the trunk the move's, the feet off
+// the floor, the legs tucked as it gathers and kicking through the blow. One case a family: the sword's air cut (a swing)
+// and the fist's air jab (a strike).
+import { airBody, AIR_LEGS } from './hero-swing-body.js';
+describe('an air move', () => {
+  const R = rig('male', 'sword'), M = lowerCombos(BASIC_COMBOS), F = lowerArsenal(BASIC_ARSENAL).find((W) => W.id === 'fist').moveset;
+  const ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style: null, timing: null, contact: CONTACT, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS, footwork: true };
+  const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: heroStrike, box: heroBox }, footwork: true };
+  const rest = rigNodesAt(R, {}).nodes;
+  for (const [name, clip] of [['the sword\'s air cut', () => moveClip(M.moves['air-1'], ctx)], ['the fist\'s air jab', () => strikeMoveClip(F.moves['air-jab'], sc)]]) {
+    it(`${name}: no foot on the floor, the legs tucked as it gathers and the lead leg kicking out at the blow`, () => {
+      const fn = clip(), at = fn.move.strike;
+      expect(fn.move.air).toBe(true);
+      const tuck = fn(0), blow = fn(at);
+      for (const p of [tuck, blow]) { expect(p.support).toBe('none'); expect(p.feet).toBeUndefined(); expect(p.crouch).toBeUndefined(); }
+      expect(tuck.kneeL).toBeCloseTo(AIR_LEGS.tuck.kneeL, 1);
+      expect(blow.kneeL).toBeCloseTo(AIR_LEGS.blow.kneeL, 1);
+      // on the rig: both feet drawn up off where they stand at rest as it gathers, the lead foot reaching down at the blow
+      const nT = rigNodesAt(R, tuck).nodes, nB = rigNodesAt(R, blow).nodes;
+      for (const S of ['L', 'R']) expect(nT[`ankle${S}`][2] - rest[`ankle${S}`][2]).toBeGreaterThan(0.15);
+      expect(nB.ankleL[2]).toBeLessThan(nT.ankleL[2] - 0.15);
+    });
+  }
+  it('airBody keeps the arms and trunk it is given', () => {
+    const p = airBody({ shR: { pitch: 90 }, hinge: 12, feet: { L: [0, 0, 0] }, crouch: 0.2 }, 0.5, 0.5);
+    expect(p).toMatchObject({ shR: { pitch: 90 }, hinge: 12, support: 'none' });
+    expect(p.feet).toBeUndefined();
   });
 });
