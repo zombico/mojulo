@@ -280,7 +280,10 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
   // THE BODY'S OWN PARTS (FIG_BULK): the trunk an ellipse about its axis (read in its frame, its depth stretched to its
   // width), the head, the limbs capsules; how deep a limb passes into what is already placed
   const bulk = figureBulk(base), stretch = bulk.trunkW / bulk.trunkD;
-  const hd = fv.unit(fv.sub(at(J.head), at(J.neck)));
+  // (the head along the sim's neck → head line, over the head's OWN carriage: a beast's skull seated with its crown
+  // forward of its base (a wolf's, a dragon's, the snout out front) keeps that lean, the sim's angle laid on it, so its
+  // snout looks where the fight looks and never up at the sky; a person's head, upright at rest, as the line has it)
+  const hd = headCarried(fv.unit(fv.sub(at(J.head), at(J.neck))), base);
   // the trunk at a chest turn: the shoulders, the neck, the head along the sim's neck → head line, its frame
   const trunkOf = (deg) => {
     const c = rad(deg), T = { deg };
@@ -401,6 +404,15 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
     for (const k of Object.keys(N)) N[k] = [N[k][0], N[k][1], N[k][2] - low];
   }
   return N;
+}
+// THE HEAD'S OWN CARRIAGE: its rest line's lean forward of upright (the figure's frame: y forward, z up), in radians; a
+// lean under HEAD_UPRIGHT reads as upright (a person's), so a person's head is posed exactly as the sim's line has it
+const HEAD_UPRIGHT = 3 * Math.PI / 180;
+function headCarried(hd, base) {
+  const d = fv.sub(base.headTop, base.headBase), lean = Math.atan2(d[1], d[2]);
+  if (!(Math.abs(lean) > HEAD_UPRIGHT)) return hd;
+  const c = Math.cos(lean), s = Math.sin(lean);
+  return fv.unit([hd[0], hd[1] * c + hd[2] * s, hd[2] * c - hd[1] * s]);
 }
 // the order the arms are placed in: the lead's first (the rear keeps out of it)
 const S_ORDER = (lead) => (lead === 'L' ? ['L', 'R'] : ['R', 'L']);

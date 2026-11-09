@@ -3,7 +3,8 @@
 // nothing at all for a roster without one; two characters walked into each other stop with their bodies apart.
 import { describe, it, expect } from 'vitest';
 import { heroRecord } from '@/lib/mcp/tools/layered.js';
-import { resolveCharacters, bodyDials, characterBody } from './versus-character.js';
+import { resolveCharacters, bodyDials, characterBody, snoutStoop } from './versus-character.js';
+import { beastWords } from '../beast/tiered.js';
 import { characterBase, figurePose, figureSegments, segmentOf } from './versus-figure.js';
 import { newVersus, stepVersus } from './versus-core.js';
 import { rigJoints } from './versus-rig.js';
@@ -80,6 +81,18 @@ describe('versus: a character as a fighter', () => {
     expect(bear.color).toMatch(/^#[0-9a-f]{6}$/i);
     const F = compileFighter(rosterEntry(bear, 1).recipe);
     expect(F.moves['stand.L'].reach).toBeGreaterThan(0);
+  });
+
+  it('beastfolk with a snout carry their heads low, by how far the head reaches forward; a person stands as before', async () => {
+    const kin = (k) => heroRecord(beastWords({ cast: 'male', beast: { kin: k } }));
+    expect(['lupine', 'draconic', 'ursine', 'feline', 'avian', 'serpentine', 'insectoid'].map((k) => snoutStoop(kin(k)))).toEqual([26, 26, 16, 16, 16, 10, 10]);
+    expect(snoutStoop(ROWS.him.hero)).toBe(0);
+    const rows = { wolf: { kind: 'layered', hero: kin('lupine') } };
+    const [wolf, own, man] = await resolveCharacters([{ id: 'w', hero: { ref: 'wolf' } }, { id: 'o', hero: { ref: 'wolf' }, stance: { stoop: 8 } }, { id: 'm', hero: { ref: 'him' } }], (r) => rows[r] ?? ROWS[r]);
+    expect(wolf.stance).toMatchObject({ stoop: 26 });
+    expect(own.stance.stoop).toBe(8);   // (the entry's own word over its head's)
+    expect(man.stance?.stoop).toBeUndefined();
+    expect(() => compileFighter(rosterEntry(wolf, 0).recipe)).not.toThrow();
   });
 
   it('a body that cannot fight is refused with the reason: four legs, no arms; and its own strikes are a hero\'s', async () => {

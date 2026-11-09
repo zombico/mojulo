@@ -104,7 +104,12 @@ keeps its place.
   a second pair of arms, a naga on its serpent's coil), a mascot or a two-legged creature, each measured off its own
   skeleton (a non-hero's girth from its trunk's widest ring, its colour from its palette); a four-legged body or one
   without arms is refused with the reason, and a fighter's own strikes (`moves`) stay a hero's. A body's face bones
-  (lids, lips, brows, ears, a snout, horns) ride its head, and a serpent's coil its hips, the rest planted on the ground. A posed body under a fight's register is drawn in it, as a played one is: the register's
+  (lids, lips, brows, ears, a snout, horns) ride its head, and a serpent's coil its hips, the rest planted on the ground.
+  Beastfolk with a snout carry their heads low: a stance's `stoop` (degrees, 0 … 30) sinks a fighter's rests (the knees
+  bent, the trunk hinged over hips sat back), so the standing head comes down about 5 cm and the crouched about 20 at a
+  long muzzle's 26 (a short muzzle or a beak 16, a snake's head or mandibles 10, by the head's own word), the hurt box's
+  front where it was; the trade is the jabs thrown from the rest, about a tenth shorter. A head is posed over its own
+  carriage, so a beast's skull seated crown-forward keeps its snout on the fight (it pointed at the sky). A posed body under a fight's register is drawn in it, as a played one is: the register's
   material, casting and taking the key's shadows, its coats, no ink hull.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

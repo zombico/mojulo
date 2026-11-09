@@ -486,6 +486,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // versus-figure.js, whose face bones (lids, lips, brows, ears, a snout, horns) ride the head and a serpent's coil its
 // hips then the ground (a `ground` segment, planted); the fixture's fighters are no characters and its arena names no
 // register.
+// Re-pinned 2026-11-09 (1107-fg-remake: a snout carried low): `versus` only. Its page inlines versus-rig.js (stoopPose),
+// versus-compile.js (a stance's `stoop` sinking its rests) and versus-figure.js (a head posed over its own carriage, a
+// beast's crown forward of its base kept); the fixture's fighters name no stoop and are no characters.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

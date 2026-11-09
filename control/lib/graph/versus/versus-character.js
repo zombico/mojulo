@@ -23,6 +23,8 @@ import { fighterSpec, fighterFromSheet, fighterName } from './versus-sheet.js';
 import { castOf, BODY_DEFAULTS } from '../polygonizer/hero-form.js';
 import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { resolveCharacterLight } from '../polygonizer/station-loft-shade.js';
+import { beastHeadOf } from '../beast/head.js';
+import { HEAD_LIBRARY } from '../creature-heads/index.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -32,6 +34,21 @@ export const isCharacterEntry = (e) => isObj(e) && e.hero !== undefined;
 
 const at = (j) => (Array.isArray(j) ? j : j.at);
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/**
+ * A SNOUT CARRIED LOW: a beastfolk fighter (a hero with a `beast`, beast/tiered.js) whose head has a snout fights with
+ * its head down, its stance's `stoop` (versus-rig.js stoopPose: the head lower, the hurt box shorter, its front and its
+ * reach as they were), by how far its head reaches forward (its library head's own word, creature-heads/index.js): a long
+ * snout or muzzle the most, a short muzzle or a beak less, a snake's head or mandibles a little. A person's head, none.
+ */
+export const SNOUT_STOOP = Object.freeze({ 'long snout': 26, 'long muzzle': 26, 'short muzzle': 16, beak: 16, snake: 10, mandibles: 10 });
+export function snoutStoop(hero) {
+  if (!isObj(hero?.beast)) return 0;
+  let id = null;
+  try { id = beastHeadOf(hero)?.id ?? null; } catch { id = null; }
+  id ??= typeof hero.beast.head?.relational === 'string' ? hero.beast.head.relational : null;
+  return SNOUT_STOOP[HEAD_LIBRARY[id]?.head] ?? 0;
+}
 
 /** The joints a fight measures and poses a body by: two legs, two arms, a trunk and a head. */
 export const FIGHT_JOINTS = Object.freeze(['headTop', 'neckHub', 'pelvisHub', 'shoulderR', 'elbowR', 'wristR', 'shoulderL', 'elbowL', 'wristL', 'hipR', 'kneeR', 'ankleR', 'hipL', 'kneeL', 'ankleL']);
@@ -165,10 +182,13 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
     const sheet = manifest.egocube ? sheetOf(manifest.egocube) : null;
     const read = sheet ? fighterFromSheet(sheet) : { intent: { archetype: 'all-rounder' }, reads: [] };
     const { style, ...over } = spec.over;
+    // (a snout carried low: the entry's own stoop over its head's; none for a person)
+    const stoop = snoutStoop(manifest.hero), stance = over.stance && read.intent.stance ? { ...read.intent.stance, ...over.stance } : over.stance ?? read.intent.stance;
     out.push({
       id: spec.id, name: spec.name ?? (sheet ? fighterName(sheet) : spec.id),
       ...read.intent, ...(style ? { archetype: style } : {}), ...over,
-      ...(over.stance && read.intent.stance ? { stance: { ...read.intent.stance, ...over.stance } } : {}),
+      ...(over.stance && read.intent.stance ? { stance } : {}),
+      ...(stoop && stance?.stoop === undefined ? { stance: { ...(stance ?? {}), stoop } } : {}),
       body, ...(spec.color ?? color ? { color: spec.color ?? color } : {}), character: ref,
       ...(sheet ? { sheet: manifest.egocube.ref, reads: read.reads } : {}),
       ...(fight ? { heroNormals: fight.normals, guard: fight.guard } : {}),

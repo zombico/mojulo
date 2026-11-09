@@ -11,7 +11,7 @@
  *     id, name, cast?: 'heroic' | 'brute' | 'lithe' | 'stout', body?: { …dials },
  *     hp?, walk?: { f, b }, dash?: { f, b }, jump?: { vy, g, vx },
  *     tradition?: 'boxing' | 'karate' | …,   // its guard, crouch, walk and rhythm (versus-traditions.js TRADITIONS)
- *     stance?: { open, hips, tilt },
+ *     stance?: { open, hips, tilt, stoop? },   // stoop: a beast's head carried low, its rests sunk (degrees)
  *     normals: { 'stand.L': { family, strength? }, … },     // the nine slots (versus-library NORMAL_SLOTS), any family
  *                                                          // of any tradition (versus-traditions.js FAMILIES)
  *     specials?: { neutral | forward | back | down: { id, motion?, tune? } },
@@ -41,7 +41,7 @@
  * plain data (no functions), so a page can compile in the browser from the stored recipe.
  */
 
-import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
+import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, stoopPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
 import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
 import { readElement } from './versus-fx.js';
@@ -883,7 +883,7 @@ const MOVEMENT_DIALS = {
 // the STANCE a fighter stands in (degrees; versus-figure.js reads it, the sim never does): how far the chest opens to
 // the camera, how far the hips follow, and the SIDE TILT, the trunk bent toward the camera so the shoulder line runs on
 // a diagonal and the torso reads in the silhouette
-export const STANCE_DIALS = { open: [0, 70], hips: [0, 60], tilt: [-20, 25] };
+export const STANCE_DIALS = { open: [0, 70], hips: [0, 60], tilt: [-20, 25], stoop: [0, 30] };
 export const DEFAULT_STANCE = Object.freeze({ open: 45, hips: 28, tilt: 8 });
 export const BODY_DIALS = { height: [1000, 2600], arm: [0.5, 2], leg: [0.5, 2], torso: [0.5, 2], girth: [0.5, 2] };
 
@@ -929,6 +929,9 @@ export function readMovement(recipe) {
   }
 }
 
+// a fighter's rests stooped (the air's left as it is: a jump's tuck is its own)
+const stoopRests = (R, stoop, body) => Object.fromEntries(Object.entries(R).map(([k, pose]) => [k, k === 'air' ? pose : stoopPose(pose, stoop, body)]));
+
 /** A recipe → the compiled fighter (plain data). */
 export function compileFighter(recipe) {
   if (!recipe || typeof recipe !== 'object') throw new Error('versus: a fighter recipe is an object');
@@ -942,7 +945,11 @@ export function compileFighter(recipe) {
   // (a character's own guard, versus-hero.js: where its moves start and come home, its idle's stand)
   // (its walk the guard's, its legs striding as the walk's: the arms held up as it stands)
   const heroGuard = recipe.guard ? readPose(recipe.guard, `${recipe.id ?? 'fighter'} guard`) : null;
-  const own = heroGuard ? { ...(trad ?? { crouch: POSES.crouch, air: POSES.jump }), stand: heroGuard, walkA: { ...heroGuard, legF: POSES.walkA.legF, legB: POSES.walkA.legB }, walkB: { ...heroGuard, legF: POSES.walkB.legF, legB: POSES.walkB.legB } } : trad;
+  const made = heroGuard ? { ...(trad ?? { crouch: POSES.crouch, air: POSES.jump }), stand: heroGuard, walkA: { ...heroGuard, legF: POSES.walkA.legF, legB: POSES.walkA.legB }, walkB: { ...heroGuard, legF: POSES.walkB.legF, legB: POSES.walkB.legB } } : trad;
+  // (a stance that STOOPS, a beast's head carried low: its rests sunk, the stand, the crouch and the walk, its moves'
+  // own poses as they are; versus-rig.js stoopPose)
+  const stoop = recipe.stance?.stoop ?? 0;
+  const own = stoop > 0 ? stoopRests(made ?? { ...REST_POSES, walkA: POSES.walkA, walkB: POSES.walkB }, stoop, body) : made;
   const rests = own ?? REST_POSES;
   const { specials, supers } = libraryOf(recipe);
   const moves = {};

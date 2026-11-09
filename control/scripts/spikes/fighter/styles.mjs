@@ -58,6 +58,8 @@ const MATCHUPS = [
   { id: 'creatures', a: 'bear', b: 'hedgehog', preset: 'training' },
   { id: 'crossover', a: 'shonen', b: 'bear', preset: 'flat' },
   { id: 'beastfolk', a: 'wolfkin', b: 'naga', preset: 'training' },
+  // a snout carried low beside a person's head (versus-character.js snoutStoop)
+  { id: 'snout', a: 'shonen', b: 'wolfkin', preset: 'training' },
   { id: 'xenos', a: 'xeno', b: 'insectoid', preset: 'flat' },
 ];
 const only = opt.only ? new Set(opt.only.split(',')) : null;
