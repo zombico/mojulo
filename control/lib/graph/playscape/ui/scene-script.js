@@ -44,7 +44,9 @@
  *   withScripts(play, { people, places, player }, { onScript? }) → the play with each script beat lowered (the same
  *                                               object when none); each script's line takes name its clip, takeClip
  *                                               (scene:<id>:<k>, its k-th script), and onScript(clip, lowered) hears it
- *   scriptStage(manifest, play, anchors, player) → { people, places, player }: the stage both the beats and the takes
+ *   readActorDials(A, at) / readActors(play.actors) → a character's { style?, role?, register? }, read: how it acts
+ *                                               (a cast member's `actor` and the hero's reach the page as play.actors)
+ *   scriptStage(manifest, play, anchors, player) → { people, places, player, actors }: the stage both the beats and the takes
  *                                               are blocked on (scene-takes.js)
  *
  * Pure and deterministic.
@@ -53,6 +55,9 @@ import { actScene, WALK, TURN } from '../../actor/scene.js';
 import { sceneCuts, CLOSE_LOOK } from '../../actor/coverage.js';
 import { parseScreenplay } from '../../actor/screenplay.js';
 import { readSpots, withStands } from './cast.js';
+import { styleErrors, STYLE_NAMES } from '../../actor/style.js';
+import { roleErrors } from '../../actor/role.js';
+import { DELIVERY_NAMES } from '../../persona/delivery.js';
 
 /** the player's mark from the first other character it meets (m): a conversation's distance */
 export const HERO_APART = 1.8;
@@ -78,7 +83,7 @@ export function readScriptText(text, where = 'script') {
 const boxWords = (text) => text.replace(/\*([^*]*)\*/g, '$1').replace(/\[pause[^\]]*\]/gi, ' ').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
 
 /** One script lowered on the page's people and places (see the header). */
-export function lowerScript(text, { people = {}, places = {}, player = null, seed = 1, clip = null } = {}) {
+export function lowerScript(text, { people = {}, places = {}, player = null, seed = 1, clip = null, actors = {} } = {}) {
   const script = readScriptText(text);
   const ids = Object.keys(people);
   if (!ids.length) throw new Error('script: no one on the page to play it (its names are the characters\' ids, in capitals)');
@@ -100,7 +105,8 @@ export function lowerScript(text, { people = {}, places = {}, player = null, see
     at[player] = [r3(o[0] + dir[0] * HERO_APART), r3(o[1] + dir[1] * HERO_APART)];
   }
   const marks = { ...placeMarks, ...Object.fromEntries(named.map((w) => [markOf(w), at[w]])) };
-  const scene = actScene({ cast: Object.fromEntries(named.map((w) => [w, { mark: markOf(w) }])), marks, script, seed });
+  // (each played in its own style, role and register where the page says them: play.actors; else the register's plain read)
+  const scene = actScene({ cast: Object.fromEntries(named.map((w) => [w, { ...(actors[w] ?? {}), mark: markOf(w) }])), marks, script, seed });
   const cuts = sceneCuts(scene);
 
   // when each beat starts on the scene's clock (a line's words, a cross's turn before its walk; the rest untimed)
@@ -191,7 +197,7 @@ export function scriptsIn(beats) {
 export const hasScripts = (play) => isObj(play) && Array.isArray(play.scenes) && play.scenes.some((s) => scriptsIn(s?.beats).length > 0);
 
 /** The play with each scene's script beats lowered on the page (see the header); the same object when it has none. */
-export function withScripts(play, { people = {}, places = {}, player = null } = {}, { onScript = null } = {}) {
+export function withScripts(play, { people = {}, places = {}, player = null, actors = {} } = {}, { onScript = null } = {}) {
   if (!hasScripts(play)) return play;
   const lower = (scene) => {
     let k = 0;
@@ -201,7 +207,7 @@ export function withScripts(play, { people = {}, places = {}, player = null } = 
         // (each script's takes go by the clip its scene and its place in it name: scene:<id>:<k>)
         const clip = takeClip(scene.id, k++);
         try {
-          const L = lowerScript(b.script, { people, places, player, clip });
+          const L = lowerScript(b.script, { people, places, player, clip, actors });
           if (onScript) onScript(clip, L);
           return L.beats;
         } catch (e) { throw new Error(`play.scenes${at}.script: ${e.message.replace(/^(script|screenplay|scene): /, '')}`); }
@@ -212,6 +218,24 @@ export function withScripts(play, { people = {}, places = {}, player = null } = 
     return lay;
   };
   return { ...play, scenes: play.scenes.map((s, i) => (isObj(s) && Array.isArray(s.beats) && scriptsIn(s.beats).length ? { ...s, beats: lower(s)(s.beats, `[${i}].beats`) } : s)) };
+}
+
+const ACTOR_KEYS = ['style', 'role', 'register'];
+/** One character's actor dials, read: { style?, role?, register? } (actor/style.js, actor/role.js, persona/delivery.js),
+ * or throws, teaching. What a cast member's (and the hero's) `actor` says, and a page's `play.actors` carries. */
+export function readActorDials(A, at = 'actor') {
+  if (!isObj(A)) throw new Error(`${at} is { style?, role?, register? }: how the character acts a script (style: ${STYLE_NAMES.join(' | ')}; role: { emote?, face?, status? }; register: ${DELIVERY_NAMES.join(' | ')})`);
+  for (const k of Object.keys(A)) if (!ACTOR_KEYS.includes(k)) throw new Error(`${at}.${k} is not an actor dial (${ACTOR_KEYS.join(', ')})`);
+  const errs = [...(A.style !== undefined ? styleErrors(A.style, `${at}.style`) : []), ...(A.role !== undefined ? roleErrors(A.role, `${at}.role`) : [])];
+  if (A.register !== undefined && !DELIVERY_NAMES.includes(A.register)) errs.push(`${at}.register: '${A.register}' is not a register (${DELIVERY_NAMES.join(', ')})`);
+  if (errs.length) throw new Error(errs.join('; '));
+  return Object.fromEntries(ACTOR_KEYS.filter((k) => A[k] !== undefined).map((k) => [k, A[k]]));
+}
+/** A page's `play.actors`: { <who>: dials }, read (none: {}). */
+export function readActors(P, at = 'play.actors') {
+  if (P === undefined) return {};
+  if (!isObj(P)) throw new Error(`${at} is { <who>: { style?, role?, register? } }: how each character acts the scripts`);
+  return Object.fromEntries(Object.entries(P).map(([w, A]) => [w, readActorDials(A, `${at}.${w}`)]));
 }
 
 /** The clip a script's takes are packed under: its scene, and which of the scene's scripts it is (from 0). */
@@ -226,5 +250,5 @@ export function scriptStage(manifest, play, anchors, player) {
     if (e.id === player || (isObj(e.body) && !e.isCamera)) people[e.id] = { at: e.transform.pos, heading: Number.isFinite(e.transform.heading) ? e.transform.heading : 0 };
   }
   for (const p of [...readSpots(play), ...withStands(anchors || [])]) if (p && typeof p.id === 'string' && Array.isArray(p.at)) places[p.id] ??= p.at;
-  return { people, places, player };
+  return { people, places, player, actors: readActors(play?.actors) };
 }

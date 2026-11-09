@@ -62,6 +62,10 @@ story has one of its own. A gameworld's own `flow` names its levels by the world
 each as the ref of that level's first stage, and a cinematic whose scene is a bound story moment plays on the stage the
 moment is bound to. The review shows either flow as a storyboard (`flow:sequence`).
 
+A cinematic's scene may be written as a screenplay: the cinematics department blocks it on its stage, shoots it by
+the director's rules, has its cast act it and plays its slow motion on the world clock (docs/cinematics.md, "The scene
+in a game"); the storyboard says which cinematics are scripts, and the story's report carries their director's notes.
+
 ## How it runs
 
 The flow kernel (`buildFlowKernel`) is inlined in the play shell beside the store kernel. Every screen's buttons and

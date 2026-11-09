@@ -223,6 +223,12 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
   one going ends it, so the world is never left slowed. A hand-written scene may fire one of the world's own moments by
   name the same way.
 
+- **How each acts, and the notes.** A character's `actor` (`characters.cast.<id>.actor`, `characters.hero.actor`: its
+  `style`, `role` and `register`, the actor's own words) reaches a stage's page as `play.actors`, so the lines, the
+  blocking's clock and the takes are played in it. The story's report (`design_game`'s `story.notes`, the bible's
+  moment cards) carries each script's director's notes as it is blocked on its stage: advice with its fix, never a
+  refusal.
+
 ## Where to look
 
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings

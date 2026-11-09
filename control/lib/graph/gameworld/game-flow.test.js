@@ -47,6 +47,8 @@ describe('the story\'s cinematics and the flow they make', () => {
     expect(B[0]).toMatchObject({ kind: 'cinematic', department: 'cinematics', what: 'the scene dawn, on gate', waits: 'its scene to end', goes: { next: 'title' } });
     expect(B.find((b) => b.step === 'title')).toMatchObject({ department: 'interface', waits: expect.stringMatching(/^the player \(.*play.*\), or 45 s left alone$/) });
     expect(B.find((b) => b.step === 'prologue').what).toBe('the scene off, on gate, kept into play');
+    // a cinematic whose scene is written as a script says so
+    expect(flowStoryboard(F, { scripted: ['dawn'] })[0].what).toBe('the scene dawn (a script, blocked and shot by the director), on gate');
   });
 });
 

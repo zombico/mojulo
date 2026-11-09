@@ -31,4 +31,12 @@
   moment. The camera, the text box and the characters' speech stay at normal speed, so the action slows and the words
   never drag. Skipping a scene in slow motion puts the world straight back to normal speed. A hand-written scene can
   call on a game's own slow-motion moments the same way.
+- **Say how each character acts.** Each character, the hero included, can be given an acting style, a role (such as
+  someone who holds their head high, or one who keeps glancing away) and a way of speaking, and their written scenes
+  are played that way: the timing of the lines, the gestures and the faces follow it.
+- **The director's notes.** When a game is built, each written scene gets the notes a director would give after a
+  read-through: a shot held too long, a speaker turned away from whom they're talking to, a long talk with no
+  close-up, a line slowed by slow motion. Each note comes with a suggested fix to the script, and none of them stops
+  the build. They appear in the game's design readout and its book. The game's flow storyboard also marks which
+  cutscenes are written scenes.
 

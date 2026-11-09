@@ -379,9 +379,11 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
   const words = (looks) => Object.entries(looks ?? {}).map(([k, v]) => `${k}: ${typeof v === 'object' ? Object.values(v).flat().map((x) => (typeof x === 'object' ? JSON.stringify(x) : x)).join(', ') : v}`).join(' · ');
   const castHtml = cast ? Object.entries(cast).map(([id, m]) => `<article class="card"><div class="card-h"><span class="eyebrow">Cast · ${esc(id)}</span><h3>${esc(m.name ?? id)}</h3></div><p class="muted">${esc(words(m.looks) || 'the direction alone')}</p></article>`).join('') : '';
   const where = (b) => `${b.level} · ${b.node}${b.place ? ` · ${b.place}` : ''}`;
+  // (a script's director's notes, as it is blocked on its stage: advice with its fix, actor/notes.js)
+  const notesOf = (id) => { const N = (told?.notes ?? []).filter((n) => n.id === id).flatMap((n) => n.notes); return N.length ? `<ul class="muted">${N.map((x) => `<li>${esc(x.says)} <em>${esc(x.try)}</em></li>`).join('')}</ul>` : ''; };
   const momentHtml = told ? (G.story ?? []).map((m) => {
     const b = told.bound.find((x) => x.id === m.id), u = told.unplaced.find((x) => x.id === m.id);
-    return `<article class="card${u ? ' open' : ''}"><div class="card-h"><span class="eyebrow">${u ? 'Unplaced' : `Bound · ${esc(where(b))}`}</span><h3>${esc(m.id)}</h3></div><p class="muted">${esc((m.who ?? []).map((w) => cast?.[w]?.name ?? w).join(', ') || 'the hero')}${m.sets?.length ? ` · sets ${esc(m.sets.join(', '))}` : ''}</p>${u ? `<p class="muted">${esc(u.why)}</p>` : ''}</article>`;
+    return `<article class="card${u ? ' open' : ''}"><div class="card-h"><span class="eyebrow">${u ? 'Unplaced' : `Bound · ${esc(where(b))}`}</span><h3>${esc(m.id)}</h3></div><p class="muted">${esc((m.who ?? []).map((w) => cast?.[w]?.name ?? w).join(', ') || 'the hero')}${m.sets?.length ? ` · sets ${esc(m.sets.join(', '))}` : ''}</p>${u ? `<p class="muted">${esc(u.why)}</p>` : ''}${notesOf(m.id)}</article>`;
   }).join('') : '';
   // the quests: each step, the moments that wait on the one before, and a step whose flag nothing in the story sets
   const questHtml = (G.quests ?? []).map((q) => `<article class="card"><div class="card-h"><span class="eyebrow">Quest · ${esc(q.id)}${q.starts ? ` · begins on ${esc(q.starts)}` : ''}</span><h3>${esc(q.name ?? q.id)}</h3></div><ol class="muted">${q.steps.map((st, j) => {

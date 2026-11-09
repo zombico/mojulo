@@ -135,6 +135,25 @@ describe('the story, bound', () => {
     expect(P.filter((x) => x.kind === 'shot').map((x) => x.shot.frame)).toContain('close');
   }, 120_000);
 
+  it('each acts as its page says: the cast\'s and the hero\'s actor reach the stage\'s play; a script\'s director\'s notes are in the report', () => {
+    const cast = { ...CAST, mayor: { ...CAST.mayor, actor: { style: 'thespian', role: { status: 'high' } } } };
+    expect(() => readGameworld(W({ cast: { ...CAST, mayor: { ...CAST.mayor, actor: { style: 'method' } } } }))).toThrow(/cast.mayor.actor.style: 'method' is not a style/);
+    // a long talk, nobody moving, no line with a face of its own: the director would cut to a close-up
+    const TALK = { ...WELCOME, beats: [{ script: ['MAYOR: Welcome.', 'HERO: Thanks.', 'MAYOR: The road is shut.', 'HERO: Since when?', 'MAYOR: Since the spring.', 'HERO: I see.'].join('\n') }] };
+    const world = { ...W({ cast, story: [TALK] }), characters: { ...W({ cast }).characters, hero: { ...(W().characters.hero ?? {}), actor: { register: 'anchor' } } } };
+    const G = readGameworld(world);
+    expect(G.characters.cast.mayor.actor).toEqual({ style: 'thespian', role: { status: 'high' } });
+    const b = bindStory(G, stages, { castRefs, layout: LAYOUT });
+    expect(b.notes.map((n) => [n.id, n.script])).toEqual([['welcome', 0]]);
+    expect(b.notes[0].notes.map((x) => x.id)).toContain('no-close');
+    expect(b.notes[0].notes[0]).toMatchObject({ says: expect.any(String), why: expect.any(String), try: expect.any(String) });
+    const m = stageLevelOrder(G, stages[0], { ref: 'gw-level-gate-0', heroRef: 'gw-hero', story: b.byStage['gate/path'] }).args.manifest;
+    expect(m.play.actors).toEqual({ hero: { register: 'anchor' }, mayor: { style: 'thespian', role: { status: 'high' } } });
+    // without a script, no notes; without an actor, no actors
+    expect(bind([WELCOME]).notes).toBeUndefined();
+    expect(stageLevelOrder(readGameworld(W({ story: [WELCOME] })), stages[0], { ref: 'x', heroRef: 'gw-hero', story: bind([WELCOME]).byStage['gate/path'] }).args.manifest.play.actors).toBeUndefined();
+  }, 120_000);
+
   it('design_game passes each stage its share: the bound stage changes, the others are not remade', () => {
     const S = runSteps(W({ story: [WELCOME] }), { ref: 'gw' }), S0 = runSteps(W(), { ref: 'gw' });
     const print = (steps, key) => steps.find((s) => s.key === key).print;

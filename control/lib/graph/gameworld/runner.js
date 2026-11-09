@@ -508,15 +508,16 @@ function epochLevels(stages, refs, maps, G) {
 const cityRefsOf = (stages, refs, s) => (s.section === 'city' ? { cityRefs: Object.fromEntries(stages.map((x, j) => [x, refs[j]]).filter(([x]) => x.level === s.level).map(([x, r]) => [x.node, r])) } : {});
 
 /** The story bound to the world as it lays now: { bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
- * unset? (with quests: the steps whose flag nothing in the story sets) }, or null when the world has no story and no
- * quests. What design_game and the bible report. */
+ * unset? (with quests: the steps whose flag nothing in the story sets), notes? (the director's notes on its scripts, as
+ * each is blocked on its stage) }, or null when the world has no story and no quests. What design_game and the bible
+ * report. */
 export function storyReport(world, { ref = 'gw' } = {}) {
   const G = laidCasting(readGameworld(world));
   if (!G.story && !G.quests) return null;
   const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
   const stages = gameStages(world), epochs = G.battles?.on === 'board' ? bookEpochs(G, stages) : [];
-  const { bound, unplaced, unset } = bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane }, epochs: epochs.length && epochs.every((e) => e.at.length <= MAP_DOTS) ? epochs : null });
-  return { bound, unplaced, ...(unset ? { unset } : {}) };
+  const { bound, unplaced, unset, notes } = bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane }, epochs: epochs.length && epochs.every((e) => e.at.length <= MAP_DOTS) ? epochs : null });
+  return { bound, unplaced, ...(unset ? { unset } : {}), ...(notes ? { notes } : {}) };
 }
 
 /** LEVEL GOALS (a level's `goal`, world.js): each stage its goal's mechanics and its cast (quick.js levelGoalMechanics,

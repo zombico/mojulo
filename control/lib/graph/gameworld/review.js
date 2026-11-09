@@ -12,6 +12,7 @@
  * world from a few prompts (compose.js); a part the creator has not reviewed is stamped 'auto' when its machine gate
  * holds (its laws), 'revise' when they advise, never 'approved'. The creator can still approve, or send any part back.
  */
+import { scriptsIn } from '../playscape/ui/scene-script.js';
 import { readGameworld, resolveLevel } from './world.js';
 import { landFor } from './nature.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
@@ -72,7 +73,7 @@ export function reviewParts(world) {
   // THE FLOW (game-flow.js): what plays when, the game director's, as a storyboard (each step, whose it is, what it waits
   // on, where it goes); a world with no flow of its own and no story cinematics has none to show
   const F = worldFlow(G);
-  if (F) parts.push({ id: 'flow:sequence', name: 'The flow', content: { source: F.source === 'own' ? 'the game\'s own' : 'the default, with the story\'s cinematics', start: F.flow.start, steps: flowStoryboard(F.flow) } });
+  if (F) parts.push({ id: 'flow:sequence', name: 'The flow', content: { source: F.source === 'own' ? 'the game\'s own' : 'the default, with the story\'s cinematics', start: F.flow.start, steps: flowStoryboard(F.flow, { scripted: (G.story ?? []).filter((m) => scriptsIn(m.beats).length).map((m) => m.id) }) } });
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 

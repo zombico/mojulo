@@ -5,7 +5,7 @@ import { lowerPlay } from './direction.js';
 import { sceneCues, readScenes, sceneMoments } from './scenes.js';
 import { sceneScript, sceneTempoOn } from '../../scene/channels/scene-channel.js';
 import { buildSceneRunner } from './scene-runner.js';
-import { lowerScript, withScripts, HERO_APART } from './scene-script.js';
+import { lowerScript, withScripts, HERO_APART, readActorDials, readActors } from './scene-script.js';
 import { actScene } from '../../actor/scene.js';
 import { sceneCuts, coverScene } from '../../actor/coverage.js';
 
@@ -322,5 +322,27 @@ HERO: Then I wait.`;
     expect(L.view().on).toBe(false);
     expect(L.until(() => CW.tempoScale(L.world) === 1, 60)).toBe(true);
     expect(L.world.byId.hero.held).toBe(false);
+  });
+});
+
+describe('how each acts: the actor\'s dials on the page', () => {
+  it('a character\'s style, role and register, read and taught in the actor\'s own words', () => {
+    expect(readActorDials({ style: 'thespian', role: { status: 'high' }, register: 'anchor' })).toEqual({ style: 'thespian', role: { status: 'high' }, register: 'anchor' });
+    expect(() => readActorDials({ style: 'method' })).toThrow(/actor.style: 'method' is not a style \(/);
+    expect(() => readActorDials({ role: { status: 'tall' } })).toThrow(/actor.role.status: high \| even \| low/);
+    expect(() => readActorDials({ register: 'shout' })).toThrow(/actor.register: 'shout' is not a register/);
+    expect(() => readActorDials({ mood: 'sad' })).toThrow(/actor.mood is not an actor dial \(style, role, register\)/);
+    expect(() => readActors({ mayor: 'thespian' })).toThrow(/play.actors.mayor is \{ style\?, role\?, register\? \}/);
+    expect(readActors(undefined)).toEqual({});
+  });
+
+  it('the page\'s play.actors play the script in each one\'s style: the clock of its lines moves with it; none said, as before', () => {
+    const scenes = [{ id: 's', when: { start: true }, beats: [{ script: SCRIPT }] }];
+    const at = (actors) => lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes, ...(actors ? { actors } : {}) } }, { player: 'hero' }).scenes[0].beats.filter((b) => b.kind === 'line').map((b) => b.take.end);
+    const plain = at(null);
+    expect(at({})).toEqual(plain);
+    const styled = at({ mayor: { style: 'thespian' }, hero: { style: 'thespian' } });
+    expect(styled).not.toEqual(plain);
+    expect(lowerScript(SCRIPT, { people: PEOPLE, places: PLACES, player: 'hero', actors: { mayor: { style: 'thespian' } } }).scene.actors.mayor.style).toBe('thespian');
   });
 });
