@@ -633,6 +633,10 @@ const ROSTER = AV.roster.map((r) => ({ ...r, F: compileFighter(r.recipe) }));
 let match = null, bodies = [], phase = 'wait', waited = 0, pauseIx = 0, pauseBy = 0, lastParams = null;
 
 installVersusInput((code) => { if (code === 'KeyR' && match && match.mode === 'training') RT.dummy = (RT.dummy + 1) % VS_DUMMY.length; });
+// (the fight's sound starts on a person's first key or touch, as a click on the world starts it: the page's audio channel
+// unlocks there, when the arena carries one; a browser plays nothing before a person acts)
+const fightUnlock = () => { if (typeof __beatsUnlock === 'function') __beatsUnlock(); };
+addEventListener('keydown', fightUnlock); addEventListener('pointerdown', fightUnlock);
 
 function defaults() {
   const a = ROSTER[0], b = ROSTER[Math.min(1, ROSTER.length - 1)];

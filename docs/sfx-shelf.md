@@ -175,8 +175,15 @@ a person's ears.
 
 A new sound is a row first.
 
+## Who plays it
+
+A fight game (the versus kind, under its register) sounds its blows from the families: `versus/versus-sfx.js` builds
+one cue for each thing a fight does (a fist by its weight, a foot, a blade, a counter, a spark, a block, a throw, a
+knockout) from the families at their dials. The arena's page carries them on its audio channel, and the fight plays the
+cue for what landed.
+
 ## Not yet
 
-Nothing in a level reads the shelf by its words yet. To come: wiring weapon roles, explosion presets, body sizes,
+Nothing else in a level reads the shelf by its words yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
 throttle), and WAVs in the engine handoff.

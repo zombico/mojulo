@@ -111,5 +111,12 @@ keeps its place.
   front where it was; the trade is the jabs thrown from the rest, about a tenth shorter. A head is posed over its own
   carriage, so a beast's skull seated crown-forward keeps its snout on the fight (it pointed at the sky). A posed body under a fight's register is drawn in it, as a played one is: the register's
   material, casting and taking the key's shadows, its coats, no ink hull.
+- **The fight's sounds, from the SFX shelf** (`versus/versus-sfx.js`): a fight game under its register sounds its blows
+  from the library every game hears (merged in from the SFX shelf), each cue built from the shelf's families at their
+  dials: a fist by its weight (a jab, a body blow over its flesh, a haymaker), a foot, a blade, a shot, a counter, the
+  spark, a block, a clash, a guard crushed, a grab and a throw slammed down, a body hitting the floor, a burst, a super,
+  a projectile and the knockout. The arena's page carries them on its audio channel (one room, ten voices, each hit its
+  own variant), joining what audio the level has; the runtime plays the cue for what landed (`fightCue`) and starts the
+  sound on a first key or touch. An arena made before the register beeps as it did.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

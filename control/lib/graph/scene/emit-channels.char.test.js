@@ -489,6 +489,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-09 (1107-fg-remake: a snout carried low): `versus` only. Its page inlines versus-rig.js (stoopPose),
 // versus-compile.js (a stance's `stoop` sinking its rests) and versus-figure.js (a head posed over its own carriage, a
 // beast's crown forward of its base kept); the fixture's fighters name no stoop and are no characters.
+// Re-pinned 2026-11-09 (1107-fg-remake: the fight's sounds): `versus` only. Its page inlines versus-runtime.client.js,
+// whose blows play the SFX shelf's cues where the page's audio channel carries them (fightCue, fightSound; the beep
+// where it does not), and versus-arena.client.js, which starts the sound on a first key or touch; the fixture's arena
+// names no register, carries no audio and beeps as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

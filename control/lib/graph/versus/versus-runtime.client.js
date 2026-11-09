@@ -105,6 +105,44 @@ function blip(kind) {
   } catch (e) { /* no audio */ }
 }
 
+// THE FIGHT'S SOUNDS (versus-sfx.js): a fight game under its register carries the SFX shelf's cues on the page's audio
+// channel (`__AUDIO.cues`, played by `__beatsCue`, each hit its own variant); which cue an event plays is said here, by
+// what landed: its weight (`w`: light, medium, heavy, a super), its limb (a fist, a foot, a blade, a shot), a counter, a
+// spark. An arena without the cues (one made before the register, the 2D page) beeps as it did.
+function fightCue(e) {
+  const w = e.w === undefined ? 1 : e.w, heavy = w >= 2;
+  switch (e.t) {
+    case 'hit': {
+      if (e.spark) return null;   // (the spark's own event sounds it)
+      const id = e.limb === 'blade' ? (heavy ? 'blade-heavy' : 'blade-light') : e.limb === 'shot' ? 'shot-hit'
+        : e.limb === 'foot' || e.limb === 'knee' ? (heavy ? 'kick-heavy' : 'kick-light') : w <= 0 ? 'hit-light' : w === 1 ? 'hit-medium' : 'hit-heavy';
+      return [id, 0.7 + 0.1 * Math.min(3, w)];
+    }
+    case 'counter': return e.spark ? null : ['counter', 1];
+    case 'spark': return ['spark', 1];
+    case 'block': return [e.limb === 'blade' ? 'clash' : 'block', 0.7];
+    case 'clash': case 'parry': return ['clash', 0.9];
+    case 'riposte': return ['counter', 0.9];
+    case 'armor': return ['block', 0.5];
+    case 'crush': return ['crush', 1];
+    case 'throw': return ['throw', 1];
+    case 'tech': return ['grab', 0.8];
+    case 'land': case 'bound': return ['land', 0.8];
+    case 'burst': return ['burst', 1];
+    case 'reset': return ['burst', 0.6];
+    case 'super': case 'lock': return ['super', 0.9];
+    case 'fireball': return ['fireball', 0.8];
+    case 'ko': return ['ko', 1];
+    default: return null;
+  }
+}
+function fightSound(e, fallback) {
+  if (RT.muted) return;
+  const c = fightCue(e), cues = typeof __AUDIO !== 'undefined' && __AUDIO ? __AUDIO.cues : null;
+  if (c && cues && cues[c[0]] && typeof __beatsCue === 'function') { __beatsCue(cues[c[0]], c[1]); return; }
+  if (fallback) blip(fallback);
+}
+
 // ── a match ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -269,27 +307,29 @@ function onEvent(m, e) {
     case 'fight': big('FIGHT!', null, 40); blip('ok'); break;
     case 'hit': case 'counter':
       spark(m, e.x, e.y, e.t === 'counter' ? '#ffd23a' : '#ffffff', e.dmg > 80 ? 14 : 9);
-      blip(e.t); m.shake = Math.min(10, (e.dmg || 30) / 10);
+      fightSound(e, e.t); m.shake = Math.min(10, (e.dmg || 30) / 10);
       if (e.t === 'counter') m.flash = { text: 'COUNTER', p: e.p, n: 40 };
       break;
-    case 'block': spark(m, e.x, e.y, '#7ac8ff', 6); blip('block'); break;
-    case 'throw': spark(m, e.x, e.y, '#ffffff', 12); blip('throw'); m.shake = 8; break;
-    case 'tech': spark(m, e.x, 1100, '#aaaaaa', 8); m.flash = { text: 'TECH', p: -1, n: 40 }; blip('block'); break;
-    case 'clash': spark(m, e.x, e.y, '#ff9a3a', 10); blip('block'); break;
+    case 'block': spark(m, e.x, e.y, '#7ac8ff', 6); fightSound(e, 'block'); break;
+    case 'spark': fightSound(e, null); break;
+    case 'land': fightSound(e, null); break;
+    case 'throw': spark(m, e.x, e.y, '#ffffff', 12); fightSound(e, 'throw'); m.shake = 8; break;
+    case 'tech': spark(m, e.x, 1100, '#aaaaaa', 8); m.flash = { text: 'TECH', p: -1, n: 40 }; fightSound(e, 'block'); break;
+    case 'clash': spark(m, e.x, e.y, '#ff9a3a', 10); fightSound(e, 'block'); break;
     case 'priority': m.flash = { text: 'PRIORITY', p: e.p, n: 30 }; break;
-    case 'parry': spark(m, e.x, e.y, '#7ad2ff', 12); m.flash = { text: 'PARRY', p: e.p, n: 40 }; blip('block'); break;
-    case 'burst': spark(m, e.x, e.y, '#ffffff', 18); m.flash = { text: 'BURST', p: e.p, n: 50 }; m.shake = 10; blip('super'); break;
-    case 'reset': spark(m, e.x, e.y, m.colors[e.p], 16); m.flash = { text: 'RESET', p: e.p, n: 40 }; blip('super'); break;
-    case 'bound': spark(m, e.x, e.y, '#ffffff', 14); m.shake = 9; blip('counter'); break;
-    case 'crush': spark(m, e.x, e.y, '#ff5a3a', 14); m.flash = { text: 'GUARD CRUSH', p: e.p, n: 50 }; m.shake = 8; blip('counter'); break;
-    case 'armor': spark(m, e.x, e.y, '#c8c8c8', 8); m.flash = { text: 'ARMOR', p: 1 - e.p, n: 30 }; blip('block'); break;
-    case 'riposte': spark(m, e.x, e.y, '#ffd23a', 14); m.flash = { text: 'RIPOSTE', p: e.p, n: 40 }; m.shake = 8; blip('counter'); break;
-    case 'super': m.superFlash = 40; blip('super'); break;
+    case 'parry': spark(m, e.x, e.y, '#7ad2ff', 12); m.flash = { text: 'PARRY', p: e.p, n: 40 }; fightSound(e, 'block'); break;
+    case 'burst': spark(m, e.x, e.y, '#ffffff', 18); m.flash = { text: 'BURST', p: e.p, n: 50 }; m.shake = 10; fightSound(e, 'super'); break;
+    case 'reset': spark(m, e.x, e.y, m.colors[e.p], 16); m.flash = { text: 'RESET', p: e.p, n: 40 }; fightSound(e, 'super'); break;
+    case 'bound': spark(m, e.x, e.y, '#ffffff', 14); m.shake = 9; fightSound(e, 'counter'); break;
+    case 'crush': spark(m, e.x, e.y, '#ff5a3a', 14); m.flash = { text: 'GUARD CRUSH', p: e.p, n: 50 }; m.shake = 8; fightSound(e, 'counter'); break;
+    case 'armor': spark(m, e.x, e.y, '#c8c8c8', 8); m.flash = { text: 'ARMOR', p: 1 - e.p, n: 30 }; fightSound(e, 'block'); break;
+    case 'riposte': spark(m, e.x, e.y, '#ffd23a', 14); m.flash = { text: 'RIPOSTE', p: e.p, n: 40 }; m.shake = 8; fightSound(e, 'counter'); break;
+    case 'super': m.superFlash = 40; fightSound(e, 'super'); break;
     // a lock super caught: the hit-combo's name over the fight, or the cutscene's cut (drawHud letterboxes it while it runs)
-    case 'lock': m.flash = { text: e.kind === 'cutscene' ? 'CRITICAL' : `${e.hits}-HIT SUPER`, p: e.p, n: 50 }; m.shake = 8; blip('super'); break;
+    case 'lock': m.flash = { text: e.kind === 'cutscene' ? 'CRITICAL' : `${e.hits}-HIT SUPER`, p: e.p, n: 50 }; m.shake = 8; fightSound(e, 'super'); break;
     case 'unlock': m.shake = 10; break;
-    case 'special': if (m.ctx.fighters[e.p].moves[e.slot].projectile) blip('fireball'); break;
-    case 'ko': big('K.O.', null, 120); m.slow = 70; blip('ko'); break;
+    case 'special': if (m.ctx.fighters[e.p].moves[e.slot].projectile) fightSound({ t: 'fireball' }, 'fireball'); break;
+    case 'ko': big('K.O.', null, 120); m.slow = 70; fightSound(e, 'ko'); break;
     case 'time': big('TIME', null, 120); break;
     case 'roundEnd': case 'match': {
       const w = e.w;
