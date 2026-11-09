@@ -177,6 +177,8 @@ A new sound is a row first.
 
 ## Not yet
 
-Nothing in a level reads the shelf by its words yet. To come: wiring weapon roles, explosion presets, body sizes,
+A level reads the shelf by its words only by hand so far: the practice room
+(`control/scripts/spikes/practice-room/`) names its sounds by word and wires them to a moveset's events (`audio.moves`,
+the world-audio card). To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
 throttle), and WAVs in the engine handoff.

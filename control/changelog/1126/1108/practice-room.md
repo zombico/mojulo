@@ -169,3 +169,14 @@
   swings with the gait. Solved once on the rig (the shoulder's pitch, yaw and roll and the elbow searched for the hand's
   place and the blade's line), measured on the sword's own posed faces. On the page the combat lean (which raised the
   weapon arm) eases out while a moveset's hero moves.
+- **The room sounds** (`beats/beats-world.js` `audio.moves`, `scene/channels/audio.js`, the SFX shelf merged in). A
+  world's `audio.moves` names, for a moveset's events, cues of its own `sfx.cues`: the swing and the hit by the weapon
+  in hand and the move's weight (light; heavy, a move its H took; finisher), the guard's block, parry and break, the
+  bow's draw, loose and arrow striking home (a foe struck by no blade), the weapon cycle, a foe's swing and its fall, a
+  blow taken. A cue it names that the level has not is refused. The page plays them read-only off the moveset's state,
+  emitted only where a world names `moves`. The room names its sounds from the SFX shelf by word (`--sound realistic`
+  by default, or a palette, or `none`): the katana's light and heavy slash, the blade's hit and the finisher's knockout,
+  the fist's swing, punch and uppercut, the shield's block, the blades' clash for a parry, the wood breaking for a
+  guard broken, the bow's draw, shot and arrow striking, the weapon switch, a foe going down, footsteps on stone, the
+  dodge; through the SFX mixer in an interior. Counted headless: each action starts its sound (an idle room none).
+  Heard by nobody yet: whether they sound right is the operator's ears.

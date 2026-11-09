@@ -34,6 +34,7 @@ const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scen
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 const { asked } = await import('./measure.mjs');
 const { feelRule } = await import('../../../lib/graph/gameworld/feel/lower.js');
+const { sfxSound } = await import('../../../lib/graph/sfx-shelf/resolve.js');
 const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList } = await import('../../../lib/graph/gameworld/combos.js');
 // the arsenal the room plays (--combos <file>: an arsenal, or one weapon's combo manifest; the basic sword and fist by
 // default), every combo unlocked, the weapons stepped through on the cycle
@@ -76,6 +77,30 @@ const foes = Array.from({ length: pack }, (_, k) => {
   return { ...structuredClone(foe0), id: `foe-${k + 1}`, transform: { pos: at, heading: -Math.PI / 2 } };
 });
 const entities = [heroE, ...foes];
+// THE SOUNDS (--sound realistic | arcade | foley | orchestral | synth | none): the SFX shelf's by the words people say
+// (sfx-shelf/resolve.js sfxSound), each a cue of the room's audio, and the moveset's events wired to them (audio.moves,
+// beats-world.js): a blade's light and heavy cuts and its blow, the fist's swing, punch and uppercut, the finisher's
+// knockout, the guard's block, parry and break, the bow's draw, loose and arrow striking home, the weapon cycle, the
+// foe's swing and its fall, a blow taken; footsteps on the stone floor, the dodge, the jump and the landing. Through
+// the SFX mixer in an interior's space
+const soundStyle = opt('--sound', 'realistic');
+const SOUND_WORDS = { 'blade-light': 'katana-swing', 'blade-heavy': 'katana-heavy-swing', 'fist-swing': 'swing', 'blade-hit': 'blade-hit', 'finisher-hit': 'knockout-blow',
+  punch: 'punch', uppercut: 'uppercut', block: 'block', parry: 'blade-clash', 'guard-break': 'wood-break', 'bow-draw': 'bow-draw', 'bow-shot': 'bow-shot',
+  'arrow-hit': 'arrow-target', felled: 'down', cycle: 'weapon-switch', 'foe-swing': 'katana-swing', hurt: 'flesh-impact' };
+const soundOf = (word) => { const v = sfxSound(word, { style: soundStyle }); return v && v.gestures ? v.gestures : null; };
+const audio = soundStyle === 'none' ? null : (() => {
+  const cues = Object.fromEntries(Object.entries(SOUND_WORDS).map(([id, w]) => [id, soundOf(w)]).filter(([, g]) => g));
+  const has = (id) => (cues[id] ? id : undefined), clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+  // (each weapon by the figure it shows: a blade drawn, the fist sheathed)
+  const blade = (W) => (W.figure ?? 'drawn') === 'drawn';
+  const swing = Object.fromEntries(arsenal.weapons.map((W) => [W.id, blade(W) ? clean({ light: has('blade-light'), heavy: has('blade-heavy'), finisher: has('blade-heavy') }) : clean({ light: has('fist-swing') })]));
+  const hit = Object.fromEntries(arsenal.weapons.map((W) => [W.id, blade(W) ? clean({ light: has('blade-hit'), heavy: has('blade-hit'), finisher: has('finisher-hit') }) : clean({ light: has('punch'), heavy: has('uppercut'), finisher: has('finisher-hit') })]));
+  const step = soundOf('step-concrete'), jump = soundOf('jump'), land = soundOf('land'), dodge = soundOf('dodge');
+  return { sfx: { cues, ...(soundStyle === 'realistic' ? { mix: { space: 'interior' } } : {}) },
+    ...(step ? { footsteps: clean({ step, jump: jump ?? undefined, land: land ?? undefined }) } : {}), ...(dodge ? { dodge } : {}),
+    moves: clean({ swing, hit, block: has('block'), parry: has('parry'), break: has('guard-break'), draw: has('bow-draw'), loose: has('bow-shot'), arrow: has('arrow-hit'),
+      felled: has('felled'), cycle: has('cycle'), foeSwing: has('foe-swing'), hurt: has('hurt') }) };
+})();
 const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  sidearm (hold) · mouse back / R  weapon · Shift  guard (hold) · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
 // THE HERO: the game's own, or (--hero) another body on its rig and clips: `anime` the anime hero on the tiered body, or
 // a hero spec as JSON; its sword in hand (the drawn figure) and on its back (the sheathed one)
@@ -88,7 +113,7 @@ const figures = own ? Object.fromEntries(Object.entries(L.figures).map(([n, f]) 
   const motion = f.heroRef ? SketchRepository.getByRef(f.heroRef)?.manifest?.hero?.motion : null;   // (the game hero's own gaits: its jog, its sprint)
   return [n, { ...keep, hero: { ...(motion ? { motion } : {}), ...own, gear: sheathed ? { back: { item: 'sword' } } : { right: { item: 'sword' } } } }];
 })) : L.figures;
-const sketch = { ref: `${game}-practice-room`, manifest: { kind: 'controllable', title: `Practice room · ${G.name ?? game}`, bg: '#1b1d22', faces, colliders, figures, entities, camera, ...(L.lock ? { lock: L.lock } : {}), ...(grade === 'play' ? { figureGrade: 'play' } : {}), ...(fxStyle ? { fxStyle } : {}), events: { hud: [{ text: legend, slot: 'bottom', ttl: 20 }], ...(fxStyle ? { cast: true, reactions: [] } : {}) } } };
+const sketch = { ref: `${game}-practice-room`, manifest: { kind: 'controllable', title: `Practice room · ${G.name ?? game}`, bg: '#1b1d22', faces, colliders, figures, entities, camera, ...(audio ? { audio } : {}), ...(L.lock ? { lock: L.lock } : {}), ...(grade === 'play' ? { figureGrade: 'play' } : {}), ...(fxStyle ? { fxStyle } : {}), events: { hud: [{ text: legend, slot: 'bottom', ttl: 20 }], ...(fxStyle ? { cast: true, reactions: [] } : {}) } } };
 
 const { payload } = await resolveWorldScene(sketch, {});
 if (!payload) throw new Error('room: the room did not resolve');

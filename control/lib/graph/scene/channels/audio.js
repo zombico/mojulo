@@ -304,7 +304,44 @@ if (__AUDIO.dodge) {
     }
   })();
 }
-// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
+${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/combos.js): the pilot's swing by its weapon and its weight
+// (light, a heavy's H, a finisher), its blow landing, the guard meeting a blow (block, parry, broken), the bow's draw and
+// loose and an arrow striking home, the weapon cycle; a foe's swing, a foe felled, a blow taken. Each a cue of the
+// level's own (__AUDIO.cues). Read-only, as the strike's above. (No backticks: inside an emitted template literal.)
+(function () {
+  const M = __AUDIO.moves, C = __AUDIO.cues || {}, L = {};
+  const play = (id, at) => { if (id && C[id]) __beatsCue(C[id], at ? __proxGain(at) : null); };
+  const pick = (map, w, weight) => { const W = map && (map[w] || map[Object.keys(map)[0]]); return W ? (W[weight] || W.heavy || W.light) : null; };
+  (function __beatsMoves() {
+    requestAnimationFrame(__beatsMoves);
+    if (!__beatsEng || __beatsMuted) return;
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world;
+    if (!ctrl) return;
+    const P = ctrl.byId && ctrl.byId[ctrl.pilotId], blade = !!(P && L[P.id] && (P.meleeHitCount || 0) > L[P.id].hit);
+    for (const e of ctrl.entities) {
+      const l = L[e.id] || (L[e.id] = { swing: e.swingCount || 0, hit: e.meleeHitCount || 0, guard: e.lastGuard ? e.lastGuard.seq : 0, w: e.mvWeapon, charge: e.weapon ? e.weapon.chargeCount || 0 : 0, shots: e.weapon ? e.weapon.shots || 0 : 0, down: !!e.downed, hits: e.hits || 0 });
+      if (e === P) {
+        // (the move's weight: a finisher by its role, a heavy by the beat that took it)
+        const weight = e.mvRole === 'finisher' ? 'finisher' : e.mvPress && e.mvPress.verdict === 'taken' && e.mvPress.beat === 'H' ? 'heavy' : 'light';
+        if ((e.swingCount || 0) > l.swing) play(pick(M.swing, e.mvWeapon, weight));
+        if ((e.meleeHitCount || 0) > l.hit) play(pick(M.hit, e.mvWeapon, weight));
+        if (e.lastGuard && e.lastGuard.seq !== l.guard) play(M[e.lastGuard.kind]);
+        if (e.mvWeapon !== l.w && l.w != null) play(M.cycle);
+        if (e.weapon && e.weapon === l.wpn && (e.weapon.chargeCount || 0) > l.charge) play(M.draw);
+        if (e.weapon && e.weapon === l.wpn && (e.weapon.shots || 0) > l.shots) play(M.loose);
+        if ((e.hits || 0) > l.hits) play(M.hurt);
+      } else if (e.team === 'foes') {
+        if ((e.swingCount || 0) > l.swing) play(M.foeSwing, e.transform.pos);
+        if (e.downed && !l.down) play(M.felled, e.transform.pos);
+        // (a foe struck by no blade this frame: the pilot's arrow)
+        if ((e.hits || 0) > l.hits && !blade) play(M.arrow, e.transform.pos);
+      }
+      l.swing = e.swingCount || 0; l.hit = e.meleeHitCount || 0; l.guard = e.lastGuard ? e.lastGuard.seq : 0; l.w = e.mvWeapon;
+      l.wpn = e.weapon; l.charge = e.weapon ? e.weapon.chargeCount || 0 : 0; l.shots = e.weapon ? e.weapon.shots || 0 : 0; l.down = !!e.downed; l.hits = e.hits || 0;
+    }
+  })();
+})();
+` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
 // visual jets. Unlike the one-shot cues above it is a continuous, gain-modulated noise bed that
 // SWELLS with e.thrust (the same 0..1 the platform rule flags on boost and the jets read) and dies
 // on release. Two seeded-noise layers (a bright roar + a deep rumble) plus a low sub-tone, summed
