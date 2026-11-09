@@ -8,8 +8,14 @@
  * player's input is held through the menus' freeze (`window.__mojMenuOpen`). Space, Enter, E or a click advance a line;
  * holding the key skips, as does Esc. A choice lists its answers under the question: the arrows (or W/S) move, a number
  * picks, Space/Enter/E or a click takes one.
+ *
+ * Hosted in a shell, the scenes wait for the shell's params (window.__mojWaitInit, the game channel's): what is heard
+ * meanwhile waits its turn, so a scene on the level's start starts once the level is up. A STAGE (window.__mojStage, the
+ * game channel's, from the shell's flow): the scene it asks for plays, unskippable when it says so, and the shell is told
+ * as it ends (game-scene-end), or at once when the level has no such scene, or after a second when it never started.
  */
 import { buildSceneRunner } from '../../playscape/ui/scene-runner.js';
+import { MSG_SCENE_END } from '../../game/level-contract.js';
 
 export const SCENE_CSS = `
 .moj-scene-bar{position:fixed;left:0;right:0;height:0;background:#000;z-index:30;pointer-events:none}
@@ -25,7 +31,13 @@ export const SCENE_CSS = `
 .moj-scene-hint{position:fixed;right:16px;z-index:31;font:11px var(--moj-font,system-ui);color:#9aa4b4;pointer-events:none;display:none}
 `;
 
-export function sceneScript() {
+/** Whether a page's scene program plays takes: a line of it names its script's clip (scene-script.js). */
+export const sceneTakesOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'line' && b.take && typeof b.take.clip === 'string'));
+
+/** Whether a page's scene program has tempo beats (the world clock's: scenes.js), which the scene channel hands the clock. */
+export const sceneTempoOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'tempo'));
+
+export function sceneScript({ takes = false, tempo = false } = {}) {
   return `
 // SCENES: the runner (playscape/ui/scene-runner.js), the bars, the box, the keys
 const __SCN = (${buildSceneRunner.toString()})();
@@ -59,13 +71,35 @@ function __stepScenes(dtSec) {
   for (let i = __scnSeen; i < __busState.log.length; i++) { const ev = __busState.log[i]; if (ev && ev.type) types.push(ev.type); }
   __scnSeen = __busState.log.length;
   __SCN.hear(__scn, types);
+  if (window.__mojWaitInit) return;   // hosted: the scenes wait for the shell's params, what is heard kept for them
+  const __stg = window.__mojStage, __noSkip = !!(__stg && __stg.on && !__stg.skip);
+  // the stage's scene heard two frames after the level is up, its carried flags on the bus by then (its conditions read
+  // them), behind whatever was heard before it
+  if (__stg && __stg.asked < 2 && ++__stg.asked === 2) __SCN.hear(__scn, ['scene:' + __stg.scene]);
   // the bus vars: a scene's conditions are read against them as its happening comes
-  const o = __SCN.step(__scn, dtSec, { next: __scnNext, held: __scnHeld, skip: __scnSkip, vars: __busState.vars, move: __scnMove, ...(__scnPick >= 0 ? { pick: __scnPick } : {}) });
+  const o = __SCN.step(__scn, dtSec, { next: __scnNext, held: __noSkip ? false : __scnHeld, skip: __noSkip ? false : __scnSkip, vars: __busState.vars, move: __scnMove, ...(__scnPick >= 0 ? { pick: __scnPick } : {}) });
+  // the stage: started, ended (or missing, or never started) — the shell's flow goes on as it hears it
+  if (__stg) {
+    if (o.started.indexOf(__stg.scene) >= 0) __stg.on = true;
+    if (!__stg.on) __stg.t += dtSec;
+    const missing = !__scn.byId[__stg.scene], over = o.ended.indexOf(__stg.scene) >= 0;
+    if (over || missing || (!__stg.on && __stg.t > 1)) {
+      window.__mojStage = null;
+      if (window.parent !== window) { try { window.parent.postMessage(Object.assign({ moj: '${MSG_SCENE_END}', scene: __stg.scene }, missing ? { missing: true } : !over ? { skipped: true } : {}), '*'); } catch (e) { /* opaque parent */ } }
+    }
+  }
   __scnNext = false; __scnSkip = false; __scnMove = 0; __scnPick = -1;
   // the beats' events first, and the cast ops they queue (a walk) handed down, so a skip's finish lands them too
   if (o.fire.length) { __BUS.processEvents(__busState, o.fire.map((type) => ({ type }))); __watchFix(); if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities, window.__mojCtrl.cast); }
-  if (o.ops.length && window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(o.ops);
-  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';
+  if (o.ops.length && window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(o.ops);${tempo ? `
+  // the world clock (worlds/controllable/world-clock.js): a scene's moments fired, or ended early (a page without a clock
+  // has none to fire)
+  if (o.tempo.length && window.__mojTempo) for (const x of o.tempo) { if (x.end) window.__mojTempo.end(x.on); else window.__mojTempo.fire(x.on); }` : ''}
+  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';${takes ? `
+  // THE TAKES (scene-takes.js): while a script's line plays, its cast plays the script's clip at the line's phase; held
+  // (played out, waiting on the press) or between lines, each goes back to its own clips, the idle's breath and blink
+  const __tk = v.line && v.line.take && v.line.take.clip && !v.line.take.held ? v.line.take : null;
+  if (window.__mojCtrl) window.__mojCtrl.world.take = __tk ? { clip: __tk.clip, u: __tk.u } : null;` : ''}
   __scnTop.style.height = bar; __scnBot.style.height = bar;
   __scnBox.style.bottom = 'calc(' + bar + ' + 16px)';
   __scnHint.style.top = 'calc(' + bar + ' + 8px)';
@@ -83,7 +117,7 @@ function __stepScenes(dtSec) {
       __scnOpts.appendChild(d);
     });
   }
-  __scnHint.textContent = v.choice ? 'choose: \\u2191\\u2193 or 1\\u2013' + v.choice.options.length + ', then Space' : 'hold Space or Esc to skip';
+  __scnHint.textContent = v.choice ? 'choose: \\u2191\\u2193 or 1\\u2013' + v.choice.options.length + ', then Space' : __noSkip ? '' : 'hold Space or Esc to skip';
   // the player's input is held while a scene plays (the menus' freeze); given back when it ends
   if (v.on) window.__mojMenuOpen = true; else if (__scnHolding) window.__mojMenuOpen = false;
   if (v.on !== __scnHolding) document.body.classList.toggle('moj-scene-on', v.on);   // the level's HUD steps aside

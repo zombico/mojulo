@@ -5,6 +5,8 @@ import { readTheme, THEMES, THEME_FAMILIES } from '../../../mana-ui/theme.js';
 import { reviewParts } from '../../gameworld/review.js';
 import { chaptersOfPath, chapterOfPart, chapterOfCard } from '../../gameworld/chapters.js';
 import { gameworldCards } from '../../gameworld/gameworld-cards.js';
+import { runSteps } from '../../gameworld/runner.js';
+import { validateGameManifest } from '../../game/game-manifest.js';
 
 // THE INTERFACE'S LOOK: a look is a card (data, a child theme, the way a WordPress theme is a theme.json); a game's look
 // is the interface department's, worked with the art director (the intent's register) and the colour theorist (the
@@ -57,6 +59,14 @@ describe('the interface department in the studio', () => {
     expect(chapterOfPart('interface:look').id).toBe('interface');
     expect(chapterOfCard('gameworld-interface').id).toBe('interface');
     expect(gameworldCards().get('gameworld-interface').body).toMatch(/ART DIRECTOR[\s\S]*COLOUR THEORIST[\s\S]*A NEW LOOK IS A CARD/);
+  });
+  it('the game made of a world with a ui is drawn in its look: its screens by mana-ui; one without keeps the shell\'s own', () => {
+    const game = (more) => runSteps(W(more), { ref: 'gw' }).find((s) => s.key === 'game').order;
+    const G = game({ ui: { theme: 'grim', languages: { ja: { back: '戻る' } } } });
+    expect(readTheme(G.ui.theme).from).toBe('grim');
+    expect(G.ui.languages).toEqual({ ja: { back: '戻る' } });
+    expect(validateGameManifest({ kind: 'game', ...G }).errors).toEqual([]);   // as create_game mints it
+    expect('ui' in game()).toBe(false);
   });
   it('a world with a ui is reviewed for its look: where it came from, its words, its colours, its advice', () => {
     const parts = reviewParts(W({ ui: { theme: 'grim', languages: { ja: { back: '戻る' } } } }));

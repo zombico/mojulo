@@ -263,6 +263,10 @@ Pointers only; each target carries its own design notes.
   that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
   is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
   studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
+- A game's flow (what plays when, from the first screen to the credits: screens, cinematics, levels, holds), the game
+  director's page, the main agent's own: [game/flow.js](control/lib/graph/game/flow.js) (the shape, the reader, the
+  default, the kernel the play shell's flow runner inlines) and [gameworld/game-flow.js](control/lib/graph/gameworld/game-flow.js)
+  (a world's flow, the story's opening, prologue and ending placed in it, the storyboard): [docs/game-flow.md](docs/game-flow.md).
 - Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
   words run on, so a screen is built once and not game by game: components with props passed down, the game's state
   read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,

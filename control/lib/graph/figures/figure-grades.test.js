@@ -45,5 +45,7 @@ describe('a character at two grades', () => {
     // (a member not on this stage, party-2, has no figure; a wide shot's townie is played at the play grade)
     expect([...poseCast(m)].sort()).toEqual(['farmer', 'goblin', 'hero', 'keeper', 'party-1']);
     expect(poseCast({}).size).toBe(0);
+    // a script's speakers: its coverage frames each close or over the shoulder (playscape/ui/scene-script.js)
+    expect([...poseCast({ ...m, play: { scenes: [{ beats: [{ script: 'TOWNIE: Morning.\nKEEPER (tired): Is it?\nTownie crosses to exit.' }] }] } })].sort()).toEqual(['keeper', 'townie']);
   });
 });

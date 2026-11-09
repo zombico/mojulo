@@ -776,6 +776,9 @@ function __updateGearLines() {
   // a FACED body (the realistic hero, relational-face-rig.js: `face` and its parts' `morph`): morph targets on its bone
   // meshes, driven per frame by the state's facial track, the ambient blink over the states that hold the face. No
   // faced body → the emitted channel is byte-identical.
+  // a SCENE'S TAKES (playscape/ui/scene-takes.js: a script's acts packed as clips, scene:<id>:<k>): the figures that carry
+  // one play it while the scene channel names it (world.take), at the line's phase. None ⇒ not a byte of it
+  const takes = Object.values(figures || {}).some((f) => f && f.rig && f.clips && Object.keys(f.clips).some((k) => k.indexOf('scene:') === 0));
   const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
   // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
@@ -2037,11 +2040,15 @@ function __actMode(fig, e, m) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  ${figHasForms || acts || takes ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
-  if (act) mode = act.mode;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
+  if (act) mode = act.mode;` : ''}${takes ? `
+  // (a scene's take: the figure plays the script's clip at the line's phase while it stands; e.taking says which)
+  const tk = __world.take && !e.moving && fig.clips[__world.take.clip] ? __world.take : null;
+  if (tk) mode = tk.clip;
+  e.taking = tk ? tk.clip : null;` : ''}
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -2174,7 +2181,9 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
   }${figHasFace ? `
-  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}
+  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
+  // (a taking face's weights, where a headless driver reads them: e.takeFace)
+  if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
   // e.invincible, so both shimmer; the topple FALL (not invincible) does not.
@@ -4297,7 +4306,7 @@ ${hangarHook}  __msHookParams();
   __updateTutorialHud();
 };
 ${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
-window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
 // into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena
 // reads as the place the fight was met; the world itself stays where it is, out of the arena camera's sight

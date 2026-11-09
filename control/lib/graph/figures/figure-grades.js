@@ -94,6 +94,8 @@ export function poseCast(manifest) {
   for (const sc of manifest?.play?.scenes || []) for (const b of sc?.beats || []) {
     if (b?.shot && CLOSE_FRAMES.includes(b.shot.frame)) for (const id of b.shot.on || []) add(id);
     if (b?.banter) for (const id of b.banter.with || []) add(id);
+    // (a script's speakers: its coverage frames each speaker close or over the shoulder, playscape/ui/scene-script.js)
+    if (typeof b?.script === 'string') for (const m of b.script.matchAll(/^\s*([A-Z][A-Z0-9 _'-]*?)\s*(?:\([^)]*\))?\s*:/gm)) add(m[1].toLowerCase().replace(/[^a-z0-9_-]/g, ''));
   }
   return out;
 }

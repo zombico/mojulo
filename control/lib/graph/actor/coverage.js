@@ -57,8 +57,20 @@ export function frameShot(frame, subjects, { side = 1, lookH = LOOK_H, fov = FOV
 /** a field of view (degrees, horizontal) as a focal length on FILM */
 export const focalOf = (fov) => r3(FILM / (2 * Math.tan((fov * Math.PI) / 360)));
 
-/** The scene's coverage (see the header) */
-export function coverScene(S, { grain = null } = {}) {
+/** The scene's cuts, before any camera is set up: [{ t, end, frame, on, why?, side }] in time order, each framing and
+ * the side of the line its camera stands on as it cuts (frameShot's `side`: what coverScene sets its camera with, and
+ * what a directing `shot` rule takes to stand on the same side). What a game plays a scene's coverage by (its runner
+ * frames the shots live); coverScene keys a camera for each */
+export function sceneCuts(S) {
+  const C = cutsOf(S);
+  return C.kept.map((c, i) => {
+    const t = r3(c.t), side = c.frame === 'over' ? C.overSide(c.on[0], c.on[1], c.t) : c.frame === 'close' ? C.closeSide(c.on[0], c.t) : C.wideSide(c.t);
+    return { t, end: r3(C.kept[i + 1]?.t ?? S.seconds), frame: c.frame, on: [...c.on], ...(c.why ? { why: c.why } : {}), side };
+  });
+}
+
+// the cuts and the geometry they are framed by (coverScene's and sceneCuts' one source)
+function cutsOf(S) {
   const names = Object.keys(S.actors), smooth = (u) => u * u * (3 - 2 * u), wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
   const placeAt = (w, s) => { const K = S.actors[w].root; if (s <= K[0].t) return K[0]; for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t); return { x: a.x + (c.x - a.x) * u, y: a.y + (c.y - a.y) * u, yaw: a.yaw + wrap(c.yaw - a.yaw) * smooth(u) }; } return K.at(-1); };
   const pt = (w, s) => { const P = placeAt(w, s); return [P.x, P.y, 0]; };
@@ -94,6 +106,12 @@ export function coverScene(S, { grain = null } = {}) {
     if (last && (c.t - last.t < LEAST || (c.frame === last.frame && c.on.join() === last.on.join()))) { if (c.t - last.t < LEAST && c.frame !== last.frame) Object.assign(last, { ...c, t: last.t }); continue; }
     kept.push({ ...c });
   }
+  return { names, kept, pt, heading, wideSide, overSide, closeSide };
+}
+
+/** The scene's coverage (see the header) */
+export function coverScene(S, { grain = null } = {}) {
+  const { names, kept, pt, heading, wideSide, overSide, closeSide } = cutsOf(S);
   // ─── the setups: one camera each, keyed where its shots are ───────────────────────────────────────────────────────
   const cams = new Map(), shots = [];
   kept.forEach((c, i) => {

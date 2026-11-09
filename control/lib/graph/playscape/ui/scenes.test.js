@@ -152,6 +152,20 @@ describe('a scene played', () => {
     expect(L.fired('scene-end:hello')).toBe(1);
   });
 
+  it('scenes heard together play one after another; one heard while another plays waits its turn', () => {
+    const L = level([
+      { id: 'a', when: { on: 'go' }, beats: [{ wait: 0.2 }] },
+      { id: 'b', when: { on: 'go' }, beats: [{ wait: 0.2 }] },
+      { id: 'c', when: { on: 'later' }, beats: [{ wait: 0.1 }] },
+    ]);
+    L.begin();
+    processEvents(L.bus, [{ type: 'go' }]);
+    L.tick();
+    processEvents(L.bus, [{ type: 'later' }]);                  // heard while a plays
+    expect(L.until(() => L.fired('scene-end:c') === 1)).toBe(true);
+    const ends = L.bus.log.map((x) => x && x.type).filter((t) => /^scene-end:/.test(t));
+    expect(ends).toEqual(['scene-end:a', 'scene-end:b', 'scene-end:c']);
+  });
   it('a scene-end can start what follows (a cue on it)', () => {
     const L = level([{ id: 'a', when: { start: true }, beats: [{ wait: 0.1 }] }], [{ id: 'after', when: { on: 'scene-end:a' }, then: { set: 'done', to: 1 } }]);
     L.begin();

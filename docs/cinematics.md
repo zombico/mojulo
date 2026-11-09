@@ -181,6 +181,54 @@ in Blender, never baked:
 The export is the lit one: the realistic body's smooth normals and no light baked into its colours, so either look
 shades it.
 
+## The scene in a game
+
+In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's
+input held, the bars drawn, a line in the box until a press. A scene's beats may be a screenplay (`{ script }`), and
+then this department directs it (`playscape/ui/scene-script.js`), lowered at build into the beats the runner plays:
+
+- **Blocked on the level's own places.** The names are the page's characters by id (MAYOR is `mayor`); the marks are
+  its places (a stage's start, exit, pockets, landmarks, a spot) and where each character stands. The actor
+  (`actor/scene.js`) blocks it there.
+- **Covered as the film is.** The coverage's cuts (`actor/coverage.js` `sceneCuts`, the same cuts `coverScene` keys
+  its cameras by) become the scene's `shot` beats, each on its side of the line; the directing camera on the page
+  frames them live, with the scenes card's own framings. A cut that lands inside a line plays before it; one at a
+  line's end, after it, so the opening wide holds through the first line as the coverage holds it.
+- **Hit your mark.** The player is wherever it is when a scene starts, so the scene walks it to its mark first (a
+  conversation from whom it meets, toward where it came from) and turns everyone to face as the blocking opens: the
+  coverage is framed from the marks, so the marks are made true. As it ends every body is handed back to its rule.
+- **A walk the level stops never stalls the scene**: it waits on the walk's arrive or its stuck.
+- **The line's clock and the player's press.** The actor times each line; the box waits for the player. Each line
+  carries its span on the scene's clock (`take`: its words and the gap after, never into the next line's), and the
+  runner keeps that clock while the line is up: a press shows the words whole and the take plays on; left alone, the
+  take plays out and the cast holds, listening, until the press; the next press goes on, and the next line's take
+  starts at its own start. A held line or a hurried one never drifts the next, so the takes cut at build stay true.
+- **The takes on the page.** Each actor of a script plays its take there (`playscape/ui/scene-takes.js`): blocked on
+  the very stage the beats are lowered on, so its clock is the lines' clock. Its body's act is packed on its own rig as a
+  one-shot clip named for its script (`scene:<id>:<k>`, `worlds/world-kinds.js` `ctx.takes`), and a realistic face, the
+  one face the page plays, gets the take's performance track under the same name: the eyes and brows on the read, the
+  gaze on its partners, `looks at` among it. While a line plays, the scene channel names the take and its phase
+  (`world.take`) and every figure that carries it plays it, the listener as much as the speaker; held for the press,
+  between lines and after, each goes back to its own clips, the idle's breath and blink. An act a rig cannot stand (a
+  beast, a mascot) is left out and that figure plays the scene as blocked; a head with no face on the page plays its
+  body alone.
+- **What it costs.** A take is about 16 kB a scene-second for a realistic hero (its face about 3 of that) and 11 for a
+  plain one, as the page ships it; `TAKE_BUDGET` and `TAKES_PAGE` say when a page's takes are advised against.
+- **The screenplay's time on the world clock.** In a level the world clock (`worlds/controllable/world-clock.js`) plays
+  the script's time: `Slow motion.` is a moment of the script's own (`{ tempo }`, `<clip>:slow:<n>`) that slows the world
+  until `Real time.`, the next slow motion or the script's end, eased in and out; `Freeze.` holds the world, and the
+  scene with it, for its seconds, and a slow stretch it fell in takes the clock back after it. The camera, the box and
+  the takes keep real time, so the action slows and the words never do. The page's clock is composed for a scene's own
+  moments (`scenes.js` `sceneMoments`), beside the world's tempo; a skip fires none of them, and a scene that ends with
+  one going ends it, so the world is never left slowed. A hand-written scene may fire one of the world's own moments by
+  name the same way.
+
+- **How each acts, and the notes.** A character's `actor` (`characters.cast.<id>.actor`, `characters.hero.actor`: its
+  `style`, `role` and `register`, the actor's own words) reaches a stage's page as `play.actors`, so the lines, the
+  blocking's clock and the takes are played in it. The story's report (`design_game`'s `story.notes`, the bible's
+  moment cards) carries each script's director's notes as it is blocked on its stage: advice with its fix, never a
+  refusal.
+
 ## Where to look
 
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings

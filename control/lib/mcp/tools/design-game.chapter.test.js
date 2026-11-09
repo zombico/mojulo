@@ -54,8 +54,9 @@ describe('design_game: one chapter', () => {
       seen.push(...v.parts.map((p) => p.id));
       // the view without its pages (the recipe the department edits, as large as it writes) stays small
       const { pages: _p, ...rest } = v;
-      // (the build's carries the first session's goalposts too: on a book just begun, every one open with its question)
-      expect(bytes(rest), c.id).toBeLessThan(c.id === 'build' ? 3000 : 2500);
+      // (the build's carries the first session's goalposts too: on a book just begun, every one open with its question;
+      // raised from 3000 for the flow chapter it reads, the game's flow, one more upstream in its digest)
+      expect(bytes(rest), c.id).toBeLessThan(c.id === 'build' ? 3100 : 2500);
       expect(bytes(v), c.id).toBeLessThan(bytes(full));
     }
     expect(seen.sort()).toEqual(full.parts.map((p) => p.id).sort());

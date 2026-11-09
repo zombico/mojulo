@@ -17,7 +17,9 @@
  *                                                (its battle won, before the level ends; a walked stage's exit as the
  *                                                hero comes to it); on an epoch (`where: { epoch: <n or name> }`),
  *                                                'begin' (its map opening, once a game) or 'end' (after its last stage's
- *                                                own after)
+ *                                                own after); the GAME's slots ('opening' before the title, 'prologue'
+ *                                                after New Game, 'ending' after the first full clear) are staged by the
+ *                                                game's flow on the moment's level's page (game/flow.js), one each
  *   }]
  *
  * A place is one of the stage's places by name (start, exit, pocket, pocket-2…, landmark…) or a kind, which takes the
@@ -38,12 +40,17 @@
  *                                  byEpoch: { <epoch index>: { begin: [scene], end: [scene] } } (epochs: board-levels.js
  *                                  bookEpochs, a tactics book's; none, an epoch's moment is unplaced),
  *                                  bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
- *                                  unset: [{ quest, step, flag }] (a step's flag that no moment or answer sets: a cue may) }
+ *                                  unset: [{ quest, step, flag }] (a step's flag that no moment or answer sets: a cue may),
+ *                                  notes?: [{ id, script, notes: [{ id, says, why, try }] }] (each script's director's
+ *                                  notes as it is blocked on its stage, actor/notes.js: advice, never a refusal) }
  *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane } (handed in: levels.js reads
  *                                the world, which reads this)
  */
 import { readScenes } from '../playscape/ui/scenes.js';
 import { readQuests } from '../playscape/ui/quests.js';
+import { lowerScript, scriptsIn } from '../playscape/ui/scene-script.js';
+import { directorsNotes } from '../actor/notes.js';
+import { coverScene } from '../actor/coverage.js';
 
 const ID = /^[a-z][a-z0-9-]*$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -55,6 +62,10 @@ const SCENE_KEYS = ['id', 'when', 'if', 'sets', 'once', 'beats'];
 // the story slots: a level's (its battle's, its walk's) and an epoch's; an epoch's end plays in its last level's after
 export const LEVEL_SLOTS = Object.freeze(['before', 'after']);
 export const EPOCH_SLOTS = Object.freeze(['begin', 'end']);
+// the game's slots (game/flow.js FLOW_CINEMATICS): its opening before the title, its prologue after New Game, its ending
+// after the first full clear. A moment in one is staged by the game's flow on its level's page: nothing in the level
+// raises it
+export const GAME_SLOTS = Object.freeze(['opening', 'prologue', 'ending']);
 export const seenFlag = (id) => `seen-${id}`;
 export function storyScene(m, cast = {}) {
   const names = Object.fromEntries((m.who ?? []).filter((w) => cast[w]?.name).map((w) => [w, cast[w].name]));
@@ -70,7 +81,7 @@ export function storyScene(m, cast = {}) {
 export function readStory(S) {
   if (S === undefined) return [];
   if (!Array.isArray(S)) throw err(' is a list of moments { id, who?, where, stand?, when, beats, if?, sets? }');
-  const seen = new Set();
+  const seen = new Set(), gameSlot = {};
   return S.map((m, i) => {
     const at = `[${i}]`;
     if (!isObj(m)) throw err(`${at} is a moment { id, who?, where, stand?, when, beats, if?, sets? }`);
@@ -80,7 +91,9 @@ export function readStory(S) {
     seen.add(m.id);
     if (m.who !== undefined && !(Array.isArray(m.who) && m.who.every((w) => typeof w === 'string' && ID.test(w)))) throw err(`${at}.who is a list of cast ids (['mayor'])`);
     const slot = m.when?.slot, epoch = m.where?.epoch;
-    if (slot !== undefined && (Object.keys(m.when).length !== 1 || ![...LEVEL_SLOTS, ...EPOCH_SLOTS].includes(slot))) throw err(`${at}.when.slot is ${[...LEVEL_SLOTS, ...EPOCH_SLOTS].map((x) => `'${x}'`).join(', ')}, alone in when: the story slot it plays in`);
+    if (slot !== undefined && (Object.keys(m.when).length !== 1 || ![...LEVEL_SLOTS, ...EPOCH_SLOTS, ...GAME_SLOTS].includes(slot))) throw err(`${at}.when.slot is ${[...LEVEL_SLOTS, ...EPOCH_SLOTS, ...GAME_SLOTS].map((x) => `'${x}'`).join(', ')}, alone in when: the story slot it plays in`);
+    if (GAME_SLOTS.includes(slot) && gameSlot[slot]) throw err(`${at}.when.slot '${slot}': the game has one ${slot}, and '${gameSlot[slot]}' is it`);
+    if (GAME_SLOTS.includes(slot)) gameSlot[slot] = m.id;
     if (isObj(m.where) && epoch !== undefined) {
       for (const k of Object.keys(m.where)) if (k !== 'epoch') throw err(`${at}.where is { epoch } alone for an epoch's moment (its ${k} is a level's)`);
       if (!((typeof epoch === 'string' && epoch.trim()) || (Number.isInteger(epoch) && epoch >= 1))) throw err(`${at}.where.epoch is the epoch's name or its number, from 1`);
@@ -139,11 +152,21 @@ function placeIn(spots, name) {
   return spots.find((s) => s.id === name) ?? spots.find((s) => s.id.replace(/-\d+$/, '') === name) ?? null;
 }
 
+/** How each of the world's characters acts a script: { hero?, <cast id>? : { style?, role?, register? } }, or null when
+ * none says (characters.js `actor`: the hero's on its page, a cast member's on theirs). A stage with scenes carries it as
+ * its play's `actors` (levels.js). */
+export function storyActors(G) {
+  const C = G.characters ?? {}, out = {};
+  if (C.hero?.actor) out.hero = C.hero.actor;
+  for (const [id, m] of Object.entries(C.cast ?? {})) if (m.actor) out[id] = m.actor;
+  return Object.keys(out).length ? out : null;
+}
+
 /** Bind the moments to the stages as laid. `castRefs`: { <cast id>: the ref of its made figure }. */
 export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = {}) {
   const { stageEnds, stageSpots, stageLane } = layout;
   const moments = G.story ?? [], cast = G.characters?.cast ?? {}, gates = questGates(G.quests);
-  const byStage = {}, byEpoch = {}, bound = [], unplaced = [];
+  const byStage = {}, byEpoch = {}, bound = [], unplaced = [], notes = [], actors = storyActors(G) ?? {};
   for (const m of moments) {
     // an epoch's moment: its map's begin, or its last level's end
     if (m.where.epoch !== undefined) {
@@ -184,6 +207,18 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
       stands.push({ id: w, at, heading: r3(h + Math.PI) });
     });
     if (lost) { unplaced.push({ id: m.id, why: lost }); continue; }
+    // its scripts, blocked on this stage as the page will (scene-script.js): the hero at the start, the moment's people
+    // at their stands, the stage's places as marks; a name or a mark the stage lacks leaves the moment unplaced
+    const scripts = scriptsIn(m.beats);
+    if (scripts.length) {
+      const people = { hero: { at: ends.spawn, heading: ends.heading }, ...Object.fromEntries(stands.map((s) => [s.id, { at: s.at, heading: s.heading }])) };
+      const places = Object.fromEntries(spots.map((s) => [s.id, s.at]));
+      const lowered = scripts.map((text) => { try { return lowerScript(text, { people, places, player: 'hero', actors }); } catch (e) { return { bad: e.message }; } });
+      const bad = lowered.find((L) => L.bad)?.bad;
+      if (bad) { unplaced.push({ id: m.id, why: `its script on ${stage.level}/${stage.node}: ${bad.replace(/^(script|screenplay|scene): /, '')}` }); continue; }
+      // THE DIRECTOR'S NOTES (actor/notes.js) on each script as it is blocked here: advice with its fix, never a refusal
+      lowered.forEach((L, k) => { const N = directorsNotes(L.scene, coverScene(L.scene)); if (N.length) notes.push({ id: m.id, script: k, notes: N.map(({ id, says, why, try: fix }) => ({ id, says, why, try: fix })) }); });
+    }
     const key = `${stage.level}/${stage.node}`, slot = (byStage[key] ||= { scenes: [], cast: [] });
     // reach: the moment starts as the hero comes to it (its place, or where its first person stands)
     let scene = storyScene(m, cast);
@@ -204,7 +239,7 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
   const sets = new Set([...readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]), ...(typeof G.battles?.sets === 'string' ? [G.battles.sets] : [])]);
   const unset = [];
   for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done)) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
-  return { byStage, byEpoch, bound, unplaced, ...(G.quests ? { unset } : {}) };
+  return { byStage, byEpoch, bound, unplaced, ...(G.quests ? { unset } : {}), ...(notes.length ? { notes } : {}) };
 }
 const answers = (beats) => beats.flatMap((b) => (b.kind === 'choose' ? b.choose.options.flatMap((o) => [...o.sets, ...answers(o.beats)]) : []));
 

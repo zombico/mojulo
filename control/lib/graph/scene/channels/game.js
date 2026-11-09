@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
@@ -47,6 +47,15 @@ const __GAME = ${safeJson(game)};
     st.params = params || {};
     if (typeof seed === 'number' && isFinite(seed)) st.seed = seed;
     st.onStart.splice(0).forEach((cb) => { try { cb(st.params, st.seed); } catch (e) { console.error('game onStart', e); } });
+    // the level is up: its scenes may start (a scene on its start waited for the shell's params)
+    window.__mojWaitInit = false;
+    // a STAGE: the shell's flow plays a cinematic here (params.__stage: { scene, skip? }); the scene channel plays it and
+    // says when it ends. A level with no scenes says so at once, so the flow never waits on it
+    const sg = st.params.__stage;
+    if (sg && typeof sg.scene === 'string' && sg.scene) {
+      if (window.__mojScenes) window.__mojStage = { scene: sg.scene, skip: sg.skip !== false, t: 0, on: false, asked: 0 };
+      else if (hosted) { try { window.parent.postMessage({ moj: '${GAME_MSG_SCENE_END}', scene: sg.scene, missing: true }, '*'); } catch (e) { /* opaque parent */ } }
+    }
   }
   function emit(ev) { if (!st.ended && ev && typeof ev === 'object' && ev.type) st.events.push(ev); }
   function end(result, stats${exits ? ', exit' : ''}) {
@@ -70,6 +79,17 @@ const __GAME = ${safeJson(game)};
       const kp = st.envelope.stats && st.envelope.stats.kept;
       if (kp) o.querySelector('.moj-complete').textContent = title + ' · ' + kp.map((k) => k.label + ' ' + k.value + (k.unit || '')).join(' · ');` : ''}
       document.body.appendChild(o);
+    }
+    // the card read: its time (longer with a table to read), or a press after its first moment; none, at once. The shell's
+    // flow goes on to its next screen when it hears it
+    if (hosted && !capture) {
+      let said = false;
+      const done = () => { if (said) return; said = true; try { window.parent.postMessage({ moj: '${GAME_MSG_CARD_DONE}' }, '*'); } catch (e) { /* opaque parent */ } };
+      if (__GAME.complete === false) done();
+      else {
+        setTimeout(done, stats ? 2400 : 1600);
+        setTimeout(() => { window.addEventListener('keydown', done, { once: true }); window.addEventListener('pointerdown', done, { once: true }); }, 450);
+      }
     }
     return st.envelope;
   }
@@ -239,6 +259,8 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
   // the contract's default preset (1.5s grace for a slow shell; capture never waits).
   function fallback() { start((__GAME.presets && __GAME.presets.default) || {}, 1); }
   if (hosted && !capture) {
+    // hosted: the level's scenes wait for the shell's params (a scene on the level's start, a stage the shell asks for)
+    window.__mojWaitInit = true;
     window.addEventListener('message', (e) => {
       const d = e.data;
       if (!d || d.moj !== '${GAME_MSG_INIT}') return;
@@ -247,6 +269,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       start(d.params, d.seed);
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
+    // shown: the first frame drawn (two frames on: the world's loop draws in the first), so the shell's veil lifts on a
+    // picture, never on a page still building
+    requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }));
     // (the grace is 1.5 s of waiting, not of a busy page: a timer that fires late, the page having been building its
     // world, gives the shell's answer, already queued, another grace before the presets run in its place)
     (function grace(due) { setTimeout(() => { if (st.started) return; if (performance.now() - due > 250) grace(performance.now() + 1500); else fallback(); }, Math.max(0, due - performance.now())); })(performance.now() + 1500);

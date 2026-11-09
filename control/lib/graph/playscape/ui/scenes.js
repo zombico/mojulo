@@ -18,7 +18,8 @@
  *                                                  frame: SHOT_FRAMES; on: the characters, or spots, it frames (a
  *                                                  lone spot is seen from where the pilot stands); `for` holds it
  *       { do: effect | [effect] }                  the cast and the world, as a cue's then (walk, spawn, say, set…)
- *       { until: a when }                          waits for a happening (a walk's arrive, a var, an event)
+ *       { until: a when | [when, …] }              waits for a happening (a walk's arrive, a var, an event); a list of
+ *                                                  2 to 4: any one of them
  *       { wait: s }                                waits that many seconds
  *       { line: { who, say?, expression? } }        the text box: the speaker's name, the line typed on; a click goes on
  *       { banter: { with: [a, b], lines: [{ who, say?, expression? }], frame?: 'over' | 'close' } }
@@ -27,6 +28,14 @@
  *                                                  the player answers: 2 to 4 options under the question (its own
  *                                                  line, or the last one said); the one picked sets its flags at once
  *                                                  and plays its beats, then the scene goes on
+ *       { tempo: '<moment>' | { on, scale, hold, ramp? } | { end: '<moment>' } }
+ *                                                  the world clock (worlds/controllable/world-clock.js): a moment of the
+ *                                                  world's tempo by name, one of the scene's own (the page's clock takes
+ *                                                  it: sceneMoments), or one ended early. A skip fires none; a scene that
+ *                                                  ends with one going ends it
+ *       { script: '<a screenplay>' }                 the scene as people write one (actor/screenplay.js), blocked on the
+ *                                                  level's places by the actor and covered by the director's rules:
+ *                                                  lowered at build into the beats above (scene-script.js)
  *     ] }]
  *
  * The words are a slot: a line without `say` shows its placeholder, `[Name: line n]`; an option without one, `[Choice n]`. Mojulo supplies the speaker, the
@@ -52,11 +61,17 @@
  *
  * Carried flags arrive after the page starts (the shell's params), so in a level that carries, a scene on
  * { start: true } waits for `flags-ready`, which the game channel pushes once the held flags are on the bus.
+ *
+ * Scenes play one at a time: one whose happening comes while another plays waits its turn (scene-runner.js). Hosted in
+ * a shell, a level's scenes wait for the shell's params before any starts, and the shell's flow can STAGE a scene
+ * (game-init params.__stage: { scene, skip? }): the level plays it as a cinematic and tells the shell as it ends
+ * (game-scene-end). A scene only a flow stages names a happening nothing raises, e.g. { on: 'staged' }.
  */
 import { readEffect, effectContext } from './cues.js';
 import { questFlags } from './quests.js';
 import { partyFlags } from './party.js';
 import { wonFlag } from '../rpg/rpg.js';
+import { readScriptText, SCENE_MOMENT_HOLD } from './scene-script.js';
 
 export const SHOT_FRAMES = Object.freeze({
   wide: 'the place and everyone in it',
@@ -72,11 +87,13 @@ export const SHOT_MOVES = Object.freeze({ hold: 'stands where it cut, turning wi
 export const SCENE_BEATS = Object.freeze({
   shot: 'the camera directs: { frame, on: [who], move? }, for? s',
   do: 'the cast and the world, as a cue\'s then',
-  until: 'waits for a happening (a cue\'s when)',
+  until: 'waits for a happening (a cue\'s when), or any of a list of them',
   wait: 'waits seconds',
   line: 'the text box: { who, say?, expression? }, a click goes on',
   banter: 'two talk: { with: [a, b], lines: [{ who, say? }], frame? }',
   choose: 'the player answers: { who?, say?, options: [{ say?, sets?, beats? }] } (2 to 4)',
+  tempo: 'the world clock: a moment of the world\'s tempo by name, a moment of the scene\'s own { on, scale, hold, ramp? }, or { end: <name> } to end one early',
+  script: 'a screenplay (NAME: the words. / Mayor crosses to gate. / Hero turns to Mayor.), blocked on the level\'s places and covered by the director\'s rules (scene-script.js)',
 });
 
 const ID = /^[a-z][a-z0-9-]*$/;
@@ -131,13 +148,35 @@ function readShot(s, at) {
   return { ...s, frame, on };
 }
 
+// a tempo beat: a moment of the world's tempo by name (worlds/controllable/world-clock.js), a moment of the scene's own
+// (added to the world's clock as the page is built: sceneMoments), or the end of one
+const MOMENT = /^[a-z][a-z0-9:-]{0,79}$/;
+function readTempoBeat(T, at) {
+  if (typeof T === 'string') { if (!MOMENT.test(T)) throw err(`${at} names a moment of the world's tempo (a lowercase name)`); return { on: T }; }
+  if (isObj(T) && T.end !== undefined) {
+    if (Object.keys(T).length !== 1 || typeof T.end !== 'string' || !MOMENT.test(T.end)) throw err(`${at} is { end: '<moment>' }: the moment the world's clock eases out of early`);
+    return { end: T.end };
+  }
+  if (!isObj(T) || !(typeof T.on === 'string' && MOMENT.test(T.on))) throw err(`${at} is a moment's name, { on, scale, hold, ramp? } (a moment of the scene's own), or { end: '<moment>' }`);
+  for (const k of Object.keys(T)) if (!['on', 'scale', 'hold', 'ramp'].includes(k)) throw err(`${at}.${k} is not part of a scene's moment (on, scale, hold, ramp)`);
+  if (!(Number.isFinite(T.scale) && T.scale >= 0 && T.scale <= 1)) throw err(`${at}.scale is the world's speed, 0 (held) to 1`);
+  if (!(Number.isFinite(T.hold) && T.hold >= 0 && T.hold <= SCENE_MOMENT_HOLD)) throw err(`${at}.hold is real seconds, 0 to ${SCENE_MOMENT_HOLD}`);
+  if (T.ramp !== undefined && !(Number.isFinite(T.ramp) && T.ramp >= 0 && T.ramp <= 3)) throw err(`${at}.ramp is real seconds easing in and out, 0 to 3`);
+  return { on: T.on, moment: { on: T.on, scale: T.scale, hold: T.hold, ...(T.ramp !== undefined ? { ramp: T.ramp } : {}) } };
+}
+
 function readLine(l, at) {
   if (!isObj(l)) throw err(`${at} is { who, say?, expression? }`);
-  for (const k of Object.keys(l)) if (!['who', 'say', 'expression'].includes(k)) throw err(`${at}.${k} is not part of a line (who, say, expression)`);
+  for (const k of Object.keys(l)) if (!['who', 'say', 'expression', 'take'].includes(k)) throw err(`${at}.${k} is not part of a line (who, say, expression, take)`);
   if (typeof l.who !== 'string' || !l.who) throw err(`${at}.who is the speaker's entity id`);
   if (l.say !== undefined && !words(l.say)) throw err(`${at}.say is the line, in words (leave it out for a placeholder)`);
   if (l.expression !== undefined && !(typeof l.expression === 'string' && ID.test(l.expression))) throw err(`${at}.expression is a word (smiling, worried…)`);
-  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}) };
+  // (take: the line's span on its script's clock, scene-script.js writes it: the actor's take for the line plays over it)
+  // (and the clip the cast's takes for its script are packed under, sampled over the script's length `of`)
+  const T = l.take, timed = isObj(T) && Number.isFinite(T.at) && Number.isFinite(T.end) && T.at >= 0 && T.end > T.at;
+  const clipped = isObj(T) && (T.clip === undefined ? T.of === undefined : typeof T.clip === 'string' && /^scene:[a-z][a-z0-9-]*:\d+$/.test(T.clip) && Number.isFinite(T.of) && T.of >= T.end);
+  if (T !== undefined && !(timed && clipped && Object.keys(T).every((k) => ['at', 'end', 'clip', 'of'].includes(k)))) throw err(`${at}.take is { at, end, clip?, of? }: the line's span on its script's clock, seconds (at ≥ 0, end > at), and the takes' clip (scene:<id>:<n>) over the script's length of`);
+  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}), ...(T ? { take: { at: T.at, end: T.end, ...(T.clip ? { clip: T.clip, of: T.of } : {}) } } : {}) };
 }
 
 function readChoose(C, at, ctx, depth) {
@@ -178,13 +217,16 @@ function readBeat(b, at, ctx, depth = 0) {
     return { kind, do: list };
   }
   if (kind === 'until') {
-    if (!isObj(b.until)) throw err(`${at}.until is a cue's when: { arrive: 'who' }, { on: '<event>' }, { var, gte }…`);
+    // (a list: any one of them goes on, a walk's arrive or its stuck)
+    if (!(isObj(b.until) || (Array.isArray(b.until) && b.until.length >= 2 && b.until.length <= 4 && b.until.every(isObj)))) throw err(`${at}.until is a cue's when: { arrive: 'who' }, { on: '<event>' }, { var, gte }…, or 2 to 4 of them, any one going on`);
     return { kind, until: b.until };
   }
   if (kind === 'wait') {
     if (!(Number.isFinite(b.wait) && b.wait > 0 && b.wait <= 120)) throw err(`${at}.wait is seconds, more than 0 and at most 120`);
     return { kind, wait: b.wait };
   }
+  if (kind === 'script') return { kind, script: readScriptText(b.script, `play.scenes${at}.script`) };
+  if (kind === 'tempo') return { kind, tempo: readTempoBeat(b.tempo, `${at}.tempo`) };
   if (kind === 'line') return { kind, line: readLine(b.line, `${at}.line`) };
   if (kind === 'choose') return readChoose(b.choose, at, ctx, depth);
   const B = b.banter;
@@ -267,6 +309,8 @@ function carried(play) {
 }
 const carries = (play) => !!carried(play);
 
+// a script beat plays once it is lowered on the page's people and places (scene-script.js withScripts, at the build)
+const unlowered = (sc, n) => err(`: the scene '${sc.id}' beat ${n} is a script, which is lowered on the page's characters and places first (scene-script.js withScripts)`);
 const nameOf = (names, who) => names[who] || who.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 /** The cues the scenes lower to: each scene's start, each `do` beat, each `until`. */
@@ -279,8 +323,12 @@ export function sceneCues(play) {
     cues.push({ id: `scene-${sc.id}`, when, then: { emit: `scene:${sc.id}` } });
     if (sc.sets.length) cues.push({ id: `scene-${sc.id}-sets`, when: { on: `scene-end:${sc.id}` }, then: sc.sets.map((f) => ({ emit: flagEvent(f) })) });
     eachBeat(sc.beats, (b, n) => {
+      if (b.kind === 'script') throw unlowered(sc, n);
       if (b.kind === 'do') cues.push({ id: `scene-${sc.id}-do-${n}`, when: { on: `scene:${sc.id}:${n}` }, then: b.do });
-      if (b.kind === 'until') cues.push({ id: `scene-${sc.id}-until-${n}`, when: b.until, then: { emit: `scene-heard:${sc.id}:${n}` } });
+      if (b.kind === 'until') {
+        if (Array.isArray(b.until)) b.until.forEach((w, k) => cues.push({ id: `scene-${sc.id}-until-${n}-${k}`, when: w, then: { emit: `scene-heard:${sc.id}:${n}` } }));
+        else cues.push({ id: `scene-${sc.id}-until-${n}`, when: b.until, then: { emit: `scene-heard:${sc.id}:${n}` } });
+      }
     });
   }
   return cues;
@@ -304,15 +352,17 @@ export function sceneProgram(play) {
   return readScenes(play).map((sc) => {
     const beats = [];
     let said = 0;
-    const lineOf = (l) => { said++; return { kind: 'line', who: l.who, name: nameOf(sc.names, l.who), text: l.say ?? `[${nameOf(sc.names, l.who)}: line ${said}]`, ...(l.expression ? { expression: l.expression } : {}) }; };
+    const lineOf = (l) => { said++; return { kind: 'line', who: l.who, name: nameOf(sc.names, l.who), text: l.say ?? `[${nameOf(sc.names, l.who)}: line ${said}]`, ...(l.expression ? { expression: l.expression } : {}), ...(l.take ? { take: l.take } : {}) }; };
     const line = (l) => beats.push(lineOf(l));
     // flattened: a choice's options play inline after it, each ending in a jump past the rest
     const lay = (list, pre) => list.forEach((b, n) => {
       const key = `${pre}${n}`;
+      if (b.kind === 'script') throw unlowered(sc, key);
       if (b.kind === 'shot') beats.push({ kind: 'shot', shot: place(b.shot), ...(b.for ? { for: b.for } : {}) });
       else if (b.kind === 'do') beats.push({ kind: 'fire', event: `scene:${sc.id}:${key}` });
       else if (b.kind === 'until') beats.push({ kind: 'until', event: `scene-heard:${sc.id}:${key}` });
       else if (b.kind === 'wait') beats.push({ kind: 'wait', wait: b.wait });
+      else if (b.kind === 'tempo') beats.push({ kind: 'tempo', ...b.tempo });
       else if (b.kind === 'line') line(b.line);
       else if (b.kind === 'choose') {
         const C = b.choose;
@@ -340,6 +390,14 @@ export function sceneProgram(play) {
     lay(sc.beats, '');
     return { id: sc.id, once: sc.once, ...(sc.if.length ? { if: sc.if.map(({ var: v, op, n }) => ({ var: v, op, n })) } : {}), beats };
   });
+}
+
+/** The moments a program's tempo beats bring to the world's clock (its own, each once; the world's tempo adds them). */
+export function sceneMoments(program) {
+  const out = new Map();
+  const walk = (beats) => { for (const b of beats || []) if (b && b.kind === 'tempo' && b.moment && !out.has(b.moment.on)) out.set(b.moment.on, { ...b.moment }); };
+  for (const sc of program || []) walk(sc.beats);
+  return [...out.values()];
 }
 
 /** The flags' bus rows: a var each, set when the flag is set here (`flag:<name>`) or carried in (`flag-carried:<name>`). */

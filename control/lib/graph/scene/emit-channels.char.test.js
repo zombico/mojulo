@@ -481,6 +481,15 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fixture's arena names no register and draws its sparks as before.
 // Re-pinned 2026-11-08 (1107-fg-remake: the figure coated): `versus` only. Its page inlines versus-arena.client.js, whose
 // register materials carry a fresnel coat (bodyCoat) the effects drive; the fixture's arena names no register.
+// Re-pinned 2026-11-09 (1109-flow-runner, phase 2: the flow's sidecars): `game`, `kitchen-sink` and
+// `kitchen-sink-capture`, the fixtures that embed the game channel. A hosted level says when its first frame is drawn
+// (`game-shown`, two frames after ready) and when its end card is read (`game-card-done`: its time, a press after its
+// first moment, or at once with no card), so the play shell's flow goes on by events. Additions only: 14 lines each,
+// none removed.
+// Re-pinned 2026-11-09 (1109-flow-runner, phase 3: the stage): `game`, `kitchen-sink` and `kitchen-sink-capture`, the
+// fixtures that embed the game channel. Hosted, a level's scenes wait for the shell's params (`__mojWaitInit`, set as it
+// says ready, cleared as it starts), and a stage the shell's flow asks for (`params.__stage`) is handed to the scene
+// channel, or said missing at once by a level with no scenes. Additions only: 11 lines each, none removed.
 // Re-pinned 2026-11-09 (1107-fg-remake: non-human fighters): `versus` only. Its page inlines versus-arena.client.js, whose
 // posed character body is drawn in the register under one (the rig's material, its shadows, its coat, no ink hull), and
 // versus-figure.js, whose face bones (lids, lips, brows, ears, a snout, horns) ride the head and a serpent's coil its

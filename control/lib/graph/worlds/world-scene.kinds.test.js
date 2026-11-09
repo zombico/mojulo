@@ -219,6 +219,9 @@ describe('world-scene kinds — side tables pinned as literals', () => {
     // re-pinned 2026-10-14 (interior designer): + 'interior' — a room fitted out in its house is walked from its middle.
     // re-pinned 2026-10-14 (skyscape): + 'airspace' — a flight map is walked (and free-flown) from its runway's threshold.
     // re-pinned 2026-11-08 (1107-fg-remake): + 'greybox' — a level blocked out in boxes is walked on its floor.
+    // re-pinned 2026-11-09 (1108-matter-science-views, 70b789814 "the experiment names the page"): the four science
+    // worlds' rows only — each page is titled by its experiment (Ball: gravity, Bead: diffusion, …), not its scale; that
+    // commit changed the titles and left this pin as it was.
     expect([...WALK_KINDS].sort()).toEqual([
       'airspace', 'city', 'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'geocube', 'greybox', 'heartbeat', 'historic', 'interior', 'koenigsberg', 'mall', 'math-structure',
       'office', 'painted-landscape', 'restaurant', 'roadway', 'room', 'school-complex', 'stage', 'store',

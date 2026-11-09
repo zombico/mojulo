@@ -702,6 +702,9 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 ## What is next
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to
-   what a page emits: the RPG channel's menus through a bridge from its kernel, playscape's menu kinds, both shells'
-   fronts, the versus pause and the fight's HUD (the fight's language above).
+   what a page emits. Begun: the play shell's screens (title, attract, levels, options, credits, the end card,
+   results, loading) are drawn by mana-ui for a game with a `ui` (`game/play-shell-mana.js`; what plays when is the
+   shell's flow runner: [game-flow.md](game-flow.md)). Next: the play shell's pause, the theme's sounds there, a
+   picture in the image component (a cover as key art), the RPG channel's menus through a bridge from its kernel,
+   playscape's menu kinds, the arena shell's front, the versus pause and the fight's HUD (the fight's language above).
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

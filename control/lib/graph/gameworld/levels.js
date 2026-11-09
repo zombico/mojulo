@@ -50,7 +50,7 @@ import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
-import { storyScene, levelQuests } from './story.js';
+import { storyScene, levelQuests, storyActors } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { complexRoute, complexLaws } from '../network/complex.js';
 import { withProgram, PROGRAMS } from '../era/programs.js';
@@ -991,7 +991,9 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
     const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
-    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}) };
+    // (and how each acts a script: the cast's and the hero's `actor`, playscape/ui/scene-script.js; none said, none carried)
+    const actors = storyActors(G);
+    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
   }
   return { pilotPart, play };
 }
