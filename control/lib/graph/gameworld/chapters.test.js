@@ -224,7 +224,7 @@ describe('the studio\'s waves', () => {
 });
 
 // LEVEL DESIGN: its own department; a block's play layer its chapter (a level's own path, `*` for the level), a block a unit
-import { unitOf, chaptersOfPath as ofPath } from './chapters.js';
+import { chaptersOfPath as ofPath } from './chapters.js';
 describe('the level design department', () => {
   it('owns each level\'s play layer, a block a unit; the level\'s other pages stay the levels chapter\'s', () => {
     expect(ofPath('/levels/overworld/glyphs/play/B').map((c) => c.id)).toEqual(['play-layer']);
