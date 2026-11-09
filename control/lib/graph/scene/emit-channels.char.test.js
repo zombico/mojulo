@@ -503,6 +503,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // strips and its move list from the pause, under a register; the pause's items), versus-runtime.client.js (training's
 // panel under the lab) and versus-core.js (a rekka's next stage on its motion's last direction and a button, typed
 // through hitstop); the fixture's arena names no register and carries no lab.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: timed states and the desperation, shared with the brawler): `versus` only. Its
+// page inlines versus-library.js (the STATES shelf, the install super, the whirl), versus-compile.js (a super's
+// `install` and `nohit`, a special's `around` and `price`) and versus-core.js (a state granted, run down and read: damage,
+// speed, iron; a price paid the first time a move lands); the fixture's fighters take none of them and fight as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

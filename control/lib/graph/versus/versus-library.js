@@ -20,6 +20,9 @@
  *                    does not (equal levels trade). It scales with strength (a light 1, a medium 2, a heavy 3), a
  *                    special's is its own (a rush ploughs through, an overhead comes down on top), a super's is 4, and a
  *                    reversal's (the DP, `rps: 'reversal'`) is 0: its invincibility is how it wins, never a trade.
+ *   STATES           a timed state on a body (an install, a power-up): hits harder, moves faster, takes blows without
+ *                    flinching, for a while. One shelf for every game: a super grants one in the fight (its `install`),
+ *                    a thing on the floor in a brawl; both sims read it, a body holding none carries nothing of it.
  *   WEAPONS          what a fighter may hold: a blade on the grip hand that its strikes hit with (versus-compile.js
  *                    lays the blade, its disjoint and what that costs).
  *
@@ -322,6 +325,19 @@ export const SPECIALS = Object.freeze({
     },
     throw: true, clinch: 36, meter: 50,
   },
+  // ── THE DESPERATION: an invincible spin that strikes all round, paid for in health when it lands ──
+  whirl: {
+    rps: 'reversal', limb: 'fistF', motion: '22', says: 'the desperation spin: invincible from its first frame to its last blow, it strikes all round (behind as far as in front) and knocks down what it meets; it costs a slice of the spinner\'s own health when it lands, never the last of it',
+    load: P(POSES.guard, { torso: -10, armF: [60, 120], armB: [60, 120], hip: [0, -60] }),
+    strike: P(POSES.guard, { torso: 0, head: 0, armF: [90, 92], armB: [90, 92], legF: [40, -10, 90], legB: [-40, -20, 80], twist: 60, hip: [0, -40] }),
+    at: {
+      L: { startup: 4, active: 12, recovery: 18, damage: 70 },
+      M: { startup: 4, active: 14, recovery: 20, damage: 80 },
+      H: { startup: 4, active: 16, recovery: 22, damage: 90 },
+    },
+    guard: 'mid', knock: 'down', hitstop: 8, push: 300, meter: 0, chip: 0, invuln: ['strike', 'projectile', 'throw'],
+    around: true, price: 60, priority: 0,
+  },
 });
 
 export const SPECIAL_SLOTS = Object.freeze(['neutral', 'forward', 'back', 'down']);
@@ -349,6 +365,10 @@ export const SUPERS = Object.freeze({
     from: 'rush', says: 'the cutscene super: the first blow catches and the fight cuts away (the camera closes in, the clock stops) for a beat-by-beat that ends with them on the floor',
     startup: 6, active: 4, recovery: 36, damage: 400, travel: 60, invuln: 12, freeze: 40, lock: { kind: 'cutscene', hits: 5, every: 16, finish: 'down', gap: 600 },
   },
+  'super-install': {
+    from: 'rush', says: 'the install: no blow, a moment powering up (invincible through it), then a while of hitting harder (its `install`, a STATES row); a recipe\'s own takes another state',
+    startup: 8, active: 1, recovery: 16, damage: 0, travel: 0, invuln: 25, freeze: 30, nohit: true, install: 'power',
+  },
   'super-grab': {
     from: 'grab', says: 'the long throw: it reaches a jump\'s landing, unblockable, invincible to start',
     startup: 4, active: 4, recovery: 50, damage: 380, reach: 1.6, invuln: 4, freeze: 40, clinch: 60,
@@ -363,6 +383,21 @@ export const SUPER_COST = 1000;
 export const PRIORITY_MAX = 5;
 export const PRIORITY = Object.freeze({ super: 4, rps: Object.freeze({ reversal: 0 }) });
 export const METER_MAX = 1000;
+
+// ── states ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A timed STATE on a body: `frames` long (at 60 a second), its blows `damage` % of their own, its walk and its dashes
+ * `speed` % of their own, and with `armor` the blows it takes land their damage without their stun (a throw still
+ * takes it). Whole numbers; absent, a factor is 100. A body holds one at a time: a new one takes its place.
+ */
+export const STATES = Object.freeze({
+  power: Object.freeze({ frames: 600, damage: 150, says: 'power: every blow half again its damage, for ten seconds' }),
+  haste: Object.freeze({ frames: 600, speed: 150, says: 'haste: walking and dashing half again as fast, for ten seconds' }),
+  iron: Object.freeze({ frames: 420, armor: true, says: 'iron: blows land their damage and no stun, for seven seconds (a throw still takes the body)' }),
+  fury: Object.freeze({ frames: 360, damage: 125, speed: 120, armor: true, says: 'fury: harder, faster and unflinching at once, for six seconds' }),
+});
+export const STATE_IDS = Object.freeze(Object.keys(STATES));
 
 // ── weapons ──────────────────────────────────────────────────────────────────────────────────────────────────
 

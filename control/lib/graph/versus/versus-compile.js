@@ -42,7 +42,7 @@
  */
 
 import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, stoopPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
-import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, COMMAND_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX } from './versus-library.js';
+import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, COMMAND_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX, STATES, STATE_IDS } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
 import { readElement } from './versus-fx.js';
 
@@ -783,6 +783,13 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
     m.nohit = true; m.damage = 0; m.chip = 0;
   }
   m.reach = reachOf(m.frames);
+  // ALL ROUND (`around`: the desperation's spin): its box reaches behind the body as far as in front of it
+  if (sp.around) for (const fr of m.frames) if (fr && fr.hit) fr.hit = [-fr.hit[2], fr.hit[1], fr.hit[2], fr.hit[3]];
+  // its PRICE (`price`): the health it costs the one who throws it, the first time it lands (never the last of it)
+  if (sp.price !== undefined) {
+    if (!(isInt(sp.price) && sp.price > 0)) throw new Error(`versus: special '${id}' price is whole health points, over 0`);
+    m.price = sp.price;
+  }
   return m;
 }
 
@@ -887,6 +894,12 @@ export function compileSuper(body, id, o = {}) {
   if (su.lock !== undefined) m.lock = readLock(su.lock, id, m, su.damage);
   if (Object.keys(T).length) m.tuned = Object.keys(T);
   m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
+  // an INSTALL (`install`, a STATES row): the super strikes nothing (`nohit`) and grants the state as it starts
+  if (su.nohit) { for (const fr of m.frames) if (fr && fr.hit) delete fr.hit; m.nohit = true; m.damage = 0; m.chip = 0; }
+  if (su.install !== undefined) {
+    if (!STATES[su.install]) throw new Error(`versus: super '${id}' install is a state (${STATE_IDS.join(', ')})`);
+    m.install = su.install;
+  }
   m.reach = m.throw ? m.throw.range : reachOf(m.frames);
   return m;
 }

@@ -21,3 +21,10 @@
   open to the camera, each into the next through a doorway the band runs through, deep enough before the band for the
   locked angle to see the floor; the open-air plaza one long street; a kit whose furnishing would stand on the fighting
   floor left undressed unless asked. It opens framed by the belt's angle. The spike shoots every kit.
+- Timed states, one shelf for both games (`versus-library.js` STATES: power, haste, iron, fury): a body hits harder,
+  moves faster or takes blows without flinching for a while. In the fight an INSTALL super grants one as it starts (the
+  `super-install` row: no blow, a moment powering up, then ten seconds of power; a recipe's own install takes another
+  state); in the brawl a thing on the floor will. A body holding none carries nothing of it.
+- The desperation (`whirl` in the specials): an invincible spin at shoulder height that strikes behind as far as in
+  front and knocks down, costing its thrower a slice of health the first time it lands, never the last of it. Any
+  fighter may take it as a special; the brawler's attack and jump together throw it.
