@@ -33,16 +33,16 @@ import { boardParse } from './board-kernel.js';
 const SIDE_COLOURS = ['#4aa3ff', '#ff5a4a', '#5ad17a', '#f2c14e'];
 
 /** What the page takes, from a laid board (board-lay.js layBoard). */
-export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots, talk, td, rts } = {}) {
+export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots, talk, td, rts, ui } = {}) {
   const B = laid.board, at = cursor !== undefined ? boardParse(B, cursor) : -1;
   const first = at >= 0 && B.spots[at] ? at : B.spots.findIndex((s) => s && s.walk);
   const sides = [...new Set((battle ? battle.units : units).map((u) => u.side))];
   return { B, origin: laid.frame.origin, units, camera, cursor: first, colours: Object.fromEntries(sides.map((s, k) => [s, SIDE_COLOURS[k % SIDE_COLOURS.length]])),
-    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}), ...(talk ? { talk } : {}), ...(td ? { td } : {}), ...(rts ? { rts } : {}) };
+    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}), ...(talk ? { talk } : {}), ...(td ? { td } : {}), ...(rts ? { rts } : {}), ...(ui ? { ui } : {}) };
 }
 
 /* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
-export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
+export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP, UIK, UIP) {
   const B = D.B, O = D.origin, cell = B.cell;
   controls.enabled = false;
   __ctrlOwnsCamera = true;   // eslint-disable-line no-global-assign
@@ -170,7 +170,9 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
 
   // ── the panels: the readout, the turn order, the unit's card, the menu, the banner, the numbers ────────────────
   const CSS = 'position:absolute;z-index:7;font:12px/1.45 ui-monospace,Menlo,monospace;color:#e8ecf2;background:rgba(10,12,16,0.72);padding:8px 10px;border-radius:6px;white-space:pre';
-  const panel = (style) => { const el = document.createElement('div'); el.style.cssText = CSS + ';' + style; wrap.appendChild(el); return el; };
+  // with the board's UI (board-ui.js) a panel is written as ever and never shown: its words are the UI's to draw
+  let ui = null;
+  const panel = (style) => { const el = document.createElement('div'); el.style.cssText = CSS + ';' + style; if (!UIP) wrap.appendChild(el); return el; };
   const hud = panel('left:12px;bottom:12px;pointer-events:none');
   const orderEl = battle ? panel('left:12px;top:12px;pointer-events:none') : null;
   const cardEl = battle ? panel('right:12px;top:12px;pointer-events:none;min-width:190px') : null;
@@ -202,7 +204,8 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     const bf = (U.buffs || []).map((b) => b.stat + (b.pct > 0 ? '↑' : '↓'));
     return `${U.name} (${U.side})\nHP ${bar(U.hp, U.hpMax, 10)} ${U.hp}/${U.hpMax}${U.mpMax ? `\nMP ${bar(U.mp, U.mpMax, 10)} ${U.mp}/${U.mpMax}` : ''}\nmove ${U.move}  jump ${U.jump}  spd ${K.statOf(U, 'spd')}${st.length || bf.length ? `\n${st.concat(bf).join('  ')}` : ''}`;
   }
-  function float(id, text, colour) {
+  function float(id, text, colour, kind) {
+    if (ui) { const q = tokens[id] ? tokens[id].g.position : null; ui.pop(q ? [q.x, q.y, q.z + 2.2] : [...centre(S.u[id].at)], text, kind || ''); return; }
     const el = document.createElement('div');
     el.style.cssText = 'position:absolute;z-index:8;font:bold 16px ui-monospace,Menlo,monospace;text-shadow:0 1px 3px #000;pointer-events:none;transform:translate(-50%,-50%)';
     el.style.color = colour;
@@ -338,6 +341,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
       const acts = L.filter((a) => a.item === k);
       items.push({ label: `${K.itemOf(cfg, k).name}  ×${S.bag[U.side][k]}`, ok: acts.length > 0, go: () => startAim({ item: k }, acts) });
     }
+    mode = 'menu';   // back from an aim comes here: the menu has the keys again
     menu = { items, i: firstOk(items), back: openMenu };
     drawMenu(); readout();
   }
@@ -408,9 +412,9 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
   const HOP = 0.16;
   function beat(b) {
     if (b.kind === 'move') { tokens[b.who].hops.push(...b.path.slice(1)); busy = Math.max(busy, (b.path.length - 1) * HOP + 0.15); return; }
-    if (b.kind === 'hurt') float(b.target, (b.poison ? 'poison ' : '') + b.amount + (b.crit ? '!' : ''), '#ff6b5a');
-    else if (b.kind === 'heal') float(b.target, '+' + b.amount, '#6bff8a');
-    else if (b.kind === 'miss') float(b.target, b.why === 'immune' ? 'immune' : b.why === 'resisted' ? 'resisted' : 'miss', '#d0d4da');
+    if (b.kind === 'hurt') float(b.target, (b.poison ? 'poison ' : '') + b.amount + (b.crit ? '!' : ''), '#ff6b5a', b.crit ? 'crit' : 'hit');
+    else if (b.kind === 'heal') float(b.target, '+' + b.amount, '#6bff8a', 'heal');
+    else if (b.kind === 'miss') float(b.target, b.why === 'immune' ? 'immune' : b.why === 'resisted' ? 'resisted' : 'miss', '#d0d4da', 'miss');
     else if (b.kind === 'ko') float(b.target, 'down', '#ffffff');
     else if (b.kind === 'revive') float(b.target, 'up', '#6bff8a');
     else if (b.kind === 'status') float(b.target, b.on ? ST[b.status] || b.status : b.status === 'cured' ? 'cured' : 'awake', '#c9a6ff');
@@ -615,26 +619,34 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
   const held = {};
   const DIRS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
   const FACE_OF = { '0,1': 0, '1,0': 1, '0,-1': 2, '-1,0': 3 };
-  window.addEventListener('keydown', (e) => {
+  // what a control means here (the controls layer's `board` scheme names them; the keys below are its defaults)
+  function intent(a) {
     if (mode === 'scene') return;   // a story slot plays: the scene has the keys
+    if (a === 'up' || a === 'down' || a === 'left' || a === 'right') {
+      // a defence under the board's UI moves its cursor (the view follows it), so a pad can build; else the view pans
+      if (rts && ui && mode === 'td') { stepCursor(a); CAM.focusOn(C, tops[cursor]); }
+      else if (rts) { if (ui) CAM.pan(C, a === 'right' ? 1 : a === 'left' ? -1 : 0, a === 'up' ? 1 : a === 'down' ? -1 : 0, 0.12); else held[a] = true; }
+      else if (mode === 'map') mapPick(a);
+      else if (mode === 'menu') { if (a === 'up') menuStep(-1); else if (a === 'down') menuStep(1); }
+      else if (mode === 'face') { face = FACE_OF[CAM.screenStep(C, a).join(',')]; tokens[S.turn.who].g.rotation.z = FACE[face]; }
+      else if (mode !== 'over') stepCursor(a);
+    } else if (a === 'turnLeft') CAM.rotate(C, 1);
+    else if (a === 'turnRight') CAM.rotate(C, -1);
+    else if (a === 'zoomIn') CAM.zoom(C, 1);
+    else if (a === 'zoomOut') CAM.zoom(C, -1);
+    else if (a === 'tilt') CAM.tilt(C);
+    else if (a === 'confirm') { if (mode === 'free') select(); else if (mode === 'map') mapGo(); else if (mode === 'td' && tdp) { tdp.pick(cursor); readout(); } else confirm(); }
+    else if (a === 'back') { if (mode === 'free') { sel = null; highlight('reach', null); readout(); } else back(); }
+  }
+  const KEYS = { KeyQ: 'turnLeft', KeyE: 'turnRight', KeyZ: 'zoomIn', Equal: 'zoomIn', KeyX: 'zoomOut', Minus: 'zoomOut', KeyV: 'tilt', Enter: 'confirm', Space: 'confirm', Escape: 'back', Backspace: 'back' };
+  window.addEventListener('keydown', (e) => {
+    if (ui) return;   // the board's UI has the keys (the controls layer's hosts)
     if (mode === 'rts' && (/^Key[WASDQE]$/.test(e.code) || (rtsp && rtsp.claims(e)))) return;   // a skirmish's orders (its keys first), not the cursor's or the camera's
     if (mode === 'td' && /^Key[WASD]$/.test(e.code)) return;   // a defence's letters are its own (S sells): the arrows and the edge pan
-    if (e.code in DIRS) {
-      e.preventDefault();
-      if (rts) held[DIRS[e.code]] = true;
-      else if (mode === 'map') mapPick(DIRS[e.code]);
-      else if (mode === 'menu') { if (DIRS[e.code] === 'up') menuStep(-1); else if (DIRS[e.code] === 'down') menuStep(1); }
-      else if (mode === 'face') { face = FACE_OF[CAM.screenStep(C, DIRS[e.code]).join(',')]; tokens[S.turn.who].g.rotation.z = FACE[face]; }
-      else if (mode !== 'over') stepCursor(DIRS[e.code]);
-      return;
-    }
-    if (e.code === 'KeyQ') CAM.rotate(C, 1);
-    else if (e.code === 'KeyE') CAM.rotate(C, -1);
-    else if (e.code === 'KeyZ' || e.code === 'Equal') CAM.zoom(C, 1);
-    else if (e.code === 'KeyX' || e.code === 'Minus') CAM.zoom(C, -1);
-    else if (e.code === 'KeyV') CAM.tilt(C);
-    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); if (mode === 'free') select(); else if (mode === 'map') mapGo(); else if (mode === 'td' && tdp) { tdp.pick(cursor); readout(); } else confirm(); }
-    else if (e.code === 'Escape' || e.code === 'Backspace') { if (mode === 'free') { sel = null; highlight('reach', null); readout(); } else back(); }
+    const a = DIRS[e.code] || KEYS[e.code];
+    if (!a) return;
+    if (e.code in DIRS || a === 'confirm') e.preventDefault();
+    intent(a);
   });
   window.addEventListener('keyup', (e) => { if (e.code in DIRS) held[DIRS[e.code]] = false; });
   const el = renderer.domElement;
@@ -839,7 +851,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
 
   // ── a tower defence (board-td.js, played by board-td-page.js): the board hands it what it has made ──────────────
   if (TDP && D.td) {
-    tdp = TDP({ THREE, scene, D, B, root, tops, highlight, panel, banner, FX, TDK, cursorAt: () => cursor, worldAt, push });
+    tdp = TDP({ THREE, scene, D, B, root, tops, highlight, panel, banner, FX, TDK, cursorAt: () => cursor, worldAt, push, ui: !!UIP });
     mode = 'td';
     readout();
   }
@@ -849,6 +861,25 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, banner, FX, RTK, spotAt, worldAt, push, focus: (p) => CAM.focusOn(C, p) });
     mode = 'rts';
     readout();
+  }
+
+  // ── the board's UI (board-ui.js): what stands now, read by it each frame; what its controls mean, done here ─────
+  if (UIP) {
+    const sides = Object.keys(D.colours || {}), MARK = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
+    ui = UIP({
+      ui: D.ui, intent, refresh: readout,
+      project(p) { V.set(p[0], p[1], p[2]).project(camera); return V.z > 1 ? null : [(V.x + 1) / 2, (1 - V.y) / 2]; },
+      get: () => ({
+        mode, cursor, n: S ? S.n : 0, readout: hud.textContent, banner: bannerEl && bannerEl.style.display === 'block' ? bannerEl.textContent : '', menu: mode === 'menu' ? menu : null, sides, td: tdp ? tdp.ui : null,
+        turns: () => (battle && S && S.turn && mode !== 'over' && mode !== 'wait' ? K.preview(B, S, 8).map((x) => ({ name: S.u[x.who].name, cpu: !HUMAN.has(x.side), side: x.side })) : []),
+        unit() {
+          const id = mode === 'deploy' && placing ? placing.ids[placing.k] : battle && S && S.turn && mode !== 'over' && mode !== 'wait' ? S.turn.who : null, U = id && S.u[id];
+          return U ? { name: U.name, side: U.side, hp: U.hp, hpMax: U.hpMax, mp: U.mp || 0, mpMax: U.mpMax || 0, move: U.move, jump: U.jump, spd: K.statOf(U, 'spd'),
+            marks: Object.keys(MARK).filter((k) => U.st && U.st[k]).map((k) => MARK[k]).concat((U.buffs || []).map((b) => b.stat + (b.pct > 0 ? ' ↑' : ' ↓'))) } : null;
+        },
+        forecast: () => (mode === 'aim' && aiming && aiming.spots.has(cursor) ? MIND.forecast(K, B, cfg, S, Object.assign({ kind: 'act', at: cursor }, aiming.what)) : null),
+      }),
+    }, UIK);
   }
 
   window.__mojBoard = {
@@ -930,6 +961,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     }
     stepSlot(dt);
     stepTalk();
+    if (ui) ui.step(dt);
     if (tdp) tdp.step(dt);
     if (rtsp) rtsp.step(dt);
     stepBusFx();

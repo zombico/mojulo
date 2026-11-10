@@ -8,7 +8,8 @@
  *   wave now · B: the spots a tower may stand on (the mazing rule) · the camera's own (pan, edge scroll, zoom)
  *
  * `boardTdPage(api)` runs on the page only, inside the board channel's block, handed what the board page has made
- * (api: { THREE, scene, D, B, root, tops, highlight, panel, banner, FX, TDK, cursorAt, worldAt, push }); emitted only when a board has
+ * (api: { THREE, scene, D, B, root, tops, highlight, panel, banner, FX, TDK, cursorAt, worldAt, push, ui }; `ui` true when the board's UI
+ * draws the hand, so the keys are its); emitted only when a board has
  * `td`, so no other board carries a byte of it. It returns { step(dt), pick(spot), readout(spot), probe }.
  */
 
@@ -165,7 +166,7 @@ export function boardTdPage(api) {
     return true;
   }
   function callNext() { T = TDK.call(B, cfg, T); drawPanel(); }
-  if (typeof window !== 'undefined') window.addEventListener('keydown', (e) => {
+  if (typeof window !== 'undefined' && !api.ui) window.addEventListener('keydown', (e) => {
     if (result) return;
     const n = /^Digit([1-9])$/.exec(e.code);
     if (n && cfg.towers[+n[1] - 1]) { kind = cfg.towers[+n[1] - 1]; drawPanel(); }
@@ -193,14 +194,28 @@ export function boardTdPage(api) {
   }
   function readout(i) {
     if (result) return result.won ? 'held' : 'overrun';
-    if (T.towers[i]) return `${TDK.TOWERS[T.towers[i].kind].name} (S: sell for ${Math.floor(TDK.TOWERS[T.towers[i].kind].cost / 2)})`;
+    if (T.towers[i]) return `${TDK.TOWERS[T.towers[i].kind].name} (${api.ui ? 'R' : 'S'}: sell for ${Math.floor(TDK.TOWERS[T.towers[i].kind].cost / 2)})`;
     if (i === cfg.base) return 'the base';
     if (cfg.spawns.indexOf(i) >= 0) return 'a gate they come through';
     const ok = TDK.legal(B, cfg, T).indexOf(i) >= 0, tw = TDK.TOWERS[kind];
     return ok ? `build here: ${tw.name}, ${tw.cost} gold${T.gold < tw.cost ? ' (too little gold)' : ''}` : 'no tower here: it would shut the road, or it is taken';
   }
+  // the hand as the board's UI reads and does it (board-ui.js): the wave, the purse, the lives, the towers; the same
+  // calls the keys above make
+  const ui = {
+    view() {
+      const waves = cfg.waves.length;
+      return { wave: Math.min(T.next, waves), of: waves, more: T.next < waves, when: T.out.length ? 'coming in' : T.next < waves ? 'next in ' + Math.max(0, Math.ceil(T.clock)) + ' s' : T.foes.length ? 'the last of them' : '',
+        gold: T.gold, lives: T.lives, livesMax: cfg.lives, foes: T.foes.length, towers: cfg.towers.map((k) => ({ id: k, name: TDK.TOWERS[k].name, cost: TDK.TOWERS[k].cost, active: k === kind })),
+        over: result ? (result.won ? 'Held\nevery wave turned back' : 'Overrun') : '' };
+    },
+    choose(k) { if (!result && cfg.towers.indexOf(k) >= 0) { kind = k; drawPanel(); } },
+    sell() { if (!result) last = sellAt(api.cursorAt()); return last; },
+    call() { if (!result) callNext(); },
+    where() { showLegal = !showLegal; drawRoad(); },
+  };
   return {
-    step, readout,
+    step, readout, ui,
     pick(i) { last = build(i); return last; },
     probe: {
       state: () => T, get kind() { return kind; }, set kind(k) { kind = k; }, get result() { return result; }, get last() { return last; },

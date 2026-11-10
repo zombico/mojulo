@@ -681,7 +681,8 @@ tactics battle's and a turn-based fight's, one part wherever it is drawn), `sele
 
 **Its looks** are theme cards of the family `table`: `table-wood` (plates of the board's light inlay framed in its
 wood, a book face in mixed case) and `table-felt` (card stock on green felt). Neither names its sides: a table's kits
-are its players'. The board-game pages are drawn by them (the surfaces, below); no strategy page is yet. The board
+are its players'. The board-game pages are drawn by them, and the tactics board and the tower defence by the strategy
+parts (the surfaces, below); the skirmish is not yet. The board
 (`scripts/mana-board.mjs <out.html> --theme table-wood`) is where a person looks at every part.
 
 ## Sports and the broadcast
@@ -801,6 +802,27 @@ game with a `ui` (`tabletop: { …, ui: { theme?, languages?, language? } }`). O
 - **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
 - A round game played on a board still draws its own panel.
 
+### The tactics board and the tower defence
+
+A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence) is drawn by mana-ui for a board with
+a `ui` (a level's `board.ui`, the `board` kind's `ui`; a gameworld's `ui` reaches its battle, map and defence levels).
+Its spec and its page are `board/board-ui.js`, handed to the board page as the tower defence's and the skirmish's
+pages are, so a board without `ui` carries none of it.
+
+- **The board page still plays.** Its text panels are written as ever and never shown; `boardManaPage` reads what the
+  page stands at (`api.get()`: the mode, the cursor, the readout, the menu's items, the order, the unit, a forecast, a
+  defence's hand) and rebuilds what the runtime reads only when that has changed.
+- **The parts**: `turn-order`, the unit in focus, an aim's forecast as a `table`, the readout and a `legend` of the
+  board scheme's controls in the glyphs of the device in hand, the end's word as a `banner`, `damage-numbers` over a
+  blow (each projected from where it landed in the world); for a defence, `wave-status` and its hand as `slot`s.
+- **The action menu is a screen** (`act`, an overlay beside the board): it opens while the page is in its menu and is
+  opened again when what it lists has changed; a pick runs the page's own function, back is the page's back.
+- **Input** is the controls layer's, as the tables': the `menu` scheme while the screen is up, the `board` scheme for
+  the board (the board page's `intent(action)`), a key the menu took never also the board's.
+- **Scoped.** Its sheet and theme are scoped to its own root (`#mana-board`), so it stands beside another surface's
+  runtime on the page. Its theme sets no cover between screens and no veil: the menu opens every turn.
+- A skirmish (`rts`) keeps its own panels.
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
@@ -836,7 +858,7 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
    shell's flow runner: [game-flow.md](game-flow.md)), and the RPG channel's battles, party menu and shops are too
    (`scene/channels/rpg-channel.js` rpgMana). Next: the play shell's pause, the theme's sounds there, a picture in the
    image component (a cover as key art), playscape's menu kinds, the arena shell's front, the versus pause and the
-   fight's HUD (the fight's language above). The board-game pages are on it (`tabletop/table-ui.js`); next for them:
-   a round game played on a board, the strategy boards, and the table's broadcast furniture folded into the `table`
-   shelf.
+   fight's HUD (the fight's language above). The board-game pages are on it (`tabletop/table-ui.js`), and the tactics board and the
+   tower defence (`board/board-ui.js`); next: the skirmish, a round game played on a board, and the table's broadcast
+   furniture folded into the `table` shelf.
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

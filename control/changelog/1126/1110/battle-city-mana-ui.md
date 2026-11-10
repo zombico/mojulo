@@ -6,7 +6,7 @@ skirmish client of monospace text panels with three key listeners of its own. Th
 runtime (`lib/mana-ui/`, [docs/mana-ui.md](../../../../docs/mana-ui.md)). Planned, in order: the pages' own house; what
 the runtime lacked for a table; the board-game pages on one spec; the strategy boards on one spec with one input
 owner; the table's broadcast furniture folded into the same parts; the holo arena. Built so far: the first two, and
-the board-game pages on one spec.
+the board-game pages on one spec, and the tactics board and the tower defence on another (the skirmish follows).
 
 - **A board game's page drawn by the runtime: `tabletop.ui`** (`{ theme?, languages?, language? }`,
   `tabletop/table-ui.js`). One spec and one host for the tabletop pages. With `ui`, a page's header and side panel are
@@ -33,6 +33,26 @@ the board-game pages on one spec.
   - **Without `ui` a page plays as it did** and carries no runtime, sheet or host. Its client's source gains the
     branches that choose between the two, and a page with `ui` is about 220 KB larger (the runtime and its sheet).
 
+- **A tactics board and a tower defence drawn by the runtime: a board's `ui`** (`{ theme?, languages?, language? }`,
+  `board/board-ui.js`; a level's `board.ui`, or the `board` kind's own). The board page still plays the battle; its
+  text panels become the runtime's parts, read from what the page stands at each frame it changes:
+  - **The battle**: the turn order (each unit its side's chip, the one acting alight), the unit in focus (its bars,
+    how far it goes, what is on it), the action menu as a screen beside the board (Move, Act, Wait; the attack, the
+    skills, the bag), an aim's forecast as a table, the end's word and its spoils as a banner, the numbers over a blow
+    toned by their kind.
+  - **The tower defence**: the wave, the lives and the purse; each tower on its digit with its cost, the one in hand
+    marked; sell, the next wave and where a tower may stand on their keys. The cursor moves by the controls and the
+    view follows it, so a defence is built from a pad.
+  - **Keys and a pad through the controls layer**: the `board` scheme's intents (cursor, confirm, back, turn, zoom,
+    tilt) for the board, the `menu` scheme while the action menu is up. The board page says what a control means once
+    (`intent`); its own keys go through it too. Under the UI a defence's sale is R, since the board scheme's S moves
+    the cursor.
+  - **The look** is the game's, else `tactician`; its sides the board's own side colours. A gameworld's `ui` reaches
+    its battle, map and defence levels. Nothing covers the board as the menu comes and goes.
+  - A skirmish (`rts`) keeps its own panels: `ui` on such a board is read and not used yet.
+  - Without `ui` a board's block carries no runtime.
+- **Fixed: back from an aim left the keys with the cursor.** The action menu was drawn again and could not be moved
+  through; it has the keys again.
 - **The runtime gains a table's parts.** Three components, each with its rule in the sheet and no colour of its own:
   - `card`: a card's face (a band in its side's kit, the name, the cost, what it does, its tags, its power and guard,
     how many lie under it). Its state is a shape: playable an edge alight, picked lifted, spent turned on its side;
@@ -65,5 +85,6 @@ the board-game pages on one spec.
   the holo arena a press on the board or Escape does.
 - **Fixed: a player's id went into the euro, tile and move pages' logs and seat rows unescaped.**
 - **Fixed: the tile game's table view was fitted to the laid tiles only on a move**, never as the window was resized.
-- Pins: the `board` and `holo` fixtures of the World page's byte pin, for the board page's fold and the holo's picker; `brawl`, the one
+- Pins: the `board` fixture again, for the board page's hooks and its `intent`; before it, the `board` and `holo`
+  fixtures of the World page's byte pin, for the board page's fold and the holo's picker; `brawl`, the one
   fixture that inlines the runtime's kernel, for the kernel's new parts (the yard draws as before).
