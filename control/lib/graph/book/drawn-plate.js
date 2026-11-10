@@ -1,27 +1,41 @@
 /**
- * plate — a drawn illustration of solid forms (spike; the Rendrant revival's tractability probe).
- *
- * The old sketch expander shades flat shapes the agent placed in pixels. This draws the other way round, the way a
- * drawing master teaches it, and every step is a principle the agent already holds:
+ * THE DRAWN PLATE — a book's illustration, drawn from solid forms the way a drawing master teaches it. The agent
+ * never places a pixel: it stands forms on the ground in metres, says where it stands and where the light is, and
+ * names a finish. Every step is a principle it already holds:
  *
  *   1. THE PICTURE PLANE IS A CAMERA. A level eye, a horizon and two vanishing points fix one station point (the
- *      vanishing points' distances from the centre of vision multiply to the focal length squared). So the agent
- *      never places pixels: it stands forms on the ground in metres and names where it stands (`station`).
- *   2. BLOCK IN WITH SOLIDS. A form is a list of the studio's own field terms (sphere, ellipsoid, box, capsule,
- *      lathe, sweep, blended or cut): what `mint_solid` already reads. Anything minted can be drawn.
- *   3. ONE LIGHT, FIVE VALUES. Light, halftone, core shadow, reflected light and cast shadow are not painted; they
- *      are measured where the eye's ray meets the form, as one tone per sample of the picture plane.
+ *      vanishing points' distances from the centre of vision multiply to the focal length squared): `station`.
+ *   2. BLOCK IN WITH SOLIDS. A form is a list of the studio's own field terms (polygonizer/field-terms.js: sphere,
+ *      ellipsoid, box, capsule, lathe, sweep, blended or cut), what `mint_solid` reads; `formsOfSolid` takes a
+ *      workbench solid's own `fields`, so a solid already minted is drawn as it stands.
+ *   3. ONE LIGHT, FIVE VALUES. Light, halftone, core shadow, reflected light and cast shadow are measured where the
+ *      eye's ray meets the form, one tone per sample of the picture plane.
  *   4. A TONE IS A SHAPE LAID OVER A SHAPE. Each value step is the closed outline of "darker than this", laid
- *      translucent over the lighter one: chiaroscuro by superposition. More steps, a softer edge; one step, a woodcut.
+ *      translucent over the lighter one. More steps, a softer edge; one step, a woodcut.
  *   5. A HATCH FOLLOWS THE FORM. A hatch line is a slice of the form by a plane square to the light, so it wraps a
- *      sphere, runs straight on a box and converges on the same vanishing points as the box's edges.
+ *      sphere, runs straight on a box and converges on the box's own vanishing points.
  *   6. THE LINE IS LOST AND FOUND. The contour is heavier on the side away from the light.
  *
- * The output is curves (cubic paths), never a raster: the tone field is sampled on the picture plane and then
- * contoured, so the page that carries it stays a small SVG. Pure and deterministic: no dice, no clock.
+ *   readPlate(spec)                 → the plate, checked (throws naming what it takes)
+ *   renderPlate(spec, { res?, prefix?, backdrop? }) → { svg, width, height, rig, stats }
+ *                                     res: samples per unit (2); prefix: for its ids, so several sit on one page;
+ *                                     backdrop false: no paper behind it (the book's shows through)
+ *   drawnPlate(spec, { style?, caption?, span?, id? }) → the press's figure (book-press.js `plate`), in the book's
+ *                                     own paper and ink
+ *   formsOfSolid(manifest)          → a workbench solid's `fields` as forms
+ *   FINISHES                        wash | engraving | woodcut
+ *
+ *   spec: { forms: [{ id?, terms, tint?, tintOpacity?, gloss? }], station?: { turn, eye, distance, lens, look, centre },
+ *           light?: { azimuth, elevation, softness, occlusion }, finish?, ground?, frame?: 'fit' | 'full', margin?,
+ *           width?, height?, palette?: { paper, ink }, hatch?: { spacing }, construction? }
+ *
+ * The output is curves (cubic paths), never a raster: the tone field is sampled on the picture plane, then contoured.
+ * Pure and deterministic: no dice, no clock; the same spec gives the same bytes.
  */
 
-import { composeFieldTerms } from '../../../lib/graph/polygonizer/field-terms.js';
+import { composeFieldTerms, validateFieldTerms } from '../polygonizer/field-terms.js';
+import { plate as pressPlate } from './book-press.js';
+import { readBookStyle } from './book-style.js';
 
 const V = (x, y, z) => ({ x, y, z });
 const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
@@ -123,7 +137,11 @@ function occlusionAt(forms, ground, p, n, reach) {
   for (let i = 1; i <= 4; i++) {
     const h = (reach * i) / 4, q = add(p, n, h);
     let dist = ground ? q.z : Infinity;
-    for (const form of forms) dist = Math.min(dist, form.d(q));
+    for (const form of forms) {
+      const b = form.bounds;   // (a form farther off than the reach cannot dim this point: not asked)
+      if (q.x < b.min.x - h || q.x > b.max.x + h || q.y < b.min.y - h || q.y > b.max.y + h || q.z < b.min.z - h || q.z > b.max.z + h) continue;
+      dist = Math.min(dist, form.d(q));
+    }
     occ += (h - Math.min(dist, h)) * w;
     w *= 0.62;
   }
@@ -272,7 +290,7 @@ function simplify(pts, eps) {
 }
 
 /** A polyline as a cubic path: smooth through its points, sharp where it turns hard (a box's corner stays one). */
-export function curvePath({ pts, closed }, scale, { eps = 0.45, corner = 62 } = {}) {
+export function curvePath({ pts, closed }, scale, { eps = 0.45, corner = 62, ox = 0, oy = 0 } = {}) {
   let p = pts;
   if (closed && p.length > 8) {
     // open the loop at its sharpest turn so the seam is never in the middle of a curve
@@ -301,15 +319,15 @@ export function curvePath({ pts, closed }, scale, { eps = 0.45, corner = 62 } = 
     const tx = (ax / la) * wa + (bx / lb) * (1 - wa), ty = (ay / la) * wa + (by / lb) * (1 - wa), l = Math.hypot(tx, ty) || 1e-9;
     return [tx / l, ty / l, la, lb];
   };
-  const s = (v) => r1(v * scale);
-  let d = `M${s(p[0][0])} ${s(p[0][1])}`;
+  const sx = (v) => r1((v + ox) * scale), sy = (v) => r1((v + oy) * scale);
+  let d = `M${sx(p[0][0])} ${sy(p[0][1])}`;
   for (let i = 0; i < n - 1; i++) {
     const a = p[i], b = p[i + 1], ta = tangent(i), tb = tangent(i + 1);
     const span = Math.hypot(b[0] - a[0], b[1] - a[1]) / 3;
-    if (!ta && !tb) { d += `L${s(b[0])} ${s(b[1])}`; continue; }
+    if (!ta && !tb) { d += `L${sx(b[0])} ${sy(b[1])}`; continue; }
     const c1 = ta ? [a[0] + ta[0] * span, a[1] + ta[1] * span] : a;
     const c2 = tb ? [b[0] - tb[0] * span, b[1] - tb[1] * span] : b;
-    d += `C${s(c1[0])} ${s(c1[1])} ${s(c2[0])} ${s(c2[1])} ${s(b[0])} ${s(b[1])}`;
+    d += `C${sx(c1[0])} ${sy(c1[1])} ${sx(c2[0])} ${sy(c2[1])} ${sx(b[0])} ${sy(b[1])}`;
   }
   return closed ? `${d}Z` : d;
 }
@@ -365,23 +383,24 @@ function spread(field, mask, W, H, rounds = 4, soften = 0) {
   return { field: out, have };
 }
 
-/** A form's smooth patches: samples joined while depth and normal run on. Their borders are the inner edges. */
-function patches(T, mask) {
-  const { W, H, depth, nrm } = T, label = new Int32Array(W * H).fill(-1), sizes = [];
+/** A form's smooth patches inside its box: samples joined while depth and normal run on. Their borders are the inner edges. */
+function patches(T, box, mask) {
+  const { depth, nrm } = T, { x0, y0, w, h } = box, label = new Int32Array(w * h).fill(-1), sizes = [];
+  const g = (k) => (y0 + ((k - (k % w)) / w)) * T.W + x0 + (k % w);
   const joined = (a, b) => Math.abs(depth[a] - depth[b]) < 0.012 * depth[a] + 0.004
     && nrm[a * 3] * nrm[b * 3] + nrm[a * 3 + 1] * nrm[b * 3 + 1] + nrm[a * 3 + 2] * nrm[b * 3 + 2] > 0.72;
-  for (let s = 0; s < W * H; s++) {
+  for (let s = 0; s < w * h; s++) {
     if (!mask[s] || label[s] >= 0) continue;
     const idx = sizes.length, stack = [s];
     label[s] = idx;
     let size = 0;
     while (stack.length) {
-      const k = stack.pop(), x = k % W, y = (k - x) / W;
+      const k = stack.pop(), x = k % w, y = (k - x) / w;
       size++;
       for (const [xx, yy] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-        if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
-        const q = yy * W + xx;
-        if (mask[q] && label[q] < 0 && joined(k, q)) { label[q] = idx; stack.push(q); }
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const q = yy * w + xx;
+        if (mask[q] && label[q] < 0 && joined(g(k), g(q))) { label[q] = idx; stack.push(q); }
       }
     }
     sizes.push(size);
@@ -391,44 +410,107 @@ function patches(T, mask) {
 
 // ─── 5 + 6. finishes: the plate as curves ───────────────────────────────────────────────────────────────────────
 
-export const FINISHES = {
-  // tone steps: [lighter than this is left alone, opacity of the ink laid over what is darker]
+export const FINISHES = Object.freeze({
+  // steps: [lighter than this is left alone, the opacity of the ink laid over what is darker]
   wash: { paper: '#ecdfc4', ink: '#2a1c12', steps: [[0.8, 0.1], [0.64, 0.12], [0.5, 0.14], [0.38, 0.16], [0.27, 0.2], [0.17, 0.26]], line: 0.9 },
   woodcut: { paper: '#efe7d6', ink: '#17120e', steps: [[0.36, 1]], line: 1.3 },
   engraving: {
     paper: '#ece2cc', ink: '#231811', steps: [[0.2, 0.2], [0.11, 0.5]], line: 0.8,
-    // hatch sets: [darker than this, which slice family, phase of the comb]
+    // hatch: [darker than this, which slice family (A square to the light, B across it), the comb's phase]
     hatch: [[0.74, 'A', 0], [0.5, 'A', 0.5], [0.33, 'B', 0], [0.2, 'B', 0.5]],
   },
-};
+});
+export const FINISH_NAMES = Object.freeze(Object.keys(FINISHES));
 
-function hatchLines(field, valid, W, H, spacing, phase, scale) {
+function hatchLines(field, valid, W, H, spacing, phase, scale, at) {
   let lo = Infinity, hi = -Infinity;
   for (let k = 0; k < field.length; k++) if (valid[k]) { if (field[k] < lo) lo = field[k]; if (field[k] > hi) hi = field[k]; }
   const paths = [];
   for (let level = (Math.ceil(lo / spacing) + phase) * spacing; level < hi; level += spacing) {
     for (const line of contour(field, W, H, level, valid)) {
-      if (line.pts.length > 2) paths.push(curvePath(line, scale, { eps: 0.3 }));
+      if (line.pts.length > 2) paths.push(curvePath(line, scale, { eps: 0.3, ...at }));
     }
   }
   return paths.join('');
 }
 
-/**
- * The plate. `{ width, height, station, light, finish, ground, forms:[{ id, terms, tint?, gloss? }], construction? }`
- * → `{ svg, rig, stats }`.
- */
-export function renderPlate(plate, { res = 2, prefix = '', backdrop = true } = {}) {
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+const num = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+
+/** A plate, checked: throws naming what it takes. Returns the spec as written. */
+export function readPlate(spec) {
+  const no = (text) => { throw new Error(`plate: ${text}`); };
+  if (!isObj(spec)) no('a plate is { forms: [{ terms }], station?, light?, finish? }');
+  if (!Array.isArray(spec.forms) || !spec.forms.length) no('forms is a non-empty list of { id?, terms, tint?, gloss? }: each a solid stood on the ground in metres, z up (formsOfSolid(manifest) takes a minted workbench solid\'s)');
+  spec.forms.forEach((f, i) => {
+    if (!isObj(f) || !Array.isArray(f.terms) || !f.terms.length) no(`forms[${i}] needs terms, the field terms mint_solid reads ([{ op: 'add', shape: { kind: 'sphere', center, radius } }, …])`);
+    const errors = validateFieldTerms(f.terms, `forms[${i}].terms`);
+    if (errors.length) no(errors.join('; '));
+    if (f.tint !== undefined && !HEX.test(f.tint)) no(`forms[${i}].tint is a colour as #rrggbb`);
+  });
+  if (spec.finish !== undefined && !FINISHES[spec.finish]) no(`finish is one of ${FINISH_NAMES.join(', ')}`);
+  if (spec.frame !== undefined && !['fit', 'full'].includes(spec.frame)) no("frame is 'fit' (cropped to what is drawn, the default) or 'full'");
+  for (const k of ['width', 'height']) if (spec[k] !== undefined && !num(spec[k], 64, 2400)) no(`${k} is 64 to 2400 units`);
+  const st = spec.station;
+  if (st !== undefined) {
+    if (!isObj(st)) no('station is { turn, eye, distance, lens, look: [x, y, z] }');
+    if (st.turn !== undefined && !num(st.turn, 1, 89)) no('station.turn is 1 to 89 degrees: how far the view is turned off the forms\' y axis (at 0 or 90 one vanishing point runs off to infinity; that is one-point perspective)');
+    if (st.lens !== undefined && !num(st.lens, 10, 100)) no('station.lens is the horizontal field of view, 10 to 100 degrees');
+    if (st.distance !== undefined && !num(st.distance, 0.05, 1e4)) no('station.distance is metres from the eye to what it looks at');
+    if (st.eye !== undefined && !Number.isFinite(st.eye)) no('station.eye is the eye\'s height in metres');
+    if (st.look !== undefined && !(Array.isArray(st.look) && st.look.length === 3 && st.look.every(Number.isFinite))) no('station.look is the point looked at, [x, y, z]');
+  }
+  const li = spec.light;
+  if (li !== undefined) {
+    if (!isObj(li)) no('light is { azimuth, elevation }');
+    if (li.azimuth !== undefined && !num(li.azimuth, -180, 180)) no('light.azimuth is -180 to 180 degrees as the draughtsman says it: 0 from behind the eye, -90 from the left, 90 from the right');
+    if (li.elevation !== undefined && !num(li.elevation, 5, 89)) no('light.elevation is 5 to 89 degrees above the ground');
+  }
+  if (spec.palette !== undefined) for (const k of ['paper', 'ink']) if (spec.palette?.[k] !== undefined && !HEX.test(spec.palette[k])) no(`palette.${k} is a colour as #rrggbb`);
+  return spec;
+}
+
+/** A workbench solid's `fields` (what mint_solid stored) as a plate's forms, one a field, drawn where it stands. */
+export function formsOfSolid(manifest) {
+  const fields = Array.isArray(manifest?.fields) ? manifest.fields.filter((f) => Array.isArray(f?.terms) && f.terms.length) : [];
+  if (!fields.length) throw new Error('plate: the solid has no `fields` to draw (a plate draws field solids: a workbench solid made of terms)');
+  return fields.map((f, i) => {
+    const t = Array.isArray(f.translate) && f.translate.length === 3 ? f.translate : null;
+    return {
+      id: typeof f.id === 'string' ? f.id : `field${i}`,
+      terms: t ? [...f.terms, { op: 'transform', translate: t }] : f.terms,
+      ...(typeof f.tint === 'string' && HEX.test(f.tint) ? { tint: f.tint } : {}),
+    };
+  });
+}
+
+/** The box (in samples) round the samples `test` keeps, grown by `pad`; null when none. */
+function boxOf(W, H, test, pad) {
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!test(y * W + x)) continue;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return null;
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W - 1, x1 + pad); y1 = Math.min(H - 1, y1 + pad);
+  return { x0, y0, x1, y1, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+/** The plate as an SVG of curves. */
+export function renderPlate(spec, { res = 2, prefix = '', backdrop = true } = {}) {
+  const plate = readPlate(spec);
   const width = plate.width ?? 480, height = plate.height ?? 360;
   const rig = stationRig({ width, height, station: plate.station });
   const T = toneField(plate, rig, res);
-  const { W, H } = T, N = W * H, scale = 1 / res, half = 0.5;
+  const { W, H } = T, scale = 1 / res;
   const fin = { ...FINISHES[plate.finish ?? 'wash'], ...(plate.palette || {}) };
-  const shift = (d) => `<g transform="translate(${half * scale} ${half * scale})">${d}</g>`;
-  const out = [];
-  const defs = [];
-  // screen-space spacing of a hatch, as metres at the look distance
+  const out = [], defs = [];
+  // a hatch's spacing on the page, as metres at the look distance
   const spacing = ((plate.hatch?.spacing ?? 3.4) * (plate.station?.distance ?? 5)) / rig.f;
+  const lightest = Math.max(...fin.steps.map((s) => s[0]), ...(fin.hatch || []).map((h) => h[0]));
+  const drawn = { x0: W, y0: H, x1: -1, y1: -1 };   // what the plate holds, for its frame
+  const hold = (b) => { drawn.x0 = Math.min(drawn.x0, b.x0); drawn.y0 = Math.min(drawn.y0, b.y0); drawn.x1 = Math.max(drawn.x1, b.x1); drawn.y1 = Math.max(drawn.y1, b.y1); };
 
   if (plate.construction) {
     const { x: vx, y: vy } = rig.vanishing, hz = r1(rig.horizonY);
@@ -443,75 +525,91 @@ export function renderPlate(plate, { res = 2, prefix = '', backdrop = true } = {
     out.push('</g>');
   }
 
+  // one layer: a form, or the ground (who 1). Everything is worked inside the layer's own box of samples.
   const layer = (who, index) => {
-    const mask = new Uint8Array(N);
-    let count = 0;
-    for (let k = 0; k < N; k++) if (T.id[k] === who) { mask[k] = 1; count++; }
-    if (!count) return;
     const isGround = who === 1, form = isGround ? {} : plate.forms[who - 2];
-    const cover = blur(Float32Array.from(mask), W, H, 2);
-    const outline = isGround ? '' : contour(cover, W, H, 0.5).map((l) => curvePath(l, scale)).join('');
-    const { field: lum, have } = spread(T.lum, mask, W, H, 4, 1);
     // the ground keeps the paper: only what falls on it is drawn, as a share of its open value
-    const value = isGround ? lum.map((v) => v / T.groundLum * 0.86) : lum;
+    const groundValue = (k) => (T.lum[k] / T.groundLum) * 0.86;
+    const box = boxOf(W, H, isGround ? (k) => T.id[k] === 1 && groundValue(k) < lightest : (k) => T.id[k] === who, 8);
+    if (!box) return;
+    hold(isGround ? box : { x0: box.x0 + 6, y0: box.y0 + 6, x1: box.x1 - 6, y1: box.y1 - 6 });
+    const { x0, y0, w, h } = box, n = w * h, at = { ox: x0 + 0.5, oy: y0 + 0.5 };
+    const crop = (src, Type = Float32Array) => { const a = new Type(n); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) a[y * w + x] = src[(y + y0) * W + x + x0]; return a; };
+    const mask = new Uint8Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) mask[y * w + x] = T.id[(y + y0) * W + x + x0] === who ? 1 : 0;
+    const path = (field, level, opts) => contour(field, w, h, level).map((l) => curvePath(l, scale, { ...at, ...opts })).join('');
+    const outline = isGround ? '' : path(blur(Float32Array.from(mask), w, h, 2), 0.5);
+    const { field: lum, have } = spread(crop(T.lum), mask, w, h, 4, 1);
+    const value = isGround ? lum.map((v) => (v / T.groundLum) * 0.86) : lum;
     const tone = Float32Array.from(value, (v, k) => (have[k] ? -v : -Infinity));
     const body = [];
     if (!isGround && form.tint) body.push(`<path d="${outline}" fill="${form.tint}" opacity="${form.tintOpacity ?? 0.55}"/>`);
     for (const [below, opacity] of fin.steps) {
-      const d = contour(tone, W, H, -below).map((l) => curvePath(l, scale)).join('');
+      const d = path(tone, -below);
       if (d) body.push(`<path d="${d}" fill="${fin.ink}" fill-rule="evenodd" opacity="${opacity}"/>`);
     }
     if (fin.hatch) {
-      const fields = { A: spread(T.hatchA, mask, W, H).field, B: spread(T.hatchB, mask, W, H).field };
-      fin.hatch.forEach(([below, family, phase], h) => {
-        const region = contour(tone, W, H, -below).map((l) => curvePath(l, scale)).join('');
+      const fields = { A: spread(crop(T.hatchA), mask, w, h).field, B: spread(crop(T.hatchB), mask, w, h).field };
+      fin.hatch.forEach(([below, family, phase], hi) => {
+        const region = path(tone, -below);
         if (!region) return;
-        const clip = `${prefix}h${index}-${h}`;
+        const clip = `${prefix}h${index}-${hi}`;
         defs.push(`<clipPath id="${clip}"><path d="${region}" clip-rule="evenodd"/></clipPath>`);
-        // comb only near what it will show in: the ground runs to the horizon, its shadow does not
-        const near = Uint8Array.from(have, (h, k) => (h && value[k] < below + 0.06 ? 1 : 0));
-        const lines = hatchLines(fields[family], near, W, H, spacing, phase, scale);
+        // comb only near what it will show in
+        const near = Uint8Array.from(have, (ok, k) => (ok && value[k] < below + 0.06 ? 1 : 0));
+        const lines = hatchLines(fields[family], near, w, h, spacing, phase, scale, at);
         body.push(`<path clip-path="url(#${clip})" d="${lines}" fill="none" stroke="${fin.ink}" stroke-width="${fin.hatchWidth ?? 0.55}" stroke-linecap="round"/>`);
       });
     }
     if (!isGround && form.gloss) {
-      const g = spread(T.gloss, mask, W, H).field;
-      const d = contour(g, W, H, 0.3).map((l) => curvePath(l, scale)).join('');
+      const d = path(spread(crop(T.gloss), mask, w, h).field, 0.3);
       if (d) body.push(`<path d="${d}" fill="${fin.paper}" opacity="0.92"/>`);
     }
-    if (isGround) { out.push(shift(body.join(''))); return; }
+    if (isGround) { out.push(body.join('')); return; }
     // inner edges: the borders of the form's smooth patches
-    const { label, sizes } = patches(T, mask);
+    const { label, sizes } = patches(T, box, mask);
     const inner = [];
     sizes.forEach((size, idx) => {
       if (size < 30 * res * res) return;
-      const part = blur(Float32Array.from(label, (v) => (v === idx ? 1 : 0)), W, H, 2);
-      inner.push(contour(part, W, H, 0.5).map((l) => curvePath(l, scale)).join(''));
+      inner.push(path(blur(Float32Array.from(label, (v) => (v === idx ? 1 : 0)), w, h, 2), 0.5));
     });
     const clip = `${prefix}f${index}`;
     defs.push(`<clipPath id="${clip}"><path d="${outline}" clip-rule="evenodd"/></clipPath>`);
     // the found line: the silhouette's dark twin, slid away from the light, shows only on the shadow side
-    const [lx, ly] = [dot(T.L, rig.right), -T.L.z], ll = Math.hypot(lx, ly) || 1;
-    const lean = fin.line * 1.15;
-    out.push(shift(
-      `<path d="${outline}" fill="${fin.ink}" fill-rule="evenodd" transform="translate(${r1(-lx / ll * lean)} ${r1(-ly / ll * lean)})"/>`
+    const lx = dot(T.L, rig.right), ly = -T.L.z, ll = Math.hypot(lx, ly) || 1, lean = fin.line * 1.15;
+    out.push(
+      `<path d="${outline}" fill="${fin.ink}" fill-rule="evenodd" transform="translate(${r1((-lx / ll) * lean)} ${r1((-ly / ll) * lean)})"/>`
       + `<path d="${outline}" fill="${fin.paper}" fill-rule="evenodd"/>`
       + `<g clip-path="url(#${clip})">${body.join('')}`
       + (sizes.length > 1 ? `<path d="${inner.join('')}" fill="none" stroke="${fin.ink}" stroke-width="${fin.line * 0.7}" opacity="0.8"/>` : '')
       + `</g><path d="${outline}" fill="none" stroke="${fin.ink}" stroke-width="${fin.line}" stroke-linejoin="round"/>`,
-    ));
+    );
   };
 
   // far to near, so a near form's found line lies over what is behind it
-  const order = plate.forms.map((_, i) => i + 2).map((who) => {
-    let near = Infinity;
-    for (let k = 0; k < N; k++) if (T.id[k] === who && T.depth[k] < near) near = T.depth[k];
-    return [who, near];
-  }).sort((a, b) => b[1] - a[1]);
+  const near = new Float64Array(plate.forms.length).fill(Infinity);
+  for (let k = 0; k < W * H; k++) { const i = T.id[k] - 2; if (i >= 0 && T.depth[k] < near[i]) near[i] = T.depth[k]; }
   if (plate.ground !== false) layer(1, 0);
-  order.forEach(([who], i) => layer(who, i + 1));
+  plate.forms.map((_, i) => i).sort((a, b) => near[b] - near[a]).forEach((i, n) => layer(i + 2, n + 1));
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">`
-    + `${backdrop ? `<rect width="${width}" height="${height}" fill="${fin.paper}"/>` : ''}<defs>${defs.join('')}</defs>${out.join('')}</svg>`;
-  return { svg, rig, stats: { samples: N, bytes: svg.length } };
+  // the frame: what is drawn and a margin, or the whole picture plane
+  let vx = 0, vy = 0, vw = width, vh = height;
+  if ((plate.frame ?? 'fit') === 'fit' && drawn.x1 >= 0) {
+    const m = plate.margin ?? Math.max(6, 0.05 * Math.max(drawn.x1 - drawn.x0, drawn.y1 - drawn.y0) * scale);
+    vx = Math.max(0, Math.floor(drawn.x0 * scale - m)); vy = Math.max(0, Math.floor(drawn.y0 * scale - m));
+    vw = Math.min(width, Math.ceil((drawn.x1 + 1) * scale + m)) - vx; vh = Math.min(height, Math.ceil((drawn.y1 + 1) * scale + m)) - vy;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw}" height="${vh}">`
+    + `${backdrop ? `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="${fin.paper}"/>` : ''}<defs>${defs.join('')}</defs>${out.join('')}</svg>`;
+  return { svg, width: vw, height: vh, rig, stats: { samples: W * H, bytes: svg.length } };
+}
+
+/**
+ * A drawn plate as the press's figure, in the book's own paper and ink (`style`: a book style, book-style.js), its
+ * paper left to the page. `id` keeps its ids apart from another plate's on the same page.
+ */
+export function drawnPlate(spec, { style, caption, span = false, id = 'p', res } = {}) {
+  const C = style === undefined ? null : readBookStyle(style).colours;
+  const { svg } = renderPlate(C ? { ...spec, palette: { paper: C.paper, ink: C.ink, ...(spec.palette || {}) } } : spec, { prefix: `${id}-`, backdrop: false, ...(res ? { res } : {}) });
+  return pressPlate(svg, { caption, span });
 }

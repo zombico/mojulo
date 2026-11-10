@@ -1,6 +1,7 @@
 /**
- * Subjects for the plate spike: each is what an agent would write. No pixel is placed; a subject is forms standing
- * on the ground in metres (z up), where the draughtsman stands, and where the light is.
+ * Example plates (book/drawn-plate.js): each is what an agent writes. No pixel is placed; a plate is forms standing
+ * on the ground in metres (z up), where the draughtsman stands, and where the light is. Read by the tests and by
+ * `scripts/drawn-plate.mjs`.
  */
 
 const lathe = (id, base, heightM, profile, extra = {}) => ({
@@ -8,7 +9,7 @@ const lathe = (id, base, heightM, profile, extra = {}) => ({
   shape: { kind: 'lathe', axisFrom: base, axisTo: [base[0], base[1], base[2] + heightM], profile: profile.map(([t, radius]) => ({ t, radius })) },
 });
 
-/** The old card's own example, said in space: a cup on a crate, a ball beside it. */
+/** A still life: a cup on a crate, a ball beside it. A box, a turned form and a sphere under one light. */
 export const stillLife = {
   width: 480, height: 400,
   station: { turn: 32, eye: 1.25, distance: 3.4, lens: 38, look: [0.05, 0, 0.42] },
@@ -27,7 +28,7 @@ export const stillLife = {
   ],
 };
 
-/** A grimoire plate: an alembic, a candle, a toadstool. Round things, which the old expander could not draw. */
+/** A grimoire's plate: an alembic, a candle, a toadstool and a book. Turned and blended forms. */
 export const alchemy = {
   width: 560, height: 420,
   station: { turn: 24, eye: 0.62, distance: 2.3, lens: 36, look: [0.02, 0, 0.26] },
@@ -75,7 +76,7 @@ export const alchemy = {
   ],
 };
 
-/** An organic mass: blobs that melt into one another, the "superposed shapes" the old blob marks reached for. */
+/** An organic mass: forms that melt into one another and are cut into (blended adds and subtracts). */
 export const skull = {
   width: 480, height: 420,
   station: { turn: 28, eye: 0.3, distance: 1.25, lens: 34, look: [0, 0, 0.14] },
@@ -97,4 +98,4 @@ export const skull = {
   ],
 };
 
-export const SUBJECTS = { stillLife, alchemy, skull };
+export const PLATE_EXAMPLES = Object.freeze({ stillLife, alchemy, skull });

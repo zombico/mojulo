@@ -24,7 +24,8 @@
  *   statBlock(name, pairs, { note? })         a foe's numbers between two rules
  *   rollTable(die, rows, { title? })          a table to roll on: [range text, result text]
  *   grid(cells)                               [label, value] boxes in a row (an ability's score, hit points)
- *   plate(svg, { caption?, span? })           a figure; span: across every column
+ *   plate(svg, { caption?, span? })           a figure; span: across every column (a drawn one: drawn-plate.js
+ *                                             `drawnPlate(spec, { style, caption, span, id })`)
  *   mono(text)                                a typewriter block (the dice, a transcript)
  *   lines(n)                                  ruled lines to write on
  */

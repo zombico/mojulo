@@ -46,6 +46,38 @@ page or column break. Pure: no clock, no fetch, no script.
 never under the Claude plugin profile): the page's own paper size, the colours printed, tagged, the headings as the
 PDF's outline. The live suite `book-pdf.live.test.js` (the e2e tier) prints a book and a one-sheet pamphlet.
 
+## Drawn plates
+
+A book's illustrations can be drawn, not only diagrammed: `drawnPlate(spec, { style, caption, span, id })`
+([drawn-plate.js](../control/lib/graph/book/drawn-plate.js)) returns the press's `plate` figure holding an SVG of
+curves, in the book's own paper and ink. Nothing in a plate is placed in pixels. The spec is what a draughtsman is told:
+
+| Part | What it says |
+|---|---|
+| `forms` | the things, each a list of field terms (what `mint_solid` reads: sphere, ellipsoid, box, capsule, lathe, sweep, blended or cut), standing on the ground in metres, z up; `tint` its local colour, `gloss` a highlight. `formsOfSolid(manifest)` takes a minted workbench solid's own `fields` |
+| `station` | where the eye is: `turn` (how far the view is turned off the forms' y axis), `eye` height, `distance`, `lens`, `look`. The eye is level, so this is two-point perspective: verticals stay upright and the two vanishing points follow from the turn and the lens |
+| `light` | one light as it is said at the easel: `azimuth` 0 from behind the eye, -90 from the left; `elevation` above the ground |
+| `finish` | `wash` (tone in translucent steps), `engraving` (tone in hatch lines that follow the form), `woodcut` (one step, black and paper) |
+| `frame` | `fit` (cropped to what is drawn, the default) or `full` (the whole picture plane); `construction: true` draws the horizon and the lines to the vanishing points |
+
+How it draws: each sample of the picture plane is lit where the eye's ray meets a form (light, halftone, core shadow,
+reflected light, cast and contact shadow); each tone step is the closed outline of "darker than this", laid over the
+lighter one; a hatch line is a slice of the form by a plane square to the light; the contour is heavier on the side
+away from the light. The outlines are fitted with cubic curves, so a plate is a vector figure at any print size.
+
+Pure and deterministic (the same spec, the same bytes); a plate takes a second or two to several, by its size and how
+many terms its forms have, and an engraving is the largest on the page because every hatch line is a path. Several
+plates on one page each take an `id`, which keeps their clip ids apart. From the shell:
+
+```bash
+node scripts/drawn-plate.mjs <out-dir> [example,… | plate.json] [--finish wash,engraving,woodcut] [--construction] [--full]
+node scripts/drawn-plate.mjs --book <out.html> [--style tome] [--pdf out.pdf]     # a sample book with three plates
+```
+
+What it does not do yet: a line-only finish, material texture, transparency, a second light, any surface but the
+ground, labels with leaders, and solids that are not field terms (a face-list solid, a hero, a world). No door mints a
+plate and no book calls for one on its own; a book's builder adds the block.
+
 ## Not yet on the press
 
 The other books (the gameworld and character bibles, the structure, city and historic books) each carry their own
