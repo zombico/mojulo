@@ -10,6 +10,8 @@
  * is the live light darkening that paint. The form render (gen-7: material and geometry, lit by the renderer) replaces
  * each; until it draws one, a gen-7 read draws it as paint under the live light and reads `approximated`, never built.
  * A gap is named, never approximated silently: eraReading lists every surface a payload carries that its era draws so.
+ * A FIGURE under the cast rig (its `cast`, color-theorist/cast-rig.js) or with a form body (a vehicle's `form`) is the form
+ * render's: eraReading reads a bank of only those as built, and names them where the rest are still paint.
  *
  * The lists below are closed over emitThreeWorld's parameters (scene-three.js, read by era-marks.test.js): a new page
  * input is classified here before that ratchet passes.
@@ -78,6 +80,13 @@ export function eraReading(payload, era) {
   const marks = ERA_PAGE_MARKS[era], out = { era, surface: ERAS[era].surface, approximated: [], absent: [] }, formed = carried(payload?.form);
   for (const [input, row] of Object.entries(marks)) {
     if (row[era] === 'built' || !carried(payload?.[input]) || (formed && FORMED.has(input))) continue;
+    // (the figures: one that carries the cast rig or a form body is drawn as form, lit by the renderer; a bank of only
+    // those is built, and one with some says which are still paint)
+    if (input === 'figures' && ERAS[era].surface === 'form') {
+      const F = Object.entries(payload.figures).filter(([, f]) => f && typeof f === 'object'), lit = F.filter(([, f]) => f.cast || f.form);
+      if (F.length && lit.length === F.length) continue;
+      if (lit.length) { out[row[era]].push({ input, how: `${lit.map(([n]) => n).sort().join(', ')} under the cast rig, lit by the renderer; the rest ${PAINT_HOW}` }); continue; }
+    }
     out[row[era]].push({ input, how: row.how });
   }
   return out;

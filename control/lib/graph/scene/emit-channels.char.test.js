@@ -711,10 +711,16 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-10 (the cast channel: versus): `versus` only. Its page inlines the arena's client, whose fight rig
 // is the cast rig's (one key, the sky and the rim in the bodies' own shader: versus-arena.client.js fightRig); the fixture
 // names no register, so it carries no rig and no kit, only the client's new source.
+// Re-pinned 2026-11-10 (the cast channel: brawl): `brawl` only. Its page inlines the yard's client, whose rig is the cast
+// rig's (one key, the sky and the rim in the bodies' own shader: brawl-yard.client.js yardRig); the fixture names no
+// register, so it carries no rig and no kit, only the client's new source.
 // Re-pinned 2026-11-10 (1110-battle-city-mana-ui-integration merging 1105-rc): `brawl`, `holo` and `board`, the three
 // fixtures this line moved. `brawl` was moved by both lines (the candidate's range and guns in its page; here the game
 // UI runtime's kernel and sheet it inlines, which gained a table's parts): the merged page carries both. `holo` and
 // `board` are this line's alone, as noted above. No other fixture differs from the candidate's pin.
+// Re-pinned 2026-11-10 (1110-cast-channel merging 1105-rc): `brawl` only, moved by both lines (the candidate's game UI
+// runtime in its page; here the yard client's cast rig): the merged page carries both. No other fixture differs from the
+// candidate's pin.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
