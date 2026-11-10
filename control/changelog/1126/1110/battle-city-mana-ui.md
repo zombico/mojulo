@@ -6,7 +6,7 @@ skirmish client of monospace text panels with three key listeners of its own. Th
 runtime (`lib/mana-ui/`, [docs/mana-ui.md](../../../../docs/mana-ui.md)). Planned, in order: the pages' own house; what
 the runtime lacked for a table; the board-game pages on one spec; the strategy boards on one spec with one input
 owner; the table's broadcast furniture folded into the same parts; the holo arena. Built so far: the first two, and
-the board-game pages on one spec, and the tactics board and the tower defence on another (the skirmish follows).
+the board-game pages on one spec, and the strategy boards (a tactics battle, a tower defence, a skirmish) on another.
 
 - **A board game's page drawn by the runtime: `tabletop.ui`** (`{ theme?, languages?, language? }`,
   `tabletop/table-ui.js`). One spec and one host for the tabletop pages. With `ui`, a page's header and side panel are
@@ -33,7 +33,7 @@ the board-game pages on one spec, and the tactics board and the tower defence on
   - **Without `ui` a page plays as it did** and carries no runtime, sheet or host. Its client's source gains the
     branches that choose between the two, and a page with `ui` is about 220 KB larger (the runtime and its sheet).
 
-- **A tactics board and a tower defence drawn by the runtime: a board's `ui`** (`{ theme?, languages?, language? }`,
+- **The strategy boards drawn by the runtime: a board's `ui`** (`{ theme?, languages?, language? }`,
   `board/board-ui.js`; a level's `board.ui`, or the `board` kind's own). The board page still plays the battle; its
   text panels become the runtime's parts, read from what the page stands at each frame it changes:
   - **The battle**: the turn order (each unit its side's chip, the one acting alight), the unit in focus (its bars,
@@ -49,7 +49,13 @@ the board-game pages on one spec, and the tactics board and the tower defence on
     the cursor.
   - **The look** is the game's, else `tactician`; its sides the board's own side colours. A gameworld's `ui` reaches
     its battle, map and defence levels. Nothing covers the board as the menu comes and goes.
-  - A skirmish (`rts`) keeps its own panels: `ui` on such a board is read and not used yet.
+  - **The skirmish**: the purse along the top (gold, the second resource, supply, workers, army, tier), the clock and
+    what the next click does, what is selected (a building's queue and research, a unit's figures, many units as
+    tiles that pick one), and the command card as slots on their keys, the armed one marked, one that cannot be done
+    saying why. A match's lobby is a screen of rows turned, its results the figures side against side with each row's
+    lead marked and each side's army over the match. Its orders stay on its own keys and the pointer (the drag box,
+    the right click), so the board scheme is not connected for it; the lobby and the results take keys and a pad.
+    Rebinding its keys is not offered under the UI yet.
   - Without `ui` a board's block carries no runtime.
 - **Fixed: back from an aim left the keys with the cursor.** The action menu was drawn again and could not be moved
   through; it has the keys again.

@@ -640,7 +640,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP, U
   }
   const KEYS = { KeyQ: 'turnLeft', KeyE: 'turnRight', KeyZ: 'zoomIn', Equal: 'zoomIn', KeyX: 'zoomOut', Minus: 'zoomOut', KeyV: 'tilt', Enter: 'confirm', Space: 'confirm', Escape: 'back', Backspace: 'back' };
   window.addEventListener('keydown', (e) => {
-    if (ui) return;   // the board's UI has the keys (the controls layer's hosts)
+    if (ui && mode !== 'rts') return;   // the board's UI has the keys (the controls layer's hosts); a skirmish's orders stay on its own
     if (mode === 'rts' && (/^Key[WASDQE]$/.test(e.code) || (rtsp && rtsp.claims(e)))) return;   // a skirmish's orders (its keys first), not the cursor's or the camera's
     if (mode === 'td' && /^Key[WASD]$/.test(e.code)) return;   // a defence's letters are its own (S sells): the arrows and the edge pan
     const a = DIRS[e.code] || KEYS[e.code];
@@ -858,7 +858,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP, U
 
   // ── a skirmish (board-rts.js, played by board-rts-page.js): the board hands it what it has made ─────────────────
   if (RTP && D.rts) {
-    rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, banner, FX, RTK, spotAt, worldAt, push, focus: (p) => CAM.focusOn(C, p) });
+    rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, banner, FX, RTK, spotAt, worldAt, push, focus: (p) => CAM.focusOn(C, p), ui: !!UIP });
     mode = 'rts';
     readout();
   }
@@ -867,10 +867,10 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP, U
   if (UIP) {
     const sides = Object.keys(D.colours || {}), MARK = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
     ui = UIP({
-      ui: D.ui, intent, refresh: readout,
+      ui: D.ui, intent, refresh: readout, orders: !!rtsp,
       project(p) { V.set(p[0], p[1], p[2]).project(camera); return V.z > 1 ? null : [(V.x + 1) / 2, (1 - V.y) / 2]; },
       get: () => ({
-        mode, cursor, n: S ? S.n : 0, readout: hud.textContent, banner: bannerEl && bannerEl.style.display === 'block' ? bannerEl.textContent : '', menu: mode === 'menu' ? menu : null, sides, td: tdp ? tdp.ui : null,
+        mode, cursor, n: S ? S.n : 0, readout: hud.textContent, banner: bannerEl && bannerEl.style.display === 'block' ? bannerEl.textContent : '', menu: mode === 'menu' ? menu : null, sides, td: tdp ? tdp.ui : null, rts: rtsp ? rtsp.ui : null,
         turns: () => (battle && S && S.turn && mode !== 'over' && mode !== 'wait' ? K.preview(B, S, 8).map((x) => ({ name: S.u[x.who].name, cpu: !HUMAN.has(x.side), side: x.side })) : []),
         unit() {
           const id = mode === 'deploy' && placing ? placing.ids[placing.k] : battle && S && S.turn && mode !== 'over' && mode !== 'wait' ? S.turn.who : null, U = id && S.u[id];

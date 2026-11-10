@@ -125,13 +125,12 @@ function boardParts(L, { units = [], battle: b, td: d, rts: x, camera: c, cursor
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;
   const d0 = boardChannelData(L, { units, camera, cursor, drape: L.drape, clip, battle, slots: slotsOf(play), talk, td, rts });
-  // the board's parts drawn by the game UI runtime (board-ui.js), its sides the board's own colours; a skirmish keeps
-  // its own panels for now
+  // the board's parts drawn by the game UI runtime (board-ui.js), its sides the board's own colours
   let data = d0;
   if (uiSpec !== undefined) {
     const bad = readBoardUi(uiSpec);
     if (bad.length) no(bad.join('; ').replace(/^board\./, ''));
-    if (!rts) data = { ...d0, ui: boardUiData(uiSpec, { colours: d0.colours }) };
+    data = { ...d0, ui: boardUiData(uiSpec, { colours: d0.colours }) };
   }
   const B = L.board, O = L.frame.origin, zs = B.spots.filter(Boolean).map((s) => O[2] + s.h * B.step);
   const P = boardCameraPose(boardCameraInit({ bounds: [O[0], O[1], O[0] + B.cols * B.cell, O[1] + B.rows * B.cell], z: (Math.min(...zs) + Math.max(...zs)) / 2, ...camera }));

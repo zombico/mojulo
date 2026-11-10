@@ -315,7 +315,20 @@ export function boardRtsPage(api) {
     const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${fogged ? `${V.units.filter((u) => u.side === 'enemy').length} in sight` : R.units.filter((u) => u.side === 'enemy').length}${hint ? `\n${hint}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
     drawInfo(); drawCard();
+    // what the board's UI reads (board-ui.js), made again whenever the panel is: the same figures, as data
+    if (api.ui) {
+      const lobby = phase === 'lobby', said2 = (o, k) => (k === 'player' || k === 'enemy' ? nameOf(o) : k === 'fog' ? (o ? 'on' : 'off') : String(o));
+      seen = { phase, clock: clock(R.t), paused, speed: SPEEDS[speedK], hint,
+        purse: [{ label: 'gold', value: R.gold.player }].concat(P.res2 ? [{ label: RTK.res2Name(cfg, 'player'), value: (R.ore && R.ore.player) || 0 }] : [], sup.cap ? [{ label: 'supply', value: sup.used + ' / ' + sup.cap }] : [],
+          [{ label: 'workers', value: workers }, { label: 'army', value: mine.length - workers }, { label: 'tier', value: tier() }]),
+        info: phase === 'play' ? infoData() : null,
+        commands: phase === 'play' && !result ? commands().map((c) => ({ a: c.a, label: c.label, key: keyName(c.key), why: c.why, armed: armed === c.a })) : [],
+        banner: banner.style.display === 'block' ? banner.textContent : '',
+        lobby: lobby ? ROWS.map(([k2, label, opts]) => ({ k: k2, label, options: opts.map((o) => said2(o, k2)), value: said2(choice[k2], k2) })) : null,
+        results: phase === 'results' && result ? summary() : null };
+    }
   }
+  let seen = null;
 
   // ── the keys: each action's KeyboardEvent.code (the kernel's HOTKEYS, the game's rts.keys, the player's own kept
   // in the browser), one action a key in each place it acts ─────────────────────────────────────────────────────────
@@ -841,7 +854,19 @@ export function boardRtsPage(api) {
   let panelT = 0;
   sync(); drawPanel();
   if (phase === 'lobby') showLobby();
+  // the skirmish as the board's UI does it (board-ui.js): the same calls its buttons make
+  const ui = {
+    view: () => seen,
+    run(a) { const r = run(a); drawPanel(); return r; },
+    pick(id, drop) { sel = drop ? sel.filter((x) => x !== id) : [id]; drawPanel(); },
+    set(k2, n) { const row = ROWS.find((x) => x[0] === k2); if (phase === 'lobby' && row && row[2][n] !== undefined) { choice[k2] = row[2][n]; drawPanel(); } },
+    start() { const r = start(); drawPanel(); return r; },
+    rematch() { const r = rematch(); drawPanel(); return r; },
+    lobby() { showLobby(); drawPanel(); },
+    leave() { const r = leave(); drawPanel(); return r; },
+  };
   return {
+    ui,
     // the keys the skirmish takes before the board's camera does
     claims(e) { return !!binding || (phase === 'play' && !result && (/^Digit[1-9]$/.test(e.code) || e.code === 'Escape' || !!actionFor(e.code))); },
     step(dt) { lastDt = dt; advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },

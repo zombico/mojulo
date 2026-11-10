@@ -6,7 +6,8 @@
  * wave, purse, lives and towers) and takes keys and a pad through the controls layer: the `board` scheme for the
  * cursor and the view, the `menu` scheme while the action menu is up. A board without `ui` carries none of this.
  *
- * A skirmish (`rts`) keeps its own panels for now: `ui` on such a board is not read.
+ * A skirmish (`rts`) is drawn too (its purse, what is selected, its command card, its lobby and its results); its
+ * orders stay on its own keys and the pointer, so the board scheme is not connected for it.
  *
  *   readBoardUi(ui, where?)          → errors[] (teaching)
  *   boardUiData(ui, { colours })     → D.ui: { spec, css, glyphs, menu: { keys, pad }, board: { keys, pad } } (the
@@ -16,7 +17,7 @@
  *     { ui, get() → what stands now, intent(action), refresh() (the readout said again), project(point) → [x, y] | null }
  *     get(): { mode, cursor, n, readout, banner, menu: { items: [{ label, ok, go }], back } | null,
  *              turns() → [{ name, cpu, side }], unit() → { name, side, hp, hpMax, mp, mpMax, move, jump, spd, marks } | null,
- *              forecast() → the mind's forecast | null, sides: [side…], td: a defence's hand | null }
+ *              forecast() → the mind's forecast | null, sides: [side…], td: a defence's hand | null, rts: a skirmish's | null }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme, THEMES } from '../../mana-ui/index.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
@@ -25,7 +26,7 @@ import { THEME_CARD_IDS, cardTheme } from '../playscape/ui/theme-cards/loader.js
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const KEYS = ['theme', 'languages', 'language'];
-const USED = ['turn-order', 'damage-numbers', 'wave-status'];
+const USED = ['turn-order', 'damage-numbers', 'wave-status', 'resource-bar', 'skirmish-lobby', 'skirmish-results'];
 const SCOPE = '#mana-board .mana-root';
 const B = (p) => ({ bind: `t.${p}` });
 const I = (f) => ({ item: f });
@@ -65,11 +66,24 @@ export function boardUiSpec(ui = {}) {
     { use: 'wave-status', props: { wave: B('td.wave'), lives: B('td.lives'), livesMax: B('td.livesMax'), money: B('td.gold') }, when: B('defence') },
     { use: 'region', props: { at: 'bottom' }, when: B('defence'), children: [{ use: 'stack', props: { gap: 'tight', align: 'center' }, children: [txt(B('td.when'), 'label'),
       { use: 'each', props: { dir: 'row', rows: B('td.hand'), row: { use: 'stack', props: { gap: 'tight', align: 'center' }, children: [{ use: 'slot', props: { name: I('name'), key: I('key'), count: I('count'), active: I('active'), disabled: I('disabled'), why: I('why') }, on: { accept: I('then') } }, txt(I('name'), 'caption')] } } }] }] },
+    // a skirmish: the purse along the top, the clock and what the next click does, what is selected, its orders
+    { use: 'resource-bar', props: { resources: B('rts.purse') }, when: B('skirmish') },
+    { use: 'region', props: { at: 'top-left' }, when: B('skirmish'), children: [{ use: 'stack', props: { gap: 'tight' }, children: [txt(B('rts.clock'), 'numeral'), txt(B('rts.hint'), 'label')] }] },
+    { use: 'region', props: { at: 'left' }, when: B('rts.picked'), children: [{ use: 'stack', props: { gap: 'tight' }, children: [
+      { use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [txt(B('rts.title'), 'heading'), txt(B('rts.hp'), 'numeral')] },
+      { use: 'each', props: { rows: B('rts.lines'), row: txt(I('text'), 'label') } },
+      { use: 'each', props: { dir: 'row', rows: B('rts.tiles'), row: { use: 'stack', props: { gap: 'tight' }, children: [{ use: 'button', props: { label: I('name') }, on: { accept: I('then') } }, { use: 'bar', props: { value: I('k'), max: 1, variant: 'hp', size: 'thin', figures: false } }] } } },
+    ] }] },
+    { use: 'region', props: { at: 'bottom-right' }, when: B('rts.ordered'), children: [{ use: 'each', props: { dir: 'row', rows: B('rts.orders'), row: { use: 'stack', props: { gap: 'tight', align: 'center' }, children: [
+      { use: 'slot', props: { name: I('label'), key: I('key'), active: I('armed'), disabled: I('disabled'), why: I('why') }, on: { accept: I('then') } }, txt(I('label'), 'caption')] } } }] },
     { use: 'region', props: { at: 'center' }, when: B('ended'), children: [{ use: 'banner', props: { value: B('banner.value'), sub: B('banner.sub') } }] },
     { use: 'damage-numbers', props: { pops: B('pops') } },
   ] };
   const screens = {
     // the unit's turn: what it may do, beside the board (back: the menu before it, when there is one)
+    // a match set up before it starts, and its end
+    lobby: { use: 'skirmish-lobby', props: { title: { word: 'setUp' }, rows: B('rts.setup'), then: { emit: 'rts', call: 'start' } } },
+    results: { use: 'skirmish-results', props: { outcome: B('rts.end.outcome'), sub: B('rts.end.sub'), rows: B('rts.end.rows'), series: B('rts.end.series'), items: B('rts.end.items') } },
     act: { use: 'screen', props: { layer: 'overlay', place: 'right' }, on: { back: { emit: 'back' } }, children: [{ use: 'window', props: { title: B('menuTitle') }, children: [{ use: 'list', id: 'act', props: { rows: B('menu') }, on: { accept: I('then') } }] }] },
   };
   const languages = { ...(ui.languages || {}) };
@@ -105,9 +119,10 @@ export function boardManaPage(api, kit) {
   const root = document.createElement('div');
   root.id = 'mana-board';
   document.body.appendChild(root);
-  const t = { fight: false, turns: [], unit: { on: false }, aimed: false, forecast: [], readout: [], legend: [], defence: false, td: { hand: [] }, ended: false, banner: {}, pops: [], menu: [], menuTitle: '' };
+  const t = { skirmish: false, rts: { picked: false, ordered: false }, fight: false, turns: [], unit: { on: false }, aimed: false, forecast: [], readout: [], legend: [], defence: false, td: { hand: [] }, ended: false, banner: {}, pops: [], menu: [], menuTitle: '' };
   const state = { t };
-  let runs = [], keyed = {}, shown = null, was = '', pops = [], popN = 0, clock = 0;
+  let runs = [], keyed = {}, shown = null, was = '', pops = [], popN = 0, clock = 0, seen = null, phase = null;
+  state.pick = {};
   const rt = manaUi.runtime(cfg.spec, { read: (p) => manaUi.readPath(state, p), act, now: () => clock, cues: 'silent' });
   rt.glyphs(cfg.glyphs);
   const view = manaUi.mount(root, rt, { auto: true });
@@ -124,7 +139,8 @@ export function boardManaPage(api, kit) {
     typing: () => false,
     press(a) { api.intent(a); return true; },
   };
-  kit.hostK.connect(board, view, { keys: cfg.board.keys, pad: cfg.board.pad, padLayout: kit.padLayout });
+  // (a skirmish's orders stay on its own keys and the pointer: the board is not connected, the menus are)
+  if (!api.orders) kit.hostK.connect(board, view, { keys: cfg.board.keys, pad: cfg.board.pad, padLayout: kit.padLayout });
   window.addEventListener('keydown', () => { menuKey = false; }, true);
   // a defence's hand on its own keys (a tower's digit; R sells, since the board scheme's S moves the cursor; N the next
   // wave; B where a tower may stand), with no screen up
@@ -135,8 +151,15 @@ export function boardManaPage(api, kit) {
   }, true);
 
   function act(e) {
+    // a match's screen left by back comes up again: the match is still in that phase
+    if (e.emit === 'mana:closed') { phase = null; seen = null; return; }
     if (e.emit === 'run') { const fn = runs[e.id]; if (fn) { fn(); api.refresh(); } return; }
     if (e.emit === 'back') api.intent('back');
+    const R = api.get().rts;
+    if (!R) return;
+    if (e.emit === 'rts' && typeof R[e.call] === 'function') { R[e.call](); return; }
+    // a row of the lobby turned: its option by its place among the row's
+    if (typeof e.set === 'string' && e.set.indexOf('pick.') === 0) { const k = e.set.slice(5), row = (R.view().lobby || []).find((x) => x.k === k); if (row) R.set(k, row.options.indexOf(String(e.to))); }
   }
 
   // what the controls do now, in the glyphs of the device in hand
@@ -179,6 +202,30 @@ export function boardManaPage(api, kit) {
       for (const h of t.td.hand) if (!h.disabled) keyed[h.key] = runs[h.then.id];
       if (v.over) g = Object.assign({}, g, { banner: v.over });
     }
+    // a skirmish: its figures as the page made them last
+    const R = g.rts, v = R && R.view();
+    t.skirmish = !!v && v.phase === 'play';
+    if (v) {
+      const d = v.info;
+      t.rts = { purse: v.purse, clock: v.clock + (v.paused ? '  paused' : '') + (v.speed !== 1 ? '  ×' + v.speed : ''), hint: v.hint || '',
+        picked: !!d, title: d ? d.title : '', hp: d && d.hp ? d.hp : '', lines: d && d.lines ? d.lines.map((text, k) => ({ id: 'l' + k, text })) : [],
+        tiles: d && d.tiles ? d.tiles.map((x) => ({ id: x.id, name: x.name, k: x.k, then: keep(() => R.pick(x.id)) })) : [],
+        ordered: v.commands.length > 0, orders: v.commands.map((c) => ({ id: c.a, label: c.label, key: c.key, armed: c.armed, disabled: !!c.why, why: c.why || undefined, then: keep(() => R.run(c.a)) })),
+        setup: (v.lobby || []).map((x) => ({ label: x.label, var: 'pick.' + x.k, options: x.options })), end: {} };
+      for (const x of v.lobby || []) state.pick[x.k] = x.value;
+      if (v.results) {
+        const r = v.results, P = r.player, E = r.enemy, lead = (a, b, low) => (a === b ? null : (a > b) !== !!low ? 'you' : 'them');
+        const line = (what, k, low) => ({ what, you: P[k], them: E[k], lead: lead(P[k], E[k], low) });
+        t.rts.end = { outcome: r.won ? 'Victory' : r.draw ? 'Stalemate' : 'Defeat', sub: (r.surrender ? (r.surrender === 'player' ? 'you gave up · ' : 'they gave up · ') : '') + r.time,
+          rows: [line('trained', 'trained'), line('units lost', 'lost', true), line('raised', 'built'), line('buildings lost', 'fell', true), line('mined', 'mined'), line('research', 'research'), line('apm', 'apm')],
+          series: [{ label: 'you', values: P.army }, { label: 'them', values: E.army }],
+          items: [{ label: 'Rematch', then: { emit: 'rts', call: 'rematch' } }, { label: 'New match', then: { emit: 'rts', call: 'lobby' } }, { label: 'Leave', then: { emit: 'rts', call: 'leave' } }] };
+      }
+      if (v.banner) g = Object.assign({}, g, { banner: v.banner });
+      // the match's screens follow its phase
+      const want = v.phase === 'lobby' ? 'lobby' : v.phase === 'results' ? 'results' : null;
+      if (want !== phase) { phase = want; if (rt.state().screen) rt.close(); if (want) rt.open(want); }
+    }
     const words = String(g.banner || '').split('\n');
     t.ended = !!g.banner;
     t.banner = { value: words[0] || '', sub: words.slice(1).join(' · ') };
@@ -194,7 +241,8 @@ export function boardManaPage(api, kit) {
     step(dt) {
       clock += dt;
       const g = api.get(), D = g.td, key = [g.mode, g.cursor, g.n, g.readout, g.banner, g.menu ? g.menu.items.map((x) => x.label + x.ok).join('|') : '', D ? JSON.stringify(D.view()) : ''].join('\u0001');
-      if (key !== was) { was = key; sync(g); }
+      const now = g.rts ? g.rts.view() : null;
+      if (key !== was || now !== seen) { was = key; seen = now; sync(g); }
       for (const p of pops) p.t += dt;
       pops = pops.filter((p) => p.t < 1.3);
       t.pops = pops.map((p) => { const q = api.project([p.at[0], p.at[1], p.at[2]]); return q ? { id: p.id, x: q[0], y: q[1], value: p.value, kind: p.kind } : null; }).filter(Boolean);

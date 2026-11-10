@@ -20,7 +20,7 @@ describe('a board\'s ui: read and taught', () => {
     expect(readBoardUi({ theme: 'grim', languages: { ja: { jump: '跳躍' } }, language: 'ja' })).toEqual([]);
     expect(readBoardUi({ css: 'x' })[0]).toMatch(/not part of a board's ui \(theme, languages, language\)/);
     expect(() => assembleBoardScene(fight({ ui: { theme: 'velvet' } }))).toThrow(/ui\.theme/);
-    expect(Object.keys(boardUiSpec({}).defs).sort()).toEqual(['damage-numbers', 'turn-order', 'wave-status']);
+    expect(Object.keys(boardUiSpec({}).defs).sort()).toEqual(['damage-numbers', 'resource-bar', 'skirmish-lobby', 'skirmish-results', 'turn-order', 'wave-status']);
   });
   it('the look is a tactician\'s when the game names none, its sides the board\'s own, scoped to the board\'s root', () => {
     const D = boardUiData({}, { colours: { party: '#4aa3ff', foe: '#ff5a4a' } });
@@ -33,16 +33,15 @@ describe('a board\'s ui: read and taught', () => {
 });
 
 describe('a board\'s ui: absence adds nothing', () => {
-  it('a board without ui carries no runtime; a battle or a defence with it carries the runtime and its page; a skirmish keeps its own panels', () => {
+  it('a board without ui carries no runtime; a battle, a defence or a skirmish with it carries the runtime and its page', () => {
     const block = (m) => boardChannelScript(assembleBoardScene(m).board);
     expect(block(fight())).not.toMatch(/buildManaUi|boardManaPage|buildManaHost/);
-    for (const m of [fight({ ui: {} }), { board: flat, td: {}, ui: {} }]) {
+    for (const m of [fight({ ui: {} }), { board: flat, td: {}, ui: {} }, { board: { ...flat, cols: 12, rows: 10 }, rts: {}, ui: {} }]) {
       const b = block(m);
       expect(b).toMatch(/function buildManaUi\(\)/);
       expect(b).toMatch(/function boardManaPage\(api, kit\)/);
       expect(block(m)).toBe(b);
     }
-    expect(assembleBoardScene({ board: { ...flat, cols: 12, rows: 10 }, rts: {}, ui: {} }).board.ui).toBeUndefined();
   });
 });
 
@@ -53,7 +52,7 @@ describe('a board\'s ui: what the board page stands at, drawn', () => {
     G.window = dom.window; G.document = dom.window.document;
     const did = [];
     let g = g0;
-    const ui = boardManaPage({ ui: boardUiData({}, { colours: { party: '#4aa3ff', foe: '#ff5a4a' } }), get: () => g, intent: (a) => did.push(a), refresh: () => did.push('refresh'), project: (p) => [p[0], p[1]] }, { manaUi, hostK: manaHost, padLayout: () => 'xbox' });
+    const ui = boardManaPage({ ui: boardUiData({}, { colours: { party: '#4aa3ff', foe: '#ff5a4a' } }), orders: !!g0.rts, get: () => g, intent: (a) => did.push(a), refresh: () => did.push('refresh'), project: (p) => [p[0], p[1]] }, { manaUi, hostK: manaHost, padLayout: () => 'xbox' });
     const key = (code, k) => dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', { code, key: k || code, bubbles: true, cancelable: true }));
     const U = () => window.__mojBoardUi;
     return { ui, did, key, U, set(n) { g = n; ui.step(0.016); }, done() { G.window = saved.window; G.document = saved.document; } };
@@ -116,6 +115,46 @@ describe('a board\'s ui: what the board page stands at, drawn', () => {
       P.key('KeyS', 's');                                     // S is the board scheme's cursor, never the sale
       expect(did).toEqual(['choose cannon', 'sell', 'call']);
       expect(P.did.filter((a) => a !== 'refresh')).toEqual(['down']);
+    } finally { P.done(); }
+  });
+  it('a skirmish: its purse, what is selected and its orders read from the page\'s own figures; its orders stay on its own keys; a match\'s lobby and results are screens', () => {
+    const did = [];
+    let v = { phase: 'play', clock: '0:05', paused: false, speed: 1, hint: 'move: click where', purse: [{ label: 'gold', value: 50 }], banner: '', lobby: null, results: null,
+      info: { kind: 'units', title: '2 selected', tiles: [{ id: 'u1', name: 'Worker', k: 0.5 }, { id: 'u2', name: 'Worker', k: 1 }] },
+      commands: [{ a: 'move', label: 'Move', key: 'M', why: null, armed: true }, { a: 'build', label: 'Build Barracks', key: 'B', why: 'needs a base', armed: false }] };
+    const rts = { view: () => v, run: (a) => did.push('run ' + a), pick: (id) => did.push('pick ' + id), set: (k, n) => did.push('set ' + k + ' ' + n), start: () => did.push('start'), rematch: () => did.push('rematch'), lobby: () => did.push('lobby'), leave: () => did.push('leave') };
+    const P = page(base({ mode: 'rts', rts }));
+    try {
+      P.ui.step(0.016);
+      const { rt, state } = P.U();
+      expect(state.t.rts.purse).toEqual([{ label: 'gold', value: 50 }]);
+      expect(state.t.rts.orders.map((o) => o.key + ' ' + o.label + (o.armed ? ' *' : '') + (o.disabled ? ' (' + o.why + ')' : ''))).toEqual(['M Move *', 'B Build Barracks (needs a base)']);
+      rt.tick();
+      expect(rt.view()).toContain('needs a base');
+      P.key('ArrowUp'); P.key('KeyM', 'm');                   // the board scheme is not connected: the keys are the page's
+      expect(P.did.filter((a) => a !== 'refresh')).toEqual([]);
+      rt.hudTap(0);                                           // the first tile picks that unit alone
+      rt.hudTap(2);                                           // the first order: Move (the one that cannot be done is not tapped)
+      expect(did).toEqual(['pick u1', 'run move']);
+      // a match: the lobby's rows turn, back keeps it up, Start starts
+      v = { ...v, phase: 'lobby', info: null, commands: [], lobby: [{ k: 'level', label: 'their level', options: ['easy', 'normal', 'hard'], value: 'normal' }] };
+      P.ui.step(0.016);
+      expect(rt.state().screen).toBe('lobby');
+      P.key('ArrowRight');
+      expect(did.slice(2)).toEqual(['set level 2']);
+      P.key('Escape'); P.ui.step(0.016);
+      expect(rt.state().screen).toBe('lobby');
+      P.key('ArrowDown'); P.key('Enter');
+      expect(did.slice(3)).toEqual(['start']);
+      // its end: the figures side against side, the lead marked, then what next
+      const side = (trained, lost) => ({ name: 'x', civ: 'plain', apm: 10, trained, lost, built: 1, fell: 0, mined: 100, research: 0, army: [1, 2, 3] });
+      v = { ...v, phase: 'results', lobby: null, results: { won: true, draw: false, surrender: null, time: '9:10', player: side(12, 4), enemy: side(9, 9) } };
+      P.ui.step(0.016);
+      expect(rt.state().screen).toBe('results');
+      expect(state.t.rts.end.outcome).toBe('Victory');
+      expect(state.t.rts.end.rows.slice(0, 2)).toEqual([{ what: 'trained', you: 12, them: 9, lead: 'you' }, { what: 'units lost', you: 4, them: 9, lead: 'you' }]);
+      P.key('ArrowDown'); P.key('ArrowDown'); P.key('Enter');
+      expect(did.slice(4)).toEqual(['leave']);
     } finally { P.done(); }
   });
 });

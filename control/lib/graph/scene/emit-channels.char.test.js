@@ -685,7 +685,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-10 (battle city on the game UI runtime, the board on it): `board` only. The board page takes the
 // board's UI as two more trailing arguments (the tower defence's and the skirmish's pattern), says what a control
 // means once (`intent`, which its own keys now go through), and back from an aim returns the keys to the action menu
-// (they stayed with the cursor). A board without `ui` carries no runtime; the fixture gains the hooks' lines alone.
+// (they stayed with the cursor). A skirmish under the UI keeps its orders on its own keys, so the page's keys pass in
+// that mode. A board without `ui` carries no runtime; the fixture gains the hooks' lines alone.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
