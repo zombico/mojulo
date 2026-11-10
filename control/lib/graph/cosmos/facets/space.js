@@ -22,8 +22,8 @@ export const SPACE = Object.freeze({
         'first-person': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
         // built 11-05 (1105-platformer-lv0-spike): a 3D platformer's two chases, the follow rule's `steer` (rules-basic.js)
         // with the platform rule's `move: 'camera'`: the hero runs the way the camera looks, the view held through a jump
-        follow: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'a 3D platformer\'s chase that follows by itself (steer: trail): it eases behind the run, holds while the hero turns back at it, and holds its height through a jump; the hero moves the way it looks' },
-        orbit: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'a 3D platformer\'s chase the player turns (steer: orbit: a drag, the right stick, yaw and pitch; an action hero\'s by the mouse, locked on by C, 11-07); the hero moves the way it looks; its height held through a jump' },
+        follow: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'a 3D platformer\'s chase that follows by itself (steer: trail): it eases behind the run, holds while the hero turns back at it, and holds its height through a jump; the hero moves the way it looks' },
+        orbit: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'a 3D platformer\'s chase the player turns (steer: orbit: a drag, the right stick, yaw and pitch; an action hero\'s by the mouse, locked on by C, 11-07); the hero moves the way it looks; its height held through a jump' },
         // built 10-19 (strategy board): the board channel owns a battle level's camera (board/board-camera.js); a book's
         // board battles play through it (gameworld/board-levels.js), no camera word needed
         tactical: { status: 'built', lowers: 'lib/graph/board/board-camera.js', note: 'a locked pitch (two stops), quarter-turn rotation, zoom stops (the widest holds the board, the closer follow the cursor) and the focus held to the board, the cursor stepping the way the screen shows; an RTS form pans and edge-scrolls instead. A battle level on a board is played through it' },
@@ -33,9 +33,21 @@ export const SPACE = Object.freeze({
       values: {
         linear: { status: 'built', lowers: 'lib/graph/level/graph.js', note: "LEVEL_LAYOUTS is 'sequential'" },
         hub: { status: 'built', lowers: 'lib/graph/gameworld/world.js', note: 'a gameworld joins its levels by road and gate' },
-        open: { status: 'partial', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only; a world map\'s zones (interconnected, level/zones.js) load as they are walked into, but each crossing is a whole page swapped at a gate behind the veil: nothing streams a region or crosses a border anywhere along it' },
+        // (11-10: what is left of it. Built since: a world map of zones (space.worldMap=zones), several segments walked
+        // as one seamless page (glyphs.zoned groups) and the unbuilt rest of the map on the horizon (glyphs.far,
+        // level/far-view.js). The quest open world's `stream` is a law measured on the recipe (qow/qow.js), not a streamer)
+        open: { status: 'partial', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only. A world map\'s zones load as they are walked into, several segments can be one seamless page and the rest of the map stands on the horizon, but a crossing is at a gate, never anywhere along a border, each a whole page swapped behind the veil, never streamed or fetched ahead; an arrival sets place, not facing' },
         // built 10-11: a gameworld's topology: 'interconnected' plays as a map (exits, travel, arrival, keyed doors).
-        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives, the wall and the line among them); trails, and a city (its key on a roof the hero reaches)' },
+        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives, the wall and the line among them); trails, and a city (its key on a roof the hero reaches); a megaworld\'s rings and a world map\'s zones lower to it (space.worldMap)' },
+      },
+    },
+    // how a game's maps join at the scale above a level (11-05 the map whole and the megaworld, 11-07 the world map): the
+    // loaded map the current map, not the next level. Both lower into the links an interconnected world already walks
+    worldMap: {
+      values: {
+        none: { status: 'built', note: 'levels joined as the topology says, each its own place' },
+        rings: { status: 'built', since: '2026-11-05', requires: ['space.topology=interconnected'], lowers: 'lib/graph/gameworld/megaworld.js', note: 'a megaworld: zones in rings (a mandala deeper inward to a gated core, a chain, a hub, an open ring), written once and lowered to links, keys and story flags; the shell\'s atlas shows the zones found by having been there, a mandala\'s core the win' },
+        zones: { status: 'built', since: '2026-11-07', requires: ['space.topology=interconnected', 'space.levelForm=map'], lowers: 'lib/graph/level/zones.js', note: 'one planned map written in segments and built a zone a page (glyphs.zoned), crossed at the plan\'s gates and arrived at the matching end, an apron of the next zone past each border, segments grouped into one seamless page, the rest of the map far off (glyphs.far); streaming across a border is space.topology=open' },
       },
     },
     levelForm: {
@@ -43,6 +55,15 @@ export const SPACE = Object.freeze({
         rooms: { status: 'built', lowers: 'lib/graph/era/stage.js' },
         floormap: { status: 'built', lowers: 'lib/graph/era/floormap.js' },
         trail: { status: 'built', lowers: 'lib/graph/era/out-trail.js' },
+        // built 11-05 (one map, the map whole; 11-07 a walked world that holds): a level written as a map, not rolled: a
+        // glyph grid, or a plan of segments joined by gates (level/grid.js, level/plan.js), the stage's own words on every
+        // tile, built on a geocube's ground, its laws measured (level/grid-scene.js)
+        map: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/level/grid-scene.js', note: 'a level written as a map (levels.<id>.glyphs): a glyph grid with its key and regions, or a plan of segments joined by gates, one page a chapter; the land a geocube paints, paths, places and ways walked, its laws measured; the form a world map\'s zones, a scenario and the play layer stand on' },
+        // built 11-05 (the platformer's first level): a course over a trail, sized by the hero's reach
+        course: { status: 'built', since: '2026-11-05', requires: ['power.rules=platform'], lowers: 'lib/graph/gameworld/course.js', note: 'a platformer\'s level (levels.<id>.course): floors, gaps and climbs sized by what the hero\'s tuned jump and run reach, laid over a trail, or as one side strip when every trail is a course under a side camera; coins along it, lives on its falls' },
+        // a town on its cube, walked from its streets (geotown/); a roadway built for driving (roads/track.js)
+        town: { status: 'built', lowers: 'lib/graph/geotown/scene.js', note: 'a geotown (levels.<id>.geotown): a town laid on its cube, its streets, lots and houses walked as a level' },
+        roadway: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a level that is a road built for driving (levels.<id>.roadway): a lap or a stage by a course preset or spec, its land dressed, a scape beyond it' },
         meru: { status: 'built', lowers: 'lib/graph/local-meru/plan.js' },
         arena: { status: 'built', lowers: 'lib/graph/worlds/match-modes.js' },
         // local 11-09 (1109-gen-bodywork): the brawler's belt, a fight's lane opened up: a straight street with a depth band
@@ -54,7 +75,7 @@ export const SPACE = Object.freeze({
         // built 10-12 (kart racer): a loop laid on a trail's land, gone round lap after lap
         circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
         // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use
-        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
+        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs; a complex of buildings with basements on one yard joined by passages (building.complex, network/complex.js), a walled-core dungeon\'s spaces among them' },
         // built 10-14 (skyscape): a flight map, its ground meshed round the camera, its edge hidden in haze
         airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
         // a city segment played as a level (city/plan/level.js, gameworld cityStages): its lots as solid boxes, lobbies walked
@@ -78,6 +99,27 @@ export const SPACE = Object.freeze({
         none: { status: 'built' },
         spots: { status: 'built', lowers: 'lib/graph/board/board-kernel.js', note: 'square spots over a level\'s own ground (its rooms or its land) or a diorama, each a height, a type and one occupant; reach by move and jump, aim and area shapes, walls cutting steps, legal moves; a book\'s battles on boards are laid over their stages' },
         lattice: { status: 'built', lowers: 'lib/graph/polygonizer/lattice.js', note: 'a board game\'s own board, no map: square or hex cells, corners and edges with their relations, pieces whose moves are vectors under its symmetry; chess and checkers in its book, any other game written out on it from systems and meeples (tabletop/), played against the computer as their own page, or a game of moves lifted into a hologram arena on the World page (tabletop/holo-arena.js)' },
+      },
+    },
+    // what level design lays on a written map to make its walk worth walking (11-07 the scenario, 11-08 the play layer:
+    // level design its own department). Both stand on a map level's plan
+    levelDesign: {
+      multi: true,
+      values: {
+        scenario: { status: 'built', since: '2026-11-07', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/pace.js', note: 'a level\'s scenario beat by beat (a fight, a find, a meeting, a climax) on its tiles, each beat doing something in play, and how much happens: the pace measured on the map\'s own paths at the hero\'s run (dead air, the shape of calm, tension, peak and rest, a segment\'s interest)' },
+        'play-layer': { status: 'built', since: '2026-11-08', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/play-layer.js', note: 'the play layer a block at a time (glyphs.play): foes cast in place, obstacles and cover in the world\'s style, pickups and gates, each a point in world metres and a yaw, so a terrain rebuilt under it keeps every piece and flags the ones it no longer suits' },
+      },
+    },
+    // the frame a game is made for (11-05 the screen, game/screen.js; 11-06 the headset, scene/channels/xr.js): the camera
+    // that plays is `camera` above; this is the device its view and its controls are laid out for
+    screen: {
+      values: {
+        monitor: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a monitor or a TV (screen: screen, 16:9; a wider one shows more at the sides)' },
+        phone: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a phone held upright (9:16, what design_game starts a game on): the frame, and a virtual pad drawn from the pilot\'s rule and camera, the menus risen to the thumb' },
+        tablet: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a tablet on its side (4:3), or stood up' },
+        // partial 11-06 (mana-xr): a world's `xr` opens each stage level in a WebXR session, the controllers a game pad,
+        // mana-ui's screens on a panel; what is left is said in the note
+        headset: { status: 'partial', effort: 'M', lowers: 'lib/graph/scene/channels/xr.js', note: 'a world\'s xr: each stage level opens in a headset, the session driving the pilot, the controllers a game pad, mana-ui\'s screens on a panel in the world; the level\'s HUD reaches it as lines only, the contest, versus, brawl and board pages do not enter it, and no eyes gate has run on a headset' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS' } },

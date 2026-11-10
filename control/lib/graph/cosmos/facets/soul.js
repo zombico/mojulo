@@ -11,7 +11,7 @@
 // a seat value the runtime does not run yet
 const NOT_YET = { status: 'absent' };
 const VERSUS = 'lib/graph/versus/versus-core.js';
-const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on one fixed stage; no other kind seats a second player';
+const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on a stage or any level\'s lane; no other kind seats a second player';
 // the seats kernel (controls/seats-kernel.js) seats up to four controllers; the versus fighter plays two on it, and a
 // gameworld's hero stage lays a body per seat (gameworld/levels.js seatPart)
 const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a pad each, the keyboard one): the versus fighter plays two, and a gameworld\'s hero stages lay a hero per seat (levels.js seatPart; a ride, a flight, first person, building and city levels seat one); web only';
@@ -33,19 +33,30 @@ export const SOUL = Object.freeze({
         hero: { status: 'built', lowers: 'lib/mcp/tools/create-character.js' },
         // makeable and rigged, not yet a game's pilot: a world's figure takes a hero alone (heroRef, world-scene.js)
         creature: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no creatureRef' },
-        animal: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no animalRef' },
+        animal: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; a stored animal is not pilotable on its own gaits: a world figure takes a hero (heroRef), no animalRef; an animal as a mascot is (soul.hero=mascot), and a horse is ridden (soul.mount=horse)' },
+        // built 11-05 (the body rails, egocube/mascot-pilot.js): an animal or a toy mascot piloted on the platform rule
+        mascot: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/egocube/mascot-pilot.js', note: 'a mascot (create_character as: mascot; a game\'s body kind mascot): an animal or a toy on two legs piloted on the platform rule, the body a platformer or a kart racer puts in it' },
         // built 10-12: a quick game's `ride` (car, coupe, van) mints its build and pilots every stage on the drive rule,
         // its feel derived from the build's parts.
-        vehicle: { status: 'built', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
+        vehicle: { status: 'built', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer, or a vehicle of the registry by its word and tier (vehicle-registry/ride.js), driven (rules-drive.js); quick games only: a designed gameworld\'s book does not drive one yet (a flight is soul.hero=aircraft, a crewed machine soul.mount)' },
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
         // Its body is a placeholder slab until the aircraft roster.
-        aircraft: { status: 'built', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
+        aircraft: { status: 'built', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body is still a slab (craft.js): the craft shelf\'s airframes are made and exported, not yet what a flight pilots' },
         // built 10-19 (more than meets): a hero in two forms, one body (transformation/), B to change
         transformer: { status: 'built', lowers: 'lib/graph/transformation/index.js', note: 'a quick game\'s transformer: a variable suit folding into its waverider, or a car or jet standing up into a robot (controllable/forms.js: the rule of each form, the beat between them); a car\'s goals are a trail\'s, a flier\'s the fly goal' },
       },
     },
     // proportions and a vibe are baked into the figure and its clips; gear rides it
     cast: { source: { module: 'lib/graph/polygonizer/figure-cast.js', table: 'CAST_PRESETS' } },
+    // built 11-01 (the body rails, gameworld/game-bodies.js): the kind of body a game puts in it, hero and henchman
+    // alike, by its type (characters.direction.body, a quick game's body), each in the styles its tradition draws. A
+    // game's figures are baked at the play grade and cut to their pose twin on a close shot (figures/figure-grades.js)
+    body: {
+      source: {
+        module: 'lib/graph/gameworld/game-bodies.js', table: 'GAME_BODIES',
+        since: { comic: '2026-11-01', realistic: '2026-11-01', muscular: '2026-11-01', mascot: '2026-11-01' },
+      },
+    },
     vibe: { source: { module: 'lib/graph/gameworld/hero-vibe.js', table: 'VIBES' } },
     gaits: { multi: true, source: { module: 'lib/graph/polygonizer/hero-motion.js', table: 'MOTION_GAITS' } },
     equipment: {
@@ -61,7 +72,8 @@ export const SOUL = Object.freeze({
     party: {
       values: {
         solo: { status: 'built', lowers: 'lib/graph/playscape/player.js' },
-        party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
+        // (11-05 the RPG slice, 11-06 its UI: the party is a roster)
+        party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', note: 'a cast member who joins on a flag (cast.<id>.joins) follows the hero in formation in every level after; in an RPG the party is a roster (playscape/rpg/rpg.js): classes, levels, gear, a party menu, shops and an inn on mana-ui (rpg-ui.js); web only' },
         // built 10-25 (battle city): a side of a contest, local players and the positional mind's teammates alike
         team: { status: 'built', lowers: 'lib/graph/contest/team-sim.js', note: 'a side of a team goal game (team-sim.js): its roles and their home regions the contest kernel\'s, the player nearest the ball at the pad, the rest played by the positional mind, the keeper on its line; two pads on one screen. On the contest page\'s own bodies: the controllable runtime still has one pilot, so the hero body is not on the pitch yet' },
       },
@@ -88,7 +100,7 @@ export const SOUL = Object.freeze({
     mount: {
       values: {
         none: { status: 'built' },
-        horse: { status: 'built', lowers: 'lib/graph/worlds/mount-units.js', note: 'a world\'s mounts: horses beside each walking level\'s spawn, ridden through walk, trot, canter and gallop, jumping a low wall; the mount lane to tune the ride' },
+        horse: { status: 'built', since: '2026-10-29', lowers: 'lib/graph/worlds/mount-units.js', note: 'a world\'s mounts: horses beside each walking level\'s spawn, ridden through walk, trot, canter and gallop, jumping a low wall; the mount lane to tune the ride' },
         // local 11-08 (1108-realism-combat-tester): the machines the artillery range drives and flies as a gun's base, each on
         // its own class's rule; a hero does not yet get into one in a gameworld
         vehicle: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'a field vehicle of the library (a tank, an APC, a truck, a car, a motorcycle) or a walker of the mecha shelf, driven on its class\'s rule, its turret manned; the artillery range only' },
@@ -100,7 +112,7 @@ export const SOUL = Object.freeze({
     acting: {
       values: {
         still: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', note: 'the cast stand and walk where the beats send them; the words go in the box, a line\'s expression a word' },
-        acted: { status: 'built', requires: ['time.shots=covered'], lowers: 'lib/graph/playscape/ui/scene-takes.js', note: 'a script\'s cast act it on the page: the body\'s act on each line, the listener nodding, a realistic face\'s take with its gaze on its partners; each in its own style, role and register (a character\'s actor); a head the page draws no face on acts with its body' },
+        acted: { status: 'built', since: '2026-11-09', requires: ['time.shots=covered'], lowers: 'lib/graph/playscape/ui/scene-takes.js', note: 'a script\'s cast act it on the page: the body\'s act on each line, the listener nodding, a realistic face\'s take with its gaze on its partners; each in its own style, role and register (a character\'s actor); a head the page draws no face on acts with its body' },
       },
     },
     contest: {
@@ -150,7 +162,7 @@ export const SOUL = Object.freeze({
     join: {
       given: GIVEN,
       values: {
-        lobby: { status: 'partial', ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen seats its two players before a fight; no other kind has a lobby' },
+        lobby: { status: 'partial', ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen (mana-ui\'s fighter select) seats its two players before a fight; no other kind has a lobby' },
         'drop-in': { status: 'built', lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time on their own controller (seats-kernel.js): start or light in the versus fighter, any press on a gameworld\'s level' },
       },
     },

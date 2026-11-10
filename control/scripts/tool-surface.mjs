@@ -24,7 +24,7 @@ const { capabilityRegistry } = await import('../lib/graph/cosmos/registry.js');
 const { FIXTURES } = await import('../lib/graph/cosmos/fixtures.js');
 const { probeOfGenre } = await import('../lib/graph/gameworld/door-probes.js');
 const { sweep } = await import('../lib/graph/cosmos/sweep.js');
-const { composeCandidates } = await import('../lib/graph/cosmos/compose.js');
+const { composeCandidates, unlockedSince } = await import('../lib/graph/cosmos/compose.js');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOCS = resolve(HERE, '../../docs/tool-surface');
@@ -129,6 +129,16 @@ export function buildPage(opts) {
  * package at a time (worlds lifted per unit of effort), the exact sets worlds wait on (recipes), and the pairs that make
  * worlds neither makes alone (a pair that keeps appearing is one concept: build it, or declare it, as one package).
  */
+/** The day the page's "what was built lately" window opens: `days` before the newest day any value says it was built
+ * (read off the registry, never the clock, so a rebuild of the same tree is the same page); null when none is dated. */
+export function unlockedWindow(reg, days = 14) {
+  const all = Object.values(reg).flatMap((settings) => Object.values(settings).flatMap(({ values }) => Object.values(values).map((row) => row.since).filter(Boolean)));
+  if (!all.length) return null;
+  const newest = all.sort().at(-1), d = new Date(`${newest}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return { since: d.toISOString().slice(0, 10), newest, days };
+}
+
 export function hillclimbMd(opts) {
   const { n, seed, density } = opts;
   const reg = capabilityRegistry(), r = sweep({ n, seed, density }), probes = sweep({ n, seed, density, around: 'probes' });
@@ -150,12 +160,41 @@ export function hillclimbMd(opts) {
   L.push('1. Pick from the three rankings below: a package that lifts many worlds per effort, a recipe many worlds wait on,');
   L.push('   or a pair with synergy (build the two as one concept).');
   L.push('2. Write its plan section and its changelog theme file (control/changelog/<MMYY>/<MMDD>/<theme>.md); build it opt-in (absent keys keep every byte).');
-  L.push('3. Mark the registry (status, lowers) in lib/graph/cosmos/facets; a pair worth keeping becomes a package.');
+  L.push('3. Mark the registry (status, lowers, since: the day of its theme) in lib/graph/cosmos/facets; a pair worth keeping becomes a package.');
   L.push('4. `npm run tool-surface`, read this page again, and note the move (verdict totals, the genre probes).', '');
   L.push('## Where it stands', '');
   L.push('| sweep | makeable | gaps | blocked |', '|---|---|---|---|');
   L.push(`| ${n} random worlds | ${r.verdicts.makeable} | ${r.verdicts.gaps} | ${r.verdicts.blocked} |`);
   L.push(`| ${n} worlds near the genre probes | ${probes.verdicts.makeable} | ${probes.verdicts.gaps} | ${probes.verdicts.blocked} |`, '');
+  // what the values built lately made, and what the worlds that hold them still wait on (compose.js unlockedSince)
+  const win = unlockedWindow(reg);
+  if (win) {
+    const u = unlockedSince({ since: win.since, n, seed, density }), up = unlockedSince({ since: win.since, n, seed, density, around: 'probes' });
+    const near = Object.fromEntries(up.values.map((v) => [v.key, v]));
+    L.push('## What was built lately, and what it still waits on', '');
+    L.push(`The values the registry dates from ${win.since} to ${win.newest} (\`since\`, the day of a value's changelog theme), counted over`);
+    L.push('the same rolls. Made: a makeable world that holds the value, so it falls without it. Waiting: a world that holds it');
+    L.push('and is short of makeable, and the packages those worlds wait on most (by id; named in the rankings below): the other');
+    L.push('half of a combination, a next build.', '');
+    L.push('| sweep | makeable | without them | made by them |', '|---|---|---|---|');
+    L.push(`| ${n} random worlds | ${u.made.now} | ${u.made.before} | ${u.made.now - u.made.before} |`);
+    L.push(`| ${n} worlds near the genre probes | ${up.made.now} | ${up.made.before} | ${up.made.now - up.made.before} |`, '');
+    L.push('| value | built | random: holds | made | near probes: holds | made | waiting | waits most on |', '|---|---|---|---|---|---|---|---|');
+    const rows = u.values.map((v) => ({ ...v, p: near[v.key] })).sort((x, y) => (y.made + y.p.made) - (x.made + x.p.made) || (y.waits + y.p.waits) - (x.waits + x.p.waits) || x.key.localeCompare(y.key));
+    for (const v of rows) {
+      const on = new Map();
+      for (const o of [...v.on, ...v.p.on]) on.set(o.id, (on.get(o.id) || 0) + o.worlds);
+      const top = [...on.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).slice(0, 2).map(([id, w]) => `${code(id)} (${w})`);
+      L.push(`| ${code(v.key)} | ${v.since} | ${v.holds} | ${v.made} | ${v.p.holds} | ${v.p.made} | ${v.waits + v.p.waits} | ${top.join(', ') || '–'} |`);
+    }
+    const together = new Map();
+    for (const p of [...u.pairs, ...up.pairs]) { const k = `${p.a}|${p.b}`, t = together.get(k) || together.set(k, { a: p.a, b: p.b, holds: 0, made: 0 }).get(k); t.holds += p.holds; t.made += p.made; }
+    const pairs = [...together.values()].filter((p) => p.made).sort((x, y) => y.made - x.made || y.holds - x.holds || `${x.a}|${x.b}`.localeCompare(`${y.a}|${y.b}`));
+    L.push('', 'Two of them in one world, over both sweeps: a combination that could not be said before, and how often it is makeable.', '');
+    L.push('| made | worlds | the two |', '|---|---|---|');
+    for (const p of pairs.slice(0, 15)) L.push(`| ${p.made} | ${p.holds} | ${code(p.a)} + ${code(p.b)} |`);
+    L.push('');
+  }
   L.push('## One at a time: packages by worlds lifted per effort', '');
   L.push('Lifted: a world steps up a verdict once the package (and what it needs) is built. Made: it becomes makeable.', '');
   L.push('| package | effort | cost with needs | lifted | made | per effort | needs |', '|---|---|---|---|---|---|---|');

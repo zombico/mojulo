@@ -22,6 +22,10 @@ Read [docs/tool-surface/hillclimb.md](../../../docs/tool-surface/hillclimb.md). 
 - **Pairs with synergy**: worlds made only when both are built. High synergy means one concept split in two: build
   them together, and declare them one package in `lib/graph/cosmos/packages.js` (members name it with `pkg`).
 
+Above the rankings, **What was built lately** counts what the values dated in the last fortnight made, and what the
+worlds that hold them still wait on: a package many of those worlds wait on is the other half of something just built,
+and usually the better pick. Pairs of new values in one makeable world are combinations to show the operator.
+
 An unpriced row ("–") cannot be compared. Price it first (`effort: 'S' | 'M' | 'L'` on the registry value, or on the
 package) from a read-only look at what exists, then regenerate.
 
@@ -36,7 +40,10 @@ shows one. Confirm with the operator before building.
 - The plan section and the changelog theme file (`control/changelog/<MMYY>/<MMDD>/<theme>.md`) before code (CLAUDE.md,
   Plans and changelog).
 - Opt-in: an absent key keeps every byte; char and trace pins re-pinned only with a stripped-source proof.
-- Mark the registry: the value's `status`, `lowers` (the module that makes it) and `godot`.
+- Mark the registry: the value's `status`, `lowers` (the module that makes it) and `since` (the day of its
+  changelog theme, 'YYYY-MM-DD'; a sourced setting dates its values in its source's `since`). A capability that merged
+  without touching the registry is the commonest way the page goes stale: check the themes merged since the page's
+  date against the matrix before trusting a ranking.
 - Tests next to the change; `test:critical` and `test:deep:changed` before the commit.
 
 ## 4. Re-sweep and record the move

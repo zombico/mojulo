@@ -15,8 +15,9 @@ export const PACKAGES = Object.freeze({
   'battle-city': { name: 'Battle city: a contest kernel over the movement stack (a meet and a match), the court, the team, the ball and the hit', effort: 'L' },
   // the comic hero pack (10-25): the first pack of game cubes; its gaps, priced so the sweep ranks them
   'comic-look': { name: 'The comic look: a geocube look on the cel register with an ink outline, by day and by night', effort: 'M' },
-  'comic-blows': { name: 'Comic blows: knockback, a thrown body or prop, the hero\'s storeys-high leap', effort: 'M' },
-  'comic-street': { name: 'The breakable street: props that shatter under a blow or a thrown body', effort: 'M' },
+  // (11-10: knockback is built, natural knockback 11-04; the breakable street is built, the destruction degree: its
+  // package is gone. What is left of the blows is the hero's throw and its leap composed into one move)
+  'comic-blows': { name: 'Comic blows: a body or a prop lifted and thrown by any hero, the storeys-high leap composed into one move', effort: 'M' },
   cape: { name: 'The cape: a garment that trails the gait and lifts in a leap', effort: 'M' },
   'comic-panel': { name: 'The comic panel: a beat held as a still with a border, a caption and an onomatopoeia', effort: 'S' },
   // hostile encounters (10-27): the foe classes' moves and attacks that do not run yet, priced so the sweep ranks them
@@ -25,6 +26,11 @@ export const PACKAGES = Object.freeze({
   brawler: { name: 'The brawler from a gameworld: a world that says it is a beat-em-up laid down a belt, its crowd, waves and boss', effort: 'M' },
   // the scrolling screen (11-10): built in the brawler's belt, waiting on the shared camera every group level plays under
   scroll: { name: 'The scrolling screen: the belt\'s camera (on with the players, never back, held at a gate) for every level a group plays', effort: 'M' },
+  // sound (11-10): a quick game says its music and effects, and the SFX shelf is read by the rooms; a designed gameworld
+  // has no sound word, and no level reads the shelf by word
+  sound: { name: 'Sound from a gameworld: a world says its score and its effects, a level reads the SFX shelf by word, the mixer placing each cue', effort: 'M' },
+  // the game UI (11-10): the shell, the RPG, the brawler and the fighter run on mana-ui; a level's own HUD does not
+  'game-ui': { name: 'The level\'s HUD on mana-ui: the HUD, talk menus, quest log and pause as compositions of the one runtime, so a theme, a language and a headset reach them', effort: 'L' },
   // crewed machines (11-10): the artillery range drives and flies them; a gameworld's hero does not get into one yet
   crewed: { name: 'Crewed machines from a gameworld: the hero gets into a tank, a truck, a walker, a boat, a helicopter or a fighter and drives or flies it, its gun on a turret', effort: 'L' },
   replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },

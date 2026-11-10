@@ -50,7 +50,7 @@ const SHOT = { status: 'partial', effort: 'L', pkg: 'shot' };
 // the time map (11-02): built in a rendered film and a shoot plan's page; in play it waits on the world clock scale
 const TIME_MAP = 'lib/graph/shoot/time.js';
 const WORLD_CLOCK = 'lib/graph/worlds/controllable/world-clock.js';
-const CLOCK = { status: 'built', lowers: WORLD_CLOCK };
+const CLOCK = { status: 'built', since: '2026-11-02', lowers: WORLD_CLOCK };
 const REPLAY = { status: 'partial', effort: 'M', pkg: 'replay', lowers: TIME_MAP };
 const KEYED = { status: 'partial', effort: 'M', pkg: 'keying', lowers: TIME_MAP };
 // the main quest (11-04): a chapter's turn waits on its overlay; side quests placed by the quest wait on their package
@@ -84,8 +84,8 @@ export const TIME = Object.freeze({
       multi: true,
       values: {
         screens: { status: 'built', lowers: 'lib/graph/game/play-shell.js', note: 'the order the shell has always made: its title, its levels, a result, the end card (game/flow.js defaultFlow), stepped on events, never timers' },
-        own: { status: 'built', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen)' },
-        cinematics: { status: 'built', requires: ['time.shots=staged'], lowers: 'lib/graph/gameworld/story.js', note: 'a cinematic step staged on a level\'s page; the story\'s opening (first boot, the attract), prologue (after New Game, kept into play) and ending (the first full clear) placed in the flow' },
+        own: { status: 'built', since: '2026-11-09', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen)' },
+        cinematics: { status: 'built', since: '2026-11-09', requires: ['time.shots=staged'], lowers: 'lib/graph/gameworld/story.js', note: 'a cinematic step staged on a level\'s page; the story\'s opening (first boot, the attract), prologue (after New Game, kept into play) and ending (the first full clear) placed in the flow' },
         held: { status: 'partial', effort: 'M', requires: ['time.sequence=cinematics'], lowers: 'lib/graph/worlds/controllable/world-clock.js', note: 'the world held through a cinematic, its foes and hazards still while the scene\'s cast and camera move: the world freeze stops the clock the scene runs on, so it waits on a narrower freeze' },
       },
     },
@@ -107,7 +107,7 @@ export const TIME = Object.freeze({
         seasons: { status: 'built', lowers: 'lib/graph/game/mechanics.js', note: 'the clock\'s seasons (days each): season on the bus, the sky\'s climate swapped (spring-blossom, temperate, autumn, alpine, or its own four)' },
         growth: { status: 'built', lowers: 'lib/graph/game/mechanics.js', note: 'crops grow a stage each dawn on the clock (planted, grown, ripe); a tree\'s planting age between chapters is still the bake\'s (grow.js years)' },
         // built 10-12: the aftermath mechanic keeps each break as a flag the game carries and restores it on entry
-        aftermath: { status: 'built', lowers: 'lib/graph/game/mechanics.js', note: 'what broke stays broken: each break a flag (broke:<id>) the game carries, taken away at the start on entry (a gameworld with destruction); a chapter turning a whole level to ruin is not built' },
+        aftermath: { status: 'built', lowers: 'lib/graph/game/mechanics.js', note: 'what broke stays broken: each break a flag (broke:<id>) the game carries, taken away at the start on entry (a gameworld with destruction); a map that may not change still shows its blows (mechanics.scars: craters, scorches and chips painted, debris thrown); a chapter turning a whole level to ruin is not built' },
         eras: { status: 'absent', effort: 'L', ...AGED, note: 'no era dial: city eras are only a changelog plan on 1003-city-eras; lib/graph/era is art styles, historic one period per culture (priced 10-12)' },
       },
     },
@@ -124,7 +124,7 @@ export const TIME = Object.freeze({
     arc: {
       values: {
         none: { status: 'built', note: 'no spine: a game of levels in play order' },
-        acts: { status: 'built', lowers: MAIN_QUEST, note: 'a main quest\'s acts, a beginning, a middle and an end, a beat at a time: each beat played on its level, a goal-only beat laid its own, the game in the quest\'s order; an act a stage of the hero\'s progression' },
+        acts: { status: 'built', since: '2026-11-04', lowers: MAIN_QUEST, note: 'a main quest\'s acts, a beginning, a middle and an end, a beat at a time: each beat played on its level, a goal-only beat laid its own, the game in the quest\'s order; an act a stage of the hero\'s progression' },
         chapters: { ...QUEST_TURNS, requires: ['time.chapters=overlays'], lowers: MAIN_QUEST, note: 'a main quest told chapter on chapter, past an arc: read and laid as acts are; a chapter\'s turn (what a happening changes) is said, not yet lowered to its world overlay' },
       },
     },
@@ -132,7 +132,7 @@ export const TIME = Object.freeze({
     periods: {
       values: {
         one: { status: 'built', note: 'the quest in one time' },
-        'new-maps': { status: 'built', lowers: MAIN_QUEST, note: 'a period a part of the quest on levels of its own: each beat its own level' },
+        'new-maps': { status: 'built', since: '2026-11-04', lowers: MAIN_QUEST, note: 'a period a part of the quest on levels of its own: each beat its own level' },
         'same-maps': { status: 'absent', effort: 'L', requires: ['time.passage=eras'], note: 'the same maps at another period: a world aged between periods waits on eras' },
       },
     },
@@ -156,7 +156,9 @@ export const TIME = Object.freeze({
         banter: { ...SHOT, status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; a portrait beside them on a board (shots board); no face set yet' },
         // built 11-09 (screenplay scenes): a scene written as a screenplay, blocked on the level's places and covered by the
         // cinematics department's rules (actor/coverage.js), lowered into the staged beats
-        covered: { ...SHOT, status: 'built', requires: ['time.shots=staged'], lowers: 'lib/graph/playscape/ui/scene-script.js', note: 'a screenplay blocked on the level\'s places and shot by the director\'s coverage: a wide to open, over the shoulder, close on a line with a face, the wide on a cross, one side of the line; the hero walks to its mark; each line on its take\'s clock, held for the press' },
+        covered: { ...SHOT, status: 'built', since: '2026-11-09', requires: ['time.shots=staged'], lowers: 'lib/graph/playscape/ui/scene-script.js', note: 'a screenplay blocked on the level\'s places and shot by the director\'s coverage: a wide to open, over the shoulder, close on a line with a face, the wide on a cross, one side of the line; the hero walks to its mark; each line on its take\'s clock, held for the press' },
+        // built 11-02 (the impact cam): a moment of the world clock takes the camera and the look as it takes the clock
+        moment: { ...SHOT, status: 'built', since: '2026-11-02', requires: ['time.tempo=slow'], lowers: WORLD_CLOCK, note: 'a tempo moment takes the camera and the look with the clock (world-clock.js cam, look): the finisher\'s push in, the kill cam, a heavy blow\'s impact frame, a dodge\'s bullet time, each handed back as the clock returns; a game\'s tempo lays them on every level' },
         // built 10-19 (the strategy board): a scene told on the board itself, its slots before and after a battle
         // priced 10-25 (the comic hero pack): the comic panel, a shot held still with a border and a caption
         panel: { ...SHOT, status: 'absent', effort: 'S', pkg: 'comic-panel', requires: ['time.shots=staged'], note: 'a beat held as a still: the frame drawn in a border, a caption box, an onomatopoeia over the blow; cut back to play' },

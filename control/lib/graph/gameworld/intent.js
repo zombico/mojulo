@@ -45,6 +45,12 @@ const WORDS = Object.freeze({
   'top-down-adventure': ['top-down', 'top down', 'adventure', 'overworld', 'zelda-like', 'explore'],
   'stylish-action': ['stylish action', 'character action', 'devil may cry', 'bayonetta', 'juggle', 'launcher', 'air combo', 'style rank'],
   'open-adventure': ['open-world adventure', 'open world adventure', 'breath of the wild', 'horseback', 'ride a horse', 'open land', 'sword and shield'],
+  // (11-10: narrow on purpose, the phrase a brief says only when it means the genre: "a 3D platformer" stays the
+  // collectathon's door, "an rpg" the party's)
+  'platformer-3d': ['mascot platformer', 'air dash', 'jetpack'],
+  'action-rpg': ['action rpg', 'action-rpg', 'arpg', 'stamina gauge', 'lock on'],
+  demolition: ['destruction sandbox', 'demolition', 'destructible world', 'blow up buildings', 'bring down the building'],
+  'headset-adventure': ['vr', 'virtual reality', 'headset', 'webxr'],
   'military-sim': ['military sim', 'milsim', 'arma', 'battlefield', 'squad', 'tank', 'armoured vehicle', 'recoil', 'ballistics'],
   'tactical-espionage': ['tactical espionage', 'metal gear', 'cqc', 'close quarters', 'silenced pistol', 'operative', 'infiltration'],
   shooter: ['shooter', 'shoot', 'gun', 'guns', 'rifle', 'fps', 'first-person shooter', 'firefight', 'cover', 'ammo'],
