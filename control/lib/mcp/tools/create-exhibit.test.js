@@ -50,6 +50,19 @@ describe('create_exhibit', () => {
   });
 });
 
+describe('create_exhibit with a tour', () => {
+  it('sets the tour through update_sketch\'s gate; a refused tour leaves the exhibit made and says why', async () => {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const ok = await createExhibitHandler({ id: 'life/cellular', tour: { stops: [{ caption: 'The cell.', camera: 'angle' }, { caption: 'Power.', camera: 'top', highlight: 'org:mitochondria' }] } });
+    expect(ok.tour).toEqual({ stops: 2 });
+    expect(SketchRepository.getByRef(ok.ref).manifest.tour.stops).toHaveLength(2);
+    const bad = await createExhibitHandler({ id: 'life/cellular', tour: { stops: [{ caption: 'x', camera: 'nowhere' }] } });
+    expect(bad.ok).toBe(true);
+    expect(bad.tour_refused).toMatch(/names no camera 'nowhere' \(this world's: angle, side, top\).*update_sketch set \/tour/);
+    expect(SketchRepository.getByRef(bad.ref).manifest.tour).toBeUndefined();
+  });
+});
+
 describe('get_exhibit', () => {
   it('reads a card by hall id, lists the halls and one hall', async () => {
     const one = await getExhibitHandler({ id: 'earth/hydro' });

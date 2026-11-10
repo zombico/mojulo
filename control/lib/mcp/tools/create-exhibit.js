@@ -20,7 +20,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { VIEW_KINDS, resolveKindEntry } from '@/lib/mcp/tools/create-view';
 import { measureViewSamples } from '@/lib/mcp/tools/measure-view';
 import { deriveViewKind } from '@/lib/mcp/tools/save-recipe';
-import { createSketchHandler } from '@/lib/mcp/tools/sketch-mint';
+import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 
 /** The kinds folded into a science world (VIEW_KINDS `listed: false`): no exhibit id, their rows render as before. */
 const FOLDED = () => Object.entries(VIEW_KINDS).filter(([, k]) => k.listed === false).map(([id]) => id);
@@ -39,7 +39,7 @@ function resolveOrTeach(door, id) {
 }
 
 // A history exhibit: a culture's entry mints its `historic` scene; a region's hub, the lineage and a record are read only.
-async function mintHistory(x, { params, title, ref, folder_ref: folderRef }) {
+async function mintHistory(x, { params, title, ref, folder_ref: folderRef, tour }) {
   const culture = x.card.id;
   if (!HISTORIC_CULTURES[culture]) {
     const cultures = Object.keys(HISTORIC_CULTURES).map((c) => `history/${c}`);
@@ -48,7 +48,19 @@ async function mintHistory(x, { params, title, ref, folder_ref: folderRef }) {
   const p = params && typeof params === 'object' ? params : {};
   const manifest = { ...p, kind: 'historic', culture };
   const res = await createSketchHandler({ title: title || x.card.name, manifest, ref, folder_ref: folderRef });
-  return { ...res, exhibit: x.id };
+  return withTour({ ...res, exhibit: x.id }, tour);
+}
+
+// A tour (lib/graph/exhibit/tour.js) is read against the world it rides, so it is set once the exhibit is made, through
+// update_sketch's own gate. A refused tour leaves the exhibit made and says why, so the agent fixes the stops in place.
+async function withTour(res, tour) {
+  if (tour === undefined || !res || !res.ref) return res;
+  try {
+    await updateSketchHandler({ ref: res.ref, patch: [{ op: 'set', path: '/tour', value: tour }] });
+    return { ...res, tour: { stops: Array.isArray(tour?.stops) ? tour.stops.length : 0 } };
+  } catch (err) {
+    return { ...res, tour_refused: `${err.message} — fix it with update_sketch set /tour; manual: get_view_vocab({ id: 'tour' })` };
+  }
 }
 
 export async function createExhibitHandler(input) {
@@ -70,7 +82,7 @@ export async function createExhibitHandler(input) {
   if (folderRef !== undefined) merged.folder_ref = folderRef;
   try {
     const res = await entry.handler(merged);
-    return res && typeof res === 'object' ? { ...res, exhibit: x.id } : res;
+    return res && typeof res === 'object' ? withTour({ ...res, exhibit: x.id }, input.tour) : res;
   } catch (err) {
     if (isToolRefusal(err)) throw err;
     throw new Error(`${err.message} — its manual: get_exhibit({ id: '${x.id}' }).`);
@@ -134,6 +146,7 @@ export function registerExhibitTools() {
         scene: { type: 'object', description: 'Optional scene options, e.g. { bg: "#05040a" }.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
+        tour: { type: 'object', description: "Optional stops to step through: { stops: [{ caption, camera, highlight? }] }. Manual: get_view_vocab({ id: 'tour' })." },
       },
       required: ['id'],
     },

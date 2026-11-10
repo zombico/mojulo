@@ -1,7 +1,7 @@
 ### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
 
-Planned on this branch. The first piece is built (one door for exhibits); the lines after it are still plans, and each
-is rewritten as it lands.
+Planned on this branch. The first two pieces are built (one door for exhibits, and the tour); the lines after them are
+still plans, and each is rewritten as it lands.
 
 - **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects, the
   science demos built from laws and the historic cities at their period are all asked for in one place, by hall:
@@ -11,9 +11,15 @@ is rewritten as it lands.
   object and for measuring one give way to it, so the list of tools your agent reads gets shorter; their old names
   still work for a release. Kept setups in your cookbook are recalled by their hall too. Everything already made looks
   exactly as it did. The manuals for building a world (its bases, stage kits and looks) stay where they were.
-- **A tour you step through.** An exhibit can carry stops. At each one the camera moves, a caption explains, and the
-  part being talked about is lit while the rest dims. Each stop can say where its claim comes from and how sure it is:
-  known, reconstructed or conjectured for history; simulated, depicted or explained for science.
+- **A tour you step through.** An exhibit, or any world, can carry stops. At each one the camera glides to a view, a
+  caption explains, and the part being talked about is lit while the rest dims; the stop can say how sure it is
+  (known, reconstructed or conjectured for history; simulated, depicted or explained for science) and where its claim
+  comes from. A panel along the bottom has the way back and on and a dot for each stop; the arrow keys and a swipe step
+  it too, and a link can open on any stop. A toured page looks like an exhibit rather than a workbench: it fills the
+  window, a phone's or a kiosk's, its title stands quietly in the corner, the camera and wireframe buttons step aside,
+  and on a plain background the subject glows softly in the colour of the part each stop is about. Give the stops when you ask for the exhibit, or add them to one you have; a stop that names a
+  camera or a part the exhibit does not have is refused, with the ones it does. A historic town is drawn as one piece
+  for now, so its stops move the camera but do not light a building yet.
 - **Rooms and a kiosk.** Several exhibits join into one gallery, with no score to win and no way to fail. On a kiosk,
   the tour plays by itself when nobody is touching it and returns to the start when a visitor walks away. It works by
   touch, in large type, in the visitor's language, and it opens offline.

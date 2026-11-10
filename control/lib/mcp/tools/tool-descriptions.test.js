@@ -441,7 +441,10 @@ const DESCRIPTION_ALLOWLIST = {
 // doors: create_view and measure_view folded into create_exhibit and get_exhibit (by hall: science, space, earth, life,
 // math, history; no kind enum on the door, the read-back a clause), get_view_vocab narrowed to compose_world's manuals.
 // Two tools off the list. No new tool beyond the fold.
-const PAYLOAD_CEILING = 211_400;
+// Raised 2026-11-10 on 1110-exhibit-mode (211_400 -> 211_600; measured 211,503) for the tour: create_exhibit's `tour`
+// (an exhibit's stops, each a camera, a caption and the groups it lights), one schema property; its grammar on the
+// `tour` view-vocab card, off-payload. Still below the 213_100 the fold started from. No new tool.
+const PAYLOAD_CEILING = 211_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

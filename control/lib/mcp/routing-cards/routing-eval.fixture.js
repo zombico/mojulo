@@ -71,6 +71,8 @@ export const FIXTURE = [
   // exhibits (1110): a curated interactive for a museum, a gallery or an encyclopedia, asked for by hall
   ['our museum wants an interactive showing how a hydroelectric dam turns falling water into electricity', 'create_exhibit'],
   ['an encyclopedia-style piece where visitors can look around a Roman town before Vesuvius erupted', 'create_exhibit'],
+  // the tour: an exhibit's stops, each a camera, a caption and the part it lights (create_exhibit's `tour`)
+  ['a step-by-step walkthrough of a plant cell for our kiosk, each step lighting up one part with a caption', 'create_exhibit'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],
