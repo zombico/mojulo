@@ -1,8 +1,8 @@
 # voice-sfx.plan.md — the mouth-foley spike (voice as a sound-effect synthesizer)
 
 **Status:** SPIKE, rounds 1–5 rendered (round 5, 2026-11-10: swishes, swooshes and
-sword swings, on branch `1110-simulated-sfx`). Awaiting the operator's ears-gate on
-`spike-sfx/r5/AUDITION-round5.wav`. Nothing wired into `create_voice` / the MCP surface yet;
+sword swings, on branch `1110-simulated-sfx`). Round 5 ears gate (2026-11-10): the operator passed the
+audition `spike-sfx/r5/AUDITION-round5.wav` except ビュン byun (heavy). Nothing wired into `create_voice` / the MCP surface yet;
 all artifacts are disposable renders under `~/mojulo-voicegen/spike-sfx/`.
 
 ## The principle
@@ -151,7 +151,7 @@ New knobs (the air needs different ones from the clicks):
 - **hybrid**: the voice swoosh 6 dB under the shelf's synthesized katana swing,
   peaks aligned.
 
-Machine findings (the ears gate has not run):
+Machine findings (measured before the ears gate):
 - **Kokoro is deterministic.** The same text, voice and speed render byte-identical
   audio in one session and across a fresh model load (sha256 equal, max diff 0, on
   this Mac). So a recipe of `{ text, voice, speed, chain }` regenerates its sound,
@@ -182,10 +182,19 @@ katana / blade swings (hybrid), the heavy swings (voiced hum), and the clicks of
 rounds 1–4 (reloads, latches). Long whooshes and the basketball swish look like
 the synth's to keep.
 
+**Ears gate (operator, 2026-11-10).** Every sound in the round 5 audition sounds
+good except **ビュン byun, heavy chain** (`w-ja-byun--heavy`), which is dropped. The
+heavy swing keeps ブン bun and ブォン buon. So the ears passed the hybrids (ヒュン,
+呼, スッ, whoosh under the synth katana), the voice-only swooshes (シュッ, ザシュッ,
+唰, シュン, ヒューン, `jf_alpha` シュッ, English swish), the heavy swings bun and
+buon, the three blade-ring versions, the reversed swells (スッ, 唰) and スパッ's air
+next to the net swish. That is wider than the numbers predicted: the voice-only
+swooshes and the net swish passed by ear too, so "keep the synth's" no longer
+holds for them.
+
 ## Next steps
 
-1. Operator listens to `spike-sfx/` (round 5: `r5/AUDITION-round5.wav`, cue list
-   beside it), picks seed + closest warp.
+1. ~~Operator listens to round 5~~ done: all but ビュン byun pass.
 2. Collapse knobs to the canonical set on the chosen seed; A/B a tight grid.
 3. Decide the home: extend `beats-sfx` to accept a voice-seed source, vs. a
    voice mode. Then it stops being a spike.
