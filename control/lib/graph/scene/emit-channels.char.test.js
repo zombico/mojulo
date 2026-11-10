@@ -671,6 +671,14 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // pose layers and the sheathed body's figures; that line's turret view, boat water, the figure-less loadout, a round's
 // drag, the person's sprint on Shift and its walk, over-the-shoulder rounds. The merged page carries both, each still
 // behind its own opt-in; no fixture's play changed by the meeting itself.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the pages' own house): `board` and `holo` only. The board
+// page says its grid-to-world point, its bus push and its banner once and hands them to the tower defence and the
+// skirmish (they were written twice, the banner three times); a tower defence's letters are its own, so S sells and no
+// longer pans the camera too. The holo's promotion picker is put away by a press on the board or by Escape (it had no
+// way out). No other page inlines the board page or the holo's client.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the table's parts): `brawl` only, the one fixture that
+// inlines the game UI runtime's kernel. The kernel gains three components (a card, a log, a small series), `why` on a
+// disabled button, slot, row and cell, and their words; the brawler's yard uses none of them and draws as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

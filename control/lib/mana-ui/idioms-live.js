@@ -8,7 +8,7 @@
  *   a race       race-standing (place, lap, lap and best times), speedometer
  *   a firefight  damage-direction, offscreen-markers, lock-on, ability-bar
  *   survival     hotbar, world-labels
- *   strategy     resource-bar, unit-card, combat-forecast, wave-status
+ *   strategy     resource-bar, turn-order, selection-grid, unit-card, combat-forecast, wave-status
  *   a match      score-bug, lower-third
  *   a cutscene   cinema-bars, subtitles
  *   stealth      stealth-meter
@@ -17,7 +17,8 @@
  *   after play   match-results (a sport's end, after the broadcast's board: the score by side, the head to head the
  *                coverage counted, what next; its data from contest/contest-results.js contestResults)
  *   mid-play     battle-menu (a turn-based fight's commands, targets, turn order and party), tactics-menu (a unit's
- *                actions beside its forecast), scoreboard (held open), command-card (a strategy game's orders)
+ *                actions beside its forecast), scoreboard (held open), command-card (a strategy game's orders),
+ *                skirmish-lobby and skirmish-results (a skirmish set up, and its end)
  */
 const P = (name) => ({ param: name });
 const I = (field) => ({ item: field });
@@ -120,6 +121,20 @@ export const LIVE_IDIOMS = {
     params: ['resources'],
     node: region('top', [{ use: 'each', props: { dir: 'row', rows: P('resources'), row: { use: 'counter', props: { label: I('label'), value: I('value'), icon: I('icon') } } } }]),
     example: { resources: { bind: 'resources' } },
+  },
+  'turn-order': {
+    kind: 'hud', about: 'who acts next, in order, the one acting alight: a tactics battle\'s, a turn-based fight\'s; at the place the game names',
+    reads: 'turns: [{ name, variant: strong (now) | plain (yours) | muted (theirs), turn?, side? }], at (a screen place)', emits: '—',
+    params: ['turns', 'at'],
+    node: { use: 'region', props: { at: P('at') }, children: [col([txt({ word: 'turnOrder' }, 'heading'), { use: 'each', props: { dir: 'row', rows: P('turns'), row: { use: 'badge', props: { value: I('name'), variant: I('variant'), turn: I('turn'), side: I('side') } } } }])] },
+    example: { turns: { bind: 'battle.turns' }, at: 'top-left' },
+  },
+  'selection-grid': {
+    kind: 'hud', about: 'what is selected, when it is many: a tile each, its name over its health read by its length (bottom)',
+    reads: 'units: [{ id, name, hp, hpMax }]', emits: '—',
+    params: ['units'],
+    node: region('bottom', [col([txt({ word: 'selected' }, 'heading'), { use: 'each', props: { dir: 'row', rows: P('units'), row: col([txt(I('name'), 'caption'), { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', size: 'thin', figures: false } }]) } }])]),
+    example: { units: { bind: 'squad' } },
   },
   'unit-card': {
     kind: 'hud', about: 'the unit in focus: its face, class, health and what it can do (bottom left)',
@@ -238,7 +253,7 @@ export const LIVE_IDIOMS = {
     params: ['message', 'turns', 'foes', 'commands', 'party'],
     node: screen({ layer: 'overlay', place: 'full' }, [
       region('top', [txt(P('message'))]),
-      region('top-right', [col([txt({ word: 'turnOrder' }, 'heading'), { use: 'each', props: { dir: 'row', rows: P('turns'), row: { use: 'badge', props: { value: I('name'), variant: I('variant'), turn: I('turn') } } } }])]),
+      { use: 'turn-order', props: { turns: P('turns'), at: 'top-right' } },
       region('left', [{ use: 'window', props: { title: { word: 'foes' } }, children: [{ use: 'list', props: { rows: P('foes'), row: col([row([{ use: 'awareness', props: { state: I('state'), label: false } }, txt(I('name'))]), { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp' } }]) }, on: { accept: { emit: 'target', id: I('id') } } }] }]),
       region('bottom-left', [{ use: 'window', props: { title: { word: 'command' } }, children: [{ use: 'list', props: { rows: P('commands') }, on: { accept: I('then') } }] }]),
       region('bottom-right', [{ use: 'window', props: { title: { word: 'party' } }, children: [{ use: 'list', props: { rows: P('party'), row: row([txt(I('name'), 'heading'), { use: 'bar', props: { label: { word: 'hp' }, value: I('hp'), max: I('hpMax'), variant: 'hp' } }, { use: 'bar', props: { label: { word: 'mp' }, value: I('mp'), max: I('mpMax'), variant: 'mp' } }], 'center', 'normal') } }] }]),
@@ -265,6 +280,28 @@ export const LIVE_IDIOMS = {
       { use: 'button', props: { label: { word: 'close' } }, on: { accept: { back: true } } },
     ])] }]),
     example: { title: 'Scoreboard', players: { bind: 'scoreboard' } },
+  },
+  'skirmish-lobby': {
+    kind: 'screen', about: 'a skirmish set up before it starts: who you are, who you face and how hard, the purse, the victory, the fog; each a value turned, then start',
+    reads: 'title, rows: [{ label, var, options }] (each bound to the var it sets), then', emits: '{ set: <var>, to } as a row turns; then on start',
+    params: ['title', 'rows', 'then'],
+    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
+      { use: 'each', props: { rows: P('rows'), row: { use: 'cycler', props: { label: I('label'), options: I('options'), value: { bind: I('var') } } } } },
+      { use: 'button', props: { label: { word: 'start' } }, on: { accept: P('then') } },
+    ] }] }]),
+    example: { title: 'Skirmish', rows: { bind: 'skirmish.setup' }, then: { emit: 'start' } },
+  },
+  'skirmish-results': {
+    kind: 'screen', about: 'a skirmish\'s end: the outcome, the figures side against side with each row\'s lead marked, each side\'s strength over the match as a small series, then what next',
+    reads: 'outcome, sub, rows: [{ what, you, them, lead? }], series: [{ label, values }], items: [{ label, then }]', emits: 'each item\'s then',
+    params: ['outcome', 'sub', 'rows', 'series', 'items'],
+    node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
+      { use: 'banner', props: { value: P('outcome'), sub: P('sub') } },
+      { use: 'window', props: { title: { word: 'figures' } }, children: [{ use: 'table', props: { columns: [{ key: 'what', label: '' }, { key: 'you', label: { word: 'you' }, align: 'right' }, { key: 'them', label: { word: 'them' }, align: 'right' }], rows: P('rows') } }] },
+      { use: 'window', props: { title: { word: 'overTime' } }, children: [{ use: 'each', props: { dir: 'row', rows: P('series'), row: { use: 'spark', props: { label: I('label'), values: I('values') } } } }] },
+      { use: 'window', props: { variant: 'ghost' }, children: [{ use: 'list', props: { rows: P('items'), variant: 'menu' }, on: { accept: I('then') } }] },
+    ] }]),
+    example: { outcome: { bind: 'skirmish.results.outcome' }, sub: { bind: 'skirmish.results.sub' }, rows: { bind: 'skirmish.results.rows' }, series: { bind: 'skirmish.results.series' }, items: [{ label: 'Rematch', then: { emit: 'rematch' } }, { label: 'New match', then: { emit: 'new' } }, { label: 'Leave', then: { emit: 'leave' } }] },
   },
   'command-card': {
     kind: 'screen', about: 'a strategy game\'s orders for what is selected: a grid of commands on their keys, the selection and its queue',

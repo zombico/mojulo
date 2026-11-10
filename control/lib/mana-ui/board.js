@@ -40,6 +40,9 @@ export const BOARD_HUDS = Object.freeze({
   'shooter HUD': ['crosshair', 'damage-direction', 'offscreen-markers', 'lock-on', 'ammo-counter', 'event-feed', 'score-timer'],
   'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'achievement-toast', 'world-labels'],
   'survival HUD': ['vitals', 'hotbar', 'world-labels', 'interact-prompt'],
+  'board game table': ['seat-plates', 'card-row', 'game-log', 'card-hand', 'action-bar'],
+  'tactics HUD': ['turn-order', 'unit-card', 'combat-forecast'],
+  'skirmish HUD': ['resource-bar', 'selection-grid', 'minimap-corner'],
   'strategy HUD': ['resource-bar', 'unit-card', 'combat-forecast', 'minimap-corner'],
   'tower defence HUD': ['wave-status', 'world-labels', 'event-feed'],
   'match broadcast': ['score-bug', 'lower-third', 'event-feed'],
@@ -48,7 +51,7 @@ export const BOARD_HUDS = Object.freeze({
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
-const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler' };
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler', table: 'Table' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys and its `also` (the keypad, Tab, the Page
 // keys), used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({

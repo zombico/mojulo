@@ -18,8 +18,7 @@
  */
 
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
-import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
-import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
+import { planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { tabletopGame } from './tabletop.js';
 import { buildTabletopMind } from './tabletop-mind.js';
@@ -29,16 +28,12 @@ import { cardPageHtml } from './tabletop-card-page.js';
 import { roundPageHtml } from './tabletop-round-page.js';
 import { pieceBodies } from './tabletop-bodies.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient, END_WORDS } from '../broadcast/broadcast-dom.js';
+import { LEVELS, r2, escapeHtml, scriptJson, levelSelect, tableCams, tableFaces } from './page-kit.js';
 
 const VIEWPORT = { width: 760, height: 560 };
 const UNIT = 60;
 const TOKEN = 0.74;
-const LEVELS = ['easy', 'fair', 'hard'];
 
-const r2 = (x) => Math.round(x * 100) / 100;
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// JSON inside a <script>: no '</script>' can close it early
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function tabletopPageHtml(G, opts = {}) {
   if (!G?.board && !G?.piles && !G?.round) throw new Error('tabletop page: the game needs a board, piles of cards or rounds');
@@ -68,17 +63,8 @@ export function tabletopPageHtml(G, opts = {}) {
 
   // the table: each cell's top and side as a placed div, a token's place on every cell, the cameras turned to the seat
   const turnPt = ([x, y, z]) => [x * Math.cos(turnRad) - y * Math.sin(turnRad), x * Math.sin(turnRad) + y * Math.cos(turnRad), z];
-  const cams = latticeCameras(L).map((c) => {
-    const wf = { ...c.worldFraming, cameraPosition: turnPt(c.worldFraming.cameraPosition), lookAt: turnPt(c.worldFraming.lookAt) };
-    const { matrix, perspective, center } = cameraMatrixFromWorldFraming(wf, VIEWPORT, UNIT);
-    return { name: c.name, matrix, perspective: r2(perspective), center };
-  });
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const faces = latticeFaces(L, { fills }).map((f) => {
-    const c = f.corners, u = sub(c[1], c[0]), v = sub(c[3], c[0]);
-    const cell = f.group.startsWith('cell:') ? K.T.byName.get(f.group.slice(5)) : -1;
-    return { cell, w: r2(Math.hypot(...u) * UNIT), h: r2(Math.hypot(...v) * UNIT), fill: f.fill, clip: f.clip ?? null, t: planeMatrix(c[0], u, v, UNIT) };
-  });
+  const cams = tableCams(L, VIEWPORT, UNIT, turnPt);
+  const faces = tableFaces(L, { fills }, UNIT, (name) => K.T.byName.get(name));
   // a token lies on its cell's top, its text upright for the seat
   const side = TOKEN * L.cell, ux = [Math.cos(turnRad), Math.sin(turnRad), 0], vy = [Math.sin(turnRad), -Math.cos(turnRad), 0];
   const tokens = L.cells.map((cl) => {
@@ -142,7 +128,7 @@ ${broadcastDomCss(tv)}
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="pass" style="display:none">Pass</button><button id="undo">Undo</button><button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>
@@ -169,6 +155,7 @@ const TV = (${broadcastDomClient.toString()})(DATA.tv);
    (broadcast-dom.js): the seats, the calls, the result. */
 export function tabletopClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human];
   const glyph = (kind) => { const g = D.G.pieces[kind] && D.G.pieces[kind].glyph; return g === undefined ? kind : g; };
   const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
@@ -269,6 +256,9 @@ export function tabletopClient(D, T, M, TV) {
     });
     box.style.display = 'flex';
   }
+  // a choice not made: a click outside the row, or Escape, puts the picker away and the piece stays picked up
+  $('pick').addEventListener('click', (e) => { if (e.target === $('pick')) $('pick').style.display = 'none'; });
+  window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && $('pick').style.display === 'flex') $('pick').style.display = 'none'; });
 
   function status() {
     const end = S.over || T.outcome(K, S, legal);
@@ -344,7 +334,7 @@ export function tabletopClient(D, T, M, TV) {
       seats: K.players.map((p, s) => { const got = takes(s); return { name: who(s), note: got.length ? got.slice(-8).map(glyph).join('') : s === me ? p.id : 'computer', color: s, score: sc ? sc[s] : placing() ? undefined : caps[s], live: !end && S.side === s, clock: S.clock ? fmt(S.clock[s]) : null }; }),
       tab: end ? 'Final' : status(),
     });
-    $('moves').innerHTML = line.map((x) => '<li>' + (x.side ? x.side + ' ' : '') + x.name + '</li>').join('');
+    $('moves').innerHTML = line.map((x) => '<li>' + esc((x.side ? x.side + ' ' : '') + x.name) + '</li>').join('');
     $('moves').scrollTop = 1e6;
     $('undo').disabled = busy || !line.length;
     $('pass').style.display = !S.over && S.side === me && !busy && legal.some((m) => m.p < 0 && !m.drop) ? '' : 'none';

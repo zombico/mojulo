@@ -175,7 +175,9 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
   const orderEl = battle ? panel('left:12px;top:12px;pointer-events:none') : null;
   const cardEl = battle ? panel('right:12px;top:12px;pointer-events:none;min-width:190px') : null;
   const menuEl = battle ? panel('right:12px;bottom:12px;min-width:210px;display:none;cursor:pointer') : null;
-  const bannerEl = battle || D.map ? panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none') : null;
+  // the banner: the end's word, centred over the board (a battle's, a map's, a tower defence's, a skirmish's)
+  const banner = () => panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none;text-align:center');
+  const bannerEl = battle || D.map ? banner() : null;
   const floats = [];
   const LEGEND = {
     free: rts ? 'arrows / WASD / edge: pan · Z X: zoom · V: tilt' : 'arrows / WASD: cursor · Q E: turn · Z X: zoom · V: tilt · Enter: select / move · Esc: back',
@@ -190,7 +192,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     travel: 'on the road…',
     wait: 'the level is starting',
     scene: '',
-    td: 'arrows / WASD / edge: pan · Z X: zoom · click or Enter: build · 1 2 3: tower · S: sell · N: next wave · B: where',
+    td: 'arrows / edge: pan · Z X: zoom · click or Enter: build · 1 2 3: tower · S: sell · N: next wave · B: where',
     rts: 'arrows / edge: pan · Z X: zoom · click: select (a foe: shown) · drag: a box of units · right-click: move, attack, gather, rally · the card: each command and its key (Keys: rebind them) · Ctrl+1–9 / 1–9: groups · .: idle worker · Pause · [ ]: speed · End twice: give up',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
@@ -465,7 +467,6 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     bannerEl.style.display = 'block';
     const sp = S.spoils, got = sp ? [sp.xp ? `${sp.xp} xp` : '', sp.cp ? `${sp.cp} class points` : '', sp.gold ? `${sp.gold} gold` : '', ...sp.drops].filter(Boolean).join(' · ') : '';
     bannerEl.textContent = (HUMAN.size ? (W == null ? 'Draw' : won ? 'Victory' : 'Defeat') : (W == null ? 'Draw' : `${W} wins`)) + (got ? `\n${got}` : '');
-    bannerEl.style.textAlign = 'center';
     // the level hears it on its bus, as it hears the party battles' end
     keep(won);   // the store hears the spoils before the level hears it is over
     const ev = HUMAN.size ? (W == null ? 'board-draw' : won ? 'board-won' : 'board-lost') : 'board-over';
@@ -617,6 +618,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
   window.addEventListener('keydown', (e) => {
     if (mode === 'scene') return;   // a story slot plays: the scene has the keys
     if (mode === 'rts' && (/^Key[WASDQE]$/.test(e.code) || (rtsp && rtsp.claims(e)))) return;   // a skirmish's orders (its keys first), not the cursor's or the camera's
+    if (mode === 'td' && /^Key[WASD]$/.test(e.code)) return;   // a defence's letters are its own (S sells): the arrows and the edge pan
     if (e.code in DIRS) {
       e.preventDefault();
       if (rts) held[DIRS[e.code]] = true;
@@ -828,26 +830,23 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     busSeen = log.length;
   }
 
+  // what a game played on the board (a tower defence, a skirmish) is handed: a point of the grid in the world, and the bus
+  const worldAt = (q) => {
+    const c = Math.max(0, Math.min(B.cols - 1, Math.floor(q[0]))), r = Math.max(0, Math.min(B.rows - 1, Math.floor(q[1]))), t = tops[r * B.cols + c];
+    return [O[0] + q[0] * cell, O[1] + q[1] * cell, t ? t[2] : O[2]];
+  };
+  const push = (type) => { if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type }); };   // eslint-disable-line no-undef
+
   // ── a tower defence (board-td.js, played by board-td-page.js): the board hands it what it has made ──────────────
   if (TDP && D.td) {
-    const worldAt = (q) => {
-      const c = Math.max(0, Math.min(B.cols - 1, Math.floor(q[0]))), r = Math.max(0, Math.min(B.rows - 1, Math.floor(q[1]))), t = tops[r * B.cols + c];
-      return [O[0] + q[0] * cell, O[1] + q[1] * cell, t ? t[2] : O[2]];
-    };
-    const push = (type) => { if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type }); };   // eslint-disable-line no-undef
-    tdp = TDP({ THREE, scene, D, B, root, tops, highlight, panel, FX, TDK, cursorAt: () => cursor, worldAt, push });
+    tdp = TDP({ THREE, scene, D, B, root, tops, highlight, panel, banner, FX, TDK, cursorAt: () => cursor, worldAt, push });
     mode = 'td';
     readout();
   }
 
   // ── a skirmish (board-rts.js, played by board-rts-page.js): the board hands it what it has made ─────────────────
   if (RTP && D.rts) {
-    const worldAt = (q) => {
-      const c = Math.max(0, Math.min(B.cols - 1, Math.floor(q[0]))), r = Math.max(0, Math.min(B.rows - 1, Math.floor(q[1]))), t = tops[r * B.cols + c];
-      return [O[0] + q[0] * cell, O[1] + q[1] * cell, t ? t[2] : O[2]];
-    };
-    const push = (type) => { if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type }); };   // eslint-disable-line no-undef
-    rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push, focus: (p) => CAM.focusOn(C, p) });
+    rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, banner, FX, RTK, spotAt, worldAt, push, focus: (p) => CAM.focusOn(C, p) });
     mode = 'rts';
     readout();
   }

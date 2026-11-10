@@ -11,11 +11,9 @@
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient, TABLE_LOOKS } from '../broadcast/broadcast-dom.js';
+import { LEVELS, escapeHtml, scriptJson, levelSelect } from './page-kit.js';
 
-const LEVELS = ['easy', 'fair', 'hard'];
 
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function cardPageHtml(G, L, K, opts = {}) {
   const { human, level, seed } = opts;
@@ -75,7 +73,7 @@ ${broadcastDomCss(data.tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>

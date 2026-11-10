@@ -13,11 +13,13 @@
  *                     training's settings, the match's results
  *   idioms-brawl.js   a beat-'em-up's own readouts, its practice room's: the line at each body's feet, the attack tokens,
  *                     the chain's blows, the clinch, the press log
+ *   idioms-table.js   a board game's own language: the seats, the hand, a row of cards, the prompt and its actions, the
+ *                     log; one question at a time, an offer across the table; the places at the end
  *   idioms-live.js    the live game by kind of game: a fight, a race, a firefight, survival, strategy, a match, a
  *                     cutscene, stealth, quests, a phone; and the menus that come up mid-play (a battle's commands, a
  *                     unit's actions, the scoreboard, a strategy game's orders)
  *
- *   IDIOMS        name → { kind: 'screen' | 'hud', shelf: 'front' | 'rpg' | 'hud' | 'live' | 'fight' | 'brawl', about, reads, emits, params, node,
+ *   IDIOMS        name → { kind: 'screen' | 'hud', shelf: 'front' | 'rpg' | 'hud' | 'live' | 'fight' | 'brawl' | 'table', about, reads, emits, params, node,
  *                 example, waits? } (waits: the param
  *                 that must be true before a screen has anything to press, a loading screen's ready)
  *                 coverage: a HUD part a TV coverage draws on a covered page (a sport's broadcast: the bug, the strap,
@@ -32,9 +34,10 @@ import { HUD_IDIOMS } from './idioms-hud.js';
 import { LIVE_IDIOMS } from './idioms-live.js';
 import { FIGHT_IDIOMS } from './idioms-fight.js';
 import { BRAWL_IDIOMS } from './idioms-brawl.js';
+import { TABLE_IDIOMS } from './idioms-table.js';
 
 const shelf = (name, set) => Object.fromEntries(Object.entries(set).map(([k, v]) => [k, Object.freeze({ ...v, shelf: name })]));
-export const IDIOMS = Object.freeze({ ...shelf('front', FRONT_IDIOMS), ...shelf('rpg', RPG_IDIOMS), ...shelf('hud', HUD_IDIOMS), ...shelf('live', LIVE_IDIOMS), ...shelf('fight', FIGHT_IDIOMS), ...shelf('brawl', BRAWL_IDIOMS) });
+export const IDIOMS = Object.freeze({ ...shelf('front', FRONT_IDIOMS), ...shelf('rpg', RPG_IDIOMS), ...shelf('hud', HUD_IDIOMS), ...shelf('live', LIVE_IDIOMS), ...shelf('fight', FIGHT_IDIOMS), ...shelf('brawl', BRAWL_IDIOMS), ...shelf('table', TABLE_IDIOMS) });
 export const IDIOM_IDS = Object.keys(IDIOMS);
 export const SCREEN_IDIOMS = IDIOM_IDS.filter((k) => IDIOMS[k].kind === 'screen');
 export const HUD_IDIOM_IDS = IDIOM_IDS.filter((k) => IDIOMS[k].kind === 'hud');

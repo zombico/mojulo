@@ -171,8 +171,8 @@ widgets under a pointer (only the view knows where they are).
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
-| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type) |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars |
+| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
 | hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
@@ -543,6 +543,8 @@ into the sample state (`samples.js`).
 
 A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used as a screen of the spec.
 
+- `idioms-table.js` — a board game's own language (below): the seats, the hand, a row of cards, the prompt and its
+  actions, the log; one question at a time, an offer across the table; the places at the end.
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
@@ -643,6 +645,44 @@ white names, the rounds as dots, a hairline where a window needs an edge), and t
 register's: a soft gradient plate, a shadow under the words, warm gold). Each keys its two sides apart, and none
 leans, stacks, breaks out, stands a shape behind the fight or slams (`fight-look.test.js`). The board draws the fight
 and training HUDs and every fight screen: `node scripts/mana-board.mjs <out.html> --theme fight-clean`.
+
+## The table's language
+
+A board game's UI is what sits round the board while it is played. The board, its cells and its pieces are the game's
+world, picked through the controls layer's `board` scheme; the table's parts are drawn over it by the same components,
+sheet and themes. It lives in `idioms-table.js` (shelf `table`) and holds to six principles:
+
+1. **The board is never covered.** The seats ride its top edge, the hand its foot, the log a side. A question takes
+   the centre only while it is being asked.
+2. **Whose turn it is is a shape and a place.** The seat to play is alight with a bar at its edge (`turn: true`), and a
+   seat's kit is a chip beside its name, never a colour alone.
+3. **One question at a time.** A promotion, a discard, a bid, a target: `choice-prompt`. Back leaves it only where the
+   game lets the choice be put off (`cancel`); with none, back does nothing.
+4. **The hand is at the foot, in reach.** A `card`'s state is a shape: what can be played now has an edge alight, what
+   is picked is lifted, what is spent lies on its side, what is hidden is a back and a count.
+5. **History is kept, never in the way.** The `log` holds every row, shows its end and counts the rest.
+6. **What cannot be done says why, where it is** (`why` on a disabled button, slot, row or cell).
+
+| shelf `table` | what |
+|---|---|
+| `seat-plates` | the seats along the top: chip, name, a note, the score, the clock, the seat to play alight; flagged `coverage`, so a table its broadcast covers asks the broadcast for them |
+| `card-hand` | your hand along the foot; a tap plays a card |
+| `card-row` | cards laid out to be taken or read (a market, a supply's piles, a tableau, another seat's backs), at the place the game names |
+| `action-bar` | the prompt and what can be done now, each action on its key, a disabled one saying why |
+| `game-log` | the game so far, numbered, each row its seat's chip |
+| `choice-prompt` | one question and its answers in a grid |
+| `trade-offer` | what you give and what you get, each a count turned, and the offer |
+| `table-results` | the outcome and why, the places by points (ties share a place), then what next |
+
+The pause over a table is the front's `pause-menu`. A strategy board's parts are on the `live` shelf: `turn-order` (a
+tactics battle's and a turn-based fight's, one part wherever it is drawn), `selection-grid`, `skirmish-lobby` and
+`skirmish-results` (its figures side against side, each side's strength over the match as a `spark`), beside
+`resource-bar`, `unit-card`, `combat-forecast`, `tactics-menu`, `command-card` and `wave-status`.
+
+**Its looks** are theme cards of the family `table`: `table-wood` (plates of the board's light inlay framed in its
+wood, a book face in mixed case) and `table-felt` (card stock on green felt). Neither names its sides: a table's kits
+are its players'. No board-game or strategy page is drawn by these yet; the board (`scripts/mana-board.mjs <out.html>
+--theme table-wood`) is where a person looks at them.
 
 ## Sports and the broadcast
 

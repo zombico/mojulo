@@ -8,7 +8,7 @@
  *   wave now · B: the spots a tower may stand on (the mazing rule) · the camera's own (pan, edge scroll, zoom)
  *
  * `boardTdPage(api)` runs on the page only, inside the board channel's block, handed what the board page has made
- * (api: { THREE, scene, D, B, root, tops, highlight, panel, FX, TDK, cursorAt, worldAt, push }); emitted only when a board has
+ * (api: { THREE, scene, D, B, root, tops, highlight, panel, banner, FX, TDK, cursorAt, worldAt, push }); emitted only when a board has
  * `td`, so no other board carries a byte of it. It returns { step(dt), pick(spot), readout(spot), probe }.
  */
 
@@ -125,7 +125,7 @@ export function boardTdPage(api) {
 
   // the panel: the wave, the purse, the lives, the tower in hand
   const pan = api.panel('left:12px;top:12px;pointer-events:none');
-  const banner = api.panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none;text-align:center');
+  const banner = api.banner();
   function drawPanel() {
     const wave = T.next, waves = cfg.waves.length;
     const when = T.out.length ? 'coming in' : T.next < waves ? `next in ${Math.max(0, Math.ceil(T.clock))} s (N: now)` : T.foes.length ? 'the last of them' : '';

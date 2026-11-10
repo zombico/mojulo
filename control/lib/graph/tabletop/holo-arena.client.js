@@ -428,8 +428,12 @@ function lightSelection() {
   if (sel < 0) return markCells([]);
   markCells([[sel, 0xffffff], ...legal.filter((m) => m.from === sel).map((m) => [m.to, m.cap.length ? 0xff4f7a : 0x5cff8a])]);
 }
-wrap.addEventListener('pointerdown', (ev) => click(cellUnder(ev)));
-window.addEventListener('keydown', (e) => { if (e.code === 'Enter' && phase === 'over') begin(lastParams || {}); });
+// a choice not made: a press on the board, or Escape, puts the picker away (the press then picks as any other)
+wrap.addEventListener('pointerdown', (ev) => { if (ev.target.closest && ev.target.closest('button')) return; picker.style.display = 'none'; click(cellUnder(ev)); });
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') picker.style.display = 'none';
+  if (e.code === 'Enter' && phase === 'over') begin(lastParams || {});
+});
 
 // ── the frame ────────────────────────────────────────────────────────────────────────────────────────────────
 

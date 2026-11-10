@@ -9,20 +9,16 @@
  */
 
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
-import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
-import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
+import { planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient } from '../broadcast/broadcast-dom.js';
 import { pieceBodies } from './tabletop-bodies.js';
+import { LEVELS, r2, escapeHtml, scriptJson, levelSelect, tableCams, tableFaces } from './page-kit.js';
 
 const VIEWPORT = { width: 760, height: 600 };
 const UNIT = 70;
-const LEVELS = ['easy', 'fair', 'hard'];
 
-const r2 = (x) => Math.round(x * 100) / 100;
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function euroPageHtml(G, L, K, opts = {}) {
   const { human, level, view, seed } = opts;
@@ -40,16 +36,9 @@ export function euroPageHtml(G, L, K, opts = {}) {
   L.edges.forEach((e) => { const [a, b] = e.ends.map((k) => L.corners[k].at); planPlaces.push([sx(a[0]), sy(a[1]), sx(b[0]), sy(b[1])]); });
 
   // the table: faces, cameras, and a placed plane for every place (a disc on a hex, a token on a corner, a bar on an edge)
-  const cams = latticeCameras(L).map((c) => {
-    const { matrix, perspective, center } = cameraMatrixFromWorldFraming(c.worldFraming, VIEWPORT, UNIT);
-    return { name: c.name, matrix, perspective: r2(perspective), center };
-  });
+  const cams = tableCams(L, VIEWPORT, UNIT);
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const faces = latticeFaces(L, { types: fills }).map((f) => {
-    const c = f.corners, u = sub(c[1], c[0]), v = sub(c[3], c[0]);
-    const cell = f.group.startsWith('cell:') ? P.byName.get(f.group.slice(5)) : -1;
-    return { cell, w: r2(Math.hypot(...u) * UNIT), h: r2(Math.hypot(...v) * UNIT), fill: f.fill, clip: f.clip ?? null, t: planeMatrix(c[0], u, v, UNIT) };
-  });
+  const faces = tableFaces(L, { types: fills }, UNIT, (name) => P.byName.get(name));
   const flat = (centre, side, lift) => planeMatrix([centre[0] - side / 2, centre[1] + side / 2, centre[2] + lift], [1, 0, 0], [0, -1, 0], UNIT);
   const sizes = { cell: 0.4 * L.cell, corner: 0.3 * L.cell, edge: [0.6 * L.cell, 0.09 * L.cell] };
   const tablePlaces = [];
@@ -134,7 +123,7 @@ ${broadcastDomCss(data.tv)}
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>
@@ -165,6 +154,7 @@ const TV = (${broadcastDomClient.toString()})(DATA.tv);
 /* The euro page's own code: runs in the browser, references only its arguments and the DOM. */
 export function tabletopEuroClient(D, T, M, TV) {
   const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], P = K.P, look = D.G.look || {};
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255); };
   const resColour = (r) => (look.resources && look.resources[r]) || '#999';
@@ -209,7 +199,7 @@ export function tabletopEuroClient(D, T, M, TV) {
   function r_delay() { return S.phase === 'opening' ? 260 : 420; }
   function note(side, m) {
     if (m.type === 'end') return;
-    log.push('<li><i class="sw" style="background:' + colour(side) + '"></i><b>' + K.players[side].id + '</b> ' + label(m) + '</li>');
+    log.push('<li><i class="sw" style="background:' + colour(side) + '"></i><b>' + esc(K.players[side].id) + '</b> ' + esc(label(m)) + '</li>');
   }
   function label(m) {
     if (m.type === 'build') return 'builds a ' + m.kind;
@@ -367,7 +357,7 @@ export function tabletopEuroClient(D, T, M, TV) {
     $('seats').innerHTML = K.players.map((p, s) => {
       const hand = K.res.reduce((a, r) => a + S.hand[s][r], 0), dev = Object.values(T.held(S, s)).reduce((a, b) => a + b, 0);
       const won = Object.keys(awards).filter((id) => S.awards[id] === s).map((id) => awards[id].name || id).join(', ');
-      return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + p.id + (s === me ? ' (you)' : '') + '</span><span>' + T.score(K, S, s, s !== me) + ' pts · ' + hand + ' cards · ' + dev + ' dev' + (won ? ' · ' + won : '') + '</span></div>';
+      return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + T.score(K, S, s, s !== me) + ' pts · ' + hand + ' cards · ' + dev + ' dev' + (won ? ' · ' + won : '') + '</span></div>';
     }).join('');
     $('log').innerHTML = log.join('');
     $('log').scrollTop = 1e6;

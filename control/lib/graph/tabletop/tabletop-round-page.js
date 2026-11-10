@@ -19,12 +19,9 @@ import { buildTabletopMind } from './tabletop-mind.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient, TABLE_LOOKS } from '../broadcast/broadcast-dom.js';
 import { shapeIcon } from './tabletop-shapes.js';
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
+import { LEVELS, r2, escapeHtml, scriptJson, levelSelect } from './page-kit.js';
 
-const LEVELS = ['easy', 'fair', 'hard'];
 
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
-const r2 = (x) => Math.round(x * 100) / 100;
 
 // a piece's side silhouette as an SVG path in a 0–24 box, from its shape (none: null)
 function iconPath(shape) {
@@ -125,7 +122,7 @@ ${broadcastDomCss(data.tv)}
 </style></head><body>
 <header>
   <h1>${escapeHtml(title)}</h1>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>

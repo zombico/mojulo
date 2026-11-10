@@ -22,7 +22,7 @@
  *   its idle rule, auto-cast; a building: train, research, upgrade, repeat, rally), a targeted one armed for the next
  *   click; a button that cannot act says why. Every key is the kernel's HOTKEYS', the game's rts.keys over them, and
  *   the player's own over those (the card's Keys panel, kept in the browser)
- *   the clock: the game's time in the panel; P pauses, [ ] slow it and speed it (half, normal, faster, double); every
+ *   the clock: the game's time in the panel; Pause pauses, [ ] slow it and speed it (half, normal, faster, double); every
  *   action the player takes goes through the kernel's one way in (act) and is logged by its step, so the game replays
  *   from its log; each side's actions a minute (APM, the human measure) beside the clock
  *   control groups: Ctrl+1 … 9 keeps the selection (a building alone, too), Shift+n adds to it, n takes it again (twice
@@ -39,7 +39,7 @@
  *   match went)
  *
  * `boardRtsPage(api)` runs on the page only, inside the board channel's block (api: { THREE, scene, camera, renderer,
- * D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push }); emitted only when a board has `rts`. It returns
+ * D, B, root, tops, panel, banner, FX, RTK, spotAt, worldAt, push, focus }); emitted only when a board has `rts`. It returns
  * { step(dt), readout(spot), probe }.
  */
 
@@ -290,7 +290,7 @@ export function boardRtsPage(api) {
 
   // ── the panel: the purse, what is selected and what it can do, what the next click will do ───────────────────────
   const pan = api.panel('left:12px;top:12px;pointer-events:none');
-  const banner = api.panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none;text-align:center');
+  const banner = api.banner();
   const boxEl = typeof document !== 'undefined' ? document.createElement('div') : null;
   if (boxEl) { boxEl.style.cssText = 'position:fixed;border:1px solid #7dffb0;background:rgba(125,255,176,0.12);pointer-events:none;display:none;z-index:9'; document.body.appendChild(boxEl); }
   // what the player's side can raise (B, B again for the next), and the step its building researches next (T)
@@ -828,7 +828,7 @@ export function boardRtsPage(api) {
 
   function pause(on) {
     paused = !!on;
-    if (!result) { banner.style.display = paused ? 'block' : 'none'; banner.textContent = paused ? 'Paused\nP to play on' : ''; }
+    if (!result) { banner.style.display = paused ? 'block' : 'none'; banner.textContent = paused ? 'Paused\n' + keyName(keys.pause) + ' to play on' : ''; }
     drawPanel();
     return paused;
   }
