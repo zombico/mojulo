@@ -7,3 +7,12 @@
   the guns its hero holds, else its feel template's own loadout (Conscription a rifle, a handgun and a knife; Cogs of
   Combat a rifle, a shotgun and a handgun; Infinity Crisis a rifle and a launcher; Steel Serpents a handgun and a
   knife). No new recipe key.
+- The door routes by how a game fights. A shooter's template (Conscription, Cogs of Combat, Infinity Crisis) has the
+  firing range; so does any world whose hero carries a gun. Steel Serpents has the range (its pistol and its knife on V)
+  and no longer the action room, which taught launchers and juggles its stealth game does not have. Galaxy Boy keeps
+  the platform room: its buster is a platformer's.
+- Mech Battle Kai owns its machine: a transforming biped of the mecha shelf, the rover walker (`TEMPLATE_FRAMES`). Its
+  room is the artillery range on that frame: it walks on the walker's own gait, folds its legs into its wheeled form and
+  drives, and fires its own mounts.
+- Served at `bible?book=practice&room=range|artillery`, listed by design_game's readout and the rail, each with its
+  icon (a crosshair, a shell).
