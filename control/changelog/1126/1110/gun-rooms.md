@@ -21,3 +21,8 @@
   at each band), tallied in design_game's readout as `practice.measured.range` beside the feel's own measure. A law
   lost is advised as a `feel` step, never a refusal. The measures are kept by the guns they were taken on, so a
   readout does not measure the same guns twice. The readout's `practice` now lists its rooms under `rooms`.
+- The run & gun joins the cube: a probe of its own (a street the game scrolls, guns in eight directions, slow rounds
+  stepped off, friends dropping in), its gunplay a value of its own (`arcade`: rounds that fly, lobs and bursts, poise),
+  both local until the brawler's door makes one from a gameworld; that door now says it opens the run & gun too. A
+  brief that names it ("run & gun", "contra-style", "metal slug") reads as this genre; "run and gun" alone, which also
+  says a platformer that shoots, only leans toward it.
