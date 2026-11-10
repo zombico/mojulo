@@ -63,6 +63,7 @@ import { levelLawsOf, STAFFING, readLedger, notesWith, pullThrough, remitAdvice,
 import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskRepository, GameworldProductionRepository, GameworldReqNoteRepository } from '@/lib/db/repositories/gameworld-reqs.js';
 import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpointLevels, productionSummary } from '@/lib/graph/gameworld/production.js';
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
+import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
 import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
 import { segmentUnits, checkSegment, segmentRemit } from '@/lib/graph/gameworld/segments.js';
@@ -555,6 +556,9 @@ function readout(ref, world, context = {}) {
   const gauntletGaps = gauntletAdviceOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(MQ?.laws.length ? { mainQuest: MQ.laws } : {}), ...(loopGaps.length ? { loop: loopGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
+  // a book that stands on an intent with no ask on the ledger (gameworld/routing.js): said, and the ask leads
+  const unasked = askAdvice(world, { asked: GameworldAskRepository.list(ref).length > 0 });
+  if (unasked) { advice.intent = [unasked.says]; next.unshift(unasked.next); }
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM ? { measured: { range: rangeM } } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
@@ -1317,6 +1321,24 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)
   const ticket = ask !== undefined ? linkAsk(ref, ask, { raised: ledger.summary?.raised ?? [], approve, revise, patched, ran }) : null;
   if (ticket) full.ask = ticket;
+  // (the ask this call cut answers the advice the readout gave before it was cut)
+  if (ticket && full.advice?.intent?.[0] === ASK_SAYS) {
+    const { intent: _i, ...rest } = full.advice;
+    full.advice = rest;
+    full.next = full.next.filter((n) => n.step !== 'ask');
+  }
+  // a run's advice, read whole: each distinct line its steps gave, and how many gave it (gameworld/routing.js)
+  const ranAdvice = runAdvice(ran);
+  if (ranAdvice.length) full.advice = { ...full.advice, run: ranAdvice };
+  // the game built with no ask on record is stamped in the build ledger; an ask that links a run since lifts it
+  if (ran) {
+    const made = unaskedStamp(W.made, { asked: GameworldAskRepository.list(ref).length > 0, needs: needsAsk(W), built: ran.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake')) });
+    if (made !== W.made) {
+      const base = W;
+      W = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), base, { ...W, made });
+      await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+    }
+  }
   // a trace: from a ticket, the intent above it and the work below it
   if (trace !== undefined) return { ok: true, readout: 'trace', ref, trace: traceFrom(ref, trace, ledger.L.reqs) };
   // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)

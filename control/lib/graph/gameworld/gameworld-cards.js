@@ -225,6 +225,7 @@ function guide() {
     'SIZE THE ASK first. One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
     'progression: the QUICK path, one call; read gameworld-quick only. Several levels, no hero: COMPOSE,',
     '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below, by chapter (gameworld-studio).',
+    'The book starts from a ticket: `ask: { intent }` with its first patch (gameworld-ledger).',
     '',
     'THE LOOP (each page answers ONE question, from the brief and the pages above it; never from a default):',
     '  intent      what game is it? its cube; the world is laid for it (gameworld-intent)',
