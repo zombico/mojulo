@@ -50,6 +50,11 @@ plans, and each is rewritten as it lands.
   answered changes. It then reports, without deciding: events with no stated cause, stretches where nobody could act,
   conflicts two sides' wants imply that the text never states, and how much material there is for one story or
   several.
+- **More lore can be added later.** A setting is rarely told in one go. When you come back with more, what you add
+  (new sides, new places, events that belong earlier in the story) is set in where it belongs and everything that
+  referred to the old order still points at the same things; nothing already there is reworded. When your text does
+  not say when something happened against the rest, it is placed after what it must follow and marked as "when: not
+  said", so the gap is visible and not papered over.
 - **A game can keep it.** The backdrop is saved on the game itself, shown in its game book (the events in order, where
   play begins, what is open and unsaid), and each chapter of the book is handed only its own part: the world chapter
   gets the places as history left them, the cast chapter the people and what they want, the story chapter what

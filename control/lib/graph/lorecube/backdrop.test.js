@@ -1,6 +1,6 @@
 // Narrative lore, extracted: it sets down what a text says and marks what it reads into it; it never authors.
 import { describe, it, expect } from 'vitest';
-import { BACKDROP, BASES, AGENCIES, newBackdrop, intensifyBackdrop, clarifyBackdrop, readBackdrop, backdropReport, backdropLaws, chapterDigest } from './backdrop.js';
+import { BACKDROP, BASES, AGENCIES, newBackdrop, intensifyBackdrop, clarifyBackdrop, extendBackdrop, readBackdrop, backdropReport, backdropLaws, chapterDigest } from './backdrop.js';
 import { depthOf, openOf, rawNewCeiling, checkPass } from './passes.js';
 import { CHAPTERS } from '../gameworld/chapters.js';
 
@@ -167,5 +167,56 @@ describe('chapterDigest', () => {
     expect(D.intent.play).toMatch(/not given/);
     expect(D.story.before_play).toHaveLength(4);
     expect(D).not.toHaveProperty('main-quest');
+  });
+});
+
+describe('extendBackdrop: the author\'s further text', () => {
+  const played = () => intensifyBackdrop(whole(), { play: { begins: { after: 4 }, route: [{ place: 'town', shows: [2, 4] }], basis: 'stated' } }).backdrop;
+
+  it('sets new events in after the ones they follow, renumbers, and every reference follows', () => {
+    const B = played();
+    const X = extendBackdrop(B, {
+      actors: [{ id: 'masons', name: 'the masons', kind: 'people' }],
+      stretches: [{ id: 's1b', handle: 'the building', agency: 'acted', after: 's1' }],
+      events: [
+        { says: 'Masons are brought from the coast', who: ['masons'], after: 2, stretch: 's1b', from: [2] },
+        { says: 'They cut the stone from the valley\'s own walls', who: ['masons'], after: 2, stretch: 's1b', from: ['new:1'], order: 'unsaid' },
+      ],
+    });
+    expect(X.events.map((e) => e.says.slice(0, 12))).toEqual(['The river fl', 'The millers ', 'Masons are b', 'They cut the', 'The valley d', 'The lowlande']);
+    expect(X.events.map((e) => e.n)).toEqual([1, 2, 3, 4, 5, 6]);
+    // the new ones' causes, and the old ones', by their new numbers
+    expect(X.events[2].from).toEqual([2]);
+    expect(X.events[3].from).toEqual([3]);
+    expect(X.events[4].from).toEqual([2]);
+    expect(X.events[5].from).toEqual([5]);
+    // where play begins and what the route shows follow the same events
+    expect(X.play.begins).toEqual({ after: 6 });
+    expect(X.play.route[0].shows).toEqual([2, 6]);
+    expect(X.stretches.map((s) => s.id)).toEqual(['s1', 's1b', 's2', 's3']);
+    expect(backdropReport(X).unordered).toEqual([4]);
+  });
+
+  it('keeps every word that was there; adds, never corrects', () => {
+    const B = whole(), X = extendBackdrop(B, { places: [{ id: 'ridge', name: 'the ridge', state: 'bare' }], texture: ['the dam hums at night'], unknowns: ['who lives on the ridge'], wants: [{ who: 'lowlanders', wants: 'the toll lowered', basis: 'stated' }] });
+    expect(X.events).toEqual(B.events);
+    expect(X.places.slice(0, 2)).toEqual(B.places);
+    expect(X.wants).toHaveLength(B.wants.length + 1);
+    expect(X.texture.at(-1)).toBe('the dam hums at night');
+    expect(() => extendBackdrop(B, { actors: [{ id: 'millers', name: 'the millers again', kind: 'people' }] })).toThrow(/already there: further text adds; a correction is clarifyBackdrop/);
+  });
+
+  it('says what is wrong: an event with nowhere to go, a cause that is no event, a stretch broken in two', () => {
+    const B = whole();
+    expect(() => extendBackdrop(B, { events: [{ says: 'x', after: 9 }] })).toThrow(/after is the event it follows, as the backdrop stands: 0 to 4/);
+    expect(() => extendBackdrop(B, { events: [{ says: 'x', after: 2, stretch: 's1', from: ['new:3'] }] })).toThrow(/or an earlier new one/);
+    expect(() => extendBackdrop(B, { events: [{ says: 'x', after: 3, stretch: 's1' }] })).toThrow(/one unbroken run of events/);
+    expect(() => extendBackdrop(B, { stretches: [{ id: 'sx', handle: 'x', agency: 'acted' }] })).toThrow(/says the stretch it comes after/);
+  });
+
+  it('a clarification may restate a conflict the author names again', () => {
+    const C = clarifyBackdrop(whole(), { conflicts: { 'the-water': { over: 'the floods, and who pays for them' } } });
+    expect(C.conflicts[0].over).toBe('the floods, and who pays for them');
+    expect(C.conflicts[0].between).toEqual(['millers', 'river']);
   });
 });

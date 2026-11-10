@@ -16,8 +16,9 @@
  *
  * WHAT A LORE DROP HOLDS (the statement kinds):
  *   actors     [{ id, name, kind: people | force, says? }]        a force is something no one commands
- *   events     [{ n, says, who?: [actor], at?: [place], from?: [n], stretch? }]   in order; `from` the earlier events it
- *              comes from
+ *   events     [{ n, says, who?: [actor], at?: [place], from?: [n], stretch?, order?: 'unsaid' }]   in order; `from` the
+ *              earlier events it comes from; `order: 'unsaid'` when the text does not say when it happened against the
+ *              others (it is put after what it must follow, and said to be so)
  *   stretches  [{ id, handle, span?, agency: acted | watched | studied }]   runs of events; `agency` whether anyone in
  *              it can act, as the text says
  *   places     [{ id, name, state, who?: [actor] }]              the world as it stands where the text stops
@@ -40,9 +41,14 @@
  *   newBackdrop({ title?, actors, events })          a RAW-NEW pass
  *   intensifyBackdrop(B, add) → { backdrop, open }   an INTENSIFICATION, rungs in order
  *   clarifyBackdrop(B, { resolves, …patches }) → backdrop   the author's answer, as a patch
+ *   extendBackdrop(B, more) → backdrop               the author's FURTHER TEXT: lore comes in more than one drop. It adds
+ *                                                    what the new text holds (actors, places, events set in after an
+ *                                                    earlier one, a stretch for them, moves, texture, wants, conflicts,
+ *                                                    threads, unknowns) and renumbers; what was there keeps its words.
+ *                                                    Adding is the author's: the tool never extends a backdrop itself
  *   readBackdrop(v)                                  a stored backdrop at any depth: read, or throws, teaching
  *   BACKDROP                                         the part (passes.js)
- *   backdropReport(B) → { uncaused, stretches, derived, open, placeEvents, coverage?, depth }
+ *   backdropReport(B) → { uncaused, unordered, stretches, derived, open, placeEvents, coverage?, depth }
  *       what the tool works out, each reported and none decided: events with no stated cause; each stretch's events
  *       and whether anyone acts; conflicts two wants imply that are not listed (`derived`); the conflicts open where
  *       the text stops; the events that touch each place; given a route, how much of the backdrop it meets and what it
@@ -100,7 +106,7 @@ export function readBackdrop(v) {
   out.events = v.events.map((e, i) => {
     const at = `.events[${i}]`;
     if (!isObj(e)) throw fail(`${at} is { n, says, who?, at?, from?, stretch? }`);
-    only(e, ['n', 'says', 'who', 'at', 'from', 'stretch'], at);
+    only(e, ['n', 'says', 'who', 'at', 'from', 'stretch', 'order'], at);
     if (e.n !== i + 1) throw fail(`${at}.n is ${i + 1}: events are numbered from 1 in the order they happened`);
     if (!str(e.says)) throw fail(`${at}.says is what happened`);
     const ev = { n: e.n, says: e.says.trim() };
@@ -108,6 +114,7 @@ export function readBackdrop(v) {
     if (e.at !== undefined) ev.at = list(e.at, `${at}.at`, 'places').map((p) => { if (!placeIds.includes(p)) throw fail(`${at}.at '${p}' is no place of this backdrop`); return p; });
     if (e.from !== undefined) ev.from = list(e.from, `${at}.from`, 'earlier events').map((n) => { if (!Number.isInteger(n) || n < 1 || n >= e.n) throw fail(`${at}.from ${n} is not an earlier event: a cause comes before what it causes`); return n; });
     if (e.stretch !== undefined) { if (!stretchIds.includes(e.stretch)) throw fail(`${at}.stretch '${e.stretch}' is no stretch of this backdrop`); ev.stretch = e.stretch; }
+    if (e.order !== undefined) { if (e.order !== 'unsaid') throw fail(`${at}.order is 'unsaid' (the text does not say when it happened against the others), or left out`); ev.order = 'unsaid'; }
     return ev;
   });
   const nMax = out.events.length;
@@ -202,7 +209,7 @@ export function readBackdrop(v) {
 const pick = (v, keys) => (isObj(v) ? Object.fromEntries(keys.filter((k) => v[k] !== undefined).map((k) => [k, v[k]])) : null);
 const reads = (v) => { try { return readBackdrop(v); } catch { return null; } };
 // the premise: the events as told (what happened, who was in it), without the rungs laid on them later
-const bare = (v) => (isObj(v) && Array.isArray(v.events) ? { ...pick(v, ['title', 'part', 'actors']), events: v.events.map((e) => pick(e, ['n', 'says', 'who'])) } : null);
+const bare = (v) => (isObj(v) && Array.isArray(v.events) ? { ...pick(v, ['title', 'part', 'actors']), events: v.events.map((e) => pick(e, ['n', 'says', 'who', 'order'])) } : null);
 const RUNGS = { ordered: ['stretches'], present: ['places'], reading: ['wants', 'conflicts', 'threads', 'unknowns'], play: ['play'] };
 const EXTRA = { present: ['moves', 'texture'], reading: ['resolved'] };
 
@@ -266,7 +273,7 @@ export function intensifyBackdrop(B, add = {}) {
 export function clarifyBackdrop(B, patch = {}) {
   const base = readBackdrop(B);
   if (!isObj(patch)) throw fail(' is clarified with { resolves, actors?, events?, places?, texture?, threads?, unknowns?, play? }');
-  only(patch, ['resolves', 'actors', 'events', 'places', 'texture', 'threads', 'unknowns', 'play'], '.clarify');
+  only(patch, ['resolves', 'actors', 'events', 'places', 'conflicts', 'texture', 'threads', 'unknowns', 'play'], '.clarify');
   const resolves = wordsOf(patch.resolves ?? [], '.clarify.resolves');
   for (const r of resolves) if (!(base.unknowns ?? []).includes(r)) throw fail(`.clarify.resolves '${r}' is not one of its unknowns: a clarification answers what was open`);
   const next = { ...base };
@@ -281,16 +288,74 @@ export function clarifyBackdrop(B, patch = {}) {
   over('actors', (a) => a.id, '.clarify.actors');
   over('events', (e) => e.n, '.clarify.events');
   over('places', (p) => p.id, '.clarify.places');
+  over('conflicts', (c) => c.id, '.clarify.conflicts');
   for (const k of ['texture', 'threads', 'unknowns']) if (patch[k] !== undefined) next[k] = [...(base[k] ?? []), ...wordsOf(patch[k], `.clarify.${k}`)];
   if (resolves.length) { next.unknowns = next.unknowns.filter((u) => !resolves.includes(u)); next.resolved = [...(base.resolved ?? []), ...resolves]; }
   if (patch.play !== undefined) next.play = { ...(base.play ?? {}), ...patch.play };
   return readBackdrop(next);
 }
 
+/**
+ * The author's further text. `more`: { actors?, places?, stretches?: [{ id, handle, span?, agency, after: <stretch id> |
+ * null }], events?: [{ says, who?, at?, from?, stretch?, order?, after: <n of the backdrop as it stands>, 0 for before
+ * all }], moves?, texture?, wants?, conflicts?, threads?, unknowns? }. A new event's `from` names events of the
+ * backdrop as it stands by their numbers, or an earlier new event as 'new:<its place in the list, from 1>'. Events are
+ * renumbered; every reference to an event (a cause, the route, where play begins) follows it.
+ */
+export function extendBackdrop(B, more = {}) {
+  const base = readBackdrop(B);
+  if (!isObj(more)) throw fail(' is extended with what the further text holds: { actors?, places?, stretches?, events?, moves?, texture?, wants?, conflicts?, threads?, unknowns? }');
+  only(more, ['actors', 'places', 'stretches', 'events', 'moves', 'texture', 'wants', 'conflicts', 'threads', 'unknowns'], '.extend');
+  const next = { ...base };
+  const addTo = (k, idOf) => {
+    if (more[k] === undefined) return;
+    const fresh = list(more[k], `.extend.${k}`, 'what the further text adds');
+    if (idOf) for (const x of fresh) if ((base[k] ?? []).some((y) => idOf(y) === idOf(x))) throw fail(`.extend.${k} '${idOf(x)}' is already there: further text adds; a correction is clarifyBackdrop`);
+    next[k] = [...(base[k] ?? []), ...fresh];
+  };
+  addTo('actors', (a) => a?.id); addTo('places', (p) => p?.id); addTo('moves'); addTo('wants'); addTo('conflicts', (c) => c?.id);
+  for (const k of ['texture', 'threads', 'unknowns']) if (more[k] !== undefined) next[k] = [...(base[k] ?? []), ...wordsOf(more[k], `.extend.${k}`)];
+  // a new stretch stands after the one it names (null: before every other)
+  if (more.stretches !== undefined) {
+    const out = [...(base.stretches ?? [])];
+    for (const [i, st] of list(more.stretches, '.extend.stretches', '{ id, handle, span?, agency, after }').entries()) {
+      if (!isObj(st) || !('after' in st)) throw fail(`.extend.stretches[${i}] says the stretch it comes after (after: an id, or null for before all)`);
+      const { after, ...row } = st, at = after === null ? -1 : out.findIndex((x) => x.id === after);
+      if (after !== null && at < 0) throw fail(`.extend.stretches[${i}].after '${after}' is no stretch of this backdrop`);
+      out.splice(at + 1, 0, row);
+    }
+    next.stretches = out;
+  }
+  if (more.events !== undefined) {
+    const fresh = list(more.events, '.extend.events', '{ says, after, who?, at?, from?, stretch?, order? }');
+    for (const [i, e] of fresh.entries()) if (!isObj(e) || !Number.isInteger(e.after) || e.after < 0 || e.after > base.events.length) throw fail(`.extend.events[${i}].after is the event it follows, as the backdrop stands: 0 to ${base.events.length} (0: before all)`);
+    // the new order: each old event, then the new ones set after it, in the order given
+    const seq = [];
+    const put = (n) => fresh.forEach((e, i) => { if (e.after === n) seq.push({ fresh: i }); });
+    put(0);
+    for (const e of base.events) { seq.push({ old: e.n }); put(e.n); }
+    const oldTo = {}, newTo = {};
+    seq.forEach((x, i) => { if (x.old !== undefined) oldTo[x.old] = i + 1; else newTo[x.fresh] = i + 1; });
+    const ref = (r, at) => {
+      if (Number.isInteger(r) && oldTo[r]) return oldTo[r];
+      const m = /^new:(\d+)$/.exec(String(r));
+      if (m && newTo[Number(m[1]) - 1]) return newTo[Number(m[1]) - 1];
+      throw fail(`${at} '${r}' is an event of the backdrop as it stands (its number), or an earlier new one ('new:<its place in the list>')`);
+    };
+    next.events = seq.map((x, i) => {
+      if (x.old !== undefined) { const e = base.events[x.old - 1]; return { ...e, n: i + 1, ...(e.from ? { from: e.from.map((r) => oldTo[r]) } : {}) }; }
+      const { after: _a, ...e } = fresh[x.fresh];
+      return { ...e, n: i + 1, ...(e.from ? { from: e.from.map((r) => ref(r, `.extend.events[${x.fresh}].from`)) } : {}) };
+    });
+    if (base.play) next.play = { ...base.play, ...(base.play.begins ? { begins: { after: base.play.begins.after === 0 ? 0 : oldTo[base.play.begins.after] } } : {}), ...(base.play.route ? { route: base.play.route.map((r) => ({ ...r, shows: r.shows.map((n) => oldTo[n]) })) } : {}) };
+  }
+  return readBackdrop(next);
+}
+
 /** What the tool works out: reported, never decided. */
 export function backdropReport(B) {
   const V = readBackdrop(B), E = V.events;
-  const uncaused = E.filter((e) => e.n > 1 && !(e.from ?? []).length).map((e) => e.n);
+  const uncaused = E.filter((e) => e.n > 1 && !(e.from ?? []).length).map((e) => e.n), unordered = E.filter((e) => e.order === 'unsaid').map((e) => e.n);
   const stretches = (V.stretches ?? []).map((s) => ({ id: s.id, handle: s.handle, agency: s.agency, acts: s.agency === 'acted', events: E.filter((e) => e.stretch === s.id).map((e) => e.n) }));
   // two actors after the same thing, with no conflict listing both: a conflict the wants imply
   const derived = [];
@@ -309,7 +374,7 @@ export function backdropReport(B) {
     coverage = { of: upTo, met: met.length, missed: E.map((e) => e.n).filter((n) => n <= upTo && !met.includes(n)), unvisited: (V.places ?? []).map((p) => p.id).filter((id) => !V.play.route.some((r) => r.place === id)) };
   }
   return {
-    uncaused, stretches, derived, open, placeEvents, ...(coverage ? { coverage } : {}),
+    uncaused, unordered, stretches, derived, open, placeEvents, ...(coverage ? { coverage } : {}),
     depth: { stretches: stretches.length, acted: stretches.filter((s) => s.acts).length, open: open.length, says: 'how much there is: the stretches where someone acts, and the conflicts still open. One story or several is the author\'s to choose' },
   };
 }

@@ -265,8 +265,8 @@ export function backdropTimeline(v, { title: said } = {}) {
   let y = 84;
   const row = (e) => {
     marks.push({ kind: 'circle', cx: x0, cy: y + 14, r: 10, fill: '#ffffff', stroke: INK, strokeWidth: 1.2 }, text(x0, y + 18, String(e.n), { size: 10, weight: 700 }));
-    marks.push(text(x0 + 20, y + 18, wrap(e.says, 104)[0] + (e.says.length > 104 ? ' …' : ''), { anchor: 'start', size: 12 }));
-    marks.push(text(W - 34, y + 18, e.from?.length ? `from ${e.from.join(', ')}` : e.n > 1 ? 'no cause given' : '', { anchor: 'end', size: 10, color: e.from?.length ? SOFT : WARN }));
+    marks.push(text(x0 + 20, y + 18, wrap(e.says, 96)[0] + (e.says.length > 96 ? ' …' : ''), { anchor: 'start', size: 12 }));
+    marks.push(text(W - 34, y + 18, `${e.order === 'unsaid' ? 'when: not said · ' : ''}${e.from?.length ? `from ${e.from.join(', ')}` : e.n > 1 ? 'no cause given' : ''}`, { anchor: 'end', size: 10, color: e.from?.length ? SOFT : WARN }));
     y += rowH;
     if (B.play?.begins?.after === e.n && e.n < B.events.length) { marks.push({ kind: 'line', x1: x0 - 14, y1: y + 2, x2: W - 30, y2: y + 2, stroke: WARN, strokeWidth: 1.6, dash: '8 5' }, text(W - 34, y + 16, 'play begins here (the author\'s)', { anchor: 'end', size: 10, color: WARN })); y += 20; }
   };
@@ -324,7 +324,8 @@ export function backdropWeb(v, { title: said } = {}) {
 export function backdropMap(v, { title: said } = {}) {
   const B = readBackdrop(v), P = B.places ?? [], n = P.length, name = said ?? B.title ?? 'a backdrop';
   // the places round a ring, so what passes between two never runs behind a third
-  const W = 1040, bw = 250, bh = 104, cx = W / 2, RX = n > 2 ? 350 : 260, RY = n > 2 ? 200 : 0, cy = 96 + bh / 2 + RY, H0 = cy + RY + bh / 2;
+  // (the ring grows with the places on it, so no two boxes meet)
+  const bw = 250, bh = 104, RX = n > 2 ? Math.max(350, n * 62) : 260, RY = n > 2 ? Math.max(200, n * 44) : 0, W = Math.max(1040, 2 * RX + bw + 90), cx = W / 2, cy = 96 + bh / 2 + RY, H0 = cy + RY + bh / 2;
   const at = Object.fromEntries(P.map((p, i) => { const t = -Math.PI / 2 + (2 * Math.PI * i) / Math.max(n, 1) + (n === 2 ? Math.PI / 2 : 0); return [p.id, [r1(cx + RX * Math.cos(t)), r1(cy + RY * Math.sin(t))]]; }));
   const marks = [text(W / 2, 34, `${name}: the world as it stands where the text stops`, { size: 18, weight: 700 }), text(W / 2, 56, 'each place in the state the events left it; an arrow is what passes between two', { color: SOFT })];
   const names = Object.fromEntries(B.actors.map((a) => [a.id, a.name]));

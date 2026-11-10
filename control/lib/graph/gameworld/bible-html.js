@@ -259,7 +259,7 @@ export function backdropHtml(world) {
   if (world.backdrop == null) return '';
   const B = readBackdrop(world.backdrop), R = backdropReport(B), name = Object.fromEntries(B.actors.map((a) => [a.id, a.name]));
   const begins = B.play?.begins?.after, mark = (b) => (b.basis === 'stated' ? '' : ` <span class="muted">(${esc(b.basis)}${b.because ? `: ${esc(b.because)}` : ''})</span>`);
-  const ev = (e) => `<li value="${e.n}">${esc(e.says)}${e.from?.length ? ` <span class="muted">from ${e.from.join(', ')}</span>` : e.n > 1 ? ' <span class="muted">no cause given</span>' : ''}${begins === e.n ? ' <b>· play begins after this</b>' : ''}</li>`;
+  const ev = (e) => `<li value="${e.n}">${esc(e.says)}${e.from?.length ? ` <span class="muted">from ${e.from.join(', ')}</span>` : e.n > 1 ? ' <span class="muted">no cause given</span>' : ''}${e.order === 'unsaid' ? ' <span class="muted">when: not said</span>' : ''}${begins === e.n ? ' <b>· play begins after this</b>' : ''}</li>`;
   const groups = B.stretches ? B.stretches.map((s) => `<p class="muted"><b>${esc(s.handle)}</b>${s.span ? `, ${esc(s.span)}` : ''}: ${esc(AGENCIES[s.agency])}</p><ol>${B.events.filter((e) => e.stretch === s.id).map(ev).join('')}</ol>`).join('') : `<ol>${B.events.map(ev).join('')}</ol>`;
   const li = (xs) => xs.map((x) => `<li>${x}</li>`).join('');
   return `<details class="brief" id="backdrop" open><summary>The backdrop${B.title ? `: ${esc(B.title)}` : ''}</summary>
