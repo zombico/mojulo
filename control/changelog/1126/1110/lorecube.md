@@ -11,6 +11,11 @@ plans, and each is rewritten as it lands.
   where each is allied to its neighbours and opposed to the two across. You can name one or write your own, and it is
   checked so every element has a weakness and none stands over the rest. It also gives a monster of any element the
   weaknesses and resistances a party game reads. Nothing in a game uses it yet.
+- **Made in passes, so the first one stays small.** A piece of lore is made in two kinds of step. The first only
+  commits to what the thing is (which elements, in what arrangement) and stops there, however much is asked. Every
+  step after that deepens what exists (the reasons, later the numbers and the moves) and may not change what was
+  already settled. So a first sketch is quick and stays yours, depth is added as many times as you want it, and a step
+  that tries to do everything at once is told so.
 
 - **Describe how power works in your world and get a system a game can play.** A magic system for four factions built
   on the elements; one energy with a light side and a dark side; a reserve that drains as it is used and can be poured

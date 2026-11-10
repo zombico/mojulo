@@ -21,7 +21,7 @@
  *            wheel): opposition is mutual, alliance is no weakness
  *
  *   POLARITIES                 the named ones, as specs (a convention, never a title; a new one is a row)
- *   readPolarity(v)            a name, or { shape, of, why? }: read, or throws, teaching
+ *   readPolarity(v)            a name, or { shape, of, why?, id? }: read, or throws, teaching
  *   resolvePolarity(v)         → { id?, shape, elements, beats: { a: [b] }, opposes: { a: [b] }, allies: { a: [b] },
  *                              why: { 'a>b': words } }: `beats` one-way (a ring's), `opposes` mutual (poles, pairs, a
  *                              wheel's far side); an element in neither list of another is indifferent to it
@@ -33,12 +33,26 @@
  *                              another is weak to several (`even`), none stands over every other (`none-dominant`),
  *                              none opposes itself, a ring comes round. Advice, as every law here
  *
+ * MADE IN PASSES (passes.js), a polarity's ladder two rungs:
+ *   premise    the shape and its elements: a raw-new pass's, and where it stops
+ *   reasoned   a reason in words for every relation: an intensification's
+ *   newPolarity(v)             a RAW-NEW pass: a name or { shape, of } → the premise alone. Reasons offered with it are
+ *                              refused, teaching: they are the next pass's. A named polarity comes without its stock
+ *                              reasons too, so naming one does no more than writing one
+ *   intensifyPolarity(P, { why? }) → { polarity, open }: the INTENSIFICATION: the reasons given are laid over the
+ *                              ones there (a named polarity's stock reasons under them, `stock: false` to leave them
+ *                              out), each for a relation the polarity has; `open` the relations still unreasoned.
+ *                              The premise is never touched
+ *   POLARITY                   the part (passes.js definePart): its rungs, for depthOf, openOf and checkPass
+ *   relationsOf(P)             → the relation keys a polarity has: 'a>b' one-way, 'a|b' mutual (each pair once)
+ *
  * Pure and deterministic. Nothing reads this yet: it lays no byte on any page.
  */
 import { ELEMENT_WORDS } from '../gameworld/element-words.js';
 import { VAYO_ELEMENTS } from '../rupa/vayo-move.js';
 import { ELEMENTS as RPG_ELEMENTS } from '../playscape/rpg/presets.js';
 import { ELEMENT_OOZE } from '../gameworld/foe-casting.js';
+import { definePart } from './passes.js';
 
 /** The roots: an element and the character book's words for it (element-words.js), the root's own word first. */
 export const ROOTS = Object.freeze({
@@ -112,10 +126,12 @@ const rootsOf = (list, at) => list.map((w, i) => {
 export function readPolarity(v) {
   if (typeof v === 'string') {
     if (!POLARITIES[v]) throw fail(` '${v}' is not a named polarity (${POLARITY_IDS.join(', ')}), or write one: { shape: ${SHAPES.join(' | ')}, of: [...] }`);
-    return { id: v, ...readPolarity({ shape: POLARITIES[v].shape, of: POLARITIES[v].of, why: POLARITIES[v].why }) };
+    return readPolarity({ id: v, shape: POLARITIES[v].shape, of: POLARITIES[v].of, why: POLARITIES[v].why });
   }
   if (!isObj(v)) throw fail(` is a name (${POLARITY_IDS.join(', ')}) or { shape, of, why? }`);
-  for (const k of Object.keys(v)) if (!['shape', 'of', 'why'].includes(k)) throw fail(`.${k} is not part of a polarity (shape, of, why)`);
+  // (`id`: the name a made polarity keeps, so its stock reasons can be found at the intensification)
+  for (const k of Object.keys(v)) if (!['id', 'shape', 'of', 'why'].includes(k)) throw fail(`.${k} is not part of a polarity (shape, of, why)`);
+  if (v.id !== undefined && !POLARITIES[v.id]) throw fail(`.id '${v.id}' is not a named polarity (${POLARITY_IDS.join(', ')})`);
   if (!SHAPES.includes(v.shape)) throw fail(`.shape is one of ${SHAPES.join(', ')}`);
   if (!Array.isArray(v.of)) throw fail('.of is the elements: a list (poles, ring, wheel) or a list of pairs (pairs)');
   let of;
@@ -131,7 +147,7 @@ export function readPolarity(v) {
   const flat = of.flat();
   if (new Set(flat).size !== flat.length) throw fail(`.of names an element twice (${flat.filter((e, i) => flat.indexOf(e) !== i).join(', ')}): two words of one root are one element`);
   if (v.why !== undefined && (!isObj(v.why) || !Object.values(v.why).every((s) => typeof s === 'string'))) throw fail('.why is { \'a>b\' | \'a|b\': words }');
-  return { shape: v.shape, of, ...(v.why ? { why: { ...v.why } } : {}) };
+  return { ...(v.id ? { id: v.id } : {}), shape: v.shape, of, ...(v.why ? { why: { ...v.why } } : {}) };
 }
 
 /** A polarity resolved: who beats, opposes and is allied to whom. */
@@ -196,4 +212,46 @@ export function polarityLaws(P) {
     laws.push({ law: 'comes-round', ok: round, value: seen.length });
   }
   return laws;
+}
+
+/** The relation keys a polarity has: 'a>b' one-way, 'a|b' mutual, each pair once, in the elements' order. */
+export function relationsOf(P) {
+  const R = resolved(P), out = [];
+  for (const a of R.elements) {
+    for (const b of R.beats[a]) out.push(`${a}>${b}`);
+    for (const b of R.opposes[a]) if (R.elements.indexOf(a) < R.elements.indexOf(b)) out.push(`${a}|${b}`);
+  }
+  return out;
+}
+
+const premiseOf = (v) => (v && SHAPES.includes(v.shape) && Array.isArray(v.of) ? { shape: v.shape, of: v.of } : null);
+const unreasoned = (v) => relationsOf({ shape: v.shape, of: v.of }).filter((k) => !(v.why && typeof v.why[k] === 'string' && v.why[k]));
+
+/** A polarity as a part made in passes: its premise, then its reasons. */
+export const POLARITY = definePart({
+  id: 'polarity',
+  rungs: [
+    { id: 'premise', rawNew: true, holds: (v) => { try { return !!premiseOf(v) && !!readPolarity(premiseOf(v)); } catch { return false; } }, view: premiseOf },
+    { id: 'reasoned', holds: (v) => unreasoned(v).length === 0, open: unreasoned, view: (v) => v.why ?? {} },
+  ],
+});
+
+/** A raw-new pass: the premise alone, whatever is offered with it. */
+export function newPolarity(v) {
+  if (isObj(v) && v.why !== undefined) throw fail('.why is not a raw-new pass\'s: it makes the premise (shape, of) and stops; the reasons are the next pass (intensifyPolarity)');
+  const P = readPolarity(v);
+  return { ...(P.id ? { id: P.id } : {}), shape: P.shape, of: P.of };
+}
+
+/** An intensification: reasons laid over the premise, which is never touched. */
+export function intensifyPolarity(P, { why = {}, stock = true } = {}) {
+  const premise = premiseOf(P);
+  if (!premise) throw fail(' to intensify is one already made: { shape, of } (newPolarity makes it)');
+  readPolarity(premise);
+  if (!isObj(why) || !Object.values(why).every((x) => typeof x === 'string')) throw fail('.why is { \'a>b\' | \'a|b\': words }');
+  const has = relationsOf(premise);
+  for (const k of Object.keys(why)) if (!has.includes(k)) throw fail(`.why '${k}' is no relation of this polarity (${has.join(', ')})`);
+  const base = stock && P.id && POLARITIES[P.id] ? Object.fromEntries(Object.entries(POLARITIES[P.id].why).filter(([k]) => has.includes(k))) : {};
+  const polarity = { ...(P.id ? { id: P.id } : {}), ...premise, why: { ...base, ...(P.why ?? {}), ...why } };
+  return { polarity, open: unreasoned(polarity) };
 }
