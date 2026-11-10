@@ -41,11 +41,12 @@ describe('a table\'s ui: read and taught', () => {
   });
 });
 
-describe('a table\'s ui: absence adds nothing', () => {
-  it('a page without ui carries no runtime, no sheet and no host; with it, all three', () => {
-    for (const make of [(ui) => tabletopManifestHtml({ kind: 'tabletop', game: 'chess', ...(ui ? { ui } : {}) }), (ui) => tabletopPageHtml(tileGame(), ui ? { ui } : {}), (ui) => tabletopPageHtml(deckGame(), ui ? { ui } : {}),
-      (ui) => tabletopPageHtml(islandEconomy(), ui ? { ui } : {}), (ui) => tabletopPageHtml(workerGame(), ui ? { ui } : {})]) {
-      const plain = make(null), drawn = make({});
+describe('a table\'s ui: the default, and absence adds nothing', () => {
+  it('a page is drawn by the runtime unless it says ui: false, which carries no runtime, no sheet and no host', () => {
+    for (const make of [(ui) => tabletopManifestHtml({ kind: 'tabletop', game: 'chess', ...(ui !== undefined ? { ui } : {}) }), (ui) => tabletopPageHtml(tileGame(), ui !== undefined ? { ui } : {}), (ui) => tabletopPageHtml(deckGame(), ui !== undefined ? { ui } : {}),
+      (ui) => tabletopPageHtml(islandEconomy(), ui !== undefined ? { ui } : {}), (ui) => tabletopPageHtml(workerGame(), ui !== undefined ? { ui } : {})]) {
+      const plain = make(false), drawn = make(undefined);
+      expect(make({})).toBe(drawn);                     // naming no look is the default
       expect(plain).not.toMatch(/buildManaUi|buildManaHost|mana-root|tableMana/);
       expect(plain).toContain('const UI = null;');
       expect(drawn).toMatch(/function buildManaUi\(\)/);

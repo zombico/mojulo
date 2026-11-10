@@ -32,10 +32,11 @@ describe('a board\'s ui: read and taught', () => {
   });
 });
 
-describe('a board\'s ui: absence adds nothing', () => {
-  it('a board without ui carries no runtime; a battle, a defence or a skirmish with it carries the runtime and its page', () => {
+describe('a board\'s ui: the default, and absence adds nothing', () => {
+  it('a battle, a defence or a skirmish is drawn by the runtime unless its board says ui: false, which carries no runtime', () => {
     const block = (m) => boardChannelScript(assembleBoardScene(m).board);
-    expect(block(fight())).not.toMatch(/buildManaUi|boardManaPage|buildManaHost/);
+    expect(block(fight({ ui: false }))).not.toMatch(/buildManaUi|boardManaPage|buildManaHost/);
+    expect(block(fight())).toBe(block(fight({ ui: {} })));   // naming no look is the default
     for (const m of [fight({ ui: {} }), { board: flat, td: {}, ui: {} }, { board: { ...flat, cols: 12, rows: 10 }, rts: {}, ui: {} }]) {
       const b = block(m);
       expect(b).toMatch(/function buildManaUi\(\)/);

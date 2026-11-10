@@ -79,7 +79,7 @@ export function readHolo(spec = {}) {
   if (!ARENA_KITS.includes(H.kit)) fail(`kit '${H.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (H.crowd !== undefined && H.crowd !== false && !isObj(H.crowd)) fail('crowd is false or { rows?, fill? }');
   if (H.title !== undefined && typeof H.title !== 'string') fail('title is a string');
-  if (H.ui !== undefined) { const bad = readHoloUi(H.ui); if (bad.length) fail(bad.join('; ').replace(/^holo\./, '')); }
+  if (H.ui !== undefined && H.ui !== false) { const bad = readHoloUi(H.ui); if (bad.length) fail(bad.join('; ').replace(/^holo\./, '')); }
   const { G, K } = holoGame(H);
   if (K.players.length !== 2) fail(`the holo arena seats two duelists; ${G.title ?? 'the game'} has ${K.players.length} players`);
   const human = H.human ?? K.players[0].id;
@@ -139,10 +139,12 @@ export function holoArenaData(v = {}) {
   }]));
   // (each duelist's light is the arena's, not the game's: a chess set's white and black are a table's colours)
   const duelists = K.players.map((p, s) => ({ id: p.id, facing: p.facing, colour: HOLO_COLOURS[s] }));
+  const { ui: _ui, ...own } = H;   // the arena's `ui` is said once, resolved, below
   return {
-    ...H, title: H.title ?? `${G.title ?? 'board game'}`, human: H.human ?? K.players[0].id,
+    ...own, title: H.title ?? `${G.title ?? 'board game'}`, human: H.human ?? K.players[0].id,
     G, L: B.L, board: { cell: B.cell, centre: B.centre, room: B.room, podium: B.podium }, kinds, duelists, wire: HOLO_WIRE,
     // the arena's parts drawn by the game UI runtime (holo-ui.js), its sides the duelists' lights
-    ...(H.ui !== undefined ? { ui: holoUiData(H.ui, { colours: duelists.map((d) => d.colour) }) } : {}),
+    // (unless the arena says `ui: false`: its own canvas overlay, as before the runtime)
+    ...(H.ui !== false ? { ui: holoUiData(H.ui ?? {}, { colours: duelists.map((d) => d.colour) }) } : {}),
   };
 }

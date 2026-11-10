@@ -46,7 +46,10 @@ export function tabletopPageHtml(G, opts = {}) {
   const level = opts.level ?? 'fair';
   if (!LEVELS.includes(level)) throw new Error(`tabletop page: level is ${LEVELS.join(', ')}`);
   const view = opts.view ?? 'plan';
-  if (opts.ui !== undefined) { const bad = readTableUi(opts.ui); if (bad.length) throw new Error(`tabletop page: ${bad.join('; ')}`); }
+  // the page is drawn by the game UI runtime (table-ui.js) in the table's own look unless the game says `ui: false`
+  // (its own header, side panel and broadcast furniture, as before the runtime)
+  if (opts.ui !== undefined && opts.ui !== false) { const bad = readTableUi(opts.ui); if (bad.length) throw new Error(`tabletop page: ${bad.join('; ')}`); }
+  opts = { ...opts, ui: opts.ui === false ? undefined : opts.ui ?? {} };
   if (K.round) return roundPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });
   if (K.card) return cardPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });
   if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });

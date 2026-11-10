@@ -691,6 +691,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // whether the block was given the arena's UI (holo-ui.js) and, with one, hands it the overlay's words, the picker and
 // the cursor's cells; with none it draws its canvas as before. An arena without `ui` carries no runtime: the fixture
 // gains the hooks' lines alone.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the default): `holo` only. An arena is drawn by the game UI
+// runtime unless it says `ui: false`, so the fixture (which names no `ui`) now carries the runtime, its sheet and its
+// page beside the arena's client. The `board` fixture hands the page its data without the scene's reader, so it
+// stays the board with no `ui`.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

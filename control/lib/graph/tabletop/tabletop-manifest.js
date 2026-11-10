@@ -65,7 +65,7 @@ export function resolveTabletop(m = {}) {
     if (P && P.shape !== undefined) { try { shapeOf(P.shape); } catch (err) { no(`piece ${kind}: ${err.message}`); } }
   }
   if (m.broadcast !== undefined) { try { readBroadcast(m.broadcast, 'tabletop'); } catch (err) { no(err.message.replace(/^tabletop: /, '')); } }
-  if (m.ui !== undefined) { const bad = readTableUi(m.ui); if (bad.length) no(bad.join('; ').replace(/^tabletop\./, '')); }
+  if (m.ui !== undefined && m.ui !== false) { const bad = readTableUi(m.ui); if (bad.length) no(bad.join('; ').replace(/^tabletop\./, '')); }
   // compiled here, so a game that cannot be played is refused at minting, not on the page; its deal done
   G = tabletopGame(G).G;
   return { G, opts: { human: m.human, level: m.level, view: m.view, seed, title: G.title, ...(m.broadcast !== undefined ? { broadcast: m.broadcast } : {}), ...(m.ui !== undefined ? { ui: m.ui } : {}) } };

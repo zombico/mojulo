@@ -288,8 +288,8 @@ ui: { theme?: 'world' | '<preset>' | '<card>' | { from?, …words }, colour?: 'w
 - The manual card `gameworld-interface` teaches the order of work, the registers, the families, the shelf's cards and
   the closed words.
 
-No game page draws its menus in mana-ui yet (the integration, below), so a game's `ui` lives in its recipe, its book
-and its review for now; the board is where a person looks at it.
+The play shell's screens, the RPG's menus, the board-game pages, the strategy boards and the holo arena draw a game's
+`ui` (the surfaces, below); the board is where a person looks at every part of it.
 
 ### The party language
 
@@ -781,8 +781,9 @@ only), and the page's RPG channel (`scene/channels/rpg-channel.js`) is its host:
 
 ### The board games
 
-The tabletop pages (`tabletop/tabletop-page.js` and its euro, tile, card and round siblings) are drawn by mana-ui for a
-game with a `ui` (`tabletop: { …, ui: { theme?, languages?, language? } }`). One spec and one host serve them all:
+The tabletop pages (`tabletop/tabletop-page.js` and its euro, tile, card and round siblings) are drawn by mana-ui by
+default; `tabletop: { …, ui: { theme?, languages?, language? } }` names another look or the game's languages, and
+`ui: false` keeps a page's own header, side panel and broadcast furniture. One spec and one host serve them all:
 `tabletop/table-ui.js`.
 
 - **The spec** is a HUD over the board (a menu button, the `action-bar`, the `game-log`, a row of counters for what is
@@ -808,8 +809,10 @@ game with a `ui` (`tabletop: { …, ui: { theme?, languages?, language? } }`). O
 
 ### The strategy boards
 
-A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui for a board with
-a `ui` (a level's `board.ui`, the `board` kind's `ui`; a gameworld's `ui` reaches its battle, map and defence levels).
+A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by
+default, in `tactician` (a level's `board.ui` or the `board` kind's `ui` names another look; a gameworld's `ui` reaches
+its battle, map and defence levels; `ui: false` keeps the board's own text panels).
+its battle, map and defence levels; `ui: false` keeps the board's own text panels).
 Its spec and its page are `board/board-ui.js`, handed to the board page as the tower defence's and the skirmish's
 pages are, so a board without `ui` carries none of it.
 
@@ -833,8 +836,9 @@ pages are, so a board without `ui` carries none of it.
 
 ### The holo arena
 
-A board game lifted into its hologram arena (`tabletop/holo-arena.js`) is drawn by mana-ui for an arena with a `ui`
-(`holo: { …, ui }`; a world's `ui` reaches its board game's arena). Its spec and its page are `tabletop/holo-ui.js`,
+A board game lifted into its hologram arena (`tabletop/holo-arena.js`) is drawn by mana-ui by default, in `modern`
+(`holo: { …, ui }` names another look; a world's `ui` reaches its board game's arena; `ui: false` keeps the arena's
+own canvas overlay). Its spec and its page are `tabletop/holo-ui.js`,
 given to the arena's block beside its client, which asks whether it was given one.
 
 - The client hands what it drew on its canvas each frame (`UI.show`: the two duelists, the title, the status, the

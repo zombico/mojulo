@@ -36,16 +36,25 @@ the board-game pages on one spec, the strategy boards (a tactics battle, a tower
     for one among the actions.
   - Built for every tabletop page but one: a round game played on a board (a duel of summons on cells) takes `ui` and
     still draws its own panel, since its board and its cards want the cursor at once.
-  - **Without `ui` a page plays as it did** and carries no runtime, sheet or host. Its client's source gains the
-    branches that choose between the two, and a page with `ui` is about 220 KB larger (the runtime and its sheet).
+  - **With `ui: false` a page plays as it did** and carries no runtime, sheet or host. Its client's source gains the
+    branches that choose between the two, and a page drawn by the runtime is about 220 KB larger (the runtime and its
+    sheet).
 
+- **The default: a table, a board and an arena are drawn by the runtime.** A tabletop game, a board (a battle, a map,
+  a defence, a skirmish) and a holo arena that name no `ui` are drawn by the game UI runtime in their own look
+  (`table-wood` or `table-felt`, `tactician`, `modern`). `ui: false` keeps a page's own panels and carries no runtime.
+  - **This changes what a game already minted draws**: its recipe is the same, its page regenerates with the runtime's
+    parts, keys and a pad, and is about 220 KB larger. A game that must keep its old page says `ui: false`.
+  - The pages' own panels are kept, not deleted: `ui: false` uses them, a round game played on a board still draws its
+    own under any `ui`, and a skirmish's key rebinding panel is only there.
+  - The tabletop's card says `ui`.
 - **The holo arena drawn by the runtime: an arena's `ui`** (`tabletop/holo-ui.js`). The overlay it drew on a canvas is
   the runtime's parts: the two duelists across the top, mirrored, each its light's chip, its life points and their
   bar, the one to play alight; the title between; the status at the foot; the duel's words (DUEL!, CHECK!, the end)
   while they are said. A promotion is one question, put off by back. The board has a cursor on the controls layer's
   `board` scheme (a ring on a cell, stepped over the cells as the camera shows them), so a duel is played by keys and
   a pad; confirm duels again once it is over. The look is the game's, else `modern`; its sides the duelists' lights.
-  A world's `ui` reaches its board game's arena. Without `ui` an arena's block carries no runtime.
+  A world's `ui` reaches its board game's arena. With `ui: false` an arena's block carries no runtime.
 - **The strategy boards drawn by the runtime: a board's `ui`** (`{ theme?, languages?, language? }`,
   `board/board-ui.js`; a level's `board.ui`, or the `board` kind's own). The board page still plays the battle; its
   text panels become the runtime's parts, read from what the page stands at each frame it changes:
@@ -69,7 +78,7 @@ the board-game pages on one spec, the strategy boards (a tactics battle, a tower
     lead marked and each side's army over the match. Its orders stay on its own keys and the pointer (the drag box,
     the right click), so the board scheme is not connected for it; the lobby and the results take keys and a pad.
     Rebinding its keys is not offered under the UI yet.
-  - Without `ui` a board's block carries no runtime.
+  - With `ui: false` a board's block carries no runtime.
 - **Fixed: back from an aim left the keys with the cursor.** The action menu was drawn again and could not be moved
   through; it has the keys again.
 - **The runtime gains a table's parts.** Three components, each with its rule in the sheet and no colour of its own:
@@ -104,6 +113,7 @@ the board-game pages on one spec, the strategy boards (a tactics battle, a tower
   the holo arena a press on the board or Escape does.
 - **Fixed: a player's id went into the euro, tile and move pages' logs and seat rows unescaped.**
 - **Fixed: the tile game's table view was fitted to the laid tiles only on a move**, never as the window was resized.
-- Pins: the `holo` fixture again, for the arena client's hooks; the `board` fixture again, for the board page's hooks and its `intent`; before it, the `board` and `holo`
+- Pins: the `holo` fixture a third time, for the default (it names no `ui`, so it now carries the runtime); before it,
+  the `holo` fixture for the arena client's hooks; the `board` fixture again, for the board page's hooks and its `intent`; before it, the `board` and `holo`
   fixtures of the World page's byte pin, for the board page's fold and the holo's picker; `brawl`, the one
   fixture that inlines the runtime's kernel, for the kernel's new parts (the yard draws as before).

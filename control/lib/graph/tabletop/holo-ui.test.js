@@ -20,9 +20,10 @@ describe('an arena\'s ui: read and taught', () => {
     expect(D.css).toMatch(/--mana-side-1:\s*#ff4f7a/);
     expect(Object.keys(holoUiSpec({}).defs)).toEqual(['choice-prompt']);
   });
-  it('an arena without ui carries no runtime; with it, the runtime and its page, the same every time', () => {
+  it('an arena is drawn by the runtime unless it says ui: false, which carries no runtime', () => {
     const block = (v) => holoChannelScript(holoArenaData(v));
-    expect(block({ game: 'checkers' })).not.toMatch(/buildManaUi|holoManaPage|HOLO_UI = /);
+    expect(block({ game: 'checkers', ui: false })).not.toMatch(/buildManaUi|holoManaPage|HOLO_UI = /);
+    expect(block({ game: 'checkers' })).toBe(block({ game: 'checkers', ui: {} }));   // naming no look is the default
     const b = block({ game: 'checkers', ui: {} });
     expect(b).toMatch(/function buildManaUi\(\)/);
     expect(b).toMatch(/const HOLO_UI = \(function holoManaPage\(cfg, kit\)/);
