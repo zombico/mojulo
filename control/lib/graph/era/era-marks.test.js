@@ -54,6 +54,17 @@ describe('a payload read in an era', () => {
     expect(r.approximated.map((x) => x.input)).toEqual(['faces', 'liveGrass', 'shadows']);
     expect(eraReading(payload, 'gen-6')).toEqual({ era: 'gen-6', surface: 'paint', approximated: [], absent: [] });
   });
+  it('a figure under the cast rig or with a form body is the form render\'s: a bank of only those is built, one with some says which', () => {
+    const fig = (extra) => ({ rig: true, parts: [], ...extra }), inputs = (p) => eraReading(p, 'gen-7').approximated;
+    // (every figure painted: approximated as it always was)
+    expect(inputs({ figures: { a: fig() } }).find((x) => x.input === 'figures').how).toMatch(/drawn as paint/);
+    // (the hero under the rig beside a walker still paint: named)
+    const mixed = inputs({ figures: { hero: fig({ cast: {} }), dummy: fig() } }).find((x) => x.input === 'figures');
+    expect(mixed.how).toMatch(/^hero under the cast rig/);
+    // (only bodies the renderer lights: built, not listed; in gen-6 nothing is ever listed)
+    expect(inputs({ figures: { hero: fig({ cast: {} }), car: fig({ form: {} }) } }).some((x) => x.input === 'figures')).toBe(false);
+    expect(eraReading({ figures: { hero: fig({ cast: {} }) } }, 'gen-6').approximated).toEqual([]);
+  });
   it('teaches an era it does not know', () => {
     expect(() => eraReading(payload, 'gen-9')).toThrow(/not an era \(gen-6, gen-7\)/);
     expect(() => eraReading(payload, 7)).toThrow(/era is a string/);

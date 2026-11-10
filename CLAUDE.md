@@ -322,6 +322,12 @@ Pointers only; each target carries its own design notes.
   room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world
   recipe and its lane (a new kind of level is a row); the runtime draws in the lane's frame. Blockouts:
   [level/greybox-scene.js](control/lib/graph/level/greybox-scene.js).
+- The cast rig (the one light every body is drawn under, in both eras): [color-theorist/cast-rig.js](control/lib/graph/color-theorist/cast-rig.js)
+  (the key the world's solved sun, the sky over the floor's bounce, the horizon's rim, a body's own gains) and the page's
+  material, [scene/channels/cast-rig.js](control/lib/graph/scene/channels/cast-rig.js) (the sky and the rim in the body's
+  own shader, so they light nothing else; one key a page). Its clients: a fight's and a brawl's bodies under a register,
+  the hero a player pilots on a form page, a vehicle's form body. It is light only: a body moves as its client moves it.
+  [docs/hero-form-light.md](docs/hero-form-light.md).
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).

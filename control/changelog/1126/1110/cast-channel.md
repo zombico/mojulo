@@ -71,3 +71,24 @@
   a form land, and every gen-6 page are as they were: a bank with no such figure carries none of the kit. Its register
   is the level's `fxStyle.register` where that is `anime` or `western`, else `western`. Seen in Chrome on a small
   valley-morning map with the Saikyo body, beside its gen-6 read.
+- **A vehicle's form body takes its sky from the rig, and no longer lights the land.** A body in the form render (a
+  supercar, a racer, a craft: `scene/channels/controllable/`) added a sky light of three's to the scene, which on a
+  page whose land is drawn as form lit the land as well, brighter than its solve. Its sky over its ground is now in
+  the body's own shader, laid on by the cast kit from the body's own setting, and no sky light joins any page. On a
+  form page it asks for no light and no curve of its own (the land's sun lights it, the renderer tones it with the
+  land); over a painted world its key and its own curve are as they were. Seen in Chrome: a supercar on a painted
+  gen-7 lot, its frame as before; on a valley-morning map, the land back at its own light.
+- **One tone rule an era.** On a form page the renderer's curve tones every lit body with the land; on a painted page
+  (the renderer tones nothing) a lit body tones itself.
+- **The records.** The seventh generation's cast conventions `albedo-unlit` and `material-by-response` read partial,
+  each saying what is built and what is not (`era/eras.js`), and the cosmos reads them (`reality.cast=gen-7`). A page
+  read in gen-7 no longer lists its figures as approximated where every one is under the cast rig or a form body, and
+  names the ones that are where the rest are paint (`era/era-marks.js` `eraReading`).
+  [docs/hero-form-light.md](../docs/hero-form-light.md) says what draws a hero now and what is not built.
+- **The WebGPU spike is retired** (`scripts/spikes/webgpu/`, removed): mojulo's pages are WebGL, and the cast and form
+  materials are laid on three's own shaders.
+- **Fixed: the CLI and the plugin profile failed to load their tools** once a fight's and a brawl's channels carried
+  the rig (found by the critical tier, which the steps above had not run): the channels read the rig through the
+  cube's light solve, which put it in the import cycle the registry loads through. The rig's laws, its card and its
+  making are their own module with the solve passed in (`color-theorist/cast-rig-core.js`, which reads none of the
+  era's modules); `castRig` is that under the cube's solve, and a fight's card reads the core alone.

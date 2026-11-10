@@ -691,7 +691,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -1204,9 +1204,10 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
 function __decodeU16(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint16Array(u.buffer); }
 function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}${figHasForm ? `
 // ---- the form render (gen-7): a body's material slots (paint under clearcoat, glass, alloy, rubber, carbon, the lamps)
-// drawn with physical materials, lit by the world's own sun, a hemisphere of its sky and ground, and reflecting an
-// environment made of that sky; the body casts and takes the live shadows. Tone-mapped in its own shader (the world's
-// paint is not), so a lit body sits in the painted world ----
+// drawn with physical materials, lit by the world's own sun, its sky over its ground (the cast rig, in the body's own
+// shader), and reflecting an environment made of that sky; the body casts and takes the live shadows. Over a painted
+// world it is tone-mapped in its own shader (the paint is not); on a form page the renderer tones it with the land ----
+const castKit = ${castKitSource()};
 const __FORM_SUN = ${JSON.stringify(formSun || [0.55, 0.4, 0.72])};
 function __formBytes(s, T) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); }
 const __formSrgb = (c) => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
@@ -1225,10 +1226,17 @@ function __formEnv(F) {
   const pm = new THREE.PMREMGenerator(renderer); __formEnvTex = pm.fromScene(room, 0.015).texture; pm.dispose();
   return __formEnvTex;
 }
-// the key: the shadow lights the page already casts with take the key's colour and strength (they were white and seen by
-// nothing lit); with none, a key of its own along the sun. A hemisphere of the sky over the ground fills it.
+// THE BODY'S LIGHT is the cast rig's (../cast-rig.js, color-theorist/cast-rig.js): one key, and the sky over the ground
+// in the body's own shader, where it lights nothing else. The rig is read off the body's own setting (its sky, its
+// ground, its ambient: what its hemisphere light was), its key's gain 1 and no rim (a body's rim is its sky, reflected).
+function __formRig(F) {
+  if (F.__rig) return F.__rig;
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }, a = (F.ambient * 1.6) / Math.PI;
+  return (F.__rig = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: { sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: { linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } }));
+}
+// the key: ${formLand ? "the land's own sun (channels/form-land.js): a body on a form page asks for no light of its own" : "the shadow lights the page already casts with take the key's colour and strength (they were white and seen by\n// nothing lit: the world is painted); with none, a key of its own along the sun"}
 function __formLights(F) {
-  if (__formLit) return; __formLit = true;
+  if (__formLit) return; __formLit = true;${formLand ? '' : `
   setTimeout(() => {
     const key = new THREE.Color(F.key[0], F.key[1], F.key[2]), casters = [];
     scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) casters.push(o); });
@@ -1236,18 +1244,20 @@ function __formLights(F) {
     // stripes, the map's depth steps laid on it; a big body, a craft, asks for more by its own normalBias)
     if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; l.shadow.normalBias = Math.max(l.shadow.normalBias, F.normalBias || 0.05); }
     else { const l = new THREE.DirectionalLight(key, F.keyIntensity); l.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(100); scene.add(l); scene.add(l.target); }
-    const hemi = new THREE.HemisphereLight(__formSrgb(F.sky.zenith), __formSrgb(F.sky.ground), F.ambient * 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);
-  }, 0);
+  }, 0);`}
 }
 // how much of the sky each slot throws back: polished metal most, the clearcoat and the glass, then the rest
 const ENV_GAIN = { alloy: 1.6, paint: 0.95, glass: 1.2, carbon: 0.8, brake: 1.1 };
 // (a material each bone: the status tints its own uniforms on it; the program is shared)
 function __formMat(F, name) {
   const P = F.materials[name] || {}, ex = F.exposure || 1;
-  const m = new THREE.MeshPhysicalMaterial({ ...P, vertexColors: true, side: THREE.DoubleSide, envMap: __formEnv(F), envMapIntensity: ENV_GAIN[name] ?? 0.85 });
+  const m = new THREE.MeshPhysicalMaterial({ ...P, vertexColors: true, side: THREE.DoubleSide, envMap: __formEnv(F), envMapIntensity: ENV_GAIN[name] ?? 0.85 });${formLand ? `
+  // (on a form page the renderer's curve tones it with the land: no curve of its own)
+  m.userData.cast = true;` : `
   // (a filmic curve on the lit colour, before it is encoded: the world's paint is drawn as it is)
-  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <tonemapping_fragment>', '{ vec3 x = gl_FragColor.rgb * ' + ex.toFixed(3) + '; gl_FragColor.rgb = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }\\n#include <tonemapping_fragment>'); };
-  return m;
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <tonemapping_fragment>', '{ vec3 x = gl_FragColor.rgb * ' + ex.toFixed(3) + '; gl_FragColor.rgb = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }\\n#include <tonemapping_fragment>'); };`}
+  // (the rig: its sky over its ground in the body's own shader; the kit adds no tone of its own here)
+  return castKit.patch(m, __formRig(F), { register: 'western', surface: 'form' });
 }
 function __formBone(fig, P) {
   const F = fig.form, geo = new THREE.BufferGeometry(), q = __formBytes(P.q, Uint16Array), p = new Float32Array(P.n * 3);
@@ -1316,8 +1326,8 @@ function __makeSkinGroup(fig, b, group) {
   return group;
 }
 ` : ''}${figHasCast ? `// the cast rig's material for a figure's parts: one set of the rig's uniforms a figure (../cast-rig.js)
-const castKit = ${castKitSource()};
-const __castU = new Map();
+${figHasForm ? '' : `const castKit = ${castKitSource()};
+`}const __castU = new Map();
 function __castMat(fig, o) {
   let U = __castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }
   const m = castKit.material(fig.cast, Object.assign({ surface: fig.cast.surface || 'paint', uniforms: U }, o));

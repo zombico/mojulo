@@ -19,8 +19,9 @@ render.
   - On the static GLB it is split by response (`body:metal`, `body:pbr0` …), but only when the hero's `geocube` names
     `materials`. A hero's groups take their materials from `materials/dress-materials.js` `dressSurfaces`, written to
     `recipe.surfaces`.
-- **Nothing lights a hero live.** The live light gives actors shadows and occlusion. The fills are MeshBasic, and the
-  rim is the rig preview's fresnel patch, never written to an export.
+- **Until the cast rig, nothing lit a hero live** (see "What draws it now" below). The live light gives actors shadows
+  and occlusion; a painted hero's fills are MeshBasic, and its rim is the rig preview's fresnel patch, never written to
+  an export.
 - **The era conventions say the same.** `albedo-unlit` and `material-by-response` are planned, and `relief-in-normal`
   is partial: the realistic head only (`era/eras.js`).
 
@@ -77,18 +78,31 @@ mints a pack member through the door, wearing its look's cube with materials nam
 (b) and (c) are lit by the theorist's rig, with the key's azimuth and the rim on sliders, and the reads printed beside
 them. The look is the operator's.
 
-## Before a mint or the World page can draw it
+## What draws it now: the cast rig
 
-1. **Material by response on the skinned GLB.** A primitive per material bucket, as the static export already splits
-   them, so a rigged hero keeps its metal and its cloth apart.
-2. **The rig as a page channel.** At `era: 'gen-7'`, the World page lights a hero's fills with a lit material and the
-   rig in place of the bake. The era marks move `figures` from approximated toward built.
-3. **The rim written out.** A rim the page and the exports carry, not only the rig preview's patch.
-4. **The theorist's light kept.** `worldSkin` carries `skinDirection`'s light beside its shade, so a world's palette
-   sets the rig's hues.
-5. **Material rows for the plating groups** (`Alloy`, `Joint`, the plating suits' plates), so the realistic body's
-   suits answer the light as metal.
-6. **Night cubes at gen-7.** A fill-dominated reference needs its own gen-7 balance, the cube's to decide: the bake's
-   ambient floor is a gen-6 device.
+The steps this page listed are the cast rig's (`control/lib/graph/color-theorist/cast-rig.js` `castRig`, and the page's
+material in `control/lib/graph/scene/channels/cast-rig.js`). What is built, and what is not:
 
-Each of these changes a render, so each is its own step, with its own pins and laws.
+- **The rig, solved from the world's own light.** The key is the cube's solved sun at the level's hour (the light the
+  land is lit by, `era/cube-light.js`), the fill is that solve's sky light over what the floor throws back, and the rim
+  is the horizon's hue. It is built on the solved light, not on the gen-6 cast levels `heroFormLight` reads above, so a
+  body and the land share one sun.
+- **A body's own gains.** As a fight lights its fighters: the body's key is raised where a sky-lit level would not turn
+  it, its fill where a moon over a dark sky would leave its shade a hole, its rim where its shade side sits on the
+  horizon's value. The world's light is never changed. The night finding above is answered here, on the body, and not
+  by rebalancing the cube.
+- **Only the key is a light.** The sky over the ground and the rim are in the body's own shader, so they light nothing
+  else; a page has one key, the land's sun on a form page.
+- **Who is drawn under it.** A fight game's and a brawl's bodies under a register; the hero a player pilots on a page
+  whose land is drawn as form; a vehicle's form body (its own setting's sky, its physical slots kept). Walkers, foes and
+  crowds stay paint under the live light.
+- **Two registers of the body**, the light the same: `western` lit as an engine lights it, `anime` cel.
+
+Not built:
+
+1. **Material by response on a hero.** Skin, cloth and metal each their own material on the page and on the skinned
+   GLB; the realistic body's plating groups (`Alloy`, `Joint`) still have no material row.
+2. **A palette's hues on the rig** (`skinDirection`'s light), and the per-group reads (the emblem's step, a group's
+   shade a hole) on the solved light: they are still `heroFormLight`'s, on the gen-6 levels.
+3. **The hero on a gen-7 page with no form land** (a metro, a room): it stays paint under the live light.
+4. **A lamp in the palette.** A night cube whose brightest colour is a neon sets its light's level by it.

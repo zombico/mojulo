@@ -44,8 +44,9 @@ export const ERAS = Object.freeze({
       conventions: Object.freeze([
         // partial: the realistic hero's one-skin head, on the lit engine export (epidermis/dermal-relief.js)
         { id: 'relief-in-normal', line: 'Seams, folds and plate edges live in a normal map baked from the figure\'s own field.', status: 'partial', note: 'built for the realistic hero\'s head (its one skin and ears, minted under realistic laws 5) on the lit engine export; planned: its body, hands and armour, the game body and the anime heads, and the World page (its fills are unlit)' },
-        { id: 'albedo-unlit', line: 'Vertex colour holds the material\'s colour and its cavity only; the light is live.', status: 'planned' },
-        { id: 'material-by-response', line: 'Skin, cloth, metal and visor are told apart by how they reflect, each its own material.', status: 'planned' },
+        // partial: the cast rig (color-theorist/cast-rig.js; the page's material, scene/channels/cast-rig.js)
+        { id: 'albedo-unlit', line: 'Vertex colour holds the material\'s colour and its cavity only; the light is live.', status: 'partial', note: 'built under the cast rig (one key the world shares, the sky over the ground and the rim in the body\'s own shader): a fight game\'s and a brawl\'s bodies under a register, the hero a player pilots on a page whose land is drawn as form, a vehicle\'s form body; planned: every other figure (a walker, a foe, a crowd), and the hero on a gen-7 page with no form land (a metro, a room)' },
+        { id: 'material-by-response', line: 'Skin, cloth, metal and visor are told apart by how they reflect, each its own material.', status: 'partial', note: 'built for a vehicle\'s form body (its slots: paint under clearcoat, glass, alloy, rubber, carbon) and for the realistic hero in a fight (its relief and its roughness); planned: a hero\'s skin, cloth and metal each its own material on every page' },
         { id: 'hair-cards', line: 'Hair as alpha cards over a scalp cap.', status: 'planned' },
       ]),
     }),

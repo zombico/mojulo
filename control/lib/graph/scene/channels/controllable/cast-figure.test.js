@@ -43,3 +43,39 @@ describe('a figure under the cast rig', () => {
     expect(controllableChannelScript(ent, null, { p: fig({ rim: [1, 1, 1, 0.4, 3] }) })).toContain('if (Array.isArray(fig.rim)) __rimPatch(mesh, fig.rim);');
   });
 });
+
+describe('a vehicle\'s form body under the cast rig', () => {
+  // (a body in the form render: a figure's `form` and a part's; the page's script is read, never run)
+  const F = { sky: { zenith: [80, 140, 220], horizon: [200, 220, 240], ground: [90, 80, 70] }, key: [1, 0.95, 0.85], keyIntensity: 2.6, ambient: 0.55, materials: { paint: { roughness: 0.3 } } };
+  const car = { c: { rig: true, form: F, bones: [{ id: 'body', head: [0, 0, 0], tail: [0, 0, 1] }], parts: [{ pos: f32(SOUP), col: u8(COL), faces: 2, form: { q: 'AA==', nrm: 'AA==', col: 'AA==', idx: 'AA==', n: 1, o: [0, 0, 0], s: [1, 1, 1], groups: [[0, 3, 0]], mats: ['paint'] } }], clips: { forward: clip } } };
+  const drive = [{ id: 'car', pilotable: true, body: { type: 'figure-rig', figure: 'c' }, rule: { type: 'drive' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+
+  it('its sky over its ground is the body\'s own: no sky light joins the scene, on any page', () => {
+    for (const opts of [{}, { formLand: true }]) {
+      const js = controllableChannelScript(drive, null, car, opts);
+      expect(js).toContain('const castKit = ');
+      expect(js).toContain('castKit.patch(m, __formRig(F)');
+      expect(js).not.toContain('new THREE.HemisphereLight');
+      expect(js.match(/const castKit = /g).length).toBe(1);
+    }
+  });
+
+  it('on a form page it asks for no light and no curve of its own: the land\'s sun lights it, the renderer tones it', () => {
+    const land = controllableChannelScript(drive, null, car, { formLand: true }), paint = controllableChannelScript(drive, null, car);
+    const lights = (js) => js.slice(js.indexOf('function __formLights(F)'), js.indexOf('// how much of the sky each slot throws back'));
+    expect(lights(land)).not.toContain('DirectionalLight');
+    expect(lights(land)).not.toContain('setTimeout');
+    expect(land).toContain('m.userData.cast = true;');
+    // (over a painted world: the page's casters take the key, and the body tones itself)
+    expect(lights(paint)).toContain('l.intensity = F.keyIntensity / casters.length');
+    expect(paint).toContain('2.51 * x + 0.03');
+    expect(paint).not.toContain('m.userData.cast = true;');
+  });
+
+  it('a cast figure beside it shares the one kit', () => {
+    const both = controllableChannelScript([...drive, ent[0]], null, { ...car, p: fig({ cast: CAST }) });
+    expect(both.match(/const castKit = /g).length).toBe(1);
+    expect(both).toContain('function __castMat(fig, o)');
+  });
+});
+

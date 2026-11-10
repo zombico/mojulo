@@ -86,6 +86,8 @@ describe('the cast rig', () => {
     expect(() => castRig(sunCube, { register: 'noir' })).toThrow(/register/);
     // (the numbers the module writes for itself are the ones they stand for)
     expect(CAST_RIG_LAWS.form).toBe(HERO_LIGHT_LAWS.form);
+    expect([CAST_RIG_LAWS.separation, CAST_RIG_LAWS.rimLift]).toEqual([HERO_LIGHT_LAWS.separation, HERO_LIGHT_LAWS.rimLift]);
+    expect(CAST_RIG_LAWS.rim).toEqual({ strength: CAST_LIGHT.rim.strength, power: CAST_LIGHT.rim.power });
     expect([CAST_CARD.western.strength, CAST_CARD.western.power]).toEqual([CAST_LIGHT.rim.strength, CAST_LIGHT.rim.power]);
   });
 });
