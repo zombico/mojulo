@@ -460,8 +460,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-card[data-state=spent]{rotate:90deg;scale:.72;color:${v('mid')};border-style:dashed}`,
     `${s} .mana-card[data-face=down]{align-items:center;justify-content:center;padding:${u(6)}}`,
     `${s} .mana-back{position:absolute;inset:${u(6)};border:1px solid ${v('line')};background:repeating-linear-gradient(45deg,${v('soft')} 0 2px,transparent 2px 7px)}`,
-    `${s} .mana-card[data-face=down]>.mana-count{position:relative;right:auto;bottom:auto;padding:0 ${u(6)};background:${v('paper')};font-size:${t('body')}}`,
-    `${s} :is(.mana-cell,.mana-row)>.mana-card{border-color:transparent;background:transparent}`,
+    `${s} .mana-card[data-face=down]>.mana-count{position:relative;right:auto;bottom:auto;max-width:100%;padding:0 ${u(4)};background:${v('paper')};font-size:${t('caption')};text-align:center;overflow-wrap:anywhere}`,
     // the whole of what happened, shown from its end; the newest line is the ink, the rest a step back
     `${s} .mana-log{display:flex;flex-direction:column;gap:${u(3)};min-width:${u(240)};font-size:${t('label')};color:${v('mid')}}`,
     `${s} .mana-log>.mana-line[data-last=yes]{color:${v('ink')};font-weight:700}`,

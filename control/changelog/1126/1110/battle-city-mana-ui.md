@@ -5,8 +5,27 @@ board-game pages with their own header, side panel and sheet, played by pointer 
 skirmish client of monospace text panels with three key listeners of its own. This theme moves them onto the game UI
 runtime (`lib/mana-ui/`, [docs/mana-ui.md](../../../../docs/mana-ui.md)). Planned, in order: the pages' own house; what
 the runtime lacked for a table; the board-game pages on one spec; the strategy boards on one spec with one input
-owner; the table's broadcast furniture folded into the same parts; the holo arena. Built so far, the first two. No
-page is drawn by the runtime yet, so nothing a game emits changes but what is named here.
+owner; the table's broadcast furniture folded into the same parts; the holo arena. Built so far: the first two, and
+the board-game pages of moves, tiles and cards on one spec (the euro and round pages follow).
+
+- **A board game's page drawn by the runtime: `tabletop.ui`** (`{ theme?, languages?, language? }`,
+  `tabletop/table-ui.js`). One spec and one host for the tabletop pages. With `ui`, a page's header and side panel are
+  gone: the prompt and what can be done now are the table's action bar (each action on a key), the game so far its
+  log, new game, undo, the level and the view its menu, and a promotion or a drop one question at a time. The seats,
+  the calls and the result stay the table's broadcast, so the play is covered once.
+  - **Keys and a pad.** The tabletop pages were played by pointer only. With `ui` the board has a cursor moved by the
+    controls layer's `board` scheme (arrows or a stick, confirm, back), the menus and questions by the `menu` scheme,
+    and back from the board opens the menu. A key pressed while a screen is up is that screen's: it never also acts
+    on the board.
+  - **A card game is one screen of grids**: the supply, the market, the hand, what was played, each seat's piles as
+    backs and counts, moved through with the cursor; what can be bought or played has an edge alight.
+  - **The look** is the game's (`ui.theme`: a preset, a theme card or its own words), else the table's own materials
+    (`table-wood`, or `table-felt` for a card table), its sides the broadcast's kits so a chip here and a plate there
+    agree. A game's `languages` reach the table's own words.
+  - Built for the games of moves (chess, checkers, the placement games), the tile game and the card games. A euro or
+    a round game takes `ui` and still draws its own panel until it is moved.
+  - **Without `ui` a page plays as it did** and carries no runtime, sheet or host. Its client's source gains the
+    branches that choose between the two, and a page with `ui` is about 220 KB larger (the runtime and its sheet).
 
 - **The runtime gains a table's parts.** Three components, each with its rule in the sheet and no colour of its own:
   - `card`: a card's face (a band in its side's kit, the name, the cost, what it does, its tags, its power and guard,

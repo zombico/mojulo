@@ -29,13 +29,14 @@ import { tabletopGame } from './tabletop.js';
 import { tabletopPageHtml } from './tabletop-page.js';
 import { shapeOf } from './tabletop-shapes.js';
 import { readBroadcast } from '../broadcast/broadcast-package.js';
+import { readTableUi } from './table-ui.js';
 
 export const TABLETOP_GAMES = {
   chess: { title: 'Chess', make: () => ({ ...CHESS, title: 'Chess' }) },
   checkers: { title: 'Checkers', make: () => ({ ...CHECKERS, title: 'Checkers' }) },
 };
 
-const KEYS = new Set(['kind', 'game', 'human', 'level', 'view', 'seed', 'clock', 'title', 'broadcast']);
+const KEYS = new Set(['kind', 'game', 'human', 'level', 'view', 'seed', 'clock', 'title', 'broadcast', 'ui']);
 
 export function resolveTabletop(m = {}) {
   const no = (msg) => { throw new Error(`tabletop: ${msg}`); };
@@ -64,9 +65,10 @@ export function resolveTabletop(m = {}) {
     if (P && P.shape !== undefined) { try { shapeOf(P.shape); } catch (err) { no(`piece ${kind}: ${err.message}`); } }
   }
   if (m.broadcast !== undefined) { try { readBroadcast(m.broadcast, 'tabletop'); } catch (err) { no(err.message.replace(/^tabletop: /, '')); } }
+  if (m.ui !== undefined) { const bad = readTableUi(m.ui); if (bad.length) no(bad.join('; ').replace(/^tabletop\./, '')); }
   // compiled here, so a game that cannot be played is refused at minting, not on the page; its deal done
   G = tabletopGame(G).G;
-  return { G, opts: { human: m.human, level: m.level, view: m.view, seed, title: G.title, ...(m.broadcast !== undefined ? { broadcast: m.broadcast } : {}) } };
+  return { G, opts: { human: m.human, level: m.level, view: m.view, seed, title: G.title, ...(m.broadcast !== undefined ? { broadcast: m.broadcast } : {}), ...(m.ui !== undefined ? { ui: m.ui } : {}) } };
 }
 
 export function tabletopManifestHtml(m) {
@@ -76,7 +78,7 @@ export function tabletopManifestHtml(m) {
 
 export function buildTabletopGameManifest({ title, tabletop } = {}) {
   if (!tabletop || typeof tabletop !== 'object' || Array.isArray(tabletop)) {
-    throw new Error(`tabletop is { game: ${Object.keys(TABLETOP_GAMES).join(' | ')} | <a game written out>, human?, level?, view?, seed?, clock?, broadcast? }`);
+    throw new Error(`tabletop is { game: ${Object.keys(TABLETOP_GAMES).join(' | ')} | <a game written out>, human?, level?, view?, seed?, clock?, broadcast?, ui? }`);
   }
   const { kind, ...keys } = tabletop;
   const { G } = resolveTabletop({ kind: 'tabletop', ...keys });

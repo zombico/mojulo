@@ -679,6 +679,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-10 (battle city on the game UI runtime, the table's parts): `brawl` only, the one fixture that
 // inlines the game UI runtime's kernel. The kernel gains three components (a card, a log, a small series), `why` on a
 // disabled button, slot, row and cell, and their words; the brawler's yard uses none of them and draws as before.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the table on it): `brawl` again, for the sheet it carries.
+// A card in a grid keeps its face (it was drawn bare there), and a face-down card's count wraps inside its back. The
+// yard draws no card.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
