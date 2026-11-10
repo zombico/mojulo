@@ -20,6 +20,7 @@ import { tableBroadcastData, broadcastDomCss, broadcastDomClient, TABLE_LOOKS } 
 import { shapeIcon } from './tabletop-shapes.js';
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
 import { LEVELS, r2, escapeHtml, scriptJson, levelSelect } from './page-kit.js';
+import { tableUiCss, tableUiConfig, tableUiScript, tableUiBody } from './table-ui.js';
 
 
 
@@ -47,7 +48,9 @@ export function roundPageHtml(G, L, K, opts = {}) {
     plan = { svg: latticeSvg(L, { px: 72, names: true, ids: true }).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, ''), W: r2(f.W), H: r2(f.H),
       at: L.cells.map((c) => [r2((c.at[0] - f.x0) * f.px + f.pad), r2((f.y1 - c.at[1]) * f.px + f.pad)]), r: r2(f.px * L.cell * 0.36) };
   }
-  const data = { tv: tableBroadcastData(G.players, opts.broadcast, ['#888888'], TABLE_LOOKS.felt), L, G, human, level, seed, icon: wk && G.pieces[wk] ? iconPath(G.pieces[wk].shape) : null, art, plan };
+  // a round game played on a board keeps its own panel: the table's UI draws the games of cards and spaces
+  const ui = opts.ui && !plan ? opts.ui : null;
+  const data = { tv: tableBroadcastData(G.players, opts.broadcast, ['#888888'], TABLE_LOOKS.felt), L, G, human, level, seed, ...(ui ? { ui: tableUiConfig(ui) } : {}), icon: wk && G.pieces[wk] ? iconPath(G.pieces[wk].shape) : null, art, plan };
   const title = opts.title ?? G.title ?? 'mojulo round game';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -119,7 +122,8 @@ export function roundPageHtml(G, L, K, opts = {}) {
   #log{margin:0;padding-left:34px;max-height:260px;overflow:auto;font-size:13px}
   @media (max-width:600px){aside{flex-basis:100%}}
 ${broadcastDomCss(data.tv)}
-</style></head><body>
+${ui ? tableUiCss(ui, data.tv, 'felt') : ''}</style></head>${ui ? tableUiBody(`
+`) : `<body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   ${levelSelect(level)}
@@ -145,19 +149,21 @@ ${broadcastDomCss(data.tv)}
     <div class="card"><h2>Log</h2><ol id="log"></ol></div>
   </aside>
 </main>
+`}
 <script>
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
 const TV = (${broadcastDomClient.toString()})(DATA.tv);
-(${tabletopRoundClient.toString()})(DATA, T, M, TV);
+${ui ? tableUiScript() : 'const UI = null;'}
+(${tabletopRoundClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>
 `;
 }
 
 /* The round page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopRoundClient(D, T, M, TV) {
+export function tabletopRoundClient(D, T, M, TV, UI) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), R = D.G.round, me = K.sideOf[D.human], wkind = R.workers && R.workers.kind;
   const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
@@ -293,12 +299,54 @@ export function tabletopRoundClient(D, T, M, TV) {
     } else if (m.type === 'bid' || m.type === 'pick') note(who, (m.type === 'bid' ? 'bids' : 'picks') + ', sealed');
     if (S.round > before.round && !S.over) { note(-1, 'round ' + (S.round + 1)); TV.call({ text: 'Round ' + (S.round + 1), sub: 'of ' + R.rounds, tone: 'neutral' }); }
   }
-  function note(side, text) { log.push('<li>' + (side >= 0 ? '<i class="sw" style="background:' + colour(side) + '"></i> <b>' + esc(name(side)) + '</b> ' : '') + esc(text) + '</li>'); }
+  function note(side, text) { log.push({ side: side >= 0 ? side : undefined, text: (side >= 0 ? name(side) + ' ' : '') + text }); }
+  const logHtml = () => log.map((r) => '<li>' + (r.side >= 0 ? '<i class="sw" style="background:' + colour(r.side) + '"></i> ' : '') + esc(r.text) + '</li>').join('');
   const mine = () => !busy && !S.over && S.side === me;
   function play(m) { if (!mine() || !m) return; act(m); step(); }
 
+  // a card as the table's UI reads it: an object's (its characteristics as derived), or a kind of the supply
+  function cardRow(id, o) {
+    o = o || {};
+    const t = T.derive(K, S, id), tags = t.tags || {}, ob = S.pieces[id];
+    const fx = duel ? duelText(t) : [t.points ? t.points + ' point' + (t.points > 1 ? 's' : '') : ''].filter(Boolean).join(', ');
+    const cnt = ob.counters ? Object.keys(ob.counters).map((c) => c + ' ' + ob.counters[c]).join(' · ') : '';
+    return { id: (o.key || '') + id, name: t.name || t.kind, cost: duel && t.cost ? Object.values(t.cost).reduce((a, b) => a + b, 0) : undefined, text: [fx, cnt].filter(Boolean).join(' · '), tags: Object.keys(tags).map((k) => k + ' ' + tags[k]),
+      power: t.stats && t.stats.guard !== undefined ? t.stats.power || 0 : undefined, guard: t.stats && t.stats.guard !== undefined ? t.stats.guard - (ob.zone === 'field' ? ob.damage || 0 : 0) : undefined,
+      count: o.n > 1 ? '×' + o.n : undefined, side: ob.side >= 0 ? ob.side : undefined, state: o.picked ? 'picked' : ob.zone === 'field' && ob.ready === false ? 'spent' : o.go ? 'playable' : undefined, run: o.go ? o.run : undefined };
+  }
+  // one way to do it, done; several (its targets), chosen among the actions
+  const several = (list) => { if (list.length === 1) { choosing = null; play(list[0]); } else if (list.length) { choosing = list; render(); } };
+  function zonesOf(go, P) {
+    const Z = S.zones[me], out = [], w = crew(me);
+    const holds = (s, ws) => Object.keys(S.pools[s]).map((r) => r + ' ' + S.pools[s][r]).concat(wkind ? ['workers ' + ws.filter((o) => o.zone === 'home' && o.ready !== false).length + '/' + ws.length] : []);
+    K.players.forEach((p, s) => {
+      if (s === me) return;
+      const Y = S.zones[s];
+      out.push({ id: 'seat' + s, row: 0, title: [p.id + (S.first === s ? ' ★' : '')].concat(holds(s, crew(s)), Y.hand.length ? ['hand ' + Y.hand.length] : [], S.sealed[s] !== null && S.sealed[s] !== undefined ? ['has chosen'] : []).join(' · '),
+        cards: stack(Y.tableau).map(([id, n]) => cardRow(id, { n, key: 't' })).concat(duel ? Y.field.map((id) => cardRow(id, { key: 'f' })) : []) });
+    });
+    out.push({ id: 'mine', row: 0, title: ['You' + (S.first === me ? ' ★' : '')].concat(holds(me, w)).join(' · '), cards: stack(Z.tableau).map(([id, n]) => cardRow(id, { n, key: 'b' })) });
+    if (duel && S.links.length) out.push({ id: 'chain', row: 1, title: 'The chain (top first)', cards: S.links.slice().reverse().map((l, i) => ({ id: 'l' + i, name: K.defs[S.pieces[l.src].kind].name || S.pieces[l.src].kind, text: linkText(l), side: l.side })) });
+    const sp = R.spaces || {};
+    if (Object.keys(sp).length) out.push({ id: 'spaces', row: 2, size: 'm', title: 'Spaces', cards: Object.keys(sp).map((id) => {
+      const q = sp[id], on = S.pieces.filter((o) => o.zone === 'space' && o.space === id), m = legal.find((x) => x.type === 'place' && x.space === id);
+      return { id: 'sp' + id, name: q.name || id, text: (q.cost ? 'pay ' + pool(q.cost) + ': ' : '') + gives(q.gives), tags: on.map((o) => name(o.side)), count: on.length + '/' + (q.holds || 1), state: go && m ? 'playable' : undefined, run: go && m ? () => play(m) : undefined };
+    }) });
+    if (S.supply) out.push({ id: 'supply', row: 3, title: 'Supply', cards: Object.keys(S.supply).map((k) => {
+      const t = K.defs[k], can = go && legal.some((m) => m.type === 'buy' && m.card === k);
+      return { id: 'su' + k, name: t.name || k, cost: Object.values(t.price || {}).reduce((a, b) => a + b, 0), text: [duelText(t), t.points ? t.points + ' points' : ''].filter(Boolean).join('; '), count: '×' + S.supply[k], state: can ? 'playable' : undefined, run: can ? () => play(legal.find((m) => m.type === 'buy' && m.card === k)) : undefined };
+    }) });
+    if (P.move === 'bid' && S.lots.length) out.push({ id: 'lot', row: 3, size: 'm', title: 'Up for bids', cards: S.lots.map((id) => cardRow(id, { key: 'o' })) });
+    if (duel) out.push({ id: 'field', row: 4, title: 'Your field', cards: Z.field.map((id) => cardRow(id, { key: 'm', go: go && legal.some((m) => m.type === 'use' && m.id === id), picked: choosing && choosing[0].id === id, run: () => several(legal.filter((m) => m.type === 'use' && m.id === id)) })) });
+    const castable = (id) => legal.some((m) => m.type === 'cast' && m.card === S.pieces[id].kind);
+    if (Z.hand.length) out.push({ id: 'hand', row: 5, size: 'm', title: 'Your hand', cards: Z.hand.map((id) => cardRow(id, { key: 'h', go: go && (duel ? castable(id) : P.move === 'pick'), picked: choosing && choosing[0].type === 'cast' && choosing[0].card === S.pieces[id].kind,
+      run: () => (duel ? several(legal.filter((m) => m.type === 'cast' && m.card === S.pieces[id].kind)) : play(legal.find((m) => m.type === 'pick' && m.id === id) || legal.find((m) => m.type === 'pick' && m.card === S.pieces[id].kind))) })) });
+    return out;
+  }
+
   function render() {
     const go = mine(), P = phase(), Z = S.zones[me];
+    if (UI) return panel(go, P);
     // the other seats: pools, workers, tableau; whether a sealed choice was made, never what
     $('others').innerHTML = K.players.map((p, s) => {
       if (s === me) return '';
@@ -373,10 +421,11 @@ export function tabletopRoundClient(D, T, M, TV) {
     picked = id >= 0 && S.pieces[id].side === me && legal.some((x) => (x.type === 'go' || x.type === 'attack') && x.id === id) ? id : -1;
     render();
   }
-  function button(text, on, enabled) { const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
+  // an action: a button on the page, or a row of the table's action bar
+  function button(text, on, enabled) { if (UI) return { name: text, run: on, disabled: !enabled }; const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
   function panel(go, P) {
-    const acts = $('acts');
-    acts.innerHTML = '';
+    const acts = UI ? { rows: [], appendChild(b) { this.rows.push(b); } } : $('acts');
+    if (!UI) acts.innerHTML = '';
     let prompt;
     if (S.over) prompt = S.over.winner === me ? 'You win!' : S.over.winner === null ? 'A draw' : name(S.over.winner) + ' wins';
     else if (S.side !== me) prompt = name(S.side) + (P.who === 'together' ? ' is choosing…' : ' is playing…');
@@ -398,33 +447,41 @@ export function tabletopRoundClient(D, T, M, TV) {
       prompt = 'Seal a bid (' + K.round.bid + ')';
       for (const m of legal) acts.appendChild(button(String(m.n), () => play(m), go));
     } else prompt = 'Pick a card to keep; the rest go on';
-    $('prompt').textContent = prompt;
     const sc = S.over ? S.over.scores : T.roundScores(K, S, false);
     $('status').textContent = S.over ? prompt : 'Round ' + (S.round + 1) + ' of ' + R.rounds + ' · ' + (P.id || P.move);
     TV.table({ players: K.players, me, scores: sc, live: S.side, tab: 'round ' + (S.round + 1) + ' of ' + R.rounds + ' · ' + (P.id || P.move) + (prompt ? ' · ' + prompt : ''), over: S.over, again: reset });
+    if (UI) {
+      UI.show({ prompt, actions: acts.rows, log, zones: zonesOf(go, P),
+        menu: [{ label: 'Resume', run: () => {} }, { label: 'New game', run: reset }, { label: 'Level: ' + level, run: () => { level = LEVELS[(LEVELS.indexOf(level) + 1) % LEVELS.length]; render(); } }] });
+      return;
+    }
+    $('prompt').textContent = prompt;
     $('seats').innerHTML = K.players.map((p, s) => {
       const u = T.utilization(K, S, s);
       return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><i class="sw" style="background:' + colour(s) + '"></i> ' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + (duel && L0 && !S.over ? S.pools[s][L0] + ' ' + L0 : sc[s] + ' pts') + (u ? ' <small>· used ' + Math.round(u.share * 100) + '%</small>' : '') + '</span></div>';
     }).join('');
-    $('log').innerHTML = log.join('');
+    $('log').innerHTML = logHtml();
     $('log').scrollTop = 1e6;
   }
 
-  $('felt').addEventListener('click', (e) => {
-    if (!mine()) return;
-    const sp = e.target.closest('.sp'), c = e.target.closest('.c'), cellEl = e.target.closest('[data-cell]');
-    if (cellEl && D.plan) { clickCell(+cellEl.dataset.cell); return; }
-    if (c && c.dataset.buy !== undefined) { play(legal.find((m) => m.type === 'buy' && m.card === c.dataset.buy)); return; }
-    if (sp) play(legal.find((m) => m.type === 'place' && m.space === sp.dataset.space));
-    else if (duel && c) {
-      // a card cast, or a summon's ability used: one way, played; several (targets), chosen in the panel
-      const list = c.dataset.card !== undefined ? legal.filter((m) => m.type === 'cast' && m.card === S.pieces[+c.dataset.card].kind)
-        : c.dataset.obj !== undefined ? legal.filter((m) => m.type === 'use' && m.id === +c.dataset.obj) : [];
-      if (list.length === 1) { choosing = null; play(list[0]); } else if (list.length) { choosing = list; render(); }
-    } else if (c && c.dataset.card !== undefined) { const id = +c.dataset.card; play(legal.find((m) => m.type === 'pick' && m.id === id) || legal.find((m) => m.type === 'pick' && m.card === S.pieces[id].kind)); }
-  });
-  if (duel && L0) $('seats-h').textContent = L0.charAt(0).toUpperCase() + L0.slice(1);
-  $('level').onchange = (e) => { level = e.target.value; };
-  $('again').onclick = () => reset();
+  const LEVELS = Object.keys(M.LEVELS);
+  if (!UI) {
+    $('felt').addEventListener('click', (e) => {
+      if (!mine()) return;
+      const sp = e.target.closest('.sp'), c = e.target.closest('.c'), cellEl = e.target.closest('[data-cell]');
+      if (cellEl && D.plan) { clickCell(+cellEl.dataset.cell); return; }
+      if (c && c.dataset.buy !== undefined) { play(legal.find((m) => m.type === 'buy' && m.card === c.dataset.buy)); return; }
+      if (sp) play(legal.find((m) => m.type === 'place' && m.space === sp.dataset.space));
+      else if (duel && c) {
+        // a card cast, or a summon's ability used: one way, played; several (targets), chosen in the panel
+        const list = c.dataset.card !== undefined ? legal.filter((m) => m.type === 'cast' && m.card === S.pieces[+c.dataset.card].kind)
+          : c.dataset.obj !== undefined ? legal.filter((m) => m.type === 'use' && m.id === +c.dataset.obj) : [];
+        if (list.length === 1) { choosing = null; play(list[0]); } else if (list.length) { choosing = list; render(); }
+      } else if (c && c.dataset.card !== undefined) { const id = +c.dataset.card; play(legal.find((m) => m.type === 'pick' && m.id === id) || legal.find((m) => m.type === 'pick' && m.card === S.pieces[id].kind)); }
+    });
+    if (duel && L0) $('seats-h').textContent = L0.charAt(0).toUpperCase() + L0.slice(1);
+    $('level').onchange = (e) => { level = e.target.value; };
+    $('again').onclick = () => reset();
+  }
   reset();
 }

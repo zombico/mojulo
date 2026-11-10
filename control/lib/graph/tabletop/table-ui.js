@@ -25,8 +25,9 @@
  *     UI.ask({ title, text, choices: [{ label, disabled?, why?, run }], columns?, cancel? })   one question; cancel:
  *       a function when the choice may be put off (back), absent when it must be made
  *     UI.offer({ title, give, get: [{ label, key, max }], draft, valid(draft) → why | '', run(draft) })   a trade
- *     UI.cursor({ points: [[x, y]…], at?, show(i), pick(i), back() → handled? })   the board's cursor: the board
- *       scheme's intents moved over the cells' places on the screen
+ *     UI.cursor({ points: [[x, y]…], at?, show(i), pick(i), back() → handled? }) → { at(), set(i), points(p, at?) }
+ *       the board's cursor: the board scheme's intents moved over the cells' places on the screen (a place with no
+ *       point is stepped over: a board whose targets change says them again with points())
  *     UI.close() · UI.busy() → a screen is up (the board's pointer waits)
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme, THEMES } from '../../mana-ui/index.js';
@@ -239,7 +240,7 @@ export function tableMana(cfg, manaUi, hostK, padLayout) {
     hostK.connect(board, view, { keys: cfg.board.keys, pad: cfg.board.pad, padLayout });
     window.addEventListener('keydown', () => { menuKey = false; }, true);
     cur.c.show(cur.at);
-    return { at: () => cur.at, set(i) { if (i >= 0) { cur.at = i; cur.c.show(i); } }, points(p) { cur.c.points = p; } };
+    return { at: () => cur.at, set(i) { if (i >= 0) { cur.at = i; cur.c.show(i); } }, points(p, at) { cur.c.points = p; if (at >= 0) cur.at = at; } };
   }
 
   // an action's own letter, with no screen up (a table of cards is a screen: its cards are picked with the cursor)

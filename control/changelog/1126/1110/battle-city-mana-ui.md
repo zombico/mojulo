@@ -6,7 +6,7 @@ skirmish client of monospace text panels with three key listeners of its own. Th
 runtime (`lib/mana-ui/`, [docs/mana-ui.md](../../../../docs/mana-ui.md)). Planned, in order: the pages' own house; what
 the runtime lacked for a table; the board-game pages on one spec; the strategy boards on one spec with one input
 owner; the table's broadcast furniture folded into the same parts; the holo arena. Built so far: the first two, and
-the board-game pages of moves, tiles and cards on one spec (the euro and round pages follow).
+the board-game pages on one spec.
 
 - **A board game's page drawn by the runtime: `tabletop.ui`** (`{ theme?, languages?, language? }`,
   `tabletop/table-ui.js`). One spec and one host for the tabletop pages. With `ui`, a page's header and side panel are
@@ -22,8 +22,14 @@ the board-game pages of moves, tiles and cards on one spec (the euro and round p
   - **The look** is the game's (`ui.theme`: a preset, a theme card or its own words), else the table's own materials
     (`table-wood`, or `table-felt` for a card table), its sides the broadcast's kits so a chip here and a plate there
     agree. A game's `languages` reach the table's own words.
-  - Built for the games of moves (chess, checkers, the placement games), the tile game and the card games. A euro or
-    a round game takes `ui` and still draws its own panel until it is moved.
+  - **The euro game**: its build modes, the dice, buying and ending the turn are actions; what you hold (resources and
+    cards) a row of counters; the cursor moves among the places that can be taken now; a trade is the offer screen,
+    each resource a count turned, the kernel saying why an offer cannot be made.
+  - **The round games** (worker placement, sealed bids, drafts, duels): the spaces, the supply, the lot, the chain, the
+    field and the hand are zones of the same screen; a bid is an action on its digit; a card with several targets asks
+    for one among the actions.
+  - Built for every tabletop page but one: a round game played on a board (a duel of summons on cells) takes `ui` and
+    still draws its own panel, since its board and its cards want the cursor at once.
   - **Without `ui` a page plays as it did** and carries no runtime, sheet or host. Its client's source gains the
     branches that choose between the two, and a page with `ui` is about 220 KB larger (the runtime and its sheet).
 

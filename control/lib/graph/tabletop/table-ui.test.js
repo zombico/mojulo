@@ -7,6 +7,9 @@ import { tabletopManifestHtml, resolveTabletop } from './tabletop-manifest.js';
 import { tabletopPageHtml } from './tabletop-page.js';
 import { tileGame } from './fixtures/tiles.js';
 import { deckGame } from './fixtures/cards.js';
+import { islandEconomy } from './fixtures/island-economy.js';
+import { workerGame } from './fixtures/rounds.js';
+import { fieldDuel } from './fixtures/field-duel.js';
 
 // The table's UI, each concept once: a game's `ui` is read and taught; without it a page carries no byte of the
 // runtime; with it one spec draws the table's parts and one host answers them (an action, the menu, a question with
@@ -40,7 +43,8 @@ describe('a table\'s ui: read and taught', () => {
 
 describe('a table\'s ui: absence adds nothing', () => {
   it('a page without ui carries no runtime, no sheet and no host; with it, all three', () => {
-    for (const make of [(ui) => tabletopManifestHtml({ kind: 'tabletop', game: 'chess', ...(ui ? { ui } : {}) }), (ui) => tabletopPageHtml(tileGame(), ui ? { ui } : {}), (ui) => tabletopPageHtml(deckGame(), ui ? { ui } : {})]) {
+    for (const make of [(ui) => tabletopManifestHtml({ kind: 'tabletop', game: 'chess', ...(ui ? { ui } : {}) }), (ui) => tabletopPageHtml(tileGame(), ui ? { ui } : {}), (ui) => tabletopPageHtml(deckGame(), ui ? { ui } : {}),
+      (ui) => tabletopPageHtml(islandEconomy(), ui ? { ui } : {}), (ui) => tabletopPageHtml(workerGame(), ui ? { ui } : {})]) {
       const plain = make(null), drawn = make({});
       expect(plain).not.toMatch(/buildManaUi|buildManaHost|mana-root|tableMana/);
       expect(plain).toContain('const UI = null;');
@@ -51,6 +55,11 @@ describe('a table\'s ui: absence adds nothing', () => {
       expect(drawn).not.toContain('<aside>');
       expect(make({})).toBe(drawn);                     // the same page every time
     }
+  });
+  it('a round game played on a board keeps its own panel for now, and says nothing of the runtime', () => {
+    const html = tabletopPageHtml(fieldDuel(), { ui: {} });
+    expect(html).toContain('<aside>');
+    expect(html).not.toMatch(/buildManaUi/);
   });
 });
 

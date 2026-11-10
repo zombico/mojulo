@@ -82,7 +82,8 @@ covered by the same package, written as CSS for a DOM page:
 A board game is shown in the `table` package by default, built of the page's own materials (`TABLE_LOOKS`: the board's
 wood frame under its light square, or the card table's felt under the card stock), so the graphics read as the game's
 furniture rather than a broadcast. Its tones come from the board, not the referee: the marker's red, the felt's green.
-`tabletop.broadcast` names a TV look instead. A new tabletop page calls `tableBroadcastData`, puts `broadcastDomCss`
+`tabletop.broadcast` names a TV look instead. With `tabletop.ui` the page's header and side panel are drawn by the game UI
+runtime ([mana-ui.md](mana-ui.md), the board games); the seat plates, the calls and the result stay this package's. A new tabletop page calls `tableBroadcastData`, puts `broadcastDomCss`
 in its style, inlines `broadcastDomClient`, and calls `tv.table(...)` (or `tv.frame` and `tv.call`) from its render.
 
 ## Colour

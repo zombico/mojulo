@@ -681,8 +681,8 @@ tactics battle's and a turn-based fight's, one part wherever it is drawn), `sele
 
 **Its looks** are theme cards of the family `table`: `table-wood` (plates of the board's light inlay framed in its
 wood, a book face in mixed case) and `table-felt` (card stock on green felt). Neither names its sides: a table's kits
-are its players'. No board-game or strategy page is drawn by these yet; the board (`scripts/mana-board.mjs <out.html>
---theme table-wood`) is where a person looks at them.
+are its players'. The board-game pages are drawn by them (the surfaces, below); no strategy page is yet. The board
+(`scripts/mana-board.mjs <out.html> --theme table-wood`) is where a person looks at every part.
 
 ## Sports and the broadcast
 
@@ -778,6 +778,29 @@ only), and the page's RPG channel (`scene/channels/rpg-channel.js`) is its host:
 - **Input** is mana-host's (`connect(rt, view, manaControls())`, polled on the page's frame). The channel keeps P and a
   pad's select, which are play's bindings, not the menu's.
 
+### The board games
+
+The tabletop pages (`tabletop/tabletop-page.js` and its euro, tile, card and round siblings) are drawn by mana-ui for a
+game with a `ui` (`tabletop: { …, ui: { theme?, languages?, language? } }`). One spec and one host serve them all:
+`tabletop/table-ui.js`.
+
+- **The spec** is a HUD over the board (a menu button, the `action-bar`, the `game-log`, a row of counters for what is
+  held) and four screens: the menu (`pause-menu`), one question (`choice-prompt`), an offer (`trade-offer`) and, for a
+  game with no board, the table of cards (a grid for each zone, zones that share a row side by side).
+- **`read`** is what the page hands `UI.show(...)` after each move, built from the kernel's state and its legal moves.
+  A row that can be done carries a function of the page's; the host keeps it and the row carries its id, so an effect
+  is `{ emit: 'run', id }` and the kernel still says yes or no.
+- **Input** is the controls layer's, twice: `connect(rt, …)` with the `menu` scheme while a screen is up, and
+  `connect(board, …)` with the `board` scheme for the cursor over the board, the board standing where a screen would
+  (it has the keys and the pads while no screen is up). A key pressed while a screen is up never also acts on the
+  board. An action's own key (a letter the page names, else a digit by its place) does it while no question is up.
+- **The cursor** steps to the nearest place in the way pressed, over the cells' places on the screen; a board whose
+  targets change (the euro's places) says them again and the cursor moves among those.
+- **Coverage.** The seats, the calls and the result stay the table's broadcast (`broadcast/broadcast-dom.js`); the spec
+  uses no `seat-plates`.
+- **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
+- A round game played on a board still draws its own panel.
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
@@ -813,5 +836,7 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
    shell's flow runner: [game-flow.md](game-flow.md)), and the RPG channel's battles, party menu and shops are too
    (`scene/channels/rpg-channel.js` rpgMana). Next: the play shell's pause, the theme's sounds there, a picture in the
    image component (a cover as key art), playscape's menu kinds, the arena shell's front, the versus pause and the
-   fight's HUD (the fight's language above).
+   fight's HUD (the fight's language above). The board-game pages are on it (`tabletop/table-ui.js`); next for them:
+   a round game played on a board, the strategy boards, and the table's broadcast furniture folded into the `table`
+   shelf.
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

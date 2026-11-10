@@ -15,6 +15,7 @@ import { buildTabletopMind } from './tabletop-mind.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient } from '../broadcast/broadcast-dom.js';
 import { pieceBodies } from './tabletop-bodies.js';
 import { LEVELS, r2, escapeHtml, scriptJson, levelSelect, tableCams, tableFaces } from './page-kit.js';
+import { tableUiCss, tableUiConfig, tableUiScript, tableUiBody } from './table-ui.js';
 
 const VIEWPORT = { width: 760, height: 600 };
 const UNIT = 70;
@@ -60,6 +61,7 @@ export function euroPageHtml(G, L, K, opts = {}) {
   const data = {
     tv: tableBroadcastData(G.players, opts.broadcast, ['#888888']),
     L: { ...L }, G, human, level, seed, view,
+    ...(opts.ui ? { ui: tableUiConfig(opts.ui) } : {}),
     plan: { W: r2(frame.W), H: r2(frame.H), places: planPlaces, r: r2(frame.px * L.cell * 0.17), cellPx: r2(frame.px * L.cell), icons },
     table: { cams, faces, places: tablePlaces, size: { cell: r2(sizes.cell * UNIT), corner: r2(sizes.corner * UNIT), edge: sizes.edge.map((x) => r2(x * UNIT)) }, bodies, stand },
   };
@@ -119,7 +121,12 @@ export function euroPageHtml(G, L, K, opts = {}) {
   #dice{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   @media (max-width:600px){aside{flex-basis:100%}}
 ${broadcastDomCss(data.tv)}
-</style></head><body>
+${opts.ui ? tableUiCss(opts.ui, data.tv) : ''}</style></head>${opts.ui ? tableUiBody(`
+  <div id="boards">
+    <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}" width="${data.plan.W}" height="${data.plan.H}">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="marks"></g><g id="pieces"></g><g id="targets"></g></svg></div>
+    <div id="table" class="viewport"><div class="view" id="view"></div></div>
+  </div>
+`) : `<body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
@@ -140,19 +147,21 @@ ${broadcastDomCss(data.tv)}
     <div class="card"><h2>Log</h2><ol id="log"></ol></div>
   </aside>
 </main>
+`}
 <script>
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
 const TV = (${broadcastDomClient.toString()})(DATA.tv);
-(${tabletopEuroClient.toString()})(DATA, T, M, TV);
+${opts.ui ? tableUiScript() : 'const UI = null;'}
+(${tabletopEuroClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>
 `;
 }
 
 /* The euro page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopEuroClient(D, T, M, TV) {
+export function tabletopEuroClient(D, T, M, TV, UI) {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], P = K.P, look = D.G.look || {};
@@ -179,7 +188,8 @@ export function tabletopEuroClient(D, T, M, TV) {
     return '<div class="' + cls + '"' + (extra || '') + ' style="width:' + wh[0] + 'px;height:' + wh[1] + 'px;' + (bg ? 'background:' + bg + ';' : '') + 'font-size:' + (wh[1] * 0.55) + 'px;transform:' + D.table.places[p] + '">' + (inner || '') + '</div>';
   };
 
-  let rolled = null;
+  let rolled = null, cur = -1, pad = null, view = D.view;
+  const centre = (q) => (q.length === 4 ? [(q[0] + q[2]) / 2, (q[1] + q[3]) / 2] : q);
   function reset() { TV.clear(); rolled = null; S = T.start(K); mode = null; busy = false; n = 0; log = []; step(); }
   function step() {
     legal = T.legal(K, S);
@@ -199,8 +209,9 @@ export function tabletopEuroClient(D, T, M, TV) {
   function r_delay() { return S.phase === 'opening' ? 260 : 420; }
   function note(side, m) {
     if (m.type === 'end') return;
-    log.push('<li><i class="sw" style="background:' + colour(side) + '"></i><b>' + esc(K.players[side].id) + '</b> ' + esc(label(m)) + '</li>');
+    log.push({ side, text: K.players[side].id + ' ' + label(m) });
   }
+  const logHtml = () => log.map((r) => '<li><i class="sw" style="background:' + colour(r.side) + '"></i>' + esc(r.text) + '</li>').join('');
   function label(m) {
     if (m.type === 'build') return 'builds a ' + m.kind;
     if (m.type === 'roll') return 'rolls';
@@ -219,9 +230,9 @@ export function tabletopEuroClient(D, T, M, TV) {
   const say = (h) => Object.keys(h).filter((r) => h[r] > 0).map((r) => h[r] + ' ' + r).join(' + ');
   let draft = { give: {}, get: {} };
   function play(m) {
-    if (busy) return;
+    if (busy || (UI && UI.busy())) return;
     note(me, m);
-    if (m.type === 'roll') { S = T.apply(K, S, m); n++; log[log.length - 1] = log[log.length - 1].replace('rolls', 'rolls ' + S.roll); }
+    if (m.type === 'roll') { S = T.apply(K, S, m); n++; log[log.length - 1].text = log[log.length - 1].text.replace('rolls', 'rolls ' + S.roll); }
     else { S = T.apply(K, S, m); n++; }
     mode = null;
     if (m.type === 'offer' || m.type === 'end') draft = { give: {}, get: {} };
@@ -271,6 +282,14 @@ export function tabletopEuroClient(D, T, M, TV) {
       if (s === 'edge') tg.push('<line data-place="' + m.at + '" x1="' + q[0] + '" y1="' + q[1] + '" x2="' + q[2] + '" y2="' + q[3] + '" stroke="#3a8f5a" stroke-opacity=".8" stroke-width="' + (PL.r * 0.6) + '" stroke-linecap="round"/>');
       else tg.push('<circle data-place="' + m.at + '" cx="' + q[0] + '" cy="' + q[1] + '" r="' + (PL.r * (s === 'cell' ? 1.3 : 0.6)) + '" fill="#3a8f5a" fill-opacity=".75" stroke="#fff" stroke-width="2"/>');
     }
+    if (pad) {
+      // the cursor moves among the places that can be taken now
+      const pts = [];
+      for (const m of places) pts[m.at] = centre(PL.places[m.at]);
+      if (!pts[cur]) cur = places.length ? places[0].at : -1;
+      pad.points(pts, cur);
+      if (cur >= 0) tg.push('<circle cx="' + pts[cur][0] + '" cy="' + pts[cur][1] + '" r="' + (PL.r * 1.5) + '" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="6 4" pointer-events="none"/>');
+    }
     $('targets').innerHTML = tg.join('');
     // ── table
     const tp = [];
@@ -293,7 +312,9 @@ export function tabletopEuroClient(D, T, M, TV) {
     panel();
   }
 
+  // an action: a button on the page, or a row of the table's action bar
   function button(text, on, enabled, active) {
+    if (UI) return { name: text, run: on, disabled: !enabled, active: !!active };
     const b = document.createElement('button');
     b.textContent = text;
     b.disabled = !enabled;
@@ -302,8 +323,8 @@ export function tabletopEuroClient(D, T, M, TV) {
     return b;
   }
   function panel() {
-    const acts = $('acts');
-    acts.innerHTML = '';
+    const acts = UI ? { rows: [], appendChild(b) { this.rows.push(b); } } : $('acts');
+    if (!UI) acts.innerHTML = '';
     const mine = T.actor(S) === me && !busy && !S.over;
     let prompt = '';
     if (S.over) prompt = S.over.winner === me ? 'You win!' : S.over.winner === null ? 'A draw' : K.players[S.over.winner].id + ' wins';
@@ -335,11 +356,22 @@ export function tabletopEuroClient(D, T, M, TV) {
       for (const m of legal.filter((x) => x.type === 'exchange')) acts.appendChild(button(m.give + ' → ' + m.get, () => play(m), true));
       acts.appendChild(button('End turn', () => play(legal.find((m) => m.type === 'end')), true));
     }
-    $('prompt').textContent = prompt;
     $('status').textContent = S.over ? prompt : 'Turn ' + (S.turn + 1);
     // the dice: one roll a turn, called as the table hears it
     if (S.roll && !S.over && rolled !== S.turn + ':' + S.roll) { rolled = S.turn + ':' + S.roll; TV.call({ text: 'Rolled ' + S.roll, sub: S.side === me ? 'You' : K.players[S.side].id, tone: 'neutral', hold: 0.7 }); }
     TV.table({ players: K.players, me, scores: K.players.map((_, s) => T.score(K, S, s, s !== me)), live: T.actor(S), tab: S.over ? prompt : prompt + ' · turn ' + (S.turn + 1), over: S.over, again: reset });
+    if (UI) {
+      // the table's parts: the prompt and what can be done now, what you hold, the game so far, the menu, an offer
+      const held = T.held(S, me), holds = K.res.map((r) => ({ label: r, value: S.hand[me][r] })).concat(Object.keys(held).map((c) => ({ label: cardName(c), value: held[c] })));
+      if (mine) for (const c of Object.keys(held)) { const m = legal.find((x) => x.type === 'play' && x.card === c); if (m) acts.appendChild(button('Play ' + cardName(c), () => play(m), true)); }
+      if (K.G.trade && mine && !S.pending.length && S.phase === 'main') acts.appendChild(button('Trade', offerUi, true));
+      UI.show({ prompt: prompt + (S.roll && !S.over ? '  ·  rolled ' + S.roll : ''), actions: acts.rows, log, resources: holds,
+        menu: [{ label: 'Resume', run: () => {} }, { label: 'New game', run: reset },
+          { label: 'Level: ' + level, run: () => { level = LEVELS[(LEVELS.indexOf(level) + 1) % LEVELS.length]; render(); } },
+          { label: 'View: ' + view, run: () => { showView(view === 'plan' ? 'table' : 'plan'); render(); } }] });
+      return;
+    }
+    $('prompt').textContent = prompt;
     $('dice').textContent = S.roll ? 'rolled ' + S.roll : '';
     // the hand and the cards
     $('hand').innerHTML = K.res.map((r) => '<span class="chip"><i style="background:' + resColour(r) + '"></i>' + r + ' ' + S.hand[me][r] + '</span>').join('');
@@ -359,9 +391,17 @@ export function tabletopEuroClient(D, T, M, TV) {
       const won = Object.keys(awards).filter((id) => S.awards[id] === s).map((id) => awards[id].name || id).join(', ');
       return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + T.score(K, S, s, s !== me) + ' pts · ' + hand + ' cards · ' + dev + ' dev' + (won ? ' · ' + won : '') + '</span></div>';
     }).join('');
-    $('log').innerHTML = log.join('');
+    $('log').innerHTML = logHtml();
     $('log').scrollTop = 1e6;
     tradePanel(mine);
+  }
+  const LEVELS = Object.keys(M.LEVELS);
+  // an offer on the table's offer screen: each resource a count turned, checked by the kernel's own rule
+  function offerUi() {
+    const flat = {}, of = (d) => { const o = { give: {}, get: {} }; for (const r of K.res) { if (d['give_' + r] > 0) o.give[r] = d['give_' + r]; if (d['get_' + r] > 0) o.get[r] = d['get_' + r]; } return o; };
+    for (const r of K.res) { flat['give_' + r] = 0; flat['get_' + r] = 0; }
+    UI.offer({ title: 'Trade', give: K.res.map((r) => ({ label: r, key: 'give_' + r, max: S.hand[me][r] })), get: K.res.map((r) => ({ label: r, key: 'get_' + r, max: 9 })), draft: flat,
+      valid: (d) => T.validOffer(K, S, of(d)) || '', run: (d) => play({ type: 'offer', offer: of(d), name: 'offer' }) });
   }
   // an offer drafted by hand: any whole cards held for any others, checked by the kernel's own rule
   function tradePanel(mine) {
@@ -410,15 +450,21 @@ export function tabletopEuroClient(D, T, M, TV) {
   $('plan').addEventListener('click', (e) => { const t = e.target.closest('[data-place],[data-cell]'); if (t) clickPlace(Number(t.dataset.place !== undefined ? t.dataset.place : t.dataset.cell)); });
   vw.addEventListener('click', (e) => { const t = e.target.closest('[data-place]'); if (t) clickPlace(Number(t.dataset.place)); });
   function showView(v) {
+    view = v;
     $('plan').style.display = v === 'plan' ? '' : 'none';
     $('table').style.display = v === 'table' ? '' : 'none';
+    if (UI) return;
     $('v-plan').classList.toggle('on', v === 'plan');
     $('v-table').classList.toggle('on', v === 'table');
   }
-  $('v-plan').onclick = () => showView('plan');
-  $('v-table').onclick = () => showView('table');
-  $('level').onchange = (e) => { level = e.target.value; };
-  $('again').onclick = () => reset();
+  if (!UI) {
+    $('v-plan').onclick = () => showView('plan');
+    $('v-table').onclick = () => showView('table');
+    $('level').onchange = (e) => { level = e.target.value; };
+    $('again').onclick = () => reset();
+  }
   showView(D.view);
   reset();
+  // the board's cursor (the board scheme, keys and pads): among the places that can be taken now
+  if (UI) { pad = UI.cursor({ points: [], at: -1, show: (i) => { cur = i; render(); }, pick: (i) => clickPlace(i), back: () => { if (mode) { mode = null; render(); return true; } return false; } }); render(); }
 }
