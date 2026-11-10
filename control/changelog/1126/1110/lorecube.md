@@ -27,6 +27,20 @@ plans, and each is rewritten as it lands.
   has only one of, you are told before anything is built. It also says when a side's weakness has nowhere to land (a
   party member has no weaknesses today; a monster in a party game does) and when a side's reserve has no meter of its
   own. A faction, as things stand, is only how its things look. Nothing in a game uses the table yet.
+- **A monster manual from a few lines.** Say which creatures a region has, what element each is of and what part it
+  plays (the bulk, a quick second threat, a tougher test, the boss). The manual works out the rest so the set holds
+  together: each creature is weak to whatever beats its element and resists its own, a boss soaks up its own element,
+  and each is as strong as its part and how far into the game it is met. You can overrule any of it. It tells you
+  when an element has no creature, when there is no boss, or when a tougher part is worth less than a lesser one. The
+  result is written in the words a party role-playing game already uses for its monsters and their attacks, and is
+  checked by that game's own rules. An action game's monsters cannot carry elements or weaknesses yet, and it says so.
+- **A skill tree from a list of techniques.** Name a school, its element, and what each technique does (a bolt, a
+  storm, an elemental blade, a ward, a rallying surge, a mend, a hex, a weakening). Then say how each is come by:
+  learned as the class ranks up, or bought with points after the techniques it builds on. Costs follow from how deep
+  a technique sits, and deeper ones hit harder; you can set your own. It warns when nothing is learned at the start,
+  when techniques require each other in a circle, when one cannot be reached, or when one costs less than what it
+  builds on. The result is a playable class and its skills in a party role-playing game's own words, checked by that
+  game's rules. This is the first piece that reaches levelling.
 - **Pictures of these relationships, drawn from the same data.** Each arrangement of elements and each reserve can be
   drawn as a diagram: the elements round a circle in their own colours with who beats, opposes and is allied to whom,
   and a reserve with what empties it and the meters that carry it. The drawings are made from the data and checked,

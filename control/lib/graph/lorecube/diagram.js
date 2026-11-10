@@ -15,10 +15,18 @@
  *                                    stands to the others, each difference asked for marked as its own or not, and the
  *                                    laws that do not hold
  *
+ *   manualDiagram(M, { title? })     a monster manual: a column an element of its polarity, a row a role, each
+ *                                    creature where it stands; under each element what it is weak to and resists
+ *   treeDiagram(T, { title? })       a skill tree: a tier a step down, each technique with what it does and costs,
+ *                                    learned at a rank or bought after what it requires (the arrows)
+ *
  * Pure and deterministic: the same lore, the same manifest, byte for byte.
  */
 import { resolvePolarity, relationsOf, elementHandles } from './polarity.js';
 import { readReserve, carriersOf, SPENDS, CARRIERS, REFILLS, EMPTIES } from './reserve.js';
+import { readManual, ROLE_IDS, manualLaws } from './manual.js';
+import { readTree, depthsOf, treeLaws, DOES } from './tree.js';
+import { affinityOf } from './polarity.js';
 import { HOLDER_KIND_IDS, HOLDER_KINDS, DIAL_IDS, HOLDS, holdersReport } from './holder.js';
 
 const INK = '#2b2f36', SOFT = '#7b8491', WARN = '#b4472f', PANEL = '#f3f1ec', LINE = '#4a5160';
@@ -161,4 +169,81 @@ export function holdersDiagram(list, { polarity, reserves, title = 'who holds wh
   if (!broken.length) { marks.push(text(40, y, 'every law holds', { anchor: 'start', size: 12, color: SOFT })); y += 20; }
   for (const l of broken) { marks.push(text(40, y, LAW_SAYS[l.law](l.value), { anchor: 'start', size: 12, color: WARN })); y += 20; }
   return { title, viewBox: { width: W, height: Math.round(y + 10) }, marks };
+}
+
+const title = (id) => id.replace(/(^|-)([a-z])/g, (_, d, c) => (d ? ' ' : '') + c.toUpperCase());
+// a tint washed toward white, for a panel a dark word can sit on
+const wash = (hex, k = 0.78) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (255 - v) * k)); return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+
+export function manualDiagram(v, { title: said } = {}) {
+  const M = readManual(v), P = resolvePolarity(M.polarity), rows = [...ROLE_IDS].reverse();
+  const x0 = 110, colW = 176, y0 = 118, pad = 8, chipH = 34;
+  const tall = Object.fromEntries(rows.map((r) => [r, Math.max(1, ...P.elements.map((e) => M.creatures.filter((c) => c.role === r && c.element === e).length))]));
+  const yOf = {}; let y = y0;
+  for (const r of rows) { yOf[r] = y; y += tall[r] * (chipH + 6) + pad * 2; }
+  const W = x0 + P.elements.length * colW + 30, name = said ?? M.name ?? 'a monster manual';
+  const marks = [text(W / 2, 34, name, { size: 18, weight: 700 }), text(W / 2, 56, `on ${P.id ?? 'its own polarity'}: ${SHAPE_SAYS[P.shape]}`, { color: SOFT })];
+  P.elements.forEach((e, j) => {
+    const H = elementHandles(e), cx = x0 + j * colW + colW / 2;
+    marks.push({ kind: 'rect', x: x0 + j * colW + 4, y: y0 - 6, w: colW - 8, h: y - y0 + 6, rx: 8, fill: wash(H.tint, 0.88), stroke: '#c9ced6', strokeWidth: 1 });
+    marks.push({ kind: 'circle', cx, cy: 88, r: 14, fill: H.tint, stroke: INK, strokeWidth: 1.2 }, text(cx + 22, 93, e, { anchor: 'start', weight: 700 }));
+    const A = affinityOf(P, e);
+    marks.push(text(cx, y + 20, A.weak.length ? `weak to ${A.weak.join(', ')}` : 'weak to nothing', { size: 11, color: A.weak.length ? INK : WARN }), text(cx, y + 36, `resists ${A.resist.join(', ')}`, { size: 11, color: SOFT }));
+  });
+  for (const r of rows) {
+    marks.push(text(x0 - 12, yOf[r] + pad + 20, r, { anchor: 'end', weight: 700 }));
+    P.elements.forEach((e, j) => {
+      M.creatures.filter((c) => c.role === r && c.element === e).forEach((c, k) => {
+        const x = x0 + j * colW + 14, cy = yOf[r] + pad + k * (chipH + 6);
+        marks.push({ kind: 'rect', x, y: cy, w: colW - 28, h: chipH, rx: 6, fill: '#ffffff', stroke: INK, strokeWidth: r === 'boss' ? 2 : 1.2 });
+        marks.push(text(x + (colW - 28) / 2, cy + 15, c.name ?? title(c.id), { size: 12, weight: 600 }));
+        marks.push(text(x + (colW - 28) / 2, cy + 28, M.levels ? `level ${M.levels[c.id]}` : 'level not said', { size: 10, color: SOFT }));
+      });
+    });
+  }
+  let yy = y + 62;
+  const off = M.creatures.filter((c) => !P.elements.includes(c.element));
+  if (off.length) { marks.push(text(30, yy, `outside the polarity: ${off.map((c) => `${c.id} (${c.element})`).join(', ')}`, { anchor: 'start', size: 12, color: WARN })); yy += 20; }
+  const SAYS = { 'every-element': (x) => `no creature of: ${x}`, 'every-role': (x) => `no ${x}`, 'every-weakness': (x) => `weak to nothing: ${x}`, ladder: (x) => `worth no more than a lesser role: ${x}` };
+  for (const l of manualLaws(M).filter((x) => !x.ok && SAYS[x.law])) { marks.push(text(30, yy, SAYS[l.law](l.value), { anchor: 'start', size: 12, color: WARN })); yy += 20; }
+  return { title: name, viewBox: { width: W, height: Math.round(yy + 6) }, marks };
+}
+
+export function treeDiagram(v, { title: said } = {}) {
+  const T = readTree(v), D = depthsOf(T), H = elementHandles(T.element), name = said ?? T.name ?? title(T.id);
+  // a tier a depth (the first the unplaced), a tier of more than four wrapped onto rows of four
+  const byDepth = [];
+  for (const t of T.techniques) { const d = D[t.id] ?? -1; (byDepth[d + 1] ||= []).push(t); }
+  const tiers = [], labels = [];
+  byDepth.forEach((row, i) => { for (let k = 0; row && k < row.length; k += 4) { tiers.push(row.slice(k, k + 4)); labels.push(k ? '' : i === 0 ? '?' : `${i - 1}`); } });
+  const bw = 150, bh = 52, gapX = 26, rowH = 96, top = 96, widest = Math.max(1, ...tiers.map((r) => r.length));
+  const W = Math.max(520, 150 + widest * (bw + gapX)), at = {};
+  const marks = [text(W / 2, 34, name, { size: 18, weight: 700 }), text(W / 2, 56, `a school of ${T.element}${T.order ? '' : ': its techniques, in no order yet'}`, { color: SOFT })];
+  tiers.forEach((row, i) => {
+    const y = top + i * rowH, x0 = (W - (row.length * bw + (row.length - 1) * gapX)) / 2 + 20;
+    if (labels[i]) marks.push(text(26, y + bh / 2 + 4, labels[i], { size: 12, color: SOFT, anchor: 'start' }));
+    row.forEach((t, k) => { at[t.id] = [r1(x0 + k * (bw + gapX)), y]; });
+  });
+  let lanes = 0;
+  for (const t of T.techniques) for (const r of T.order?.[t.id]?.requires ?? []) {
+    if (!at[r] || !at[t.id]) continue;
+    const x1 = r1(at[r][0] + bw / 2), y1 = at[r][1] + bh, x2 = r1(at[t.id][0] + bw / 2), y2 = at[t.id][1] - 4;
+    // an arrow to the next tier goes straight; one that skips a tier goes round by a lane at the side, never behind a box
+    if (y2 - y1 < rowH) marks.push({ kind: 'line', x1, y1, x2, y2, stroke: LINE, strokeWidth: 1.5, head: 'arrow' });
+    else { const lane = W - 34 - 12 * lanes++; marks.push({ kind: 'polyline', points: [[x1 + 40, y1], [x1 + 40, y1 + 14], [lane, y1 + 14], [lane, y2 - 12], [x2 + 40, y2 - 12], [x2 + 40, y2]], stroke: LINE, strokeWidth: 1.5, head: 'arrow' }); }
+  }
+  for (const t of T.techniques) {
+    const [x, y] = at[t.id], o = T.order?.[t.id], c = T.costs?.[t.id], lost = T.order && D[t.id] === undefined;
+    marks.push({ kind: 'rect', x, y, w: bw, h: bh, rx: 8, fill: lost ? '#fbeee9' : wash(H.tint), stroke: lost ? WARN : o?.at !== undefined ? INK : H.tint, strokeWidth: o?.at !== undefined ? 1.8 : 1.4, ...(lost ? { dash: '6 4' } : {}) });
+    marks.push(text(x + bw / 2, y + 19, t.name ?? title(t.id), { size: 12, weight: 700 }));
+    marks.push(text(x + bw / 2, y + 33, `${t.does}${t.status ? `: ${t.status}` : ''}${c ? ` · ${c.mp} MP` : ''}`, { size: 10, color: SOFT }));
+    marks.push(text(x + bw / 2, y + 46, lost ? 'cannot be reached' : !o ? brief(DOES[t.does].reads, 30) : o.at !== undefined ? `learned at rank ${o.at}` : `bought${c?.points ? `: ${c.points} point${c.points === 1 ? '' : 's'}` : ''}`, { size: 10, color: lost ? WARN : INK }));
+  }
+  let y = top + tiers.length * rowH;
+  marks.push(text(26, 84, 'depth', { size: 10, color: SOFT, anchor: 'start' }));
+  const SAYS = { rooted: () => 'nothing is learned at rank 1: a member of this class starts with no technique', 'no-cycle': (x) => `require each other: ${x}`, reachable: (x) => `cannot be reached: ${x}`, 'within-reach': (x) => `learned past the last rank a class has: ${x}`, 'costs-rise': (x) => `costs less than what it requires: ${x}` };
+  const broken = treeLaws(T).filter((l) => !l.ok);
+  if (T.order && !broken.length) { marks.push(text(26, y, 'dark border: learned by rank · arrows: what a bought technique requires', { anchor: 'start', size: 11, color: SOFT })); y += 20; }
+  for (const l of broken) { marks.push(text(26, y, SAYS[l.law](l.value), { anchor: 'start', size: 12, color: WARN })); y += 20; }
+  return { title: name, viewBox: { width: W, height: Math.round(y + 8) }, marks };
 }
