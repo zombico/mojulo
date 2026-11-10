@@ -11,6 +11,18 @@ plans, and each is rewritten as it lands.
   where each is allied to its neighbours and opposed to the two across. You can name one or write your own, and it is
   checked so every element has a weakness and none stands over the rest. It also gives a monster of any element the
   weaknesses and resistances a party game reads. Nothing in a game uses it yet.
+- **One description of a reserve of power, and which of the game's gauges can carry it.** A game already has several
+  separate meters, each built for one job: the points special moves draw on, the meter air moves fly on, the stamina
+  for sprinting and dodging, the stamina for guarding, the resource a hero's powers spend, and a party member's magic
+  points. A setting usually has one idea ("an inner energy that drains as it is used"). You say its name and what
+  empties it; later passes add how it comes back, what happens when it runs out, and its numbers. It then tells you
+  which meter can carry it, what that meter cannot do, when one idea would end up as two separate bars on screen, and
+  what nothing can do yet: pouring the reserve into an ordinary attack is named as a gap, with the smallest change
+  that would close it. Nothing in a game uses it yet.
+- **Pictures of these relationships, drawn from the same data.** Each arrangement of elements and each reserve can be
+  drawn as a diagram: the elements round a circle in their own colours with who beats, opposes and is allied to whom,
+  and a reserve with what empties it and the meters that carry it. The drawings are made from the data and checked,
+  so they cannot drift from it. A set is kept under `docs/lorecube/`.
 - **Made in passes, so the first one stays small.** A piece of lore is made in two kinds of step. The first only
   commits to what the thing is (which elements, in what arrangement) and stops there, however much is asked. Every
   step after that deepens what exists (the reasons, later the numbers and the moves) and may not change what was
