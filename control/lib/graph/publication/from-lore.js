@@ -4,8 +4,9 @@
  * and what it lowers to the party game), so the book a player reads says what the game plays; the plates are still
  * lifes from the prop shelf (props.js) in the element's own tint.
  *
- *   bestiaryOf(manual, { diagram?, by? })   → a publication. A chapter an element; each creature an entry with its
- *                                             numbers (once the manual is numbered) and what it fears
+ *   bestiaryOf(manual, { diagram?, by? })   → a publication. A chapter an element; each creature a field guide's
+ *                                             specimen: its sign, its name, its part, what it fears and (once the
+ *                                             manual is numbered) its measure
  *   grimoireOf(tree, { diagram?, by? })     → a publication. The school, then a chapter a tier; each technique an entry
  *   `diagram`: the part's own drawing as an SVG (lorecube/diagram.js through lib/sketch-svg.js), set as a figure
  *
@@ -46,21 +47,26 @@ export function bestiaryOf(manual, { diagram, by } = {}) {
   for (const element of elements) {
     const own = M.creatures.filter((c) => c.element === element);
     const aff = affinityOf(P, element), tint = tintOf(element);
-    const props = (ELEMENT_PROPS[elementHandles(element)?.root] ?? ['skull']).map((w) => [w, tint]).slice(0, 2);
+    const signs = ELEMENT_PROPS[elementHandles(element)?.root] ?? ['skull'];
     const blocks = [
       { p: `Of ${element} there ${own.length > 1 ? 'are' : 'is'} ${own.length}${aff.weak?.length ? `, and what is of ${element} gives way to ${list(aff.weak)}` : ''}.`, drop: true },
-      { plate: stillLife(props), caption: `The signs of ${element}.` },
     ];
     for (const c of own) {
       const name = c.name ?? nameOf(c.id), a = M.affinity?.[c.id], f = foes?.[c.id];
-      const inner = [{ p: ROLE_WORDS[c.role] ? `${nameOf(c.role)}: ${ROLE_WORDS[c.role]}.` : `${nameOf(c.role)}.` }];
-      if (a) inner.push({ facts: [['Fears', a.weak?.length ? list(a.weak) : 'nothing known'], ...(a.resist?.length ? [['Shrugs off', list(a.resist)]] : []), ...(a.absorb?.length ? [['Feeds on', list(a.absorb)]] : []), ...(a.immune?.length ? [['Untouched by', list(a.immune)]] : [])] });
-      if (f) inner.push({ stat: { name: 'Its measure', note: `as met at level ${M.levels[c.id]}`, pairs: [['Life', f.hp], ['Strength', f.atk], ['Guard', f.def], ['Craft', f.mag], ['Speed', f.spd]] } });
-      blocks.push({ entry: { n: ++n, title: name, blocks: inner } });
+      const traits = [
+        ...(a ? [['Fears', a.weak?.length ? list(a.weak) : 'nothing known'], ...(a.resist?.length ? [['Shrugs off', list(a.resist)]] : []), ...(a.absorb?.length ? [['Feeds on', list(a.absorb)]] : []), ...(a.immune?.length ? [['Untouched by', list(a.immune)]] : [])] : []),
+        ...(f ? [['Measure', `life ${f.hp}, strength ${f.atk}, guard ${f.def}, craft ${f.mag}, speed ${f.spd}`], ['Met at', `level ${M.levels[c.id]}`]] : []),
+      ];
+      // each creature under its element's sign, the signs taken in turn so neighbours differ
+      blocks.push({ specimen: {
+        name, epithet: `${nameOf(c.role)} of ${element}`, plate: stillLife([[signs[n % signs.length], tint]]),
+        ...(traits.length ? { traits } : {}), ...(ROLE_WORDS[c.role] ? { body: `${ROLE_WORDS[c.role][0].toUpperCase()}${ROLE_WORDS[c.role].slice(1)}.` } : {}),
+      } });
+      n++;
     }
     chapters.push({ id: `of-${element}`, title: `Of ${nameOf(element)}`, blocks });
   }
-  return { kind: 'bestiary', title, ...(by ? { by } : {}), subtitle: `${M.creatures.length} creatures, set down by element`, chapters };
+  return { kind: 'bestiary', title, ...(by ? { by } : {}), subtitle: `${M.creatures.length} creatures, set down by element`, cover: { props: elements.slice(0, 3).map((e) => [(ELEMENT_PROPS[elementHandles(e)?.root] ?? ['skull'])[0], tintOf(e)]) }, chapters };
 }
 
 /** A skill tree as a grimoire. */
@@ -94,5 +100,5 @@ export function grimoireOf(tree, { diagram, by } = {}) {
     }
     chapters.push({ id: `tier-${d + 1}`, title: ordered ? (d === 0 ? 'The first workings' : `The ${['second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'][d - 1] ?? `${d + 1}th`} tier`) : 'Its workings', blocks });
   }
-  return { kind: 'grimoire', title: `The Grimoire of ${name.replace(/^The /, 'the ')}`, ...(by ? { by } : {}), subtitle: `the workings of ${T.element}, in the order they are come by`, chapters };
+  return { kind: 'grimoire', title: `The Grimoire of ${name.replace(/^The /, 'the ')}`, ...(by ? { by } : {}), subtitle: `the workings of ${T.element}`, cover: { props: (kinds.length ? kinds : ['tome']).map((w) => [w, w === 'blade' || w === 'shield' ? undefined : tint]) }, chapters };
 }

@@ -41,4 +41,20 @@ export const fieldManual = {
   ] }],
 };
 
-export const PUBLICATION_EXAMPLES = Object.freeze({ notebook, fieldManual });
+/** A comic: a legend told in panels, a page a block. */
+export const comic = {
+  kind: 'comic', title: 'The Sword in the Still-Room', subtitle: 'No. 1', by: 'a legend of the Marches', cover: { props: ['blade', 'shield'] },
+  chapters: [{ id: 'the-finding', blocks: [
+    { layout: 'split', panels: [
+      { plate: stillLife(['alembic', 'candle', 'tome']), caption: 'The still-room had been shut for a hundred winters.' },
+      { plate: stillLife(['candle']), says: [{ who: 'Ilse', text: 'Someone lit this.' }] },
+      { plate: stillLife(['skull']), caption: 'She was not alone.' },
+    ] },
+    { layout: 'halves', panels: [
+      { plate: stillLife(['blade', 'shield']), caption: 'Behind the bench stood what the wardens had hidden.', says: [{ who: 'Ilse', text: 'So it is true.' }] },
+      { caption: 'To be continued.' },
+    ] },
+  ] }],
+};
+
+export const PUBLICATION_EXAMPLES = Object.freeze({ notebook, fieldManual, comic });

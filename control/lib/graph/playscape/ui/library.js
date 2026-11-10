@@ -10,7 +10,8 @@
  *
  *   readLibrary(play)      → the entries as written, checked (throws naming what it takes)
  *   libraryFlags(play)     → the flags the shelf reads
- *   libraryProgram(play)   → [{ id, title, kind, found?, page }] what the page carries: `page` the reader's html
+ *   libraryProgram(play)   → [{ id, title, kind, found?, cover?, page }] what the page carries: `page` the reader's
+ *                            html, `cover` the book's front (publication/cover.js) when it has one
  *   libraryView(program, vars) → the books held now [{ id, title, kind }]     (ships in the page: self-contained)
  *   libraryNews(program, flags) → [{ title }] the books these flags just put on the shelf (the same)
  *
@@ -19,6 +20,7 @@
  */
 import { readPublication, compilePublication, PUBLICATION_KIND_IDS } from '../../publication/publication.js';
 import { readerHtml } from '../../publication/reader.js';
+import { publicationCover } from '../../publication/cover.js';
 
 const err = (m) => new Error(`play.library${m}`);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -51,16 +53,19 @@ export function libraryFlags(play) {
 }
 
 export function libraryProgram(play) {
-  return readLibrary(play).map((e) => ({
-    id: e.id, title: e.book.title, kind: e.book.kind, ...(e.found ? { found: e.found } : {}),
-    page: readerHtml(compilePublication(e.book, { res: LIBRARY_RES })),
-  }));
+  return readLibrary(play).map((e) => {
+    const cover = publicationCover(e.book, { id: `cv-${e.id}`, res: 1 });
+    return {
+      id: e.id, title: e.book.title, kind: e.book.kind, ...(e.found ? { found: e.found } : {}), ...(cover ? { cover } : {}),
+      page: readerHtml(compilePublication(e.book, { res: LIBRARY_RES })),
+    };
+  });
 }
 
 // self-contained (the page ships their source): the flags are the bus vars flag-<name>
 export function libraryView(program, vars) {
   const out = [];
-  for (const b of program || []) if (!b.found || (vars && vars['flag-' + b.found])) out.push({ id: b.id, title: b.title, kind: b.kind });
+  for (const b of program || []) if (!b.found || (vars && vars['flag-' + b.found])) out.push({ id: b.id, title: b.title, kind: b.kind, cover: !!b.cover });
   return out;
 }
 export function libraryNews(program, flags) {

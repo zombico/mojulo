@@ -3,6 +3,7 @@ import { readLibrary, libraryFlags, libraryProgram, libraryView, libraryNews, LI
 import { sceneFlags } from './scenes.js';
 import { LIBRARY_CSS, libraryScript } from '../../scene/channels/library-channel.js';
 import { eventsChannelScript as eventsScript } from '../../scene/channels/events.js';
+import { emitThreeWorld } from '../../scene/scene-three.js';
 
 const BOOK = { kind: 'manual', title: 'A Handbook', chapters: [{ blocks: [{ p: 'One thing, done well.' }] }] };
 const PLAY = { library: [{ id: 'handbook', book: BOOK }, { id: 'ledger', book: { ...BOOK, kind: 'notebook', title: 'A Ledger' }, found: 'found-ledger' }] };
@@ -33,7 +34,13 @@ describe('a level\'s library', () => {
     for (const b of program) { expect(b.page.startsWith('<!doctype html>')).toBe(true); expect(b.page).toContain('window.__mojReader'); }
     expect(libraryView(program, {}).map((b) => b.id)).toEqual(['handbook']);
     expect(libraryView(program, { 'flag-found-ledger': true }).map((b) => b.id)).toEqual(['handbook', 'ledger']);
-    expect(libraryView(program, {})[0]).not.toHaveProperty('page');
+    expect(libraryView(program, {})[0]).toEqual({ id: 'handbook', title: 'A Handbook', kind: 'manual', cover: false });
+    // a book with a front brings it to the shelf, its ids its own
+    const fronted = libraryProgram({ library: [{ id: 'tome', book: { ...BOOK, cover: { props: ['tome'] } } }] });
+    expect(fronted[0].cover).toMatch(/^<svg /);
+    expect(fronted[0].cover).toMatch(/id="cv-tome-f1"/);
+    expect(libraryView(fronted, {})[0].cover).toBe(true);
+    expect(program[0]).not.toHaveProperty('cover');
     expect(libraryNews(program, ['other', 'found-ledger'])).toEqual([{ title: 'A Ledger' }]);
     expect(libraryNews(program, [])).toEqual([]);
   });
@@ -47,6 +54,8 @@ describe('the library channel', () => {
     expect(src).toContain('window.__mojFreeze = open');
     expect(src).toContain('window.__mojLibrary');
     expect(LIBRARY_CSS).toContain('.moj-lib-book');
+    expect(LIBRARY_CSS).toContain('.moj-lib-book.has-cover');
+    expect(src).toContain("e.classList.add('has-cover')");
   });
 
   it('rides the events channel only when the events carry a library: absent, not a byte', () => {
@@ -57,5 +66,12 @@ describe('the library channel', () => {
     expect(withLib).toContain('__stepLibrary(dtSec);');
     expect(withLib).toContain('window.__mojLibrary');
     expect(eventsScript({ ...base, library: [] })).not.toContain('__stepLibrary');
+  });
+
+  it('a library alone is a channel: a level with no rule of its own still gets its shelf', () => {
+    const face = { corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], fill: '#888888' };
+    const page = emitThreeWorld({ faces: [face], events: { library: libraryProgram(PLAY) } });
+    expect(page).toContain('window.__mojLibrary');
+    expect(emitThreeWorld({ faces: [face], events: {} })).not.toContain('__mojLibrary');
   });
 });

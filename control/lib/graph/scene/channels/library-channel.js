@@ -3,7 +3,7 @@
  * Emitted inside the events channel only when the events carry `library`, so a world without one keeps every byte.
  *
  * L opens the shelf (Esc or L closes it; the world is held while it is open, as a menu holds it): the books held, each
- * a cover; a cover opens the book as its reader (publication/reader.js) in a frame of its own, turned with the
+ * its cover (the book's own, publication/cover.js, else a plain binding in its kind's cloth); a cover opens the book as its reader (publication/reader.js) in a frame of its own, turned with the
  * arrows; Esc closes the book, then the shelf. A word shows at the top as a book is found, with the key.
  */
 import { libraryView, libraryNews } from '../../playscape/ui/library.js';
@@ -17,7 +17,8 @@ export const LIBRARY_CSS = `
 .moj-lib-shelf h3{margin:0 0 14px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--moj-accent,#8fa5c8)}
 .moj-lib-row{display:flex;flex-wrap:wrap;gap:14px}
 .moj-lib-book{all:unset;cursor:pointer;box-sizing:border-box;width:128px;height:176px;padding:14px 12px 12px 18px;border-radius:3px 6px 6px 3px;background:linear-gradient(90deg,rgba(0,0,0,.35) 0,rgba(0,0,0,0) 9px),#5a3f2c;color:#f0e2c4;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,.5),inset -2px 0 0 rgba(255,255,255,.08);font:600 14px/1.25 Georgia,serif}
-.moj-lib-book[data-kind=bestiary]{background-color:#3f4a36}.moj-lib-book[data-kind=manual]{background-color:#3d4654}.moj-lib-book[data-kind=notebook]{background-color:#6a5a3c}
+.moj-lib-book.has-cover{padding:0;background:none;overflow:hidden}.moj-lib-book.has-cover svg{display:block;width:100%;height:100%}
+.moj-lib-book[data-kind=comic]{background-color:#7a2a22}.moj-lib-book[data-kind=bestiary]{background-color:#3f4a36}.moj-lib-book[data-kind=manual]{background-color:#3d4654}.moj-lib-book[data-kind=notebook]{background-color:#6a5a3c}
 .moj-lib-book .t{border-top:1px solid rgba(240,226,196,.5);border-bottom:1px solid rgba(240,226,196,.5);padding:8px 0}
 .moj-lib-book .d{font:400 10px/1 system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
 .moj-lib-book:focus-visible,.moj-lib-book:hover{outline:2px solid var(--moj-accent,#8fa5c8);outline-offset:3px}
@@ -45,8 +46,13 @@ function __lDraw() {
   if (!v.length) { const d = document.createElement('div'); d.className = 'moj-lib-none'; d.textContent = 'nothing to read yet'; __lRow.appendChild(d); }
   for (const b of v) {
     const e = document.createElement('button'); e.className = 'moj-lib-book'; e.dataset.kind = b.kind; e.dataset.id = b.id;
-    const t = document.createElement('span'); t.className = 't'; t.textContent = b.title; e.appendChild(t);
-    const d = document.createElement('span'); d.className = 'd'; d.textContent = b.kind; e.appendChild(d);
+    if (b.cover) {
+      // (the cover is the studio's own drawing, made from the recipe: its words are set as text nodes, never markup)
+      e.classList.add('has-cover'); e.setAttribute('aria-label', b.title); e.innerHTML = EVENTS.library.find((x) => x.id === b.id).cover.replace(/ width="\\d+" height="\\d+"/, ' preserveAspectRatio="xMidYMid slice"');
+    } else {
+      const t = document.createElement('span'); t.className = 't'; t.textContent = b.title; e.appendChild(t);
+      const d = document.createElement('span'); d.className = 'd'; d.textContent = b.kind; e.appendChild(d);
+    }
     e.addEventListener('click', () => __lReadBook(b.id));
     __lRow.appendChild(e);
   }

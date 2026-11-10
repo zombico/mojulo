@@ -16,8 +16,15 @@
   creature, with what it fears and its numbers once those are settled); a skill tree becomes a grimoire (the school,
   then a chapter a tier, each technique with how it is come by and what it costs). Both are written from the lore's
   own data, with its diagram set in, and leave out whatever a later pass has not yet said.
-- **From the shell:** `node scripts/publication.mjs <out-dir> [--pdf]` writes the examples (a notebook, a handbook,
-  the sample bestiary and grimoire) as press pages, open books and PDFs.
+- **Three forms brought over from the studio's publisher.** A **comic** is a new kind of publication: each page is
+  a grid of panels (seven layouts, from one full panel to a splash over three), each panel a picture with a caption
+  box and up to three balloons, and a comic can be set to read right to left. A **specimen** is a field guide's entry:
+  the picture, its number and name, a second name, its marks and a description; a bestiary is now made of them, one a
+  creature. A **cover** gives a book a front: the studio's cover layouts with a drawn plate where the illustration
+  goes, on a cloth of its kind's colour. The cover is the book's first page in print and in the open book, and it is
+  what a level's shelf shows; a book without one keeps a plain binding.
+- **From the shell:** `node scripts/publication.mjs <out-dir> [--pdf]` writes the examples (a notebook, a handbook, a
+  comic, the sample bestiary and grimoire) as press pages, open books and PDFs.
 - **Not yet:** no door mints a publication (a recipe is written into a level or handed to the functions); the game
   designer, the bibles and the table RPG's game book do not make one; a book is found by a flag, not as an item or a
   place in the world; publications are not a department and join no chapter of the game book. A level's page carries

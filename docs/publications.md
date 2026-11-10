@@ -1,6 +1,7 @@
 # Publications: the books a world keeps, printed and read in play
 
-A **publication** is a book the studio makes for a game and its world: a grimoire, a bestiary, a manual, a notebook.
+A **publication** is a book the studio makes for a game and its world: a grimoire, a bestiary, a manual, a notebook, a
+comic.
 It is one small recipe of data, and the same recipe is read three ways, so the book a player finds in a level is the
 book that prints.
 
@@ -15,8 +16,9 @@ Code: [control/lib/graph/publication/](../control/lib/graph/publication/). It st
 
 ## The recipe
 
-`{ kind, title, subtitle?, by?, style?, chapters: [{ id?, title?, blocks }] }`. The kind (`PUBLICATION_KINDS`) says
-what it is and which book style it wears unless `style` names another. A block is one key:
+`{ kind, title, subtitle?, by?, style?, cover?, reads?, chapters: [{ id?, title?, blocks }] }`. The kind
+(`PUBLICATION_KINDS`) says what it is and which book style it wears unless `style` names another; `reads: 'rtl'` turns
+its pages right to left (a manga). A block is one key:
 
 | Block | What it sets |
 |---|---|
@@ -26,9 +28,19 @@ what it is and which book style it wears unless `style` names another. A block i
 | `{ entry: { n, title, blocks } }` | a numbered entry, kept whole across a turn |
 | `{ plate, caption?, span? }` | an illustration drawn from forms ([books.md](books.md#drawn-plates)) |
 | `{ figure, caption?, span? }` | an SVG another tool made (a lorecube diagram, a map); refused if it carries script, an event handler or a link out |
+| `{ specimen: { name, epithet?, plate? \| figure?, traits?, body? } }` | a field guide's entry: its picture, its number and name, its second name, its marks, a description |
+| `{ panels, layout? }` | one page of a comic: its panels in a grid (`PANEL_LAYOUTS`: full, halves, thirds, strip, split, grid, splash), each a picture, a caption box and up to three balloons |
 | `{ lines }` | ruled lines to write on |
 
 Words are data and are escaped. `readPublication` refuses what is not one by naming what it takes.
+
+## The cover
+
+`cover: true | { props, plate, tagline, archetype, palette }` gives a book a front (`cover.js`): the studio's cover
+grammar (where the picture, the title and the lines under it sit) with a drawn plate where a painted illustration
+would go, on its kind's cloth. `props` is a still life from the shelf below; `true` takes the book's own first plate.
+It is the book's first page in print and in the reader, and what a level's shelf shows; a book without one is a plain
+binding in its kind's colour. Its words are set as type, in the book's faces where the page carries them.
 
 ## Illustrations that are not authored blind
 
@@ -41,13 +53,13 @@ light set. A word may carry a tint: `['crystal', '#a8cbd8']`. A new prop is a ro
 
 The lorecube's parts become the books a world keeps of them (`from-lore.js`), from the same data its game plays:
 
-- `bestiaryOf(manual, { diagram? })`: a monster manual as a bestiary. A chapter an element, an entry a creature, with
-  what it fears and, once the manual is numbered, its measure.
+- `bestiaryOf(manual, { diagram? })`: a monster manual as a bestiary. A chapter an element, each creature a
+  specimen under its element's sign, with what it fears and, once the manual is numbered, its measure.
 - `grimoireOf(tree, { diagram? })`: a skill tree as a grimoire. The school, then a chapter a tier, each technique
   with how it is come by and what it costs.
 
 A part at any depth is published: what a later pass will say is left out, never invented. `diagram` is the part's
-own drawing, set as a figure.
+own drawing, set as a figure. Both come with a cover. A creature is not drawn: its picture is its element's sign.
 
 ## In a level
 
@@ -69,7 +81,7 @@ level without a library carries not a byte of this.
 ## From the shell
 
 ```bash
-node scripts/publication.mjs <out-dir> [notebook,fieldManual,bestiary,grimoire | recipe.json] [--pdf]
+node scripts/publication.mjs <out-dir> [notebook,fieldManual,comic,bestiary,grimoire | recipe.json] [--pdf]
 ```
 
 Writes each as `<name>.html` (the press), `<name>-reader.html` (the open book) and, with `--pdf`, its print. The
@@ -79,7 +91,10 @@ bestiary and the grimoire are made from the lorecube's sample manual and tree.
 
 - A book's plates are drawn when it is first read in a process (a second or two each, an engraving the largest), then
   kept for that process. A level's shelf holds at most eight books and draws its plates at a coarser grain.
-- A level's page carries each book's reader whole; a book of engravings adds a megabyte or more to the page.
+- A level's page carries each book's reader whole; a book of engravings adds a megabyte or more to the page, and a
+  bestiary, a plate a creature, the most. A cover adds a tenth to a few tenths of one.
+- A comic's panels are still lifes or figures another tool made: no characters are drawn, and there is no lettering
+  beyond a caption box and round balloons without tails.
 - No door mints a publication: a recipe is written into a level's `play.library` or handed to the functions above.
   `design_game`, the bibles and the table RPG's game book do not make one yet.
 - A book is found by a flag; there is no item, no place on a shelf in the world, and no page of a book that unlocks.

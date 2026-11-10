@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readPublication, compilePublication, publicationBook, PUBLICATION_KINDS, PUBLICATION_KIND_IDS, BLOCKS, styleOf } from './publication.js';
+import { readPublication, compilePublication, publicationBook, PUBLICATION_KINDS, PUBLICATION_KIND_IDS, BLOCKS, PANEL_LAYOUTS, styleOf } from './publication.js';
+import { publicationCover, readCover, COVER_GROUNDS } from './cover.js';
 import { readerHtml, READER_KEYS } from './reader.js';
 import { PROPS, PROP_IDS, propForm, stillLife } from './props.js';
 import { bestiaryOf, grimoireOf, ELEMENT_PROPS, DOES_PROPS } from './from-lore.js';
@@ -29,7 +30,8 @@ describe('a publication is a recipe of data', () => {
   it('is read as written, and refuses what is not one by naming what it takes', () => {
     expect(readPublication(BOOK)).toBe(BOOK);
     const bad = (over, re) => expect(() => readPublication({ ...BOOK, ...over })).toThrow(re);
-    bad({ kind: 'novel' }, /kind is one of grimoire, bestiary, manual, notebook/);
+    bad({ kind: 'novel' }, /kind is one of grimoire, bestiary, manual, notebook, comic/);
+    bad({ reads: 'up' }, /reads is 'ltr' or 'rtl'/);
     bad({ title: '' }, /title is the book's name/);
     bad({ pages: 3 }, /pages is not part of a publication/);
     bad({ style: 'gold-leaf' }, /style: book style/);
@@ -135,19 +137,21 @@ describe('lore, published', () => {
     expect(readPublication(thin)).toBe(thin);
     expect(thin).toMatchObject({ kind: 'bestiary', title: 'A Bestiary of the Marches' });
     expect(thin.chapters.map((c) => c.id)).toEqual(['of-fire', 'of-ice']);
-    const entries = (P) => P.chapters.flatMap((c) => c.blocks.filter((b) => b.entry).map((b) => b.entry));
-    expect(entries(thin).map((e) => e.title)).toEqual(['Cinder Imp', 'Frost Wight', 'The King']);
-    expect(JSON.stringify(thin)).not.toMatch(/"stat"|Fears/);
+    const entries = (P) => P.chapters.flatMap((c) => c.blocks.filter((b) => b.specimen).map((b) => b.specimen));
+    expect(entries(thin).map((e) => e.name)).toEqual(['Cinder Imp', 'Frost Wight', 'The King']);
+    expect(entries(thin)[1].epithet).toBe('Elite of ice');
+    expect(JSON.stringify(thin)).not.toMatch(/Measure|Fears/);
 
     const full = bestiaryOf(intensifyManual(premise, { affinity: true, levels: true }).manual, { diagram: FIGURE, by: 'the wardens' });
     expect(readPublication(full)).toBe(full);
     expect(full.chapters[0].id).toBe('the-order');
     expect(full.by).toBe('the wardens');
-    const king = entries(full).find((e) => e.title === 'The King');
-    expect(king.blocks.find((b) => b.facts).facts).toEqual(expect.arrayContaining([['Fears', 'fire'], ['Feeds on', 'ice']]));
-    expect(king.blocks.find((b) => b.stat).stat.pairs.map((p) => p[0])).toEqual(['Life', 'Strength', 'Guard', 'Craft', 'Speed']);
-    // each element's plate is a still life in that element's tint
-    expect(full.chapters[1].blocks.find((b) => b.plate).plate.forms.length).toBeGreaterThan(0);
+    const king = entries(full).find((e) => e.name === 'The King');
+    expect(king.traits).toEqual(expect.arrayContaining([['Fears', 'fire'], ['Feeds on', 'ice'], ['Met at', 'level 5']]));
+    expect(king.traits.find((t) => t[0] === 'Measure')[1]).toMatch(/^life \d+, strength \d+, guard \d+, craft \d+, speed \d+$/);
+    // each creature stands under its element's sign, and the book has a front
+    expect(king.plate.forms).toHaveLength(1);
+    expect(readCover(full.cover)).toBe(full.cover);
   });
 
   it('a tree is a grimoire: the school, then a chapter a tier; its costs only once it is costed', () => {
@@ -166,6 +170,76 @@ describe('lore, published', () => {
     expect(text).toContain('taught at rank 1');
     expect(text).toContain('earned after Spark');
     expect(full.chapters[0].blocks.some((b) => b.figure)).toBe(true);
+  });
+});
+
+describe('a field guide\'s specimen and a comic\'s page', () => {
+  const SPEC = { specimen: { name: 'Rime Mite', epithet: 'Grunt of ice', plate: BALL, traits: [['Fears', 'fire']], body: 'Met in numbers.' } };
+  const wrap = (blocks, over = {}) => ({ kind: 'bestiary', title: 'B', chapters: [{ blocks }], ...over });
+
+  it('a specimen is its picture, its number and name, its second name, its marks and a description', () => {
+    const body = compilePublication(wrap([SPEC, { specimen: { name: 'A Rumour' } }]), { res: 1 }).chapters[1].body;
+    expect(body).toMatch(/<article class="specimen"><div class="illustration"><svg/);
+    expect(body).toContain('<p class="no">001</p><p class="label">Rime Mite</p><p class="epithet">Grunt of ice</p>');
+    expect(body).toContain('<p class="description">Met in numbers.</p>');
+    expect(body).toContain('<article class="specimen text-only"><p class="no">002</p>');
+    expect(() => readPublication(wrap([{ specimen: { name: 'x', plate: BALL, figure: FIGURE } }]))).toThrow(/a plate or a figure, not both/);
+    expect(() => readPublication(wrap([{ specimen: { name: 'x', habitat: 'fen' } }]))).toThrow(/habitat is not part of a specimen/);
+  });
+
+  it('a comic page is its layout\'s rows of panels: a picture, a caption box, balloons', () => {
+    const page = { layout: 'split', panels: [{ plate: BALL, caption: 'Night.' }, { figure: FIGURE, says: [{ who: 'Ilse', text: 'Who is there?' }] }, { caption: 'No one.' }] };
+    const C = compilePublication(wrap([page], { kind: 'comic', reads: 'rtl' }), { res: 1 });
+    const body = C.chapters[1].body;
+    expect(C.reads).toBe('rtl');
+    expect(body).toMatch(/<section class="comic-page rows2"><div class="row n1"><div class="panel"><svg/);
+    expect((body.match(/class="panel"/g) || []).length).toBe(3);
+    expect(body).toContain('<p class="cap">Night.</p>');
+    expect(body).toContain('<p class="say"><b>Ilse</b> Who is there?</p>');
+    // every layout says how many panels it holds, and a page that brings another count is told
+    for (const [id, rows] of Object.entries(PANEL_LAYOUTS)) expect(rows.reduce((a, n) => a + n, 0)).toBeGreaterThan(0);
+    expect(() => readPublication(wrap([{ layout: 'grid', panels: [{ caption: 'one' }] }]))).toThrow(/panels is 4 panels for the 'grid' layout/);
+    expect(() => readPublication(wrap([{ layout: 'spiral', panels: [{ caption: 'one' }] }]))).toThrow(/layout is one of full, halves/);
+    expect(() => readPublication(wrap([{ layout: 'full', panels: [{}] }]))).toThrow(/is empty/);
+    expect(() => readPublication(wrap([{ layout: 'full', panels: [{ says: [{ text: '' }] }] }]))).toThrow(/says is 1 to 3 lines/);
+  });
+
+  it('a book that reads right to left turns the other way in the reader', () => {
+    const rtl = readerHtml(compilePublication(wrap([{ p: 'x' }], { kind: 'comic', reads: 'rtl' }))), ltr = readerHtml(compilePublication(wrap([{ p: 'x' }], { kind: 'comic' })));
+    expect(rtl).toContain('class="rd-leaves book" data-reads="rtl"');
+    expect(ltr).toContain('class="rd-leaves book">');
+  });
+});
+
+describe('a cover', () => {
+  const P = { kind: 'grimoire', title: 'The <Small> Book', by: 'a hand', subtitle: 'of one thing', chapters: [{ blocks: [{ p: 'x' }, { plate: BALL }] }] };
+
+  it('is drawn only when asked: its ground its kind\'s cloth, its words set as type, its picture a plate', () => {
+    expect(publicationCover(P)).toBeNull();
+    const own = publicationCover({ ...P, cover: true }, { res: 1 });
+    expect(own.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
+    expect(own).toContain(`fill="${COVER_GROUNDS.grimoire.bg}"`);
+    expect(own).toContain('The &lt;Small&gt;');
+    expect(own).toMatch(/<text [^>]*fill="#[0-9a-f]{6}"[^>]*><tspan/);
+    expect(own).toMatch(/<svg x="\d+" y="\d+" width="\d+" height="\d+" viewBox=/);   // the book's first plate, set in
+    expect(own).not.toMatch(/<script|href=|NaN/);
+    expect(publicationCover({ ...P, cover: true }, { res: 1 })).toBe(own);
+    const props = publicationCover({ ...P, cover: { props: ['tome'], palette: { bg: '#102030' } } }, { res: 1, id: 'a' });
+    expect(props).toContain('fill="#102030"');
+    expect(props).toMatch(/id="a-f1"/);
+    // nothing to draw: the cover's own ground
+    expect(publicationCover({ ...P, chapters: [{ blocks: [{ p: 'x' }] }], cover: true })).not.toMatch(/<svg x=/);
+  });
+
+  it('refuses what is not a cover, naming what it takes; a publication with one shows it on its first page', () => {
+    expect(() => readCover({ props: ['tome'], plate: BALL })).toThrow(/props .* or a plate of its own, not both/);
+    expect(() => readCover({ props: ['dragon'] })).toThrow(/cover props: no prop 'dragon'/);
+    expect(() => readCover({ archetype: 'origami' })).toThrow(/archetype is one of/);
+    expect(() => readCover({ palette: { bg: 'red' } })).toThrow(/#rrggbb/);
+    expect(() => readPublication({ ...P, cover: { spine: 1 } })).toThrow(/cover has no 'spine'/);
+    const front = compilePublication({ ...P, cover: true }, { res: 1 }).chapters[0].body;
+    expect(front.startsWith('<figure class="cover"><svg')).toBe(true);
+    expect(compilePublication(P, { res: 1 }).chapters[0].body.startsWith('<h1>')).toBe(true);
   });
 });
 

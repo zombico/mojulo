@@ -1610,6 +1610,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
   const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
   let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
+  // (a level whose play is a library alone has no bus of its own yet: the shelf still needs the page's)
+  if (!ev && payload && playEv && playEv.library) ev = {};
   if (ev && playEv) {
     if (playEv.style && ev.style === undefined) ev = { ...ev, style: playEv.style };
     if (playEv.register) ev = { ...ev, register: playEv.register };
@@ -1629,7 +1631,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const ctrlIn = (list) => Array.isArray(list) && list.some((r) => r && r.do === 'ctrl');
   if (ev && !ev.cast && mechEvents && (ctrlIn(mechEvents.reactions) || (mechEvents.sequences || []).some((q) => ctrlIn(q && q.steps)))) ev = { ...ev, cast: true };
   // A HUD-only block (a `legend` idiom: the controls hint) is a live channel too: it paints and fades on the page.
-  if (ev && ((Array.isArray(ev.menus) && ev.menus.length) || (Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {
+  // (So is a library alone: its shelf is the page's, with no rule of its own.)
+  if (ev && ((Array.isArray(ev.menus) && ev.menus.length) || (Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length) || (Array.isArray(ev.library) && ev.library.length))) {
     // the HUD widget language (hud-widgets.js): rows are validated here so a bad slot / kind /
     // token fails the compose_world resolve gate with a teaching message instead of painting
     // wrong; the events channel normalizes again at emit (idempotent), so fixtures stay raw.
