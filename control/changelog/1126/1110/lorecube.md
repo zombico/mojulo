@@ -41,6 +41,20 @@ plans, and each is rewritten as it lands.
   when techniques require each other in a circle, when one cannot be reached, or when one costs less than what it
   builds on. The result is a playable class and its skills in a party role-playing game's own words, checked by that
   game's rules. This is the first piece that reaches levelling.
+- **Your setting's story, written down as it is, and carried into the game book.** Hand over the lore of a setting in
+  whatever form it is in, and it is laid out without anything being added: who is in it, what happened in order and
+  what each event came from, how the world stands where your text stops, what each side wants, where they stand against
+  each other, what you planted and never came back to, and what the text does not say. Anything read between the lines
+  is marked as such, with the reason. It does not name your eras, pick your protagonist or decide where the story
+  starts: those are yours to say, and it records them only when you do. When you answer a question, only what you
+  answered changes. It then reports, without deciding: events with no stated cause, stretches where nobody could act,
+  conflicts two sides' wants imply that the text never states, and how much material there is for one story or
+  several.
+- **A game can keep it.** The backdrop is saved on the game itself, shown in its game book (the events in order, where
+  play begins, what is open and unsaid), and each chapter of the book is handed only its own part: the world chapter
+  gets the places as history left them, the cast chapter the people and what they want, the story chapter what
+  happened before play, the main quest the open conflicts and loose threads. A game without one is unchanged. It feeds
+  the story's timing and the world's starting state, never a game mechanic.
 - **Pictures of these relationships, drawn from the same data.** Each arrangement of elements and each reserve can be
   drawn as a diagram: the elements round a circle in their own colours with who beats, opposes and is allied to whom,
   and a reserve with what empties it and the meters that carry it. The drawings are made from the data and checked,

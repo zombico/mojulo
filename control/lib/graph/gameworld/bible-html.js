@@ -25,6 +25,7 @@ import { trackCourse } from '../roads/track.js';
 import { designCity } from '../city/plan/design.js';
 import { cityPlanSvg } from '../city/plan/book-html.js';
 import { cubeOfWorld, intentReport, GENRES } from './intent.js';
+import { readBackdrop, backdropReport, AGENCIES } from '../lorecube/backdrop.js';
 import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { rtsRoster } from '../board/board-rts-tech.js';
@@ -251,6 +252,31 @@ ${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) 
 </details>`;
 }
 
+// the backdrop (lorecube/backdrop.js): the setting's lore as extracted. What the text says happened, in order and by
+// stretch; how the world stands; what is open, planted and unsaid; the author's choices where given. A world without
+// one shows nothing. A reading that is the tool's is marked (inferred), never passed off as the text's
+export function backdropHtml(world) {
+  if (world.backdrop == null) return '';
+  const B = readBackdrop(world.backdrop), R = backdropReport(B), name = Object.fromEntries(B.actors.map((a) => [a.id, a.name]));
+  const begins = B.play?.begins?.after, mark = (b) => (b.basis === 'stated' ? '' : ` <span class="muted">(${esc(b.basis)}${b.because ? `: ${esc(b.because)}` : ''})</span>`);
+  const ev = (e) => `<li value="${e.n}">${esc(e.says)}${e.from?.length ? ` <span class="muted">from ${e.from.join(', ')}</span>` : e.n > 1 ? ' <span class="muted">no cause given</span>' : ''}${begins === e.n ? ' <b>· play begins after this</b>' : ''}</li>`;
+  const groups = B.stretches ? B.stretches.map((s) => `<p class="muted"><b>${esc(s.handle)}</b>${s.span ? `, ${esc(s.span)}` : ''}: ${esc(AGENCIES[s.agency])}</p><ol>${B.events.filter((e) => e.stretch === s.id).map(ev).join('')}</ol>`).join('') : `<ol>${B.events.map(ev).join('')}</ol>`;
+  const li = (xs) => xs.map((x) => `<li>${x}</li>`).join('');
+  return `<details class="brief" id="backdrop" open><summary>The backdrop${B.title ? `: ${esc(B.title)}` : ''}</summary>
+<p class="muted">The setting's lore as extracted: what its text says, in order. ${begins !== undefined ? (begins === B.events.length ? 'All of it is before play.' : `Play begins after event ${begins}.`) : 'Where play begins is not given.'}${B.play?.pov ? ` Seen through ${esc(B.play.pov.who)}.` : ''}</p>
+${groups}
+${B.places ? `<p class="muted"><b>As the world stands</b></p><ul class="decided">${li(B.places.map((p) => `<b>${esc(p.name)}</b> ${esc(p.state)}${R.placeEvents[p.id]?.length ? ` <span class="muted">(events ${R.placeEvents[p.id].join(', ')})</span>` : ''}`))}</ul>` : ''}
+${B.moves?.length ? `<ul class="decided">${li(B.moves.map((m) => `${esc(B.places.find((p) => p.id === m.from).name)} to ${esc(B.places.find((p) => p.id === m.to).name)}: ${esc(m.says)}${mark(m)}`))}</ul>` : ''}
+${B.texture?.length ? `<p class="muted">${B.texture.map(esc).join(' · ')}</p>` : ''}
+${B.conflicts?.length ? `<p class="muted"><b>Conflicts</b></p><ul class="decided">${li(B.conflicts.map((c) => `<b>${c.state === 'open' ? 'Open' : 'Resolved'}</b> ${esc(c.between.map((x) => name[x]).join(' and '))}, over ${esc(c.over)}${mark(c)}`))}</ul>` : ''}
+${R.derived.length ? `<p class="muted">Implied by what two sides want, and not said in the text: ${R.derived.map((d) => `${esc(d.between.map((x) => name[x]).join(' and '))} over ${esc(d.over)}`).join('; ')}.</p>` : ''}
+${B.wants?.length ? `<p class="muted"><b>Wants</b></p><ul class="decided">${li(B.wants.map((w) => `<b>${esc(name[w.who])}</b> ${esc(w.wants)}${mark(w)}${w.state ? ` <span class="muted">· ${esc(w.state)}</span>` : ''}`))}</ul>` : ''}
+${B.threads?.length ? `<p class="muted"><b>Planted, and not returned to</b></p><ul class="decided">${li(B.threads.map(esc))}</ul>` : ''}
+${B.unknowns?.length ? `<p class="muted"><b>Not said by the text</b></p><ul class="decided">${li(B.unknowns.map(esc))}</ul>` : ''}
+${R.coverage ? `<p class="muted">The route meets ${R.coverage.met} of the ${R.coverage.of} events before play${R.coverage.missed.length ? `; not met: ${R.coverage.missed.join(', ')}` : ''}.</p>` : ''}
+</details>`;
+}
+
 // how the hero moves (feel/): the template, its viewer and the feel book to play it (its sibling page, `?book=feel`), what
 // the runtime does not carry yet; a world that writes none shows what it would be suggested
 function feelHtml(world) {
@@ -359,7 +385,7 @@ export function gameworldBibleHtml(world, { foePortraits = {} } = {}) {
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${stamps.map((x) => `<li><a href="${anchorOf(x.id)}">${esc(x.name)}</a>${stamp(x.id)}<code>${esc(x.print)}</code>${x.note ? `<p class="muted">${esc(x.note)}</p>` : ''}</li>`).join('')}</ol>
 <p class="muted">${waiting.length ? `Next to look at: ${waiting.map((x) => `<a href="${anchorOf(x.id)}">${esc(x.name)}</a>`).join(', ')}.` : 'Nothing is waiting on you.'}</p>
-${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}${intentHtml(world)}${feelHtml(world)}</div>`;
+${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}${intentHtml(world)}${backdropHtml(world)}${feelHtml(world)}</div>`;
 
   const levels = order.map((id, i) => {
     const b = built[id], R = b.R, own = R.ledger;

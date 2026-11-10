@@ -20,6 +20,12 @@
  *   treeDiagram(T, { title? })       a skill tree: a tier a step down, each technique with what it does and costs,
  *                                    learned at a rank or bought after what it requires (the arrows)
  *
+ *   backdropTimeline(B, { title? })  a backdrop's events in order, by stretch, each with the events it comes from; where
+ *                                    play begins if the author said; then the threads and what the text does not say
+ *   backdropWeb(B, { title? })       its actors round a circle (people boxed, forces dashed), each with what it wants; a
+ *                                    line a conflict, an open one marked; a conflict the wants imply drawn dotted
+ *   backdropMap(B, { title? })       its places as they stand, and what moves between them
+ *
  * Pure and deterministic: the same lore, the same manifest, byte for byte.
  */
 import { resolvePolarity, relationsOf, elementHandles } from './polarity.js';
@@ -27,6 +33,7 @@ import { readReserve, carriersOf, SPENDS, CARRIERS, REFILLS, EMPTIES } from './r
 import { readManual, ROLE_IDS, manualLaws } from './manual.js';
 import { readTree, depthsOf, treeLaws, DOES } from './tree.js';
 import { affinityOf } from './polarity.js';
+import { readBackdrop, backdropReport, AGENCIES } from './backdrop.js';
 import { HOLDER_KIND_IDS, HOLDER_KINDS, DIAL_IDS, HOLDS, holdersReport } from './holder.js';
 
 const INK = '#2b2f36', SOFT = '#7b8491', WARN = '#b4472f', PANEL = '#f3f1ec', LINE = '#4a5160';
@@ -246,4 +253,101 @@ export function treeDiagram(v, { title: said } = {}) {
   if (T.order && !broken.length) { marks.push(text(26, y, 'dark border: learned by rank · arrows: what a bought technique requires', { anchor: 'start', size: 11, color: SOFT })); y += 20; }
   for (const l of broken) { marks.push(text(26, y, SAYS[l.law](l.value), { anchor: 'start', size: 12, color: WARN })); y += 20; }
   return { title: name, viewBox: { width: W, height: Math.round(y + 8) }, marks };
+}
+
+// a sentence broken into lines of at most `max` characters, never mid-word
+const wrap = (says, max) => { const out = []; let line = ''; for (const w of says.split(' ')) { if (line && (line + ' ' + w).length > max) { out.push(line); line = w; } else line = line ? `${line} ${w}` : w; } if (line) out.push(line); return out; };
+const BAND = ['#f1d8cf', '#dfe3ea', '#e4ead9', '#f3e7c2', '#e7d6ea', '#d9ebe8'];
+
+export function backdropTimeline(v, { title: said } = {}) {
+  const B = readBackdrop(v), R = backdropReport(B), W = 1060, x0 = 220, rowH = 30, name = said ?? B.title ?? 'a backdrop';
+  const marks = [text(W / 2, 34, `${name}: what the text says happened, in order`, { size: 18, weight: 700 }), text(W / 2, 56, 'each line is the text\'s; on the right, the earlier events it comes from', { color: SOFT })];
+  let y = 84;
+  const row = (e) => {
+    marks.push({ kind: 'circle', cx: x0, cy: y + 14, r: 10, fill: '#ffffff', stroke: INK, strokeWidth: 1.2 }, text(x0, y + 18, String(e.n), { size: 10, weight: 700 }));
+    marks.push(text(x0 + 20, y + 18, wrap(e.says, 104)[0] + (e.says.length > 104 ? ' …' : ''), { anchor: 'start', size: 12 }));
+    marks.push(text(W - 34, y + 18, e.from?.length ? `from ${e.from.join(', ')}` : e.n > 1 ? 'no cause given' : '', { anchor: 'end', size: 10, color: e.from?.length ? SOFT : WARN }));
+    y += rowH;
+    if (B.play?.begins?.after === e.n && e.n < B.events.length) { marks.push({ kind: 'line', x1: x0 - 14, y1: y + 2, x2: W - 30, y2: y + 2, stroke: WARN, strokeWidth: 1.6, dash: '8 5' }, text(W - 34, y + 16, 'play begins here (the author\'s)', { anchor: 'end', size: 10, color: WARN })); y += 20; }
+  };
+  if (B.stretches) {
+    B.stretches.forEach((s, i) => {
+      const evs = B.events.filter((e) => e.stretch === s.id), extra = evs.some((e) => B.play?.begins?.after === e.n && e.n < B.events.length) ? 20 : 0, h = evs.length * rowH + 12 + extra, top = y;
+      marks.push({ kind: 'rect', x: 20, y: top, w: W - 40, h, rx: 8, fill: BAND[i % BAND.length], stroke: '#c9ced6', strokeWidth: 1 });
+      wrap(s.handle, 26).slice(0, 2).forEach((l, k) => marks.push(text(34, top + 22 + k * 15, l, { anchor: 'start', weight: 700, size: 12 })));
+      marks.push(text(34, top + h - 10, AGENCIES[s.agency], { anchor: 'start', size: 10, color: s.agency === 'watched' ? WARN : SOFT }));
+      y += 6; evs.forEach(row); y = top + h + 8;
+    });
+  } else B.events.forEach(row);
+  if (B.play?.begins?.after === B.events.length) { marks.push({ kind: 'line', x1: 20, y1: y + 4, x2: W - 20, y2: y + 4, stroke: WARN, strokeWidth: 2, dash: '8 5' }, text(W / 2, y + 24, `the text stops here, and play begins${B.play.pov ? `, seen through ${B.play.pov.who}` : ''} (the author's)`, { color: WARN, weight: 700, size: 12 })); y += 44; }
+  else if (!B.play?.begins) { marks.push(text(W / 2, y + 16, 'where play begins is not given', { color: SOFT, size: 12 })); y += 34; }
+  const block = (head, items, color) => { if (!items?.length) return; marks.push(text(34, y + 6, head, { anchor: 'start', weight: 700, size: 12 })); y += 24; for (const t of items) for (const [k, l] of wrap(t, 150).entries()) { marks.push(text(44, y, `${k ? '  ' : '· '}${l}`, { anchor: 'start', size: 11, color: color ?? INK })); y += 16; } y += 8; };
+  block('As the world stands', (B.places ?? []).map((p) => `${p.name}: ${p.state}`));
+  block('What living there is like', B.texture, SOFT);
+  block('Planted, and not returned to', B.threads);
+  block('Not said by the text', B.unknowns, SOFT);
+  block('Implied by what two sides want, and not said', R.derived.map((d) => `${d.between.map((x) => B.actors.find((a) => a.id === x).name).join(' and ')}, over ${d.over}`), WARN);
+  return { title: name, viewBox: { width: W, height: Math.round(y + 6) }, marks };
+}
+
+export function backdropWeb(v, { title: said } = {}) {
+  const B = readBackdrop(v), R = backdropReport(B), name = said ?? B.title ?? 'a backdrop';
+  // two columns, so it reads at any size: who is in the text on the left, what they stand against each other over on
+  // the right, a line from each to the conflicts it is party to
+  const all = [...(B.conflicts ?? []).map((c) => ({ ...c, derived: false })), ...R.derived.map((d, i) => ({ id: `implied-${i}`, between: d.between, over: d.over, state: 'implied', derived: true }))];
+  const W = 1040, xA = 40, wA = 300, xC = 620, wC = 380, bh = 54, rowA = 68, rowC = 68, top = 100;
+  const rows = Math.max(B.actors.length, all.length, 1), yA = (i) => top + ((rows - B.actors.length) * rowA) / 2 + i * rowA, yC = (i) => top + ((rows - all.length) * rowC) / 2 + i * rowC;
+  const marks = [text(W / 2, 34, `${name}: who stands against whom, and over what`, { size: 18, weight: 700 }), text(xA + wA / 2, 78, 'who is in it (dashed: a force no one commands)', { color: SOFT, size: 12 }), text(xC + wC / 2, 78, 'what they stand against each other over', { color: SOFT, size: 12 })];
+  const cut = (t, max) => (t.length > max ? `${t.slice(0, t.lastIndexOf(' ', max - 1))} …` : t);
+  const iOf = Object.fromEntries(B.actors.map((a, i) => [a.id, i]));
+  all.forEach((c, j) => {
+    const color = c.state === 'open' ? WARN : c.derived ? SOFT : LINE;
+    for (const id of c.between) marks.push({ kind: 'line', x1: xA + wA, y1: r1(yA(iOf[id]) + bh / 2), x2: xC, y2: r1(yC(j) + bh / 2), stroke: color, strokeWidth: c.state === 'open' ? 2.4 : 1.4, ...(c.derived ? { dash: '2 4' } : {}), head: 'none' });
+  });
+  B.actors.forEach((a, i) => {
+    const y = yA(i), force = a.kind === 'force', ws = (B.wants ?? []).filter((q) => q.who === a.id), w = ws[0];
+    marks.push({ kind: 'rect', x: xA, y: r1(y), w: wA, h: bh, rx: force ? 27 : 8, fill: force ? '#eef0f3' : '#ffffff', stroke: INK, strokeWidth: 1.4, ...(force ? { dash: '6 4' } : {}) });
+    marks.push(text(xA + wA / 2, y + 22, cut(a.name, 44), { weight: 700 }), text(xA + wA / 2, y + 40, force ? 'wants nothing' : w ? `wants: ${cut(w.wants, 40)}${w.basis === 'stated' ? '' : ' *'}${ws.length > 1 ? ` (+${ws.length - 1})` : ''}` : 'what it wants is not said', { size: 10, color: SOFT }));
+  });
+  all.forEach((c, j) => {
+    const y = yC(j), open = c.state === 'open';
+    marks.push({ kind: 'rect', x: xC, y: r1(y), w: wC, h: bh, rx: 8, fill: open ? '#fdf1ec' : c.derived ? '#f6f7f9' : '#ffffff', stroke: open ? WARN : c.derived ? SOFT : INK, strokeWidth: open ? 2.2 : 1.3, ...(c.derived ? { dash: '4 4' } : {}) });
+    marks.push(text(xC + wC / 2, y + 22, cut(c.over, 54), { weight: 700, color: open ? WARN : INK }));
+    marks.push(text(xC + wC / 2, y + 40, c.derived ? 'implied by what both want; not said in the text' : open ? 'open where the text stops' : `resolved${c.basis === 'stated' ? '' : ' *'}`, { size: 10, color: open ? WARN : SOFT }));
+  });
+  if (!all.length) marks.push(text(xC + wC / 2, top + 30, 'no conflict is said', { color: SOFT }));
+  const y = top + rows * Math.max(rowA, rowC) + 14;
+  marks.push(text(40, y, '* read into the text (inferred), not stated', { anchor: 'start', size: 11, color: SOFT }));
+  return { title: name, viewBox: { width: W, height: Math.round(y + 14) }, marks };
+}
+
+export function backdropMap(v, { title: said } = {}) {
+  const B = readBackdrop(v), P = B.places ?? [], n = P.length, name = said ?? B.title ?? 'a backdrop';
+  // the places round a ring, so what passes between two never runs behind a third
+  const W = 1040, bw = 250, bh = 104, cx = W / 2, RX = n > 2 ? 350 : 260, RY = n > 2 ? 200 : 0, cy = 96 + bh / 2 + RY, H0 = cy + RY + bh / 2;
+  const at = Object.fromEntries(P.map((p, i) => { const t = -Math.PI / 2 + (2 * Math.PI * i) / Math.max(n, 1) + (n === 2 ? Math.PI / 2 : 0); return [p.id, [r1(cx + RX * Math.cos(t)), r1(cy + RY * Math.sin(t))]]; }));
+  const marks = [text(W / 2, 34, `${name}: the world as it stands where the text stops`, { size: 18, weight: 700 }), text(W / 2, 56, 'each place in the state the events left it; an arrow is what passes between two', { color: SOFT })];
+  const names = Object.fromEntries(B.actors.map((a) => [a.id, a.name]));
+  const leave = ([x, y], [tx, ty]) => { const dx = tx - x, dy = ty - y, k = Math.min((bw / 2 + 8) / Math.abs(dx || 1e-9), (bh / 2 + 8) / Math.abs(dy || 1e-9)); return [r1(x + dx * k), r1(y + dy * k)]; };
+  const tags = [];
+  for (const m of B.moves ?? []) {
+    // (two moves between the same two places run side by side, never one over the other)
+    const back = (B.moves ?? []).some((q) => q.from === m.to && q.to === m.from), [ax, ay] = at[m.from], [bx, by] = at[m.to], d = Math.hypot(bx - ax, by - ay) || 1, ox = back ? r1((-(by - ay) / d) * 12) : 0, oy = back ? r1(((bx - ax) / d) * 12) : 0;
+    const [x1, y1] = leave(at[m.from], at[m.to]).map((q, k) => r1(q + (k ? oy : ox))), [x2, y2] = leave(at[m.to], at[m.from]).map((q, k) => r1(q + (k ? oy : ox))), mx = x1 + (x2 - x1) * 0.36, my = y1 + (y2 - y1) * 0.36;
+    const says = m.says.length > 36 ? `${m.says.slice(0, m.says.lastIndexOf(' ', 35))} …` : m.says, label = says + (m.basis === 'stated' ? '' : ' *'), w = label.length * 6.1 + 14;
+    marks.push({ kind: 'line', x1, y1, x2, y2, stroke: LINE, strokeWidth: 1.8, head: 'arrow' });
+    tags.push({ kind: 'rect', x: r1(mx - w / 2), y: r1(my - 13), w: r1(w), h: 18, rx: 4, fill: '#ffffff', stroke: '#c9ced6', strokeWidth: 1 }, text(mx, my, label, { size: 11 }));
+  }
+  for (const p of P) {
+    const [x, y] = at[p.id], who = (p.who ?? []).map((w) => names[w]).join(', ');
+    marks.push({ kind: 'rect', x: r1(x - bw / 2), y: r1(y - bh / 2), w: bw, h: bh, rx: 10, fill: '#fbf5e4', stroke: INK, strokeWidth: 1.4 }, text(x, y - bh / 2 + 24, p.name, { weight: 700 }));
+    wrap(p.state, 40).slice(0, 3).forEach((l, k) => marks.push(text(x, y - bh / 2 + 43 + k * 14, l, { size: 10, color: SOFT })));
+    if (who) marks.push(text(x, y + bh / 2 - 9, who.length > 40 ? `${who.slice(0, who.lastIndexOf(' ', 39))} …` : who, { size: 10 }));
+  }
+  marks.push(...tags);
+  let y = (n ? H0 : 120) + 34;
+  if (!n) marks.push(text(W / 2, 110, 'no place is said yet', { color: SOFT }));
+  for (const t of B.texture ?? []) { marks.push(text(50, y, t, { anchor: 'start', size: 11, color: SOFT })); y += 17; }
+  if ((B.moves ?? []).some((m) => m.basis !== 'stated')) { marks.push(text(50, y + 4, '* read into the text (inferred), not stated', { anchor: 'start', size: 11, color: SOFT })); y += 20; }
+  return { title: name, viewBox: { width: W, height: Math.round(y + 6) }, marks };
 }

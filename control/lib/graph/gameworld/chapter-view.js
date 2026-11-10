@@ -17,6 +17,7 @@
  */
 import { CHAPTERS, chapterById, chapterOfPart, chapterOfStep, chaptersOfPath, unitOf, levelStep, LEVEL_PAGE_CARDS } from './chapters.js';
 import { fingerprint } from './review.js';
+import { chapterDigest } from '../lorecube/backdrop.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const at = (world, q) => q.slice(1).split('/').reduce((v, k) => (isObj(v) ? v[k] : undefined), world);
@@ -113,6 +114,8 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     ...(lv !== null && Array.isArray(world.links) && world.links.some((e) => e?.from === lv || e?.to === lv) ? { links: world.links.filter((e) => e?.from === lv || e?.to === lv) } : {}),
     // upstream: what it is derived from, each its state and the print of its pages (moved: read that chapter again)
     reads: c.reads.map((r) => ({ id: r, state: book.find((x) => x.id === r)?.state ?? 'empty', print: fingerprint(chapterPages(world, r)) })),
+    // the setting's backdrop, as this chapter reads it (lorecube/backdrop.js chapterDigest): its own part, never the whole
+    ...(lv === null && world?.backdrop != null && chapterDigest(world.backdrop)[c.id] ? { backdrop: chapterDigest(world.backdrop)[c.id] } : {}),
     ...(Object.keys(advice).length ? { advice } : {}),
     ...(id !== 'build' && blockers.length ? { blockers } : {}),
     ...(id !== 'build' && unfinishable.length ? { advises: unfinishable } : {}),

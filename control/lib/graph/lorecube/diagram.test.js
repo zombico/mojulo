@@ -1,7 +1,7 @@
 // The lorecube's drawings are made from its data: a relation drawn is a relation the polarity has, a gauge drawn is a
 // gauge that carries; the same lore gives the same manifest.
 import { describe, it, expect } from 'vitest';
-import { polarityDiagram, reserveDiagram } from './diagram.js';
+import { polarityDiagram, reserveDiagram, backdropTimeline, backdropWeb, backdropMap } from './diagram.js';
 import { POLARITY_IDS, POLARITIES, resolvePolarity, relationsOf, elementHandles, newPolarity, intensifyPolarity } from './polarity.js';
 import { carriersOf } from './reserve.js';
 
@@ -67,5 +67,47 @@ describe('reserveDiagram', () => {
   it('cuts no word in half, and is deterministic', () => {
     for (const v of says(reserveDiagram(R))) expect(v).not.toMatch(/ \w$/);
     expect(reserveDiagram(R)).toEqual(reserveDiagram(R));
+  });
+});
+
+describe('a backdrop, drawn', () => {
+  const B = {
+    title: 'The Drowned Valley',
+    actors: [{ id: 'millers', name: 'the millers', kind: 'people' }, { id: 'lowlanders', name: 'the lowlanders', kind: 'people' }, { id: 'river', name: 'the river', kind: 'force' }],
+    events: [{ n: 1, says: 'The river floods the low fields', who: ['river'], stretch: 's1' }, { n: 2, says: 'The millers dam it', who: ['millers'], from: [1], stretch: 's1', at: ['dam'] }, { n: 3, says: 'The lowlanders move up to the town', who: ['lowlanders'], stretch: 's2', at: ['town'] }],
+    stretches: [{ id: 's1', handle: 'the flood and the dam', agency: 'acted' }, { id: 's2', handle: 'the move', agency: 'acted' }],
+    places: [{ id: 'dam', name: 'the dam', state: 'holds' }, { id: 'town', name: 'the mill town', state: 'crowded', who: ['millers', 'lowlanders'] }],
+    moves: [{ from: 'dam', to: 'town', says: 'power', basis: 'inferred', because: 'the dam turns the mills' }],
+    wants: [{ who: 'millers', wants: 'the dam kept', over: 'the dam', basis: 'stated' }, { who: 'lowlanders', wants: 'the valley back', over: 'the dam', basis: 'inferred', because: 'they lost it' }],
+    conflicts: [{ id: 'the-floods', between: ['millers', 'river'], over: 'the floods', state: 'open', basis: 'stated' }],
+    threads: ['the drowned church'], unknowns: ['who owns the dam'],
+  };
+  const says = (M) => M.marks.filter((m) => m.kind === 'text').map((t) => t.value);
+  const of = (M, k) => M.marks.filter((m) => m.kind === k);
+
+  it('the timeline draws every event once, in its stretch, with its causes; an event with none is said', () => {
+    const M = backdropTimeline(B), t = says(M);
+    expect(of(M, 'circle')).toHaveLength(B.events.length);
+    expect(t).toEqual(expect.arrayContaining(['The millers dam it', 'from 1', 'no cause given', 'the flood and the dam', 'where play begins is not given', '· who owns the dam']));
+    expect(t.some((x) => /the millers and the lowlanders, over the dam/.test(x))).toBe(true);
+    const played = backdropTimeline({ ...B, play: { begins: { after: 3 }, pov: { who: 'a ferryman' }, basis: 'stated' } });
+    expect(says(played).some((x) => /play begins, seen through a ferryman \(the author's\)/.test(x))).toBe(true);
+    expect(backdropTimeline(B)).toEqual(M);
+  });
+
+  it('the web draws each actor once and each conflict once, joined; an open one marked, an implied one dotted and said so', () => {
+    const M = backdropWeb(B), t = says(M);
+    // a box an actor and a box a conflict (the listed one and the implied one), a line from each party to its conflict
+    expect(of(M, 'rect')).toHaveLength(B.actors.length + 2);
+    expect(of(M, 'line')).toHaveLength(4);
+    expect(t).toEqual(expect.arrayContaining(['the floods', 'open where the text stops', 'the dam', 'implied by what both want; not said in the text', 'wants nothing', 'wants: the valley back *']));
+    expect(of(M, 'line').filter((l) => l.dash === '2 4')).toHaveLength(2);
+  });
+
+  it('the map draws each place in its state, and what passes between; an inferred move is marked', () => {
+    const M = backdropMap(B), t = says(M);
+    expect(t).toEqual(expect.arrayContaining(['the dam', 'holds', 'the mill town', 'the millers, the lowlanders', 'power *']));
+    expect(of(M, 'line')).toHaveLength(1);
+    expect(says(backdropMap({ ...B, places: undefined, moves: undefined, events: B.events.map(({ at: _a, ...e }) => e) }))).toContain('no place is said yet');
   });
 });
