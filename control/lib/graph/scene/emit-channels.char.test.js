@@ -687,6 +687,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // means once (`intent`, which its own keys now go through), and back from an aim returns the keys to the action menu
 // (they stayed with the cursor). A skirmish under the UI keeps its orders on its own keys, so the page's keys pass in
 // that mode. A board without `ui` carries no runtime; the fixture gains the hooks' lines alone.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the holo arena on it): `holo` only. The arena's client asks
+// whether the block was given the arena's UI (holo-ui.js) and, with one, hands it the overlay's words, the picker and
+// the cursor's cells; with none it draws its canvas as before. An arena without `ui` carries no runtime: the fixture
+// gains the hooks' lines alone.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

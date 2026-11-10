@@ -33,6 +33,7 @@ import { lattice } from '../polygonizer/lattice.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { readVenue, venueManifest } from '../stadium/venue.js';
+import { readHoloUi, holoUiData } from './holo-ui.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/tabletop');
 /** The arena's client as a classic-script fragment (import lines and `export ` stripped). */
@@ -54,7 +55,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const even = (v) => 2 * Math.ceil(v / 2);   // the stage's rooms sit on a one-metre grid: even metres keep the centre whole
 const fail = (m) => { throw new Error(`holo: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['game', 'human', 'players', 'level', 'seed', 'kit', 'look', 'crowd', 'title', 'venue'];
+const KEYS = ['game', 'human', 'players', 'level', 'seed', 'kit', 'look', 'crowd', 'title', 'venue', 'ui'];
 
 /** The game the kernel plays, dealt, and the family it is: only a game of moves is lifted yet. */
 function holoGame(H) {
@@ -78,6 +79,7 @@ export function readHolo(spec = {}) {
   if (!ARENA_KITS.includes(H.kit)) fail(`kit '${H.kit}' is one of ${ARENA_KITS.join(', ')}`);
   if (H.crowd !== undefined && H.crowd !== false && !isObj(H.crowd)) fail('crowd is false or { rows?, fill? }');
   if (H.title !== undefined && typeof H.title !== 'string') fail('title is a string');
+  if (H.ui !== undefined) { const bad = readHoloUi(H.ui); if (bad.length) fail(bad.join('; ').replace(/^holo\./, '')); }
   const { G, K } = holoGame(H);
   if (K.players.length !== 2) fail(`the holo arena seats two duelists; ${G.title ?? 'the game'} has ${K.players.length} players`);
   const human = H.human ?? K.players[0].id;
@@ -86,6 +88,7 @@ export function readHolo(spec = {}) {
     game: H.game, ...(H.human !== undefined ? { human: H.human } : {}), players: H.players, level: H.level, seed: H.seed, kit: H.kit,
     ...(H.look ? { look: H.look } : {}), crowd: H.crowd === false ? false : { rows: 3, fill: 0.7, ...(H.crowd ?? {}) }, ...(H.title ? { title: H.title } : {}),
     ...(H.venue ? { venue: readVenue(H.venue, fail) } : {}),
+    ...(H.ui !== undefined ? { ui: H.ui } : {}),
   };
 }
 
@@ -139,5 +142,7 @@ export function holoArenaData(v = {}) {
   return {
     ...H, title: H.title ?? `${G.title ?? 'board game'}`, human: H.human ?? K.players[0].id,
     G, L: B.L, board: { cell: B.cell, centre: B.centre, room: B.room, podium: B.podium }, kinds, duelists, wire: HOLO_WIRE,
+    // the arena's parts drawn by the game UI runtime (holo-ui.js), its sides the duelists' lights
+    ...(H.ui !== undefined ? { ui: holoUiData(H.ui, { colours: duelists.map((d) => d.colour) }) } : {}),
   };
 }

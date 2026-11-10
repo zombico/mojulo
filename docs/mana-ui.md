@@ -831,6 +831,20 @@ pages are, so a board without `ui` carries none of it.
   phase. Its orders stay on its own keys and the pointer, so the board scheme is not connected for it; rebinding its
   keys is not offered under the UI yet.
 
+### The holo arena
+
+A board game lifted into its hologram arena (`tabletop/holo-arena.js`) is drawn by mana-ui for an arena with a `ui`
+(`holo: { …, ui }`; a world's `ui` reaches its board game's arena). Its spec and its page are `tabletop/holo-ui.js`,
+given to the arena's block beside its client, which asks whether it was given one.
+
+- The client hands what it drew on its canvas each frame (`UI.show`: the two duelists, the title, the status, the
+  duel's word); the page draws again only when that has changed. The duelists are mirrored across the top, each its
+  light's chip, its life points and a thin bar, the second filling from the right.
+- A promotion or a drop is `choice-prompt`, put off by back.
+- The cursor is the `board` scheme's, over the cells projected as the camera shows them now (the camera turns to the
+  seat to play), drawn as a ring on the cell.
+- Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
@@ -866,7 +880,7 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
    shell's flow runner: [game-flow.md](game-flow.md)), and the RPG channel's battles, party menu and shops are too
    (`scene/channels/rpg-channel.js` rpgMana). Next: the play shell's pause, the theme's sounds there, a picture in the
    image component (a cover as key art), playscape's menu kinds, the arena shell's front, the versus pause and the
-   fight's HUD (the fight's language above). The board-game pages are on it (`tabletop/table-ui.js`), and the strategy boards
-   (`board/board-ui.js`); next: a skirmish's keys as a control scheme (so its remap is the controls layer's), a round
+   fight's HUD (the fight's language above). The board-game pages are on it (`tabletop/table-ui.js`), the strategy boards
+   (`board/board-ui.js`) and the holo arena (`tabletop/holo-ui.js`); next: a skirmish's keys as a control scheme (so its remap is the controls layer's), a round
    game played on a board, and the table's broadcast furniture folded into the `table` shelf.
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.
