@@ -79,6 +79,11 @@ the board-game pages on one spec, the strategy boards (a tactics battle, a tower
     the right click), so the board scheme is not connected for it; the lobby and the results take keys and a pad.
     Rebinding its keys is not offered under the UI yet.
   - With `ui: false` a board's block carries no runtime.
+- **Fixed: the server could not be loaded once the fight's cast rig met this line.** The fight's channel, inside the
+  page's emitter, imported the cast rig's card to fill in an arena handed to it without one; the rig's solver reads the
+  era's cubes, whose buildings reach back to the emitter, so the CLI, the stdio server and the install smoke stopped at
+  `FLOORPLAN_DEFAULTS` before initialization. The channel takes the card it is handed (the world's resolver already
+  hands it), and imports none.
 - **Fixed: back from an aim left the keys with the cursor.** The action menu was drawn again and could not be moved
   through; it has the keys again.
 - **The runtime gains a table's parts.** Three components, each with its rule in the sheet and no colour of its own:
