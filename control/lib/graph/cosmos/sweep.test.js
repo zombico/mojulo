@@ -38,7 +38,9 @@ describe('rollCube', () => {
     const fair = count('fair'), flat = count('flat');
     // flat: the facet with the most settings is set far more than the one with the fewest; fair: within a fifth of each
     // other (the two read off the registry, so a facet growing a setting does not move the test)
-    const reg = capabilityRegistry(), bySize = Object.keys(reg).sort((a, b) => Object.keys(reg[b]).length - Object.keys(reg[a]).length);
+    // (a facet's size is the settings a roll counts: a `given` one rolls only inside the game that gives it)
+    const reg = capabilityRegistry(), size = (f) => Object.values(reg[f]).filter((s) => !s.given).length;
+    const bySize = Object.keys(reg).sort((a, b) => size(b) - size(a));
     const most = bySize[0], fewest = bySize.at(-1);
     expect(flat[most] / flat[fewest]).toBeGreaterThan(1.4);
     expect(fair[most] / fair[fewest]).toBeGreaterThan(0.8);

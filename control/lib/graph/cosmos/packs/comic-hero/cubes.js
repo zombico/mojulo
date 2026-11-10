@@ -18,12 +18,13 @@ export const PACK_CUBES = Object.freeze([
     cube: {
       reality: { era: 'gen-6', look: 'city-night', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'city', places: 'street' },
-      power: { idiom: 'shonen-like', combat: ['melee'], mechanics: ['defeat-all', 'hp-pool', 'waves'], explosions: ['comic'], rules: ['walk', 'follow', 'platform'] },
+      // (11-10: knockback and the breakable street are built, natural knockback and the destruction degree: said in the cube)
+      power: { idiom: 'shonen-like', combat: ['melee'], mechanics: ['defeat-all', 'hp-pool', 'waves', 'knockback', 'destructible'], explosions: ['comic'], rules: ['walk', 'follow', 'platform'] },
       soul: { hero: 'hero', cast: 'heroic', vibe: 'bold', gaits: ['jab', 'cross', 'hitHigh', 'heroHips', 'fistToSky'] },
       mind: { motivation: 'hunt', aggressiveness: 'bold', squad: 'pack' },
       time: { progression: 'linear', shots: ['staged', 'banter'] },
     },
-    wants: ['reality.look=comic-night', 'power.mechanics=knockback', 'power.mechanics=throw', 'power.mechanics=destructible', 'soul.equipment=cape', 'time.shots=panel'],
+    wants: ['reality.look=comic-night', 'power.mechanics=throw', 'soul.equipment=cape', 'time.shots=panel'],
   },
   {
     id: 'rooftop-courier',
@@ -66,12 +67,12 @@ export const PACK_CUBES = Object.freeze([
     cube: {
       reality: { era: 'gen-6', look: 'lab-dark', medium: '3d' },
       space: { camera: 'side', topology: 'linear', levelForm: 'arena' },
-      power: { combat: ['versus'], systems: ['transform'], explosions: ['comic', 'blast'], rules: ['walk', 'platform'] },
+      power: { combat: ['versus'], mechanics: ['knockback'], systems: ['transform'], explosions: ['comic', 'blast'], rules: ['walk', 'platform'] },
       soul: { hero: 'hero', cast: 'brute', vibe: 'swagger', seats: 'two', contest: 'versus', gaits: ['henshin', 'guard', 'jab', 'cross'] },
       mind: { motivation: 'hunt', aggressiveness: 'bold', skill: 'veteran' },
       time: { shots: ['staged'] },
     },
-    wants: ['reality.look=comic-day', 'power.mechanics=knockback', 'time.shots=panel'],
+    wants: ['reality.look=comic-day', 'time.shots=panel'],
   },
   {
     id: 'origin-story',
@@ -98,12 +99,12 @@ export const PACK_CUBES = Object.freeze([
     cube: {
       reality: { era: 'gen-6', look: 'city-night', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'arena' },
-      power: { combat: ['melee'], mechanics: ['defeat-all', 'waves', 'hp-pool'], explosions: ['comic'], rules: ['walk', 'follow', 'platform'] },
+      power: { combat: ['melee'], mechanics: ['defeat-all', 'waves', 'hp-pool', 'knockback'], explosions: ['comic'], rules: ['walk', 'follow', 'platform'] },
       soul: { hero: 'hero', cast: 'heroic', seats: 'two', contest: 'co-op', frame: 'follow-all', pool: 'shared', join: 'drop-in' },
       mind: { motivation: 'hunt', squad: 'team-aware' },
       time: { progression: 'linear' },
     },
-    wants: ['reality.look=comic-night', 'power.mechanics=knockback', 'power.mechanics=throw'],
+    wants: ['reality.look=comic-night', 'power.mechanics=throw'],
   },
 ]);
 

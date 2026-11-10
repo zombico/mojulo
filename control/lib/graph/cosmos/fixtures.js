@@ -80,6 +80,60 @@ export const FIXTURES = Object.freeze([
       soul: { hero: 'hero', equipment: ['sword', 'shield', 'bow'], mount: 'horse' },
     },
   },
+  // what the first ten days of November built (11-10): a platformer made from its hero's tuned motion, an action RPG on
+  // a world map of zones, a world that breaks by its matter, a game played in a headset. Each says its genre in the
+  // values those merges added, so the sweep near the probes rolls round them
+  {
+    id: 'platformer-3d',
+    name: '3D platformer',
+    anchor: false,
+    why: 'a mascot runs a course sized by its own jump, the camera following by itself; a second jump and a dash on its own air, coins along the way and lives on its falls',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'follow', topology: 'linear', levelForm: 'course' },
+      power: { rules: ['platform'], feel: 'card', moves: ['double-jump', 'vayo-air-dash'], mechanics: ['coins', 'lives', 'reach-exit'] },
+      soul: { hero: 'mascot', body: 'mascot' },
+    },
+  },
+  {
+    id: 'action-rpg',
+    name: 'Action role-playing game',
+    anchor: false,
+    why: 'a hero with a sword crosses a world map zone by zone, sprinting on a stamina gauge, guarding and chaining strings under a camera that locks on; each zone\'s scenario laid beat by beat, a main quest in acts',
+    cube: {
+      reality: { medium: '3d', interface: ['hud-look', 'front'] },
+      space: { camera: 'orbit', topology: 'interconnected', worldMap: 'zones', levelForm: 'map', levelDesign: ['scenario', 'play-layer'] },
+      power: { combat: ['melee'], moveset: 'strings', defence: 'guard', feel: 'card', systems: ['stamina', 'equip'], stats: ['xp', 'level'] },
+      soul: { hero: 'hero', equipment: ['sword', 'shield'] },
+      mind: { motivation: 'hunt', aggressiveness: 'bold', social: 'talk' },
+      time: { progression: 'gated', arc: 'acts', advance: 'quests' },
+    },
+  },
+  {
+    id: 'demolition',
+    name: 'Destruction sandbox',
+    anchor: false,
+    why: 'a world that breaks by what it is made of: walls holed, buildings brought down by their load, ground cratered, fire spreading; blasts that throw what stands near, charges the player sets off, and what broke stays broken',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear' },
+      power: { destruction: 'physical', mechanics: ['destructible', 'knockback'], systems: ['triggers'], combat: ['ranged'], explosions: ['blast'] },
+      soul: { hero: 'hero' },
+      time: { passage: 'aftermath' },
+    },
+  },
+  {
+    id: 'headset-adventure',
+    name: 'Headset adventure',
+    anchor: false,
+    why: 'played in a headset, in first person: the controllers a game pad, the menus on a panel in the world, rooms walked and things found',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'first-person', screen: 'headset', topology: 'linear', levelForm: 'rooms' },
+      power: { mechanics: ['collect', 'reach-exit'] },
+      soul: { hero: 'hero' },
+    },
+  },
   // the combat tester's games (11-10, 1108-realism-combat-tester): gunplay as small arms, and machines crewed
   {
     id: 'military-sim',

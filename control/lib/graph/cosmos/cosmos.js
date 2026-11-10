@@ -14,6 +14,9 @@
  *                       plus `advice`: [{ law, says }] when a facet's law over the cube's values fires (soul.js
  *                       `laws`: a first-person camera seating several players needs a view each), absent otherwise
  *
+ * A built value may say the day it was built (`since`, registry.js); compose.js unlockedSince counts what the values
+ * built since a day made, and what the worlds that hold them still wait on.
+ *
  * It builds nothing. Pure and deterministic: the same cube gives the same report.
  */
 import { FACETS, FACET_IDS } from './facets/index.js';

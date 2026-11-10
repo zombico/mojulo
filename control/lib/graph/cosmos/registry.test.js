@@ -60,6 +60,16 @@ describe('cosmos registry', () => {
     expect(n).toBeGreaterThan(0);
   });
 
+  it('dates a sourced setting\'s values by name, and only ones its table holds', () => {
+    const reg = capabilityRegistry();
+    let n = 0;
+    for (const f of FACETS) for (const [setting, spec] of Object.entries(f.settings)) for (const [v, day] of Object.entries(spec.source?.since || {})) {
+      n++;
+      expect(reg[f.id][setting].values[v]?.since, `${f.id}.${setting}=${v}`).toBe(day);
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
   it('holds the six facets in order, each with a question', () => {
     expect(FACETS.map((f) => f.id)).toEqual(['reality', 'space', 'power', 'soul', 'mind', 'time']);
     for (const f of FACETS) expect(f.asks).toMatch(/\?$/);
