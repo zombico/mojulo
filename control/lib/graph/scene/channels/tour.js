@@ -12,6 +12,11 @@ import { safeJson } from '../emit-util.js';
 // (construction tools) give way to the crumbs, the tour's title stands as a quiet label, and a world on the editor's
 // flat field gets a ground of its own, a glow behind the subject in the colour of what the stop is about (a world with a
 // sky keeps its sky). It reads the page's scene, renderer, camera, controls, meshes, hud, wireBtn, BG, CAMS and VIEW_DIRS.
+// A KIOSK (`?kiosk=1`, or `?kiosk=<seconds idle>`, never in a capture): large type and touch targets, no text to
+// select, and the attract loop: left alone for the idle time (90 s by default), the tour goes back to its start and
+// plays itself, each stop held as long as its caption takes to read; a touch stops it and the visitor has the exhibit.
+// In a GALLERY (`?gallery=1`, framed by exhibit/gallery.js) the label is the gallery's, and the tour talks to its frame:
+// it says tour-ready, tour-touch and tour-end (the last stop of a play), and answers tour-play, tour-stop and tour-go.
 // Emitted only when the page has a tour: every other page byte-identical.
 export function tourScript(tour, { capture = false } = {}) {
   return `
@@ -40,6 +45,10 @@ export function tourScript(tour, { capture = false } = {}) {
     + '-webkit-mask-image:radial-gradient(ellipse 62% 58% at 50% 42%,#000 0%,rgba(0,0,0,.55) 42%,transparent 100%);mask-image:radial-gradient(ellipse 62% 58% at 50% 42%,#000 0%,rgba(0,0,0,.55) 42%,transparent 100%)}'
     + '.hud{left:auto;right:12px;top:10px}.hud button{color:#eef2f8;background:rgba(12,16,24,.55);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 12px}'
     + '.hud button.on{background:rgba(255,255,255,.16);color:#fff}.hint{color:rgba(238,242,248,.38)}'
+    + '.moj-tour.kiosk{font-size:18px}.moj-tour.kiosk .tt{font-size:21px}.moj-tour.kiosk .mt{font-size:14px}.moj-tour.kiosk .st{min-width:56px;min-height:48px;font-size:24px}'
+    + '.moj-tour.kiosk .cr{gap:10px}.moj-tour.kiosk .cr button{width:18px;height:18px}.moj-kiosk,.moj-kiosk *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.moj-kiosk .hint{display:none}'
+    + '.moj-tour-cue{position:absolute;left:50%;top:16%;transform:translateX(-50%);z-index:12;padding:9px 20px;border-radius:999px;background:rgba(12,16,24,.62);border:1px solid rgba(255,255,255,.16);color:#fff;font:600 15px/1 system-ui,sans-serif;letter-spacing:1px;opacity:0;transition:opacity .6s;pointer-events:none}'
+    + '.moj-tour-cue.on{opacity:1;animation:mojcue 2.6s ease-in-out infinite}@keyframes mojcue{50%{opacity:.45}}'
     + '@media (max-width:700px){.hint{display:none}}';   // a phone's bottom edge is the plate's: the orbit hint gives way
   document.head.appendChild(sheet);
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -169,11 +178,71 @@ export function tourScript(tour, { capture = false } = {}) {
   let sx = null;
   plate.addEventListener('pointerdown', (e) => { sx = e.clientX; });
   plate.addEventListener('pointerup', (e) => { if (sx == null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 40) go(at + (dx < 0 ? 1 : -1)); });
-  const ask = new URLSearchParams(location.search).get('stop');
+  const Q = new URLSearchParams(location.search);
+  const ask = Q.get('stop');
   let first = TR.start || 0;
   if (ask != null) { const byId = TR.stops.findIndex((s) => s.id === ask); const n = byId >= 0 ? byId : parseInt(ask, 10) - 1; if (n >= 0 && n < N) first = n; }
   go(first, true);
-  window.__mojTour = { get at() { return at; }, count: N, ids: TR.stops.map((s) => s.id), go: (i) => go(i), next: () => go(at + 1), prev: () => go(at - 1) };
+
+  // ---- the kiosk and the gallery ----
+  const framed = window.parent !== window;
+  const inGallery = framed && Q.get('gallery') === '1';
+  const kq = Q.get('kiosk');
+  const kiosk = ${capture ? 'false' : "kq != null && kq !== '0'"};
+  const IDLE = kiosk ? Math.max(15, parseInt(kq, 10) || 90) * 1000 : 0;
+  if (inGallery) label.style.display = 'none';
+  if (kiosk) { root.classList.add('kiosk'); document.documentElement.classList.add('moj-kiosk'); document.addEventListener('contextmenu', (e) => e.preventDefault()); }
+  const say = (m) => { if (framed) { try { window.parent.postMessage(m, '*'); } catch (err) { /* an opaque frame */ } } };
+  // a stop is held as long as its caption takes to read, aloud or not: 7 to 20 seconds
+  const hold = (s) => Math.min(20000, Math.max(7000, 2500 + (s.caption.split(/\s+/).length / 3.2) * 1000));
+  const cue = el('div', 'moj-tour-cue', 'Touch to explore'); host.appendChild(cue);
+  let playing = false, playTimer = 0, idleTimer = 0;
+  function stop() { playing = false; clearTimeout(playTimer); cue.classList.remove('on'); }
+  function play(from) {
+    stop(); playing = true; cue.classList.add('on');
+    go(from >= 0 && from < N ? from : 0);
+    const tick = () => { playTimer = setTimeout(() => {
+      if (!playing) return;
+      if (at >= N - 1) { if (inGallery) { stop(); say({ moj: 'tour-end', count: N }); return; } go(0); } else go(at + 1);
+      tick();
+    }, hold(TR.stops[at])); };
+    tick();
+  }
+  function rest() { clearTimeout(idleTimer); if (IDLE && !inGallery) idleTimer = setTimeout(() => play(TR.start || 0), IDLE); }
+  function touched() { if (playing) stop(); say({ moj: 'tour-touch' }); rest(); }
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((ev) => window.addEventListener(ev, touched, { passive: true, capture: true }));
+  window.addEventListener('message', (e) => {
+    const d = e.data;
+    if (e.source !== window.parent || !d || typeof d.moj !== 'string') return;
+    if (d.moj === 'tour-play') play(Number.isInteger(d.from) ? d.from : 0);
+    else if (d.moj === 'tour-stop') stop();
+    else if (d.moj === 'tour-go' && Number.isInteger(d.i)) { stop(); go(d.i); }
+  });
+  // where the stop's lit parts land: their box projected through the camera (its offset too), measured against the room
+  // above the plate. The exhibit audit's page half reads it (scripts/exhibit-audit.mjs); a stop that lights nothing is
+  // not measured (its view is the whole world's).
+  function view() {
+    const s = TR.stops[at], names = s && s.highlight;
+    if (!names || !names.length) return { at, id: s && s.id, framed: null };
+    const box = new THREE.Box3(), part = new THREE.Box3();
+    for (const [g, m] of Object.entries(meshes)) if (m && names.some((n) => g === n || g.startsWith(n + ':'))) { part.setFromObject(m); if (!part.isEmpty()) box.union(part); }
+    if (box.isEmpty()) return { at, id: s.id, framed: false, onScreen: 0, share: 0 };
+    camera.updateMatrixWorld();
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, behind = 0;
+    for (let k = 0; k < 8; k++) {
+      const v = new THREE.Vector3(k & 1 ? box.max.x : box.min.x, k & 2 ? box.max.y : box.min.y, k & 4 ? box.max.z : box.min.z).project(camera);
+      if (v.z > 1) behind += 1;
+      x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+    }
+    const h = wrap.clientHeight || 1, floor = -1 + 2 * Math.min(root.offsetHeight + 14, h * 0.45) / h;
+    const span = (a, b, lo, hi) => Math.max(0, Math.min(b, hi) - Math.max(a, lo));
+    const area = (x1 - x0) * (y1 - y0), seen = span(x0, x1, -1, 1) * span(y0, y1, floor, 1);
+    return { at, id: s.id, onScreen: area > 0 ? seen / area : 0, share: seen / (2 * (1 - floor)), behind };
+  }
+  rest();
+  say({ moj: 'tour-ready', count: N, title: TR.title || '' });
+  window.__mojTour = { get at() { return at; }, count: N, ids: TR.stops.map((s) => s.id), go: (i, instant) => go(i, instant), next: () => go(at + 1), prev: () => go(at - 1),
+    get playing() { return playing; }, play: (i) => play(i == null ? 0 : i), stop, kiosk, view };
 })();
 `;
 }

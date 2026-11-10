@@ -444,7 +444,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-11-10 on 1110-exhibit-mode (211_400 -> 211_600; measured 211,503) for the tour: create_exhibit's `tour`
 // (an exhibit's stops, each a camera, a caption and the groups it lights), one schema property; its grammar on the
 // `tour` view-vocab card, off-payload. Still below the 213_100 the fold started from. No new tool.
-const PAYLOAD_CEILING = 211_600;
+// Raised 2026-11-10 on 1110-exhibit-mode (211_600 -> 211_800; measured 211,759) for galleries and the exhibit check:
+// create_exhibit's `rooms` (made exhibits joined as one gallery, a kiosk too; `id` no longer required) and a clause for
+// it, get_exhibit's `audit` (the exhibit's machine gate: tour, claims, reading). Two schema properties; their grammar on
+// the `tour` view-vocab card. Still 1,300 below the 213_100 the fold started from. No new tool.
+const PAYLOAD_CEILING = 211_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

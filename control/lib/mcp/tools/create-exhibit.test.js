@@ -63,6 +63,33 @@ describe('create_exhibit with a tour', () => {
   });
 });
 
+describe('a gallery: made exhibits joined as rooms', () => {
+  it('is made from refs, audited room by room, refused for a room that is not there, and exported as a folder', async () => {
+    const { mkdtempSync, existsSync, readFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(join(tmpdir(), 'gallery-'));
+    const cell = await createExhibitHandler({ id: 'life/cellular', tour: { title: 'Inside a cell', stops: [{ caption: 'The cell.', camera: 'angle', grade: 'depicted', highlight: 'cytoplasm' }] } });
+    expect(cell.audit).toMatchObject({ gate: 'machine', warnings: 0, tour: { stops: 1, graded: 1, lit: 1 } });
+    const g = await createExhibitHandler({ rooms: [cell.ref], title: 'Life', params: { intro: 'One room.', kiosk: true } });
+    expect(g).toMatchObject({ ok: true, rooms: 1, gallery: `/api/sketches/${g.ref}/gallery` });
+    expect(g.audit.rooms).toEqual([expect.objectContaining({ ref: cell.ref, stops: 1 })]);
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    expect(SketchRepository.getByRef(g.ref).manifest).toEqual({ kind: 'gallery', title: 'Life', intro: 'One room.', kiosk: true, rooms: [cell.ref] });
+    await expect(createExhibitHandler({ rooms: ['sk_nope'] })).rejects.toThrow(/rooms\[0\]\.ref names no sketch 'sk_nope'/);
+    await expect(createExhibitHandler({ rooms: [cell.ref], id: 'life/dna' })).rejects.toThrow(/pass one of them/);
+    await expect(createExhibitHandler({ rooms: [cell.ref], params: { music: 1 } })).rejects.toThrow(/take intro and kiosk, not 'music'/);
+    expect((await getExhibitHandler({ ref: g.ref, audit: true })).audit.gate).toBe('machine');
+    expect((await getExhibitHandler({ ref: cell.ref, audit: true })).audit.tour.stops).toBe(1);
+    const { exportModelHandler } = await import('./sketch-model-export.js');
+    const out = await exportModelHandler({ ref: g.ref, format: 'html' });
+    expect(out).toMatchObject({ ok: true, kind: 'gallery', files: ['index.html', `rooms/${cell.ref}.html`] });
+    expect(readFileSync(join(out.dir, 'index.html'), 'utf8')).toContain(`"src":"rooms/${cell.ref}.html"`);
+    expect(readFileSync(join(out.dir, `rooms/${cell.ref}.html`), 'utf8')).toContain('window.__mojTour');
+    expect(existsSync(join(out.dir, 'rooms'))).toBe(true);
+  }, 120000);
+});
+
 describe('get_exhibit', () => {
   it('reads a card by hall id, lists the halls and one hall', async () => {
     const one = await getExhibitHandler({ id: 'earth/hydro' });

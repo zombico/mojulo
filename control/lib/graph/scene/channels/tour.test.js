@@ -38,9 +38,18 @@ describe('the tour on the page', () => {
     expect(emitThreeWorld(base)).not.toMatch(/new THREE\.WebGLRenderer\(\{[^)]*alpha: true/);
   });
 
-  it('a capture is seated, never flown; a viewer is flown unless they ask for less motion', () => {
+  it('a capture is seated, never flown, and never a kiosk; a viewer is flown unless they ask for less motion', () => {
     expect(tourScript(tour, { capture: true })).toContain('const calm = true ||');
+    expect(tourScript(tour, { capture: true })).toContain('const kiosk = false;');
     expect(tourScript(tour)).toContain('const calm = false ||');
+    expect(tourScript(tour)).toContain("const kiosk = kq != null && kq !== '0';");
+  });
+
+  it('talks to a gallery\'s frame only through its own parent, and gives an audit its view', () => {
+    const js = tourScript(tour);
+    expect(js).toMatch(/e\.source !== window\.parent/);
+    for (const m of ['tour-ready', 'tour-touch', 'tour-end', 'tour-play', 'tour-stop', 'tour-go']) expect(js).toContain(`'${m}'`);
+    expect(js).toMatch(/window\.__mojTour = \{[\s\S]*view \};/);
   });
 });
 

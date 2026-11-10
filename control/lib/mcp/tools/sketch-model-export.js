@@ -400,6 +400,40 @@ async function scad2dExport(input, context) {
   return result;
 }
 
+// ── format: 'html' on a gallery (exhibit/gallery.js) ─────────────────────────────────────────
+// A gallery is its rooms: the export is a FOLDER, not one page. index.html is the gallery page with each room's src a
+// sibling file; rooms/<ref>.html is each room's World page, self-contained (three.js inline), as `world.html` is. The
+// folder opens from file:// with no server and no network: the kiosk's offline form. Same rows, same folder.
+async function galleryExport(sketch) {
+  const { galleryHtml, galleryRooms } = await import('@/lib/graph/exhibit/gallery');
+  const { exhibitLabel } = await import('@/lib/mcp/tools/create-exhibit');
+  const ref = sketch.ref;
+  const dir = path.join(outcomeDirFor(ref), 'gallery');
+  await fs.mkdir(path.join(dir, 'rooms'), { recursive: true });
+  const getSketch = (r) => SketchRepository.getByRef(r);
+  const rooms = galleryRooms(sketch.manifest, getSketch, { describe: exhibitLabel });
+  const files = [];
+  let bytes = 0;
+  for (const room of rooms) {
+    const roomSketch = getSketch(room.ref);
+    if (!roomSketch) throw new Error(`gallery '${ref}': room '${room.ref}' is no longer in the store; take it out with update_sketch`);
+    const { payload, kind } = await resolveWorldScene(roomSketch);
+    const html = emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: true });
+    const file = `rooms/${room.ref}.html`;
+    await fs.writeFile(path.join(dir, file), html);
+    files.push(file); bytes += Buffer.byteLength(html, 'utf8');
+  }
+  const index = galleryHtml({ title: sketch.manifest.title || sketch.title, intro: sketch.manifest.intro, rooms, kiosk: sketch.manifest.kiosk },
+    { src: (room) => `rooms/${encodeURIComponent(room.ref)}.html` });
+  await fs.writeFile(path.join(dir, 'index.html'), index);
+  files.unshift('index.html'); bytes += Buffer.byteLength(index, 'utf8');
+  return {
+    ok: true, ref, kind: 'gallery', format: 'html', dir, files, bytes,
+    url: `${outcomeUrlFor(ref)}gallery/index.html`,
+    note: `A gallery folder in ${dir}: open index.html straight from the filesystem (file://) — every room is a self-contained page beside it, so it needs no server and no network. Add ?kiosk=1 to the address (or give the gallery \`kiosk\`) for the attract loop.`,
+  };
+}
+
 async function blenderExport(input) {
   const { ref, fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
   if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
@@ -1048,6 +1082,8 @@ async function exportModel(input, context = {}) {
   // the drawing set and the schedules are the building read as 2D: they read the house, not the World's faces
   if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
   if (format === 'blender') return blenderExport(input);
+  // a gallery's html is its folder of rooms
+  if (format === 'html') { const g = SketchRepository.getByRef(input.ref); if (g?.manifest?.kind === 'gallery') return galleryExport(g); }
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
   if (format === 'bom') return bomExport(input, context);

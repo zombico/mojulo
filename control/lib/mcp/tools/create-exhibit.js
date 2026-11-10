@@ -21,6 +21,8 @@ import { VIEW_KINDS, resolveKindEntry } from '@/lib/mcp/tools/create-view';
 import { measureViewSamples } from '@/lib/mcp/tools/measure-view';
 import { deriveViewKind } from '@/lib/mcp/tools/save-recipe';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
+import { auditExhibit } from '@/lib/graph/exhibit/audit';
+import { galleryRooms } from '@/lib/graph/exhibit/gallery';
 
 /** The kinds folded into a science world (VIEW_KINDS `listed: false`): no exhibit id, their rows render as before. */
 const FOLDED = () => Object.entries(VIEW_KINDS).filter(([, k]) => k.listed === false).map(([id]) => id);
@@ -57,14 +59,44 @@ async function withTour(res, tour) {
   if (tour === undefined || !res || !res.ref) return res;
   try {
     await updateSketchHandler({ ref: res.ref, patch: [{ op: 'set', path: '/tour', value: tour }] });
-    return { ...res, tour: { stops: Array.isArray(tour?.stops) ? tour.stops.length : 0 } };
+    return { ...res, tour: { stops: Array.isArray(tour?.stops) ? tour.stops.length : 0 }, audit: auditExhibit({ tour }) };
   } catch (err) {
     return { ...res, tour_refused: `${err.message} — fix it with update_sketch set /tour; manual: get_view_vocab({ id: 'tour' })` };
   }
 }
 
+/** A made exhibit's label in a gallery's lobby: the name of its hall (Life, Earth, History), or null for a world. */
+export function exhibitLabel(sketch) {
+  const m = sketch?.manifest;
+  if (!m) return null;
+  const xid = m.kind === 'historic' && typeof m.culture === 'string' ? 'history/x'
+    : (() => { const v = deriveViewKind(m.kind); return v ? exhibitId({ id: v.kind, family: v.family }) : null; })();
+  const hall = xid && HALLS.find((h) => h.id === splitExhibitId(xid).hall);
+  return hall ? hall.name : null;
+}
+
+// A gallery (lib/graph/exhibit/gallery.js): made exhibits joined as rooms, by ref; `params` takes its intro and kiosk.
+async function mintGallery({ rooms, title, params, ref, folder_ref: folderRef }) {
+  const p = params && typeof params === 'object' ? params : {};
+  const bad = Object.keys(p).filter((k) => !['intro', 'kiosk'].includes(k));
+  if (bad.length) throw new Error(`create_exhibit: a gallery's params take intro and kiosk, not '${bad[0]}'`);
+  const manifest = { kind: 'gallery', ...(title ? { title } : {}), ...p, rooms };
+  const res = await createSketchHandler({ title: title || 'Gallery', manifest, ref, folder_ref: folderRef });
+  return { ...res, gallery: `/api/sketches/${encodeURIComponent(res.ref)}/gallery`, rooms: rooms.length, audit: auditGallery(manifest) };
+}
+
+const getSketch = (r) => SketchRepository.getByRef(r);
+function auditGallery(manifest) {
+  const rooms = galleryRooms(manifest, getSketch).map((r) => ({ ...r, tour: getSketch(r.ref)?.manifest?.tour ?? null }));
+  return auditExhibit({ rooms });
+}
+
 export async function createExhibitHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_exhibit requires { id, params? } (id: <hall>/<id>)');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit requires { id, params? } (id: <hall>/<id>), or { rooms }');
+  if (input.rooms !== undefined) {
+    if (input.id !== undefined) throw new Error('create_exhibit: `id` makes one exhibit, `rooms` joins made ones as a gallery; pass one of them');
+    return mintGallery(input);
+  }
   const x = resolveOrTeach('create_exhibit', input.id);
   if (x.hall === 'history') return mintHistory(x, input);
   const { params, title, viewBox, scene, ref, folder_ref: folderRef } = input;
@@ -105,9 +137,15 @@ function measureExhibit({ ref, every }) {
 }
 
 export async function getExhibitHandler(input) {
-  const { id, hall, ref, every, detail } = input && typeof input === 'object' ? input : {};
+  const { id, hall, ref, every, detail, audit } = input && typeof input === 'object' ? input : {};
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !ref) throw new Error('get_exhibit: `ref` is a made exhibit\'s sketch ref');
+    if (audit === true) {
+      const sketch = getSketch(ref);
+      if (!sketch) throw new Error(`get_exhibit: no exhibit with ref '${ref}'`);
+      const a = sketch.manifest?.kind === 'gallery' ? auditGallery(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null });
+      return { ok: true, ref, audit: a, page: 'every stop framed is measured in a browser: node scripts/exhibit-audit.mjs <its exported world.html>' };
+    }
     return measureExhibit({ ref, every });
   }
   if (id) {
@@ -135,7 +173,7 @@ export function registerExhibitTools() {
       + '`<hall>/<id>`, halls science, space, earth, life, math, history (`science/fission`, `earth/hydro`, `life/dna`, '
       + "`math/derivative`, `history/pompeii`). Find one via semantic_search({ kinds: ['view_vocab'] }) or "
       + 'get_exhibit({ hall }); read its manual with get_exhibit({ id }) before passing `params`. Reach for "teach me '
-      + '<phenomenon>", "a museum exhibit about…", "show me ancient Egypt", "a demo for my class". Iterate with update_sketch.',
+      + '<phenomenon>", "a museum exhibit about…", "show me ancient Egypt", "a demo for my class". `rooms` joins made ones as a gallery.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -147,8 +185,9 @@ export function registerExhibitTools() {
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
         tour: { type: 'object', description: "Optional stops to step through: { stops: [{ caption, camera, highlight? }] }. Manual: get_view_vocab({ id: 'tour' })." },
+        rooms: { type: 'array', items: { type: 'string' }, description: 'Instead of id: made exhibits (refs) joined as one gallery; params: { intro, kiosk }.' },
       },
-      required: ['id'],
+      required: [],
     },
     handler: createExhibitHandler,
   });
@@ -169,6 +208,7 @@ export function registerExhibitTools() {
         detail: DETAIL_PROPERTY,
         ref: { type: 'string', description: 'A made exhibit to measure.' },
         every: { type: 'number', description: 'With `ref`: every Nth sample (default 1).' },
+        audit: { type: 'boolean', description: 'With `ref`: its audit (tour, claims, reading) instead.' },
       },
       required: [],
     },

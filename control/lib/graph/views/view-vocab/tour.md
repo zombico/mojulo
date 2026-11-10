@@ -54,6 +54,32 @@ highlight. A shader exhibit (raymarched) takes no tour yet.
   reconstructed street is `reconstructed`, a drawn ion channel is `depicted`.
 - A stop is opened by `?stop=<id>` (or its number); `window.__mojTour` steps it on the page.
 
+## A kiosk
+
+The same page is a kiosk when its address says `?kiosk=1` (or `?kiosk=<seconds>` for the idle time; 90 by default):
+large type and touch targets, nothing to select, and the attract loop. Left alone, it goes back to its start and plays
+itself, each stop held as long as its caption takes to read (7 to 20 seconds), with "Touch to explore" over it; a touch
+hands it to the visitor. Never in a capture.
+
+## A gallery
+
+Several made exhibits, joined as the rooms of one: `create_exhibit({ rooms: ['<ref>', …], title, params: { intro,
+kiosk } })` (`kiosk: true`, or `{ idle: seconds }`). It stores refs only, so improving an exhibit improves every gallery
+it stands in. Its page (`/api/sketches/<ref>/gallery`) is a lobby, a card a room (its hall, its title, its first
+caption, its stops), and each room its exhibit's page framed, with the way back and on. As a kiosk the gallery walks
+itself when left alone: the lobby a moment, then each room's tour played to its end, room after room. Change its rooms
+with `update_sketch` (`set /rooms`). `export_model({ ref, format: 'html' })` writes it as a folder that opens offline
+(index.html, and rooms/<ref>.html each a self-contained page): the kiosk's form.
+
+## The check
+
+An exhibit has no win to prove; its machine gate asks what a curator asks of a label wall. `create_exhibit` returns it
+with a tour or a gallery, and `get_exhibit({ ref, audit: true })` reads it again: a tour at all, each claim graded, a
+record's claims cited (a warning when not), captions short enough to read, each stop showing something. Every stop
+framed (its lit parts on screen above the panel) is measured in a browser: `node scripts/exhibit-audit.mjs <page.html>`.
+It advises and never refuses. The eyes gate is the operator's, and whether a claim is TRUE is the expert's: never say
+either passed.
+
 ## Worked example
 
 ```
