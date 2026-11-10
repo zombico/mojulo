@@ -32,3 +32,15 @@
   the cel carries its three tones. With no cube it is the card, the fight rig's own lights in the solve's units, kept
   as written. Read on the cube presets: the clear and morning looks need no gain; jungle-haze's body key is raised 3×
   and still turns 1.57× (its level is the sky's); city-night's fill is raised 2.6×; both night looks' rims are raised.
+- **The cast material** (`scene/channels/cast-rig.js`; no page builds a body with it yet, so no page changes). The rig
+  laid on a body's own shader, so it lights nothing else: the hemisphere in the place of the page's ambient (the rig's
+  sky on a face turned up, its ground on one turned down), the body's own key gain on its direct light alone, and the
+  rim as a fresnel edge on its surface, stepped for the cel. `western` is three's standard material, `anime` its toon
+  material over the rig's ramp; `patch` lays the rig on a material a client already has, after its own patch. Only the
+  key is a light, one a page (`key`): a form page's sun is taken as it is; on a painted page, whose world is unlit, the
+  page's shadow-casting light takes the key's colour and level and every other directional light is put out; a page
+  with none gets one along the rig's key. On a form page the renderer's curve tones the body with the land; on a
+  painted page the body tones itself with the same curve. The kit is page source by `castKitSource()`. Its tests hold
+  it against the vendored three's own standard and toon shaders. Proof on real pages
+  (`scripts/spikes/cast/proof.mjs`, headless Chrome): on the island trail and the jungle path in gen-7 the page's
+  lights read the same before and after a body is added; on the island in gen-6 the page had no light and has one.
