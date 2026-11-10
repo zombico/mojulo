@@ -72,7 +72,7 @@ export function buildManeuvers(E) {
         // space: the dash starts in mid-float (no ground needed); hoverGrace: a boost-hovering
         // suit (or one whose cushion just vanished with the F release) keeps its ground read.
         if (boostEdge && (e.fTapWin ?? 0) > 0 && (e.grounded || space || (e.hoverGrace || 0) > 0) && canDodge && dodgeReady && e.tackleT == null) {
-          beginDodge(e, input, r);   // second tap inside the window → commit the roll (clip + dir + gauge cost)
+          beginDodge(e, input, r, ctx.moveH);   // second tap inside the window → commit the roll (clip + dir + gauge cost)
         } else if (boostEdge) {
           e.fTapWin = r.doubleTapWindow ?? 0.28;   // first tap — open the window
         }

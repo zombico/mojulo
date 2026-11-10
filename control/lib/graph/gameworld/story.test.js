@@ -10,6 +10,7 @@ import { reviewParts } from './review.js';
 import { gameworldBibleHtml } from './bible-html.js';
 import { storyReport } from './runner.js';
 import { readMade } from './made.js';
+import { lowerPlay } from '../playscape/ui/direction.js';
 
 // The cast (characters.cast) and the story (gameworld story): people made as the hero is, placed in the levels by the
 // moments that name them, bound to the world as laid; what cannot bind is reported, never thrown.
@@ -56,7 +57,7 @@ describe('the cast', () => {
 
   it('a run records what it made of the cast', () => {
     expect(() => readMade({ 'cast-mayor': { ref: 'gw-cast-mayor', order: '0123abcd', stored: '89abcdef' } })).not.toThrow();
-    expect(() => readMade({ 'cast-': { ref: 'x', order: '0123abcd', stored: '89abcdef' } })).toThrow(/is not something a run makes \(hero, hero-equipped, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>/);
+    expect(() => readMade({ 'cast-': { ref: 'x', order: '0123abcd', stored: '89abcdef' } })).toThrow(/is not something a run makes \(hero, hero-equipped, hero-sheathed, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>/);
   });
 
   it('design_game makes each after the hero, at <ref>-cast-<id>; without a story no level is remade', () => {
@@ -116,6 +117,41 @@ describe('the story, bound', () => {
     expect(m.play.scenes.map((s) => s.id)).toEqual(['welcome']);
     expect(m.play.carry).toBe('story');
     expect(gameStore(W({ story: [WELCOME] }), null).slices.map((s) => s.name)).toContain('story');
+  }, 120_000);
+
+  it('a moment written as a screenplay: blocked on the stage it binds to, lowered on the page to the coverage\'s shots and its lines; one naming what the stage lacks is unplaced, by name', () => {
+    const SCRIPTED = { ...WELCOME, beats: [{ script: 'MAYOR: Welcome to the *gate*.\nHERO (worried): Is it safe?\nMayor crosses to exit.\nMAYOR: Safe enough.' }] };
+    const b = bind([SCRIPTED, { ...SCRIPTED, id: 'lost', beats: [{ script: 'Mayor crosses to the well.' }] }, { ...SCRIPTED, id: 'stranger', beats: [{ script: 'GUARD: Halt.' }] }]);
+    const why = Object.fromEntries(b.unplaced.map((u) => [u.id, u.why]));
+    expect(why.lost).toMatch(/its script on gate\/path: line 1: 'well' is neither in the cast \(hero, mayor\) nor a mark \(start, exit, pocket/);
+    expect(why.stranger).toMatch(/'GUARD' is not in the cast \(hero, mayor\)/);
+    expect(b.bound.map((x) => x.id)).toEqual(['welcome']);
+    const G = readGameworld(W({ story: [SCRIPTED] }));
+    const m = stageLevelOrder(G, stages[0], { ref: 'gw-level-gate-0', heroRef: 'gw-hero', story: bindStory(G, stages, { castRefs, layout: LAYOUT }).byStage['gate/path'] }).args.manifest;
+    expect(m.play.scenes[0].beats).toEqual(SCRIPTED.beats);                  // the recipe keeps the script; the page lowers it
+    const P = lowerPlay(m, { player: 'hero' }).scenes[0].beats;
+    expect(P.filter((x) => x.kind === 'line').map((x) => [x.name, x.text])).toEqual([['Mayor Ilse', 'Welcome to the gate.'], ['Hero', 'Is it safe?'], ['Mayor Ilse', 'Safe enough.']]);
+    expect(P[0]).toMatchObject({ kind: 'shot', shot: { frame: 'wide', on: ['mayor', 'hero'] } });
+    expect(P.filter((x) => x.kind === 'shot').map((x) => x.shot.frame)).toContain('close');
+  }, 120_000);
+
+  it('each acts as its page says: the cast\'s and the hero\'s actor reach the stage\'s play; a script\'s director\'s notes are in the report', () => {
+    const cast = { ...CAST, mayor: { ...CAST.mayor, actor: { style: 'thespian', role: { status: 'high' } } } };
+    expect(() => readGameworld(W({ cast: { ...CAST, mayor: { ...CAST.mayor, actor: { style: 'method' } } } }))).toThrow(/cast.mayor.actor.style: 'method' is not a style/);
+    // a long talk, nobody moving, no line with a face of its own: the director would cut to a close-up
+    const TALK = { ...WELCOME, beats: [{ script: ['MAYOR: Welcome.', 'HERO: Thanks.', 'MAYOR: The road is shut.', 'HERO: Since when?', 'MAYOR: Since the spring.', 'HERO: I see.'].join('\n') }] };
+    const world = { ...W({ cast, story: [TALK] }), characters: { ...W({ cast }).characters, hero: { ...(W().characters.hero ?? {}), actor: { register: 'anchor' } } } };
+    const G = readGameworld(world);
+    expect(G.characters.cast.mayor.actor).toEqual({ style: 'thespian', role: { status: 'high' } });
+    const b = bindStory(G, stages, { castRefs, layout: LAYOUT });
+    expect(b.notes.map((n) => [n.id, n.script])).toEqual([['welcome', 0]]);
+    expect(b.notes[0].notes.map((x) => x.id)).toContain('no-close');
+    expect(b.notes[0].notes[0]).toMatchObject({ says: expect.any(String), why: expect.any(String), try: expect.any(String) });
+    const m = stageLevelOrder(G, stages[0], { ref: 'gw-level-gate-0', heroRef: 'gw-hero', story: b.byStage['gate/path'] }).args.manifest;
+    expect(m.play.actors).toEqual({ hero: { register: 'anchor' }, mayor: { style: 'thespian', role: { status: 'high' } } });
+    // without a script, no notes; without an actor, no actors
+    expect(bind([WELCOME]).notes).toBeUndefined();
+    expect(stageLevelOrder(readGameworld(W({ story: [WELCOME] })), stages[0], { ref: 'x', heroRef: 'gw-hero', story: bind([WELCOME]).byStage['gate/path'] }).args.manifest.play.actors).toBeUndefined();
   }, 120_000);
 
   it('design_game passes each stage its share: the bound stage changes, the others are not remade', () => {
@@ -278,6 +314,58 @@ describe('the story in a building level (structure rails merged in)', () => {
   }, 240_000);
 });
 
+describe('the game\'s slots: an opening, a prologue, an ending', () => {
+  const line = [{ line: { who: 'hero', say: 'On.' } }];
+  const at = (m) => ({ id: 'm', beats: line, ...m });
+  it('a moment takes one, on the level whose page stages it; the game has one of each', async () => {
+    const { readStory, storyScene } = await import('./story.js');
+    expect(readStory([at({ where: { level: 'gate' }, when: { slot: 'opening' } }), at({ id: 'n', where: { level: 'cave' }, when: { slot: 'ending' } })])).toHaveLength(2);
+    expect(storyScene(at({ where: { level: 'gate' }, when: { slot: 'prologue' } })).when).toEqual({ on: 'slot:prologue' });   // nothing in the level raises it
+    expect(() => readStory([at({ where: { level: 'gate' }, when: { slot: 'opening' } }), at({ id: 'n', where: { level: 'cave' }, when: { slot: 'opening' } })])).toThrow(/when.slot 'opening': the game has one opening, and 'm' is it/);
+  });
+  it('the game made of a world whose story has them plays them: its flow places each on its stage; none, no flow', () => {
+    const story = [
+      at({ id: 'dawn', where: { level: 'gate' }, when: { slot: 'opening' } }),
+      at({ id: 'setting-out', where: { level: 'gate' }, when: { slot: 'prologue' } }),
+      at({ id: 'home-again', where: { level: 'cave' }, when: { slot: 'ending' } }),
+    ];
+    const S = runSteps({ ...W({ story }), front: {} }, { ref: 'gw' }), S0 = runSteps({ ...W(), front: {} }, { ref: 'gw' });
+    const game = S.find((s) => s.key === 'game').order, refs = game.levels.map((l) => l.ref);
+    const F = game.flow;
+    expect(F.steps.opening).toEqual({ kind: 'cinematic', scene: 'dawn', stage: refs[0], next: 'title' });
+    expect(F.steps.prologue).toEqual({ kind: 'cinematic', scene: 'setting-out', stage: refs[0], next: 'play', keep: true });
+    expect(F.steps.ending).toMatchObject({ kind: 'cinematic', scene: 'home-again', next: 'end' });
+    expect(refs).toContain(F.steps.ending.stage);
+    expect(F.start).toEqual([{ when: 'unseen', go: 'opening' }, 'title']);
+    expect('flow' in S0.find((s) => s.key === 'game').order).toBe(false);
+    // the moments' scenes ride their stages' pages, staged by the flow alone
+    const gate = S.find((s) => s.key === 'level-gate-0').order.manifest;
+    expect(JSON.stringify(gate)).toContain('slot:opening');
+  }, 240_000);
+});
+
+describe('the game\'s flow, the game director\'s', () => {
+  const line = [{ line: { who: 'hero', say: 'On.' } }];
+  it('a world\'s own flow plays in its game, its levels the refs of their stages; the main quest\'s ending as a moment is the game\'s ending; the review shows the storyboard', () => {
+    const story = [{ id: 'home-again', where: { level: 'cave' }, when: { on: 'staged' }, beats: line }, { id: 'dawn', where: { level: 'gate', stage: 'yard' }, when: { on: 'staged' }, beats: line }];
+    const flow = { start: 'intro', steps: {
+      intro: { kind: 'cinematic', scene: 'dawn', stage: 'gate', next: 'title' },
+      title: { kind: 'screen', screen: 'title', on: { play: 'cave' } },
+      cave: { kind: 'level', level: 'cave', on: { won: 'title', lost: 'cave' } },
+    } };
+    const own = runSteps({ ...W({ story }), front: {}, flow }, { ref: 'gw' });
+    const game = own.find((s) => s.key === 'game').order, ref = (key) => own.find((s) => s.key === key).ref;
+    expect(game.flow.steps.cave.level).toBe(ref('level-cave-0'));
+    expect(game.flow.steps.intro.stage).toBe(ref('level-gate-1'));          // the stage its moment is bound to
+    expect(reviewParts({ ...W({ story }), front: {}, flow }).find((p) => p.id === 'flow:sequence').content).toMatchObject({ source: 'the game\'s own', start: 'intro' });
+    // no flow of its own: the main quest's ending, played as the moment, is the game's ending, before the end card
+    const mainQuest = { acts: [{ id: 'one', goal: 'Go home.', beats: [{ id: 'home', goal: 'Get home.', as: { scene: 'home-again' } }] }], ending: { beat: 'home' } };
+    const quest = runSteps({ ...W({ story }), front: {}, mainQuest }, { ref: 'gw' });
+    const end = quest.find((s) => s.key === 'game').order.flow.steps.ending;
+    expect(end).toEqual({ kind: 'cinematic', scene: 'home-again', stage: quest.find((s) => s.key === 'level-cave-0').ref, next: 'end' });
+  }, 240_000);
+});
+
 describe('the story\'s slots (a tactics book\'s)', () => {
   const line = [{ line: { who: 'hero', say: 'On.' } }];
   const at = (m) => ({ id: 'm', beats: line, ...m });
@@ -290,7 +378,7 @@ describe('the story\'s slots (a tactics book\'s)', () => {
   });
   it('refuses a slot it does not have, an epoch\'s slot on a level, a level\'s on an epoch, saying why', async () => {
     const { readStory } = await import('./story.js');
-    expect(() => readStory([at({ where: { level: 'vale' }, when: { slot: 'during' } })])).toThrow(/when.slot is 'before', 'after', 'begin', 'end', alone in when/);
+    expect(() => readStory([at({ where: { level: 'vale' }, when: { slot: 'during' } })])).toThrow(/when.slot is 'before', 'after', 'begin', 'end', 'opening', 'prologue', 'ending', alone in when/);
     expect(() => readStory([at({ where: { level: 'vale' }, when: { slot: 'begin' } })])).toThrow(/'begin' is an epoch's: where: \{ epoch \}/);
     expect(() => readStory([at({ where: { epoch: 1 }, when: { slot: 'before' } })])).toThrow(/an epoch's moment plays in its slot/);
     expect(() => readStory([at({ where: { epoch: 1, level: 'vale' }, when: { slot: 'end' } })])).toThrow(/where is \{ epoch \} alone/);

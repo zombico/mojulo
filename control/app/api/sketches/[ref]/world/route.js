@@ -13,6 +13,7 @@
  * /svg, which can render it as a still.
  */
 
+import { wantsWorldLoader, worldLoaderHtml } from '@/lib/graph/worlds/world-loader.js';
 import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -302,6 +303,10 @@ export async function GET(request, { params }) {
     if (cacheKey) {
       const cached = worldCacheGet(cacheKey);
       if (cached) return worldHtmlResponse(cached, sketch, ref, ['1', 'true'].includes(search.get('download')), 'HIT', etag, streamed.header);
+      // a world opened in a tab and not yet baked: a loader at once, never a blank tab for minutes (worlds/world-loader.js)
+      if (wantsWorldLoader(request.headers, search)) {
+        return new Response(worldLoaderHtml({ title: sketch.title || sketch.manifest?.title || ref }), { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Mojulo-World-Cache': 'LOADER' } });
+      }
     }
 
     // The kind → assemble*Scene dispatch lives in lib/graph/world-scene.js so the live
@@ -383,7 +388,8 @@ export async function GET(request, { params }) {
     // headset's modes for an A/B without a re-mint (?xr=snap, ?xr=smooth,hand: channels/xr.js xrFromParam).
     // Off unless the manifest or the flag asks — the page stays byte-identical otherwise.
     const xr = xrFromParam(request.nextUrl.searchParams.get('xr'), payload.xr || null);
-    const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr });
+    // ?hud=1 also brings back the strip a clean page (a payload's `chrome: false`) leaves out
+    const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr, ...(hudParam != null && hud ? { chrome: true } : {}) });
     if (cacheKey) worldCacheSet(cacheKey, html);
     return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);
   } catch (err) {

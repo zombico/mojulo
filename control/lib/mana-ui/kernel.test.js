@@ -74,6 +74,18 @@ describe('mana-ui: props down and state in three places', () => {
     rt.press('accept');
     expect(S.name).toBe('ABB');
   });
+  it('a name is typed straight in from a keyboard: its charset and max kept, erased, done as Done does', () => {
+    const S = { name: '' }, rt = run(screen([{ use: 'textentry', props: { value: { bind: 'name' }, max: 4 } }, { use: 'button', props: { label: 'x' } }]), S);
+    expect(rt.typing()).toBe(true);
+    expect(rt.type('ab1 c!d')).toBe(true);   // lower case read as capitals; the digit and the mark not in the letters
+    expect(rt.view()).toContain('AB C');
+    expect(rt.type('e')).toBe(false);         // past the max
+    expect(rt.erase()).toBe(true);
+    expect(rt.submit()).toBe(true);
+    expect(S.name).toBe('AB');
+    while (rt.state().kind !== 'button') rt.press('down');
+    expect([rt.typing(), rt.type('a'), rt.erase(), rt.submit()]).toEqual([false, false, false, false]);   // nothing in focus to type into
+  });
   it('when and unless draw a node only while their value says so', () => {
     const rt = run(screen([{ use: 'text', props: { value: 'ready' }, when: { bind: 'ok' } }, { use: 'text', props: { value: 'wait' }, unless: { bind: 'ok' } }]), { ok: false });
     expect(rt.view()).toContain('wait');
@@ -114,6 +126,14 @@ describe('mana-ui: focus', () => {
     expect(rt.view()).toMatch(/data-st="focus"[^>]*>e<|>e<\/span><\/div>/);
     rt.press('down');
     expect(rt.state().kind).toBe('button');
+  });
+  it('tabs turn on [ and ]; the state says which is open', () => {
+    const rt = run(screen([{ use: 'tabs', children: ['A', 'B', 'C'].map((label) => ({ use: 'tab', props: { label }, children: [txt(label)] })) }]));
+    expect(rt.state().tabs).toEqual([0]);
+    press(rt, 'tabNext', 'tabNext');
+    expect(rt.state().tabs).toEqual([2]);
+    rt.press('tabNext');
+    expect(rt.state().tabs).toEqual([0]);
   });
   it('a long list scrolls with the focus, saying how much is above and below', () => {
     const rt = run(screen([{ use: 'list', props: { rows: ['a', 'b', 'c', 'd', 'e', 'f'], visible: 3 } }]));
@@ -181,6 +201,44 @@ describe('mana-ui: in game', () => {
     expect(rt.view().indexOf('mana-hud')).toBeLessThan(rt.view().indexOf('mana-screen'));
     expect(rt.state().focusables).toBe(1);
   });
+  it('a passing anchor rises once from where it lands: a row\'s id is its element, so a number that lands again is new', () => {
+    const S = { pops: [{ id: 1, x: 0.5, y: 0.5, value: 4 }] }, el = new JSDOM('<div></div>').window.document.querySelector('div');
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'anchors', props: { rows: { bind: 'pops' }, pass: true, row: txt({ item: 'value' }) } }] }, screens: {} }, host(S));
+    const m = manaUi.mount(el, rt), first = el.querySelector('.mana-anchor');
+    expect(el.querySelector('.mana-anchors').getAttribute('data-pass')).toBe('yes');
+    expect(first.getAttribute('data-key')).toBe('a1');
+    S.pops = [{ id: 2, x: 0.5, y: 0.5, value: 4 }]; rt.tick(); m.paint();
+    expect(el.querySelector('.mana-anchor')).not.toBe(first);   // the same place, the same words: a new number all the same
+  });
+  it('the HUD reads a screen\'s pick in the frame the screen picks it (the target in focus, marked over its head)', () => {
+    const S = { foes: [{ id: 'a', x: 0.3, y: 0.5, aim: { a: true } }, { id: 'b', x: 0.7, y: 0.5, aim: { b: true } }] };
+    const spec = { hud: { use: 'hud', children: [{ use: 'anchors', props: { rows: { bind: 'foes' }, row: { use: 'stack', children: [{ use: 'badge', props: { value: '▼' }, when: { pick: { format: 'targets.aim.{id}' } } }] } } }] },
+      screens: { aim: screen([{ use: 'list', id: 'targets', props: { rows: { bind: 'foes' } } }]) } };
+    const rt = manaUi.runtime(spec, host(S));
+    rt.open('aim');
+    const marked = () => [...rt.view().matchAll(/data-key="a(\w)"[^>]*><div[^>]*>(<span class="mana-badge")?/g)].filter((m) => m[2]).map((m) => m[1]);
+    expect(marked()).toEqual(['a']);
+    rt.press('down');
+    expect(marked()).toEqual(['b']);
+  });
+  it('a bar without its numbers is read by its length alone (a foe\'s health)', () => {
+    const view = (numbers) => manaUi.runtime({ start: 'a', screens: { a: screen([{ use: 'bar', props: { value: 3, max: 4, variant: 'hp', numbers } }]) } }, host({})).view();
+    expect(view(true)).toContain('3/4');
+    expect(view(false)).not.toContain('3/4');
+    expect(view(false)).toContain('width:75%');
+  });
+  it('an anchor\'s row may say its point in the game\'s world, for a surface that is the world (a headset)', () => {
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'anchors', props: { rows: [{ id: 'a', x: 0.5, y: 0.5, world: [1.23456, -2, 3] }, { id: 'b', x: 0.2, y: 0.5 }], row: txt('x') } }] }, screens: {} }, host({}));
+    expect(rt.view()).toContain('data-key="aa" data-world="1.235,-2,3"');
+    expect(rt.view()).toMatch(/data-key="ab" style=/);
+  });
+  it('a HUD region\'s place may be bound: the part moves to the corner the game names', () => {
+    const S = { at: 'bottom-right' }, spec = { hud: { use: 'hud', children: [{ use: 'region', props: { at: { bind: 'at' } }, children: [txt('Foes')] }] }, screens: {} };
+    const rt = manaUi.runtime(spec, host(S));
+    expect(rt.view()).toMatch(/class="mana-place" data-at="bottom-right"/);
+    S.at = 'top-left'; rt.tick();
+    expect(rt.view()).toMatch(/class="mana-place" data-at="top-left"/);
+  });
   it('a frame re-renders only when a value it read has changed', () => {
     const S = { hp: 10 }, rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'top' }, children: [{ use: 'bar', props: { value: { bind: 'hp' }, max: 40, variant: 'hp' } }] }] }, screens: {} }, host(S));
     expect(rt.tick()).toBe(false);
@@ -196,8 +254,9 @@ describe('mana-ui: the live game', () => {
   it('a fighter\'s bar shows the chip of the last hit, and the second fighter\'s fills from the right', () => {
     const v = hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 8, dir: 'rtl' } })]).view();
     expect(v).toContain('data-dir="rtl"');
-    expect(v).toContain('<u style="left:60%;width:20%"></u>');
-    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).not.toContain('<u ');   // healing leaves no chip
+    expect(v).toContain('<u style="width:80%"></u>');
+    // (healing leaves no chip: it sits wholly under the fill, so it drains rather than vanishing)
+    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).toContain('<u style="width:60%"></u>');
   });
   it('what is off screen is held at the edge with an arrow toward it; what is on screen is not', () => {
     const v = hudOf([{ use: 'edges', props: { markers: [{ x: 1.4, y: 0.5, kind: 'goal' }, { x: 0.5, y: -0.2, kind: 'foe' }, { x: 0.4, y: 0.4, kind: 'ally' }] } }]).view();
@@ -345,7 +404,7 @@ describe('mana-ui: motion that means something', () => {
     expect(rt.view()).toContain('data-turn="2"');
     st.rows = [...st.rows, { id: 'c', label: 'C', last: true }]; rt.tick();
     expect((rt.view().match(/data-fresh="yes"/g) || []).length).toBe(1);
-    expect(rt.view()).toMatch(/data-fresh="yes" data-k="2" data-last="yes"/);
+    expect(rt.view()).toMatch(/data-fresh="yes" data-id="[^"]+" data-k="2" data-last="yes"/);
     rt.press('down'); // a move draws again: the fresh row stays fresh until the rows change
     expect(rt.view()).toContain('data-fresh="yes"');
     expect(run(screen([{ use: 'badge', props: { value: 'Ayla', turn: true } }])).view()).toContain('data-turn="yes"');

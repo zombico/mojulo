@@ -7,8 +7,9 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+A local MCP server with a dashboard that turns the operator's agent into a 3D creative studio: 3D objects, characters,
+environments, interactive worlds and even playable games, exported to the person's desktop. Inside, the agent works
+through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
 `forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
@@ -26,8 +27,10 @@ whole game end to end on the web (`export_game`); developers and teams get a han
 their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
 validated the loop (the `engine-handoff` theme).
 
-Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
-the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
+Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
+open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
+never how (no departments, requisitions, orders, gates or install weight). The drawers and the `initialize` preamble
+speak to the agent (the compiler). The canonical self-description is the `get_substrate`
 drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js): its one-breath answer is what the
 agent says to the person, so it and the README agree. The office wing (apps, daemons, contextmap, MCP-to-MCP binding)
 left the tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
@@ -57,6 +60,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 - What grows on what ground, and the flora library's gaps: [docs/flora-gaps.md](docs/flora-gaps.md) (generated from
   `era/substrate.js` and `era/substrate-flora.js`; after changing either or the library, `npm run flora-gaps`: a test
   fails on a stale page). Read it before adding flora.
+- Where a game is made and where it is seen: [docs/workshop.md](docs/workshop.md). A cloud box builds and checks any game
+  but shows a level only under its page limit, draws in software and forgets its data at session end; say so before a
+  big game (a glyph-map chapter) is built there (design_game's `workshop` step; `pack-data` carries the database over).
 - Never hardcode an enumerable count in docs (kinds, packs, tools, locales, test files). Point at the
   list that defines it; counts drift the day after they are written.
 - "graph" means three things: `control/lib/graph/` is the geometry library; the contextmap is the
@@ -122,6 +128,7 @@ node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{â
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
 node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
+node scripts/hover.mjs <tour.json> [--out dir]   # the hover bot: teleport shots, flights sampled at a speed (docs/hover-bot.md)
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
@@ -262,15 +269,33 @@ Pointers only; each target carries its own design notes.
   that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
   is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
   studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
+- A game's flow (what plays when, from the first screen to the credits: screens, cinematics, levels, holds), the game
+  director's page, the main agent's own: [game/flow.js](control/lib/graph/game/flow.js) (the shape, the reader, the
+  default, the kernel the play shell's flow runner inlines) and [gameworld/game-flow.js](control/lib/graph/gameworld/game-flow.js)
+  (a world's flow, the story's opening, prologue and ending placed in it, the storyboard): [docs/game-flow.md](docs/game-flow.md).
 - Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
   words run on, so a screen is built once and not game by game: components with props passed down, the game's state
   read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
-  styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
+  styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; a new look is a theme card in `playscape/ui/theme-cards/`, a game's `ui` dressed by the interface chapter in `playscape/ui/interface-look.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
   wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
-  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md).
+  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md). Its first surface: the RPG's battles, party menu and
+  shops, a spec in `playscape/rpg/rpg-ui.js` hosted by the page's RPG channel.
+- Combat: [gameworld/combat/](control/lib/graph/gameworld/combat/) (a made game's player and foe measured on its runtime:
+  movement against its feel's card, each gun's rounds to drop the foe, cone, climb, marks by matter, switching; the gym
+  laid from those numbers; the combat book, `/bible?book=combat`; the firing range, `range.js`: a game being designed,
+  its weapons by fire type and numbers, skins optional, measured and played before there are levels; the turret's mounts
+  by class and their measures, `mount.js`, the runtime's turret `worlds/controllable/turret.js`: one gun on a mount,
+  aimed by hand on any base; its rounds `ordnance.js`, what they do to matter `terminal.js`, the artillery range
+  `artillery.js`, the mecha shelf's frames as its bases `frames.js`, the craft shelf's fighters `aircraft.js` and its
+  helicopters and drones `rotorcraft.js` (on the runtime's `worlds/controllable/rules-hover.js`), its boats `boats.js` (on
+  `worlds/controllable/rules-boat.js`, their water `scene/channels/controllable/boat-water.js`), its motorcycles
+  `roadsters.js` (its cars through `artillery.js` `vehicleBase`), its page's view
+  `scene/channels/controllable/turret-view.js`); the tester's spike, its findings and the grown arena are
+  `control/scripts/spikes/combat-tester/`.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
-  `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
+  `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers). How a hero swings a
+  blade (an arsenal's `art`: realistic, inspired, freestyle): [docs/sword-arts.md](docs/sword-arts.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
@@ -292,6 +317,11 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
+  ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
+  room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world
+  recipe and its lane (a new kind of level is a row); the runtime draws in the lane's frame. Blockouts:
+  [level/greybox-scene.js](control/lib/graph/level/greybox-scene.js).
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).
@@ -310,5 +340,9 @@ Pointers only; each target carries its own design notes.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).
+- Game sounds: [sfx-shelf/](control/lib/graph/sfx-shelf/) (the SFX library: one row per sound under the words people
+  say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
+  build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new
+  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).

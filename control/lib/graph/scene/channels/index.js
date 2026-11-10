@@ -18,6 +18,7 @@ import { fieldChannelScript } from './field.js';
 import { fxChannelScript } from './fx.js';
 import { gameChannelScript } from './game.js';
 import { versusChannelScript } from './versus.js';
+import { brawlChannelScript } from './brawl.js';
 import { boardChannelScript } from './board.js';
 import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 import { holoChannelScript } from './holo.js';
@@ -246,7 +247,8 @@ export const SETUP_CHANNELS = [
     provides: ['__mojShootSet'] },     // piece count and the ids showing now, for probes
   { key: 'audio', anchor: 'post-overlays', script: audioChannelScript,
     normalizeIn: 'emitThreeWorld',     // capture-gated: never emitted on capture runs
-    requiresOptional: ['__BUS', '__mojCtrl'] },   // + walkOn (a registry let) for the gait loop
+    requiresOptional: ['__BUS', '__mojCtrl'],   // + walkOn (a registry let) for the gait loop
+    provides: ['__AUDIO', '__beatsCue', '__beatsUnlock'] },   // the fight's sounds (versus) play its cues and start it on a key (typeof-guarded)
   { key: 'game', anchor: 'post-capture', script: gameChannelScript,
     normalizeIn: 'emitThreeWorld',     // emitted in capture runs too — the envelope stays observable
     provides: ['__mojGame'],           // reads `_capture`, defined by the page one line earlier
@@ -255,6 +257,11 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a side-view fight on an arena (lib/graph/versus); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojVersus'] },       // the match and its phase, for probes
+  { key: 'brawl', anchor: 'post-capture', script: brawlChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a brawl on the world (lib/graph/brawl): the practice yard; it owns the camera
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojBrawl'],          // the room, its screen and its readouts, for probes
+    requiresOptional: ['__AUDIO', '__beatsCue', '__beatsUnlock'] },   // its blows' sounds where the page carries them
   { key: 'board', anchor: 'post-capture', script: boardChannelScript,
     normalizeIn: 'emitThreeWorld',     // a tactics board over the ground (lib/graph/board); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
@@ -371,6 +378,7 @@ export { marksChannelScript, normalizeMarks } from './marks.js';
 export { shootChannelScript } from './shoot.js';
 export { shootSetScript } from './shoot-set.js';
 export { versusChannelScript } from './versus.js';
+export { brawlChannelScript } from './brawl.js';
 export { boardChannelScript } from './board.js';
 export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 export { holoChannelScript } from './holo.js';

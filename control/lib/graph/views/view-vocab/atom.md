@@ -5,7 +5,7 @@
   "family": "science",
   "entry": "create_view",
   "summary": "Mint an interactive 3D ATOM — a science/education viewer that shows an atom the way it ACTUALLY is: a dense central NUCLEUS wrapped in electron ORBITALS (standing waves), NOT the outdated Bohr 'electrons as dots orbiting on rings' picture.",
-  "when": "Reach for this on framing like 'show me a carbon atom / what do electron orbitals look like / the real electron cloud of a 3d orbital / visualize |ψ|²'.",
+  "when": "Reach for this for an atom of many electrons or a molecule's orbitals: 'show me a carbon atom / an iron atom's shells / the H₂ bonding orbital'. Hydrogen's orbitals, exact and checked, are a quantum world now.",
   "retired_tool": "create_atom_view"
 }
 ---

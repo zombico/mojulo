@@ -20,6 +20,14 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
+// gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
+// `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added
+// and 9 replaced in place (each a `sprints`/`moveYaw` guard on an existing line); a rule with neither runs as before.
+// Every fixture that embeds the controllable runtime re-pinned with it. Then (the controls): the sprint's own `sprint`
+// clip on its `sprintStride` (the stride's line guarded) and the orbit's swing round a locked foe (`lockTrack`): a few
+// more lines added, one replaced; the same fixtures re-pinned again.
+//
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
 // is additions only (85 lines, none removed); every fixture that embeds the controllable runtime re-pinned with it.
@@ -400,6 +408,15 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fighters are no characters and name no level; its versus-react.js, a body out cold lying on its back (LIMP), which
 // the fixture's fight draws only at a knockout; and the arena's fight read off the page's clock in milliseconds (it had
 // read them as seconds, six fight frames a drawn frame).
+// Re-pinned 2026-11-07 (1107-fg-remake: a fight on any level, by its lane): `versus` only. Its page inlines
+// versus-arena.client.js by its source, which now draws the whole fight in the lane's frame (versus/versus-lane.js): a
+// group set at the lane's centre on its floor and turned by its heading, every fight object in it, the camera, the
+// overlay's projection and the lit bodies' key mapped through it, a lane's `back` capping the camera. The fixture's
+// arena names no lane: its plane at heading 0, the group only lifting the fight where it always stood.
+// Re-pinned 2026-11-08 (1107-fg-remake: the anime register in the fight): `versus` only. Its page inlines
+// versus-arena.client.js by its source, which gains a TOON body (versus-character.js toonBody: a character drawn in the
+// character light, its lit and shade tones baked per corner), stepped by the arena's key in a toon material so both
+// fighters are lit from the camera's side. The fixture's fighters are stick figures, drawn as before.
 // Re-pinned 2026-11-05 (1105-rpg-slice: a packed page packs its plain groups): `live-shadows-actors` only, the one
 // fixture laid with `pack: true`. Its plain groups ride their positions on a uint16 grid and their colours as sRGB bytes
 // (packGroupArrays), decoded by the page to the same Float32Arrays; every fixture without `pack` is unchanged.
@@ -428,6 +445,232 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-05 (1105-platformer-lv0-spike merging 1104-vayo-effects' knockback): the same fixtures, their
 // emission the two re-pins above together (the platform rule's takes, wall, dash and camera move; the combat builders'
 // knockback seams), each a no-op without its own opt-in.
+// Re-pinned 2026-11-05 (1105-rpg-slice: the pixel budget): the 14 fixtures that embed the controllable runtime, every
+// page played live. Their density line becomes the budget's (capped at 1.5, the frame's time stepping it a quarter, the
+// `__budget(t)` call after each render); nothing else in them moved. No fixture's figure is a plain rigid rig, so none
+// carries the merged builder (merged-figure.js, its own tests).
+// Re-pinned 2026-11-06 (1105-rpg-slice: rays by grid): the 16 fixtures that embed the controllable runtime (the 14 played
+// live and the two captures). Their ground hook gains the grid raycast (ground-grid.js, by its source, its own tests) and
+// hands every big static mesh to it at the first probe; nothing else in them moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: grass out of the prepass): `creases`, `creases-outline`, `occlusion` and
+// `occlusion-creases`, the fixtures that carry the creases' prepass. Its solid test skips a mesh marked `blades`
+// (stage-grass.js marks its fields, tufts and cards), so a meadow is not drawn a second time; nothing else moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: a party's footsteps): the 16 fixtures that embed the controllable runtime. Its
+// minds (worlds/controllable/mind.js, inlined by its source) gained an escort that walks its ward's footsteps
+// (`rule.trail`, `rule.flank`); no fixture's escort takes it, so nothing they play moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: a walk compiled draws nothing): every fixture. The capture bridge every page
+// carries steps without drawing when asked (`draw: false`: the walk compiler's legs, and a replay that keeps no
+// frame), keeping the scene's transforms as a draw would; the bridge asks it, nothing a page plays moved.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: a side camera on a course): the 16 fixtures that embed the controllable
+// runtime. The side camera gained `band` (its height eased while the hero stands, held through a jump) and `ends` (the
+// frame held in from the lane's ends), each a no-op absent; the i-frame shimmer dims a merged figure's one skin, not its
+// bones, and the target rim (where a page carries it) draws a merged foe's on its skin, bound to its skeleton.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: the dash a burst): the same 16 fixtures. The platform rule's dash is
+// the card's frames long whatever the button does, up to its speed and eased back to the run's, a lunge for its pose
+// (no strides), the air dash's fall stopped only while it is at speed; the held dash's branch is gone. Absent `dash`,
+// nothing in it runs.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: F is the feel's): the 16 controllable fixtures, and `versus`, `xr`
+// and `walk-xr`, which embed the controls kernel. A rule with a feel's dash or run button (`sprint`, its build) owns F
+// whatever its walk pace (a side lane's hero has none), never the thrusters; the pause legend's rows say the dash and
+// the run, its `unless` taking a list; no radar under a side camera. Absent `dash` and `sprint`, F boosts as it did.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: the side camera's ends on the chord): the 16 controllable fixtures.
+// `ends` holds the frame along the lane's chord and turns the camera square to it near an end; absent `ends`, as it was.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
+// emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
+// pixel budget of a page played live, one draw a figure).
+// Re-pinned 2026-11-07 (1107-action-rpg merging 1105-rc): every fixture, the re-pins on both lines together (each line
+// had already moved every fixture's bytes; the 19 that embed the controllable runtime or the controls kernel move
+// again here); the
+// action hero's sprint keeps its own word in the platform rule (`stamina`, beside the run button's `sprint`), and its
+// orbit is the platformer's steered chase (rules-basic.js `steer: 'orbit'`), the lock-on swinging its yaw.
+// Re-pinned 2026-11-07 (1107-action-rpg: the first look): the 16 fixtures that embed the controllable runtime. The follow
+// camera gained `vista` (a level's opening: for its first seconds the chase stands high and looks at the place the level
+// is about, eased back down), a no-op absent; no fixture's camera takes it, so nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: the game look): the 16 fixtures that embed the controllable runtime. The pilot's
+// hp panel and its gauge carry class names a HUD look restyles (mana-ui/theme.js gameHudCss), and the stamina gauge's
+// dressing reads the platform rule's `stamina` (the merge had renamed it from `sprint`); nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: combat): the 16 fixtures that embed the controllable runtime. The platform
+// rule gained `combat` (a foe near, a lock or a blow: the guard's walk and its weapon drawn, else sheathed), a no-op
+// absent; no fixture's rule takes it, so nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: the wall's hold): the 16 fixtures that embed the controllable runtime. The wall
+// (worlds/controllable/wall.js) reads `ground: false` as a leap since the body last stood, not merely a frame off the
+// ground; no fixture's rule takes the wall, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the moveset): the 16 fixtures that embed the controllable runtime. The
+// melee strike gained the moveset (gameworld/combos.js: a combo's beats chained at each move's cancel, its travel), the
+// dodge rolls along the stick under world movement, and the pilot scheme names light, heavy and special in its `melee`
+// context; no fixture's rule takes a moveset or moves on the world's frame, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the footwork): the 16 fixtures that embed the controllable runtime. A
+// moveset's move plays its own clip (`mv_<id>`, or `_still` where its travel does not fit before the body ahead), its
+// travel waits out the blend into it and a lunge's comes in two pieces (hero-swing-body.js travelAt); a moveset's hero
+// idles in combat in its fighting stance (`idleClip`); no fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the weapons): the 16 fixtures that embed the controllable runtime. The
+// moveset steps through `r.weapons` on the cycle (its stance, its figure, its reach), the combat stance shows a weapon's
+// sheathed figure, and the pilot scheme binds the mouse's back button to the cycle; no fixture's rule takes weapons or
+// a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the sidearms): the 16 fixtures that embed the controllable runtime. A
+// ranged weapon may refuse an early release (`early: 'none'`, the bow) and never run dry (`infinite`, the pistols); a
+// charged lob deals its charged damage; a moveset's S fires its weapon's sidearm, aimed at the locked or front foe
+// (`mvAim`) and walking slower while it draws (`aimMove`). No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the sidearms seen): the 16 fixtures that embed the controllable runtime. A
+// moveset's S says the aim the page plays (`mvPose`: its clip, the draw's share), its sidearm's hand and pairing ride
+// `mvRanged`, and the combat figure shows the sheathed hero while an aim is up; the page's aim layer, props and arrows
+// are emitted only for a moveset. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the aim on the target): the 16 fixtures that embed the controllable
+// runtime. A moveset's sidearm aims at the foe's chest, not its middle; the page's aim layer (a moveset's only) turns the
+// body onto the target. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: guard and parry): the 16 fixtures that embed the controllable runtime. A
+// rule's `guard` (a feel card's, lowered) is held up against a blow from the front, a blade's or a foe's touch: blocked,
+// or parried within its window, the attacker staggered for the riposte; the guard's walk and its pose. No fixture's rule
+// takes a guard, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: no spamming): the 16 fixtures that embed the controllable runtime. A
+// moveset's move keeps its `cooldown` before it opens a string again, and its `rest` holds every string after a
+// finisher. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: a jump carries its takeoff): the 16 fixtures that embed the controllable
+// runtime. A hero sprinting on its stamina keeps its sprint through the air (`airPace`) where the run's pace braked it;
+// no fixture's rule sprints on a stamina, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: a jump held is one jump): the 16 fixtures that embed the controllable
+// runtime. The jump buffer remembers a press's first frame (`jumpWas`) and a launch out of the gather consumes it, so a
+// jump held through the gather no longer launches twice; the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: the launcher and the juggle): the 16 fixtures that embed the controllable
+// runtime. The moveset reads back + heavy, an air tree, a rise and the air's hang and kick; a combo's juggle may recover
+// in the air; a rise is not cut by the jump's release. All of it reads a moveset or a combo's `recover` no fixture
+// names, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: a launcher easy to land): the 16 fixtures that embed the controllable
+// runtime, and `court`, `turns` and `pitch`, which inline the swing system (hero-swing.js). The swing system gains a verb
+// (`upswing`, a moveset's `up` swing only) and the runtime reads back against the engaged foe and holds a moveset move's
+// facing; no fixture names a moveset, and no contest swings the new verb, so the sources they carry changed, their play
+// as it was.
+// Re-pinned 2026-11-09 (1108-practice-room: air moves facing the foe): the 16 fixtures that embed the controllable
+// runtime. In the air a moveset's move plays its own clip, and a launch's thrown foe (`mvThrown`) turns the airborne hero
+// to it; both read a moveset no fixture names, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: the sword arts): `court`, `turns` and `pitch`, which inline the swing system
+// (hero-swing.js). The upswing (a moveset's launcher only) chambers its blade higher, off the floor under a body's crouch;
+// no contest swings it, so the source they carry changed, their play as it was. The runtime is untouched.
+// Re-pinned 2026-11-09 (1108-practice-room: the templates' kits): the 16 fixtures that embed the controllable runtime,
+// and `court`, `turns` and `pitch`, which inline the swing system (hero-swing.js). A move's `arc` and `spin` (the spin
+// attack: its blow all round, the body turned through it), the swing system's `around` (a moveset's level sweep, baked as
+// a move's clip only), and the hitstop keeping the pilot's presses through its own freeze; no fixture names a moveset or
+// taps through a freeze, so the sources they carry changed, their play as it was.
+// Re-pinned 2026-11-08 (1107-fg-remake merging 1105-rc): `versus` only, its emission the re-pins above together (the
+// candidate's runtime changes, and this branch's lane frame and toon body).
+// Re-pinned 2026-11-08 (1107-fg-remake: the training ground): `versus` only. Its page inlines versus-arena.client.js by
+// its source, which frames a level whose view is `near` (versus-levels.js, the training ground's) as it frames the ring;
+// the fixture's arena names no view and is framed as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: priority, joint limits, the body kept out of itself): `versus` only. Its page
+// inlines versus-core.js (a trade won by the higher priority), versus-rig.js (a pose held within RIG_LIMITS as it becomes
+// joints), versus-figure.js (FIG_LIMITS and FIG_BULK in the round) and the runtime's PRIORITY flash.
+// Re-pinned 2026-11-08 (1107-fg-remake: the fight's register): `versus` only. Its page inlines versus-arena.client.js,
+// which lights every body one way under a register (a rig whose key casts, the renderer's shadows on); the fixture's
+// arena names no register and lights its bodies as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: the fight's effects): `versus` only. Its page inlines versus-fx.js (the cards,
+// the elements), versus-fx.client.js (drawn in the round under a register), versus-core.js (a blow's place, weight, limb
+// and kind on its events; the spark system) and the runtime's sparks standing down where the arena draws them; the
+// fixture's arena names no register and draws its sparks as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: the figure coated): `versus` only. Its page inlines versus-arena.client.js, whose
+// register materials carry a fresnel coat (bodyCoat) the effects drive; the fixture's arena names no register.
+// Re-pinned 2026-11-09 (1109-flow-runner, phase 2: the flow's sidecars): `game`, `kitchen-sink` and
+// `kitchen-sink-capture`, the fixtures that embed the game channel. A hosted level says when its first frame is drawn
+// (`game-shown`, two frames after ready) and when its end card is read (`game-card-done`: its time, a press after its
+// first moment, or at once with no card), so the play shell's flow goes on by events. Additions only: 14 lines each,
+// none removed.
+// Re-pinned 2026-11-09 (1109-flow-runner, phase 3: the stage): `game`, `kitchen-sink` and `kitchen-sink-capture`, the
+// fixtures that embed the game channel. Hosted, a level's scenes wait for the shell's params (`__mojWaitInit`, set as it
+// says ready, cleared as it starts), and a stage the shell's flow asks for (`params.__stage`) is handed to the scene
+// channel, or said missing at once by a level with no scenes. Additions only: 11 lines each, none removed.
+// Re-pinned 2026-11-09 (1107-fg-remake: non-human fighters): `versus` only. Its page inlines versus-arena.client.js, whose
+// posed character body is drawn in the register under one (the rig's material, its shadows, its coat, no ink hull), and
+// versus-figure.js, whose face bones (lids, lips, brows, ears, a snout, horns) ride the head and a serpent's coil its
+// hips then the ground (a `ground` segment, planted); the fixture's fighters are no characters and its arena names no
+// register.
+// Re-pinned 2026-11-09 (1107-fg-remake: a snout carried low): `versus` only. Its page inlines versus-rig.js (stoopPose),
+// versus-compile.js (a stance's `stoop` sinking its rests) and versus-figure.js (a head posed over its own carriage, a
+// beast's crown forward of its base kept); the fixture's fighters name no stoop and are no characters.
+// Re-pinned 2026-11-09 (1107-fg-remake: the fight's sounds): `versus` only. Its page inlines versus-runtime.client.js,
+// whose blows play the SFX shelf's cues where the page's audio channel carries them (fightCue, fightSound; the beep
+// where it does not), and versus-arena.client.js, which starts the sound on a first key or touch; the fixture's arena
+// names no register, carries no audio and beeps as before.
+// Re-pinned 2026-11-09 (1107-fg-remake: the move primitives): `versus` only. Its page inlines versus-library.js (the
+// overhead families, the traversal, charge and rekka specials, the airblock system), versus-compile.js (command normals,
+// a charge's motion, a rekka's stages, a move that passes through or strikes nothing), versus-input.js (a command normal
+// off the stick, a charge's hold) and versus-core.js (the charge kept, a rekka's next stage, the push boxes off while a
+// body passes through, a block in the air) and versus-movelist.js (a fighter's moves as its player reads them); the
+// fixture's fighters take none of them and fight as before.
+// Re-pinned 2026-11-09 (1107-fg-remake: the lab): `versus` only. Its page inlines versus-arena.client.js (the lab's
+// strips and its move list from the pause, under a register; the pause's items), versus-runtime.client.js (training's
+// panel under the lab) and versus-core.js (a rekka's next stage on its motion's last direction and a button, typed
+// through hitstop); the fixture's arena names no register and carries no lab.
+// Re-pinned 2026-11-09 (1109-cosmos-contraction merging 1108-practice-room): `game`, `versus`, `kitchen-sink` and
+// `kitchen-sink-capture`, the four whose pins both lines had moved: each side's pin held its own change alone (the flow
+// runner's sidecars and stage, the screenplay scenes on one; the practice room's moveset runtime, its RPG channel on
+// mana-ui and the fighter's lab on the other), and the merged page carries both. No fixture takes a moveset, a script or
+// a flow, so the sources they carry changed, their play as it was.
+// Re-pinned 2026-11-09 (1108-practice-room: Fallen Angel's air): the 16 fixtures that embed the controllable runtime. An
+// air dash alone (`dash.ground: false`, F on the ground left to the sprint) and a glide held once the air jumps are spent
+// (`glideSpent`); no fixture's rule names either, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: the modifier and its specials): the 16 fixtures that embed the controllable
+// runtime. The moveset's specials on the modifier held (`mod`), the MP pool, a move's `reach` and a `dash` travel, and the
+// sidearm silent under the modifier; no fixture names a moveset, so the runtime they embed changed, their worlds as they
+// were. (The page's moveset input reads the modifier only on a moveset's page: no fixture has one.)
+// Re-pinned 2026-11-09 (1109-cosmos-contraction merging 1108-practice-room again: Fallen Angel's air, the modifier and
+// its specials): `kitchen-sink` and `kitchen-sink-capture`, the two that carry both the controllable runtime those
+// commits changed and the game channel the flow runner did; each line's pin held its own change alone. No fixture names
+// a moveset, an air dash or a flow, so the sources they carry changed, their play as it was.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: timed states and the desperation, shared with the brawler): `versus` only. Its
+// page inlines versus-library.js (the STATES shelf, the install super, the whirl), versus-compile.js (a super's
+// `install` and `nohit`, a special's `around` and `price`) and versus-core.js (a state granted, run down and read: damage,
+// speed, iron; a price paid the first time a move lands); the fixture's fighters take none of them and fight as before.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the street's things): `versus` only. Its page inlines versus-library.js, whose
+// WEAPONS gain the pipe (a brawler picks it up off the street; any fighter may hold it); the fixture's fighters hold none.
+// Re-pinned 2026-11-09 (1109-gen-bodywork merging 1108-practice-room): the fixtures both lines moved, together (the
+// practice room's controllable runtime, swing system and mana-ui HUD look; this line's fight, its states and its
+// things), and mana-ui's sheet and kernel as the two met (the trunk's dials and the practice room's `hud`, passing
+// anchors and text entry side by side); no fixture's play changed by the meeting itself.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the practice yard plays its characters by their clips, in its register's look):
+// `brawl` only. Its page inlines the yard's client, which gains the register's rig and the played body; the fixture's
+// yard carries neither, so its play is unchanged.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's jump on the face's west, as the operator asked): `brawl` only.
+// Its page carries the brawl scheme's bindings: the jump on a pad's X and the keyboard's J, the attack on A and K.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's strong, on the face's north): `brawl` only. Its page inlines
+// the brawl's moves, core and practice (the strong blows and their cooldown) and the scheme's strong (Y, I).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's dashes, its air split, through-moves): `brawl` only. Its page
+// inlines the brawl's core, moves, pose, crowd and practice: the run and the back-step, the air punch, the flying kick,
+// the stomp and the dive kick, a roll's way through a crowd.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: foes are bodies): `brawl` only. Its page inlines the brawl's moves (a body's
+// tune) and crowd (each type's tune and plays).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the boss a body as every other): `brawl` only. Its page inlines the crowd
+// (the boss's tune and its plays between its CPU's own).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the armed brawler): `brawl` only. Its page inlines the brawl's core (blades
+// that clash, a body keeping its own weapon) and the yard's client (a held blade drawn).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the armed crowd and the armed boss): `brawl` only. Its page inlines the crowd
+// (the sword, the spear, the axe, the staff; a boss's weapon).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the weapon arts): `brawl` only. Its page inlines the brawl's moves (each
+// weapon's own chain).
+// Re-pinned 2026-11-08 (1108-realism-combat-tester, phase 4: the gaps the combat tester measured): the fixtures that
+// embed the controllable runtime. The platform rule gained a person's sprint (`sprintSpeed`, held on `input.sprint`);
+// the weapon its spread's and recoil's `wait` (settling once the trigger rests: `restT`, kept only with one) and a
+// round's `blow` and `pellets`, carried on the shot's record. On the `controllable` fixture 22 lines are added and 6
+// replaced (the spread and recoil records, their settling, the two shot records), each as before without its opt-in.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester: a shooter's hero over the shoulder, drawn and framed): the same
+// fixtures. The body builder's loadout branch (a body per slot's figure) runs only when a slot names a figure; a carried
+// kit's slots name none, and the body is its own figure (before, a hero carrying `arms` had no body). The wall pull-in
+// passes the camera rule's opt-in `standOff` to followPullIn, whose wall skin now applies only at a wall (the default
+// 3 m stand-off was always the larger cut in the open, so every default camera stands where it did). On the
+// `controllable` fixture 5 lines are replaced and 3 added; absent `standOff` and a figure-less loadout, as before.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester: small arms drawn as small arms): the same fixtures. A weapon's
+// opt-in `round` (gameworld/rounds.js, kept by initWeapon) draws its shot in the sim register (__spawnRoundFx: a hand's
+// length of flash, a wisp, a one-pixel streak, dust), from a carried gun's own muzzle where the gunplay view gives one;
+// and the converge crosshair is searched from the shooter's depth along the camera's ray (a wall at its back caught it
+// and sent the round backwards). On the `controllable` fixture 4 lines are replaced and 61 added; a weapon without a
+// round draws as before.
+// Re-pinned 2026-11-09 (1108-realism-combat-tester, the artillery range's phase 2: a shell's flight): the same fixtures.
+// A travelling round takes an opt-in `projectileDrag` (initWeapon keeps it, the launch carries it, stepProjectiles sheds
+// the speed along the velocity), and a lobbed round leaves through its weapon's seeded cone when it has one. On the
+// `controllable` fixture 2 lines are replaced and 6 added; a round without drag or a cone flies as before.
+// Re-pinned 2026-11-10 (1109-cosmos-contraction merging 1108-realism-combat-tester): the 16 fixtures that embed the
+// controllable runtime, which both lines moved. This line's moveset, its specials palette, the
+// pose layers and the sheathed body's figures; that line's turret view, boat water, the figure-less loadout, a round's
+// drag, the person's sprint on Shift and its walk, over-the-shoulder rounds. The merged page carries both, each still
+// behind its own opt-in; no fixture's play changed by the meeting itself.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

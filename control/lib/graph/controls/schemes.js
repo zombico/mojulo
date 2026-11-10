@@ -14,6 +14,9 @@
  *     id, label,                 // the intent and how a menu names it
  *     group,                     // the remap menu's section
  *     bind: { <family>: [primary, secondary] },   // controls of each device family (devices.js), at most two
+ *     also?: { <family>: [control…] },   // the conventions every player carries past the two slots (a menu's keypad,
+ *                                // Tab, the Page keys): never remapped and never listed, a slot's binding on the same
+ *                                // control wins; a keyboard control may say 'Shift+<code>'
  *     hold?: true,               // read held, not on the press edge (the legend says "(hold)")
  *     in: [context],             // where it is live; two actions may share a control only in different contexts
  *   }
@@ -34,7 +37,8 @@ const PILOT = {
   id: 'pilot',
   label: '3D pilot: walk, platform, suit, glide, drive, fly',
   // `reach`: standing somewhere usable (a cue's use place); an overlay on the others, where interact takes its controls
-  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach'],
+  // `melee`: a hero with a moveset (gameworld/combos.js): its light, heavy and special beats, the action game's layout
+  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach', 'melee'],
   actions: [
     // a pad's left stick X turns in a tank-turn world and strafes under a mouselook camera (the runtime picks);
     // in VR the left thumbstick walks and strafes and the right one turns, the comfort convention
@@ -61,7 +65,17 @@ const PILOT = {
     { id: 'walk', label: 'walk', group: 'move', hold: true, in: ['ground'], bind: { keyboard: ['KeyZ'] } },
     { id: 'tackle', label: 'tackle', group: 'combat', in: ['ground'], bind: { keyboard: ['Shift'], gamepad: ['north'], xr: ['left.primary'] } },
     { id: 'fire', label: 'fire', group: 'combat', hold: true, in: ARMED, bind: { mouse: ['left'], gamepad: ['rt'], xr: ['right.trigger'], sim: ['button1'] } },
-    { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], gamepad: ['rb'], xr: ['right.squeeze'] } },
+    // an action game's three attacks (a hero with a moveset): light the left click and the pad's left face, heavy the
+    // right click and the top face, special the mouse's forward button and the right face; the bottom face jumps
+    { id: 'light', label: 'light attack', group: 'combat', in: ['melee'], bind: { mouse: ['left'], gamepad: ['west'] } },
+    { id: 'heavy', label: 'heavy attack', group: 'combat', in: ['melee'], bind: { mouse: ['right'], gamepad: ['north'] } },
+    { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
+    // the guard, held (a hero with a feel's guard: combat-melee.js stepGuard): Shift, the pad's left shoulder (block on L1)
+    { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['Shift'], gamepad: ['lb'] } },
+    // the MODIFIER, held (a moveset's specials, gameworld/combos.js mL mH mS): a face pressed with it is that face's
+    // special; the right trigger (a sword's hero fires nothing on it: its sidearm is the special's button), left Ctrl
+    { id: 'modifier', label: 'special (hold, with an attack)', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['ControlLeft'], gamepad: ['rt'] } },
+    { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], mouse: ['back'], gamepad: ['rb'], xr: ['right.squeeze'] } },
     { id: 'weapon1', label: 'weapon 1', group: 'combat', in: ARMED, bind: { keyboard: ['Digit1'] } },
     { id: 'weapon2', label: 'weapon 2', group: 'combat', in: ARMED, bind: { keyboard: ['Digit2'] } },
     { id: 'weapon3', label: 'weapon 3', group: 'combat', in: ARMED, bind: { keyboard: ['Digit3'] } },
@@ -87,7 +101,7 @@ const PILOT = {
   // `ids` joins each action's primary control with ' / ' (or `sep`); `dev` reads another family (the mouse)
   // and `with` appends one; `quad` reads four directions (W A S D, "arrows", "left stick"); `range` reads a
   // run of digits as 1–5; `chord` is a held button with the face buttons it deals; `text` is a fixed word.
-  // `label` may vary by live flag ({ _, space, vehicle }); `when` / `unless` name live world flags.
+  // `label` may vary by live flag ({ _, space, vehicle }); `when` / `unless` name live world flags (`unless` one or a list).
   legend: {
     keyboard: [
       { quad: MOVE4, label: { _: 'move & turn', space: 'thrust & turn', vehicle: 'throttle & steer' } },
@@ -95,7 +109,9 @@ const PILOT = {
       { ids: ['strafeRight', 'strafeLeft'], label: 'strafe' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump'], label: 'jump', unless: 'space' },
-      { ids: ['boost'], label: 'boost thrusters', unless: 'walker' },
+      { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint'] },
+      { ids: ['boost'], label: 'dash', when: 'dash' },
+      { ids: ['boost'], label: 'run (hold)', when: 'sprint' },
       { ids: ['walk'], label: 'walk (hold)', when: 'walker', unless: 'space' },
       { ids: ['kneel'], label: 'kneel', when: 'kneel', unless: 'space' },
       { ids: ['tackle'], label: 'tackle', when: 'tackle', unless: 'space' },
@@ -116,6 +132,8 @@ const PILOT = {
       { chord: 'cycleWeapon', faces: ['west', 'north'], label: 'main weapon / main melee', when: 'armed' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump', 'tackle'], sep: ' · ', label: 'jump · tackle', unless: 'space' },
+      { ids: ['boost'], label: 'dash', when: 'dash' },
+      { ids: ['boost'], label: 'run (hold)', when: 'sprint' },
       { ids: ['swapSuit', 'aiToggle'], sep: ' · ', label: 'switch suit · AI toggle' },
       { ids: ['lock'], label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },
@@ -279,21 +297,25 @@ const POINT = {
   },
 };
 
-// Menus everywhere: arrows (or W A S D) or Tab to move, Enter / Space to accept, Esc to go back. On a pad accept and back
+// Menus everywhere: arrows (or W A S D) to move, Enter / Space to accept, Esc to go back, [ ] to turn the tabs; past those
+// two slots, what a player reaches for anyway (`also`): the keypad (8 4 6 2 move, 5 and its Enter accept, 0 backs out,
+// + and − turn the tabs), Tab and Shift+Tab to move down and up, Page Down and Page Up to turn the tabs. On a pad accept and back
 // are roles, not positions: the bottom button accepts on Xbox and PlayStation, A on the right does on Nintendo.
+// In a headset the controllers are a game's controllers still: either stick moves, A (or the trigger) accepts, B goes
+// back, the grips turn the tabs (the right one on, the left one back).
 const MENU = {
   id: 'menu',
   label: 'menus and overlays',
   contexts: ['menu'],
   actions: [
-    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-'] } },
-    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+'] } },
-    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-'] } },
-    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+'] } },
-    { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.trigger'] } },
-    { id: 'back', label: 'back', group: 'navigate', in: ['menu'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] } },
-    { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'] } },
-    { id: 'tabPrev', label: 'previous tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketLeft'], gamepad: ['lb'] } },
+    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-', 'left.thumbstickY-'] }, also: { keyboard: ['Numpad8', 'Shift+Tab'] } },
+    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+', 'left.thumbstickY+'] }, also: { keyboard: ['Numpad2', 'Tab'] } },
+    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-', 'left.thumbstickX-'] }, also: { keyboard: ['Numpad4'] } },
+    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+', 'left.thumbstickX+'] }, also: { keyboard: ['Numpad6'] } },
+    { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.primary', 'right.trigger'] }, also: { keyboard: ['NumpadEnter', 'Numpad5'] } },
+    { id: 'back', label: 'back', group: 'navigate', in: ['menu'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] }, also: { keyboard: ['Numpad0'] } },
+    { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'], xr: ['right.squeeze'] }, also: { keyboard: ['PageDown', 'NumpadAdd'] } },
+    { id: 'tabPrev', label: 'previous tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketLeft'], gamepad: ['lb'], xr: ['left.squeeze'] }, also: { keyboard: ['PageUp', 'NumpadSubtract'] } },
   ],
   legend: {
     keyboard: [
@@ -346,6 +368,35 @@ const VERSUS = {
     gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['light', 'medium', 'heavy', 'special', 'throw'], label: 'light / medium / heavy / special / throw' }, { ids: ['start'], label: 'pause' }],
   },
 };
+// THE BRAWLER (lib/graph/brawl): a stick and four buttons, Final Fight's three and a strong: attack, strong, jump and
+// special (attack and jump together the desperation). The stick walks along the street and across it (up is away from
+// the camera, down toward it), never a jump or a crouch: the jump is a button. The buttons on the face's diamond
+// (north, west, south, east), the jump on its WEST, the strong on its NORTH: a pad's X jumps, A attacks, Y the strong,
+// B the special; the keyboard's diamond under the right hand the same (I north, J west, K south, L east), so J jumps,
+// K attacks, I the strong, L the special. Each player a controller
+// (controls/seats-kernel.js): the keyboard one, WASD or the arrows; a pad another, the D-pad or the left stick.
+const BR_IN = ['brawl'];
+const BRAWL = {
+  id: 'brawl',
+  label: 'brawler: a stick and four buttons',
+  contexts: BR_IN,
+  actions: [
+    { id: 'up', label: 'away (across the street)', group: 'move', in: BR_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
+    { id: 'down', label: 'near (across the street)', group: 'move', in: BR_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: BR_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: BR_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
+    { id: 'attack', label: 'attack', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyK'], gamepad: ['south'] } },
+    { id: 'strong', label: 'strong', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyI'], gamepad: ['north'] } },
+    { id: 'jump', label: 'jump', group: 'move', in: BR_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'] } },
+    { id: 'special', label: 'special', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyL'], gamepad: ['east'] } },
+    { id: 'start', label: 'start / pause', group: 'system', in: BR_IN, bind: { keyboard: ['Enter'], gamepad: ['start'] } },
+    { id: 'back', label: 'back', group: 'system', in: BR_IN, bind: { keyboard: ['Escape'], gamepad: ['select'] } },
+  ],
+  legend: {
+    keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'strong', 'special'], label: 'jump / attack / strong / special' }, { ids: ['start'], label: 'pause' }],
+    gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'strong', 'special'], label: 'jump / attack / strong / special' }, { ids: ['start'], label: 'pause' }],
+  },
+};
 // THE ACTION VERBS (gameworld/feel: the action lab and its kernel's buttons, kernel.js BTN): move, jump, attack, dodge,
 // dash, lock, guard, shoot, switch, sprint. A direction's first pad control is the D-pad, its second the left stick, so
 // `axis` reads the stick analog and the D-pad wins while pressed. On a Quest's Touch pair, the same verb on the same
@@ -380,5 +431,5 @@ const ACTION = {
   },
 };
 
-export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, action: ACTION };
+export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, brawl: BRAWL, action: ACTION };
 export const SCHEME_IDS = Object.keys(SCHEMES);

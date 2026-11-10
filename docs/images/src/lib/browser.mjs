@@ -25,8 +25,8 @@ const GL_ARGS = process.platform === 'darwin'
 // Chromium cannot keep its sandbox as root (a Linux container), so it runs without one there.
 const ROOT_ARGS = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
 
-export const launch = (gl = false) =>
-  puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--allow-file-access-from-files', ...ROOT_ARGS, ...(gl ? GL_ARGS : [])] });
+export const launch = (gl = false, opts = {}) =>
+  puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--allow-file-access-from-files', ...ROOT_ARGS, ...(gl ? GL_ARGS : [])], ...opts });
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

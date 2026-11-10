@@ -10,6 +10,8 @@
  *     square    the core's square: paved, planted round its edge, a kiosk or a pavilion, the streets round it lit
  *     midrise   the frame's perimeter block: mid-rise round a planted court, a laneway behind, a little parking
  *     slab      the frame's slab on its lawn (the tower in the park, the lower tall): a slab, lawn, its parking lot
+ *   an industrial neighbourhood of the outskirts (design.js `industry`) its own cards: a `works`, a `warehouse`,
+ *   `storage`, a tank farm (`tanks`), and its `substation`, each drawn by industry.js
  *   and in any ring, a share of its blocks (the card's `lively`, LIVELY): a `construction` site (its building part risen,
  *   `progress` of its storeys), a surface `parking` lot, a `vacant` lot
  *   the outskirts are the geotown's own segments (geotown/pattern.js SEGMENTS: houses, main-street, edge, lowrise,
@@ -40,6 +42,9 @@ export const SURFACES = Object.freeze({
   lot: { read: 'a surface parking lot', soft: false },
   site: { read: 'a construction site\'s ground: packed gravel and mud, its hoarding round it', soft: false },
   scrub: { read: 'a vacant lot\'s ground: scrub and weeds over old gravel, behind a temporary fence', soft: true },
+  yard: { read: 'a works\' yard: concrete hardstanding, a truck court before its doors, oil-stained', soft: false },
+  bund: { read: 'a tank farm\'s ground: gravel inside the low concrete walls that would hold a spill', soft: false },
+  switchyard: { read: 'a substation\'s gravel inside its fence, its apparatus on it', soft: false },
 });
 export const isSoft = (s) => (SURFACES[s] ?? TOWN_SURFACES[s])?.soft === true || s === 'park' || s === 'margin';
 
@@ -62,7 +67,20 @@ export const CARDS = Object.freeze({
     surfaces: { lot: 0.9, planting: 0.1 }, storeys: [0, 0] }),
   vacant: Object.freeze({ read: 'a vacant lot: scrub over old gravel behind a temporary fence', ring: 'any',
     surfaces: { scrub: 1 }, storeys: [0, 0] }),
+  // INDUSTRY (an industrial neighbourhood of the outskirts, design.js; drawn by industry.js): a works, a warehouse,
+  // storage, a tank farm, and its substation (one in each, the block its line comes in to)
+  works: Object.freeze({ read: 'a works: its hall of corrugated steel under a low gable, a lantern along its ridge, its office at its front in block, roller doors on its yard, trucks, a chimney on some, containers out back', ring: 'industry',
+    surfaces: { building: 0.5, yard: 0.44, planting: 0.06 }, storeys: [1, 1] }),
+  warehouse: Object.freeze({ read: 'a warehouse: a long clad box, its docks down one side under a canopy, trucks backed in, a truck court and its people\'s lot', ring: 'industry',
+    surfaces: { building: 0.55, yard: 0.4, planting: 0.05 }, storeys: [1, 1] }),
+  storage: Object.freeze({ read: 'storage: shipping containers stacked in rows two to four high, a bank of silos and its headhouse on some, a gatehouse', ring: 'industry',
+    surfaces: { yard: 0.9, building: 0.05, planting: 0.05 }, storeys: [1, 1] }),
+  tanks: Object.freeze({ read: 'a tank farm: storage tanks in bunded rows, a pipe rack down its middle, gas spheres at its end or a gasholder in its frame', ring: 'industry',
+    surfaces: { bund: 0.8, yard: 0.15, planting: 0.05 }, storeys: [1, 1] }),
+  substation: Object.freeze({ read: 'a substation: outdoor transformers in a row, a gantry over each bay, breakers between, its control house in block, fenced; a line on pylons in from the country', ring: 'industry',
+    surfaces: { switchyard: 0.88, building: 0.06, planting: 0.06 }, storeys: [1, 1] }),
 });
+export const INDUSTRY_SEGMENTS = Object.freeze(['works', 'warehouse', 'storage', 'tanks', 'substation']);
 export const LIVELY = Object.freeze(['construction', 'parking', 'vacant']);
 export const CARD_IDS = Object.freeze(Object.keys(CARDS));
 export const OUTSKIRTS_SEGMENTS = Object.freeze(['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school']);

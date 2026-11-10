@@ -14,6 +14,7 @@ import { GENRES } from '@/lib/graph/gameworld/intent';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
+import { HERO_GAIT_STRIDE } from '@/lib/graph/playscape/player.js';
 import { buildGameStoreKernel } from '@/lib/graph/game/store-kernel.js';
 import { rpgInit, rpgStart, rpgRound, rpgTargets, rpgClose } from '@/lib/graph/playscape/rpg/kernel.js';
 
@@ -239,8 +240,10 @@ describe('design_game: the hero a run plays (character stitch)', () => {
     expect(stored('gp-hero').hero.motion.jog).toBeTruthy();
     const level = stored(Object.entries(gameworldOf(stored('gp')).made).find(([k]) => k.startsWith('level-'))[1].ref);
     const pilot = level.entities.find((e) => e.pilotable);
-    expect(level.figures[pilot.body.figure].clips).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', turn: 'Walk_Loop', idle: 'Idle_Loop' });
-    expect(pilot.rule).toMatchObject({ stride: 3.3, walkSpeed: 1.6, walkStride: 2 });
+    // (a run is smooth: the library's Jog_Fwd_Loop bobs past RUN_BOB, so the run is the hero's own calibrated jog,
+    // at that jog's stride)
+    expect(level.figures[pilot.body.figure].clips).toMatchObject({ walk: 'Walk_Loop', forward: 'jog', strafe: 'jog', turn: 'Walk_Loop', idle: 'Idle_Loop' });
+    expect(pilot.rule).toMatchObject({ stride: HERO_GAIT_STRIDE.jog, walkSpeed: 1.6, walkStride: 2 });
   }, 600_000);
 
   it('a hand edit to the hero is said on its base and plays: the equipped hero is built over it', async () => {

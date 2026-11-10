@@ -70,3 +70,25 @@ describe('the ground\'s parallax kinds', () => {
     expect(formLandScript(land)).toBe(formLandScript(land));
   });
 });
+
+// A FAR LAND'S OWN HAZE (a glyph map's far range, worlds/world-scene.js MAP_HAZE): the page's fog thinned over it and less
+// of the sky's air; absent, not a byte of it
+describe('a far land\'s own haze', () => {
+  it('thins the fog and the air over the far land only when the land read asks', () => {
+    const plain = formLandScript(land), hazed = formLandScript({ ...land, haze: { fog: 0.3, air: [0.08, 0.42] } });
+    expect(plain).not.toContain('0.300 * fogDensity');
+    expect(plain).toContain(JSON.stringify(FAR_LAND));
+    expect(hazed).toContain('0.300 * fogDensity * fogDensity');
+    expect(hazed).toContain(JSON.stringify({ ...FAR_LAND, air: [0.08, 0.42] }));
+  });
+});
+
+// A LAND READ WITHOUT FAR STRUCTURES (a metro's, worlds/world-scene.js: its buildings keep their own tiers): no card baked;
+// absent, the channel as it was
+describe('a land read that asks for no far structures', () => {
+  it('leaves the far structures out only when the land read says so', () => {
+    expect(formLandScript(land)).toContain('the far structures: what stands');
+    expect(formLandScript({ ...land, structures: false })).not.toContain('the far structures: what stands');
+  });
+});
+

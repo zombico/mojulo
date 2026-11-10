@@ -62,11 +62,16 @@ const MECHANICS = {
       const shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 2 };
       // `needs`: a story flag the way waits on (the flag's var, set where it is set or carried in: playscape/ui/scenes.js);
       // shut, walking into it does nothing
-      const gate = typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
+      // `holds`: { who?, count } the way held until that many of `who` (a glob, the foes' by default) are down, counted as
+      // defeat-all counts them: a page's ways out held while its fights stand (map-sketch.js concept `hold`); it holds in
+      // place of `needs` where a way has both
+      const held = p.holds && Number.isFinite(p.holds.count) && p.holds.count > 0 ? { v: `__held_${ctx.i}`, who: typeof p.holds.who === 'string' && p.holds.who ? p.holds.who : 'foe-*', count: p.holds.count } : null;
+      const gate = held ? { if: { var: held.v, gte: held.count } } : typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
       return {
         world: {
+          ...(held ? { vars: { [held.v]: 0 } } : {}),
           sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
-          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
+          reactions: [...(held ? [{ on: 'down', match: { entity: held.who }, do: 'inc', var: held.v, by: 1 }] : []), { on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
         },
         // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
         on: p.exit ? { [`goal:reached:${p.exit}`]: { end: 'success', exit: p.exit } } : { 'goal:reached': { end: 'success' } },
@@ -233,6 +238,56 @@ const MECHANICS = {
         },
         on: { dead: { end: 'fail' } },
       };
+    },
+  },
+
+  // LIVES (a platformer's, not hp): the player starts with `start` lives (3); each hit it takes (the cast's
+  // hit:<player>, a foe's touch) costs one, and so does each fall into one of `falls` (the catch zones a course lays,
+  // which also put it back on the floor it left); a `oneup` (coins' every so many) gives one back, `max` at most (9).
+  // None left: fail. On the HUD as Lives. Requires no store slice.
+  lives: {
+    role: 'terminal', ends: ['fail'], requires: [],
+    lower(p, ctx) {
+      const start = Number.isInteger(p.start) && p.start > 0 ? p.start : 3, max = Number.isInteger(p.max) && p.max >= start ? p.max : 9;
+      if (p.falls !== undefined && !(Array.isArray(p.falls) && p.falls.every((z) => typeof z === 'string' && z))) throw new Error(`lives[${ctx.i}]: falls are the catch zones' names a fall into costs a life`);
+      const falls = p.falls ?? [];
+      return {
+        world: {
+          vars: { lives: start },
+          reactions: [
+            { on: `hit:${ctx.player}`, do: 'inc', var: 'lives', by: -1, min: 0 },
+            ...falls.map((zone) => ({ on: 'enter', match: { zone }, do: 'inc', var: 'lives', by: -1, min: 0 })),
+            { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
+          ],
+          watches: [{ type: 'dead', when: { var: 'lives', lte: 0 } }],
+          hud: [{ var: 'lives', label: 'Lives' }],
+        },
+        on: { dead: { end: 'fail' } },
+      };
+    },
+  },
+
+  // COINS along the way (a platformer's collectibles, no store): each a pickup that pops when touched (a sphere of
+  // `radius`, 0.9: a coin over a gap is taken in the air), counted on the HUD as Coins; every `oneup` coins (30) says
+  // `oneup` on the bus (lives gives one back).
+  coins: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const pickups = Array.isArray(p.pickups) ? p.pickups : [];
+      if (!pickups.length) throw new Error(`coins[${ctx.i}]: needs pickups: [{ at }]`);
+      const every = Number.isInteger(p.oneup) && p.oneup > 0 ? p.oneup : 30, run = `__coins_run_${ctx.i}`;
+      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins' }] };
+      pickups.forEach((pk, j) => {
+        const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
+        world.entities.push({ id: zone, on: true, position: at });
+        world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: ctx.player });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'coin' });   // (heard: its chime)
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'coins', by: 1 });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: run, by: 1 });
+      });
+      world.reactions.push({ on: 'oneup', do: 'set', var: run, to: 0 });
+      return { world, emits: ['coin', 'oneup'] };
     },
   },
 

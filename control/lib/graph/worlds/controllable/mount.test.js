@@ -109,6 +109,17 @@ describe('a mount', () => {
     expect(at(true)).toBeGreaterThan(0);
   });
 
+  it('a wall above its jump pulls it up: its speed what it covered, its gait come down, never galloping on the spot', () => {
+    const st = world();
+    st.colliders = [{ min: [20, -5, 0], max: [20.4, 5, 1.6], hold: false }];
+    getOn(st);
+    // (urged on into the wall, a jump asked short of it: the wall is above its clear)
+    for (let i = 0; i < Math.round(8 / DT); i++) { const h = st.byId.bay; E.stepWorld(st, { forward: 1, ...(h.transform.pos[0] > 12 && h.transform.pos[0] < 14 ? { jump: 1 } : {}) }, DT, { ground: () => 0 }); }
+    const h = st.byId.bay;
+    expect(h.transform.pos[0]).toBeLessThan(20);
+    expect(h.speed).toBeLessThan(0.5);
+    expect(h.gaitIx).toBe(0);
+  });
   it('interact at a walk sets the rider down beside the horse, its own rule back, the pilot again', () => {
     const st = getOn(world()), h = st.byId.bay, p = st.byId.hero;
     run(st, 3, { forward: 1 });

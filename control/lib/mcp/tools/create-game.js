@@ -32,7 +32,7 @@ import { auditLevel } from '@/lib/graph/game/game-audit';
 import { undressedReadout } from '@/lib/graph/game/level-dress';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
-import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES, quickGoalCardById, genreCardById } from '@/lib/graph/gameworld/gameworld-cards';
+import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES, quickGoalCardById, genreCardById, workshopCardById } from '@/lib/graph/gameworld/gameworld-cards';
 import { gameworldSamples } from '@/lib/graph/gameworld/samples';
 import { getMechanicVocabCatalog } from '@/lib/graph/game/mechanic-cards/loader';
 import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
@@ -372,7 +372,7 @@ export async function getGameVocabHandler(input) {
     if (card) return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
   // a quick goal's card and a genre's card: served by id, named on their index cards, not listed
-  const sub = id ? quickGoalCardById(id) ?? genreCardById(id) : null;
+  const sub = id ? quickGoalCardById(id) ?? genreCardById(id) ?? workshopCardById(id) : null;
   if (sub) return { ok: true, card: sub, _telemetrySignal: { id_requested: true, found: true } };
   const slices = getGameVocabCatalog();
   const mechanics = getMechanicVocabCatalog();

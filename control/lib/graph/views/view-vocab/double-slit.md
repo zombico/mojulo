@@ -6,9 +6,14 @@
   "entry": "create_view",
   "summary": "Mint the DOUBLE-SLIT EXPERIMENT as a live RIPPLE TANK in the traversable three.js World.",
   "when": "Reach for this on framing like 'double-slit experiment / wave interference / quantum interference / how light/electrons interfere / diffraction fringes'.",
-  "retired_tool": "create_double_slit_view"
+  "retired_tool": "create_double_slit_view",
+  "index": false,
+  "folded_into": "quantum"
 }
 ---
+
+> **Folded into the `quantum` science world.** New work composes this from laws there, run, checked and measured: the double slit is a `plane` world with the `slits` law, its detections building the fringes dot by dot (the quantum card's worked example). This kind still renders every recipe stored with it and answers a call by name, but it is no longer listed or searched: `get_view_vocab({ id: 'quantum' })` is the manual.
+
 
 Mint the DOUBLE-SLIT EXPERIMENT as a live RIPPLE TANK in the traversable three.js World. An incoming wave hits a barrier with two slits; each slit re-emits a CIRCULAR wave, and their overlap IS the interference pattern — the bright/dark fan — with the fringes projected on a screen (bright where the waves add, dark where they cancel; fringe spacing Δ = λL/d). Three scenarios: 'double' (two slits → interference fringes), 'single' (one slit → smooth diffraction, NO two-source fringes — the contrast), and 'particles' (the quantum punchline: individual particles each land at ONE spot, yet collectively build the fringe pattern — dots distributed by |ψ|², the interference probability). The `separation` knob sets the slit spacing d (wider d → finer fringes). Served as a live, traversable three.js World at `/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom). You pass a tiny recipe; the substrate stores ONLY the recipe (`manifest.kind === 'double-slit-view'`, no geometry) and regenerates the wavefield on render. ORBIT-ONLY object study: no CSS-3D `/scene` form; open the worldUrl. Reach for this on framing like 'double-slit experiment / wave interference / quantum interference / how light/electrons interfere / diffraction fringes'.
 

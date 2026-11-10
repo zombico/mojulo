@@ -67,10 +67,12 @@ export const jobsLeft = (req, jobs) => Math.max(0, (budgetOf(req).jobs | 0) - jo
 // (the reissues an author is sent back by: a critic or the assistant reissued to read the work again spends none)
 export const reissuesLeft = (req, jobs) => Math.max(0, (budgetOf(req).reissues | 0) - jobs.filter((j) => j.status === 'reissued' && (j.kind === 'author' || j.kind === 'diverge')).length);
 
-/** The pages a unit's job writes: a level's page, or its chapter's paths. */
+/** The pages a unit's job writes: a level's page, a planned map's segment, or its chapter's paths. */
 export function unitPaths(unit) {
   const u = unitOf(unit);
   if (!u) return [];
+  // (a segment's glyphs, and its sketch: the segment planned in miniature, level/map-sketch.js)
+  if (u.segment != null) return [`/levels/${u.level}/glyphs/segments/${u.segment}`, `/levels/${u.level}/glyphs/sketch/segments/${u.segment}`];
   return u.level != null ? [`/levels/${u.level}`] : [...u.chapter.paths];
 }
 

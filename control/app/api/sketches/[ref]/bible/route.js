@@ -1,8 +1,11 @@
 /**
- * GET /api/sketches/[ref]/bible[?book=world|characters|feel|foes|atlas] — serve a stored gameworld as its bible: the world bible
+ * GET /api/sketches/[ref]/bible[?book=world|characters|feel|practice|foes|atlas] — serve a stored gameworld as its bible: the world bible
  * (its map, its land, its civilizations' towns and castles, each level) by default, the character bible with
  * `book=characters` when the world has a character book, the feel book with `book=feel` when it writes a feel (the stick
- * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the cast sheet
+ * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the practice room
+ * with `book=practice` when its feel fights hand to hand (lib/graph/gameworld/practice-room-page.js: its hero and a foe
+ * on its template's stage, its arsenal on the runtime the game ships; the run's own hero and foes once made, stand-ins
+ * before; `cast=female` for the stand-in), the cast sheet
  * with `book=foes` when it fields foes or fights something a casting call could cast for (lib/graph/gameworld/
  * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included). All are drawn
  * from the recipe and kept in memory per revision (lib/sheet-cache.js), never stored. `?download=1` flips the
@@ -24,6 +27,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { isGameworldKind, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind';
 import { gameworldBibleHtml, characterBibleHtml, foeCastHtml, castable, castingCall } from '@/lib/graph/gameworld/index';
 import { feelBookHtml, BOOK_CASTS } from '@/lib/graph/gameworld/feel/book';
+import { combatBookHtml, BOOK_VIEWS } from '@/lib/graph/gameworld/combat/book';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { gameworldAtlasHtml, ATLAS_LOOK_IDS } from '@/lib/graph/gameworld/atlas-html';
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
@@ -71,9 +76,45 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'foes', 'atlas'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'foes' or 'atlas'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas' or 'combat'" }, { status: 400 });
+      // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
+      if (book === 'practice') {
+        // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
+        // the first by default)
+        const { practiceFor, PRACTICE_ROOMS } = await import('@/lib/graph/gameworld/practice');
+        const door = practiceFor(world);
+        if (!door.rooms.length) return NextResponse.json({ eligible: false, reason: door.why }, { status: 422 });
+        const room = request.nextUrl.searchParams.get('room') ?? door.rooms[0];
+        if (!PRACTICE_ROOMS[room]) return NextResponse.json({ error: `room is ${Object.keys(PRACTICE_ROOMS).join(', ')}` }, { status: 400 });
+        if (!door.rooms.includes(room)) return NextResponse.json({ eligible: false, reason: `this world has no ${PRACTICE_ROOMS[room].name.replace(/^The /, '').toLowerCase()} (it has ${door.rooms.join(', ')})` }, { status: 422 });
+        const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
+        if (!['male', 'female'].includes(cast)) return NextResponse.json({ error: 'cast is male or female' }, { status: 400 });
+        const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
+        const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast })).html);
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
+      // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
+      // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one
+      } else if (book === 'combat') {
+        const view = request.nextUrl.searchParams.get('view') ?? 'own';
+        if (!BOOK_VIEWS.includes(view)) return NextResponse.json({ error: `view is one of ${BOOK_VIEWS.join(', ')}` }, { status: 400 });
+        const game = world.made?.game?.ref ? SketchRepository.getByRef(world.made.game.ref) : null;
+        const levelRef = game?.manifest?.levels?.[0]?.ref, level = levelRef ? SketchRepository.getByRef(levelRef) : null;
+        if (!level) return NextResponse.json({ eligible: false, reason: 'this world is not made yet: design_game runs it, and the combat book plays its first level' }, { status: 422 });
+        try {
+          html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:combat:${levelRef}:${level.updatedAt}:${view}`, async () => {
+            const { payload } = await resolveWorldScene(level);
+            const page = combatBookHtml(payload, world, { view });
+            if (!page) throw Object.assign(new Error(view === 'other' ? 'its first level has no other camera to see it from (a first person with no body)' : 'its first level\'s player carries no gun (a shooter\'s goal, or arms)'), { ineligible: true });
+            return page;
+          });
+        } catch (err) {
+          if (err.ineligible) return NextResponse.json({ eligible: false, reason: err.message }, { status: 422 });
+          throw err;
+        }
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-combat${view === 'own' ? '' : `-${view}`}`;
+      } else if (book === 'atlas') {
       // the atlas (lib/graph/gameworld/atlas-html.js): the world's levels, trails and ways drawn as a map, in a look
-      if (book === 'atlas') {
         const look = request.nextUrl.searchParams.get('look') ?? 'painted';
         if (!ATLAS_LOOK_IDS.includes(look)) return NextResponse.json({ error: `look is one of ${ATLAS_LOOK_IDS.join(', ')}` }, { status: 400 });
         html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:atlas:${look}`, () => gameworldAtlasHtml(world, { look }));

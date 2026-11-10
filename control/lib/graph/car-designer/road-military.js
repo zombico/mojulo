@@ -78,9 +78,13 @@ import { runningGear, linkFaces, TRACK_DEPTH } from './mil-track.js';
 import { readLivery, paintLivery, stencilMarks, liveryBase } from './livery-cut.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { AIRSIDE_CLASSES, AIRSIDE_BODIES, AIRSIDE_KITS, AIRSIDE_LIVERY, airsideAxles } from './road-airside.js';
+import { CIVIC_CLASSES, CIVIC_BODIES, CIVIC_KITS, CIVIC_LIVERY, civicAxles } from './road-civic.js';
 
-// (and the airfield's ground crew, road-airside.js: the hull kit's too, drawn, worn and painted as the field's are)
-export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', heavy4x4: 'heavyUtility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier', launcher8x8: 'launcher', ...AIRSIDE_CLASSES });
+// (and the airfield's ground crew, road-airside.js, and the city's utility vehicles, road-civic.js: the hull kit's too,
+// drawn, worn and painted as the field's are)
+export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', heavy4x4: 'heavyUtility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier', launcher8x8: 'launcher', ...AIRSIDE_CLASSES, ...CIVIC_CLASSES });
+/** A road worker (the airside's or the city's): smooth road tyres, kept clean unless a wear is asked. */
+export const roadWorker = (cls) => !!(AIRSIDE_CLASSES[cls] || CIVIC_CLASSES[cls]);
 
 /** A field vehicle's size for its surface: its camo's blotches and its mud's heights by it (a wheel's radius over a
  *  4x4's; a tracked class by its wheeled peer's, its road wheels being small). */
@@ -125,6 +129,7 @@ export function militaryAxles(cls) {
   // to its last)
   if (MILITARY_CLASSES[cls] === 'launcher') { const y1 = v.L / 2 - 1.7, p = 1.55; return [y1, y1 - p, y1 - v.wheelbase + p, y1 - v.wheelbase]; }
   if (AIRSIDE_CLASSES[cls]) return airsideAxles(cls);
+  if (CIVIC_CLASSES[cls]) return civicAxles(cls);
   throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
 }
 
@@ -1326,6 +1331,7 @@ export const KITS = Object.freeze({
     ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['post.L', 'mirror'], ['post.R', 'mirror'],
   ]),
   ...AIRSIDE_KITS,
+  ...CIVIC_KITS,
   carrier: Object.freeze([
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['slope.R', 'pioneerTools'],
     ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle', { width: 0.4 }], ['grab.R', 'grabHandle', { width: 0.4 }],
@@ -1336,7 +1342,7 @@ export const KITS = Object.freeze({
 });
 const CAN_TONES = Object.freeze(['#4f5726', '#4f5726', '#8a7a55']);
 // the bodies built here, by their kind
-const BODIES = Object.freeze({ utility, heavyUtility, cargo, carrier, lightTank, trackedCarrier, launcher, ...AIRSIDE_BODIES });
+const BODIES = Object.freeze({ utility, heavyUtility, cargo, carrier, lightTank, trackedCarrier, launcher, ...AIRSIDE_BODIES, ...CIVIC_BODIES });
 
 /** A military class's body (its hull, every face with its corner normals: a plate's own, worked out; a fitting's flat)
  *  and its fittings, its kit's cards on its anchors, rolled from the seed; its livery (livery-cut.js) cut into the paint
@@ -1344,8 +1350,9 @@ const BODIES = Object.freeze({ utility, heavyUtility, cargo, carrier, lightTank,
 export function militaryBody(cls, { seed = 1, r, tyreW, livery, words = [], pose } = {}) {
   const kind = MILITARY_CLASSES[cls];
   if (!BODIES[kind]) throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
-  // (an airside vehicle unpainted wears the airside's white and its fleet number: road-airside.js)
-  const L = readLivery(livery ?? (AIRSIDE_CLASSES[cls] ? AIRSIDE_LIVERY : undefined));
+  // (an airside vehicle unpainted wears the airside's white and its fleet number: road-airside.js; a city's vehicle its
+  // kind's own, road-civic.js)
+  const L = readLivery(livery ?? (AIRSIDE_CLASSES[cls] ? AIRSIDE_LIVERY : CIVIC_CLASSES[cls] ? CIVIC_LIVERY[kind] : undefined));
   const { faces: own, anchors, zones, gear, bones } = BODIES[kind](cls, { seed, words, ...(pose ? { pose } : {}) }), byId = new Map(anchors.map((a) => [a.id, a]));
   // (a tracked body's running gear, each side: what stands still joins the hull, what turns its spinners, their discs in
   // the livery's base as a wheel's rim is)

@@ -57,15 +57,17 @@ export const budgetOf = (req) => ({ ...(STAFFING[req.staffing] ?? STAFFING.soloi
 
 /** The levels a req holds, its own first: a level's req one, a chapter's (an act: its first level the unit, the rest its
  * crew's) each of them. → [level id] */
-export const reqLevels = (req) => unitsOf(req).map((u) => unitOf(u)?.level).filter((lv) => lv != null);
+// (a planned map's segments are one level: played once, however many segments its crew writes)
+export const reqLevels = (req) => [...new Set(unitsOf(req).map((u) => unitOf(u)?.level).filter((lv) => lv != null))];
 
-/** A unit's kind, for precedent: every level is one kind; a chapter is its own. */
-export const kindOf = (unit) => (unitOf(unit)?.level != null ? 'level' : unit);
+/** A unit's kind, for precedent: every level is one kind, every segment of a planned map another; a chapter is its own. */
+export const kindOf = (unit) => { const u = unitOf(unit); return u?.segment != null ? 'segment' : u?.level != null ? 'level' : unit; };
 
 /** The print of a unit's pages: what a verdict on a unit with no review part is given on. */
 export function unitPrint(world, unit) {
   const u = unitOf(unit);
   if (!u) return null;
+  if (u.segment != null) return fingerprint(world?.levels?.[u.level]?.glyphs?.segments?.[u.segment] ?? null);
   return fingerprint(u.level != null ? world?.levels?.[u.level] ?? null : chapterPages(world, u.chapter.id));
 }
 
@@ -231,7 +233,8 @@ export function pullThrough(unit, { book = [], reqs = [] } = {}) {
 
 /** A remit's advice: for a level, the parts of a remit it leaves out (words, never a refusal). */
 export function remitAdvice(unit, remit) {
-  if (unitOf(unit)?.level == null) return [];
+  // (a segment's remit is its plan's, gameworld/segments.js segmentRemit: its gates, role and words, never written)
+  if (unitOf(unit)?.level == null || unitOf(unit).segment != null) return [];
   const missing = Object.keys(LEVEL_REMIT).filter((k) => !(isObj(remit) && remit[k] !== undefined && remit[k] !== ''));
   return missing.length ? [`${unit}: its remit says nothing of ${missing.join(', ')} (${missing.map((k) => `${k}: ${LEVEL_REMIT[k]}`).join('; ')})`] : [];
 }

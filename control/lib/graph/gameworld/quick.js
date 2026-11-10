@@ -151,7 +151,8 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
-import { armsLoadout, validateArmsKit, ARMS_LEGEND } from './arms-kit.js';
+import { armsLoadout, validateArmsKit, ARMS_LEGEND, knifeOf } from './arms-kit.js';
+import { ROUNDS } from './rounds.js';
 import { readBodyWord } from './game-bodies.js';
 import { TD_WAVES } from '../board/board-td.js';
 import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
@@ -210,7 +211,9 @@ import { readInnings, inningsManifest } from '../contest/innings-arena.js';
 import { resolveSport, MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS, SHAPE_WORDS } from '../contest/sports.js';
 import { readSportConcept, sportTeams } from './sport-concept.js';
 import { SIDE_KITS as BROADCAST_SIDE_KITS } from '../broadcast/broadcast-package.js';
-import { readArena, arenaManifest } from '../versus/versus-arena.js';
+import { readArena } from '../versus/versus-arena.js';
+import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-levels.js';
+import { settingOfGame } from './cast-setting.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -238,19 +241,21 @@ export const QUICK_GOALS = Object.freeze({
   runner: 'an endless run down three lanes: the hero runs on its own, ever faster; swipe or A / D to change lane, jump the hurdles, slide (S) under the bars, take the coins; a crash ends the run, the best score kept (with distance: reach it to win)',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
-// supplies (health given, rounds given)
+// supplies (health given, rounds given); the guns small arms on the page (rounds.js)
 /** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
 /** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
 const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
-  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
-  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
+  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5, round: ROUNDS.rifle },
+  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4, round: ROUNDS.rifle },
 });
 const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
+// a person's walk (m/s): the hero library's (playscape/player.js), a hero-less shooter's on the platform rule
+export const PERSON_WALK = 1.6;
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
@@ -574,7 +579,8 @@ export function readQuick(Q) {
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.goal === 'fight') readFight(Q);
-  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  // (a fight's register is its own word: its one look, versus-levels.js FIGHT_REGISTERS)
+  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && !(Q.goal === 'fight' && k === 'register') && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
   for (const k of ['game', 'human', 'lift']) if (Q.goal !== 'tabletop' && Q[k] !== undefined) throw fail(`.${k} belongs to the tabletop goal`);
   if (Q.venue !== undefined && !['meet', 'contest', 'tabletop'].includes(Q.goal)) throw fail('.venue belongs to the meet, contest and tabletop goals (the stadium round the arena)');
   if (Q.goal === 'meet' || Q.goal === 'contest') readSport(Q);
@@ -759,7 +765,7 @@ export function tabletopArenas(Q, { title, seed = 1 } = {}) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'strikes', 'theme', 'camera', 'screen'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'strikes', 'register', 'theme', 'camera', 'screen'];
 /** how a fight's fighters strike (`strikes`): 'own', a boxer's own punches solved on its rig (versus-hero.js; stamped at
  * mint on a fight made now; every other fighter its style's or tradition's keyed moves), or 'tradition', the fight's
  * keyed moves for all (a fight minted before carries none, and strikes so) */
@@ -771,6 +777,7 @@ function readFight(Q) {
   }
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
   if (Q.strikes !== undefined && !FIGHT_STRIKES.includes(Q.strikes)) throw fail(".strikes is 'own' (a boxer throws its own punches, solved on its rig) or 'tradition' (the fight's keyed moves for all)");
+  if (Q.register !== undefined && !FIGHT_REGISTERS.includes(Q.register)) throw fail(`.register is the game's one look: ${FIGHT_REGISTERS.join(' (cel) | ')} (lit), its fighters drawn in it and lit by one light`);
   if (Q.roster !== undefined) {
     if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, role?, build?, age?, … }, or { hero: { ref } }');
     const ids = new Set();
@@ -786,14 +793,21 @@ function readFight(Q) {
   }
   if (Q.arenas === false) throw fail('.arenas: a fight is fought on its arenas (name them, or leave them out for a plaza and a nave)');
   if (Q.arenas !== undefined && Q.arenas !== false) {
-    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }, or false for flat stages');
+    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? } or { id, name?, level: { kind, … } }, or false for flat stages');
     const ids = new Set();
     Q.arenas.forEach((a, i) => {
       if (!isObj(a) || typeof a.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(a.id)) throw fail(`.arenas[${i}] needs an id (a short lower-case name)`);
       if (ids.has(a.id)) throw fail(`.arenas[${i}].id '${a.id}' is taken`);
       ids.add(a.id);
       const { id: _id, name: _n, ...words } = a;
-      try { readArena(words); } catch (e) { throw fail(`.arenas[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      // (an arena names a LEVEL, versus/versus-levels.js: any kind a fight can be laid on; else its words are a stage's)
+      if (words.level !== undefined) {
+        const extra = Object.keys(words).filter((k) => k !== 'level');
+        if (extra.length) throw fail(`.arenas[${i}]: ${extra.join(', ')} beside level: an arena that names a level says the rest in it`);
+        try { readFightLevel(words.level, 'level'); } catch (e) { throw fail(`.arenas[${i}].${e.message.replace(/^versus: /, '')}`); }
+      } else {
+        try { readArena(words); } catch (e) { throw fail(`.arenas[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      }
     });
   }
   if (Q.rounds !== undefined && !(Number.isInteger(Q.rounds) && Q.rounds >= 1 && Q.rounds <= 3)) throw fail('.rounds is how many rounds win the match, 1 to 3');
@@ -807,6 +821,10 @@ function readFight(Q) {
 // `strikes: 'own'`, stamped at mint) opens in the RING first, the set that shows them as they were made (versus-arena.js)
 export const FIGHT_ARENAS = Object.freeze([{ id: 'plaza', name: 'Plaza', kit: 'island-plaza' }, { id: 'nave', name: 'Nave', kit: 'gothic-nave' }]);
 export const RING_ARENA = Object.freeze({ id: 'ring', name: 'Ring', set: 'ring' });
+// a fight made now is fought on the TRAINING GROUND (versus-levels.js, the greybox preset: a ruled floor and wall, the
+// camera near), stamped at mint when the operator names no arenas: a fight minted before carries none and keeps its own
+export const TRAINING_ARENA = Object.freeze({ id: 'training', name: 'Training ground', level: Object.freeze({ kind: 'greybox', preset: 'training' }) });
+const isLab = (level) => !!level && level.kind === 'greybox' && level.preset === 'training';
 const defaultArenas = (Q) => (Q.strikes === 'own' ? [RING_ARENA, ...FIGHT_ARENAS] : FIGHT_ARENAS);
 
 /** A fight's arenas as stage recipes (each a level the fight runs on): → [{ id, name, manifest }]; none with arenas: false. */
@@ -814,7 +832,11 @@ export function fightArenas(Q, { title, roster } = {}) {
   const rules = fightRules(Q);
   return (Q.arenas ?? defaultArenas(Q)).map(({ id, name, ...words }) => ({
     id, name: name ?? id,
-    manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) }),
+    // (the training ground is the game's LAB: training mode is fought there, whatever stage is picked)
+    ...(isLab(words.level) ? { lab: true } : {}),
+    // (each arena a fight level: the one it names, else a stage of its words, the arena as it always was; every one in
+    // the game's register)
+    manifest: fightLevel(words.level ?? { kind: 'stage', ...words }, { title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}), ...(Q.register ? { register: Q.register } : {}) }),
   }));
 }
 
@@ -851,7 +873,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const camo = isObj(tiered) && tiered.ride !== undefined ? settingLivery(tiered, { style }) : null;
   // a fight's boxers throw their own strikes (versus-hero.js), stamped here at mint when the operator names none: a fight
   // minted before carries none and strikes with the fight's keyed moves
-  const struck = isObj(tiered) && tiered.goal === 'fight' && tiered.strikes === undefined ? { ...tiered, strikes: 'own' } : tiered;
+  // and its one look (its register: anime drawn cel, western lit), its setting's drawing tradition, western when it names
+  // none: a fight minted before carries none and draws each body as it always did
+  const fight = isObj(tiered) && tiered.goal === 'fight';
+  const register = fight && tiered.register === undefined ? (settingOfGame({ style, characters: rest.characters }, tiered).tradition ?? 'western') : null;
+  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : register && Array.isArray(tiered.arenas) && !tiered.arenas.some((a) => isLab(a?.level)) ? { arenas: [...tiered.arenas, { ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}), ...(register ? { register } : {}) } : tiered;
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
@@ -1330,10 +1356,11 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
   const over = shoulderOf(camera ?? quick.camera, hero);
-  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on: arms-kit.js)
+  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on, a knife in the free hand:
+  // arms-kit.js)
   const kit = quick.arms ? armsLoadout(quick.arms, SHOOT.rifle, { eye: hero ? 1.5 : 0, converge: !!over }) : null;
   const pilot = {
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(SHOOT.foeHp) } : {}) },
     weapon: kit ? kit[0].weapon : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
@@ -1342,9 +1369,14 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
 
 // OVER THE SHOULDER: a shooter's third-person camera, close behind the hero and off its right shoulder, its crosshair's
 // line crossing the body's own `lead` metres out; the player's rounds go from the muzzle to the point under the
-// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included
-export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1 });
-/** The over-the-shoulder camera for a shooter's hero played third-person (`camera`: the world's), else null. */
+// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included.
+// `standOff: 0`: the page stands this camera's eye where the rule puts it (follow-pull-in.js), not the stand-off a chase
+// keeps short of it: the eye the rounds converge from (the simulation's camera) is the eye the player sees, and the
+// hero stands in the frame. With the stand-off the page drew the eye on the hero's head, the hero under the frame and
+// the crosshair off the rounds' line (2026-11-08, the combat tester)
+// `mouseLook`: the mouse turns and pitches the hero (the level's rule `turnMode: 'look'`, levels.js), A and D step aside,
+// a click fires and the right button aims, as in first person; before, A and D turned it and only a pad's trigger fired
+export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1, standOff: 0, mouseLook: true });
 export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ? SHOULDER : null);
 
 /** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */
@@ -1425,14 +1457,16 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const s0 = spot('player', 0);
   // the player's feet: the pole's pace; past its jump threshold the platform rule (a jump, an air jump, a dash)
   // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
-  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
-    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
+  // (a person on the platform rule walks: `walkSpeed`, the hero library's, so Z walks and F is no mech's thrust; the
+  // dodge stays its double tap)
+  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
+    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
   const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
   // (a carried kit, arms-kit.js: its rounds scaled to the pole's own gun, else the shooter's rifle)
   const kit = quick.arms ? armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }) : null;
   const pilot = {
     ...(S ? { team: 'red' } : {}),
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(P ? P.hp : SHOOT.foeHp) } : {}) },
     weapon: kit ? kit[0].weapon : P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },

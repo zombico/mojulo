@@ -19,6 +19,9 @@
  *                                three-wheeler's inner wheel lifting as the turn's pull nears what tips it, about the
  *                                edge it would tip over (its stability each side, read off its contacts as the
  *                                stability law reads it)
+ *   riderOf(spec)              → (async) the rider a ridden machine carries, solved once a process
+ *   rideFigureOf(spec, rider)  → cycleRideFigure's figure at once, its rider already solved (riderOf's, or null): for a
+ *                                caller that builds in one go (the artillery range: gameworld/combat/roadsters.js)
  *
  * The recipe is the machine's words, never its geometry: it regenerates on every read. Pure.
  */
@@ -162,6 +165,20 @@ const ROLLED = Object.freeze({ ...RIDDEN, lean: 0.02, leanMax: 0.06, liftMax: 0.
 export async function cycleRideFigure(spec) {
   readCycleSpec(spec);
   if (!spec.ride) throw new Error('cycle: cycleRideFigure rides a machine (`ride: true`)');
+  return rideFigureOf(spec, spec.rider ? await riderOf(spec) : null);
+}
+
+/** The rider a ridden machine carries, solved on its rig (async: the realistic hero is built once a process). */
+export function riderOf(spec) {
+  const { readout } = assembled({ ...spec, pose: {} });
+  return riderFaces(spec, readout);
+}
+
+/** The ridden machine with its rider already solved (riderOf's; null for none): cycleRideFigure's, at once. */
+export function rideFigureOf(spec, rider) {
+  readCycleSpec(spec);
+  if (!spec.ride) throw new Error('cycle: rideFigureOf rides a machine (`ride: true`)');
+  if (!!spec.rider !== !!rider) throw new Error('cycle: rideFigureOf takes the rider its spec asks for (riderOf\'s), or none');
   const { manifest, readout } = assembled({ ...spec, pose: {} });
   const S = readout.steering, steersOf = (id) => S.parts[id];
   const { bones, buckets, cy, shift, top: machineTop } = bucketed(manifest, (item) => {
@@ -171,8 +188,8 @@ export async function cycleRideFigure(spec) {
   });
   // (the rider astride, in the root: it leans with the machine)
   let top = machineTop;
-  if (spec.rider) {
-    const faces = (await riderFaces(spec, readout)).faces;
+  if (rider) {
+    const faces = rider.faces;
     for (const f of faces) for (const c of f.corners) if (c[2] > top) top = c[2];
     buckets.get('root').push(...faces.map((f) => ({ ...f, corners: f.corners.map(shift) })));
   }
@@ -201,6 +218,6 @@ export async function cycleRideFigure(spec) {
     figH: r3(top),
     wheelbase: r3(Math.max(...ys) - Math.min(...ys)),
     wheelRadius: r3(radius),
-    cycle: { archetype: spec.archetype, ...(readout.addons ? { addons: readout.addons } : {}), layout: readout.layout, measures: readout.measures, ...(spec.rider ? { rider: (await riderFaces(spec, readout)).report } : {}) },
+    cycle: { archetype: spec.archetype, ...(readout.addons ? { addons: readout.addons } : {}), layout: readout.layout, measures: readout.measures, ...(rider ? { rider: rider.report } : {}) },
   };
 }

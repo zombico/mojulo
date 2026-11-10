@@ -177,6 +177,8 @@ export function buildCombatMelee(E) {
         beginClash(e, tg, state);
         break;
       }
+      // (a guard up in front of the blow meets it: blocked or parried, guardMeets; a parry spends the swing)
+      if (tg.guarding && guardMeets(tg, e, v, flat, state)) { e.struckThisSwing[tg.id] = true; if (e.swingT == null) break; continue; }
       const origin = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + P.eye];
       e.struckThisSwing[tg.id] = true;
       e.meleeHitCount = (e.meleeHitCount || 0) + 1;
@@ -221,6 +223,13 @@ export function buildCombatMelee(E) {
       // (armReaction's kill override).
       const topples = (P.topple != null ? !!P.topple : e.swingClip === 'swing_back') && (P.combo ? !!e.swingCombo : true);
       armReaction(tg, topples ? 'topple' : 'stagger', topples, { launch: P.launch });
+      // (a launch that threw its target up: the launcher's rise may follow, combat-melee.js stepMoveset; a SLAM drives a
+      // juggled target down into the ground, the landing its knockdown)
+      if (P.launch > 0 && tg.juggle) { e.mvLaunched = true; e.mvThrown = tg.id; }   // (the foe it threw: faced in the air)
+      if (P.slam > 0 && tg.juggle) { tg.juggle.vz = -P.slam; tg.juggle.knock = true; }
+      // (a blow landed fills the MP pool by its `onHit`: the moveset's, the weapon in hand's)
+      const Wm = Array.isArray(e.rule && e.rule.weapons) ? e.rule.weapons[e.weaponIdx || 0] : null, Mm = (Wm && Wm.moveset) || (e.rule && e.rule.moveset);
+      if (Mm && Mm.mp && Mm.mp.onHit > 0) e.mp = Math.min(Mm.mp.max, (e.mp ?? Mm.mp.max) + Mm.mp.onHit);
       if (P.knock && E.knockHit) E.knockHit(state, tg, e, P.knock, [tg.transform.pos[0] - e.transform.pos[0], tg.transform.pos[1] - e.transform.pos[1]]);
     }
   }
@@ -419,6 +428,299 @@ export function buildCombatMelee(E) {
     if (e.tackleT != null && !owns.reaction && !owns.drop && !owns.clash && !owns.cine) stepTackle(e, dt, state);
   }, 30);
 
+  // ── THE MOVESET (opt-in `r.moveset`, gameworld/combos.js lowerCombos: a combo manifest's moves and its tree of
+  // beats) ── each press is a beat (L the fire press, H the heavy, S the special), BUFFERED: taken at once when the
+  // body is free, else held `buffer` seconds and taken at the live move's CANCEL share, where the tree's next move on
+  // that beat chains in (a fresh swing on its own clip, length, travel and blow). A press up to `late` after a move has
+  // ended still chains; one between `pause[0]` and `pause[1]` after it takes the tree's pause branch; any other press
+  // opens a string from the root. A press the tree has no move for is dropped, and every press says what became of it
+  // (`e.mvPress`: { seq, beat, verdict, why }, a page's HUD reads it). A press during a move that chains on its beat is
+  // held to the cancel however early; only a press with nothing to chain into ages out of the buffer. A dodge cancels
+  // the live move. Absent: the
+  // strike above, byte for byte.
+  // THE ENGAGED FOE: the lock's target, else the nearest live foe the body is engaged with (in its combat stance, the
+  // rule's `combat`: within its reach of a foe; a rule without one, within ENGAGE metres), else null
+  const ENGAGE = 4;
+  const AIM_TURN = 18, TAU2 = 2 * Math.PI;
+  function mvFoe(e, world) {
+    const L = world && world.lock, tg = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
+    if (tg && tg.transform) return tg;
+    const r = e.rule;
+    if (!world || !world.byId || e.team === 'foes' || (r.combat && !e.combat)) return null;
+    const R = r.combat ? (r.combat.far ?? ENGAGE) : ENGAGE, p = e.transform.pos;
+    let best = null, bd = R * R;
+    for (const id in world.byId) {
+      const x = world.byId[id];
+      if (x === e || x.team !== 'foes' || x.gone || x.downed || !x.transform || (x.body && x.body.hp <= 0)) continue;
+      const d = (x.transform.pos[0] - p[0]) ** 2 + (x.transform.pos[1] - p[1]) ** 2;
+      if (d < bd) { bd = d; best = x; }
+    }
+    return best;
+  }
+  const headingTo = (e, x) => Math.atan2(x.transform.pos[1] - e.transform.pos[1], x.transform.pos[0] - e.transform.pos[0]);
+  function mvFacing(e, world, ctx) {
+    const L = world && world.lock, tg = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
+    if (tg && tg.transform) return Math.atan2(tg.transform.pos[1] - e.transform.pos[1], tg.transform.pos[0] - e.transform.pos[0]);
+    return ctx.moveH != null ? ctx.moveH : null;
+  }
+  // the room ahead of a body along `dir`: to the nearest hittable body of another team in its path, less the two bodies'
+  // radii and a hand (a lunge stops there, never through what it strikes)
+  function mvRoom(e, world, dir) {
+    let room = Infinity;
+    if (!world || !world.byId) return room;
+    const t = e.transform, R = e.rule.collideRadius ?? 0.3;
+    for (const id in world.byId) {
+      const o = world.byId[id];
+      if (o === e || o.downed || o.gone || !(o.body && o.body.hittable) || (e.team && o.team === e.team)) continue;
+      const vx = o.transform.pos[0] - t.pos[0], vy = o.transform.pos[1] - t.pos[1], ahead = vx * dir[0] + vy * dir[1];
+      const side = Math.abs(vx * dir[1] - vy * dir[0]), need = R + latR(o) + 0.1;
+      if (ahead > 0 && side < need) room = Math.min(room, Math.max(0, ahead - need));
+    }
+    return room;
+  }
+  // THE WEAPONS (opt-in `r.weapons`, gameworld/combos.js lowerArsenal: [{ id, name, figure, reach?, damage?, moveset }]):
+  // the weapon cycle (R, a pad's right shoulder, the mouse's back button) steps to the next when no swing is live, its
+  // string cleared; each weapon its own moves, reach and damage, and the figure it shows (`sheathed`: the blade on the
+  // back, the fist's). `r.moveset` stays the current weapon's (the page reads its blend and its clips by it).
+  // THE GUARD (opt-in `rule.guard`, a feel card's lowered: gameworld/feel/lower.js): { move, push, stun, parry, riposte,
+  // stamina? } in seconds and metres. Held (`input.guard`) on the ground, out of a swing, a dodge, a reaction and a draw,
+  // it is up (`e.guarding`, raised at `e.guardAt`); let go it comes down, unless blockstun holds it. A blow from the front
+  // meets it (guardMeets, from stepMelee): within `parry` seconds of raising it (null: any guard) it is PARRIED, else
+  // BLOCKED (`blockT` of blockstun: no move, no attack; pushed back `push` m/s over it; the stamina's `cost`, and run dry
+  // the guard breaks into a stagger `break` long). The walk while guarding is `move` of the run (rules-platform.js).
+  // Absent `rule.guard`, no field.
+  function stepGuard(e, input, dt, world, ctx) {
+    const G = e.rule.guard, now = world && world.time != null ? world.time : 0;
+    if (e.blockT > 0) {
+      e.blockT = Math.max(0, e.blockT - dt);
+      if (e.guardPush) { const k = G.stun > 0 ? e.blockT / G.stun : 0; e.transform.pos[0] += e.guardPush[0] * k * dt; e.transform.pos[1] += e.guardPush[1] * k * dt; }
+    } else e.guardPush = null;
+    const St = G.stamina;
+    if (St) { if (e.guardSt == null) e.guardSt = St.max; if (!e.guarding) e.guardSt = Math.min(St.max, e.guardSt + St.regen * dt); }
+    const can = e.swingT == null && !ctx.dodging && e.staggerT == null && e.grounded !== false && !(e.weapon && e.weapon.charging) && !(St && e.guardSt <= 0 && !e.guarding);
+    const want = !!input.guard;
+    if (want && !e.guarding && can) { e.guarding = true; e.guardAt = now; }
+    else if (e.guarding && e.blockT <= 0 && (!want || !can)) e.guarding = false;
+  }
+  // a blow (attacker A's swing, `v` from A to the guard's body) meets the guard `tg`: 'parry', 'block', or null (it lands)
+  function guardMeets(tg, A, v, flat, state) {
+    const G = tg.rule && tg.rule.guard;
+    if (!G || !tg.guarding || tg.staggerT != null || (A.strikeParams && A.strikeParams.unblockable)) return null;
+    const f = fwdXY(tg.transform.heading), ux = -v[0] / flat, uy = -v[1] / flat;
+    if (f[0] * ux + f[1] * uy <= 0) return null;   // (from behind: it lands)
+    const lr = latR(tg), at = [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)];
+    const parry = G.parry == null || state.time - (tg.guardAt ?? -1e9) <= G.parry + 1e-9;
+    tg.guardSeq = (tg.guardSeq || 0) + 1;
+    if (parry) {
+      // PARRIED: the attacker's swing spent, it staggered open for the riposte; the guard free at once
+      A.swingT = null; A.swingCombo = false; A.comboT = 0; A.struckThisSwing = {};
+      armReaction(A, 'stagger', true);
+      if (A.staggerT != null && A.reactClip === 'stagger' && G.riposte > 0) A.reactDur = G.riposte;
+      A.parriedT = state.time;
+      tg.blockT = 0; tg.guardPush = null; tg.parries = (tg.parries || 0) + 1;
+      tg.lastGuard = { seq: tg.guardSeq, kind: 'parry', by: A.id, t: state.time, at: Math.round((state.time - (tg.guardAt ?? state.time)) * 1e4) / 1e4 };
+      state.clashes.push({ seq: state.clashSeq++, pos: at, dir: [ux, uy], t: state.time, fxColor: 0xffd27a, fxScale: 5, n: 48 });
+      return 'parry';
+    }
+    // BLOCKED: blockstun, pushed back along the blow, the stamina spent (run dry: the guard broken, a stagger)
+    tg.blockT = G.stun; tg.guardPush = [-ux * G.push, -uy * G.push]; tg.blocks = (tg.blocks || 0) + 1;
+    let broke = false;
+    if (G.stamina) { tg.guardSt = (tg.guardSt ?? G.stamina.max) - G.stamina.cost; if (tg.guardSt <= 0) { tg.guardSt = 0; broke = true; } }
+    tg.lastGuard = { seq: tg.guardSeq, kind: broke ? 'break' : 'block', by: A.id, t: state.time, at: Math.round((state.time - (tg.guardAt ?? state.time)) * 1e4) / 1e4 };
+    state.clashes.push({ seq: state.clashSeq++, pos: at, dir: [ux, uy], t: state.time, fxColor: 0xcfe8ff, fxScale: 2.5, n: 16 });
+    if (broke) { tg.guarding = false; tg.blockT = 0; tg.guardPush = null; armReaction(tg, 'stagger', true); if (tg.staggerT != null && G.stamina.break > 0) tg.reactDur = G.stamina.break; }
+    return 'block';
+  }
+  const AIM_LINGER = 0.3;   // (seconds the aim holds after a loose or the last round, before the hero lowers it)
+  const RISE = 1.12;        // (a launcher's rise: × the hero's own jump, to meet the foe near its apex)
+  function stepMoveset(e, input, dt, world, ctx, boosting0) {
+    const r = e.rule, t = e.transform, now = world && world.time != null ? world.time : 0, Ws = Array.isArray(r.weapons) && r.weapons.length ? r.weapons : null;
+    let boosting = boosting0;
+    const S = e.mv || (e.mv = { node: null, move: null, buf: null, endT: -1e9, k: 0, seq: 0 });
+    const say = (beat, verdict, why) => { S.seq++; e.mvPress = { seq: S.seq, beat, verdict, why, t: now }; };
+    if (Ws && input.cycle) {
+      if (e.swingT != null) say('cycle', 'dropped', 'mid-swing: the weapon changes between moves');
+      else if (Ws.length > 1) {
+        e.weaponIdx = ((e.weaponIdx || 0) + 1) % Ws.length;
+        S.node = null; S.move = null; S.buf = null; S.k = 0; e.mvTravel = null;
+        say('cycle', 'taken', `the ${Ws[e.weaponIdx].name}`);
+      }
+    }
+    const Wc = Ws ? Ws[e.weaponIdx || 0] : null, M = Wc ? Wc.moveset : r.moveset;
+    if (Wc) { r.moveset = M; e.mvWeapon = Wc.id; }
+    // THE SIDEARM (a weapon's `sidearm`, gameworld/combos.js: S, its ranged weapon, combat-ranged.js stepWeapon on the S
+    // press): the current weapon's, each its own state kept across the cycle (a quiver's arrows, a magazine)
+    if (Wc && Wc.sidearm && E.initWeapon && e.sidearmId !== Wc.sidearm.id) {
+      const sa = e.sidearms || (e.sidearms = {});
+      if (e.weapon && e.sidearmId) sa[e.sidearmId] = e.weapon;
+      e.weapon = sa[Wc.sidearm.id] || E.initWeapon(Wc.sidearm.weapon); e.sidearmId = Wc.sidearm.id;
+    }
+    if (Wc) e.mvRanged = Wc.sidearm ? { id: Wc.sidearm.id, name: Wc.sidearm.name, mode: Wc.sidearm.mode, ...(Wc.sidearm.hand ? { hand: Wc.sidearm.hand } : {}), ...(Wc.sidearm.dual ? { dual: true } : {}) } : null;
+    // THE SIDEARM'S AIM (S held): the locked foe, else the nearest foe in front (within 35° of the facing, in range): the
+    // round leaves the hero's chest straight for the foe's (`e.mvAim`, stepWeapon's aim in hand) and the hero turns to it; with
+    // none, where the hero faces (a draw: where the camera looks). A DRAW held swings nothing, the platform rule walking
+    // the hero at the aim's pace
+    const drawing = !!(e.weapon && e.weapon.charging);
+    e.mvAim = null;
+    if (Wc && Wc.sidearm && (input.special || drawing)) {
+      const L = world && world.lock, locked = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
+      let tg = locked && !locked.downed ? locked : null;
+      if (!tg && world && world.byId) {
+        const range = Math.min(40, (e.weapon && e.weapon.range) || 30), fh = fwdXY(t.heading);
+        let best = Infinity;
+        for (const id in world.byId) {
+          const o = world.byId[id];
+          if (o === e || o.downed || o.gone || !(o.body && o.body.hittable) || (e.team && o.team === e.team)) continue;
+          const vx = o.transform.pos[0] - t.pos[0], vy = o.transform.pos[1] - t.pos[1], d = Math.hypot(vx, vy);
+          if (d < 1e-3 || d > range || (vx * fh[0] + vy * fh[1]) / d < Math.cos(35 * Math.PI / 180)) continue;
+          if (d < best) { best = d; tg = o; }
+        }
+      }
+      if (tg) {
+        const eye = (e.weapon && e.weapon.eye) || 1.25, from = [t.pos[0], t.pos[1], t.pos[2] + eye];
+        // (the chest: four tenths of the body's half height above its middle, well inside it)
+        const tz = tg.transform.pos[2] + (tg.body.egg ? tg.body.egg.cz + 0.4 * tg.body.egg.c : (tg.body.radius || 0.5));
+        const dir = [tg.transform.pos[0] - from[0], tg.transform.pos[1] - from[1], tz - from[2]];
+        e.mvAim = { from, dir }; t.heading = Math.atan2(dir[1], dir[0]);
+      } else if (drawing && world && world.cameraYaw != null) t.heading = world.cameraYaw;
+    }
+    // THE AIM'S POSE (the page plays it: the sidearm's `aim` clip, hero-swing-body.js aimClip): while S holds the sidearm
+    // and no swing owns the body, a draw at its share (the string back as the bow draws), held a beat after a loose
+    // (the GUARD's pose first while it is up, combat-melee.js stepGuard: the weapon's `guard`, its shield on the page)
+    if (e.guarding && Wc && Wc.guard) { e.mvPose = { clip: Wc.guard.clip, phase: 0, ...(Wc.guard.prop ? { prop: Wc.guard.prop } : {}) }; e.mvPoseT = 0; }
+    else if (Wc && Wc.sidearm && Wc.sidearm.aim && e.swingT == null && (input.special || drawing)) {
+      const w = e.weapon, k = drawing && w.chargeTime > 0 ? Math.min(1, (w.chargeT || 0) / w.chargeTime) : 0;
+      e.mvPose = { clip: Wc.sidearm.aim, phase: Math.round(k * 1e4) / 1e4, sidearm: true, prop: Wc.sidearm.mode === 'draw' ? 'bow' : 'guns' }; e.mvPoseT = AIM_LINGER;
+    } else if (e.mvPose && e.mvPose.sidearm && e.swingT == null && (e.mvPoseT = (e.mvPoseT || 0) - dt) > 0) e.mvPose = { ...e.mvPose, phase: 0 };
+    else if (e.mvPose) e.mvPose = null;
+    if (e.grounded && e.launchedBy === 'rise') e.launchedBy = null;   // (a rise landed: the next jump is the legs' again)
+    // THE AIR'S AIM (`mvThrown`, the foe a launch threw): while the hero is in the air after it, the body turns to that foe
+    // (AIM_TURN rad/s, the stick's turn held off it, rules-platform.js), and an air move is taken facing it; landed, or
+    // the foe gone, it is let go (on the ground once no move plays: the launcher's own frames keep it for the rise)
+    const aimed = e.mvThrown != null && world && world.byId ? world.byId[e.mvThrown] : null;
+    if (aimed && !e.grounded && !aimed.gone && !aimed.downed && aimed.transform) {
+      const d = ((headingTo(e, aimed) - t.heading + Math.PI) % TAU2 + TAU2) % TAU2 - Math.PI, mx = AIM_TURN * dt;
+      t.heading += Math.max(-mx, Math.min(mx, d));
+    } else if (e.mvThrown != null && ((e.grounded && e.swingT == null) || !aimed || aimed.gone || aimed.downed)) e.mvThrown = null;   // (the launcher still playing holds it for the rise)
+    // (THE MP POOL, the moveset's `mp`: full at the start, back at `regen` a second; a special spends it, a blow landed
+    // adds `onHit`, stepMelee)
+    if (M.mp) e.mp = e.mp == null ? M.mp.max : Math.min(M.mp.max, e.mp + (M.mp.regen || 0) * dt);
+    const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
+    const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
+    // (BACK + HEAVY, `bH`: the heavy pressed with the stick pulled away from where the hero faces, against the lock's
+    // facing as a stylish game reads it; a tree with no bH plays it as H)
+    const airborne = !ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0, T0 = airborne ? M.airTree || {} : M.tree;
+    // (back is away from the ENGAGED foe, locked on or not; with none, away from where the hero faces)
+    const foe0 = hE ? mvFoe(e, world) : null;
+    const back = ctx.moveH != null ? Math.cos(ctx.moveH - (foe0 ? headingTo(e, foe0) : t.heading)) < -0.5 : (input.forward || 0) < -0.5;
+    const beat1 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : lE ? 'L' : sE ? 'S' : null;
+    // (THE MODIFIER held, `mod` (the right trigger, left Ctrl): a face pressed with it is that face's SPECIAL, `mL` `mH`
+    // `mS`, where the tree has one; mS is the MP ability in the sidearm's place)
+    const mB = beat1 && beat1 !== 'bH' ? `m${beat1}` : beat1 === 'bH' ? 'mH' : null;
+    const beat0 = input.mod && mB && (T0[mB] || (S.node && S.node.next && S.node.next[mB])) ? mB : beat1;
+    // (S is the sidearm's when the weapon carries one: stepWeapon takes it; a draw held refuses the blades)
+    const beat = beat0 === 'S' && Wc && Wc.sidearm ? null : beat0;
+    if (beat && drawing) { say(beat, 'dropped', 'drawing the bow'); S.buf = null; }
+    else if (beat && e.blockT > 0) { say(beat, 'dropped', 'in blockstun'); S.buf = null; }
+    else if (beat) {
+      if (e.guarding) e.guarding = false;   // (a press out of the guard: the guard down, the move taken)
+      if (S.buf) say(S.buf.beat, 'dropped', 'another press came first');
+      S.buf = { beat, t: now };
+    }
+    // a dodge cancels the live move
+    // (a move ended: its own COOLDOWN before it opens a string again, a heavy's; a finisher's REST before any string opens)
+    const ended = () => { const m = M.moves[S.move]; if (m && m.cooldown > 0) (S.cool ??= {})[S.move] = now + m.cooldown; if (m && m.role === 'finisher' && M.rest > 0) S.restT = now + M.rest; };
+    if (ctx.dodging && e.swingT != null) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+    // the live move: its time, its end
+    if (e.swingT != null && S.move) {
+      const live = M.moves[S.move];
+      e.swingT += dt / live.dur;
+      // (a ground move ends on leaving the ground; an AIR move lives in the air and ends on landing)
+      if (e.swingT >= 1 || (live.air ? e.grounded : airborne)) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+      // THE SPIN (a move's `spin`): the body turned through its turns from a little before the blow to a little after it
+      else if (e.mvSpin && e.strikeParams) {
+        const P = e.strikeParams, a = Math.max(0, P.from - 0.12), z = Math.min(1, P.to + 0.1), q = Math.max(0, Math.min(1, (e.swingT - a) / (z - a)));
+        t.heading = (e.mvSpin.h0 + 2 * Math.PI * e.mvSpin.turns * q * q * (3 - 2 * q)) % (2 * Math.PI);
+      }
+      // THE RISE (a launcher's `rise`): its blow launched a foe and the heavy is still held: the hero leaves the ground
+      // with it, the move cut there, into the air string
+      else if (live.rise && e.mvLaunched && input.heavy && e.grounded) {
+        ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now;
+        e.vel[2] = (r.jumpSpeed ?? 8.5) * RISE; e.grounded = false; e.coyote = 1; e.mvRose = now; e.launchedBy = 'rise';   // (the rise is the blow's, not the legs': no jump released cuts it)
+        say('H', 'taken', 'held through the launch: rising with it');
+      }
+    }
+    e.mvLaunched = false;
+    if (e.swingT == null) e.mvSpin = null;
+    // THE HANG (air stickiness, the moveset's `air`): an air move holds the hero aloft, its gravity `hang` of its own
+    // while the move plays (rules-platform.js reads `mvHang`)
+    e.mvHang = e.swingT != null && S.move && M.moves[S.move].air && M.air ? M.air.hang : null;
+    // the buffered beat, taken where the tree and the timing allow
+    if (S.buf && !ctx.charging && !ctx.kneeling && !ctx.dodging && (e.grounded || ctx.space || (airborne && M.airTree))) {
+      const b = S.buf.beat, N = S.node;
+      let next = null, how = null, wait = false;
+      if (e.swingT != null) {
+        const cur = M.moves[S.move];
+        if (N && N.next && N.next[b]) { if (e.swingT >= cur.cancel) { next = N.next[b]; how = 'chained at the cancel'; } else wait = true; }
+        else wait = true;   // (no move on this beat from here: taken as an opener once the move has ended)
+      } else {
+        const since = now - S.endT;
+        if (N && N.pause && N.pause[b] && since >= M.pause[0] && since <= M.pause[1]) { next = N.pause[b]; how = 'chained on the pause'; }
+        else if (N && N.next && N.next[b] && since <= M.late + 1e-9) { next = N.next[b]; how = 'chained after the move'; }
+        else if (T0[b]) {
+          // (an opener waits out the finisher's rest and its own cooldown: held when the wait is inside the buffer, else dropped)
+          const op = T0[b].move, rest = (S.restT ?? -1e9) - now, cool = ((S.cool && S.cool[op]) ?? -1e9) - now, left = Math.max(rest, cool);
+          if (left <= 1e-9) { next = T0[b]; how = airborne ? 'an air opener' : 'an opener'; }
+          else if (left <= M.buffer + 1e-9) wait = true;
+          else { say(b, 'dropped', rest >= cool ? `resting after the finisher (${left.toFixed(2)} s)` : `${op} cooling down (${left.toFixed(2)} s)`); S.buf = null; }
+        }
+        else { say(b, 'dropped', airborne ? `no air move on ${b}` : `no move on ${b}`); S.buf = null; }
+      }
+      // (a move that costs MP, the pool short: refused, said)
+      if (next && M.moves[next.move].mp > 0 && (e.mp ?? 0) < M.moves[next.move].mp - 1e-9) { say(b, 'dropped', `not enough MP (${Math.floor(e.mp ?? 0)} of ${M.moves[next.move].mp})`); S.buf = null; next = null; }
+      if (next) {
+        const mv = M.moves[next.move];
+        if (mv.mp > 0) e.mp -= mv.mp;
+        if (boosting) { e.boostCut = true; boosting = false; }   // a strike out of the sprint cuts it
+        // (a launcher, taken on back + heavy, turns to the foe it was pulled back from, never along the stick)
+        const aimA = airborne && e.mvThrown != null && world && world.byId ? world.byId[e.mvThrown] : null;
+        const foeB = aimA && aimA.transform ? aimA : b === 'bH' ? mvFoe(e, world) : null, face = foeB ? headingTo(e, foeB) : mvFacing(e, world, ctx);
+        if (face != null) t.heading = face;
+        const spec = meleeSwingSpec(r, r, mv.swing, false);
+        // THE FOOTWORK (hero-swing-body.js moveClip): a move steps in only where there is room for all of its travel (a
+        // body ahead nearer than that, it plays in place: its `_still` clip, no travel), so the feet its clip plants
+        // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
+        const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && (mv.travel.kind === 'dash' || room >= mv.travel.m - 1e-9);   // (a dash glides in, closing on what is ahead)
+        e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
+        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), ...(mv.reach ? { reach: mv.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}) };
+        // (an air move's KICK, the air's stickiness: the climb or the fall stopped, the hero lifted a little as it begins, the
+        // hang holding it there beside the foe it struck)
+        if (mv.air && M.air && !e.grounded) e.vel[2] = M.air.kick;
+        breakGuards(e);
+        e.swingCount = (e.swingCount || 0) + 1; e.struckThisSwing = {}; e.lastSwingDir = mv.swing;
+        const fw = fwdXY(t.heading), P = e.strikeParams;
+        if (mv.contact) { P.from = mv.contact[0]; P.to = mv.contact[1]; }
+        // (an ARC: the blow's reach round the hero, its cone's half; 360 all round, a spin attack's) and a SPIN: the body
+        // turned through `spin` turns over the blow, back to the facing it was taken at
+        if (mv.arc) P.cosCone = Math.cos(Math.min(180, mv.arc / 2) * Math.PI / 180);
+        e.mvSpin = mv.spin ? { h0: t.heading, turns: mv.spin } : null;
+        // (the travel waits out the blend into the move, at most half its way to the blow: hero-swing-body.js travelAt)
+        const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' || mv.travel.kind === 'dash' ? P.from : P.to) : 0;
+        e.mvTravel = travels ? { dir: [fw[0], fw[1]], kind: mv.travel.kind, m: mv.travel.m, from: Math.min(mv.travel.wait || 0, tTo * 0.5), to: tTo, done: 0 } : null;
+        S.k = how === 'an opener' || how === 'an air opener' ? 1 : S.k + 1;
+        S.node = next; S.move = next.move;
+        say(b, 'taken', `${how}: ${next.move}${next.ends ? ` (ends ${next.ends.join(', ')})` : ''}`);
+        S.buf = null;
+      } else if (wait) { /* held in the buffer */ }
+    }
+    // a press waiting on the live move's cancel, where the tree chains on its beat, is held until it; any other ages out
+    // of the buffer (a press too early with nothing to chain into)
+    const chains = S.buf && e.swingT != null && S.node && S.node.next && S.node.next[S.buf.beat];
+    if (S.buf && !chains && now - S.buf.t > M.buffer + 1e-9) { say(S.buf.beat, 'dropped', 'too early: the move has nothing on that beat to chain into'); S.buf = null; }
+    e.mvMove = S.move; e.mvRole = S.move ? M.moves[S.move].role : null; e.mvHit = S.k; e.mvCombos = S.node ? S.node.combos : null;
+    return { swinging: e.swingT != null, boosting };
+  }
+
   // ── S4: the platform ACT phase — melee strike + throw ride the maneuver seam (the blocks that
   // were woven inline in the platform rule; ctx carries the frame locals they shared).
   E.registerPlatformManeuver('act', 'strike', (e, input, dt, world, ctx) => {
@@ -438,9 +740,13 @@ export function buildCombatMelee(E) {
     // 'neutral' — the overhead cross.
     // With a loadout, the strike mode comes from the ACTIVE config (a melee slot carries
     // `strike:'melee'`), so the click routes to whatever is currently in the fist.
+    if (r.guard) stepGuard(e, input, dt, world, ctx);   // (the guard, before the moves: a press out of it drops it)
     const strikeOn = activeCfg ? activeCfg.strike === 'melee' || activeCfg.strike === true
       : r.strike === 'melee' || r.strike === true;
-    if (strikeOn && !tackling) {
+    if (strikeOn && !tackling && r.moveset && !activeCfg) {
+      const out = stepMoveset(e, input, dt, world, ctx, boosting);
+      swinging = out.swinging; boosting = out.boosting;
+    } else if (strikeOn && !tackling) {
       const fireEdge = !!input.fire && !e.strikePrev;
       e.strikePrev = !!input.fire;
       // COMBO 1 + MELEE ENFORCEMENT (2026-07-28, supersedes the unbounded 2026-07-27 strings;
@@ -583,6 +889,30 @@ export function buildCombatMelee(E) {
     // step/downswing (commits by ~38% phase) then HOLDS (dprog 0), so the suit ENDS the swing
     // advanced (not a lunge-and-return). Incremental delta so world.colliders eject it like any
     // other horizontal write (the block below), and the ground snap keeps the plant on the floor.
+    // a moveset's travel (stepMoveset): a step into the blow, eased over the wind-up, or a lunge carried through it;
+    // the same incremental write, so colliders eject it and the ground keeps the plant
+    // (it closes on a body ahead and stops at it, the two bodies' radii and a hand apart: a lunge never runs through
+    // what it strikes)
+    if (swinging && e.mvTravel) {
+      // (an advance eased from `from` to `to`; a LUNGE its share by the blow, the rear foot's recovery the rest after it:
+      // hero-swing-body.js travelAt, LUNGE { share 0.55, recover 0.3 }, the footwork law holding the two equal)
+      const T = e.mvTravel, sw = e.swingT || 0, ez = (x) => { const q = Math.max(0, Math.min(1, x)); return q * q * (3 - 2 * q); }, f0 = T.from || 0;
+      const rec = Math.min(0.92, T.to + 0.3);
+      const prog = T.kind === 'lunge' ? (sw <= T.to ? T.m * 0.55 * ez((sw - f0) / (T.to - f0)) : T.m * 0.55 + T.m * 0.45 * ez((sw - T.to) / (rec - T.to))) : T.m * ez((sw - f0) / (T.to - f0));
+      let dprog = prog - T.done;
+      if (dprog > 0 && world && world.byId) {
+        const R = r.collideRadius ?? 0.3;
+        for (const id in world.byId) {
+          const o = world.byId[id];
+          if (o === e || o.downed || o.gone || !(o.body && o.body.hittable) || (e.team && o.team === e.team)) continue;
+          const vx = o.transform.pos[0] - t.pos[0], vy = o.transform.pos[1] - t.pos[1], ahead = vx * T.dir[0] + vy * T.dir[1];
+          const side = Math.abs(vx * T.dir[1] - vy * T.dir[0]), room = R + latR(o) + 0.1;
+          if (ahead > 0 && side < room) dprog = Math.min(dprog, Math.max(0, ahead - room));
+        }
+      }
+      if (dprog > 0) { t.pos[0] += T.dir[0] * dprog; t.pos[1] += T.dir[1] * dprog; }
+      T.done = prog;
+    }
     if (swinging && e.cleaveStepDir) {
       const prog = (r.cleaveStep || 0) * Math.min(1, (e.swingT || 0) / 0.38);
       const dprog = prog - (e.cleaveStepProg || 0);
@@ -597,5 +927,5 @@ export function buildCombatMelee(E) {
   registerBodyOwner('clash', (e, input, dt, state) => stepClash(e, dt, state), 20);
   registerBodyOwner('cine', (e, input, dt, state) => stepTackleCine(e, dt, state), 30);
 
-  Object.assign(E, { meleeSwingSpec, meleeContacts, beginClash, stepClash, stepMelee, stepTackle, beginTackleCounter, stepTackleCine });
+  Object.assign(E, { meleeSwingSpec, meleeContacts, beginClash, stepClash, stepMelee, stepTackle, beginTackleCounter, stepTackleCine, guardMeets });
 }

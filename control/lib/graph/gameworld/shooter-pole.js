@@ -21,6 +21,8 @@
  *
  * Pure.
  */
+import { roundOf } from './rounds.js';
+
 const lerp = (a, b, t) => a + (b - a) * t;
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -64,6 +66,8 @@ export function shooterPole(v) {
     damage, impact: 0.5, range: 60, coreAngle: r2(at('coreAngle')), headshot: r2(at('headshot')), hand: 'right',
     spread: Object.fromEntries(Object.keys(R.spread).map((k) => [k, r2(lerp(R.spread[k], S.spread[k], p))])),
     recoil: Object.fromEntries(Object.keys(R.recoil).map((k) => [k, r2(lerp(R.recoil[k], S.recoil[k], p))])),
+    // (the realistic half draws its rounds as small arms look, rounds.js; the stylized half keeps the arena's glow)
+    ...(p < 0.5 ? { round: roundOf('rifle') } : {}),
   };
   // the bots' kit: the player's, as a mind carries it out (mind.js kitStep)
   const kit = {

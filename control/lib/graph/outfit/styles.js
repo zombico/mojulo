@@ -365,6 +365,13 @@ const patternErrors = (w, at) => {
     ...(o.contrast !== undefined && !(Number.isFinite(o.contrast) && o.contrast >= 0 && o.contrast <= 1.5) ? [`${at}.contrast: 0 (none) … 1 (as woven) … 1.5`] : [])];
 };
 const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide', 'breeches'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
+/** an outfit's language words by the key they are written under (what a variation may swap a word for: lib/graph/
+ * mangekyou; a key's words are every layer's, a layer that takes fewer refusing the rest at its mint) */
+export const OUTFIT_WORDS = Object.freeze({
+  family: FAMILY, sleeve: SLEEVE, hem: [...new Set([...HEM, ...COAT])], leg: [...new Set([...LEG, ...SKIRT])], cut: [...new Set([...TCUT, ...CUT])],
+  fit: FITS, cloth: CLOTH_WORDS, pattern: PATTERN_WORDS, collar: COLLAR_WORDS, lapel: OUTER_LAPELS, front: OUTER_FRONTS,
+  shoulder: OUTER_SHOULDERS, waist: OUTER_WAISTS, pockets: OUTER_POCKETS, feet: FEET,
+});
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
 

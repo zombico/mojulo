@@ -15,7 +15,7 @@ const lowers = (play) => lowerPlay({ kind: 'controllable', play: { ...play, ui: 
 
 describe('the game\'s systems', () => {
   it('says what is wrong', () => {
-    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\?, destruction\?, scars\? \}/);
+    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, legend\?, lives\?, coins\?, ui\?, gear\?, destruction\?, scars\? \}/);
     bad({ scars: { wall: 'water' } }, /mechanics.scars.wall: water is a liquid/);
     expect(readMechanics({ destruction: 'objects', scars: true })).toMatchObject({ destruction: 'objects', scars: true });
     expect(readMechanics({ scars: false })).not.toHaveProperty('scars');
@@ -27,6 +27,11 @@ describe('the game\'s systems', () => {
     bad({ hud: 'big' }, /hud is 'derive'/);
     bad({ hud: [{ part: 'nope' }] }, /parts:/);
     bad({ ui: 3 }, /ui is 'propose', 'auto'/);
+    bad({ legend: 'corner' }, /legend is 'screen'/);
+    bad({ lives: 0 }, /lives is the lives a level starts with/);
+    bad({ coins: { every: 3 } }, /coins is true or \{ oneup \}/);
+    expect(readMechanics({ lives: 3, coins: { oneup: 50 } })).toMatchObject({ lives: 3, coins: { oneup: 50 } });
+    expect(readMechanics({ legend: 'menu' })).toMatchObject({ legend: 'menu' });
     bad({ gear: { lance: {} } }, /gear.lance: not a class of gear/);
     bad({ gear: { staff: { by: [1, 2] } } }, /gear.staff.by is three numbers/);
     expect(() => readGameworld({ ...MEADOWMARK, mechanics: { numbers: 1 } })).toThrow(/numbers is not part of the mechanics/);

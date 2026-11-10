@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readGameworld, MEADOWMARK } from '../index.js';
-import { gameStages, stageLevelOrder } from '../levels.js';
+import { gameStages, stageLevelOrder, airKeys } from '../levels.js';
 import { POLE_IDS, POLES } from './cards.js';
 import { feelCard, lowerFeel, TAKES } from './lower.js';
 
@@ -18,11 +18,15 @@ describe('a gameworld\'s feel', () => {
   });
 
   it('lays the template\'s card over the hero\'s rule; the rest of the level is the level it was', () => {
-    const plain = order(MEADOWMARK), felt = order({ ...MEADOWMARK, feel: pole }), want = lowerFeel(feelCard(pole)).rule;
+    const plain = order(MEADOWMARK), felt = order({ ...MEADOWMARK, feel: pole }), want = lowerFeel(feelCard(pole), { gear: POLES[pole].gear ?? null }).rule;
     const hero = felt.entities[0].rule;
     for (const [k, v] of Object.entries(want)) expect([k, hero[k]]).toEqual([k, v]);
     expect(hero.type).toBe(plain.entities[0].rule.type);
-    const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)) });
+    // (and a card that sprints says its key beside the run: the stamina's, rules-platform.js `stamina`; and the air's own,
+    // an air dash and a glide)
+    const sprints = !!want.stamina, said = ` · F  sprint (stamina)${want.dodge ? ' · F F  dodge' : ''}${airKeys(want)}`;
+    expect(felt.events.hud[0].text.includes(said)).toBe(sprints);
+    const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)), events: { ...m.events, hud: m.events.hud.map((h) => ({ ...h, text: h.text.replace(said, '') })) } });
     expect(strip(felt)).toBe(strip(plain));
   });
 
@@ -42,8 +46,13 @@ describe('a gameworld\'s feel', () => {
     expect(F.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
     if (taken.entities[0].rule.dash) expect(JSON.stringify(taken.events)).toContain('F  dash');
     expect(JSON.stringify(plain.events)).not.toContain('F  dash');
-    // (the card's moves ride the takes: its wall and its dash, F named on the legend)
-    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
+    // (the card's moves ride the takes: its wall and its dash, F named on the legend; a person's sprint on Shift and its
+    // walk, a mascot's run on F; the plain feel's sprint on the stamina, feel/lower.js)
+    const card = feelCard(pole), R = taken.entities[0].rule;
+    if (card.ground.sprint > card.ground.run) expect([R.sprintSpeed, JSON.stringify(taken.events).includes('Shift  sprint')]).toEqual([card.ground.sprint, true]);
+    expect(R.walkSpeed).toBe(card.ground.walk);
+    expect(plain.entities[0].rule).not.toHaveProperty('sprintSpeed');
+    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, sprint, stamina, boostSpeed, boostMax, boostRegen, overheatRegen, boostUnlockFrac, dodge, dodgeDur, dodgeSpeed, dodgeBoostCost, dodgeOverheat, dodgeCooldown, sprintSpeed, walkSpeed, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
     expect(strip(taken)).toBe(strip({ ...plain, figures: Object.fromEntries(Object.entries(plain.figures ?? {}).map(([k, f]) => [k, { ...f, jumps: null }])) }));
   });
 });

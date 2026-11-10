@@ -16,7 +16,7 @@
 import { NEW_GAME_SCREEN } from '@/lib/graph/game/screen';
 import { registerTool, clientTakesJobAgents } from '@/lib/mcp/server';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
-import { shareForContext } from '@/lib/mcp/hosts/handoff';
+import { shareForContext, workshopForContext } from '@/lib/mcp/hosts/handoff';
 import { shareBrief } from '@/lib/graph/game/share-offer.js';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -45,9 +45,14 @@ import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-la
 import { goalposts } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
+import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
+import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
+import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
+import { practiceFor, mountSuggestion } from '@/lib/graph/gameworld/practice.js';
+import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
@@ -60,6 +65,7 @@ import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpo
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
+import { segmentUnits, checkSegment, segmentRemit } from '@/lib/graph/gameworld/segments.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
@@ -118,8 +124,8 @@ function withPin(world, pin) {
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
 // (a battle foe kind's figure, `foe-<kind>` (gameworld/battles.js FOE_LOOKS: a person), is made as a hero is)
 // (a town's folk, gameworld/folk-cast.js: each body a step minted through the hero door as a guard is)
-const HERO_STEP = /^(hero|hero-equipped|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
-const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
+const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
+const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped', 'hero-sheathed': 'the hero, its blade sheathed' };
 
 /** Make or remake one step; → the record to keep. */
 async function realize(step, action) {
@@ -214,14 +220,14 @@ async function realize(step, action) {
   if (key === 'game') {
     // the game over the levels: create_game (its levels dry-run and recorded unaudited: the run's audit steps walk them
     // after, one a step, runner.js auditSteps), its manifest whole in place
-    const { title, store, levels, links, theme, shell, final } = order;
+    const { title, store, levels, links, theme, shell, final, hud } = order;
     if (action === 'make') {
       await createGameHandler({ ...order, ref });
       return {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}) } });
     }
     return {};
   }
@@ -448,6 +454,10 @@ function readout(ref, world, context = {}) {
   // the next moves as step ids: what each means is the gameworld-next card (get_game_vocab),
   // read once, not re-said on every call
   const mode = world.mode ?? 'gated', next = [];
+  // WHERE IT IS SEEN (game/workshop.js): a game whose level outgrows this host's page limit is played on the operator's
+  // machine; said first, on every readout while it holds, so the operator chooses before the chapter is built
+  const ws = workshopForContext(context, world);
+  if (ws) next.push({ step: 'workshop', ...ws });
   const open = parts.filter((p) => p.status === 'proposed' || p.status === 'changed' || p.status === 'revise');
   if (mode === 'gated' && open.length) next.push({ step: 'review', parts: open.map((p) => p.id), card: 'gameworld-next' });
   if (mode === 'autonomous' && parts.some((p) => p.status === 'revise')) next.push({ step: 'advised', parts: parts.filter((p) => p.status === 'revise').map((p) => p.id), card: 'gameworld-next' });
@@ -493,6 +503,14 @@ function readout(ref, world, context = {}) {
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
   const feel = world.feel !== undefined && world.feel !== null ? feelReport(world.feel) : null;
   if (feel?.lost.length) next.push({ step: 'feel', pole: feel.pole, lost: feel.lost.map((x) => x.field), card: 'gameworld-feel' });
+  // the feel measured (gameworld/feel/measure.js, the feel chapter's machine gate): the practice room's hero, its kit and its
+  // card played headless on the runtime the game ships, each number carried, partly or lost; a loss is advised
+  const measured = feel && !roomEligible(world) ? measuredSummary(measureRoom(world)) : null;
+  if (measured?.lost) next.push({ step: 'feel', measured: measured.worst, card: 'gameworld-feel' });
+  // the practice rooms its play has (gameworld/practice.js), and a template that rides with no horse yet: mounts suggested
+  // (written, never laid)
+  const door = practiceFor(world), mountsSuggest = mountSuggestion(world);
+  if (mountsSuggest) next.push({ step: 'mounts', suggest: mountsSuggest.suggest, why: mountsSuggest.why, patch: [{ op: 'set', path: '/mounts', value: mountsSuggest.suggest }], card: 'gameworld-mounts' });
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);
   if (feelSuggest) next.push({ step: 'feel', suggest: feelSuggest.feel, why: feelSuggest.why, from: feelSuggest.from, card: 'gameworld-feel' });
@@ -500,6 +518,12 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
+  // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
+  const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
+  if (arsenalSuggest) next.push({ step: 'arsenal', suggest: arsenalSuggest.suggest, template: arsenalSuggest.template, why: arsenalSuggest.why, patch: [{ op: 'set', path: '/arsenal', value: 'auto' }], card: 'gameworld-feel' });
+  if (armed && !heroStrikes(world)) next.push({ step: 'arsenal', unarmed: true, why: 'the arsenal is laid on a hero that strikes: give the hero a right-hand item that serves strike (a blade)', card: 'gameworld-feel' });
+  const arsenal = armed ? { ...(armed.template ? { template: armed.template } : {}), from: armed.from, weapons: armed.arsenal.weapons.map((W) => W.id), combos: armed.arsenal.weapons.reduce((n, W) => n + W.combos.length, 0), ...(armed.arsenal.ranged?.length ? { sidearm: armed.arsenal.ranged[0].id } : {}) } : null;
   // the body the game puts in its hero (gameworld/game-bodies.js): a book whose direction names none, the rail its kind
   // reads proposed (opt-in: a body is written, never laid)
   const bodyRail = world.characters?.direction && world.characters.direction.body === undefined ? railOfGame({ genre: world.intent?.from ?? null, goal: world.quick?.goal ?? null, feel: typeof world.feel === 'string' ? world.feel : world.feel?.pole ?? null }) : null;
@@ -527,7 +551,7 @@ function readout(ref, world, context = {}) {
   const gauntletGaps = gauntletAdviceOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(MQ?.laws.length ? { mainQuest: MQ.laws } : {}), ...(loopGaps.length ? { loop: loopGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])) } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -571,8 +595,57 @@ export function composedWorld(c) {
 // what a composed world's words decided (its brief): each word read and what it decided, the cube, what nothing read
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
+/**
+ * A department's variations (internal name mangekyou, lib/graph/mangekyou/): `vary` { at?, concept?, n?, principles?,
+ * keep?, reject?, spread?, roll? } over the game at `ref`, routed to the department whose chapter owns `at` (the chapter
+ * named, or the seat's unit, when `at` is not given). Answered as proposals and nothing is written: a variant is taken
+ * with design_game({ ref, patch }) and its stamps say what it moved. `keep` and `reject` are variant patches from a pass
+ * before (the game's variants are never minted, so a pass is carried by its patches); `roll` replays an order.
+ */
+async function varyGame(ref, vary, chapter) {
+  if (!isObj(vary)) throw new Error('design_game: vary is { at?, concept?, n?, principles?, keep?, reject?, spread?, roll? }');
+  const row = SketchRepository.getByRef(ref);
+  if (!row) throw new Error(`design_game: no sketch at '${ref}'`);
+  if (!isGameworldKind(row.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}', not a gameworld`);
+  const unit = chapter !== undefined ? unitOf(chapter) : null;
+  let at = vary.at;
+  if (at === undefined && unit) {
+    if (unit.level) {
+      const i = (row.manifest.levels ?? []).findIndex((l) => l?.id === unit.level);
+      if (i < 0) throw new Error(`design_game: the game has no level '${unit.level}' to vary`);
+      at = `/levels/${i}`;
+    } else at = unit.chapter.paths.find((q) => q.slice(1).split('/').reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), row.manifest) !== undefined);
+    if (at === undefined) throw new Error(`design_game: the ${unit.chapter.name.toLowerCase()} chapter writes nothing yet to vary`);
+  }
+  const passOf = (list, name) => {
+    if (list === undefined) return [];
+    if (!Array.isArray(list) || list.some((p) => !Array.isArray(p))) throw new Error(`design_game: vary.${name} is a list of variant patches (each a list of ops) from a pass before`);
+    return list.map((p) => applyManifestPatch(row.manifest, p).manifest);
+  };
+  const [{ turnMangekyou, rollOrder }, { checkGameworldManifest }] = await Promise.all([import('@/lib/graph/mangekyou/index.js'), import('./sketch-mint.js')]);
+  // a proposal the game would refuse is never offered: the reader's own gate, the next candidate in its place
+  const gate = (m) => { try { checkGameworldManifest(m); return null; } catch (err) { return err.message; } };
+  const turned = turnMangekyou({
+    gate,
+    manifest: row.manifest, at, concept: vary.concept, n: vary.n, principles: vary.principles, spread: vary.spread,
+    kept: passOf(vary.keep, 'keep'), rejected: passOf(vary.reject, 'reject'),
+    roll: vary.roll ?? rollOrder(), by: unit ? unit.chapter.department : 'user',
+  });
+  return {
+    ref,
+    vary: {
+      order: { ...turned.order, from: { ref, title: row.title, kind: row.manifest.kind } },
+      variants: turned.variants.map(({ id, says, moves, patch, distance }) => ({ id, says, moves, patch, distance })),
+      spread: turned.spread,
+    },
+    next: `Proposals only: nothing was written. Take one with design_game({ ref: '${ref}', patch: <its patch> }); the next pass `
+      + `is design_game({ ref: '${ref}', vary: { …this order, keep: [patches you like], reject: [patches you do not] } }); `
+      + `the same order again is roll ${turned.order.roll}.`,
+  };
+}
+
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production?, as? }');
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production?, as?, vary? }');
   const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter: named, req, ask, trace, preview, production, as } = input;
   // a job's seat (`as`): its own view and its report, nothing else; its chapter defaults to its unit
   const seat = as !== undefined ? jobSeat(input) : null;
@@ -591,6 +664,11 @@ export async function designGameHandler(input, context = {}) {
   if (preview !== undefined && (preview !== true || patch === undefined || written !== undefined || given === undefined)) throw new Error('design_game: preview: true goes with a ref and a patch: it says what the patch would do and writes nothing');
   if (preview === true && (ask !== undefined || req !== undefined || approve !== undefined || revise !== undefined || asked !== undefined)) throw new Error('design_game: a preview writes nothing: give it alone with its patch, then the ask, verdicts or run with the patch itself');
   if (chapter !== undefined && !unitOf(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`), or one level as 'level:<id>'`);
+  if (input.vary !== undefined) {
+    const others = Object.keys(input).filter((k) => !['ref', 'vary', 'chapter', 'as'].includes(k) && input[k] !== undefined);
+    if (!given || others.length) throw new Error(`design_game: vary goes with a ref (and a chapter or seat) alone: it proposes and writes nothing${others.length ? ` (not with ${others.join(', ')})` : ''}`);
+    return varyGame(given, input.vary, chapter);
+  }
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
@@ -639,7 +717,7 @@ export async function designGameHandler(input, context = {}) {
     // a preview: what the patch would do, and nothing written
     if (preview === true) return previewPatch(ref, patchVehicleWords(patch).patch);
     // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
-    if (patch !== undefined) await updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) });
+    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) }));
   }
   // what the vehicle registry read: a word written as its table's key (absent when none was)
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
@@ -649,13 +727,25 @@ export async function designGameHandler(input, context = {}) {
     // a req naming the main quest read as the levels it plays on (and those a run would lay, laid); then a job's report
     // or a kept proposal, written before the readout reads the world
     const reqIn = req !== undefined ? await questReq(ref, req) : undefined;
-    const reqDone = reqIn !== undefined ? await reqWrites(ref, reqIn) : null;
+    const reqDone = reqIn !== undefined ? await oneWrite(ref, () => reqWrites(ref, reqIn)) : null;
     const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req: reqIn, reqDone, ask, trace, production, seat }, context);
     return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
   }
+}
+
+// ONE WRITE AT A TIME A WORLD: a crew's authors report at once, and each patch is read whole and applied onto the recipe
+// as it is stored; the update reads the recipe and awaits its gates before it writes, so two applied together would
+// write over each other (the second dropping the first's segment). Each waits for the one before it; reads never wait.
+const WRITES = new Map();
+function oneWrite(ref, fn) {
+  const run = (WRITES.get(ref) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => {});
+  WRITES.set(ref, tail);
+  tail.then(() => { if (WRITES.get(ref) === tail) WRITES.delete(ref); });
+  return run;
 }
 
 // what a job's seat may send beside `as`: its view (chapter, readout) and its report (req, naming its own job)
@@ -718,7 +808,8 @@ function checkReq(req) {
     if (req.quest !== true || req.unit !== undefined || req.id !== undefined) throw new Error('design_game: { req: { quest: true, staffing?, budget? } } asks for every built beat of the main quest, in its order; give no unit or id with it');
   } else if ((req.unit === undefined) === (req.id === undefined)) throw new Error('design_game: a req names its `unit` (to raise one) or its `id` (r1, r2 …), one or the other');
   const beat = typeof req.unit === 'string' && /^(beat|act):[a-z][a-z0-9-]*$/.test(req.unit);
-  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', a main quest beat as 'beat:<id>', or a whole act of it as 'act:<id>' (its town, its outskirts and its dungeon, worked as one)`);
+  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', one segment of a planned map as 'level:<id>/<segment>', a main quest beat as 'beat:<id>', or a whole act of it as 'act:<id>' (its town, its outskirts and its dungeon, worked as one)`);
+  if (req.segments !== undefined && (req.segments !== true || !(typeof req.unit === 'string' && unitOf(req.unit)?.level != null && unitOf(req.unit).segment == null))) throw new Error('design_game: segments: true goes with a planned map\'s level (unit: \'level:<id>\'): every segment of its plan, an author each, worked as one');
   if (req.staffing !== undefined && !STAFFING[req.staffing]) throw new Error(`design_game: a req's staffing is ${Object.keys(STAFFING).join(' or ')}`);
   if (req.remit !== undefined && req.remit !== null && !isObj(req.remit)) throw new Error('design_game: a req\'s remit is an object (a level\'s: in, out, band, idea, foes, beat)');
   if (req.budget !== undefined && !isObj(req.budget)) throw new Error('design_game: a req\'s budget is an object (jobs, tier, diverge, critics, reissues)');
@@ -739,6 +830,22 @@ function checkReq(req) {
  * key by key). A beat whose level a run would lay is laid now, as the run lays it, so its req has a level to name.
  * → the req as the ledger takes it ({ …, raise: [{ unit, remit, beat }], questSaid? }), or the req as it was. */
 async function questReq(ref, req) {
+  // a planned map's SEGMENTS (gameworld/segments.js): one req, its first segment the unit and the rest its crew, an
+  // author each; the segments' page laid, so each author's set lands
+  const seg = typeof req.unit === 'string' ? unitOf(req.unit) : null;
+  if (seg?.level != null && (req.segments === true || seg.segment != null)) {
+    const W0 = gameworldOf(SketchRepository.getByRef(ref).manifest);
+    try { (req.segments ? segmentUnits(W0, seg.level) : [req.unit]).forEach((u) => checkSegment(W0, u)); } catch (e) { throw new Error(`design_game: ${e.message}`); }
+    if (!isObj(W0.levels[seg.level].glyphs.segments)) await updateSketchHandler({ ref, patch: [{ op: 'set', path: `/levels/${seg.level}/glyphs/segments`, value: {} }], note: 'design_game: the planned map\'s segments laid for its authors' });
+    // (and its sketch's: each author plans its segment in miniature too, level/map-sketch.js)
+    const sk = W0.levels[seg.level].glyphs.sketch;
+    if (!isObj(sk) || !isObj(sk.segments)) await updateSketchHandler({ ref, patch: [{ op: 'set', path: `/levels/${seg.level}/glyphs/sketch`, value: { ...(isObj(sk) ? sk : {}), segments: {} } }], note: 'design_game: the planned map\'s sketch laid for its authors' });
+    if (req.segments === true) {
+      const units = segmentUnits(W0, seg.level), { unit: _u, segments: _s, ...rest } = req;
+      // (a budget for the crew: an author a segment and one rework each, the critics and the assistant beside them)
+      return { ...rest, budget: req.budget ?? { jobs: units.length * 2 + 3, reissues: units.length }, raise: [{ unit: units[0], remit: req.remit ?? null, crew: units.slice(1) }] };
+    }
+  }
   const beat = typeof req.unit === 'string' && req.unit.startsWith('beat:') ? req.unit.slice(5) : null;
   const act = typeof req.unit === 'string' && req.unit.startsWith('act:') ? req.unit.slice(4) : null;
   if (!beat && !act && req.quest !== true) return req;
@@ -801,6 +908,12 @@ async function reqWrites(ref, req) {
     const job = named(req.job);
     if (!job) throw new Error(`design_game: no job '${req.job}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued: start it'})`);
     try { checkSubmit(job, req); } catch (e) { throw new Error(`design_game: ${e.message}`); }
+    // (a segment's author writes its segment only: two authors of one map never write one path)
+    const seg = (job.kind === 'author' || job.kind === 'diverge') ? unitOf(jobUnit(job, r)) : null;
+    const past = seg?.segment != null ? outsideOf(jobUnit(job, r), req.patch) : [];
+    if (past.length) throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued): ${jobUnit(job, r)} writes its segment only (/levels/${seg.level}/glyphs/segments/${seg.segment} and its sketch, /levels/${seg.level}/glyphs/sketch/segments/${seg.segment}), not ${past.join(', ')}`);
+    // (a segment's sketch is approved by the creator, never by its author)
+    if (seg?.segment != null && approvesSketch(req.patch)) throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued): a segment's sketch is approved by the creator, never by its author (leave its status a draft)`);
     // a patch the door would refuse is refused before anything is written and before the job moves: the recipe and the
     // job stay as they were, so the job reports again (an author's patch is applied at once, a diverge one later)
     if (Array.isArray(req.patch) && (job.kind === 'author' || job.kind === 'diverge')) {
@@ -908,6 +1021,11 @@ const probeState = (receipt) => {
   return /probe again|not played|no stage/.test(c.says ?? '') ? 'none' : 'failed';
 };
 
+// (an op that sets a sketch's status approved: the whole segment's sketch, or its status alone)
+const approvesSketch = (patch = []) => patch.some((op) => typeof op?.path === 'string' && /\/glyphs\/sketch\/segments\/[^/]+(\/status)?$/.test(op.path) && (op.value === 'approved' || op.value?.status === 'approved'));
+// (a segment's author is handed its plan's remit: its gates, role, words, the beats on it, the floor its fill lays)
+const segmentBrief = (W, j, r) => ((j.kind === 'author' || j.kind === 'diverge') && unitOf(jobUnit(j, r))?.segment != null ? { segment: segmentRemit(W, jobUnit(j, r)) } : {});
+
 /** A req as its unit's view carries it: its remit, precedent, budget, what the director does next, and its jobs (an
  * issued job's brief, a reported one's report). */
 function reqView(ref, r, reqs, { W, parts, seat = null, agents = false }) {
@@ -923,7 +1041,7 @@ function reqView(ref, r, reqs, { W, parts, seat = null, agents = false }) {
     ...V, ...(r.crew?.length ? { crew: unitsOf(r) } : {}), ...(r.style ? { style: r.style } : {}),
     ...(mine ? { intent: { ask: mine.id, intent: mine.intent } } : {}), does: nextOf(jobs, { level, probe: probeState(receipt), presented: !!r.verdict?.presented }), receipt,
     ...(notebook.length ? { notebook } : {}),
-    ...(jobs.length ? { jobs: jobs.filter((j) => !seat || j.id === seat.job.id || seat.job.kind === 'assistant').map((j) => (j.status === 'issued' ? jobBrief(j, r, { ref, agents }) : j.kind === 'probe' ? { job: j.id, kind: 'probe', holds: j.report?.holds ?? false, ...(j.report?.skipped ? { skipped: j.report.skipped } : {}), checks: j.report?.checks ?? [], frames: (j.report?.frames ?? []).map((f) => f.file ?? `${f.ref} at ${f.at}s`) } : jobReport(j))) } : {}),
+    ...(jobs.length ? { jobs: jobs.filter((j) => !seat || j.id === seat.job.id || seat.job.kind === 'assistant').map((j) => (j.status === 'issued' ? { ...jobBrief(j, r, { ref, agents }), ...segmentBrief(W, j, r) } : j.kind === 'probe' ? { job: j.id, kind: 'probe', holds: j.report?.holds ?? false, ...(j.report?.skipped ? { skipped: j.report.skipped } : {}), checks: j.report?.checks ?? [], frames: (j.report?.frames ?? []).map((f) => f.file ?? `${f.ref} at ${f.at}s`) } : jobReport(j))) } : {}),
   };
 }
 
@@ -1294,6 +1412,7 @@ export function registerDesignGameTools() {
         preview: { type: 'boolean' },
         production: { type: 'object' },
         as: { type: 'string', description: 'A job\'s seat, r<n>.j<n>: its own view.' },
+        vary: { type: 'object', description: 'Proposed variations { concept, n }.' },
       },
       required: [],
     },

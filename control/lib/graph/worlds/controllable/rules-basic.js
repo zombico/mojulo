@@ -145,6 +145,9 @@ export function buildRulesBasic(E) {
         const sens = r.lookSens ?? 0.0035;
         e.camYaw = wrapA(e.camYaw + (input.lookDX || 0) * sens);
         e.camPitch = Math.max(-0.45, Math.min(0.7, (e.camPitch || 0) + (input.lookDY || 0) * sens));
+        // (`lockTrack` with a foe locked on, lock.js: the yaw swings round behind the hero to hold the foe ahead, at
+        // `lockRate`/s; the look turns it again once the lock is let go)
+        if (lkTgt && lkMix > 0.5) { const want = Math.atan2(lkTgt.transform.pos[1] - tgt.transform.pos[1], lkTgt.transform.pos[0] - tgt.transform.pos[0]); e.camYaw = wrapA(e.camYaw + wrapA(want - e.camYaw) * smooth(r.lockRate ?? 5, dt)); }
         pSteer = e.camPitch;
       } else {
         // (only a heading that has settled: while the hero turns round fast, the view waits for where it ends up)
@@ -174,6 +177,11 @@ export function buildRulesBasic(E) {
       tgt.transform.pos[1] - f[1] * dist * cp + rt[1] * shoulder,
       tz + height - dist * sp,
     ];
+    // THE FIRST LOOK (opt-in `vista: { at, secs?, rise? }`, a level's opening, gameworld/levels.js): for its first `secs`
+    // of play the chase stands `rise` metres higher and looks at `at`, the place the level is about, over what grows round
+    // the start; eased back down into the chase over its last third. Absent → the chase as it was.
+    const vT = r.vista && Array.isArray(r.vista.at) ? r.vista.secs ?? 6 : 0, vq = vT && world.time < vT ? 1 - Math.max(0, (world.time - vT * 2 / 3) / (vT / 3)) : 0, vs = vq * vq * (3 - 2 * vq);
+    if (vs) want[2] += (r.vista.rise ?? 16) * vs;
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
     e.lookAt = [
@@ -181,6 +189,7 @@ export function buildRulesBasic(E) {
       tgt.transform.pos[1] + f[1] * lead * cp,
       tz + lookH + lead * sp,
     ];
+    if (vs) { const a = r.vista.at; e.lookAt = [e.lookAt[0] + (a[0] - e.lookAt[0]) * vs, e.lookAt[1] + (a[1] - e.lookAt[1]) * vs, e.lookAt[2] + (a[2] - e.lookAt[2]) * vs]; }
     // ROLL (skyscape, opt-in `rollFollow` 0..1): the chase banks with a target that rolls (the fly rule's tilt.roll),
     // eased on the same lerp, so a turn reads as a bank and the horizon tilts. Absent, `e.roll` is never set.
     if (r.rollFollow) { const want = ((tgt.tilt && tgt.tilt.roll) || 0) * r.rollFollow; e.roll = (e.roll || 0) + (want - (e.roll || 0)) * k; }
@@ -241,25 +250,58 @@ export function buildRulesBasic(E) {
     e.lookAt = [p[0], p[1], p[2] + lookH];
   }
 
+  // a lane's ENDS (side `ends`): its chord, the line from its first point to its last, which a level's start and end edges
+  // stand square to. `along` the point's place on it; `hold` the point held `m` metres in from either end on it; `square`
+  // how near an end the point is, 1 at an end down to 0 at twice `m` in (the camera turns square to the chord there)
+  function laneChord(lane) {
+    const a = lane[0], b = lane[lane.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return { a, L, ux: (b[0] - a[0]) / L, uy: (b[1] - a[1]) / L };
+  }
+  function laneEnds(C, p, m) {
+    const u = (p[0] - C.a[0]) * C.ux + (p[1] - C.a[1]) * C.uy, k = u < m ? m - u : u > C.L - m ? C.L - m - u : 0;
+    return k ? [p[0] + k * C.ux, p[1] + k * C.uy, p[2]] : p;
+  }
+  const laneSquare = (C, p, m) => { const u = (p[0] - C.a[0]) * C.ux + (p[1] - C.a[1]) * C.uy; return clamp(1 - (Math.min(u, C.L - u) - m) / m, 0, 1); };
+
   // side — the side-scroller's camera: it stands `dist` off the target's lane, square to it on the right of the way the
   // lane was drawn, so running forward along the lane (D) runs right across the screen. Raised by `tilt` (radians,
   // 0.2 by default) and looking at the target `lookH` above its position. On a bending lane it swings round with the
-  // bend at `turnLerp`/s, never snapping; a target with no lane is watched from a fixed `yaw`.
+  // bend at `turnLerp`/s, never snapping; a target with no lane is watched from a fixed `yaw`; `band` settles its height,
+  // `ends` holds the frame in from the lane's ends.
   function side(e, input, dt, world) {
     const r = e.rule, tgt = world.byId[r.target];
     if (!tgt) return;
-    const G = groupFrame(r, world, r.dist ?? 11), p = G ? G.p : tgt.transform.pos, lane = tgt.rule && tgt.rule.lane;
+    const G = groupFrame(r, world, r.dist ?? 11), lane = tgt.rule && tgt.rule.lane;
+    let p = G ? G.p : tgt.transform.pos;
+    // (`ends`: metres — the frame stops that far in from either end of the lane (along its chord), the target walking on
+    // to the screen's edge, and turns square to the chord near them, so the camera never looks past the lane's ends;
+    // absent, it centres the target everywhere)
+    const ends = r.ends > 0 && Array.isArray(lane) && lane.length >= 2 ? laneChord(lane) : null;
+    if (ends) p = laneEnds(ends, p, r.ends);
     let want = r.yaw ?? HALF_PI;
-    if (Array.isArray(lane) && lane.length >= 2) { const L = laneNear(lane, p[0], p[1]); want = Math.atan2(L.ty, L.tx) + HALF_PI; }
+    if (Array.isArray(lane) && lane.length >= 2) {
+      const L = laneNear(lane, p[0], p[1]);
+      want = Math.atan2(L.ty, L.tx) + HALF_PI;
+      // (near an end, square to the chord: the level's edge seen edge-on at the frame's border, not across)
+      if (ends) { const w = laneSquare(ends, p, r.ends), c = Math.atan2(ends.uy, ends.ux) + HALF_PI, d = ((c - want + Math.PI) % TAU + TAU) % TAU - Math.PI; want += d * w; }
+    }
     if (e._sideYaw == null) e._sideYaw = want;   // start square on: no swing on load
     const d = ((want - e._sideYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
     e._sideYaw += d * smooth(r.turnLerp ?? 2.5, dt);
     const yaw = e._sideYaw, tilt = clamp(r.tilt ?? 0.2, 0, 1.2), dist = G ? G.dist : r.dist ?? 11, lookH = r.lookH ?? 1.2;
     const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt);
-    const pos = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
+    // (`band`: [below, above] metres — the height eased at `zLerp`/s while the target stands and held through a jump
+    // inside the band, so a stair's risers and a hop do not bob the frame; absent, the height is followed as the rest)
+    let z = p[2];
+    if (Array.isArray(r.band)) {
+      if (e._sideZ == null) e._sideZ = z;
+      if (tgt.grounded !== false || z < e._sideZ - r.band[0] || z > e._sideZ + r.band[1]) e._sideZ += (z - e._sideZ) * smooth(r.zLerp ?? 3, dt);
+      z = e._sideZ;
+    }
+    const pos = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, z + lookH + dist * s];
     e.transform.pos = add(e.transform.pos, scl(sub(pos, e.transform.pos), smooth(r.lerp ?? 8, dt)));
     e.transform.heading = yaw;
-    e.lookAt = [p[0], p[1], p[2] + lookH];
+    e.lookAt = [p[0], p[1], z + lookH];
   }
 
   // fixed — the survival-horror camera: STATIONS, each a camera standing `at` and watching the floor round its `focus`.

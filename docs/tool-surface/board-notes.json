@@ -8,25 +8,25 @@
       "name": "Reality",
       "owner": "7th-gen agent: the rungs",
       "stage": "mapped",
-      "next": "The 6.5 / 7.0 / 7.5 rungs are the 7th-gen agent’s. Structure here stays shared."
+      "next": "Gen-7 is priced (the era large, the cast large and needing the era). Sound from a designed gameworld is the widest recipe: a quick game says its music and effects, a designed one has no word, and no level reads the SFX shelf. The level HUD on mana-ui is the interface gap left."
     },
     "space": {
       "name": "Space",
       "owner": "Claude: gap filling",
       "stage": "designing",
-      "next": "Top-down camera is third in the build order (M). First person is now partial: it already plays."
+      "next": "The written map, its zones and the megaworld are built; open still waits on a border crossed anywhere and a page streamed. The headset is partial: the level HUD reaches it as lines, and no eyes gate has run."
     },
     "power": {
       "name": "Power",
       "owner": "Claude: gap filling",
       "stage": "designing",
-      "next": "Dodge, tackle, loadout cycling and boost inertia are engine verbs now (MX2b). Turn-based combat remains the one absent value."
+      "next": "Knockback, the destruction degrees and destructible physics, triggered breaks, the vayo moves, the guard and the feel card are built. The throw is the brawler’s alone and the storeys-high leap is in parts: comic-blows. The brawler and the crewed machines wait on a gameworld’s door."
     },
     "soul": {
       "name": "Soul",
       "owner": "Claude: gap filling",
       "stage": "mapped",
-      "next": "Party play in a level (M) ranks low; it waits."
+      "next": "The mascot pilots; a stored animal or creature still does not. A flight’s body is still a slab while the craft shelf holds real airframes. The seat settings are as they were."
     },
     "mind": {
       "name": "Mind",
@@ -38,10 +38,16 @@
       "name": "Time",
       "owner": "Operator + agent, own branch",
       "stage": "designing",
-      "next": "Its own branch: you and another agent, seeded by the tutorial step director."
+      "next": "Held cinematics, replay in play, keying, quest turns and side quests by the main quest are the priced gaps; a moment takes the camera and the look."
     }
   },
   "log": [
+    {
+      "at": "2026-11-10T12:00:00Z",
+      "facet": "power",
+      "milestone": true,
+      "text": "The cube caught up with November’s merges (through 1109-geocube-sharpening). Marked built: knockback, the destruction degrees and destructible physics, triggered breaks, the vayo moves, the guard and parry, the feel card, the written map, the course, the world map’s zones and the megaworld’s rings, the scenario and the play layer, the screen a game is made for, the mascot, the body kinds, the front and the shell on mana-ui, the grade and the juice, a moment that takes the camera. Priced: gen-7, sound from a gameworld, the level HUD on mana-ui, the headset. Four probes (a 3D platformer, an action RPG, a destruction sandbox, a headset adventure): three makeable. Values now say the day they were built, and the page counts what the last fortnight’s made: 66 of 72 makeable random worlds, 120 of 302 near the probes."
+    },
     {
       "at": "2026-10-25T21:30:00Z",
       "facet": "power",

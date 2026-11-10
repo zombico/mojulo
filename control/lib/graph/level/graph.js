@@ -5,11 +5,15 @@
  * starts is a separate concern, the SPAWN (a node and where on it), the root's entry unless it says otherwise.
  *
  *   level: {
- *     layout: 'sequential',               // the behaviour that lays the graph out (sequential.js)
+ *     layout: 'sequential' | 'map',       // the behaviour that lays the graph out: one walk (sequential.js), or a map
+ *                                         // whose junctions branch (map.js: every section placed, one page)
  *     kit?, seed?,                        // what every node takes unless it names its own
  *     root?: '<node id>',                 // node 0; the first node listed unless named
- *     nodes: { '<id>': { trail: {…} | true, kit?, seed? } | { meru: {…} | true, kit?, seed? }, … },
- *     edges?: [ { from, to, kind?: 'seam' } ],   // sequential: omitted, the nodes in the order listed
+ *     nodes: { '<id>': { trail: {…} | true, kit?, seed? } | { meru: {…} | true, kit?, seed? }
+ *              | { junction: { radius?, gates: { '<gate>': <bearing°> } }, kit?, seed? }, … },   // a junction: a hub
+ *                                         // (map layout), flat, its gates on its edge at compass bearings (0 its +y)
+ *     edges?: [ { from, to, kind?: 'seam', gate? } ],   // sequential: omitted, the nodes in the order listed; `gate`:
+ *                                         // the junction gate the edge leaves from (or arrives at)
  *     spawn?: { node, at?: 'entry' },
  *     ground?: { heartbeat?, cell?, tune?, rise?, edits? },   // the level's own ground, on a top-down grid (ground.js)
  *     geocube?: <cube>, terrain?: '<name>',   // the cube paints every section once (its outside's look on one of its
@@ -35,8 +39,10 @@ import { readGeocube, pickTerrain, pickDomain, lowerGeocube, geocubeTerrains } f
 import { readHour } from '../era/geocube-hours.js';
 import { readClouds } from '../matte-paint/sky.js';
 
-export const LEVEL_LAYOUTS = Object.freeze(['sequential']);
-export const LEVEL_SECTIONS = Object.freeze(['trail', 'meru']);
+export const LEVEL_LAYOUTS = Object.freeze(['sequential', 'map']);
+export const LEVEL_SECTIONS = Object.freeze(['trail', 'meru', 'junction']);
+/** A JUNCTION's reach: its radius in metres (a crossroads to a town square), and how many gates it takes. */
+export const JUNCTION = Object.freeze({ radius: [8, 60, 14], gates: [2, 6] });
 export const LEVEL_EDGES = Object.freeze({ seam: 'the next section starts where this one leaves: its line, heading, height and ground' });
 export const SPAWN_AT = Object.freeze(['entry']);
 
@@ -111,6 +117,10 @@ export function readLevel(L) {
     if (raw !== true && !isObj(raw)) throw new Error(`level: ${at}.${section} is its section's recipe (or true)`);
     const recipe = raw === true ? {} : { ...raw };
     for (const k of ['id', 'after']) if (recipe[k] !== undefined) throw new Error(`level: ${at}.${section}.${k}: the graph owns it (the node's key is its id; an edge says what it follows)`);
+    if (section === 'junction') {
+      if (layout !== 'map') throw new Error(`level: ${at} is a junction: a junction branches, so its level is laid as a map (layout: 'map')`);
+      readJunction(recipe, at);
+    }
     if (n.seed !== undefined && !Number.isFinite(n.seed)) throw new Error(`level: ${at}.seed is a number`);
     const sky = n.weather === undefined ? weather : readWeather(n.weather, `${at}.weather`);
     const painted = !!paint && n.kit === undefined;
@@ -131,12 +141,17 @@ export function readLevel(L) {
     if (!Array.isArray(L.edges)) throw new Error('level: edges is a list of { from, to, kind? }');
     edges = L.edges.map((e, i) => {
       if (!isObj(e)) throw new Error(`level: edges[${i}] is { from, to, kind? }`);
-      for (const k of Object.keys(e)) if (!['from', 'to', 'kind'].includes(k)) throw new Error(`level: edges[${i}].${k} is not an edge setting (settings: from, to, kind)`);
+      for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'gate'].includes(k)) throw new Error(`level: edges[${i}].${k} is not an edge setting (settings: from, to, kind, gate)`);
       for (const k of ['from', 'to']) if (!nodes[e[k]]) throw new Error(`level: edges[${i}].${k} '${e[k]}' is not a node (nodes: ${ids.join(', ')})`);
       if (e.from === e.to) throw new Error(`level: edges[${i}] joins '${e.from}' to itself`);
       const kind = e.kind === undefined ? 'seam' : e.kind;
       if (!LEVEL_EDGES[kind]) throw new Error(`level: edges[${i}].kind '${kind}' is not an edge kind (kinds: ${Object.keys(LEVEL_EDGES).join(', ')})`);
-      return { from: e.from, to: e.to, kind };
+      // (a gate is a junction's: the one the edge leaves from, else the one it arrives at)
+      const J = nodes[e.from].section === 'junction' ? nodes[e.from] : nodes[e.to].section === 'junction' ? nodes[e.to] : null;
+      if (e.gate !== undefined && !J) throw new Error(`level: edges[${i}].gate: neither '${e.from}' nor '${e.to}' is a junction`);
+      if (J && e.gate === undefined) throw new Error(`level: edges[${i}] meets the junction '${J.id}': name its gate (gates: ${Object.keys(J.recipe.gates).join(', ')})`);
+      if (J && !Object.hasOwn(J.recipe.gates, e.gate)) throw new Error(`level: edges[${i}].gate '${e.gate}' is not one of '${J.id}''s gates (gates: ${Object.keys(J.recipe.gates).join(', ')})`);
+      return { from: e.from, to: e.to, kind, ...(J ? { gate: e.gate } : {}) };
     });
   }
 
@@ -156,3 +171,17 @@ export function readLevel(L) {
 
 /** The look a kit draws its open ground in (a trail followed is planned in its follower's look). */
 export const styleOfKit = (kit) => stageKit(kit).style || null;
+
+/** Read a junction's recipe (map.js): { radius?, gates: { <gate>: <bearing°, 0 the frame's +y, clockwise> } }. */
+export function readJunction(r, at = 'junction') {
+  for (const k of Object.keys(r)) if (!['radius', 'gates', 'surface'].includes(k)) throw new Error(`level: ${at}.junction.${k} is not a junction setting (settings: radius, gates, surface)`);
+  const [lo, hi] = JUNCTION.radius;
+  if (r.radius !== undefined && !(Number.isFinite(r.radius) && r.radius >= lo && r.radius <= hi)) throw new Error(`level: ${at}.junction.radius is ${lo} to ${hi} metres`);
+  const g = r.gates, names = isObj(g) ? Object.keys(g) : [];
+  if (!isObj(g) || names.length < JUNCTION.gates[0] || names.length > JUNCTION.gates[1]) throw new Error(`level: ${at}.junction.gates is { <gate>: <bearing in degrees> }, ${JUNCTION.gates[0]} to ${JUNCTION.gates[1]} of them`);
+  for (const n of names) {
+    if (!ID.test(n)) throw new Error(`level: ${at}.junction.gates: '${n}' is a short lower-case name`);
+    if (!Number.isFinite(g[n])) throw new Error(`level: ${at}.junction.gates.${n} is a bearing in degrees (0 the level's +y, clockwise)`);
+  }
+  return { radius: r.radius ?? JUNCTION.radius[2], gates: { ...g } };
+}

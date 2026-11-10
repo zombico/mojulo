@@ -37,12 +37,14 @@ import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
+import { hasScripts, withScripts, scriptStage } from './scene-script.js';
 import { questProgram } from './quests.js';
 import { withPartyCues } from './party.js';
 import { withRoutineCues } from './routines.js';
 import { withBattle } from './battles.js';
 import { withRpg, lowerRpg } from '../rpg/rpg.js';
 import { withMinigames, lowerMinigames } from './minigames.js';
+import { manaThemeOfGuide } from './mana-theme.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -224,7 +226,10 @@ export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
-  const play = withMinigames(withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play)))))));
+  // a scene's script beats (scene-script.js) are lowered first, on the page's characters and places, into the beats the
+  // scenes below read as their own
+  const base = manifest && manifest.play, scripted = hasScripts(base) ? withScripts(base, scriptStage(manifest, base, anchors, player)) : base;
+  const play = withMinigames(withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(scripted)))))));
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
@@ -267,6 +272,9 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
       out.register = { ...u.guide.dials, ...(u.guide.border ? { border: [...u.guide.border.elements] } : {}), ...(u.guide.pixel ? { pixel: u.guide.pixel } : {}), ...(u.guide.inventory ? { inventory: { ...u.guide.inventory } } : {}) };
     }
     else out.style = { ...GREYBOX_TOKENS, font: 'system' };
+    // the battles' screens (mana-ui's) wear the guide as a theme: its tokens, dials, border and stop; the greybox until
+    // the guide is settled, as the HUD's
+    if (out.rpg) out.rpg = { ...out.rpg, theme: uiSettled(u) ? manaThemeOfGuide(u.guide) : 'greybox' };
   }
   return Object.keys(out).length ? out : null;
 }

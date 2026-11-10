@@ -25,6 +25,25 @@ describe('the world clock', () => {
     expect(CW.createWorld({ entities: [ent('a', 0)], tempo: { moments: [{ scale: 0.5 }] } })).not.toHaveProperty('tempo');   // a moment fires on something
   });
 
+  it('a moment fired by name is ended early by name: eased out from its hold, at once with no ramp; another\'s name ends nothing', () => {
+    const w = world({ moments: [{ on: 'slow', scale: 0.2, hold: 30, ramp: 0.25 }, { on: 'freeze', scale: 0, hold: 30 }] });
+    CW.tempoMoment(w, 'slow');
+    run(w, 30);
+    expect(CW.tempoScale(w)).toBeCloseTo(0.2, 6);
+    expect(CW.tempoEnd(w, 'freeze')).toBe(false);                           // not the one playing
+    expect(CW.tempoEnd(w, 'slow')).toBe(true);
+    run(w, 5);
+    expect(CW.tempoScale(w)).toBeGreaterThan(0.2);                           // easing out over its ramp
+    run(w, 20);
+    expect(CW.tempoScale(w)).toBe(1);
+    CW.tempoMoment(w, 'freeze');
+    run(w, 2);
+    expect(CW.tempoScale(w)).toBe(0);
+    CW.tempoEnd(w, 'freeze');                                                // no ramp: over at once, a weaker moment may play
+    expect(CW.tempoScale(w)).toBe(1);
+    expect(CW.tempoMoment(w, 'slow')).toBe(true);
+  });
+
   it('a moment fires on its signal: the world slows for its hold, the camera keeps real time, then real time comes back', () => {
     const w = world({ moments: [{ on: 'down:foe', scale: 0.25, hold: 0.5 }] });
     expect(run(w, 5).every((d) => Math.abs(d - DT) < 1e-12)).toBe(true);

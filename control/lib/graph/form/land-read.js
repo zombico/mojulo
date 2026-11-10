@@ -169,7 +169,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const alpha = f.cornerAlpha || f.corners.map(() => 1);
     // (a layered face's corner: its layers' weights, and its base their solved bases by weight; wet sand keeps its own)
     const wAt = (j) => (layered(F, i) ? LY.weightAt(f.corners[j]) : F.under ? [0, 0, 0, 1] : [0, 0, 0, 0]);
-    const base = F.cls ? F.base : hexRgb(f.fill), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? [0, 1, 2].map((c) => Math.round(wAt(j).reduce((s, x, li) => s + x * roleBase[li][c], 0))) : base);
+    // (a face the read does not class keeps its paint: its fill, else its first corner's, a textured face's grey)
+    const base = F.cls ? F.base : hexRgb(f.fill ?? f.cornerFills?.[0] ?? '#808080'), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? [0, 1, 2].map((c) => Math.round(wAt(j).reduce((s, x, li) => s + x * roleBase[li][c], 0))) : base);
     let R = ranges[ranges.length - 1];
     if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });
     for (let k = 1; k + 1 < f.corners.length; k++) for (const j of [0, k, k + 1]) {

@@ -167,6 +167,19 @@ describe('the party on the map', () => {
     expect(alone.party.length).toBeGreaterThan(1);
     expect(() => readBattles({ followers: 'no' })).toThrow(/followers is true .* or false/);
   });
+
+  it('a party RPG\'s party walks in the hero\'s footsteps, never fights on the map, each at its own distance', () => {
+    const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } };
+    const M = levels(W({}, { characters: cast }))[0].order.manifest;
+    const party = M.entities.filter((e) => e.rule?.mind?.motivation === 'escort');
+    expect(party.length).toBeGreaterThan(1);
+    for (const e of party) expect(e.rule).toMatchObject({ escort: 'hero', trail: true, mind: { aggressiveness: 'passive' } });
+    // (a slanted group, not a file nor a box: each its own slot of the formation, some to either side of the steps; and no
+    // body of theirs holds another up)
+    expect(new Set(party.map((e) => `${e.rule.followDist},${e.rule.flank}`)).size).toBe(party.length);
+    expect(party.some((e) => e.rule.flank > 0) && party.some((e) => e.rule.flank < 0)).toBe(true);
+    expect(party.every((e) => !e.body?.collide)).toBe(true);
+  });
 });
 
 describe('the party joining', () => {

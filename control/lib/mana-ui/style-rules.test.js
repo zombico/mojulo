@@ -10,7 +10,7 @@ const sheet = manaCss('.r');
 // a component drawn as another's markup (a field draws as the input its kind names)
 const DRAWN_AS = { field: 'toggle | cycler | slider | keybind' };
 // variables whose value a theme leaves alone on purpose (the cinema bars are black in every look)
-const FIXED = ['shade'];
+const FIXED = ['shade', 'gleam'];
 
 describe('mana-ui: one style for a game', () => {
   it('every component has its rule in the sheet', () => {

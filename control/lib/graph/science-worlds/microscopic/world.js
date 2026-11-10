@@ -21,7 +21,7 @@ import { MICROSCOPIC_LAWS, AVOGADRO } from './laws.js';
 import { normalizeFilm, defaultShoot, filmConfig } from '../classical/film.js';
 import {
   PALETTE, scl, len, isObj, hex, hexRgb, hexInt, esc,
-  drawScale, times, scaleLiberty, timeLiberty, bar, framing, honesty,
+  drawScale, times, scaleLiberty, timeLiberty, bar, framing, honesty, exhibitName,
 } from '../page.js';
 
 const HOLD = 1.4;   // the mover channel's lifetime clock replays 1.4 s after the last track ends
@@ -147,9 +147,13 @@ function scienceConfig(plan, title) {
     t: tracks.t, period: playback, hold: HOLD, titleHtml: esc(title), titleText: title,
     barWidth: 230, labelWidth: Math.min(90, 8 + 7 * Math.max(...model.species.map((sp) => (dress.species[sp.id]?.label ?? sp.id).length))),
     rows: [
-      ...model.species.map((sp, i) => ({ html: name(sp), bar: true, values: series.counts[sp.id], max: peak, int: true, color: color(i) })),
+      // an aggregating species is counted free: what the aggregation has not taken (its spheres stay single on the page)
+      ...model.species.map((sp, i) => (series.aggregation && solved.aggregation.of === sp.id
+        ? { html: `${name(sp)} free`, bar: true, values: series.aggregation.free, max: peak, int: true, color: color(i) }
+        : { html: name(sp), bar: true, values: series.counts[sp.id], max: peak, int: true, color: color(i) })),
       ...(membrane ? model.species.map((sp) => ({ html: `${name(sp)} on the near side`, values: series.sides[0][sp.id], int: true })) : []),
       ...model.observe.filter((o) => o.quantity === 'concentration').map((o) => ({ html: esc(`[${o.of}]`), values: series.counts[o.of].map(conc), unit: 'mM' })),
+      ...(series.aggregation ? [{ html: 'aggregated', bar: true, values: series.aggregation.fraction, max: 1, plain: true, color: '#f0d28a' }] : []),
     ],
     labels: [],
     honesty: honesty({
@@ -175,13 +179,13 @@ export function planMicroscopicFilm(manifest, plan) {
 /** The World payload (emitThreeWorld) for a microscopic-view manifest. */
 export function assembleMicroscopicScene(manifest = {}, { title, plan: given } = {}) {
   const plan = given ?? planMicroscopicWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
-  const name = title || manifest.title || 'mojulo microscopic world';
+  const name = exhibitName(title || manifest.title, { subjects: plan.solved.model.species.map((sp) => sp.id), laws: [...new Set((plan.solved.model?.laws ?? []).map((l) => l.law))] });
   const film = planMicroscopicFilm(manifest, plan);
   return {
     faces: plan.faces, picks: plan.picks, movers: plan.movers, planets: plan.planets,
     cameras: plan.cameras,
     viewBox: isObj(manifest.viewBox) ? manifest.viewBox : { width: 1120, height: 780 },
-    title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false,
+    title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false, chrome: false,
     ...(plan.dress.hud ? { science: { ...scienceConfig(plan, name), film: film.config } } : {}),
     ...(film.proposed ? { defaultShoot: film.proposed } : {}),
   };

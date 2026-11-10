@@ -16,6 +16,13 @@
  *                    (an overhead), grab (a command throw); each at L / M / H.
  *   SUPERS           a special's bigger self: a freeze, invincibility, damage, a full meter; a `lock` makes it a script
  *                    once it catches: a hit-combo super (in the fight) or a cutscene super (the clock stops).
+ *   PRIORITY         who wins a trade: two strikes landing on the same frame, the higher level's lands and the other's
+ *                    does not (equal levels trade). It scales with strength (a light 1, a medium 2, a heavy 3), a
+ *                    special's is its own (a rush ploughs through, an overhead comes down on top), a super's is 4, and a
+ *                    reversal's (the DP, `rps: 'reversal'`) is 0: its invincibility is how it wins, never a trade.
+ *   STATES           a timed state on a body (an install, a power-up): hits harder, moves faster, takes blows without
+ *                    flinching, for a while. One shelf for every game: a super grants one in the fight (its `install`),
+ *                    a thing on the floor in a brawl; both sims read it, a body holding none carries nothing of it.
  *   WEAPONS          what a fighter may hold: a blade on the grip hand that its strikes hit with (versus-compile.js
  *                    lays the blade, its disjoint and what that costs).
  *
@@ -57,9 +64,9 @@ POSES.lose = P(POSES.crouch, { torso: 60, head: 70, armF: [5, 0], armB: [-5, 0] 
 
 // a strength's frame shape, damage and intended advantage; a family's tempo stretches startup and recovery
 export const STRENGTHS = Object.freeze({
-  L: { startup: 4, active: 2, recovery: 7, damage: 30, adv: { hit: 4, block: 1 }, hitstop: 8, push: 140, meter: 20 },
-  M: { startup: 6, active: 3, recovery: 13, damage: 60, adv: { hit: 4, block: -1 }, hitstop: 10, push: 180, meter: 30 },
-  H: { startup: 9, active: 3, recovery: 20, damage: 90, adv: { hit: 2, block: -4 }, hitstop: 12, push: 220, meter: 40 },
+  L: { startup: 4, active: 2, recovery: 7, damage: 30, adv: { hit: 4, block: 1 }, hitstop: 8, push: 140, meter: 20, priority: 1 },
+  M: { startup: 6, active: 3, recovery: 13, damage: 60, adv: { hit: 4, block: -1 }, hitstop: 10, push: 180, meter: 30, priority: 2 },
+  H: { startup: 9, active: 3, recovery: 20, damage: 90, adv: { hit: 2, block: -4 }, hitstop: 12, push: 220, meter: 40, priority: 3 },
 });
 
 export const STANCES = Object.freeze(['stand', 'crouch', 'air']);
@@ -139,6 +146,19 @@ export const NORMAL_FAMILIES = Object.freeze({
   'air-stomp': {
     stance: 'air', limb: 'toeF', tempo: 1.1, guard: 'overhead', says: 'a jumping heavy kick angled down: deep and late',
     load: P(POSES.jump, { legF: [60, -40, 80] }), strike: P(POSES.jump, { torso: -12, legF: [38, 30, 70], legB: [60, -60, 70] }),
+  },  // THE OVERHEADS a stand normal can be (a COMMAND NORMAL: forward + a button on the ground, COMMAND_SLOTS): slow,
+  // blocked only standing, so a guard held low is opened
+  axe: {
+    stance: 'stand', limb: 'toeF', tempo: 2.6, guard: 'overhead', damage: 1.1, adv: { hit: 2, block: -3 },
+    says: 'an axe kick: the heel brought down from overhead, it must be blocked standing (a command normal: forward + a kick)',
+    load: P(POSES.guard, { torso: -12, legF: [150, 140, 120], armB: [20, 100] }), strike: P(POSES.guard, { torso: 20, legF: [74, 66, 110], legB: [-4, -4, 90] }),
+    follow: P(POSES.guard, { torso: 14, legF: [40, 10, 95] }),
+  },
+  hammer: {
+    stance: 'stand', limb: 'fistF', tempo: 2.4, guard: 'overhead', adv: { hit: 1, block: -2 },
+    says: 'a hammer fist: brought down over the guard, it must be blocked standing (a command normal: forward + a punch)',
+    load: P(POSES.guard, { torso: -6, armF: [165, 175], armB: [40, 110] }), strike: P(POSES.guard, { torso: 24, armF: [96, 104], armB: [50, 110] }),
+    follow: P(POSES.guard, { torso: 18, armF: [80, 110] }),
   },
 });
 
@@ -151,6 +171,9 @@ export const NORMAL_SLOTS = Object.freeze([
 // `limbs`, else the kind's defaults: versus-kinds.js limbsFor): 1 the lead hand, 2 the rear hand, 3 the lead leg, 4 the
 // rear leg
 export const LIMB_SLOTS = Object.freeze(['stand.1', 'stand.2', 'stand.3', 'stand.4', 'crouch.1', 'crouch.2', 'crouch.3', 'crouch.4']);
+// a COMMAND NORMAL: forward + a button on the ground (a recipe's `commands`: { 'forward.M': { family: 'axe' } }), a stand
+// normal read off the stick (the classic and modern schemes; an overhead to open a low guard)
+export const COMMAND_SLOTS = Object.freeze(['forward.L', 'forward.M', 'forward.H']);
 export const LIMB_POINTS = Object.freeze({ 1: ['fistF'], 2: ['fistB'], 3: ['toeF', 'ankleF', 'kneeF'], 4: ['toeB', 'ankleB', 'kneeB'] });
 
 // ── throws ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -172,6 +195,7 @@ export const SPECIALS = Object.freeze({
     strike: P(POSES.guard, { torso: 20, armF: [90, 90], armB: [84, 88], legF: [38, -8, 90], legB: [-38, -30, 70], hip: [80, 0] }),
     at: { L: { startup: 13, recovery: 30, speed: 45 }, M: { startup: 12, recovery: 31, speed: 60 }, H: { startup: 11, recovery: 32, speed: 80 } },
     damage: 60, chip: 15, guard: 'mid', projectile: { w: 260, h: 220, y: -260, life: 150 }, adv: { hit: 0, block: 0 }, hitstop: 10, push: 160, meter: 40,
+    priority: 1,
   },
   rising: {
     rps: 'reversal', limb: 'fistB', motion: '623', says: 'the invincible reversal: it beats everything but a block, and a block punishes it',
@@ -183,6 +207,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 5, active: 12, landing: 22, damage: 130, invuln: 10, vel: [30, 125] },
     },
     guard: 'mid', knock: 'launch', juggle: true, airborne: 4, hitstop: 14, push: 0, meter: 60, chip: 10,
+    priority: 0,
   },
   rush: {
     rps: 'rush', limb: 'elbowF', motion: '214', says: 'a rush: it closes the distance and ends a combo, it is unsafe if blocked close',
@@ -194,6 +219,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 16, active: 6, recovery: 22, damage: 110, travel: 85, adv: { hit: 0, block: -10 }, knock: 'down' },
     },
     guard: 'mid', hitstop: 12, push: 260, meter: 40, chip: 12,
+    priority: { L: 2, M: 3, H: 4 },
   },
   spin: {
     rps: 'rush', limb: 'toeF', motion: '214', says: 'a spinning kick that travels, low-risk at range, it passes over low pokes',
@@ -205,6 +231,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 14, active: 12, recovery: 18, damage: 110, travel: 60, adv: { hit: 2, block: -8 }, knock: 'down' },
     },
     guard: 'mid', hits: 2, hitstop: 10, push: 200, meter: 40, chip: 10, lift: 160,
+    priority: { L: 2, M: 2, H: 3 },
   },
   leap: {
     rps: 'overhead', limb: 'fistB', motion: '22', says: 'a leaping overhead: it must be blocked standing, slow enough to react to',
@@ -216,6 +243,76 @@ export const SPECIALS = Object.freeze({
       H: { startup: 22, active: 4, recovery: 16, damage: 90, travel: 60, adv: { hit: 3, block: -6 } },
     },
     guard: 'overhead', hitstop: 12, push: 200, meter: 40, chip: 8,
+    priority: 3,
+  },
+  // ── THE TRAVERSAL: moves that get somewhere, under, over or through ──
+  slide: {
+    rps: 'rush', limb: 'toeF', motion: '214', says: 'a slide: low along the floor, it trips (blocked low, it knocks down) and passes under a fireball',
+    load: P(POSES.crouch, { torso: 10 }),
+    strike: P(POSES.crouch, { torso: -30, legF: [88, 88, 100], legB: [30, -40, 70], hip: [80, -260] }),
+    at: {
+      L: { startup: 9, active: 10, recovery: 16, damage: 60, travel: 45, adv: { hit: 0, block: -8 } },
+      M: { startup: 10, active: 12, recovery: 18, damage: 70, travel: 55, adv: { hit: 0, block: -10 } },
+      H: { startup: 11, active: 14, recovery: 20, damage: 80, travel: 65, adv: { hit: 0, block: -12 } },
+    },
+    guard: 'low', knock: 'down', hitstop: 10, push: 160, meter: 30, chip: 6, profile: { low: 700 },
+    priority: { L: 1, M: 1, H: 2 },
+  },
+  roll: {
+    rps: 'traversal', limb: 'fistF', motion: '412', says: 'a roll: through the opponent, untouchable by a strike or a shot on the way; a throw catches it as it ends',
+    load: P(POSES.crouch, { torso: 30 }), strike: P(POSES.crouch, { torso: 80, head: 100, armF: [90, 120], armB: [80, 120], legF: [100, -10, 90], legB: [60, -40, 80], hip: [0, -300] }),
+    at: { L: { startup: 3, active: 14, recovery: 8, travel: 45 }, M: { startup: 3, active: 16, recovery: 9, travel: 55 }, H: { startup: 3, active: 18, recovery: 10, travel: 65 } },
+    nohit: true, through: true, invuln: ['strike', 'projectile'], meter: 0, priority: 0,
+  },
+  blink: {
+    rps: 'traversal', limb: 'fistF', motion: '421', says: 'a blink: a burst of speed through the opponent, untouchable on the way (a throw too), slow to recover',
+    load: P(POSES.guard, { torso: 30, hip: [-40, 0] }), strike: P(POSES.guard, { torso: 50, armF: [10, 20], armB: [-40, -20], hip: [140, -40] }),
+    at: { L: { startup: 6, active: 8, recovery: 18, travel: 140 }, M: { startup: 6, active: 9, recovery: 20, travel: 160 }, H: { startup: 6, active: 10, recovery: 22, travel: 180 } },
+    nohit: true, through: true, invuln: ['strike', 'projectile', 'throw'], meter: 0, priority: 0,
+  },
+  hop: {
+    rps: 'traversal', limb: 'toeF', motion: '28', says: 'a hop: a short low jump forward, over a low and a sweep, into a throw or a low',
+    load: P(POSES.crouch, {}), strike: P(POSES.jump, { torso: 10, legF: [80, 20, 90], legB: [40, -30, 80] }),
+    at: { L: { startup: 4, active: 1, landing: 6, vel: [18, 45] }, M: { startup: 4, active: 1, landing: 7, vel: [24, 50] }, H: { startup: 4, active: 1, landing: 8, vel: [30, 55] } },
+    nohit: true, airborne: 3, meter: 0, priority: 0,
+  },
+  // ── CHARGE: held one way, released the other (`[4]6`: back held, then forward; `[2]8`: down held, then up) ──
+  boom: {
+    rps: 'projectile', limb: 'fistF', motion: '[4]6', says: 'a charged shot: back held, then forward; quick to recover, it holds the ground from a crouch',
+    load: P(POSES.guard, { torso: -10, armF: [-20, 40], armB: [-30, 40] }),
+    strike: P(POSES.guard, { torso: 16, armF: [90, 90], armB: [80, 84], hip: [50, 0] }),
+    at: { L: { startup: 11, recovery: 26, speed: 50 }, M: { startup: 11, recovery: 26, speed: 65 }, H: { startup: 11, recovery: 26, speed: 85 } },
+    damage: 55, chip: 12, guard: 'mid', projectile: { w: 300, h: 160, y: -260, life: 150 }, adv: { hit: 0, block: 0 }, hitstop: 10, push: 160, meter: 40,
+    priority: 1,
+  },
+  flash: {
+    rps: 'reversal', limb: 'toeF', motion: '[2]8', says: 'a charged flip kick: down held, then up; invincible on the way up, an anti-air from a crouch',
+    load: P(POSES.crouch, { legF: [40, -60, 80] }),
+    strike: P(POSES.jump, { torso: -40, head: -50, legF: [170, 170, 120], legB: [20, -40, 70], armF: [-60, -30], armB: [-50, -20] }),
+    at: {
+      L: { startup: 4, active: 8, landing: 14, damage: 90, invuln: 5, vel: [-6, 95] },
+      M: { startup: 5, active: 10, landing: 18, damage: 110, invuln: 7, vel: [-8, 110] },
+      H: { startup: 6, active: 12, landing: 22, damage: 130, invuln: 9, vel: [-10, 125] },
+    },
+    guard: 'mid', knock: 'launch', juggle: true, airborne: 5, hitstop: 14, push: 0, meter: 60, chip: 10,
+    priority: 0,
+  },
+  // ── A REKKA: three strikes in a run, each the same motion again, on hit, on block or on a whiff ──
+  rekka: {
+    rps: 'rush', limb: 'fistF', motion: '236', says: 'a rekka: three blows in a run, the same motion each time; stop after any, the last knocks down',
+    load: P(POSES.guard, { torso: 6, armF: [40, 130] }),
+    strike: P(POSES.guard, { torso: 30, armF: [92, 92], legF: [44, -6, 90], legB: [-40, -34, 70], hip: [100, 0] }),
+    at: {
+      L: { startup: 10, active: 3, recovery: 18, damage: 45, travel: 30, adv: { hit: 1, block: -6 } },
+      M: { startup: 11, active: 3, recovery: 19, damage: 50, travel: 35, adv: { hit: 1, block: -7 } },
+      H: { startup: 12, active: 3, recovery: 20, damage: 55, travel: 40, adv: { hit: 1, block: -8 } },
+    },
+    guard: 'mid', hitstop: 10, push: 150, meter: 30, chip: 6, priority: { L: 2, M: 2, H: 3 },
+    stages: [
+      {},
+      { says: 'the rekka\'s second blow: a hook following the first', limb: 'fistB', strike: P(POSES.guard, { torso: 32, armB: [90, 70], twist: -30, legF: [44, -6, 90], legB: [-40, -34, 70], hip: [110, 0] }), scale: { damage: 1.1, startup: 0.9 } },
+      { says: 'the rekka\'s last blow: a leaping kick that knocks down', limb: 'toeF', strike: P(POSES.jump, { torso: -14, legF: [96, 92, 110], legB: [20, -40, 70] }), knock: 'down', scale: { damage: 1.4, startup: 1.1, recovery: 1.2 }, adv: { block: -12 } },
+    ],
   },
   grab: {
     rps: 'throw', limb: 'fistF', motion: '41236', says: 'a command throw: it beats a block from further away than a throw, a whiff is very punishable',
@@ -227,6 +324,19 @@ export const SPECIALS = Object.freeze({
       H: { startup: 7, active: 3, recovery: 42, damage: 200, reach: 1.35 },
     },
     throw: true, clinch: 36, meter: 50,
+  },
+  // ── THE DESPERATION: an invincible spin that strikes all round, paid for in health when it lands ──
+  whirl: {
+    rps: 'reversal', limb: 'fistF', motion: '22', says: 'the desperation spin: invincible from its first frame to its last blow, it strikes all round (behind as far as in front) and knocks down what it meets; it costs a slice of the spinner\'s own health when it lands, never the last of it',
+    load: P(POSES.guard, { torso: -10, armF: [60, 120], armB: [60, 120], hip: [0, -60] }),
+    strike: P(POSES.guard, { torso: 0, head: 0, armF: [90, 92], armB: [90, 92], legF: [40, -10, 90], legB: [-40, -20, 80], twist: 60, hip: [0, -40] }),
+    at: {
+      L: { startup: 4, active: 12, recovery: 18, damage: 70 },
+      M: { startup: 4, active: 14, recovery: 20, damage: 80 },
+      H: { startup: 4, active: 16, recovery: 22, damage: 90 },
+    },
+    guard: 'mid', knock: 'down', hitstop: 8, push: 300, meter: 0, chip: 0, invuln: ['strike', 'projectile', 'throw'],
+    around: true, price: 60, priority: 0,
   },
 });
 
@@ -245,7 +355,7 @@ export const SUPERS = Object.freeze({
   },
   'super-rising': {
     from: 'rising', says: 'the reversal at full height: invincible and long, the anti-air that ends a round',
-    startup: 4, active: 18, landing: 30, damage: 340, hits: 4, rehit: 4, invuln: 16, freeze: 40, vel: [24, 150],
+    startup: 4, active: 18, landing: 30, damage: 340, hits: 4, rehit: 4, invuln: 16, freeze: 40, vel: [24, 150], priority: 0,
   },
   'super-chain': {
     from: 'rush', says: 'the hit-combo super: the first blow catches and the rest follow on their own, in the fight\'s own camera, every hit landing; blocked, one blocked blow',
@@ -255,6 +365,10 @@ export const SUPERS = Object.freeze({
     from: 'rush', says: 'the cutscene super: the first blow catches and the fight cuts away (the camera closes in, the clock stops) for a beat-by-beat that ends with them on the floor',
     startup: 6, active: 4, recovery: 36, damage: 400, travel: 60, invuln: 12, freeze: 40, lock: { kind: 'cutscene', hits: 5, every: 16, finish: 'down', gap: 600 },
   },
+  'super-install': {
+    from: 'rush', says: 'the install: no blow, a moment powering up (invincible through it), then a while of hitting harder (its `install`, a STATES row); a recipe\'s own takes another state',
+    startup: 8, active: 1, recovery: 16, damage: 0, travel: 0, invuln: 25, freeze: 30, nohit: true, install: 'power',
+  },
   'super-grab': {
     from: 'grab', says: 'the long throw: it reaches a jump\'s landing, unblockable, invincible to start',
     startup: 4, active: 4, recovery: 50, damage: 380, reach: 1.6, invuln: 4, freeze: 40, clinch: 60,
@@ -262,7 +376,28 @@ export const SUPERS = Object.freeze({
 });
 
 export const SUPER_COST = 1000;
+
+/** THE PRIORITY SCALE: a strike's level, 0 … PRIORITY_MAX, read where two strikes land on the same frame. A super's is
+ * PRIORITY.super unless its record says; a special's or a super's record without one takes its kind's (`rps`): a
+ * reversal 0, anything else its strength's. */
+export const PRIORITY_MAX = 5;
+export const PRIORITY = Object.freeze({ super: 4, rps: Object.freeze({ reversal: 0 }) });
 export const METER_MAX = 1000;
+
+// ── states ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A timed STATE on a body: `frames` long (at 60 a second), its blows `damage` % of their own, its walk and its dashes
+ * `speed` % of their own, and with `armor` the blows it takes land their damage without their stun (a throw still
+ * takes it). Whole numbers; absent, a factor is 100. A body holds one at a time: a new one takes its place.
+ */
+export const STATES = Object.freeze({
+  power: Object.freeze({ frames: 600, damage: 150, says: 'power: every blow half again its damage, for ten seconds' }),
+  haste: Object.freeze({ frames: 600, speed: 150, says: 'haste: walking and dashing half again as fast, for ten seconds' }),
+  iron: Object.freeze({ frames: 420, armor: true, says: 'iron: blows land their damage and no stun, for seven seconds (a throw still takes the body)' }),
+  fury: Object.freeze({ frames: 360, damage: 125, speed: 120, armor: true, says: 'fury: harder, faster and unflinching at once, for six seconds' }),
+});
+export const STATE_IDS = Object.freeze(Object.keys(STATES));
 
 // ── weapons ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -282,6 +417,7 @@ export const WEAPONS = Object.freeze({
   spear: { grip: 'B', length: 0.72, width: 35, butt: 0.3, angle: -4, tempo: 1.05, damage: 1, hurt: 'recovery', color: '#c9b089', says: 'a spear in the rear hand: the longest poke, the lead hand stays free' },
   staff: { grip: 'B', length: 0.5, width: 45, butt: 0.45, angle: 0, tempo: 1.02, damage: 0.95, hurt: 'always', color: '#a57b4f', says: 'a staff: long both ways, its wood is hit as it swings' },
   claws: { grip: 'F', length: 0.1, width: 60, angle: 0, tempo: 0.92, damage: 0.95, hurt: 'recovery', color: '#c8ccd2', says: 'claws: a fist that cuts, a frame faster' },
+  pipe: { grip: 'F', length: 0.34, width: 50, angle: 4, tempo: 1.08, damage: 1.3, hurt: 'recovery', color: '#8d939b', says: 'a length of pipe: blunt and slow, it hits like a heavy (a street\'s, picked up)' },
 });
 
 export const WEAPON_HURT = Object.freeze(['recovery', 'none', 'always']);
@@ -301,4 +437,6 @@ export const SYSTEMS = Object.freeze({
   strings: 'a fighter\'s strings (its recipe\'s `strings`): each press of the next in order follows on from the last, hit, block or whiff',
   bound: 'normals juggle a falling body (up to rules.juggle hits), and a heavy blow on one slams it down so it bounds back up, once a combo: the juggle goes on',
   sidestep: 'a tap of up steps aside (off the line, in 2D a dodge): strikes and shots pass through for rules.sidestepInvuln frames; a throw still catches',
+  airblock: 'holding back in the air blocks an air attack or a shot (a strike from the ground still hits a body in the air): the arc goes on, the body pushed back',
+  spark: 'a counter hit struck on the strike\'s very first active frame is a SPARK: half again the damage, the moment held (rules.sparkStop) and drawn as a black spark, meter (rules.sparkMeter)',
 });

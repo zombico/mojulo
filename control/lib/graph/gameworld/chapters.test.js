@@ -34,8 +34,9 @@ const steps = Object.fromEntries(Object.entries(CORPUS).map(([k, w]) => [k, runS
 const stampsOf = (w) => [...reviewState(w), ...(w.characters ? characterState(w) : []), ...(castable(w) ? foeState(w) : [])];
 
 describe('the chapters', () => {
-  it('each in one of the seven departments, each after the chapters it reads; the build reads every other', () => {
-    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production', 'interface']);
+  it('each in one of the departments, each after the chapters it reads; the build reads every other', () => {
+    // (level design, 2026-11-08: promoted to its own department, the scene composer kai: a block's play layer)
+    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production', 'interface', 'level-design']);
     for (const d of DEPARTMENTS) expect(CHAPTERS.some((c) => c.department === d.id), d.id).toBe(true);
     expect(new Set(CHAPTERS.map((c) => c.id)).size).toBe(CHAPTERS.length);
     CHAPTERS.forEach((c, i) => {
@@ -219,5 +220,16 @@ describe('the studio\'s waves', () => {
     // it says the doors a chapter's session uses, and that the eyes gate is the creator's
     for (const word of ['{ ref, chapter }', 'run: true', 'check: true', 'pending', 'ahead', 'never say it passed']) expect(body, word).toContain(word);
     expect(Buffer.byteLength(body)).toBeLessThan(4096);
+  });
+});
+
+// LEVEL DESIGN: its own department; a block's play layer its chapter (a level's own path, `*` for the level), a block a unit
+import { chaptersOfPath as ofPath } from './chapters.js';
+describe('the level design department', () => {
+  it('owns each level\'s play layer, a block a unit; the level\'s other pages stay the levels chapter\'s', () => {
+    expect(ofPath('/levels/overworld/glyphs/play/B').map((c) => c.id)).toEqual(['play-layer']);
+    expect(ofPath('/levels/overworld/glyphs/sketch').map((c) => c.id)).toEqual(['levels']);
+    expect(unitOf('play:overworld/B')).toMatchObject({ chapter: { id: 'play-layer', department: 'level-design' }, level: 'overworld', segment: 'B' });
+    expect(unitOf('play:overworld')).toBeNull();
   });
 });

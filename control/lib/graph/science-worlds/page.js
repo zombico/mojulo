@@ -110,3 +110,32 @@ export function honesty({ model, gates, assumptions, liberties, gaps, held }) {
     ],
   };
 }
+
+// ── the exhibit's name ──
+
+// a title that names only the scale ('classical world', a mint's default) says nothing of the experiment
+const GENERIC = /^(mojulo )?(classical|microscopic|quantum|relativistic|science) (world|demo|view)$/i;
+const LAW_NAMES = {
+  'gravity-uniform': 'gravity', 'gravity-newton': 'gravitation', spring: 'a spring', rod: 'a rod', rope: 'a rope',
+  'drag-linear': 'drag', 'drag-quadratic': 'air drag', buoyancy: 'buoyancy', coulomb: 'charges', lorentz: 'a field',
+  plane: 'a surface', collision: 'collisions', magnus: 'Magnus lift', heat: 'heat', gelling: 'a setting liquid',
+  brownian: 'diffusion', drift: 'drift', membrane: 'a membrane', reaction: 'a reaction', aggregation: 'aggregation',
+  well: 'a well', harmonic: 'a harmonic well', barrier: 'a barrier', step: 'a step', slits: 'slits', hydrogen: 'hydrogen',
+  'stern-gerlach': 'a Stern–Gerlach magnet', decay: 'decay',
+  schwarzschild: 'a black hole', observer: 'an observer', disk: 'a disk', body: 'an orbiting body', clock: 'clocks',
+};
+/** A law id as a person says it ('gravity-uniform' → 'gravity'). */
+export const lawName = (id) => LAW_NAMES[id] ?? id;
+const listed = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
+/**
+ * The name a science page shows: the recipe's own title, or, when it names only the scale, the experiment itself, from
+ * its subjects and what acts on them ("ball of mild steel: gravity, a surface and heat").
+ */
+export function exhibitName(given, { subjects = [], laws = [] } = {}) {
+  if (given && !GENERIC.test(String(given).trim())) return given;
+  const acts = listed([...new Set(laws.map((id) => LAW_NAMES[id] ?? id))].slice(0, 4));
+  const who = subjects.length > 3 ? `${subjects.length} bodies` : listed(subjects);
+  const name = who && acts ? `${who}: ${acts}` : who || acts || 'An experiment';
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}

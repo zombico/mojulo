@@ -4,10 +4,13 @@
  * file. A sourced setting may also name `planned` values its table does not hold, so the sweep sees the gap (or, built by
  * something else, what lowers it).
  *
- *   capabilityRegistry() → { [facet]: { [setting]: { multi, values: { [value]: { status, lowers?, note?, effort?, pkg?, requires? } } } } }
+ *   capabilityRegistry() → { [facet]: { [setting]: { multi, values: { [value]: { status, lowers?, note?, effort?, pkg?, requires?, since? } } } } }
  *
  * `effort` and `pkg` price a gap (packages.js); a built value carries neither. `requires` names the values (as
  * 'facet.setting=value') a value cannot be built without; the sweep builds them with it. An unknown one throws.
+ * `since` is the day a built value was built ('YYYY-MM-DD', the day of its changelog theme), on a hand value or, for a
+ * sourced setting, by value in its source's `since`; compose.js unlockedSince reads what the values since a day made.
+ * A value built before the cube kept days carries none.
  */
 import { FACETS, STATUSES } from './facets/index.js';
 import { readSources } from './read-sources.js';
@@ -23,9 +26,10 @@ export function capabilityRegistry() {
       const values = {};
       if (spec.source) {
         const gen = sources[`${facet.id}.${setting}`];
-        const { status = 'built', note, effort, pkg, requires } = spec.source;
+        const { status = 'built', note, effort, pkg, requires, since } = spec.source;
+        for (const v of Object.keys(since || {})) if (!gen.values.includes(v)) throw new Error(`cosmos: ${facet.id}.${setting} dates '${v}', which its table does not hold`);
         for (const v of gen.values) {
-          values[v] = { status, lowers: gen.lowers, ...(note ? { note } : {}), ...(effort ? { effort } : {}), ...(pkg ? { pkg } : {}), ...(requires ? { requires } : {}) };
+          values[v] = { status, lowers: gen.lowers, ...(note ? { note } : {}), ...(effort ? { effort } : {}), ...(pkg ? { pkg } : {}), ...(requires ? { requires } : {}), ...(since?.[v] ? { since: since[v] } : {}) };
         }
         // planned: values the table does not hold yet (a gap the sweep should see), never one it holds; built only when
         // something other than the table makes it (it names what it lowers to)
@@ -39,6 +43,7 @@ export function capabilityRegistry() {
       }
       for (const [v, row] of Object.entries(values)) {
         if (!STATUSES.includes(row.status)) throw new Error(`cosmos: ${facet.id}.${setting}=${v} has status '${row.status}' (known: ${STATUSES.join(', ')})`);
+        if (row.since !== undefined && (row.status !== 'built' || !/^\d{4}-\d{2}-\d{2}$/.test(row.since))) throw new Error(`cosmos: ${facet.id}.${setting}=${v} is since '${row.since}': a built value's day, 'YYYY-MM-DD'`);
       }
       // `given`: a setting that means something only when another of the facet holds one of these values (soul's seat
       // settings, given more than one seat); the sweep rolls and nudges it only then

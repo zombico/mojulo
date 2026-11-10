@@ -10,7 +10,7 @@ const argv = process.argv.slice(2);
 const ref = argv.find((a) => !a.startsWith('--'));
 const out = argv.filter((a) => !a.startsWith('--'))[1] || `/tmp/${ref}.png`;
 const settle = Number((argv.find((a) => a.startsWith('--settle')) || '').split('=')[1] || argv[argv.indexOf('--settle') + 1] || 2500);
-const url = `http://127.0.0.1:3001/api/sketches/${encodeURIComponent(ref)}/world`;
+const url = `http://127.0.0.1:3001/api/sketches/${encodeURIComponent(ref)}/world?built=1`;   // (built: the bake itself, never the loader a person's tab is given)
 
 const executablePath = await resolveChromium();
 const browser = await puppeteer.launch({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS });

@@ -33,6 +33,7 @@
  * directly).
  */
 
+import { guideScript } from './channels/guide.js';
 import { carriesKnock } from '../rupa/knock.js';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -40,7 +41,7 @@ import path from 'node:path';
 
 import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, collectShadowDecals, collectWaterMesh } from '../figures/face-mesh.js';
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
-import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW } from './capture-contract.js';
+import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW, CAPTURE_GROUND, CAPTURE_HOVER } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
 import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP, STATIC_ORGANIC_GROUP, STATIC_LAND_GROUP } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
@@ -53,8 +54,10 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, marksChannelScript, normalizeMarks, shootChannelScript, shootSetScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript, shallowsChannelScript, seawayChannelScript, jetChannelScript, aquaPatchScript, wetSandScript, softGroundScript, snowPrintsScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
-  strokeOverlayChannelScript, versusChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript,
+  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript,
 } from './channels/index.js';
+import { readFlow, flowChannelScript } from './channels/flow.js';
+import { readBeacons, beaconsChannelScript } from './channels/beacons.js';
 import { xrModeScript, xrConfig } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
 import { readCreases, creasesChannelScript } from './channels/creases.js';
@@ -261,17 +264,13 @@ const SCREEN_ZONES_CSS = [
   '  html[data-screen] .moj-hud-bottom-left{left:calc(12px + var(--safe-l));bottom:calc(12px + var(--safe-b) + var(--thumb))}',
   '  html[data-screen] .moj-hud-bottom-right{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b) + var(--thumb))}',
   '  html[data-screen] .moj-hud-bottom{bottom:calc(12px + var(--safe-b) + var(--thumb-c));max-width:calc(100% - 24px)}',
-  '  html[data-screen] .moj-quest-toast,html[data-screen] .moj-rpg-foes{top:calc(16px + var(--safe-t))}',
+  '  html[data-screen] .moj-quest-toast{top:calc(16px + var(--safe-t))}',
   '  html[data-orientation=portrait] .moj-hud-top{max-width:calc(100% - 24px)}',
   '  html[data-orientation=portrait] .moj-w-banner{font-size:clamp(18px,7vw,34px);letter-spacing:1px;padding:8px 16px;white-space:normal;text-align:center}',
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
-  '  html[data-orientation=portrait] .moj-rpg-bottom{flex-direction:column;bottom:calc(12px + var(--safe-b));gap:8px}',
-  '  html[data-orientation=portrait] .moj-rpg-cmd{width:auto;min-height:0}',
-  '  html[data-orientation=portrait] .moj-rpg-msg{bottom:auto;top:calc(96px + var(--safe-t))}',
-  '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, footless = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   const litPack = !!(form && form.room && Array.isArray(form.room.lights));
@@ -372,7 +371,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // bake, so (a) the bake can ingest their instance-transformed phantoms as casters and
   // (b) the packing pass below reuses the same expansion.
   const repEntries = (Array.isArray(repeats) ? repeats : [])
-    .filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length)
+    // (a POOL, `pool`: a template the flow channel instances, drawn where it is parked too or nowhere else)
+    .filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && (r.transforms.length || typeof r.pool === 'string'))
     .map((r) => ({ r, tpl: expandSurfaceCards(r.template, { light }) }));
   const aoOpts = ao ? (typeof ao === 'object' ? ao : {}) : null;
   // Baked ambient occlusion (effects/ao-bake.js, opted in via the payload's `ao` setting). Runs
@@ -383,7 +383,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // transformed per instance, join the bake as occluder-only phantoms — a tree canopy darkens
   // the terrain under every instance without the phantoms ever entering the render payload.
   const aoPhantoms = aoOpts && repEntries.length
-    ? repEntries.flatMap(({ r, tpl }) => instanceOccluderFaces(tpl, r.transforms))
+    ? repEntries.flatMap(({ r, tpl }) => (r.occlude === false ? [] : instanceOccluderFaces(tpl, r.transforms)))   // (a repeat that says `occlude: false`, a parked car, a window, darkens nothing)
     : [];
   const expanded2 = aoOpts
     ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)
@@ -449,6 +449,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
       // (and by the view cone's rule rather than the ring, channels/city-cone.js: in, out or kit)
       ...(Number.isFinite(r.near) && r.near > 0 && ['in', 'out', 'kit'].includes(r.cone) ? { cone: r.cone } : {}),
+      // (a pool's key: the flow channel's moving instances of it, channels/flow.js)
+      ...(typeof r.pool === 'string' ? { pool: r.pool } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -551,6 +553,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
+  const hasPool = packedRepeats.some((r) => r.pool);   // none: no pools, not one byte
   const hasConeTiles = packedRepeats.some((r) => r.cone);   // absent: the ring alone, not one byte of the cone's rule
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
@@ -840,6 +843,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // no-game worlds are byte-identical to today.
   const gameBlock = game ? gameChannelScript(game) : '';
   const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
+  // a brawl on the world (lib/graph/brawl: the practice yard): it owns the camera; never on a capture run
+  const brawlBlock = brawl && !capture ? brawlChannelScript(brawl) : '';
   // a tactics board over the ground (lib/graph/board): it owns the camera; never on a capture run, whose views are the payload's
   const boardBlock = board && !capture ? boardChannelScript(board) : '';
   // an athletic meet on a track (lib/graph/contest): it owns the camera; never on a capture run
@@ -1001,6 +1006,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // the shared traffic model; without them the legacy constant-speed script is emitted, byte-identical
   const trafficSpec = Array.isArray(signals) && signals.length && Array.isArray(trafficLanes) ? { lanes: trafficLanes, signals, T: trafficConstants || undefined } : null;
   const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: castsActors, traffic: trafficSpec }) : '';
+  // a metro's traffic (channels/flow.js): its lanes stepped and its vehicles drawn near the camera; none ⇒ ''
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec) : '';
+  // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
+  const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
   // above fog (renderOrder 100001+i). Same shape as the fog quad, so fog stays byte-identical and
   // glow/wisp layers ride beside it. uTime rides window.__mojClock (pinned by frame()/step()).
@@ -1059,10 +1068,14 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
   // a fight solved onto the map (rpg rules.stage 'arena'): the props' clearing (__mojClip), emitted only for it
   const arenaClip = !!(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'arena');
+  // THE PIXEL BUDGET: a page played live (the controllable channel: its pilot is the page's own pick), never a capture
+  // (its frame is its size), a headset's (its own) or the pixel look's (its own density). Every other page keeps its bytes
+  const pixelBudget = !!(hasControllable && !capture && !xrCfg && !pixel);
   const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {}), ...(knock ? { knock } : carriesKnock(entityList, events, game) ? { knock: { attacks: true } } : {})  }) : '';
   // the headset: on a page with a controllable channel it drives the pilot (channels/xr.js `ctrl`), else it walks
   // (and on a pilot whose figure carries its hands, hero-xr-hands.js, the hands on the controllers)
-  const xrBlock = xrCfg ? xrModeScript(controllableBlock ? xrConfig(xr, walkCfg, { ctrl: true }) : xrCfg, { ctrl: !!controllableBlock, hands: !!controllableBlock && Object.values(figures || {}).some((f) => f && f.xrHands) }) : '';
+  // (a page with a mana-ui surface, a party's battles: its screens on a panel in the headset, the controllers its own)
+  const xrBlock = xrCfg ? xrModeScript(controllableBlock ? xrConfig(xr, walkCfg, { ctrl: true }) : xrCfg, { ctrl: !!controllableBlock, hands: !!controllableBlock && Object.values(figures || {}).some((f) => f && f.xrHands), mana: !!(hasEvents && events.rpg && typeof events.rpg === 'object') }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -1122,7 +1135,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}), ...(occlusionCfg && lightTier && lightTier.ao === 0.5 ? { aoHalf: true } : {}) }) : '',
     // the live light's budget (channels/cast-shadows.js liveBudgetScript): a page world-scene gave a tier counts what it draws
     lightBudget: lightTier && (liveShadows || occlusionCfg) ? liveBudgetScript(lightTier) : '',
-    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock,
   };
 
   return `<!doctype html>
@@ -1154,7 +1167,10 @@ ${SCREEN_ZONES_CSS}
      wireframe, fly/walk, reverse view, AI attack) stays in the DOM so every channel keeps
      appending to it and the keyboard twins (V/G/…) keep working, but it never shows. The
      speaker button hides with it — the shell's settings panel owns audio over the sidecar. */
-  .hud,.moj-audio-btn{display:none}`}
+  .hud,.moj-audio-btn{display:none}`}${!hud || chrome !== false ? '' : `
+  /* chrome:false (a page that is one picture, a science world): the view-cam and wireframe strip and the corner hint
+     never show; the keyboard twins keep working and the page's own panels stay */
+  .hud,.hint{display:none}`}
   .hint{position:absolute;right:8px;bottom:8px;color:#6f86ad;font-size:11px;user-select:none}
   .moj-readout{position:absolute;left:8px;bottom:8px;background:rgba(11,18,32,.82);border:1px solid #24324a;border-radius:6px;padding:7px 10px;font-size:12px;color:#cfe3ff;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums;pointer-events:none;z-index:4}
   .moj-readout b{color:#fff;margin-bottom:2px}
@@ -1184,7 +1200,7 @@ ${SCREEN_ZONES_CSS}
 </style></head><body>
   <div id="wrap"><canvas id="c"></canvas>
     <div class="hud" id="hud"></div>
-    ${game || versusBlock || boardBlock || meetBlock || courtBlock || turnsBlock || pitchBlock || holoBlock || inningsBlock ? '' : `<div class="hint">${hintText}</div>`}
+    ${game || versusBlock || brawlBlock || boardBlock || meetBlock || courtBlock || turnsBlock || pitchBlock || holoBlock || inningsBlock ? '' : `<div class="hint">${hintText}</div>`}
     ${hasPicks ? '<div class="mol-popup" id="molPopup" hidden></div>' : ''}
     ${hasSigns ? '<div class="moj-signs" id="mojSigns"></div>' : ''}
   </div>
@@ -1210,7 +1226,22 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
 ${pixel ? `// THE PIXEL LOOK (cosmos reality.medium=pixel): drawn at a ${Math.round(Number(pixel.scale))}th of the page's size and blown up
 // without smoothing, so each drawn pixel is a block on screen
-renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
+renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : pixelBudget ? `// THE PIXEL BUDGET (a game page): the screen's density capped at 1.5, then held to the frame's time: a second of slow
+// frames (over 24 ms) takes it down a quarter, to three quarters at the least; a few seconds of quick ones (under 13 ms)
+// give it back, to the cap (the pixels a frame shades are what a laptop's screen costs it, not what the eye misses)
+const __dprCap = Math.min(window.devicePixelRatio || 1, 1.5);
+const __mojBudget = window.__mojBudget = { dpr: __dprCap, ms: 0, n: 0, sum: 0, since: 0, last: 0 };
+renderer.setPixelRatio(__dprCap);
+function __budget(t) {
+  const B = __mojBudget, d = B.last ? t - B.last : 0; B.last = t;
+  if (!(d > 0 && d < 250)) return;
+  B.n++; B.sum += d;
+  if (t - B.since < 1000) return;
+  B.ms = B.sum / B.n; B.n = 0; B.sum = 0;
+  const down = B.ms > 24 && B.dpr > 0.75, up = B.ms < 13 && B.dpr < __dprCap && t - B.since > 3000;
+  if (down || up) { B.dpr = Math.round((down ? Math.max(0.75, B.dpr - 0.25) : Math.min(__dprCap, B.dpr + 0.25)) * 100) / 100; renderer.setPixelRatio(B.dpr); }
+  B.since = t;
+}` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
 
 const scene = new THREE.Scene();
 ${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}${airEarly}${frameEarly}
@@ -1264,7 +1295,7 @@ function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone || arenaClip ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || formLandBlock || skyBlock2 || cone || arenaClip || (Array.isArray(footless) && footless.length) || capture ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
@@ -1335,12 +1366,12 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
   const p = cam.position;
   ${hasConeTiles ? cityConeRule() : 'for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;'}
 };
-` : ''}for (const r of REPEATS) {
+` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));
   geo.computeBoundingSphere();
-  ${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
+  ${hasPool ? 'if (r.pool) { __POOLS[r.pool] = geo; if (!r.t.length) continue; }\n  ' : ''}${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
@@ -1376,7 +1407,12 @@ for (const r of REPEATS) for (const t of (r.tex || [])) {
   im.userData.g = r.name;${creasesCfg ? " if (r.crease) im.userData.crease = r.crease === 'land' ? 0.5 : 1;" : ''} scene.add(im); ${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(im);
 }
 ` : ''}
-const camera = new THREE.PerspectiveCamera(CAMS[0].vfov, wrap.clientWidth / wrap.clientHeight, 0.1, 8000);
+${Array.isArray(footless) && footless.length ? `// FOOTLESS (a walked map's, level/grid-scene.js): the groups a walker never stands on (a tree's crown, its leaves), so
+// the ground probe passes through them to the land; their trunks are colliders
+const __FOOTLESS = ${safeJson(footless.filter((g) => typeof g === 'string'))};
+scene.traverse((m) => { const g = m.userData && m.userData.g; if ((m.isMesh || m.isInstancedMesh) && typeof g === 'string' && __FOOTLESS.some((p) => g === p || (p.endsWith(':') && g.indexOf(p) === 0))) m.raycast = function () {}; });
+for (const [n, m] of Object.entries(meshes)) if (__FOOTLESS.some((p) => n === p || (p.endsWith(':') && n.indexOf(p) === 0))) { m.raycast = function () {}; m.traverse((k) => { k.raycast = function () {}; }); }
+` : ''}const camera = new THREE.PerspectiveCamera(CAMS[0].vfov, wrap.clientWidth / wrap.clientHeight, 0.1, 8000);
 camera.up.set(0, 0, 1); // world is z-up
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -1598,12 +1634,12 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${formBlock}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}${boardBlock ? 'let stepBoard = () => {};\n' : ''}${meetBlock ? 'let stepContest = () => {};\n' : ''}${courtBlock ? 'let stepCourt = () => {};\n' : ''}${turnsBlock ? 'let stepTurnSport = () => {};\n' : ''}${pitchBlock ? 'let stepPitch = () => {};\n' : ''}${holoBlock ? 'let stepHolo = () => {};\n' : ''}${inningsBlock ? 'let stepInnings = () => {};\n' : ''}${broadcastsBlock ? 'let stepBroadcasts = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${seawayBlock ? ' stepSeaway(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${snowPrintsBlock ? ' stepSnowPrints(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${scienceBlock ? ' stepScience(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''}${boardBlock ? ' stepBoard(t);' : ''}${meetBlock ? ' stepContest(t);' : ''}${courtBlock ? ' stepCourt(t);' : ''}${turnsBlock ? ' stepTurnSport(t);' : ''}${pitchBlock ? ' stepPitch(t);' : ''}${holoBlock ? ' stepHolo(t);' : ''}${inningsBlock ? ' stepInnings(t);' : ''}${broadcastsBlock ? ' stepBroadcasts(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}${brawlBlock ? 'let stepBrawlPage = () => {};\n' : ''}${boardBlock ? 'let stepBoard = () => {};\n' : ''}${meetBlock ? 'let stepContest = () => {};\n' : ''}${courtBlock ? 'let stepCourt = () => {};\n' : ''}${turnsBlock ? 'let stepTurnSport = () => {};\n' : ''}${pitchBlock ? 'let stepPitch = () => {};\n' : ''}${holoBlock ? 'let stepHolo = () => {};\n' : ''}${inningsBlock ? 'let stepInnings = () => {};\n' : ''}${broadcastsBlock ? 'let stepBroadcasts = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${flowBlock ? ' stepFlow(t);' : ''}${beaconsBlock ? ' stepBeacons(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${seawayBlock ? ' stepSeaway(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${snowPrintsBlock ? ' stepSnowPrints(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${scienceBlock ? ' stepScience(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''}${brawlBlock ? ' stepBrawlPage(t);' : ''}${boardBlock ? ' stepBoard(t);' : ''}${meetBlock ? ' stepContest(t);' : ''}${courtBlock ? ' stepCourt(t);' : ''}${turnsBlock ? ' stepTurnSport(t);' : ''}${pitchBlock ? ' stepPitch(t);' : ''}${holoBlock ? ' stepHolo(t);' : ''}${inningsBlock ? ' stepInnings(t);' : ''}${broadcastsBlock ? ' stepBroadcasts(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };
@@ -1697,7 +1733,7 @@ if (_capture) {
   //   probe()     — the assertion surface: entity transforms + HUD/bus vars + physics bodies.
   controls.update(); updateCutaway(); __mojStep(0); ${prePass}renderer.render(scene, camera);
   let __capT = 0;   // traversal clock, ms
-  window.${CAPTURE_GLOBAL} = {
+  ${capture ? "const __hoverRay = new THREE.Raycaster(), __hoverDown = new THREE.Vector3(0, 0, -1);   // the hover bot's cast, down onto the world\n  " : ''}window.${CAPTURE_GLOBAL} = {
     ${CAPTURE_READY}: true,
     ${CAPTURE_FRAME}(spec) {
       spec = spec || {};
@@ -1723,7 +1759,10 @@ if (_capture) {
       }
       __mojStep(__capT);   // clocked channels + physics + events ride the same tick clock
       updateCutaway();
-      ${prePass}renderer.render(scene, camera);
+      // (a walk being compiled draws nothing: its ticks are the rules', not pictures; the scene's transforms kept as a
+      // draw would keep them, for what casts rays at them)
+      if (spec.draw === false) scene.updateMatrixWorld();
+      else { ${prePass}renderer.render(scene, camera); }
     },
     ${CAPTURE_PROBE}() {
       const out = { t: __capT, entities: null, hud: null, bodies: null };
@@ -1774,6 +1813,38 @@ if (_capture) {
       const bg = scene.background && scene.background.isColor ? '#' + scene.background.getHexString() : null;
       return { eye: camera.position.toArray(), dir: d.toArray(), fov: camera.fov, aspect: camera.aspect, bg };
     },
+    // ground(x, y, from?) — the HOVER BOT's (scene/hover-bot.js): the highest surface the world draws under (x, y), cast
+    // down from \`from\` (else the sky: under a tree's crown, from a person's headroom) past whatever cannot be stood on (a
+    // footless group's, a hidden one's): { z, group, nz } or null (a hole)
+    ${CAPTURE_GROUND}(x, y, from) {
+      const top = Number.isFinite(from) ? from : 5000;
+      __hoverRay.set(new THREE.Vector3(x, y, top), __hoverDown); __hoverRay.far = top + 5000; __hoverRay.camera = camera;   // (a sprite's cast reads the camera)
+      scene.updateMatrixWorld();
+      // (the world's solids, what a walk collides with, where the page keeps them)
+      for (const h of __hoverRay.intersectObjects(typeof solids !== 'undefined' && solids.length ? solids : scene.children, true)) {
+        let seen = true;
+        for (let o = h.object; o; o = o.parent) if (o.visible === false) { seen = false; break; }
+        const g = h.object.userData && h.object.userData.g;
+        if (!seen || typeof g !== 'string') continue;
+        const n = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : null;
+        return { z: h.point.z, group: g, nz: n ? n.z : null };
+      }
+      // (cast from a height and nothing under it: a rise past it, cast again from the sky)
+      return Number.isFinite(from) ? this.${CAPTURE_GROUND}(x, y) : null;
+    },
+    // hover(spec) — the bot's eye its height over the surface at its point (or at its pos outright), looking at its look or
+    // along its heading (radians, 0 along +x) and pitch, rendered: { eye, ground, triangles, calls }; render: false casts only
+    ${CAPTURE_HOVER}(spec) {
+      spec = spec || {};
+      const at = spec.at || (spec.pos ? spec.pos.slice(0, 2) : [camera.position.x, camera.position.y]), g = this.${CAPTURE_GROUND}(at[0], at[1], spec.from);
+      const eye = Array.isArray(spec.pos) ? spec.pos.slice() : [at[0], at[1], (g ? g.z : 0) + (Number.isFinite(spec.height) ? spec.height : 1.7)];
+      if (spec.render === false) return { eye, ground: g };
+      const h = Number.isFinite(spec.heading) ? spec.heading : 0, p = Number.isFinite(spec.pitch) ? spec.pitch : 0;
+      const target = Array.isArray(spec.look) ? spec.look : [eye[0] + Math.cos(h) * Math.cos(p) * 20, eye[1] + Math.sin(h) * Math.cos(p) * 20, eye[2] + Math.sin(p) * 20];
+      this.${CAPTURE_FRAME}({ pos: eye, target, vfov: spec.vfov, t: spec.t });
+      const info = renderer.info.render;
+      return { eye, ground: g, triangles: info.triangles, calls: info.calls };
+    },
     ` : ''}// WAYPOINT COMPILER (renderer-convergence step 3): compile "walk to [x,y]" into the tick
     // script Phase-3 traversals replay. Greedy closed-loop steering against the LIVE rule —
     // each tick reads the entity's real heading/position, aims, steps, records the input. The
@@ -1810,7 +1881,7 @@ if (_capture) {
         const forward = Math.abs(diff) > 1.2 ? 0.15 : 1;      // face the target before committing speed
         const h0 = ent.transform.heading;
         const input = { forward, turn };
-        this.${CAPTURE_STEP}({ dt, input });
+        this.${CAPTURE_STEP}({ dt, input, draw: false });
         ticks.push(input);
         if (!signLocked && Math.abs(turn) > 0.05) {
           const dh = wrapA(ent.transform.heading - h0);
@@ -1843,7 +1914,8 @@ if (_capture) {
     if (!__ctrlOwnsCamera) controls.update();               // OrbitControls unless a camera entity owns the view
   }
   __mojStep(${shootBlock ? '__shClock(t - __pauseOffset)' : 't - __pauseOffset'});
-  updateCutaway(); ${prePass}renderer.render(scene, camera);
+  updateCutaway(); ${prePass}renderer.render(scene, camera);${pixelBudget ? `
+  __budget(t);` : ''}
 });
 </script>
 </body></html>

@@ -167,6 +167,36 @@ describe('folk on a stage: a town\'s people stood by their houses', () => {
     expect(press(spot(away))).toBe(false);
   });
 
+  it('potters by default: each one not looked for steps out before its door and back, talked to where it stands', () => {
+    const M = townLevel(S).order.manifest;
+    const go = M.play.cues.filter((c) => /-go-0$/.test(c.id)), who = go.map((c) => c.then[1].walk.who);
+    expect(who.length).toBeGreaterThan(0);
+    // its heartbeat its own, its walk a stroll; the shopkeepers and the elder keep their place
+    expect(go.every((c) => Number.isInteger(c.when.every) && c.when.every >= 7 && c.when.every <= 14)).toBe(true);
+    expect(M.entities.find((e) => e.id === who[0]).rule.speed).toBeLessThan(1.4);
+    const keepers = M.play.menus.filter((m) => m.who === 'Keeper' || m.who === 'Elder').map((m) => m.id.replace(/^talk-/, ''));
+    for (const k of keepers) expect(who).not.toContain(k);
+    // the bus: home first, talked to there; sent out by its heartbeat; talked to out there once it arrives
+    const id = who[0], home = `${id}-home`, out = `${id}-out`;
+    const ev = lowerPlay(M, { player: 'player' }), bus = createBusState(ev, []);
+    const pump = (events) => { processEvents(bus, events); for (let k = 0; k < 40; k++) { const w = watchEvents(bus); if (!w.length) break; processEvents(bus, w); } };
+    pump([...(ev.initial ?? []), { type: 'level:start' }]);
+    const spot = (sid) => M.play.spots.find((x) => x.id === sid).at;
+    const zoneAt = (at) => ev.sources.find((z) => z.use && z.prompt === 'Talk' && Math.hypot(z.at[0] - at[0], z.at[1] - at[1]) < 0.01);
+    const chat = menuVar(`talk-${id}`);
+    const press = (at) => { bus.vars[chat] = 0; pump([{ type: `use-${zoneAt(at).use}` }]); return bus.vars[chat] === 1; };
+    bus.vars[`folk-at-${id}`] = 0;
+    expect(press(spot(home))).toBe(true);
+    pump([{ type: 'arrive', entity: id, at: out, last: 1 }]);
+    expect(press(spot(out))).toBe(true);
+    expect(press(spot(home))).toBe(false);
+    // its spot out is on the street before its door, a step or two from where it stands
+    expect(Math.hypot(spot(out)[0] - spot(home)[0], spot(out)[1] - spot(home)[1])).toBeLessThan(4);
+    // asked to keep still, nobody potters
+    const still = townLevel(runSteps(withTown({ life: false }), { ref: 'gw' })).order.manifest;
+    expect(still.play.cues.some((c) => /-go-0$/.test(c.id))).toBe(false);
+  });
+
   it('keeps no day, and no clock, unless asked', () => {
     const M = townLevel(S).order.manifest;
     expect(M.play.routines).toBeUndefined();

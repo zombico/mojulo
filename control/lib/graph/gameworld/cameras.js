@@ -10,7 +10,7 @@ export const CAMERAS = Object.freeze({
   'top-down': 'a ¾ overhead camera, north up the screen; W walks up the screen (needs a hero to watch)',
   fixed: 'fixed cameras along the way, high off its side, cutting from one to the next as the hero passes (the survival-horror shot; needs a hero)',
   follow: 'a 3D platformer\'s chase that follows by itself: W A S D run the way the camera looks, and it eases behind the hero\'s run, holding still through a jump (needs a hero)',
-  orbit: 'a 3D platformer\'s chase the player turns (a drag, the right stick): W A S D run the way the camera looks, held still through a jump (needs a hero)',
+  orbit: 'a 3D platformer\'s chase the player turns (a drag, the right stick): W A S D run the way the camera looks, held still through a jump; a hero that strikes turns it by the mouse and locks on to a foe (C) (needs a hero)',
 });
 /** The cameras a 3D platformer moves by (the stick's up is the camera's forward): the steered chase each lays. */
 export const STEERED = Object.freeze({ follow: 'trail', orbit: 'orbit' });

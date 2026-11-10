@@ -10,6 +10,9 @@
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
+ *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
+ *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
+ *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
  *     bindings?:   [{ source, entity?|point?, range: [from,to],
  *                     target: { channel, macro: tone|level|transpose, range: [a,b] } }]
  *   }
@@ -37,7 +40,7 @@
  */
 
 import { SketchRepository } from '../../db/repositories/sketches.js';
-import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind } from './beats-manifest.js';
+import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind, checkSfxMix, checkSustain } from './beats-manifest.js';
 import { emitBeatsKernel } from './beats-kernel.js';
 import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
@@ -206,7 +209,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     for (const [g, c] of Object.entries(L.on)) if (!(g in on)) on[g] = c;
     audioSpec = {
       ...audioSpec,
-      sfx: { cues: { ...L.cues, ...stored, ...(auto.cues || {}) }, ...(Object.keys(on).length ? { on } : {}), vary: auto.vary !== false },
+      sfx: { cues: { ...L.cues, ...stored, ...(auto.cues || {}) }, ...(Object.keys(on).length ? { on } : {}), vary: auto.vary !== false, ...(auto.mix !== undefined ? { mix: auto.mix } : {}) },
       footsteps: audioSpec.footsteps ?? L.footsteps, weapon: audioSpec.weapon ?? L.weapon, strike: audioSpec.strike ?? L.strike, dodge: audioSpec.dodge ?? L.dodge,
     };
     out.palette = L.palette;
@@ -234,6 +237,14 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     }
     // vary (opt-in): the audio channel passes a hit counter as playCue's variant.
     if (sfx.vary === true) out.vary = true;
+    // mix (opt-in, the SFX mixer): the level's cues on an SFX bus in a space, ducking the score where a cue carries a
+    // duck, at most `voices` at once, and placed by their distance from the pilot (`distance`, on unless false).
+    if (sfx.mix !== undefined) {
+      const errors = [];
+      checkSfxMix(sfx.mix, 'audio.sfx.mix', errors, { world: true });
+      if (errors.length) throw new Error(`audio.sfx.mix:\n - ${errors.join('\n - ')}`);
+      out.mix = { ...sfx.mix, distance: sfx.mix.distance !== false };
+    }
   }
 
   if (audioSpec.footsteps) {
@@ -269,9 +280,17 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   // thruster ROAR: a sustained rocket-engine voice the audio channel swells with a controllable
   // entity's e.thrust (boost). Continuous like wind, but gain-modulated by sim state instead of an
   // LFO. `level` (0..1) is the overall loudness; `true` takes the default.
+  // `voice` (opt-in, a sustain spec: the SFX shelf's held voices) plays instead of the channel's own synth.
+  const heldVoice = (v, where) => {
+    const errors = [];
+    checkSustain(v, where, errors);
+    if (errors.length) throw new Error(`${where}:\n - ${errors.join('\n - ')}`);
+    return v;
+  };
   if (audioSpec.thruster) {
     const th = audioSpec.thruster === true ? {} : audioSpec.thruster;
     out.thruster = { level: Number.isFinite(th.level) ? th.level : 0.5 };
+    if (th.voice !== undefined) out.thruster.voice = heldVoice(th.voice, 'audio.thruster.voice');
   }
 
   // JUMP audio: the stop-and-charge GATHER whine (sustained synth) + a RELEASE transient scaled by
@@ -281,6 +300,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (audioSpec.jump) {
     const jp = audioSpec.jump, jOut = {};
     if (jp.charge) jOut.charge = { level: Number.isFinite((jp.charge || {}).level) ? jp.charge.level : 0.26 };
+    if (jp.charge && jp.charge.voice !== undefined) jOut.charge.voice = heldVoice(jp.charge.voice, 'audio.jump.charge.voice');
     if (jp.release) jOut.release = { level: Number.isFinite((jp.release || {}).level) ? jp.release.level : 0.5 };
     if (Array.isArray(jp.land) && jp.land.length) {
       const check = validateBeatsManifest({ kind: 'beats-sfx', title: 'jump land', cues: { land: jp.land } });
@@ -319,7 +339,33 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (Object.keys(sOut).length) out.strike = sOut;
   }
 
+  // a MOVESET's sounds (`moves`, the practice room's and an action game's: gameworld/combos.js): each of its events names
+  // one of the level's sfx cues; the swing and the hit by the weapon in hand and the move's weight. A cue it names that
+  // the level has not is refused, saying which
+  if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
+
   return Object.keys(out).length ? out : null;
+}
+
+export const MOVE_SOUNDS = Object.freeze({ weighted: ['swing', 'hit'], weights: ['light', 'heavy', 'finisher'], one: ['block', 'parry', 'break', 'draw', 'loose', 'arrow', 'felled', 'cycle', 'foeSwing', 'hurt'] });
+function resolveMoves(m, cues) {
+  const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  const say = (msg) => { throw new Error(`audio.moves${msg}`); };
+  if (!isObj(m)) say(` is { ${[...MOVE_SOUNDS.weighted, ...MOVE_SOUNDS.one].join(', ')} }: each a cue id of audio.sfx.cues`);
+  const cue = (id, at) => { if (typeof id !== 'string' || !cues[id]) say(`${at}: '${id}' is no cue of audio.sfx.cues (${Object.keys(cues).join(', ') || 'none'})`); return id; };
+  const out = {};
+  for (const [k, v] of Object.entries(m)) {
+    if (MOVE_SOUNDS.weighted.includes(k)) {
+      if (!isObj(v)) say(`.${k} is { <weapon>: { ${MOVE_SOUNDS.weights.join('?, ')}? } }`);
+      out[k] = Object.fromEntries(Object.entries(v).map(([w, W]) => {
+        if (!isObj(W)) say(`.${k}.${w} is { ${MOVE_SOUNDS.weights.join('?, ')}? }`);
+        for (const x of Object.keys(W)) if (!MOVE_SOUNDS.weights.includes(x)) say(`.${k}.${w}.${x}: a move's weight is ${MOVE_SOUNDS.weights.join(', ')}`);
+        return [w, Object.fromEntries(Object.entries(W).map(([x, id]) => [x, cue(id, `.${k}.${w}.${x}`)]))];
+      }));
+    } else if (MOVE_SOUNDS.one.includes(k)) out[k] = cue(v, `.${k}`);
+    else say(`.${k} is not a moveset's event (${[...MOVE_SOUNDS.weighted, ...MOVE_SOUNDS.one].join(', ')})`);
+  }
+  return out;
 }
 
 /**

@@ -53,7 +53,11 @@ import { roadKinds, layoutOf } from './roads.js';
 import { townsOf, blockTownsOf } from './towns.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
+import { highwaysOf, highwayLaws } from './highways.js';
+import { waterfrontOf, waterfrontLaws } from './waterfront.js';
 import { terrainField } from '../terrain/terrain-field.js';
+import { profileStreets, climbLift } from '../geotown/profile.js';
+import { assignYards } from './fleets.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -162,7 +166,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     ...(wd('w') ? [{ side: 'w', rect: [0, land[1], land[0], land[3]] }] : []),
     ...(wd('e') ? [{ side: 'e', rect: [land[2], land[1], W, land[3]] }] : []),
   ];
-  const L = geocityLand(T, land, seed, field);
+  let L = geocityLand(T, land, seed, field);
 
   // 2 the arterials, in the grammar's major section (its carriageway, a walk each side)
   const sec = G.street.major, half = r3(sec.road / 2 + sec.walk), section = { road: sec.road, walk: sec.walk, half, row: r3(2 * half) };
@@ -185,7 +189,21 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   const widest = Math.max(...lines.map((l) => l.half));
   section.half = widest; section.road = r3(Math.max(...lines.map((l) => l.road))); section.row = r3(2 * widest);
   const NS = lines.filter((l) => l.axis === 'ns'), EW = lines.filter((l) => l.axis === 'ew');
-  const crossings = NS.flatMap((a) => EW.map((b) => ({ id: `${a.id}×${b.id}`, at: [a.at, b.at], z: r3(L.S(a.at, b.at)), ranks: [a.rank, b.rank], seat: a.rank === 'spine' && b.rank === 'spine' })));
+  // (THE STREETS' PROFILE, `profile`, geotown/profile.js: the arterials laid as a hill town lays them, their crossings
+  // level, each block between them graded on one ramp, the land's edges kept on its ground (the shore where it falls to
+  // the water); an arterial the slope names climbing at its grade. Its profiles read again on the ground they make)
+  // (an arterial that climbs lifts the land under it and its blocks to its climb, eased out to its neighbours)
+  const lift = T.slope ? climbLift(T.slope.streets, { x: [{ id: 'edge-w', at: land[0] }, ...NS, { id: 'edge-e', at: land[2] }], y: [{ id: 'edge-s', at: land[1] }, ...EW, { id: 'edge-n', at: land[3] }] }) : null;
+  if (lift) { const L0 = L; L = { ...L0, N: (x, y) => L0.N(x, y) + lift(x, y, L0.N), S: (x, y) => L0.S(x, y) + lift(x, y, L0.S) }; }
+  let S = L.S, PFA = null;
+  if (T.profile) {
+    const edge = { half: 0 };
+    PFA = profileStreets({ S: L.S, X: [land[0], ...NS.map((l) => l.at), land[2]], Y: [land[1], ...EW.map((l) => l.at), land[3]], SX: [edge, ...NS, edge], SY: [edge, ...EW, edge], frame: { W, D } },
+      { ...T.profile, keep: true, ids: { x: ['edge-w', ...NS.map((l) => l.id), 'edge-e'], y: ['edge-s', ...EW.map((l) => l.id), 'edge-n'] }, ...(T.slope ? { climb: T.slope.streets } : {}) });
+    S = PFA.S;
+    for (const l of lines) Object.assign(l, l.axis === 'ns' ? profileOf(S, 'ns', l.at, land[1], land[3]) : profileOf(S, 'ew', l.at, land[0], land[2]));
+  }
+  const crossings = NS.flatMap((a) => EW.map((b) => ({ id: `${a.id}×${b.id}`, at: [a.at, b.at], z: r3(S(a.at, b.at)), ranks: [a.rank, b.rank], seat: a.rank === 'spine' && b.rank === 'spine' })));
 
   // 3 the regions: the cells between the arterials (or the land's edge), inside their rights-of-way
   const bx = [land[0], ...NS.map((l) => l.at), land[2]], by = [land[1], ...EW.map((l) => l.at), land[3]];
@@ -202,11 +220,11 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     // a port: an arterial side, its run along the region, the streets' ground at the run's two ends
     const ports = Object.entries(sides).filter(([, v]) => v.kind === 'arterial').map(([side, v]) => {
       const run = side === 'n' || side === 's' ? [[rect[0], side === 's' ? by[j] : by[j + 1]], [rect[2], side === 's' ? by[j] : by[j + 1]]] : [[side === 'w' ? bx[i] : bx[i + 1], rect[1]], [side === 'w' ? bx[i] : bx[i + 1], rect[3]]];
-      return { side, street: v.street, rank: v.rank, run: run.map((p) => p.map(r3)), ends: run.map(([x, y]) => r3(L.S(x, y))) };
+      return { side, street: v.street, rank: v.rank, run: run.map((p) => p.map(r3)), ends: run.map(([x, y]) => r3(S(x, y))) };
     });
     regions.push({ id: `${columnName(i)}${j + 1}`, i, j, rect, area: r3(area(rect)), mid: mid.map(r3), dist, ring, sides, ports,
       beyond: Object.entries(sides).filter(([, v]) => v.kind === 'beyond').map(([k]) => k), waterfront: Object.values(sides).some((v) => v.kind === 'water'),
-      height: r3(L.S(mid[0], mid[1])), park: false, green: 0 });
+      height: r3(S(mid[0], mid[1])), park: false, green: 0 });
   }
 
   // 4 the green: the city park(s) reserved whole, a frame neighbourhood clear of the map's edge first (else an
@@ -227,8 +245,8 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   const edges = [];
   for (const r of regions) {
     const e = at.get(`${r.i + 1}:${r.j}`), n = at.get(`${r.i}:${r.j + 1}`);
-    if (e) { const x = NS[r.i].at, y = r3((r.rect[1] + r.rect[3]) / 2); edges.push({ id: `${r.id}~${e.id}`, a: r.id, b: e.id, street: NS[r.i].id, rank: NS[r.i].rank, portal: [x, y], z: r3(L.S(x, y)) }); }
-    if (n) { const y = EW[r.j].at, x = r3((r.rect[0] + r.rect[2]) / 2); edges.push({ id: `${r.id}~${n.id}`, a: r.id, b: n.id, street: EW[r.j].id, rank: EW[r.j].rank, portal: [x, y], z: r3(L.S(x, y)) }); }
+    if (e) { const x = NS[r.i].at, y = r3((r.rect[1] + r.rect[3]) / 2); edges.push({ id: `${r.id}~${e.id}`, a: r.id, b: e.id, street: NS[r.i].id, rank: NS[r.i].rank, portal: [x, y], z: r3(S(x, y)) }); }
+    if (n) { const y = EW[r.j].at, x = r3((r.rect[0] + r.rect[2]) / 2); edges.push({ id: `${r.id}~${n.id}`, a: r.id, b: n.id, street: EW[r.j].id, rank: EW[r.j].rank, portal: [x, y], z: r3(S(x, y)) }); }
   }
   const graph = { nodes: regions.map((r) => r.id), edges, beyond: regions.filter((r) => r.beyond.length).map((r) => r.id) };
 
@@ -241,11 +259,27 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
 
   // 8 the geotowns it composes (towns.js): a neighbourhood laid by the geotown on the metro's land, its own park the
   // town's; then the blocks inside every other neighbourhood, the park fitted to its streets
-  const towns = townsOf({ seed, regions, metro: M }, T, L.N);
+  const towns = townsOf({ seed, regions, metro: M }, T, L.N, S);
   for (const r of regions) if (towns[r.id]) { r.geotown = towns[r.id]; delete r.parkRect; }
-  const Bs = blocksOf({ seed, metro: M, grammar: G, spec: T, regions, heights: { storeysAt: Hs.storeysAt } });
+  // (its INDUSTRY: a share of its outskirts' neighbourhoods, the land's edge's and the shore's first, far from the seat,
+  // each one after the first drawn toward those already given; their blocks the industrial segments, blocks.js)
+  for (const id of industryOf(regions, M, seed)) { const r = regions.find((x) => x.id === id); r.industrial = true; delete r.parkRect; }
+  const Bs = blocksOf({ seed, metro: M, grammar: G, spec: T, regions, seat, heights: { storeysAt: Hs.storeysAt } });
+  // (profiled: inside each neighbourhood its collectors and locals laid the same, its edges kept on its arterials'
+  // ground; the metro's streets' ground its neighbourhood's where one is profiled, its arterials' elsewhere)
+  const inner = {};
+  if (PFA) {
+    for (const r of regions) {
+      const st = Bs[r.id]?.streets ?? [], xs = st.filter((q) => q.axis === 'ns'), ys = st.filter((q) => q.axis === 'ew'), e = { half: 0 };
+      if (!xs.length && !ys.length) continue;
+      inner[r.id] = profileStreets({ S, X: [r.rect[0], ...xs.map((q) => q.at), r.rect[2]], Y: [r.rect[1], ...ys.map((q) => q.at), r.rect[3]], SX: [e, ...xs.map((q) => ({ half: q.w / 2 })), e], SY: [e, ...ys.map((q) => ({ half: q.w / 2 })), e], frame: {} },
+        { ...T.profile, keep: true, ids: { x: [`${r.id}:w`, ...xs.map((q) => q.id), `${r.id}:e`], y: [`${r.id}:s`, ...ys.map((q) => q.id), `${r.id}:n`] } });
+    }
+    const Sa = S, cellOf = (Ls, v) => { let i = 0; while (i + 2 < Ls.length && v > Ls[i + 1]) i++; return i; }, byCell = new Map(regions.map((r) => [`${r.i}:${r.j}`, r]));
+    S = (x, y) => { const r = byCell.get(`${cellOf(bx, x)}:${cellOf(by, y)}`), Pn = r && inner[r.id]; return Pn && x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3] ? Pn.S(x, y) : Sa(x, y); };
+  }
   // (and the blocks given to the geotown: each one of its block segments, its ground the town block's)
-  const blockTowns = blockTownsOf({ seed, regions: regions.map((r) => ({ ...r, blocks: Bs[r.id].blocks })), metro: M }, T, L.N);
+  const blockTowns = blockTownsOf({ seed, regions: regions.map((r) => ({ ...r, blocks: Bs[r.id].blocks })), metro: M }, T, L.N, S);
   for (const r of regions) {
     const B = Bs[r.id];
     if (!B.blocks.some((b) => blockTowns[b.id])) continue;
@@ -260,6 +294,10 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     r.soft = r3(Object.entries(b.ledger.surfaces).filter(([k]) => isSoft(k)).reduce((s, [, v]) => s + v, 0));
   }
 
+  // (its YARDS, fleets.js: each parking block a role's (a car park, a bus depot, a works yard, an emergency station), a
+  // vacant block by a neighbourhood's sites its contractor's, by the metro's own dice)
+  const yards = assignYards(regions, seed);
+
   // 9 the ledger: every square metre of the frame once (a crossing counted on one arterial)
   const waterArea = water.reduce((s, w) => s + area(w.rect), 0);
   const rowArea = NS.reduce((a, l) => a + 2 * l.half * (land[3] - land[1]), 0) + EW.reduce((a, l) => a + 2 * l.half * (land[2] - land[0]), 0) - NS.reduce((a, p) => a + EW.reduce((b, q) => b + 4 * p.half * q.half, 0), 0);
@@ -270,9 +308,18 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   for (const r of regions) for (const [k, v] of Object.entries(r.ledger.surfaces)) ledger.surfaces[k] = r3((ledger.surfaces[k] ?? 0) + v);
   ledger.streets = r3(regions.reduce((s, r) => s + r.ledger.streets, 0));
 
-  const d = { spec: T, seed, metro: M, grammar: G, frame: { W, D }, land: { rect: land, ...L }, water, seat, section, lines, crossings, regions, graph,
-    heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger };
+  const d = { spec: T, seed, metro: M, grammar: G, frame: { W, D }, land: { rect: land, ...L, ...(PFA ? { S } : {}) }, water, seat, section, lines, crossings, regions, graph,
+    heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger, ...(Object.keys(yards).length ? { yards } : {}) };
+  // (its streets' profiles: the arterials', each neighbourhood's, and the stairs a stretch past walkable wants)
+  if (PFA) d.profile = { arterials: PFA.streets, neighbourhoods: Object.fromEntries(Object.entries(inner).map(([id, Pn]) => [id, Pn.streets])) };
+  // (its WATERFRONT, waterfront.js: its shores reclaimed, a boulevard along its main one, its segments out past it)
+  const wf = waterfrontOf(d);
+  if (wf.length) d.waterfront = wf;
+  // (its HIGHWAYS, highways.js: elevated over its arterials and along its shore, joining its far neighbourhoods)
+  const hws = highwaysOf(d);
+  if (hws.length) d.highways = hws;
   d.laws = geocityLaws(d);
+  d.laws.push(...highwayLaws(d, hws), ...waterfrontLaws(d));
   // 10 an evocation: what it centres on and draws at detail, and the metro to scale it is held to
   if (T.evoke !== 'metro') {
     d.evoked = evokedOf(d, T);
@@ -281,6 +328,18 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     d.laws.push(evokesLaw(d, ref));
   }
   return d;
+}
+
+/** The neighbourhoods built as industry: `share` of the outskirts' (none a park or a geotown), each scored by its
+ *  edge to the country beyond, its shore and its distance from the seat, the dice a little, a neighbour of one given
+ *  more. → [id] */
+export function industryOf(regions, M, seed) {
+  const pool = regions.filter((r) => (r.builds ?? r.ring) === 'outskirts' && !r.park && !r.geotown), n = Math.round((M.industry?.share ?? 0) * pool.length);
+  if (n <= 0 || !pool.length) return [];
+  const far = Math.max(...pool.map((r) => r.dist)), R = streamOf(seed, 'industry', 'metro'), dice = new Map(pool.map((r) => [r.id, R()])), out = [];
+  const score = (r) => (r.beyond.length ? 2 : 0) + (r.waterfront ? 1 : 0) + r.dist / far + 0.6 * dice.get(r.id) + (out.some((id) => { const o = regions.find((x) => x.id === id); return Math.abs(o.i - r.i) + Math.abs(o.j - r.j) === 1; }) ? 1.5 : 0);
+  while (out.length < Math.min(n, pool.length)) out.push(pool.filter((r) => !out.includes(r.id)).sort((p, q) => score(q) - score(p) || (p.id < q.id ? -1 : 1))[0].id);
+  return out.sort();
 }
 
 /** What an evocation centres on, the blocks it draws at a building's detail and the neighbourhoods round them it draws

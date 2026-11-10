@@ -38,8 +38,8 @@
  *
  * Pure, no dice; nothing here is kept by the sim.
  */
-/* (inlined after versus-rig.js: ROUND_REST, each hand's and foot's depth at rest) */
-import { ROUND_REST } from './versus-rig.js';
+/* (inlined after versus-rig.js: ROUND_REST, each hand's and foot's depth at rest; RIG_LIMITS, the ankle's bend) */
+import { ROUND_REST, RIG_LIMITS } from './versus-rig.js';
 
 const FIG_SIDES = ['L', 'R'];
 const fv = {
@@ -128,13 +128,62 @@ function figReach(root, target, l1, l2, pole) {
   return { mid: fv.add(fv.add(root, fv.mul(axis, a)), fv.mul(fv.unit(side), h)), end };
 }
 
+/** THE ROUND BODY'S JOINT LIMITS (degrees): the elbow's and the knee's fold (0 straight), the spine's twist (the
+ * shoulder line against the hip line about the trunk). The side view's own bends are the rig's (versus-rig.js
+ * RIG_LIMITS). The figure keeps them in depth, the one way the side view never sees: a hand or a foot set further from
+ * its shoulder or its hip across the plane, the hips turned with the chest, never off the sim's points (a turn either
+ * side of the limit is taken only when the limbs reach nowhere inside it). */
+export const FIG_LIMITS = Object.freeze({ elbow: 150, knee: 155, spine: 60 });
+/** THE BODY'S BULK, for its parts not to pass through each other: from its own skeleton (a character's or the sim's),
+ * as shares of the shoulders' half-width: the trunk an ellipse (its half-width, its half-depth), a limb's radius, a
+ * leg's, the head's (a share of its own length); `skin` the depth two parts may touch to before they are moved */
+export const FIG_BULK = Object.freeze({ trunkW: 0.75, trunkD: 0.52, limb: 0.3, leg: 0.38, head: 0.45, skin: 0.012 });
+/** A skeleton's bulk in metres (FIG_BULK). */
+export function figureBulk(base) {
+  const sh = fv.len(fv.sub(base.shoulderR, base.shoulderL)) / 2, B = FIG_BULK;
+  return { trunkW: sh * B.trunkW, trunkD: sh * B.trunkD, limb: sh * B.limb, leg: sh * B.leg, head: fv.len(fv.sub(base.headTop, base.headBase)) * B.head, skin: B.skin };
+}
+// a skeleton's limb lengths and their least reaches, once a skeleton
+const FIG_KITS = new WeakMap();
+function figKit(base) {
+  let K = FIG_KITS.get(base);
+  if (K) return K;
+  const L = (a, b) => fv.len(fv.sub(base[b], base[a]));
+  K = Object.fromEntries(FIG_SIDES.map((S) => {
+    const upper = L(`shoulder${S}`, `elbow${S}`), fore = L(`elbow${S}`, `wrist${S}`), thigh = L(`hip${S}`, `knee${S}`), shin = L(`knee${S}`, `ankle${S}`);
+    return [S, { upper, fore, thigh, shin, arm: upper + fore, leg: thigh + shin, armLeast: figLeast(upper, fore, FIG_LIMITS.elbow) * 1.01, legLeast: figLeast(thigh, shin, FIG_LIMITS.knee) * 1.01 }];
+  }));
+  FIG_KITS.set(base, K);
+  return K;
+}
+// the least reach of a two-bone limb folded to its limit (the law of cosines at the joint)
+const figLeast = (l1, l2, fold) => Math.sqrt(Math.max(0, l1 * l1 + l2 * l2 - 2 * l1 * l2 * Math.cos((180 - fold) * FIG_DEG)));
+// the shortest distance between two segments
+function figSegDist(p1, q1, p2, q2) {
+  const d1 = fv.sub(q1, p1), d2 = fv.sub(q2, p2), r = fv.sub(p1, p2), a = fv.dot(d1, d1), e = fv.dot(d2, d2), f = fv.dot(d2, r);
+  let sA, tA;
+  if (a <= 1e-12 && e <= 1e-12) return fv.len(r);
+  if (a <= 1e-12) { sA = 0; tA = Math.max(0, Math.min(1, f / e)); } else {
+    const c = fv.dot(d1, r);
+    if (e <= 1e-12) { tA = 0; sA = Math.max(0, Math.min(1, -c / a)); } else {
+      const b = fv.dot(d1, d2), den = a * e - b * b;
+      sA = den !== 0 ? Math.max(0, Math.min(1, (b * f - c * e) / den)) : 0;
+      tA = (b * sA + f) / e;
+      if (tA < 0) { tA = 0; sA = Math.max(0, Math.min(1, -c / a)); } else if (tA > 1) { tA = 1; sA = Math.max(0, Math.min(1, (b - c) / a)); }
+    }
+  }
+  return fv.len(fv.sub(fv.add(p1, fv.mul(d1, sA)), fv.add(p2, fv.mul(d2, tA))));
+}
+const figLerp = (a, b, t) => fv.add(a, fv.mul(fv.sub(b, a), t));
+
 /**
  * The skeleton posed by the sim's joints J (versus-rig.js rigJoints, mm), facing `face` (+1 toward +x), airborne or
  * not, standing in its `stance` ({ open, hips, tilt }, degrees) as far as `blade` (0 … 1) has it, and turned by the
  * pose's own round-body channels (degrees): `twist` the chest further toward the camera, `sway` the hips, `tilt` the
  * trunk further to the camera's side, `spin` the whole body about the vertical through the pelvis (toward the camera first),
  * `bank` the whole body about its forward line (its top toward the camera); a body that `lie`s rests on its lowest
- * point. → { <node>: [x, y, z] } in metres, the figure's frame, plus `fistL/R`, `heelL/R`.
+ * point. Held within FIG_LIMITS, and its limbs kept out of its trunk, its head, its thighs and each other (FIG_BULK),
+ * both in depth. → { <node>: [x, y, z] } in metres, the figure's frame, plus `fistL/R`, `heelL/R`.
  */
 export function figurePose(base, J, { face = 1, air = false, blade = 1, stance = FIG_STANCE, twist = 0, sway = 0, tilt = 0, spin = 0, bank = 0, lie = false, hands = ROUND_REST.hands, feet = ROUND_REST.feet } = {}) {
   const sg = face > 0 ? 1 : -1, lead = sg > 0 ? 'L' : 'R';
@@ -153,85 +202,187 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
   const tilted = (v) => [v[0] * cs + v[2] * sn, v[1], -v[0] * sn + v[2] * cs];
   const trunkAt = (k, chest) => fv.add(P, figRotX(tilted(figRotZ(fv.sub(base[k], O), chest)), -lean));
   const hipAt = (S, hips) => fv.add(P, figRotZ(fv.sub(base[`hip${S}`], O), hips));
-  const len = (a, b) => fv.len(fv.sub(base[b], base[a]));
+  const len = (a, b) => fv.len(fv.sub(base[b], base[a])), K = figKit(base);
   // the targets: each wrist on the sim's hand (its depth a share of its shoulder's); each ankle joint up the sim's shin
   // from its heel point by the rest ankle's height (the sim's leg runs hip, knee, heel), the toe on from the heel
   // (a hand at full stretch keeps only the depth its arm still reaches)
-  const armLen = (S) => len(`shoulder${S}`, `elbow${S}`) + len(`elbow${S}`, `wrist${S}`);
-  const wristAt = (S, sh) => {
-    const w = at(J[`hand${sideOf(S)}`]), want = sh[0] * hands[S === lead ? 0 : 1];
-    const dd = (w[1] - sh[1]) ** 2 + (w[2] - sh[2]) ** 2;
-    const room = Math.sqrt(Math.max(0, (armLen(S) * 0.999) ** 2 - dd));
-    // (and a hand folded in closer than the arm folds takes the depth it needs: the forearm and the upper arm differ)
-    const least = Math.abs(len(`shoulder${S}`, `elbow${S}`) - len(`elbow${S}`, `wrist${S}`)) * 1.01;
-    const need = Math.sqrt(Math.max(0, least ** 2 - dd));
-    let dx = Math.max(-room, Math.min(room, want - sh[0]));
-    if (Math.abs(dx) < need) dx = (dx < 0 || (dx === 0 && sh[0] > 0) ? -1 : 1) * need;
-    w[0] = sh[0] + dx;
-    return w;
+  const armLen = (S) => K[S].arm;
+  // (and a hand folded in closer than the elbow folds, FIG_LIMITS, takes the depth it needs)
+  const armLeast = (S) => K[S].armLeast, legLeast = (S) => K[S].legLeast;
+  // a point's depth set at `want` (its x), as far as a limb of reach `l` from `root` allows it and no nearer than
+  // `least` to it: the side view (its y and z) is kept
+  const inDepth = (p, root, want, l, least, outward) => {
+    const dd = (p[1] - root[1]) ** 2 + (p[2] - root[2]) ** 2;
+    const room = Math.sqrt(Math.max(0, (l * 0.999) ** 2 - dd)), need = Math.sqrt(Math.max(0, least ** 2 - dd));
+    let dx = Math.max(-room, Math.min(room, want - root[0]));
+    if (Math.abs(dx) < need) dx = (dx < 0 || (dx === 0 && outward < 0) ? -1 : 1) * Math.min(room, need);
+    return [root[0] + dx, p[1], p[2]];
   };
+  const wristAt = (S, sh, dx = 0) => inDepth(at(J[`hand${sideOf(S)}`]), sh, sh[0] * hands[S === lead ? 0 : 1] + dx, armLen(S), armLeast(S), sh[0]);
   const foot = Object.fromEntries(FIG_SIDES.map((S) => {
     const X = sideOf(S), shin = fv.unit(fv.sub(at(J[`ankle${X}`]), at(J[`knee${X}`]))), h = base[`ankle${S}`][2];
     return [S, { heel: at(J[`ankle${X}`]), lift: fv.mul(shin, -h), h }];
   }));
-  const ankleAt = (S, hip) => { const h = [hip[0] * feet[S === lead ? 0 : 1], foot[S].heel[1], foot[S].heel[2]]; return fv.add(h, foot[S].lift); };
-  // the turns: as far toward the camera as the blade asks, back as far as the limbs need (1° at a time, at most past
-  // square by the far side's own range); a move that keys a turn past what its limbs can follow (a side kick's hips
-  // turned right over) is met by the nearest turn that reaches, either way; the turn with the least reach missing if
-  // none reaches
-  const turnFor = (want, least, misses, home = want) => {
-    const hi = Math.max(want, home), lo = least, span = hi - Math.min(lo, want);
-    let best = null;
-    for (let k = 0; k <= span + 1; k++) {
-      for (const deg of k ? [want - k, want + k] : [want]) {
-        if (deg < lo - 1e-9 || deg > hi + 1e-9) continue;
-        const miss = misses(-sg * deg * FIG_DEG);
-        if (miss <= 1e-9) return -sg * deg * FIG_DEG;
-        if (!best || miss < best.miss) best = { miss, deg };
-      }
-    }
-    return -sg * best.deg * FIG_DEG;
-  };
+  const legLen = (S) => K[S].leg;
+  const ankleAt = (S, hip, dx = 0) => inDepth(fv.add([0, foot[S].heel[1], foot[S].heel[2]], foot[S].lift), hip, hip[0] * feet[S === lead ? 0 : 1] + dx, K[S].leg, legLeast(S), hip[0]);
+  // the turns, in degrees toward the camera: each as far as the blade asks and back as far as its limbs need, at most
+  // past square by the far side's own range. A turn reaches when its limbs reach their points; of the turns that reach,
+  // the hips' and the chest's are taken together nearest what is asked, no further apart than the spine twists
+  // (FIG_LIMITS.spine); a move whose limbs reach nowhere inside it keeps the nearest turns that reach; one that reaches
+  // nowhere at all, the turn with the least reach missing
+  const rad = (deg) => -sg * deg * FIG_DEG;
   const over = (root, target, l) => Math.max(0, fv.len(fv.sub(target, root)) - l * 0.999);
-  // the chest turns back, and the trunk straightens out of its tilt, as far as the arms need (an arm up overhead)
-  const armsMiss = (c) => FIG_SIDES.reduce((m, S) => {
-    const sh = trunkAt(`shoulder${S}`, c);
-    return m + over(sh, wristAt(S, sh), armLen(S));
-  }, 0);
-  let chest;
-  for (const share of [1, 0.5, 0]) {
+  const armsMiss = (c) => FIG_SIDES.reduce((m, S) => { const sh = trunkAt(`shoulder${S}`, c); return m + over(sh, wristAt(S, sh), armLen(S)); }, 0);
+  const legsMiss = (h) => FIG_SIDES.reduce((m, S) => { const hp = hipAt(S, h); return m + over(hp, ankleAt(S, hp), legLen(S)); }, 0);
+  // (the turns tried: the asked one, then a degree further each way, the nearer side first, within the range)
+  const tries = (want, least, home) => {
+    const hi = Math.max(want, home), lo = least, out = [];
+    for (let k = 0; k <= hi - Math.min(lo, want) + 1; k++) for (const deg of k ? [want - k, want + k] : [want]) if (deg >= lo - 1e-9 && deg <= hi + 1e-9) out.push(deg);
+    return out;
+  };
+  // the first turn that reaches, or the one that misses least; `all` the turns that reach, nearest first
+  const reach = (list, misses, all = false) => {
+    const ok = [];
+    let best = null;
+    for (const deg of list) {
+      const miss = misses(rad(deg));
+      if (miss <= 1e-9) { ok.push(deg); if (!all) break; }
+      if (!best || miss < best.miss) best = { miss, deg };
+    }
+    return { deg: ok.length ? ok[0] : best.deg, ok };
+  };
+  // (every chest turn that reaches, scanned once and only when it is asked for)
+  let chestScan = null;
+  const chestAll = () => (chestScan ??= reach(chestTries, armsMiss, true).ok);
+  const hipWant = blade * stance.hips + sway, hipTries = tries(hipWant, -FIG_TURN.hips, blade * stance.hips);
+  let hipDeg = reach(hipTries, legsMiss).deg, chestDeg = 0, chestTries = null, share = 1;
+  const chestWant = blade * stance.open + twist;
+  for (share of [1, 0.5, 0]) {
     tiltBy(share);
-    chest = turnFor(blade * stance.open + twist, -FIG_TURN.chest, armsMiss, blade * stance.open);
-    if (armsMiss(chest) <= 1e-9) break;
+    chestTries = tries(chestWant, -FIG_TURN.chest, blade * stance.open);
+    const C = reach(chestTries, armsMiss);
+    chestDeg = C.deg;
+    if (C.ok.length) break;
   }
-  const hips = turnFor(blade * stance.hips + sway, -FIG_TURN.hips, (h) => FIG_SIDES.reduce((m, S) => {
-    const hp = hipAt(S, h);
-    return m + over(hp, ankleAt(S, hp), len(`hip${S}`, `knee${S}`) + len(`knee${S}`, `ankle${S}`));
-  }, 0), blade * stance.hips);
+  // (twisted past the spine: the hips and the chest that both reach, nearest what was asked, no further apart than it)
+  if (Math.abs(chestDeg - hipDeg) > FIG_LIMITS.spine) {
+    const H = reach(hipTries, legsMiss, true).ok, C = chestAll();
+    let pick = null;
+    for (const h of H) for (const c of C) {
+      if (Math.abs(c - h) > FIG_LIMITS.spine) continue;
+      const cost = Math.abs(h - hipWant) + Math.abs(c - chestWant);
+      if (!pick || cost < pick.cost) pick = { h, c, cost };
+    }
+    if (pick) { hipDeg = pick.h; chestDeg = pick.c; }
+  }
+  const hips = rad(hipDeg);
   N.pelvisHub = P;
-  for (const k of ['navel', 'neckHub', 'shoulderL', 'shoulderR']) N[k] = trunkAt(k, chest);
-  // the head along the sim's neck → head line
-  const hd = fv.unit(fv.sub(at(J.head), at(J.neck)));
-  N.headBase = fv.add(N.neckHub, fv.mul(hd, len('neckHub', 'headBase')));
-  N.headTop = fv.add(N.headBase, fv.mul(hd, len('headBase', 'headTop')));
-  const chestFwd = figRotX(tilted(figRotZ([0, 1, 0], chest)), -lean);
+  // THE BODY'S OWN PARTS (FIG_BULK): the trunk an ellipse about its axis (read in its frame, its depth stretched to its
+  // width), the head, the limbs capsules; how deep a limb passes into what is already placed
+  const bulk = figureBulk(base), stretch = bulk.trunkW / bulk.trunkD;
+  // (the head along the sim's neck → head line, over the head's OWN carriage: a beast's skull seated with its crown
+  // forward of its base (a wolf's, a dragon's, the snout out front) keeps that lean, the sim's angle laid on it, so its
+  // snout looks where the fight looks and never up at the sky; a person's head, upright at rest, as the line has it)
+  const hd = headCarried(fv.unit(fv.sub(at(J.head), at(J.neck))), base);
+  // the trunk at a chest turn: the shoulders, the neck, the head along the sim's neck → head line, its frame
+  const trunkOf = (deg) => {
+    const c = rad(deg), T = { deg };
+    for (const k of ['navel', 'neckHub', 'shoulderL', 'shoulderR']) T[k] = trunkAt(k, c);
+    T.headBase = fv.add(T.neckHub, fv.mul(hd, len('neckHub', 'headBase')));
+    T.headTop = fv.add(T.headBase, fv.mul(hd, len('headBase', 'headTop')));
+    T.chestFwd = figRotX(tilted(figRotZ([0, 1, 0], c)), -lean);
+    const up = fv.unit(fv.sub(T.neckHub, P)), across = fv.unit(fv.sub(T.shoulderR, T.shoulderL)), fwd = fv.unit(fv.cross(up, across)), lat = fv.unit(fv.cross(fwd, up));
+    T.in = (v) => { const d = fv.sub(v, P); return [fv.dot(d, lat), fv.dot(d, fwd) * stretch, fv.dot(d, up)]; };
+    T.axis = [T.in(P), T.in(T.neckHub)];
+    return T;
+  };
+  const placed = [];   // [p, q, r]: what a limb must keep out of, as it is placed
+  const into = (p, q, r, T = null, rest = placed) => {
+    let worst = 0;
+    if (T) {
+      worst = Math.max(worst, bulk.trunkW + r - figSegDist(T.in(p), T.in(q), T.axis[0], T.axis[1]));
+      worst = Math.max(worst, bulk.head + r - figSegDist(p, q, T.headBase, T.headTop));
+    }
+    for (const [a, b, rb] of rest) worst = Math.max(worst, r + rb - figSegDist(p, q, a, b));
+    return Math.max(0, worst - bulk.skin);
+  };
+  // the legs first (the arms keep out of the thighs): the knee to its thigh's front, the foot turned by the sim's foot angle; a leg
+  // into the other moved out across the plane
+  const STEP = 0.015;
   for (const S of FIG_SIDES) {
     const out = S === 'R' ? 1 : -1;
     N[`hip${S}`] = hipAt(S, hips);
-    // the arm: the elbow down and out
-    const sh = N[`shoulder${S}`];
-    const arm = figReach(sh, wristAt(S, sh), len(`shoulder${S}`, `elbow${S}`), len(`elbow${S}`, `wrist${S}`), fv.add([out * 0.6, 0, -1], fv.mul(chestFwd, -0.3)));
-    N[`elbow${S}`] = arm.mid; N[`wrist${S}`] = arm.end;
-    N[`fist${S}`] = fv.add(arm.end, fv.mul(fv.unit(fv.sub(arm.end, arm.mid)), base.hand));
-    // the leg: the knee forward, the foot turned by the sim's foot angle
-    const leg = figReach(N[`hip${S}`], ankleAt(S, N[`hip${S}`]), len(`hip${S}`, `knee${S}`), len(`knee${S}`, `ankle${S}`), [out * 0.15, 1, 0]);
-    N[`knee${S}`] = leg.mid; N[`ankle${S}`] = leg.end;
-    // the foot is rigid (its own bones): turned about the ankle to point at the sim's toe, the heel under the ankle
-    const rf = fv.sub(base[`toe${S}`], base[`ankle${S}`]), toe2 = at(J[`toe${sideOf(S)}`]), d = fv.sub(toe2, leg.end);
-    const ft = Math.atan2(d[2], d[1]) - Math.atan2(rf[2], rf[1]);
-    N[`toe${S}`] = fv.add(leg.end, figRotX(rf, ft));
-    N[`heel${S}`] = fv.add(leg.end, figRotX([0, 0, -foot[S].h], ft));
+    // (the knee bends toward the front of its own thigh, the sim's: forward as the thigh hangs, up as it is raised)
+    const th = J[`knee${sideOf(S)}`], tl = Math.hypot(th[0] - J.pelvis[0], th[1] - J.pelvis[1]) || 1;
+    const hip = N[`hip${S}`], l1 = K[S].thigh, l2 = K[S].shin, pole = [out * 0.15, -(th[1] - J.pelvis[1]) / tl, (th[0] - J.pelvis[0]) / tl];
+    const legOf = (dx) => { const end = ankleAt(S, hip, dx), L = figReach(hip, end, l1, l2, pole); return { L, deep: into(figLerp(hip, L.mid, 0.3), L.mid, bulk.leg) + into(L.mid, L.end, bulk.leg * 0.85) }; };
+    let leg = legOf(0);
+    for (let k = 1; leg.deep > 0 && k <= 20; k++) { const n = legOf(out * k * STEP); if (n.deep < leg.deep) leg = n; }
+    N[`knee${S}`] = leg.L.mid; N[`ankle${S}`] = leg.L.end;
+    placed.push([figLerp(hip, leg.L.mid, 0.3), leg.L.mid, bulk.leg], [leg.L.mid, leg.L.end, bulk.leg * 0.85]);
+    // the foot is rigid (its own bones): turned about the ankle to point at the sim's toe, the heel under the ankle; never
+    // folded up into the shin as it is drawn (versus-rig.js RIG_LIMITS, its drawn-up end: the drawn knee is not the sim's
+    // where the hips turn, so a foot the sim holds may still fold against the drawn shin). A pointed toe stays on the
+    // sim's toe, a kick's hit
+    const rf = fv.sub(base[`toe${S}`], base[`ankle${S}`]), toe2 = at(J[`toe${sideOf(S)}`]), d = fv.sub(toe2, leg.L.end);
+    let ft = Math.atan2(d[2], d[1]) - Math.atan2(rf[2], rf[1]);
+    {
+      const sd = fv.sub(leg.L.mid, leg.L.end), fd = figRotX(rf, ft), ps = Math.atan2(sd[2], sd[1]), pf = Math.atan2(fd[2], fd[1]);
+      // (the bend between the shin and the foot, 90 standing, past 180 a toe pointed past the shin's line)
+      let bend = Math.atan2(Math.sin(ps - pf), Math.cos(ps - pf)) / FIG_DEG;
+      if (bend < -90) bend += 360;
+      const least = 180 - RIG_LIMITS.ankle[1];
+      if (bend < least) ft += (bend - least) * FIG_DEG;
+    }
+    N[`toe${S}`] = fv.add(leg.L.end, figRotX(rf, ft));
+    N[`heel${S}`] = fv.add(leg.L.end, figRotX([0, 0, -foot[S].h], ft));
   }
+  // the arms on a trunk, the lead first: the elbow down and out; a hand, a forearm or an elbow into the trunk, the head,
+  // a thigh or the other arm moved across the plane (the hand's depth, nearest first), or the elbow turned out about the
+  // line from the shoulder to the hand (`search` false: as they fall, for a turn to be weighed)
+  const armsOn = (T, search) => {
+    const rest = placed.slice(), out = { deep: 0 };
+    for (const S of S_ORDER(lead)) {
+      const o = S === 'R' ? 1 : -1, sh = T[`shoulder${S}`], l1 = K[S].upper, l2 = K[S].fore;
+      const pole0 = fv.add([o * 0.6, 0, -1], fv.mul(T.chestFwd, -0.3));
+      const armOf = (dx, pole) => {
+        const A = figReach(sh, wristAt(S, sh, dx), l1, l2, pole), fist = fv.add(A.end, fv.mul(fv.unit(fv.sub(A.end, A.mid)), base.hand));
+        return { A, fist, deep: into(figLerp(sh, A.mid, 0.4), A.mid, bulk.limb, T, rest) + into(A.mid, fist, bulk.limb, T, rest) };
+      };
+      let arm = armOf(0, pole0), at0 = { dx: 0, pole: pole0 };
+      if (arm.deep > 0 && search) {
+        // (the hand's depth first, every two steps out to 45 cm either way; then the elbow turned at the best of them; then
+        // a step either side of it)
+        hunt: for (let k = 1; k <= 15; k++) for (const dx of [o * 2 * k * STEP, -o * 2 * k * STEP]) {
+          const n = armOf(dx, pole0);
+          if (n.deep < arm.deep) { arm = n; at0 = { dx, pole: pole0 }; }
+          if (arm.deep <= 0) break hunt;
+        }
+        for (const pole of [[o, 0, -0.4], [o, -0.3, 0.2], [o * 0.4, 0, -1]]) { if (arm.deep <= 0) break; const n = armOf(at0.dx, pole); if (n.deep < arm.deep) { arm = n; at0 = { dx: at0.dx, pole }; } }
+        for (const dx of [at0.dx - STEP, at0.dx + STEP]) { if (arm.deep <= 0) break; const n = armOf(dx, at0.pole); if (n.deep < arm.deep) arm = n; }
+      }
+      out[`elbow${S}`] = arm.A.mid; out[`wrist${S}`] = arm.A.end; out[`fist${S}`] = arm.fist;
+      out.deep += arm.deep;
+      rest.push([figLerp(sh, arm.A.mid, 0.4), arm.A.mid, bulk.limb], [arm.A.mid, arm.fist, bulk.limb]);
+    }
+    return out;
+  };
+  let T = trunkOf(chestDeg), arms = armsOn(T, true);
+  // arms that pass through the trunk wherever their hands are put: the chest turned as far as they need to clear it (a
+  // rear straight squares the shoulders), of the turns that reach, nearest the one asked, inside the spine's twist
+  if (arms.deep > 0) {
+    let best = null;
+    // (every other degree, the nearest forty)
+    const turns = chestAll().filter((c) => c !== chestDeg && Math.abs(c - hipDeg) <= FIG_LIMITS.spine && Math.round(c - chestDeg) % 2 === 0).slice(0, 40);
+    for (const c of turns) {
+      const T2 = trunkOf(c), quick = armsOn(T2, false);
+      if (!best || quick.deep < best.deep) best = { T: T2, deep: quick.deep };
+      if (quick.deep <= 0) break;
+    }
+    if (best) { const again = armsOn(best.T, true); if (again.deep < arms.deep) { T = best.T; arms = again; } }
+  }
+  for (const k of ['navel', 'neckHub', 'shoulderL', 'shoulderR', 'headBase', 'headTop']) N[k] = T[k];
+  for (const S of FIG_SIDES) for (const k of ['elbow', 'wrist', 'fist']) N[`${k}${S}`] = arms[`${k}${S}`];
   // a leg too short for the sim's spot (a character shorter in the leg than the sim's figure) leaves its foot in the
   // air: grounded, the body sinks by the least such gap so the nearer foot stands
   const gaps = FIG_SIDES.map((S) => N[`ankle${S}`][2] - ankleAt(S, N[`hip${S}`])[2]);
@@ -254,6 +405,17 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
   }
   return N;
 }
+// THE HEAD'S OWN CARRIAGE: its rest line's lean forward of upright (the figure's frame: y forward, z up), in radians; a
+// lean under HEAD_UPRIGHT reads as upright (a person's), so a person's head is posed exactly as the sim's line has it
+const HEAD_UPRIGHT = 3 * Math.PI / 180;
+function headCarried(hd, base) {
+  const d = fv.sub(base.headTop, base.headBase), lean = Math.atan2(d[1], d[2]);
+  if (!(Math.abs(lean) > HEAD_UPRIGHT)) return hd;
+  const c = Math.cos(lean), s = Math.sin(lean);
+  return fv.unit([hd[0], hd[1] * c + hd[2] * s, hd[2] * c - hd[1] * s]);
+}
+// the order the arms are placed in: the lead's first (the rear keeps out of it)
+const S_ORDER = (lead) => (lead === 'L' ? ['L', 'R'] : ['R', 'L']);
 
 // each segment: its start and end joints, and its pole (the second direction that fixes its roll)
 const FIG_SEGMENTS = {
@@ -286,17 +448,25 @@ export function figureSegments(base, N) {
     const R = [0, 1, 2].map((i) => [0, 1, 2].map((j) => Fp[0][i] * Fr[0][j] + Fp[1][i] * Fr[1][j] + Fp[2][i] * Fr[2][j]));
     out[k] = { R, from: base[a], at: N[a] };
   }
+  // (the ground: what stands where it rests in the body's own frame whatever the body does, a serpent's coil on the floor)
+  out.ground = GROUND;
   return out;
 }
+const GROUND = Object.freeze({ R: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], from: [0, 0, 0], at: [0, 0, 0] });
 
 // the segment a character's bone rides, by its name (a side's bone on that side's segment)
 const FIG_RIDES = [
-  [/^(pelvis|lumbar|tail\d*)$/, 'pelvis'], [/^(torso|clavicle|bust|upperArm2|foreArm2|hand2)$/, 'torso'], [/^neck$/, 'neck'], [/^(head|jaw)$/, 'head'],
+  [/^(pelvis|lumbar|tail\d*)$/, 'pelvis'], [/^(torso|clavicle|bust|upperArm2|foreArm2|hand2)$/, 'torso'], [/^neck$/, 'neck'],
+  // (the head's, and the face's: a creature's lids, lips and brows, its ears, snout and horns move with its head)
+  [/^(head|jaw|lid|lip[UD]?|brow|eye|ear\d*|snout|muzzle|nose|horn\d*|cheek|crest)$/, 'head'],
   [/^upperArm$/, 'upperArm'], [/^(foreArm|hand|elbowFold|thumb\d|index\d|middle\d|ring\d|little\d|finger[A-Z]\d|wing.*)$/, 'foreArm'],
   [/^(thigh|hipFold)$/, 'thigh'], [/^(shank|shin|kneeFold|meta)$/, 'shin'], [/^(foot|toes)$/, 'foot'],
 ];
-/** The segment a packed rig's bone rides: `torso`, `head`, `foreArmR` …; a bone with no word rides the torso. */
+/** The segment a packed rig's bone rides: `torso`, `head`, `foreArmR` …; a bone with no word rides the torso. A serpent's
+ * coil (beast/serpent.js) rides as its rig has it: its first link the pelvis (`coil0`), the rest planted (`ground`). */
 export function segmentOf(id) {
+  const coil = /^coil(\d+)$/.exec(id);
+  if (coil) return Number(coil[1]) < 1 ? 'pelvis' : 'ground';
   const m = /^(.*?)([LR])$/.exec(id), base = m ? m[1] : id, S = m ? m[2] : '';
   for (const [re, seg] of FIG_RIDES) if (re.test(base)) return FIG_SEGMENTS[seg] ? seg : `${seg}${S || 'R'}`;
   return 'torso';

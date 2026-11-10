@@ -79,6 +79,7 @@ import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
+import { wieldsFigure, armHeld } from '@/lib/graph/worlds/held-strike';
 
 export { resolveWrapTextures };
 
@@ -97,6 +98,9 @@ export const WALK_KINDS = new Set([
 // Loader fns arrive as arguments (they're lazy-imported at the one call site).
 const POSMAP_CACHE = new Map();
 const POSMAP_CACHE_MAX = 16;
+// (a glyph map's far range's own haze over the form's far land, level/far-range.js: a share of the page's fog, and the
+// sky's air over its nearest ring to its farthest)
+const MAP_HAZE = Object.freeze({ fog: 0.3, air: Object.freeze([0.08, 0.42]) });
 function posMapFor(path, readBoundMeshFaces, buildPosMap) {
   let m = POSMAP_CACHE.get(path);
   if (m) { POSMAP_CACHE.delete(path); POSMAP_CACHE.set(path, m); return m; }   // LRU touch
@@ -158,7 +162,24 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null } = {}) {
+/** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip, aimClip), and the fighting stances: those
+ * of the weapons that show this figure (`r.weapons`' figure: the drawn hero the blade's, the sheathed one the fist's; a
+ * lone `moveset` the drawn hero's) */
+function movesOf(rule, name) {
+  const Ws = Array.isArray(rule.weapons) && rule.weapons.length ? rule.weapons : [{ figure: 'drawn', moveset: rule.moveset }];
+  const C = rule.combat || {}, sheathed = !!C.sheathed && name === C.sheathed && name !== C.drawn;
+  const mine = Ws.filter((W) => (W.figure === 'sheathed') === sheathed);
+  const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}), ...(m.air ? { air: true } : {}) })));
+  const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
+  // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)
+  const aims = [...new Map([...Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }]),
+    // (and each weapon's guard: its pose while the guard is up, combat-melee.js stepGuard)
+    ...Ws.filter((W) => W.guard && W.guard.clip).map((W) => [W.guard.clip, { clip: W.guard.clip, pose: W.guard.pose }])]).values()];
+  // (and the arsenal's sword art: how the blades are swung, hero-swing-body.js SWING_STYLES)
+  const art = mine.map((W) => W.moveset.art).find(Boolean);
+  return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
+}
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -175,6 +196,13 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
     manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
   }
+  // THE PLAY GRADE (figure-grades.js): the same hero baked to the budget a game plays it at, its skeleton, clips and palette
+  // the pose grade's; a figure's own `grade` over the world's. A plan made without a hero, or the pose grade: as it is
+  const G = spec.grade ?? grade;
+  if (manifest && G === 'play' && manifest.hero) {
+    const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+    manifest = expandLayeredManifest({ ...manifest, plan: undefined, recipe: undefined, hero: { ...manifest.hero, grade: 'play' } });
+  }
   // `jumps`: the hero's own jumps a game's takes play (gameworld/feel/lower.js TAKES: hero-jump.js words), compiled onto
   // its rig beside its clips (its recipe's `locomotion`, as its door motion is); a jump it already moves by stays its own.
   // Absent: the hero's clips as minted
@@ -187,7 +215,8 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}) });
+    // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -804,8 +833,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was. The engine handoff (scene/handoff.js,
   // `handoff: true`) reads it unshaded: its land's data is what an engine is handed, its light the engine's own
-  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
-    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+  // (and a glyph map a geocube paints, level/grid-scene.js: its land and its plants read as the cube's trail's are, its
+  // level's cube, hour, clouds and biocube the recipe's words)
+  const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
+  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
+    // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)
+    const M = formMap ? { ...sketch.manifest.level, cube: sketch.manifest.level.geocube } : sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown' || M.show === 'geocity';
     // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
@@ -819,8 +852,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const grown = floraBox(payload.plants);
     // (a winter, snow over the whole land with no line, grows no grass at all; under a snow line the grass stands below it)
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
-    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
+    const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
+    // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)
+    if (read && formMap) payload.form.land.haze = MAP_HAZE;
     // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
     // what the stage painted)
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
@@ -833,6 +871,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    // (a glyph map says what of the form it got: a gen-7 map is the form render's, never paint under the live light)
+    if (formMap && payload.map) payload.map.form = read ? { read: true, plants: !!flora, far: 'range' } : { read: false, why: 'the map has no land the form reads' };
+    // (and a metro says what of the form it got, geocity/scene.js: its lawns, its street trees and its towns' grown)
+    if (M.show === 'geocity' && payload.geocity) payload.geocity.form = read ? { read: true, plants: !!flora } : { read: false, why: 'the metro has no soft ground the form reads' };
+    // (a metro's buildings keep their own tiers, detail, massing and skyline, geocity/scene.js, lit by the live light: no
+    // far structure's card is baked for them, channels/far-structures.js, whose cards read a painted fill a metro's
+    // textured faces do not carry)
+    if (read && M.show === 'geocity') payload.form.land.structures = false;
     if (flora) {
       const stamped = (payload.repeats || []).map((r) => r.group).filter((g) => g && g.startsWith('isekai:trees:'));
       payload.form = { ...payload.form, land: { ...payload.form.land, hides: [...new Set([...payload.form.land.hides, ...FLORA_HIDES, ...stamped])] }, flora };
@@ -847,6 +893,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (a glyph map read in a form era that no geocube paints: drawn as paint under the live light, and says so, with how to
+  // have the form's: the map's level names its geocube, level/grid-scene.js)
+  if (payload && payload.map && !formMap && sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true) payload.map.form = { read: false, why: 'no geocube paints the map: name its level\'s geocube (level.geocube, or a gameworld style\'s) for the form render\'s land, plants and far range' };
   // (a gen-7 geocube page without the form render, a geocity: the form's sky over it, channels/form-sky.js, its light the
   // cube's own sky colours, its sun the page's, its clouds the recipe's)
   if (payload && !payload.form && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form' && payload.sky && !payload.sky.space && Array.isArray(payload.sky.zenith) && Array.isArray(payload.sky.sun?.dir)) {
@@ -1100,6 +1149,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     };
     if (figs && typeof figs === 'object') {
       payload.figures = {};
+      let poseNames = null;
+      // THE SCENES' TAKES (playscape/ui/scene-takes.js): a page whose scenes are written as scripts gives each figure that
+      // plays in them its acts and face takes, blocked on the stage the scripts are lowered on below (lowerPlay). None ⇒
+      // nothing is computed, byte-identical
+      const { hasScripts } = await import('@/lib/graph/playscape/ui/scene-script.js');
+      const takesOf = hasScripts(sketch.manifest.play) ? (await import('@/lib/graph/playscape/ui/scene-takes.js')).sceneTakes(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
         // meshRef entries were consumed by the bind-back block above (static
@@ -1123,8 +1178,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // gameworld/feel/lower.js) and no strike of its own strikes with what the hero holds in its right hand: the
           // hero's swings as the runtime's swing directions (world-kinds.js), the rule armed with the item's reach, the
           // class's seconds and damage (any the rule names stand). Nothing held ⇒ the body as it was.
-          const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
+          // (an action hero sheathed out of combat plays `<hero>-sheathed` and draws this hero in a fight: held-strike.js)
+          const wields = (e) => wieldsFigure(e, name);
           const wielder = (payload.entities || []).find(wields);
+          // (a moveset's hero, whichever figure it plays now: its moves bake on every figure its weapons show, the
+          // sheathed hero's fist as the drawn hero's blade, whatever the blade's bake has armed on it since)
+          const mover = (payload.entities || []).find((e) => e && e.rule && e.rule.moveset && e.body && (e.body.figure === name || (e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           // THE RIDER (a world with `mounts`, worlds/mount-units.js): the pilot playing this hero learns to ride its horses, its
           // riding clips solved on its own rig in the pack (world-kinds.js ctx.ride). No mounts ⇒ the hero as it was
           const rider = mountsSpec && !mountRide ? (payload.entities || []).find((e) => e && e.pilotable && e.body && e.body.figure === name) : null;
@@ -1134,7 +1193,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
+          const takes = takesOf?.[name] ?? null;
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1154,7 +1214,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // fidelity a machine's takes; any other game type's hero as it was)
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
-          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } } : e));
+          // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
+          // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
+          // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
+          if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}) });
+            const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
+            if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
+          }
+          // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
+          const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
+          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held, moveClips) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
@@ -1739,6 +1809,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }
+  // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
+  // composed for them, beside the world's own; none ⇒ as it was)
+  if (payload && playEv?.scenes) {
+    const { sceneMoments } = await import('@/lib/graph/playscape/ui/scenes.js'), own = sceneMoments(playEv.scenes);
+    if (own.length) payload.tempo = { moments: [...(payload.tempo?.moments ?? []), ...own.filter((m) => !(payload.tempo?.moments ?? []).some((x) => x.on === m.on))] };
+  }
 
   // the SCREEN a game is made for (game/screen.js): the page holds its frame, the least a player sees, and the cameras'
   // fov is derived at it. Absent: the page's own box, every byte as it was.
@@ -1791,7 +1867,34 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
-    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
+    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster, { register: measured.register ?? null }) });
+    // a fight game (one with a register) sounds its blows from the SFX shelf (versus/versus-sfx.js): its cues on the
+    // page's audio channel, joining what audio the level already has (its own cues win); an arena made before the
+    // register carries none and keeps its beeps
+    const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
+    const fa = fightAudio({ register: measured.register ?? null });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
+  }
+  // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
+  // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
+  // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
+  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
+    const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
+    // its roster's characters measured from the store as a fight's are, each played in its own body with its own clips
+    // (under a register, its lit export, for the yard to draw every body the register's one way), as a fight's arena does
+    const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
+    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
+    const fa = fightAudio({ register: sketch.manifest.brawl.register ?? 'western' });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
   }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
   // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's

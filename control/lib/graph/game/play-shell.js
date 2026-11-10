@@ -7,6 +7,11 @@
  * level and a save behave the same under either; what it leaves out is everything the arena grew for itself
  * (hangar picks, liveries, map carousels, difficulty, battle music, AI switches, menus).
  *
+ * THE FLOW (flow.js) says what plays when: the game's own `flow`, else the one its front, levels and run make
+ * (defaultFlow), inlined with its kernel and run by the page's flow runner. Every screen's buttons and every level's end
+ * are events the flow steps on; the level's sidecars (game-shown, game-card-done) say when its first frame is drawn (the
+ * veil lifts) and when its end card is read (the flow goes on), a level from before them given the time it always had.
+ *
  * The screens: title → levels (only when the game has more than one) → playing → result. A map game (levels with
  * `exits`) travels: a level left through an open exit goes straight on to the level it leads to, told where it came
  * from (`params.arrive`); its list shows what has been found, where each exit leads and what locks it.
@@ -27,13 +32,16 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
+import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { readScreen } from './screen.js';
+import { buildFlowKernel, defaultFlow } from './flow.js';
+import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
 
 const CTL = buildControlsKernel();
 const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
@@ -80,6 +88,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
   // inject into the CSS context
   const theme = manifest.theme || {};
+  // (a bare HUD look, the world's `hud`, mana-ui/theme.js: no menu button under a mouse, the pause on Esc; a finger keeps it)
+  const bareHud = typeof manifest.hud === 'string' && THEMES[manifest.hud]?.hud === 'bare';
   const c = {
     bg: safeColor(theme.bg, '#0e1116'),
     ink: safeColor(theme.ink, '#e8edf4'),
@@ -108,12 +118,17 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
+    // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
+    flow: manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front }),
+    // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
+    ...(manifest.ui ? { mana: shellManaConfig(manifest.ui) } : {}),
   };
-  const front = !!cfg.front;
+  // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
+  const mana = !!cfg.mana, front = !!cfg.front && !mana;
   // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
   // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
   // Absent: no attribute, no rule, the page as it was
@@ -162,7 +177,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #veil .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
   #pauseBtn{position:fixed;top:12px;right:12px;z-index:6;display:none;padding:6px 12px;background:var(--panel);border-radius:8px}
-  #pause{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(6px)}
+${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!important}}\n' : ''}  #pause{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(6px)}
   #pause .screen{max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
   dl.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}
   dl.keys dt{color:var(--accent);white-space:nowrap}
@@ -175,7 +190,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #debug pre{margin:4px 0 10px;white-space:pre-wrap;word-break:break-word}
   #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
   ${SCREEN_CSS}` : ''}${front ? `
-  ${FRONT_CSS}` : ''}
+  ${FRONT_CSS}` : ''}${mana ? `
+  ${shellManaCss(manifest.ui)}` : ''}
 </style></head>
 <body>
 <main id="app"></main>${front ? `
@@ -188,8 +204,10 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
 <details id="debug"><summary>debug</summary><div class="body" id="debugBody"></div></details>
 <div id="toast" role="status"></div>
 <script>${front ? `
-const __mojFront = (${playFrontRuntime.toString()});` : ''}
+const __mojFront = (${playFrontRuntime.toString()});` : ''}${mana ? `
+${shellManaScript()}` : ''}
 const K = (${buildGameStoreKernel.toString()})();
+const __mojFlowK = (${buildFlowKernel.toString()})();
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
 </script>
 </body></html>`;
@@ -205,6 +223,10 @@ export function playShellRuntime(cfg, K) {
   const DEBUG = PLAYTEST || /(^|[?&])debug=1(&|$)/.test(location.search.slice(1));
   const $ = (id) => document.getElementById(id);
   const app = $('app'), frame = $('frame'), veil = $('veil'), pauseBtn = $('pauseBtn'), pauseEl = $('pause');
+  // THE FLOW (flow.js): what plays when. Every screen's buttons and every level's end are events the flow steps on;
+  // `at` is the step the game is on and the level last played
+  const FK = __mojFlowK, FLOW = cfg.flow;
+  let at = { step: null, level: null }, holdTimer = 0, holdUntil = null, idleTimer = 0, idleAfter = 0, lastOutcome = null, waitCard = null;
 
   function el(tag, props, kids) {
     const n = document.createElement(tag);
@@ -240,7 +262,15 @@ export function playShellRuntime(cfg, K) {
   const saveSettings = () => { try { storage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) { /* session only */ } };
 
   let state, runLog;
+  // the flow's steps this save has entered (its cinematics: an opening plays on a first boot, the flow's `unseen`), kept
+  // beside the save and cleared with it
+  const SEEN_KEY = SAVE_KEY + ':seen';
+  let seenSteps = {};
+  try { const v = JSON.parse(storage.getItem(SEEN_KEY) || 'null'); if (v && typeof v === 'object') seenSteps = v; } catch (e) { /* none seen */ }
   function freshStore() { state = K.createStore(SCHEMA); runLog = []; }
+  // a reset (the player's, the drawer's): the store anew, and what the flow has shown forgotten with it (a first boot's
+  // fresh store keeps it: a player who has seen the opening and not yet finished a level has no save, and has seen it)
+  function resetStore() { freshStore(); seenSteps = {}; try { storage.removeItem(SEEN_KEY); } catch (e) { /* session only */ } }
   (function boot() {
     const raw = storage.getItem(SAVE_KEY);
     if (raw) {
@@ -256,7 +286,17 @@ export function playShellRuntime(cfg, K) {
   // a map game (levels with exits): a level is open once found through an open exit; a list game reads its gates.
   // A playtest opens every level to pick from; travel inside the game still follows the game's own exits and keys.
   const MAP = K.isMap(LEVELS);
-  const isOpen = (lv) => PLAYTEST || (MAP ? !!K.reachable(SCHEMA, state, LEVELS)[lv.ref] : K.evalGate(SCHEMA, state, lv.gate));
+  // ---- the atlas (a megaworld): where the player is, kept in the store; found by having been, never by completing ----
+  const ATLAS = M.atlas || null;
+  const atlas = () => (ATLAS && state[ATLAS.slice] ? state[ATLAS.slice].flags : {});
+  const setAtlas = (flags) => { const r = K.applyEvents(SCHEMA, state, Object.keys(flags).map((key) => ({ type: 'setFlag', slice: ATLAS.slice, key, value: flags[key] }))); if (r.ok) state = r.state; };
+  const atlasFound = () => {
+    const F = atlas(), found = {};
+    if (LEVELS.length) found[LEVELS[0].ref] = true;
+    LEVELS.forEach((lv) => { if (F['been:' + lv.ref]) { found[lv.ref] = true; (lv.exits || []).forEach((x) => { if (K.evalGate(SCHEMA, state, x.gate)) found[x.to] = true; }); } });
+    return found;
+  };
+  const isOpen = (lv) => PLAYTEST || (ATLAS ? !!atlasFound()[lv.ref] && K.evalGate(SCHEMA, state, lv.gate) : MAP ? !!K.reachable(SCHEMA, state, LEVELS)[lv.ref] : K.evalGate(SCHEMA, state, lv.gate));
   const needs = (g) => (g.completed ? 'clear ' + levelTitle(g.completed) + ' first' : g.has ? 'needs ' + (g.count > 1 ? g.count + ' × ' : 'a ') + g.has : 'locked');
   const sliceKind = (name) => (SCHEMA.slices.find((s) => s.name === name) || {}).kind;
   const levelTitle = (ref) => (LEVELS.find((l) => l.ref === ref) || {}).title || ref;
@@ -276,7 +316,7 @@ export function playShellRuntime(cfg, K) {
     if (lastParams) block('last params', lastParams);
     block('store', state);
     block('run log', runLog.length + ' session' + (runLog.length === 1 ? '' : 's'));
-    body.appendChild(el('button', { cls: 'link', text: 'reset store', on: () => { freshStore(); persist(); lastErrors = null; renderDebug(); if (screen !== 'level') home(); } }));
+    body.appendChild(el('button', { cls: 'link', text: 'reset store', on: () => { resetStore(); persist(); lastErrors = null; renderDebug(); if (screen !== 'level') home(); } }));
   }
   if (PLAYTEST) $('playtag').style.display = 'block';
 
@@ -292,9 +332,11 @@ export function playShellRuntime(cfg, K) {
     if (!playing) { setPaused(false); frame.removeAttribute('src'); veil.style.display = 'none'; }
     renderDebug();
   }
-  const home = () => (front ? front.title() : RUN ? renderRunTitle() : LEVELS.length > 1 ? renderLevels() : renderTitle());
-  // where the result and the pause send the player back to: the front's title, else the levels or the title
-  const homeWord = () => (front ? 'title' : LEVELS.length > 1 ? 'levels' : 'title');
+  // home: the flow's (its `home`, else the first screen past an attract): where quitting and resetting go
+  const home = () => enter({ step: FK.homeOf(FLOW), level: at.level });
+  // what the result and the pause call home: the front's title, else the levels or the title
+  // (said from the flow's home: the screen quitting goes to, whoever draws it)
+  const homeWord = () => { const h = FLOW.steps[FK.homeOf(FLOW)]; return h && h.screen === 'levels' ? 'levels' : 'title'; };
 
   // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
   // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
@@ -309,11 +351,12 @@ export function playShellRuntime(cfg, K) {
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const x = pool[i]; pool[i] = pool[j]; pool[j] = x; }
     return pool.slice(0, RUN.length);
   }
-  function startRun() {
+  // a new run (the flow's $run): its number kept, its order rolled from it; its first level
+  function newRun() {
     const n = num(RUNS_KEY) + 1;
     keep(RUNS_KEY, n);
     run = { n, order: roll(n), at: 0 };
-    launch(run.order[0]);
+    return run.order[0] ? run.order[0].ref : null;
   }
   function renderRunTitle() {
     show('title');
@@ -324,17 +367,15 @@ export function playShellRuntime(cfg, K) {
       el('h1', { text: M.title }),
       el('div', { cls: 'muted', text: 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
       runs ? el('div', { cls: 'badge', text: 'deepest: ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') }) : null,
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: startRun })]),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: () => go('play') })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
     ]));
   }
-  // a level of the run ended: on to the next, or the run's end
-  function runOutcome(env, applied) {
-    if (env.result === 'success') run.at += 1;
-    const deep = num(DEEP_KEY), won = run.at >= run.order.length;
-    if (run.at > deep) keep(DEEP_KEY, run.at);
-    if (env.result === 'success' && !won) { toast('cleared ' + run.at + ' of ' + run.order.length); launch(run.order[run.at]); return; }
-    const r = run, gains = applied ? gainsOf(env.events || []) : [];
+  // a run's end: how deep it went, what it gained; a new run, the title, the credits
+  function renderRunResult() {
+    if (!run || !lastOutcome) { home(); return; }
+    const env = lastOutcome.env, deep = lastOutcome.deep, won = run.at >= run.order.length;
+    const r = run, gains = lastOutcome.ok ? gainsOf(env.events || []) : [];
     run = null; session = null;
     show('result');
     app.textContent = '';
@@ -344,7 +385,7 @@ export function playShellRuntime(cfg, K) {
       el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: startRun }), el('button', { text: 'title', on: home }), front && cfg.front.credits ? el('button', { text: 'credits', on: () => front.rollFromRun() }) : null]),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: () => go('again') }), el('button', { text: 'title', on: () => go('home') }), onOf('credits') ? el('button', { text: 'credits', on: () => go('credits') }) : null]),
     ]));
   }
 
@@ -355,7 +396,7 @@ export function playShellRuntime(cfg, K) {
       PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
       el('h1', { text: M.title }),
       LEVELS.length > 1 ? el('div', { cls: 'muted', text: LEVELS.length + ' levels' }) : (cleared(first.ref) ? el('div', { cls: 'badge', text: 'cleared' }) : null),
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: 'play', on: () => (LEVELS.length > 1 ? renderLevels() : launch(first)) })]),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: 'play', on: () => go('play') })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
     ];
     app.textContent = '';
@@ -367,9 +408,29 @@ export function playShellRuntime(cfg, K) {
     const b = el('button', { cls: 'link', text: 'reset progress' });
     b.addEventListener('click', () => {
       if (!armed) { armed = true; b.textContent = 'tap again to reset'; return; }
-      freshStore(); persist(); home();
+      resetStore(); persist(); home();
     });
     return b;
+  }
+
+  // THE TRAVEL SCREEN (a megaworld): the zones on their rings, the first ring outermost and the core at the centre, the
+  // ways between them; a zone found travelled to by a touch, one not yet found a dim mark
+  function atlasMap() {
+    const S = 320, c = S / 2, rings = ATLAS.rings, n = rings.length, at = atlas().at, box = document.createElement('div'), out = [];
+    const attr = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const radius = (i) => (n === 1 ? 0.7 : 1 - i / (n - 1) + (i === n - 1 && rings[i].length > 1 ? 0.3 : 0)) * (c - 34);
+    const place = {};
+    rings.forEach((r, i) => r.forEach((ref, j) => { const a = -Math.PI / 2 + (2 * Math.PI * j) / r.length + i * 0.35, R = radius(i); place[ref] = [c + R * Math.cos(a), c + R * Math.sin(a)]; }));
+    rings.forEach((r, i) => { if (radius(i) > 0) out.push('<circle cx="' + c + '" cy="' + c + '" r="' + radius(i) + '" fill="none" stroke="var(--line)" stroke-dasharray="2 5"/>'); });
+    LEVELS.forEach((lv) => (lv.exits || []).forEach((x) => { const p = place[lv.ref], q = place[x.to]; if (p && q) out.push('<line x1="' + p[0] + '" y1="' + p[1] + '" x2="' + q[0] + '" y2="' + q[1] + '" stroke="' + (K.evalGate(SCHEMA, state, x.gate) ? 'var(--dim)' : 'var(--line)') + '"/>'); }));
+    LEVELS.forEach((lv) => {
+      const p = place[lv.ref]; if (!p) return;
+      const open = isOpen(lv), here = lv.ref === at;
+      out.push('<g data-zone="' + attr(lv.ref) + '" aria-label="' + attr(lv.title) + '"' + (open ? ' role="button" style="cursor:pointer"' : '') + '><circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (here ? 11 : 8) + '" fill="' + (open ? 'var(--accent)' : 'var(--panel)') + '" stroke="' + (here ? 'var(--ink)' : 'var(--line)') + '" stroke-width="' + (here ? 2 : 1) + '"/><text x="' + p[0] + '" y="' + (p[1] + 24) + '" text-anchor="middle" font-size="11" fill="' + (open ? 'var(--ink)' : 'var(--dim)') + '">' + attr(open ? lv.title : '?') + '</text></g>');
+    });
+    box.innerHTML = '<svg class="atlas" viewBox="0 0 ' + S + ' ' + S + '" style="display:block;width:min(100%,360px);margin:0 auto 12px">' + out.join('') + '</svg>';
+    box.querySelectorAll('g[role=button]').forEach((g) => g.addEventListener('click', () => launch(LEVELS.find((l) => l.ref === g.getAttribute('data-zone')))));
+    return box.firstChild;
   }
 
   function renderLevels() {
@@ -377,7 +438,8 @@ export function playShellRuntime(cfg, K) {
     const s = el('div', { cls: 'screen' }, [
       el('div', { cls: 'center screen' }, [PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null, el('h1', { text: M.title })]),
     ]);
-    const lastAt = MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
+    const lastAt = ATLAS ? atlas().at || null : MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
+    if (ATLAS) s.appendChild(atlasMap());
     LEVELS.forEach((lv, i) => {
       const open = isOpen(lv);
       const gated = lv.gate && !K.evalGate(SCHEMA, state, lv.gate);
@@ -387,13 +449,13 @@ export function playShellRuntime(cfg, K) {
       s.appendChild(el('div', { cls: 'card' }, [
         el('div', { cls: 'muted', text: String(i + 1) }),
         el('div', { cls: 'grow' }, [el('div', { cls: 'name', text: lv.title }), lock ? el('div', { cls: 'muted', text: lock }) : null, ways ? el('div', { cls: 'muted', text: ways }) : null]),
-        lastAt === lv.ref ? el('span', { cls: 'badge', text: 'last here' }) : null,
+        lastAt === lv.ref ? el('span', { cls: 'badge', text: ATLAS ? 'you are here' : 'last here' }) : null,
         cleared(lv.ref) ? el('span', { cls: 'badge', text: 'cleared' }) : null,
-        el('button', { cls: open ? 'primary' : '', text: 'play', disabled: open ? null : 'disabled', on: () => { if (open) launch(lv); } }),
+        el('button', { cls: open ? 'primary' : '', text: 'play', disabled: open ? null : 'disabled', on: () => { if (open) go('pick', { picked: lv.ref }); } }),
       ]));
     });
     if (!PLAYTEST && runLog.length) s.appendChild(el('div', { cls: 'row' }, [resetLink()]));
-    if (front) s.appendChild(el('div', { cls: 'row' }, [el('button', { cls: 'link', text: 'title', on: home })]));
+    if (onOf('back')) s.appendChild(el('div', { cls: 'row' }, [el('button', { cls: 'link', text: 'title', on: () => go('back') })]));
     app.textContent = '';
     app.appendChild(s);
   }
@@ -417,7 +479,7 @@ export function playShellRuntime(cfg, K) {
     return params;
   }
 
-  let veilCap = 0, ctlRows = null;
+  let veilCap = 0, veilHint = 0, ctlRows = null;
   // `arrive`: the level a map game's travel came from (the level moves the player to that end of itself); `carry`: the
   // params a door brings in (the session's, and the door it enters by), in place of the level's own
   // outcome STINGERS (music.victory / music.defeat): played once when a level ends, the level's own sound muted under
@@ -431,20 +493,30 @@ export function playShellRuntime(cfg, K) {
     warmStinger(src);
     stingerBlob[src].then((url) => { if (!url) return; stingerEl = stingerEl || new Audio(); stingerEl.src = url; stingerEl.volume = 0.6; stingerEl.play().catch(() => {}); });
   }
-  function launch(lv, arrive, carry) {
+  // `stage`: a cinematic the flow plays on the level's page ({ scene, skip? }, params.__stage): the level plays it, held,
+  // and says when it ends
+  function launch(lv, arrive, carry, stage) {
     if (stingerEl) stingerEl.pause();
     if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
     launches += 1;
+    // (a megaworld: the map loaded is the current map; resumed, it is arrived at by the way it was last come in by)
+    if (ATLAS) { const F = atlas(); if (!arrive && !carry && F.at === lv.ref && F.from) arrive = F.from; setAtlas({ at: lv.ref, from: arrive || '', ['been:' + lv.ref]: true }); persist(); }
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
+    if (stage) params.__stage = stage;
     session = { level: lv, params, seed: (run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1), ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
-    $('veilText').textContent = lv.title;
-    veil.style.display = 'flex';
+    // the veil while it loads: mana-ui's loading screen when the game draws its screens with it
+    if (MANA) MANA.loading(lv.title);
+    else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
-    veilCap = setTimeout(() => { veil.style.display = 'none'; }, 45000);   // a level without the bridge still shows
+    // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
+    // a level without the bridge still shows, a while after it has)
+    clearTimeout(veilHint);
+    veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; }, 8000);
+    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 600000);
     frame.src = lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
@@ -453,15 +525,23 @@ export function playShellRuntime(cfg, K) {
     post({ moj: W.gamepad, on: true, deadZone: 0.15, lookScale: 18, invertY: false });
   };
   frame.addEventListener('load', pushPrefs);
+  frame.addEventListener('load', () => { if (veil.style.display === 'none') return; clearTimeout(veilCap); clearTimeout(veilHint); $('veilText').textContent = session ? session.level.title : ''; veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 45000); });
 
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || !session || e.source !== frame.contentWindow) return;
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
+    // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); signal('shown'); return; }
+    // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
+    // kept when the cinematic hands its stage on to the level
+    if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && cs.kind === 'cinematic' && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
+    // the level's own end card read (or put away): the flow goes on
+    if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (d.moj === W.ready) {
-      clearTimeout(veilCap); veil.style.display = 'none';
-      if (d.contractVersion !== W.version) { toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
+      clearTimeout(veilCap); clearTimeout(veilHint); veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 1200);
+      if (d.contractVersion !== W.version) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
       post({ moj: W.init, contractVersion: W.version, params: session.params, seed: session.seed, theme: cfg.theme });
       pushPrefs();
       return;
@@ -477,41 +557,58 @@ export function playShellRuntime(cfg, K) {
       const to = (cfg.links[session.level.ref] || {})[d.door], lv = to && LEVELS.find((l) => l.ref === to.ref);
       if (!lv) { toast('That door leads nowhere.'); return; }
       if (!PLAYTEST && lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) { toast(lv.title + ' is locked.'); return; }
-      const carry = JSON.parse(JSON.stringify(session.params || {}));
+      // (the store as the door left it, what the session gathered included: never what the session started with)
+      const carry = paramsFor(lv);
       carry.__entry = { door: to.door, from: session.level.ref };
-      launch(lv, null, carry);
+      if (!go('door', { doorTo: lv.ref, carry })) toast('That door leads nowhere.');
       return;
     }
     if (d.moj === W.outcome && !session.ended) {
       session.ended = true;
       // THE END: a game with a final level (M.final) is cleared by its first win alone
-      const before = (front || M.final) && allCleared();
+      const before = (cfg.front || M.final) && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
       const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
       if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
       else {
         state = r.state;
-        if (env.result === 'success' && progression && !state[progression].completed[session.level.ref]) {
+        // (a megaworld: leaving a map by a way is travel, never its completion)
+        if (env.result === 'success' && progression && !(ATLAS && env.exit) && !state[progression].completed[session.level.ref]) {
           const pr = K.applyEvents(SCHEMA, state, [{ type: 'promote', slice: progression, ref: session.level.ref, result: 'success' }]);
           if (pr.ok) state = pr.state;
         }
         runLog.push(env);
         persist();
       }
-      // a RUN: on to its next level, or its end
-      if (run) { const sess = session; setTimeout(() => { if (session === sess) runOutcome(env, r.ok); }, 1400); return; }
-      // the game first completed: the end, not on through the level's exit
-      const fin = (front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
-      // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to
-      const to = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
-      const onward = to && LEVELS.find((l) => l.ref === to);
-      if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
+      // the flow steps on the level's end: won, lost or left
+      const event = env.result === 'success' ? 'won' : env.result === 'fail' ? 'lost' : 'left';
+      // a RUN: a clear goes on to its next level, else the run's end (how deep it went, kept)
+      if (run) {
+        if (env.result === 'success') run.at += 1;
+        const deep = num(DEEP_KEY);
+        if (run.at > deep) keep(DEEP_KEY, run.at);
+        lastOutcome = { lv: session.level, env, ok: r.ok, deep };
+        if (env.result === 'success' && run.at < run.order.length) toast('cleared ' + run.at + ' of ' + run.order.length);
+        const sess = session;
+        setTimeout(() => { if (session === sess) go(event); }, 1400);
+        return;
+      }
+      // the game first completed (the flow's `complete`): the end, not on through the level's exit
+      const fin = (cfg.front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
+      // TRAVEL (a map game, the flow's $travel): a success through an open exit goes on to the level it leads to
+      const travelTo = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
+      lastOutcome = { lv: session.level, env, ok: r.ok, fin };
+      const more = { complete: !!fin, travelTo, from: session.level.ref };
+      const next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, more, { level: at.level })));
+      // straight on to a level (travel): at once
+      if (next && FLOW.steps[next.step].kind === 'level') { enter(next, more); return; }
       if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
-      const sess = session;
-      // the last level first cleared: the front's end (its card, then the roll) in place of the result
-      // the level shows its own end card first; the result follows it
-      setTimeout(() => { if (session !== sess) return; if (fin && front && front.end()) { session = null; return; } renderResult(sess.level, env, r.ok, fin); }, env.stats ? 2400 : 1600);
+      // on to a screen: once the level's own end card has been read (the level says so; a level from before game-card-done
+      // is given the time it always had)
+      const sess = session, onward = () => { if (session !== sess) return; if (next) enter(next, more); else home(); };
+      waitCard = onward;
+      setTimeout(() => { if (waitCard === onward) { waitCard = null; onward(); } }, env.stats ? 2400 : 1600);
     }
   });
 
@@ -554,7 +651,8 @@ export function playShellRuntime(cfg, K) {
   const padPrev = {};
   (function padPoll() {
     requestAnimationFrame(padPoll);
-    if (screen !== 'level' || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
+    const cine = FLOW.steps[at.step] && FLOW.steps[at.step].kind === 'cinematic';   // a cinematic has no pause
+    if (screen !== 'level' || cine || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
     const ps = navigator.getGamepads();
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i];
@@ -651,9 +749,9 @@ export function playShellRuntime(cfg, K) {
       env.stats && Array.isArray(env.stats.rows) && env.stats.rows.length ? statsTable(env.stats) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(lv, env) : null,
       el('div', { cls: 'row' }, [
-        env.result === 'success' && next && isOpen(next) ? el('button', { cls: 'primary', text: 'next: ' + next.title, on: () => launch(next) }) : null,
-        el('button', { cls: env.result === 'success' && next ? '' : 'primary', text: env.result === 'success' ? 'play again' : 'try again', on: () => launch(lv) }),
-        el('button', { text: homeWord(), on: home }),
+        env.result === 'success' && next && isOpen(next) && onOf('next') ? el('button', { cls: 'primary', text: 'next: ' + next.title, on: () => go('next') }) : null,
+        onOf('again') ? el('button', { cls: env.result === 'success' && next ? '' : 'primary', text: env.result === 'success' ? 'play again' : 'try again', on: () => go('again') }) : null,
+        onOf('home') ? el('button', { text: homeWord(), on: () => go('home') }) : null,
       ]),
     ];
     app.textContent = '';
@@ -663,14 +761,140 @@ export function playShellRuntime(cfg, K) {
   // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
   const allCleared = () => !!progression && (M.final ? cleared(M.final) : LEVELS.every((l) => cleared(l.ref)));
   const front = cfg.front && typeof __mojFront === 'function' ? __mojFront(cfg, {
-    el, app, show, home, launch, startRun, renderLevels, cleared, isOpen, saveSettings, pushPrefs,
-    levels: LEVELS, run: !!RUN, playtest: PLAYTEST, title: M.title,
-    progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    el, app, show, saveSettings, pushPrefs, continueTo, go, poke, has: onOf,
+    playtest: PLAYTEST, title: M.title,
+    progress: () => (ATLAS ? atlas().at || null : runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    ...(ATLAS ? { current: () => LEVELS.find((l) => l.ref === atlas().at) || null } : {}),
     settings: () => settings,
-    reset: () => { freshStore(); persist(); },
+    reset: () => { resetStore(); persist(); },
   }) : null;
 
-  // ---- go ----
+  // ---- the screens in mana-ui (play-shell-mana.js), when the game has a ui: the same flow, drawn by the game UI runtime ----
+  // a result as data: its outcome, what it gained and kept, what next (the steps the flow has a way on from)
+  function resultInfo() {
+    const o = lastOutcome;
+    if (!o) return null;
+    const lv = o.lv, env = o.env, won = env.result === 'success', next = MAP ? null : LEVELS[LEVELS.indexOf(lv) + 1];
+    const items = [];
+    if (won && next && isOpen(next) && onOf('next')) items.push({ label: 'next: ' + next.title, then: { emit: 'next' } });
+    if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
+    if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
+    const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
+    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : '', items };
+  }
+  // a run's end as data (the run is over once it is said)
+  function runInfo() {
+    if (!run || !lastOutcome) return null;
+    const r = run, deep = lastOutcome.deep, won = r.at >= r.order.length, gains = lastOutcome.ok ? gainsOf(lastOutcome.env.events || []) : [];
+    run = null; session = null;
+    const items = [{ label: 'new run', then: { emit: 'again' } }, { label: 'title', then: { emit: 'home' } }].concat(onOf('credits') ? [{ label: 'credits', then: { emit: 'credits' } }] : []);
+    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(gains.map((g) => ({ label: g, value: '' }))), rank: '', items };
+  }
+  const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
+    go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
+    progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    settings: () => settings,
+    reset: () => { resetStore(); persist(); },
+    levels: () => LEVELS.map((lv) => ({ ref: lv.ref, title: lv.title, open: isOpen(lv), cleared: cleared(lv.ref), lock: isOpen(lv) ? null : lv.gate && !K.evalGate(SCHEMA, state, lv.gate) ? needs(lv.gate) : 'not found yet' })),
+    result: resultInfo, run: runInfo,
+  }) : null;
+
+  // ---- the flow runner ----
+  // what each special lands on, from what the shell knows (flow.js FLOW_SPECIALS), and the guard it keeps
+  function flowCtx(more) {
+    return Object.assign({
+      resolve: (sp, c) => {
+        const i = c.level ? LEVELS.findIndex((l) => l.ref === c.level) : -1;
+        if (sp === '$first') return LEVELS[0] ? LEVELS[0].ref : null;
+        if (sp === '$again') return c.level || null;
+        if (sp === '$next') { const nx = MAP || i < 0 ? null : LEVELS[i + 1]; return nx && isOpen(nx) ? nx.ref : null; }
+        if (sp === '$continue') { const lv = continueTo(); return lv ? lv.ref : null; }
+        if (sp === '$picked') return c.picked || null;
+        if (sp === '$travel') return c.travelTo || null;
+        if (sp === '$door') return c.doorTo || null;
+        if (sp === '$run') return RUN ? newRun() : null;
+        if (sp === '$run-next') return run && run.at < run.order.length ? run.order[run.at].ref : null;
+        return null;
+      },
+      guard: (g, c, to) => (g === 'complete' ? !!c.complete : g === 'unseen' ? !seenSteps[to] : false),
+    }, more || {});
+  }
+  // continue: the open level after the last one played, else the first open one not cleared
+  function continueTo() {
+    // (a megaworld: continue is the current map, where the player is)
+    if (ATLAS) return LEVELS.find((l) => l.ref === atlas().at) || null;
+    const last = runLog.length ? runLog[runLog.length - 1].levelRef || null : null;
+    if (!last) return null;
+    const i = LEVELS.findIndex((l) => l.ref === last);
+    const firstUncleared = LEVELS.find((l) => isOpen(l) && !cleared(l.ref)) || null;
+    return LEVELS.slice(i + 1).find((l) => isOpen(l) && !cleared(l.ref)) || firstUncleared || LEVELS[i] || null;
+  }
+  // does the step the game is on take this event (a screen draws only the buttons its step leads somewhere from)
+  function onOf(event) { const s = FLOW.steps[at.step]; return !!(s && ((s.on && s.on[event] !== undefined) || (!s.on && s.next !== undefined))); }
+  // an event on the step the game is on: where it leads is entered (false: it leads nowhere)
+  function go(event, more) {
+    const m = more || {}, next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, m, { level: at.level })));
+    if (!next) return false;
+    enter(next, m);
+    return true;
+  }
+  // an event a hold waits for (the level's first frame, its card read)
+  function signal(name) { if (holdUntil && holdUntil === name) { holdUntil = null; go('next'); } }
+  // the player is here: a screen left alone goes on by its idle
+  function poke() { if (idleAfter) { clearTimeout(idleTimer); idleTimer = setTimeout(() => go('idle'), idleAfter * 1000); } }
+  window.addEventListener('keydown', poke);
+  window.addEventListener('pointerdown', poke);
+  // a step entered: a level plays, a screen is drawn, a hold waits, a cinematic plays on its stage
+  function enter(next, more) {
+    const m = more || {}, s = FLOW.steps[next.step];
+    at = next;
+    clearTimeout(holdTimer); clearTimeout(idleTimer); holdUntil = null; idleAfter = 0;
+    if (s.kind === 'level') {
+      const lv = LEVELS.find((l) => l.ref === next.level);
+      if (!lv) { toast('No level ' + next.level + '.'); return; }
+      // a cinematic kept its stage: the level it played on goes on, the same page, the player's now
+      if (m.keepPage && session && session.level.ref === lv.ref) { pauseBtn.style.display = 'block'; return; }
+      // travel says where it came from, and arrives at that end of the level; a door carries what it brought
+      if (m.travelTo === lv.ref && m.from) toast(levelTitle(m.from) + ' → ' + lv.title);
+      launch(lv, m.travelTo === lv.ref ? m.from : null, m.doorTo === lv.ref ? m.carry : null);
+      return;
+    }
+    if (s.kind === 'screen') { drawScreen(s.screen); if (s.idle) { idleAfter = s.idle.after; poke(); } return; }
+    if (s.kind === 'hold') { if (s.for) holdTimer = setTimeout(() => { if (at === next) go('next'); }, s.for * 1000); else holdUntil = s.until; return; }
+    // a cinematic: seen from now on (an opening plays on a first boot)
+    seenSteps[next.step] = 1;
+    try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
+    // played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
+    // the level says when it ends. A level that never answers (a page from before stages) is given two minutes
+    const stage = LEVELS.find((l) => l.ref === s.stage);
+    if (!stage) { holdTimer = setTimeout(() => { if (at === next) go('next'); }, 0); return; }
+    launch(stage, null, null, { scene: s.scene, ...(s.skip === false ? { skip: false } : {}) });
+    pauseBtn.style.display = 'none';
+    holdTimer = setTimeout(() => { if (at === next) go('next', { keepPage: !!s.keep }); }, 120000);
+  }
+  function drawScreen(name) {
+    session = null;
+    if (MANA && MANA.draw(name)) return;
+    if (name === 'attract') return front ? front.attract() : renderPress();
+    if (name === 'title') return front ? front.title() : RUN ? renderRunTitle() : renderTitle();
+    if (name === 'levels') return renderLevels();
+    if (name === 'options') return front ? front.options() : renderOptions();
+    if (name === 'credits') return front && cfg.front.credits ? front.roll() : renderCredits();
+    if (name === 'end') { if (!(front && front.end())) renderEnd(); return; }
+    if (name === 'result') return lastOutcome ? renderResult(lastOutcome.lv, lastOutcome.env, lastOutcome.ok, lastOutcome.fin) : home();
+    if (name === 'run-result') return renderRunResult();
+  }
+  // the screens a flow may name that a game without a front has none of: plain, and each its one way on
+  const plain = (kids) => { show('title'); app.textContent = ''; app.appendChild(el('div', { cls: 'screen center' }, kids)); };
+  function renderPress() { plain([el('h1', { text: M.title }), el('button', { cls: 'primary big', text: 'press start', on: () => go('press') })]); }
+  function renderOptions() {
+    plain([el('h2', { text: 'options' }), el('button', { text: 'sound: ' + (settings.sfxOn ? 'on' : 'off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderOptions(); } }), el('button', { cls: 'primary', text: 'back', on: () => go('back') })]);
+  }
+  function renderCredits() { plain([el('h1', { text: M.title }), el('div', { cls: 'muted', text: 'made with mojulo · github.com/zombico/mojulo' }), el('button', { cls: 'primary', text: 'done', on: () => go('done') })]); }
+  function renderEnd() { plain([el('div', { cls: 'result-mark', text: 'game complete' }), el('h1', { text: M.title }), el('button', { cls: 'primary', text: 'done', on: () => go('done') })]); }
+
+  // ---- go: the flow's start, or a playtest's level straight away ----
   const start = cfg.startLevel ? LEVELS.find((l) => l.ref === cfg.startLevel) : null;
-  if (start) launch(start); else home();
+  if (start) { const st = FK.levelStep(FLOW, start.ref); if (st) enter(st); else launch(start); }
+  else enter(FK.startOf(FLOW, flowCtx({ level: null })));
 }

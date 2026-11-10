@@ -9,7 +9,10 @@
  *                                        'pairs' → among?: [ids]        (default: every body the law can act on)
  *                                        'link'  → between: [id, id | [x, y, z]]   (a point is a fixed anchor)
  *                                        'plane' → point, normal | tilt (+ downhill), on?: [ids]
- *     params: { name: { dim, vector?, default?, number?, required? } },   dims are machina/quantities DIM names
+ *     params: { name: { dim, vector?, default?, number?, required? } | { matter: 'medium' | 'solid' }
+ *                     | { temperature: true, default? } | { flag: true, default? } },   dims are machina/quantities DIM
+ *                                      names; a matter param names a row of rupa's table; a temperature is kelvin, or
+ *                                      '20 °C' (contract.js temperature); a flag is true or false
  *     validate?(entry, ctx) → message | null   what the params alone cannot say
  *     summary, assumption,             what it does; what the model leaves out (the page shows every assumption)
  *     resolve(entry, ctx) → { force } | { plane } | { rod } | { collision }   the kernel's resolved form
@@ -20,6 +23,9 @@
  *
  * ctx = { bodies, index: id → i, frame: { g, gvec, up } }. Everything is canonical SI.
  */
+
+import { holdCapacity, readCurve } from './gel.js';
+import { handoffCurve } from '../relations.js';
 
 export const G_NEWTON = 6.6743e-11;          // m³ kg⁻¹ s⁻² (CODATA 2018)
 export const K_COULOMB = 8.9875517923e9;     // N m² C⁻² (1 / 4πε₀)
@@ -55,6 +61,10 @@ const pairMin = (idx, f) => {
   return Number.isFinite(t) ? t : null;
 };
 const anyFixed = (idx, ctx) => idx.some((i) => ctx.bodies[i].fixed);
+// a body's bounce from its matter; a body with none is ideal (1), as before matter existed
+const bounceOf = (b) => b.matter?.bounce ?? 1;
+// a medium's matter record (solve.js resolves a law's matter params), when the law names one
+const mediumOf = (e) => e.medium ?? null;
 
 /**
  * The orbital timescale of two bodies pulling each other with strength k (F = k/r²; k = G·m₁·m₂ or −k_e·q₁·q₂), taken
@@ -160,23 +170,25 @@ export const CLASSICAL_LAWS = [
     id: 'drag-linear',
     words: ['drag', 'viscous', 'stokes', 'honey', 'syrup', 'terminal velocity', 'damping'],
     shape: 'each',
-    params: { b: { dim: 'damping' }, viscosity: { dim: 'viscosity' }, wind: { dim: 'velocity', vector: true, default: [0, 0, 0] } },
+    params: { b: { dim: 'damping' }, viscosity: { dim: 'viscosity' }, medium: { matter: 'medium' }, wind: { dim: 'velocity', vector: true, default: [0, 0, 0] } },
     summary: 'Drag proportional to speed: F = −b·(v − wind). Give b, or a fluid viscosity for Stokes\' law b = 6πηr.',
     assumption: 'Slow, smooth (viscous) flow: drag grows with speed, not its square.',
     resolve: (e, ctx) => {
       const idx = members(e, ctx, free);
-      const b = idx.map((i) => (e.b !== undefined ? e.b : 6 * Math.PI * e.viscosity * ctx.bodies[i].radius));
+      const eta = e.viscosity ?? mediumOf(e)?.viscosity;
+      const b = idx.map((i) => (e.b !== undefined ? e.b : 6 * Math.PI * eta * ctx.bodies[i].radius));
       return { force: { kind: 'drag-linear', b, wind: e.wind ?? [0, 0, 0], idx } };
     },
     flags: () => ({ ...NONE, velocityDependent: true, dissipative: true, external: true }),
     timescale: (e, ctx) => {
       const idx = members(e, ctx, free);
-      const ts = idx.map((i) => { const b = e.b !== undefined ? e.b : 6 * Math.PI * e.viscosity * ctx.bodies[i].radius; return b > 0 ? ctx.bodies[i].mass / b : Infinity; });
+      const eta = e.viscosity ?? mediumOf(e)?.viscosity;
+      const ts = idx.map((i) => { const b = e.b !== undefined ? e.b : 6 * Math.PI * eta * ctx.bodies[i].radius; return b > 0 ? ctx.bodies[i].mass / b : Infinity; });
       const t = Math.min(...ts);
       return Number.isFinite(t) ? t : null;
     },
     validate: (e, ctx) => {
-      if (e.b === undefined && e.viscosity === undefined) return 'wants b (N·s/m) or viscosity (Pa·s)';
+      if (e.b === undefined && e.viscosity === undefined && e.medium === undefined) return 'wants b (N·s/m), viscosity (Pa·s) or a medium';
       if (e.b === undefined && members(e, ctx, free).some((i) => !(ctx.bodies[i].radius > 0))) return 'Stokes drag from a viscosity needs every body it acts on to have a radius';
       return null;
     },
@@ -187,19 +199,19 @@ export const CLASSICAL_LAWS = [
     words: ['air resistance', 'drag', 'wind', 'skydiver', 'terminal velocity', 'parachute'],
     shape: 'each',
     params: {
-      cd: { dim: 'scalar', default: 0.47 }, rho: { dim: 'density', default: 1.225 }, area: { dim: 'area' },
+      cd: { dim: 'scalar', default: 0.47 }, rho: { dim: 'density', default: 1.225 }, medium: { matter: 'medium' }, area: { dim: 'area' },
       wind: { dim: 'velocity', vector: true, default: [0, 0, 0] },
     },
     summary: 'Air drag: F = −½·ρ·Cd·A·|v − wind|·(v − wind). A defaults to the body\'s cross-section πr²; ρ to sea-level air.',
     assumption: 'The drag coefficient is constant with speed (no drag crisis); the body does not spin.',
     resolve: (e, ctx) => {
-      const idx = members(e, ctx, free), rho = e.rho ?? 1.225, cd = e.cd ?? 0.47;
+      const idx = members(e, ctx, free), rho = e.rho ?? mediumOf(e)?.density ?? 1.225, cd = e.cd ?? 0.47;
       const kq = idx.map((i) => 0.5 * rho * cd * (e.area ?? Math.PI * ctx.bodies[i].radius ** 2));
       return { force: { kind: 'drag-quadratic', kq, wind: e.wind ?? [0, 0, 0], idx } };
     },
     flags: () => ({ ...NONE, velocityDependent: true, dissipative: true, external: true }),
     timescale: (e, ctx) => {
-      const idx = members(e, ctx, free), rho = e.rho ?? 1.225, cd = e.cd ?? 0.47, g = ctx.frame.gravity || 0;
+      const idx = members(e, ctx, free), rho = e.rho ?? mediumOf(e)?.density ?? 1.225, cd = e.cd ?? 0.47, g = ctx.frame.gravity || 0;
       let t = Infinity;
       for (const i of idx) {
         const b = ctx.bodies[i], kq = 0.5 * rho * cd * (e.area ?? Math.PI * b.radius ** 2);
@@ -217,15 +229,15 @@ export const CLASSICAL_LAWS = [
     id: 'buoyancy',
     words: ['buoyancy', 'float', 'sink', 'archimedes', 'water', 'boat', 'submerged'],
     shape: 'each',
-    params: { rho: { dim: 'density', default: 1000 }, surface: { dim: 'length', default: 0 } },
+    params: { rho: { dim: 'density', default: 1000 }, medium: { matter: 'medium' }, surface: { dim: 'length', default: 0 } },
     summary: 'Archimedes: a fluid below height `surface` pushes a sphere up with the weight of the fluid it displaces (the sunk cap\'s volume).',
     assumption: 'The fluid is still and of constant density; the body is a sphere; no added mass, no waves.',
     resolve: (e, ctx) => ({
-      force: { kind: 'buoyancy', rho: e.rho ?? 1000, surface: e.surface ?? 0, g: ctx.frame.gvec, up: ctx.frame.up, idx: members(e, ctx, (b) => free(b) && b.radius > 0) },
+      force: { kind: 'buoyancy', rho: e.rho ?? mediumOf(e)?.density ?? 1000, surface: e.surface ?? 0, g: ctx.frame.gvec, up: ctx.frame.up, idx: members(e, ctx, (b) => free(b) && b.radius > 0) },
     }),
     flags: () => ({ ...NONE, external: true }),
     timescale: (e, ctx) => {
-      const g = ctx.frame.gravity, rho = e.rho ?? 1000;
+      const g = ctx.frame.gravity, rho = e.rho ?? mediumOf(e)?.density ?? 1000;
       if (!g) return null;
       const ts = members(e, ctx, (b) => free(b) && b.radius > 0).map((i) => TAU * Math.sqrt(ctx.bodies[i].mass / (rho * g * Math.PI * ctx.bodies[i].radius ** 2)));
       return ts.length ? Math.min(...ts) : null;
@@ -280,13 +292,27 @@ export const CLASSICAL_LAWS = [
     params: {
       point: { dim: 'length', vector: true, default: [0, 0, 0] }, normal: { dim: 'scalar', vector: true },
       tilt: { dim: 'scalar' }, downhill: { dim: 'scalar', vector: true, default: [1, 0, 0] },
-      e: { dim: 'scalar', default: 1 }, mu: { dim: 'scalar', default: 0 }, mus: { dim: 'scalar' },
+      e: { dim: 'scalar', default: 1 }, mu: { dim: 'scalar', default: 0 }, mus: { dim: 'scalar' }, matter: { matter: 'solid' },
+      temperature: { temperature: true },
     },
     summary: 'A rigid flat surface through `point`: a floor (default), a wall (`normal`), or a ramp (`tilt` an angle, sloping down along `downhill`). Bodies bounce with restitution e, rest on it, and slide with friction μ (static μs, default μ).',
     assumption: 'The surface is rigid and flat; bodies slide, they do not roll; elastic and frictionless unless e and μ say otherwise.',
-    resolve: (e, ctx) => ({ plane: { id: e.id, p: e.point ?? [0, 0, 0], n: planeNormal(e, ctx), e: e.e ?? 1, mu: e.mu ?? 0, mus: e.mus ?? e.mu ?? 0, idx: members(e, ctx, free) } }),
-    flags: (e) => {
-      const rough = (e.mu ?? 0) > 0, lossy = (e.e ?? 1) < 1;
+    // a body that spins rolls on it (kernel.js): its friction acts at the contact point. The summary and assumption stay
+    // as they are, word for word (the page prints them, and a page is a pinned output); a model with spin reads this one
+    assumptionSpin: 'The surface is rigid and flat; a body given spin rolls on it (its friction acts at the contact point), any other slides; elastic and frictionless unless e and μ say otherwise; no rolling resistance.',
+    resolve: (e, ctx) => {
+      const idx = members(e, ctx, free), plane = { id: e.id, p: e.point ?? [0, 0, 0], n: planeNormal(e, ctx), e: e.e ?? 1, mu: e.mu ?? 0, mus: e.mus ?? e.mu ?? 0, idx };
+      // with no e said, each body takes the lower bounce of its matter and the plane's (either absent: ideal, 1)
+      if (e.e === undefined && (e.matter || idx.some((i) => ctx.bodies[i].matter))) {
+        const own = e.matter?.bounce ?? 1;
+        plane.eb = Object.fromEntries(idx.map((i) => [i, Math.min(own, bounceOf(ctx.bodies[i]))]));
+      }
+      return { plane };
+    },
+    flags: (e, ctx) => {
+      const own = e.matter?.bounce ?? 1;
+      const matterLoss = e.e === undefined && members(e, ctx, free).some((i) => Math.min(own, bounceOf(ctx.bodies[i])) < 1);
+      const rough = (e.mu ?? 0) > 0, lossy = (e.e ?? 1) < 1 || matterLoss;
       return { ...NONE, external: true, contact: true, velocityDependent: rough, dissipative: rough || lossy };
     },
     timescale: () => null,
@@ -296,6 +322,7 @@ export const CLASSICAL_LAWS = [
       if ((e.e ?? 1) < 0 || (e.e ?? 1) > 1) return 'e (restitution) is between 0 and 1';
       if ((e.mu ?? 0) < 0 || (e.mus ?? 0) < 0) return 'friction is ≥ 0';
       if (e.tilt !== undefined && (e.tilt <= -Math.PI / 2 || e.tilt >= Math.PI / 2)) return 'tilt is between −90° and 90°';
+      if (e.temperature !== undefined && !e.matter) return 'a plane at a temperature passes heat through its matter: name it (matter: \'steel\', …)';
       return null;
     },
     example: {
@@ -310,13 +337,115 @@ export const CLASSICAL_LAWS = [
     params: { e: { dim: 'scalar', default: 1 } },
     summary: 'Spheres that touch exchange an impulse along the line of centres with restitution e: 1 bounces with no loss, 0 sticks.',
     assumption: 'Contacts are instantaneous; spheres are smooth and do not spin.',
-    resolve: (e, ctx) => ({ collision: { e: e.e ?? 1, idx: members(e, ctx, (b) => b.radius > 0) } }),
-    flags: (e) => ({ ...NONE, central: true, contact: true, dissipative: (e.e ?? 1) < 1 }),
+    resolve: (e, ctx) => {
+      const idx = members(e, ctx, (b) => b.radius > 0);
+      if (e.e !== undefined || !idx.some((i) => ctx.bodies[i].matter)) return { collision: { e: e.e ?? 1, idx } };
+      // each pair its own restitution: the lower bounce of the two (rupa's impact law takes the same)
+      const collisions = [];
+      for (let u = 0; u < idx.length; u++) for (let w = u + 1; w < idx.length; w++) {
+        collisions.push({ e: Math.min(bounceOf(ctx.bodies[idx[u]]), bounceOf(ctx.bodies[idx[w]])), idx: [idx[u], idx[w]] });
+      }
+      return { collisions };
+    },
+    flags: (e, ctx) => {
+      const idx = members(e, ctx, (b) => b.radius > 0);
+      const matterLoss = e.e === undefined && idx.some((i) => bounceOf(ctx.bodies[i]) < 1) && idx.length > 1;
+      return { ...NONE, central: true, contact: true, dissipative: (e.e ?? 1) < 1 || matterLoss };
+    },
     timescale: () => null,
     validate: (e) => ((e.e ?? 1) < 0 || (e.e ?? 1) > 1 ? 'e (restitution) is between 0 and 1' : null),
     example: {
       bodies: [{ id: 'a', mass: 1, radius: 0.1, at: [-1, 0, 0], v: [2, 0, 0] }, { id: 'b', mass: 2, radius: 0.1, at: [1, 0, 0] }],
       laws: [{ law: 'collision', e: 0.5 }], duration: 2,
+    },
+  },
+  {
+    id: 'gelling',
+    words: ['setting', 'set', 'gel', 'gelling', 'curing', 'coagulation', 'clotting', 'thickening', 'yield stress', 'bingham', 'viscometer'],
+    shape: 'each',
+    params: {
+      medium: { matter: 'medium', required: true }, curve: { curve: true }, from: { handoff: true }, relations: { relations: true },
+      layer: { dim: 'length' }, slope: { dim: 'scalar', default: Math.PI / 2, angle: '90 deg' },
+    },
+    summary: 'A liquid that sets: the bodies in it are dragged by its viscosity (Stokes, 6πηr·v) and held once its yield stress carries them (a sphere stays put while the net force on it is under τy·π·D² / (6 × 0.048), Beris et al. 1985). `curve` moves both along the run: [{ at, viscosity?, yield? }]. A `layer` of it, that thick, on a surface tilted by `slope` flows as a Bingham film and holds once its yield passes ρ·g·h·sin(slope).',
+    assumption: 'The liquid is uniform and still, and sets everywhere at once along its curve (no temperature or mixing in it); its yield resists a moving body like dry friction of the same capacity that holds it still (the drag of a yield-stress liquid on a moving sphere is more involved); a layer is wide and even, its flow the film\'s steady one.',
+    resolve: (e, ctx) => {
+      const idx = members(e, ctx, (b) => free(b) && b.radius > 0);
+      const curve = e.from ? handoffCurve(e.from, e.relations, e.medium) : e.curve ?? readCurve(undefined, e.medium, 'gelling');
+      return { gel: { idx, cap: idx.map((i) => holdCapacity(ctx.bodies[i].radius)), curve } };
+    },
+    flags: () => ({ ...NONE, velocityDependent: true, dissipative: true, external: true }),
+    // its bodies are stepped exactly (kernel.js gel), so its drag, however stiff, asks for no smaller step
+    timescale: () => null,
+    validate: (e, ctx) => {
+      if (e.medium.family !== 'liquid') return `${e.medium.id} is a gas: a liquid sets, a gas does not`;
+      if (e.from && e.curve) return 'give a curve or read one from another scale (from), not both';
+      if (e.from && !e.relations) return 'a share read from another scale needs the relations that turn it into a yield or a viscosity (relations: [{ relation: \'percolation\', top }, …])';
+      if (e.relations && !e.from) return 'relations turn a share read from another scale (from) into the liquid\'s state: give from';
+      if (e.layer !== undefined && !(e.layer > 0)) return 'layer is the thickness of the film, > 0';
+      if (e.layer !== undefined && !ctx.frame.g) return 'a layer flows under gravity: the frame has none';
+      if (e.slope !== undefined && !(e.slope > 0 && e.slope <= Math.PI)) return 'slope is the surface\'s tilt, above 0 and at most 180° (upside down)';
+      return null;
+    },
+    example: {
+      bodies: [{ id: 'ball', matter: 'steel', radius: '2 mm', at: [0, 0, 0] }],
+      laws: [{ law: 'gravity-uniform' }, { law: 'buoyancy', medium: 'honey', surface: 1 },
+        { law: 'gelling', medium: 'honey', curve: [{ at: '20 s', viscosity: 200, yield: 100 }], layer: '5 mm' }],
+      duration: 20,
+    },
+  },
+  {
+    id: 'magnus',
+    words: ['magnus', 'spin', 'curve', 'curveball', 'topspin', 'backspin', 'swerve', 'lift'],
+    shape: 'each',
+    params: { rho: { dim: 'density', default: 1.225 }, medium: { matter: 'medium' }, cl: { number: true, default: 1 }, wind: { dim: 'velocity', vector: true, default: [0, 0, 0] } },
+    summary: 'Magnus lift on a spinning ball: F = ½·cl·ρ·π·r³·ω × (v − wind), the lift coefficient growing with the spin ratio (C_L = cl·r·ω / |v − wind|). Topspin dips a ball, backspin floats it, sidespin curves it.',
+    assumption: 'The lift grows in step with the spin ratio (the low-spin regime; cl is the slope, near 1 for a smooth ball); the air does not slow the spin; the ball is a sphere.',
+    resolve: (e, ctx) => {
+      const rho = e.rho ?? mediumOf(e)?.density ?? 1.225, idx = members(e, ctx, (b) => free(b) && b.spin && b.radius > 0);
+      return { force: { kind: 'magnus', idx, k: idx.map((i) => 0.5 * (e.cl ?? 1) * rho * Math.PI * ctx.bodies[i].radius ** 3), wind: e.wind ?? [0, 0, 0] } };
+    },
+    flags: () => ({ ...NONE, velocityDependent: true, external: true }),
+    // the time its lift takes to turn it a full circle at its spin: 2π·m / (k·|ω|)
+    timescale: (e, ctx) => {
+      const rho = e.rho ?? mediumOf(e)?.density ?? 1.225;
+      const ts = members(e, ctx, (b) => free(b) && b.spin && b.radius > 0).map((i) => {
+        const b = ctx.bodies[i], w = len(b.spin), k = 0.5 * (e.cl ?? 1) * rho * Math.PI * b.radius ** 3;
+        return w > 0 ? TAU * b.mass / (k * w) : Infinity;
+      }).filter(Number.isFinite);
+      return ts.length ? Math.min(...ts) : null;
+    },
+    validate: (e, ctx) => (members(e, ctx, (b) => free(b) && b.spin && b.radius > 0).length ? null : 'magnus lifts spinning bodies: give a body spin ([x, y, z] in rad/s, or \'300 rpm\')'),
+    example: {
+      bodies: [{ id: 'ball', mass: 0.43, radius: 0.11, at: [0, 0, 0.11], v: [25, 0, 6], spin: [0, 0, '8 rev/s'] }],
+      laws: [{ law: 'gravity-uniform' }, { law: 'drag-quadratic', cd: 0.25 }, { law: 'magnus' }], duration: 1.2,
+    },
+  },
+  {
+    id: 'heat',
+    words: ['heat', 'temperature', 'cooling', 'warming', 'conduction', 'convection', 'radiation', 'melting', 'hot', 'cold', 'thermal'],
+    shape: 'each',
+    params: {
+      ambient: { temperature: true, default: 293.15 }, medium: { matter: 'medium' }, h: { number: true, unit: 'W/(m²·K)' },
+      radiation: { flag: true, default: true }, contact: { dim: 'length', default: 0.001 },
+    },
+    summary: 'Heat: each body with a matter holds one temperature, moved by its heat (mass × specific heat, the latent heat taken at its melting point). It trades heat with the medium by convection (h), with the surroundings by radiation (εσT⁴), and by conduction through a contact spot with the bodies and the planes with matter it touches.',
+    assumption: 'Each body is one temperature throughout (lumped: the Biot gate says when that is wrong); the medium and the surroundings stay at `ambient`, and a plane at its own; motion makes no heat (no friction or impact heating); a melted body keeps its shape and its motion.',
+    resolve: () => ({}),
+    // heat moves no body: it leaves every mechanical flag (and so every mechanical gate) as it was
+    flags: () => ({ ...NONE, central: true }),
+    timescale: () => null,
+    validate: (e, ctx) => {
+      const idx = members(e, ctx, () => true);
+      const bare = idx.map((i) => ctx.bodies[i]).filter((b) => e.on && (!b.matter || !(b.radius > 0)));
+      if (bare.length) return `${bare[0].id} needs a matter and a radius to hold heat`;
+      if (!idx.some((i) => ctx.bodies[i].matter && ctx.bodies[i].radius > 0)) return 'heat acts on bodies with a matter and a radius: give one a matter';
+      if (e.contact !== undefined && !(e.contact > 0)) return 'contact is the radius of the spot touching bodies conduct through, > 0';
+      return null;
+    },
+    example: {
+      bodies: [{ id: 'ball', matter: 'steel', radius: '2 cm', at: [0, 0, 0], fixed: true, temperature: '200 °C' }],
+      laws: [{ law: 'heat' }], duration: 600,
     },
   },
 ];

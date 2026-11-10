@@ -74,6 +74,8 @@ import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import './palette-ledger.js';
+import { stampGameBrief } from '@/lib/graph/gameworld/gmn.js';
+import { stampMegaworld } from '@/lib/graph/gameworld/megaworld.js';
 import { stampWorldPalette, stampGeocubes, stampInteriorPalette, resolveArtPalette, resolveTonePalette, stampLookPalette, stampTerrainPalette, resolveStagePalette } from '@/lib/graph/color-theorist/stamp.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
@@ -419,10 +421,14 @@ function houseGate(m0, was = null) {
 /** A gameworld manifest read and returned as written, or the reader's refusal. The hero its pages compose (and its
  * motion) is judged by the hero door here, so a page the door would refuse is refused when it is written, not first
  * when a run makes the hero. */
+/** Would a gameworld manifest be written as it stands? Throws the reader's refusal (a proposal's gate: design_game vary). */
+export function checkGameworldManifest(manifest) { gameworldManifest(manifest); }
+
 function gameworldManifest(manifest) {
   let out;
   try {
-    out = normalizeGameworldManifest(manifest);
+    // (the Game Brief read once, at authoring: its mix resolved, its orders laid; gameworld/gmn.js)
+    out = normalizeGameworldManifest(stampMegaworld(stampGameBrief(manifest)));
   } catch (err) {
     throw new Error(`Invalid manifest: ${err.message}`);
   }

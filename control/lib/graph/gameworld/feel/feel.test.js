@@ -121,10 +121,26 @@ describe('the report', () => {
     for (const x of [...r.partly, ...r.lost]) expect(x.why.length).toBeGreaterThan(10);
   });
 
-  it('names the worn gear only for a template that wears it, and a variant\'s default', () => {
-    const geared = POLE_IDS.find((id) => POLES[id].gear), bare = POLE_IDS.find((id) => !POLES[id].gear && id !== geared);
-    expect(feelReport(geared).lost.map((x) => x.field)).toContain(POLES[geared].gear);
+  it('names the worn gear only for a template that wears it (carried where the runtime holds it, else lost), and a variant\'s default', () => {
+    // (one case a way of wearing it: a glider held, carried as the capped fall; a jetpack, lost)
+    const held = POLE_IDS.find((id) => POLES[id].gear === 'glide' && poleCard(id).glide?.kind === 'glide'), jet = POLE_IDS.find((id) => POLES[id].gear === 'jet');
+    const bare = POLE_IDS.find((id) => !POLES[id].gear);
+    expect(feelReport(held).partly.map((x) => x.field)).toContain('glide');
+    expect(feelReport(held).lost.map((x) => x.field)).not.toContain('glide');
+    expect(feelReport(jet).lost.map((x) => x.field)).toContain('jet');
     expect(feelReport(bare).lost.map((x) => x.field)).not.toContain('glide');
     expect(feelReport(varied).variant).toBe(variantsOf(varied)[0]);
+  });
+});
+
+describe('a sprinting feel lowers its dodge onto the sprint\'s key and stamina', async () => {
+  const { lowerFeel, feelCard, STAMINA } = await import('./lower.js');
+  it('the dash, its frames and speed, a second of stamina, never the whole gauge; carried, not lost', () => {
+    const L = lowerFeel(feelCard({ pole: 'ebon-spirits', toward: 'fallen-angel', t: 0.4 }));
+    expect(L.rule).toMatchObject({ stamina: true, dodge: true, dodgeBoostCost: STAMINA.dodge, dodgeOverheat: false });
+    expect(L.rule.dodgeDur).toBeGreaterThan(0.1); expect(L.rule.dodgeSpeed).toBeGreaterThan(0);
+    expect(L.carried).toContain('dodge');
+    expect(L.lost.map((x) => x.field)).not.toContain('dodge');
+    expect(L.partly.map((x) => x.field)).toContain('dodge.kind');
   });
 });

@@ -1,5 +1,9 @@
 # README outline: an agent game studio
 
+**Superseded frame.** The README now opens on "A 3D creative studio for your agent" and shows the pieces it makes,
+from an object up to a game, without saying how; "game studio" below is the earlier frame. Its inventory of made
+assets and captures still applies.
+
 Working outline for the README rewrite, reframed on `1026-consolidated` from the earlier "text-to-3D that compiles"
 outline (`1014-readme-outcomes`). Its inventory of made assets, its install section and its wording sweep carry over.
 

@@ -6,16 +6,27 @@
  *   const R = buildSceneRunner(), S = R.create(program)
  *   R.hear(S, types)          the bus event types since the last step (a scene starts on `scene:<id>`; an until waits on
  *                             its `scene-heard:<id>:<n>`)
- *   R.step(S, dt, ctl)        → { fire: [type], ops: [cast op], started: [id], ended: [id] }
+ *   R.step(S, dt, ctl)        → { fire: [type], ops: [cast op], started: [id], ended: [id], tempo: [{ on, end? }] }
  *                             ctl: { next (a press this frame), held (the advance key is down), skip (Esc this frame),
  *                             vars (the bus vars: a scene's `if` is read against them when its happening comes),
  *                             move (±1: the choice's highlight), pick (an option's index, taken at once) }.
  *                             A scene plays once (its `once`) counting plays, not happenings: one whose conditions
- *                             failed plays when its happening comes again and they hold.
+ *                             failed plays when its happening comes again and they hold. Scenes play one at a time:
+ *                             a happening heard while one plays (or two on one frame) waits its turn in order. Its
+ *                             conditions are read as its happening comes and again as its turn comes (a scene before
+ *                             it may have ruled it out); a scene is queued once.
  *                             `fire` goes to the bus (the beats' cues), `ops` to the cast (the camera's shot / unshot,
- *                             and `finish` when a scene is skipped: every walk lands where it was going)
- *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression? } | null,
+ *                             and `finish` when a scene is skipped: every walk lands where it was going), `tempo` to the
+ *                             world clock (a moment fired, or ended early; a skip fires none, and the moment a scene
+ *                             leaves going is ended as it ends)
+ *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression?, take? } | null,
  *                               choice: { options: [text], sel } | null }   (a choice shows its question as the line)
+ *                             take: { t, held, clip?, u? } for a line with a take (a script's, scene-script.js): t the script's clock
+ *                             at this frame, from the line's own start to its end; held once it has played out, the cast
+ *                             holding (listening) until the press. A press shows the words; the take plays on; the next
+ *                             press goes on, and the next line's take starts at its own start (a held or hurried line
+ *                             never drifts the next); clip the cast's takes for its script, u the phase they play at (t
+ *                             over the script's length)
  *
  * A line types on at RATE characters a second; a press shows it whole, the next goes on. Holding the advance key for
  * HOLD seconds, or Esc, skips: the scene's remaining beats fire at once (their effects land), the walks finish, and the
@@ -29,7 +40,7 @@ export function buildSceneRunner() {
   function create(program) {
     const byId = {};
     for (const sc of program || []) byId[sc.id] = sc;
-    return { byId, active: null, heard: [], bars: 0, played: {} };
+    return { byId, active: null, heard: [], queue: [], bars: 0, played: {} };
   }
 
   const CMP = { gte: (a, b) => a >= b, gt: (a, b) => a > b, lte: (a, b) => a <= b, lt: (a, b) => a < b, eq: (a, b) => a === b, ne: (a, b) => a !== b };
@@ -42,6 +53,7 @@ export function buildSceneRunner() {
 
   function end(S, out) {
     const A = S.active;
+    if (A.tempo) out.tempo.push({ on: A.tempo, end: true });
     out.ops.push({ op: 'unshot' });
     out.fire.push('scene-end:' + A.sc.id);
     out.ended.push(A.sc.id);
@@ -60,7 +72,9 @@ export function buildSceneRunner() {
       if (b.kind === 'fire') { out.fire.push(b.event); continue; }
       if (b.kind === 'until') { A.wait = { event: b.event }; return; }
       if (b.kind === 'wait') { A.wait = { time: b.wait }; return; }
-      if (b.kind === 'line') { A.line = b; A.typed = 0; A.wait = { click: true }; return; }
+      // (the world clock: a moment fired or ended; the one it leaves going is ended with the scene)
+      if (b.kind === 'tempo') { out.tempo.push(b.end ? { on: b.end, end: true } : { on: b.on }); A.tempo = b.end ? (A.tempo === b.end ? null : A.tempo) : b.on; continue; }
+      if (b.kind === 'line') { A.line = b; A.typed = 0; A.lt = 0; A.wait = { click: true }; return; }
       if (b.kind === 'choose') { choose(A, b); return; }
       if (b.kind === 'jump') { A.i = b.to - 1; continue; }
     }
@@ -103,14 +117,23 @@ export function buildSceneRunner() {
   }
 
   function step(S, dt, ctl) {
-    const out = { fire: [], ops: [], started: [], ended: [] }, c = ctl || {};
+    const out = { fire: [], ops: [], started: [], ended: [], tempo: [] }, c = ctl || {};
     const heard = S.heard;
     S.heard = [];
+    // each happening heard queues its scene if its conditions hold as it comes (never twice, never one that has played
+    // its once, never the one playing)
+    for (const t of heard) {
+      if (t.indexOf('scene:') !== 0) continue;
+      const sc = S.byId[t.slice(6)];
+      if (!sc || S.queue.indexOf(sc.id) >= 0 || (S.active && S.active.sc.id === sc.id) || (sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
+      S.queue.push(sc.id);
+    }
     if (!S.active) {
-      for (const t of heard) {
-        if (t.indexOf('scene:') !== 0) continue;
-        const sc = S.byId[t.slice(6)];
-        if (!sc || (sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
+      // the first queued plays if its conditions still hold (a scene before it may have set a flag that rules it out);
+      // one that no longer holds leaves the queue, and plays when its happening comes again and they hold
+      while (S.queue.length) {
+        const sc = S.byId[S.queue.shift()];
+        if ((sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
         S.played[sc.id] = (S.played[sc.id] || 0) + 1;
         S.active = { sc, i: -1, wait: null, line: null, t: 0, typed: 0, holdT: 0, said: null, choice: null, sel: 0 };
         out.started.push(sc.id);
@@ -133,7 +156,7 @@ export function buildSceneRunner() {
           if (k >= 0) answer(S, out, k);
         }
         else if (w && w.click) {
-          A.typed += dt * RATE;
+          A.typed += dt * RATE; A.lt += dt;
           if (c.next) { if (A.typed < A.line.text.length) A.typed = A.line.text.length; else go = true; }
         }
         if (go) advance(S, out);
@@ -144,12 +167,20 @@ export function buildSceneRunner() {
     return out;
   }
 
+  // a line's take on its script's clock: from its own start, never past its end, where the cast holds (listening) until
+  // the press; the next line's take starts at its own start, however long this one was held or however soon pressed
+  function takeAt(T, lt) {
+    const len = T.end - T.at, u = Math.min(lt || 0, len), t = Math.round((T.at + u) * 1000) / 1000;
+    // (with its clip: the phase the cast's takes are sampled at, over the script's length)
+    return T.clip ? { clip: T.clip, t, u: Math.min(1, t / T.of), held: (lt || 0) >= len } : { t, held: (lt || 0) >= len };
+  }
+
   function view(S) {
     const A = S.active, L = A && A.line;
     return {
       on: !!A,
       bars: S.bars,
-      line: L ? { who: L.who, name: L.name, text: L.text.slice(0, Math.floor(A.typed)), full: A.typed >= L.text.length, ...(L.expression ? { expression: L.expression } : {}) } : null,
+      line: L ? { who: L.who, name: L.name, text: L.text.slice(0, Math.floor(A.typed)), full: A.typed >= L.text.length, ...(L.expression ? { expression: L.expression } : {}), ...(L.take && !A.choice ? { take: takeAt(L.take, A.lt) } : {}) } : null,
       choice: A && A.choice ? { options: A.choice.options.map((o) => o.text), sel: A.sel } : null,
     };
   }

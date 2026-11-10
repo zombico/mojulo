@@ -7,7 +7,8 @@
  * again, so a face made of stacked boxes (a lobby's walls under the building over it) is climbed as one.
  *
  *   take hold   pressing forward into a face, in the air, or from the ground when the face stands higher than the body
- *               (`ground: false` asks for a jump first); a face narrower than `minFace` (a tree's trunk) is not held,
+ *               (`ground: false` asks for a jump first: taken only from a leap since the body last stood, never from
+ *               a step off a kerb beside the face); a face narrower than `minFace` (a tree's trunk) is not held,
  *               nor a box marked `hold: false` (a level's edge)
  *   crawl       forward up the face, back down it, A / D (strafe or turn) across it; round an outside corner onto the
  *               next face of the same box, unless another box stands there
@@ -69,7 +70,7 @@ export function buildWall(E) {
   // a face to take hold of: in reach, faced, forward pressed, standing above the body (or met in the air)
   function grab(e, inp, D, cs) {
     const r = e.rule, t = e.transform, R = r.collideRadius ?? 0, eye = r.eye ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1), feet = t.pos[2] - eye;
-    if (!(inp.forward > 0) || (e.grounded && !D.ground)) return null;
+    if (!(inp.forward > 0) || (!D.ground && (e.grounded || !e._wallLeap))) return null;
     const f = fwdXY(t.heading);
     let best = null;
     for (const c of cs) {
@@ -95,6 +96,8 @@ export function buildWall(E) {
     if (!cs) return false;
     const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0 };
     const r = e.rule, D = dials(r), t = e.transform, R = r.collideRadius ?? 0, eye = r.eye ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1);
+    // (a wall that asks a jump first: a leap since the body last stood, its own or off a wall; the ground ends it)
+    if (!D.ground) { if (e.grounded) e._wallLeap = false; if (e.jumped) e._wallLeap = true; }
     if (!e.walling) {
       if (e._wallCool > 0) return false;
       const g = grab(e, inp, D, cs);

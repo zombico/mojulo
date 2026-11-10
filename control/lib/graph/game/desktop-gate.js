@@ -24,6 +24,14 @@ export function parseSmoke(stdout) {
   try { return JSON.parse(line.slice(MARK.length)); } catch { return null; }
 }
 
+/** The app's command line for the smoke: Chromium's own flags before the folder, the pages after the mode's mark.
+ *  As root (a container, a CI box) Chromium cannot keep its sandbox, so it runs without it; and the smoke may fall back
+ *  to software WebGL where no GPU answers (a GPU, where there is one, is still used): it checks the pages load, not
+ *  how fast they draw. Neither reaches the app a player runs. */
+export function smokeArgs({ dir, pages, root = typeof process.getuid === 'function' && process.getuid() === 0 }) {
+  return [...(root ? ['--no-sandbox'] : []), '--enable-unsafe-swiftshader', dir, '--mojulo-smoke', ...pages];
+}
+
 // `env`: variables laid over this process's for the app (export_game bounds the app's own report with
 // MOJULO_SMOKE_TIMEOUT_MS); absent, the app sees this process's environment as before.
 export function runDesktopGate({ dir, electron, pages, timeoutMs = 120000, env: extraEnv = {}, log = () => {} }) {
@@ -34,7 +42,7 @@ export function runDesktopGate({ dir, electron, pages, timeoutMs = 120000, env: 
     // an editor's terminal (VS Code, itself Electron) exports ELECTRON_RUN_AS_NODE, which would run main.js as plain Node
     const env = { ...process.env, ...extraEnv };
     delete env.ELECTRON_RUN_AS_NODE;
-    const child = spawn(electron, [dir, '--mojulo-smoke', ...pages], { cwd: dir, env, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' });
+    const child = spawn(electron, smokeArgs({ dir, pages }), { cwd: dir, env, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });

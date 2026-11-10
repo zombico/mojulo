@@ -14,12 +14,13 @@
  *   RELOAD (`input.reload`, an edge): a partly spent magazine reloads now, over the weapon's own `reload`.
  *   THE BOW (`gunplay.draw`): the weapon draws as a charge does (combat-ranged.js); this sets the arrow's speed and its
  *     damage by how far the string was drawn the frame it is loosed (a twitch to full: `draw.speed`, `draw.damage`).
+ *   THE QUICK KNIFE (opt-in `rule.knife`): `input.melee` cuts with a knife in the free hand, adjudicated as a melee swing.
  *   SWITCHING: the switch's halves (the outgoing stowed, the incoming drawn) are the slot's `switchReady` (maneuvers.js),
  *     read by the page, which plays them; a body whose rule has no loadout maneuver (a first-person walker) switches
  *     here, on the same keys.
  * Wraps stepWorld (as vanish.js does), so the pinned pipeline order is untouched. Import-free (the page runs this source
  * via toString(), compose.js); emitted only into a page whose world has a gunplay rule, so every other page keeps every
- * byte. Field ownership: e.gp ({ aim, breath, tired, steady, sx, sy, hip }), and the pilot's weapon's spread, recoil,
+ * byte. Field ownership: e.gp ({ aim, breath, tired, steady, sx, sy, hip }), e.knifeT / knifeCdT / knifeCount, and the pilot's weapon's spread, recoil,
  * projectileSpeed and damage while gunplay holds it.
  */
 
@@ -88,9 +89,35 @@ export function buildGunplay(E) {
     const k = lerp(1, g.ads.move, a);
     return { ...input, forward: (input.forward || 0) * k, strafe: (input.strafe || 0) * k, turn: input.turn || 0 };
   }
+  // THE QUICK KNIFE (opt-in `rule.knife`, gameworld/arms-kit.js KNIFE): `input.melee`, an edge, draws the knife in the
+  // free hand and cuts: a strike stamped as a swing is (combat-melee.js stepMelee adjudicates it inside its window: its
+  // reach and cone from the hips, its damage, once a target), the trigger and the sights held off while it runs, then a
+  // short cooldown. Not while a switch readies, a magazine reloads, or a swing already runs. Field ownership:
+  // e.knifeT (0 to 1 through the cut, null between), e.knifeCdT, e.knifeCount (the page alternates its cuts by it).
+  function knife(e, input, dt) {
+    const K = e.rule.knife;
+    if (!K || typeof K !== 'object') return input;
+    const edge = !!input.melee && !e.knifePrev; e.knifePrev = !!input.melee;
+    if (e.knifeCdT > 0) e.knifeCdT = Math.max(0, e.knifeCdT - dt);
+    if (e.knifeT != null) {
+      e.knifeT += dt / K.dur;
+      // (a stagger or a fall that takes the swing ends the cut)
+      if (e.knifeT >= 1 || e.swingT == null) { e.knifeT = null; e.swingT = null; e.strikeParams = null; e.knifeCdT = K.cooldown; }
+      else e.swingT = e.knifeT;
+    } else if (edge && e.swingT == null && !(e.knifeCdT > 0) && !((e.readyT || 0) > 0) && !(e.weapon && e.weapon.reloading)) {
+      // (the cut's plane at the hips: over the feet, or under an eye the body walks at)
+      const under = e.body && e.body.egg && e.body.egg.cz < 0 ? -(e.rule.collideHeight ?? 1.7) : 0;
+      e.knifeT = 0; e.swingT = 0; e.swingClip = 'knife'; e.struckThisSwing = {};
+      e.swingCount = (e.swingCount || 0) + 1; e.knifeCount = (e.knifeCount || 0) + 1;
+      e.strikeParams = { reach: K.reach, damage: K.damage, impact: K.impact ?? 1, launch: 0, eye: under + 0.9, cosCone: Math.cos(K.cone * Math.PI / 180),
+        combo: false, from: K.window[0], to: K.window[1], topple: false, aimYaw: 0, fx: null };
+      if (E.breakGuards) E.breakGuards(e);
+    }
+    return e.knifeT != null ? { ...input, fire: 0, aim: 0 } : input;
+  }
   E.stepWorld = function stepWithGunplay(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
-    const inp = p && p.rule && p.rule.gunplay && input ? hands(state, p, input, dt) : input;
+    const inp = p && p.rule && p.rule.gunplay && input ? hands(state, p, knife(p, input, dt), dt) : input;
     return step(state, inp, dt, hooks);
   };
   E.gunplaySlot = slotOf;

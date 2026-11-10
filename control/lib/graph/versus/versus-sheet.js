@@ -120,7 +120,7 @@ export function fighterFromSheet(sheet) {
 
 // what an entry may say: the sheet's words, a character, and the fight's own words over the sheet
 const SHEET_KEYS = ['brief', 'facets', 'seed', 'archetype', 'build', 'age', 'role', 'ancestry', 'pole'];
-const FIGHT_KEYS = ['style', 'tradition', 'signature', 'stance', 'weapon', 'library', 'normals', 'specials', 'super', 'tune'];
+const FIGHT_KEYS = ['style', 'tradition', 'signature', 'stance', 'weapon', 'element', 'library', 'normals', 'specials', 'super', 'tune'];
 const OWN_KEYS = ['id', 'name', 'color'];
 const ENTRY = 'a fighter is a character: an archetype word, a tradition word (boxing, karate, …: a character rolled to fight that way), a brief in words, { brief?, facets?, seed?, archetype?, build?, age?, role?, name?, tradition?, … }, or { hero: { ref } } (a character made with create_character)';
 
