@@ -105,9 +105,11 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   const unwalked = stages.filter((k, i) => !walks[i]), failed = walks.filter((a) => a && a.verdict?.completable !== true);
   const proved = stages.length > 0 && !unwalked.length && !failed.length;
   const received = R && (R.status === 'received' || R.status === 'accepted');
+  // (why a check walked none: the plan's first finding, else the first stage the walk cannot prove: level-plan.js)
+  const notWalked = compile?.walk ? (compile.walk.plan?.[0]?.says ?? compile.walk.unwalked?.[0]?.why ?? null) : null;
   if (R) post('first-level', received ? 'met' : 'partial', received ? null : `${R.id} (${R.status}): ${failing(['critics', 'laws', 'probe']).join('; ') || 'not received yet'}`, `${R.id}: ${R.does}`);
   else post('first-level', proved ? 'met' : stages.length ? 'partial' : 'open',
-    proved ? null : !stages.length ? 'not made yet' : failed.length ? `made; ${failed.length} of its ${stages.length} stage${stages.length === 1 ? '' : 's'} not proved (${failed[0].verdict.note})` : `made, ${unwalked.length} of its ${stages.length} stage${stages.length === 1 ? '' : 's'} not yet walked: run with check: true`,
+    proved ? null : !stages.length ? 'not made yet' : failed.length ? `made; ${failed.length} of its ${stages.length} stage${stages.length === 1 ? '' : 's'} not proved (${failed[0].verdict.note})` : `made, ${unwalked.length} of its ${stages.length} stage${stages.length === 1 ? '' : 's'} not yet walked: ${notWalked ?? 'run with check: true'}`,
     stages.length ? 'run with check: true, then hand the creator the play link' : 'prove its chapter (design_game { ref, chapter: \'levels\', run: true }), then run');
 
   const met = posts.filter((p) => p.status === 'met').length;

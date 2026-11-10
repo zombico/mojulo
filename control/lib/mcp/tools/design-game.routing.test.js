@@ -70,4 +70,45 @@ describe('design_game: the routing', () => {
     expect(made(ref).game.unasked).toBeUndefined();
     expect(out.advice.intent).toBeUndefined();
   }, 300_000);
+
+  it("says a beat's level that does not lay what the beat says, offers the write, and is answered by it", async () => {
+    const ref = 'keep';
+    const W = { id: 'keep', seed: 3, mode: 'autonomous', foes: { warlord: { class: 'stalker', rank: 'boss' } },
+      levels: { roof: { walk: { nodes: { a: { trail: true } } }, foes: { from: ['warlord'] } } },
+      mainQuest: { acts: [{ id: 'end', goal: 'end it on the roof', beats: [{ id: 'the-roof', goal: 'duel the warlord on the roof', as: { level: 'roof' }, foes: ['warlord'] }] }] } };
+    let out = await designGameHandler({ ref, world: W, ask: { intent: 'a duel on a roof' } });
+    expect(out.advice.plan).toHaveLength(1);
+    expect(out.advice.plan[0]).toMatch(/one boss alone.*a duel stands one and is won by clearing it/);
+    const move = out.next.find((n) => n.step === 'plan');
+    expect(move).toMatchObject({ levels: ['roof'], card: 'gameworld-main-quest' });
+
+    out = await designGameHandler({ ref, ask: 'a1', patch: move.patch });
+    expect(out.advice.plan).toBeUndefined();
+    expect(out.next.some((n) => n.step === 'plan')).toBe(false);
+    expect(SketchRepository.getByRef(ref).manifest.levels.roof.foes).toEqual({ from: ['warlord'], count: 1, win: 'clear' });
+  });
+
+  it('a check that walks no level says why: the plan first, then what the walk cannot prove', async () => {
+    const ref = 'keep2';
+    const W = { id: 'keep2', seed: 3, mode: 'autonomous', foes: { warlord: { class: 'stalker', rank: 'boss' } },
+      levels: { roof: { walk: { nodes: { a: { trail: true } } }, foes: { from: ['warlord'] } } },
+      mainQuest: { acts: [{ id: 'end', goal: 'end it on the roof', beats: [{ id: 'the-roof', goal: 'duel the warlord on the roof', as: { level: 'roof' }, foes: ['warlord'] }] }] } };
+    await designGameHandler({ ref, world: W, ask: { intent: 'a duel on a roof' } });
+    // the plan known wrong (the boss on every free beat, won at the exit): nothing is walked, and the readout says so
+    let out = await designGameHandler({ ref, ask: 'a1', run: true, check: true });
+    expect(out.ran.some((r) => r.key.startsWith('audit-'))).toBe(false);
+    expect(out.audits).toMatchObject({ gate: 'machine', proved: 0 });
+    expect(out.audits.of).toBeGreaterThan(0);
+    expect(out.audits.plan).toEqual([{ beat: 'the-roof', level: 'roof', says: expect.stringMatching(/a duel stands one/) }]);
+
+    // the plan put right: a duel is a win the walk does not play, said by stage, and still nothing is walked
+    const fix = out.next.find((n) => n.step === 'plan').patch;
+    await designGameHandler({ ref, ask: 'a1', patch: fix });
+    out = await designGameHandler({ ref, ask: 'a1', run: true, check: true });
+    expect(out.ran.some((r) => r.key.startsWith('audit-'))).toBe(false);
+    expect(out.audits.plan).toBeUndefined();
+    expect(out.audits.unwalked.some((u) => u.level === 'roof' && /defeat-all/.test(u.why))).toBe(true);
+    const post = out.goalposts?.posts.find((p) => p.id === 'first-level');
+    if (post?.says) expect(post.says).not.toMatch(/run with check: true$/);
+  }, 300_000);
 });

@@ -119,6 +119,10 @@ const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.p
 // (an escape room's audit is a walk too: by its keys, then its locks, to its way out: game/escape-room.js)
 const PROVABLE = new Set(['reach-exit', 'survive', 'escape-room']);
 const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
+/** The wins the walk plays, and a level order's mechanics it does not (['none'] for an order with no mechanics): what
+ * keeps a level from being proved, for the plan's readout (level-plan.js). */
+export const WALKED_WINS = Object.freeze([...PROVABLE]);
+export const unprovenKinds = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length ? [...new Set(k.filter((x) => !PROVABLE.has(x)))] : ['none']; };
 // a realistic loft ridden (vehicle-registry/ride.js): its figure compiled by the world in place, in the form render (its
 // materials lit by the page: car-designer/road-form.js), on its class's own physics (roads/vehicles.js; quick.vehicle,
 // tuning and conditions still read as the ride's), chased at its length

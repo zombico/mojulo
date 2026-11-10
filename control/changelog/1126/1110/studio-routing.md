@@ -18,5 +18,15 @@ changes to what the door says; nothing refuses that did not refuse before.
 - **A run's advice is read whole.** Each distinct line a run's steps advised is lifted into `advice.run` as
   `{ says, steps }`, in the full and the changed readout; each step keeps its own.
 
-New: `lib/graph/gameworld/routing.js` (pure). Still to come on this theme: a beat's words reaching the level laid for
-it, a beat's foes offered to the level it names, and the plan verified before any level is walked.
+- **A level's plan is verified before anything is walked.** `lib/graph/gameworld/level-plan.js` reads the recipe and
+  the stages a run would make, with no browser. A beat that is one boss alone is a duel: its level stands one and is
+  won by clearing it. A beat that fields foes is played on a level that stands them. A stage lays a win that can be
+  reached (one won by clearing it has something stood to clear). What it finds is `advice.plan`, with the write that
+  would lay it offered in `next` (`{ step: 'plan', patch }`); the level stays the creator's.
+- **A check that walks no level says why.** The walk stays all or nothing, and no longer runs while a level's plan is
+  known wrong. With `check: true` and nothing walked, `audits` is `{ gate, proved: 0, of, plan?, unwalked? }` where it
+  used to be absent: the plan's findings, and each stage the walk cannot prove with its reason. The `first-level`
+  goalpost quotes the first of them instead of asking for a check that was already run. `compile.walk` carries the same.
+
+New: `lib/graph/gameworld/routing.js` and `lib/graph/gameworld/level-plan.js` (both pure). Still to come on this theme:
+a beat's place words reaching the level laid for it.
