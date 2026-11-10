@@ -60,6 +60,9 @@ plans, and each is rewritten as it lands.
 - **Who leans on whom.** From what the text says passes between places (power, ore, goods, demand), the backdrop
   counts for each side what its places give and need, whom it draws from and whom it supplies, and which open
   conflicts it is in. It is a count from your own text, never a judgement of who is stronger.
+- **What a side believes, and a disagreement nobody is fighting over.** Two more things a setting says: what a side
+  takes to be true, which may not be (kept apart from what is true and from what it wants), and a difference the
+  parties live with, which is neither settled nor an open fight.
 - **A game can keep it.** The backdrop is saved on the game itself, shown in its game book (the events in order, where
   play begins, what is open and unsaid), and each chapter of the book is handed only its own part: the world chapter
   gets the places as history left them, the cast chapter the people and what they want, the story chapter what

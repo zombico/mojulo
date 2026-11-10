@@ -268,9 +268,10 @@ ${groups}
 ${B.places ? `<p class="muted"><b>As the world stands</b></p><ul class="decided">${li(B.places.map((p) => `<b>${esc(p.name)}</b> ${esc(p.state)}${R.placeEvents[p.id]?.length ? ` <span class="muted">(events ${R.placeEvents[p.id].join(', ')})</span>` : ''}`))}</ul>` : ''}
 ${B.moves?.length ? `<ul class="decided">${li(B.moves.map((m) => `${esc(B.places.find((p) => p.id === m.from).name)} to ${esc(B.places.find((p) => p.id === m.to).name)}: ${esc(m.says)}${mark(m)}`))}</ul>` : ''}
 ${B.texture?.length ? `<p class="muted">${B.texture.map(esc).join(' · ')}</p>` : ''}
-${B.conflicts?.length ? `<p class="muted"><b>Conflicts</b></p><ul class="decided">${li(B.conflicts.map((c) => `<b>${c.state === 'open' ? 'Open' : 'Resolved'}</b> ${esc(c.between.map((x) => name[x]).join(' and '))}, over ${esc(c.over)}${mark(c)}`))}</ul>` : ''}
+${B.conflicts?.length ? `<p class="muted"><b>Conflicts</b></p><ul class="decided">${li(B.conflicts.map((c) => `<b>${c.state === 'open' ? 'Open' : c.state === 'standing' ? 'Standing' : 'Resolved'}</b> ${esc(c.between.map((x) => name[x]).join(' and '))}, over ${esc(c.over)}${mark(c)}`))}</ul>` : ''}
 ${R.derived.length ? `<p class="muted">Implied by what two sides want, and not said in the text: ${R.derived.map((d) => `${esc(d.between.map((x) => name[x]).join(' and '))} over ${esc(d.over)}`).join('; ')}.</p>` : ''}
 ${B.wants?.length ? `<p class="muted"><b>Wants</b></p><ul class="decided">${li(B.wants.map((w) => `<b>${esc(name[w.who])}</b> ${esc(w.wants)}${mark(w)}${w.state ? ` <span class="muted">· ${esc(w.state)}</span>` : ''}`))}</ul>` : ''}
+${B.beliefs?.length ? `<p class="muted"><b>What each takes to be so</b></p><ul class="decided">${li(B.beliefs.map((b) => `<b>${esc(name[b.who])}</b> ${esc(b.holds)}${mark(b)}`))}</ul>` : ''}
 ${B.threads?.length ? `<p class="muted"><b>Planted, and not returned to</b></p><ul class="decided">${li(B.threads.map(esc))}</ul>` : ''}
 ${B.unknowns?.length ? `<p class="muted"><b>Not said by the text</b></p><ul class="decided">${li(B.unknowns.map(esc))}</ul>` : ''}
 ${R.coverage ? `<p class="muted">The route meets ${R.coverage.met} of the ${R.coverage.of} events before play${R.coverage.missed.length ? `; not met: ${R.coverage.missed.join(', ')}` : ''}.</p>` : ''}

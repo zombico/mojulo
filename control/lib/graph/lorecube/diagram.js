@@ -313,7 +313,7 @@ export function backdropWeb(v, { title: said } = {}) {
     const y = yC(j), open = c.state === 'open';
     marks.push({ kind: 'rect', x: xC, y: r1(y), w: wC, h: bh, rx: 8, fill: open ? '#fdf1ec' : c.derived ? '#f6f7f9' : '#ffffff', stroke: open ? WARN : c.derived ? SOFT : INK, strokeWidth: open ? 2.2 : 1.3, ...(c.derived ? { dash: '4 4' } : {}) });
     marks.push(text(xC + wC / 2, y + 22, cut(c.over, 54), { weight: 700, color: open ? WARN : INK }));
-    marks.push(text(xC + wC / 2, y + 40, c.derived ? 'implied by what both want; not said in the text' : open ? 'open where the text stops' : `resolved${c.basis === 'stated' ? '' : ' *'}`, { size: 10, color: open ? WARN : SOFT }));
+    marks.push(text(xC + wC / 2, y + 40, c.derived ? 'implied by what both want; not said in the text' : open ? `open where the text stops${c.basis === 'stated' ? '' : ' *'}` : `${c.state === 'standing' ? 'standing: they differ and coexist' : 'resolved'}${c.basis === 'stated' ? '' : ' *'}`, { size: 10, color: open ? WARN : SOFT }));
   });
   if (!all.length) marks.push(text(xC + wC / 2, top + 30, 'no conflict is said', { color: SOFT }));
   const y = top + rows * Math.max(rowA, rowC) + 14;

@@ -261,3 +261,20 @@ describe('stakes: who leans on whom, from what passes between places', () => {
     expect(backdropReport(newBackdrop(premise))).not.toHaveProperty('stakes');
   });
 });
+
+describe('beliefs, and a conflict that stands', () => {
+  it('a belief is what a side takes to be so: kept apart from what is, and from what it wants; it carries its basis', () => {
+    const B = extendBackdrop(whole(), { beliefs: [{ who: 'millers', holds: 'the lowlanders mean to breach the dam', basis: 'stated' }] });
+    expect(B.beliefs).toEqual([{ who: 'millers', holds: 'the lowlanders mean to breach the dam', basis: 'stated' }]);
+    expect(B.places).toEqual(whole().places);
+    expect(chapterDigest(B).cast.people.find((p) => p.id === 'millers').believes).toEqual([{ holds: 'the lowlanders mean to breach the dam', basis: 'stated' }]);
+    expect(() => extendBackdrop(whole(), { beliefs: [{ who: 'millers', holds: 'x', basis: 'inferred' }] })).toThrow(/is inferred: say from what/);
+  });
+
+  it('a conflict may stand: the parties differ and coexist; it is not counted open', () => {
+    const B = extendBackdrop(whole(), { conflicts: [{ id: 'the-deed', between: ['millers', 'lowlanders'], over: 'what the old deed says', state: 'standing', basis: 'stated' }] });
+    expect(backdropReport(B).open).toEqual([]);
+    expect(backdropReport(B).derived).toEqual([]);
+    expect(() => extendBackdrop(whole(), { conflicts: [{ id: 'x', between: ['millers', 'lowlanders'], over: 'x', state: 'frozen', basis: 'stated' }] })).toThrow(/how it stands where the text stops: resolved, open, standing/);
+  });
+});

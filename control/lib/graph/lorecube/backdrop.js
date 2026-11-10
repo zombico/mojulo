@@ -25,7 +25,10 @@
  *   moves      [{ from, to, says, basis, because? }]             what passes between places
  *   texture    [words]                                           what living there is like; nothing follows from it
  *   wants      [{ who, wants, over?, basis, because?, state? }]  `over` the thing wanted, a word two wants can share
- *   conflicts  [{ id, between: [actor], over, state: resolved | open, basis, because?, stretch? }]
+ *   beliefs    [{ who, holds, basis, because? }]                  what a side takes to be so, which may not be so: kept
+ *              apart from the world's state (what is) and from a want (what it is after)
+ *   conflicts  [{ id, between: [actor], over, state: resolved | open | standing, basis, because?, stretch? }]
+ *              standing: neither settled nor being fought: the parties differ and coexist
  *   threads    [words]                                           planted and not returned to
  *   unknowns   [words]                                           what the text does not say
  *   resolved   [words]                                           unknowns the author has since answered
@@ -75,7 +78,8 @@ export const BASES = Object.freeze(['stated', 'inferred', 'asked']);
 export const AGENCIES = Object.freeze({ acted: 'people act', watched: 'no one can act', studied: 'people watch and learn' });
 export const ACTOR_KINDS = Object.freeze(['people', 'force']);
 const ID = /^[a-z][a-z0-9-]{0,39}$/;
-const KEYS = ['title', 'part', 'actors', 'events', 'stretches', 'places', 'moves', 'texture', 'wants', 'conflicts', 'threads', 'unknowns', 'resolved', 'play'];
+const KEYS = ['title', 'part', 'actors', 'events', 'stretches', 'places', 'moves', 'texture', 'wants', 'beliefs', 'conflicts', 'threads', 'unknowns', 'resolved', 'play'];
+export const CONFLICT_STATES = Object.freeze({ resolved: 'settled where the text stops', open: 'being fought where the text stops', standing: 'neither: the parties differ and coexist' });
 
 const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includes(k)) throw fail(`${at}.${k} is not part of it (${keys.join(', ')})`); };
 const list = (v, at, what) => { if (!Array.isArray(v)) throw fail(`${at} is a list of ${what}`); return v; };
@@ -176,6 +180,15 @@ export function readBackdrop(v) {
       return { who: actor(w.who, `${at}.who`), wants: w.wants.trim(), ...(str(w.over) ? { over: w.over.trim() } : {}), ...basisOf(w, at), ...(str(w.state) ? { state: w.state.trim() } : {}) };
     });
   }
+  if (v.beliefs !== undefined) {
+    out.beliefs = list(v.beliefs, '.beliefs', '{ who, holds, basis }').map((b, i) => {
+      const at = `.beliefs[${i}]`;
+      if (!isObj(b)) throw fail(`${at} is { who, holds, basis, because? }`);
+      only(b, ['who', 'holds', 'basis', 'because'], at);
+      if (!str(b.holds)) throw fail(`${at}.holds is what it takes to be so`);
+      return { who: actor(b.who, `${at}.who`), holds: b.holds.trim(), ...basisOf(b, at) };
+    });
+  }
   if (v.conflicts !== undefined) {
     out.conflicts = list(v.conflicts, '.conflicts', '{ id, between, over, state, basis }').map((c, i) => {
       const at = `.conflicts[${i}]`;
@@ -184,7 +197,7 @@ export function readBackdrop(v) {
       if (!str(c.id) || !ID.test(c.id)) throw fail(`${at}.id is a short lower-case word`);
       if (!Array.isArray(c.between) || c.between.length < 2) throw fail(`${at}.between is two actors or more`);
       if (!str(c.over)) throw fail(`${at}.over is what it is over`);
-      if (c.state !== 'resolved' && c.state !== 'open') throw fail(`${at}.state is resolved or open, where the text stops`);
+      if (!CONFLICT_STATES[c.state]) throw fail(`${at}.state is how it stands where the text stops: ${Object.keys(CONFLICT_STATES).join(', ')}`);
       if (c.stretch !== undefined && !stretchIds.includes(c.stretch)) throw fail(`${at}.stretch '${c.stretch}' is no stretch of this backdrop`);
       return { id: c.id, between: c.between.map((w) => actor(w, `${at}.between`)), over: c.over.trim(), state: c.state, ...basisOf(c, at), ...(c.stretch ? { stretch: c.stretch } : {}) };
     });
@@ -217,7 +230,7 @@ const reads = (v) => { try { return readBackdrop(v); } catch { return null; } };
 // the premise: the events as told (what happened, who was in it), without the rungs laid on them later
 const bare = (v) => (isObj(v) && Array.isArray(v.events) ? { ...pick(v, ['title', 'part', 'actors']), events: v.events.map((e) => pick(e, ['n', 'says', 'who', 'order'])) } : null);
 const RUNGS = { ordered: ['stretches'], present: ['places'], reading: ['wants', 'conflicts', 'threads', 'unknowns'], play: ['play'] };
-const EXTRA = { present: ['moves', 'texture'], reading: ['resolved'] };
+const EXTRA = { present: ['moves', 'texture'], reading: ['resolved', 'beliefs'] };
 
 export const BACKDROP = definePart({
   id: 'backdrop',
@@ -311,7 +324,7 @@ export function clarifyBackdrop(B, patch = {}) {
 export function extendBackdrop(B, more = {}) {
   const base = readBackdrop(B);
   if (!isObj(more)) throw fail(' is extended with what the further text holds: { actors?, places?, stretches?, events?, moves?, texture?, wants?, conflicts?, threads?, unknowns? }');
-  only(more, ['actors', 'places', 'stretches', 'events', 'moves', 'texture', 'wants', 'conflicts', 'threads', 'unknowns'], '.extend');
+  only(more, ['actors', 'places', 'stretches', 'events', 'moves', 'texture', 'wants', 'beliefs', 'conflicts', 'threads', 'unknowns'], '.extend');
   const next = { ...base };
   const addTo = (k, idOf) => {
     if (more[k] === undefined) return;
@@ -319,7 +332,7 @@ export function extendBackdrop(B, more = {}) {
     if (idOf) for (const x of fresh) if ((base[k] ?? []).some((y) => idOf(y) === idOf(x))) throw fail(`.extend.${k} '${idOf(x)}' is already there: further text adds; a correction is clarifyBackdrop`);
     next[k] = [...(base[k] ?? []), ...fresh];
   };
-  addTo('actors', (a) => a?.id); addTo('places', (p) => p?.id); addTo('moves'); addTo('wants'); addTo('conflicts', (c) => c?.id);
+  addTo('actors', (a) => a?.id); addTo('places', (p) => p?.id); addTo('moves'); addTo('wants'); addTo('beliefs'); addTo('conflicts', (c) => c?.id);
   for (const k of ['texture', 'threads', 'unknowns']) if (more[k] !== undefined) next[k] = [...(base[k] ?? []), ...wordsOf(more[k], `.extend.${k}`)];
   // a new stretch stands after the one it names (null: before every other)
   if (more.stretches !== undefined) {
@@ -447,12 +460,13 @@ export function chapterDigest(B) {
   const upTo = V.play?.begins?.after ?? V.events.length;
   const people = V.actors.filter((a) => a.kind === 'people'), forces = V.actors.filter((a) => a.kind === 'force');
   const wantsOf = (id) => (V.wants ?? []).filter((w) => w.who === id).map((w) => ({ wants: w.wants, basis: w.basis, ...(w.state ? { state: w.state } : {}) }));
+  const beliefsOf = (id) => (V.beliefs ?? []).filter((b) => b.who === id).map((b) => ({ holds: b.holds, basis: b.basis }));
   const out = {
     // what game it is: where play begins, whose eyes, what is open, how much there is
     intent: { ...(V.title ? { title: V.title } : {}), ...(V.play ? { play: V.play } : { play: 'not given: where play begins and whose eyes are the author\'s to say' }), open: (V.conflicts ?? []).filter((c) => c.state === 'open').map((c) => ({ id: c.id, between: c.between.map((x) => name[x]), over: c.over })), depth: R.depth, ...(V.unknowns?.length ? { unknowns: V.unknowns } : {}) },
   };
   if (V.places || forces.length) out.world = { ...(V.places ? { places: V.places.map((p) => ({ id: p.id, name: p.name, state: p.state, made_by: R.placeEvents[p.id] ?? [] })) } : {}), ...(V.moves ? { moves: V.moves.map((m) => ({ from: m.from, to: m.to, says: m.says })) } : {}), ...(forces.length ? { forces: forces.map((f) => ({ name: f.name, ...(f.says ? { says: f.says } : {}) })) } : {}), ...(V.texture ? { texture: V.texture } : {}) };
-  if (people.length) out.cast = { people: people.map((a) => ({ id: a.id, name: a.name, ...(a.says ? { says: a.says } : {}), wants: wantsOf(a.id) })) };
+  if (people.length) out.cast = { people: people.map((a) => ({ id: a.id, name: a.name, ...(a.says ? { says: a.says } : {}), wants: wantsOf(a.id), ...(beliefsOf(a.id).length ? { believes: beliefsOf(a.id) } : {}) })) };
   // the story: the pre-game in order (what the opening and the cast's memory can draw on), never lines
   out.story = { before_play: V.events.filter((e) => e.n <= upTo).map((e) => ({ n: e.n, says: e.says, ...(e.stretch ? { stretch: e.stretch } : {}) })), ...(V.events.length > upTo ? { in_play: V.events.filter((e) => e.n > upTo).map((e) => ({ n: e.n, says: e.says })) } : {}), ...(R.coverage ? { coverage: R.coverage } : {}) };
   if ((V.conflicts ?? []).length || (V.threads ?? []).length) out['main-quest'] = { conflicts: (V.conflicts ?? []).map((c) => ({ id: c.id, between: c.between.map((x) => name[x]), over: c.over, state: c.state, basis: c.basis })), ...(V.threads?.length ? { threads: V.threads } : {}) };
