@@ -519,7 +519,8 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
   // is no structure, and never a card or a batch of its own)
 ${form.structures === false ? '' : farStructuresScript()}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;
-  for (const o of __formBefore) for (const m of [].concat(o.material)) { m.toneMapped = false; m.needsUpdate = true; }
+  // (a body under the cast rig, channels/cast-rig.js, is toned with the land: it is lit by the land's sun, not painted)
+  for (const o of __formBefore) for (const m of [].concat(o.material)) { if (m.userData && m.userData.cast) continue; m.toneMapped = false; m.needsUpdate = true; }
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
   renderer.shadowMap.enabled = true;
   // (a live light's sun casts its shadows still, but lights nothing: the form's sun is the land's one sun)

@@ -60,3 +60,14 @@
   its fill, rim and sky lights are gone from the scene and are in the material every body, limb, prop and gun is drawn
   with, laid on by the cast kit. The page carries the rig as the yard's `cast` (the same card a fight takes) and the
   kit beside the brawl's modules.
+- **The hero a player pilots is lit by the land's sun on a form page.** On a level whose land is drawn as form (a
+  glyph map a geocube paints, read in gen-7), the body a player pilots is read as the lit export reads it (its colour
+  under no light; each corner's normal where its form writes one) and carries the cast rig solved from the land's own
+  cube at its hour (`figures.<name>.cast`, `worlds/world-scene.js`): the land's one sun is its key, the sky over the
+  floor's bounce and the horizon's rim its own. The page draws it with the cast material by whichever builder draws
+  it, the merged one or the per-bone one, its normals the read's or its mesh's own
+  (`scene/channels/controllable/`), toned with the land, taking the land's shadows, and with no baked rim over it. Its
+  rig, its clips and its playback are as they were. Every other figure (a walker, a foe, a crowd), every page without
+  a form land, and every gen-6 page are as they were: a bank with no such figure carries none of the kit. Its register
+  is the level's `fxStyle.register` where that is `anime` or `western`, else `western`. Seen in Chrome on a small
+  valley-morning map with the Saikyo body, beside its gen-6 read.

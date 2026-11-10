@@ -59,6 +59,15 @@ describe('a glyph map, built', () => {
     expect(P6.map.form).toBeUndefined();
     expect(P6.faces.some((f) => f.group === 'isekai:ridge')).toBe(true);
     // (a map no cube paints, read in gen-7: paint under the live light, and it says why)
+    // (THE HERO ON IT: the body a player pilots is read lit and carries the cast rig solved from the land's cube, the
+    // land's one sun its key; in gen-6, and a body nobody pilots, as they were)
+    const piloted = (era, pilotable = true) => ({ kind: 'map', level: level(era), figures: { hero: { hero: { cast: 'male', head: 'none', register: 'lowpoly' } } },
+      entities: [{ id: 'p1', ...(pilotable ? { pilotable: true } : {}), rule: { type: pilotable ? 'walk' : 'static' }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [12, -12, 2], heading: 0 } }] });
+    const { payload: H7 } = await resolveWorldScene({ ref: 'glyph-hero7', manifest: piloted('gen-7') });
+    expect(H7.figures.hero.cast).toMatchObject({ register: 'western', surface: 'form', key: { toLight: H7.form.land.sun } });
+    expect(H7.figures.hero.cast.key.linear).toEqual(H7.form.land.light.sun);
+    expect((await resolveWorldScene({ ref: 'glyph-hero6', manifest: piloted('gen-6') })).payload.figures.hero.cast).toBeUndefined();
+    expect((await resolveWorldScene({ ref: 'glyph-extra7', manifest: piloted('gen-7', false) })).payload.figures.hero.cast).toBeUndefined();
     const { payload: Pk } = await resolveWorldScene({ ref: 'glyph-kit7', manifest: { kind: 'map', level: { seed: 5, kit: 'isekai-meadow', grid: { tile: 24, rows: ['# # #'] } } } }, { era: 'gen-7' });
     expect(Pk.form).toBeUndefined();
     expect(Pk.map.form).toMatchObject({ read: false, why: expect.stringMatching(/geocube/) });

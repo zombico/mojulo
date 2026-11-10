@@ -22,6 +22,7 @@ import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
 import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
+import { castKitSource } from '../cast-rig.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -846,7 +847,11 @@ function __updateGearLines() {
   // `contrast` opt-in). Absent → the emitted channel is byte-identical (the char-net
   // pin holds), same gating pattern as figHasSpec above.
   const figHasRim = Object.values(figures || {}).some((f) => f && f.rig && Array.isArray(f.rim));
-  const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)) __rimPatch(mesh, fig.rim);` : '';
+  // THE CAST RIG ON A BODY (color-theorist/cast-rig.js, a figure's `cast`; the kit: ../cast-rig.js): a figure read lit (its
+  // parts carry their normals where its form writes them, else its mesh's own) and carrying a rig is drawn with the cast
+  // material, lit by the page's one sun, its sky and its rim its own; no baked rim over it. Absent, the page carries none
+  const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
+  const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)${figHasCast ? ' && !fig.cast' : ''}) __rimPatch(mesh, fig.rim);` : '';
   // toon ink (toon-shading Phase 4b): outline every rig PART when the world's toon dial asks for
   // ink — the hull + crease lines are children of the bone mesh, so they pose with the bone and
   // every loadout / livery rebuild gets them for free. Built with the toon setup channel's
@@ -1310,7 +1315,16 @@ function __makeSkinGroup(fig, b, group) {
   group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
   return group;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose }) : ''}function __makeRigGroup(fig, b) {
+` : ''}${figHasCast ? `// the cast rig's material for a figure's parts: one set of the rig's uniforms a figure (../cast-rig.js)
+const castKit = ${castKitSource()};
+const __castU = new Map();
+function __castMat(fig, o) {
+  let U = __castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }
+  const m = castKit.material(fig.cast, Object.assign({ surface: fig.cast.surface || 'paint', uniforms: U }, o));
+  m.userData.cast = true;
+  return m;
+}
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast }) : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -1337,9 +1351,12 @@ function __makeSkinGroup(fig, b, group) {
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasPaint ? `
     const map = fig.paintTex && part.uv && !part.q ? __rigTex(fig) : null;
     if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}${figHasFace ? `
-    if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}
+    if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `
+    // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
+    if (fig.cast) { if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasFace ? `
+    const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
+    if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
