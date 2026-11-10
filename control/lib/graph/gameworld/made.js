@@ -10,6 +10,8 @@
  *             run leaves it as it is unless forced)
  *     frame   a level's opening frame as a run judged it (game/first-frame-check.js): { stored, status, says? }, the
  *             print of the row it judged beside the verdict; a later run gates the level again once the row moves
+ *     unasked on the game's record alone, true: the game was built with no ask on the ledger (routing.js); a run an ask
+ *             links lifts it
  *   an audit's record ('audit-level-<level>-<n>', runner.js auditSteps) is { ref, order, stored, verdict }: ref the level
  *   it walked, stored the print of what it walked (the level's row and the game's), verdict { completable, note } what
  *   the walk proved (completable true, false, or null when no browser could walk it: walked again once one can)
@@ -29,7 +31,8 @@ export function readMade(made) {
     if (!isObj(v) || typeof v.ref !== 'string' || !v.ref || !PRINT.test(v.order ?? '') || !PRINT.test(v.stored ?? '')) throw fail(`.${k} is { ref, order, stored }`);
     // a level's record keeps its opening frame's verdict; an audit's, its walk's
     const audit = k.startsWith('audit-'), extra = audit ? 'verdict' : 'frame';
-    for (const x of Object.keys(v)) if (!['ref', 'order', 'stored', extra].includes(x)) throw fail(`.${k}.${x} is not part of the record (ref, order, stored, ${extra})`);
+    for (const x of Object.keys(v)) if (!['ref', 'order', 'stored', extra].includes(x) && !(k === 'game' && x === 'unasked')) throw fail(`.${k}.${x} is not part of the record (ref, order, stored, ${extra})`);
+    if (v.unasked !== undefined && v.unasked !== true) throw fail(`.${k}.unasked is true, or left out`);
     if (audit && (!isObj(v.verdict) || ![true, false, null].includes(v.verdict.completable) || typeof v.verdict.note !== 'string')) throw fail(`.${k}.verdict is { completable: true | false | null, note }`);
     const F = v.frame;
     if (F !== undefined && (!isObj(F) || !PRINT.test(F.stored ?? '') || !['pass', 'warn', 'failed'].includes(F.status) || (F.says !== undefined && !(Array.isArray(F.says) && F.says.every((x) => typeof x === 'string'))))) throw fail(`.${k}.frame is { stored, status: pass | warn | failed, says? } (the opening frame a run judged)`);
