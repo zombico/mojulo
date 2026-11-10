@@ -87,6 +87,14 @@ export function eraReading(payload, era) {
       if (F.length && lit.length === F.length) continue;
       if (lit.length) { out[row[era]].push({ input, how: `${lit.map(([n]) => n).sort().join(', ')} under the cast rig, lit by the renderer; the rest ${PAINT_HOW}` }); continue; }
     }
+    // (the repeats: a template baked for the form render, form/sun-light.js, a street's frontage, is drawn as form; a
+    // payload whose repeats are all so is built, and one with some says which are still paint)
+    if (input === 'repeats' && ERAS[era].surface === 'form' && Array.isArray(payload.repeats)) {
+      const baked = (r) => Array.isArray(r?.template) && r.template.length > 0 && r.template.every((f) => f && f.cornerLight !== undefined);
+      const lit = payload.repeats.filter(baked);
+      if (lit.length === payload.repeats.length) continue;
+      if (lit.length) { const rest = [...new Set(payload.repeats.filter((r) => !baked(r)).map((r) => String(r?.group ?? 'repeat').replace(/[-:][^-:]*$/, '')))].sort(); out[row[era]].push({ input, how: `its baked templates drawn as form; the rest (${rest.join(', ')}) ${PAINT_HOW}` }); continue; }
+    }
     out[row[era]].push({ input, how: row.how });
   }
   return out;

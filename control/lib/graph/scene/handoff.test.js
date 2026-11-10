@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { detailKey } from '../matte-paint/detail.js';
 import { resolveHandoff, stoneInstances, floraInstances, mergeClumps, dressedMaterials, landParts, figureStands, HANDOFF_VERSION, HANDOFF_LEVEL, SEA_OPACITY, SEA_SKY_SHARE } from './handoff.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
@@ -215,6 +216,14 @@ describe('the engine handoff', () => {
     expect(metal).toBe(0);
     // (a key the painter did not paint is no material)
     expect(dressedMaterials(['asphalt', 'no-such-tile'])).toEqual({});
+    // (a detail tile, a town's wall dressed by a word: with the export's textures it leaves with the relief of the cut
+    // it was painted from, its colour the tile as it is; without them it keeps its paint)
+    const dk = detailKey({ cut: 'brick', stone: [150, 78, 58], mortar: [188, 180, 166], rows: 13, cols: 4, grit: 0.35 }, 3, 2, 0);
+    expect(dressedMaterials([dk])).toEqual({});
+    const dm = dressedMaterials([dk], { [dk]: 'data:image/png;base64,AAAA' })[dk];
+    expect(dm.base).toBe('data:image/png;base64,AAAA');
+    expect(decodePng(dm.normal).W).toBe(512);
+    expect(dm.depth).toBeGreaterThan(0);
   }, 300_000);
 
   it('a cliff under a relief leaves as geometry: its triangles cut finer and pushed along their normal; a shared corner stays', () => {

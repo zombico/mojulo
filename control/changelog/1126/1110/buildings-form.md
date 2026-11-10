@@ -74,3 +74,11 @@
   its tiles as material (`worlds/world-scene.js`). An engine's handoff of a sunlit stage is paint, as it was; gen-6
   and a room under no sun are byte for byte as they were. Seen in Chrome on an island-noon plaza by day and by
   night, beside gen-6.
+- **The records.** The seventh generation's world note says what is drawn as form now (a stage under a sun or a
+  moon; by day a town's buildings, a city's massing and its streets' frontage) and what is still planned
+  (`era/eras.js`). A page read in gen-7 no longer lists its repeats as approximated where every template is baked,
+  and names the ones still paint where some are (`era/era-marks.js` `eraReading`).
+- **An engine gets a town's relief.** In the engine handoff a detail tile (a town's wall or roof dressed by a word)
+  leaves with the normal, the occlusion and roughness and the height of the dressed cut it was painted from, its
+  colour the tile it already carried (`scene/handoff.js` `dressedMaterials`); before, only a room's dressed tiles
+  did. An export with no detail tile is as it was.
