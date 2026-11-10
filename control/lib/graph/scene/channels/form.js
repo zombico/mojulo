@@ -21,7 +21,8 @@ import { safeJson } from '../emit-util.js';
 //             bake: the page lays its light whole (its falloff and its cosine on the face, no shadow), its key swung by the
 //             beat in time. Only a room with one carries this code
 //
-// OUTDOORS (a town's buildings, form/sun-light.js: `cfg.sun`) the one lamp is the sun, set far off along its way, its
+// OUTDOORS (a town's buildings, form/sun-light.js, and a stage under a sun or a moon, era/stage.js: `cfg.sun`) the sun is
+// a lamp set far off along its way, always in the live set (a town's one lamp), its
 // falloff whole; a corner's light without it is the sky's by how the face turns (the sky up, `sun.ground` down, their mean
 // on a wall), so the relief is lit only by the share of the bake the sun gave. A room's page carries none of this.
 //
@@ -176,7 +177,7 @@ ${cfg.sun ? `
   const eye = new THREE.Vector3(), tmp = new THREE.Vector3();
   let lastPick = -1, lastT = -1;
   const pick = () => {
-    const want = lamps.map((l) => [l, l.at.distanceToSquared(eye)]).sort((a, b) => a[1] - b[1] || a[0].i - b[0].i).slice(0, slots.length).map(([l]) => l);
+    const want = lamps.map((l) => [l, ${cfg.sun ? 'l.r > 1e8 ? -1 : ' : ''}l.at.distanceToSquared(eye)]).sort((a, b) => a[1] - b[1] || a[0].i - b[0].i).slice(0, slots.length).map(([l]) => l);
     const held = new Set(slots.map((s) => s.next || s.lamp));
     const free = slots.filter((s) => !(s.next || s.lamp) || !want.includes(s.next || s.lamp));
     for (const l of want) if (!held.has(l)) { const s = free.shift(); if (s) s.next = l; }

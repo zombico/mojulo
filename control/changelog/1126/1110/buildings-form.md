@@ -63,3 +63,14 @@
   piece, so a read with no live light draws its frontage unshaded by its neighbours. Its glass is lit as its frame
   is. A page with no baked template carries none of this. Seen in Chrome at street level on a small valley-morning
   city.
+- **A stage under a sun or a moon is drawn as form** (a sunlit plaza, a street set, their night; gen-7). It was the
+  one room the form render left as paint. It is baked as a room is, its colour and its light apart, with the sun
+  beside its lamps (`era/stage.js` `formLightFaces` `sun`; `form/room-light.js` `solveDayLight`): the reference is
+  the sun itself, so a surface square to it and unshadowed shows its paint; a corner takes the ambient, the sun by
+  its cosine where the paint bake's own shadow test reaches it, what the ground throws back onto a face turned down,
+  and each lantern, torch and pool in the sun's share (what it adds at the reference's metres as the paint lays it
+  there). At night the moon is the sun. The page lights the tiles' relief by the sun as a lamp set far off, always
+  in its live set whatever lamp stands nearer (`scene/channels/form.js`), and a plaza's dress beside its stage reads
+  its tiles as material (`worlds/world-scene.js`). An engine's handoff of a sunlit stage is paint, as it was; gen-6
+  and a room under no sun are byte for byte as they were. Seen in Chrome on an island-noon plaza by day and by
+  night, beside gen-6.

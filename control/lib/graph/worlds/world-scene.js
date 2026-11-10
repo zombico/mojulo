@@ -702,7 +702,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // THE FORM RENDER INDOORS (form/room-form.js): a room baked for the form render has its tiles read as material, each
     // key's colour under no light in place of its paint, its normal, occlusion, height and mean beside it
     if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
-      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
+      // (under a sun, a plaza's dress beside its stage: every face that carries its baked light)
+      const sunlit = !!payload.form.room.sun;
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && ((f.group.startsWith('stage:') && f.group !== 'stage:fixture') || (sunlit && f.cornerLight !== undefined))).map((f) => f.texture);
       const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
