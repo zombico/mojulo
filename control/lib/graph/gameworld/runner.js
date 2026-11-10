@@ -865,7 +865,7 @@ function quickSteps(world, G, ref, lookup) {
   // hosted level's contract; the game plays it in the shell. No hero, no trail: the pieces are the game's
   if (Q.goal === 'tabletop') {
     const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
-    const arenas = tabletopArenas(Q, { title, seed }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
+    const arenas = tabletopArenas(Q, { title, seed, ...shellUi(G) }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
     const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
     return [...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];

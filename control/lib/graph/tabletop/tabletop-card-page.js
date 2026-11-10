@@ -11,15 +11,14 @@
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient, TABLE_LOOKS } from '../broadcast/broadcast-dom.js';
+import { LEVELS, escapeHtml, scriptJson, levelSelect } from './page-kit.js';
+import { tableUiCss, tableUiConfig, tableUiScript, tableUiBody } from './table-ui.js';
 
-const LEVELS = ['easy', 'fair', 'hard'];
 
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function cardPageHtml(G, L, K, opts = {}) {
   const { human, level, seed } = opts;
-  const data = { tv: tableBroadcastData(G.players, opts.broadcast, ['#888888'], TABLE_LOOKS.felt), L, G, human, level, seed };
+  const data = { tv: tableBroadcastData(G.players, opts.broadcast, ['#888888'], TABLE_LOOKS.felt), L, G, human, level, seed, ...(opts.ui ? { ui: tableUiConfig(opts.ui) } : {}) };
   const title = opts.title ?? G.title ?? 'mojulo card game';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -71,11 +70,12 @@ export function cardPageHtml(G, L, K, opts = {}) {
   .sw{display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:0 0 0 1px #1a1512 inset}
   #log{margin:0;padding-left:34px;max-height:240px;overflow:auto;font-size:13px}
   @media (max-width:600px){aside{flex-basis:100%}.c{width:80px;height:116px}}
-${broadcastDomCss(data.tv)}
-</style></head><body>
+${opts.ui ? '' : broadcastDomCss(data.tv)}
+${opts.ui ? tableUiCss(opts.ui, data.tv, 'felt') : ''}</style></head>${opts.ui ? tableUiBody(`
+`) : `<body>
 <header>
   <h1>${escapeHtml(title)}</h1>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>
@@ -95,19 +95,21 @@ ${broadcastDomCss(data.tv)}
     <div class="card"><h2>Log</h2><ol id="log"></ol></div>
   </aside>
 </main>
+`}
 <script>
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-(${tabletopCardClient.toString()})(DATA, T, M, TV);
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
+(${tabletopCardClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>
 `;
 }
 
 /* The card page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopCardClient(D, T, M, TV) {
+export function tabletopCardClient(D, T, M, TV, UI) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], types = K.card.types;
   const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
@@ -180,13 +182,45 @@ export function tabletopCardClient(D, T, M, TV) {
     S = T.apply(K, S, m);
     turns++;
   }
-  function note(side, text) { log.push('<li><i class="sw" style="background:' + colour(side) + '"></i> <b>' + esc(K.players[side].id) + '</b> ' + esc(text) + '</li>'); }
+  function note(side, text) { log.push({ side, text: K.players[side].id + ' ' + text }); }
+  const logHtml = () => log.map((r) => '<li><i class="sw" style="background:' + colour(r.side) + '"></i> ' + esc(r.text) + '</li>').join('');
   function play(m) { if (busy || S.over || S.side !== me || !m) return; act(m); step(); }
   const mine = () => !busy && !S.over && S.side === me;
   const find = (type, card) => legal.find((m) => m.type === type && m.card === card);
 
+  // a card as the table's UI reads it (its words; `run` what picking it does, when it may be picked)
+  function cardRow(id, o) {
+    o = o || {};
+    if (!id) return { face: 'down', count: '' };
+    const t = o.obj !== undefined ? T.derive(K, S, o.obj) : K.defs[id], tags = t.tags || {};
+    return { id: (o.key || '') + id, name: t.name || id, cost: t.cost !== undefined && !K.card.draft ? t.cost : undefined, text: effects(t).join(', '), tags: Object.keys(tags).map((k) => k + ' ' + tags[k]),
+      count: o.n !== undefined ? '×' + o.n : undefined, state: o.go ? 'playable' : undefined, run: o.go ? o.run : undefined };
+  }
+  const pile = (name, n) => ({ id: 'pile:' + name, face: 'down', count: name + ' ' + n });
+  // the table of cards as zones, each a grid the cursor moves through
+  function zonesOf(go, owed) {
+    const Z = S.zones[me], out = [];
+    K.players.forEach((p, s) => {
+      if (s === me) return;
+      const Y = S.zones[s];
+      out.push({ id: 'seat' + s, title: p.id, row: 0, cards: (K.card.draft ? [] : [pile('deck', Y.deck.length), pile('hand', Y.hand.length), pile('discard', Y.discard.length)])
+        .concat(s === S.side ? Y.play.map((id, i) => cardRow(kindOf(id), { obj: id, key: 'p' + i })) : [], stack(Y.tableau.map(kindOf)).map(([id, n]) => cardRow(id, { n: n > 1 ? n : undefined, key: 't' }))) });
+    });
+    if (S.market) out.push({ id: 'market', title: 'Market', row: 1, cards: S.market.row.map((id, slot) => { const m = legal.find((x) => x.slot === slot); return cardRow(kindOf(id), { go: go && m, obj: id === null ? undefined : id, key: 'm' + slot, run: () => play(m) }); }).concat([pile('deck', S.market.deck.length)]) });
+    const ids = Object.keys(S.supply);
+    if (ids.length) out.push({ id: 'supply', title: 'Supply', row: 2, cards: ids.map((id) => { const m = owed === 'gain' ? find('gain', id) : !owed ? find('buy', id) : null; return cardRow(id, { go: go && m && S.supply[id] > 0, n: S.supply[id], key: 's', run: () => play(m) }); }) });
+    if (!K.card.draft) {
+      out.push({ id: 'play', title: 'Played this turn', row: 3, cards: Z.play.map((id, i) => cardRow(kindOf(id), { obj: id, key: 'y' + i })) });
+      out.push({ id: 'hand', title: 'Your hand', row: 4, size: 'm', cards: Z.hand.map((id, i) => { const k = kindOf(id), m = owed === 'trash' ? find('trash', k) : !owed ? find('play', k) : null; return cardRow(k, { go: go && m, obj: id, key: 'h' + i, run: () => play(m) }); }) });
+    }
+    if (Z.tableau.length || K.card.draft) out.push({ id: 'tableau', title: 'Your tableau', row: 3, cards: stack(Z.tableau.map(kindOf)).map(([id, n]) => cardRow(id, { n: n > 1 ? n : undefined, key: 'b' })) });
+    if (!K.card.draft) out.push({ id: 'mine', title: 'Your piles', row: 0, cards: [pile('deck', Z.deck.length), pile('discard', Z.discard.length)].concat(S.trash.length ? [pile('trashed', S.trash.length)] : []) });
+    return out;
+  }
+
   function render() {
     const go = mine(), owed = S.pending.length ? S.pending[0].do : null, Z = S.zones[me];
+    if (UI) return panel(go, owed);
     // the other seats: counts, never faces; a tableau face up
     $('others').innerHTML = K.players.map((p, s) => {
       if (s === me) return '';
@@ -228,10 +262,11 @@ export function tabletopCardClient(D, T, M, TV) {
     panel(go, owed);
   }
 
-  function button(text, on, enabled) { const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
+  // an action: a button on the page, or a row of the table's action bar
+  function button(text, on, enabled) { if (UI) return { name: text, run: on, disabled: !enabled }; const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
   function panel(go, owed) {
-    const acts = $('acts');
-    acts.innerHTML = '';
+    const acts = UI ? { rows: [], appendChild(b) { this.rows.push(b); } } : $('acts');
+    if (!UI) acts.innerHTML = '';
     let prompt;
     if (S.over) prompt = S.over.winner === me ? 'You win!' : S.over.winner === null ? 'A draw' : K.players[S.over.winner].id + ' wins';
     else if (S.side !== me) prompt = K.players[S.side].id + ' is playing…';
@@ -249,26 +284,35 @@ export function tabletopCardClient(D, T, M, TV) {
       }, go && treasures.length > 0));
       acts.appendChild(button('End turn', () => play(legal.find((m) => m.type === 'end')), go));
     }
-    $('prompt').textContent = prompt;
-    $('act').innerHTML = K.card.draft || S.side !== me || S.over ? '' : '<span>Actions <b>' + S.act.actions + '</b></span><span>Buys <b>' + S.act.buys + '</b></span><span>Coins <b>' + S.act.coins + '</b></span>';
     const sc = S.over ? S.over.scores : T.cardScores(K, S);
     $('status').textContent = S.over ? prompt : 'Turn ' + (Math.floor(S.turn / K.players.length) + 1);
     TV.table({ players: K.players, me, scores: sc, live: S.side, tab: (prompt ? prompt + ' · ' : '') + 'turn ' + (Math.floor(S.turn / K.players.length) + 1), over: S.over, again: reset });
+    if (UI) {
+      const counts = K.card.draft || S.side !== me || S.over ? '' : '  ·  actions ' + S.act.actions + ' · buys ' + S.act.buys + ' · coins ' + S.act.coins;
+      UI.show({ prompt: prompt + counts, actions: acts.rows, log, zones: zonesOf(go, owed),
+        menu: [{ label: 'Resume', run: () => {} }, { label: 'New game', run: reset }, { label: 'Level: ' + level, run: () => { level = LEVELS[(LEVELS.indexOf(level) + 1) % LEVELS.length]; render(); } }] });
+      return;
+    }
+    $('prompt').textContent = prompt;
+    $('act').innerHTML = K.card.draft || S.side !== me || S.over ? '' : '<span>Actions <b>' + S.act.actions + '</b></span><span>Buys <b>' + S.act.buys + '</b></span><span>Coins <b>' + S.act.coins + '</b></span>';
     $('seats').innerHTML = K.players.map((p, s) => '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><i class="sw" style="background:' + colour(s) + '"></i> ' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + sc[s] + ' pts</span></div>').join('');
-    $('log').innerHTML = log.join('');
+    $('log').innerHTML = logHtml();
     $('log').scrollTop = 1e6;
   }
 
-  $('felt').addEventListener('click', (e) => {
-    if (!mine()) return;
-    const c = e.target.closest('.c');
-    if (!c) return;
-    const owed = S.pending.length ? S.pending[0].do : null;
-    if (c.dataset.hand !== undefined) { const id = kindOf(S.zones[me].hand[+c.dataset.hand]); play(owed === 'trash' ? find('trash', id) : owed ? null : find('play', id)); }
-    else if (c.dataset.supply !== undefined) { const id = c.dataset.supply; play(owed === 'gain' ? find('gain', id) : owed ? null : find('buy', id)); }
-    else if (c.dataset.slot !== undefined) play(legal.find((m) => m.slot === +c.dataset.slot));
-  });
-  $('level').onchange = (e) => { level = e.target.value; };
-  $('again').onclick = () => reset();
+  const LEVELS = Object.keys(M.LEVELS);
+  if (!UI) {
+    $('felt').addEventListener('click', (e) => {
+      if (!mine()) return;
+      const c = e.target.closest('.c');
+      if (!c) return;
+      const owed = S.pending.length ? S.pending[0].do : null;
+      if (c.dataset.hand !== undefined) { const id = kindOf(S.zones[me].hand[+c.dataset.hand]); play(owed === 'trash' ? find('trash', id) : owed ? null : find('play', id)); }
+      else if (c.dataset.supply !== undefined) { const id = c.dataset.supply; play(owed === 'gain' ? find('gain', id) : owed ? null : find('buy', id)); }
+      else if (c.dataset.slot !== undefined) play(legal.find((m) => m.slot === +c.dataset.slot));
+    });
+    $('level').onchange = (e) => { level = e.target.value; };
+    $('again').onclick = () => reset();
+  }
   reset();
 }

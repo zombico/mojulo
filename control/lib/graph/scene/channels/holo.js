@@ -5,7 +5,8 @@
 // closure's source (the referee and the computer across the table, the same code Node plays), then the arena's client
 // (the projected board, the holograms, the beats, the life points, the pads, the hosted wire). It hands the page its
 // frame step through `stepHolo` (a let the page declares when the block is present) and publishes `window.__mojHolo`
-// for probes. It owns the camera (`__ctrlOwnsCamera`), so an arena carries no pilot.
+// for probes. It owns the camera (`__ctrlOwnsCamera`), so an arena carries no pilot. An arena with `ui` brings the game
+// UI runtime and its page (tabletop/holo-ui.js), which draw the arena's overlay in place of its canvas.
 //
 // cfg: holoArenaData's (tabletop/holo-arena.js): { game, players, level, seed, G, L, board, kinds, duelists, wire, … }
 
@@ -13,6 +14,8 @@ import { safeJson } from '../emit-util.js';
 import { buildTabletop } from '../../tabletop/tabletop-kernel.js';
 import { buildTabletopMind } from '../../tabletop/tabletop-mind.js';
 import { holoClientSource } from '../../tabletop/holo-arena.js';
+import { holoManaPage } from '../../tabletop/holo-ui.js';
+import { boardUiKit } from '../../board/board-ui.js';
 
 export function holoChannelScript(cfg) {
   return `
@@ -20,7 +23,7 @@ export function holoChannelScript(cfg) {
 {
 const HOLO_ARENA = ${safeJson(cfg)};
 const HOLO_T = (${buildTabletop.toString()})();
-const HOLO_M = (${buildTabletopMind.toString()})(HOLO_T);
+const HOLO_M = (${buildTabletopMind.toString()})(HOLO_T);${cfg.ui ? `\nconst HOLO_UI = (${holoManaPage.toString()})(HOLO_ARENA.ui, ${boardUiKit()});` : ''}
 ${holoClientSource()}
 stepHolo = stepHoloArena;
 }`;

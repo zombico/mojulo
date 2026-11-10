@@ -21,7 +21,8 @@ describe('a fight\'s cast rig', () => {
     const plain = versusChannelScript(versusArenaData({ roster: ROSTER }));
     expect(plain).not.toContain('const castKit =');
     expect(plain).not.toContain('"cast":{"register"');
-    const lit = versusChannelScript(versusArenaData({ roster: ROSTER, register: 'western' }));
+    // (the arena as the world's resolver hands it: its register's card with it)
+    const lit = versusChannelScript({ ...versusArenaData({ roster: ROSTER, register: 'western' }), cast: fightCast('western') });
     expect(lit).toContain('const castKit =');
     expect(lit).toContain(`"cast":${JSON.stringify(fightCast('western'))}`);
     // (an arena that carries its own rig keeps it)
