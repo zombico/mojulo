@@ -1,13 +1,14 @@
-# voice-sfx.plan.md — the Winslow/Laravell spike (voice as a sound-effect synthesizer)
+# voice-sfx.plan.md — the mouth-foley spike (voice as a sound-effect synthesizer)
 
-**Status:** SPIKE, round 1 rendered. Awaiting the operator's ears-gate on the raw
-seed + warp ladder. Nothing wired into `create_voice` / the MCP surface yet;
+**Status:** SPIKE, rounds 1–5 rendered (round 5, 2026-11-10: swishes, swooshes and
+sword swings, on branch `1110-simulated-sfx`). Awaiting the operator's ears-gate on
+`spike-sfx/r5/AUDITION-round5.wav`. Nothing wired into `create_voice` / the MCP surface yet;
 all artifacts are disposable renders under `~/mojulo-voicegen/spike-sfx/`.
 
 ## The principle
 
-Michael Winslow ("Larvell Jones", *Police Academy*) made machine-gun, siren, and
-gadget sounds *with his mouth*. The spike: Kokoro is a controllable mouth. Give
+Vocal sound-effect performers make machine-gun, siren, and gadget sounds *with
+their mouths*. The spike: Kokoro is a controllable mouth. Give
 it a syllable that already sounds like the object, pick a voice whose phonetics
 sharpen it, then point a DSP rack at the render to warp it the rest of the way.
 
@@ -124,9 +125,67 @@ geminate-closed syllable + tail-gate + drive + metal ring = a passable mechanica
 down) + soft-clip drive + hot normalize; "latch" into: hard tail-gate on the
 final snap + a decaying resonant ring.
 
+## Round 5 — air: swishes, swooshes and sword swings (`round5-*.py|mjs`, `r5/`)
+
+Target: the shelf's air sounds. Unlike rounds 1–4 (clicks: the transient is the
+sound) the sound here is the *fricative*, and the vowel after it is what gives a
+mouth away. Seeds: Japanese manga sound words on `jm_kumo` (シュッ shu', シュン,
+スッ, ヒュッ, ヒュン, ヒューン, ビュン, ブン, ブォン, ザシュッ, ズバッ, スパッ,
+シャキーン, シャッ, キーン), three on `jf_alpha`, Mandarin 嗖 / 唰 / 呼 on
+`zm_yunjian`, English swish / swoosh / whoosh / shing on `am_onyx`. The bar is the
+shelf's own `katana-*`, `blade-swing`, `swing` and `net-swish`, rendered by
+`renderSound` and read with the voice warps on the same yardstick (`measureSound`).
+
+New knobs (the air needs different ones from the clicks):
+- **devoice**: a frame autocorrelation voicing mask (70–400 Hz) gates the voiced
+  frames out, then a 1.5 kHz high-pass. Before the high-pass, the vowel residue
+  still put 50–80 % of the "air" energy under 500 Hz; after it, the air sits in
+  mid/high like a real fricative.
+- **passby**: a band gliding 5.2 → 1.1 kHz, a swell-then-fall envelope, a pan
+  sweep, a 0.65× body copy under it.
+- **heavy**: the opposite: keep the voiced hum, pitch it to 0.55×, sweep it low,
+  lay the devoiced air on top (ブン / ビュン / ブォン).
+- **reverse**: a reversed swish into a short forward one (the swell-in).
+- **ring**: the swish exciting a four-mode metal resonator, or the mouth's own
+  キーン pitched 2.6× into a whine.
+- **hybrid**: the voice swoosh 6 dB under the shelf's synthesized katana swing,
+  peaks aligned.
+
+Machine findings (the ears gate has not run):
+- **Kokoro is deterministic.** The same text, voice and speed render byte-identical
+  audio in one session and across a fresh model load (sha256 equal, max diff 0, on
+  this Mac). So a recipe of `{ text, voice, speed, chain }` regenerates its sound,
+  which is what lets voice foley keep "recipe, not render". Not yet checked
+  across CPUs or onnxruntime versions; expect "equal within tolerance" there, like
+  the kernels across Node majors.
+- **The air is short.** Usable unvoiced air per seed (audible, not voiced) runs
+  0–160 ms: 呼 hu 157, シャキーン 155, whoosh 139, ビュン 118, スパッ 116, ザシュッ
+  109, スッ 101. ズバッ and `jf_alpha`'s ヒュン have none. By energy the air is only
+  1–15 % of a seed: Kokoro voices fricatives quietly next to their vowels. The shelf's
+  katana swing is 227 ms, so one seed's air covers a quick swing, not a long whoosh.
+  Longer would need a stretch (granular), not a slower `speed`.
+- **Voice alone is all top.** Devoiced swooshes have no energy under 500 Hz; the
+  synth katana puts 25 % in the sub band (the push of air). The heavy chain is the
+  complement (sub+low ≈ 0.9). One mouth sound does not cover the band; two do.
+- **The hybrid is the measurable win.** Laying the voice under the synth fills the
+  mid band the synth leaves almost empty (mid 0.12 → 0.13–0.43) and raises the
+  heard spread (`heard` 1.75 → 1.80 / 1.84 / 1.91 for ヒュン / 呼 / スッ) while keeping
+  the synth's attack (centroid 8290 → 8220 for ヒュン). Voice as a *layer* of a
+  realistic cue, not a replacement, is the shape this points to.
+- 47 of 64 warps clear the register's heard (1.31) and crest (8 dB) floors; the
+  thin ones are the narrow-band swoosh sweeps (唰, ヒュン alone, `jf_alpha`).
+- The blade chains run long (0.7–1.2 s to −40 dB) against a 0.23 s swing: the
+  resonator tail wants a harder cut if it survives the ears.
+
+Which sounds look worth it, by the numbers so far: a voice layer in the realistic
+katana / blade swings (hybrid), the heavy swings (voiced hum), and the clicks of
+rounds 1–4 (reloads, latches). Long whooshes and the basketball swish look like
+the synth's to keep.
+
 ## Next steps
 
-1. Operator listens to `spike-sfx/`, picks seed + closest warp.
+1. Operator listens to `spike-sfx/` (round 5: `r5/AUDITION-round5.wav`, cue list
+   beside it), picks seed + closest warp.
 2. Collapse knobs to the canonical set on the chosen seed; A/B a tight grid.
 3. Decide the home: extend `beats-sfx` to accept a voice-seed source, vs. a
    voice mode. Then it stops being a spike.
