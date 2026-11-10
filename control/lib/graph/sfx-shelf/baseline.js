@@ -35,4 +35,13 @@ export const BASELINE = Object.freeze({
     'saber-swing': { layers: 9, ms: 620, centroidHz: 3043, crestDb: 18.15, bands: { sub: 0.71, low: 0.2, mid: 0.07, high: 0.02 }, spread: 1.81, heard: 2.7, width: 0.02 },
     'saber-hit': { layers: 15, ms: 299, centroidHz: 4178, crestDb: 17.43, bands: { sub: 0.19, low: 0.48, mid: 0.29, high: 0.04 }, spread: 2.85, heard: 1.82, width: 0 },
   },
+  mouth: {
+    'swing': { layers: 1, ms: 146, centroidHz: 5450, crestDb: 18.48, bands: { sub: 0, low: 0, mid: 0.32, high: 0.68 }, spread: 1.77, heard: 1.85, width: 0.01 },
+    'blade-swing': { layers: 1, ms: 215, centroidHz: 4739, crestDb: 16.72, bands: { sub: 0, low: 0, mid: 0.59, high: 0.41 }, spread: 1.94, heard: 1.88, width: 0.02 },
+    'katana-swing': { layers: 12, ms: 262, centroidHz: 7853, crestDb: 19.53, bands: { sub: 0.21, low: 0.07, mid: 0.21, high: 0.51 }, spread: 2.85, heard: 1.99, width: 0.11 },
+    'katana-heavy-swing': { layers: 1, ms: 436, centroidHz: 843, crestDb: 17.59, bands: { sub: 0.1, low: 0.77, mid: 0.12, high: 0 }, spread: 1.61, heard: 2, width: 0.02 },
+    'blunt-swing': { layers: 1, ms: 438, centroidHz: 674, crestDb: 16.91, bands: { sub: 0.03, low: 0.71, mid: 0.26, high: 0 }, spread: 1.75, heard: 2, width: 0.01 },
+    'net-swish': { layers: 1, ms: 466, centroidHz: 7491, crestDb: 21.59, bands: { sub: 0, low: 0, mid: 0.03, high: 0.97 }, spread: 1.05, heard: 1.08, width: 0 },
+    'swell-in': { layers: 1, ms: 332, centroidHz: 4118, crestDb: 17.39, bands: { sub: 0, low: 0, mid: 0.02, high: 0.98 }, spread: 1.04, heard: 1.05, width: 0.01 },
+  },
 });

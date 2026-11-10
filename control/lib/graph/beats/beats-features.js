@@ -80,6 +80,7 @@ function addGestures(set, list) {
   if (Array.isArray(list) && list.some(gestureNeedsMix)) { set.add('sfxmix'); for (const g of list) if (g && g.chain) layerChainFeatures(g.chain, set); }
   if (Array.isArray(list) && list.some(gestureNeedsSfx)) set.add('sfx');
   if (Array.isArray(list) && list.some((g) => g && PRODUCTION.has(g.type))) set.add('anthem');
+  if (Array.isArray(list) && list.some((g) => g && g.type === 'trace')) set.add('trace');
 }
 
 // the kernel's `scored` test, mirrored: a composition that uses the score
@@ -162,7 +163,7 @@ function addSustains(set, specs) {
   }
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));

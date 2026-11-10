@@ -61,6 +61,9 @@ const pal = (category, slot, label, aliases = []) => ({ label, aliases, category
 // voiced realistic by the layered set; the rescued `mecha` set is its floor (sets.js)
 const mecha = (category, family, slot, label, aliases = []) => ({ label, aliases, category, family, voices: { realistic: 'mecha-layered' }, slot });
 
+// a row the mouth set voices too (sets/mouth.js): mouth foley, traced from a voice
+const mouthed = (r) => ({ ...r, voices: { ...(r.voices || {}), mouth: 'mouth' } });
+
 // built by a family (families.js) at a dial preset, voiced realistic
 const made = (category, family, slot, label, aliases, fam, dials = {}) => ({ label, aliases, category, family, voices: { realistic: 'families' }, make: { family: fam, dials }, slot });
 
@@ -74,7 +77,7 @@ const ROWS = {
   reload: pal('weapon', 'weapon.reload', 'a reload', ['reloading']),
   hit: pal('impact', 'weapon.hit', 'a hit landing', ['hit confirm']),
   thud: pal('impact', 'on', 'a heavy thud', ['thump']),
-  swing: pal('melee', 'strike.swing', 'a swing', ['swipe', 'whoosh']),
+  swing: mouthed(pal('melee', 'strike.swing', 'a swing', ['swipe', 'whoosh'])),
   strike: pal('melee', 'strike.hit', 'a melee hit', ['melee hit']),
   down: pal('body', 'on', 'a foe going down', ['downed', 'knockout']),
   death: pal('body', 'on', 'a death', ['dead', 'dying']),
@@ -128,12 +131,12 @@ const ROWS = {
   'step-water': made('movement', 'step', 'footsteps.step', 'a footstep in shallow water', ['water step', 'wading step'], 'footstep', { surface: 'water' }),
   'heavy-step': made('movement', 'step', 'footsteps.step', 'a heavy footstep: an armoured trooper, a brute', ['heavy footstep', 'armored footstep'], 'footstep', { body: 'heavy' }),
   'giant-step': made('movement', 'step', 'footsteps.step', 'a giant\'s footfall: the ground shaking', ['giant footstep', 'titan step'], 'footstep', { body: 'giant' }),
-  'blade-swing': made('melee', 'swing', 'strike.swing', 'a blade swung', ['sword swing', 'blade whoosh'], 'melee', { act: 'blade-swing' }),
+  'blade-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a blade swung', ['sword swing', 'blade whoosh'], 'melee', { act: 'blade-swing' })),
   'blade-hit': made('melee', 'strike', 'strike.hit', 'a blade connecting', ['sword hit', 'blade strike'], 'melee', { act: 'blade-hit' }),
   'blade-clash': made('melee', 'strike', 'on', 'two blades meeting', ['sword clash', 'parry'], 'melee', { act: 'clash' }),
   'energy-clash': made('melee', 'strike', 'on', 'two energy blades meeting', ['beam clash', 'saber clash'], 'melee', { act: 'clash', kind: 'energy' }),
   block: made('melee', 'strike', 'on', 'a blow blocked on a shield', ['shield block', 'blocked'], 'melee', { act: 'block' }),
-  'blunt-swing': made('melee', 'swing', 'strike.swing', 'a club or a hammer swung', ['club swing', 'hammer swing'], 'melee', { act: 'blunt-swing' }),
+  'blunt-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a club or a hammer swung', ['club swing', 'hammer swing'], 'melee', { act: 'blunt-swing' })),
   'blunt-hit': made('melee', 'strike', 'strike.hit', 'a club or a hammer connecting', ['club hit', 'hammer hit'], 'melee', { act: 'blunt-hit' }),
   punch: made('melee', 'strike', 'strike.hit', 'a punch landing', ['fist hit', 'punch hit'], 'melee', { act: 'punch' }),
   kick: made('melee', 'strike', 'strike.hit', 'a kick landing', ['kick hit'], 'melee', { act: 'kick' }),
@@ -190,7 +193,7 @@ const ROWS = {
   whistle: made('sport', 'alarm', 'on', 'a referee\'s whistle', ['referee whistle', 'foul'], 'sport', { act: 'whistle' }),
   'whistle-full-time': made('sport', 'goal', 'on', 'the final whistle: three blasts', ['final whistle', 'full time'], 'sport', { act: 'whistle-triple' }),
   'bat-crack': made('sport', 'hit', 'on', 'a bat cracking a ball', ['home run', 'bat hit'], 'sport', { act: 'bat-crack' }),
-  'net-swish': made('sport', 'goal', 'on', 'a ball through the net, nothing but net', ['swish', 'basket'], 'sport', { act: 'net-swish' }),
+  'net-swish': mouthed(made('sport', 'goal', 'on', 'a ball through the net, nothing but net', ['swish', 'basket'], 'sport', { act: 'net-swish' })),
   'goal-net': made('sport', 'goal', 'on', 'a ball hitting the back of the net', ['back of the net', 'goal scored'], 'sport', { act: 'goal-net' }),
   'goal-horn': made('sport', 'goal', 'on', 'the venue\'s horn for a goal', ['air horn', 'hockey horn'], 'sport', { act: 'horn' }),
   buzzer: made('sport', 'lose', 'on', 'the clock\'s buzzer', ['shot clock', 'time buzzer'], 'sport', { act: 'buzzer' }),
@@ -307,8 +310,10 @@ const ROWS = {
   counter: made('melee', 'strike', 'on', 'a counter: a blow turned and returned', ['counter hit', 'riposte'], 'brawl', { act: 'counter' }),
   'knockout-blow': made('melee', 'down', 'on', 'a knockout blow', ['ko punch', 'finishing blow'], 'brawl', { act: 'knockout' }),
   // a katana (families/blades.js): the swing a stylized slash
-  'katana-swing': made('melee', 'swing', 'strike.swing', 'a katana swung: a stylized slash', ['katana', 'katana slash', 'katana cut'], 'katana', { act: 'swing' }),
-  'katana-heavy-swing': made('melee', 'swing', 'strike.swing', 'a heavy two-handed katana cut', ['heavy slash', 'katana heavy cut'], 'katana', { act: 'swing', weight: 'heavy' }),
+  'katana-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a katana swung: a stylized slash', ['katana', 'katana slash', 'katana cut'], 'katana', { act: 'swing' })),
+  'katana-heavy-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a heavy two-handed katana cut', ['heavy slash', 'katana heavy cut'], 'katana', { act: 'swing', weight: 'heavy' })),
+  // a swish reversed into a short forward tail: the swell before a strike lands or a dash goes. Only the mouth voices it
+  'swell-in': { label: 'a swish swelling in: a reversed whoosh', aliases: ['swell', 'reverse whoosh', 'whoosh in'], category: 'melee', family: 'swing', voices: { mouth: 'mouth' }, slot: 'strike.swing' },
   'katana-draw': made('melee', 'reload', 'on', 'a katana drawn from its saya', ['draw katana', 'unsheathe'], 'katana', { act: 'draw' }),
   'katana-sheathe': made('melee', 'reload', 'on', 'a katana sheathed', ['sheathe katana', 'sheathe'], 'katana', { act: 'sheathe' }),
   'katana-jostle': made('melee', 'step', 'footsteps.step', 'a sheathed katana jostling with a step', ['saya rattle', 'sword jostle'], 'katana', { act: 'jostle' }),

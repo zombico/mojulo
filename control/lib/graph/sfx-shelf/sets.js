@@ -7,10 +7,12 @@
  */
 import { MECHA } from './sets/mecha.js';
 import { MECHA_LAYERED } from './sets/mecha-layered.js';
+import { MOUTH } from './sets/mouth.js';
 
 export const SETS = Object.freeze({
   mecha: MECHA,
   'mecha-layered': MECHA_LAYERED,
+  mouth: MOUTH,
 });
 
 /** The sets some other set stands on. */

@@ -74,6 +74,15 @@ A held voice:
   Use it for beams, engine hums, machinery drones and charge whines that
   hold, which a `sweep` (a one-shot ramp) can't.
 
+A traced sound (kernel feature `trace`):
+
+- **trace** — a sound traced into numbers and synthesized back, a noise
+  vocoder: `{ lv: frames × 12 band levels in dB (-80 silent), step?: s a
+  frame (0.01), voiced?: 0..100 a frame, pitch?: Hz a frame (with voiced),
+  side?: -100..100 a frame, bands?: Hz, q?, vol?, at?, seed? }`. Made by
+  the tracer (`sfx-shelf/trace.js`) from a rendered sound, not by hand; the
+  SFX shelf's `mouth` style is built from them.
+
 Physical and dynamic dials:
 
 - **thump** `mass` (kg) fills whichever of from/to/decay you leave out.

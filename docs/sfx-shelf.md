@@ -18,6 +18,7 @@ or exported, the same way in a game page and in a WAV. There are three kinds of 
   | `grain` | a seeded scatter of tiny noise grains: grit, debris, crackle |
   | `ring` | a struck material's resonances: metal, glass, wood, a bell |
   | `sweep`, `tone`, `flutter` | oscillators that ramp, hold or trill |
+  | `trace` | a sound traced into numbers and synthesized back: band levels, voicing, pitch and pan, frame by frame (mouth foley, below) |
 
   A realistic cue stacks several of them, each a layer at its own time, pitch and level, with its own effects,
   stereo place and room send (the SFX mixer, below).
@@ -33,6 +34,12 @@ aliases, its category, the slot a level plays it in, its family, and what voices
 own fixed cues lives in a **set** (`sets/`): a book of cues that is also a valid beats-sfx manifest (`setManifest`),
 so the beats tools mint, play and render it as it is.
 
+A **trace** is how a sound made elsewhere joins the shelf without becoming a sample. `sfx-shelf/trace.js` reads a
+rendered sound frame by frame (10 ms) into the levels of twelve bands, how voiced each frame is and at what pitch, and
+where it sits left to right; the kernel's `trace` gesture plays those numbers back through a bank of band filters over
+seeded noise and, where voiced, a sawtooth. The tracer closes the loop: it renders its trace, reads the render the same
+way, and corrects each level by what it missed, so what is stored is what the synth needs, not what the analysis saw.
+
 Randomness is always seeded from the recipe: the same recipe makes the same sound, and a per-hit variant changes the
 seed a little each time.
 
@@ -42,6 +49,15 @@ A row is voiced in styles (`styles.js`). Four are the palettes (`arcade`, `foley
 `beats/sfx-palettes.js`). `realistic` is the shelf's own: several voices sounding as one, each in its own band. It
 falls back to `foley` where it has no voice yet. The palettes are frozen behind the roster: every palette cue id is
 exactly one row, so their recipes never change.
+
+`mouth` is **mouth foley**: the sounds a voice makes better, made the way a vocal sound-effect performer makes them. The
+local voice worker (Kokoro) says a sound word that already sounds like the thing, mostly Japanese manga words (シュッ
+shu' for a swing, ザシュッ zashu' for a slash, ブン bun for a heavy swing, スパッ supa' for a clean swish), a chain cuts
+the vowel out and sweeps, pans and layers the breath, and the result is traced (`sets/mouth.js`). It voices `swing`,
+`blade-swing`, `katana-swing` (the katana's own cue with the traced voice 6 dB under it), `katana-heavy-swing`,
+`blunt-swing`, `net-swish` and `swell-in` (a reversed swish), and falls back to `realistic` for the rest. The traces are
+generated (`sets/mouth-traces.js`) by `node scripts/mouth-foley/bake.mjs`, the only step that needs the worker: the
+recipes (word, voice, speed, chain) are in the script, and `--check` says whether the page is stale.
 
 `sfxSound(word, { style, dials })` finds a sound's voice in this order:
 

@@ -23,7 +23,7 @@ import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace']);
 // the SFX mixer (sfxmix): the effects a gesture's own `chain` may carry (none runs an oscillator or computes an impulse
 // per hit: the space is the reverb), and the spaces setSfx knows (the kernel's SFX_SPACES; beats-sfxmix.test.js holds
 // the two lists equal).
@@ -501,6 +501,35 @@ export function checkSustain(sp, where, errors) {
   });
 }
 
+/**
+ * A trace gesture (mouth foley: a sound traced into numbers, sfx-shelf/trace.js): { lv: frames × bands of dB,
+ * step?: seconds a frame, bands?: Hz, q?, voiced?: 0..100 a frame, pitch?: Hz a frame, side?: -100..100 a frame,
+ * vol?, at?, seed? }. Every lane is one value a frame.
+ */
+const TRACE_BAND_COUNT = 12;
+function checkTrace(g, w, errors) {
+  const n = Array.isArray(g.bands) ? g.bands.length : TRACE_BAND_COUNT;
+  if (g.bands !== undefined && !(Array.isArray(g.bands) && g.bands.length >= 2 && g.bands.length <= 32 && g.bands.every((f, k) => inRange(f, 20, 20000) && (!k || f > g.bands[k - 1])))) {
+    errors.push(`${w}.bands must be 2..32 rising frequencies in Hz (each band of the vocoder)`);
+  }
+  if (!(Array.isArray(g.lv) && g.lv.length >= 1 && g.lv.length <= 2000 && g.lv.every((fr) => Array.isArray(fr) && fr.length === n && fr.every((db) => inRange(db, -80, 24))))) {
+    errors.push(`${w}.lv must be 1..2000 frames, each ${n} band levels in dB [-80, 24] (-80 is silent)`);
+    return;
+  }
+  const F = g.lv.length;
+  const lane = (k, lo, hi, why) => {
+    if (g[k] !== undefined && !(Array.isArray(g[k]) && g[k].length === F && g[k].every((v) => inRange(v, lo, hi)))) errors.push(`${w}.${k} must be ${F} values in [${lo}, ${hi}], one a frame (${why})`);
+  };
+  lane('voiced', 0, 100, 'how much of the frame is voiced, in %');
+  lane('pitch', 20, 2000, 'Hz of the voiced part');
+  lane('side', -100, 100, 'its place, left to right, in %');
+  if (g.voiced !== undefined && g.pitch === undefined) errors.push(`${w}.voiced needs pitch (what the voiced part sounds at)`);
+  if (g.step !== undefined && !inRange(g.step, 0.002, 0.1)) errors.push(`${w}.step must be seconds in [0.002, 0.1] (one frame)`);
+  if (g.q !== undefined && !inRange(g.q, 0.3, 30)) errors.push(`${w}.q must be in [0.3, 30] (each band's width)`);
+  if (g.vol !== undefined && !inRange(g.vol, 0, 4)) errors.push(`${w}.vol must be in [0, 4]`);
+  if (g.at !== undefined && !inRange(g.at, 0, 60)) errors.push(`${w}.at must be seconds in [0, 60] (after the hit)`);
+}
+
 function checkGestures(list, where, errors) {
   if (!Array.isArray(list) || !list.length) { errors.push(`${where} must be a non-empty gesture array`); return; }
   list.forEach((g, i) => {
@@ -510,6 +539,7 @@ function checkGestures(list, where, errors) {
     }
     if (g.type === 'sweep') { if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors); if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors); }
     checkLayer(g, `${where}[${i}]`, errors);
+    if (g.type === 'trace') checkTrace(g, `${where}[${i}]`, errors);
     if (PRODUCTION_GESTURES.has(g.type)) {
       const w = `${where}[${i}]`, lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
       lim('dur', 0.05, 60, 'seconds'); lim('bars', 0.25, 64, 'bars at the recipe\'s tempo'); lim('beats', 0.25, 256); lim('vol', 0, 2); lim('at', 0, 60, 'seconds after the hit');

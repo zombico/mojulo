@@ -82,6 +82,10 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //           duck dips, a voice cap and the distance a cue is placed at.
 //   sustain a held voice driven by one control in 0..1 (engine.sustain):
 //           engines, boosters, beams, charges, a fire burning on.
+// Mouth foley added one more:
+//   trace   the trace gesture: a sound traced into numbers (band levels,
+//           voicing, pitch, pan by frame) and synthesized back by a noise
+//           vocoder. How a voice becomes a recipe without a sample.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -91,8 +95,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -1100,6 +1104,18 @@ export function buildBeatsKernel() {
     // duck (the SFX mixer): no sound of its own; the engine dips its music bus
     // by `depth` dB at `at`, holds `hold` s, and lets it back over `release` s.
     if (g.type === 'duck') return [{ at: g.at || 0, kind: 'duck', depth: g.depth == null ? 6 : g.depth, hold: g.hold == null ? 0.12 : g.hold, release: g.release == null ? 0.45 : g.release }];
+/*|
+@*/
+/*@trace{*/
+    // trace (mouth foley): a sound traced into numbers and synthesized back, a
+    // noise vocoder. `lv` is frames × bands of dB (-80 is silent), one frame per
+    // `step` s, over `bands` (Hz, each two bandpasses of `q`); `voiced` (0..100 a
+    // frame) moves the excitation from seeded noise to a sawtooth on `pitch` (Hz a
+    // frame); `side` (-100..100 a frame) pans it. A seed picks where the noise starts.
+    if (g.type === 'trace') {
+      const lv = g.lv || [], step = g.step || 0.01;
+      return [{ at: g.at || 0, kind: 'trace', len: lv.length * step, step: step, lv: lv, bands: g.bands || [150, 225, 330, 500, 740, 1100, 1640, 2440, 3640, 5420, 8070, 12000], q: g.q || 2, voiced: g.voiced || null, pitch: g.pitch || null, side: g.side || null, vol: g.vol == null ? 1 : g.vol, offset: g.seed == null ? null : mulberry32(g.seed >>> 0)() }];
+    }
 /*|
 @*/
 /*@sfx{*/
@@ -2887,6 +2903,42 @@ export function buildBeatsKernel() {
           if (op.dir === 'down') { g.gain.setValueAtTime(pk, t); g.gain.exponentialRampToValueAtTime(pk * 1e-3, t + op.len); }
           else { g.gain.setValueAtTime(pk * 1e-3, t); g.gain.exponentialRampToValueAtTime(pk, t + op.len); g.gain.linearRampToValueAtTime(0, t + op.len + 0.03); }
           src.connect(f); f.connect(g); g.connect(out); src.stop(t + op.len + 0.08);
+        }
+/*|
+@*/
+/*@trace{*/
+        else if (op.kind === 'trace') {
+          // the noise vocoder: one excitation (seeded noise, a sawtooth where
+          // voiced) into a bank of bandpasses, each band's level ridden frame by
+          // frame, linear between frames, to silence one frame after the last.
+          const st = op.step, end = t + op.lv.length * st;
+          const ride = (param, vals, f, last) => {
+            param.setValueAtTime(f(vals[0]), t);
+            for (let k = 1; k < vals.length; k++) param.linearRampToValueAtTime(f(vals[k]), t + k * st);
+            if (last != null) param.linearRampToValueAtTime(last, end + st);
+          };
+          const amp = (db) => (db <= -80 ? 0 : Math.pow(10, db / 20));
+          const og = ctx.createGain(); og.gain.value = op.vol * vs;
+          let tail = og;
+          if (op.side) { const p = ctx.createStereoPanner(); ride(p.pan, op.side, (x) => Math.max(-1, Math.min(1, x / 100))); og.connect(p); tail = p; }
+          tail.connect(out);
+          const exc = ctx.createGain();
+          const nz = noiseSrc(t, op.offset), ng = ctx.createGain();
+          if (op.voiced) ride(ng.gain, op.voiced, (v) => 1 - v / 100, 0);
+          nz.connect(ng); ng.connect(exc); nz.stop(end + st + 0.05);
+          if (op.voiced && op.pitch) {
+            const o = ctx.createOscillator(); o.type = 'sawtooth';
+            ride(o.frequency, op.pitch, (h) => Math.max(20, h));
+            const vg = ctx.createGain(); ride(vg.gain, op.voiced, (v) => v / 100, 0);
+            o.connect(vg); vg.connect(exc); o.start(t); o.stop(end + st + 0.05);
+          }
+          for (let i = 0; i < op.bands.length; i++) {
+            // two bandpasses in a row: 12 dB an octave either side, so a band stays in its place
+            const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = op.bands[i]; bp.Q.value = op.q;
+            const bp2 = ctx.createBiquadFilter(); bp2.type = 'bandpass'; bp2.frequency.value = op.bands[i]; bp2.Q.value = op.q;
+            const bg = ctx.createGain(); ride(bg.gain, op.lv.map((fr) => fr[i]), amp, 0);
+            exc.connect(bp); bp.connect(bp2); bp2.connect(bg); bg.connect(og);
+          }
         }
 /*|
 @*/
