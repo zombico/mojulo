@@ -153,6 +153,25 @@ describe('brawl crowd: the armed crowd', () => {
   });
 });
 
+describe('brawl crowd: the shooting crowd', () => {
+  const SHOOTERS = CROWD_TYPE_IDS.filter((id) => CROWD_TYPES[id].gun);
+  it('each carries its gun on the street; a street of them fires rounds that land on a player standing still', () => {
+    expect(SHOOTERS.length).toBeGreaterThanOrEqual(3);
+    const log = standing(SHOOTERS.map((type) => ({ type, n: 1 })), 1500);
+    const st = log.at(-1);
+    for (const id of SHOOTERS) expect(st.ctx.guns.some((g) => g.id === CROWD_TYPES[id].gun), id).toBe(true);
+    expect(log.some((x) => x.s.events.some((e) => e.t === 'hit' && e.d === 0 && e.kind === 'round'))).toBe(true);
+  });
+  it('a volley is warned of: its aim held its gun\'s telegraph before the first round; no more shoot at once than the tokens', () => {
+    const log = standing([{ type: 'rifleman', n: 5 }], 1500);
+    const fires = log.flatMap((x, k) => x.s.events.filter((e) => e.t === 'fire').map((e) => [k, e]));
+    expect(fires.length).toBeGreaterThan(2);
+    const tele = log[0].ctx.guns.find((g) => g.id === 'rifle').telegraph;
+    for (const [k, e] of fires.slice(0, 5)) expect(log[k - 1].s.bodies[e.p].tl, `frame ${k}`).toBeGreaterThanOrEqual(tele);
+    expect(log.every((x) => Object.values(x.mind.b).filter((b) => b.fire).length <= CROWD_RULES.tokens)).toBe(true);
+  });
+});
+
 describe('brawl crowd: the waves', () => {
   const waves = [{ screen: 1, crowd: [{ type: 'thug', n: 4 }, { type: 'knife', n: 2 }, { type: 'jumper', n: 1 }] }, { screen: 2, crowd: [{ type: 'thug', n: 3 }, { type: 'charger', n: 1 }, { type: 'heavy', n: 1 }] }];
   let st = streetOf({ belt, players: [hero(99999)], waves });

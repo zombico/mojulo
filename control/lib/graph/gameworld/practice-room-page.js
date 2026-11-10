@@ -292,5 +292,12 @@ export async function practiceHtml(G, id, opts = {}) {
   if (!PRACTICE_ROOMS[id]) throw new Error(`practice: room is ${Object.keys(PRACTICE_ROOMS).join(', ')}`);
   const { rooms, why } = practiceFor(G);
   if (!rooms.includes(id)) throw new Error(`practice: this world has no ${PRACTICE_ROOMS[id].name.replace(/^The /, '').toLowerCase()}${rooms.length ? ` (it has ${rooms.join(', ')})` : `: ${why}`}`);
+  if (id === 'range' || id === 'artillery') {
+    // the gun rooms: their own pages (the range's gym, the artillery range's sight), their own controls and HUD
+    const { rangeFor, artilleryFor } = await import('./practice.js');
+    if (id === 'range') { const { rangeHtml } = await import('./combat/range.js'); return { html: rangeHtml({ ...rangeFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) }; }
+    const { artilleryHtml } = await import('./combat/artillery.js');
+    return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
+  }
   return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

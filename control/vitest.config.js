@@ -28,6 +28,7 @@ export const E2E = [
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
+  'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/graph/cycle-shelf/cycle-ride.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',

@@ -13,10 +13,17 @@
  * weapon's colour; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
  * blow lands; the fight's sounds by event where the page carries them.
  *
+ * ON THE RANGE (the run & gun's practice room, `BRAWL_YARD.range`): the guns passed in, the one held first (the settings'
+ * Gun); each round drawn as it flies (a tracer along its flight, warm a player's, hot red a foe's, its shadow on the
+ * street so its depth reads), a foe's warning as a thin line along its aim, the gun out in the hand, a flash at the
+ * muzzle and a burst where a rocket or a grenade lands; the gunner's buttons (fire, aim, plant, roll, jump, grenade).
+ * Its SOUNDS each gun's own (its shot, its landing; brawl-sfx.js), a foe's round whizzing past close, a gun run dry, a
+ * magazine seated; its IMPACT FRAMES (a gun's `impact`: a burst, a heavy round's flinch) the picture flashed a few
+ * frames, inverted in the anime register, white otherwise.
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -79,10 +86,11 @@ const footShadow = () => new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THR
 
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
 const FIRST = BY.dummies[0] || {};
-const SET = { mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
+const RANGE = BY.range || null;
+const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!((RANGE && RANGE.waves) || BY.waves), mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 let dummies = BY.dummies;
-let room = null, bodies = [], things = new Map(), t = 0;
+let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 const runs = [];
 function dummiesOf() {
   const n = Number(SET.count) || 1, mode = SET.mode.toLowerCase();
@@ -92,8 +100,16 @@ function dummiesOf() {
   return Array.from({ length: n }, () => ({ mode, type: mode === 'grab' ? 'heavy' : SET.type.toLowerCase() }));
 }
 function build() {
-  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); }
-  room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase() });
+  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); if (B.gun) YARD.remove(B.gun.barrel.fill, B.gun.barrel.ink, B.gun.mag.fill, B.gun.mag.ink, B.gun.warn); }
+  // (on the range, the gun chosen held first)
+  const g = RANGE ? Math.max(0, RANGE.names.indexOf(SET.gun)) : 0;
+  // (its waves while the settings' Waves is on)
+  const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades, ...(RANGE.waves && SET.waves ? { waves: RANGE.waves, loop: RANGE.loop } : {}) } } : {};
+  // (the brawler yard's own waves while the settings' Waves is on)
+  const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
+  room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee });
+  for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
+  rounds.clear();
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
   const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
   bodies = room.s.bodies.map((b, i) => {
@@ -283,6 +299,8 @@ const CLIPPED = { stand: 1, hit: 1, fall: 1, ko: 1, down: 1, rise: 1 };
 /** the clip and its phase a body's state shows (versus-arena.client.js playedClip), or null: posed on its body */
 function yardClip(p, F, clips) {
   const has = (k) => !!clips[k];
+  // (a gunner holds its rifle as the figure poses it; its reactions are still its clips')
+  if (p.gn !== undefined && !REELING.has(p.st)) return null;
   if (p.mv) {
     const mv = F.moves[p.mv], fr = mv && mv.frames && mv.frames[Math.max(1, Math.min(p.mf, mv.total))];
     return mv && mv.hero && has(mv.id) ? [mv.id, fr && fr.u !== undefined ? fr.u : p.mf / mv.total] : null;
@@ -376,8 +394,38 @@ function drawnOf(B, p, F) {
   d.J = d.k >= 1 ? J : Object.fromEntries(Object.keys(J).map((k) => [k, [d.from[k][0] + (J[k][0] - d.from[k][0]) * e, d.from[k][1] + (J[k][1] - d.from[k][1]) * e]]));
   return d;
 }
+// ── a rider's mount (MOUNTS: its length, its saddle's height): a frame on two wheels, the bars ahead, drawn under its
+// rider while it rides; off it, the mount is the street's (a wreck, cover) ──
+const MOUNT_LOOK = { motorcycle: ['#2a2c32', '#b8bcc4'], scooter: ['#c8423a', '#e8e2d4'] };
+const WHEEL = shaded(new THREE.CylinderGeometry(1, 1, 1, 18));
+function mountOf(kind) {
+  const M = MOUNTS[kind], L = M.len / 1000, seat = M.seat / 1000, r = kind === 'scooter' ? 0.2 : 0.31;
+  const [paint, trim] = MOUNT_LOOK[kind] ?? MOUNT_LOOK.motorcycle, g = new THREE.Group(), tyre = lambert('#18181a');
+  for (const x of [-(L / 2 - r), L / 2 - r]) { const w = castOn(new THREE.Mesh(WHEEL, tyre)); w.scale.set(r, 0.13, r); w.position.set(x, 0, r); g.add(w); }
+  // (the body between the wheels, the tank and saddle on it, the forks up to the bars)
+  const box = (sx, sy, sz, x, z, c) => { const m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(sx, sy, sz)), lambert(c))); m.position.set(x, 0, z); g.add(m); return m; };
+  box(L * 0.55, 0.26, seat - r - 0.08, 0, (r + seat) / 2 - 0.04, paint);
+  box(L * 0.3, 0.3, 0.1, -L * 0.08, seat - 0.05, '#1c1c1e');
+  box(L * 0.2, 0.32, 0.18, L * 0.16, seat - 0.02, paint);
+  const fork = box(0.06, 0.06, seat * 0.75, L / 2 - r * 1.2, r + seat * 0.38, trim); fork.rotation.y = -0.35;
+  box(0.06, 0.72, 0.05, L / 2 - r * 1.45, seat + 0.26, trim);
+  g.userData.kind = kind;
+  return g;
+}
+function placeMount(B, p) {
+  const kind = p.st === 'ride' && !p.gone ? p.mk : null;
+  if (B.mount && B.mount.userData.kind !== kind) { YARD.remove(B.mount); B.mount = null; }
+  if (!kind || !MOUNTS[kind]) return 0;
+  if (!B.mount) { B.mount = mountOf(kind); YARD.add(B.mount); }
+  B.mount.position.set(p.x / 1000, p.z / 1000, 0);
+  B.mount.rotation.set(0, 0, p.face > 0 ? 0 : Math.PI);
+  // (the rider sat on its saddle: lifted from a stander's hip to the saddle's top)
+  return MOUNTS[kind].seat + 60 - RIDER_HIP;
+}
+const RIDER_HIP = 900;
 function placeBody(B, p, F) {
-  const hidden = !!p.gone;
+  const hidden = !!p.gone, lift = placeMount(B, p);
+  if (lift) p = { ...p, y: p.y + lift };
   B.group.visible = !hidden; B.shadow.visible = !hidden;
   if (B.blade) B.blade.fill.visible = B.blade.ink.visible = !hidden && !!F.weapon;
   if (B.line) B.line.visible = !hidden;
@@ -388,6 +436,7 @@ function placeBody(B, p, F) {
   else if (B.skin) placeCharacter(B, p, F, N);
   else placeStick(B, p, F, N);
   placeBlade(B, p, F, J, N);
+  if (p.gn !== undefined) placeGun(B, p, N);
   B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.6) * Math.max(0.4, 1 - p.y / 1600));
   if (B.line) {
@@ -448,10 +497,75 @@ function placeStick(B, p, F, N) {
   B.head.ink.position.copy(vA); B.head.ink.scale.setScalar(hr * 1.12);
 }
 
+// ── the range: a gun in the hand, a foe's warning, the rounds in flight ─────────────────────────────────────────
+
+const GUN_LOOK = new THREE.MeshBasicMaterial({ color: 0x2b2f36, vertexColors: true });
+const WARN_LOOK = new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.6, depthWrite: false });
+const vM = new THREE.Vector3(), vN = new THREE.Vector3(), vR = new THREE.Vector3(), vL = new THREE.Vector3(), vU = new THREE.Vector3(), vS = new THREE.Vector3();
+const REELING = new Set(['hit', 'fall', 'ko', 'down', 'rise']);
+/** THE RIFLE in a gunner's hands (the run & gun's, its figure's own hands: brawl-pose.js RIFLE): its stock behind the
+ * rear hand, its barrel on through the lead hand along the aim (reeling, along its hands, wherever they fly), a magazine
+ * under the grip; inked, so it reads as a held gun at a glance. Its warning: a thin red line on from the muzzle. */
+function placeGun(B, p, N) {
+  if (!B.gun) {
+    const mat = RIG ? RIG.material({ color: 0x2b2f36 }) : GUN_LOOK;
+    const part = () => { const fill = castOn(new THREE.Mesh(CYL, mat)), ink = new THREE.Mesh(CYL, INK); YARD.add(fill, ink); return { fill, ink }; };
+    const warn = new THREE.Mesh(CYL, WARN_LOOK);
+    YARD.add(warn);
+    B.gun = { barrel: part(), mag: part(), warn };
+  }
+  const G = room.ctx.guns[p.gn], [ext, stock, girth] = gunShape(G);
+  const shown = !p.gone && !p.ko && p.st !== 'roll';
+  for (const k of ['barrel', 'mag']) B.gun[k].fill.visible = B.gun[k].ink.visible = shown;
+  B.gun.warn.visible = shown && p.tl > 0;
+  if (!shown) return;
+  const lead = p.face > 0 ? 'L' : 'R', rear = lead === 'L' ? 'R' : 'L';
+  worldOf(p, N[`fist${rear}`], vR); worldOf(p, N[`fist${lead}`], vL);
+  const span = Math.max(0.15, vL.distanceTo(vR));
+  if (REELING.has(p.st)) vU.subVectors(vL, vR).normalize();
+  else {
+    // (along the aim on the street's floor, at the slope its hands hold it)
+    const [ax, az] = aimVector([p.ax ?? p.face, p.az ?? 0], p.face), flat = Math.hypot(vL.x - vR.x, vL.y - vR.y) || 0.1;
+    vU.set(ax / 1000, az / 1000, (vL.z - vR.z) / flat).normalize();
+  }
+  vS.copy(vR).addScaledVector(vU, -stock); vM.copy(vR).addScaledVector(vU, span + ext);
+  cylinderAt(B.gun.barrel.fill, vS, vM, girth); cylinderAt(B.gun.barrel.ink, vS, vM, girth * 1.35);
+  // (the magazine: down from just ahead of the grip)
+  vN.copy(vR).addScaledVector(vU, 0.1); vL.copy(vN); vL.z -= 0.08 + girth * 1.5;
+  cylinderAt(B.gun.mag.fill, vN, vL, girth * 0.7); cylinderAt(B.gun.mag.ink, vN, vL, girth * 0.95);
+  // (its warning: on from the muzzle along its aim, brighter as the shot comes)
+  if (B.gun.warn.visible) { vN.copy(vM).addScaledVector(vU, 7); cylinderAt(B.gun.warn, vM, vN, 0.012 + 0.0006 * Math.min(30, p.tl)); WARN_LOOK.opacity = 0.35 + 0.3 * Math.abs(Math.sin(t * 0.3)); }
+}
+const ROUND_MINE = new THREE.MeshBasicMaterial({ color: 0xffe28a }), ROUND_FOE = new THREE.MeshBasicMaterial({ color: 0xff5a2a });
+const ROUND_SHADOW = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+function placeRounds() {
+  const seen = new Set();
+  for (const r of room.s.shots) {
+    if (r.gun === undefined || r.life <= 0 || r.done) continue;
+    seen.add(r.id);
+    let m = rounds.get(r.id);
+    if (!m) {
+      const mine = r.side === 'player', big = r.area > 0 || r.lob;
+      m = { tracer: new THREE.Mesh(big ? BALL : CYL, mine ? ROUND_MINE : ROUND_FOE), shadow: new THREE.Mesh(new THREE.CircleGeometry(1, 12), ROUND_SHADOW), big };
+      YARD.add(m.tracer, m.shadow);
+      rounds.set(r.id, m);
+    }
+    const rad = Math.min(0.09, Math.max(0.025, r.w / 2000));
+    vM.set(r.x / 1000, r.z / 1000, r.y / 1000);
+    if (m.big) { m.tracer.position.copy(vM); m.tracer.scale.setScalar(rad * 1.4); }
+    else { vN.set((r.x - r.vx * 2.5) / 1000, (r.z - (r.vz || 0) * 2.5) / 1000, r.y / 1000); cylinderAt(m.tracer, vN, vM, rad); }
+    m.shadow.position.set(r.x / 1000, r.z / 1000, 0.006);
+    m.shadow.scale.setScalar(rad * 1.6);
+  }
+  for (const [id, m] of rounds) if (!seen.has(id)) { YARD.remove(m.tracer, m.shadow); rounds.delete(id); }
+}
+
 // ── the street's things ──────────────────────────────────────────────────────────────────────────────────────
 
 const THING_LOOK = { food: [0.32, 0.32, 0.22, '#e8803a'], power: [0.3, 0.3, 0.3, '#3ad2ff'], weapon: [0.9, 0.07, 0.07, '#9aa0a8'] };
 const BOX_LOOK = { barrel: '#8a5a32', crate: '#a0783e', booth: '#5a6a8a' };
+// cover: sandbags, a stack of crates, a low wall, a mount's wreck (THINGS.cover: its size along, across and up)
+const COVER_LOOK = { sandbags: '#b39a6b', crates: '#9a7444', wall: '#8d8f93' };
 function placeThings() {
   const seen = new Set();
   for (const T of room.s.things ?? []) {
@@ -459,9 +573,11 @@ function placeThings() {
     let m = things.get(T.id);
     if (!m || m.userData.what !== T.what) {
       if (m) YARD.remove(m);
-      const box = T.kind === 'box', D = box ? null : THING_LOOK[T.kind];
-      const size = box ? [0.8, 0.8, 1] : D;
-      m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3])));
+      const box = T.kind === 'box', cover = T.kind === 'cover', D = box || cover ? null : THING_LOOK[T.kind];
+      const C = cover ? THINGS.cover[T.what] : null, size = cover ? [C.w, C.d, C.h] : box ? [0.8, 0.8, 1] : D;
+      // (a mount's wreck: the mount itself, down on its side)
+      if (cover && MOUNTS[T.what]) { m = new THREE.Group(); const w = mountOf(T.what); w.rotation.x = Math.PI / 2; w.position.z = 0.12; m.add(w); }
+      else m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(cover ? COVER_LOOK[T.what] ?? '#9a8a70' : box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3])));
       m.userData.what = T.what;
       things.set(T.id, m); YARD.add(m);
     }
@@ -475,11 +591,23 @@ function placeThings() {
 
 const FLASHES = [];
 const FLASH_GEO = new THREE.SphereGeometry(1, 12, 8);
-function flash(e, heavy) {
-  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+function flash(e, heavy, spark = false) {
+  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
   m.position.set(e.x / 1000, (e.z ?? 0) / 1000, (e.y ?? 1100) / 1000);
-  YARD.add(m); FLASHES.push({ m, k: 0, n: heavy ? 12 : 8, r: heavy ? 0.45 : 0.3 });
+  // (a round's spark small and quick; a blow's flash; a heavy one's, or a burst's, big)
+  YARD.add(m); FLASHES.push({ m, k: 0, n: spark ? 5 : heavy ? 12 : 8, r: spark ? 0.14 : heavy ? 0.45 : 0.3 });
 }
+// IMPACT FRAMES: the picture flashed for a heavy landing (inverted under the anime register, white otherwise)
+const IMPACT = (() => {
+  const d = document.createElement('div');
+  d.id = 'brawl-impact';
+  const invert = BY.register === 'anime';
+  d.style.cssText = `position:absolute;inset:0;pointer-events:none;display:none;background:#fff;${invert ? 'mix-blend-mode:difference;' : 'opacity:0.55;'}`;
+  (typeof wrap !== 'undefined' && wrap ? wrap : document.body).appendChild(d);
+  return { el: d, left: 0 };
+})();
+const gunOf = (id) => (id && room.ctx.guns ? room.ctx.guns.find((g) => g.id === id) : null);
+function impactFrames(n) { if (n > IMPACT.left) IMPACT.left = n; }
 function stepFlashes() {
   for (let i = FLASHES.length - 1; i >= 0; i--) {
     const F = FLASHES[i]; F.k++;
@@ -493,13 +621,40 @@ function stepFlashes() {
 
 const HIT_CUE = ['hit-light', 'hit-medium', 'hit-heavy'];
 function cueOf(e) {
-  if (e.t === 'hit') return e.kind === 'flung' ? 'crush' : e.limb === 'foot' ? (e.w >= 2 ? 'kick-heavy' : 'kick-light') : e.limb === 'blade' ? (e.w >= 2 ? 'blade-heavy' : 'blade-light') : HIT_CUE[Math.min(2, e.w ?? 1)];
-  return { clash: 'clash', grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
+  if (e.t === 'hit' && e.kind === 'ram') return 'crush';
+  if (e.t === 'hit' && e.limb !== 'shot') return e.kind === 'flung' ? 'crush' : e.limb === 'foot' ? (e.w >= 2 ? 'kick-heavy' : 'kick-light') : e.limb === 'blade' ? (e.w >= 2 ? 'blade-heavy' : 'blade-light') : HIT_CUE[Math.min(2, e.w ?? 1)];
+  if (e.t === 'hit' && e.limb === 'shot') return 'shot-hit';
+  return { burst: 'burst', clash: 'clash', grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
 }
 function sound(e) {
   if (typeof __beatsCue !== 'function' || typeof __AUDIO === 'undefined' || !__AUDIO || !__AUDIO.cues) return;
-  const c = cueOf(e);
-  if (c && __AUDIO.cues[c]) __beatsCue(__AUDIO.cues[c], 0.8);
+  const [c, gain] = gunCue(e) ?? [cueOf(e), 0.8];
+  if (c && __AUDIO.cues[c]) __beatsCue(__AUDIO.cues[c], gain);
+}
+/** the range's sounds: a gun's shot and landing its own, a gun run dry, a magazine seated (null: the fight's) */
+function gunCue(e) {
+  if (e.t === 'fire') return [gunOf(e.gun)?.sound, 0.45];
+  if (e.t === 'hit' && e.kind === 'round') return [gunOf(e.gun)?.hit ?? 'flesh-impact', e.flinch ? 0.85 : 0.5];
+  if (e.t === 'burst') return [gunOf(e.gun)?.hit ?? 'burst', 1];
+  if (e.t === 'empty') return ['dry-fire', 0.7];
+  if (e.t === 'cover' || (e.t === 'break' && e.cover)) return [THINGS.cover[e.what]?.sound ?? 'wood-impact', e.t === 'break' ? 1 : 0.5];
+  if (e.t === 'enter' && e.how === 'dig') return ['dirt-impact', 0.9];
+  // (a rider's mount: its crash as it goes down)
+  if (e.t === 'crash') return ['car-crash', 1];
+  if (e.t === 'reload') return ['mag-in', 0.6];
+  return null;
+}
+// a foe's round whizzing past a player close (off its line, near enough to hear): once a round
+const WHIZZED = new Set();
+function flybys() {
+  if (!room.s.shots.length) return;
+  const players = room.s.bodies.slice(0, picks.length);
+  for (const r of room.s.shots) {
+    if (r.gun === undefined || r.side === 'player' || WHIZZED.has(r.id) || r.life <= 0) continue;
+    const near = players.some((p) => !p.gone && Math.abs(r.x - p.x) < Math.abs(r.vx) + 60 && Math.abs(r.z - p.z) > (r.line ?? 300) && Math.abs(r.z - p.z) < 1100);
+    if (near) { WHIZZED.add(r.id); if (typeof __beatsCue === 'function' && typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues && __AUDIO.cues['bullet-flyby']) __beatsCue(__AUDIO.cues['bullet-flyby'], 0.7); }
+  }
+  if (WHIZZED.size > 200) WHIZZED.clear();
 }
 const unlock = () => { if (typeof __beatsUnlock === 'function') __beatsUnlock(); };
 addEventListener('keydown', unlock); addEventListener('pointerdown', unlock);
@@ -549,6 +704,8 @@ const UI = (() => {
   document.head.appendChild(style);
   // (the fighter from the roster; the dummies' type the street's crowd or anyone on the roster)
   const settings = [{ kind: 'cycler', label: 'Fighter', var: 'brawl.practice.set.fighter', options: BY.roster.map((r) => r.name) },
+    ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
+    ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
   const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
@@ -577,7 +734,9 @@ function applySettings() {
 }
 const MENU_PREV = {};
 function menuEdges(b) {
-  const now = { up: b.z > 0, down: b.z < 0, left: b.x < 0, right: b.x > 0, accept: b.a || b.j, back: b.back || b.s, start: b.start };
+  // (in a screen, special backs out as the back key does; in play only the back key opens the move list, special is a
+  // special's, or a grenade's)
+  const now = { up: b.z > 0, down: b.z < 0, left: b.x < 0, right: b.x > 0, accept: b.a || b.j, back: b.back || b.s, list: b.back, start: b.start };
   const edge = {};
   for (const k of Object.keys(now)) edge[k] = now[k] && !MENU_PREV[k];
   Object.assign(MENU_PREV, now);
@@ -609,17 +768,27 @@ function tick() {
     return;
   }
   if (edge.start) { UI.rt.open('settings'); UI.view.paint(); return; }
-  if (edge.back) { UI.state.brawl.practice.moves = brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
+  if (edge.list) { UI.state.brawl.practice.moves = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
   if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
   room = stepYard(room, buttons);
   t++;
   for (const e of room.s.events) {
-    if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2);
+    if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
     if (e.t === 'clash') flash(e, true);
+    if (e.t === 'burst') flash({ ...e, y: 600 }, true);
+    // (a round on cover sparks on its face; a body coming up out of the ground throws its dirt up)
+    if (e.t === 'cover') flash(e, false, true);
+    // (a mount going down: the heavy flash, the impact frames)
+    if (e.t === 'crash') { flash({ ...e, y: 600 }, true); impactFrames(3); }
+    if (e.t === 'enter' && e.how === 'dig') flash({ ...e, y: 200 }, true);
+    // (a heavy landing's impact frames: a burst, a round that makes its body flinch)
+    if (e.t === 'burst' || (e.t === 'hit' && e.flinch)) impactFrames(gunOf(e.gun)?.impact ?? 0);
     sound(e);
   }
+  if (IMPACT.left > 0) IMPACT.left--;
+  flybys();
   const next = inputRun(runs, buttons[0]);
   runs.splice(0, runs.length, ...next);
 }
@@ -628,7 +797,9 @@ function draw() {
   if (RIG) RIG.follow(room.s.cam / 1000);
   room.s.bodies.forEach((p, i) => placeBody(bodies[i], p, room.ctx.fighters[p.fi]));
   placeThings();
+  placeRounds();
   stepFlashes();
+  IMPACT.el.style.display = IMPACT.left > 0 ? 'block' : 'none';
   const read = yardRead(room, 0);
   Object.assign(UI.state.brawl.practice, yardHud(read, room.ctx.fighters[room.s.bodies[0].fi], project, runs.map((x) => ({ text: x.text }))));
 }
