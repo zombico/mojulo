@@ -444,6 +444,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // textured template faces (a grown plant's bark or trunk): one { key, pos, uv, col, lit } per texture, drawn by
       // the textured-instances block below with the same transforms; the key is absent without them
       ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
+      // (a template baked for the form render, form/sun-light.js: its corners' light and the sun's share of it ride
+      // the one geometry its instances share; the keys absent without them)
+      ...(litPack && gm.lits ? { lt: b64(gm.lits), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}) } : {}),
       ...(creasesCfg && creaseOf(r.template) ? { crease: creaseOf(r.template) } : {}),
       // drawn only NEAR the camera (`near` world units): a street's kit and its paint, a far block needing none
       ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
@@ -453,6 +456,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       ...(typeof r.pool === 'string' ? { pool: r.pool } : {}),
     };
   });
+  const hasRepLit = packedRepeats.some((r) => r.lt);
   // widen the camera-framing bound so a mostly-instanced world still frames fully
   for (const r of packedRepeats) {
     for (const t of r.t) {
@@ -1370,7 +1374,9 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
 ` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));${hasRepLit ? `
+  if (r.lt) geo.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(r.lt), 3));   // (a template baked for the form render)
+  if (r.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(r.sun), 1));` : ''}
   geo.computeBoundingSphere();
   ${hasPool ? 'if (r.pool) { __POOLS[r.pool] = geo; if (!r.t.length) continue; }\n  ' : ''}${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();

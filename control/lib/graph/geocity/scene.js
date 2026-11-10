@@ -269,6 +269,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   // paint as it shows lit, never darkened by its turn to the sun, and is baked below with its colour and its light
   // apart, the sun's shadow tested. Absent, and at night: the paint, its light in its colour, as it always was
   const formB = !!ctx.formBuildings && !night;
+  // (its light, the cube's solved day, and a frontage piece baked under it)
+  const formDay = () => { const CL = cubeLight(cube, m.hour !== undefined ? { hour: readHour(m.hour) } : {}); return { CL, light: { sun: CL.sun.linear, ambient: CL.ambient.linear, dir: CL.sun.dir }, ground: CL.linearBases.stone ?? CL.linearBases.floor ?? null }; };
+  const formFront = () => { const { light, ground } = formDay(); return (tpl) => sunLitFaces(tpl, light, ground ? { ground } : {}).faces; };
   const put = (corners, group, hex, want = null) => {
     let c = corners, n = newell(c);
     if (want && n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
@@ -1711,8 +1714,11 @@ export function assembleGeocityScene(m, ctx = {}) {
         repeats.push({ group: `geocity:waterfront-${name}`, template: tpl, transforms, near: NEAR, occlude: false, ...kit });
       }
     }
-    const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame });
-    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
+    // (in the form render a piece carries its paint under no light and the day's light beside it, form/sun-light.js: a
+    // template is one a facing and never turned, so the sky and the sun by its facing ride its own corners; the sun's
+    // shadow is the page's, the hour's map)
+    const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame, ...(formB ? { flat: true } : {}) }), frontLit = formB ? formFront() : null;
+    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: frontLit ? frontLit(FT[key]) : FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
   }
   // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
   // their crowns raised over the walk, drawn near the camera only like the kit
@@ -1744,10 +1750,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   // sun share away to the pixel); on a page with none it is baked, tested against the city itself)
   let formTown = null;
   if (formB) {
-    const CL = cubeLight(cube, m.hour !== undefined ? { hour: readHour(m.hour) } : {}), light = { sun: CL.sun.linear, ambient: CL.ambient.linear, dir: CL.sun.dir };
+    const { CL, light, ground } = formDay();
     const built = (f) => typeof f.group === 'string' && f.group.startsWith('geocity:') && f.cornerLight === undefined && !FORM_KEEP.has(f.group) && !FORM_GROUND.includes(f.group) && !inFaces.has(f);
     const idx = faces.map((f, i) => (built(f) ? i : -1)).filter((i) => i >= 0), mine = idx.map((i) => (faces[i].textureLit ? { ...faces[i], fill: unlift(faces[i].fill) } : faces[i]));
-    const ground = CL.linearBases.stone ?? CL.linearBases.floor ?? null;
     // (what shades in a bake: the massing, not the ground it stands on: a level face wider than FORM_SPAN is a road, a
     // walk or a deck, which shades nothing above it; the test's grid a city's, FORM_CELL)
     const wide = (f) => { let lo = [Infinity, Infinity], hi = [-Infinity, -Infinity]; for (const c of f.corners) for (let k = 0; k < 2; k++) { lo[k] = Math.min(lo[k], c[k]); hi[k] = Math.max(hi[k], c[k]); } return Math.max(hi[0] - lo[0], hi[1] - lo[1]) > FORM_SPAN; };

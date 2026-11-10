@@ -45,7 +45,7 @@
   `form/sun-light.js`); a town composed into a metro comes baked by its own hand. The sun's shadow is the page's:
   where the page takes live shadows, no shadow is baked and the hour's map takes each face's sun share away to the
   pixel, a tower's shadow lying sharp across the block beside it; a read with no live light bakes it, tested against
-  the massing. The frontage a street repeats is still paint. Seen in Chrome on a small and a mid valley-morning
+  the massing. Seen in Chrome on a small and a mid valley-morning
   lakeshore city, beside gen-6 and the gen-7 read before it.
 - **One sun a page.** On a page whose land is drawn as form, the live light's maps (the actors' and the hour's) are
   drawn along the land's solved sun where the world names none of its own (`worlds/world-scene.js`,
@@ -54,3 +54,12 @@
   shade. Every gen-7 page with a form land and live shadows moves to the land's sun; gen-6 pages are as they were.
 - **A city with no industry district is made.** A small metro whose plan lays no industry threw while its payload was
   assembled (`geocity/scene.js`, its wires' word read from a count that was not there).
+- **A city's street frontage is drawn as form** (the windows, shopfronts, awnings, lobbies, entries, balconies and
+  bands a street repeats; gen-7 by day). A piece's template is one a facing and never turned, so it carries its paint
+  under no light and the day's light on its own corners, the sky and the sun by its facing (`geocity/frontage.js`
+  `frontageTemplates` `flat`, baked by `form/sun-light.js`); the page hangs that light on the one geometry a repeat's
+  instances share and draws them with the form material (`scene/scene-three.js`, `scene/channels/form.js`), toned
+  with the land, the hour's map taking each piece's sun share away where a tower shades it. No shadow is baked a
+  piece, so a read with no live light draws its frontage unshaded by its neighbours. Its glass is lit as its frame
+  is. A page with no baked template carries none of this. Seen in Chrome at street level on a small valley-morning
+  city.

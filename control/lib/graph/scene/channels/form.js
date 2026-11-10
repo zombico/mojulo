@@ -127,11 +127,19 @@ fDirect += fBeat * diffuseColor.rgb;
   const maps = {}, made = { material: 0, colour: 0, pom: 0 };
   for (const [k, m] of Object.entries(F.maps)) maps[k] = { ...m, normal: m.normal ? map(m.normal) : null, orm: m.orm ? map(m.orm) : null };
   // every surface of the room that carries its baked light; the rest keep their look, untoned
-  scene.traverse((o) => {
+${cfg.sun ? `  const shared = new Map();
+` : ''}  scene.traverse((o) => {
     if (!o.material) return;
     const b = o.material;${cfg.sun ? `
     // (a body under the cast rig, channels/cast-rig.js, is lit and toned as these are: left as it is)
     if (!Array.isArray(b) && b.userData && b.userData.cast) return;` : ''}
+${cfg.sun ? `
+    // (a street's repeated pieces, baked a template: the tiles of one repeat share one material, so they share its form)
+    if (o.isInstancedMesh && !Array.isArray(b) && b.isMeshBasicMaterial && typeof o.userData.g === 'string' && !keep.has(o.userData.g) && o.geometry.getAttribute('aLit')) {
+      let m = shared.get(b);
+      if (!m) { m = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest }, null); shared.set(b, m); made.colour++; }
+      o.material = m; return;
+    }` : ''}
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
