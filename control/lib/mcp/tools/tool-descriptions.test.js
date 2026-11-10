@@ -448,7 +448,11 @@ const DESCRIPTION_ALLOWLIST = {
 // create_exhibit's `rooms` (made exhibits joined as one gallery, a kiosk too; `id` no longer required) and a clause for
 // it, get_exhibit's `audit` (the exhibit's machine gate: tour, claims, reading). Two schema properties; their grammar on
 // the `tour` view-vocab card. Still 1,300 below the 213_100 the fold started from. No new tool.
-const PAYLOAD_CEILING = 211_800;
+// Raised 2026-11-10 on 1110-exhibit-mode (211_800 -> 212_000; measured 211,933) for the expert's brief:
+// create_exhibit's `brief` (the aims, the audiences, the claims with their sources, the expert; the sign-off recorded
+// through update_sketch), one schema property; its grammar and the accuracy gate on the `tour` card. Still 1,100 below
+// the 213_100 the fold started from. No new tool.
+const PAYLOAD_CEILING = 212_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

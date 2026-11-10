@@ -26,12 +26,29 @@ describe('a tour, as a visitor meets it', () => {
   });
 
   it('a world with no tour is told it has no story; a gallery is audited room by room', () => {
-    expect(auditExhibit({ tour: null }).findings.map((f) => f.code)).toEqual(['no-tour']);
+    expect(auditExhibit({ tour: null }).findings.map((f) => f.code)).toEqual(['no-brief', 'no-tour']);
     const g = auditExhibit({ rooms: [{ ref: 'r1', title: 'One', tour: { stops: [{ caption: 'x', camera: 'a', grade: 'attested' }] } }, { ref: 'r2', title: 'Two', tour: null }] });
     expect(g.gate).toBe('machine');
     expect(g.warnings).toBe(1);
-    expect(g.findings.map((f) => `${f.room}:${f.code}`)).toEqual(['r1:uncited-claim', 'r2:no-tour']);
+    expect(g.findings.map((f) => `${f.room}:${f.code}`)).toEqual(['undefined:no-brief', 'r1:uncited-claim', 'r2:no-tour']);
     expect(g.eyes).toMatch(/^not run/);
+  });
+});
+
+describe('with a brief', () => {
+  it('asks a source for every claim, a stop that says it, and a caption for every audience it is written for', () => {
+    const brief = { aims: ['x'], audiences: ['child'], claims: [{ id: 'a', text: 'A.', cite: ['S'], grade: 'reconstructed' }, { id: 'b', text: 'B.' }, { id: 'c', text: 'C.', cite: ['T'] }] };
+    const tour = { stops: [
+      { id: 'one', caption: 'One.', camera: 'x', claims: ['a'], highlight: 'g', captions: { child: 'One!' } },
+      { id: 'two', caption: 'Two.', camera: 'y', claims: ['b'] },
+    ] };
+    const a = auditExhibit({ tour, brief });
+    expect(a.findings.map((f) => `${f.level}:${f.code}:${f.at}`)).toEqual([
+      'warn:unsourced-claim:b', 'advice:ungraded:two', 'advice:no-caption:two', 'advice:unsaid-claim:c',
+    ]);
+    // the stop that states a cited, graded claim is graded and cited by it: no warning there
+    expect(a.tour).toMatchObject({ graded: 1, cited: 1 });
+    expect(a.accuracy).toMatchObject({ gate: 'accuracy', state: 'unsigned' });
   });
 });
 

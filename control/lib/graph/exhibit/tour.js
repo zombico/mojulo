@@ -20,6 +20,10 @@
  *       cite?,                     where its claim comes from: a source, or several
  *       grade?,                    how sure it is: attested | reconstructed | conjectural (what the record holds), or
  *                                  simulated | depicted | explained (what the science ladder holds)
+ *       claims?,                   the brief's claims it states (exhibit/brief.js), by id: a stop with no grade or cite
+ *                                  of its own takes the least sure grade and the sources of its claims
+ *       captions?,                 { child?, specialist? }: the caption said for another audience (the caption is
+ *                                  everyone's); the page offers the switch when any stop has one
  *     }]
  *   }
  *
@@ -27,6 +31,8 @@
  * is drawn) and returns the page's normal form, or throws naming what is wrong and what it takes. Pure and
  * deterministic: no clock, no dice.
  */
+
+import { gradeOfClaims } from './brief.js';
 
 export const TOUR_SHAPES = Object.freeze(['ladder', 'process', 'structure', 'stratified', 'quantity', 'formal']);
 export const TOUR_GRADES = Object.freeze({
@@ -37,7 +43,8 @@ export const FRAME_FROM = Object.freeze(['threeQuarter', 'front', 'side', 'top']
 export const TOUR_LIMITS = Object.freeze({ stops: 24, caption: 700, title: 90, cite: 6, citeLength: 240, highlight: 12 });
 
 const KEYS = ['title', 'start', 'stops'];
-const STOP_KEYS = ['id', 'title', 'caption', 'camera', 'highlight', 'shape', 'cite', 'grade'];
+const STOP_KEYS = ['id', 'title', 'caption', 'camera', 'highlight', 'shape', 'cite', 'grade', 'claims', 'captions'];
+const OTHER_AUDIENCES = ['child', 'specialist'];
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -92,7 +99,8 @@ function readCamera(cam, at, cameras, groupMatch) {
  * Check a tour against the world it rides and return its normal form. `cameras` are the payload's ({ name, … }),
  * `groups` the render groups it draws (tourGroups). Throws `tour: <where> <what it takes>`.
  */
-export function readTour(spec, { cameras = [], groups = [] } = {}) {
+export function readTour(spec, { cameras = [], groups = [], claims = null } = {}) {
+  const claimOf = new Map((claims || []).map((c) => [c.id, c]));
   if (!isObj(spec)) fail('', 'is { title?, start?, stops: [{ caption, camera, highlight?, shape?, cite?, grade? }] }');
   const extra = Object.keys(spec).filter((k) => !KEYS.includes(k));
   if (extra.length) fail(`'${extra[0]}'`, `is not a tour key (it takes ${KEYS.join(', ')})`);
@@ -131,6 +139,25 @@ export function readTour(spec, { cameras = [], groups = [] } = {}) {
       if (!cs.length || cs.length > TOUR_LIMITS.cite) fail(`${at}.cite`, `names one source to ${TOUR_LIMITS.cite}`);
       cite = cs.map((c, k) => text(c, `${at}.cite[${k}]`, TOUR_LIMITS.citeLength, { required: true }));
     }
+    let stated;
+    if (s.claims !== undefined) {
+      const ids = Array.isArray(s.claims) ? s.claims : [s.claims];
+      if (!claimOf.size) fail(`${at}.claims`, 'names claims, and the recipe states none: give it a brief with claims ({ curation: { aims, claims } })');
+      stated = [...new Set(ids)].map((id, k) => {
+        if (!claimOf.has(id)) fail(`${at}.claims[${k}]`, `names no claim '${id}' (the brief's: ${[...claimOf.keys()].join(', ')})`);
+        return claimOf.get(id);
+      });
+    }
+    let captions;
+    if (s.captions !== undefined) {
+      if (!s.captions || typeof s.captions !== 'object' || Array.isArray(s.captions)) fail(`${at}.captions`, 'is { child?, specialist? } (the caption is everyone\'s)');
+      const badA = Object.keys(s.captions).filter((k) => !OTHER_AUDIENCES.includes(k));
+      if (badA.length) fail(`${at}.captions`, `has '${badA[0]}' (it takes child and specialist; the caption is everyone's)`);
+      captions = Object.fromEntries(OTHER_AUDIENCES.filter((k) => s.captions[k] !== undefined).map((k) => [k, text(s.captions[k], `${at}.captions.${k}`, TOUR_LIMITS.caption, { required: true })]));
+    }
+    // a stop that states claims and says nothing itself of how sure it is or where it comes from takes theirs
+    const grade = s.grade ?? (stated ? gradeOfClaims(stated) : undefined);
+    if (!cite && stated) { const from = [...new Set(stated.flatMap((c) => c.cite || []))].slice(0, TOUR_LIMITS.cite); if (from.length) cite = from; }
     return {
       id,
       ...(s.title !== undefined ? { title: text(s.title, `${at}.title`, TOUR_LIMITS.title) } : {}),
@@ -139,9 +166,13 @@ export function readTour(spec, { cameras = [], groups = [] } = {}) {
       ...(highlight ? { highlight } : {}),
       ...(s.shape !== undefined ? { shape: s.shape } : {}),
       ...(cite ? { cite } : {}),
-      ...(s.grade !== undefined ? { grade: s.grade } : {}),
+      ...(grade !== undefined ? { grade } : {}),
+      ...(stated ? { claims: stated.map((c) => c.id) } : {}),
+      ...(captions && Object.keys(captions).length ? { captions } : {}),
     };
   });
+  // the audiences the page offers: everyone's caption, and each other one any stop says
+  const audiences = ['general', ...OTHER_AUDIENCES.filter((a) => stops.some((st) => st.captions && st.captions[a]))];
   let start = 0;
   if (spec.start !== undefined) {
     start = typeof spec.start === 'string' ? stops.findIndex((s) => s.id === spec.start) : spec.start;
@@ -150,6 +181,7 @@ export function readTour(spec, { cameras = [], groups = [] } = {}) {
   return {
     ...(spec.title !== undefined ? { title: text(spec.title, 'title', TOUR_LIMITS.title) } : {}),
     ...(start ? { start } : {}),
+    ...(audiences.length > 1 ? { audiences } : {}),
     stops,
   };
 }

@@ -45,11 +45,19 @@ describe('the tour on the page', () => {
     expect(tourScript(tour)).toContain("const kiosk = kq != null && kq !== '0';");
   });
 
+  it('offers who it is told for only when the tour says it another way, and a new visitor starts with everyone\'s words', () => {
+    const told = { ...tour, audiences: ['general', 'child'], stops: [{ ...tour.stops[0], captions: { child: 'One!' } }, tour.stops[1]] };
+    const js = tourScript(told);
+    expect(js).toContain('"audiences":["general","child"]');
+    expect(js).toContain("'tour-audience'");
+    expect(js).toMatch(/if \(AUD\) setAudience\('general', true\); play\(TR\.start \|\| 0\)/);
+  });
+
   it('talks to a gallery\'s frame only through its own parent, and gives an audit its view', () => {
     const js = tourScript(tour);
     expect(js).toMatch(/e\.source !== window\.parent/);
     for (const m of ['tour-ready', 'tour-touch', 'tour-end', 'tour-play', 'tour-stop', 'tour-go']) expect(js).toContain(`'${m}'`);
-    expect(js).toMatch(/window\.__mojTour = \{[\s\S]*view \};/);
+    expect(js).toMatch(/window\.__mojTour = \{[\s\S]*\bview,[\s\S]*setAudience/);
   });
 });
 

@@ -41,7 +41,7 @@ function resolveOrTeach(door, id) {
 }
 
 // A history exhibit: a culture's entry mints its `historic` scene; a region's hub, the lineage and a record are read only.
-async function mintHistory(x, { params, title, ref, folder_ref: folderRef, tour }) {
+async function mintHistory(x, { params, title, ref, folder_ref: folderRef, tour, curation: brief }) {
   const culture = x.card.id;
   if (!HISTORIC_CULTURES[culture]) {
     const cultures = Object.keys(HISTORIC_CULTURES).map((c) => `history/${c}`);
@@ -50,18 +50,22 @@ async function mintHistory(x, { params, title, ref, folder_ref: folderRef, tour 
   const p = params && typeof params === 'object' ? params : {};
   const manifest = { ...p, kind: 'historic', culture };
   const res = await createSketchHandler({ title: title || x.card.name, manifest, ref, folder_ref: folderRef });
-  return withTour({ ...res, exhibit: x.id }, tour);
+  return withStory({ ...res, exhibit: x.id }, { tour, brief });
 }
 
-// A tour (lib/graph/exhibit/tour.js) is read against the world it rides, so it is set once the exhibit is made, through
-// update_sketch's own gate. A refused tour leaves the exhibit made and says why, so the agent fixes the stops in place.
-async function withTour(res, tour) {
-  if (tour === undefined || !res || !res.ref) return res;
+// A tour (lib/graph/exhibit/tour.js) is read against the world it rides, and a brief (exhibit/brief.js) against itself
+// and the stops that state its claims, so both are set once the exhibit is made, together, through update_sketch's own
+// gate. A refusal leaves the exhibit made and says why, so the agent fixes them in place.
+async function withStory(res, { tour, brief }) {
+  if ((tour === undefined && brief === undefined) || !res || !res.ref) return res;
+  const ops = [...(brief !== undefined ? [{ op: 'set', path: '/curation', value: brief }] : []), ...(tour !== undefined ? [{ op: 'set', path: '/tour', value: tour }] : [])];
   try {
-    await updateSketchHandler({ ref: res.ref, patch: [{ op: 'set', path: '/tour', value: tour }] });
-    return { ...res, tour: { stops: Array.isArray(tour?.stops) ? tour.stops.length : 0 }, audit: auditExhibit({ tour }) };
+    await updateSketchHandler({ ref: res.ref, patch: ops });
+    const m = getSketch(res.ref).manifest;
+    return { ...res, ...(m.tour ? { tour: { stops: m.tour.stops.length } } : {}), audit: auditExhibit({ tour: m.tour ?? null, brief: m.curation ?? null }),
+      catalogue: `/api/sketches/${encodeURIComponent(res.ref)}/bible?book=exhibit` };
   } catch (err) {
-    return { ...res, tour_refused: `${err.message} — fix it with update_sketch set /tour; manual: get_view_vocab({ id: 'tour' })` };
+    return { ...res, [tour !== undefined ? 'tour_refused' : 'brief_refused']: `${err.message} — fix it with update_sketch (set /curation, set /tour); manual: get_view_vocab({ id: 'tour' })` };
   }
 }
 
@@ -78,17 +82,18 @@ export function exhibitLabel(sketch) {
 // A gallery (lib/graph/exhibit/gallery.js): made exhibits joined as rooms, by ref; `params` takes its intro and kiosk.
 async function mintGallery({ rooms, title, params, ref, folder_ref: folderRef }) {
   const p = params && typeof params === 'object' ? params : {};
-  const bad = Object.keys(p).filter((k) => !['intro', 'kiosk'].includes(k));
-  if (bad.length) throw new Error(`create_exhibit: a gallery's params take intro and kiosk, not '${bad[0]}'`);
+  const bad = Object.keys(p).filter((k) => !['intro', 'kiosk', 'curation'].includes(k));
+  if (bad.length) throw new Error(`create_exhibit: a gallery's params take intro, kiosk and curation, not '${bad[0]}'`);
   const manifest = { kind: 'gallery', ...(title ? { title } : {}), ...p, rooms };
   const res = await createSketchHandler({ title: title || 'Gallery', manifest, ref, folder_ref: folderRef });
-  return { ...res, gallery: `/api/sketches/${encodeURIComponent(res.ref)}/gallery`, rooms: rooms.length, audit: auditGallery(manifest) };
+  return { ...res, gallery: `/api/sketches/${encodeURIComponent(res.ref)}/gallery`, rooms: rooms.length, audit: auditGallery(manifest),
+    catalogue: `/api/sketches/${encodeURIComponent(res.ref)}/bible` };
 }
 
 const getSketch = (r) => SketchRepository.getByRef(r);
 function auditGallery(manifest) {
-  const rooms = galleryRooms(manifest, getSketch).map((r) => ({ ...r, tour: getSketch(r.ref)?.manifest?.tour ?? null }));
-  return auditExhibit({ rooms });
+  const rooms = galleryRooms(manifest, getSketch).map((r) => ({ ...r, tour: getSketch(r.ref)?.manifest?.tour ?? null, brief: getSketch(r.ref)?.manifest?.curation ?? null }));
+  return auditExhibit({ rooms, brief: manifest.curation ?? null });
 }
 
 export async function createExhibitHandler(input) {
@@ -114,7 +119,7 @@ export async function createExhibitHandler(input) {
   if (folderRef !== undefined) merged.folder_ref = folderRef;
   try {
     const res = await entry.handler(merged);
-    return res && typeof res === 'object' ? withTour({ ...res, exhibit: x.id }, input.tour) : res;
+    return res && typeof res === 'object' ? withStory({ ...res, exhibit: x.id }, { tour: input.tour, brief: input.curation }) : res;
   } catch (err) {
     if (isToolRefusal(err)) throw err;
     throw new Error(`${err.message} — its manual: get_exhibit({ id: '${x.id}' }).`);
@@ -143,7 +148,7 @@ export async function getExhibitHandler(input) {
     if (audit === true) {
       const sketch = getSketch(ref);
       if (!sketch) throw new Error(`get_exhibit: no exhibit with ref '${ref}'`);
-      const a = sketch.manifest?.kind === 'gallery' ? auditGallery(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null });
+      const a = sketch.manifest?.kind === 'gallery' ? auditGallery(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null, brief: sketch.manifest?.curation ?? null });
       return { ok: true, ref, audit: a, page: 'every stop framed is measured in a browser: node scripts/exhibit-audit.mjs <its exported world.html>' };
     }
     return measureExhibit({ ref, every });
@@ -185,7 +190,8 @@ export function registerExhibitTools() {
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
         tour: { type: 'object', description: "Optional stops to step through: { stops: [{ caption, camera, highlight? }] }. Manual: get_view_vocab({ id: 'tour' })." },
-        rooms: { type: 'array', items: { type: 'string' }, description: 'Instead of id: made exhibits (refs) joined as one gallery; params: { intro, kiosk }.' },
+        curation: { type: 'object', description: "Optional, the expert's brief: { aims, audiences?, claims: [{ id, text, cite, grade }], expert? }. Manual: get_view_vocab({ id: 'tour' })." },
+        rooms: { type: 'array', items: { type: 'string' }, description: 'Instead of id: made exhibits (refs) joined as one gallery; params: { intro, kiosk, curation }.' },
       },
       required: [],
     },

@@ -2043,10 +2043,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a caption and the groups it lights. Read against this payload (a named camera exists, a lit group is drawn) and
   // refused when it is not, so update_sketch says what is wrong before anything is stored. A shader world (raymarched)
   // has no groups and no page cameras to tour yet. Absent ⇒ payload untouched.
-  if (payload && manifest.tour !== undefined) {
-    if (payload.raymarch) throw new Error('tour: a shader exhibit (raymarched) takes no tour yet; tour a mesh exhibit, or stand this one in a world (compose_world overrides.science)');
-    const { readTour, tourGroups } = await import('@/lib/graph/exhibit/tour');
-    payload.tour = readTour(manifest.tour, { cameras: payload.cameras || [], groups: tourGroups(payload) });
+  // Its BRIEF, kept as `curation` (lib/graph/exhibit/brief.js: the aims, the audiences, the claims and the expert's sign-off) is read here
+  // too, so update_sketch refuses a bad one; a stop that states the brief's claims takes their grade and sources. The
+  // brief itself draws nothing on the page (its catalogue is /bible?book=exhibit).
+  if (payload && (manifest.tour !== undefined || manifest.curation !== undefined)) {
+    const { readBrief } = await import('@/lib/graph/exhibit/brief');
+    const brief = manifest.curation !== undefined ? readBrief(manifest.curation) : null;
+    if (manifest.tour !== undefined) {
+      if (payload.raymarch) throw new Error('tour: a shader exhibit (raymarched) takes no tour yet; tour a mesh exhibit, or stand this one in a world (compose_world overrides.science)');
+      const { readTour, tourGroups } = await import('@/lib/graph/exhibit/tour');
+      payload.tour = readTour(manifest.tour, { cameras: payload.cameras || [], groups: tourGroups(payload), claims: brief?.claims ?? null });
+    }
   }
 
   // (a physical stage's tree records serve its blocks only: a world with no one in it, or no physics, never carries them)

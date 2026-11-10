@@ -70,6 +70,10 @@ import {
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { isGalleryKind, galleryManifest } from '@/lib/graph/exhibit/gallery';
+import { stampSignoff } from '@/lib/graph/exhibit/brief';
+// an exhibit's brief, its `curation` (exhibit/brief.js): a sign-off of `claims: 'all'` is stamped at write with a copy of each claim, the
+// record of what the expert signed. Any other manifest passes as it is.
+const stampBrief = (m) => (m && typeof m === 'object' && m.curation && typeof m.curation === 'object' ? { ...m, curation: stampSignoff(m.curation) } : m);
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
@@ -558,7 +562,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   }
   }
 
-  return persistSketch({ title, manifest: finalized, ref, folderRef, bucket });
+  return persistSketch({ title, manifest: stampBrief(finalized), ref, folderRef, bucket });
 }
 
 function persistSketch({ title, manifest, ref, folderRef, bucket }) {
@@ -1244,7 +1248,7 @@ export async function updateSketchHandler(input) {
   const updated = SketchRepository.update({
     ref,
     title: title !== undefined ? title.trim() : undefined,
-    manifest: nextManifest,
+    manifest: stampBrief(nextManifest),
     folderRef,
     bucket,
   });

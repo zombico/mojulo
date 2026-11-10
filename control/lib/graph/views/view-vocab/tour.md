@@ -71,11 +71,47 @@ itself when left alone: the lobby a moment, then each room's tour played to its 
 with `update_sketch` (`set /rooms`). `export_model({ ref, format: 'html' })` writes it as a folder that opens offline
 (index.html, and rooms/<ref>.html each a self-contained page): the kiosk's form.
 
+## The brief: the expert's half
+
+The studio owns the craft; the expert (a curator, a teacher, a museum's educator) owns what the exhibit claims and whom
+it is for. Write it with them as `curation` on the exhibit (`create_exhibit({ id, tour, curation })`, or `update_sketch`
+`set /curation`) or on a gallery (`params: { curation }`, the whole wing's aims):
+
+```
+curation: {
+  aims: ['…'],                         what a visitor should leave understanding (one to six)
+  audiences?: ['child', 'specialist'],  who it is told for besides everyone
+  claims?: [{ id, text, cite, grade }], what it states as fact, each with its sources and how sure it is
+  expert?: { name, role? },             who answers for the claims, as the operator names them
+}
+```
+
+A stop says a claim with `claims: ['<id>']`; when it gives no grade or cite of its own it takes the least sure grade
+and the sources of its claims. A stop says its caption for another audience with `captions: { child?, specialist? }`
+(the caption is everyone's); the page then offers the switch ("Everyone · Young visitors · In depth", `?audience=`),
+a gallery carries the choice room to room, and a kiosk's next visitor starts with everyone's words.
+
+**The accuracy gate** is the third gate, beside the machine's and the eyes': whether a claim is TRUE. It is the
+expert's alone. When, and only when, the operator says the expert has signed, record it:
+`update_sketch` `set /curation/signoff` `{ by, on: 'YYYY-MM-DD', claims: 'all' }`; it is stamped at write with a copy of
+each claim as it stood. The audit reads that copy against the claims now: unsigned, signed, or changed since (an edited
+or added claim). Never sign on the expert's behalf, never write a sign-off the operator did not report, and never say
+the gate passed: say what the record shows.
+
+## The catalogue
+
+The exhibit's book: its aims, whom it is told for, each stop in every audience's words with its grade and sources,
+every claim with its sources and its sign-off, and the grades explained. `/api/sketches/<ref>/bible?book=exhibit` (a
+gallery's `/bible`), one printable page; `create_exhibit` returns its address. It records the sign-off; it does not
+establish it.
+
 ## The check
 
 An exhibit has no win to prove; its machine gate asks what a curator asks of a label wall. `create_exhibit` returns it
-with a tour or a gallery, and `get_exhibit({ ref, audit: true })` reads it again: a tour at all, each claim graded, a
-record's claims cited (a warning when not), captions short enough to read, each stop showing something. Every stop
+with a tour, a brief (`curation`) or a gallery, and `get_exhibit({ ref, audit: true })` reads it again: a tour at all, a brief, each
+claim graded, a record's claims cited and every claim in the brief sourced (warnings when not), each claim said by
+some stop, a caption for every audience the brief writes for, captions short enough to read, each stop showing
+something; and beside it the accuracy gate's reading. Every stop
 framed (its lit parts on screen above the panel) is measured in a browser: `node scripts/exhibit-audit.mjs <page.html>`.
 It advises and never refuses. The eyes gate is the operator's, and whether a claim is TRUE is the expert's: never say
 either passed.

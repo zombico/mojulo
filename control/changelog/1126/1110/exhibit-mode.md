@@ -1,7 +1,7 @@
 ### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
 
-Planned on this branch. The first three pieces are built (one door for exhibits, the tour, and rooms with a kiosk);
-the lines after them are still plans, and each is rewritten as it lands.
+Planned on this branch. The first four pieces are built (one door for exhibits, the tour, rooms with a kiosk, and the
+expert's brief); the lines after them are still plans, and each is rewritten as it lands.
 
 - **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects, the
   science demos built from laws and the historic cities at their period are all asked for in one place, by hall:
@@ -32,9 +32,14 @@ the lines after them are still plans, and each is rewritten as it lands.
   (a warning when it does not), can each caption be read in the time a visitor gives it, and does every stop show its
   subject on the screen. It advises and never refuses; whether the exhibit looks right is yours to judge, and whether
   a claim is true is the expert's.
-- **The expert's brief.** A curator or teacher says what a visitor should leave understanding, for a child, a general
-  visitor or a specialist, and lists the claims with their sources. The exhibit's catalogue sets out every claim, where
-  it comes from, and what is real and what is drawn. The expert signs off the claims. The agent never claims it has.
+- **The expert's brief.** A curator or teacher says what a visitor should leave understanding, whom it is told for, and
+  each fact the exhibit states, with its sources and how sure it is. A stop can say one of those facts and take its
+  sources from it, and can tell its caption three ways: for everyone, for young visitors, and in depth. The visitor
+  picks with a switch on the panel, a gallery remembers the choice from room to room, and a kiosk's next visitor starts
+  with everyone's words. When the expert signs off, the sign-off keeps a copy of every fact as they read it; if a fact
+  is changed afterwards, the exhibit says so and asks for the expert again. Nobody but the expert signs, and the
+  studio never says the facts are true. Every exhibit has a printable catalogue: what it sets out to teach, each stop
+  in every audience's words, each fact with its sources and whether the expert has signed it.
 - **Prepared states.** Switch an exhibit between states it has ready, such as a dam's stages or a city in two different
   years, with a toggle or a slider.
 - **Narration, when a voice is installed.** Each stop's caption can also be spoken. Without a voice, the captions

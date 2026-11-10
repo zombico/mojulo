@@ -66,6 +66,21 @@ describe('readTour', () => {
     expect(() => readTour({ stops: [{ camera: 'wide' }] }, world)).toThrow(/caption is required/);
   });
 
+  it('a stop states the brief\'s claims (their grade and sources when it says none) and says its caption for other audiences', () => {
+    const claims = [{ id: 'old', text: 'x', cite: ['Strabo'], grade: 'attested' }, { id: 'guess', text: 'y', grade: 'conjectural' }];
+    const t = readTour({ stops: [
+      { caption: 'a', camera: 'wide', claims: ['old', 'guess'], captions: { child: 'A!' } },
+      { caption: 'b', camera: 'wide', claims: 'old', grade: 'reconstructed', cite: 'Mine' },
+    ] }, { ...world, claims });
+    expect(t.stops[0]).toMatchObject({ grade: 'conjectural', cite: ['Strabo'], claims: ['old', 'guess'], captions: { child: 'A!' } });
+    expect(t.stops[1]).toMatchObject({ grade: 'reconstructed', cite: ['Mine'] });
+    expect(t.audiences).toEqual(['general', 'child']);
+    expect(readTour({ stops: [{ caption: 'a', camera: 'wide' }] }, world).audiences).toBeUndefined();
+    expect(() => readTour({ stops: [{ caption: 'a', camera: 'wide', claims: ['old'] }] }, world)).toThrow(/names claims, and the recipe states none/);
+    expect(() => readTour({ stops: [{ caption: 'a', camera: 'wide', claims: ['nope'] }] }, { ...world, claims })).toThrow(/names no claim 'nope' \(the brief's: old, guess\)/);
+    expect(() => readTour({ stops: [{ caption: 'a', camera: 'wide', captions: { general: 'x' } }] }, world)).toThrow(/has 'general' \(it takes child and specialist/);
+  });
+
   it('a world that draws no group can still be toured by camera, never highlighted', () => {
     const bare = { cameras: payload.cameras, groups: [] };
     expect(readTour({ stops: [{ caption: 'a', camera: 'wide' }] }, bare).stops).toHaveLength(1);

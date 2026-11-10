@@ -5,13 +5,17 @@
  * `?kiosk=1` on the page) it waits for a visitor: left alone it goes back to the lobby and walks itself, room after room,
  * each room's tour played to its end (exhibit/tour.js says tour-end), and a touch hands it to the visitor.
  *
- *   { kind: 'gallery', title?, intro?, rooms: ['<ref>' | { ref, title? }], kiosk?: true | { idle?: seconds } }
+ *   { kind: 'gallery', title?, intro?, rooms: ['<ref>' | { ref, title? }], kiosk?: true | { idle?: seconds }, curation? }
+ *
+ * A gallery's `curation` (its brief, exhibit/brief.js) is the whole wing's: what a visitor should leave it understanding; each room's
+ * own claims are on its exhibit.
  *
  * It stores refs only: a room is the exhibit as it is now, so improving an exhibit improves every gallery it stands in.
  * Served at /api/sketches/<ref>/gallery (each room's /world page framed); exported by export_model({ format: 'html' }) as
  * a folder that opens offline (index.html and rooms/<ref>.html). Pure: the store is handed in (`getSketch`).
  */
 import { sketchRenderMode } from '../sketch/sketch-manifest.js';
+import { readBrief } from './brief.js';
 
 export const GALLERY_KIND = 'gallery';
 export const GALLERY_LIMITS = Object.freeze({ rooms: 24, title: 90, intro: 400, idleMin: 15, idleMax: 3600 });
@@ -31,8 +35,8 @@ const text = (v, at, max) => {
 /** A gallery recipe, checked: its rooms exist and each is a World an exhibit draws. Returns the stored form. */
 export function galleryManifest(m, getSketch) {
   if (!isObj(m) || m.kind !== GALLERY_KIND) fail('', "is { kind: 'gallery', rooms: ['<ref>', …], title?, intro?, kiosk? }");
-  const extra = Object.keys(m).filter((k) => !['kind', 'title', 'intro', 'rooms', 'kiosk'].includes(k));
-  if (extra.length) fail(`'${extra[0]}'`, 'is not a gallery key (it takes title, intro, rooms, kiosk)');
+  const extra = Object.keys(m).filter((k) => !['kind', 'title', 'intro', 'rooms', 'kiosk', 'curation'].includes(k));
+  if (extra.length) fail(`'${extra[0]}'`, 'is not a gallery key (it takes title, intro, rooms, kiosk, curation)');
   if (!Array.isArray(m.rooms) || !m.rooms.length) fail('rooms', 'is a list of one made exhibit or more (their refs)');
   if (m.rooms.length > GALLERY_LIMITS.rooms) fail('rooms', `has ${m.rooms.length}; a gallery holds at most ${GALLERY_LIMITS.rooms}`);
   const seen = new Set();
@@ -63,6 +67,7 @@ export function galleryManifest(m, getSketch) {
     ...(m.intro !== undefined ? { intro: text(m.intro, 'intro', GALLERY_LIMITS.intro) } : {}),
     rooms,
     ...(kiosk !== undefined ? { kiosk } : {}),
+    ...(m.curation !== undefined ? { curation: readBrief(m.curation) } : {}),
   };
 }
 
@@ -159,12 +164,12 @@ export function galleryHtml({ title, intro, rooms, kiosk }, { src }) {
     b.onclick = () => enter(i);
     li.append(b); list.append(li);
   });
-  let at = -1, attract = false, timer = 0, idleTimer = 0;
+  let at = -1, attract = false, timer = 0, idleTimer = 0, audience = null;
   function enter(i) {
     if (!(i >= 0 && i < ROOMS.length)) return;
     at = i; const r = ROOMS[i];
     const sep = r.src.includes('?') ? '&' : '?';
-    frame.src = r.src + sep + 'gallery=1' + (KIOSK ? '&kiosk=1' : '');
+    frame.src = r.src + sep + 'gallery=1' + (KIOSK ? '&kiosk=1' : '') + (audience ? '&audience=' + encodeURIComponent(audience) : '');
     frame.title = r.title; rt.textContent = (i + 1) + ' / ' + ROOMS.length + '  ·  ' + r.title;
     $('next').textContent = i < ROOMS.length - 1 ? 'Next room ›' : 'Back to the start ›';
     stage.classList.add('on'); document.title = r.title;
@@ -184,7 +189,7 @@ export function galleryHtml({ title, intro, rooms, kiosk }, { src }) {
     // a room with no tour is shown for a while; a toured one says when its tour is done
     if (!ROOMS[i].stops) timer = setTimeout(() => walk((i + 1) % ROOMS.length), 20000);
   }
-  function startAttract() { attract = true; cue.classList.add('on'); lobby(); timer = setTimeout(() => walk(0), 4000); }
+  function startAttract() { attract = true; audience = null; cue.classList.add('on'); lobby(); timer = setTimeout(() => walk(0), 4000); }
   function stopAttract() { if (!attract) return; attract = false; clearTimeout(timer); cue.classList.remove('on'); tell({ moj: 'tour-stop' }); }
   function rest() { clearTimeout(idleTimer); if (KIOSK) idleTimer = setTimeout(startAttract, IDLE); }
   function touched() { stopAttract(); rest(); }
@@ -193,6 +198,7 @@ export function galleryHtml({ title, intro, rooms, kiosk }, { src }) {
     const d = e.data;
     if (e.source !== frame.contentWindow || !d || typeof d.moj !== 'string') return;
     if (d.moj === 'tour-touch') touched();
+    else if (d.moj === 'tour-audience' && typeof d.audience === 'string') audience = d.audience;   // the next room is told the same way
     else if (d.moj === 'tour-ready' && attract) tell({ moj: 'tour-play', from: 0 });
     else if (d.moj === 'tour-end' && attract) walk((at + 1) % ROOMS.length);
   });

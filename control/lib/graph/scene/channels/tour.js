@@ -31,7 +31,8 @@ export function tourScript(tour, { capture = false } = {}) {
   sheet.textContent = '.moj-tour{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(660px,calc(100% - 32px));z-index:12;color:#eef2f8;font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:auto;touch-action:pan-y}'
     + '.moj-tour .pl{background:rgba(12,16,24,.84);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:12px 16px 10px;box-shadow:0 6px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px)}'
     + '.moj-tour .hd{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}.moj-tour .no{font:600 12px/1 ui-monospace,Menlo,monospace;opacity:.6;letter-spacing:.5px}'
-    + '.moj-tour .tt{font-weight:650;font-size:16px}'
+    + '.moj-tour .tt{font-weight:650;font-size:16px}.moj-tour .au{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}'
+    + '.moj-tour .au button{font-size:11px;padding:3px 9px;border-radius:999px;background:transparent;opacity:.75}.moj-tour .au button.on{background:rgba(255,255,255,.16);opacity:1}'
     + '.moj-tour .cp{margin:0}.moj-tour .mt{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12px}'
     + '.moj-tour .gr{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08)}.moj-tour .gr i{width:8px;height:8px;border-radius:50%;display:inline-block}'
     + '.moj-tour .sh{opacity:.6;text-transform:uppercase;letter-spacing:.8px;font-size:11px}.moj-tour .ct{opacity:.7;flex:1 1 220px}'
@@ -55,6 +56,27 @@ export function tourScript(tour, { capture = false } = {}) {
   const root = el('div', 'moj-tour'); root.setAttribute('role', 'region'); root.setAttribute('aria-label', TR.title || 'tour');
   const plate = el('div', 'pl'); const hd = el('div', 'hd'); const no = el('span', 'no'); const tt = el('span', 'tt');
   hd.append(no, tt);
+  // who it is told for (the brief's audiences, exhibit/brief.js): a switch when any stop says its caption another way;
+  // everyone's caption otherwise. ?audience=child|specialist opens on one; a gallery carries the choice room to room.
+  const AUD = TR.audiences || null, WORDS = { child: 'Young visitors', general: 'Everyone', specialist: 'In depth' };
+  let aud = 'general';
+  const audQ = new URLSearchParams(location.search).get('audience');
+  if (AUD && AUD.includes(audQ)) aud = audQ;
+  const words = (s) => (aud !== 'general' && s.captions && s.captions[aud]) || s.caption;
+  const auBtns = {};
+  function setAudience(a, quiet) {
+    if (!AUD || !AUD.includes(a)) return;
+    aud = a;
+    for (const k of AUD) auBtns[k].classList.toggle('on', k === aud);
+    if (at >= 0) cp.textContent = words(TR.stops[at]);
+    if (!quiet) say({ moj: 'tour-audience', audience: aud });
+  }
+  if (AUD) {
+    const au = el('div', 'au'); au.setAttribute('role', 'group'); au.setAttribute('aria-label', 'who it is told for');
+    for (const a of AUD) { const b = el('button', null, WORDS[a]); b.onclick = () => setAudience(a); auBtns[a] = b; au.appendChild(b); }
+    hd.appendChild(au);
+    for (const k of AUD) auBtns[k].classList.toggle('on', k === aud);
+  }
   const label = el('div', 'moj-tour-label', TR.title || document.title || ''); host.appendChild(label);
   // the construction tools give way: the crumbs choose the views now
   if (typeof hud !== 'undefined' && hud && typeof CAMS !== 'undefined') [...hud.children].slice(0, CAMS.length).forEach((b) => { b.style.display = 'none'; });
@@ -154,7 +176,7 @@ export function tourScript(tour, { capture = false } = {}) {
     if (!(i >= 0 && i < N)) return;
     at = i; const s = TR.stops[i];
     no.textContent = (i + 1) + ' / ' + N; tt.textContent = s.title || '';
-    cp.textContent = s.caption; mt.textContent = '';
+    cp.textContent = words(s); mt.textContent = '';
     if (s.grade) { const g = el('span', 'gr'); const dot = el('i'); dot.style.background = TINT[s.grade]; g.append(dot, document.createTextNode(s.grade)); mt.appendChild(g); }
     if (s.shape) mt.appendChild(el('span', 'sh', SHAPE[s.shape]));
     if (s.cite) mt.appendChild(el('span', 'ct', s.cite.join(' \\u00b7 ')));
@@ -194,7 +216,7 @@ export function tourScript(tour, { capture = false } = {}) {
   if (kiosk) { root.classList.add('kiosk'); document.documentElement.classList.add('moj-kiosk'); document.addEventListener('contextmenu', (e) => e.preventDefault()); }
   const say = (m) => { if (framed) { try { window.parent.postMessage(m, '*'); } catch (err) { /* an opaque frame */ } } };
   // a stop is held as long as its caption takes to read, aloud or not: 7 to 20 seconds
-  const hold = (s) => Math.min(20000, Math.max(7000, 2500 + (s.caption.split(/\s+/).length / 3.2) * 1000));
+  const hold = (s) => Math.min(20000, Math.max(7000, 2500 + (words(s).split(/\s+/).length / 3.2) * 1000));
   const cue = el('div', 'moj-tour-cue', 'Touch to explore'); host.appendChild(cue);
   let playing = false, playTimer = 0, idleTimer = 0;
   function stop() { playing = false; clearTimeout(playTimer); cue.classList.remove('on'); }
@@ -208,7 +230,8 @@ export function tourScript(tour, { capture = false } = {}) {
     }, hold(TR.stops[at])); };
     tick();
   }
-  function rest() { clearTimeout(idleTimer); if (IDLE && !inGallery) idleTimer = setTimeout(() => play(TR.start || 0), IDLE); }
+  // the next visitor starts where everyone does: the tour's start, everyone's captions
+  function rest() { clearTimeout(idleTimer); if (IDLE && !inGallery) idleTimer = setTimeout(() => { if (AUD) setAudience('general', true); play(TR.start || 0); }, IDLE); }
   function touched() { if (playing) stop(); say({ moj: 'tour-touch' }); rest(); }
   ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((ev) => window.addEventListener(ev, touched, { passive: true, capture: true }));
   window.addEventListener('message', (e) => {
@@ -242,7 +265,8 @@ export function tourScript(tour, { capture = false } = {}) {
   rest();
   say({ moj: 'tour-ready', count: N, title: TR.title || '' });
   window.__mojTour = { get at() { return at; }, count: N, ids: TR.stops.map((s) => s.id), go: (i, instant) => go(i, instant), next: () => go(at + 1), prev: () => go(at - 1),
-    get playing() { return playing; }, play: (i) => play(i == null ? 0 : i), stop, kiosk, view };
+    get playing() { return playing; }, play: (i) => play(i == null ? 0 : i), stop, kiosk, view,
+    get audience() { return aud; }, audiences: AUD || ['general'], setAudience: (a) => setAudience(a, true) };
 })();
 `;
 }

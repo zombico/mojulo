@@ -58,8 +58,27 @@ describe('create_exhibit with a tour', () => {
     expect(SketchRepository.getByRef(ok.ref).manifest.tour.stops).toHaveLength(2);
     const bad = await createExhibitHandler({ id: 'life/cellular', tour: { stops: [{ caption: 'x', camera: 'nowhere' }] } });
     expect(bad.ok).toBe(true);
-    expect(bad.tour_refused).toMatch(/names no camera 'nowhere' \(this world's: angle, side, top\).*update_sketch set \/tour/);
+    expect(bad.tour_refused).toMatch(/names no camera 'nowhere' \(this world's: angle, side, top\).*update_sketch \(set \/curation, set \/tour\)/);
     expect(SketchRepository.getByRef(bad.ref).manifest.tour).toBeUndefined();
+  });
+});
+
+describe('create_exhibit with a brief (its curation)', () => {
+  it('sets the brief with the tour, audits it, points at its catalogue, and reads the expert\'s sign-off as it stands', async () => {
+    const { updateSketchHandler } = await import('./sketch-mint.js');
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const brief = { aims: ['Mitochondria power the cell.'], claims: [{ id: 'atp', text: 'Mitochondria make most of the ATP.', cite: 'Alberts ch. 14', grade: 'depicted' }], expert: { name: 'Dr. Rivera' } };
+    const r = await createExhibitHandler({ id: 'life/cellular', curation: brief, tour: { stops: [{ caption: 'Power.', camera: 'top', claims: ['atp'], highlight: 'org:mitochondria' }] } });
+    expect(r.catalogue).toBe(`/api/sketches/${r.ref}/bible?book=exhibit`);
+    expect(r.audit.accuracy).toMatchObject({ state: 'unsigned' });
+    expect(r.audit.tour).toMatchObject({ graded: 1, cited: 1 });
+    // recorded only when the operator says the expert signed: stamped at write with the claims as they stand
+    await updateSketchHandler({ ref: r.ref, patch: [{ op: 'set', path: '/curation/signoff', value: { by: 'Dr. Rivera', on: '2026-11-10', claims: 'all' } }] });
+    expect(SketchRepository.getByRef(r.ref).manifest.curation.signoff.claims).toEqual([{ id: 'atp', text: 'Mitochondria make most of the ATP.' }]);
+    expect((await getExhibitHandler({ ref: r.ref, audit: true })).audit.accuracy).toMatchObject({ state: 'signed', by: 'Dr. Rivera' });
+    // a tour that states a claim the brief does not have is refused, and the exhibit is still made
+    const bad = await createExhibitHandler({ id: 'life/cellular', curation: brief, tour: { stops: [{ caption: 'x', camera: 'top', claims: ['nope'] }] } });
+    expect(bad.tour_refused).toMatch(/names no claim 'nope'/);
   });
 });
 
@@ -78,7 +97,7 @@ describe('a gallery: made exhibits joined as rooms', () => {
     expect(SketchRepository.getByRef(g.ref).manifest).toEqual({ kind: 'gallery', title: 'Life', intro: 'One room.', kiosk: true, rooms: [cell.ref] });
     await expect(createExhibitHandler({ rooms: ['sk_nope'] })).rejects.toThrow(/rooms\[0\]\.ref names no sketch 'sk_nope'/);
     await expect(createExhibitHandler({ rooms: [cell.ref], id: 'life/dna' })).rejects.toThrow(/pass one of them/);
-    await expect(createExhibitHandler({ rooms: [cell.ref], params: { music: 1 } })).rejects.toThrow(/take intro and kiosk, not 'music'/);
+    await expect(createExhibitHandler({ rooms: [cell.ref], params: { music: 1 } })).rejects.toThrow(/take intro, kiosk and curation, not 'music'/);
     expect((await getExhibitHandler({ ref: g.ref, audit: true })).audit.gate).toBe('machine');
     expect((await getExhibitHandler({ ref: cell.ref, audit: true })).audit.tour.stops).toBe(1);
     const { exportModelHandler } = await import('./sketch-model-export.js');

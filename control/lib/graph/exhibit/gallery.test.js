@@ -27,6 +27,8 @@ describe('a gallery recipe', () => {
     expect(at({ rooms: [{ ref: 'sk_cell', stops: 3 }] })).toThrow(/has 'stops' \(a room takes ref and title\)/);
     expect(at({ rooms: ['sk_cell'], kiosk: { idle: 5 } })).toThrow(new RegExp(`kiosk is true or \\{ idle: seconds, ${GALLERY_LIMITS.idleMin}`));
     expect(at({ rooms: ['sk_cell'], music: 'x' })).toThrow(/'music' is not a gallery key/);
+    expect(at({ rooms: ['sk_cell'], curation: { claims: [] } })).toThrow(/curation: aims is what a visitor should leave understanding/);
+    expect(galleryManifest({ kind: 'gallery', rooms: ['sk_cell'], curation: { aims: 'Energy, small and large.' } }, get).curation).toEqual({ aims: ['Energy, small and large.'] });
   });
 });
 
