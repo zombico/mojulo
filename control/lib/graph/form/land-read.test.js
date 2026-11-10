@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { landRead, formPayload, SWARD_MEDIUM, GRASS_OFF } from './land-read.js';
+import { landRead, formPayload, hazeUnder, HAZE_UNDER, SWARD_MEDIUM, GRASS_OFF } from './land-read.js';
+import { cubeLight } from '../era/cube-light.js';
 import { readGeocube } from '../era/geocube.js';
 import { assembleStageScene } from '../era/stage.js';
 
@@ -81,5 +82,18 @@ describe('landRead', () => {
 
   it('a payload with no land reads as nothing', () => {
     expect(landRead({ faces: [{ group: 'meru:stone', corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0]] }], cameras: [] }, C)).toBeNull();
+  });
+});
+
+describe('the haze a look keeps under its horizon', () => {
+  it('a hazy look\'s far land takes air darker than its horizon; a clear noon\'s takes the horizon\'s, its page as it was', () => {
+    // (a clear noon: its fog is its horizon's colour, nothing carried)
+    expect(hazeUnder(cubeLight(readGeocube('island-noon')))).toEqual({});
+    // (an overcast look paints its ridges in a haze darker than the sky behind them)
+    const haze = hazeUnder(cubeLight(readGeocube('jungle-haze')));
+    expect(haze.air).toBeGreaterThan(0.2);
+    expect(haze.air).toBeLessThan(HAZE_UNDER);
+    // (no light, no sky: nothing)
+    expect(hazeUnder(null)).toEqual({});
   });
 });
