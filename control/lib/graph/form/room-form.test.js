@@ -109,8 +109,10 @@ describe('a room in the form render', () => {
     expect(assembleStageScene(toned, {}).tone).toBeDefined();
   });
 
-  it('a sunlit stage stays paint', () => {
-    expect(assembleStageScene({ kind: 'stage', kit: 'island-plaza', reference: 'island-noon', rooms: [{ id: 'a', x: 0, y: 0, w: 10, d: 10, h: 6 }] }, { formLit: true }).form).toBeUndefined();
+  it('a sunlit stage is baked with the sun beside its lamps (era/stage-form-sun.test.js); an engine\'s handoff of one stays paint', () => {
+    const SUNLIT = { kind: 'stage', kit: 'island-plaza', reference: 'island-noon', rooms: [{ id: 'a', x: 0, y: 0, w: 10, d: 10, h: 6 }] };
+    expect(assembleStageScene(SUNLIT, { formLit: true }).form.room.sun).toBeDefined();
+    expect(assembleStageScene(SUNLIT, { formLit: true, unshaded: true, handoff: true }).form).toBeUndefined();
   });
 
   it('the page draws it only when carried, and the era marks read its faces as material', () => {
