@@ -56,6 +56,21 @@ export function auditTour(tour, brief = null) {
 }
 
 /**
+ * Prepared states' audit (exhibit/states.js): { gate: 'machine', ran, states, findings, warnings }. `states` are
+ * [{ label, caption?, kind }] (each state's exhibit kind), `control` and `label` the recipe's.
+ */
+export function auditStates({ states = [], control, label } = {}) {
+  const findings = [];
+  if (!label) findings.push(finding('advice', 'no-axis', 'says nothing of what changes between its states: give it a label ("Water level", "Year")'));
+  for (const s of states) if (!s.caption) findings.push(finding('advice', 'no-caption', 'says nothing of what is different in this state: give it a caption', s.label));
+  const kinds = [...new Set(states.map((s) => s.kind))];
+  if (kinds.length > 1) findings.push(finding('warn', 'mixed-kinds', `its states are different exhibits (${kinds.join(', ')}): a state is one exhibit at another setting, so the camera a visitor keeps may look at nothing`));
+  if (control === 'toggle' && states.length > 4) findings.push(finding('advice', 'crowded-toggle', `${states.length} states on a toggle crowd it: a slider scrubs them`));
+  if (control === 'slider' && states.length === 2) findings.push(finding('advice', 'two-on-a-slider', 'two states read best as a toggle, side by side'));
+  return { gate: 'machine', ran: ['states'], states: states.length, findings, warnings: findings.filter((f) => f.level === 'warn').length, eyes: 'not run: the operator switches through each state' };
+}
+
+/**
  * An exhibit's audit: { gate: 'machine', ran, tour, findings, warnings }. `tour` is the read tour (payload.tour) or null.
  * For a gallery pass `rooms`: [{ ref, title, tour }] and each room is audited, its findings tagged with its ref.
  */

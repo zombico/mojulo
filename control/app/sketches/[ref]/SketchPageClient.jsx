@@ -368,7 +368,7 @@ export default function SketchPageClient({
             technical={false}
             mode={view.wireframe ? 'wireframe' : 'color'}
           />
-        ) : renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' || renderMode === 'bible' || renderMode === 'gallery' ? (
+        ) : renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' || renderMode === 'bible' || renderMode === 'gallery' || renderMode === 'states' ? (
           <div
             className="relative w-full"
             style={{

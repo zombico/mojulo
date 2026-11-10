@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
     const getSketch = (r) => SketchRepository.getByRef(r);
     const rooms = galleryRooms(sketch.manifest, getSketch, { describe: exhibitLabel });
     const html = galleryHtml({ title: sketch.manifest.title || sketch.title, intro: sketch.manifest.intro, rooms, kiosk: sketch.manifest.kiosk },
-      { src: (room) => `/api/sketches/${encodeURIComponent(room.ref)}/world` });
+      { src: (room) => `/api/sketches/${encodeURIComponent(room.ref)}/${room.states ? 'states' : 'world'}` });
     return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

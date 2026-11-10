@@ -452,7 +452,10 @@ const DESCRIPTION_ALLOWLIST = {
 // create_exhibit's `brief` (the aims, the audiences, the claims with their sources, the expert; the sign-off recorded
 // through update_sketch), one schema property; its grammar and the accuracy gate on the `tour` card. Still 1,100 below
 // the 213_100 the fold started from. No new tool.
-const PAYLOAD_CEILING = 212_000;
+// Raised 2026-11-10 on 1110-exhibit-mode (212_000 -> 212_200; measured 212,125) for prepared states:
+// create_exhibit's `states` (one exhibit at several settings, switched in one page keeping the camera), one schema
+// property; its grammar on the `tour` card. Still 975 below the 213_100 the fold started from. No new tool.
+const PAYLOAD_CEILING = 212_200;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

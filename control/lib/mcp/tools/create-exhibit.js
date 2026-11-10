@@ -21,7 +21,7 @@ import { VIEW_KINDS, resolveKindEntry } from '@/lib/mcp/tools/create-view';
 import { measureViewSamples } from '@/lib/mcp/tools/measure-view';
 import { deriveViewKind } from '@/lib/mcp/tools/save-recipe';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
-import { auditExhibit } from '@/lib/graph/exhibit/audit';
+import { auditExhibit, auditStates } from '@/lib/graph/exhibit/audit';
 import { galleryRooms } from '@/lib/graph/exhibit/gallery';
 
 /** The kinds folded into a science world (VIEW_KINDS `listed: false`): no exhibit id, their rows render as before. */
@@ -92,8 +92,43 @@ async function mintGallery({ rooms, title, params, ref, folder_ref: folderRef })
 
 const getSketch = (r) => SketchRepository.getByRef(r);
 function auditGallery(manifest) {
-  const rooms = galleryRooms(manifest, getSketch).map((r) => ({ ...r, tour: getSketch(r.ref)?.manifest?.tour ?? null, brief: getSketch(r.ref)?.manifest?.curation ?? null }));
-  return auditExhibit({ rooms, brief: manifest.curation ?? null });
+  const all = galleryRooms(manifest, getSketch);
+  // a room of prepared states is audited as states; the rest as exhibits
+  const rooms = all.filter((r) => !r.states).map((r) => ({ ...r, tour: getSketch(r.ref)?.manifest?.tour ?? null, brief: getSketch(r.ref)?.manifest?.curation ?? null }));
+  const a = auditExhibit({ rooms, brief: manifest.curation ?? null });
+  const states = all.filter((r) => r.states).map((r) => ({ ref: r.ref, ...auditStatesOf(getSketch(r.ref).manifest) }));
+  if (!states.length) return a;
+  const findings = [...a.findings, ...states.flatMap((st) => st.findings.map((f) => ({ ...f, room: st.ref })))];
+  return { ...a, statesRooms: states.map(({ findings: _f, ...st }) => st), findings, warnings: findings.filter((f) => f.level === 'warn').length };
+}
+
+// prepared states, as the audit reads them: each state's label, caption and exhibit kind
+function auditStatesOf(m) {
+  return auditStates({ states: m.states.map((st) => ({ label: st.label, caption: st.caption, kind: getSketch(st.ref)?.manifest?.kind ?? null })), control: m.control, label: m.label });
+}
+
+// Prepared states (lib/graph/exhibit/states.js): the exhibit `id` made once a state, its `params` under the shared ones,
+// then one recipe that switches between them, keeping the camera.
+async function mintStates(input) {
+  const { states, title, ref, folder_ref: folderRef } = input;
+  const spec = Array.isArray(states) ? { of: states } : states;
+  if (!spec || typeof spec !== 'object' || !Array.isArray(spec.of) || spec.of.length < 2) {
+    throw new Error("create_exhibit: `states` is { label?, control?: 'slider' | 'toggle' | 'carousel', of: [{ label, params?, caption? }, …] }, two states or more");
+  }
+  const bad = Object.keys(spec).filter((k) => !['label', 'control', 'of', 'kiosk'].includes(k));
+  if (bad.length) throw new Error(`create_exhibit: \`states\` takes label, control, of and kiosk, not '${bad[0]}'`);
+  const made = [];
+  for (const [i, st] of spec.of.entries()) {
+    if (!st || typeof st !== 'object' || typeof st.label !== 'string') throw new Error(`create_exhibit: states.of[${i}] is { label, params?, caption? }`);
+    const res = await createExhibitHandler({
+      id: input.id, params: { ...(input.params || {}), ...(st.params || {}) }, title: `${title || input.id} · ${st.label}`,
+      ...(input.viewBox ? { viewBox: input.viewBox } : {}), ...(input.scene ? { scene: input.scene } : {}), ...(input.folder_ref ? { folder_ref: input.folder_ref } : {}),
+    });
+    made.push({ ref: res.ref, label: st.label, ...(st.caption !== undefined ? { caption: st.caption } : {}) });
+  }
+  const manifest = { kind: 'exhibit-states', ...(title ? { title } : {}), ...(spec.label ? { label: spec.label } : {}), ...(spec.control ? { control: spec.control } : {}), states: made, ...(spec.kiosk !== undefined ? { kiosk: spec.kiosk } : {}) };
+  const res = await createSketchHandler({ title: title || input.id, manifest, ref, folder_ref: folderRef });
+  return { ...res, exhibit: resolveOrTeach('create_exhibit', input.id).id, page: `/api/sketches/${encodeURIComponent(res.ref)}/states`, states: made.map((m) => ({ ref: m.ref, label: m.label })), audit: auditStatesOf(getSketch(res.ref).manifest) };
 }
 
 export async function createExhibitHandler(input) {
@@ -102,6 +137,7 @@ export async function createExhibitHandler(input) {
     if (input.id !== undefined) throw new Error('create_exhibit: `id` makes one exhibit, `rooms` joins made ones as a gallery; pass one of them');
     return mintGallery(input);
   }
+  if (input.states !== undefined) return mintStates(input);
   const x = resolveOrTeach('create_exhibit', input.id);
   if (x.hall === 'history') return mintHistory(x, input);
   const { params, title, viewBox, scene, ref, folder_ref: folderRef } = input;
@@ -148,7 +184,8 @@ export async function getExhibitHandler(input) {
     if (audit === true) {
       const sketch = getSketch(ref);
       if (!sketch) throw new Error(`get_exhibit: no exhibit with ref '${ref}'`);
-      const a = sketch.manifest?.kind === 'gallery' ? auditGallery(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null, brief: sketch.manifest?.curation ?? null });
+      const a = sketch.manifest?.kind === 'gallery' ? auditGallery(sketch.manifest)
+        : sketch.manifest?.kind === 'exhibit-states' ? auditStatesOf(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null, brief: sketch.manifest?.curation ?? null });
       return { ok: true, ref, audit: a, page: 'every stop framed is measured in a browser: node scripts/exhibit-audit.mjs <its exported world.html>' };
     }
     return measureExhibit({ ref, every });
@@ -191,6 +228,7 @@ export function registerExhibitTools() {
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
         tour: { type: 'object', description: "Optional stops to step through: { stops: [{ caption, camera, highlight? }] }. Manual: get_view_vocab({ id: 'tour' })." },
         curation: { type: 'object', description: "Optional, the expert's brief: { aims, audiences?, claims: [{ id, text, cite, grade }], expert? }. Manual: get_view_vocab({ id: 'tour' })." },
+        states: { type: 'object', description: "Prepared versions of `id`, switched in one page: { label?, control?: slider|toggle|carousel, of: [{ label, params, caption? }] }." },
         rooms: { type: 'array', items: { type: 'string' }, description: 'Instead of id: made exhibits (refs) joined as one gallery; params: { intro, kiosk, curation }.' },
       },
       required: [],

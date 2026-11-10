@@ -70,6 +70,7 @@ import {
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { isGalleryKind, galleryManifest } from '@/lib/graph/exhibit/gallery';
+import { isStatesKind, statesManifest } from '@/lib/graph/exhibit/states';
 import { stampSignoff } from '@/lib/graph/exhibit/brief';
 // an exhibit's brief, its `curation` (exhibit/brief.js): a sign-off of `claims: 'all'` is stamped at write with a copy of each claim, the
 // record of what the expert signed. Any other manifest passes as it is.
@@ -454,6 +455,13 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // written, read by the gameworld reader, whose teaching errors are the refusal. Its palette is settled here, at
     // authoring time (color-theorist/stamp.js): a new world that names no kit or look gets one rolled for it.
     finalized = gameworldManifest(stampWorldPalette(stampGeocubes(manifest)));
+  } else if (isStatesKind(manifest?.kind)) {
+    // Prepared states (exhibit/states.js): one exhibit's versions, by ref, checked against the store at mint.
+    try {
+      finalized = statesManifest(manifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — make them with create_exhibit({ id, states }); manual: get_view_vocab({ id: 'tour' }).`);
+    }
   } else if (isGalleryKind(manifest?.kind)) {
     // A gallery (exhibit/gallery.js): exhibits joined as rooms, by ref. Its rooms are checked against the store at
     // mint, so a gallery never names a room that is not there.
@@ -1172,6 +1180,12 @@ export async function updateSketchHandler(input) {
   } else if (manifest !== undefined && isGameworldKind(manifest?.kind)) {
     // the same gate as at mint; an edit keeps the palette the world had (and never gives an old world one)
     nextManifest = gameworldManifest(stampWorldPalette(stampGeocubes(manifest, existingSketch?.manifest ?? null), existingSketch?.manifest ?? {}));
+  } else if (manifest !== undefined && isStatesKind(manifest?.kind)) {
+    try {
+      nextManifest = statesManifest(manifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — manual: get_view_vocab({ id: 'tour' }).`);
+    }
   } else if (manifest !== undefined && isGalleryKind(manifest?.kind)) {
     // the same gate as at mint: its rooms checked against the store
     try {

@@ -404,6 +404,47 @@ async function scad2dExport(input, context) {
 // A gallery is its rooms: the export is a FOLDER, not one page. index.html is the gallery page with each room's src a
 // sibling file; rooms/<ref>.html is each room's World page, self-contained (three.js inline), as `world.html` is. The
 // folder opens from file:// with no server and no network: the kiosk's offline form. Same rows, same folder.
+// One state's World page, self-contained, framed by a states page: it keeps the camera across a switch (channels/sync.js).
+async function statePage(ref) {
+  const s = SketchRepository.getByRef(ref);
+  if (!s) throw new Error(`state '${ref}' is no longer in the store; take it out with update_sketch`);
+  const { payload, kind } = await resolveWorldScene(s);
+  return emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: true, sync: true });
+}
+
+// Prepared states' pages under `dir`: the states page at `index` and each state at `<sub>/<ref>.html`, its src relative.
+async function writeStates(m, title, dir, index, sub) {
+  const { statesHtml } = await import('@/lib/graph/exhibit/states');
+  const files = [];
+  let bytes = 0;
+  await fs.mkdir(path.join(dir, sub), { recursive: true });
+  for (const st of m.states) {
+    const html = await statePage(st.ref);
+    const file = `${sub}/${st.ref}.html`;
+    await fs.writeFile(path.join(dir, file), html);
+    files.push(file); bytes += Buffer.byteLength(html, 'utf8');
+  }
+  const base = path.posix.basename(sub);
+  const page = statesHtml({ title, label: m.label, control: m.control, states: m.states, start: m.start, kiosk: m.kiosk },
+    { src: (st) => `${encodeURIComponent(base)}/${encodeURIComponent(st.ref)}.html` });
+  await fs.writeFile(path.join(dir, index), page);
+  files.unshift(index); bytes += Buffer.byteLength(page, 'utf8');
+  return { files, bytes };
+}
+
+// ── format: 'html' on prepared states (exhibit/states.js): a folder, index.html and states/<ref>.html, offline ─────────
+async function statesExport(sketch) {
+  const ref = sketch.ref;
+  const dir = path.join(outcomeDirFor(ref), 'states');
+  await fs.mkdir(dir, { recursive: true });
+  const { files, bytes } = await writeStates(sketch.manifest, sketch.manifest.title || sketch.title, dir, 'index.html', 'states');
+  return {
+    ok: true, ref, kind: 'exhibit-states', format: 'html', dir, files, bytes,
+    url: `${outcomeUrlFor(ref)}states/index.html`,
+    note: `A prepared-states folder in ${dir}: open index.html straight from the filesystem (file://); each state is a self-contained page beside it, and switching keeps the camera. Add ?kiosk=1 for the attract loop.`,
+  };
+}
+
 async function galleryExport(sketch) {
   const { galleryHtml, galleryRooms } = await import('@/lib/graph/exhibit/gallery');
   const { exhibitLabel } = await import('@/lib/mcp/tools/create-exhibit');
@@ -417,6 +458,12 @@ async function galleryExport(sketch) {
   for (const room of rooms) {
     const roomSketch = getSketch(room.ref);
     if (!roomSketch) throw new Error(`gallery '${ref}': room '${room.ref}' is no longer in the store; take it out with update_sketch`);
+    if (room.states) {
+      // a room of prepared states: its page at rooms/<ref>.html, its states beside it in rooms/<ref>/
+      const w = await writeStates(roomSketch.manifest, roomSketch.manifest.title || roomSketch.title, path.join(dir, 'rooms'), `${room.ref}.html`, room.ref);
+      files.push(...w.files.map((f) => `rooms/${f}`)); bytes += w.bytes;
+      continue;
+    }
     const { payload, kind } = await resolveWorldScene(roomSketch);
     const html = emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: true });
     const file = `rooms/${room.ref}.html`;
@@ -1083,7 +1130,11 @@ async function exportModel(input, context = {}) {
   if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
   if (format === 'blender') return blenderExport(input);
   // a gallery's html is its folder of rooms
-  if (format === 'html') { const g = SketchRepository.getByRef(input.ref); if (g?.manifest?.kind === 'gallery') return galleryExport(g); }
+  if (format === 'html') {
+    const g = SketchRepository.getByRef(input.ref);
+    if (g?.manifest?.kind === 'gallery') return galleryExport(g);
+    if (g?.manifest?.kind === 'exhibit-states') return statesExport(g);
+  }
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
   if (format === 'bom') return bomExport(input, context);

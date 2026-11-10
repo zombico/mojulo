@@ -351,6 +351,7 @@ export function sketchRenderMode(manifest) {
   if (kind === 'game') return 'game';   // played, not looked at — the game shell (create_game)
   if (kind === 'motion-comic') return 'play';   // clicked-through — the /play presentation player
   if (kind === 'gallery') return 'gallery';   // walked through — exhibits as rooms, the /gallery page (exhibit/gallery.js)
+  if (kind === 'exhibit-states') return 'states';   // switched between — one exhibit's prepared states, the /states page (exhibit/states.js)
   if (kind === 'gameworld') return 'bible';   // read — the game book's sheets (/bible); a design, so never the Arcade's
   return 'diagram';
 }

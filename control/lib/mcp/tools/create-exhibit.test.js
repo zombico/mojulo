@@ -109,6 +109,34 @@ describe('a gallery: made exhibits joined as rooms', () => {
   }, 120000);
 });
 
+describe('prepared states: one exhibit at several settings', () => {
+  it('makes a state an exhibit under the shared params, one recipe over them, audited, exported, and a gallery room', async () => {
+    const { mkdtempSync, readFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(join(tmpdir(), 'states-'));
+    const st = await createExhibitHandler({ id: 'earth/hydro', title: 'Head', params: { scenario: 'dam' }, states: { label: 'Head', of: [
+      { label: '30 m', params: { head: 30 }, caption: 'Low.' }, { label: '120 m', params: { head: 120 } }] } });
+    expect(st).toMatchObject({ ok: true, exhibit: 'earth/hydro', page: `/api/sketches/${st.ref}/states` });
+    const m = SketchRepository.getByRef(st.ref).manifest;
+    expect(m).toMatchObject({ kind: 'exhibit-states', title: 'Head', label: 'Head', control: 'toggle' });
+    expect(m.states.map((x) => SketchRepository.getByRef(x.ref).manifest)).toEqual([
+      expect.objectContaining({ kind: 'hydro-view', scenario: 'dam', head: 30 }), expect.objectContaining({ kind: 'hydro-view', scenario: 'dam', head: 120 })]);
+    expect(st.audit.findings.map((f) => `${f.code}:${f.at}`)).toEqual(['no-caption:120 m']);
+    expect((await getExhibitHandler({ ref: st.ref, audit: true })).audit.ran).toEqual(['states']);
+    await expect(createExhibitHandler({ id: 'earth/hydro', states: { of: [{ label: 'only' }] } })).rejects.toThrow(/two states or more/);
+    const { exportModelHandler } = await import('./sketch-model-export.js');
+    const out = await exportModelHandler({ ref: st.ref, format: 'html' });
+    expect(out.files).toEqual(['index.html', ...m.states.map((x) => `states/${x.ref}.html`)]);
+    expect(readFileSync(join(out.dir, `states/${m.states[0].ref}.html`), 'utf8')).toContain('pose-ready');
+    const g = await createExhibitHandler({ rooms: [st.ref] });
+    expect(g.audit.statesRooms).toEqual([expect.objectContaining({ ref: st.ref, states: 2 })]);
+    const gout = await exportModelHandler({ ref: g.ref, format: 'html' });
+    expect(gout.files).toEqual(['index.html', `rooms/${st.ref}.html`, ...m.states.map((x) => `rooms/${st.ref}/${x.ref}.html`)]);
+  }, 180000);
+});
+
 describe('get_exhibit', () => {
   it('reads a card by hall id, lists the halls and one hall', async () => {
     const one = await getExhibitHandler({ id: 'earth/hydro' });

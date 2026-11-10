@@ -71,6 +71,19 @@ itself when left alone: the lobby a moment, then each room's tour played to its 
 with `update_sketch` (`set /rooms`). `export_model({ ref, format: 'html' })` writes it as a folder that opens offline
 (index.html, and rooms/<ref>.html each a self-contained page): the kiosk's form.
 
+## Prepared states
+
+One exhibit at several settings, switched in one page: a dam at three water levels, a cell before and after it divides,
+a city in two years. `create_exhibit({ id, title, params, states: { label, control?, of: [{ label, params, caption? }] } })`
+makes one exhibit a state (its `params` over the shared ones) and one recipe over them (kind `exhibit-states`), served
+at `/api/sketches/<ref>/states`. `label` names what changes ("Head"); each state's label is its value ("30 m") and its
+caption what is different about it. The control is a toggle for two or three states and a slider for more, unless
+`control` says (`carousel` steps round). Switching keeps the camera where the visitor left it; the arrow keys step it,
+a kiosk (`?kiosk=1`, or `kiosk` in `states`) steps through them on its own. Nothing is computed live: each state is a
+made exhibit, deterministic. It exports as a folder (`export_model`), and a gallery can stand it as a room. The check
+asks for the axis's label, a caption a state, one exhibit throughout (a mixed set warns: the kept camera may look at
+nothing), and a control that suits the count.
+
 ## The brief: the expert's half
 
 The studio owns the craft; the expert (a curator, a teacher, a museum's educator) owns what the exhibit claims and whom

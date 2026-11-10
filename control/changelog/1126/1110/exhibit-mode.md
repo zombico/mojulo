@@ -1,7 +1,7 @@
 ### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
 
-Planned on this branch. The first four pieces are built (one door for exhibits, the tour, rooms with a kiosk, and the
-expert's brief); the lines after them are still plans, and each is rewritten as it lands.
+Planned on this branch. The first five pieces are built (one door for exhibits, the tour, rooms with a kiosk, the
+expert's brief, and prepared states); the lines after them are still plans, and each is rewritten as it lands.
 
 - **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects, the
   science demos built from laws and the historic cities at their period are all asked for in one place, by hall:
@@ -40,8 +40,12 @@ expert's brief); the lines after them are still plans, and each is rewritten as 
   is changed afterwards, the exhibit says so and asks for the expert again. Nobody but the expert signs, and the
   studio never says the facts are true. Every exhibit has a printable catalogue: what it sets out to teach, each stop
   in every audience's words, each fact with its sources and whether the expert has signed it.
-- **Prepared states.** Switch an exhibit between states it has ready, such as a dam's stages or a city in two different
-  years, with a toggle or a slider.
+- **Prepared states.** Show one exhibit at several settings and let visitors switch between them: a dam at three
+  water levels, a cell before and after it divides, a city in two different years. A toggle, a slider or a carousel
+  picks the version, a caption says what is different about it, and the view stays exactly where the visitor turned
+  it, so the difference is all that changes. The arrow keys work too, and on a kiosk it steps through the versions by
+  itself. Each version is made ahead of time, so it looks the same every time; it saves as a folder that opens offline,
+  and it can be a room in a gallery.
 - **Narration, when a voice is installed.** Each stop's caption can also be spoken. Without a voice, the captions
   carry the tour.
 - **Two exhibits to start.** Pompeii in 79 CE, and how hydroelectric power works.

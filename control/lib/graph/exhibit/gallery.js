@@ -50,7 +50,7 @@ export function galleryManifest(m, getSketch) {
     seen.add(room.ref);
     const sketch = getSketch(room.ref);
     if (!sketch) fail(`${at}.ref`, `names no sketch '${room.ref}'`);
-    if (sketchRenderMode(sketch.manifest) !== 'world') fail(`${at}.ref`, `'${room.ref}' is a ${sketch.manifest?.kind ?? 'sketch'}, not an exhibit or a world (a room is a page the visitor stands in)`);
+    if (!['world', 'states'].includes(sketchRenderMode(sketch.manifest))) fail(`${at}.ref`, `'${room.ref}' is a ${sketch.manifest?.kind ?? 'sketch'}, not an exhibit, prepared states or a world (a room is a page the visitor stands in)`);
     const title = text(room.title, `${at}.title`, GALLERY_LIMITS.title);
     return title ? { ref: room.ref, title } : room.ref;
   });
@@ -83,6 +83,8 @@ export function galleryRooms(m, getSketch, { describe = () => null } = {}) {
     const stops = Array.isArray(tour?.stops) ? tour.stops : [];
     return {
       ref: room.ref,
+      // a room is a World page, or prepared states (exhibit/states.js): its own page, its states framed in it
+      ...(sketch?.manifest?.kind === 'exhibit-states' ? { states: sketch.manifest.states.length } : {}),
       title: room.title || tour?.title || sketch?.title || room.ref,
       label: (sketch && describe(sketch)) || null,
       stops: stops.length,
@@ -160,7 +162,7 @@ export function galleryHtml({ title, intro, rooms, kiosk }, { src }) {
     if (r.label) b.append(el('span', 'h', r.label));
     b.append(el('span', 't', r.title));
     if (r.lead) b.append(el('span', 'l', r.lead));
-    b.append(el('span', 's', r.stops ? r.stops + (r.stops === 1 ? ' stop' : ' stops') : 'free to explore'));
+    b.append(el('span', 's', r.stops ? r.stops + (r.stops === 1 ? ' stop' : ' stops') : r.states ? r.states + ' states to compare' : 'free to explore'));
     b.onclick = () => enter(i);
     li.append(b); list.append(li);
   });

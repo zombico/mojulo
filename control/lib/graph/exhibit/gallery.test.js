@@ -22,7 +22,7 @@ describe('a gallery recipe', () => {
     const at = (m) => () => galleryManifest({ kind: 'gallery', ...m }, get);
     expect(at({ rooms: [] })).toThrow(/rooms is a list of one made exhibit or more/);
     expect(at({ rooms: ['sk_nope'] })).toThrow(/rooms\[0\]\.ref names no sketch 'sk_nope'/);
-    expect(at({ rooms: ['sk_chart'] })).toThrow(/'sk_chart' is a sketch, not an exhibit or a world/);
+    expect(at({ rooms: ['sk_chart'] })).toThrow(/'sk_chart' is a sketch, not an exhibit, prepared states or a world/);
     expect(at({ rooms: ['sk_cell', 'sk_cell'] })).toThrow(/repeats 'sk_cell'/);
     expect(at({ rooms: [{ ref: 'sk_cell', stops: 3 }] })).toThrow(/has 'stops' \(a room takes ref and title\)/);
     expect(at({ rooms: ['sk_cell'], kiosk: { idle: 5 } })).toThrow(new RegExp(`kiosk is true or \\{ idle: seconds, ${GALLERY_LIMITS.idleMin}`));
