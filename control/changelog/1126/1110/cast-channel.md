@@ -44,3 +44,13 @@
   it against the vendored three's own standard and toon shaders. Proof on real pages
   (`scripts/spikes/cast/proof.mjs`, headless Chrome): on the island trail and the jungle path in gen-7 the page's
   lights read the same before and after a body is added; on the island in gen-6 the page had no light and has one.
+- **A fight game's bodies are drawn under the cast rig** (Mojulo Fighter under a register; an arena made before the
+  register is as it was, not a byte). The arena's rig (`versus-arena.client.js` `fightRig`) keeps its one key, its
+  shadows and its catcher over the lane's floor, the key's colour and level now the rig's; its fill light, its rim
+  light and its sky light are gone from the scene and are the bodies' own, laid on each body's material by the cast
+  kit after its coat (`castKit.patch`): the sky over the ground with the low fill in it, the rim a fresnel edge. A
+  lit body tones itself (the room is painted, the renderer tones nothing). The ring's pieces take the rig as the bodies
+  do. The page carries the rig as the arena's `cast` (`versus/versus-cast.js` `fightCast`: the card in the game's
+  register, a fight's levels being a stage or a greybox, neither painted by a cube) and the kit beside the fight's
+  modules. Seen in Chrome on the training greybox in both registers and on the ring: bodies lit and shadowed, the
+  coat and the ink as before, no page error.

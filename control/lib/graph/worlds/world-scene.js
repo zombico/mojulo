@@ -1868,6 +1868,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster, { register: measured.register ?? null }) });
+    // a fight game's bodies are drawn under the cast rig (versus/versus-cast.js: its card, in the game's register); an
+    // arena made before the register carries none
+    if (payload.versus.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.versus.cast = fightCast(payload.versus.register); }
     // a fight game (one with a register) sounds its blows from the SFX shelf (versus/versus-sfx.js): its cues on the
     // page's audio channel, joining what audio the level already has (its own cues win); an arena made before the
     // register carries none and keeps its beeps

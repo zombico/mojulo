@@ -684,6 +684,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-09 (1109-run-and-gun: mounted foes): `brawl` only. Its page inlines the things' mounts, the core's
 // ride (the ram, knocked off, the wreck), the crowd's and the waves' riders, the rider's pose and the client's mount drawn
 // under it, its wreck and its crash.
+// Re-pinned 2026-11-10 (the cast channel: versus): `versus` only. Its page inlines the arena's client, whose fight rig
+// is the cast rig's (one key, the sky and the rim in the bodies' own shader: versus-arena.client.js fightRig); the fixture
+// names no register, so it carries no rig and no kit, only the client's new source.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

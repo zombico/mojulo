@@ -9,13 +9,19 @@
 //
 // cfg: { plane, half, floor?, roster: [{ id, name, color, archetype, recipe, character? }], rules?, wire: { ready, init,
 //        outcome, version }, bodies?: { <character ref>: { bones, parts } } } (versus-page.js versusArenaData)
+//      under a fight's register, `cast`: the cast rig its bodies are drawn under (versus/versus-cast.js), and the kit
+//      that lays it on them (./cast-rig.js); an arena without one carries neither
 
 import { safeJson } from '../emit-util.js';
 import { versusSource, VERSUS_PAGE_MODULES } from '../../versus/versus-page.js';
 import { labOf } from '../../versus/versus-lab.js';
 import { manaUiSource } from '../../../mana-ui/kernel.js';
+import { castKitSource } from './cast-rig.js';
+import { fightCast } from '../../versus/versus-cast.js';
 
-export function versusChannelScript(cfg) {
+export function versusChannelScript(cfg0) {
+  // (a fight game's bodies are drawn under the cast rig; an arena data built without it takes the card here)
+  const cfg = cfg0.register && !cfg0.cast ? { ...cfg0, cast: fightCast(cfg0.register) } : cfg0;
   const lib = [...VERSUS_PAGE_MODULES, 'versus-figure.js', 'versus-runtime.client.js', 'versus-fx.client.js', 'versus-arena.client.js'].map(versusSource).join('\n');
   // (a fight game's arena, under its register, carries the LAB: mana-ui over the fight, versus/versus-lab.js; an arena
   // made before the register carries none, not a byte)
@@ -25,7 +31,8 @@ export function versusChannelScript(cfg) {
 {
 const VERSUS_ARENA = ${safeJson(cfg)};${lab ? `
 const VERSUS_LAB = ${safeJson({ spec: lab.spec, css: lab.css })};
-const manaUi = ${manaUiSource()};` : ''}
+const manaUi = ${manaUiSource()};` : ''}${cfg.register && cfg.cast ? `
+const castKit = ${castKitSource()};` : ''}
 ${lib}
 stepFight = stepArenaFight;
 }`;

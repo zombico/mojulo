@@ -6,6 +6,7 @@ import { castRig, CAST_RIG_LAWS, CAST_CARD, CAST_REGISTERS, CAST_BANDS } from '.
 import { cubeLight } from '../era/cube-light.js';
 import { readGeocube, GEOCUBE_PALETTES } from '../era/geocube.js';
 import { HERO_LIGHT_LAWS } from './hero-light.js';
+import { CAST_LIGHT } from '../era/cast-light.js';
 
 const cubes = Object.keys(GEOCUBE_PALETTES).map((id) => readGeocube(id));
 const share = (c) => cubeLight(c).contrast;
@@ -83,5 +84,8 @@ describe('the cast rig', () => {
     expect(a.bands).toEqual({ steps: CAST_BANDS.steps, ramp: [...CAST_BANDS.ramp] });
     expect(w.bands).toBeUndefined();
     expect(() => castRig(sunCube, { register: 'noir' })).toThrow(/register/);
+    // (the numbers the module writes for itself are the ones they stand for)
+    expect(CAST_RIG_LAWS.form).toBe(HERO_LIGHT_LAWS.form);
+    expect([CAST_CARD.western.strength, CAST_CARD.western.power]).toEqual([CAST_LIGHT.rim.strength, CAST_LIGHT.rim.power]);
   });
 });

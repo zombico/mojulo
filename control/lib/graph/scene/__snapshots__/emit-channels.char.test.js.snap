@@ -158,7 +158,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > turns emits byte-identically 1`] = `"3b7912d35a2ceef5edb40bebdb4e4417ed6abb09426819771fcbed10155b2620"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > versus emits byte-identically 1`] = `"903094df237b4b6219858d054aeea6702e66af3f85132b1504ee4da25134e587"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > versus emits byte-identically 1`] = `"dddbdff532cc52edfa289100f9818129975ea8062c9203d3d15741cd2febd4ec"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > walk emits byte-identically 1`] = `"32fac19ba009a533117319dc96b99ab9deeffe378f7f89eb90fa5f6061cd8a03"`;
 

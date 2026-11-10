@@ -39,7 +39,8 @@ import { decodeSrgb, encodeSrgb, luminance } from './light.js';
 export const CAST_REGISTERS = Object.freeze(['western', 'anime']);
 /** The rig's laws (the eyes gate's to move): the key side at least `form` × the shade side and at most `depth` ×; the
  *  body's own key lifted no more than `keyGain` × the world's; the face the key side is read on (its cosine to the key). */
-export const CAST_RIG_LAWS = Object.freeze({ form: HERO_LIGHT_LAWS.form, depth: 6, keyGain: 3, keyCos: 0.8 });
+// (`form` is the hero light's own, written here: nothing of another module is read as this one loads)
+export const CAST_RIG_LAWS = Object.freeze({ form: 1.6, depth: 6, keyGain: 3, keyCos: 0.8 });
 /** The cel's tones (the fight rig's ramp: the shadow side, the turn, the light). */
 export const CAST_BANDS = Object.freeze({ steps: 3, ramp: Object.freeze([0.36, 0.65, 1]) });
 /** A body with no palette is read as a middle grey. */
@@ -57,12 +58,14 @@ const Lof = (y) => Math.cbrt(Math.max(0, Math.min(1, y)));
  * THE CARD: the rig a body takes where no cube lights it (a greybox, a studio), the fight rig's own lights
  * (versus-arena.client.js fightRig) in the solve's units (three's intensities ÷ π): its key from the camera's side and
  * above, its sky over a dark ground with the low cool fill folded in, a white rim. `toLight` is in the lane's frame.
+ * Its rim's strength and power are written here (the baked cast light's own, era/cast-light.js CAST_LIGHT.rim): the card
+ * reads no other module as this one loads, so a page's channel can carry it from inside the era's import cycle.
  */
 const three = (hex, intensity) => scaled(linOf(hex), intensity / Math.PI);
 const plus = (a, b) => a.map((v, k) => v + b[k]);
 export const CAST_CARD = Object.freeze({
-  western: Object.freeze({ toLight: [-0.35, -0.6, 0.72], key: three('#ffeedb', 3.3), sky: plus(three('#dfe7f2', 0.3), three('#b9ccff', 0.14)), ground: three('#2e2925', 0.3), rim: '#ffffff', strength: CAST_LIGHT.rim.strength, power: CAST_LIGHT.rim.power }),
-  anime: Object.freeze({ toLight: [-0.35, -0.6, 0.72], key: three('#fff6ea', 2.4), sky: three('#c6d2ff', 0.75), ground: three('#5c5068', 0.75), rim: '#ffffff', strength: 0.35, power: CAST_LIGHT.rim.power }),
+  western: Object.freeze({ toLight: [-0.35, -0.6, 0.72], key: three('#ffeedb', 3.3), sky: plus(three('#dfe7f2', 0.3), three('#b9ccff', 0.14)), ground: three('#2e2925', 0.3), rim: '#ffffff', strength: 0.45, power: 3 }),
+  anime: Object.freeze({ toLight: [-0.35, -0.6, 0.72], key: three('#fff6ea', 2.4), sky: three('#c6d2ff', 0.75), ground: three('#5c5068', 0.75), rim: '#ffffff', strength: 0.35, power: 3 }),
 });
 
 function readRegister(register) {
