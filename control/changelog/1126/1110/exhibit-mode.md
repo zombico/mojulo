@@ -1,0 +1,24 @@
+### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
+
+Planned on this branch. Nothing is built yet; each line below is rewritten as it lands.
+
+- **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects and the
+  historic cities at their period are all asked for in one place, by hall: `science/fission`, `earth/hydro`,
+  `life/dna`, `math/derivative`, `history/pompeii`. One reader shows an exhibit's manual, lists a hall, and reads a
+  made exhibit's measurements back. The tools the study objects and the historic entries had before give way to it,
+  so the list of tools your agent reads gets shorter. The old names still work for a release. Everything already made
+  looks exactly as it did.
+- **A tour you step through.** An exhibit can carry stops. At each one the camera moves, a caption explains, and the
+  part being talked about is lit while the rest dims. Each stop can say where its claim comes from and how sure it is:
+  known, reconstructed or conjectured for history; simulated, depicted or explained for science.
+- **Rooms and a kiosk.** Several exhibits join into one gallery, with no score to win and no way to fail. On a kiosk,
+  the tour plays by itself when nobody is touching it and returns to the start when a visitor walks away. It works by
+  touch, in large type, in the visitor's language, and it opens offline.
+- **The expert's brief.** A curator or teacher says what a visitor should leave understanding, for a child, a general
+  visitor or a specialist, and lists the claims with their sources. The exhibit's catalogue sets out every claim, where
+  it comes from, and what is real and what is drawn. The expert signs off the claims. The agent never claims it has.
+- **Prepared states.** Switch an exhibit between states it has ready, such as a dam's stages or a city in two different
+  years, with a toggle or a slider.
+- **Narration, when a voice is installed.** Each stop's caption can also be spoken. Without a voice, the captions
+  carry the tour.
+- **Two exhibits to start.** Pompeii in 79 CE, and how hydroelectric power works.
