@@ -46,6 +46,10 @@
  *                                                    earlier one, a stretch for them, moves, texture, wants, conflicts,
  *                                                    threads, unknowns) and renumbers; what was there keeps its words.
  *                                                    Adding is the author's: the tool never extends a backdrop itself
+ *   settleOrder(B, { events: [n], after: n, stretch? }) → backdrop   the author now says WHEN: events whose order was
+ *                                                    unsaid are set after the event named (into the stretch named, if
+ *                                                    it differs), marked no longer unsaid; renumbered, every reference
+ *                                                    following; a cause must still come before what it causes
  *   readBackdrop(v)                                  a stored backdrop at any depth: read, or throws, teaching
  *   BACKDROP                                         the part (passes.js)
  *   backdropReport(B) → { uncaused, unordered, stretches, derived, open, placeEvents, coverage?, depth }
@@ -53,7 +57,9 @@
  *       and whether anyone acts; conflicts two wants imply that are not listed (`derived`); the conflicts open where
  *       the text stops; the events that touch each place; given a route, how much of the backdrop it meets and what it
  *       misses; and how much there is (`depth`: stretches where someone acts, open conflicts) for the author to choose
- *       one story or several by
+ *       one story or several by. And `stakes`, from what passes between places: for each of the people, the places it
+ *       is in, what those places give and what they need, whom it leans on (every place its own draw from, all the way
+ *       up), who leans on it, and the open conflicts it is party to. Counted from the text's own moves, never weighed
  *   backdropLaws(B) → [{ law, ok, value }]           advice: known-refs, every-basis, in-order, caused, placed
  *   chapterDigest(B) → { <chapter id>: slice }       the game book's shapes: each chapter its own part of the backdrop
  *
@@ -352,6 +358,26 @@ export function extendBackdrop(B, more = {}) {
   return readBackdrop(next);
 }
 
+/** The author says when: events whose order was unsaid, set after the event named. */
+export function settleOrder(B, { events, after, stretch } = {}) {
+  const base = readBackdrop(B);
+  const moved = list(events, '.settle.events', 'the events to place').map((n) => { if (!base.events.some((e) => e.n === n)) throw fail(`.settle.events ${n} is no event of this backdrop`); return n; });
+  if (!moved.length) throw fail('.settle.events names the events the author has now placed');
+  if (!Number.isInteger(after) || after < 0 || after > base.events.length || moved.includes(after)) throw fail(`.settle.after is the event they follow (0 to ${base.events.length}), and not one of them`);
+  if (stretch !== undefined && !(base.stretches ?? []).some((x) => x.id === stretch)) throw fail(`.settle.stretch '${stretch}' is no stretch of this backdrop`);
+  const rest = base.events.filter((e) => !moved.includes(e.n)), seq = [];
+  const put = () => seq.push(...moved.map((n) => ({ ...base.events[n - 1], ...(stretch ? { stretch } : {}), settled: true })));
+  if (after === 0) put();
+  for (const e of rest) { seq.push(e); if (e.n === after) put(); }
+  const to = Object.fromEntries(seq.map((e, i) => [e.n, i + 1]));
+  const next = { ...base, events: seq.map(({ settled, order, ...e }, i) => ({ ...e, n: i + 1, ...(e.from ? { from: e.from.map((r) => to[r]) } : {}), ...(order && !settled ? { order } : {}) })) };
+  for (const e of next.events) for (const r of e.from ?? []) if (r >= e.n) throw fail(`.settle: event '${e.says.slice(0, 40)}' would come before what it comes from: a cause comes first`);
+  // the stretches follow the events' order
+  if (base.stretches) { const first = (id) => next.events.findIndex((e) => e.stretch === id); next.stretches = [...base.stretches].filter((x) => first(x.id) >= 0).sort((x, y) => first(x.id) - first(y.id)); }
+  if (base.play) next.play = { ...base.play, ...(base.play.begins ? { begins: { after: base.play.begins.after === 0 ? 0 : to[base.play.begins.after] } } : {}), ...(base.play.route ? { route: base.play.route.map((r) => ({ ...r, shows: r.shows.map((n) => to[n]) })) } : {}) };
+  return readBackdrop(next);
+}
+
 /** What the tool works out: reported, never decided. */
 export function backdropReport(B) {
   const V = readBackdrop(B), E = V.events;
@@ -373,8 +399,27 @@ export function backdropReport(B) {
     const upTo = V.play.begins?.after ?? E.length, met = [...new Set(V.play.route.flatMap((r) => r.shows))].filter((n) => n <= upTo).sort((x, y) => x - y);
     coverage = { of: upTo, met: met.length, missed: E.map((e) => e.n).filter((n) => n <= upTo && !met.includes(n)), unvisited: (V.places ?? []).map((p) => p.id).filter((id) => !V.play.route.some((r) => r.place === id)) };
   }
+  // who leans on whom: a place that receives leans on the place that gives, and on all that place leans on
+  const moves = V.moves ?? [], places = V.places ?? [];
+  const upstream = (id, seen = new Set()) => { for (const m of moves) if (m.to === id && !seen.has(m.from)) { seen.add(m.from); upstream(m.from, seen); } return seen; };
+  const inPlace = (a) => places.filter((p) => (p.who ?? []).includes(a)).map((p) => p.id);
+  const whoIn = (ids) => [...new Set(places.filter((p) => ids.includes(p.id)).flatMap((p) => p.who ?? []))];
+  const stakes = V.actors.filter((a) => a.kind === 'people').map((a) => {
+    const at = inPlace(a.id), up = [...new Set(at.flatMap((p) => [...upstream(p)]))].filter((p) => !at.includes(p));
+    const down = places.map((p) => p.id).filter((p) => !at.includes(p) && [...upstream(p)].some((u) => at.includes(u)));
+    return {
+      who: a.id, in: at,
+      gives: moves.filter((m) => at.includes(m.from) && !at.includes(m.to)).map((m) => m.says), needs: moves.filter((m) => at.includes(m.to) && !at.includes(m.from)).map((m) => m.says),
+      // directly: whose places its own draw from, and whose draw from its own; then all the way up and down (where
+      // flows loop, as demand going back does, the long reach takes in everyone: the direct one is the sharper read)
+      draws_from: whoIn(moves.filter((m) => at.includes(m.to) && !at.includes(m.from)).map((m) => m.from)).filter((x) => x !== a.id),
+      supplies: whoIn(moves.filter((m) => at.includes(m.from) && !at.includes(m.to)).map((m) => m.to)).filter((x) => x !== a.id),
+      leans_on: whoIn(up).filter((x) => x !== a.id), leaned_on_by: whoIn(down).filter((x) => x !== a.id),
+      open: (V.conflicts ?? []).filter((c) => c.state === 'open' && c.between.includes(a.id)).map((c) => c.id),
+    };
+  });
   return {
-    uncaused, unordered, stretches, derived, open, placeEvents, ...(coverage ? { coverage } : {}),
+    uncaused, unordered, stretches, derived, open, placeEvents, ...(places.length ? { stakes } : {}), ...(coverage ? { coverage } : {}),
     depth: { stretches: stretches.length, acted: stretches.filter((s) => s.acts).length, open: open.length, says: 'how much there is: the stretches where someone acts, and the conflicts still open. One story or several is the author\'s to choose' },
   };
 }

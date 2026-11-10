@@ -1,6 +1,6 @@
 // Narrative lore, extracted: it sets down what a text says and marks what it reads into it; it never authors.
 import { describe, it, expect } from 'vitest';
-import { BACKDROP, BASES, AGENCIES, newBackdrop, intensifyBackdrop, clarifyBackdrop, extendBackdrop, readBackdrop, backdropReport, backdropLaws, chapterDigest } from './backdrop.js';
+import { BACKDROP, BASES, AGENCIES, newBackdrop, intensifyBackdrop, clarifyBackdrop, extendBackdrop, settleOrder, readBackdrop, backdropReport, backdropLaws, chapterDigest } from './backdrop.js';
 import { depthOf, openOf, rawNewCeiling, checkPass } from './passes.js';
 import { CHAPTERS } from '../gameworld/chapters.js';
 
@@ -218,5 +218,46 @@ describe('extendBackdrop: the author\'s further text', () => {
     const C = clarifyBackdrop(whole(), { conflicts: { 'the-water': { over: 'the floods, and who pays for them' } } });
     expect(C.conflicts[0].over).toBe('the floods, and who pays for them');
     expect(C.conflicts[0].between).toEqual(['millers', 'river']);
+  });
+});
+
+describe('settleOrder: the author says when', () => {
+  const unsaid = () => extendBackdrop(whole(), { stretches: [{ id: 'sx', handle: 'the masons', agency: 'acted', after: 's1' }, { id: 'sy', handle: 'after the move', agency: 'acted', after: 's3' }], events: [{ says: 'Masons come from the coast', after: 2, stretch: 'sx', order: 'unsaid' }] });
+
+  it('sets the events after the one named, into the stretch named, no longer unsaid; every reference follows', () => {
+    const B = intensifyBackdrop(unsaid(), { play: { begins: { after: 5 }, basis: 'stated' } }).backdrop;
+    expect(backdropReport(B).unordered).toEqual([3]);
+    const S = settleOrder(B, { events: [3], after: 5, stretch: 'sy' });
+    expect(S.events.map((e) => e.says.slice(0, 10))).toEqual(['The river ', 'The miller', 'The valley', 'The lowlan', 'Masons com']);
+    expect(S.events[4]).toMatchObject({ n: 5, stretch: 'sy' });
+    expect(S.events[4]).not.toHaveProperty('order');
+    expect(backdropReport(S).unordered).toEqual([]);
+    expect(S.events[3].from).toEqual([3]);
+    // play still begins after the same event; a stretch left empty is gone, the rest in the events' order
+    expect(S.play.begins).toEqual({ after: 4 });
+    expect(S.stretches.map((x) => x.id)).toEqual(['s1', 's2', 's3', 'sy']);
+  });
+
+  it('refuses to put an event before what it comes from, or to break a stretch', () => {
+    expect(() => settleOrder(whole(), { events: [4], after: 1 })).toThrow(/one unbroken run of events|a cause comes first/);
+    expect(() => settleOrder(whole(), { events: [3], after: 0 })).toThrow(/a cause comes first/);
+    expect(() => settleOrder(whole(), { events: [2], after: 2 })).toThrow(/and not one of them/);
+  });
+});
+
+describe('stakes: who leans on whom, from what passes between places', () => {
+  it('counts, for each of the people, what its places give and need, whom it leans on and who leans on it', () => {
+    const B = extendBackdrop(whole(), { places: [{ id: 'coast', name: 'the coast', state: 'buys the town\'s flour', who: ['lowlanders'] }], moves: [{ from: 'town', to: 'coast', says: 'flour', basis: 'stated' }] });
+    const S = Object.fromEntries(backdropReport(B).stakes.map((x) => [x.who, x]));
+    // the millers are in the town, which draws on the lake; the lake has no one in it
+    expect(S.millers).toMatchObject({ in: ['town'], needs: ['power from the dam'], gives: ['flour'], leans_on: [] });
+    // the lowlanders are in the town and on the coast: what passes between their own places is neither given nor needed
+    expect(S.lowlanders.in).toEqual(['town', 'coast']);
+    expect(S.lowlanders.gives).toEqual([]);
+    expect(S.millers.leaned_on_by).toEqual(['lowlanders']);
+    expect(S.millers.supplies).toEqual(['lowlanders']);
+    expect(S.lowlanders.draws_from).toEqual([]);
+    expect(S).not.toHaveProperty('river');
+    expect(backdropReport(newBackdrop(premise))).not.toHaveProperty('stakes');
   });
 });

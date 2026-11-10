@@ -55,6 +55,11 @@ plans, and each is rewritten as it lands.
   referred to the old order still points at the same things; nothing already there is reworded. When your text does
   not say when something happened against the rest, it is placed after what it must follow and marked as "when: not
   said", so the gap is visible and not papered over.
+- **When you later say when something happened, it moves there.** An event first marked "when: not said" is set where
+  you now say it belongs, and stops being marked.
+- **Who leans on whom.** From what the text says passes between places (power, ore, goods, demand), the backdrop
+  counts for each side what its places give and need, whom it draws from and whom it supplies, and which open
+  conflicts it is in. It is a count from your own text, never a judgement of who is stronger.
 - **A game can keep it.** The backdrop is saved on the game itself, shown in its game book (the events in order, where
   play begins, what is open and unsaid), and each chapter of the book is handed only its own part: the world chapter
   gets the places as history left them, the cast chapter the people and what they want, the story chapter what
