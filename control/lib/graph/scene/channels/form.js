@@ -21,6 +21,10 @@ import { safeJson } from '../emit-util.js';
 //             bake: the page lays its light whole (its falloff and its cosine on the face, no shadow), its key swung by the
 //             beat in time. Only a room with one carries this code
 //
+// OUTDOORS (a town's buildings, form/sun-light.js: `cfg.sun`) the one lamp is the sun, set far off along its way, its
+// falloff whole; a corner's light without it is the sky's by how the face turns (the sky up, `sun.ground` down, their mean
+// on a wall), so the relief is lit only by the share of the bake the sun gave. A room's page carries none of this.
+//
 // A mesh with no baked light, and the `keep` groups (the torches' flames and iron, glass), stay as built and untoned; the
 // `panes` (see-through glass) reflect the room by Fresnel from `f0`, and the painted glints are hidden. The
 // live light's actors' shadow (channels/cast-shadows.js) patches these materials as it patched the paint's.
@@ -28,7 +32,7 @@ import { safeJson } from '../emit-util.js';
 // Absent `form` ⇒ NOT emitted.
 // `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
-//          void?: '#rrggbb' (a toned room's) }
+//          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes) }
 export function formScript(cfg) {
   // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
   const NB = cfg.lights.filter((l) => l.beat).length;
@@ -43,7 +47,8 @@ ${NB ? `  const BL = F.lights.map((l, i) => ({ l, i })).filter(({ l }) => l.beat
   Object.assign(U, { uFBp: { value: BL.map(() => new THREE.Vector3()) }, uFBk: { value: BL.map(() => new THREE.Vector3()) }, uFBr: { value: BL.map(({ l }) => l.radius) } });
 ` : ''}  const VERT = 'attribute vec3 aLit;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n';
   const FRAG = 'uniform vec3 uFLp[' + K + '];\\nuniform vec3 uFLk[' + K + '];\\nuniform float uFLr[' + K + '];\\nuniform float uFFall;\\nuniform vec3 uFAmb;\\nuniform vec4 uFPom;\\nuniform vec3 uFMean;\\nuniform float uFDepth;\\nuniform sampler2D uFNorm;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n'
-    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n'${NB ? `
+    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n'${cfg.sun ? `
+    + 'uniform vec3 uFGround;\\n'` : ''}${NB ? `
     + 'uniform vec3 uFBp[${NB}];\\nuniform vec3 uFBk[${NB}];\\nuniform float uFBr[${NB}];\\n'` : ''};
   // the face's own frame from the screen's derivatives (its normal, and the tile's directions on it), then the parallax:
   // the tile's height marched along the view in that frame, near the eye
@@ -90,7 +95,7 @@ if ( fNear > 0.0 ) {
     fSum += c * ng; fAdd += c * ( np - ng );
     fSpec += c * np * 0.04 * ( shine + 8.0 ) / 8.0 * pow( max( dot( n, normalize( L + V ) ), 0.0 ), shine );
   }
-  float fVis = fNear * clamp( ( fLum( vFLit ) - fLum( uFAmb ) ) / max( fLum( fSum ), 1e-3 ), 0.0, 1.0 );
+  float fVis = fNear * clamp( ( fLum( vFLit ) - fLum( ${cfg.sun ? 'mix( uFGround, uFAmb, 0.5 + 0.5 * inverseTransformDirection( fN, viewMatrix ).z )' : 'uFAmb'} ) ) / max( fLum( fSum ), 1e-3 ), 0.0, 1.0 );
   fDirect = fVis * ( fAdd * diffuseColor.rgb + fSpec );
 }
 #endif
@@ -107,13 +112,15 @@ fDirect += fBeat * diffuseColor.rgb;
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
     mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {}) };
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, U, { uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null } });
+      Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null } });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
       sh.fragmentShader = FRAG + sh.fragmentShader.replace('#include <map_fragment>', MAP)
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '');
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '');${cfg.sun ? `
+    // (lit by the day: toned with the land, channels/form-land.js leaves it so)
+    mat.userData.cast = true;` : ''}
     return mat;
   };
   const map = (url) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.channel = 0; return t; };
@@ -122,7 +129,9 @@ fDirect += fBeat * diffuseColor.rgb;
   // every surface of the room that carries its baked light; the rest keep their look, untoned
   scene.traverse((o) => {
     if (!o.material) return;
-    const b = o.material;
+    const b = o.material;${cfg.sun ? `
+    // (a body under the cast rig, channels/cast-rig.js, is lit and toned as these are: left as it is)
+    if (!Array.isArray(b) && b.userData && b.userData.cast) return;` : ''}
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,

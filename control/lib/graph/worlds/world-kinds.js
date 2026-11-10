@@ -594,7 +594,8 @@ export const WORLD_KINDS = {
       // the page, and no stand-in walks it)
       if (m.show === 'geotown') {
         const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
-        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) });
+        // (formBuildings: its buildings baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
         return played ? p : attachDummy(p);
       }
       // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;

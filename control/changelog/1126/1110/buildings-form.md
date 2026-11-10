@@ -11,3 +11,16 @@
   there) and the light the day lays on it, the sky by how much of it the face sees, what the ground throws back onto a
   face turned down, and the sun by its cosine where a shadow test says the sun reaches the corner; beside it the share
   of that light the sun gives, by which a live shadow darkens it.
+- **A town's buildings are drawn as form** (a geotown read in gen-7, by day; gen-6, a town at night, and the engine
+  handoff's read are as they were). Its buildings, its street's furniture and its paved ground (the `town:` and
+  `geotown:` faces) carry their paint as it shows lit, never darkened by their turn to the sun, and are baked with
+  their colour and their light apart (`geotown/scene.js`, `form/sun-light.js`): the sun's shadow is tested against the
+  town itself, so an eave shades its wall and a house the one beside it, which the paint never drew; a wall in shade
+  takes the sky and what the town's paving throws back. The page's form channel draws them (`scene/channels/form.js`,
+  the payload's `form.town`): the sun is its one lamp, set far off along its way, and lights the tiles' relief and
+  sheen near the eye only by the share of the bake the sun gave, so nothing shines in a baked shadow. They are toned
+  with the land. A live shadow darkens a face by its sun share, so a tree no longer shades a wall the sun does not
+  reach. A detail tile's material keeps the colour the page already draws (set to the detail's mean), its hue the
+  face's. A room's page is byte for byte as it was. Seen in Chrome on an island-noon town, beside gen-6 and the
+  gen-7 read before it.
+

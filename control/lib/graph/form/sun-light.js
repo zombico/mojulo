@@ -22,6 +22,8 @@
  *     shadow    (p, n) → 0..1, how much of the sun reaches p (era/sun.js makeSunShadow over what stands round it);
  *               absent, every corner the sun faces is lit
  *     ground    the ground's base (linear) under the building; absent, SUN_LIGHT.ground of the light it stands in
+ *     lift      how far off its face a corner's shadow test starts (SUN_LIGHT.lift; a building dressed in thin
+ *               layers over its walls, its courses, surrounds and panels, asks for more, so its own dress does not shade it)
  *     → each face its `fill` and `cornerFills` the base, `cornerLight` one linear [r,g,b] a corner, and `sunShare` one
  *       a corner: the share of that light the sun gives (0 in a baked shadow), by which a live shadow darkens it
  *       (scene/live-light.js)
@@ -52,7 +54,7 @@ export function baseOf(hex, light) {
   return { base: want.map((v) => Math.min(1, v)), unreached: Math.max(...want) > 1.005 };
 }
 
-export function sunLitFaces(faces, light, { shadow = null, ground = null, keep = null } = {}) {
+export function sunLitFaces(faces, light, { shadow = null, ground = null, keep = null, lift = SUN_LIGHT.lift } = {}) {
   const bases = new Map(), unreached = new Set();
   const based = (f) => {
     if (bases.has(f.fill)) return bases.get(f.fill);
@@ -66,7 +68,7 @@ export function sunLitFaces(faces, light, { shadow = null, ground = null, keep =
     if (B.unreached) unreached.add(f.group ?? '');
     const cornerLight = [], sunShare = [];
     for (const c of f.corners) {
-      const s = cos > 0 ? (shadow ? shadow([c[0] + n[0] * SUN_LIGHT.lift, c[1] + n[1] * SUN_LIGHT.lift, c[2] + n[2] * SUN_LIGHT.lift], n) : 1) : 0;
+      const s = cos > 0 ? (shadow ? shadow([c[0] + n[0] * lift, c[1] + n[1] * lift, c[2] + n[2] * lift], n) : 1) : 0;
       const sun = light.sun.map((v) => v * cos * s), all = sky.map((v, k) => v + sun[k]), y = luminance(all);
       cornerLight.push(all.map(r5));
       sunShare.push(y > 1e-9 ? r3(Math.min(1, luminance(sun) / y)) : 0);

@@ -31,7 +31,7 @@ import { reliefMaterial } from './relief-material.js';
 import { surfaceTexture, generatedSpecOf, encodePng, SURFACE_TILING } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
 import { paintMean } from './room-light.js';
-import { detailSpec } from '../matte-paint/detail.js';
+import { detailSpec, DETAIL_MEAN } from '../matte-paint/detail.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
@@ -78,7 +78,9 @@ export function formMaterialOf(key, { detail = 1, reliefSize = null } = {}) {
     // brick floor's is no dressed cut: read from its paint, below)
     const S = detailSpec(key), size = reliefSize && reliefSize < DETAIL_SIZE ? reliefSize : DETAIL_SIZE;
     const M = dressedMaterial(S.cfg, { size: DETAIL_SIZE, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 });
-    out = { ...relief(M, S.cfg.metres ?? 2), read: 'relief' };
+    // (its colour is the tile the page already draws, set to the detail's mean: the face's own colour carries the hue,
+    // matte-paint/detail.js, and the page's resampler reads the tile round that mean)
+    out = { ...relief(M, S.cfg.metres ?? 2), base: surfaceTexture(key), mean: [DETAIL_MEAN, DETAIL_MEAN, DETAIL_MEAN], read: 'relief' };
     if (size < DETAIL_SIZE) {
       const small = relief(dressedMaterial(S.cfg, { size, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 }), S.cfg.metres ?? 2);
       out = { ...out, normal: small.normal, orm: small.orm, reliefSize: size };

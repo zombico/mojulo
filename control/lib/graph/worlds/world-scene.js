@@ -707,6 +707,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
+    // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
+    if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
+      const R = payload.form.town, F = formRoomMaps(keys);
+      Object.assign(textures, F.textures);
+      payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
+    }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
     const plans = resamplePlans(Object.keys(textures).filter((k) => k.startsWith('detail:')));
