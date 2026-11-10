@@ -870,6 +870,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (one sun a page: the live light's maps are drawn along the land's solved sun, the one its form and a baked
+    // building are lit by, where the world names none of its own)
+    if (read && payload.shadows && typeof payload.shadows === 'object' && !Array.isArray(payload.shadows.toLight) && Array.isArray(payload.form.land.sun) && payload.form.land.sun[2] > 0.05) payload.shadows = { ...payload.shadows, toLight: payload.form.land.sun };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)

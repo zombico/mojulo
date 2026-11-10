@@ -38,3 +38,19 @@
   cells along a wandering line (`scene/channels/form-grass.js` `GRASS_EDGE`), thinning out toward it. Inside a patch
   nothing changes.
 
+- **A city's massing is drawn as form** (a geocity read in gen-7, by day; gen-6, a city at night and the engine
+  handoff's read are as they were). Its towers, podiums, blocks, roads, walks and walls (the `geocity:` faces; the
+  glass, a lit window and a detail lot's skin are left as painted, the land's ground is the land's) carry their paint
+  as it shows lit and are baked with their colour and their light apart, as a town's are (`geocity/scene.js`,
+  `form/sun-light.js`); a town composed into a metro comes baked by its own hand. The sun's shadow is the page's:
+  where the page takes live shadows, no shadow is baked and the hour's map takes each face's sun share away to the
+  pixel, a tower's shadow lying sharp across the block beside it; a read with no live light bakes it, tested against
+  the massing. The frontage a street repeats is still paint. Seen in Chrome on a small and a mid valley-morning
+  lakeshore city, beside gen-6 and the gen-7 read before it.
+- **One sun a page.** On a page whose land is drawn as form, the live light's maps (the actors' and the hour's) are
+  drawn along the land's solved sun where the world names none of its own (`worlds/world-scene.js`,
+  `shadows.toLight`). A gen-7 geocity named none, so its buildings' live shadows fell along a default sun while its
+  land was lit and shadowed by the cube's: the two crossed, and a wall turned to the land's sun stood in the other's
+  shade. Every gen-7 page with a form land and live shadows moves to the land's sun; gen-6 pages are as they were.
+- **A city with no industry district is made.** A small metro whose plan lays no industry threw while its payload was
+  assembled (`geocity/scene.js`, its wires' word read from a count that was not there).
