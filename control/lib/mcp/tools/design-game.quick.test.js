@@ -897,9 +897,11 @@ describe('design_game quick', () => {
     const walls = L.blocks.filter((b) => b.form === 'wall');
     expect(Math.max(...walls.map((b) => b.length))).toBeCloseTo(26.6, 1);
     // catwalks are not laid yet: said, with what would close it; every other law holds
-    const advice = JSON.stringify(out).match(/arena: [^"]*/g) ?? [];
+    // (said on the step that gave it and, read whole, once at the top: gameworld/routing.js runAdvice)
+    const advice = [...new Set(JSON.stringify(out).match(/arena: [^"]*/g) ?? [])];
     expect(advice).toHaveLength(1);
     expect(advice[0]).toMatch(/'catwalks' is not laid yet/);
+    expect(out.advice.run).toEqual([{ says: advice[0], steps: 1 }]);
   }, 240_000);
 
   it('fight: each fighter designed by the character loop (a sheet made into a character) or adopted, fought in its own body on an arena', async () => {
