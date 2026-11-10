@@ -39,6 +39,7 @@ import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
 import { hasScripts, withScripts, scriptStage } from './scene-script.js';
 import { questProgram } from './quests.js';
+import { libraryProgram } from './library.js';
 import { withPartyCues } from './party.js';
 import { withRoutineCues } from './routines.js';
 import { withBattle } from './battles.js';
@@ -249,6 +250,8 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
   // the quests' journal (quests.js): the page keeps it over the flags
   if (play.quests !== undefined) { const quests = questProgram(play); if (quests.length) out.quests = quests; }
+  // the library's shelf (library.js): the page keeps it over the flags and opens a book as its reader
+  if (play.library !== undefined) { const library = libraryProgram(play); if (library.length) out.library = library; }
   const pages = menuPages(play);
   if (pages.length) out.menus = pages;
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them

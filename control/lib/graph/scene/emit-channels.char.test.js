@@ -671,6 +671,30 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // pose layers and the sheathed body's figures; that line's turret view, boat water, the figure-less loadout, a round's
 // drag, the person's sprint on Shift and its walk, over-the-shoulder rounds. The merged page carries both, each still
 // behind its own opt-in; no fixture's play changed by the meeting itself.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the pages' own house): `board` and `holo` only. The board
+// page says its grid-to-world point, its bus push and its banner once and hands them to the tower defence and the
+// skirmish (they were written twice, the banner three times); a tower defence's letters are its own, so S sells and no
+// longer pans the camera too. The holo's promotion picker is put away by a press on the board or by Escape (it had no
+// way out). No other page inlines the board page or the holo's client.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the table's parts): `brawl` only, the one fixture that
+// inlines the game UI runtime's kernel. The kernel gains three components (a card, a log, a small series), `why` on a
+// disabled button, slot, row and cell, and their words; the brawler's yard uses none of them and draws as before.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the table on it): `brawl` again, for the sheet it carries.
+// A card in a grid keeps its face (it was drawn bare there), and a face-down card's count wraps inside its back. The
+// yard draws no card.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the board on it): `board` only. The board page takes the
+// board's UI as two more trailing arguments (the tower defence's and the skirmish's pattern), says what a control
+// means once (`intent`, which its own keys now go through), and back from an aim returns the keys to the action menu
+// (they stayed with the cursor). A skirmish under the UI keeps its orders on its own keys, so the page's keys pass in
+// that mode. A board without `ui` carries no runtime; the fixture gains the hooks' lines alone.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the holo arena on it): `holo` only. The arena's client asks
+// whether the block was given the arena's UI (holo-ui.js) and, with one, hands it the overlay's words, the picker and
+// the cursor's cells; with none it draws its canvas as before. An arena without `ui` carries no runtime: the fixture
+// gains the hooks' lines alone.
+// Re-pinned 2026-11-10 (battle city on the game UI runtime, the default): `holo` only. An arena is drawn by the game UI
+// runtime unless it says `ui: false`, so the fixture (which names no `ui`) now carries the runtime, its sheet and its
+// page beside the arena's client. The `board` fixture hands the page its data without the scene's reader, so it
+// stays the board with no `ui`.
 // Re-pinned 2026-11-09 (1109-run-and-gun: the range): `brawl` only. Its page inlines the guns, the gunner's reader, the
 // shooting crowd, the range's practice and the yard's client (rounds in flight, a foe's warning, the gun in the hand;
 // special in play no longer opens the move list).
@@ -690,6 +714,13 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-10 (the cast channel: brawl): `brawl` only. Its page inlines the yard's client, whose rig is the cast
 // rig's (one key, the sky and the rim in the bodies' own shader: brawl-yard.client.js yardRig); the fixture names no
 // register, so it carries no rig and no kit, only the client's new source.
+// Re-pinned 2026-11-10 (1110-battle-city-mana-ui-integration merging 1105-rc): `brawl`, `holo` and `board`, the three
+// fixtures this line moved. `brawl` was moved by both lines (the candidate's range and guns in its page; here the game
+// UI runtime's kernel and sheet it inlines, which gained a table's parts): the merged page carries both. `holo` and
+// `board` are this line's alone, as noted above. No other fixture differs from the candidate's pin.
+// Re-pinned 2026-11-10 (1110-cast-channel merging 1105-rc): `brawl` only, moved by both lines (the candidate's game UI
+// runtime in its page; here the yard client's cast rig): the merged page carries both. No other fixture differs from the
+// candidate's pin.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

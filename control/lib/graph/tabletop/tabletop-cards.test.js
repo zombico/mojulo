@@ -190,9 +190,9 @@ describe('cards: what is hidden, the computer', () => {
 
   it('the page carries the card game and draws the same twice', () => {
     const html = tabletopPageHtml(deckGame());
-    expect(html).toContain('function tabletopCardClient(D, T, M, TV)');
+    expect(html).toContain('function tabletopCardClient(D, T, M, TV, UI)');
     expect(html.match(/<\/script>/g)).toHaveLength(1);
     expect(tabletopPageHtml(deckGame())).toBe(html);
-    expect(tabletopPageHtml(draftGame())).toContain('function tabletopCardClient(D, T, M, TV)');
+    expect(tabletopPageHtml(draftGame())).toContain('function tabletopCardClient(D, T, M, TV, UI)');
   });
 });

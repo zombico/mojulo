@@ -39,6 +39,11 @@ import { battleParty, PARTY_SLICE, BAG_SLICE, PACKS } from './battles.js';
 import { storyCarried, STORY_SLICE } from './levels.js';
 import { resolveTechDirection } from './tech-direction.js';
 import { technologyOfWords } from './compose.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
+
+// a world's `ui` as a board takes it (board/board-ui.js): the look the interface department resolved, its languages; a
+// world without `ui` gives none, and its boards draw their own panels
+const boardUi = (G) => (G.ui === undefined ? {} : { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } });
 
 export const BOARD_CAP = 4;
 export const MAP_DOTS = 24;
@@ -55,7 +60,7 @@ export function boardLevelOrder(G, stage, { ref, title, packs = [], figures = {}
   const foes = packs.flat().slice(0, MAX_FOES).map((foe) => ({ id: `foe-${++n}`, foe }));
   const own = Object.fromEntries(OWN.filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   const battle = { party, ...(draw ? { draw: draw.map((p) => p.slice(0, MAX_FOES)) } : { foes }), deploy: 'near', cap: opts.cap ?? BOARD_CAP, seed: `${G.id}:${seed}`, rules: { lose: { leader: 'hero' }, ...(opts.rules ?? {}) }, ...(Object.keys(own).length ? { rpg: own } : {}) };
-  const board = { ...(opts.cols !== undefined ? { cols: opts.cols } : {}), ...(opts.rows !== undefined ? { rows: opts.rows } : {}), battle, ...(opts.talk ? { talk: opts.talk } : {}) };
+  const board = { ...(opts.cols !== undefined ? { cols: opts.cols } : {}), ...(opts.rows !== undefined ? { rows: opts.rows } : {}), battle, ...(opts.talk ? { talk: opts.talk } : {}), ...boardUi(G) };
   const game = { levelRef: ref, mechanics: [{ kind: 'board', ...(exit ? { exit } : {}) }, { kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }] };
   return { tool: 'create_sketch', args: { title: name, manifest: { ...stage.manifest, title: name, board, ...slotPlay(G, scenes), game } } };
 }
@@ -87,7 +92,7 @@ export function rtsLevelOrder(G, stage, { ref, title, quick: Q, world: W } = {})
 export function tdLevelOrder(G, stage, { ref, title, quick: Q } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`, own = Q.board === true ? {} : Q.board;
   const td = { ...(Q.waves !== undefined ? { waves: Q.waves } : {}), ...(Q.lives !== undefined ? { lives: Q.lives } : {}), ...(own.gold !== undefined ? { gold: own.gold } : {}) };
-  const board = { ...(own.cols !== undefined ? { cols: own.cols } : {}), ...(own.rows !== undefined ? { rows: own.rows } : {}), td };
+  const board = { ...(own.cols !== undefined ? { cols: own.cols } : {}), ...(own.rows !== undefined ? { rows: own.rows } : {}), td, ...boardUi(G) };
   return { tool: 'create_sketch', args: { title: name, manifest: { ...stage.manifest, title: name, board, game: { levelRef: ref, mechanics: [{ kind: 'board' }] } } } };
 }
 
@@ -128,5 +133,5 @@ export function mapLevelOrder(G, { ref, dots, geocube, name: epoch = 'map', seed
   const board = { from: 'blocks', side: 'outside', ...MAP_SIZE, seed: `${G.id}:${seed}`, relief: 0.45, ...(geocube !== undefined ? { geocube } : {}) };
   const game = { levelRef: ref, mechanics: [{ kind: 'map', slice: MAP_SLICE, dots: dots.map((d) => d.id) }] };
   const talk = G.battles?.board?.talk;
-  return { tool: 'create_sketch', args: { title: name, manifest: { kind: 'board', title: name, board, map: { dots }, ...(talk ? { talk } : {}), ...slotPlay(G, scenes), game } } };
+  return { tool: 'create_sketch', args: { title: name, manifest: { kind: 'board', title: name, board, map: { dots }, ...(talk ? { talk } : {}), ...boardUi(G), ...slotPlay(G, scenes), game } } };
 }

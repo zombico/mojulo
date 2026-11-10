@@ -171,8 +171,8 @@ widgets under a pointer (only the view knows where they are).
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
-| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type) |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars |
+| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
 | hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
@@ -288,8 +288,8 @@ ui: { theme?: 'world' | '<preset>' | '<card>' | { from?, …words }, colour?: 'w
 - The manual card `gameworld-interface` teaches the order of work, the registers, the families, the shelf's cards and
   the closed words.
 
-No game page draws its menus in mana-ui yet (the integration, below), so a game's `ui` lives in its recipe, its book
-and its review for now; the board is where a person looks at it.
+The play shell's screens, the RPG's menus, the board-game pages, the strategy boards and the holo arena draw a game's
+`ui` (the surfaces, below); the board is where a person looks at every part of it.
 
 ### The party language
 
@@ -543,6 +543,8 @@ into the sample state (`samples.js`).
 
 A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used as a screen of the spec.
 
+- `idioms-table.js` — a board game's own language (below): the seats, the hand, a row of cards, the prompt and its
+  actions, the log; one question at a time, an offer across the table; the places at the end.
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
@@ -644,6 +646,45 @@ register's: a soft gradient plate, a shadow under the words, warm gold). Each ke
 leans, stacks, breaks out, stands a shape behind the fight or slams (`fight-look.test.js`). The board draws the fight
 and training HUDs and every fight screen: `node scripts/mana-board.mjs <out.html> --theme fight-clean`.
 
+## The table's language
+
+A board game's UI is what sits round the board while it is played. The board, its cells and its pieces are the game's
+world, picked through the controls layer's `board` scheme; the table's parts are drawn over it by the same components,
+sheet and themes. It lives in `idioms-table.js` (shelf `table`) and holds to six principles:
+
+1. **The board is never covered.** The seats ride its top edge, the hand its foot, the log a side. A question takes
+   the centre only while it is being asked.
+2. **Whose turn it is is a shape and a place.** The seat to play is alight with a bar at its edge (`turn: true`), and a
+   seat's kit is a chip beside its name, never a colour alone.
+3. **One question at a time.** A promotion, a discard, a bid, a target: `choice-prompt`. Back leaves it only where the
+   game lets the choice be put off (`cancel`); with none, back does nothing.
+4. **The hand is at the foot, in reach.** A `card`'s state is a shape: what can be played now has an edge alight, what
+   is picked is lifted, what is spent lies on its side, what is hidden is a back and a count.
+5. **History is kept, never in the way.** The `log` holds every row, shows its end and counts the rest.
+6. **What cannot be done says why, where it is** (`why` on a disabled button, slot, row or cell).
+
+| shelf `table` | what |
+|---|---|
+| `seat-plates` | the seats along the top: chip, name, a note, the score, the clock, the seat to play alight; flagged `coverage`, so a table its broadcast covers asks the broadcast for them |
+| `card-hand` | your hand along the foot; a tap plays a card |
+| `card-row` | cards laid out to be taken or read (a market, a supply's piles, a tableau, another seat's backs), at the place the game names |
+| `action-bar` | the prompt and what can be done now, each action on its key, a disabled one saying why |
+| `game-log` | the game so far, numbered, each row its seat's chip |
+| `choice-prompt` | one question and its answers in a grid |
+| `trade-offer` | what you give and what you get, each a count turned, and the offer |
+| `table-results` | the outcome and why, the places by points (ties share a place), then what next |
+
+The pause over a table is the front's `pause-menu`. A strategy board's parts are on the `live` shelf: `turn-order` (a
+tactics battle's and a turn-based fight's, one part wherever it is drawn), `selection-grid`, `skirmish-lobby` and
+`skirmish-results` (its figures side against side, each side's strength over the match as a `spark`), beside
+`resource-bar`, `unit-card`, `combat-forecast`, `tactics-menu`, `command-card` and `wave-status`.
+
+**Its looks** are theme cards of the family `table`: `table-wood` (plates of the board's light inlay framed in its
+wood, a book face in mixed case) and `table-felt` (card stock on green felt). Neither names its sides: a table's kits
+are its players'. The board-game pages are drawn by them, and the strategy boards by the strategy parts (the
+surfaces, below). The board
+(`scripts/mana-board.mjs <out.html> --theme table-wood`) is where a person looks at every part.
+
 ## Sports and the broadcast
 
 A sport's page is covered by the broadcast (`docs/broadcast.md`): its title card, score bug, call plates, lower
@@ -738,6 +779,76 @@ only), and the page's RPG channel (`scene/channels/rpg-channel.js`) is its host:
 - **Input** is mana-host's (`connect(rt, view, manaControls())`, polled on the page's frame). The channel keeps P and a
   pad's select, which are play's bindings, not the menu's.
 
+### The board games
+
+The tabletop pages (`tabletop/tabletop-page.js` and its euro, tile, card and round siblings) are drawn by mana-ui by
+default; `tabletop: { …, ui: { theme?, languages?, language? } }` names another look or the game's languages, and
+`ui: false` keeps a page's own header, side panel and broadcast furniture. One spec and one host serve them all:
+`tabletop/table-ui.js`.
+
+- **The spec** is a HUD over the board (a menu button, the `action-bar`, the `game-log`, a row of counters for what is
+  held) and four screens: the menu (`pause-menu`), one question (`choice-prompt`), an offer (`trade-offer`) and, for a
+  game with no board, the table of cards (a grid for each zone, zones that share a row side by side).
+- **`read`** is what the page hands `UI.show(...)` after each move, built from the kernel's state and its legal moves.
+  A row that can be done carries a function of the page's; the host keeps it and the row carries its id, so an effect
+  is `{ emit: 'run', id }` and the kernel still says yes or no.
+- **Input** is the controls layer's, twice: `connect(rt, …)` with the `menu` scheme while a screen is up, and
+  `connect(board, …)` with the `board` scheme for the cursor over the board, the board standing where a screen would
+  (it has the keys and the pads while no screen is up). A key pressed while a screen is up never also acts on the
+  board. An action's own key (a letter the page names, else a digit by its place) does it while no question is up.
+- **The cursor** steps to the nearest place in the way pressed, over the cells' places on the screen; a board whose
+  targets change (the euro's places) says them again and the cursor moves among those.
+- **Coverage: one layer.** The seats, the calls and the result are the table's own parts. A page's client still says
+  them in the broadcast's calls (`TV.frame`, `call`, `result`, `table`, `hit`, `colour`, `clear`); with `ui` the object
+  that answers is `UI.tv(...)`, not the broadcast's DOM client (`broadcast/broadcast-dom.js`), which such a page no
+  longer carries: the seats are `seat-plates` (a running clock said again between moves), the tab a line under them,
+  a call a `moments` row there (one at a time by the broadcast's weights, never over the play), the result
+  `table-results` a beat after the end's word. The broadcast's data still makes the theme's sides and the pieces' kits.
+- **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
+- A round game played on a board still draws its own panel.
+
+### The strategy boards
+
+A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by
+default, in `tactician` (a level's `board.ui` or the `board` kind's `ui` names another look; a gameworld's `ui` reaches
+its battle, map and defence levels; `ui: false` keeps the board's own text panels).
+its battle, map and defence levels; `ui: false` keeps the board's own text panels).
+Its spec and its page are `board/board-ui.js`, handed to the board page as the tower defence's and the skirmish's
+pages are, so a board without `ui` carries none of it.
+
+- **The board page still plays.** Its text panels are written as ever and never shown; `boardManaPage` reads what the
+  page stands at (`api.get()`: the mode, the cursor, the readout, the menu's items, the order, the unit, a forecast, a
+  defence's hand) and rebuilds what the runtime reads only when that has changed.
+- **The parts**: `turn-order`, the unit in focus, an aim's forecast as a `table`, the readout and a `legend` of the
+  board scheme's controls in the glyphs of the device in hand, the end's word as a `banner`, `damage-numbers` over a
+  blow (each projected from where it landed in the world); for a defence, `wave-status` and its hand as `slot`s.
+- **The action menu is a screen** (`act`, an overlay beside the board): it opens while the page is in its menu and is
+  opened again when what it lists has changed; a pick runs the page's own function, back is the page's back.
+- **Input** is the controls layer's, as the tables': the `menu` scheme while the screen is up, the `board` scheme for
+  the board (the board page's `intent(action)`), a key the menu took never also the board's.
+- **Scoped.** Its sheet and theme are scoped to its own root (`#mana-board`), so it stands beside another surface's
+  runtime on the page. Its theme sets no cover between screens and no veil: the menu opens every turn.
+- **A skirmish** hands its figures as data whenever its panel is made (`rtsp.ui.view()`: the purse, the selection, the
+  commands with their keys and reasons, the lobby's rows, the results): `resource-bar`, the selection with its tiles,
+  the command card as `slot`s, and two screens, `skirmish-lobby` and `skirmish-results`, that follow the match's
+  phase. Its orders stay on its own keys and the pointer, so the board scheme is not connected for it; rebinding its
+  keys is not offered under the UI yet.
+
+### The holo arena
+
+A board game lifted into its hologram arena (`tabletop/holo-arena.js`) is drawn by mana-ui by default, in `modern`
+(`holo: { …, ui }` names another look; a world's `ui` reaches its board game's arena; `ui: false` keeps the arena's
+own canvas overlay). Its spec and its page are `tabletop/holo-ui.js`,
+given to the arena's block beside its client, which asks whether it was given one.
+
+- The client hands what it drew on its canvas each frame (`UI.show`: the two duelists, the title, the status, the
+  duel's word); the page draws again only when that has changed. The duelists are mirrored across the top, each its
+  light's chip, its life points and a thin bar, the second filling from the right.
+- A promotion or a drop is `choice-prompt`, put off by back.
+- The cursor is the `board` scheme's, over the cells projected as the camera shows them now (the camera turns to the
+  seat to play), drawn as a ring on the cell.
+- Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
@@ -773,5 +884,7 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
    shell's flow runner: [game-flow.md](game-flow.md)), and the RPG channel's battles, party menu and shops are too
    (`scene/channels/rpg-channel.js` rpgMana). Next: the play shell's pause, the theme's sounds there, a picture in the
    image component (a cover as key art), playscape's menu kinds, the arena shell's front, the versus pause and the
-   fight's HUD (the fight's language above).
+   fight's HUD (the fight's language above). The board-game pages are on it (`tabletop/table-ui.js`), the strategy boards
+   (`board/board-ui.js`) and the holo arena (`tabletop/holo-ui.js`); next: a skirmish's keys as a control scheme (so its remap is the controls layer's), a round
+   game played on a board, and the table's broadcast furniture folded into the `table` shelf.
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

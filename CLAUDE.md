@@ -252,7 +252,13 @@ Pointers only; each target carries its own design notes.
   wing at full scale, `wing.js`: its piers, its apron's marks, its stands' aircraft, crews and jet bridges, `jet-bridge.js`;
   the `/world` kind `airport`, minted by the transport hub's `mode: 'airport', show: 'miniature' | 'wing'`).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
-  one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
+  one self-contained page a book, printed to PDF by headless Chromium; its drawn plates, `book/drawn-plate.js`: field-term
+  forms seen from a two-point station under one light, toned in curves as a wash, an engraving or a woodcut):
+  [docs/books.md](docs/books.md).
+- Publications: [publication/](control/lib/graph/publication/) (a grimoire, a bestiary, a manual, a notebook, a comic as
+  one recipe of data, its front a cover, `cover.js`, read as the press's printed book, as an open book turned a spread at a time, `reader.js`, and in a level as
+  `play.library`, a shelf opened with L, `playscape/ui/library.js`; plates from the prop shelf, `props.js`, a new prop a
+  row; the lorecube's manual and tree published by `from-lore.js`): [docs/publications.md](docs/publications.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
   generic starter each and no published game, portable words, the kernel a page emits; composed with the egocube, the
   live RPG, programs and the epoch map; its game book on the press; minted by `create_game({ table_rpg })`, engine

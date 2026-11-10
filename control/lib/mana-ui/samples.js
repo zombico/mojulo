@@ -200,6 +200,25 @@ export const SAMPLE_STATE = Object.freeze({
     party: [{ name: 'Ayla', hp: 64, hpMax: 80, mp: 10, mpMax: 20, active: true }, { name: 'Rook', hp: 12, hpMax: 52, mp: 40, mpMax: 44 }, { name: 'Wren', hp: 47, hpMax: 58, mp: 8, mpMax: 16 }],
     foes: [{ id: 'g1', name: 'Warden', hp: 30, hpMax: 40, state: 'combat' }, { id: 'g3', name: 'Hound', hp: 8, hpMax: 22, state: 'combat' }],
   },
+  // a board game's table (idioms-table.js)
+  table: {
+    seats: [{ name: 'You', side: 0, turn: true, note: 'white', score: 3, clock: '4:12' }, { name: 'Bram', side: 1, note: 'computer', score: 5, clock: '3:40' }],
+    prompt: 'Your turn: build, trade or end it',
+    actions: [{ name: 'Roll', key: 'R', disabled: true, why: 'Already rolled this turn', then: { emit: 'roll' } }, { name: 'Road', key: '1', active: true, then: { emit: 'build:road' } }, { name: 'Town', key: '2', disabled: true, why: 'Needs brick, wood, wool and grain', then: { emit: 'build:town' } }, { name: 'End turn', key: 'E', then: { emit: 'end' } }],
+    hand: [{ id: 'c1', name: 'Copper', cost: '0', text: '+1 coin', tags: ['treasure'], state: 'playable', then: { emit: 'play:c1' } }, { id: 'c2', name: 'Smithy', cost: '4', text: 'Draw three cards.', tags: ['action'], state: 'picked', then: { emit: 'play:c2' } }, { id: 'c3', name: 'Estate', cost: '2', text: 'Worth 1 point.', tags: ['victory'] }, { id: 'c4', name: 'Hound', cost: '3', text: 'Guards the one beside it.', power: 2, guard: 3, side: 0, state: 'spent' }],
+    market: [{ id: 'm1', name: 'Village', cost: '3', count: '8', then: { emit: 'buy:m1' } }, { id: 'm2', name: 'Market', cost: '5', count: '10', then: { emit: 'buy:m2' } }, { id: 'm3', face: 'down', count: '21' }],
+    log: [{ text: 'e4', side: 0 }, { text: 'e5', side: 1 }, { text: 'Nf3', side: 0 }, { text: 'Nc6', side: 1 }, { text: 'Bb5', side: 0 }, { text: 'a6', side: 1 }, { text: 'Ba4', side: 0 }, { text: 'Nf6', side: 1 }],
+    choices: [{ id: 'q', label: 'Queen', then: { emit: 'promote:q' } }, { id: 'r', label: 'Rook', then: { emit: 'promote:r' } }, { id: 'b', label: 'Bishop', then: { emit: 'promote:b' } }, { id: 'n', label: 'Knight', then: { emit: 'promote:n' } }],
+    trade: { give: [{ label: 'Wood', var: 'table.trade.draft.giveWood', max: 4 }, { label: 'Wool', var: 'table.trade.draft.giveWool', max: 2 }], get: [{ label: 'Brick', var: 'table.trade.draft.getBrick', max: 4 }, { label: 'Ore', var: 'table.trade.draft.getOre', max: 4 }], draft: { giveWood: 2, giveWool: 0, getBrick: 1, getOre: 0 }, invalid: false, why: '' },
+    results: { outcome: 'You win', why: 'on points', places: [{ id: 'a', place: 1, name: 'You', score: 31, side: 0, self: true }, { id: 'b', place: 2, name: 'Bram', score: 24, side: 1 }, { id: 'c', place: 2, name: 'Cato', score: 24, side: 2 }] },
+  },
+  // a skirmish (idioms-live.js): what is selected, the match set up, its end
+  squad: [{ id: 'u1', name: 'Spear', hp: 40, hpMax: 60 }, { id: 'u2', name: 'Spear', hp: 60, hpMax: 60 }, { id: 'u3', name: 'Archer', hp: 12, hpMax: 40 }, { id: 'u4', name: 'Knight', hp: 110, hpMax: 140 }],
+  skirmish: {
+    setup: [{ label: 'You', var: 'skirmish.choice.you', options: ['Marsh', 'Crown'] }, { label: 'Opponent', var: 'skirmish.choice.them', options: ['Crown', 'Marsh'] }, { label: 'Level', var: 'skirmish.choice.level', options: ['easy', 'fair', 'hard'] }, { label: 'Fog', var: 'skirmish.choice.fog', options: ['on', 'off'] }],
+    choice: { you: 'Marsh', them: 'Crown', level: 'fair', fog: 'on' },
+    results: { outcome: 'Victory', sub: '12:40', rows: [{ what: 'trained', you: 34, them: 29, lead: 'you' }, { what: 'units lost', you: 18, them: 29, lead: 'you' }, { what: 'mined', you: 2100, them: 2450, lead: 'them' }], series: [{ label: 'You', values: [2, 4, 7, 9, 8, 12, 16] }, { label: 'Them', values: [2, 5, 8, 8, 6, 4, 0] }] },
+  },
   talk: { who: 'Keeper', text: 'You came by the garden gate. Few do. What brings you to the vale?', choices: [{ label: 'The east gate.', then: { emit: 'talk:gate' } }, { label: 'Who lives here?', then: { emit: 'talk:who' } }, { label: 'Goodbye.', then: { close: true } }] },
 });
 

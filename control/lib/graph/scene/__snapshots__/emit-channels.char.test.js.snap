@@ -10,9 +10,9 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > bare emits byte-identically 1`] = `"b671a9c7771cd768f4833451f9ba776e170474d1b518730749e069fba0e4fe1b"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > board emits byte-identically 1`] = `"05f825421aa5a91cced12bb82294e90804ecf2a1968773ef77e1fc3f8219a1dc"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > board emits byte-identically 1`] = `"4fc703c4666d3f5468da7607cbfa3927eadcae2e936356df41bc7acbcac339d9"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > brawl emits byte-identically 1`] = `"1164b65f0cbfdb1630fdfd62a665215fe83566c4de268566272c9d0c01c59157"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > brawl emits byte-identically 1`] = `"3cc6ba5a583275384da3a571c857e96ca3938c2bc37ddb71541b4f79e0834fe2"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > broadcasts emits byte-identically 1`] = `"f93457e21249440f5802907c2a908da714d99073d88d5d73967111f567109424"`;
 
@@ -80,7 +80,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > heat-sphere emits byte-identically 1`] = `"67002fcaaa4a3e598a366e4a1de2abe26b2ce1819fe36ce34511e9d57c5e3145"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > holo emits byte-identically 1`] = `"a18bd0196c27f2d9f04424fafe74df89af20bed2b1ae8d142853012752c85bf1"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > holo emits byte-identically 1`] = `"7006209e6cd9413695ab074f192f2d317a41a9c29863aa3044b3c3d87bc318f7"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > innings emits byte-identically 1`] = `"d4f92a75eeebe17571e5151b6451bfe44a063a7ed4814a7980df9964bca5c2f4"`;
 

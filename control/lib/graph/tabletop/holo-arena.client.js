@@ -38,6 +38,8 @@ const PIECE_SCALE = 1.6;   // a hologram stands taller than a token: its body in
 
 // ── the overlay and the camera ───────────────────────────────────────────────────────────────────────────────
 
+// the arena's UI (holo-ui.js), when the arena has one: it draws the overlay's words and the picker, and has the keys
+const UI = typeof HOLO_UI !== 'undefined' ? HOLO_UI : null;
 const ov = document.createElement('canvas');
 ov.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:6';
 wrap.appendChild(ov);
@@ -391,6 +393,8 @@ const picker = document.createElement('div');
 picker.style.cssText = 'position:absolute;left:50%;bottom:16%;transform:translateX(-50%);display:none;gap:10px;z-index:8;pointer-events:auto';
 wrap.appendChild(picker);
 function pick(moves) {
+  const said = (m) => { const kind = m.promote || m.drop || S.pieces[m.p].kind; return (HA.kinds[kind] && HA.kinds[kind].name) || kind; };
+  if (UI) { UI.ask(moves.map((m) => ({ label: said(m), run: () => play(m) }))); return; }
   picker.innerHTML = '';
   for (const m of moves) {
     const b = document.createElement('button'), kind = m.promote || m.drop || S.pieces[m.p].kind;
@@ -428,8 +432,13 @@ function lightSelection() {
   if (sel < 0) return markCells([]);
   markCells([[sel, 0xffffff], ...legal.filter((m) => m.from === sel).map((m) => [m.to, m.cap.length ? 0xff4f7a : 0x5cff8a])]);
 }
-wrap.addEventListener('pointerdown', (ev) => click(cellUnder(ev)));
-window.addEventListener('keydown', (e) => { if (e.code === 'Enter' && phase === 'over') begin(lastParams || {}); });
+// a choice not made: a press on the board, or Escape, puts the picker away (the press then picks as any other)
+wrap.addEventListener('pointerdown', (ev) => { if ((ev.target.closest && ev.target.closest('button')) || (UI && UI.busy())) return; picker.style.display = 'none'; click(cellUnder(ev)); });
+window.addEventListener('keydown', (e) => {
+  if (UI) return;   // the arena's UI has the keys (the controls layer's hosts)
+  if (e.code === 'Escape') picker.style.display = 'none';
+  if (e.code === 'Enter' && phase === 'over') begin(lastParams || {});
+});
 
 // ── the frame ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -463,12 +472,13 @@ function lpPanel(s, x, align) {
 function draw(dt) {
   g2.setTransform(ODPR, 0, 0, ODPR, 0, 0);
   g2.clearRect(0, 0, OW, OH);
-  if (!S) { outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
+  if (!S) { if (UI) UI.show({ title: HA.title, seats: [], status: '', banner: 'GET READY' }); else outlined('GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
   frameCamera(dt);
   for (let s = 0; s < 2; s++) { const d = lp[s] - lpShown[s]; lpShown[s] += Math.abs(d) < 1 ? d : d * Math.min(1, dt * 4); }
+  const status = ended ? (phase === 'over' && !hosted ? 'press Enter to duel again' : '') : queue.length || beat ? (line.length ? line[line.length - 1] : '') : isHuman(S.side) ? (S.chain >= 0 ? 'jump again' : `${nameOf(S.side)}: your move`) : `${nameOf(S.side)} is thinking…`;
+  if (UI) { UI.show({ title: HA.title, seats: [0, 1].map((n) => ({ name: nameOf(n), lp: Math.round(lpShown[n]), max: LP_START, live: !ended && S.side === n })), status, banner: banner ? banner.text : '' }); return; }
   lpPanel(0, 16, 'left'); lpPanel(1, OW - 16, 'right');
   text(HA.title, OW / 2, 26, 15, 'rgba(220,250,255,0.85)', 'center', 700);
-  const status = ended ? (phase === 'over' && !hosted ? 'press Enter to duel again' : '') : queue.length || beat ? (line.length ? line[line.length - 1] : '') : isHuman(S.side) ? (S.chain >= 0 ? 'jump again' : `${nameOf(S.side)}: your move`) : `${nameOf(S.side)} is thinking…`;
   if (status) text(status, OW / 2, OH - 26, 15, '#dff9ff', 'center', 600);
   if (banner) outlined(banner.text, OW / 2, OH * 0.28, 48, banner.color);
 }
@@ -492,6 +502,20 @@ function stepHoloArena(t) {
   // the computer's turn, a beat after the last one played out
   if (phase === 'play' && !ended && !queue.length && !beat && !isHuman(S.side) && (thinkAt += dt) > 0.35) computer();
   draw(dt);
+}
+
+// the board's cursor under the UI (the board scheme: keys and pads): a ring on a cell, moved over the cells as the camera
+// shows them; confirm picks as a press there does (or duels again once it is over), back lets a picked piece go
+if (UI) {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(CELL * 0.42, CELL * 0.47, 4), additive(0xffffff, 0.9)), v3 = new THREE.Vector3();
+  ring.rotation.z = Math.PI / 4; ring.visible = false; scene.add(ring);
+  UI.board({
+    points: () => HL.cells.map((_, i) => { const p = cellAt(i); v3.set(p[0], p[1], p[2]).project(camera); return v3.z > 1 ? null : [(v3.x + 1) / 2, (1 - v3.y) / 2]; }),
+    first: () => { const m = S && legal.find((x) => x.from >= 0); return m ? m.from : 0; },
+    show: (i) => { const p = cellAt(i); ring.position.set(p[0], p[1], p[2] + 0.02); ring.visible = true; },
+    pick: (i) => { if (phase === 'over' && !hosted) begin(lastParams || {}); else click(i); },
+    back: () => { if (sel >= 0 && S.chain < 0) { sel = -1; markCells([]); return true; } return false; },
+  });
 }
 
 window.__mojHolo = {

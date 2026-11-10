@@ -36,6 +36,23 @@ beforeAll(async () => {
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
 describe('the board on the World page', () => {
+  it('is drawn by the game UI runtime by default: the player\'s turn is its action menu, picked by keys, and the turn passes on', async () => {
+    if (!browser) return;
+    const page = await open({ board: { seed: 'flat', relief: 0, cols: 6, rows: 6 }, battle: { seed: 'ui', players: ['party'], party: [{ id: 'ayla', class: 'fighter', at: 'B1' }], foes: [{ id: 'g1', foe: 'goblin', at: 'B6' }] } });
+    await page.waitForFunction(() => window.__mojBoardUi && window.__mojBoard.mode === 'menu' && window.__mojBoardUi.rt.state().screen === 'act', { timeout: 20000 });
+    const menu = await page.evaluate(() => window.__mojBoardUi.state.t.menu.map((m) => m.label));
+    expect(menu).toEqual(['Move', 'Act', 'Wait']);
+    const who = await page.evaluate(() => window.__mojBoard.state().turn.who);
+    // Wait, then the facing it ends on: the menu scheme's keys, then the board scheme's
+    await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__mojBoard.mode === 'face', { timeout: 5000 });
+    await page.waitForFunction(() => window.__mojBoardUi.rt.state().screen === null, { timeout: 5000 });   // the menu leaves on the UI's next frame
+    await page.keyboard.press('Enter');
+    await page.waitForFunction((w) => { const S = window.__mojBoard.state(); return S.n > 0 || (S.turn && S.turn.who !== w); }, { timeout: 5000 }, who);
+    expect(await page.evaluate(() => typeof window.__mojBoardUi.state.t.turns.length)).toBe('number');
+    await page.close();
+  }, 120000);
+
   it('lets the minds fight a battle in the page to the end the same battle reaches in Node', async () => {
     if (!browser) return;
     const page = await open(fight([]));
@@ -77,7 +94,11 @@ describe('the board on the World page', () => {
       return { result: b.result, text: document.body.innerText };
     });
     expect(end.result.winner).toBeTruthy();
-    if (end.result.winner === 'party') expect(end.text).toMatch(/Victory\n7 xp · 1 class points · 8 gold/);
+    // (the end's word is the board UI's banner, drawn on its next frame)
+    if (end.result.winner === 'party') {
+      await page.waitForFunction(() => /victory/i.test(document.body.innerText), { timeout: 5000 });
+      expect(await page.evaluate(() => document.body.innerText)).toMatch(/Victory\s+7 xp · 1 class points · 8 gold/i);
+    }
   }, 120000);
 
   it('fights a game\'s level: the party as the store has it, the spoils back to the store, the level won on the board', async () => {
@@ -421,7 +442,7 @@ describe('the board on the World page', () => {
   it('plays a match end to end: the lobby, the match, giving up, the results, a rematch, and leaving', async () => {
     if (!browser) return;
     const { payload } = await resolveWorldScene({ ref: 'match', title: null, manifest: { kind: 'board', board: { seed: 'match', relief: 0.1, cols: 11, rows: 18 },
-      rts: { match: true }, game: { levelRef: 'match', mechanics: [{ kind: 'board' }] } } });
+      rts: { match: true }, ui: false, game: { levelRef: 'match', mechanics: [{ kind: 'board' }] } } });   // (ui: false: the skirmish's own lobby and results, by their buttons)
     const page = await browser.newPage();
     await page.setViewport({ width: 1120, height: 780 });
     await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
@@ -456,7 +477,7 @@ describe('the board on the World page', () => {
   it('commands by its card: a building shown with what it trains, a box of units with their commands, patrol by button and click, keys rebound', async () => {
     if (!browser) return;
     const { payload } = await resolveWorldScene({ ref: 'card', title: null, manifest: { kind: 'board', board: { seed: 'card', relief: 0.1, cols: 9, rows: 12 },
-      rts: { army: 3, gold: 200, enemy: { gold: 0, workers: 0 }, ai: { workers: 0, wave: 30 }, keys: { idleRule: 'KeyO' } }, game: { levelRef: 'card', mechanics: [{ kind: 'board' }] } } });
+      rts: { army: 3, gold: 200, enemy: { gold: 0, workers: 0 }, ai: { workers: 0, wave: 30 }, keys: { idleRule: 'KeyO' } }, ui: false, game: { levelRef: 'card', mechanics: [{ kind: 'board' }] } } });   // (ui: false: the skirmish's own card and its keys panel)
     const page = await browser.newPage();
     await page.setViewport({ width: 1120, height: 780 });
     await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });

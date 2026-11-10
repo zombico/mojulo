@@ -63,6 +63,8 @@ import { levelLawsOf, STAFFING, readLedger, notesWith, pullThrough, remitAdvice,
 import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskRepository, GameworldProductionRepository, GameworldReqNoteRepository } from '@/lib/db/repositories/gameworld-reqs.js';
 import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpointLevels, productionSummary } from '@/lib/graph/gameworld/production.js';
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
+import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
+import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
 import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
 import { segmentUnits, checkSegment, segmentRemit } from '@/lib/graph/gameworld/segments.js';
@@ -312,6 +314,9 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
     // a run compiles; walking each level is a check, asked for (`check: true`): an audit step is left out of a run that
     // does not ask, its last verdict kept
     if (step.audit && !check) return;
+    // the plan verified before anything is walked (gameworld/level-plan.js): a level whose plan is known wrong is not
+    // walked, nor any other (the walk is all or nothing); the readout says what the plan found
+    if (step.audit && (beatPlan(W).length || stagePlan([first[0], ...rest]).length)) return;
     const now = step.audit ? await auditedPrint(step, browser) : storedPrint(step.ref);
     const action = decide(step, made[step.key], now, { force });
     // the budget spent: a step that would make or remake is left for the next run, said as pending
@@ -390,7 +395,11 @@ async function compileReadout(ref, world, { check = false } = {}) {
     else if (s.audit) actions[s.key] = !check ? 'unchecked' : !s.ready ? 'waiting' : !made[s.key] || moves(s.order.level) || moves('game') ? (made[s.key] ? 'remake' : 'make') : 'keep';
     else actions[s.key] = decide(s, made[s.key], storedPrint(s.ref));
   }
-  return compileCheck(steps, { actions, row: (r) => SketchRepository.getByRef(r), budgetMs: runBudgetMs(), plannedBeats: plays?.planned.length ?? 0 });
+  // the plan on paper (gameworld/level-plan.js): what a level lays against its beat and its own win, found before a
+  // walk; with a check, the stages the walk cannot prove and why
+  const report = walkReport(W, steps), walk = report ? { ...(report.plan ? { plan: report.plan } : {}), ...(check && report.unwalked ? { unwalked: report.unwalked } : {}) } : null;
+  const levels = steps.filter((s) => s.key.startsWith('level-')).length;
+  return { ...compileCheck(steps, { actions, row: (r) => SketchRepository.getByRef(r), budgetMs: runBudgetMs(), plannedBeats: plays?.planned.length ?? 0 }), ...(walk && Object.keys(walk).length ? { walk: { levels, ...walk } } : {}) };
 }
 
 // the sport game's laws said when they hold too (gameworld/runner.js sportLaws, sportStyle)
@@ -555,6 +564,12 @@ function readout(ref, world, context = {}) {
   const gauntletGaps = gauntletAdviceOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(MQ?.laws.length ? { mainQuest: MQ.laws } : {}), ...(loopGaps.length ? { loop: loopGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
+  // a beat's level that does not lay what the beat says (gameworld/level-plan.js): said, the write offered
+  const planned = beatPlan(world);
+  if (planned.length) { advice.plan = planned.map((p) => p.says); next.push({ step: 'plan', levels: [...new Set(planned.map((p) => p.level))], patch: planned.flatMap((p) => p.patch ?? []), card: 'gameworld-main-quest' }); }
+  // a book that stands on an intent with no ask on the ledger (gameworld/routing.js): said, and the ask leads
+  const unasked = askAdvice(world, { asked: GameworldAskRepository.list(ref).length > 0 });
+  if (unasked) { advice.intent = [unasked.says]; next.unshift(unasked.next); }
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM ? { measured: { range: rangeM } } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
@@ -1284,6 +1299,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   if (run || chapter) {
     full.compile = await compileReadout(ref, W, { check: check === true });
     if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
+    // a check that walks none says why (the plan's findings, the stages the walk cannot prove), never nothing
+    if (check === true && !full.audits && full.compile.walk) { const { levels: of, ...why } = full.compile.walk; full.audits = { gate: 'machine', proved: 0, of, ...why }; }
   }
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
@@ -1317,6 +1334,24 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)
   const ticket = ask !== undefined ? linkAsk(ref, ask, { raised: ledger.summary?.raised ?? [], approve, revise, patched, ran }) : null;
   if (ticket) full.ask = ticket;
+  // (the ask this call cut answers the advice the readout gave before it was cut)
+  if (ticket && full.advice?.intent?.[0] === ASK_SAYS) {
+    const { intent: _i, ...rest } = full.advice;
+    full.advice = rest;
+    full.next = full.next.filter((n) => n.step !== 'ask');
+  }
+  // a run's advice, read whole: each distinct line its steps gave, and how many gave it (gameworld/routing.js)
+  const ranAdvice = runAdvice(ran);
+  if (ranAdvice.length) full.advice = { ...full.advice, run: ranAdvice };
+  // the game built with no ask on record is stamped in the build ledger; an ask that links a run since lifts it
+  if (ran) {
+    const made = unaskedStamp(W.made, { asked: GameworldAskRepository.list(ref).length > 0, needs: needsAsk(W), built: ran.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake')) });
+    if (made !== W.made) {
+      const base = W;
+      W = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), base, { ...W, made });
+      await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+    }
+  }
   // a trace: from a ticket, the intent above it and the work below it
   if (trace !== undefined) return { ok: true, readout: 'trace', ref, trace: traceFrom(ref, trace, ledger.L.reqs) };
   // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)

@@ -8,6 +8,7 @@ import { inventoryCss } from '../../playscape/ui/inventory-dress.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
 import { sceneScript, sceneTakesOn, sceneTempoOn } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
+import { libraryScript } from './library-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
 import { statusElements, statusScript, transitKinds, FADE_KINDS } from './status-channel.js';
@@ -263,6 +264,7 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, { ...(wreck ? { wreck } : {}), ...(layer0 ? { layer0 } : {}), ...(floor && floor.flow ? { flow: { wind: events.flowWind || [0, 0] } } : {}) }) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
+  const library = Array.isArray(events.library) && events.library.length > 0;   // play.library: the shelf and its reader
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu
   const minigames = !!(events.minigames && typeof events.minigames === 'object');   // play.minigames: the games inside the game
   // the carved titles (events.titles, game/title-carve.js): the glyph atlas rides its own constant in the title channel, not
@@ -423,10 +425,10 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
 ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${trailOn ? ' __stepSwing();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${trailOn ? ' __stepSwing();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${library ? ' __stepLibrary(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }
 

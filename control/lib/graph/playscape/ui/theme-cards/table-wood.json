@@ -1,0 +1,20 @@
+{
+  "id": "table-wood",
+  "name": "Table Wood",
+  "about": "A board game's own furniture: plates of the board's light inlay framed in its wood, a book face in mixed case, the marker's red for the seat to play. Quiet, so the board reads; nothing leans, stacks or slams.",
+  "family": "table",
+  "tags": ["board game", "tabletop", "chess", "calm"],
+  "author": "mojulo",
+  "from": "tactician",
+  "tokens": { "ink": "#2b2622", "panel": "#e8d9b8", "line": "#5b4632", "accent": "#a8321f", "accent2": "#2f7048", "harm": "#8a2113" },
+  "type": { "body": "serif", "display": "serif", "mono": "mono" },
+  "frame": "rule",
+  "corner": "soft",
+  "case": "none",
+  "motion": "ease",
+  "slant": "none",
+  "transition": "fade",
+  "backing": "none",
+  "breakout": "none",
+  "stage": "none"
+}
