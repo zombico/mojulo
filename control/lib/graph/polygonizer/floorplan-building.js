@@ -32,12 +32,9 @@
 
 import { shadeHex, makeLight } from './vexar.js';
 import {
-  structurizeFloorplan, houseMeru,
+  FLOORPLAN_DEFAULTS, structurizeFloorplan, houseMeru,
   buildSwitchbackFlight, STAIR_DEFAULTS,
 } from './floorplan-structure.js';
-// (read as this module loads, BUILDING_DEFAULTS below: from the module that reads no other, since this one is
-// reached from inside floorplan-structure's import cycle before that module has run)
-import { FLOORPLAN_DEFAULTS } from './floorplan-defaults.js';
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import {
