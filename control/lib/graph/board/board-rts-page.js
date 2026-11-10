@@ -22,7 +22,7 @@
  *   its idle rule, auto-cast; a building: train, research, upgrade, repeat, rally), a targeted one armed for the next
  *   click; a button that cannot act says why. Every key is the kernel's HOTKEYS', the game's rts.keys over them, and
  *   the player's own over those (the card's Keys panel, kept in the browser)
- *   the clock: the game's time in the panel; P pauses, [ ] slow it and speed it (half, normal, faster, double); every
+ *   the clock: the game's time in the panel; Pause pauses, [ ] slow it and speed it (half, normal, faster, double); every
  *   action the player takes goes through the kernel's one way in (act) and is logged by its step, so the game replays
  *   from its log; each side's actions a minute (APM, the human measure) beside the clock
  *   control groups: Ctrl+1 … 9 keeps the selection (a building alone, too), Shift+n adds to it, n takes it again (twice
@@ -39,7 +39,7 @@
  *   match went)
  *
  * `boardRtsPage(api)` runs on the page only, inside the board channel's block (api: { THREE, scene, camera, renderer,
- * D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push }); emitted only when a board has `rts`. It returns
+ * D, B, root, tops, panel, banner, FX, RTK, spotAt, worldAt, push, focus }); emitted only when a board has `rts`. It returns
  * { step(dt), readout(spot), probe }.
  */
 
@@ -290,7 +290,7 @@ export function boardRtsPage(api) {
 
   // ── the panel: the purse, what is selected and what it can do, what the next click will do ───────────────────────
   const pan = api.panel('left:12px;top:12px;pointer-events:none');
-  const banner = api.panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none;text-align:center');
+  const banner = api.banner();
   const boxEl = typeof document !== 'undefined' ? document.createElement('div') : null;
   if (boxEl) { boxEl.style.cssText = 'position:fixed;border:1px solid #7dffb0;background:rgba(125,255,176,0.12);pointer-events:none;display:none;z-index:9'; document.body.appendChild(boxEl); }
   // what the player's side can raise (B, B again for the next), and the step its building researches next (T)
@@ -315,7 +315,20 @@ export function boardRtsPage(api) {
     const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${fogged ? `${V.units.filter((u) => u.side === 'enemy').length} in sight` : R.units.filter((u) => u.side === 'enemy').length}${hint ? `\n${hint}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
     drawInfo(); drawCard();
+    // what the board's UI reads (board-ui.js), made again whenever the panel is: the same figures, as data
+    if (api.ui) {
+      const lobby = phase === 'lobby', said2 = (o, k) => (k === 'player' || k === 'enemy' ? nameOf(o) : k === 'fog' ? (o ? 'on' : 'off') : String(o));
+      seen = { phase, clock: clock(R.t), paused, speed: SPEEDS[speedK], hint,
+        purse: [{ label: 'gold', value: R.gold.player }].concat(P.res2 ? [{ label: RTK.res2Name(cfg, 'player'), value: (R.ore && R.ore.player) || 0 }] : [], sup.cap ? [{ label: 'supply', value: sup.used + ' / ' + sup.cap }] : [],
+          [{ label: 'workers', value: workers }, { label: 'army', value: mine.length - workers }, { label: 'tier', value: tier() }]),
+        info: phase === 'play' ? infoData() : null,
+        commands: phase === 'play' && !result ? commands().map((c) => ({ a: c.a, label: c.label, key: keyName(c.key), why: c.why, armed: armed === c.a })) : [],
+        banner: banner.style.display === 'block' ? banner.textContent : '',
+        lobby: lobby ? ROWS.map(([k2, label, opts]) => ({ k: k2, label, options: opts.map((o) => said2(o, k2)), value: said2(choice[k2], k2) })) : null,
+        results: phase === 'results' && result ? summary() : null };
+    }
   }
+  let seen = null;
 
   // ── the keys: each action's KeyboardEvent.code (the kernel's HOTKEYS, the game's rts.keys, the player's own kept
   // in the browser), one action a key in each place it acts ─────────────────────────────────────────────────────────
@@ -828,7 +841,7 @@ export function boardRtsPage(api) {
 
   function pause(on) {
     paused = !!on;
-    if (!result) { banner.style.display = paused ? 'block' : 'none'; banner.textContent = paused ? 'Paused\nP to play on' : ''; }
+    if (!result) { banner.style.display = paused ? 'block' : 'none'; banner.textContent = paused ? 'Paused\n' + keyName(keys.pause) + ' to play on' : ''; }
     drawPanel();
     return paused;
   }
@@ -841,7 +854,19 @@ export function boardRtsPage(api) {
   let panelT = 0;
   sync(); drawPanel();
   if (phase === 'lobby') showLobby();
+  // the skirmish as the board's UI does it (board-ui.js): the same calls its buttons make
+  const ui = {
+    view: () => seen,
+    run(a) { const r = run(a); drawPanel(); return r; },
+    pick(id, drop) { sel = drop ? sel.filter((x) => x !== id) : [id]; drawPanel(); },
+    set(k2, n) { const row = ROWS.find((x) => x[0] === k2); if (phase === 'lobby' && row && row[2][n] !== undefined) { choice[k2] = row[2][n]; drawPanel(); } },
+    start() { const r = start(); drawPanel(); return r; },
+    rematch() { const r = rematch(); drawPanel(); return r; },
+    lobby() { showLobby(); drawPanel(); },
+    leave() { const r = leave(); drawPanel(); return r; },
+  };
   return {
+    ui,
     // the keys the skirmish takes before the board's camera does
     claims(e) { return !!binding || (phase === 'play' && !result && (/^Digit[1-9]$/.test(e.code) || e.code === 'Escape' || !!actionFor(e.code))); },
     step(dt) { lastDt = dt; advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },

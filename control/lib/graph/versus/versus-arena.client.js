@@ -25,7 +25,7 @@
  * abort). On its own it fights the arena's first two fighters, player 1 against the CPU, and offers another.
  */
 
-/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, renderer, makeFightFx, FX_SKINS, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
+/* global VERSUS_ARENA, castKit, THREE, scene, camera, controls, wrap, renderer, makeFightFx, FX_SKINS, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
    figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined, pushBox, moveList, signedFrames, manaUi, VERSUS_LAB */
 
 const AV = VERSUS_ARENA;
@@ -286,11 +286,13 @@ function placeCharacter(B, p, F, drawn) {
  * under one light that casts its shadows, so the form reads on every frame.
  *   - 'western': lit, as an engine lights it (its albedo, its relief, its roughness), the shadows soft
  *   - 'anime': cel, three tones stepped from the same light, the shadows stepped with them and the shade cool
- * The rig: a warm KEY from the camera's side and above (the level's own sun where it bakes one, a greybox's, so the
- * room and the bodies share it) that casts: onto the floor (a shadow catcher over the lane's floor) and across the body
- * itself (an arm over the chest); a low cool FILL from the other side, so the shadows stay deep; a RIM from behind, to
- * cut the figure from the room; a sky over a dark ground. The key follows the fight along the lane, its shadow's box
- * tight round the fighters. An arena made before the register carries none and lights its bodies as it always did. */
+ * The rig is the CAST RIG (color-theorist/cast-rig.js, with no cube its card: these numbers): a warm KEY from the
+ * camera's side and above (the level's own sun where it bakes one, a greybox's, so the room and the bodies share it)
+ * that casts: onto the floor (a shadow catcher over the lane's floor) and across the body itself (an arm over the
+ * chest); a sky over a dark ground with the low cool fill in it, and a RIM that cuts the figure from the room, both in
+ * the body's own shader (scene/channels/cast-rig.js) and none of them a light. The key follows the fight along the
+ * lane, its shadow's box tight round the fighters. An arena made before the register carries none and lights its
+ * bodies as it always did. */
 const REGISTER = AV.register === 'anime' || AV.register === 'western' ? AV.register : null;
 const KEY_TO = new THREE.Vector3(), KEY_DIR = new THREE.Vector3();
 function fightRig(register) {
@@ -301,36 +303,35 @@ function fightRig(register) {
   // (the key's direction in the lane's frame: the level's sun, turned out of the world's, else the camera's side above)
   if (AV.sun) KEY_DIR.set(AV.sun[0], AV.sun[1], AV.sun[2]).normalize().applyAxisAngle(new THREE.Vector3(0, 0, 1), -HEADING);
   else KEY_DIR.set(-0.35, -0.6, 0.72).normalize();
-  const key = new THREE.DirectionalLight(toon ? 0xfff6ea : 0xffeedb, toon ? 2.4 : 3.3);
+  // THE CAST RIG (color-theorist/cast-rig.js, the arena's `cast`; the kit: scene/channels/cast-rig.js): the key is the
+  // one light, its colour and level the rig's; the sky over the ground and the rim are in each body's own shader, so
+  // they light nothing but the bodies. The room is painted and unlit, so the key lights the bodies alone
+  const CAST = AV.cast, CU = castKit.uniforms(CAST), kl = CAST.key.linear, km = Math.max(kl[0], kl[1], kl[2], 1e-9);
+  const key = new THREE.DirectionalLight(new THREE.Color().setRGB(kl[0] / km, kl[1] / km, kl[2] / km, THREE.LinearSRGBColorSpace), Math.PI * km);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   const sc = key.shadow.camera; sc.left = -3.6; sc.right = 3.6; sc.top = 3.6; sc.bottom = -3.6; sc.near = 0.5; sc.far = 24;
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025;
   if (!toon) key.shadow.radius = 3;
-  const fill = new THREE.DirectionalLight(0xb9ccff, toon ? 0 : 0.28);
-  const rim = new THREE.DirectionalLight(0xffffff, toon ? 0.7 : 1.3);
-  fill.position.set(2.8, -2.4, 1.4); rim.position.set(0.6, 3.4, 3);
-  for (const L of [fill, rim]) { L.target.position.set(0, 0, 1); g.add(L, L.target); }
-  g.add(key, key.target, toon ? new THREE.HemisphereLight(0xc6d2ff, 0x5c5068, 0.75) : new THREE.HemisphereLight(0xdfe7f2, 0x2e2925, 0.3));
+  g.add(key, key.target);
   // the floor takes the key's shadow (the room's own surfaces are baked): a catcher a hair over the lane's floor
   const catcher = new THREE.Mesh(new THREE.PlaneGeometry(2 * LANE.half + 12, 14), new THREE.ShadowMaterial({ color: toon ? 0x1c1830 : 0x000000, opacity: toon ? 0.6 : 0.55 }));
   catcher.position.set(0, 1, 0.004); catcher.receiveShadow = true; catcher.renderOrder = 1;
   g.add(catcher);
   STAGE.add(g);
   // (the cel's three tones: the shadow side, the turn, the light; nearest, so they step)
-  const ramp = toon ? new THREE.DataTexture(new Uint8Array([92, 92, 92, 255, 165, 165, 165, 255, 255, 255, 255, 255]), 3, 1) : null;
-  if (ramp) { ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true; }
+  const ramp = toon ? castKit.ramp(CAST.bands) : null;
   return {
     toon, ramp, key,
     // the key and its shadow's box over the fight's middle
     follow(x) { KEY_TO.set(x, 0, 1); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 10); },
-    // a body's surface in the register
-    // a body's surface in the register, coated by its `coat` (bodyCoat: the body's own uniforms) when it has one
+    // a body's surface in the register, coated by its `coat` (bodyCoat: the body's own uniforms) when it has one, the
+    // rig laid over both
     material(o, coat) {
       const m = toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
         : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.62, metalness: 0, ...o });
       if (coat) coatMaterial(m, coat, toon);
-      return m;
+      return castKit.patch(m, CU, { register, surface: 'paint' });
     },
   };
 }
@@ -437,7 +438,8 @@ function fighterLights() {
 function buildRing() {
   // (in the lane's frame: the canvas is the lane's floor (z 0), the apron runs down to the level's ground H below it)
   const h = LANE.half + 0.45, H = LANE.floor, g = new THREE.Group();
-  const mat = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
+  // (under the fight's register the ring's pieces take the rig as the bodies do: its sky and its rim are no lights)
+  const mat = (color, rough = 0.85) => (RIG ? RIG.material({ color, roughness: rough, side: THREE.FrontSide }) : new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 }));
   const box = (w, d, t, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, d, t), m); b.position.set(x, y, z); g.add(b); return b; };
   box(2 * h + 0.5, 2 * h + 0.5, 0.08, 0, PLANE, FLOOR - 0.04, mat(0xd8d2c4, 0.95));                       // the canvas
   box(2 * h + 0.5, 2 * h + 0.5, H - 0.08, 0, PLANE, FLOOR - 0.08 - (H - 0.08) / 2, mat(0x17264f, 0.7));  // the apron

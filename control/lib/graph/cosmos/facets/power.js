@@ -118,6 +118,11 @@ export const POWER = Object.freeze({
       values: {
         simple: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js', note: 'a round on its cone, its cooldown and magazine' },
         realistic: { status: 'built', since: '2026-11-08', requires: ['power.combat=ranged'], lowers: 'lib/graph/gameworld/rounds.js', note: 'a spread that builds and settles, a climbing recoil, rounds by cartridge, their blow marking matter, the gun in the hero\'s hands, a quick knife; a shooter\'s goal or a hero carrying arms; measured by the combat book' },
+        // local 11-10 (1109-run-and-gun): the run & gun's guns on the brawler's belt, rounds that FLY slow enough to see and
+        // step off (never a hitscan), lobs and bursts, a stream that cannot pin a body, poise; the gunner's buttons (eight
+        // aims, plant, roll, a grenade), the shooting crowd firing on a warning, entrances, cover and riders; its practice
+        // the range and its wave tester (brawl-practice.js, brawl-waves.js); waits on the brawler's door
+        arcade: { status: 'local', effort: 'M', pkg: 'brawler', requires: ['power.combat=brawl'], lowers: 'lib/graph/brawl/brawl-guns.js', note: 'the run & gun\'s guns on the belt (brawl-guns.js, brawl-gunner.js): rounds that fly and are stepped off, lobs and bursts, poise, eight aims, a roll, the shooting crowd on its warning; its range and wave tester (brawl-practice.js, brawl-waves.js)' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },

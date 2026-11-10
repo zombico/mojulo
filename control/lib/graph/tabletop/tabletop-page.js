@@ -18,8 +18,7 @@
  */
 
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
-import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
-import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
+import { planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { tabletopGame } from './tabletop.js';
 import { buildTabletopMind } from './tabletop-mind.js';
@@ -29,16 +28,13 @@ import { cardPageHtml } from './tabletop-card-page.js';
 import { roundPageHtml } from './tabletop-round-page.js';
 import { pieceBodies } from './tabletop-bodies.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient, END_WORDS } from '../broadcast/broadcast-dom.js';
+import { readTableUi, tableUiCss, tableUiConfig, tableUiScript, tableUiBody } from './table-ui.js';
+import { LEVELS, r2, escapeHtml, scriptJson, levelSelect, tableCams, tableFaces } from './page-kit.js';
 
 const VIEWPORT = { width: 760, height: 560 };
 const UNIT = 60;
 const TOKEN = 0.74;
-const LEVELS = ['easy', 'fair', 'hard'];
 
-const r2 = (x) => Math.round(x * 100) / 100;
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// JSON inside a <script>: no '</script>' can close it early
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function tabletopPageHtml(G, opts = {}) {
   if (!G?.board && !G?.piles && !G?.round) throw new Error('tabletop page: the game needs a board, piles of cards or rounds');
@@ -50,10 +46,14 @@ export function tabletopPageHtml(G, opts = {}) {
   const level = opts.level ?? 'fair';
   if (!LEVELS.includes(level)) throw new Error(`tabletop page: level is ${LEVELS.join(', ')}`);
   const view = opts.view ?? 'plan';
-  if (K.round) return roundPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
-  if (K.card) return cardPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
-  if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
-  if (K.tile) return tilePageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast });
+  // the page is drawn by the game UI runtime (table-ui.js) in the table's own look unless the game says `ui: false`
+  // (its own header, side panel and broadcast furniture, as before the runtime)
+  if (opts.ui !== undefined && opts.ui !== false) { const bad = readTableUi(opts.ui); if (bad.length) throw new Error(`tabletop page: ${bad.join('; ')}`); }
+  opts = { ...opts, ui: opts.ui === false ? undefined : opts.ui ?? {} };
+  if (K.round) return roundPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });
+  if (K.card) return cardPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });
+  if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });
+  if (K.tile) return tilePageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title, broadcast: opts.broadcast, ui: opts.ui });
   const facing = K.T.ways.get(K.players[K.sideOf[human]].facing);
   // the person sits at their own side of the board: the plan and the table both turn to face their forward
   const turnRad = ((facing.angle - 90) * Math.PI) / 180;
@@ -68,17 +68,8 @@ export function tabletopPageHtml(G, opts = {}) {
 
   // the table: each cell's top and side as a placed div, a token's place on every cell, the cameras turned to the seat
   const turnPt = ([x, y, z]) => [x * Math.cos(turnRad) - y * Math.sin(turnRad), x * Math.sin(turnRad) + y * Math.cos(turnRad), z];
-  const cams = latticeCameras(L).map((c) => {
-    const wf = { ...c.worldFraming, cameraPosition: turnPt(c.worldFraming.cameraPosition), lookAt: turnPt(c.worldFraming.lookAt) };
-    const { matrix, perspective, center } = cameraMatrixFromWorldFraming(wf, VIEWPORT, UNIT);
-    return { name: c.name, matrix, perspective: r2(perspective), center };
-  });
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const faces = latticeFaces(L, { fills }).map((f) => {
-    const c = f.corners, u = sub(c[1], c[0]), v = sub(c[3], c[0]);
-    const cell = f.group.startsWith('cell:') ? K.T.byName.get(f.group.slice(5)) : -1;
-    return { cell, w: r2(Math.hypot(...u) * UNIT), h: r2(Math.hypot(...v) * UNIT), fill: f.fill, clip: f.clip ?? null, t: planeMatrix(c[0], u, v, UNIT) };
-  });
+  const cams = tableCams(L, VIEWPORT, UNIT, turnPt);
+  const faces = tableFaces(L, { fills }, UNIT, (name) => K.T.byName.get(name));
   // a token lies on its cell's top, its text upright for the seat
   const side = TOKEN * L.cell, ux = [Math.cos(turnRad), Math.sin(turnRad), 0], vy = [Math.sin(turnRad), -Math.cos(turnRad), 0];
   const tokens = L.cells.map((cl) => {
@@ -93,6 +84,7 @@ export function tabletopPageHtml(G, opts = {}) {
   const tv = tableBroadcastData(G.players, opts.broadcast);
   const data = {
     L, G, human, level, seed: opts.seed ?? 1, view, tv, ends: END_WORDS,
+    ...(opts.ui ? { ui: tableUiConfig(opts.ui) } : {}),
     plan: { W: r2(frame.W), H: r2(frame.H), cells: L.cells.map((c) => [r2((c.at[0] - frame.x0) * frame.px + frame.pad), r2((frame.y1 - c.at[1]) * frame.px + frame.pad)]), r: r2(frame.px * L.cell * 0.36), cellPx: r2(frame.px * L.cell), turn: r2(-(facing.angle - 90)), icons },
     table: { cams, faces, tokens, size: r2(side * UNIT), bodies, at, turns },
   };
@@ -137,12 +129,17 @@ export function tabletopPageHtml(G, opts = {}) {
   #pick div{background:var(--panel);border-radius:10px;padding:12px;display:flex;gap:8px}
   #pick button{font-size:28px;width:52px;height:52px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
   @media (max-width:600px){main{padding:16px 16px}aside{flex-basis:100%}}
-${broadcastDomCss(tv)}
-</style></head><body>
+${opts.ui ? '' : broadcastDomCss(tv)}
+${opts.ui ? tableUiCss(opts.ui, tv) : ''}</style></head>${opts.ui ? tableUiBody(`
+  <div id="boards">
+    <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}" width="${data.plan.W}" height="${data.plan.H}"><g id="board" transform="rotate(${data.plan.turn} ${r2(data.plan.W / 2)} ${r2(data.plan.H / 2)})">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="hl"></g></g><g id="toks"></g></svg></div>
+    <div id="table" class="viewport"><div class="view" id="view"></div></div>
+  </div>
+`) : `<body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="pass" style="display:none">Pass</button><button id="undo">Undo</button><button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>
@@ -154,12 +151,14 @@ ${broadcastDomCss(tv)}
   <aside><h2>Moves</h2><ol id="moves"></ol></aside>
 </main>
 <div id="pick"><div id="pick-row"></div></div>
+`}
 <script>
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-(${tabletopClient.toString()})(DATA, T, M, TV);
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
+(${tabletopClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>
 `;
@@ -167,14 +166,15 @@ const TV = (${broadcastDomClient.toString()})(DATA.tv);
 
 /* The page's own code: runs in the browser, references only its arguments and the DOM. TV is the broadcast
    (broadcast-dom.js): the seats, the calls, the result. */
-export function tabletopClient(D, T, M, TV) {
+export function tabletopClient(D, T, M, TV, UI) {
   const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human];
   const glyph = (kind) => { const g = D.G.pieces[kind] && D.G.pieces[kind].glyph; return g === undefined ? kind : g; };
   const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255); };
   const inkOn = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140 ? '#1a1512' : '#f3ede2'; };
-  let S, line, legal, sel, last, busy, level = D.level, view = D.view, turnStart = 0, tick = 0, fresh = false, ended = false;
+  let S, line, legal, sel, last, busy, level = D.level, view = D.view, turnStart = 0, tick = 0, fresh = false, ended = false, cur = -1, pad = null;
 
   // the table: the board's faces, then a token per piece
   const vw = $('view');
@@ -223,7 +223,7 @@ export function tabletopClient(D, T, M, TV) {
     TV.call({ text: end.reason === 'mate' ? 'Checkmate' : title, sub: why, tone: won === null ? 'neutral' : 'gold' });
     const vals = end.scores || (scored() ? T.scores(K, S) : placing() ? K.players.map(() => '') : captures());
     const order = K.players.map((_, s) => s).sort((a, b) => (a === won ? -1 : b === won ? 1 : vals[b] - vals[a]));
-    const rows = order.map((s) => ({ place: won === null ? 1 : s === won ? 1 : 2, name: who(s), note: s === me ? K.players[s].id : 'computer', color: s, value: vals[s] }));
+    const rows = order.map((s) => ({ place: won === null ? 1 : s === won ? 1 : 2, name: who(s), note: s === me ? K.players[s].id : 'computer', color: s, value: vals[s], you: s === me }));
     setTimeout(() => { if (ended) TV.result({ title, sub: why, tone: won === me ? 'gold' : 'neutral', rows, again: reset }); }, 1400);
   }
   function play(m) {
@@ -242,7 +242,7 @@ export function tabletopClient(D, T, M, TV) {
     if (r) play(r.move);
   }
   function click(cell) {
-    if (busy || S.over || S.side !== me) return;
+    if (busy || S.over || S.side !== me || (UI && UI.busy())) return;
     if (sel >= 0) {
       const to = legal.filter((m) => m.from === sel && m.to === cell);
       if (to.length === 1) return play(to[0]);
@@ -258,6 +258,8 @@ export function tabletopClient(D, T, M, TV) {
     render();
   }
   function pick(moves) {
+    // one question at a time (the table's choice prompt): put off by back, the piece staying picked up
+    if (UI) return UI.ask({ title: moves[0].promote ? 'Promotion' : 'Which piece', text: '', choices: moves.map((m) => ({ label: (glyph(m.promote || m.drop || S.pieces[m.p].kind) || m.drop || m.promote) + '  ' + m.name, run: () => play(m) })), cancel: () => {} });
     const row = $('pick-row'), box = $('pick');
     row.innerHTML = '';
     moves.forEach((m) => {
@@ -268,6 +270,11 @@ export function tabletopClient(D, T, M, TV) {
       row.appendChild(b);
     });
     box.style.display = 'flex';
+  }
+  // a choice not made: a click outside the row, or Escape, puts the picker away and the piece stays picked up
+  if (!UI) {
+    $('pick').addEventListener('click', (e) => { if (e.target === $('pick')) $('pick').style.display = 'none'; });
+    window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && $('pick').style.display === 'flex') $('pick').style.display = 'none'; });
   }
 
   function status() {
@@ -293,6 +300,7 @@ export function tabletopClient(D, T, M, TV) {
     const ring = (cell, stroke, w) => '<circle cx="' + P.cells[cell][0] + '" cy="' + P.cells[cell][1] + '" r="' + (P.r * 1.12) + '" fill="none" stroke="' + stroke + '" stroke-width="' + w + '"/>';
     if (last && last.p >= 0) { hl.push(ring(last.from, '#e0b84a', 3)); hl.push(ring(last.to, '#e0b84a', 3).replace('<circle', '<circle class="' + (fresh ? 'tv-hit' : '') + '"')); }
     if (sel >= 0) hl.push(ring(sel, 'var(--mark)', 4));
+    if (cur >= 0) hl.push(ring(cur, 'currentColor', 2).replace('<circle', '<circle stroke-dasharray="5 4"'));
     for (const m of targets) hl.push(m.cap.length ? ring(m.to, 'var(--mark)', 3) : '<circle cx="' + P.cells[m.to][0] + '" cy="' + P.cells[m.to][1] + '" r="' + (P.r * 0.3) + '" fill="var(--go)"/>');
     $('hl').innerHTML = hl.join('');
     const rot = P.turn, cx = P.W / 2, cy = P.H / 2, rad = rot * Math.PI / 180;
@@ -313,6 +321,7 @@ export function tabletopClient(D, T, M, TV) {
     if (last && last.p >= 0) { cellDivs[last.from].classList.add('last'); cellDivs[last.to].classList.add('last'); if (fresh) TV.hit(cellDivs[last.to]); }
     fresh = false;
     if (sel >= 0) cellDivs[sel].classList.add('sel');
+    if (cur >= 0) cellDivs[cur].classList.add('cur');
     for (const m of targets) cellDivs[m.to].classList.add(m.cap.length ? 'cap' : 'to');
     const size = D.table.size;
     S.pieces.forEach((Pc, i) => {
@@ -344,35 +353,49 @@ export function tabletopClient(D, T, M, TV) {
       seats: K.players.map((p, s) => { const got = takes(s); return { name: who(s), note: got.length ? got.slice(-8).map(glyph).join('') : s === me ? p.id : 'computer', color: s, score: sc ? sc[s] : placing() ? undefined : caps[s], live: !end && S.side === s, clock: S.clock ? fmt(S.clock[s]) : null }; }),
       tab: end ? 'Final' : status(),
     });
-    $('moves').innerHTML = line.map((x) => '<li>' + (x.side ? x.side + ' ' : '') + x.name + '</li>').join('');
-    $('moves').scrollTop = 1e6;
-    $('undo').disabled = busy || !line.length;
-    $('pass').style.display = !S.over && S.side === me && !busy && legal.some((m) => m.p < 0 && !m.drop) ? '' : 'none';
+    const canPass = !S.over && S.side === me && !busy && legal.some((m) => m.p < 0 && !m.drop);
+    if (UI) {
+      // the table's parts: the prompt and what can be done now, the game so far, the table's menu
+      const noUndo = busy || !line.length;
+      UI.show({
+        prompt: end ? 'Final' : status(),
+        actions: (canPass ? [{ name: 'Pass', key: 'P', run: pass }] : []).concat([{ name: 'Undo', key: 'U', disabled: noUndo, why: busy ? 'The computer is thinking' : 'Nothing to take back', run: undo }]),
+        log: line.map((x) => ({ text: (x.side ? x.side + ' ' : '') + x.name, side: x.s >= 0 ? x.s : undefined })),
+        menu: [{ label: 'Resume', run: () => {} }, { label: 'New game', run: reset }, { label: 'Undo', disabled: noUndo, run: undo },
+          { label: 'Level: ' + level, run: () => { level = LEVELS[(LEVELS.indexOf(level) + 1) % LEVELS.length]; render(); } },
+          { label: 'View: ' + view, run: () => { showView(view === 'plan' ? 'table' : 'plan'); render(); } }],
+      });
+    } else {
+      $('moves').innerHTML = line.map((x) => '<li>' + esc((x.side ? x.side + ' ' : '') + x.name) + '</li>').join('');
+      $('moves').scrollTop = 1e6;
+      $('undo').disabled = busy || !line.length;
+      $('pass').style.display = canPass ? '' : 'none';
+    }
     clocks();
   }
   function fmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
   // the running clock ticks in the seat plates in place (the plates are redrawn only on a move)
   function clocks() {
     if (!S.clock) return;
-    const run = S.over ? 0 : performance.now() - turnStart, out = document.querySelectorAll('.tv-bug .tv-clock');
-    K.players.forEach((_, s) => { if (out[s]) out[s].textContent = fmt(S.clock[s] - (s === S.side ? run : 0)); });
+    const run = S.over ? 0 : performance.now() - turnStart, now = K.players.map((_, s) => fmt(S.clock[s] - (s === S.side ? run : 0)));
+    if (UI) { TV.clocks(now); return; }
+    const out = document.querySelectorAll('.tv-bug .tv-clock');
+    now.forEach((c, s) => { if (out[s]) out[s].textContent = c; });
   }
 
   function showView(v) {
     view = v;
     $('plan').style.display = v === 'plan' ? '' : 'none';
     $('table').style.display = v === 'table' ? '' : 'none';
+    if (UI) return;
     $('v-plan').classList.toggle('on', v === 'plan');
     $('v-table').classList.toggle('on', v === 'table');
   }
-  $('v-plan').onclick = () => showView('plan');
-  $('v-table').onclick = () => showView('table');
   $('plan').addEventListener('click', (e) => { const c = e.target.closest('[data-cell]'); if (c) click(Number(c.dataset.cell)); });
   vw.addEventListener('click', (e) => { const c = e.target.closest('[data-cell]'); if (c) click(Number(c.dataset.cell)); });
-  $('level').onchange = (e) => { level = e.target.value; };
-  $('again').onclick = () => reset();
-  $('pass').onclick = () => { const m = legal.find((x) => x.p < 0 && !x.drop); if (m && !busy && S.side === me) play(m); };
-  $('undo').onclick = () => {
+  const LEVELS = Object.keys(M.LEVELS);
+  function pass() { const m = legal.find((x) => x.p < 0 && !x.drop); if (m && !busy && S.side === me) play(m); }
+  function undo() {
     if (busy || !line.length) return;
     // replay all but the person's last turn (and the computer's answer to it)
     const names = line.map((x) => x.name), keep = [];
@@ -385,8 +408,28 @@ export function tabletopClient(D, T, M, TV) {
     for (const n of names.slice(0, cut)) { const m = T.legal(K, S).find((x) => x.name === n); S = T.apply(K, S, m); keep.push({ name: n, side: K.players[sides[keep.length]].id, s: sides[keep.length], got: (m.cap || []).map((q) => S.pieces[q].kind) }); last = m; }
     line = keep; sel = -1; if (!cut) last = null; turnStart = performance.now(); ended = false; TV.clear();
     after();
-  };
+  }
+  function seatCursor() {
+    // the board's cursor (the board scheme, keys and pads): over the cells as the plan lays them for this seat
+    const P = D.plan, rad = P.turn * Math.PI / 180, cx = P.W / 2, cy = P.H / 2;
+    pad = UI.cursor({
+      points: P.cells.map((c) => { const x = c[0] - cx, y = c[1] - cy; return [cx + x * Math.cos(rad) - y * Math.sin(rad), cy + x * Math.sin(rad) + y * Math.cos(rad)]; }),
+      at: (legal.find((m) => m.from >= 0) || { from: Math.floor(P.cells.length / 2) }).from,
+      show: (i) => { cur = i; if (S) render(); },
+      pick: (i) => click(i),
+      back: () => { if (sel >= 0 && S.chain < 0) { sel = -1; render(); return true; } return false; },
+    });
+  }
+  if (!UI) {
+    $('v-plan').onclick = () => showView('plan');
+    $('v-table').onclick = () => showView('table');
+    $('level').onchange = (e) => { level = e.target.value; };
+    $('again').onclick = () => reset();
+    $('pass').onclick = pass;
+    $('undo').onclick = undo;
+  }
   showView(view);
   reset();
+  if (UI) seatCursor();
   tick = setInterval(() => { if (S && S.clock && !S.over) clocks(); }, 250);
 }

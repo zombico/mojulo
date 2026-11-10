@@ -10,9 +10,9 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > bare emits byte-identically 1`] = `"b671a9c7771cd768f4833451f9ba776e170474d1b518730749e069fba0e4fe1b"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > board emits byte-identically 1`] = `"05f825421aa5a91cced12bb82294e90804ecf2a1968773ef77e1fc3f8219a1dc"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > board emits byte-identically 1`] = `"4fc703c4666d3f5468da7607cbfa3927eadcae2e936356df41bc7acbcac339d9"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > brawl emits byte-identically 1`] = `"b6265c9af5c11d5cbead327363826138bc3adf426fdd7d96e873871586e23cbf"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > brawl emits byte-identically 1`] = `"bb426a71eedb39fb98c4a146b510239d0b0de3fb3a420f5b00d551b950cf69c1"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > broadcasts emits byte-identically 1`] = `"f93457e21249440f5802907c2a908da714d99073d88d5d73967111f567109424"`;
 
@@ -80,7 +80,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > heat-sphere emits byte-identically 1`] = `"67002fcaaa4a3e598a366e4a1de2abe26b2ce1819fe36ce34511e9d57c5e3145"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > holo emits byte-identically 1`] = `"a18bd0196c27f2d9f04424fafe74df89af20bed2b1ae8d142853012752c85bf1"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > holo emits byte-identically 1`] = `"7006209e6cd9413695ab074f192f2d317a41a9c29863aa3044b3c3d87bc318f7"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > innings emits byte-identically 1`] = `"d4f92a75eeebe17571e5151b6451bfe44a063a7ed4814a7980df9964bca5c2f4"`;
 
@@ -158,7 +158,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > turns emits byte-identically 1`] = `"3b7912d35a2ceef5edb40bebdb4e4417ed6abb09426819771fcbed10155b2620"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > versus emits byte-identically 1`] = `"903094df237b4b6219858d054aeea6702e66af3f85132b1504ee4da25134e587"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > versus emits byte-identically 1`] = `"dddbdff532cc52edfa289100f9818129975ea8062c9203d3d15741cd2febd4ec"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > walk emits byte-identically 1`] = `"32fac19ba009a533117319dc96b99ab9deeffe378f7f89eb90fa5f6061cd8a03"`;
 

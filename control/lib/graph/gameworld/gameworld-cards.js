@@ -379,6 +379,7 @@ function feelCard() {
     `ARSENAL, its weapons and strings (the practice room's): arsenal: 'auto' (the feel template's kit) | false | a template's`,
     `kit (${Object.keys(TEMPLATE_ARSENALS).join(', ')}) | { from: <kit>, …edits by id } | an arsenal { weapons, timing?, ranged?, juggle?, art?, mp? },`,
     'laid on every level\'s hero that strikes (a right-hand blade). Suggested, never laid: an `arsenal` step where the kit exists.',
+    'A shooter\'s gun rooms: `bible?book=practice&room=range` (its guns), `room=artillery` (a mech\'s own frame).',
     '',
     'templates (after · base feel · viewer):',
     ...POLE_IDS.map((id) => { const P = POLES[id], v = variantsOf(id); return `  ${id}  ${P.name} (after ${P.after}) · ${P.base} · ${P.view.camera}${v.length ? ` · variants ${v.join(', ')}` : ''}`; }),

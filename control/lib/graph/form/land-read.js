@@ -22,6 +22,7 @@
  *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
  *     for a payload with no land.
+ *   hazeUnder(light) → `{ air }` | `{}`: a look's haze under its horizon, the form sky's `sky.air` (HAZE_UNDER)
  *   formPayload(read) → the World page's `form` input (scene/channels/form-land.js draws it): the land's vertices
  *     (base64), its ranges, the light, the layers' textures, the mask, the depth, the stones, the dress, the relief,
  *     and `hides` (the painted groups it draws in their place). Plain data, JSON-safe.
@@ -51,6 +52,18 @@ export const SWARD_MEDIUM = Object.freeze({ share: 0.45, cell: 11 });
 /** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short
  *  and thin at its edge, so no blade leans into it. */
 export const GRASS_OFF = 0.6;
+/** A look whose haze is darker than its horizon (its fog's colour under its dome's horizon, in linear light) by more than
+ *  this share keeps it so in the form render: the air its far land and its fog take is the horizon's × that share
+ *  (`sky.air`, channels/form-sky.js), so far ridges stand dark against the sky as the look paints them; a look whose
+ *  haze is its horizon's (a clear noon) carries none, its page as it was. */
+export const HAZE_UNDER = 0.9;
+const lumHex = (h) => { const c = hexRgb(h).map((v) => decodeSrgb(v / 255)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+/** A cube's light (era/cube-light.js) → `{ air }` where its haze is darker than its horizon by more than HAZE_UNDER, else `{}`. */
+export function hazeUnder(light) {
+  if (!light || typeof light.fog !== 'string' || !Array.isArray(light.sky?.horizon)) return {};
+  const hor = light.sky.horizon.map((v) => decodeSrgb(v / 255)), k = lumHex(light.fog) / Math.max(1e-6, 0.2126 * hor[0] + 0.7152 * hor[1] + 0.0722 * hor[2]);
+  return k < HAZE_UNDER ? { air: Math.round(k * 1e3) / 1e3 } : {};
+}
 /** The stage's FAR RING (era/isekai.js: its ridges past the level, standing curtains in layers out to the sky): not
  *  land the read classes, its own range (`far`), which the form draws as its far land (channels/form-land.js FAR_LAND). */
 export const FAR_GROUPS = new Set(['isekai:ridge']);
@@ -345,7 +358,7 @@ export function formPayload(R) {
     // (the stage's far ring, its ridges past the level, which the form draws as its far land: channels/form-land.js FAR_LAND)
     far: [...new Set(P.faces.filter((f, i) => !L.faces[i].cls && FAR_GROUPS.has(f.group)).map((f) => f.group))].sort(),
     // (an underground page, a cavern, has no sky: null, and the page draws none)
-    sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon } : null, box, waterZ: L.waterZ, deep: L.deep,
+    sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon, ...hazeUnder(light) } : null, box, waterZ: L.waterZ, deep: L.deep,
     seabed: hasSea ? { x: [seaX.reduce((a, v) => Math.min(a, v), Infinity), seaX.reduce((a, v) => Math.max(a, v), -Infinity)], y: [seaY.reduce((a, v) => Math.min(a, v), Infinity), seaY.reduce((a, v) => Math.max(a, v), -Infinity)], z: L.waterZ - DEEP_FADE - 1 } : null,
     classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),

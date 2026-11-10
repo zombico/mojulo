@@ -8,7 +8,7 @@
  * Pure: no clock, no dice.
  */
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const PRESS = { attack: 'A', strong: 'St', jump: 'J', special: 'S', 'attack + jump': 'A+J', 'attack + special': 'A+S', 'jump + special': 'J+S', 'attack + strong': 'A+St', 'strong + jump': 'St+J', 'strong + special': 'St+S' };
+const PRESS = { fire: 'A', grenade: 'S', attack: 'A', strong: 'St', jump: 'J', special: 'S', 'attack + jump': 'A+J', 'attack + special': 'A+S', 'jump + special': 'J+S', 'attack + strong': 'A+St', 'strong + jump': 'St+J', 'strong + special': 'St+S' };
 const nameOf = (slot) => (slot === 'desperate' ? 'Desperation' : slot.split('.').map(cap).join(' '));
 // the strong blows by what they do (the blow's own name beside it)
 const STRONG_WORDS = { strong: 'Strong', 'strong.break': 'Breaker', 'strong.out': 'Blowout', 'strong.air': 'Stomp', 'strong.dive': 'Dive kick', 'run.attack': 'Running' };
@@ -16,6 +16,7 @@ const ENDS = { finisher: 'Finisher', breaker: 'Breaker', blowout: 'Blowout' };
 /** the chain's blows by name, from its style (brawl-moves.js keeps each blow's source on the move's own `id`) */
 const blowName = (slot, F) => {
   const m = F.moves[slot];
+  if (!m) return cap(String(slot).replace(/-/g, ' '));
   if (m && (slot.startsWith('chain.') || slot.startsWith('air.'))) return cap(String(m.id ?? 'blow').replace(/-/g, ' '));
   if (m && STRONG_WORDS[slot]) return `${STRONG_WORDS[slot]}: ${cap(String(m.id ?? 'blow').replace(/-/g, ' '))}`;
   return nameOf(slot);
@@ -27,7 +28,11 @@ export function yardHud(read, F, project, inputs = []) {
   const n = read.chain.of, landed = read.chain.now.length ? read.chain.now : read.chain.last?.steps ?? [];
   const marks = read.line.filter((d) => !d.ko).map((d) => {
     const [x, y] = project(d.at[0], d.at[1], 0);
-    return { id: `d${d.id}`, x, y, text: d.lined ? (d.inReach ? 'LINED' : 'LINED · CLOSER') : `${d.dz > 0 ? '+' : '−'}${Math.round(Math.abs(d.dz) / 10)} CM`, kind: d.lined ? 'heal' : 'miss' };
+    // (on the range a round's line: on it or not, never a blow's reach)
+    const on = read.gun ? 'ON THE LINE' : d.inReach ? 'LINED' : 'LINED · CLOSER';
+    // (and on the range how near it is to flinching: its stagger against its poise)
+    const st = read.gun && d.stagger ? ` · STAGGER ${Math.min(100, d.stagger)}%` : '';
+    return { id: `d${d.id}`, x, y, text: `${d.lined ? on : `${d.dz > 0 ? '+' : '−'}${Math.round(Math.abs(d.dz) / 10)} CM`}${st}`, kind: d.lined ? 'heal' : 'miss' };
   });
   const heads = read.line.filter((d) => d.token && !d.ko).map((d) => { const [x, y] = project(d.at[0], d.at[1], 2100); return { id: `t${d.id}`, x, y }; });
   const last = read.chain.last;
@@ -39,8 +44,18 @@ export function yardHud(read, F, project, inputs = []) {
     kind: e.verdict === 'taken' ? 'heal' : 'miss',
   }));
   const c = read.clinch;
+  // (the range's gun: its name, its rounds left (full when never out), the grenades, how the shooting is going)
+  const g = read.gun;
+  const gun = g
+    ? { on: true, name: g.name ?? cap(g.id.replace(/-/g, ' ')), ammo: g.ammo ?? 1, of: g.of ?? 1, grenades: g.grenades, shots: `${g.landed} of ${g.fired} landed · ${g.damage} damage · struck ${g.struck}` }
+    : { on: false, name: '', ammo: 0, of: 1, grenades: 0, shots: '' };
+  // (the wave tester's wave: which, its shape, how many left and its clock (or the breath before it), the last clear)
+  const W = read.wave, secs = (f) => `${(f / 60).toFixed(1)} s`, lastC = W && W.cleared.length ? W.cleared[W.cleared.length - 1] : null;
+  const wave = W
+    ? { on: true, n: W.n, of: W.of, name: cap(W.name), shape: `${W.formation} · ${W.pattern}`, left: W.state === 'on' ? `${W.left} left · ${secs(W.frames)}` : W.state === 'wait' ? `next in ${secs(W.next)}` : 'all cleared', last: lastC ? `wave ${lastC.k + 1} cleared in ${secs(lastC.frames)} · struck ${lastC.struck}` : '' }
+    : { on: false, n: 0, of: 1, name: '', shape: '', left: '', last: '' };
   return {
-    marks, heads,
+    marks, heads, gun, wave, melee: !g,
     beats: Array.from({ length: n }, (_, k) => ({ value: String(k + 1), variant: landed.includes(k + 1) ? 'strong' : 'muted' })),
     ended, presses, inputs,
     clinch: c ? { left: c.left, of: c.of, knees: c.knees, behind: c.back ? 'Suplex' : '', holding: true } : { left: 0, of: 1, knees: 0, behind: '', holding: false },

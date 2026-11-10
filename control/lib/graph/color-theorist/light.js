@@ -67,13 +67,15 @@ export function seen(base, L, cos = 1) {
   return toDisplay(base.map((b, k) => b * (A[k] + S[k] * Math.max(0, cos))));
 }
 
-export function solveLight({ targets, sky, sun, contrast }) {
+export function solveLight({ targets, sky, sun, contrast, minLevel = 0 }) {
   if (!(contrast > 0 && contrast < 1)) throw new Error('light: contrast is the share a sky-lit face keeps, between 0 and 1');
   const roles = Object.keys(targets), hA = hueOf(sky), hS = hueOf(sun);
   // the bases at unit light (ambient + sun = 1 in luminance), then the level that brings the brightest to BASE_MAX
   const unit = hA.map((v, k) => contrast * v + (1 - contrast) * hS[k]);
   const raw = Object.fromEntries(roles.map((r) => [r, displayToLinear(targets[r]).map((v, k) => v / unit[k])]));
-  const level = Math.max(1e-6, ...roles.map((r) => luminance(raw[r]))) / BASE_MAX;
+  // (`minLevel`: a light no dimmer than this, whatever the palette: a sky brighter than the brightest material lights
+  // dark material, and every base falls under BASE_MAX)
+  const level = Math.max(minLevel, Math.max(1e-6, ...roles.map((r) => luminance(raw[r]))) / BASE_MAX);
   const want = Object.fromEntries(roles.map((r) => [r, raw[r].map((v) => v / level)]));
   return {
     sun: hS.map((v) => v * (1 - contrast) * level), ambient: hA.map((v) => v * contrast * level), level,

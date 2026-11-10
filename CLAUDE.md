@@ -299,7 +299,9 @@ Pointers only; each target carries its own design notes.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers). How a hero swings a
-  blade (an arsenal's `art`: realistic, inspired, freestyle): [docs/sword-arts.md](docs/sword-arts.md).
+  blade (an arsenal's `art`: realistic, inspired, freestyle): [docs/sword-arts.md](docs/sword-arts.md). A game's play
+  tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, chosen by how
+  it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
