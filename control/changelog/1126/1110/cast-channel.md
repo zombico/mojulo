@@ -87,8 +87,10 @@
   [docs/hero-form-light.md](../docs/hero-form-light.md) says what draws a hero now and what is not built.
 - **The WebGPU spike is retired** (`scripts/spikes/webgpu/`, removed): mojulo's pages are WebGL, and the cast and form
   materials are laid on three's own shaders.
-- **Fixed: the CLI and the plugin profile failed to load their tools** once a fight's and a brawl's channels carried
-  the rig (found by the critical tier, which the steps above had not run): the channels read the rig through the
-  cube's light solve, which put it in the import cycle the registry loads through. The rig's laws, its card and its
-  making are their own module with the solve passed in (`color-theorist/cast-rig-core.js`, which reads none of the
-  era's modules); `castRig` is that under the cube's solve, and a fight's card reads the core alone.
+- **The rig's core is its own module** (`color-theorist/cast-rig-core.js`: the laws, the card and the rig's making,
+  with the solve passed in; it reads none of the era's modules). `castRig` is that under the cube's light solve, and a
+  fight's card (`versus/versus-cast.js` `fightCast`) reads the core alone. The fight's and the brawl's channels, inside
+  the page's emitter, read the rig's card through the cube's solver at first, which put the era's cubes in the
+  emitter's import graph and stopped the CLI, the stdio server and the plugin profile from loading their tools; the
+  candidate's own fix took the card out of the fight's channel, and with the core split both channels take the card
+  again for an arena or a yard handed to them without one, importing nothing of the era's.
