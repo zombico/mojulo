@@ -10,6 +10,8 @@
  *                         how the form was found:
  *                           'relief'     a dressed family (matte-paint/dressed.js): painted from its relief, so the
  *                                        material is the relief itself (every joint, flute and chip its own slope)
+ *                                        ; a detail tile's too (matte-paint/detail.js: a town's wall or roof
+ *                                        dressed by a word), by the dressed cut it was painted from
  *                           'luminance'  any other tile: its painted light read back as height (dark is low), the way the
  *                                        seventh generation's own tools pulled a normal map from a photograph; its colour
  *                                        keeps the light it was painted with, so this is an approximation and says so
@@ -29,6 +31,7 @@ import { reliefMaterial } from './relief-material.js';
 import { surfaceTexture, generatedSpecOf, encodePng, SURFACE_TILING } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
 import { paintMean } from './room-light.js';
+import { detailSpec } from '../matte-paint/detail.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
@@ -39,6 +42,8 @@ export const FORM_ROUGH = Object.freeze({ boards: 0.72, brick: 0.82, precast: 0.
   plate: 0.5, tread: 0.42, block: 0.92, panel: 0.55, epoxy: 0.3, grating: 0.55, corrugated: 0.5, sheetpile: 0.6, decking: 0.75, membrane: 0.6,
   perforated: 0.5, terrazzo: 0.22, glazed: 0.18, studded: 0.75, seam: 0.45, acoustic: 0.95,
   matte: 0.9, carbon: 0.15, drywall: 0.85, carpet: 0.98, vinyl: 0.4, laminate: 0.45, porcelain: 0.35, veneer: 0.4 });
+/** A detail tile's size (matte-paint/detail.js paints it at 512). */
+const DETAIL_SIZE = 512;
 /** A painted tile read back as relief: metres of height a unit of luminance stands for, over a nominal metre a repeat. */
 export const LUMINANCE_RELIEF = 0.006;
 
@@ -66,6 +71,17 @@ export function formMaterialOf(key, { detail = 1, reliefSize = null } = {}) {
     if (reliefSize && reliefSize < spec.size) {
       const small = relief(dressedMaterial(spec.cfg, { size: reliefSize, seed: spec.seed, rough: FORM_ROUGH[spec.cfg.cut] ?? 0.85 }), spec.cfg.metres ?? 2);
       out = { ...out, normal: small.normal, orm: small.orm, reliefSize };
+    }
+  } else if (detailSpec(key) && detailSpec(key).cfg.gen !== 'stone-brick') {
+    // a DETAIL tile (matte-paint/detail.js: a town's wall or roof dressed by a word, era/town-dress.js; a land's rock):
+    // the dressed cut it was painted from, so its material is that relief, as a room's dressed tile's is (a bonded
+    // brick floor's is no dressed cut: read from its paint, below)
+    const S = detailSpec(key), size = reliefSize && reliefSize < DETAIL_SIZE ? reliefSize : DETAIL_SIZE;
+    const M = dressedMaterial(S.cfg, { size: DETAIL_SIZE, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 });
+    out = { ...relief(M, S.cfg.metres ?? 2), read: 'relief' };
+    if (size < DETAIL_SIZE) {
+      const small = relief(dressedMaterial(S.cfg, { size, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 }), S.cfg.metres ?? 2);
+      out = { ...out, normal: small.normal, orm: small.orm, reliefSize: size };
     }
   } else {
     const d = decodePng(surfaceTexture(key));

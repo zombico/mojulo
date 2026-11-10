@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { formMaterialOf, formRoomMaps, readFormLight, ROOM_MAPS } from './room-form.js';
 import { tileFamilyOf } from '../era/tile-specs.js';
+import { detailKey } from '../matte-paint/detail.js';
 import { assembleStageScene, formLightFaces } from '../era/stage.js';
 import { makePointShadow } from '../era/sun.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -28,6 +29,23 @@ describe('a tile read as material', () => {
     // its relief's height packed for the parallax, its depth within the bounds, its mean the colour's
     expect(relief.depth).toBeGreaterThan(0);
     expect(maps.stucco.mean.every((v) => v > 0 && v < 1)).toBe(true);
+  });
+
+  it('a detail tile (a town\'s wall dressed by a word) from the dressed cut it was painted from, not from its paint\'s light', () => {
+    // (a brick wall's detail tile, as era/town-dress.js lays one: the key carries its cut, its seed and its metres)
+    const key = detailKey({ cut: 'brick', stone: [150, 78, 58], mortar: [188, 180, 166], rows: 13, cols: 4, grit: 0.35 }, 3, 2, 0);
+    const M = formMaterialOf(key);
+    expect(M.read).toBe('relief');
+    expect(M.normal.startsWith('data:image/png;base64,')).toBe(true);
+    expect(M.depth).toBeGreaterThan(0);
+    expect(formMaterialOf(key)).toBe(M);
+    // (its relief drawn smaller where a page asks: its colour whole)
+    const small = formMaterialOf(key, { reliefSize: 256 });
+    expect(small.base).toBe(M.base);
+    expect(small.normal.length).toBeLessThan(M.normal.length);
+    // (a bonded-brick floor's detail is no dressed cut: read from its paint, as it was)
+    const bond = detailKey({ gen: 'stone-brick', bond: 'herringbone', stone: [176, 176, 176], mortar: [132, 132, 132], rows: 8, radius: 0.2, shadow: 0.45, mortarThick: 0.1, bevel: 0.18, vary: 14, grain: 11, accent: 0.08, jointDepth: 0.5, chips: 0.2 }, 3, 2, 0);
+    expect(formMaterialOf(bond)?.read ?? 'luminance').toBe('luminance');
   });
 
   it('past its maps\' budget a page draws its relief smaller and keeps its colour whole; under it, nothing changes', () => {
