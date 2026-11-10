@@ -34,6 +34,7 @@ export const BOARD_HUDS = Object.freeze({
   'fight HUD': ['fight-health', 'fight-meters', 'fight-combo', 'fight-callouts', 'fight-announcer'],
   'training HUD': ['fight-health', 'input-display', 'frame-meter', 'training-stats'],
   'brawler practice HUD': ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'input-display'],
+  'run & gun range HUD': ['line-marks', 'token-marks', 'gun-meter', 'wave-meter', 'press-log', 'input-display'],
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
