@@ -12,8 +12,8 @@
  *
  *   a BLOCK of the metro may be given to the geotown too ('D3.2.1'): one of its block segments, cropped to its block
  *
- *   townsOf(d, T, N)      → { <region id>: { spec, seed, design, origin: [x, y], frame: { W, D }, field, fits, rest } }
- *   blockTownsOf(d, T, N) → { <block id>: { spec, seed, design, block, rect, shift, field, surfaces, fits } }
+ *   townsOf(d, T, N, S?)  → { <region id>: { spec, seed, design, origin: [x, y], frame: { W, D }, field, streets?, fits, rest } }
+ *   blockTownsOf(d, T, N, S?) → { <block id>: { spec, seed, design, block, rect, shift, field, streets?, surfaces, fits } }
  *     origin the town's south-west corner in the metro's frame; field (x, y) → the metro's natural ground in the
  *     town's frame; fits whether its frame stands inside its neighbourhood; rest the square metres of the
  *     neighbourhood the town leaves (green)
@@ -63,7 +63,7 @@ function townPattern(T, counts = null, depth = null) {
 /** A composed recipe's evocation, said or implied: a neighbourhood named is evoked as one, a segment named as one. */
 const evokeOf = (own) => (own.evoke !== undefined ? own : own.neighbourhood !== undefined ? { ...own, evoke: 'neighbourhood' } : own.segment !== undefined ? { ...own, evoke: 'segment' } : own);
 
-export function townsOf(d, T, N) {
+export function townsOf(d, T, N, S = null) {
   const out = {};
   for (const [id, ask] of Object.entries(T.geotowns ?? {})) {
     if (id.includes('.')) continue;
@@ -72,7 +72,8 @@ export function townsOf(d, T, N) {
     if (r.park) throw new Error(`geocity: geotowns.${id} is the city's park; a geotown is laid in a built neighbourhood`);
     const seed = strHash(`${d.seed}|geotown|${id}`) % 100000, w = r.rect[2] - r.rect[0], h = r.rect[3] - r.rect[1];
     const own = evokeOf(ask === true ? {} : ask), told = own.evoke !== undefined;
-    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...own };
+    // (a profiled metro's towns profiled too, their perimeter on its ground, unless its recipe says)
+    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...(T.profile && own.profile === undefined ? { profile: T.profile } : {}), ...own };
     if (!told) {
       spec = { ...spec, evoke: 'metro', grid: own.grid ?? fitGrid({ ...spec, evoke: 'metro' }, seed, w, h) };
       // (one block to scale too big for it: a block segment of its ring's instead)
@@ -82,9 +83,10 @@ export function townsOf(d, T, N) {
     // its frame first (the land moves no street), then the town on the metro's land, centred in its neighbourhood
     const F = designGeotown(spec, { seed, field: () => 0 }).frame;
     const origin = [r3(r.rect[0] + (w - F.W) / 2), r3(r.rect[1] + (h - F.D) / 2)];
-    const field = (x, y) => N(x + origin[0], y + origin[1]);
-    const design = designGeotown(spec, { seed, field });
-    out[id] = { spec, seed, design, origin, frame: { W: design.frame.W, D: design.frame.D }, field, fits: design.frame.W <= w + 0.01 && design.frame.D <= h + 0.01, rest: r3(Math.max(0, w * h - design.frame.W * design.frame.D)) };
+    // (and its streets' ground the metro's own, so its walks meet the metro's round its frame at one height)
+    const field = (x, y) => N(x + origin[0], y + origin[1]), streets = S ? (x, y) => S(x + origin[0], y + origin[1]) : null;
+    const design = designGeotown(spec, { seed, field, ...(streets ? { streets } : {}) });
+    out[id] = { spec, seed, design, origin, frame: { W: design.frame.W, D: design.frame.D }, field, ...(streets ? { streets } : {}), fits: design.frame.W <= w + 0.01 && design.frame.D <= h + 0.01, rest: r3(Math.max(0, w * h - design.frame.W * design.frame.D)) };
   }
   return out;
 }
@@ -93,7 +95,7 @@ export function townsOf(d, T, N) {
  *  from its evocation and centred in the metro's block, on the metro's land. → { <block id>: { spec, seed, design,
  *  block, rect, shift: [dx, dy], field, fits, surfaces } } (`surfaces` the metro block's ground: the town block's own,
  *  and green round it) */
-export function blockTownsOf(d, T, N) {
+export function blockTownsOf(d, T, N, S = null) {
   const out = {};
   for (const [id, ask] of Object.entries(T.geotowns ?? {})) {
     if (!id.includes('.')) continue;
@@ -102,7 +104,7 @@ export function blockTownsOf(d, T, N) {
     if (r.geotown) throw new Error(`geocity: geotowns.${id} is in '${r.id}', a geotown already`);
     const seed = strHash(`${d.seed}|geotown|${id}`) % 100000, own = evokeOf(ask === true ? {} : ask), told = own.evoke !== undefined;
     const seg = TOWN_SEGMENTS.includes(b.kind) ? b.kind : RING_SEGMENTS[r.builds];
-    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...(told ? {} : { evoke: 'segment', segment: seg }), ...own };
+    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...(told ? {} : { evoke: 'segment', segment: seg }), ...(T.profile && own.profile === undefined ? { profile: T.profile } : {}), ...own };
     const blockOf = (D0) => D0.blocks.find((x) => x.built !== false && D0.plots.some((p) => p.block === x.id)) ?? D0.blocks[0];
     // a segment filled by count: its rows as long as the metro's block runs along them (its counts scaled, then cut
     // back until it stands inside)
@@ -130,13 +132,14 @@ export function blockTownsOf(d, T, N) {
     }
     const flat = designGeotown(spec, { seed, field: () => 0 }), g0 = blockOf(flat).rect;
     const shift = [r3((b.rect[0] + b.rect[2]) / 2 - (g0[0] + g0[2]) / 2), r3((b.rect[1] + b.rect[3]) / 2 - (g0[1] + g0[3]) / 2)];
-    const field = (x, y) => N(x + shift[0], y + shift[1]), design = designGeotown(spec, { seed, field }), gb = blockOf(design);
+    const field = (x, y) => N(x + shift[0], y + shift[1]), streets = S ? (x, y) => S(x + shift[0], y + shift[1]) : null;
+    const design = designGeotown(spec, { seed, field, ...(streets ? { streets } : {}) }), gb = blockOf(design);
     // its ground: the town block's surfaces, the green round it (scaled to the metro's block where it overreaches)
     const own2 = Object.fromEntries(Object.entries(design.ledger.blocks[gb.id] ?? {}).filter(([, v]) => v > 0)), sum = Object.values(own2).reduce((a, v) => a + v, 0);
     const k = sum > b.area ? b.area / sum : 1, surfaces = Object.fromEntries(Object.entries(own2).map(([s2, v]) => [s2, r3(v * k)]));
     const left = b.area - Object.values(surfaces).reduce((a, v) => a + v, 0);
     if (left > 0.001) surfaces.margin = r3(left);
-    out[id] = { spec, seed, design, block: gb.id, rect: gb.rect, shift, field, surfaces, fits: gb.rect[2] - gb.rect[0] <= b.rect[2] - b.rect[0] + 0.01 && gb.rect[3] - gb.rect[1] <= b.rect[3] - b.rect[1] + 0.01 };
+    out[id] = { spec, seed, design, block: gb.id, rect: gb.rect, shift, field, ...(streets ? { streets } : {}), surfaces, fits: gb.rect[2] - gb.rect[0] <= b.rect[2] - b.rect[0] + 0.01 && gb.rect[3] - gb.rect[1] <= b.rect[3] - b.rect[1] + 0.01 };
   }
   return out;
 }

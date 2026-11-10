@@ -1,7 +1,7 @@
 // THE GEOCITY BUILT: a metro's map stood on the cube's land as massing. The smallest metro that still rings: a small
 // shore, one built at noon and one at night.
 import { describe, it, expect } from 'vitest';
-import { assembleGeocityScene, GEOCITY_FACES } from './scene.js';
+import { assembleGeocityScene, GEOCITY_FACES, FORM_GROUND } from './scene.js';
 import { designGeocity } from './design.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 
@@ -33,7 +33,9 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
 
   it('holds every mass it draws in a box, the walk clear of them', () => {
     // (the metro to scale draws every block at block scale: a box for each mass, none more)
-    expect(P.colliders.length).toBe(P.geocity.counts.buildings);
+    // (and a highway's piers each a column's box, highways.js)
+    expect(P.colliders.filter((c) => !c.of.endsWith(':pier')).length).toBe(P.geocity.counts.buildings);
+    expect(P.colliders.filter((c) => c.of.endsWith(':pier')).length).toBe((D.highways ?? []).reduce((a, h) => a + h.piers.reduce((b, q) => b + q.cols.length, 0), 0));
     expect(P.geocity.counts.colliders).toBe(P.colliders.length);
     for (const c of P.colliders) for (let k = 0; k < 3; k++) expect(c.max[k]).toBeGreaterThan(c.min[k]);
     // each tower in its own box, from its terrace to its roof
@@ -103,7 +105,8 @@ describe('an evocation built', () => {
     const inside = (c, q) => (c.min[0] + c.max[0]) / 2 >= q[0] && (c.min[0] + c.max[0]) / 2 <= q[2] && (c.min[1] + c.max[1]) / 2 >= q[1] && (c.min[1] + c.max[1]) / 2 <= q[3];
     expect(N.colliders.length).toBeGreaterThan(0);
     // (a crane's jib reaches out over the street, high over it: its mast stands in its block)
-    expect(N.colliders.filter((c) => !c.of.endsWith(':crane')).every((c) => massed.some((r) => inside(c, r.rect)))).toBe(true);
+    // (the waterfront's buildings out past the land's edge, waterfront.js)
+    expect(N.colliders.filter((c) => !c.of.endsWith(':crane') && !c.of.startsWith('wf-')).every((c) => massed.some((r) => inside(c, r.rect)))).toBe(true);
     // an evoked tower's lot its own box
     expect(N.colliders.some((c) => /^[^:]+:t0$/.test(c.of) && DN.evoked.blocks.includes(c.of.split(':')[0]))).toBe(true);
     expect(N.geocity.laws.find((l) => l.law === 'walk-clear').ok).toBe(true);
@@ -177,7 +180,8 @@ describe('the city changing', () => {
       expect(P.repeats.some((r) => r.group === 'geocity:scaffold')).toBe(true);
       expect(P.repeats.some((r) => r.group === 'geocity:hoarding' || r.group === 'geocity:fence')).toBe(true);
     }
-    if (parked) { const cars = P.repeats.find((r) => r.group === 'geocity:car'); expect(cars.transforms.every((t) => Array.isArray(t.tint))).toBe(true); }
+    // (its lots' cars the registry's, fleets.js: each model's body tinted its paint)
+    if (parked) { const cars = P.repeats.filter((r) => r.group === 'geocity:vehicle-paint'); expect(cars.length).toBeGreaterThan(0); expect(cars.every((r) => r.transforms.every((t) => Array.isArray(t.tint)))).toBe(true); }
     expect(going || parked).toBe(true);
   });
   it('stocks a site drawn in detail from the construction shelf: its tower crane over its core, an excavator and a tipper in its hoarding', () => {
@@ -208,5 +212,83 @@ describe('the geotown composed in, built', () => {
     expect(held(r.id, r.rect, 0.5) && held(b.id, b.rect, 0)).toBe(true);
     const K = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'skyline', geotowns: { [r.id]: true } } });
     expect(K.faces.some((f) => String(f.group).startsWith('geotown:'))).toBe(false);
+  });
+
+  it('stands its composed towns on the metro\'s ground, its town-seams law held on the page as built', () => {
+    const r = D.regions.find((x) => x.builds !== 'outskirts' && !x.park && x.blocks.length > 2);
+    const C = assembleGeocityScene({ ...M, geocity: { ...geocity, geotowns: { [r.id]: true } } }), L = C.geocity.laws.find((l) => l.law === 'town-seams');
+    expect(L).toBeDefined();
+    expect(L.ok, L.value).toBe(true);
+  });
+});
+
+// READ BY THE SEVENTH GENERATION (ctx.form): the metro's soft ground the form's land, its street trees and its towns' the
+// form's plants; a painted read none of it
+describe('the geocity read in the form render', () => {
+  it('hands its soft ground to the form as land and its trees as plants, its towns\' with them', () => {
+    const r = D.regions.find((x) => x.builds !== 'outskirts' && !x.park && x.blocks.length > 2);
+    const m = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', geotowns: { [r.id]: true } } };
+    const F = assembleGeocityScene(m, { form: true }), P = assembleGeocityScene(m);
+    expect(F.faces.some((f) => f.group === 'isekai:ground')).toBe(true);
+    expect(F.faces.some((f) => FORM_GROUND.includes(f.group))).toBe(false);
+    expect(F.plants.trees.length).toBeGreaterThan(0);
+    expect(F.plants.clear.length).toBeGreaterThanOrEqual(F.plants.trees.length);
+    // (no street tree drawn as paint where the form grows it)
+    expect((F.repeats ?? []).some((rp) => String(rp.group).startsWith('geocity:tree-'))).toBe(false);
+    expect(P.plants).toBeUndefined();
+    expect(P.faces.some((f) => f.group === 'isekai:ground')).toBe(false);
+  });
+});
+
+
+describe('the metro at a person\'s height: its frontage', () => {
+  it('dresses the walls near its street-level eyes (storefronts, entries, windows), the skyline none', async () => {
+    const { assembleGeocityScene: A } = await import('./scene.js');
+    const { designGeocity: Dg } = await import('./design.js');
+    const at = Dg({}, { seed: 2 }).regions.find((r) => r.ring === 'outskirts' && !r.park).id;
+    const p = A({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity: { evoke: 'neighbourhood', at } });
+    const fr = p.repeats.filter((r) => r.group.startsWith('geocity:front-'));
+    expect(p.geocity.counts.fronts).toBeGreaterThan(20);
+    for (const g of ['geocity:front-shop-sign', 'geocity:front-entry-door', 'geocity:front-band-band']) expect(fr.some((r) => r.group === g)).toBe(true);
+    expect(fr.some((r) => r.group.startsWith('geocity:front-win-unit'))).toBe(true);
+    expect(fr.reduce((a, r) => a + r.transforms.length, 0)).toBe(p.geocity.counts.frontPieces);
+    // (every piece near an eye, drawn near the camera)
+    expect(fr.every((r) => r.near > 0)).toBe(true);
+    const sky = A({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity: { evoke: 'skyline' } });
+    expect((sky.repeats ?? []).some((r) => r.group.startsWith('geocity:front-'))).toBe(false);
+  });
+});
+
+describe('the metro\'s vehicles: in their yards, and its traffic on its arterials', () => {
+  it('parks the registry\'s vehicles in its lots and its yards\' fleets, its sites\' machines; drives its traffic, its kerbs clear', async () => {
+    const { assembleGeocityScene: A } = await import('./scene.js');
+    const p = A({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity: {} }), C = p.geocity.counts;
+    expect(C.vehicles).toBeGreaterThan(200);
+    expect(C.machines).toBeGreaterThan(10);
+    for (const y of ['depot', 'works', 'emergency', 'contractor']) expect(C.yards[y]).toBeGreaterThan(0);
+    const groups = new Set(p.repeats.map((r) => r.group));
+    for (const g of ['geocity:vehicle-paint', 'geocity:vehicle-trim', 'geocity:vehicle-lightbar-rb', 'geocity:machine-mixerTruck']) expect(groups.has(g)).toBe(true);
+    // (no kit box car left; none of them an occluder in the ambient bake; every one drawn near the camera)
+    expect([...groups].some((g) => g === 'geocity:car')).toBe(false);
+    for (const r of p.repeats.filter((x) => /geocity:(vehicle|machine)/.test(x.group))) { expect(r.occlude).toBe(false); expect(r.near).toBeGreaterThan(0); }
+    // its traffic: every kind that drives pooled for the page (its paint, its trim, its roof's extra), its laws kept
+    expect(p.flow.cars.length).toBe(p.geocity.flow.vehicles);
+    const pools = new Set(p.repeats.filter((r) => r.pool).map((r) => r.pool));
+    for (const k of p.flow.kinds) for (const part of ['paint', 'trim', ...(k.extra ? [k.extra] : [])]) expect(pools.has(`${k.model}|${part}`)).toBe(true);
+    for (const id of ['flow-holds', 'flow-clearance']) expect(p.geocity.laws.find((l) => l.law === id).ok).toBe(true);
+    // (no vehicle parked on an arterial's kerb lane any more)
+    const d = designGeocity({}, { seed: 2 });
+    const onKerb = (x, y) => d.lines.some((l) => l.bands.some((b) => b.kind === 'parking' && (l.axis === 'ns' ? x > l.at + b.from && x < l.at + b.to : y > l.at + b.from && y < l.at + b.to)));
+    const parked = p.repeats.filter((r) => r.group === 'geocity:vehicle-paint').flatMap((r) => r.transforms);
+    expect(parked.filter((t) => onKerb(t.pos[0], t.pos[1])).length).toBeLessThan(parked.length * 0.02);
+  });
+
+  it('drives none where its recipe says `flow: false`, and pools nothing', () => {
+    const q = assembleGeocityScene({ ...M, flow: false });
+    expect(q.flow).toBeUndefined();
+    expect(q.geocity.flow).toBeUndefined();
+    expect((q.repeats ?? []).some((r) => r.pool)).toBe(false);
+    expect(P.flow.lanes.length).toBeGreaterThan(0);
+    expect(() => assembleGeocityScene({ ...M, flow: 'yes' })).toThrow(/flow is true or false/);
   });
 });

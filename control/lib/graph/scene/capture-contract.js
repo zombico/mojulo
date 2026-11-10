@@ -25,6 +25,11 @@ export const CAPTURE_COMPILE_WALK_TO = 'compileWalkTo';
 // the camera as RENDERED (after a follow camera's wall pull-in, which the camera entity never sees): { eye, dir, fov,
 // aspect }. The first-frame check (lib/graph/game/first-frame-check.js) judges where the eye really is with it.
 export const CAPTURE_VIEW = 'view';
+// the HOVER BOT's (scene/hover-bot.js), on a capture page only: ground(x, y) the highest surface the world draws under a
+// point, cast from above ({ z, group, nz } or null: a hole); hover(spec) the eye stood a height over it, looking where it
+// is told, rendered ({ eye, ground, triangles, calls })
+export const CAPTURE_GROUND = 'ground';
+export const CAPTURE_HOVER = 'hover';
 
 // probe() result shape (top level) and per-entity fields — the assertion surface
 export const PROBE_FIELDS = ['t', 'entities', 'hud', 'bodies'];

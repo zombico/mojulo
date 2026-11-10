@@ -415,6 +415,8 @@ function drape(out, a, b, a2, b2, len, off, n, key, scale, group) {
  * kit's round-mass crowns only (bamboo and blossom are not cast across a seam); no pebble.
  * → { trees: [{ x, y, h, v, z0, … }], rocks: [{ x, y, size, v, z0, … }], seed } in the tile's own frame.
  */
+// a strewn stone's place: its item's, else the middle of its faces
+const stoneAt = (b) => (b.it ? [b.it.x, b.it.y] : Number.isFinite(b.x) ? [b.x, b.y] : (() => { const cs = [...(b.sides ?? []), ...(b.cap ?? [])].flatMap((f) => f.corners ?? []); return cs.length ? [cs.reduce((a, c) => a + c[0], 0) / cs.length, cs.reduce((a, c) => a + c[1], 0) / cs.length] : null; })());
 /**
  * Where the HERO tree stands: on a trail at its depth, beside the trail. On a glyph map's tile only where the map has
  * named it (`tile.hero`: one a region, level/grid-scene.js), beside the middle of the tile's path; any other tile none,
@@ -425,7 +427,7 @@ function heroSpot(Hr, site, manifest) {
   if (!manifest.tile?.hero) return null;
   const A = pathAlong(site);
   if (!A.length) return null;
-  const p = A.at(0.5), d = Hr.side * (site.halfW + Hr.off), x = p.c[0] + p.n[0] * d, y = p.c[1] + p.n[1] * d;
+  const p = A.at(0.5), d = Hr.side * ((p.h ?? site.halfW) + Hr.off), x = p.c[0] + p.n[0] * d, y = p.c[1] + p.n[1] * d;
   // (kept its own offset clear of every seam, so its crown is the tile's whole: a tile too small for one has none)
   if (Math.min(x, y, site.W - x, site.D - y) < Hr.off) return null;
   return { x: r5(x), y: r5(y) };
@@ -467,8 +469,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
   // the trail's dress (era/trail-dress.js): its surface, its rubble, its patches
-  // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's)
-  const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
+  // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's; a glyph map's
+  // tile its way's dress, level/path-ranks.js)
+  const TD = readTrailDress(manifest.tile?.dress ?? manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
   // (a TILE of a glyph map, era/out-tile.js: its square of the level's one land, its path's shape through it)
   const site = reserveSite(manifest.tile !== undefined ? outTileSite(st, manifest.tile, seed) : manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
@@ -607,7 +610,11 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     strewn.push(...strewStones(st, { faces: [...ground.faces, ...(inDirt ? ribbon : ribbon.filter((f) => f.cls !== 'trail'))], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
     // (and the same stones along a dirt trail's edges, thinning out onto the land)
     // (a road laid in the dirt: more of the stones in on its border)
-    if (inDirt && TD.rubble) strewn.push(...strewEdge(st, { site, heightAt: site.ground, seed, grit: broken, keep, ...(dirt ? {} : { inShare: 0.35, inReach: 0.5 }) }));
+    // (a glyph map's tile, era/out-tile.js: its ways are polylines, not a line by depth, so only the edge stones that stand
+    // at a way's edge are kept; and none on the ground the map's water covers, nor on its beach)
+    const atEdge = site.tile ? (b) => { const c = stoneAt(b); return !c || site.trailDist(c[0], c[1]) < site.halfWAt(0) + site.fringeAt(0) + 2.5; } : () => true;
+    if (inDirt && TD.rubble) strewn.push(...strewEdge(st, { site, heightAt: site.ground, seed, grit: broken, keep, ...(dirt ? {} : { inShare: 0.35, inReach: 0.5 }) }).filter(atEdge));
+    if (site.tile && site.water) for (let i = strewn.length - 1; i >= 0; i--) { const c = stoneAt(strewn[i]); if (c && site.water.bare(c[0], c[1])) strewn.splice(i, 1); }
   }
   // (the strewn stones are drawn and lit but cast nothing: a pebble's shadow is a few centimetres, and each would be one
   // more set of triangles every lit point is tested against)
@@ -890,7 +897,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [])] : [];
   // (no dirt patch, turf or spill lies over the snow)
   const patchesS = SF ? patches.filter((f) => !(SF(...mean(f.corners), [0, 0, 1]) > 0)) : patches;
-  const faces = [...landD, ...talusEdge, ...patchesS, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (f.textureLit ? null : f._ramp ? st.palette[f._ramp] : st.lock[f.group] ? st.palette[st.lock[f.group]] : null)).map((f) => (f._ramp === undefined ? f : (({ _ramp: _r, ...g }) => g)(f))), ...real, ...(site.out ? streamFaces(site, st) : [])];
+  const faces = [...landD, ...talusEdge, ...patchesS, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (f.textureLit ? null : f._ramp ? st.palette[f._ramp] : st.lock[f.group] ? st.palette[st.lock[f.group]] : null)).map((f) => (f._ramp === undefined ? f : (({ _ramp: _r, ...g }) => g)(f))), ...real, ...(site.out ? streamFaces(site, st) : []), ...(site.tile && site.water ? site.water.faces : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
@@ -1016,7 +1023,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       cols.push({ min: [r5c(t.x - tr), r5c(t.y - tr), r5c(z0 - 0.5)], max: [r5c(t.x + tr), r5c(t.y + tr), r5c(z0 + 3)], of: 'flora:trunk', hold: false });
     }
     for (const b of boulders) {
-      if (b.it.role === 'pebble' || b.it.role === 'talus') continue;
+      // (a gritty land's strewn stones carry no item: pebbles the feet step over, as a pebble is)
+      if (!b.it || b.it.role === 'pebble' || b.it.role === 'talus') continue;
       const cs = [...(b.sides ?? []), ...(b.cap ?? [])].flatMap((f) => f.corners ?? []);
       if (!cs.length) continue;
       const lo = [0, 1, 2].map((k) => Math.min(...cs.map((c) => c[k]))), hi = [0, 1, 2].map((k) => Math.max(...cs.map((c) => c[k])));

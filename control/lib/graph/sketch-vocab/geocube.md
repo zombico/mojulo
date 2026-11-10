@@ -157,7 +157,7 @@ A cube that names no domains offers one per terrain and one per interior.
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
   `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
   each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
-  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, blocks?, margin? }`: `evoke` how
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, profile?, slope?, access?, blocks?, margin? }`: `evoke` how
   it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
   six or eight, mostly semis, a share of the pairs split into two flats each (`pattern.duplex`: two doors at the porch,
   a porch over the porch, a steel stair up the back), each a type of its pattern with a bay, a porch, its own roof,
@@ -180,8 +180,13 @@ A cube that names no domains offers one per terrain and one per interior.
   letters north to south, H houses, M main-street, A apartments, L lowrise, P park, S school, F sports, E edge, a wide letter side
   by side one block; `main` the streets that are main, wider, their walks paved to the kerb; `major` the arterials an
   edge faces; `bike` the streets with bike lanes; a local street two lanes and a parked side each way, a main or major
-  street four lanes and parking each side, bike lanes on some, all painted; a houses segment's access a rear lane with
-  garages or mutual drives to garages at the back; hydro poles and wires, street-name signs, hydrants, a main street's
+  street four lanes and parking each side, bike lanes on some, all painted; a houses segment's ACCESS (`access`, or a
+  block's own, `blocks: { A1: { access } }`; else the pattern's dice): `lane` a rear lane with garages off it here and
+  there, `mutual` shared drives between houses to garages at the back, `compact` each house its own drive from the walk
+  across its boulevard to a one-car garage beside it (its lot a garage's bay wider, no mansion), `alley` a rear alley,
+  every house a one-car garage off it behind an apron ramped to it, `none`; its parked cars the vehicle registry's
+  family cars (sedans, hatchbacks, crossovers, SUVs, an estate, a minivan, superminis) at the kerbs and on the pads,
+  drives, aprons and lots, each tinted its paint; hydro poles and wires, street-name signs, hydrants, a main street's
   bins, bike rings and post box, a major street's bus shelters), each segment tuned to its cell (its rows recut and spread, its `fits`
   law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
   them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
@@ -198,7 +203,13 @@ A cube that names no domains offers one per terrain and one per interior.
   crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
   grass, its trees grow as form (their litter round their feet), its hedges, beds, planters and foundation plantings
   are the plant library's bushes and shrubs (`pattern.houseplants`), no trail's rubble or patches. `pattern` a block pattern (`bay-and-gable`, a
-  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
+  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `profile` its streets
+  laid as a hill town lays them (`true` or `{ walkable, curve }`: its crossings level, each block graded on one ramp, a
+  stretch past `walkable` said too steep to walk by the `walkable` law; a street's stairs are its buildings' front steps), `slope` THIS CLIMBS (`{ toward: n | e | s | w, grade }` the land
+  rising toward a side over its hills, the houses' pads with it; `streets: { 'ns-1': 0.12 }` each named street, one
+  axis, climbing at its grade toward its north or east end on its profile, the land under it lifted with it and eased
+  out at its neighbours, its cross streets said where too steep to walk); its `grade` law reads every street by its rank
+  (a local street the pattern's `grade`, a main or a major street its gentler `grades`); `style` over the pattern's
   houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
   segments, the ports and the laws;
   `show: 'geocity'` a METRO on the cube's own land, its major streets first (geocity/): a spine through its core's
@@ -206,8 +217,45 @@ A cube that names no domains offers one per terrain and one per interior.
   ring (the core's towers, the frame's mid-rise, the outskirts at four storeys and lower, a geotown's own blocks), a
   park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
   or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
-  streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play? }`: `roads` each arterial's section
+  streets' grade, lit windows past dusk; near a person's eye (a camera near the ground) its walls dressed at street
+  level (geocity/frontage.js): windows in frames on every storey, storefronts with their signs and awnings on its
+  shopping streets (arterials and collectors in the core and the frame, main streets, avenues), apartment entries on its
+  residential streets, an office's lobby among shops, balconies on some, a cornice; an evocation's detailed facades
+  their ground floors dressed the same. Its vehicles are the vehicle registry's, each fleet by its role (geocity/fleets.js): its TRAFFIC on every
+  arterial's travel lanes (geocity/flow.js: the family cars mostly, a taxi, a delivery van or truck, a bus, a works
+  pickup; a signal at each crossing, vehicles stopping behind its crosswalk on red, queueing, pulling away on green; the
+  page steps a lane and draws its vehicles only near the camera; `flow: false` none), its kerbs kept clear; the family
+  cars in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
+  its garbage trucks and works pickups, an emergency station with its fire engines, ambulances and police cars, the rest
+  car parks); a vacant block by its construction sites their contractor's yard of mixers, tippers and loaders. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
+  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, waterfront?, evoke?, at?, along?, play?, profile?, slope? }`: `industry` its
+  industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
+  most] }`: a share of the outskirts' neighbourhoods, its land's edge and its shore first; big blocks: a works' corrugated
+  hall and its stack, a clad warehouse's docks and trucks, container stacks and silos, a tank farm's tanks, gas spheres or
+  a gasholder, and in each a substation of outdoor transformers, gantries and breakers, fed by a line on lattice pylons
+  in from the country beyond the land's edge; the sheds of its yards clad in corrugated steel under standing-seam
+  roofs); `highways` its expressways (`false` none, or `{ count, lanes, height, along? }`: by default four, elevated on
+  piers: a lakeshore expressway over its shore's edge, a crosstown over its arterial farthest from the shore, two cross
+  highways over its outermost arterials the other way, flying over the crosstown and joining the shore's; `along` names
+  their arterials, 'shore' its shore; each driven by its traffic, the street's lamps and trees cleared from under its
+  deck); `waterfront` (true by default, `false` none) its shores reclaimed: a strip out into the water along each, on
+  its main shore a boulevard under the lakeshore expressway and a row of the waterfront's own buildings, then segments
+  each its way of meeting the water (a quay's granite plaza, rink and moored tour boat; finger piers on piles with a shed
+  or a restaurant and boats along them; a restaurant row's patios under parasols; a park's lawn, trees and rock
+  revetment along a natural shore, a headland or a cove; a beach's crescent bay of sand under pink parasols and
+  loungers, a boardwalk behind; a marina's clubhouse, lot, pontoons and
+  boats; timber steps down to the water), a promenade along its edge with lamps, benches and railings, the ground falling
+  from the land's edge to the promenade a little over the water. Its details: an industrial hall glazed in a ribbon high
+  on its walls and its offices a row of windows a storey; a transformer's can on every fourth wooden pole; on the flat
+  roofs of its low and mid-rise buildings air handlers, cell sites, microwave dishes, masts and satellite dishes; cell
+  towers in some yards and car parks; aviation lights blinking red on its tallest towers and on each cell tower (the
+  beacons channel); `profile` its streets laid
+  as a hill town lays them (`true` or `{ walkable, curve }`: the arterials' crossings level, each block between graded on
+  one ramp, the land's edges and its shore kept; each neighbourhood's collectors and locals the same inside it; its
+  composed geotowns profiled on its ground unless their recipes say; `walkable` names a stretch too steep to walk); `slope:
+  { streets: { 'ns-2': 0.04 } }` arterials that climb at their grade, the land under them lifted with them; `grades: { collector, local }`
+  the steepest of each neighbourhood street, its `grade` law reading every street by its rank (the arterials the metro's
+  `grade`); `roads` each arterial's section
   (`{ lane, parking, bike, lanes, median: { share, w }, oneway: { pairs, lanes }, streetcar: { spine, share, gauge,
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,

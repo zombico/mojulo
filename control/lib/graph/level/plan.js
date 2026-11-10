@@ -156,7 +156,7 @@ export function readSegment(P, S, seg, at = `grid.segments.${S}`) {
   if (!isObj(key)) throw new Error(`level: ${at}.key is { <glyph>: <what stands on it> }`);
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
     const g = rows[r][c];
-    if (g !== '#' && g !== '.' && !(/^[A-Za-z]$/.test(g) && Object.hasOwn(key, g))) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${g}' is not a glyph of the segment ('#' a path, '.' open land, a letter its key names)`);
+    if (g !== '#' && g !== '.' && g !== '~' && !(/^[A-Za-z]$/.test(g) && Object.hasOwn(key, g))) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${g}' is not a glyph of the segment ('#' a path, '.' open land, '~' water, a letter its key names)`);
   }
   // THE BORDER with a neighbour: no path on a side another segment lies beyond, but at the gate the route crosses it
   // by (a path there would join the neighbour where the plan did not); a side on open land or the map's edge is the
@@ -172,7 +172,7 @@ export function readSegment(P, S, seg, at = `grid.segments.${S}`) {
     if (s) throw new Error(`level: ${at}: the path at row ${r + 1}, column ${c + 1} lies on its ${NAME[s]} side, which a neighbour lies beyond, off its gate: it would join the neighbour where the plan did not`);
   }
   // ONE WAY THROUGH: every path in it reached from its gates (a place's door a step of it)
-  const walkable = (r, c) => r >= 0 && c >= 0 && r < n && c < n && rows[r][c] !== '.';
+  const walkable = (r, c) => r >= 0 && c >= 0 && r < n && c < n && rows[r][c] !== '.' && rows[r][c] !== '~';
   const seen = new Set(Object.keys(gateAt)), queue = Object.keys(gateAt).map((k) => k.split(',').map(Number));
   while (queue.length) {
     const [r, c] = queue.shift();

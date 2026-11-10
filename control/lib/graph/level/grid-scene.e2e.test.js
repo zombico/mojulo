@@ -26,5 +26,42 @@ describe('a glyph map, built', () => {
     expect(Object.values(P.map.regions).map((r) => r.name)).toEqual(['the town', 'the woods', 'the shrine']);
     expect(P.anchors.some((a) => /temple|G-4-4/.test(JSON.stringify(a)))).toBe(true);
   }, 300000);
+
+  it('lays its water across the tiles, a beach and a cliff at its edge, and its ways by rank, its laws held', async () => {
+    // (a pond under a risen bluff on the east, a town's house on the west: a road by the house, a track on, the shore's
+    // beach on the low side and its cliff under the bluff)
+    const level = { kit: 'isekai-meadow', seed: 6, grid: { tile: 24, rows: ['h # # #', '. ~ ~ #', '. . # #'], key: { h: { use: 'dwelling' } }, regions: { rows: ['. . . R', '. . . R', '. . . R'], key: { R: { name: 'the bluff', rise: 4 } } } } };
+    const { payload: P } = await resolveWorldScene({ ref: 'glyph-water', manifest: { kind: 'map', level } });
+    for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    expect(P.map.water[0].shore.beach).toBeGreaterThan(0);
+    expect(P.map.water[0].shore.cliff).toBeGreaterThan(0);
+    expect(P.faces.some((f) => f.group === 'isekai:water')).toBe(true);
+    expect(P.faces.some((f) => f.group === 'isekai:sand')).toBe(true);
+    expect(P.faces.some((f) => f.group === 'isekai:cliff')).toBe(true);
+    expect(Object.keys(P.map.ways.count)).toContain('road');
+  }, 300000);
+
+  it('read in gen-7 is the form render\'s: its land read, its plants grown as form, a range of mountains round it', async () => {
+    // (one small map a geocube paints, read in each era; and one no cube paints, read in gen-7)
+    const level = (era) => ({ seed: 5, geocube: { from: 'valley-morning', era }, grid: { tile: 24, rows: ['# # #', '. ~ #'] } });
+    const { payload: P7 } = await resolveWorldScene({ ref: 'glyph-gen7', manifest: { kind: 'map', level: level('gen-7') } });
+    expect(P7.form?.land?.far).toEqual(['isekai:ridge']);
+    expect(P7.form.land.haze).toBeDefined();
+    expect(P7.form.flora).toBeDefined();
+    expect(P7.map.form).toMatchObject({ read: true, plants: true, far: 'range' });
+    // (its far is the range, real ground standing hundreds of metres out; no tile's painted curtains)
+    const far = P7.faces.filter((f) => f.group === 'isekai:ridge');
+    expect(Math.max(...far.flatMap((f) => f.corners.map((c) => Math.hypot(c[0] - 36, c[1] + 24))))).toBeGreaterThan(500);
+    expect(P7.faces.some((f) => f.group === 'isekai:cloud')).toBe(false);
+    // (gen-6: the painted read, its first tile's far ring round the map, no form)
+    const { payload: P6 } = await resolveWorldScene({ ref: 'glyph-gen6', manifest: { kind: 'map', level: level('gen-6') } });
+    expect(P6.form).toBeUndefined();
+    expect(P6.map.form).toBeUndefined();
+    expect(P6.faces.some((f) => f.group === 'isekai:ridge')).toBe(true);
+    // (a map no cube paints, read in gen-7: paint under the live light, and it says why)
+    const { payload: Pk } = await resolveWorldScene({ ref: 'glyph-kit7', manifest: { kind: 'map', level: { seed: 5, kit: 'isekai-meadow', grid: { tile: 24, rows: ['# # #'] } } } }, { era: 'gen-7' });
+    expect(Pk.form).toBeUndefined();
+    expect(Pk.map.form).toMatchObject({ read: false, why: expect.stringMatching(/geocube/) });
+  }, 600000);
 });
 

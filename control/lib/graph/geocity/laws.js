@@ -14,7 +14,9 @@ const r2 = (v) => Math.round(v * 100) / 100;
 
 export const GEOCITY_LAWS = Object.freeze({
   closes: 'every square metre of the map is one thing: water, an arterial, a park or a neighbourhood',
-  grade: 'no arterial steeper than the metro\'s grade',
+  grade: 'no street steeper than its rank\'s grade: an arterial the metro\'s `grade`, a collector and a local its `grades`',
+  walkable: 'a profiled metro\'s every stretch no steeper than a street is walked (geotown/profile.js): one past it said, too steep to walk',
+  yards: 'a metro with car parks keeps its buses, its works and its emergencies each in a yard (fleets.js)',
   rings: 'a core, a frame and outskirts, in that order out from the seat',
   green: 'the city\'s green share given out, and no neighbourhood\'s quota more than its most of its ground',
   holds: 'every outskirts neighbourhood holds a geotown neighbourhood of its outskirts\' pattern (two blocks by two)',
@@ -122,8 +124,21 @@ export function geocityLaws(d) {
   const M = d.metro, L = d.ledger, out = [];
   const sum = L.water + L.arterials + L.parks + L.neighbourhoods;
   out.push({ law: 'closes', ok: Math.abs(sum - L.total) < 1, value: `${Math.round(sum)} of ${Math.round(L.total)} m²`, want: 'the map' });
-  const steep = d.lines.reduce((b, l) => (l.grade > (b?.grade ?? -1) ? l : b), null);
-  out.push({ law: 'grade', ok: !steep || steep.grade <= M.grade, value: steep ? `${steep.id} ${r2(steep.grade * 100)}%` : 'none', want: `≤ ${r2(M.grade * 100)}%` });
+  // every street's GRADE by its rank (gradesOf): the arterials' by their profiles, each neighbourhood's collectors and locals
+  // along their runs, 4 m a step, against the metro's grade and its `grades`
+  const GR = gradesOf(d), byRank = Object.entries(GR.ranks).map(([rank, x]) => `${rank} ${x.id} ${r2(x.g * 100)}% (most ${r2(x.most * 100)}%)`);
+  out.push({ law: 'grade', ok: !GR.over.length, value: `${GR.over.length ? `${GR.over.length} street${GR.over.length === 1 ? '' : 's'} over its rank's most: ${GR.over.slice(0, 10).map((s) => `${s.id} ${r2(s.g * 100)}%`).join(', ')}${GR.over.length > 10 ? ' …' : ''}; ` : ''}the steepest ${byRank.join(', ') || 'none'}`, want: `arterials ≤ ${r2(M.grade * 100)}%, collectors ≤ ${r2(GR.most.collector * 100)}%, locals ≤ ${r2(GR.most.local * 100)}%` });
+  // its YARDS (fleets.js): a bus depot, a works yard and an emergency station where it has car parks to give them
+  if (d.yards) {
+    const n = {}; for (const y of Object.values(d.yards)) n[y] = (n[y] ?? 0) + 1;
+    const lack = ['depot', 'works', 'emergency'].filter((y) => !n[y]);
+    out.push({ law: 'yards', ok: !lack.length, value: `${Object.entries(n).map(([y, k]) => `${k} ${y}`).join(', ')}${lack.length ? `; no ${lack.join(', no ')} (too few car parks to give them)` : ''}`, want: GEOCITY_LAWS.yards });
+  }
+  // a profiled metro's WALKABLE streets: every stretch, an arterial's or a neighbourhood's street's, past the walkable grade
+  if (d.profile) {
+    const all = [...d.profile.arterials, ...Object.values(d.profile.neighbourhoods).flat()], st = all.flatMap((q) => q.stretches.filter((x) => x.steep).map((x) => `${q.id} at ${Math.round(x.grade * 100)}%`));
+    out.push({ law: 'walkable', ok: !st.length, value: st.length ? `${st.length} stretch${st.length === 1 ? '' : 'es'} too steep to walk: ${st.slice(0, 12).join(', ')}${st.length > 12 ? ' …' : ''}` : `every stretch walkable (${all.length} streets)`, want: GEOCITY_LAWS.walkable });
+  }
   const ringsOf = (k) => d.regions.filter((r) => r.ring === k);
   const far = (k) => Math.max(...ringsOf(k).map((r) => r.dist)), near = (k) => Math.min(...ringsOf(k).map((r) => r.dist));
   const present = ['core', 'frame', 'outskirts'].filter((k) => ringsOf(k).length);
@@ -166,11 +181,15 @@ export function geocityLaws(d) {
   out.push({ law: 'blocks', ok: !open_.length, value: open_.length ? open_.map((r) => r.id).join(', ') : `${lots.length} blocks, ${Math.round(L.streets / 1e4)} ha of their streets`, want: 'each neighbourhood' });
   const G = d.grammar, TP = d.spec.pattern;
   const rail = (ring) => (ring === 'outskirts' ? [[2 * TP.block.depth[0], 2 * TP.block.depth[1]], TP.block.long] : [G.block.pitch, G.block.pitch]);
-  const offPitch = lots.filter((b) => { const [rx, ry] = rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
+  // (an industrial neighbourhood's blocks at its industry's own length, design.js)
+  const indus = new Set(built.filter((r) => r.industrial).map((r) => r.id)), isInd = (b) => indus.has(b.id.split('.')[0]);
+  const offPitch = lots.filter((b) => { const [rx, ry] = isInd(b) ? [M.industry.block, M.industry.block] : rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
   out.push({ law: 'pitch', ok: offPitch.length <= 0.1 * lots.length, value: `${offPitch.length} of ${lots.length} off their ring's length`, want: '≤ 10%' });
   const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
-  const wrong = lots.filter((b) => !OF[b.ring].includes(b.kind));
-  const civicLess = built.filter((r) => r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school'));
+  OF.industry = ['works', 'warehouse', 'storage', 'tanks', 'substation', ...ANY];
+  const wrong = lots.filter((b) => !OF[isInd(b) ? 'industry' : b.ring].includes(b.kind));
+  // (an industrial neighbourhood's civic block its substation, every one of them)
+  const civicLess = built.filter((r) => (r.industrial ? !r.blocks.some((b) => b.kind === 'substation') : r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school')));
   out.push({ law: 'segments', ok: !wrong.length && civicLess.length <= Math.ceil(0.2 * built.length), value: `${Object.entries(lots.reduce((m, b) => ({ ...m, [b.kind]: (m[b.kind] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ')}${wrong.length ? `; ${wrong.length} off their ring` : ''}${civicLess.length ? `; no civic block in ${civicLess.map((r) => r.id).join(', ')}` : ''}`, want: 'each its ring\'s' });
   const short = built.filter((r) => r.soft < 0.9 * r.green);
   out.push({ law: 'soft', ok: short.length <= Math.ceil(0.2 * built.length), value: `${Math.round(L.green.soft / 1e4)} ha green ground${short.length ? `; ${short.length} short of their quota (${short.slice(0, 5).map((r) => r.id).join(', ')}${short.length > 5 ? '…' : ''})` : ''}`, want: '≥ 90% each, most of them' });
@@ -185,4 +204,21 @@ export function geocityLaws(d) {
     out.push({ law: 'geotowns', ok: !over.length, value: `${towns.map((r) => `${r.id} ${r.geotown.design.spec.evoke === 'metro' ? r.geotown.design.spec.grid.join('×') : r.geotown.design.spec.evoke === 'segment' ? `a ${r.geotown.spec.segment ?? 'houses'} segment` : 'a neighbourhood'}`).join(', ')}${over.length ? `; ${over.join(', ')} past their place` : ''}${off.length ? `; their own advice: ${off.join(', ')}` : ''}`, want: 'each inside its neighbourhood or its block' });
   }
   return out;
+}
+
+/** Every street's steepest grade by its rank: each arterial's along its centre, each neighbourhood street's along its
+ *  runs, 4 m a step, against its rank's most (an arterial the metro's `grade`; a collector and a local its `grades`, by
+ *  default the gentler of a tenth and an eighth or the arterials'). → { most, ranks: { <rank>: { id, g, most } }, over } */
+export function gradesOf(d) {
+  const M = d.metro, S = d.land.S, most = { arterial: M.grade, collector: M.grades?.collector ?? Math.max(M.grade, 0.1), local: M.grades?.local ?? Math.max(M.grade, 0.12) };
+  const steepest = (axis, at, a, b) => { let g = 0; const z = (t) => (axis === 'ns' ? S(at, t) : S(t, at)); for (let t = a; t + 4 <= b + 1e-9; t += 4) g = Math.max(g, Math.abs(z(t + 4) - z(t)) / 4); return g; };
+  const [x0, y0, x1, y1] = d.land.rect, all = [];
+  for (const l of d.lines) all.push({ id: l.id, rank: 'arterial', g: steepest(l.axis, l.at, l.axis === 'ns' ? y0 : x0, l.axis === 'ns' ? y1 : x1) });
+  for (const r of d.regions) for (const st of r.streets ?? []) {
+    const rank = st.rank === 'collector' ? 'collector' : 'local';
+    all.push({ id: st.id, rank, g: Math.max(0, ...st.runs.map(([a, b]) => steepest(st.axis, st.at, a, b))) });
+  }
+  const ranks = {};
+  for (const s of all) { s.most = most[s.rank]; if (!ranks[s.rank] || s.g > ranks[s.rank].g) ranks[s.rank] = { id: s.id, g: s.g, most: s.most }; }
+  return { most, ranks, over: all.filter((s) => s.g > s.most + 1e-9).sort((a, b) => b.g - a.g) };
 }

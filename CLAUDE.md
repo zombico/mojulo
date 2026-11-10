@@ -128,6 +128,7 @@ node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{â
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
 node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
+node scripts/hover.mjs <tour.json> [--out dir]   # the hover bot: teleport shots, flights sampled at a speed (docs/hover-bot.md)
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:

@@ -20,6 +20,7 @@
  */
 import { vnoise } from './dirt.js';
 import { landformGrid, bakeGrid, gridSample } from '../polygonizer/landform.js';
+import { tileWater } from './out-tile-water.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -76,17 +77,70 @@ function nearest(paths, x, y) {
   return { d: best, at };
 }
 
+// the nearest point on the polylines with where it lies: its polyline, its segment and how far along it
+function nearestAt(paths, x, y) {
+  let best = { d: Infinity, at: null, p: 0, i: 0, t: 0 };
+  for (let p = 0; p < paths.length; p++) {
+    const P = paths[p];
+    for (let i = 0; i < P.length - 1; i++) {
+      const [ax, ay] = P[i], [bx, by] = P[i + 1], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)), px = ax + t * dx, py = ay + t * dy, d = Math.hypot(x - px, y - py);
+      if (d < best.d) best = { d, at: [px, py], p, i, t };
+    }
+  }
+  return best;
+}
+
+/**
+ * A WAY OF RANK on a tile (level/path-ranks.js): its width and verge at the tile's middle, each open edge's at the edge,
+ * eased between over the outer three quarters of each half (TAPER), and wandering a little (WAY_WANDER, a share of the
+ * width) on the level's frame, so two tiles read one width where their ways meet. → per polyline, per point { w, f }
+ * (the whole width and the verge).
+ */
+export const TAPER = 0.25;
+export const WAY_WANDER = Object.freeze({ share: 0.1, stride: 7 });
+function wayWidths(T, open, paths, way, [ox, oy], seed) {
+  const C = [T / 2, T / 2], ease = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const edge = (s) => way.edges?.[s] ?? { width: way.width, fringe: way.fringe };
+  const wander = (x, y) => 1 + WAY_WANDER.share * (2 * vnoise((ox + x) / WAY_WANDER.stride, (oy + y) / WAY_WANDER.stride, seed + 911) - 1);
+  const at = (p, e, t) => { const k = ease(TAPER, 1, t); return { w: mix(way.width, e.width, k) * wander(p[0], p[1]), f: mix(way.fringe, e.fringe, k) }; };
+  const L = open.length === 2 && paths.length === 1;
+  return paths.map((P) => {
+    if (L) {
+      // (an L's arc, from one edge to the other: each end its edge's, the middle the tile's)
+      const n = P.length - 1;
+      return P.map((p, k) => { const u = n ? k / n : 0; return at(p, edge(u < 0.5 ? open[0] : open[1]), Math.abs(1 - 2 * u)); });
+    }
+    // (a branch from an edge's middle to the tile's: open[i] its edge, `t` how far out from the middle)
+    const s = open[paths.indexOf(P)];
+    return P.map((p) => at(p, edge(s), Math.min(1, Math.hypot(p[0] - C[0], p[1] - C[1]) / (T / 2))));
+  });
+}
+
 export function outTileSite(st, tile, seed = 1) {
   const T = tile.size, open = tile.open ?? [], [ox, oy] = tile.origin ?? [0, 0], L = { seed: tile.level?.seed ?? seed, ...(tile.level ?? {}) };
-  const halfW = st.trail.width / 2, paths = tilePath(T, open);
-  const halfWAt = () => halfW, fringeAt = () => st.trail.fringe;
-  const land = (x, y) => levelHeight(ox + x, oy + y, L);
-  const trailDist = (x, y) => (paths.length ? nearest(paths, x, y).d : Infinity);
+  const paths = tilePath(T, open), land0 = (x, y) => levelHeight(ox + x, oy + y, L);
+  // (THE MAP'S WATER, `tile.water` (era/out-tile-water.js): its bodies cut into the level's one land, a beach or a cliff
+  // at their edge; the land the rest of the tile reads is the land with the water in it)
+  const WT = tile.water ? tileWater({ ...tile.water, seed: tile.water.seed ?? L.seed }, { size: T, origin: [ox, oy], land: land0, fill: st.water?.fill ?? '#3a8cb8' }) : null;
+  const land = WT ? (x, y) => WT.carve(x, y, land0(x, y)) : land0;
+  // (a way of rank, `tile.way`: its width read where it is, the walk's tests against its edge kept true by `trailDist`
+  // standing that much nearer or further; absent, the kit's one width, as it always was)
+  const WW = tile.way && paths.length ? wayWidths(T, open, paths, tile.way, [ox, oy], L.seed) : null;
+  const halfW = WW ? tile.way.width / 2 : st.trail.width / 2, fringe0 = WW ? tile.way.fringe : st.trail.fringe;
+  const halfWAt = () => halfW, fringeAt = () => fringe0;
+  // (the way's half-width and verge at the point of it nearest (x, y))
+  const wayAt = WW ? (N) => { const A = WW[N.p][N.i], B = WW[N.p][Math.min(WW[N.p].length - 1, N.i + 1)]; return { h: mix(A.w, B.w, N.t) / 2, f: mix(A.f, B.f, N.t) }; } : null;
+  const halfAt = WW ? (x, y) => wayAt(nearestAt(paths, x, y)).h : () => halfW;
+  const fringeAtXY = WW ? (x, y) => wayAt(nearestAt(paths, x, y)).f : () => fringe0;
+  const trailDist = WW ? (x, y) => { const N = nearestAt(paths, x, y); return Math.max(0, N.d - (wayAt(N).h - halfW)); } : (x, y) => (paths.length ? nearest(paths, x, y).d : Infinity);
   // the path's line across the tile at a depth y: where its points stand nearest that depth (the middle with no path)
   const trailX = (y) => { let bx = T / 2, bd = Infinity; for (const P of paths) for (const p of P) { const d = Math.abs(p[1] - y) + 0.01 * Math.abs(p[0] - T / 2); if (d < bd) { bd = d; bx = p[0]; } } return bx; };
   // the ground: the land, its path's bed eased level across it at the land's height on the path
   const valley = (x, y) => {
     if (!paths.length) return land(x, y);
+    // (a way's bed is the land's where it runs, never the water's: a way beside the shore keeps its bank)
+    if (WW) { const N = nearestAt(paths, x, y), A = wayAt(N), k = smooth(A.h + A.f + 0.8, A.h * 0.5, N.d); return mix(land(x, y), Math.max(land(N.at[0], N.at[1]), land0(N.at[0], N.at[1])) - 0.08, k); }
     const N = nearest(paths, x, y), k = smooth(halfW + st.trail.fringe + 0.8, halfW * 0.5, N.d);
     return mix(land(x, y), land(N.at[0], N.at[1]) - 0.08, k);
   };
@@ -100,11 +154,13 @@ export function outTileSite(st, tile, seed = 1) {
   const foci = paths.length ? [{ name: 'tile', x: T / 2, y: T / 2, r: Math.min(10, T / 4) }] : [];
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
   // (`boulders`: how many the tile strews along its path, a sketched rocky tile's: level/map-sketch.js; absent, the kit's)
-  return { W: T, D: T, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree: [], foci, inRadius, open: true, ...(tile.boulders !== undefined ? { boulders: tile.boulders } : {}), tile: { size: T, open, origin: [ox, oy], paths, seed: L.seed } };
+  return { W: T, D: T, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree: [], foci, inRadius, open: true, ...(tile.boulders !== undefined ? { boulders: tile.boulders } : {}),
+    ...(WT ? { water: WT, wet: WT.bare, clear: WT.clear } : {}), tile: { size: T, open, origin: [ox, oy], paths, seed: L.seed, ...(WW ? { halfAt, fringeAt: fringeAtXY, way: tile.way } : {}) } };
 }
 
 /** A point `u` (0…1) of the way along a site's path, and its right hand ({ c: [x, y], n }): a trail's line by depth; a
- *  tile's polylines (era/out-tile.js) by their length, one after another. `length` its metres (0: no path). */
+ *  tile's polylines (era/out-tile.js) by their length, one after another (a way of rank's half-width and verge there,
+ *  `h` and `f`). `length` its metres (0: no path). */
 export function pathAlong(site) {
   // (a trail's: its line at a depth, its right hand straight across x, as its stones were always laid)
   if (!site.tile) return { length: site.D, at: (u) => { const y = site.D * u; return { c: [site.trailX(y), y], n: [1, 0] }; } };
@@ -116,7 +172,9 @@ export function pathAlong(site) {
     at: (u) => {
       const s = Math.max(0, Math.min(1, u)) * total, k = segs.findIndex((g) => s <= g.s + g.l), g = segs[k < 0 ? segs.length - 1 : k], t = (s - g.s) / g.l;
       const dx = (g.b[0] - g.a[0]) / g.l, dy = (g.b[1] - g.a[1]) / g.l;
-      return { c: [g.a[0] + (g.b[0] - g.a[0]) * t, g.a[1] + (g.b[1] - g.a[1]) * t], n: [dy, -dx] };
+      const c = [g.a[0] + (g.b[0] - g.a[0]) * t, g.a[1] + (g.b[1] - g.a[1]) * t];
+      // (a way of rank: its half-width and verge there, `h` and `f`, for what is set along its edge)
+      return { c, n: [dy, -dx], ...(site.tile.halfAt ? { h: site.tile.halfAt(c[0], c[1]), f: site.tile.fringeAt(c[0], c[1]) } : {}) };
     },
   };
 }

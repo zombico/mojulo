@@ -98,6 +98,9 @@ export const WALK_KINDS = new Set([
 // Loader fns arrive as arguments (they're lazy-imported at the one call site).
 const POSMAP_CACHE = new Map();
 const POSMAP_CACHE_MAX = 16;
+// (a glyph map's far range's own haze over the form's far land, level/far-range.js: a share of the page's fog, and the
+// sky's air over its nearest ring to its farthest)
+const MAP_HAZE = Object.freeze({ fog: 0.3, air: Object.freeze([0.08, 0.42]) });
 function posMapFor(path, readBoundMeshFaces, buildPosMap) {
   let m = POSMAP_CACHE.get(path);
   if (m) { POSMAP_CACHE.delete(path); POSMAP_CACHE.set(path, m); return m; }   // LRU touch
@@ -830,8 +833,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was. The engine handoff (scene/handoff.js,
   // `handoff: true`) reads it unshaded: its land's data is what an engine is handed, its light the engine's own
-  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
-    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+  // (and a glyph map a geocube paints, level/grid-scene.js: its land and its plants read as the cube's trail's are, its
+  // level's cube, hour, clouds and biocube the recipe's words)
+  const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
+  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
+    // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)
+    const M = formMap ? { ...sketch.manifest.level, cube: sketch.manifest.level.geocube } : sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown' || M.show === 'geocity';
     // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
@@ -845,8 +852,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const grown = floraBox(payload.plants);
     // (a winter, snow over the whole land with no line, grows no grass at all; under a snow line the grass stands below it)
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
-    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
+    const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
+    // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)
+    if (read && formMap) payload.form.land.haze = MAP_HAZE;
     // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
     // what the stage painted)
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
@@ -859,6 +871,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    // (a glyph map says what of the form it got: a gen-7 map is the form render's, never paint under the live light)
+    if (formMap && payload.map) payload.map.form = read ? { read: true, plants: !!flora, far: 'range' } : { read: false, why: 'the map has no land the form reads' };
+    // (and a metro says what of the form it got, geocity/scene.js: its lawns, its street trees and its towns' grown)
+    if (M.show === 'geocity' && payload.geocity) payload.geocity.form = read ? { read: true, plants: !!flora } : { read: false, why: 'the metro has no soft ground the form reads' };
+    // (a metro's buildings keep their own tiers, detail, massing and skyline, geocity/scene.js, lit by the live light: no
+    // far structure's card is baked for them, channels/far-structures.js, whose cards read a painted fill a metro's
+    // textured faces do not carry)
+    if (read && M.show === 'geocity') payload.form.land.structures = false;
     if (flora) {
       const stamped = (payload.repeats || []).map((r) => r.group).filter((g) => g && g.startsWith('isekai:trees:'));
       payload.form = { ...payload.form, land: { ...payload.form.land, hides: [...new Set([...payload.form.land.hides, ...FLORA_HIDES, ...stamped])] }, flora };
@@ -873,6 +893,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (a glyph map read in a form era that no geocube paints: drawn as paint under the live light, and says so, with how to
+  // have the form's: the map's level names its geocube, level/grid-scene.js)
+  if (payload && payload.map && !formMap && sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true) payload.map.form = { read: false, why: 'no geocube paints the map: name its level\'s geocube (level.geocube, or a gameworld style\'s) for the form render\'s land, plants and far range' };
   // (a gen-7 geocube page without the form render, a geocity: the form's sky over it, channels/form-sky.js, its light the
   // cube's own sky colours, its sun the page's, its clouds the recipe's)
   if (payload && !payload.form && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form' && payload.sky && !payload.sky.space && Array.isArray(payload.sky.zenith) && Array.isArray(payload.sky.sun?.dir)) {

@@ -9,6 +9,8 @@ import { WORLD_KINDS } from '../worlds/world-kinds.js';
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, geotown: { evoke: 'metro', grid: [1, 1], hills: { height: 6 }, margin: 12 } };
 const P = assembleGeotownScene(M), D = designGeotown(M.geotown, { seed: 4 });
 const law = (id) => P.geotown.laws.find((l) => l.law === id);
+// (its trees' repeats; its cars' are the registry's models, cars.js)
+const trees = (p) => p.repeats.filter((r) => !r.group.startsWith('geotown:car'));
 const surfaceAt = (x, y) => D.surfaces.filter((s) => x >= s.rect[0] && x <= s.rect[2] && y >= s.rect[1] && y <= s.rect[3]).map((s) => s.cls);
 
 describe('the geotown built: its map stood on the cube\'s land, levelled', () => {
@@ -17,7 +19,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(law('faces').ok).toBe(true);
     expect(P.faces.length).toBeLessThanOrEqual(GEOTOWN_FACES);   // (the town to scale's one budget)
     let n = 0;
-    for (const r of P.repeats) for (const t of r.transforms) {
+    for (const r of trees(P)) for (const t of r.transforms) {
       const [x, y] = t.pos, on = surfaceAt(x, y);
       // (the margin is outside the frame: no surface of the map)
       if (!on.length) { expect(x < 0 || y < 0 || x > D.frame.W || y > D.frame.D).toBe(true); continue; }
@@ -91,12 +93,12 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     // the ground wears its finishes' tiles: the walk, the road, the main street's paving
     for (const g of ['geotown:walk', 'geotown:road', 'geotown:furnish']) expect(p.faces.some((f) => f.group === g && f.texture)).toBe(true);
     // no tree stands outside the town's frame: its border is bare
-    for (const r of p.repeats) for (const t of r.transforms) expect(t.pos[0] >= 0 && t.pos[1] >= 0 && t.pos[0] <= d.frame.W && t.pos[1] <= d.frame.D).toBe(true);
+    for (const r of trees(p)) for (const t of r.transforms) expect(t.pos[0] >= 0 && t.pos[1] >= 0 && t.pos[0] <= d.frame.W && t.pos[1] <= d.frame.D).toBe(true);
     expect(p.geotown.ports.length).toBe(4);
     // each tree held to its room: its crown raised twice a person's height up, short of every building
     expect(p.geotown.laws.find((l) => l.law === 'room').ok).toBe(true);
     const boxes = p.colliders.filter((c) => c.of.endsWith(':house'));
-    for (const r of p.repeats) for (const t of r.transforms) {
+    for (const r of trees(p)) for (const t of r.transforms) {
       expect(t.scale * TREE_RAISE).toBeGreaterThanOrEqual(TREE_CLEAR - 1e-6);
       for (const b of boxes) expect(t.pos[0] > b.min[0] && t.pos[0] < b.max[0] && t.pos[1] > b.min[1] && t.pos[1] < b.max[1]).toBe(false);
     }
@@ -130,14 +132,20 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     const at = (sc, extra = {}) => { const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, streetscape: sc, ...extra } }; return { p: assembleGeotownScene(E), d: designGeotown(E.geotown, { seed: 3 }) }; };
     const [L, S, U] = ['leafy', 'snug', 'urban'].map((sc) => at(sc));
     // the street's trees: those standing off the blocks, a metre of the streets' frontage
-    const street = ({ p, d }) => p.repeats.flatMap((r) => r.transforms).filter((t) => !d.blocks.some((b) => t.pos[0] > b.rect[0] && t.pos[0] < b.rect[2] && t.pos[1] > b.rect[1] && t.pos[1] < b.rect[3]));
+    const street = ({ p, d }) => trees(p).flatMap((r) => r.transforms).filter((t) => !d.blocks.some((b) => t.pos[0] > b.rect[0] && t.pos[0] < b.rect[2] && t.pos[1] > b.rect[1] && t.pos[1] < b.rect[3]));
     const perM = (x) => street(x).length / x.d.blocks.reduce((a, b) => a + 2 * (b.rect[2] - b.rect[0] + b.rect[3] - b.rect[1]), 0);
     expect(perM(S)).toBeLessThan(perM(L) * 0.6);
     expect(street(U).length).toBe(0);
     for (const x of [L, S, U]) {
       expect(x.p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
-      for (const t of x.p.repeats.flatMap((r) => r.transforms)) expect(t.scale * TREE_RAISE).toBeGreaterThanOrEqual(TREE_CLEAR - 1e-6);
+      for (const t of trees(x.p).flatMap((r) => r.transforms)) expect(t.scale * TREE_RAISE).toBeGreaterThanOrEqual(TREE_CLEAR - 1e-6);
       expect(x.p.geotown.counts.parked).toBeGreaterThan(0);
+      // (its cars the registry's, cars.js: every one an instance of a model's paint and of its trim, none drawn as boxes)
+      const paint = x.p.repeats.filter((r) => r.group === 'geotown:car-paint'), trim = x.p.repeats.filter((r) => r.group === 'geotown:car-trim');
+      expect(paint.reduce((a, r) => a + r.transforms.length, 0)).toBe(x.p.geotown.counts.cars);
+      expect(trim.map((r) => r.transforms.length)).toEqual(paint.map((r) => r.transforms.length));
+      expect(paint.every((r) => r.transforms.every((t) => t.tint?.length === 3))).toBe(true);
+      expect(x.p.faces.some((f) => f.group === 'geotown:car' || f.group === 'geotown:cabin')).toBe(false);
     }
     // every urban front behind its railing; none where the streetscape asks none
     const groups = (p) => new Set(p.faces.map((f) => f.group));
@@ -147,6 +155,24 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(none.geotown.counts.gated).toBe(0);
     expect([...groups(none)].some((g) => ['geotown:iron', 'geotown:pier', 'geotown:brick'].includes(g))).toBe(false);
     expect(U.p.geotown.streetscape).toBe('urban');
+  });
+
+  it('builds its drives and one-car garages: a compact house\'s beside it, an alley house\'s off the lane, cars on some', () => {
+    const at = (access) => { const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 }, access } }; return { p: assembleGeotownScene(E), d: designGeotown(E.geotown, { seed: 3 }) }; };
+    for (const access of ['compact', 'alley']) {
+      const { p, d } = at(access);
+      expect(p.geotown.laws.filter((l) => !l.ok)).toEqual([]);
+      // each garage solid, standing on its plot's pad
+      const G = p.colliders.filter((c) => c.of.endsWith(':garage')), built = d.plots.filter((pl) => pl.built && (pl.drive || pl.alley));
+      expect(G.length).toBe(built.length);
+      for (const c of G) expect(c.min[2]).toBeCloseTo(d.plots.find((pl) => c.of === `${pl.id}:garage`).pad, 3);
+      // a car on a share of its drives and aprons, more than the kerbs alone park
+      expect(p.geotown.counts.cars).toBeGreaterThan(p.geotown.counts.parked + p.geotown.counts.padCars);
+      expect(p.faces.some((f) => f.group === 'geotown:garage')).toBe(true);
+    }
+    // a compact drive crosses its verge to the kerb, drawn a hair over the verge
+    const { p } = at('compact');
+    expect(p.faces.filter((f) => f.group === 'geotown:drive').length).toBeGreaterThan(0);
   });
 
   it('fits a front to its setback: a porch where the yard holds it, else a stoop; a bay raised over the door', () => {
@@ -166,7 +192,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
       if (segment === 'school') { expect(p.anchors.some((a) => a.row === 'school')).toBe(true); expect(p.cameras.some((c) => c.name === 'school')).toBe(true); }
       // no tree on a field, a court, a track or a diamond's dirt; each twice a person's height
       const hard = d.surfaces.filter((s) => ['field', 'court', 'track', 'infield', 'service'].includes(s.cls) && s.area === undefined);
-      for (const t of p.repeats.flatMap((r) => r.transforms)) {
+      for (const t of trees(p).flatMap((r) => r.transforms)) {
         expect(t.scale * TREE_RAISE).toBeGreaterThanOrEqual(TREE_CLEAR - 1e-6);
         expect(hard.some((s) => t.pos[0] > s.rect[0] && t.pos[0] < s.rect[2] && t.pos[1] > s.rect[1] && t.pos[1] < s.rect[3])).toBe(false);
       }
@@ -194,7 +220,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(M.cameras.some((c) => c.name === 'crossing')).toBe(true);
     // no street tree crowds a light
     const L = designGeotown({ segment: 'main-street' }, { seed: 3 }).traffic.lights;
-    for (const t of M.repeats.flatMap((r) => r.transforms)) expect(L.every((Lt) => Math.hypot(Lt.at[0] - t.pos[0], Lt.at[1] - t.pos[1]) >= 2.5 - 1e-6)).toBe(true);
+    for (const t of trees(M).flatMap((r) => r.transforms)) expect(L.every((Lt) => Math.hypot(Lt.at[0] - t.pos[0], Lt.at[1] - t.pos[1]) >= 2.5 - 1e-6)).toBe(true);
     // a low-rise: four storeys, a balcony's door (glass) on each upper storey of its bays
     for (const a of Lr.anchors.filter((q) => q.row === 'lowrise')) expect(a.box.max[2] - a.box.min[2]).toBeGreaterThan(4 * 2.7);
     expect(Lr.faces.filter((f) => f.group === 'geotown:glass').length).toBeGreaterThan(Lr.anchors.length * 3);
@@ -226,7 +252,7 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     expect(groups.has('isekai:ground')).toBe(true);
     for (const g of FORM_GROUND) expect(groups.has(g)).toBe(false);
     // its trees grown by the form (no repeats), each its pattern's species, its ground and its yard's things claimed
-    expect(p.repeats.length).toBe(0);
+    expect(trees(p).length).toBe(0);
     expect(p.plants.trees.length).toBeGreaterThan(0);
     expect(new Set(p.plants.trees.map((t) => t.species)).size).toBeGreaterThan(1);
     for (const t of p.plants.trees) expect(PATTERNS[DEFAULT_PATTERN].grow.trees.concat(PATTERNS[DEFAULT_PATTERN].grow.street, PATTERNS[DEFAULT_PATTERN].grow.parkTrees, [PATTERNS[DEFAULT_PATTERN].grow.shade])).toContain(t.species);

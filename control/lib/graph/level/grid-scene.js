@@ -7,10 +7,18 @@
  *   assembleGridScene(manifest, ctx) → a world payload: every tile's faces, repeats, lights, anchors and colliders on
  *     the level's frame; ONE live grass field over the whole map (each tile's grid written into it); the sky, light and
  *     horizon of the first tile; the walk from the map's spawn (its first path end, else its first path tile);
- *     `map`: { tile, rows, cols, cells, regions? } for what reads the map (its laws, the game).
+ *     `map`: { tile, rows, cols, cells, regions?, ways?, water? } for what reads the map (its laws, the game).
  *
- * A level: { kit?, seed?, grid: { tile?, rows, key?, regions? }, wind?, grass?, style?, biocube?, … } (the stage's own
- * words every tile takes; a REGION's words over them for its tiles, and its rise in the one land: grid.js).
+ * A level: { kit? | geocube?, terrain?, hour?, clouds?, seed?, grid: { tile?, rows, key?, regions? }, ways?, wind?,
+ * grass?, style?, biocube?, … } (the stage's own words every tile takes; a REGION's words over them for its tiles, and
+ * its rise in the one land: grid.js).
+ *
+ * THE GEOCUBE (`geocube`, with its `terrain`, `hour` and `clouds`): every tile lowered under it as a trail is
+ * (era/geocube.js withGeocube), so the map is painted in the cube's look, its era its page's.
+ * THE WAYS (`ways`: 'ranked', the default, or 'one'): each path tile's rank solved from the network (path-ranks.js: a
+ * road, a track, a path, a trace), its width, verge and dress; read out on `map.ways`. 'one': the kit's one width.
+ * THE WATER (a grid's `~`, an approved sketch's `w`): bodies across the tiles, each at one level, their edges a beach or
+ * a cliff (map-water.js, era/out-tile-water.js); read out on `map.water`.
  *
  * A PLACE (a key letter): `{ use: <a building program> , …the building's own words }` (era/stage-buildings.js: a
  * dwelling, a shop, a tavern, a temple…) stands on its tile, its door at the middle of the side its path reaches, inset
@@ -24,13 +32,18 @@
  * `paths-clear` no collider stands on any path (its line sampled every half metre, at a walker's height); `doors-clear`
  * every place's door stands clear; `one-network` the paths are one network (readGrid refuses any other); a planned
  * map's `pieces` every passage holds its pack and its climax its boss (level/map-items.js), the pieces read out on `map`;
- * `path-grade` where a path crosses a seam between regions that rise apart, it climbs no steeper than PATH_GRADE.
+ * `path-grade` where a path crosses a seam between regions that rise apart, it climbs no steeper than PATH_GRADE;
+ * `paths-dry` (a map with water) every way near a body runs over its level, on its bank. The seams read the land as it
+ * lies: its ground, a beach's sand and a cliff's rock.
  *
  * THE EDGES: the map is closed. Walls stand along its border (as a trail's bounds do), and beyond it the land rises
  * into a rim of hills RIM metres deep, from the land's own height at the border, so the world's edge reads as the
  * valley's sides, never as a drop into the sky.
  */
-import { readGrid, tileCentre, REGION_WORDS, placeDoors, mapStart } from './grid.js';
+import { readGrid, tileCentre, REGION_WORDS, MAP_WORDS, placeDoors, mapStart } from './grid.js';
+import { pathRanks } from './path-ranks.js';
+import { mapWater } from './map-water.js';
+import { farRange } from './far-range.js';
 import { tilePath, levelHeight } from '../era/out-tile.js';
 import { mapItems } from './map-items.js';
 import { frameOf, placed, ringTheMap, pageOf } from './map-scene.js';
@@ -40,6 +53,11 @@ import { farFaces } from './far-view.js';
 import { guideOf } from './guide.js';
 import { readPlay, playBuild, playLaws, authorityLaws, settlePieces } from './play-layer.js';
 import { readSketch } from './map-sketch.js';
+import { withGeocube } from '../era/geocube.js';
+
+// the words a map's geocube is asked with, on its level (era/geocube.js withGeocube: the cube, the outside's terrain, the
+// hour it is lit at, the clouds round its dome)
+export const CUBE_WORDS = Object.freeze(['geocube', 'terrain', 'hour', 'clouds']);
 
 // the groups a walker never stands on: a tree's crown, its leaves and blossom, a stamped tree (its trunk a collider)
 const FOOTLESS = Object.freeze(['isekai:crown', 'isekai:leaves', 'isekai:blossom', 'isekai:petals', 'isekai:sprig', 'isekai:culm', 'isekai:trees:', 'isekai:spray']);
@@ -60,13 +78,16 @@ export const LAND_CELL = 1;
 // which the stage seats after the land is lit, so it shades no ground, its own tile's neither)
 const CASTS = /^(isekai|nature):(crown|wood|rock|hat|core|chips)$|^flora:bush$/;
 
+// THE LAND a tile's seams are read on: its ground, and where the map's water cuts it (era/out-tile-water.js) its beach's
+// sand and its cliff's rock, so a shore across a seam is read on both sides as it lies
+const LAND = /^(isekai|nature):(ground|sand|cliff)$/;
 // the ground's height near (x, y) from one tile's own ground faces (its node), or null
 // (`value`: what a corner carries, its height by default; the shade, for the seams' colour)
 const shadeOf = (f, k) => { const h = f.cornerFills?.[k] ?? f.fill; if (typeof h !== 'string') return null; const n = parseInt(h.slice(1, 7), 16); return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255); };
 function tileGround(faces, value = (f, k) => f.corners[k][2]) {
   const by = new Map();
   for (const f of faces) {
-    if (!f.group || !/:ground$/.test(f.group)) continue;
+    if (!f.group || !LAND.test(f.group)) continue;
     const k = f._node; if (!k) continue;
     (by.get(k) ?? by.set(k, []).get(k)).push(f);
   }
@@ -101,24 +122,29 @@ function playOfPage(lv, G, Z, out, { seed }) {
   for (const S of segs) if (Y[S]) for (const l of authorityLaws(Y[S], { beats, segment: S })) merged.push({ ...l, value: `${S}: ${l.value}` });
   return { laws: merged, readout: { pieces: pieces.map(({ segment: _s, ...p }) => p) } };
 }
-function mapLaws(G, cells, faces, colliders, Z = null) {
+function mapLaws(G, cells, faces, colliders, Z = null, MW = null, ranks = null) {
   const T = G.tile, id = (r, c) => `${r},${c}`, laws = [];
   // (a zone's page holds its own tiles and its apron: zones.js)
   laws.push({ law: 'one-page', ok: cells.length === (Z ? Z.built.size : G.rows * G.cols), value: Z ? `${cells.length} tiles on zone ${Z.id}'s page (${Z.own.size} its own, the rest its apron)` : `${cells.length} tiles on one page` });
   // SEAMS: along each shared edge, a metre inside either tile, the heights agree
-  const at = tileGround(faces), shade = tileGround(faces, shadeOf);
+  // (the shade read on the soft land only: a cliff's rock is baked flat a facet at a time, its facets' steps its own)
+  const at = tileGround(faces), shade = tileGround(faces, (f, k) => (/:cliff$/.test(f.group) ? null : shadeOf(f, k)));
   let worst = 0, edges = 0, where = '', dark = 0, darkWhere = '', shades = 0, stepped = 0;
   for (const C of cells) for (const [dr, dc] of [[0, 1], [1, 0]]) {
     const r2 = C.r + dr, c2 = C.c + dc; if (r2 >= G.rows || c2 >= G.cols || (Z && !Z.built.has(id(r2, c2)))) continue;
     edges++;
+    // (a way of rank crossing this edge, path-ranks.js: the ground under its ribbon is covered, never seen; its shade is
+    // not the seam's, so a sample under it, its width and verge either side of the edge's middle, is not read)
+    const side = dc ? 'e' : 's', under = ranks?.get(id(C.r, C.c))?.edges?.[side], hidden = under ? under.width / 2 + under.fringe : 0;
     for (let t = 2; t < T - 1; t += 4) {
       // (the shared edge: east of C for dc, south of C for dr; each tile's own corners ON that line read at one point)
       const [x, y] = dc ? [(C.c + 1) * T, -(C.r) * T - t] : [C.c * T + t, -(C.r + 1) * T];
+      const covered = hidden > 0 && Math.abs((dc ? T - t : t) - T / 2) < hidden;
       const line = dc ? { axis: 0, at: x } : { axis: 1, at: y };
       const a = at(id(C.r, C.c), x, y, line), b = at(id(r2, c2), x, y, line);
       const between = ` (between row ${C.r + 1} column ${C.c + 1} and row ${r2 + 1} column ${c2 + 1})`;
       if (a !== null && b !== null && Math.abs(a - b) > worst) { worst = Math.abs(a - b); where = between; }
-      const sa = shade(id(C.r, C.c), x, y, line), sb = shade(id(r2, c2), x, y, line);
+      const sa = covered ? null : shade(id(C.r, C.c), x, y, line), sb = covered ? null : shade(id(r2, c2), x, y, line);
       if (sa !== null && sb !== null) { const q = Math.abs(sa - sb) / 765; shades++; if (q > SEAM_SHADE) { stepped++; if (q > dark) { dark = q; darkWhere = between; } } }
     }
   }
@@ -142,6 +168,20 @@ function mapLaws(G, cells, faces, colliders, Z = null) {
     }
   }
   laws.push({ law: 'paths-clear', ok: !blocked.length, value: blocked.length ? `a collider stands on the path at ${[...new Set(blocked)].join(', ')}` : 'no collider on any path' });
+  // PATHS DRY (a map with water, map-water.js): every way's line over the level of each body near it (within two tiles):
+  // a way runs on its bank, never through the water
+  if (MW) {
+    // (the water's sheets by the metre cell they cover: a way's point under one, the sheet over its ground, is wet)
+    const sheets = new Map();
+    for (const f of faces) if (f.water && f.group === 'isekai:water') { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); sheets.set(`${Math.floor(Math.min(...xs) + 1e-6)},${Math.floor(Math.min(...ys) + 1e-6)}`, f.corners[0][2]); }
+    const wet = [];
+    for (const C of cells) {
+      if (C.kind !== 'path' || !walked(C)) continue;
+      const o = [C.c * T, -(C.r + 1) * T];
+      for (const P of tilePath(T, C.open)) if (P.some(([px, py]) => { const x = o[0] + px, y = o[1] + py, L = sheets.get(`${Math.floor(x)},${Math.floor(y)}`), z = L === undefined ? null : at(id(C.r, C.c), x, y); return z !== null && z < L; })) { wet.push(`row ${C.r + 1} column ${C.c + 1}`); break; }
+    }
+    laws.push({ law: 'paths-dry', ok: !wet.length, value: wet.length ? `a way runs under the water at ${wet.join(', ')}` : `every way beside the water runs on its bank (${MW.bodies.length} bod${MW.bodies.length === 1 ? 'y' : 'ies'}: ${MW.bodies.map((b) => `${b.tiles.length} tiles, ${b.beach} beach and ${b.cliff} cliff shore tiles`).join('; ')})` });
+  }
   // DOORS CLEAR: a place's door middle (its side's middle, a metre in) at a walker's height
   const doorsBlocked = [];
   for (const C of cells) {
@@ -179,8 +219,9 @@ function mapLaws(G, cells, faces, colliders, Z = null) {
   }
   return laws;
 }
-// the stage words a tile takes from its level, and from its region over them (grid.js REGION_WORDS less its name and rise)
-const STAGE_WORDS = REGION_WORDS.filter((w) => w !== 'name' && w !== 'rise');
+// the stage words a tile takes from its level, and from its region over them (grid.js REGION_WORDS less the map's own:
+// its name, rise, ways and shore)
+const STAGE_WORDS = REGION_WORDS.filter((w) => !MAP_WORDS.includes(w));
 const hashTile = (seed, r, c) => ((Math.imul((seed | 0) + 17, 2654435761) ^ Math.imul(r + 31, 40503) ^ Math.imul(c + 7, 22541)) >>> 0) % 100000;
 
 // the base64 typed arrays the grass channel reads (era/isekai.js b64)
@@ -230,6 +271,18 @@ function oneGrass(list) {
   const crowns = first.crowns ? { ...first.crowns, ...(trunks ? { trunks } : {}) } : first.crowns;
   const petals = first.petals ? { ...first.petals, sources: list.flatMap(({ lg, at }) => (lg.petals?.sources ?? []).map(([x, y, ...rest]) => [r5(x + at[0]), r5(y + at[1]), ...rest])), ...(carpet ? { carpet: { ...first.petals.carpet, m: enc(carpet) } } : {}) } : null;
   return { ...first, ...(crowns !== undefined ? { crowns } : {}), ...(petals ? { petals } : {}), grid: { ...first.grid, x0: r5(x0), y0: r5(y0), nx, ny, zlo: r5(lo), zsc, z: enc(zq), m: enc(M) } };
+}
+
+// THE PLANTS over the map (era/isekai.js plantItems: where the form render grows its own plants): every tile's trees,
+// bushes, shrubs and claims moved onto the level's frame, the card's kinds the first tile's; no tile's skirt (the map has
+// one horizon, and its tiles no far layers)
+function onePlants(list) {
+  if (!list.length) return null;
+  const mv = (at) => (q) => ({ ...q, x: r5(q.x + at[0]), y: r5(q.y + at[1]) });
+  const { form, kinds, bushKinds } = list[0].p;
+  return { form, kinds, bushKinds,
+    trees: list.flatMap(({ p, at }) => (p.trees ?? []).map(mv(at))), bushes: list.flatMap(({ p, at }) => (p.bushes ?? []).map(mv(at))),
+    shrubs: list.flatMap(({ p, at }) => (p.shrubs ?? []).map(mv(at))), clear: list.flatMap(({ p, at }) => (p.clear ?? []).map(([x, y, r]) => [r5(x + at[0]), r5(y + at[1]), r])) };
 }
 
 // THE FAUNA over the map (era/biocube-fauna.js): every tile's swarms on the level's frame, laid together kind by kind
@@ -282,10 +335,12 @@ function heroTiles(G) {
 }
 
 // the land's height at the map's border: the nearest ground corner's (the outdoor dress's ground)
+// (where water runs to the border, the water's: the rim rises from its surface, never from the bed under it)
 function borderHeight(faces) {
-  const pts = [];
-  for (const f of faces) if (f.group && /:ground$/.test(f.group)) for (const c of f.corners) pts.push(c);
-  return (x, y) => { let best = 0, bd = Infinity; for (const c of pts) { const d = Math.abs(c[0] - x) + Math.abs(c[1] - y); if (d < bd) { bd = d; best = c[2]; } } return best; };
+  const pts = [], wet = [];
+  for (const f of faces) if (f.group && /:ground$/.test(f.group)) for (const c of f.corners) pts.push(c); else if (f.water && f.group === 'isekai:water') for (const c of f.corners) wet.push(c);
+  const nearest = (P, x, y) => { let best = null, bd = Infinity; for (const c of P) { const d = Math.abs(c[0] - x) + Math.abs(c[1] - y); if (d < bd) { bd = d; best = c; } } return best ? { z: best[2], d: bd } : null; };
+  return (x, y) => { const g = nearest(pts, x, y), w = wet.length ? nearest(wet, x, y) : null, z = g?.z ?? 0; return w && w.d < 2 && w.z > z ? w.z : z; };
 }
 // a map's edge is not a wall to climb: a wall's hero never takes hold of it (`hold: false`, worlds/controllable/wall.js),
 // as a city level's edge is not (city/plan/level.js)
@@ -376,6 +431,12 @@ function sketchMarks(G, Z, seed) {
 }
 // (what of the sketch this page could not lay: its own tiles' and its apron's)
 const unlaidHere = (G, Z) => G.sketch.unlaid.filter((u) => !Z || Z.built.has(`${u.tile[0]},${u.tile[1]}`)).map((u) => u.says);
+// the ways as the page reads them out (path-ranks.js): how many tiles of each rank, and each path tile's rank and dress
+function waysReadout(ranks) {
+  const count = {};
+  for (const v of ranks.values()) count[v.rank] = (count[v.rank] ?? 0) + 1;
+  return { count, tiles: Object.fromEntries([...ranks].map(([k, v]) => [k, { rank: v.rank, width: v.width, surface: v.surface }])) };
+}
 // a zone as the page reads it out (zones.js): its segment, its square, its ways
 const zoneReadout = (Z) => ({ id: Z.id, at: Z.at, size: Z.n, apron: Z.apron, box: Z.box.map(r5), ways: Z.ways });
 // the regions as the game reads them: each its name, its rise and its tiles (row, column)
@@ -385,8 +446,11 @@ function regionsOf(G) {
 
 export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters } = {}) {
   if (!buildStage) {
-    const [{ WORLD_KINDS }, { isekaiTileCasters }] = await Promise.all([import('../worlds/world-kinds.js'), import('../era/isekai.js')]);
-    return gridScene(m, ctx, { buildStage: (manifest) => WORLD_KINDS.stage.resolve(manifest, ctx), tileCasters: tileCasters ?? isekaiTileCasters });
+    const [{ WORLD_KINDS }, { isekaiTileCasters }, { stageKit, resolveKitId }] = await Promise.all([import('../worlds/world-kinds.js'), import('../era/isekai.js'), import('../era/stage.js')]);
+    // (a tile's casters grown in the look its stage builds it in: its kit's isekai style, a geocube's look included, as
+    // era/stage.js hands it to the isekai builder)
+    const casters = (manifest) => isekaiTileCasters(manifest.style === undefined && manifest.kit !== undefined ? { style: stageKit(resolveKitId(manifest.kit)).style, ...manifest } : manifest);
+    return gridScene(m, ctx, { buildStage: (manifest) => WORLD_KINDS.stage.resolve(manifest, ctx), tileCasters: tileCasters ?? casters });
   }
   // (a builder that answers later, a test's: every tile built first, then laid as the sync core lays them; with no
   // casters handed between tiles, each tile's manifest does not hang on another's build)
@@ -412,8 +476,19 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     if (v !== undefined && v !== false) throw new Error(`map: ${who} says snow, which lies on a polygon land (a stage's \`shading\`); a glyph map's tiles are not built on one yet`);
   }
   const build = buildStage;
+  // (THE WAYS' RANKS, path-ranks.js: roads, tracks, paths and traces, solved from the network; `ways: 'one'` the kit's one)
+  if (lv.ways !== undefined && lv.ways !== 'one' && lv.ways !== 'ranked') throw new Error(`map: ways is 'ranked' (roads, tracks, footpaths and traces solved from the network, the default) or 'one' (every way the kit's one width)`);
+  const ranks = lv.ways === 'one' ? null : pathRanks(G);
+  // (THE WATER: its bodies, their levels and their shores' edges, map-water.js; none without a water tile)
+  const MW = mapWater(G, { seed });
+  // (THE FAR RANGE, far-range.js: a map a geocube paints, read in the form render (gen-7), is ringed by real mountains,
+  // the form's far land, in place of its first tile's painted far ring; a painted read keeps the ring)
+  const range = !!ctx.form && lv.geocube !== undefined;
+  // (the map's GEOCUBE, its terrain, hour and clouds: every tile lowered under it, manifestOf)
+  const cube = lv.geocube !== undefined ? Object.fromEntries(CUBE_WORDS.filter((w) => lv[w] !== undefined).map((w) => [w, lv[w]])) : null;
+  if (!cube) for (const w of CUBE_WORDS) if (lv[w] !== undefined) throw new Error(`map: ${w} is the geocube's (its ${w === 'terrain' ? 'outside\'s terrain' : w === 'hour' ? 'outside lit at an hour' : 'sky\'s clouds'}): name the level's geocube`);
   const out = { faces: [], repeats: [], cutouts: [], lights: [], anchors: [], colliders: [], textures: {}, resample: {} };
-  const grass = [], fauna = [], cells = [];
+  const grass = [], fauna = [], cells = [], plants = [];
   let first = null;
   // a tile's square on the level's frame: its south-west corner (north up: columns east, rows south)
   const squareOf = (cell) => [cell.c * T, -(cell.r + 1) * T];
@@ -433,12 +508,21 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const sg = G.sketch?.ground.get(`${cell.r},${cell.c}`);
     if (sg && SKETCH_BIOCUBE[sg]) words.biocube = SKETCH_BIOCUBE[sg];
     const rocks = sg === 'r' && cell.kind === 'path' ? { boulders: SKETCH_BOULDERS } : {};
-    // (open LAND, no path through it and nothing standing on it: nobody walks it, its ground at LAND_CELL)
-    const coarse = cell.kind === 'land' ? { cell: LAND_CELL } : {};
+    // (THE MAP'S WATER near it, map-water.js: its bodies and its shore's edges, cut into the tile's land)
+    const wt = MW?.near(cell.r, cell.c) ?? null;
+    // (open LAND, no path through it and nothing standing on it: nobody walks it, its ground at LAND_CELL; a shore's is
+    // the kit's, so its beach and its cliff's face are drawn)
+    const coarse = cell.kind === 'land' && !wt ? { cell: LAND_CELL } : {};
     // (a place's tile keeps its far layers: its building is seated on the land they lay past its square, and the map
     // drops their ridges and clips their skirt as it does every tile's)
     const own = { ...(heroes.has(`${cell.r},${cell.c}`) ? { hero: true } : {}), ...(cell === ringed || cell.kind === 'place' ? {} : { backdrop: false }) };
-    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
+    // (its WAY's rank, path-ranks.js: its width and verge at its middle and at each edge, its dress; a map whose ways are
+    // all one, `ways: 'one'`, the kit's one width)
+    const R = ranks?.get(`${cell.r},${cell.c}`), way = R ? { way: { width: R.width, fringe: R.fringe, edges: R.edges }, ...(R.surface !== 'earth' ? { dress: { surface: R.surface } } : {}) } : {};
+    const raw = { kind: 'stage', ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
+    // (THE GEOCUBE: the map's cube paints every tile as it paints a trail, era/geocube.js withGeocube: its look, its land
+    // drawn as the cube's, its flora; lowered here, so the casters handed between tiles read the same tile the build does)
+    return cube ? withGeocube({ ...raw, ...cube }) : raw;
   };
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it
@@ -479,15 +563,16 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   for (const cell of G.cells) {
     if (!builds(cell)) continue;
     const at = squareOf(cell), payload = payloads.get(`${cell.r},${cell.c}`), F = frameOf({ at, heading: Math.PI / 2 }, 0);
-    const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first, outdoorOnly: true });
+    const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first && !range, outdoorOnly: true });
     // (each ground face remembers its tile, for the seams' law; dropped before the page is emitted)
     // (only the ground wholly in its own square: a kit's far skirt reaching in is not the tile's ground)
     const inSquare = (c) => c[0] >= at[0] - 0.01 && c[0] <= at[0] + T + 0.01 && c[1] >= at[1] - 0.01 && c[1] <= at[1] + T + 0.01;
-    for (const f of P.faces) if (f.group && /^(isekai|nature):ground$/.test(f.group) && f.corners.every(inSquare)) Object.defineProperty(f, '_node', { value: `${cell.r},${cell.c}`, enumerable: false });
+    for (const f of P.faces) if (f.group && LAND.test(f.group) && f.corners.every(inSquare)) Object.defineProperty(f, '_node', { value: `${cell.r},${cell.c}`, enumerable: false });
     for (const k of ['faces', 'repeats', 'lights', 'anchors', 'colliders']) out[k].push(...P[k]);
     for (const c of payload.cutouts || []) if (!out.cutouts.includes(c)) out.cutouts.push(c);
     Object.assign(out.textures, payload.textures || {}); Object.assign(out.resample, payload.resample || {});
     if (payload.liveGrass) grass.push({ lg: payload.liveGrass, at });
+    if (payload.plants) plants.push({ p: payload.plants, at });
     if (payload.fauna || payload.faunaUnits) fauna.push({ f: payload.fauna, u: payload.faunaUnits, at, id: `${cell.r}-${cell.c}` });
     if (!first) first = { payload, F };
     cells.push({ r: cell.r, c: cell.c, glyph: cell.glyph, kind: cell.kind, ...(cell.shape ? { shape: cell.shape } : {}), ...(cell.open?.length ? { open: cell.open } : {}), ...(cell.region ? { region: cell.region } : {}), at });
@@ -521,12 +606,18 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const ground0 = (first.payload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a';
     const ringBox = lv.far ? [0, -H, W, 0] : box;
     if (lv.far) out.faces.push(...farFaces(G, Z, { seed, ground: ground0 }));
-    out.faces.push(...rimFaces(ringBox[2] - ringBox[0], ringBox[3] - ringBox[1], out.faces, first.payload, ringBox));
-    ringTheMap(out.faces, { map: [[ringBox[0], ringBox[3]], [ringBox[2], ringBox[3]], [ringBox[2], ringBox[1]], [ringBox[0], ringBox[1]]] });
+    const rim = rimFaces(ringBox[2] - ringBox[0], ringBox[3] - ringBox[1], out.faces, first.payload, ringBox);
+    if (range) out.faces.push(...farRange({ box: ringBox, at: borderHeight(out.faces), seed, fill: ground0, rim: RIM }));
+    // (under the range, the rim is its foot: drawn as the same far land, never a painted band between them)
+    out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
+    if (!range) ringTheMap(out.faces, { map: [[ringBox[0], ringBox[3]], [ringBox[2], ringBox[3]], [ringBox[2], ringBox[1]], [ringBox[0], ringBox[1]]] });
   } else {
     out.colliders.push(...edgeWalls(W, H, out.faces));
-    out.faces.push(...rimFaces(W, H, out.faces, first.payload));
-    ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
+    const rim = rimFaces(W, H, out.faces, first.payload);
+    if (range) out.faces.push(...farRange({ box: [0, -H, W, 0], at: borderHeight(out.faces), seed, fill: (first.payload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a', rim: RIM }));
+    // (under the range, the rim is its foot: drawn as the same far land, never a painted band between them)
+    out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
+    if (!range) ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
   }
   // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover
   const SK = G.sketch ? sketchMarks(G, Z, seed) : null;
@@ -535,6 +626,9 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   // THE PLAY LAYER (play-layer.js, level design's): this page's blocks' pieces in the world's own wood and stone (the
   // tiles' fills), the solid ones colliders; each held to the land it stands on now (`pieces-fit`)
   const PL = lv.play && G.plan ? playOfPage(lv, G, Z, out, { seed }) : null;
+  // (THE PLANTS, a form read's, gen-7: every tile's on the level's frame, where the form grows its own trees, bushes and
+  // shrubs in the painted ones' place, worlds/world-scene.js; none on a painted read)
+  const PLT = onePlants(plants);
   const LG = oneGrass(grass), FA = Z ? oneFauna(fauna, box[2] - box[0], box[3] - box[1], box) : oneFauna(fauna, W, H), HD = oneHerds(fauna);
   return {
     ...page,
@@ -544,6 +638,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     resample: Object.keys(out.resample).length ? out.resample : undefined,
     cameras: [],
     ...(LG ? { liveGrass: LG } : {}),
+    ...(PLT ? { plants: PLT } : {}),
     ...(FA ? { fauna: FA } : {}),
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
@@ -552,6 +647,6 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(guidance ? { guide: guidance } : {}),
     // (a map is walked: its trees' crowns and leaves are no footing, their trunks and boulders the tiles' colliders)
     footless: FOOTLESS,
-    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: [...mapLaws(G, cells, out.faces, out.colliders, Z), ...(PL ? PL.laws : [])], ...(PL ? { play: PL.readout } : {}) },
+    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: [...mapLaws(G, cells, out.faces, out.colliders, Z, MW, ranks), ...(PL ? PL.laws : [])], ...(PL ? { play: PL.readout } : {}), ...(ranks ? { ways: waysReadout(ranks) } : {}), ...(MW ? { water: MW.bodies.map(({ id, tiles, level, beach, cliff }) => ({ id, level: r5(level), tiles, shore: { beach, cliff } })) } : {}) },
   };
 }

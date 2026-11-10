@@ -14,7 +14,8 @@
  *     line's 10 m pair, `rail` a 10 m pair of rails at the track's gauge, `wire` a unit span (stretched by a per-axis
  *     scale), `bar` a crosswalk's bar, all along +x, flat (their light the same any way they lie);
  *     the furniture: `bench` (facing), `bin`, `hydrant`, `papers` (along the kerb its facing runs), `ring`, `bollard`,
- *     `hydro` a residential street's wooden pole, its crossarm and the lamp hung off it (facing); a site's and a lot's:
+ *     `hydro` a residential street's wooden pole, its crossarm and the lamp hung off it (facing), `can` a transformer's
+ *     can hung on one (facing its lamp's way, hung off the other side); a site's and a lot's:
  *     `scaffold` a bay against a wall (facing out of it), `fence` a temporary panel, `hoarding` a plywood one, `barrier`,
  *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`
  *
@@ -130,6 +131,18 @@ function hydro([dx, dy], L) {
     reach('street-lamp', dx, dy, 1.4, 2.0, 0.3, 7.45, 7.62, '#f0d982'),
   ], L);
 }
+/** A pole-mounted transformer (a can) on a hydro pole, hung off the side away from the lamp it carries (reaching
+ *  (dx, dy)): its bracket, its drum, its lid, two bushings on top and the drop wire up to the crossarm. */
+function can([dx, dy], L) {
+  const n = 10, r = 0.32, cx = -dx * 0.5, cy = -dy * 0.5, z0 = 7.7, z1 = 8.75, out = [], c = '#7f8b88';
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, b = ((i + 1) / n) * Math.PI * 2, m = (a + b) / 2; out.push(quad([[cx + r * Math.cos(a), cy + r * Math.sin(a), z0], [cx + r * Math.cos(b), cy + r * Math.sin(b), z0], [cx + r * Math.cos(b), cy + r * Math.sin(b), z1], [cx + r * Math.cos(a), cy + r * Math.sin(a), z1]], [Math.cos(m), Math.sin(m), 0], c, L)); }
+  out.push(quad(Array.from({ length: n }, (_, i) => [cx + r * 1.05 * Math.cos((i / n) * Math.PI * 2), cy + r * 1.05 * Math.sin((i / n) * Math.PI * 2), z1 + 0.06]), [0, 0, 1], '#8e9996', L));
+  // (its bracket to the pole, two bushings, a drop up to the crossarm)
+  out.push(...boxFaces({ x: Math.min(0, cx) - 0.05, y: Math.min(0, cy) - 0.05, w: Math.abs(cx) + 0.1, d: Math.abs(cy) + 0.1, z0: 8.1, z1: 8.2, tint: '#4a4f55' }, L));
+  for (const o of [-0.12, 0.12]) { const bx = cx + (dy ? o : 0), by = cy + (dx ? o : 0); out.push(...boxFaces({ x: bx - 0.04, y: by - 0.04, w: 0.08, d: 0.08, z0: z1 + 0.06, z1: z1 + 0.35, tint: '#7a4b2e' }, L)); }
+  out.push(...boxFaces({ x: cx - 0.01, y: cy - 0.01, w: 0.02, d: 0.02, z0: z1 + 0.35, z1: 10.05, tint: '#202224' }, L));
+  return out;
+}
 /** A scaffold bay against a wall: two standards, its ledgers at the lift, a plank deck and a toe board, the bay 2 m
  *  along the wall (x) and 2 m a lift high, standing `out` off the wall (its wall to −y, the bay toward +y facing (dx, dy)). */
 function scaffold([dx, dy], L) {
@@ -197,6 +210,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     // a street tree's pit in the walk: its grate's dark square, centred
     pit: [quad([[-0.7, -0.7, 0], [0.7, -0.7, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0]], [0, 0, 1], '#3b3a38', L)],
     bench: four((v) => bench(v, L)),
+    can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a

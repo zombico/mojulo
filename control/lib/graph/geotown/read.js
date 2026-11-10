@@ -20,6 +20,13 @@
  *     grid?:    [cols, rows],                                       // the town laid to scale (metro): blocks across (x,
  *                                                                   // east) and along (y, north), 1–4
  *     hills?:   false | { height?, span?, from? },                  // the land: metres from its lowest to its highest
+ *     profile?: true | { walkable?, curve? },                       // its streets on profiles (profile.js): crossings level
+ *     slope?:   { toward?, grade?, streets? },                      // THIS CLIMBS: its land tilted, rising `toward` a side
+ *                                                                   // (n e s w) at `grade` (rise over run, 0–0.3) over
+ *                                                                   // its hills; `streets` { 'ns-1': 0.12 } each named
+ *                                                                   // street climbing at its grade (less than 0 falls)
+ *                                                                   // toward its north or east end, on profiles (one
+ *                                                                   // axis; its profile on whether asked or not)
  *                                                                   // (0–40, 10), metres its painting spans (100–2000,
  *                                                                   // 600), the painted landscape it is read from
  *     streetscape?: <id> | { from?, setback?, gates?, parking?, trees?, lights?, signals?, stops? },
@@ -33,7 +40,12 @@
  *                                                                   // streetlights (0 none), `signals` a signal every n
  *                                                                   // crossings along a main or major street, `stops`
  *                                                                   // the share of local crossings stopped all ways
- *     blocks?:  { '<A1>': { use?: <segment type>, built?: false } },   // a block by hand, on the grid's board
+ *     access?:  'none' | 'lane' | 'mutual' | 'compact' | 'alley',  // how every houses block's households reach their
+ *                                                                   // cars (else each block's by the pattern's dice):
+ *                                                                   // compact, a drive and a one-car garage each beside
+ *                                                                   // the house; alley, a rear lane and a one-car garage
+ *                                                                   // each off it behind its apron
+ *     blocks?:  { '<A1>': { use?: <segment type>, built?: false, access? } },   // a block by hand, on the grid's board
  *     margin?:  metres of the land drawn round the town, its border (0–120, 12)
  *   }
  *
@@ -47,7 +59,11 @@ import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geotown: ${msg}`); };
-const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin'];
+const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile', 'access', 'slope'];
+const SIDES = Object.freeze(['n', 'e', 's', 'w']);
+// a houses block's ACCESS (pattern.js `access`): how its households reach their cars
+export const ACCESS_IDS = Object.freeze(['none', 'lane', 'mutual', 'compact', 'alley']);
+const ACCESS_SAY = 'none, lane (a rear lane, garages off it here and there), mutual (shared drives between houses to garages at the back), compact (each house its own drive to its one-car garage beside it) or alley (a rear alley, every house its one-car garage off it behind an apron)';
 /**
  * THE EVOCATIONS: a game does not lay a neighbourhood out, it EVOKES one. A BLOCK SEGMENT (a block: houses back to back,
  * or shops on a main street, or a walk-up among houses, or a park) is the unit, a few buildings each designed on its
@@ -206,12 +222,13 @@ export function readGeotown(spec = {}) {
   }
   const blocks = {};
   if (spec.blocks !== undefined) {
-    if (!isObj(spec.blocks)) no('blocks is { \'A1\': { use?, built? } }, a block by its name on the grid');
+    if (!isObj(spec.blocks)) no('blocks is { \'A1\': { use?, built?, access? } }, a block by its name on the grid');
     for (const [id, b] of Object.entries(spec.blocks)) {
       const m = /^([A-D])([1-4])$/.exec(id);
       if (!m || LETTERS.indexOf(m[1]) >= grid[0] || Number(m[2]) > grid[1]) no(`blocks.${id} is not a block of a ${grid[0]} × ${grid[1]} grid (columns A… west to east, rows 1… south to north)`);
-      if (!isObj(b)) no(`blocks.${id} is { use?, built? }`);
-      for (const k of Object.keys(b)) if (!['use', 'built'].includes(k)) no(`blocks.${id}.${k} is not a setting (use, built)`);
+      if (!isObj(b)) no(`blocks.${id} is { use?, built?, access? }`);
+      for (const k of Object.keys(b)) if (!['use', 'built', 'access'].includes(k)) no(`blocks.${id}.${k} is not a setting (use, built, access)`);
+      if (b.access !== undefined && !ACCESS_IDS.includes(b.access)) no(`blocks.${id}.access is ${ACCESS_SAY}`);
       if (b.use !== undefined && !SEGMENT_IDS.includes(b.use)) no(`blocks.${id}.use is ${SEGMENT_IDS.join(', ')}`);
       if (b.use !== undefined && evoke === 'metro' && !['houses', 'park', 'school', 'sports'].includes(b.use)) no(`blocks.${id}.use is houses, park, school or sports in the town to scale (metro)`);
       if (b.built !== undefined && typeof b.built !== 'boolean') no(`blocks.${id}.built is false (laid, not yet built) or true`);
@@ -222,5 +239,37 @@ export function readGeotown(spec = {}) {
   if (!(typeof margin === 'number' && margin >= 0 && margin <= 120)) no('margin is the metres of land drawn round the town, 0 to 120');
   // (a block by hand changes its cell's segment)
   for (const [id, b] of Object.entries(blocks)) if (b.use) cells[Number(id[1]) - 1][LETTERS.indexOf(id[0])] = b.use;
-  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin };
+  // THE STREETS' PROFILE (profile.js): true, or { walkable?, curve? }: crossings level, each block graded between them
+  let profile = null;
+  if (spec.profile !== undefined && spec.profile !== false) {
+    const p = spec.profile === true ? {} : spec.profile;
+    if (!isObj(p)) no('profile is true (its streets laid on profiles: crossings level, each block graded between them) or { walkable?, curve? }');
+    for (const k of Object.keys(p)) if (!['walkable', 'curve'].includes(k)) no(`profile.${k} is not a setting (walkable, curve)`);
+    if (p.walkable !== undefined && !(typeof p.walkable === 'number' && p.walkable >= 0.05 && p.walkable <= 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, too steep to walk');
+    if (p.curve !== undefined && !(typeof p.curve === 'number' && p.curve >= 0 && p.curve <= 30)) no('profile.curve is the metres a ramp eases in and out over at each crossing, 0 to 30');
+    profile = { ...p };
+  }
+  if (spec.access !== undefined && !ACCESS_IDS.includes(spec.access)) no(`access is ${ACCESS_SAY}`);
+  // THE SLOPE (this climbs): the land tilted toward a side; streets that climb at their own grade, on profiles
+  let slope = null;
+  if (spec.slope !== undefined) {
+    const S = spec.slope;
+    if (!isObj(S)) no('slope is { toward?, grade?, streets? }: the land rising toward a side at a grade, and the streets that climb at their own');
+    for (const k of Object.keys(S)) if (!['toward', 'grade', 'streets'].includes(k)) no(`slope.${k} is not a setting (toward, grade, streets)`);
+    if ((S.toward === undefined) !== (S.grade === undefined)) no('slope.toward and slope.grade go together: the side the land rises toward and how steeply');
+    if (S.toward !== undefined && !SIDES.includes(S.toward)) no(`slope.toward is the side the land rises toward: ${SIDES.join(', ')}`);
+    if (S.grade !== undefined && !(typeof S.grade === 'number' && S.grade >= 0 && S.grade <= 0.3)) no('slope.grade is the land\'s rise over its run toward that side, 0 to 0.3');
+    if (S.streets !== undefined) {
+      if (!isObj(S.streets) || !Object.keys(S.streets).length) no('slope.streets is { \'ns-1\': 0.12, … }: each street named and the grade it climbs at toward its north or east end');
+      for (const [id, g] of Object.entries(S.streets)) {
+        const x = LINE.exec(id);
+        if (!x || Number(x[2]) > (x[1] === 'ns' ? grid[0] : grid[1])) no(`slope.streets '${id}' is not a street of a ${grid[0]} × ${grid[1]} layout (ns-0…ns-${grid[0]}, ew-0…ew-${grid[1]})`);
+        if (!(typeof g === 'number' && Math.abs(g) <= 0.4)) no(`slope.streets.${id} is its grade, rise over run, −0.4 to 0.4 (less than 0 it falls toward its north or east end)`);
+      }
+      if (new Set(Object.keys(S.streets).map((id) => id.slice(0, 2))).size > 1) no('slope.streets name streets along one axis (all ns-… or all ew-…): two that cross would set their crossing twice');
+    }
+    slope = { ...S, ...(S.streets ? { streets: { ...S.streets } } : {}) };
+    if (slope.streets && !profile) profile = {};
+  }
+  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}), ...(slope ? { slope } : {}) };
 }

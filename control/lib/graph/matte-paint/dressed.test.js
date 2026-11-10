@@ -179,7 +179,7 @@ describe('the modern class and the roads', () => {
 });
 
 describe('the made class: the bay\'s steel, sheet and poured faces', () => {
-  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated', 'perforated', 'terrazzo', 'glazed', 'studded', 'seam', 'acoustic',
+  const MADE = ['plate', 'tread', 'block', 'panel', 'epoxy', 'grating', 'corrugated', 'sheetpile', 'decking', 'membrane', 'perforated', 'terrazzo', 'glazed', 'studded', 'seam', 'acoustic',
     'matte', 'carbon', 'drywall', 'carpet', 'vinyl', 'laminate', 'porcelain', 'veneer'];
   const H = (cut, over = {}) => { const M = dressedMaterial({ ...CFG, cut, metres: 1, rows: 4, cols: 2, ...over }, { size: 128, seed: 3 }); return { M, at: (x, y) => M.height[Math.floor(y * 128) * 128 + Math.floor(x * 128)] }; };
   it('each cut is seamless, its own bytes, on the rails, and read as material from a relief', () => {
@@ -209,6 +209,17 @@ describe('the made class: the bay\'s steel, sheet and poured faces', () => {
     const ribs = H('corrugated', { cols: 8, grit: 0 }), row = Array.from({ length: 128 }, (_, i) => ribs.at(i / 128, 0.5));
     // eight crowns across the repeat: count the rises onto a crown
     expect(row.filter((v, i) => v > 0 && row[(i + 127) % 128] <= 0).length).toBe(8);
+    // (a sheet's rust opt-in: absent, the sheet as it was; asked, rust through it, more the more is asked)
+    const sheet = (o) => dressedTile({ ...CFG, cut: 'corrugated', cols: 8, metres: 1, grit: 0.4, ...o }, { size: 96, seed: 3 }).rgb;
+    expect(Buffer.compare(sheet({ rust: 0 }), sheet({}))).toBe(0);
+    const reddish = (rgb) => { let n = 0; for (let i = 0; i < rgb.length; i += 3) if (rgb[i] > rgb[i + 2] + 40) n++; return n; };
+    expect(reddish(sheet({ rust: 0.8 }))).toBeGreaterThan(reddish(sheet({ rust: 0.2 })));
+    expect(reddish(sheet({ rust: 0.2 }))).toBeGreaterThan(reddish(sheet({})));
+    // a deck's boards gapped across v, a sheet pile's pans deep
+    const deck = H('decking', { rows: 4, cols: 2, grit: 0 });
+    expect(deck.at(0.5, 0.002)).toBeLessThan(deck.at(0.5, 0.125) - 0.005);
+    const pile = H('sheetpile', { cols: 2 });
+    expect(Math.max(...pile.M.height) - Math.min(...pile.M.height)).toBeGreaterThan(0.06);
     // a poured floor is smooth: its relief its joints' and little more
     const epoxy = H('epoxy', { cols: 1 });
     expect(Math.max(...epoxy.M.height)).toBeLessThan(0.002);

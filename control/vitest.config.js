@@ -51,6 +51,8 @@ export const E2E = [
   'lib/graph/game/play-shell-atlas.live.test.js',
   // a zoned map's four zones built to a folder and walked gate by gate in headless Chrome (scripts/worldmap.mjs)
   'lib/graph/gameworld/worldmap-bed.live.test.js',
+  // the hover bot over a little world in headless Chromium: its ground cast, its teleport, its flight's step and hole
+  'lib/graph/scene/hover-bot.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
   'lib/graph/game/stage.live.test.js',
   'lib/graph/playscape/ui/scene-takes.live.test.js',

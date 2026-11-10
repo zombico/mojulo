@@ -40,7 +40,7 @@ export function farFaces(G, Z, { seed = 1, ground = '#7aa04a' } = {}) {
   const sketched = G.sketch?.ground ?? new Map();
   for (const x of G.cells) {
     if (Z.built.has(`${x.r},${x.c}`)) continue;
-    const X0 = x.c * T, Y1 = -x.r * T, g = sketched.get(`${x.r},${x.c}`) ?? null;
+    const X0 = x.c * T, Y1 = -x.r * T, g = sketched.get(`${x.r},${x.c}`) ?? (x.water ? 'w' : null);   // (a grid's `~` is water as a sketch's `w` is)
     const fill = g && TINT[g] ? mix(ground, TINT[g][0], TINT[g][1]) : x.kind === 'path' ? mix(ground, '#cdb98f', 0.35) : ground;
     for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) {
       const a = X0 + i * step, b = Y1 - (j + 1) * step, c = [[a, b], [a + step, b], [a + step, b + step], [a, b + step]].map(([px, py]) => [px, py, land(px, py)]);

@@ -211,8 +211,9 @@ describe('its blocks', () => {
   });
 
   it('gives every block a segment of its ring, an edge and a main street their street along their long side', () => {
-    const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
-    for (const b of lots) expect(OF[b.ring]).toContain(b.kind);
+    const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY], industry: ['works', 'warehouse', 'storage', 'tanks', 'substation', ...ANY] };
+    const ind = new Set(d.regions.filter((r) => r.industrial).map((r) => r.id));
+    for (const b of lots) expect(OF[ind.has(b.id.split('.')[0]) ? 'industry' : b.ring]).toContain(b.kind);
     const longSides = (b) => (b.rect[3] - b.rect[1] >= b.rect[2] - b.rect[0] ? ['w', 'e'] : ['s', 'n']);
     for (const b of lots.filter((x) => x.kind === 'edge')) expect(longSides(b).some((k) => b.sides[k].kind === 'arterial')).toBe(true);
     for (const b of lots.filter((x) => x.kind === 'main-street')) expect(longSides(b).some((k) => b.sides[k].rank === 'collector')).toBe(true);
@@ -373,6 +374,10 @@ describe('the geotown composed in', () => {
     expect(r.ledger.streets + r.ledger.blocks + r.ledger.park).toBeCloseTo(r.area, 0);
     const [x, y] = [T.frame.W / 2, T.frame.D / 2];
     expect(T.field(x, y)).toBeCloseTo(d.land.N(x + T.origin[0], y + T.origin[1]), 6);
+    // ONE LAND: its streets' ground the metro's own along its frame and inside it, so its walks meet the metro's round it
+    for (const [u, v] of [[0, 0.5], [1, 0.5], [0.5, 0], [0.5, 1], [0.3, 0.7]]) expect(T.design.land.S(u * T.frame.W, v * T.frame.D)).toBeCloseTo(d.land.S(u * T.frame.W + T.origin[0], v * T.frame.D + T.origin[1]), 6);
+    const b = d.regions.flatMap((q) => q.blocks).find((q) => q.id === blk.id).geotown, g = b.rect;
+    expect(b.design.land.S(g[0], g[1])).toBeCloseTo(d.land.S(g[0] + b.shift[0], g[1] + b.shift[1]), 6);
   });
 
   it('lays a block by one of the geotown\'s segments, its rows filling the metro\'s block, its ground the town block\'s', () => {

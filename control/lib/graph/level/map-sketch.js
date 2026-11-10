@@ -31,8 +31,10 @@
  *                                      a level with no approved segment, readGrid's read as it was
  *
  * LOWERED (only an approved segment's): height → the tile's rise in the level's one land; ground f g m s → the kit's own
- * flora (SKETCH_BIOCUBE: forest, grove, meadow, upland); r → boulders on a path tile (SKETCH_BOULDERS); c and w → none
- * yet (no tile builder lays a cliff or water: `unlaid` names them); marks → a marker on the page, told on hover.
+ * flora (SKETCH_BIOCUBE: forest, grove, meadow, upland); r → boulders on a path tile (SKETCH_BOULDERS); w on open land →
+ * water (level/map-water.js: a body, its edge a beach or a cliff); c beside water → that water's cliff edge (a cliff
+ * away from water, and rocks off a path, are not laid yet: `unlaid` names them); marks → a marker on the page, told on
+ * hover.
  * Pure.
  */
 import { gateTile } from './plan.js';
@@ -379,7 +381,9 @@ export function levelGrid(level, at = 'level.grid', read = null) {
   const approved = Object.entries(K.segments).filter(([, v]) => v.status === 'approved');
   if (!approved.length) return base;
   const only = { ...K, segments: Object.fromEntries(approved) }, P = base.plan;
-  const ground = new Map(), marks = [], laid = { height: 0, ground: 0, boulders: 0, marks: 0 }, unlaid = [];
+  const ground = new Map(), marks = [], laid = { height: 0, ground: 0, boulders: 0, water: 0, cliffs: 0, marks: 0 }, unlaid = [];
+  // (water: open land a body lies on, era/out-tile-water.js; the grid's own `~` and every approved `w` on open land)
+  const wetAt = (r, c) => { const x = base.at(r, c); if (!x) return false; if (x.water) return true; const S = approved.find(([k]) => { const [a, b] = P.segments[k].at; return r >= a && c >= b && r < a + P.size && c < b + P.size; }); const g = S?.[1].ground?.[r - P.segments[S[0]].at[0]]?.replace(/\s+/g, '')[c - P.segments[S[0]].at[1]]; return g === 'w' && x.kind === 'land'; };
   for (const [seg, v] of approved) {
     const [r0, c0] = P.segments[seg].at;
     if (v.height) laid.height += v.height.length * v.height.length;
@@ -387,9 +391,13 @@ export function levelGrid(level, at = 'level.grid', read = null) {
       if (g === '.') return;
       const x = base.at(r0 + r, c0 + c);
       ground.set(`${r0 + r},${c0 + c}`, g);
+      // (a cliff beside water, across or along: that water's cliff edge, level/map-water.js)
+      const byWater = g === 'c' && [-1, 0, 1].some((dr) => [-1, 0, 1].some((dc) => (dr || dc) && wetAt(r0 + r + dr, c0 + c + dc)));
       if (SKETCH_BIOCUBE[g]) laid.ground++;
       else if (g === 'r' && x.kind === 'path') laid.boulders++;
-      else unlaid.push({ tile: [r0 + r, c0 + c], says: `${seg} row ${r + 1} column ${c + 1}: ${SKETCH_GROUND[g].split(':')[0]}${g === 'r' ? ' off the path (boulders are laid along a path)' : ''}` });
+      else if (g === 'w' && x.kind === 'land') laid.water++;
+      else if (byWater) laid.cliffs++;
+      else unlaid.push({ tile: [r0 + r, c0 + c], says: `${seg} row ${r + 1} column ${c + 1}: ${SKETCH_GROUND[g].split(':')[0]}${g === 'r' ? ' off the path (boulders are laid along a path)' : g === 'w' ? ' on a way or a place (water lies on open land)' : g === 'c' ? ' away from water (a cliff is laid as a water\'s edge)' : ''}` });
     }));
     for (const m of v.marks) { marks.push({ ...m, segment: seg, tile: [r0 + m.at[0], c0 + m.at[1]] }); laid.marks++; }
   }

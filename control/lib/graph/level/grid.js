@@ -12,7 +12,9 @@
  *       '. . # . S',
  *     ],
  *     key?: { <glyph>: <what stands on it> },   // the PLACES the geocube lays round the paths (a town block, a
- *                                               // building, a wood…); '#' a path and '.' open land are always known
+ *                                               // building, a wood…); '#' a path, '.' open land and '~' water
+ *                                               // (era/out-tile-water.js: a body, its edge a beach or a cliff) are
+ *                                               // always known
  *     regions?: { rows, key },                  // a second layer of glyphs, the map's own shape: each tile's REGION
  *   }                                           // ('.' the level's own)
  *
@@ -43,7 +45,7 @@
 import { stitchPlan } from './plan.js';
 
 export const GRID_TILE = Object.freeze({ d: 48, lo: 24, hi: 96 });
-export const GRID_GLYPHS = Object.freeze({ path: '#', land: '.' });
+export const GRID_GLYPHS = Object.freeze({ path: '#', land: '.', water: '~' });
 // a tile's sides, clockwise from north: their unit step on the grid (row, column)
 export const SIDES = Object.freeze({ n: [-1, 0], e: [0, 1], s: [1, 0], w: [0, -1] });
 const ORDER = ['n', 'e', 's', 'w'];
@@ -58,7 +60,7 @@ export const SHAPES = Object.freeze({
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const GLYPH = /^[A-Za-z#.]$/;
+const GLYPH = /^[A-Za-z#.~]$/;
 
 /** The shape of a path tile from its open edges (a set of side names). */
 export function shapeOf(open) {
@@ -93,8 +95,8 @@ export function readGrid(g, at = 'grid') {
   // (every glyph read before any shape is solved: a place the key does not name is named as that)
   for (let r = 0; r < rows.length; r++) for (let c = 0; c < cols; c++) {
     const glyph = rows[r][c];
-    if (!GLYPH.test(glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is not a glyph (a letter, '#' a path, '.' open land)`);
-    if (glyph !== GRID_GLYPHS.land && glyph !== GRID_GLYPHS.path && !Object.hasOwn(key, glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is a place the key does not name (key: ${Object.keys(key).join(', ') || 'none'})`);
+    if (!GLYPH.test(glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is not a glyph (a letter, '#' a path, '.' open land, '~' water)`);
+    if (glyph !== GRID_GLYPHS.land && glyph !== GRID_GLYPHS.path && glyph !== GRID_GLYPHS.water && !Object.hasOwn(key, glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is a place the key does not name (key: ${Object.keys(key).join(', ') || 'none'})`);
   }
   // every PLACE's door: its key's, else toward its main road
   const isPath = (r, c) => glyphAt(r, c) === GRID_GLYPHS.path;
@@ -102,7 +104,7 @@ export function readGrid(g, at = 'grid') {
   const doors = new Map();
   for (let r = 0; r < rows.length; r++) for (let c = 0; c < cols; c++) {
     const glyph = rows[r][c];
-    if (glyph === GRID_GLYPHS.path || glyph === GRID_GLYPHS.land) continue;
+    if (glyph === GRID_GLYPHS.path || glyph === GRID_GLYPHS.land || glyph === GRID_GLYPHS.water) continue;
     const sides = ORDER.filter((s) => isPath(r + SIDES[s][0], c + SIDES[s][1])), want = key[glyph]?.door;
     if (want !== undefined && !ORDER.includes(want)) throw new Error(`level: ${at}.key.${glyph}.door is a side: ${ORDER.join(', ')}`);
     if (want !== undefined && !sides.includes(want)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' opens its door ${want}, where no path lies`);
@@ -117,6 +119,8 @@ export function readGrid(g, at = 'grid') {
     const glyph = rows[r][c];
     if (!GLYPH.test(glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is not a glyph (a letter, '#' a path, '.' open land)`);
     if (glyph === GRID_GLYPHS.land) { cells.push({ r, c, glyph, kind: 'land' }); continue; }
+    // (WATER: open land a body of water lies on, era/out-tile-water.js; never walked, no path opens toward it)
+    if (glyph === GRID_GLYPHS.water) { cells.push({ r, c, glyph, kind: 'land', water: true }); continue; }
     if (glyph !== GRID_GLYPHS.path) {
       if (!Object.hasOwn(key, glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is a place the key does not name (key: ${Object.keys(key).join(', ') || 'none'})`);
       // (a place opens on its door only)
@@ -150,7 +154,10 @@ export function readGrid(g, at = 'grid') {
 
 /** What a region may say: its name, its rise (metres, the land's height there over the level's own), and the stage's
  *  own words every tile in it is built with (its look, what grows there, its grass, wind and snow). */
-export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette']);
+export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette', 'path', 'shore']);
+// (the words a region says of the MAP, never handed to a tile's stage: its name, its rise, its ways' rank
+// (level/path-ranks.js) and its water's edge (era/out-tile-water.js))
+export const MAP_WORDS = Object.freeze(['name', 'rise', 'path', 'shore']);
 export const REGION_RISE = Object.freeze({ lo: -24, hi: 60 });
 
 function readRegions(g, nr, nc, at) {

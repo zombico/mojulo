@@ -423,3 +423,16 @@ describe('shared entries and the street\'s own furniture', () => {
   });
 });
 
+
+describe('the grade law reads every street by its rank', () => {
+  it('holds a main street to its pattern\'s gentler `grades`, a local street to its `grade`', () => {
+    // (the land rising east at 7 %: every east-west street climbs it; the main street's most 6 %, a local street's 8 %)
+    const d = designGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HHH', 'MMM', 'HHH'], main: ['ew-1'] } }, { seed: 3, field: (x) => 0.07 * x });
+    const l = d.laws.find((x) => x.law === 'grade');
+    expect(l.ok).toBe(false);
+    expect(l.value).toMatch(/1 street over its rank's most: ew-1 0\.07 \(main, most 0\.06\)/);
+    // (a pattern may say its own)
+    const e = designGeotown({ evoke: 'neighbourhood', neighbourhood: { layout: ['HHH', 'MMM', 'HHH'], main: ['ew-1'] }, pattern: { from: 'bay-and-gable', grades: { main: 0.075 } } }, { seed: 3, field: (x) => 0.07 * x });
+    expect(e.laws.find((x) => x.law === 'grade').ok).toBe(true);
+  });
+});
