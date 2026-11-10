@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { traceSound, refineTrace, analyzeFrames, TRACE_BANDS, TRACE_Q, TRACE_STEP } from './trace.js';
+import { traceSound, refineTrace, analyzeFrames, steadyHum, TRACE_BANDS, TRACE_Q, TRACE_STEP } from './trace.js';
 import { buildBeatsKernel, emitBeatsKernel } from '../beats/beats-kernel.js';
 import { beatsFeatures } from '../beats/beats-features.js';
 import { validateBeatsManifest } from '../beats/beats-manifest.js';
@@ -8,6 +8,7 @@ import { decodeWav, peak } from '../beats/audio-measure.js';
 import { MOUTH } from './sets/mouth.js';
 import { MOUTH_TRACES } from './sets/mouth-traces.js';
 import { familyCue } from './families.js';
+import { SOUNDS, SOUND_IDS } from './roster.js';
 
 const SR = 44100;
 const K = buildBeatsKernel();
@@ -67,6 +68,15 @@ describe('the tracer', () => {
     expect(loudest(got[2])).toBeGreaterThan(loudest(got[g.lv.length - 3]));
   }, 60_000);
 
+  it('holds a hum steady: a harmonic leap pulled back to the voice, a flicker smoothed out', () => {
+    const voiced = [70, 10, 80, 100, 100, 100, 100, 100, 0, 0];
+    const pitch = [44, 280, 43, 45, 44, 501, 46, 45, 95, 95];
+    const h = steadyHum(voiced, pitch);
+    expect(Math.max(...h.pitch)).toBeLessThan(60);               // no leap survives
+    const flips = (v) => v.slice(1).filter((x, k) => Math.abs(x - v[k]) > 40).length;
+    expect(flips(h.voiced)).toBeLessThan(flips(voiced));
+  });
+
   it('renders the same samples every time (seeded noise)', async () => {
     const g = { type: 'trace', lv: [Array(12).fill(-20), Array(12).fill(-10), Array(12).fill(-30)], seed: 3 };
     const [a, b] = [await render([g]), await render([g])];
@@ -76,8 +86,9 @@ describe('the tracer', () => {
 });
 
 describe('the mouth set', () => {
-  it('is a valid beats-sfx manifest, one cue per traced row', () => {
-    expect(Object.keys(MOUTH.cues)).toEqual(Object.keys(MOUTH_TRACES));
+  it('is a valid beats-sfx manifest with a cue for every traced row and every row it voices', () => {
+    for (const id of Object.keys(MOUTH_TRACES)) expect(MOUTH.cues[id], id).toBeDefined();
+    for (const id of SOUND_IDS.filter((i) => SOUNDS[i].voices?.mouth)) expect(MOUTH.cues[id], id).toBeDefined();
     expect(validateBeatsManifest({ kind: 'beats-sfx', title: 'mouth', cues: MOUTH.cues }).errors ?? []).toEqual([]);
   });
 

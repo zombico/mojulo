@@ -31,8 +31,6 @@ export const RECIPES = [
   { id: 'swing', text: 'シュッ', voice: 'jm_kumo', speed: 1.0, chain: 'swoosh' },
   { id: 'blade-swing', text: 'ザシュッ', voice: 'jm_kumo', speed: 1.3, chain: 'blade-kiin', ring: { text: 'キーン', voice: 'jm_kumo', speed: 1.0 } },
   { id: 'katana-swing', text: 'ヒュン', voice: 'jm_kumo', speed: 1.2, chain: 'swoosh', with: { family: 'katana', dials: { act: 'swing', weight: 'light' }, db: -6 } },
-  { id: 'katana-heavy-swing', text: 'ブン', voice: 'jm_kumo', speed: 1.2, chain: 'heavy' },
-  { id: 'blunt-swing', text: 'ブォン', voice: 'jm_kumo', speed: 1.1, chain: 'heavy' },
   { id: 'net-swish', text: 'スパッ', voice: 'jm_kumo', speed: 1.3, chain: 'air' },
   { id: 'swell-in', text: 'スッ', voice: 'jm_kumo', speed: 1.2, chain: 'reverse' },
   // approved takes, not yet a row's voice
@@ -47,6 +45,9 @@ export const RECIPES = [
   { id: 'alt-blade-shu', alt: true, text: 'シュッ', voice: 'jm_kumo', speed: 1.0, chain: 'blade' },
   { id: 'alt-blade-shing', alt: true, text: 'shing', voice: 'am_onyx', speed: 1.2, chain: 'blade-kiin', ring: { text: 'キーン', voice: 'jm_kumo', speed: 1.0 } },
   { id: 'alt-swell-shua', alt: true, text: '唰', voice: 'zm_yunjian', speed: 1.2, chain: 'reverse' },
+  // the voiced hum pitched down and traced reads as a lightsaber, not a heavy blade: kept to refine toward a saber
+  { id: 'alt-saber-bun', alt: true, text: 'ブン', voice: 'jm_kumo', speed: 1.2, chain: 'heavy' },
+  { id: 'alt-saber-buon', alt: true, text: 'ブォン', voice: 'jm_kumo', speed: 1.1, chain: 'heavy' },
 ];
 
 // a chain that keeps the voiced hum traces its voicing; the rest are air (trace.js `voicing`)

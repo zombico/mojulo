@@ -31,9 +31,9 @@ function bandEdges(bands, sr) {
   return bands.map((f, i) => [i ? Math.sqrt(bands[i - 1] * f) : 20, i < bands.length - 1 ? Math.sqrt(f * bands[i + 1]) : sr / 2]);
 }
 
-// the normalized autocorrelation's best lag in [sr/500, sr/40]: { r, hz }
+// the normalized autocorrelation's best lag in [sr/500, sr/30]: { r, hz }
 function periodicity(x, start, n, sr) {
-  const lo = Math.floor(sr / 500), hi = Math.min(n - 64, Math.ceil(sr / 40));
+  const lo = Math.floor(sr / 500), hi = Math.min(n - 64, Math.ceil(sr / 30));
   const f = new Float64Array(n);
   let mean = 0;
   for (let i = 0; i < n; i++) mean += x[start + i] || 0;
@@ -79,6 +79,25 @@ export function analyzeFrames(y, sr, { start = 0, frames, step = TRACE_STEP, ban
   return { db, voiced, pitch, side };
 }
 
+const median = (xs) => { const v = [...xs].sort((a, b) => a - b); return v.length ? v[v.length >> 1] : 0; };
+
+/**
+ * A hum held steady: frame by frame the tracker can catch a harmonic (a leap of an octave or more) or flip between air
+ * and hum where the voicing is weak, and a sawtooth playing that leaps and the noise under it flutters. The pitch is
+ * anchored on the strongly voiced frames' median, a frame more than a third off it is that median, and the rest is
+ * median-smoothed over five frames; the voicing is averaged over five frames, a trace of it dropped.
+ */
+export function steadyHum(voiced, pitch) {
+  const strong = pitch.filter((h, k) => voiced[k] >= 60);
+  const anchor = median(strong.length ? strong : pitch.filter((h, k) => voiced[k] >= 20));
+  const held = pitch.map((h) => (Math.abs(h / anchor - 1) <= 1 / 3 ? h : anchor));
+  const near = (xs, k) => xs.slice(Math.max(0, k - 2), k + 3);
+  return {
+    voiced: voiced.map((v, k) => { const m = Math.round(near(voiced, k).reduce((a, x) => a + x, 0) / near(voiced, k).length); return m < 15 ? 0 : m; }),
+    pitch: held.map((h, k) => Math.round(median(near(held, k)))),
+  };
+}
+
 /**
  * A sound (`y`: one channel, or [left, right]) at `sr` traced into a trace gesture: the frames from its onset to its
  * last sample within `rangeDb` of its peak. The levels are the analysis's, uncalibrated: `refineTrace` makes them the
@@ -97,7 +116,7 @@ export function traceSound(y, sr, { step = TRACE_STEP, bands = TRACE_BANDS, rang
   const a = analyzeFrames(y, sr, { start: on / sr, frames, step, bands });
   const g = { type: 'trace', step, lv: a.db.map((row) => row.map(clampDb)) };
   if (bands !== TRACE_BANDS) g.bands = [...bands];
-  if (voicing && a.voiced.some((v) => v >= 20)) { g.voiced = a.voiced; g.pitch = a.pitch.map((h, k) => (a.voiced[k] ? h : a.pitch.find((x, j) => a.voiced[j]) || h)); }
+  if (voicing && a.voiced.some((v) => v >= 20)) { const h = steadyHum(a.voiced, a.pitch); g.voiced = h.voiced; g.pitch = h.pitch; }
   if (a.side.some((s) => Math.abs(s) >= 5)) g.side = a.side;
   return { gesture: g, onset: on / sr, targets: a.db };
 }

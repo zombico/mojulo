@@ -54,8 +54,10 @@ exactly one row, so their recipes never change.
 local voice worker (Kokoro) says a sound word that already sounds like the thing, mostly Japanese manga words (シュッ
 shu' for a swing, ザシュッ zashu' for a slash, ブン bun for a heavy swing, スパッ supa' for a clean swish), a chain cuts
 the vowel out and sweeps, pans and layers the breath, and the result is traced (`sets/mouth.js`). It voices `swing`,
-`blade-swing`, `katana-swing` (the katana's own cue with the traced voice 6 dB under it), `katana-heavy-swing`,
-`blunt-swing`, `net-swish` and `swell-in` (a reversed swish), and falls back to `realistic` for the rest. The traces are
+`blade-swing`, `katana-swing` (the katana's own cue with the traced voice 6 dB under it), `net-swish` and `swell-in` (a
+reversed swish), and falls back to `realistic` for the rest. The katana has no heavy cut in this style: the air a blade
+cuts sounds the same light or hard, so `katana-heavy-swing` is the swing's sound. A voiced hum pitched down and traced
+reads as a lightsaber rather than a heavy blade; those takes stay in the bake as alternates. The traces are
 generated (`sets/mouth-traces.js`) by `node scripts/mouth-foley/bake.mjs`, the only step that needs the worker: the
 recipes (word, voice, speed, chain) are in the script, and `--check` says whether the page is stale.
 

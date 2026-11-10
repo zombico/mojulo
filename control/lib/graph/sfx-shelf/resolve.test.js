@@ -30,6 +30,16 @@ describe('sfxSound: a sound by its word, in a style', () => {
     expect(sfxSound(voicedRow, { style: paletteStyle })).toEqual({ id: voicedRow, style: paletteStyle, from: `palette:${paletteStyle}`, gestures: SFX_PALETTES[paletteStyle][fam], family: fam });
   });
 
+  it('an overlay style is its fallback wherever it has no voice of its own, stand-ins included', () => {
+    const overlay = STYLE_NAMES.find((st) => STYLES[st].overlay);
+    const own = SOUND_IDS.filter((id) => SOUNDS[id].voices?.[overlay]);
+    // a row whose family stand-in the overlay voices, but not the row itself: the fallback's voice, not the stand-in's
+    const borrower = SOUND_IDS.find((id) => !SOUNDS[id].voices?.[overlay] && own.includes(SOUNDS[id].family) && !SOUNDS[id].channel);
+    const fb = STYLES[overlay].fallback;
+    expect(sfxSound(borrower, { style: overlay })).toEqual(sfxSound(borrower, { style: fb }));
+    expect(sfxSound(own[0], { style: overlay }).from).toBe(`set:${SOUNDS[own[0]].voices[overlay]}`);
+  });
+
   it('a row with no voice in a style takes the style\'s fallback', () => {
     const fb = STYLES[fallbackStyle].fallback;
     expect(sfxSound(paletteRow, { style: fallbackStyle })).toEqual({ id: paletteRow, style: fb, from: `palette:${fb}`, gestures: SFX_PALETTES[fb][paletteRow] });
