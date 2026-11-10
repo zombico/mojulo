@@ -16,3 +16,8 @@
   drives, and fires its own mounts.
 - Served at `bible?book=practice&room=range|artillery`, listed by design_game's readout and the rail, each with its
   icon (a crosshair, a shell).
+- The firing range is measured before any level, on the world's own guns: each gun's laws from the combat book's
+  measure (its cone widening on the move and tightening aimed, a spray blooming and climbing, the rounds to drop a body
+  at each band), tallied in design_game's readout as `practice.measured.range` beside the feel's own measure. A law
+  lost is advised as a `feel` step, never a refusal. The measures are kept by the guns they were taken on, so a
+  readout does not measure the same guns twice. The readout's `practice` now lists its rooms under `rooms`.

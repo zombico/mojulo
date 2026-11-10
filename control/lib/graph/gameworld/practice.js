@@ -23,6 +23,9 @@
  *   practiceFor(G) → { rooms: [<id>], why?: words when there is none, elsewhere?: words for a template practised elsewhere }
  *   practiceRoomOf(G, id, opts) → the room's pure build (its `manifest` and what its page says; a gun room's `spec`)
  *   rangeFor(G), artilleryFor(G) → a gun room's spec (rangeOf's, artilleryOf's), or null
+ *   rangeMeasured(G)  → { carried, lost, worst? } the firing range's laws (combat/measure.js combatLaws) on the world's
+ *                    guns, before any level; null without a range. The shooter's machine gate beside the feel's:
+ *                    advice, never a refusal. A few seconds a gun, so kept by the guns it was measured on
  *   TEMPLATE_FRAMES  { <template>: { frame, why } }: the templates whose hero is a frame of the mecha shelf
  *   mountSuggestion(G) → { suggest: 2, why } for a world whose feel template rides and that writes no mounts; else null
  *   PRACTICE_ROOMS   { <id>: { name, about } }
@@ -35,6 +38,8 @@ import { practiceRoom, roomEligible, FIGHTS_ELSEWHERE } from './practice-room.js
 import { platformRoom } from './platform-room.js';
 import { mountLane } from './mount-lane.js';
 import { loadoutOf } from './loadout.js';
+import { rangeBody } from './combat/range.js';
+import { measureCombat, combatLaws } from './combat/measure.js';
 
 export const PRACTICE_ROOMS = Object.freeze({
   practice: { name: 'The practice room', about: 'the arsenal\'s swings, strings, weapons, guard and parry on a foe that falls and comes back' },
@@ -62,6 +67,25 @@ export function artilleryFor(G) {
 export function rangeFor(G) {
   const L = loadoutOf(G);
   return L ? { weapons: L.weapons, ...(L.skins ? { skins: L.skins } : {}), name: G?.name ?? G?.id ?? 'game' } : null;
+}
+
+// the range's measures by the guns they were taken on (the same guns measure the same: a pure function, kept); a few
+// worlds at a time, the oldest let go
+const RANGE_KEPT = new Map(), RANGE_KEEP = 16;
+/** The firing range's laws on a world's guns (see the header), or null. */
+export function rangeMeasured(G) {
+  const spec = rangeFor(G);
+  if (!spec) return null;
+  const key = JSON.stringify({ weapons: spec.weapons, skins: spec.skins ?? null });
+  if (RANGE_KEPT.has(key)) return RANGE_KEPT.get(key);
+  // (the guns alone: the range's body is a stand-in person, so its run is not the world's feel and is not held to it)
+  const { pilot, foe } = rangeBody({ weapons: spec.weapons, ...(spec.skins ? { skins: spec.skins } : {}), quiet: true });
+  const laws = combatLaws(measureCombat(pilot, foe, { camera: 'first-person' }));
+  const lost = laws.filter((l) => !l.ok).map((l) => l.name);
+  const out = { carried: laws.length - lost.length, lost: lost.length, ...(lost.length ? { worst: lost.slice(0, 3) } : {}) };
+  RANGE_KEPT.set(key, out);
+  if (RANGE_KEPT.size > RANGE_KEEP) RANGE_KEPT.delete(RANGE_KEPT.keys().next().value);
+  return out;
 }
 
 /** Which rooms a world has (see the header). */

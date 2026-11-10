@@ -4,7 +4,7 @@
 // the mounts suggestion.
 import { describe, expect, it } from 'vitest';
 
-import { practiceFor, practiceRoomOf, mountSuggestion, PRACTICE_ROOMS, TEMPLATE_FRAMES } from './practice.js';
+import { practiceFor, practiceRoomOf, mountSuggestion, rangeMeasured, PRACTICE_ROOMS, TEMPLATE_FRAMES } from './practice.js';
 import { TEMPLATE_LOADOUTS } from './loadout.js';
 import { validateRange } from './combat/range.js';
 import { validateFrame } from './combat/frames.js';
@@ -63,6 +63,14 @@ describe('the gun rooms', () => {
   it('a world that carries a gun has the range whatever its template; one carrying none under a melee template, none', () => {
     expect(practiceFor({ feel: FIGHTER, quick: { goal: 'shoot', arms: ['rifle'] } }).rooms).toEqual(['practice', 'range']);
     expect(practiceFor({ feel: FIGHTER }).rooms).not.toContain('range');
+  });
+  it('the range measured on the world\'s guns: its laws carried or lost, the same guns kept, none without a range', () => {
+    const G = { id: 'g', quick: { goal: 'shoot', arms: ['rifle'] } };
+    const M = rangeMeasured(G);
+    expect(M.carried).toBeGreaterThan(0);
+    expect(M.lost).toBe(0);
+    expect(rangeMeasured({ ...G, id: 'another' })).toBe(M);
+    expect(rangeMeasured({ feel: FIGHTER })).toBeNull();
   });
   it('the mech has the artillery range on its own frame, a transforming biped', () => {
     expect(practiceFor({ feel: MECH }).rooms).toEqual(['artillery']);
