@@ -3,7 +3,7 @@
   "id": "beach",
   "name": "Beach",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive ANIMATED SHORELINE — the sea rolling in and lapping onto a sloped sand beach, rendered in the traversable three.js World.",
   "when": "Reach for this on framing like 'water rippling to the shore / waves lapping a beach / an animated shoreline / a calm sea rolling onto sand / a coastline with surf'."
 }
@@ -13,7 +13,7 @@ Mint an interactive ANIMATED SHORELINE — the sea rolling in and lapping onto a
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Sea state (default 'calm'): 'calm' (long slow swell — gentle lapping), 'swell' (medium rollers), 'surf' (bigger, steeper breaking waves).

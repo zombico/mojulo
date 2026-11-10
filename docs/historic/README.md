@@ -2,7 +2,7 @@
 
 A historic culture is a real place at its period, drawn from a cited record and held to a style card. Each one
 reaches the agent as a `historic` world (`create_sketch({ manifest: { kind: 'historic', culture, scene, focus?, form? } })`),
-with a field guide (the mint's `guideUrl`), and as an encyclopedia entry (`get_view_vocab({ id })`, found through `semantic_search`). This page is the method; each
+with a field guide (the mint's `guideUrl`), and as an encyclopedia entry in the exhibits' history hall (`get_exhibit({ id: 'history/<culture>' })`, found through `semantic_search`). This page is the method; each
 culture's own design language is in its folder here (`qin/`, `pompeii/`, `forum/`).
 
 Every culture is a **general depiction** of its period, not one year's town: anachronisms are expected, and each

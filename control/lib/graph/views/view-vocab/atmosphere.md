@@ -3,7 +3,7 @@
   "id": "atmosphere",
   "name": "Atmospheric Scattering",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint ATMOSPHERIC SCATTERING — the textbook-correct reason the SKY IS BLUE and SUNSETS ARE RED — as a per-pixel VOLUME raymarcher that integrates sunlight scattering along each view ray (this is the honest physics, NOT a colour gradient or…",
   "when": "Reach for this on framing like 'why is the sky blue / show me atmospheric scattering / a sunset / the blue marble / Earth from space / the atmosphere limb'.",
   "retired_tool": "create_atmosphere_view"
@@ -14,7 +14,7 @@ Mint ATMOSPHERIC SCATTERING — the textbook-correct reason the SKY IS BLUE and 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — The lighting look (default 'day'): 'day' (full lit blue marble), 'sunset' (the day/night terminator, reddened limb), 'limb' (backlit night-side airglow ring).

@@ -45,7 +45,7 @@ export function mintOrbitView({ title, scenario, scale, vectors, viewBox, scene,
 
 export async function createOrbitViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "orbit" }) requires a recipe object');
+    throw new Error('the orbit recipe requires a recipe object');
   }
   const { title, scenario, scale, vectors, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintOrbitView({ title, scenario, scale, vectors, viewBox, scene, ref, folderRef });

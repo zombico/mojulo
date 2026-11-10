@@ -10,8 +10,8 @@
 ---
 
 A science world is a channel any world kind takes: pass it to `compose_world` as `overrides.science` (any base), or
-set `science` on a stored world's recipe and patch it in place. The demo is the same recipe `create_view` takes for
-its kind (`get_view_vocab({ id: 'classical' })` and the other scales' cards), solved again on every read.
+set `science` on a stored world's recipe and patch it in place. The demo is the same recipe `create_exhibit` takes for
+its kind (`get_exhibit({ id: 'science/classical' })` and the other scales' cards), solved again on every read.
 
 ## Spec
 

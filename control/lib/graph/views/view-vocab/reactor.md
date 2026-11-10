@@ -3,7 +3,7 @@
   "id": "reactor",
   "name": "Nuclear Reactor",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a CONTROLLED nuclear chain reaction — the branching cascade plus CONTROL RODS that absorb neutrons, telling the reactor-vs-bomb story (the heart of nuclear ENERGY): a supercritical core that WOULD run away is held in check by insertin…",
   "when": "Reach for this on framing like 'show me how a nuclear reactor works / control rods / a reactor SCRAM / how a chain reaction is controlled'.",
   "retired_tool": "create_reactor_view"
@@ -14,7 +14,7 @@ Mint a CONTROLLED nuclear chain reaction — the branching cascade plus CONTROL 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which run (default 'scram'): 'scram' (rods drop in and shut the reaction down) or 'runaway' (rods stay out and the chain consumes the assembly — the contrast).

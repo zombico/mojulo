@@ -45,7 +45,7 @@ export function mintPlasmaGlobeView({ title, scenario, inclination, exposure, vi
 
 export async function createPlasmaGlobeViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "plasma-globe" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "science/plasma-globe" }) requires a recipe object');
   }
   const { title, scenario, inclination, exposure, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintPlasmaGlobeView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef });

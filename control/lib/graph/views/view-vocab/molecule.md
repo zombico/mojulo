@@ -3,7 +3,7 @@
   "id": "molecule",
   "name": "Molecule",
   "family": "bio",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive 3D BALL-AND-STICK MOLECULE — a science/education viewer: lit CPK atoms + bond rods, click-to-inspect popups, canonical principal-axis framing, served as a live orbit World.",
   "when": "Reach for this on framing like 'show this molecule in 3D / a ball-and-stick model of caffeine / visualize this chemical structure interactively'.",
   "retired_tool": "create_molecule_view"
@@ -14,7 +14,7 @@ Mint an interactive 3D BALL-AND-STICK MOLECULE — a science/education viewer fo
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact (e.g. the molecule name).
 - `library` (string) — Author by NAME: a built-in molecule preset. When set, `atoms`/`bonds` are not needed.

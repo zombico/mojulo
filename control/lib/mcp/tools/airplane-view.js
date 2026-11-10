@@ -1,12 +1,12 @@
 /**
- * create_view kind 'airplane' — mint a FIXED-WING FLIGHT depictor: a complete airline hop
+ * create_exhibit science/airplane — mint a FIXED-WING FLIGHT depictor: a complete airline hop
  * (takeoff roll → climb → cruise → 3° approach → flare → touchdown) or an engines-out
  * glide, integrated by physics/airplane.js on the four real forces and flown by the airport
  * primitive's own plane body in the traversable three.js World, with a flight-deck HUD.
  *
  * Same fractal-generation philosophy as the other science views: a tiny RECIPE is stored
  * (`kind: 'airplane-view'`, no geometry) and the flight re-integrates on render — same
- * recipe, same flight. Honest read-back via measure_view.
+ * recipe, same flight. Honest read-back via get_exhibit({ ref }).
  *
  * Orbit-only object study — returns a `worldUrl`.
  */
@@ -56,7 +56,7 @@ export function mintAirplaneView({ title, mission, plane, aircraft, guidance, pl
 
 export async function createAirplaneViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view kind airplane requires a recipe object');
+    throw new Error('create_exhibit science/airplane requires a recipe object');
   }
   const { title, mission, plane, aircraft, guidance, playback, trace, strobe, strobeEvery, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintAirplaneView({ title, mission, plane, aircraft, guidance, playback, trace, strobe, strobeEvery, scale, viewBox, scene, ref, folderRef });

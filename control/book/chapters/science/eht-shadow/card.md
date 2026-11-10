@@ -3,7 +3,7 @@
   "id": "eht-shadow",
   "name": "The photon-ring shadow (EHT)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint preset: the black-hole kind face-on in 'eht' mode — the photon ring and central shadow of the Event Horizon Telescope images, with the Doppler-bright side explained.",
   "when": "show the first picture of a black hole; the M87 image; why the ring is brighter on one side; what the black hole shadow actually is"
 }

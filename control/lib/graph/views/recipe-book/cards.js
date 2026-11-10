@@ -22,7 +22,7 @@
  * "forking" an upstream entry = saving under your own id — no merge machinery.
  *
  * MULTI-FAMILY (Phase 4): a card's `entry` frontmatter is its ROUTING KEY —
- * `create_view` cards merge into the view-vocab catalog, `create_beats` into
+ * `create_exhibit` (and `create_view`) cards merge into the view-vocab catalog, `create_beats` into
  * beats-vocab, and so on per CARD_CATALOGS. THIS module owns the one parser
  * for BOOK cards (all families, shared base fields only); each family's vocab
  * loader pulls its slice via `readBookCards({ entries })` and applies its own
@@ -40,7 +40,8 @@ import { moduleDir } from '../../../module-dir.js';
 // install lacks) degrades gracefully. Dedupe across books is scoped PER
 // catalog, so a view card and a beats card may share an id without shadowing.
 export const CARD_CATALOGS = {
-  create_view: 'view',
+  create_exhibit: 'view',
+  create_view: 'view',   // an exhibit card's old entry (folded into create_exhibit); a book or cookbook on disk keeps it
   compose_world: 'view',
   create_beats: 'beats',
   mint_solid: 'solid',

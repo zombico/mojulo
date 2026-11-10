@@ -31,9 +31,10 @@ describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
     const catalog = getViewVocabCatalog();
     for (const kind of Object.keys(VIEW_KINDS)) {
       expect(catalog.has(kind), `missing card for kind '${kind}'`).toBe(true);
-      expect(catalog.get(kind).entry).toBe('create_view');
+      expect(catalog.get(kind).entry).toBe('create_exhibit');
     }
-    const viewCards = [...catalog.values()].filter((c) => c.entry === 'create_view');
+    // the history hall's generated entries share the door, not the kinds
+    const viewCards = [...catalog.values()].filter((c) => c.entry === 'create_exhibit' && c.family !== 'entry');
     for (const card of viewCards) {
       expect(VIEW_KINDS[card.id], `card '${card.id}' has no VIEW_KINDS row`).toBeDefined();
     }

@@ -1,0 +1,11 @@
+---
+{
+  "id": "exhibit-science",
+  "name": "Compose a physics, cell-and-molecule, quantum or relativity exhibit from laws",
+  "summary": "A simulation built from laws for a class or a question no ready-made exhibit covers: Newton's laws (classical), molecules diffusing, crossing membranes and reacting (microscopic), wells, tunnelling, slits, orbitals, spin and decay (quantum), or light, orbits and clocks round a black hole (relativistic); checked against conservation laws and the textbook answer.",
+  "when": "\"a demo for my class of a ball on a spring in thick oil\", \"simulate two moons around a planet\", \"what if the pendulum started from the side\", \"a charge curling in a magnetic field\", \"Newton's cradle with three balls\", \"a block sliding down a rough ramp\", \"show diffusion of dye in water\", \"a membrane that lets water through but not sugar\", \"how an enzyme turns substrate into product\", \"an electron tunnelling through a barrier\", \"the hydrogen orbitals side by side\", \"electrons through two slits, dot by dot\", \"half-life with a thousand nuclei\", \"why Mercury's orbit turns\", \"why GPS clocks run fast\"",
+  "entry": "create_exhibit",
+  "form": "exhibit"
+}
+---
+→ `create_exhibit` with `science/classical` composes the demo from a table of laws rather than picking a ready-made experiment: `params.model` (units checked), `params.dress` (how it looks, never what it does) and `params.liberties` (what you exaggerate on purpose; the page shows them). Laws and worked examples: `get_exhibit({ id: 'science/classical' })`. Molecules moving, crossing membranes and reacting → `science/microscopic`; wells, tunnelling, orbitals, spin and decay → `science/quantum`; light, orbits and clocks round a black hole → `science/relativistic` (each its own card; `science/quantum`, not `science/atom`, for orbitals). The mint returns the solver's gates: say which ran and what they saw; nobody has looked yet. Read the run back → `get_exhibit({ ref })`. Film it → `forge_motion` with `shot: { motion: 'plan' }`. Stand it in a world → `compose_world` `overrides.science`. Several scales on one page, a ball down to its atoms → `science/ladder`. A ready-made exhibit is quicker when it already is the demo. Full family → `get_creative_toolset({ form: 'exhibit' })`.

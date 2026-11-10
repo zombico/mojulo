@@ -3,7 +3,7 @@
   "id": "transformer",
   "name": "Transformer Attention",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint the TRANSFORMER's ATTENTION mechanic as a live, traversable three.js World — the AI-architecture science view.",
   "when": "Reach for this on framing like 'how does a transformer work / attention / self-attention / how do LLMs attend / query-key-value / attention matrix'.",
   "retired_tool": "create_transformer_view"
@@ -14,7 +14,7 @@ Mint the TRANSFORMER's ATTENTION mechanic as a live, traversable three.js World 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Zoom level (default 'attention'): 'attention' (one layer/head — the matrix + gather mechanic) or 'stack' (the full pipeline, zoomed out — embeddings → L blocks → logits).

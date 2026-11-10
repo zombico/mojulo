@@ -40,7 +40,7 @@ export function mintPythagorasView({ title, scenario, a, b, scale, viewBox, scen
 }
 
 export async function createPythagorasViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "pythagoras" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/pythagoras" }) requires a recipe object');
   const { title, scenario, a, b, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintPythagorasView({ title, scenario, a, b, scale, viewBox, scene, ref, folderRef });
 }

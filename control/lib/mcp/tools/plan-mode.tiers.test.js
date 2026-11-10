@@ -15,8 +15,8 @@ beforeAll(async () => {
 }, 120_000);
 
 const manifest = [
-  { tool: 'create_view', args: { kind: 'mechanics', title: 'throw', params: { scenario: 'projectile', v0: 18, angle: 45 } } },
-  { tool: 'measure_view', args: { ref: { $step: 0, path: '/ref' } } },
+  { tool: 'create_exhibit', args: { id: 'science/mechanics', title: 'throw', params: { scenario: 'projectile', v0: 18, angle: 45 } } },
+  { tool: 'get_exhibit', args: { ref: { $step: 0, path: '/ref' } } },
   { tool: 'list_stashes', args: {} },
 ];
 
@@ -28,7 +28,7 @@ async function compileAs(session) {
 
 describe('compile_plan and tiers', () => {
   it('counts steps by tier, lightest first, and names untiered tools', () => {
-    expect(tierCounts(['create_view', 'measure_view', 'list_plans', 'design_game'])).toEqual({ ride: 2, fill: 1, design: 1 });
+    expect(tierCounts(['create_exhibit', 'get_exhibit', 'list_plans', 'design_game'])).toEqual({ ride: 2, fill: 1, design: 1 });
     expect(tierCounts(['create_character'])).toEqual({ judge: 1 });
     expect(tierCounts(['not_a_listed_tool'])).toEqual({ untiered: 1 });
   });

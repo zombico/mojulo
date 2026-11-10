@@ -19,7 +19,7 @@
  *   the registry-sweep test in context.test.js fails until every LISTED tool has exactly one line
  *   (unlisted deprecated aliases are exempt). The routing index below stays hand-written: its rows
  *   are measured recognizers, and the same test checks every tool it names has a line. A new
- *   create_view kind or compose_world base needs a view-vocab card, not a line.
+ *   create_exhibit exhibit or compose_world base needs a view-vocab card, not a line.
  * - Creative-mint routing detail lives in ROUTING CARDS (lib/mcp/routing-cards/,
  *   retrieved via semantic_search({kinds:['routing']})), not in Create-things
  *   rows — the body names FORMS + entry tools only. A new creative capability
@@ -226,7 +226,7 @@ The embedding model behind vector \`semantic_search\` is the one opt-in install 
 
 **Inference runs on you.** Mojulo holds state and recipes, and no LLM credentials of its own: photo references are read by your eyes (\`reference_protocol\`), cooks are agent-authored, games are verified by agent-compiled traversals, and work parked for an outside worker waits on the agent-task queue (\`pull_agent_task\` → \`submit_envelope_inference\`). Serve the operator's intent against the substrate; do not try to make mojulo run without you.
 
-**Recipes are the source; renders and gates are how they prove out.** Everything the workshop mints is a tiny seeded deterministic recipe regenerated on render — diffable, replayable; the GIFs / PNGs / MP4s under \`data/outcomes/\` are derived files bound to it, disposable. Artifacts verify before promotion: a world's physics is probe-asserted tick by tick (\`forge_motion\` traversal returns the probe stream), and \`create_game\` refuses an unaudited level unless waived. A science view composed from laws (\`create_view\` kinds \`classical\`, \`microscopic\`, \`quantum\`, \`relativistic\`) returns its solver's gates (conservation, the textbook answer, the regime) and its page says what is the model and what is drawn. With a skeptical operator, point at these gates instead of adjectives.
+**Recipes are the source; renders and gates are how they prove out.** Everything the workshop mints is a tiny seeded deterministic recipe regenerated on render — diffable, replayable; the GIFs / PNGs / MP4s under \`data/outcomes/\` are derived files bound to it, disposable. Artifacts verify before promotion: a world's physics is probe-asserted tick by tick (\`forge_motion\` traversal returns the probe stream), and \`create_game\` refuses an unaudited level unless waived. A science demo composed from laws (\`create_exhibit\` \`science/classical\`, \`science/microscopic\`, \`science/quantum\`, \`science/relativistic\`) returns its solver's gates (conservation, the textbook answer, the regime) and its page says what is the model and what is drawn. With a skeptical operator, point at these gates instead of adjectives.
 
 **Workers and other MCPs.** Optional workers (Blender, ComfyUI, TripoSR, Kokoro, a slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies: absence degrades a loop, never breaks one. Work for them is parked as a handoff (the render handoffs, the agent-task queue), and a flow that spans mojulo and another MCP on the host is a catalyst landed as a Skill (\`recommend_catalysts\` → \`get_catalyst\`), because the Skill runs where those MCPs live.
 
@@ -255,7 +255,7 @@ When the operator asks a meta-question about mojulo itself — "does it phone ho
 5. **Credentials.** The substrate stores nothing it isn't handed: provider keys the operator explicitly saves are AES-256-GCM encrypted at rest under a random per-install key in \`$MOJULO_HOME/secret.key\` (mode 0600), or under \`API_KEY_ENCRYPTION_KEY\` when that is set; deleting the key file makes saved keys unreadable. No artifact mojulo mints needs an LLM key of its own.
 6. **Money.** Mojulo is free, Apache-2.0, no account, no subscription. Operating costs are the operator's: LLM provider usage when they use \`mint_solid\`'s prompt door (fact 4), and whatever their own agent host costs. The open-source mojulo stays open source with no external telemetry (its only log is the local one in fact 3); a separately offered mojulo cloud on standard hosted services may be explored if there is demand, as its own opt-in product that changes nothing about the local install (TERMS.md, "The open-source commitment").
 7. **Artifacts.** Everything minted is a tiny seeded deterministic recipe; exports are plain files (zip, HTML, glb, stl, 3MF, USD, WAV, MIDI, an engine's project) that run without mojulo. Nothing is locked to the runtime. **A recipe that carries a \`program\`** (\`mint_solid\` kind \`code\`, a workbench \`program\`) is JavaScript that runs inside this process with the operator's privileges when it is minted, edited, rendered or exported: the \`node:vm\` realm it runs in keeps it deterministic, it is not a sandbox. Treat a shared recipe that carries a program as code.
-8. **Keeping and sharing.** \`save_recipe\` promotes a tuned artifact into the operator's own COOKBOOK at \`data/cookbook/\` — plain \`card.md\` + \`recipe.json\` folders in a local git repo with **no remote**, recallable later by intent through \`semantic_search\` because the agent writes the card's \`when\` line from the conversation. Sharing is the operator's act with their own git; the substrate never pushes. The kind catalog ships with the recipe book bundled (3.1.0): its recipes and its view kinds are in every install (the separate book repo and \`MOJULO_RECIPE_BOOK\` are deprecated: they cannot load in an agent box). A book's Door-2 \`builder.js\` files run in this process with the operator's privileges, like a dependency: point the deprecated variable only at a book you trust (the cookbook takes recipes only and skips a builder). A cookbook has the book's format, which is what makes sharing free (*check: \`get_view_vocab\` shows kept entries with \`source: 'cookbook'\`*).
+8. **Keeping and sharing.** \`save_recipe\` promotes a tuned artifact into the operator's own COOKBOOK at \`data/cookbook/\` — plain \`card.md\` + \`recipe.json\` folders in a local git repo with **no remote**, recallable later by intent through \`semantic_search\` because the agent writes the card's \`when\` line from the conversation. Sharing is the operator's act with their own git; the substrate never pushes. The kind catalog ships with the recipe book bundled (3.1.0): its recipes and its view kinds are in every install (the separate book repo and \`MOJULO_RECIPE_BOOK\` are deprecated: they cannot load in an agent box). A book's Door-2 \`builder.js\` files run in this process with the operator's privileges, like a dependency: point the deprecated variable only at a book you trust (the cookbook takes recipes only and skips a builder). A cookbook has the book's format, which is what makes sharing free (*check: \`get_exhibit\` shows kept entries with \`source: 'cookbook'\`*).
 9. **Removal.** Uninstall = remove the Claude plugin or unwire mojulo from the MCP host config, remove the npm package (for npx, its folder under the npm cache's \`_npx\`), delete \`$MOJULO_HOME\`, and remove any \`moj-bake-*\` / \`moj-worldgi-*\` temp folders a Blender bake left. That is the whole footprint. (Bot containers, images or Fly apps deployed from a 2.x install run on their own; removing mojulo does not remove them.)
 10. **Tenancy.** Single-user, self-hosted. No mojulo account, no hosted counterpart today, no remote kill switch — capability and suitability judgments belong to the operator (TERMS.md, docs/responsibility-model.md).
 11. **Depth & verification.** Source, README, SECURITY.md (threat model), TERMS.md, and docs/ live at https://github.com/zombico/mojulo; the installed tag (\`version\` reports it) is the one that matches what is running. For a question these facts don't settle, say so and point the operator at those docs at that tag; don't guess.
@@ -343,7 +343,7 @@ const GLOSSARY_PLAIN = `## Concepts
 const GLOSSARY_MOJULO = `## Concepts
 
 - **Play / Print / Read / Hear / Observe** — the outcome rings (\`ring\` in packs.js): games / solids / read (2D, views, publications) / audio / kernel motion. Worlds are the testbed ring; workflows orchestrate. \`PARADIGMS\` in context.js is the list.
-- **Recipe artifact** — a sketches-table row; the per-kind assembler regenerates geometry/audio deterministically on render (\`world-kinds.js\` dispatch seam; \`create_view\` kinds, beats/voice/figure/motion). Renders (.glb / GIF / MP4) are exports or caches under \`data/outcomes/<ref>/\`, never the source. Iterate via \`update_sketch\` patch.
+- **Recipe artifact** — a sketches-table row; the per-kind assembler regenerates geometry/audio deterministically on render (\`world-kinds.js\` dispatch seam; \`create_exhibit\` exhibits, beats/voice/figure/motion). Renders (.glb / GIF / MP4) are exports or caches under \`data/outcomes/<ref>/\`, never the source. Iterate via \`update_sketch\` patch.
 - **Game** — \`create_game\`: shell + typed store (\`store.slices\` from character | inventory | party | progression | flags, 8 typed events, atomic outcome application) + promoted levels (worlds with a \`game:\` channel: \`{levelRef, consumes, produces}\`). Level audits at mint (\`audits\` / \`auto_audit:true\` / \`allow_unaudited:true\`). \`design_game\` fronts it: make / keep / remake by fingerprint. Play state stays client-side.
 - **Workflows** — \`execute_plan\` (registry runner, confirm-gated; \`{ $step, path }\` JSON Pointer refs, lib/mcp/plan-refs.js), \`run_experiment_sweep\`, stash → cook, catalysts.
 - **Stash / Gather / Cook** — \`mint_stash\` → \`gather\` (8 item types, intake-validated) → \`cook\` (ONE aim, ≥1 stash slice, 14 kinds; \`site\` is whole-stash) → \`/outcomes/<cook_ref>/\`. Multi-kind preview via \`forge_publications\`; \`recommend_kind\` is rules-based.
@@ -479,7 +479,7 @@ const FORM_DEFS = {
   'world': {
     title: 'Worlds (traversable)',
     makes: 'walkable/drivable/flyable three.js environments + glTF export',
-    tools: ['compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    tools: ['compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
     notes: ["- A house / apartment / cottage / one furnished room is NOT a base: it is `mint_building` (the building form)."],
   },
   'building': {
@@ -487,10 +487,10 @@ const FORM_DEFS = {
     makes: 'walkable houses, apartments, furnished rooms, stores, restaurants, malls, offices and school campuses, each with its structure book (concept, layout, drawings, build) or as a game level',
     tools: ['mint_building', 'design_interior'],
   },
-  'view': {
-    title: 'Views (science / math / bio study)',
-    makes: 'animated 3D study objects that teach a phenomenon',
-    tools: ['create_view', 'get_view_vocab', 'measure_view', 'save_recipe'],
+  'exhibit': {
+    title: 'Exhibits (science, space, earth, life, math, history)',
+    makes: 'animated 3D study objects, science demos composed from laws and historic cities at their period, by hall',
+    tools: ['create_exhibit', 'get_exhibit', 'save_recipe'],
   },
   'motion': {
     title: 'Motion & film',
@@ -603,7 +603,7 @@ mint dispatch — match the ask to a FORM:
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
   OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · measure one → \`measure_solid\` · which screws / bearings / hinges it needs, what to buy → \`fabricate_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)
-  WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
+  WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · a study object or a historic city ("teach me fission") → \`create_exhibit\`
   HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice) · decorating one room → \`design_interior\`
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
   OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\` · cameras keyed in a world, a shot list → \`forge_motion\` \`shoot\`
@@ -623,7 +623,7 @@ Guards:
 
 const STUDIO_DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 
-- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · character · object · world · building · view · motion · motion-comic · audio · voice · game (the dispatch FORMs above are recognizers; this enum is the argument). No arg → the form map with a tool count each.
+- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · character · object · world · building · exhibit · motion · motion-comic · audio · voice · game (the dispatch FORMs above are recognizers; this enum is the argument). No arg → the form map with a tool count each.
 - \`semantic_search({ kinds: ['routing'] })\` — a creative family's full routing card (recognizer quotes + forks + flow). Vocab manuals ride the same tool: kinds \`sketch_vocab\` / \`view_vocab\` / \`beats_vocab\` / \`game_vocab\` / \`game_mechanic\` / \`game_kit\` / \`manji_program\`, read in full via the \`get_*_vocab\` readers.
 - \`get_worked_example({ paradigm: 'media' | 'game' })\` — an annotated end-to-end trace of one successful flight, the gate moments marked; pull before your FIRST mint of a kind: how the calls go, never what to make (a game on the rail reads its guide instead; the ask still routes to its FORM entry tool).
 - \`get_tool_index\` (every tool), \`get_register_kit\` (the glossary and the refusal legend), \`get_ui_map\` (dashboard pages), \`get_adapter\` (your host's card — read once before making).
@@ -948,7 +948,8 @@ export async function toolIndexHandler(input, ctx) {
 // family's per-tool lines. Keeps a creative lookup at ~2–6K instead of the
 // whole ~46K tool index.
 export async function creativeToolsetHandler(input, _ctx) {
-  const form = input?.form;
+  // 'view' was the exhibit form's name until 1110; a host or a plan that remembers it still lands
+  const form = input?.form === 'view' ? 'exhibit' : input?.form;
   if (form === undefined || form === null || form === '') {
     return {
       content: [{ type: 'text', text: buildCreativeToolsetMap() }],

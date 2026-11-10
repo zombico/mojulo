@@ -353,7 +353,7 @@ const RAILS=[
             {label:'Research feeds plans',line:[S('enter_research_mode'),S('start_research'),S('bind_research_item','link, note, quote…','o'),S('synthesize_abstract','thesis + hub diagram'),S('forge_plan','research → plan bridge')]}]},
  {name:'Variation rail',sig:'run_experiment_sweep({ ref, path, values })',
   note:'Copies a stored recipe once per value at a JSON Pointer and mints each copy through create_sketch\'s gates into one new folder. The mechanics form (research_ref, base, param) binds SI-honest experiments into a research book with a plot.',
-  line:[S('create_sketch','or any minted recipe'),S('run_experiment_sweep','one call, N values'),S('create_sketch','each copy through its gates','g'),S('measure_view','read back, optional','o')],
+  line:[S('create_sketch','or any minted recipe'),S('run_experiment_sweep','one call, N values'),S('create_sketch','each copy through its gates','g'),S('get_exhibit','read back, optional','o')],
   branches:[{label:'Mechanics form',line:[S('start_research'),S('run_experiment_sweep','research_ref + param'),S('get_research','plot bound in the book')]}]},
  {name:'Stash → cook rail',sig:'cook({ items, aim, report_md })',
   note:'Typed intake into a stash, then one publication the agent authors. No server-side LLM call; outcomes land under data/outcomes/<cook_ref>/. The one-shot form gathers and cooks in a single call.',

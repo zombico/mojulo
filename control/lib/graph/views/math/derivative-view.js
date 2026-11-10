@@ -121,7 +121,7 @@ export function planDerivativeScene(recipe = {}) {
   };
 }
 
-// ── the exact read-back channel (measure_view, tier 'exact'). The math twin of the SI
+// ── the exact read-back channel (get_exhibit({ ref }), tier 'exact'). The math twin of the SI
 // samplers: no units to be honest about, only "is this number the true value of the
 // expression?" — and every value here is the implemented f/f′ evaluated directly, so yes.
 // Returns the function pair over the domain plus the limit process itself (the secant

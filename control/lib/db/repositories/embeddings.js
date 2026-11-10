@@ -81,11 +81,11 @@ export const SOURCE_KINDS = [
   // as a named glyph to `compose_world` (base 'painted-landscape', via
   // `overrides`).
   'painted_landscape',
-  // view-vocab cards — one per `create_view` kind / `compose_world` base
+  // view-vocab cards — one per exhibit (`create_exhibit`) / `compose_world` base
   // (markdown under lib/graph/views/view-vocab/). Each carries the depiction
   // prose, routing phrases, and parameter manual that used to live in the
   // retired per-kind tool's description. Discovered by intent; read in full
-  // via `get_view_vocab`.
+  // via `get_exhibit` (an exhibit) or `get_view_vocab` (a world manual).
   'view_vocab',
   // solid-vocab cards — one per `mint_solid` kind / `edit_solid` op (markdown
   // under lib/graph/solid-vocab/). Each carries the depiction prose, routing
@@ -1391,11 +1391,11 @@ export async function reindexAll({ verbose = false } = {}) {
   }
   log(`painted_landscape: ${paintedCards.size}`);
 
-  // 12. View-vocab cards — one *.md per `create_view` kind / `compose_world`
+  // 12. View-vocab cards — one *.md per exhibit (`create_exhibit`) / `compose_world`
   // base under lib/graph/views/view-vocab/. Each carries the depiction prose
   // + routing phrases + parameter manual of a retired per-kind tool, so the
   // agent discovers a kind by intent and reads the full card via
-  // `get_view_vocab` before composing params. Repo-curated markdown, like
+  // `get_exhibit` / `get_view_vocab` before composing params. Repo-curated markdown, like
   // sketch_vocab. See tool-list-drawerization.plan.md.
   const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
   const viewVocab = getViewVocabCatalog();

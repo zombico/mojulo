@@ -18,7 +18,7 @@
  *
  * v0 sweeps mechanics-view DYNAMICS recipes only — the SI-honest, single-body scenarios
  * the sampler accepts. Orbit scenarios are presets with nothing numeric to sweep; the
- * non-SI views are excluded by the same honesty boundary measure_view enforces. Gates run
+ * non-SI views are excluded by the same honesty boundary get_exhibit's read-back enforces. Gates run
  * up front (session, param allowlist, scenario measurable via a dry sample of the base
  * recipe) so a sweep never half-binds into the book on a bad recipe.
  *

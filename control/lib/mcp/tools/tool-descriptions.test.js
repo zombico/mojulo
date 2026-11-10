@@ -91,7 +91,6 @@ const DESCRIPTION_ALLOWLIST = {
   // ("hero — a human by cast word + proportion tune"), the one phrase a host needs to find the
   // tune from tools/list; the tune's vocabulary itself is taught in layered.md, off-payload.
   mint_solid: 915,
-  create_view: 723,
   // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
   // bless the local-catalyst shelf: mint_catalyst is
   // the new local-shelf write path, list_catalysts/custom_catalyst grew to
@@ -134,10 +133,6 @@ const DESCRIPTION_ALLOWLIST = {
   get_tool_ledger: 937,
   get_worked_example: 903,
   list_catalysts: 805,
-  // measure_view re-pinned 2026-08-24: rocket-view landed as a measurable
-  // kind (full-mission SI telemetry) and the description gained its one-line
-  // column note. Shrink-only from here.
-  measure_view: 1423,
   mint_catalyst: 850,
   meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
@@ -442,7 +437,11 @@ const DESCRIPTION_ALLOWLIST = {
 // name mangekyou, lib/graph/mangekyou/): run_experiment_sweep's `{ ref, concept, n }` form, folded into the variations
 // door rather than listed, ten schema properties (concept, n, at, principles, keep, reject, spread, roll, mint, by) held
 // to a clause each; design_game's `vary` (a department's variations, proposed) fits under the same pin. No new tool.
-const PAYLOAD_CEILING = 213_100;
+// Lowered 2026-11-10 on 1110-exhibit-mode (213_100 -> 211_400; measured 211,344, 213,094 before) for the exhibit
+// doors: create_view and measure_view folded into create_exhibit and get_exhibit (by hall: science, space, earth, life,
+// math, history; no kind enum on the door, the read-back a clause), get_view_vocab narrowed to compose_world's manuals.
+// Two tools off the list. No new tool beyond the fold.
+const PAYLOAD_CEILING = 211_400;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

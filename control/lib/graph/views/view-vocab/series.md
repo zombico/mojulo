@@ -3,7 +3,7 @@
   "id": "series",
   "name": "Series Approximation",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive ANALYSIS explainer — APPROXIMATION made visible, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'Taylor series / Fourier series / convergence / approximation / partial sums'.",
   "retired_tool": "create_series_view"
@@ -14,7 +14,7 @@ Mint an interactive ANALYSIS explainer — APPROXIMATION made visible, rendered 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which series (default 'taylor-sin'): 'taylor-sin' (a polynomial chasing a wave), 'taylor-exp' (converges everywhere), 'geometric' (the control: 1/(1−x) diverges past x=1 — interval of convergence), 'fourier-square' (smooth sines build a jump — the Gibbs overshoot), 'fourier-saw' (sines building a sawtooth).

@@ -48,7 +48,7 @@ export function registerMachinaTools() {
       + "binding constraint. Reach for this on framing like 'can a person crank N crates up to the "
       + "mezzanine in an hour', 'size a block-and-tackle to lift this safely', 'will this ramp/jack/lever "
       + "handle the load within the force limit', 'design a machine to move X of weight W within capacity "
-      + "C'. To DEPICT it as a traversable 3D World instead, use create_view kind mechanics.",
+      + "C'. To DEPICT it as a traversable 3D World instead, use create_exhibit science/mechanics.",
     inputSchema: {
       type: 'object',
       properties: {

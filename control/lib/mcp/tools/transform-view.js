@@ -40,7 +40,7 @@ export function mintTransformView({ title, scenario, matrix, dim, animate, scale
 }
 
 export async function createTransformViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "transform" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/transform" }) requires a recipe object');
   const { title, scenario, matrix, dim, animate, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintTransformView({ title, scenario, matrix, dim, animate, scale, viewBox, scene, ref, folderRef });
 }

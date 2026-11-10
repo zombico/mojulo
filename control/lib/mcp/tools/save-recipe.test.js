@@ -39,7 +39,7 @@ describe('deriveViewKind', () => {
 describe('deriveRecipeLane', () => {
   it('routes view kinds to the view lane and beats kinds to the beats lane', () => {
     const view = deriveRecipeLane('saturn-view');
-    expect(view).toMatchObject({ entry: 'create_view', kind: 'saturn', chapter: 'science', family: 'science', vocabKind: 'view_vocab', reader: 'get_view_vocab' });
+    expect(view).toMatchObject({ entry: 'create_exhibit', kind: 'saturn', chapter: 'science', family: 'science', vocabKind: 'view_vocab', reader: 'get_exhibit' });
     const beats = deriveRecipeLane('beats-ambient');
     expect(beats).toMatchObject({ entry: 'create_beats', kind: 'beats-ambient', chapter: 'beats', family: null, vocabKind: 'beats_vocab', reader: 'get_beats_vocab' });
     const solid = deriveRecipeLane('workbench');
@@ -60,7 +60,7 @@ describe('save_recipe handler', () => {
   it('refuses kinds outside the save lanes with the scope message', async () => {
     SketchRepository.create({ title: 'a city', manifest: { kind: 'fractal-city' }, ref: 'city-1' });
     await expect(saveRecipeHandler({ ref: 'city-1', id: 'my-city', when: 'w' }))
-      .rejects.toThrow(/not a keepable recipe kind.*create_view, create_beats and mint_solid workbench/s);
+      .rejects.toThrow(/not a keepable recipe kind.*create_exhibit, create_beats and mint_solid workbench/s);
   });
 
   it('refuses catalog id collisions', async () => {
@@ -82,13 +82,14 @@ describe('save_recipe handler', () => {
     expect(res.ok).toBe(true);
     expect(res.kind).toBe('saturn');
     expect(res.chapter).toBe('science');
-    expect(res.recall.get_view_vocab).toEqual({ id: 'tilted-rings' });
+    // kept in the hall of the kind it keeps a setting of (saturn: space), read back by that hall id
+    expect(res.recall.get_exhibit).toEqual({ id: 'space/tilted-rings' });
 
     const entryDir = join(process.env.MOJULO_COOKBOOK, 'chapters/science/tilted-rings');
     expect(existsSync(join(entryDir, 'card.md'))).toBe(true);
     const recipe = JSON.parse(readFileSync(join(entryDir, 'recipe.json'), 'utf8'));
     expect(recipe).toEqual({
-      entry: 'create_view', kind: 'saturn',
+      entry: 'create_exhibit', kind: 'saturn',
       params: { scenario: 'classic', inclination: 12 },
       title: 'Tilted rings',
     });

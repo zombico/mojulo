@@ -3,7 +3,7 @@
   "id": "energy-cycle",
   "name": "Energy cycle (photosynthesis ⇄ respiration)",
   "family": "bio",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "The photosynthesis ⇄ respiration loop linking plant and animal cells — chloroplast + mitochondrion on a timed reaction cascade — as a live orbit World.",
   "when": "Reach for this on framing like 'show the energy cycle / photosynthesis and respiration / how plants and animals exchange CO₂ and O₂'."
 }

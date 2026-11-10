@@ -3,7 +3,7 @@
   "id": "ftc",
   "name": "Fundamental Theorem of Calculus",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive CALCULUS explainer — the FUNDAMENTAL THEOREM OF CALCULUS, rendered as a live traversable three.js World in two stacked panels.",
   "when": "Reach for this on framing like 'fundamental theorem of calculus / integral as area / antiderivative / accumulation function / FTC'.",
   "retired_tool": "create_ftc_view"
@@ -14,7 +14,7 @@ Mint an interactive CALCULUS explainer — the FUNDAMENTAL THEOREM OF CALCULUS, 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which pair (default 'linear'): 'constant' (f = 1 → A = x), 'linear' (f = t → A = x²/2), 'sine' (f = sin t → A = 1 − cos t), 'square' (f = t² → A = x³/3).

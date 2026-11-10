@@ -16,7 +16,7 @@ const SUN = { law: 'schwarzschild', mass: '1 M☉' };
 const MERCURY = { model: { system: 'orbit', laws: [SUN, { law: 'body', id: 'mercury', at: ['46001200 km', 0, 0], v: [0, '58.98 km/s', 0] }], duration: '1 yr' } };
 const HOLE = { model: { system: 'light', laws: [{ law: 'schwarzschild', mass: '10 M☉' }, { law: 'observer', distance: '30 Rs', inclination: '75°' }, { law: 'disk', outer: '12 Rs' }] } };
 
-describe("create_view({ kind: 'relativistic' }): a science world, end to end", () => {
+describe("create_exhibit({ id: 'science/relativistic' }): a science world, end to end", () => {
   it('mints the recipe as given and returns the machine gate, naming the shader a light world is drawn by', async () => {
     const r = await createViewHandler({ kind: 'relativistic', params: HOLE, title: 'a black hole' });
     expect(r.recipe).toEqual({ kind: 'relativistic-view', ...HOLE, title: 'a black hole' });

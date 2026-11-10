@@ -19,7 +19,7 @@
     }
   ],
   "mcpTools": {
-    "mojulo": ["start_research", "run_experiment_sweep", "create_view", "bind_research_item", "measure_view", "synthesize_abstract", "get_research"]
+    "mojulo": ["start_research", "run_experiment_sweep", "create_exhibit", "bind_research_item", "get_exhibit", "synthesize_abstract", "get_research"]
   }
 }
 ---
@@ -37,13 +37,13 @@ compose that way, and this catalyst is the composition written down.
 ## The honesty boundary (read before promising anything)
 
 The instruments are the **science worlds** composed from laws: `classical`, `microscopic`, `quantum` and
-`relativistic` (`get_view_vocab({ id: 'classical' })` and its siblings). Every model is in SI with its units checked,
-every run carries its gates (conservation, the textbook answer, the regime it holds in), and `measure_view` reads each
+`relativistic` (`get_exhibit({ id: 'science/classical' })` and its siblings). Every model is in SI with its units checked,
+every run carries its gates (conservation, the textbook answer, the regime it holds in), and `get_exhibit({ ref })` reads each
 at tier `si`. A projectile, a pendulum, an orbit, a wave packet, the double slit, a liquid setting, a protein
 assembling: each is a model there, its starting conditions written into its recipe. The older `mechanics-view`
 dynamics scenarios are instruments too, and the one-call experiment form below still sweeps them. The ready-made
 depictors (a ripple tank, gravity waves, machines and engines, a spinning black hole) are pictures, not instruments:
-`measure_view` refuses them by design. If the question needs one of them for a *quantitative* answer, say so and
+`get_exhibit({ ref })` refuses them by design. If the question needs one of them for a *quantitative* answer, say so and
 stop — do not dress a depictor up as an instrument.
 
 Also scope-check the question itself: a law the table lacks comes back as a **gap** naming the scale that owns it,
@@ -56,7 +56,7 @@ report it rather than approximating.
    design (varied parameter, range, held-constant values) as a `note` — the book's first
    item is the hypothesis, so the notebook records what was asked before what was found.
 
-2. **Sweep.** Mint the science world once (`create_view` with kind `classical`, …), then vary
+2. **Sweep.** Mint the science world once (`create_exhibit` with `science/classical`, …), then vary
    it: `run_experiment_sweep({ ref, path, values })` mints one variant per value at a JSON Pointer
    into its recipe (`/model/frame/g`, `/model/bodies/0/v/0`), varying ONLY the swept parameter,
    all in one folder. Bind each variant as its own experiment item, provenance verbatim (for the
@@ -75,7 +75,7 @@ report it rather than approximating.
    The gate rejects an experiment without its recipe — that is the point, not a hurdle.
 
 3. **Measure.** Where the stats digest is too coarse for the question (you need the
-   trajectory, the speed profile, energy exchange), call `measure_view({ ref })` and use
+   trajectory, the speed profile, energy exchange), call `get_exhibit({ ref })` and use
    the returned time-series — every value in declared real units. Cite the numbers you
    actually use in the next step's summary so the book holds them.
 
@@ -106,7 +106,7 @@ Question: how does projectile range fall as g rises, at v₀ = 18 m/s, angle = 4
   `run_experiment_sweep({ ref, path: '/model/frame/g', values: [1.62, 3.71, 9.8, 24.79] })`, each variant bound as
   an experiment.
 - The closed form predicts range = v₀²·sin(2θ)/g, and each run already checks it (its `closed-form:ballistic` gate):
-  bind a `summary` comparing the measured ranges (each mint's `observed`, or `measure_view`) to the prediction; the
+  bind a `summary` comparing the measured ranges (each mint's `observed`, or `get_exhibit({ ref })`) to the prediction; the
   ratio test (range × g = const) is the analysis.
 - Synthesize with `review: true`: "range is inversely proportional to g across two orders
   of magnitude of surface gravity; measured ranges match v₀²sin2θ/g to within sampling

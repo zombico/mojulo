@@ -151,9 +151,10 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
   // resolved from packs.js membership, so this generalizes beyond the C hardcode.
   const WING_BY_TOOL = new Map();
   // An orchestration pack has no creative form: the workflows ring's plain packs and the retired
-  // office packs (3.1.0), whose code stays. A pack with a form is studio.
+  // office packs (3.1.0), whose code stays. A pack with a form is studio, and so is one that says so (the folded
+  // doors: studio doors that folded onto another studio door, so no form of their own).
   for (const pack of [...PACKS, ...RETIRED_PACKS]) {
-    for (const name of pack.members) WING_BY_TOOL.set(name, pack.form || pack.forms ? 'studio' : 'office');
+    for (const name of pack.members) WING_BY_TOOL.set(name, pack.wing ?? (pack.form || pack.forms ? 'studio' : 'office'));
   }
   const TOOL_NAME_RE = /name:\s*['"]([a-z_]+)['"]/g;
   it('D: no office tool file statically imports the creative engine (sim or render)', () => {

@@ -3,7 +3,7 @@
   "id": "comet",
   "name": "Comet",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive COMET depictor — a comet on a real, highly eccentric Kepler orbit around the Sun that grows a glowing coma + a straight anti-solar ION tail + a curved, lagging DUST tail.",
   "when": "Reach for this on framing like 'show me a comet / how a comet's tail is made / why comet tails point away from the Sun / a comet swinging past the Sun'.",
   "retired_tool": "create_comet_view"
@@ -14,7 +14,7 @@ Mint an interactive COMET depictor — a comet on a real, highly eccentric Keple
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which comet to depict (default 'classic'): 'classic' (e=0.90), 'halley' (e=0.967), 'sungrazer' (e=0.985).

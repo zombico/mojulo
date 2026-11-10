@@ -108,7 +108,7 @@ export const PACKS = [
     title: 'Worlds (traversable)',
     description:
       "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'. A house is pack_building.",
-    members: ['compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    members: ['compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
     // The Claude plugin profile leaves out bind_mesh_render (lib/mcp/plugin-profile.js).
     profileEdits: [[', binding refined meshes back (bind_mesh_render),', ',']],
   },
@@ -150,14 +150,14 @@ export const PACKS = [
     ],
   },
   {
-    id: 'pack_view',
+    id: 'pack_exhibit',
     ring: 'read',
     installGroup: 'creative',
-    form: 'view',
-    title: 'Study views (science / math / bio)',
+    form: 'exhibit',
+    title: 'Exhibits by hall',
     description:
-      "STUDY VIEWS — animated 3D study objects that teach a phenomenon: create_view kinds across science / math / bio, view-vocab parameter manuals, measure_view for SI-honest time-series read-back from the stored recipe, and save_recipe to KEEP a tuned setup in the operator's cookbook (view and beats recipes alike), recallable by intent later. Open for 'help my kid understand black holes', 'an animated science explainer for my kid', 'animate how DNA copies itself', 'measure the orbit', 'save this setup for my class'.",
-    members: ['create_view', 'get_view_vocab', 'measure_view', 'save_recipe'],
+      "EXHIBITS — study objects, science demos from laws and historic cities, by hall (science, space, earth, life, math, history): create_exhibit, get_exhibit (a card, a hall, a made one's SI time series), save_recipe to KEEP a tuned setup in the operator's cookbook, recallable by intent. Open for 'help my kid understand black holes', 'a museum exhibit about a dam', 'show me ancient Egypt', 'measure the orbit', 'save this setup for my class'.",
+    members: ['create_exhibit', 'get_exhibit', 'save_recipe'],
   },
   {
     id: 'pack_motion',
@@ -432,13 +432,18 @@ export const RETIRED_PACKS = [
     id: 'pack_folded_doors',
     ring: 'retired',
     retired: '3.1.0',
+    // its members were studio doors (a shoot plan, a study view, its read-back): their code is the studio's
+    wing: 'studio',
     title: 'Folded doors',
     description:
-      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`).",
+      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`); a study view is create_exhibit's.",
     body: 'Folded in 3.1.0 for one door per intent. Callable by name; each description names its door.',
     members: [
       'create_shoot_plan',
       'update_shoot_plan',
+      // the exhibit doors (1110): a study object is asked for by hall (create_exhibit), read back by get_exhibit({ ref })
+      'create_view',
+      'measure_view',
     ],
   },
 ];

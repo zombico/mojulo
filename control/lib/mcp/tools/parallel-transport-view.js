@@ -43,7 +43,7 @@ export function mintParallelTransportView({ title, scenario, latitude, loopSize,
 
 export async function createParallelTransportViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "parallel-transport" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "math/parallel-transport" }) requires a recipe object');
   }
   const { title, scenario, latitude, loopSize, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintParallelTransportView({ title, scenario, latitude, loopSize, scale, viewBox, scene, ref, folderRef });

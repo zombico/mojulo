@@ -1,13 +1,16 @@
 ### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
 
-Planned on this branch. Nothing is built yet; each line below is rewritten as it lands.
+Planned on this branch. The first piece is built (one door for exhibits); the lines after it are still plans, and each
+is rewritten as it lands.
 
-- **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects and the
-  historic cities at their period are all asked for in one place, by hall: `science/fission`, `earth/hydro`,
-  `life/dna`, `math/derivative`, `history/pompeii`. One reader shows an exhibit's manual, lists a hall, and reads a
-  made exhibit's measurements back. The tools the study objects and the historic entries had before give way to it,
-  so the list of tools your agent reads gets shorter. The old names still work for a release. Everything already made
-  looks exactly as it did.
+- **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects, the
+  science demos built from laws and the historic cities at their period are all asked for in one place, by hall:
+  `science/fission`, `earth/hydro`, `life/dna`, `math/derivative`, `history/pompeii`. A hall lists what it holds, an
+  exhibit's card is its manual (a historic city's entry still says what is known, reconstructed or conjectured), and a
+  made exhibit's measurements are read back in real units from the same place. The separate tools for making a study
+  object and for measuring one give way to it, so the list of tools your agent reads gets shorter; their old names
+  still work for a release. Kept setups in your cookbook are recalled by their hall too. Everything already made looks
+  exactly as it did. The manuals for building a world (its bases, stage kits and looks) stay where they were.
 - **A tour you step through.** An exhibit can carry stops. At each one the camera moves, a caption explains, and the
   part being talked about is lit while the rest dims. Each stop can say where its claim comes from and how sure it is:
   known, reconstructed or conjectured for history; simulated, depicted or explained for science.

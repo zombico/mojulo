@@ -3,7 +3,7 @@
   "id": "lightning-storm",
   "name": "Lightning Storm",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a LIGHTNING STORM — a volumetric storm-cloud deck threaded with lightning, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view.",
   "when": "Mint a LIGHTNING STORM — a volumetric storm-cloud deck threaded with lightning, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view.",
   "retired_tool": "create_lightning_storm_view"
@@ -14,7 +14,7 @@ Mint a LIGHTNING STORM — a volumetric storm-cloud deck threaded with lightning
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — The strike geometry (default 'cloud-to-ground'): 'cloud-to-ground' or 'cloud-to-cloud'.

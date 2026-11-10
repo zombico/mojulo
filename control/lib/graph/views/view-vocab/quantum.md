@@ -3,7 +3,7 @@
   "id": "quantum",
   "name": "Quantum science world (states and their rules, composed from laws)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Compose a quantum demo from a table of laws (a particle on a line in wells, barriers and steps; a packet on a plane through slits, its fringes built up detection by detection; the hydrogen atom's orbitals; spin through Stern–Gerlach magnets; radioactive decay) instead of picking a ready-made one: solved exactly or by a unitary stepper, checked against the textbook formulas, every row sourced and dated, and the page says what is the model and what is a picture.",
   "when": "Reach for this when a teacher or student wants to see a quantum idea worked: 'tunnelling through a barrier', 'a particle in a box and its energy levels', 'what do the hydrogen orbitals look like', 'the 2p and 3d orbitals side by side', 'why a measurement changes the spin', 'Stern–Gerlach with three magnets', 'radioactive decay and half-life', 'a wave packet spreading out', 'zero-point energy of an oscillator', 'electrons through two slits, dot by dot', 'what changes with three slits'. It supersedes the curated `atom` kind for orbitals: those are exact here and checked. Molecules moving and reacting are the microscopic scale's; a ball on a spring is the classical scale's."
 }

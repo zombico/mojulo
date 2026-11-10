@@ -3,7 +3,7 @@
   "id": "quantum-buildup",
   "name": "Quantum buildup — one particle at a time",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint preset: the double-slit kind in 'particles' mode — individual quantum hits accumulating one by one into the interference fringes no single particle explains.",
   "when": "show that single particles interfere with themselves; the double slit one electron at a time; wave-particle duality demonstration; the quantum measurement classic"
 }

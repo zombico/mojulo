@@ -21,7 +21,7 @@ const TUNNEL = {
   },
 };
 
-describe("create_view({ kind: 'quantum' }): a science world, end to end", () => {
+describe("create_exhibit({ id: 'science/quantum' }): a science world, end to end", () => {
   it('mints the recipe as given and returns the machine gate', async () => {
     const r = await createViewHandler({ kind: 'quantum', params: TUNNEL, title: 'tunnelling' });
     expect(r.recipe).toEqual({ kind: 'quantum-view', ...TUNNEL, title: 'tunnelling' });

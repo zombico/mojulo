@@ -3,7 +3,7 @@
   "id": "tangent-blowup",
   "name": "Tangent, escaping to infinity",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint trigonometry preset: the unit circle in tangent mode with the rider parked at θ ≈ 78.5° — the extended radius almost vertical, its tangent-line intercept streaking away, showing WHY tan blows up at 90°.",
   "when": "why tangent goes to infinity; tan 90 undefined; asymptote of the tangent function; show the unit circle's tangent line; what tangent actually measures"
 }

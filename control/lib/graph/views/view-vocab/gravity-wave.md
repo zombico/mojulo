@@ -3,7 +3,7 @@
   "id": "gravity-wave",
   "name": "Gravitational Waves",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive GRAVITATIONAL-WAVE inspiral — a live spacetime MEMBRANE that ripples as two compact masses spiral together, rendered in the traversable three.js World.",
   "when": "Reach for this on framing like 'gravitational waves / binary black hole inspiral / LIGO chirp / spacetime ripples / two black holes merging / curvature of spacetime'.",
   "retired_tool": "create_gravity_wave_view"
@@ -14,7 +14,7 @@ Mint an interactive GRAVITATIONAL-WAVE inspiral — a live spacetime MEMBRANE th
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Binary (default 'inspiral'): 'inspiral' (two ~30 M☉ BHs), 'merger' (GW150914-like), 'neutron-stars' (1.4+1.35 M☉), 'extreme-mass-ratio' (massive BH + small companion).

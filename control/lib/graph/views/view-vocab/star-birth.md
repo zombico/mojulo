@@ -3,7 +3,7 @@
   "id": "star-birth",
   "name": "Star Birth",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint the BIRTH OF A SINGLE STAR — a dusty molecular cloud collapsing into one embedded protostar, with an accretion disk and bipolar outflow cavities, rendered by the same per-pixel VOLUME raymarcher that powers galaxy-view.",
   "when": "Mint the BIRTH OF A SINGLE STAR — a dusty molecular cloud collapsing into one embedded protostar, with an accretion disk and bipolar outflow cavities, rendered by the same per-pixel VOLUME raymarcher that powers galaxy-view.",
   "retired_tool": "create_star_birth_view"
@@ -14,7 +14,7 @@ Mint the BIRTH OF A SINGLE STAR — a dusty molecular cloud collapsing into one 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — The look (default 'protostar'): 'collapse', 'protostar', or 'outflow'.

@@ -3,7 +3,7 @@
   "id": "slope-equals-height",
   "name": "The curve that is its own slope",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint calculus preset: the derivative explainer parked on f = eˣ at x = 1 — the one curve whose tangent slope always equals its own height, watched as the secant fan collapses onto the tangent.",
   "when": "why e is special; the function that is its own derivative; show my student what makes eˣ different; a derivative demo with a punchline; exponential growth rate equals value"
 }

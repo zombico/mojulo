@@ -3,7 +3,7 @@
   "id": "ocean",
   "name": "Ocean",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive ANIMATED OCEAN SURFACE — a live sea that heaves and rolls, rendered in the traversable three.js World.",
   "when": "Reach for this on framing like 'animate an ocean / ocean waves / a stormy sea / water surface waves / a rolling swell'.",
   "retired_tool": "create_ocean_view"
@@ -14,7 +14,7 @@ Mint an interactive ANIMATED OCEAN SURFACE — a live sea that heaves and rolls,
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Sea state (default 'swell'): 'swell' (long smooth), 'chop' (short steep wind waves), 'storm' (big whitecaps).

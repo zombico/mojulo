@@ -1,5 +1,5 @@
 /**
- * create_view({ kind: 'classical' }) — a classical science world: a demo COMPOSED from the classical law table
+ * create_exhibit({ id: 'science/classical' }) — a classical science world: a demo COMPOSED from the classical law table
  * (lib/graph/science-worlds/classical/), not one hand-authored experiment. The agent reads the teacher's ask and
  * writes the model (bodies, laws, duration); the solver checks units, steps it, measures it and runs its gates;
  * the page draws it with the world dress and a "what's real · what's drawn" panel.
@@ -54,7 +54,7 @@ export function mintClassicalView({ model, dress, liberties, title, viewBox, sce
 }
 
 export async function createClassicalViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error("create_view({ kind: 'classical' }) wants params: { model, dress?, liberties? }");
+  if (!input || typeof input !== 'object') throw new Error("create_exhibit({ id: 'science/classical' }) wants params: { model, dress?, liberties? }");
   const { model, dress, liberties, title, viewBox, scene, ref, folder_ref: folderRef, ...rest } = input;
   const extra = Object.keys(rest);
   if (extra.length) throw new Error(`science-worlds: params: unknown field '${extra[0]}' (a classical world's params are { model, dress?, liberties? })`);

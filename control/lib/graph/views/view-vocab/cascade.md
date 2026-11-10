@@ -3,7 +3,7 @@
   "id": "cascade",
   "name": "Nuclear Chain Reaction",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a NUCLEAR CHAIN REACTION — a branching CASCADE of neutrons fissioning a lattice of fissile nuclei, rendered as discrete moving bodies (the mesh-based companion to the `fission` kind, which ray-marches the SINGLE liquid-drop split).",
   "when": "Reach for this on framing like 'show me a chain reaction / how a nuclear reactor/bomb chain reaction works / critical mass / supercritical vs subcritical'.",
   "retired_tool": "create_cascade_view"
@@ -14,7 +14,7 @@ Mint a NUCLEAR CHAIN REACTION — a branching CASCADE of neutrons fissioning a l
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `regime` (string) — Criticality regime (default 'supercritical'): 'supercritical' (k>1, runaway), 'critical' (k≈1, self-sustaining), 'subcritical' (k<1, dies out). Sets capture probability + ν + assembly size.

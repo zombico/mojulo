@@ -14,7 +14,7 @@
  *   node scripts/export-science-views.mjs --out ../mojulo-ai/science-views.json
  *   node scripts/export-science-views.mjs --families science,math --out …
  *
- * Default families: science,math,bio — the create_view study objects. The
+ * Default families: science,math,bio — the create_exhibit study objects. The
  * `world` family (compose_world bases) is deliberately excluded: worlds are
  * places, not indexable explainer subjects.
  *

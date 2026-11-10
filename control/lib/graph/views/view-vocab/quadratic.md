@@ -3,7 +3,7 @@
   "id": "quadratic",
   "name": "Quadratic Function",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive ALGEBRA explainer — the PARABOLA y = ax²+bx+c, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'quadratic / parabola / roots / discriminant / quadratic formula / x-intercepts'.",
   "retired_tool": "create_quadratic_view"
@@ -14,7 +14,7 @@ Mint an interactive ALGEBRA explainer — the PARABOLA y = ax²+bx+c, rendered a
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which case (default 'two'): 'two' (Δ>0, two real roots), 'double' (Δ=0, the knife-edge where the roots merge into one), 'none' (Δ<0, no real roots — parabola lifts off the axis), 'down' (a<0, opens downward).
