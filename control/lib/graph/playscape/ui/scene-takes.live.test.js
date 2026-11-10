@@ -116,7 +116,10 @@ describe('a script\'s takes on the page', () => {
       await page.waitForFunction(() => window.__mojTempo && window.__mojScenes && window.__mojScenes.view().line, { timeout: 60000 });
       return page;
     };
-    const press = (page) => page.evaluate(() => new Promise((r) => { window.__mojScenes.next(); setTimeout(r, 60); }));
+    // (a press is a flag the scene runner takes on its next frame: two pressed inside one frame would be one, so each
+    // waits for two frames to pass, the runner's step among them, before the next; a loaded runner can go longer than
+    // any fixed wait between frames)
+    const press = (page) => page.evaluate(() => new Promise((r) => { window.__mojScenes.next(); requestAnimationFrame(() => requestAnimationFrame(() => r())); }));
     // (each wait is on the page's own clock, so its ceiling is only a guard: a loaded runner draws slowly)
     const until = (page, fn) => page.waitForFunction(fn, { timeout: 60000 });
     // played: the first line on real time, the slowed one's world at a fifth, then real time again
