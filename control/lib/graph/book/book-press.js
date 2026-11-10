@@ -47,6 +47,10 @@ export const plate = (svg, { caption, span = false } = {}) => `<figure class="pl
 export const mono = (text) => `<pre class="mono">${esc(text)}</pre>`;
 export const lines = (n) => `<div class="lines">${'<i></i>'.repeat(n)}</div>`;
 
+/** The press's stylesheet for a style (book-style.js readBookStyle) and its running foot: a reader that sets the
+ *  same blocks another way (publication/reader.js) lays its own page rules after it. */
+export function pressCss(S, foot) { return css(S, foot); }
+
 function css(S, foot) {
   const C = S.colours, [w, h] = S.size, cols = S.columns;
   // each face with the styles its roles set: the text its italic and bold, a title and the tables their roman

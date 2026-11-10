@@ -497,8 +497,20 @@ function boxOf(W, H, test, pad) {
   return { x0, y0, x1, y1, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
+// a plate is drawn once a process for the same spec: a page that carries a book is read many times
+const DRAWN = new Map(), DRAWN_MAX = 64;
+
 /** The plate as an SVG of curves. */
 export function renderPlate(spec, { res = 2, prefix = '', backdrop = true } = {}) {
+  const key = JSON.stringify([spec, res, prefix, backdrop]), kept = DRAWN.get(key);
+  if (kept) return kept;
+  const made = drawPlate(spec, { res, prefix, backdrop });
+  if (DRAWN.size >= DRAWN_MAX) DRAWN.delete(DRAWN.keys().next().value);
+  DRAWN.set(key, made);
+  return made;
+}
+
+function drawPlate(spec, { res, prefix, backdrop }) {
   const plate = readPlate(spec);
   const width = plate.width ?? 480, height = plate.height ?? 360;
   const rig = stationRig({ width, height, station: plate.station });

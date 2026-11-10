@@ -78,6 +78,8 @@ What it does not do yet: a line-only finish, material texture, transparency, a s
 ground, labels with leaders, and solids that are not field terms (a face-list solid, a hero, a world). No door mints a
 plate and no book calls for one on its own; a book's builder adds the block.
 
+A book made of data and read in a level as well as printed is a publication: [publications.md](publications.md).
+
 ## Not yet on the press
 
 The other books (the gameworld and character bibles, the structure, city and historic books) each carry their own

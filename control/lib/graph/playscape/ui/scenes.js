@@ -69,6 +69,7 @@
  */
 import { readEffect, effectContext } from './cues.js';
 import { questFlags } from './quests.js';
+import { libraryFlags } from './library.js';
 import { partyFlags } from './party.js';
 import { wonFlag } from '../rpg/rpg.js';
 import { readScriptText, SCENE_MOMENT_HOLD } from './scene-script.js';
@@ -280,14 +281,14 @@ function setsOf(sc) {
 }
 
 // a play with flags to keep: scenes, quests (quests.js) whose steps are flags, a party (party.js) who join on one
-const hasStory = (play) => !!play && (play.scenes !== undefined || play.quests !== undefined || play.party !== undefined);
+const hasStory = (play) => !!play && (play.scenes !== undefined || play.quests !== undefined || play.party !== undefined || play.library !== undefined);
 
 // a pack won on a page that carries flags stays won (playscape/rpg/rpg.js wonFlag): its flag, set as it falls and carried
 const wonFlags = (play) => (typeof play?.carry === 'string' && Array.isArray(play?.rpg?.encounters) ? play.rpg.encounters.filter((e) => isObj(e) && Array.isArray(e.at) && typeof e.id === 'string').map((e) => wonFlag(e.id)) : []);
 
 /** Every flag the scenes read or set, the quests read, the party joins on, and the packs won here. */
 export function sceneFlags(play) {
-  const out = new Set([...questFlags(play), ...partyFlags(play), ...wonFlags(play)]);
+  const out = new Set([...questFlags(play), ...libraryFlags(play), ...partyFlags(play), ...wonFlags(play)]);
   for (const sc of readScenes(play)) { for (const c of sc.if) if (c.flag) out.add(c.flag); for (const f of setsOf(sc)) out.add(f); }
   return [...out].sort();
 }
@@ -426,7 +427,7 @@ export function sceneContract(game, play) {
   let out = { ...game };
   if (C.flags) {
     // what is set here: the scenes' sets and answers, and the quests' flags (a cue may set those: emit 'flag:<name>')
-    const slice = C.flags.slice, sets = new Set([...readScenes(play).flatMap(setsOf), ...questFlags(play), ...partyFlags(play), ...wonFlags(play)]);
+    const slice = C.flags.slice, sets = new Set([...readScenes(play).flatMap(setsOf), ...questFlags(play), ...libraryFlags(play), ...partyFlags(play), ...wonFlags(play)]);
     const produces = isObj(game.produces) ? game.produces : {};
     const events = Array.isArray(produces.events) ? produces.events : [];
     const on = { ...(game.on || {}) };
