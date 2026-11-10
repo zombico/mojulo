@@ -4,7 +4,7 @@
  * reacting plays the fight's reactions (versus-react.js: a hit, a fall, down, rising, held), as a fighter does; the
  * brawl's own states have their own: the walk along and across the street, the run and the back-step, the clinch
  * (the arms reaching to hold, a knee driven up as it lands), a held body as one thrown, a body bending to pick a thing
- * up.
+ * up, a rider sat astride its mount.
  *
  *   brawlPoseOf(p, F, t, rules) → a pose (the fight's pose words)
  *
@@ -16,6 +16,15 @@ import { reactionPose } from '../versus/versus-react.js';
 
 const wave = (t, k) => (Math.sin(t * k) + 1) / 2;
 
+/** the rifle's hold: the lead arm's [shoulder, elbow] and the rear's (degrees) */
+export const RIFLE = Object.freeze({ lead: Object.freeze([45, 100]), rear: Object.freeze([0, 130]) });
+// a gunner's legs: the walk's stride, a jump's tuck, a landing's crouch, else its stance
+function gunLegs(p, own, guard, crouch, t, rules) {
+  if (p.st === 'walk') { const w = wave(t, 0.22); return lerpPose(own.walkA ?? POSES.walkA, own.walkB ?? POSES.walkB, w); }
+  if (p.st === 'air' || p.st === 'prejump' || p.st === 'drop') return p.st === 'prejump' ? POSES.prejump : POSES.jump;
+  if (p.st === 'land') return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));
+  return guard;
+}
 export function brawlPoseOf(p, F, t = 0, rules = {}) {
   if (p.mv && F.moves[p.mv]) {
     const m = F.moves[p.mv];
@@ -25,6 +34,21 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
   // (a held body reads as the fight's thrown: the held clip)
   const reacting = reactionPose(p.st === 'held' ? { ...p, st: 'thrown' } : p, rules, own);
   if (reacting) return reacting;
+  // RIDING (a mount under it, drawn by the page at its seat): sat astride, thighs forward and shins down to the pegs,
+  // leaning over the bars, the hands on them (a gunner's on its rifle)
+  if (p.st === 'ride') {
+    const seat = { torso: 24, head: -8, armF: [62, 150], armB: [55, 160], legF: [82, -78, 90], legB: [78, -84, 86], air: true };
+    return p.gn !== undefined ? { ...seat, torso: 12, armF: RIFLE.lead, armB: RIFLE.rear } : seat;
+  }
+  // A GUNNER (a body with a gun, the run & gun's): a rifle of sorts held at the chest, always ready, whatever its legs
+  // do: the lead hand forward on the foregrip, the rear hand on the grip by the chest, the two on one level line (the
+  // angles found on the rig: each body type's hands land within a centimetre or two of it); its roll a tuck
+  if (p.gn !== undefined) {
+    if (p.st === 'roll') return { ...crouch, torso: (crouch.torso ?? 0) + 70, head: 60 };
+    // (down behind cover, coming up out of the ground: crouched, the rifle still held)
+    if (p.st === 'hide' || p.st === 'dig') return { ...crouch, armF: RIFLE.lead, armB: RIFLE.rear };
+    return { ...gunLegs(p, own, guard, crouch, t, rules), torso: guard.torso ?? 0, armF: RIFLE.lead, armB: RIFLE.rear };
+  }
   switch (p.st) {
     case 'walk': {
       // the stride: along the street the chest opens to the way it walks, across it the body steps square
@@ -38,6 +62,9 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
       return { ...stride, torso: (stride.torso ?? 0) + 18, sway: s * 9, twist: 10 - s * 7, tilt: s * 4 };
     }
     case 'back': return own.backdash ?? POSES.backdash;
+    // hiding (behind cover, lying in wait) and coming up out of the ground: crouched; dropping in: the jump's tuck
+    case 'hide': case 'dig': return { ...crouch, torso: (crouch.torso ?? 0) + 10 };
+    case 'drop': return POSES.jump;
     case 'prejump': return POSES.prejump;
     case 'air': return POSES.jump;
     case 'land': return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));

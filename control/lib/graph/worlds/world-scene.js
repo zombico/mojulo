@@ -1868,6 +1868,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster, { register: measured.register ?? null }) });
+    // a fight game's bodies are drawn under the cast rig (versus/versus-cast.js: its card, in the game's register); an
+    // arena made before the register carries none
+    if (payload.versus.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.versus.cast = fightCast(payload.versus.register); }
     // a fight game (one with a register) sounds its blows from the SFX shelf (versus/versus-sfx.js): its cues on the
     // page's audio channel, joining what audio the level already has (its own cues win); an arena made before the
     // register carries none and keeps its beeps
@@ -1894,6 +1897,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (fa) {
       const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
+    // the run & gun's range: every gun's shot and landing (the shelf's and those passed in), the range's own sounds;
+    // without one, the street's own (a mount's crash, a wreck's metal, the ground dug out of)
+    const { gunAudio, streetAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    if (!practice.range) {
+      const A = resolveWorldAudio(streetAudio(), { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...A.cues } } : A;
+    }
+    if (practice.range) {
+      const { GUN_IDS, readGun } = await import('@/lib/graph/brawl/brawl-guns.js');
+      const ga = gunAudio([...GUN_IDS.map((g) => readGun(g)), ...(practice.range.guns ?? []).map((g) => readGun(g))]);
+      const A = resolveWorldAudio(ga, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...A.cues } } : A;
     }
   }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the

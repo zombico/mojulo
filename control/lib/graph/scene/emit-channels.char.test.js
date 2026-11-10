@@ -695,6 +695,26 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime unless it says `ui: false`, so the fixture (which names no `ui`) now carries the runtime, its sheet and its
 // page beside the arena's client. The `board` fixture hands the page its data without the scene's reader, so it
 // stays the board with no `ui`.
+// Re-pinned 2026-11-09 (1109-run-and-gun: the range): `brawl` only. Its page inlines the guns, the gunner's reader, the
+// shooting crowd, the range's practice and the yard's client (rounds in flight, a foe's warning, the gun in the hand;
+// special in play no longer opens the move list).
+// Re-pinned 2026-11-09 (1109-run-and-gun: a rifle held; shot sounds, impact frames, poise): `brawl` only. Its page inlines
+// the guns (their sounds, hitstop, freeze, impact), the core's poise and the client's sounds and impact frames.
+// Re-pinned 2026-11-09 (1109-run-and-gun: the wave tester): `brawl` only. Its page inlines brawl-waves.js and the range's
+// waves (the practice's wave run, the wave meter, the Waves setting).
+// Re-pinned 2026-11-09 (1109-run-and-gun: entrances, hiding, cover): `brawl` only. Its page inlines the core (enterBody,
+// the hide state, cover stopping rounds), the things' cover, the crowd's and the waves' entrances and ambushes, the poses
+// and the client's cover, dust and sounds; the brawler yard's own waves (practice.waves, its Waves setting).
+// Re-pinned 2026-11-09 (1109-run-and-gun: mounted foes): `brawl` only. Its page inlines the things' mounts, the core's
+// ride (the ram, knocked off, the wreck), the crowd's and the waves' riders, the rider's pose and the client's mount drawn
+// under it, its wreck and its crash.
+// Re-pinned 2026-11-10 (the cast channel: versus): `versus` only. Its page inlines the arena's client, whose fight rig
+// is the cast rig's (one key, the sky and the rim in the bodies' own shader: versus-arena.client.js fightRig); the fixture
+// names no register, so it carries no rig and no kit, only the client's new source.
+// Re-pinned 2026-11-10 (1110-battle-city-mana-ui-integration merging 1105-rc): `brawl`, `holo` and `board`, the three
+// fixtures this line moved. `brawl` was moved by both lines (the candidate's range and guns in its page; here the game
+// UI runtime's kernel and sheet it inlines, which gained a table's parts): the merged page carries both. `holo` and
+// `board` are this line's alone, as noted above. No other fixture differs from the candidate's pin.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

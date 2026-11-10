@@ -7,7 +7,9 @@
  *             stage's: torch, sun, cells; the gen-6 upgrades by default), the outside's `sky` (zenith, horizon,
  *             fog; the reference's dome and fog colour where it names none), the `sun`'s colour (`{ color }`: a
  *             solved day palette's light; the reference keeps the sun's arc and strength; era/cube-light.js reads it
- *             as the hue the palette's light is solved in, the hour's key where it is absent), and the cast's `rim`
+ *             as the hue the palette's light is solved in, the hour's key where it is absent), the share of its light
+ *             the sky gives (`skyShare`, 0–1: the form render's, era/cube-light.js; left out, the look's own, raised
+ *             to meet the sky the cube paints), and the cast's `rim`
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
  *             the reference's horizon at the cast light's own strength)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
@@ -468,7 +470,8 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare'], 'light');
+  if (c.light.skyShare !== undefined && !(typeof c.light.skyShare === 'number' && c.light.skyShare > 0 && c.light.skyShare < 1)) no('light.skyShare is the share of its light the sky gives, between 0 and 1 (0.1 a hard sun over deep shade, 0.4 a clear noon, 0.85 an overcast sky; the form render\'s, era/cube-light.js: left out, the look\'s own, raised to meet the sky it paints)');
   if (c.light.sun !== undefined && !(isObj(c.light.sun) && Object.keys(c.light.sun).every((k) => k === 'color') && HEX.test(c.light.sun.color ?? ''))) no('light.sun is { color: \'#rrggbb\' }: the sun\'s colour (its arc and strength are the reference\'s)');
   c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);

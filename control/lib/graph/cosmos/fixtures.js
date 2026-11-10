@@ -573,6 +573,19 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'run-and-gun',
+    name: 'Run and gun',
+    anchor: false,
+    why: 'one or two players run down a street the game scrolls, guns blazing in eight directions, stepping off slow rounds and rolling through fire',
+    cube: {
+      reality: { medium: '3d' },
+      // (11-10, 1109-run-and-gun: the brawler's belt and its guns; built as their own, not yet made from a gameworld)
+      space: { camera: 'third-person', levelForm: 'belt', topology: 'linear' },
+      power: { combat: ['brawl'], gunplay: 'arcade', mechanics: ['waves', 'hp-pool', 'reach-exit'] },
+      soul: { hero: 'hero', seats: 'two', contest: 'co-op', dependence: 'parallel', frame: 'scroll', input: 'real-time', pool: 'own', join: 'drop-in' },
+    },
+  },
+  {
     id: 'co-op-scroller',
     name: 'Co-op scrolling shooter',
     anchor: false,

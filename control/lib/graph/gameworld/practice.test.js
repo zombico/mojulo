@@ -1,9 +1,13 @@
 // THE PRACTICE DOOR (practice.js): which rooms a game's play has, each built from the world alone. One case per procedure:
 // a template that fights hand to hand, one that platforms, one that fights on another runtime, one with no room, a world
-// that rides; the platform room's course and foes, the mount lane's horse; the mounts suggestion.
+// that rides, one that shoots, the stealth game, the mech; the platform room's course and foes, the mount lane's horse;
+// the mounts suggestion.
 import { describe, expect, it } from 'vitest';
 
-import { practiceFor, practiceRoomOf, mountSuggestion, PRACTICE_ROOMS } from './practice.js';
+import { practiceFor, practiceRoomOf, mountSuggestion, rangeMeasured, PRACTICE_ROOMS, TEMPLATE_FRAMES } from './practice.js';
+import { TEMPLATE_LOADOUTS } from './loadout.js';
+import { validateRange } from './combat/range.js';
+import { validateFrame } from './combat/frames.js';
 import { FIGHTS_ELSEWHERE } from './practice-room.js';
 import { COURSE } from './platform-room.js';
 import { FENCES, LANE_START } from './mount-lane.js';
@@ -13,7 +17,12 @@ import { POLES } from './feel/cards.js';
 const FIGHTER = Object.keys(POLES).find((id) => POLES[id].demo.includes('attack') && !FIGHTS_ELSEWHERE[id] && POLES[id].base !== 'platformer');
 const PLATFORMER = Object.keys(POLES).find((id) => POLES[id].base === 'platformer' && !POLES[id].demo.includes('attack'));
 const ELSEWHERE = Object.keys(FIGHTS_ELSEWHERE)[0];
-const NONE = Object.keys(POLES).find((id) => !POLES[id].demo.includes('attack') && POLES[id].base !== 'platformer' && !POLES[id].demo.includes('wall') && !POLES[id].demo.includes('stomp'));
+const NONE = Object.keys(POLES).find((id) => !POLES[id].demo.includes('attack') && POLES[id].base !== 'platformer' && !POLES[id].demo.includes('wall') && !POLES[id].demo.includes('stomp') && !TEMPLATE_LOADOUTS[id] && !TEMPLATE_FRAMES[id]);
+// (one that shoots and does not fight hand to hand; one that shoots and fights hand to hand, whose close quarters are the
+// range's knife; one that owns a frame)
+const SHOOTER = Object.keys(TEMPLATE_LOADOUTS).find((id) => !POLES[id].demo.includes('attack') && POLES[id].base !== 'platformer');
+const STEALTH = Object.keys(TEMPLATE_LOADOUTS).find((id) => POLES[id].demo.includes('attack') && FIGHTS_ELSEWHERE[id]);
+const MECH = Object.keys(TEMPLATE_FRAMES)[0];
 
 describe('the door', () => {
   it('a template that fights hand to hand has the action room; one that platforms the platform room', () => {
@@ -33,8 +42,41 @@ describe('the door', () => {
   });
   it('a room the world does not have is refused, in words', () => {
     expect(() => practiceRoomOf({ feel: FIGHTER }, 'mount')).toThrow(/this world has no mount lane \(it has practice\)/);
-    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount/);
-    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount']);
+    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, artillery/);
+    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'artillery']);
+  });
+});
+
+describe('the gun rooms', () => {
+  it('a template that shoots has the firing range, its loadout the range\'s weapons', () => {
+    expect(practiceFor({ feel: SHOOTER }).rooms).toEqual(['range']);
+    const { spec } = practiceRoomOf({ id: 'g', feel: SHOOTER }, 'range');
+    expect(spec.weapons).toEqual(TEMPLATE_LOADOUTS[SHOOTER].weapons);
+    expect(validateRange(spec)).toEqual([]);
+  });
+  it('the stealth game has the range and not the action room, and says its close quarters are the range\'s knife', () => {
+    const D = practiceFor({ feel: STEALTH });
+    expect(D.rooms).toEqual(['range']);
+    expect(D.elsewhere).toMatch(/knife/);
+    expect(practiceRoomOf({ feel: STEALTH }, 'range').spec.weapons).toContainEqual({ name: 'knife', fire: 'melee' });
+  });
+  it('a world that carries a gun has the range whatever its template; one carrying none under a melee template, none', () => {
+    expect(practiceFor({ feel: FIGHTER, quick: { goal: 'shoot', arms: ['rifle'] } }).rooms).toEqual(['practice', 'range']);
+    expect(practiceFor({ feel: FIGHTER }).rooms).not.toContain('range');
+  });
+  it('the range measured on the world\'s guns: its laws carried or lost, the same guns kept, none without a range', () => {
+    const G = { id: 'g', quick: { goal: 'shoot', arms: ['rifle'] } };
+    const M = rangeMeasured(G);
+    expect(M.carried).toBeGreaterThan(0);
+    expect(M.lost).toBe(0);
+    expect(rangeMeasured({ ...G, id: 'another' })).toBe(M);
+    expect(rangeMeasured({ feel: FIGHTER })).toBeNull();
+  });
+  it('the mech has the artillery range on its own frame, a transforming biped', () => {
+    expect(practiceFor({ feel: MECH }).rooms).toEqual(['artillery']);
+    const { spec } = practiceRoomOf({ id: 'g', feel: MECH }, 'artillery');
+    expect(spec).toMatchObject({ base: { frame: TEMPLATE_FRAMES[MECH].frame }, name: 'g' });
+    expect(validateFrame(spec.base)).toEqual([]);
   });
 });
 

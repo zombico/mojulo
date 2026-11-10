@@ -55,6 +55,9 @@ export const dummyFigure = (cast = 'male') => ({ hero: { cast: cast === 'male' ?
 export const FIGHTS_ELSEWHERE = Object.freeze({
   'mojulo-fighter': 'a fighting game is practised in its own training lab, on the fight\'s page (the versus runtime)',
   'isekai-party': 'its fights are the party\'s battles, played in the battle screen (turn by turn)',
+  // (a stealth game: its close quarters are the knife in the free hand, on the firing range; the grab and throw are not
+  // built for it, and the action room's launchers and juggles are not its game)
+  'steel-serpents': 'a stealth game\'s close quarters are its knife, practised on the firing range beside its pistol',
 });
 
 /** Why the world has no practice room, or null. */
