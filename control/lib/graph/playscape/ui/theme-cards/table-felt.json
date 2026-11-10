@@ -1,0 +1,10 @@
+{
+  "id": "table-felt",
+  "name": "Table Felt",
+  "about": "A card table: plates of card stock on green felt, a book face in mixed case, the felt's green for what can be played. The table-wood look, laid for a game of cards.",
+  "family": "table",
+  "tags": ["card game", "tabletop", "deck builder", "calm"],
+  "author": "mojulo",
+  "from": "table-wood",
+  "tokens": { "ink": "#2b2622", "panel": "#f4f1ea", "line": "#3b4a37", "accent": "#3b4a37", "accent2": "#2f7048" }
+}

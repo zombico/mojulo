@@ -17,11 +17,12 @@ import { versusSource, VERSUS_PAGE_MODULES } from '../../versus/versus-page.js';
 import { labOf } from '../../versus/versus-lab.js';
 import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { castKitSource } from './cast-rig.js';
-import { fightCast } from '../../versus/versus-cast.js';
 
 export function versusChannelScript(cfg0) {
-  // (a fight game's bodies are drawn under the cast rig; an arena data built without it takes the card here)
-  const cfg = cfg0.register && !cfg0.cast ? { ...cfg0, cast: fightCast(cfg0.register) } : cfg0;
+  // (a fight game's bodies are drawn under the cast rig, handed in as `cast` by whoever resolves the arena: the world's
+  // resolver does, versus/versus-cast.js fightCast. The card is not taken here: the rig's solver reads the era's cubes,
+  // whose buildings reach back to this emitter, and a page's emitter that imports it cannot be loaded)
+  const cfg = cfg0;
   const lib = [...VERSUS_PAGE_MODULES, 'versus-figure.js', 'versus-runtime.client.js', 'versus-fx.client.js', 'versus-arena.client.js'].map(versusSource).join('\n');
   // (a fight game's arena, under its register, carries the LAB: mana-ui over the fight, versus/versus-lab.js; an arena
   // made before the register carries none, not a byte)

@@ -142,6 +142,8 @@ export function buildManaUi() {
     ammo: 'Ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
     move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
     turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
+    // a table's (idioms-table.js) and a skirmish's (idioms-live.js)
+    log: 'Log', give: 'Give', get: 'Get', offer: 'Offer', you: 'You', them: 'Them', selected: 'Selected', setUp: 'Set up the match', figures: 'Figures', overTime: 'Over the match',
     // a fight's (idioms-fight.js): the round's ritual, a side's callouts, its meters, training and the command list
     round: 'Round', finalRound: 'Final round', fight: 'Fight!', ko: 'K.O.', doubleKo: 'Double K.O.', timeUp: 'Time', draw: 'Draw', perfect: 'Perfect', wins: 'wins',
     counterHit: 'Counter', punish: 'Punish', reversal: 'Reversal', parry: 'Parry', guardCrush: 'Guard crush', spark: 'Spark', priority: 'Priority', firstAttack: 'First attack',
@@ -194,7 +196,10 @@ export function buildManaUi() {
     badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `stamp` a rank stamped on as the screen settles; `side` its side\'s chip; `turn` alight while it is that side\'s turn', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted', 'stamp'], 'plain'], side: [A], turn: [B, false] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
     gauge: { group: 'value', about: 'a value on a dial (a speedometer, a pressure, a charge)', props: { value: [N, 0, true], max: [N, 1, true], label: [T], unit: [T] } },
-    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand; with `on.accept` a touch screen taps it', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false] }, verbs: ['accept'] },
+    card: { group: 'value', about: 'a card on the table: its face (a band in its side\'s kit, the name, the cost, what it does, its tags, its power and guard, how many lie under it), `state` what can be done with it as a shape (playable an edge alight, picked lifted, spent turned on its side), `face: down` its back and a count; with `on.accept` a touch screen taps it (a cell of a grid picks it with the cursor)', props: { name: [T, ''], cost: [T], text: [T], tags: [L, []], power: [T], guard: [T], count: [T], side: [A], state: [['plain', 'playable', 'picked', 'spent'], 'plain'], face: [['up', 'down'], 'up'], size: [['s', 'm'], 'm'] }, verbs: ['accept'] },
+    log: { group: 'value', about: 'the whole of what happened, kept (a move list, a game\'s log): the last `visible` rows shown, pinned to the newest, the rest counted above; `numbered` counts the rows from one; a row\'s `side` its chip', props: { rows: [L, [], true], field: [T, 'text'], numbered: [B, false], visible: [N, 8] } },
+    spark: { group: 'value', about: 'a small series as bars (an army over a match, a score by round): each value against the largest, the last said as a number', props: { values: [L, [], true], max: [N], label: [T] } },
+    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand; `disabled` it cannot be done now and `why` says so; with `on.accept` a touch screen taps it', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false], disabled: [B, false], why: [T] }, verbs: ['accept'] },
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
@@ -212,7 +217,7 @@ export function buildManaUi() {
     grid: { group: 'input', about: 'cells in columns, moved through in two directions (an inventory, a roster)', props: { cells: [L, [], true], cell: [ND], columns: [N, 4], empty: [T] }, verbs: ['accept'] },
     tree: { group: 'input', about: 'nodes laid in tiers by what they require (a skill or tech tree): { id, requires?, state: learned | available | locked }', props: { nodes: [L, [], true], node: [ND], label: [T, 'name'] }, verbs: ['accept'] },
     carousel: { group: 'input', about: 'one item at a time, left and right turn it (a bound value is set by the item\'s id)', props: { items: [L, [], true], item: [ND], value: [A] }, verbs: ['accept', 'change'] },
-    button: { group: 'input', about: 'a thing to press', props: { label: [T, '', true], disabled: [B, false] }, verbs: ['accept'] },
+    button: { group: 'input', about: 'a thing to press; `why` the reason a disabled one cannot be (shown while it has the focus or the pointer, and as it is pressed)', props: { label: [T, '', true], disabled: [B, false], why: [T] }, verbs: ['accept'] },
     toggle: { group: 'input', about: 'on or off (a bound value is set on the host, never held here)', props: { label: [T, '', true], value: [B, false, true] }, verbs: ['change'] },
     cycler: { group: 'input', about: '◀ a value ▶ from its options', props: { label: [T, '', true], options: [L, [], true], value: [A, '', true] }, verbs: ['change'] },
     slider: { group: 'input', about: 'a number between min and max, by step', props: { label: [T, '', true], value: [N, 0, true], min: [N, 0], max: [N, 10], step: [N, 1] }, verbs: ['change'] },
@@ -338,6 +343,8 @@ export function buildManaUi() {
   // whose turn it is: a row's or a badge's `turn`, alight in its side's colour when it has one
   const turnOf = (on, side) => { if (!on) return null; const k = sideOf(side); return k === null ? 'yes' : k; };
   const numOf = (x) => (typeof x === 'number' && isFinite(x) ? x : typeof x === 'string' && x.trim() !== '' && isFinite(Number(x)) ? Number(x) : null);
+  // why a disabled thing cannot be done: its reason, drawn with it (the sheet shows it under the focus, the pointer or a press)
+  const whyOf = (off, why) => (off && why !== undefined && why !== null && why !== '' ? ['span', { class: 'mana-why' }, words(why)] : null);
   const initials = (s) => words(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
   // a tree's tiers: a node one past the deepest it requires
   function tiersOf(nodes) {
@@ -746,9 +753,30 @@ export function buildManaUi() {
           }
           case 'slot': {
             const cd = clamp(p.cooldown, 0, 1);
-            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, title: p.name || null, 'data-tap': tappable(n, key, scope) },
+            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, 'data-st': p.disabled ? 'disabled' : null, title: p.name || null, 'data-tap': p.disabled ? null : tappable(n, key, scope) },
               p.name ? ['span', { class: 'mana-icon', 'data-size': 'l' }, initials(p.name)] : null, cd > 0 ? ['span', { class: 'mana-cool', style: `height:${pct(cd)}` }] : null,
-              p.key !== undefined ? ['span', { class: 'mana-key' }, p.key] : null, p.count !== undefined && p.count !== '' ? ['span', { class: 'mana-count' }, p.count] : null];
+              p.key !== undefined ? ['span', { class: 'mana-key' }, p.key] : null, p.count !== undefined && p.count !== '' ? ['span', { class: 'mana-count' }, p.count] : null, whyOf(p.disabled, p.why)];
+          }
+          case 'card': {
+            // a card face down is its back and how many lie there; face up, its face in reading order
+            const tap = p.state === 'spent' ? null : tappable(n, key, scope), has = (v) => v !== undefined && v !== null && v !== '';
+            if (p.face === 'down') return ['div', { class: cls, 'data-face': 'down', 'data-size': p.size, 'data-tap': tap }, ['span', { class: 'mana-back' }], has(p.count) ? ['span', { class: 'mana-count' }, p.count] : null];
+            return ['div', { class: cls, 'data-state': p.state === 'plain' ? null : p.state, 'data-size': p.size, title: p.text || p.name || null, 'data-tap': tap },
+              ['span', { class: 'mana-band', 'data-side': sideOf(p.side) }, ['span', { class: 'mana-name' }, p.name], has(p.cost) ? ['span', { class: 'mana-cost' }, p.cost] : null],
+              has(p.text) ? ['span', { class: 'mana-rules' }, p.text] : null,
+              p.tags.length ? ['span', { class: 'mana-tags' }, p.tags.map(words).join(' · ')] : null,
+              has(p.power) || has(p.guard) ? ['span', { class: 'mana-might' }, [p.power, p.guard].filter(has).join(' / ')] : null,
+              has(p.count) ? ['span', { class: 'mana-count' }, p.count] : null];
+          }
+          case 'log': {
+            // kept whole, shown from its end: the newest row last, what is above it counted
+            const total = p.rows.length, v = Math.max(1, Math.floor(p.visible)), from = Math.max(0, total - v);
+            return ['div', { class: cls }, from > 0 ? ['div', { class: 'mana-more' }, `▲ ${W('more', { n: from })}`] : null,
+              ...p.rows.slice(from).map((r, i) => ['div', { class: 'mana-line', 'data-last': from + i === total - 1 ? 'yes' : null }, p.numbered ? ['span', { class: 'mana-no' }, `${from + i + 1}.`] : null, isObj(r) ? chip(r.side) : null, words(isObj(r) ? readPath(r, p.field) : r)])];
+          }
+          case 'spark': {
+            const vals = p.values.map((x) => Number(isObj(x) ? x.value : x) || 0), top = Math.max(p.max || 0, ...vals, 1), end = vals.length ? vals[vals.length - 1] : 0;
+            return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-bars' }, ...vals.map((x) => ['i', { style: `height:${pct(x / top)}` }])], ['span', { class: 'mana-num' }, words(end)]];
           }
           case 'edges': return ['div', { class: cls }, ...p.markers.filter(isObj).map((m) => {
             const x = Number(m.x), y = Number(m.y);
@@ -811,7 +839,7 @@ export function buildManaUi() {
               const item = p.rows[i], sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'row', n, key, i, total, win: v > 0 && v < total, scope: sc, off });
               const body = n.props.row ? draw(n.props.row, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
-              rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body]);
+              rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body, whyOf(off, isObj(item) ? item.why : null)]);
             }
             if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${W('more', { n: total - to })}`]);
             return ['div', { class: cls, 'data-variant': p.variant === 'menu' ? 'menu' : null }, ...rows];
@@ -824,7 +852,7 @@ export function buildManaUi() {
               const sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'cell', n, key, i, g: { key, r: Math.floor(i / cols), c: i % cols }, scope: sc, off });
               const body = n.props.cell ? draw(n.props.cell, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
-              return ['div', { class: 'mana-cell', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body];
+              return ['div', { class: 'mana-cell', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body, whyOf(off, isObj(item) ? item.why : null)];
             })];
           }
           case 'tree': {
@@ -854,7 +882,7 @@ export function buildManaUi() {
               ['div', { class: 'mana-slide' }, item === undefined ? null : n.props.item ? draw(n.props.item, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)]],
               ['span', { class: 'mana-mark' }, '▶'], ['span', { class: 'mana-dots' }, items.map((_, k) => (k === i ? '●' : '○')).join('')]];
           }
-          case 'button': { const fi = focusable({ kind: 'button', n, key, scope, off: p.disabled }); return ['div', { class: cls, ...mark(fi, 'shown', p.disabled), 'data-tap': tappable(n, key, scope) }, p.label]; }
+          case 'button': { const fi = focusable({ kind: 'button', n, key, scope, off: p.disabled }); return ['div', { class: cls, ...mark(fi, 'shown', p.disabled), 'data-tap': p.disabled ? null : tappable(n, key, scope) }, p.label, whyOf(p.disabled, p.why)]; }
           case 'toggle': case 'cycler': case 'slider': case 'keybind': return input(n.use, n, key, scope, p, src);
           case 'language': {
             const codes = codesOf();

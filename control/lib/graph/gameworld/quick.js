@@ -757,9 +757,10 @@ function readTabletop(Q) {
   try { readHolo(pick(Q, ['game', 'human', 'players', 'level'])); } catch (e) { throw fail(`: ${e.message.replace(/^holo: /, '')}`); }
 }
 /** A board game's level: the hologram arena as a stage carrying the game and a hosted level's contract. */
-export function tabletopArenas(Q, { title, seed = 1 } = {}) {
+export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
   const venue = quickVenueOf(Q);
-  const m = holoManifest({ ...pick(Q, ['game', 'human', 'players', 'level']), seed, ...(title ? { title } : {}), ...(venue ? { venue } : {}) });
+  // (a world's `ui`, resolved: the arena's overlay drawn by the game UI runtime, tabletop/holo-ui.js)
+  const m = holoManifest({ ...pick(Q, ['game', 'human', 'players', 'level']), seed, ...(title ? { title } : {}), ...(venue ? { venue } : {}), ...(ui ? { ui } : {}) });
   const contract = { levelRef: 'holo', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the duel' } };
   return [{ id: 'arena', name: m.title, manifest: { ...m, game: contract } }];
 }

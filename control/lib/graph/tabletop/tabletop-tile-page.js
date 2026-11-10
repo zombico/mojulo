@@ -9,21 +9,17 @@
  */
 
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
-import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
-import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { tableBroadcastData, broadcastDomCss, broadcastDomClient } from '../broadcast/broadcast-dom.js';
 import { pieceBodies } from './tabletop-bodies.js';
+import { LEVELS, r2, escapeHtml, scriptJson, levelSelect, tableCams, tableFaces } from './page-kit.js';
+import { tableUiCss, tableUiConfig, tableUiScript, tableUiBody } from './table-ui.js';
 
 const VIEWPORT = { width: 760, height: 600 };
 const UNIT = 40;
-const LEVELS = ['easy', 'fair', 'hard'];
 const TABLE = ['#3b4a37', '#364433'];
 
-const r2 = (x) => Math.round(x * 100) / 100;
-const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function tilePageHtml(G, L, K, opts = {}) {
   const { human, level, view, seed } = opts;
@@ -36,20 +32,13 @@ export function tilePageHtml(G, L, K, opts = {}) {
   const geo = { k: c0.k.map((k) => local(L.corners[k].at)), e: c0.e.map((e) => local(L.edges[e].at)) };
   const box = L.cells.map((c) => [r2((c.at[0] - hw - frame.x0) * frame.px + frame.pad), r2((frame.y1 - c.at[1] - hh) * frame.px + frame.pad)]);
 
-  const cams = latticeCameras(L).map((c) => {
-    const { matrix, perspective, center } = cameraMatrixFromWorldFraming(c.worldFraming, VIEWPORT, UNIT);
-    return { name: c.name, matrix, perspective: r2(perspective), center };
-  });
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const faces = latticeFaces(L, { palette: TABLE }).map((f) => {
-    const c = f.corners, u = sub(c[1], c[0]), v = sub(c[3], c[0]);
-    const cell = f.group.startsWith('cell:') ? K.T.byName.get(f.group.slice(5)) : -1;
-    return { cell, w: r2(Math.hypot(...u) * UNIT), h: r2(Math.hypot(...v) * UNIT), fill: f.fill, clip: f.clip ?? null, t: planeMatrix(c[0], u, v, UNIT) };
-  });
+  const cams = tableCams(L, VIEWPORT, UNIT);
+  const faces = tableFaces(L, { palette: TABLE }, UNIT, (name) => K.T.byName.get(name));
   const { bodies, icons } = pieceBodies(G, { cell: L.cell, unit: UNIT });
   const data = {
     tv: tableBroadcastData(G.players, opts.broadcast, ['#888888']),
     L, G, human, level, seed, view, geo,
+    ...(opts.ui ? { ui: tableUiConfig(opts.ui) } : {}),
     plan: { W: r2(frame.W), H: r2(frame.H), box, cw: r2(2 * hw * frame.px), ch: r2(2 * hh * frame.px), icons },
     table: { cams, faces, bodies, at: L.cells.map((c) => c.at.map((x) => r2(x * UNIT))), hw: r2(hw * UNIT), hh: r2(hh * UNIT) },
   };
@@ -98,12 +87,18 @@ export function tilePageHtml(G, L, K, opts = {}) {
   #log{margin:0;padding-left:34px;max-height:220px;overflow:auto;font-size:13px}
   .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;box-shadow:0 0 0 1px #1a1512 inset}
   @media (max-width:600px){aside{flex-basis:100%}}
-${broadcastDomCss(data.tv)}
-</style></head><body>
+${opts.ui ? '' : broadcastDomCss(data.tv)}
+${opts.ui ? tableUiCss(opts.ui, data.tv) : ''}</style></head>${opts.ui ? tableUiBody(`
+  <div id="boards">
+    <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" id="plan-svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="art"></g><g id="marks"></g></svg></div>
+    <div id="table" class="viewport"><div class="view" id="view"></div></div>
+  </div>
+  <div id="drawn" class="in-hand"></div>
+`) : `<body>
 <header>
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
-  <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  ${levelSelect(level)}
   <button id="again">New game</button>
   <span id="status" aria-live="polite"></span>
 </header>
@@ -118,25 +113,28 @@ ${broadcastDomCss(data.tv)}
     <div class="card"><h2>Log</h2><ol id="log"></ol></div>
   </aside>
 </main>
+`}
 <script>
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-(${tabletopTileClient.toString()})(DATA, T, M, TV);
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
+(${tabletopTileClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>
 `;
 }
 
 /* The tile page's own code: runs in the browser, references only its arguments and the DOM. */
-export function tabletopTileClient(D, T, M, TV) {
+export function tabletopTileClient(D, T, M, TV, UI) {
   const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], n = K.L.dirs.length, look = D.G.look || {};
   const feat = (type) => (look.features && look.features[type]) || { colour: '#999', form: 'area' };
   const colour = (s) => TV.colour(s);   // the broadcast's kits: the seat's chip and its pieces agree
   const shade = (hex, k) => { const v = parseInt(hex.slice(1), 16), c = (x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0'); return '#' + c(v >> 16) + c((v >> 8) & 255) + c(v & 255); };
-  let S, legal, rot = 0, busy = false, level = D.level, log = [], turns = 0;
+  let S, legal, rot = 0, busy = false, level = D.level, log = [], turns = 0, cur = -1, view = D.view;
   // the laid tiles and the standing claims are objects (S.pieces): a cell's tile as { t, rot }, a claim as { c, s, side }
   const laidAt = (c) => (S.tiles[c] === null ? null : { t: S.pieces[S.tiles[c]].kind, rot: S.pieces[S.tiles[c]].rot });
   const laid = () => S.tiles.map((_, c) => laidAt(c));
@@ -237,10 +235,11 @@ export function tabletopTileClient(D, T, M, TV) {
     turns++;
     S.score.forEach((x, s) => { if (x > before[s]) note(s, 'scores ' + (x - before[s])); });
   }
-  function note(side, text) { log.push('<li><i class="sw" style="background:' + colour(side) + '"></i><b>' + K.players[side].id + '</b> ' + text + '</li>'); }
+  function note(side, text) { log.push({ side, text: K.players[side].id + ' ' + text }); }
+  const logHtml = () => log.map((r) => '<li><i class="sw" style="background:' + colour(r.side) + '"></i>' + esc(r.text) + '</li>').join('');
   function play(m) { if (busy || S.over || S.side !== me) return; act(m); rot = 0; step(); }
   function clickCell(c) {
-    if (busy || S.over || S.side !== me || S.phase !== 'tile') return;
+    if (busy || S.over || S.side !== me || S.phase !== 'tile' || (UI && UI.busy())) return;
     const m = legal.find((x) => x.type === 'tile' && x.at === c && x.rot === rot) || legal.find((x) => x.type === 'tile' && x.at === c);
     if (m) play(m);
   }
@@ -257,6 +256,7 @@ export function tabletopTileClient(D, T, M, TV) {
       x0 = Math.min(x0, bx); y0 = Math.min(y0, by); x1 = Math.max(x1, bx + P.cw); y1 = Math.max(y1, by + P.ch);
       artOut.push('<g transform="translate(' + bx + ' ' + by + ') scale(' + (P.cw / 100) + ' ' + (P.ch / 100) + ')">' + art(tl.t, tl.rot) + (c === S.last ? '<polygon points="' + pts(G0.k) + '" fill="none" stroke="#e0b84a" stroke-width="4"/>' : '') + '</g>');
     });
+    if (cur >= 0) { const [bx, by] = P.box[cur]; marks.push('<rect x="' + (bx + 1) + '" y="' + (by + 1) + '" width="' + (P.cw - 2) + '" height="' + (P.ch - 2) + '" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="7 5"/>'); }
     for (const c of fits) { const [bx, by] = P.box[c]; marks.push('<rect x="' + (bx + 4) + '" y="' + (by + 4) + '" width="' + (P.cw - 8) + '" height="' + (P.ch - 8) + '" fill="none" stroke="#3a8f5a" stroke-width="4" rx="4"/>'); }
     for (const q of claims) {
       const tl = tiles[q.c], [ax, ay] = anchor(K.tile.types[tl.t].segments[q.s], tl.rot), [bx, by] = P.box[q.c];
@@ -272,7 +272,7 @@ export function tabletopTileClient(D, T, M, TV) {
     for (const k in cellDivs) {
       const tl = tiles[k], d = cellDivs[k], look = tl ? tl.t + '/' + tl.rot : '';
       if (d.dataset.look !== look) { d.dataset.look = look; d.innerHTML = tl ? tileSvg(tl.t, tl.rot) : ''; }
-      d.className = 'f cell' + (fits.indexOf(+k) >= 0 ? ' fit' : '') + (+k === S.last ? ' last' : '');
+      d.className = 'f cell' + (fits.indexOf(+k) >= 0 ? ' fit' : '') + (+k === S.last ? ' last' : '') + (+k === cur ? ' cur' : '');
     }
     const body = D.table.bodies.meeple;
     $('pieces').innerHTML = body ? claims.map((q) => {
@@ -284,10 +284,11 @@ export function tabletopTileClient(D, T, M, TV) {
     fit();
   }
 
-  function button(text, on, enabled) { const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
+  // an action: a button on the page, or a row of the table's action bar
+  function button(text, on, enabled) { if (UI) return { name: text, run: on, disabled: !enabled }; const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
   function panel() {
-    const acts = $('acts'), mine = S.side === me && !busy && !S.over;
-    acts.innerHTML = '';
+    const acts = UI ? { rows: [], appendChild(b) { this.rows.push(b); } } : $('acts'), mine = S.side === me && !busy && !S.over;
+    if (!UI) acts.innerHTML = '';
     $('drawn').innerHTML = S.drawn ? tileSvg(S.drawn, rot) : '';
     let prompt;
     if (S.over) prompt = S.over.winner === me ? 'You win!' : S.over.winner === null ? 'A draw' : K.players[S.over.winner].id + ' wins';
@@ -304,26 +305,44 @@ export function tabletopTileClient(D, T, M, TV) {
       for (const m of legal.filter((x) => x.type === 'claim')) acts.appendChild(button('Claim the ' + K.tile.types[laidAt(S.last).t].segments[m.seg].type, () => play(m), true));
       acts.appendChild(button('No claim', () => play(legal.find((x) => x.type === 'skip')), true));
     }
-    $('prompt').textContent = prompt;
     $('status').textContent = S.over ? prompt : S.bag.length + ' tiles left';
     TV.table({ players: K.players, me, scores: S.over && S.over.scores ? S.over.scores : S.score, live: S.side, tab: (prompt ? prompt + ' · ' : '') + S.bag.length + ' tiles left', over: S.over, again: reset });
-    $('seats').innerHTML = K.players.map((p, s) => '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + p.id + (s === me ? ' (you)' : '') + '</span><span>' + S.score[s] + ' pts · ' + S.stock[s] + ' in hand</span></div>').join('');
-    $('log').innerHTML = log.join('');
+    if (UI) {
+      UI.show({ prompt, actions: acts.rows, log,
+        menu: [{ label: 'Resume', run: () => {} }, { label: 'New game', run: reset },
+          { label: 'Level: ' + level, run: () => { level = LEVELS[(LEVELS.indexOf(level) + 1) % LEVELS.length]; render(); } },
+          { label: 'View: ' + view, run: () => { showView(view === 'plan' ? 'table' : 'plan'); if (view === 'table') fit(); render(); } }] });
+      return;
+    }
+    $('prompt').textContent = prompt;
+    $('seats').innerHTML = K.players.map((p, s) => '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + S.score[s] + ' pts · ' + S.stock[s] + ' in hand</span></div>').join('');
+    $('log').innerHTML = logHtml();
     $('log').scrollTop = 1e6;
   }
+  const LEVELS = Object.keys(M.LEVELS);
 
   $('plan').addEventListener('click', (e) => { const t = e.target.closest('[data-cell]'); if (t) clickCell(Number(t.dataset.cell)); });
   vw.addEventListener('click', (e) => { const t = e.target.closest('[data-cell]'); if (t) clickCell(Number(t.dataset.cell)); });
   function showView(v) {
+    view = v;
     $('plan').style.display = v === 'plan' ? '' : 'none';
     $('table').style.display = v === 'table' ? '' : 'none';
+    if (UI) return;
     $('v-plan').classList.toggle('on', v === 'plan');
     $('v-table').classList.toggle('on', v === 'table');
   }
-  $('v-plan').onclick = () => showView('plan');
-  $('v-table').onclick = () => { showView('table'); fit(); };
-  $('level').onchange = (e) => { level = e.target.value; };
-  $('again').onclick = () => reset();
+  window.addEventListener('resize', () => { if ($('table').style.display !== 'none') fit(); });   // the laid tiles are fitted to the viewport as it is now
+  if (!UI) {
+    $('v-plan').onclick = () => showView('plan');
+    $('v-table').onclick = () => { showView('table'); fit(); };
+    $('level').onchange = (e) => { level = e.target.value; };
+    $('again').onclick = () => reset();
+  }
   showView(D.view);
   reset();
+  // the board's cursor (the board scheme, keys and pads): over the cells' boxes on the plan, starting where a tile fits
+  if (UI) {
+    const P = D.plan, first = legal.find((m) => m.type === 'tile');
+    UI.cursor({ points: P.box.map((b) => [b[0] + P.cw / 2, b[1] + P.ch / 2]), at: first ? first.at : 0, show: (i) => { cur = i; render(); }, pick: (i) => clickCell(i), back: () => false });
+  }
 }
