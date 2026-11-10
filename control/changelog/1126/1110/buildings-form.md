@@ -31,4 +31,10 @@
 - **Buildings and land shade each other.** Measured on the page: every `town:` and `geotown:` mesh casts into the
   land's sun map, so a house's shadow lies on the grass; a paved face takes a tree's by the live light, by its sun
   share.
+- **A patch of grass ends on a ragged edge, not on squares** (every gen-7 land). The far blanket (the grass drawn in
+  the ground past the blades' reach, `scene/channels/far-field.js`) read the ground map a cell at a time, so from
+  above a lawn's edge and a bare patch's were stair steps half a metre wide; the cell is now found at a place that
+  sways and scatters in a fine grain (`FAR_FIELD.edge`), and the blades themselves read their cover between the map's
+  cells along a wandering line (`scene/channels/form-grass.js` `GRASS_EDGE`), thinning out toward it. Inside a patch
+  nothing changes.
 
