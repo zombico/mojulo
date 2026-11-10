@@ -24,7 +24,8 @@
  *   statBlock(name, pairs, { note? })         a foe's numbers between two rules
  *   rollTable(die, rows, { title? })          a table to roll on: [range text, result text]
  *   grid(cells)                               [label, value] boxes in a row (an ability's score, hit points)
- *   plate(svg, { caption?, span? })           a figure; span: across every column
+ *   plate(svg, { caption?, span? })           a figure; span: across every column (a drawn one: drawn-plate.js
+ *                                             `drawnPlate(spec, { style, caption, span, id })`)
  *   mono(text)                                a typewriter block (the dice, a transcript)
  *   lines(n)                                  ruled lines to write on
  */
@@ -45,6 +46,10 @@ export const grid = (cells) => `<div class="grid">${cells.map(([k, v, sub]) => `
 export const plate = (svg, { caption, span = false } = {}) => `<figure class="plate${span ? ' span' : ''}">${svg}${caption ? `<figcaption>${esc(caption)}</figcaption>` : ''}</figure>`;
 export const mono = (text) => `<pre class="mono">${esc(text)}</pre>`;
 export const lines = (n) => `<div class="lines">${'<i></i>'.repeat(n)}</div>`;
+
+/** The press's stylesheet for a style (book-style.js readBookStyle) and its running foot: a reader that sets the
+ *  same blocks another way (publication/reader.js) lays its own page rules after it. */
+export function pressCss(S, foot) { return css(S, foot); }
 
 function css(S, foot) {
   const C = S.colours, [w, h] = S.size, cols = S.columns;
