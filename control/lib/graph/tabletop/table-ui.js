@@ -6,7 +6,9 @@
  * and takes keys and a pad through the controls layer (the menu scheme while a screen is up, the board scheme for the
  * cursor over the board). A game without `ui` carries none of this: no kernel, no sheet, no theme, no host.
  *
- * The seats, the calls and the result stay the table's broadcast (broadcast/broadcast-dom.js): one coverage for a page.
+ * The seats, the calls and the result are the table's too (`UI.tv`): the calls a page's client makes to its broadcast
+ * (broadcast/broadcast-dom.js: frame, call, result, table, hit, colour, clear) are answered by the runtime's parts,
+ * so a page with `ui` carries no second layer. The broadcast's data still makes the look's sides and the pieces' kits.
  *
  *   readTableUi(ui, where?)            → errors[] (teaching)
  *   tableUiTheme(ui, tv, look?)        → the theme: the game's (a preset, a theme card or its own words), else the
@@ -28,6 +30,7 @@
  *     UI.cursor({ points: [[x, y]…], at?, show(i), pick(i), back() → handled? }) → { at(), set(i), points(p, at?) }
  *       the board's cursor: the board scheme's intents moved over the cells' places on the screen (a place with no
  *       point is stepped over: a board whose targets change says them again with points())
+ *     UI.tv(BC) → { frame, call, result, table, hit, clear, colour, clocks }   the table's coverage (above)
  *     UI.close() · UI.busy() → a screen is up (the board's pointer waits)
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme, THEMES } from '../../mana-ui/index.js';
@@ -37,7 +40,7 @@ import { THEME_CARD_IDS, cardTheme } from '../playscape/ui/theme-cards/loader.js
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const KEYS = ['theme', 'languages', 'language'];
-const USED = ['action-bar', 'game-log', 'card-hand', 'pause-menu', 'choice-prompt', 'trade-offer'];
+const USED = ['seat-plates', 'action-bar', 'game-log', 'card-hand', 'pause-menu', 'choice-prompt', 'trade-offer', 'table-results'];
 // the table's own words, in English: a game's `languages` say them over these
 const WORDS = { menu: 'Menu', resume: 'Resume', newGame: 'New game', undo: 'Undo', level: 'Level', view: 'View', offer: 'Offer', table: 'The table' };
 const B = (p) => ({ bind: `t.${p}` });
@@ -70,9 +73,7 @@ export function tableUiTheme(ui = {}, tv = null, look = 'wood') {
 const FRAME = `
   html,body{height:100%}
   body.table-ui{margin:0;overflow:hidden}
-  body.table-ui main{display:flex;flex-flow:column nowrap;align-items:center;justify-content:center;gap:10px;height:100%;padding:12px 16px;box-sizing:border-box}
-  body.table-ui .tv-bug{flex:0 0 auto}
-  body.table-ui .tv-stage{flex:0 0 0px;width:100%}
+  body.table-ui main{display:flex;flex-flow:column nowrap;align-items:center;justify-content:center;gap:10px;height:100%;padding:10vh 16px 12px;box-sizing:border-box}
   body.table-ui #boards{flex:0 1 auto;min-height:0}
   body.table-ui .viewport{max-height:74vh}
   body.table-ui #plan svg{max-height:74vh;max-width:100%;height:auto}
@@ -84,7 +85,12 @@ const FRAME = `
   body.table-ui .mana-screen[data-key=cards]{padding-top:13vh;padding-right:27%}
   body.table-ui .mana-screen[data-key=cards] .mana-each[data-dir=row]{align-items:flex-start;gap:calc(24 * var(--mana-du))}
   body.table-ui .mana-screen[data-key=cards] .mana-cell{padding:2px;min-height:0;border-color:transparent}
-  body.table-ui .cur{outline:3px dashed currentColor;outline-offset:-3px}`;
+  body.table-ui .cur{outline:3px dashed currentColor;outline-offset:-3px}
+  /* the last move's emphasis on the board itself: a flash that opens once */
+  .tv-hit{animation:table-hit .9s ease-out}
+  svg .tv-hit{transform-box:fill-box;transform-origin:center}
+  @keyframes table-hit{0%{filter:brightness(1.9)}100%{filter:none}}
+  @media (prefers-reduced-motion:reduce){.tv-hit{animation:none!important}}`;
 
 export function tableUiCss(ui = {}, tv = null, look = 'wood') {
   return `${manaCss()}\n${themeCss(tableUiTheme(ui, tv, look))}${FRAME}`;
@@ -94,6 +100,10 @@ export function tableUiCss(ui = {}, tv = null, look = 'wood') {
 export function tableUiSpec(ui = {}) {
   const hud = { use: 'hud', children: [
     { use: 'region', props: { at: 'top-left' }, children: [{ use: 'button', props: { label: { word: 'menu' } }, on: { accept: { emit: 'menu' } } }] },
+    // the seats along the board's top edge, and under them what the table says: where the game stands, then its
+    // calls one at a time by weight (a check, a promotion, the dice, the end), never over the play
+    { use: 'seat-plates', props: { seats: B('seats') }, when: B('seated') },
+    { use: 'region', props: { at: 'top' }, when: B('seated'), children: [{ use: 'stack', props: { gap: 'tight', align: 'center' }, children: [{ use: 'text', props: { value: B('tab'), role: 'label' } }, { use: 'moments', props: { rows: B('calls'), as: 'toast', hold: 2.2 } }] }] },
     { use: 'game-log', props: { rows: B('log'), visible: 8 }, when: B('logged') },
     { use: 'region', props: { at: 'bottom-left' }, when: B('held'), children: [{ use: 'each', props: { dir: 'row', rows: B('resources'), row: { use: 'counter', props: { label: { item: 'label' }, value: { item: 'value' } } } } }] },
     { use: 'card-hand', props: { cards: B('hand') }, when: B('handed') },
@@ -107,6 +117,8 @@ export function tableUiSpec(ui = {}) {
     menu: { use: 'pause-menu', props: { title: { word: 'menu' }, items: B('menu') } },
     // one question: with no way out, back does nothing; with one, back takes it
     ask: { use: 'choice-prompt', props: { title: B('ask.title'), ask: B('ask.text'), choices: B('ask.choices'), columns: B('ask.columns'), cancel: B('ask.cancel') } },
+    // the end: the places by points, then what next
+    result: { use: 'table-results', props: { outcome: B('result.outcome'), why: B('result.why'), places: B('result.places'), items: B('result.items') } },
     offer: { use: 'trade-offer', props: { title: B('offer.title'), give: B('offer.give'), get: B('offer.get'), invalid: B('offer.invalid'), why: B('offer.why'), then: { emit: 'offer' } } },
     // a table of cards: every zone a grid, the cursor crossing from one to the next; back opens the table's menu
     cards: { use: 'screen', props: { layer: 'overlay', place: 'full', legend: 'none' }, on: { back: { emit: 'menu' } }, children: [{ use: 'each', props: { rows: B('zoneRows'), row: { use: 'each', props: { dir: 'row', rows: { item: 'zones' }, row: zone } } } }] },
@@ -127,7 +139,8 @@ export function tableUiConfig(ui = {}) {
 export const tableUiScript = () => `const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
-const UI = (${tableMana.toString()})(DATA.ui, __manaUi, __manaHostK, __manaPadLayout);`;
+const UI = (${tableMana.toString()})(DATA.ui, __manaUi, __manaHostK, __manaPadLayout);
+const TV = UI.tv(DATA.tv);`;
 
 /** The body of a table's page: what is played on, the status for a reader, and the runtime's root. */
 export const tableUiBody = (inner) => `<body class="table-ui"><main>${inner}</main><span id="status" aria-live="polite"></span><div id="mana"></div>`;
@@ -137,9 +150,9 @@ export const tableUiBody = (inner) => `<body class="table-ui"><main>${inner}</ma
  * page, what it reads kept here, each row's `run` kept by its id.
  */
 export function tableMana(cfg, manaUi, hostK, padLayout) {
-  const t = { prompt: '', actions: [], log: [], logged: false, resources: [], held: false, hand: [], handed: false, menu: [], zones: [], zoneRows: [], ask: {}, offer: {} };
+  const t = { prompt: '', actions: [], log: [], logged: false, resources: [], held: false, hand: [], handed: false, menu: [], zones: [], zoneRows: [], ask: {}, offer: {}, seats: [], seated: false, tab: '', calls: [], result: {} };
   const state = { t };
-  let runs = [], shown = { runs: [] }, asked = { runs: [] }, offered = null, cur = null, keyed = {};
+  let runs = [], shown = { runs: [] }, asked = { runs: [] }, offered = null, cur = null, keyed = {}, ended = { on: false, again: null };
   const keep = (bag, fn) => { bag.push(fn); return bag.length - 1; };
   const root = document.getElementById('mana');
   const rt = manaUi.runtime(cfg.spec, { read: (p) => manaUi.readPath(state, p), act, now: () => performance.now() / 1000, cues: 'silent' });
@@ -168,6 +181,7 @@ export function tableMana(cfg, manaUi, hostK, padLayout) {
       return;
     }
     if (e.emit === 'ask:cancel') { const c = asked.cancel; rt.close(); if (t.zones.length) rt.open('cards'); if (c) c(); view.paint(); return; }
+    if (e.emit === 'result:close' || e.emit === 'result:again') { const again = e.emit === 'result:again' && ended.again; rt.close(); if (t.zones.length) rt.open('cards'); if (again) again(); view.paint(); return; }
     if (e.emit === 'offer' && offered) { const o = offered; rt.close(); o.run(Object.assign({}, o.draft)); view.paint(); return; }
     if (typeof e.set === 'string' && offered) {
       const k = e.set.split('.').pop();
@@ -255,5 +269,47 @@ export function tableMana(cfg, manaUi, hostK, padLayout) {
     if (fn) { ev.preventDefault(); fn(); view.paint(); }
   }, true);
 
-  return { show, ask, offer, cursor, close() { rt.close(); view.paint(); }, busy: () => { const s = rt.state().screen; return !!s && s !== 'cards'; }, rt };
+  // THE TABLE'S COVERAGE, in the table's own parts: what the broadcast's DOM client (broadcast/broadcast-dom.js) drew
+  // on a page without the runtime, answered in the same calls, so a page's client says them once. BC is the table's
+  // broadcast data: its kits (the seats' colours, the pieces'), its names, its words for an ending.
+  function tv(BC) {
+    const RANK = { gold: 3, side: 2, warn: 2, go: 2, neutral: 1 }, now = () => performance.now() / 1000;
+    let callN = 0;
+    function frame(feed) {
+      t.seats = (feed.seats || []).map((s, i) => ({ id: 's' + i, name: s.name, side: s.color, turn: !!s.live, note: s.note || '', score: s.score === undefined || s.score === null ? '' : s.score, clock: s.clock || '' }));
+      t.tab = feed.tab || ''; t.seated = true;
+      rt.tick(); view.paint();
+    }
+    // a call: a moment under the seats, weighed as the broadcast weighs it (the runtime shows one at a time)
+    function call(q) {
+      t.calls = t.calls.filter((c) => now() - c.at < 12).concat([{ id: 'c' + (callN++), text: q.text, sub: q.sub, weight: RANK[q.tone] || 1, side: q.tone === 'side' ? q.color : undefined, at: now() }]);
+      rt.tick(); view.paint();
+    }
+    function result(q) {
+      ended.again = q.again || null;
+      t.result = { outcome: q.title, why: q.sub || '', places: (q.rows || []).map((r, k) => ({ id: 'p' + k, place: r.place === null || r.place === undefined ? '—' : r.place, name: r.name + (r.note ? ' · ' + r.note : ''), score: r.value === undefined ? '' : r.value, side: r.color, self: !!r.you })),
+        items: [{ label: 'See the board', then: { emit: 'result:close' } }, { label: 'Play again', then: { emit: 'result:again' } }] };
+      rt.open('result'); view.paint();
+    }
+    // a scored table in one call: the seats, the tab, and once it is over the end's word and, a beat later, the places
+    function table(q) {
+      const me = q.me, who = (s) => (BC.names && BC.names[s]) || (s === me ? 'You' : q.players[s].id);
+      frame({ seats: q.players.map((p, s) => ({ name: who(s), note: s === me ? p.id : 'computer', color: s, score: q.scores ? q.scores[s] : undefined, live: !q.over && q.live === s })), tab: q.over ? 'Final' : q.tab });
+      if (!q.over || ended.on) return;
+      ended.on = true;
+      const o = q.over, vals = o.scores || q.scores || q.players.map(() => 0), why = (BC.ends && BC.ends[o.reason]) || o.reason || '';
+      const title = o.winner === null || o.winner === undefined ? 'Draw' : o.winner === me ? 'You win' : who(o.winner) + ' wins';
+      call({ text: title, sub: why, tone: o.winner === me ? 'gold' : 'neutral' });
+      const order = q.players.map((_, s) => s).sort((a, b) => (a === o.winner ? -1 : b === o.winner ? 1 : vals[b] - vals[a]));
+      const rows = order.map((s) => ({ place: 1 + order.filter((x) => vals[x] > vals[s] || (x === o.winner && s !== o.winner)).length, name: who(s), note: s === me ? q.players[s].id : 'computer', color: s, value: vals[s], you: s === me }));
+      setTimeout(() => { if (ended.on) result({ title, sub: why, rows, again: q.again }); }, 1400);
+    }
+    function hit(node) { if (!node) return; node.classList.remove('tv-hit'); void node.getBoundingClientRect(); node.classList.add('tv-hit'); }
+    function clear() { ended.on = false; t.calls = []; if (rt.state().screen === 'result') { rt.close(); if (t.zones.length) rt.open('cards'); } view.paint(); }
+    // a running clock, said again between moves (the seats are drawn again only on a move)
+    function clocks(list) { list.forEach((c, i) => { if (t.seats[i]) t.seats[i].clock = c; }); }
+    return { frame, call, result, table, hit, clear, clocks, colour: (i) => (BC.colors[i] ? BC.colors[i].base : '#888888') };
+  }
+
+  return { show, ask, offer, cursor, tv, close() { rt.close(); view.paint(); }, busy: () => { const s = rt.state().screen; return !!s && s !== 'cards'; }, rt };
 }

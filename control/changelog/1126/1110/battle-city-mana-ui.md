@@ -11,8 +11,14 @@ the board-game pages on one spec, and the strategy boards (a tactics battle, a t
 - **A board game's page drawn by the runtime: `tabletop.ui`** (`{ theme?, languages?, language? }`,
   `tabletop/table-ui.js`). One spec and one host for the tabletop pages. With `ui`, a page's header and side panel are
   gone: the prompt and what can be done now are the table's action bar (each action on a key), the game so far its
-  log, new game, undo, the level and the view its menu, and a promotion or a drop one question at a time. The seats,
-  the calls and the result stay the table's broadcast, so the play is covered once.
+  log, new game, undo, the level and the view its menu, and a promotion or a drop one question at a time.
+  - **One coverage.** The seats, the calls and the result are the table's own parts too: seat plates along the top
+    (the seat to play alight, a score that rose popping, a running clock), where the game stands under them, a call
+    (check, a promotion, the dice, a new round, the end) one at a time by weight there and never over the play, and
+    the places by points a beat after the end's word, ties sharing a place, with see the board and play again. A
+    page's client says them in the calls it always made; with `ui` the runtime answers, and the page no longer carries
+    the broadcast's DOM client or its sheet. The broadcast's data still makes the look's sides and the pieces' kits.
+    The result is now moved through by keys and a pad (it had no focus).
   - **Keys and a pad.** The tabletop pages were played by pointer only. With `ui` the board has a cursor moved by the
     controls layer's `board` scheme (arrows or a stick, confirm, back), the menus and questions by the `menu` scheme,
     and back from the board opens the menu. A key pressed while a screen is up is that screen's: it never also acts

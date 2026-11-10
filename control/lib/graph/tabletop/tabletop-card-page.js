@@ -70,7 +70,7 @@ export function cardPageHtml(G, L, K, opts = {}) {
   .sw{display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:0 0 0 1px #1a1512 inset}
   #log{margin:0;padding-left:34px;max-height:240px;overflow:auto;font-size:13px}
   @media (max-width:600px){aside{flex-basis:100%}.c{width:80px;height:116px}}
-${broadcastDomCss(data.tv)}
+${opts.ui ? '' : broadcastDomCss(data.tv)}
 ${opts.ui ? tableUiCss(opts.ui, data.tv, 'felt') : ''}</style></head>${opts.ui ? tableUiBody(`
 `) : `<body>
 <header>
@@ -100,8 +100,8 @@ ${opts.ui ? tableUiCss(opts.ui, data.tv, 'felt') : ''}</style></head>${opts.ui ?
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-${opts.ui ? tableUiScript() : 'const UI = null;'}
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
 (${tabletopCardClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>

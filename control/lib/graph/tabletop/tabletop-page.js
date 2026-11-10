@@ -126,7 +126,7 @@ export function tabletopPageHtml(G, opts = {}) {
   #pick div{background:var(--panel);border-radius:10px;padding:12px;display:flex;gap:8px}
   #pick button{font-size:28px;width:52px;height:52px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
   @media (max-width:600px){main{padding:16px 16px}aside{flex-basis:100%}}
-${broadcastDomCss(tv)}
+${opts.ui ? '' : broadcastDomCss(tv)}
 ${opts.ui ? tableUiCss(opts.ui, tv) : ''}</style></head>${opts.ui ? tableUiBody(`
   <div id="boards">
     <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}" width="${data.plan.W}" height="${data.plan.H}"><g id="board" transform="rotate(${data.plan.turn} ${r2(data.plan.W / 2)} ${r2(data.plan.H / 2)})">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="hl"></g></g><g id="toks"></g></svg></div>
@@ -153,8 +153,8 @@ ${opts.ui ? tableUiCss(opts.ui, tv) : ''}</style></head>${opts.ui ? tableUiBody(
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-${opts.ui ? tableUiScript() : 'const UI = null;'}
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
 (${tabletopClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>
@@ -220,7 +220,7 @@ export function tabletopClient(D, T, M, TV, UI) {
     TV.call({ text: end.reason === 'mate' ? 'Checkmate' : title, sub: why, tone: won === null ? 'neutral' : 'gold' });
     const vals = end.scores || (scored() ? T.scores(K, S) : placing() ? K.players.map(() => '') : captures());
     const order = K.players.map((_, s) => s).sort((a, b) => (a === won ? -1 : b === won ? 1 : vals[b] - vals[a]));
-    const rows = order.map((s) => ({ place: won === null ? 1 : s === won ? 1 : 2, name: who(s), note: s === me ? K.players[s].id : 'computer', color: s, value: vals[s] }));
+    const rows = order.map((s) => ({ place: won === null ? 1 : s === won ? 1 : 2, name: who(s), note: s === me ? K.players[s].id : 'computer', color: s, value: vals[s], you: s === me }));
     setTimeout(() => { if (ended) TV.result({ title, sub: why, tone: won === me ? 'gold' : 'neutral', rows, again: reset }); }, 1400);
   }
   function play(m) {
@@ -374,8 +374,10 @@ export function tabletopClient(D, T, M, TV, UI) {
   // the running clock ticks in the seat plates in place (the plates are redrawn only on a move)
   function clocks() {
     if (!S.clock) return;
-    const run = S.over ? 0 : performance.now() - turnStart, out = document.querySelectorAll('.tv-bug .tv-clock');
-    K.players.forEach((_, s) => { if (out[s]) out[s].textContent = fmt(S.clock[s] - (s === S.side ? run : 0)); });
+    const run = S.over ? 0 : performance.now() - turnStart, now = K.players.map((_, s) => fmt(S.clock[s] - (s === S.side ? run : 0)));
+    if (UI) { TV.clocks(now); return; }
+    const out = document.querySelectorAll('.tv-bug .tv-clock');
+    now.forEach((c, s) => { if (out[s]) out[s].textContent = c; });
   }
 
   function showView(v) {

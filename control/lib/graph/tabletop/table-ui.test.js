@@ -34,7 +34,7 @@ describe('a table\'s ui: read and taught', () => {
   });
   it('the spec reads, carries only the idioms it uses, and says its own words in the game\'s language', () => {
     const spec = tableUiSpec({ languages: { ja: { menu: 'メニュー' } }, language: 'ja' });
-    expect(Object.keys(spec.defs).sort()).toEqual(['action-bar', 'card-hand', 'choice-prompt', 'game-log', 'pause-menu', 'trade-offer']);
+    expect(Object.keys(spec.defs).sort()).toEqual(['action-bar', 'card-hand', 'choice-prompt', 'game-log', 'pause-menu', 'seat-plates', 'table-results', 'trade-offer']);
     const rt = manaUi.runtime(spec, { read: () => undefined });
     expect(rt.view()).toContain('メニュー');
     expect(Object.keys(tableUiConfig({}).board.keys)).toContain('ArrowUp');
@@ -53,6 +53,8 @@ describe('a table\'s ui: absence adds nothing', () => {
       expect(drawn).toContain('<body class="table-ui">');
       expect(drawn).not.toContain('<header>');          // the header and the side panel are the runtime's parts now
       expect(drawn).not.toContain('<aside>');
+      expect(drawn).not.toMatch(/function broadcastDomClient|\.tv-seat\{/);   // one coverage: the table's own parts
+      expect(plain).toMatch(/function broadcastDomClient\(BC\)/);
       expect(make({})).toBe(drawn);                     // the same page every time
     }
   });
@@ -135,6 +137,35 @@ describe('a table\'s ui: one host', () => {
       expect(did).toEqual(['buy']);
       P.key('Escape');
       expect(P.UI.rt.state().screen).toBe('menu');
+    } finally { P.done(); }
+  });
+  it('the table\'s coverage is its own parts: the seats and the tab, a call as a moment, the end\'s places a beat later, play again', async () => {
+    const P = page(), did = [];
+    try {
+      const TV = P.UI.tv({ colors: [{ base: '#f3ede2' }, { base: '#2a2420' }], names: null, ends: { score: 'on points' } });
+      const players = [{ id: 'teal' }, { id: 'plum' }], t = () => window.__tableUi.t;
+      P.UI.show({ prompt: '', actions: [] });
+      TV.table({ players, me: 0, scores: [3, 5], live: 1, tab: 'turn 2' });
+      expect(t().seats.map((s) => [s.name, s.side, s.turn, s.score])).toEqual([['You', 0, false, 3], ['plum', 1, true, 5]]);
+      expect(P.UI.rt.view()).toContain('turn 2');
+      TV.call({ text: 'Check', sub: 'You to answer', tone: 'warn' });
+      expect(t().calls.map((c) => [c.text, c.weight])).toEqual([['Check', 2]]);
+      expect(TV.colour(1)).toBe('#2a2420');
+      TV.clocks(['4:59', '5:00']);
+      expect(t().seats[0].clock).toBe('4:59');
+      // the end: its word at once, the places a beat later (ties share a place), yours marked
+      TV.table({ players, me: 0, scores: [7, 7], live: 0, tab: '', over: { winner: null, reason: 'score', scores: [7, 7] }, again: () => did.push('again') });
+      expect(t().calls.map((c) => c.text)).toEqual(['Check', 'Draw']);
+      expect(t().tab).toBe('Final');
+      expect(P.UI.rt.state().screen).toBe(null);
+      await new Promise((r) => setTimeout(r, 1500));
+      expect(P.UI.rt.state().screen).toBe('result');
+      expect(t().result.outcome).toBe('Draw');
+      expect(t().result.why).toBe('on points');
+      expect(t().result.places.map((r) => [r.place, r.self])).toEqual([[1, true], [1, false]]);
+      P.key('ArrowDown'); P.key('Enter');
+      expect(did).toEqual(['again']);
+      expect(P.UI.rt.state().screen).toBe(null);
     } finally { P.done(); }
   });
 });

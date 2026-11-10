@@ -87,7 +87,7 @@ export function tilePageHtml(G, L, K, opts = {}) {
   #log{margin:0;padding-left:34px;max-height:220px;overflow:auto;font-size:13px}
   .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;box-shadow:0 0 0 1px #1a1512 inset}
   @media (max-width:600px){aside{flex-basis:100%}}
-${broadcastDomCss(data.tv)}
+${opts.ui ? '' : broadcastDomCss(data.tv)}
 ${opts.ui ? tableUiCss(opts.ui, data.tv) : ''}</style></head>${opts.ui ? tableUiBody(`
   <div id="boards">
     <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" id="plan-svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="art"></g><g id="marks"></g></svg></div>
@@ -118,8 +118,8 @@ ${opts.ui ? tableUiCss(opts.ui, data.tv) : ''}</style></head>${opts.ui ? tableUi
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-${opts.ui ? tableUiScript() : 'const UI = null;'}
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
 (${tabletopTileClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>

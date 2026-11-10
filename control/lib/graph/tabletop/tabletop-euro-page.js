@@ -120,7 +120,7 @@ export function euroPageHtml(G, L, K, opts = {}) {
   .tr .st button{padding:0 7px}
   #dice{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   @media (max-width:600px){aside{flex-basis:100%}}
-${broadcastDomCss(data.tv)}
+${opts.ui ? '' : broadcastDomCss(data.tv)}
 ${opts.ui ? tableUiCss(opts.ui, data.tv) : ''}</style></head>${opts.ui ? tableUiBody(`
   <div id="boards">
     <div id="plan"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.plan.W} ${data.plan.H}" width="${data.plan.W}" height="${data.plan.H}">${plan.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}<g id="marks"></g><g id="pieces"></g><g id="targets"></g></svg></div>
@@ -152,8 +152,8 @@ ${opts.ui ? tableUiCss(opts.ui, data.tv) : ''}</style></head>${opts.ui ? tableUi
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-${opts.ui ? tableUiScript() : 'const UI = null;'}
+${opts.ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
 (${tabletopEuroClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>

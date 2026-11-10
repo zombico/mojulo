@@ -121,7 +121,7 @@ export function roundPageHtml(G, L, K, opts = {}) {
   .sw{display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:0 0 0 1px #1a1512 inset}
   #log{margin:0;padding-left:34px;max-height:260px;overflow:auto;font-size:13px}
   @media (max-width:600px){aside{flex-basis:100%}}
-${broadcastDomCss(data.tv)}
+${ui ? '' : broadcastDomCss(data.tv)}
 ${ui ? tableUiCss(ui, data.tv, 'felt') : ''}</style></head>${ui ? tableUiBody(`
 `) : `<body>
 <header>
@@ -154,8 +154,8 @@ ${ui ? tableUiCss(ui, data.tv, 'felt') : ''}</style></head>${ui ? tableUiBody(`
 const DATA = ${scriptJson(data)};
 const T = (${buildTabletop.toString()})();
 const M = (${buildTabletopMind.toString()})(T);
-const TV = (${broadcastDomClient.toString()})(DATA.tv);
-${ui ? tableUiScript() : 'const UI = null;'}
+${ui ? tableUiScript() : `const TV = (${broadcastDomClient.toString()})(DATA.tv);
+const UI = null;`}
 (${tabletopRoundClient.toString()})(DATA, T, M, TV, UI);
 </script>
 </body></html>

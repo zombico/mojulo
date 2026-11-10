@@ -797,8 +797,12 @@ game with a `ui` (`tabletop: { …, ui: { theme?, languages?, language? } }`). O
   board. An action's own key (a letter the page names, else a digit by its place) does it while no question is up.
 - **The cursor** steps to the nearest place in the way pressed, over the cells' places on the screen; a board whose
   targets change (the euro's places) says them again and the cursor moves among those.
-- **Coverage.** The seats, the calls and the result stay the table's broadcast (`broadcast/broadcast-dom.js`); the spec
-  uses no `seat-plates`.
+- **Coverage: one layer.** The seats, the calls and the result are the table's own parts. A page's client still says
+  them in the broadcast's calls (`TV.frame`, `call`, `result`, `table`, `hit`, `colour`, `clear`); with `ui` the object
+  that answers is `UI.tv(...)`, not the broadcast's DOM client (`broadcast/broadcast-dom.js`), which such a page no
+  longer carries: the seats are `seat-plates` (a running clock said again between moves), the tab a line under them,
+  a call a `moments` row there (one at a time by the broadcast's weights, never over the play), the result
+  `table-results` a beat after the end's word. The broadcast's data still makes the theme's sides and the pieces' kits.
 - **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
 - A round game played on a board still draws its own panel.
 
