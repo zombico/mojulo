@@ -9,10 +9,17 @@
  *   reserveDiagram(R, { title? })    a reserve, what empties it, and the runtime's gauges that carry each: a spend no
  *                                    gauge carries stands alone, marked; a reserve split across meters says so
  *
+ *   holdMatrixDiagram()              what each kind of holder can own of each dial, as the runtime stands: a grid, a
+ *                                    cell its scope (its own, its own in one runtime, one a game, nothing)
+ *   holdersDiagram(holders, { polarity?, reserves?, title? })   holders read together: each with its element, how it
+ *                                    stands to the others, each difference asked for marked as its own or not, and the
+ *                                    laws that do not hold
+ *
  * Pure and deterministic: the same lore, the same manifest, byte for byte.
  */
 import { resolvePolarity, relationsOf, elementHandles } from './polarity.js';
 import { readReserve, carriersOf, SPENDS, CARRIERS, REFILLS, EMPTIES } from './reserve.js';
+import { HOLDER_KIND_IDS, HOLDER_KINDS, DIAL_IDS, HOLDS, holdersReport } from './holder.js';
 
 const INK = '#2b2f36', SOFT = '#7b8491', WARN = '#b4472f', PANEL = '#f3f1ec', LINE = '#4a5160';
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -98,4 +105,60 @@ export function reserveDiagram(v, { title } = {}) {
   const notes = [...(C.split ? [C.split] : []), ...(V.empty ? [`at none: ${V.empty.map((e) => EMPTIES[e]).join('; ')}`] : []), ...(V.refill ? [`it returns ${V.refill.map((r) => REFILLS[r]).join('; ')}`] : [])];
   for (const line of notes) { marks.push(text(30, y, line, { anchor: 'start', size: 12, color: line === C.split ? WARN : INK })); y += 20; }
   return { title: title ?? `${V.name}: a reserve`, viewBox: { width: W, height: Math.round(y + 16) }, marks };
+}
+
+const SCOPE_FILL = { own: '#bfe0bf', part: '#f1dc9b', world: '#d9dde3', none: '#ffffff' };
+const SCOPE_SAYS = { own: 'its own', part: 'its own in one runtime only', world: 'one a game: every holder the same', none: 'nothing gives it' };
+
+export function holdMatrixDiagram({ title = 'what each kind of holder can own' } = {}) {
+  const x0 = 190, y0 = 110, cw = 74, ch = 46, W = x0 + DIAL_IDS.length * cw + 30;
+  const marks = [text(W / 2, 34, title, { size: 18, weight: 700 }), text(W / 2, 56, 'a slice of a power system, by who holds it: as the runtime stands', { color: SOFT })];
+  DIAL_IDS.forEach((d, j) => marks.push(text(x0 + j * cw + cw / 2, y0 - 12, d, { size: 12, weight: 600 })));
+  HOLDER_KIND_IDS.forEach((k, i) => {
+    const y = y0 + i * ch;
+    marks.push(text(x0 - 14, y + 20, k, { anchor: 'end', weight: 700 }), text(x0 - 14, y + 35, brief(HOLDER_KINDS[k].reads, 30), { anchor: 'end', size: 10, color: SOFT }));
+    DIAL_IDS.forEach((d, j) => {
+      const c = HOLDS[k][d];
+      marks.push({ kind: 'rect', x: x0 + j * cw + 2, y: y + 2, w: cw - 4, h: ch - 4, rx: 5, fill: SCOPE_FILL[c.scope], stroke: c.scope === 'none' ? '#c9ced6' : INK, strokeWidth: c.scope === 'none' ? 1 : 1.2, ...(c.scope === 'none' ? { dash: '3 3' } : {}) });
+      marks.push(text(x0 + j * cw + cw / 2, y + 27, c.scope, { size: 11, color: c.scope === 'none' ? SOFT : INK }));
+    });
+  });
+  let y = y0 + HOLDER_KIND_IDS.length * ch + 30;
+  for (const sc of Object.keys(SCOPE_FILL)) {
+    marks.push({ kind: 'rect', x: x0, y: y - 12, w: 16, h: 16, rx: 3, fill: SCOPE_FILL[sc], stroke: sc === 'none' ? '#c9ced6' : INK, strokeWidth: 1 }, text(x0 + 24, y + 1, `${sc}: ${SCOPE_SAYS[sc]}`, { anchor: 'start', size: 12 }));
+    y += 22;
+  }
+  return { title, viewBox: { width: W, height: Math.round(y + 6) }, marks };
+}
+
+const LAW_SAYS = {
+  distinct: (v) => `two holders hold one element: ${v}`,
+  'in-polarity': (v) => `outside the polarity: ${v}`,
+  'every-difference-own': (v) => `asked to differ by what is not their own: ${v}`,
+  'weakness-lands': (v) => `stands against another, and its weakness has nowhere to land: ${v}`,
+  'reserve-carried': (v) => `its reserve has no gauge of its own: ${v}`,
+};
+
+export function holdersDiagram(list, { polarity, reserves, title = 'who holds what' } = {}) {
+  const R = holdersReport(list, { polarity, reserves }), n = R.holders.length;
+  const W = 900, top = 92, rowH = 70, xE = 40, xN = 96, xD = 330, chipW = 78, chipH = 26;
+  const marks = [text(W / 2, 34, title, { size: 18, weight: 700 }), text(xN, 72, 'holder', { anchor: 'start', color: SOFT, size: 12 }), text(xD, 72, 'differs by (green: its own · amber: one runtime · grey: the whole game\'s · dashed: nothing gives it)', { anchor: 'start', color: SOFT, size: 12 })];
+  R.holders.forEach((h, i) => {
+    const y = top + i * rowH, H = h.element ? elementHandles(h.element) : null;
+    marks.push({ kind: 'circle', cx: xE + 18, cy: y + 24, r: 18, fill: H ? H.tint : '#ffffff', stroke: INK, strokeWidth: 1.4 });
+    marks.push(text(xN, y + 20, h.name ?? h.id, { anchor: 'start', weight: 700 }));
+    const stands = Object.entries(h.stands ?? {}).filter(([, r]) => r !== 'neutral').map(([o, r]) => `${r} ${o}`);
+    marks.push(text(xN, y + 38, [h.kind, h.element, ...(h.reserve ? [`${h.reserve.name}${h.reserve.carried ? '' : ' (no gauge)'}`] : [])].filter(Boolean).join(' · '), { anchor: 'start', size: 11, color: h.reserve && !h.reserve.carried ? WARN : SOFT }));
+    if (stands.length) marks.push(text(xN, y + 53, stands.join(', '), { anchor: 'start', size: 10, color: SOFT }));
+    h.differs.forEach((d, j) => {
+      const x = xD + j * (chipW + 8), off = d.scope === 'world' || d.scope === 'none';
+      marks.push({ kind: 'rect', x, y: y + 10, w: chipW, h: chipH, rx: 13, fill: SCOPE_FILL[d.scope], stroke: off ? WARN : INK, strokeWidth: 1.2, ...(d.scope === 'none' ? { dash: '4 3' } : {}) });
+      marks.push(text(x + chipW / 2, y + 27, d.dial, { size: 11, color: off ? WARN : INK }));
+    });
+  });
+  let y = top + n * rowH + 16;
+  const broken = R.laws.filter((l) => !l.ok);
+  if (!broken.length) { marks.push(text(40, y, 'every law holds', { anchor: 'start', size: 12, color: SOFT })); y += 20; }
+  for (const l of broken) { marks.push(text(40, y, LAW_SAYS[l.law](l.value), { anchor: 'start', size: 12, color: WARN })); y += 20; }
+  return { title, viewBox: { width: W, height: Math.round(y + 10) }, marks };
 }

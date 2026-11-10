@@ -19,6 +19,14 @@ plans, and each is rewritten as it lands.
   which meter can carry it, what that meter cannot do, when one idea would end up as two separate bars on screen, and
   what nothing can do yet: pouring the reserve into an ordinary attack is named as a gap, with the smallest change
   that would close it. Nothing in a game uses it yet.
+- **Who holds a share of the power, and what can be theirs alone.** A setting gives powers to sides: four factions, a
+  light side and a dark side. A game has four kinds of thing a share can belong to: the hero, a class in a party, a
+  monster, and a faction of the world. Each can have some things to itself (its element, its powers, its look), shares
+  others with the whole game (there is one set of combos, one feel, one menu style per game), and cannot have the
+  rest at all. This is now written down as one table, so when a setting asks two sides to differ by something a game
+  has only one of, you are told before anything is built. It also says when a side's weakness has nowhere to land (a
+  party member has no weaknesses today; a monster in a party game does) and when a side's reserve has no meter of its
+  own. A faction, as things stand, is only how its things look. Nothing in a game uses the table yet.
 - **Pictures of these relationships, drawn from the same data.** Each arrangement of elements and each reserve can be
   drawn as a diagram: the elements round a circle in their own colours with who beats, opposes and is allied to whom,
   and a reserve with what empties it and the meters that carry it. The drawings are made from the data and checked,
