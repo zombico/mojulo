@@ -254,8 +254,9 @@ describe('mana-ui: the live game', () => {
   it('a fighter\'s bar shows the chip of the last hit, and the second fighter\'s fills from the right', () => {
     const v = hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 8, dir: 'rtl' } })]).view();
     expect(v).toContain('data-dir="rtl"');
-    expect(v).toContain('<u style="left:60%;width:20%"></u>');
-    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).not.toContain('<u ');   // healing leaves no chip
+    expect(v).toContain('<u style="width:80%"></u>');
+    // (healing leaves no chip: it sits wholly under the fill, so it drains rather than vanishing)
+    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).toContain('<u style="width:60%"></u>');
   });
   it('what is off screen is held at the edge with an arrow toward it; what is on screen is not', () => {
     const v = hudOf([{ use: 'edges', props: { markers: [{ x: 1.4, y: 0.5, kind: 'goal' }, { x: 0.5, y: -0.2, kind: 'foe' }, { x: 0.4, y: 0.4, kind: 'ally' }] } }]).view();
@@ -403,7 +404,7 @@ describe('mana-ui: motion that means something', () => {
     expect(rt.view()).toContain('data-turn="2"');
     st.rows = [...st.rows, { id: 'c', label: 'C', last: true }]; rt.tick();
     expect((rt.view().match(/data-fresh="yes"/g) || []).length).toBe(1);
-    expect(rt.view()).toMatch(/data-fresh="yes" data-k="2" data-last="yes"/);
+    expect(rt.view()).toMatch(/data-fresh="yes" data-id="[^"]+" data-k="2" data-last="yes"/);
     rt.press('down'); // a move draws again: the fresh row stays fresh until the rows change
     expect(rt.view()).toContain('data-fresh="yes"');
     expect(run(screen([{ use: 'badge', props: { value: 'Ayla', turn: true } }])).view()).toContain('data-turn="yes"');

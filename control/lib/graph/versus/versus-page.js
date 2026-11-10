@@ -8,7 +8,7 @@
  * is regenerated on every read. No network, no CDN.
  *
  *   manifest = { kind: 'game', engine: 'versus', title?, roster?: [intent | { recipe }], stages?: [stage],
- *                arenas?: [{ ref, name?, says? }], rules?: { rounds?, timer?, systems?, … (versus-core readRules) } }
+ *                arenas?: [{ ref, name?, says?, lab? }] (lab: the training ground, where training is fought), rules?: { rounds?, timer?, systems?, … (versus-core readRules) } }
  *
  * A spawned game is extended by editing this manifest (update_sketch): a roster entry's weapon, tunes, own
  * specials and slot overrides (versus-solver.js, versus-compile.js), the rules and their systems.
@@ -25,6 +25,7 @@ import { FIGHT_KINDS, kindRecipe } from './versus-kinds.js';
 import { lawStamp } from './versus-laws.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
+import { readLane } from './versus-lane.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
@@ -38,7 +39,7 @@ const SRC = moduleDir(import.meta.url, 'lib/graph/versus');
 
 // the order matters: each module only uses names from the ones before it
 export const VERSUS_PAGE_MODULES = Object.freeze([
-  'versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-compile.js', 'versus-input.js', 'versus-core.js', 'versus-cpu.js',
+  'versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-movelist.js', 'versus-input.js', 'versus-core.js', 'versus-cpu.js',
 ]);
 
 // the runtime reads its players through the controls kernel (controls/): the kernel, the families it reads, the versus
@@ -87,7 +88,7 @@ export function versusGameData(manifest = {}) {
   // a fight kind's look draws the swing trails (versus-kinds.js); no kind, no look
   const look = manifest.rules?.kind && FIGHT_KINDS[manifest.rules.kind] ? FIGHT_KINDS[manifest.rules.kind].look : null;
   // arenas: scapeshift stage worlds carrying the fight channel, hosted in a frame (`src`: their World page)
-  const arenas = (manifest.arenas ?? []).map((a) => ({ ref: a.ref, name: a.name ?? a.ref, ...(a.says ? { says: a.says } : {}), src: a.src ?? `/api/sketches/${encodeURIComponent(a.ref)}/world?hud=0` }));
+  const arenas = (manifest.arenas ?? []).map((a) => ({ ref: a.ref, name: a.name ?? a.ref, ...(a.says ? { says: a.says } : {}), ...(a.lab ? { lab: true } : {}), src: a.src ?? `/api/sketches/${encodeURIComponent(a.ref)}/world?hud=0` }));
   return { title: manifest.title ?? 'Versus', roster, stages, rules, ...(look ? { look } : {}), ...(arenas.length ? { arenas } : {}), wire: VERSUS_WIRE };
 }
 
@@ -123,7 +124,12 @@ export function versusArenaData(v = {}) {
   const rules = rulesOf(v.rules);
   const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry).map((e) => ({ ...e, recipe: kindRecipe(e.recipe, rules) }));
   if (roster.length < 1) throw new Error('versus: an arena needs at least one fighter');
-  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}) };
+  // (a level that names its LANE, versus-lane.js: its walls and floor the lane's, the lane carried for the runtime to fight
+  // in its frame; a stored arena's plane, walls and floor as they were, its lane read from them at heading 0)
+  const L = v.lane ? readLane(v.lane, 'versus.lane') : null;
+  return { plane: L ? L.at[1] : v.plane ?? ARENA_PLANE, half: L ? L.half : v.half ?? 8, floor: L ? L.floor : v.floor ?? 0, ...(L ? { lane: L } : {}), roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}), ...(v.view === 'near' ? { view: 'near' } : {}),
+    // (the game's register, and the level's sun to light it by: versus-levels.js)
+    ...(v.register === 'anime' || v.register === 'western' ? { register: v.register, ...(Array.isArray(v.sun) && v.sun.length === 3 ? { sun: v.sun } : {}) } : {}) };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

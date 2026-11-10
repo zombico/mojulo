@@ -61,9 +61,12 @@ describe('the form render in the page', () => {
       for (const c of read.casters) expect(c[3]).toBeCloseTo(fig.form.keyIntensity / read.casters.length, 3);
       // (each shadow light biased along the body's normals: a plate turned from the sun wears no stripes of its own shadow)
       for (const c of read.casters) expect(c[4]).toBeGreaterThanOrEqual(0.05);
-      // the car drawn and lit: the frame's middle holds many colours, not the ground's one
-      const png = await page.screenshot({ clip: { x: 200, y: 140, width: 240, height: 160 } });
-      expect(new Set(Array.from(png.subarray(64, png.length - 16)).filter((_, i) => i % 7 === 0)).size).toBeGreaterThan(40);
+      // the car drawn and lit: the frame's middle holds many colours, not the ground's one (read until it shows, up to a
+      // deadline: on a busy machine the first frames can land after any fixed wait)
+      const colours = async () => { const png = await page.screenshot({ clip: { x: 200, y: 140, width: 240, height: 160 } }); return new Set(Array.from(png.subarray(64, png.length - 16)).filter((_, i) => i % 7 === 0)).size; };
+      let seen = await colours();
+      for (const until = Date.now() + 20000; seen <= 40 && Date.now() < until; seen = await colours()) await new Promise((r) => setTimeout(r, 500));
+      expect(seen).toBeGreaterThan(40);
       await page.close();
     }, 90000);
   }

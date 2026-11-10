@@ -71,7 +71,7 @@ export const UNITS = {
   pallet: U(DIM.scalar, 1), pallets: U(DIM.scalar, 1), case: U(DIM.scalar, 1), cases: U(DIM.scalar, 1), item: U(DIM.scalar, 1), items: U(DIM.scalar, 1),
   // the science worlds' units. Small lengths and masses, short times, angles (dimensionless), acceleration, the
   // fluid and spring constants, charge and fields, temperature and amount.
-  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), pm: U(DIM.length, 1e-12), 'Å': U(DIM.length, 1e-10), mg: U(DIM.mass, 1e-6),
+  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), pm: U(DIM.length, 1e-12), fm: U(DIM.length, 1e-15), 'Å': U(DIM.length, 1e-10), mg: U(DIM.mass, 1e-6),
   AU: U(DIM.length, 1.495978707e11), 'km/s': U(DIM.velocity, 1000),
   // the relativistic scale's: the Sun's mass (IAU 2015 nominal GM☉ over CODATA 2018 G), light-years, parsecs, and c
   'M☉': U(DIM.mass, 1.98840987e30), Msun: U(DIM.mass, 1.98840987e30), ly: U(DIM.length, 9.4607304725808e15), pc: U(DIM.length, 3.0856775814913673e16),
@@ -93,6 +93,8 @@ export const UNITS = {
   'm²/s': U(DIM.diffusivity, 1), 'm2/s': U(DIM.diffusivity, 1), 'cm²/s': U(DIM.diffusivity, 1e-4), 'cm2/s': U(DIM.diffusivity, 1e-4),
   'µm²/s': U(DIM.diffusivity, 1e-12), 'um2/s': U(DIM.diffusivity, 1e-12), 'µm2/s': U(DIM.diffusivity, 1e-12),
   '/s': U(DIM.frequency, 1), 's⁻¹': U(DIM.frequency, 1), 's^-1': U(DIM.frequency, 1), Hz: U(DIM.frequency, 1), '/min': U(DIM.frequency, 1 / 60),
+  // angular speeds (a spin): radians per second, and turns as rpm or rev/s (2π radians a turn)
+  'rad/s': U(DIM.frequency, 1), rpm: U(DIM.frequency, (2 * Math.PI) / 60), 'rev/s': U(DIM.frequency, 2 * Math.PI),
   M: U(DIM.concentration, 1000), mM: U(DIM.concentration, 1), 'µM': U(DIM.concentration, 1e-3), uM: U(DIM.concentration, 1e-3), nM: U(DIM.concentration, 1e-6), 'mol/m³': U(DIM.concentration, 1),
   '/M/s': U(DIM.rate2, 1e-3), 'M⁻¹s⁻¹': U(DIM.rate2, 1e-3), 'M^-1s^-1': U(DIM.rate2, 1e-3), '/µM/s': U(DIM.rate2, 1e3), '/uM/s': U(DIM.rate2, 1e3),
 };

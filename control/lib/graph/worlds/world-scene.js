@@ -162,7 +162,24 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null } = {}) {
+/** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip, aimClip), and the fighting stances: those
+ * of the weapons that show this figure (`r.weapons`' figure: the drawn hero the blade's, the sheathed one the fist's; a
+ * lone `moveset` the drawn hero's) */
+function movesOf(rule, name) {
+  const Ws = Array.isArray(rule.weapons) && rule.weapons.length ? rule.weapons : [{ figure: 'drawn', moveset: rule.moveset }];
+  const C = rule.combat || {}, sheathed = !!C.sheathed && name === C.sheathed && name !== C.drawn;
+  const mine = Ws.filter((W) => (W.figure === 'sheathed') === sheathed);
+  const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}), ...(m.air ? { air: true } : {}) })));
+  const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
+  // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)
+  const aims = [...new Map([...Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }]),
+    // (and each weapon's guard: its pose while the guard is up, combat-melee.js stepGuard)
+    ...Ws.filter((W) => W.guard && W.guard.clip).map((W) => [W.guard.clip, { clip: W.guard.clip, pose: W.guard.pose }])]).values()];
+  // (and the arsenal's sword art: how the blades are swung, hero-swing-body.js SWING_STYLES)
+  const art = mine.map((W) => W.moveset.art).find(Boolean);
+  return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
+}
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -198,7 +215,8 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}) });
+    // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -1132,6 +1150,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (figs && typeof figs === 'object') {
       payload.figures = {};
       let poseNames = null;
+      // THE SCENES' TAKES (playscape/ui/scene-takes.js): a page whose scenes are written as scripts gives each figure that
+      // plays in them its acts and face takes, blocked on the stage the scripts are lowered on below (lowerPlay). None ⇒
+      // nothing is computed, byte-identical
+      const { hasScripts } = await import('@/lib/graph/playscape/ui/scene-script.js');
+      const takesOf = hasScripts(sketch.manifest.play) ? (await import('@/lib/graph/playscape/ui/scene-takes.js')).sceneTakes(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
         // meshRef entries were consumed by the bind-back block above (static
@@ -1158,6 +1181,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (an action hero sheathed out of combat plays `<hero>-sheathed` and draws this hero in a fight: held-strike.js)
           const wields = (e) => wieldsFigure(e, name);
           const wielder = (payload.entities || []).find(wields);
+          // (a moveset's hero, whichever figure it plays now: its moves bake on every figure its weapons show, the
+          // sheathed hero's fist as the drawn hero's blade, whatever the blade's bake has armed on it since)
+          const mover = (payload.entities || []).find((e) => e && e.rule && e.rule.moveset && e.body && (e.body.figure === name || (e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           // THE RIDER (a world with `mounts`, worlds/mount-units.js): the pilot playing this hero learns to ride its horses, its
           // riding clips solved on its own rig in the pack (world-kinds.js ctx.ride). No mounts ⇒ the hero as it was
           const rider = mountsSpec && !mountRide ? (payload.entities || []).find((e) => e && e.pilotable && e.body && e.body.figure === name) : null;
@@ -1167,7 +1193,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
+          const takes = takesOf?.[name] ?? null;
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1191,11 +1218,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
-          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held) : e));
+          // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
+          const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
+          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held, moveClips) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
@@ -1780,6 +1809,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }
+  // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
+  // composed for them, beside the world's own; none ⇒ as it was)
+  if (payload && playEv?.scenes) {
+    const { sceneMoments } = await import('@/lib/graph/playscape/ui/scenes.js'), own = sceneMoments(playEv.scenes);
+    if (own.length) payload.tempo = { moments: [...(payload.tempo?.moments ?? []), ...own.filter((m) => !(payload.tempo?.moments ?? []).some((x) => x.on === m.on))] };
+  }
 
   // the SCREEN a game is made for (game/screen.js): the page holds its frame, the least a player sees, and the cameras'
   // fov is derived at it. Absent: the page's own box, every byte as it was.
@@ -1832,7 +1867,34 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
-    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
+    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster, { register: measured.register ?? null }) });
+    // a fight game (one with a register) sounds its blows from the SFX shelf (versus/versus-sfx.js): its cues on the
+    // page's audio channel, joining what audio the level already has (its own cues win); an arena made before the
+    // register carries none and keeps its beeps
+    const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
+    const fa = fightAudio({ register: measured.register ?? null });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
+  }
+  // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
+  // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
+  // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
+  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
+    const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
+    // its roster's characters measured from the store as a fight's are, each played in its own body with its own clips
+    // (under a register, its lit export, for the yard to draw every body the register's one way), as a fight's arena does
+    const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
+    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
+    const fa = fightAudio({ register: sketch.manifest.brawl.register ?? 'western' });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
   }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
   // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's

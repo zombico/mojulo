@@ -62,8 +62,13 @@ export function buildRulesPlatform(E) {
     const sprints = r.stamina === true && r.space !== true;
     // (F is the feel's when its card gives it one, a dash or a run button: never the thrusters, walk pace or none, as on
     // a side-scroller's lane, whose hero only runs)
-    const ownF = !!(r.dash || r.sprint) && r.space !== true && !r.gear;
+    // (an AIR DASH alone, `dash.ground: false`, leaves F on the ground to the sprint and the dodge)
+    const ownF = !!((r.dash && r.dash.ground !== false) || r.sprint) && r.space !== true && !r.gear;
     let speed = r.speed ?? 6;
+    // (a moveset's hero drawing its sidearm, combat-melee.js: the aim's pace, `aimMove` of its run)
+    if (r.moveset && e.weapon && e.weapon.charging) speed *= r.aimMove ?? 0.45;
+    // (a guard up, combat-melee.js stepGuard: its walk, `guard.move` of the run; rooted in blockstun)
+    if (r.guard && e.guarding) speed *= e.blockT > 0 ? 0 : (r.guard.move ?? 0);
     const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
     const riseG = r.gravity ?? 20, fallG = r.fallGravity ?? riseG * 1.7;         // asymmetric: snappier fall
@@ -135,7 +140,9 @@ export function buildRulesPlatform(E) {
       }
       wmMag = Math.min(1, Math.hypot(wmX, wmY));
       turnAmt = 0;
-      if (wmMag > 1e-3) {
+      // (a moveset's move, committed, holds the facing it was taken at: the stick turns the body again once it ends)
+      // (and in the air after a launch the hero is turned to the foe it threw, combat-melee.js `mvThrown`)
+      if (wmMag > 1e-3 && !(r.moveset && (e.swingT != null || (e.mvThrown != null && !e.grounded)))) {
         const d = ((Math.atan2(wmY, wmX) - t.heading + Math.PI) % TAU + TAU) % TAU - Math.PI, mx = (r.faceRate ?? 12) * dt;
         turnAmt = clamp(d, -mx, mx);
         t.heading = (t.heading + turnAmt) % TAU;
@@ -167,7 +174,10 @@ export function buildRulesPlatform(E) {
 
       // coyote (grace after walking off a ledge) + jump-buffer (press just before touchdown) timers.
       e.coyote = e.grounded ? 0 : Math.min((e.coyote ?? coyoteT) + dt, 1);
-      e.jumpBuf = input.jump ? bufferT : Math.max(0, (e.jumpBuf ?? 0) - dt);
+      // (the buffer remembers a PRESS, its first frame: a jump held through the gather is one jump, never a second
+      // launched off the first as the ground's snap still holds the body)
+      e.jumpBuf = input.jump && !e.jumpWas ? bufferT : Math.max(0, (e.jumpBuf ?? 0) - dt);
+      e.jumpWas = !!input.jump;
     }
 
     // movement basis (needed by the jump block below for directed charge leaps)
@@ -200,7 +210,10 @@ export function buildRulesPlatform(E) {
       const locked = !!(world.lock && world.lock.target && world.lock.pilot === e.id);
       e.combatT = near || locked || e.swingT != null ? C.linger : Math.max(0, (e.combatT || 0) - dt);
       combatOn = e.combat = e.combatT > 0;
-      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn ? C.drawn : C.sheathed;
+      // (a weapon that shows the sheathed figure, the fist's: sheathed in combat too, combat-melee.js r.weapons; and the
+      // sidearm's aim, `mvPose.sidearm`: the blade back on the back while the bow or the guns are up; a guard keeps it)
+      const Wf = Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0] : null;
+      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') && !(e.mvPose && e.mvPose.sidearm) ? C.drawn : C.sheathed;
     }
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt || (combatOn && !input.boost));
     // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while
@@ -215,6 +228,13 @@ export function buildRulesPlatform(E) {
     if (walker && travel > 1e-6) {
       const pace = walking ? (combatOn ? r.combat.speed : r.walkSpeed) * Math.min(1, combatOn ? travel : travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
       speed = pace / travel;
+    }
+    // A PERSON'S SPRINT (opt-in `sprintSpeed`, a feel's card carried with its takes: feel/lower.js): the sprint key held
+    // (`input.sprint`) with the stick pushed forward runs at the sprint, never while firing or with the sights up (a
+    // shooter drops out of it to shoot). Absent, the pace as it was.
+    if (r.sprintSpeed > 0) {
+      e.sprinting = walker && !!input.sprint && !walking && fwdIn > 0.5 && !input.fire && !input.aim && travel > 1e-6;
+      if (e.sprinting) speed = r.sprintSpeed / travel;
     }
 
     // jump — two opt-in shapes on top of the default snappy launch:
@@ -274,7 +294,7 @@ export function buildRulesPlatform(E) {
       if (e.jumpWind > 0) {
         e.jumpWind -= dt;
         e.gaitPhase = (1 - Math.max(0, e.jumpWind) / windup) * 0.9;   // quick dip down the same squat ramp
-        if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; jumped = true; }
+        if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; e.jumpBuf = 0; jumped = true; }
       }
       // THE WALL KICK (opt-in `cling`, a feel card's: gameworld/feel/lower.js): a jump pressed against a wall (or within
       // `cling.coyote` seconds of leaving it) kicks off it, before any air jump: up at `cling.kick`, away along the wall's
@@ -313,14 +333,14 @@ export function buildRulesPlatform(E) {
     // so many an airtime, given back by the ground and a wall): the same burst on its own line, the fall stopped while it
     // is at speed and given back as it eases. A jump in a ground dash is a DASH JUMP (`dash.jump`): it leaves at once and
     // the air keeps the speed the burst had (`e.carry`) to the touch-down. Absent `dash` → nothing here runs.
-    const DS = r.dash && ownF && !space ? r.dash : null;
+    const DS = r.dash && (ownF || (r.dash.ground === false && r.space !== true && !r.gear)) && !space ? r.dash : null;
     if (DS) {
       const press = !!input.boost && !e.dashHeld; e.dashHeld = !!input.boost;
       if (e.grounded && !jumped) { e.airDashes = DS.air ? DS.air.count : 0; e.carry = 0; }
       if (e.dashT > 0 && jumped && !e.dashAir) { if (DS.jump) e.carry = Math.max(speed, dashNow(e, speed)); e.dashT = 0; }
       if (press && !(e.dashT > 0) && !e.cling && !(e.kickT > 0)) {
         const air = !e.grounded;
-        if (!air || (DS.air && e.airDashes > 0)) {
+        if ((!air && DS.ground !== false) || (air && DS.air && e.airDashes > 0)) {
           const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy), F0 = fwdXY(t.heading);
           e.dashDir = wm > 1e-3 ? [wx / wm, wy / wm] : [F0[0], F0[1]];
           // (the speed it starts from: the body's own along the dash, never back past rest)
@@ -345,7 +365,7 @@ export function buildRulesPlatform(E) {
     const ctx = {
       r, t, space, ascend, descend, eye, speed, boostSpeed, strafe, hasGauge, probe, f, rt, ctl, sideIn, lookMode,
       charging, jumped, dodging: false, tackling: false, kneeling: false, swinging: false, boosting: false,
-      activeCfg: null, strideLen: 0,
+      activeCfg: null, strideLen: 0, moveH: wmH,   // (the stick's world heading under world or camera movement, else null)
     };
     runPhase('maneuver', e, input, dt, world, ctx);   // dodge + tackle (ms pack)
     const dodging = ctx.dodging, tackling = ctx.tackling;
@@ -424,6 +444,9 @@ export function buildRulesPlatform(E) {
       // skid owns the release instead and the drive starts from rest. The step is read back onto f/rt, so the gait and
       // the clips see what the direct step gave them. Absent `accel` → the direct step below, byte-identical.
       const d = e.drive || (e.drive = [0, 0]);
+      // (a hero sprinting on its stamina leaves the ground at its sprint and the air keeps it: the stick steers it, the
+      // run's pace never brakes it; its pace on the ground, `airPace`, is what a jump carries)
+      if (sprints && e.grounded) e.airPace = Math.hypot(d[0], d[1]);
       if (!halt) { d[0] = 0; d[1] = 0; }
       else if (boosting && !sprints) {
         const k = r.boostInertia > 0 ? 0 : boostSpeed * ctl / bn;
@@ -432,7 +455,7 @@ export function buildRulesPlatform(E) {
         const pushed = Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3;
         if (pushed || e.grounded) {
           // (a sprint builds to its own speed as the run does to the run's)
-          const pace = boosting ? boostSpeed : speed;
+          const pace = Math.max(boosting ? boostSpeed : speed, sprints && !e.grounded ? e.airPace || 0 : 0);
           const wx = (f[0] * fwdIn + rt[0] * sideIn * strafe) * pace, wy = (f[1] * fwdIn + rt[1] * sideIn * strafe) * pace;
           const dx = wx - d[0], dy = wy - d[1], dl = Math.hypot(dx, dy);
           if (dl > 1e-12) {
@@ -512,10 +535,12 @@ export function buildRulesPlatform(E) {
       } else {
         const footZ0 = t.pos[2] - eye;   // pre-fall foot height (the swept-probe origin)
         // GLIDE (opt-in `glideFall`, a power's glide): jump held while falling caps the fall at that speed. Absent → maxFall.
-        const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 ? Math.min(maxFall, r.glideFall) : maxFall;
+        // (a glide held once the air jumps are spent, `glideSpent`: jump, jump, hold; a first jump held never glides early)
+        const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 && (!r.glideSpent || (e.airJumpsUsed ?? 0) >= (r.airJumps ?? 0)) ? Math.min(maxFall, r.glideFall) : maxFall;
         if (e.cling && r.cling) e.vel[2] = -r.cling.slide;   // down the wall at a constant speed
         else if (e.dashT > 0 && e.dashAir && dashU(e) < DASH_EASE) e.vel[2] = 0;    // the air dash holds its height at speed
-        else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
+        // (an air move's HANG, combat-melee.js `mvHang`: the hero held aloft, its gravity that share of its own)
+        else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * (e.mvHang != null ? e.mvHang : 1) * dt);
         t.pos[2] += e.vel[2] * dt;
         // SWEEP the touchdown probe from the HIGHER of the pre/post foot, not the post-fall foot. A fast
         // fall (low framerate / big dt, a knockback launch, the drop-in settle over the wavy drape) moves
@@ -557,6 +582,10 @@ export function buildRulesPlatform(E) {
       e.hoverGrace = e.hovering ? (r.hoverCoyote ?? 0.45) : Math.max(0, (e.hoverGrace || 0) - dt);
     }
 
+    // A MOVESET's hero whose figure carries its moves' own clips (`moveClips`, worlds/world-scene.js) idles in combat in
+    // its weapon's fighting stance (its moveset's `ready`, the stance its moves start and end in: hero-swing-body.js), so no foot moves
+    // between standing and striking. Absent, no field.
+    if (r.moveClips) e.idleClip = e.combat ? ((Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0].moveset : r.moveset)?.ready ?? 'mv_ready') : null;
     // edges + gait (surfaced to the bus later; drive land-dust / jump-sound / a figure's frame).
     // `landed` is the grounded rising edge computed up top (snap-inclusive), not this touchdown block.
     e.jumped = jumped; e.landed = landedEdge;
@@ -595,7 +624,9 @@ export function buildRulesPlatform(E) {
       // pose (its phase keeps advancing so the tremor lives); a plain
       // vertical jump holds 'leap' with the phase frozen. Bodies without
       // those clips fall back to 'forward' in the renderer.
-      if (boosting) { e.locomotion = boostClip(); boostPhase(); }
+      // (a moveset's AIR move plays its own clip, airborne: hero-swing-body.js airBody)
+      if (swinging && r.moveset && e.swingClip) { e.locomotion = e.swingClip; e.gaitPhase = Math.min(e.swingT, 0.999); }
+      else if (boosting) { e.locomotion = boostClip(); boostPhase(); }
       else if (fwdIn > 0) { e.locomotion = 'boost'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; }
       else e.locomotion = 'leap';
       e.moving = true;

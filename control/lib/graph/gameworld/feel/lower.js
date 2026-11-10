@@ -11,15 +11,16 @@
  *     set      the card's own fields laid over the template's (objects merge, anything else replaces)
  *     takes    true: the hero plays its OWN jumps on the card's flight (TAKES): the standing jump, the jump forward out
  *              of a run, the double jump's second push for an air jump, each clip's gather, air and landing played on
- *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames. Absent: the
- *              animation library's held leap, every byte as before
+ *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames; and the
+ *              card's moves: its wall, its dash, its sprint (Shift held) and its walk. Absent: the animation library's
+ *              held leap, every byte as before
  *
  *   readFeel(v)       → the feel checked ({ pole, variant?, toward?, t?, set? }); throws, teaching
  *   feelCard(feel)    → the card the feel makes
- *   lowerFeel(card, { gear? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
+ *   lowerFeel(card, { gear?, takes?, base? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
  *                       `rule` the platform rule's fields (speed, accel, decel, faceRate, jumpSpeed, gravity,
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
- *                       strikeContact, combo, hitstop; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
+ *                       strikeContact, combo, hitstop, guard; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
  *                       boostRegen, overheatRegen, boostUnlockFrac); `lane` the card holds the hero to a line (the level's own); `gear` the
  *                       template's worn gear (the glider or the jetpack), said when it names one
  *   feelRule(feel)    → the rule a written feel lays over the hero's (its takes when it asks for them)
@@ -67,7 +68,7 @@ const LOST = Object.freeze({
   dodge: 'the dodge roll: the runtime\'s dodge is mobile-suit-arena\'s acrobatics on a double tap, not this roll and its invincible frames',
   dash: 'the dash: the platform rule\'s boost is a held thrust on a gauge (mobile-suit-arena\'s), not this dash',
   cling: 'the wall slide and the wall jump',
-  guard: 'the guard: the block, the parry and its window, witch time',
+  guard: 'the guard: the block, the parry and its window, witch time',   // (carried where the card has a block: lowerFeel)
   charge: 'the hold-release charge',
   pound: 'the stomp attack',
   'land.stomp': 'the stomp on a body\'s head (carried only where a level stands foes: gameworld/foes.js lays it on the hero there)',
@@ -119,7 +120,7 @@ function takesOf(J, look) {
 
 /** A card → the platform rule's fields, and what is carried, partly carried and not carried. `takes`: the hero's own
  * jumps played on the card's flight (TAKES), the landing held the card's frames. */
-export function lowerFeel(card, { gear = null, takes = false } = {}) {
+export function lowerFeel(card, { gear = null, takes = false, base = null } = {}) {
   const rule = {}, carried = [], partly = [], lost = [];
   const C = card, Gd = C.ground, J = C.jump;
   const put = (field, k, v) => { rule[k] = v; carried.push(field); };
@@ -129,13 +130,17 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   if (Gd.accel > 0) put('ground.accel', 'accel', Gd.accel);
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
-  // the sprint: with the takes and no dash, the run button (F held), its speed built as a mascot platformer's run is, over
-  // SPRINT.build seconds of running (a takes' dash keeps one speed, the run); without the takes, the SPRINT on the hero's
-  // STAMINA: the boost held, on its gauge (rules-platform.js `stamina`), the card's `stamina` its seconds of sprint, its
-  // refill and its winded refill (STAMINA the defaults)
-  const sprints = takes && Gd.sprint > Gd.run && !(C.dash && C.dash.kind === 'dash');
-  if (sprints) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
-  else if (takes && Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  // THE SPRINT, by the game the template is (its `base`) and whether the hero plays its takes:
+  //   with the takes, a PLATFORMER's hero (a mascot) runs on the run button (F held), its speed built up over SPRINT.build
+  //   seconds of running (rules-platform.js `sprint`), unless the card dashes (a takes' dash keeps one speed, the run);
+  //   with the takes, any other hero is a PERSON: the sprint held on Shift (`sprintSpeed`, never firing or aiming) and its
+  //   walk (`walkSpeed`), a person's pace;
+  //   without the takes, the sprint on the hero's STAMINA: the boost held, on its gauge (rules-platform.js `stamina`), the
+  //   card's `stamina` its seconds of sprint, its refill and its winded refill (STAMINA the defaults), and the dodge on it
+  const mascot = (base ?? POLES[C.pole]?.base ?? null) === 'platformer';
+  if (takes && Gd.sprint > Gd.run && mascot && !(C.dash && C.dash.kind === 'dash')) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
+  else if (takes && Gd.sprint > Gd.run && mascot) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  else if (takes && Gd.sprint > Gd.run) put('ground.sprint', 'sprintSpeed', Gd.sprint);
   else if (Gd.sprint > Gd.run) {
     const St = { ...STAMINA, ...(C.stamina ?? {}) };
     put('ground.sprint', 'stamina', true); rule.boostSpeed = Gd.sprint;
@@ -150,6 +155,7 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
       carried.push('dodge');
     }
   }
+  if (takes && !mascot && Gd.walk > 0 && Gd.walk < Gd.run) put('ground.walk', 'walkSpeed', Gd.walk);
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);
@@ -191,6 +197,23 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
     rule.cling = { slide: K.slide, toward: K.toward, kick: steppedSpeed(J.height * (K.up ?? 1), J.gRise), away: K.away, lock: r4(K.lock / FPS), coyote: r4(K.coyote / FPS) };
     carried.push('cling'); moves.add('cling');
   }
+  // (the AIR DASH alone, a card's `dash.ground: false`: F in the air, the takes or not; on the ground F stays the
+  // sprint's and the dodge's)
+  if (!takes && C.dash && C.dash.kind === 'dash' && C.dash.ground === false && C.dash.air?.count > 0) {
+    const A = C.dash.air;
+    rule.dash = { ground: false, air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } };
+    half('dash', `the air dash on F in the air (${A.count} an airtime, ${A.speed} m/s for ${A.frames} frames, the fall stopped); on the ground F stays the sprint and the dodge${C.dash.iframes ? '; its invincible frames are not carried' : ''}`);
+    moves.add('dash');
+  }
+  // (the GLIDE, worn when the template names the glider (`gear`) and holds it (`kind: 'glide'`): the jump held in the air
+  // caps the fall at the card's `fall` (the runtime's glideFall), once the air jumps are spent; a paraglider opened and
+  // folded by a press, and a float, are not carried)
+  if (gear === 'glide' && C.glide && C.glide.kind === 'glide' && C.glide.fall > 0) {
+    rule.glideFall = C.glide.fall;
+    if (airJumps > 0) rule.glideSpent = true;
+    half('glide', `the glide: the jump held in the air caps the fall at ${C.glide.fall} m/s${airJumps > 0 ? ', once the air jumps are spent (jump, jump, hold)' : ''}; its forward speed and its turn are the air's own, not the card's`);
+    moves.add('glide');
+  }
   if (takes && C.dash && C.dash.kind === 'dash') {
     const D = C.dash, A = D.air;
     // (a burst the card's frames long: a dash held longer is not carried, a dash is not a run)
@@ -198,6 +221,18 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
       ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
     half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
     moves.add('dash');
+  }
+  // the GUARD (combat-melee.js stepGuard; held: Shift, a pad's left shoulder): a blow from the front blocked (the card's
+  // blockstun and push back, its stamina's cost; run dry, the guard breaks into a stagger), one met within the `parry`
+  // seconds of the guard going up PARRIED (null: any guard parries), the attacker staggered open the `riposte` seconds;
+  // the walk at the guard's share of the run. Every foe's blow is parryable (the zones are the lab's); the perfect
+  // dodge's witch time is not carried
+  if (C.guard && C.guard.block) {
+    const G = C.guard;
+    rule.guard = { move: r4(G.move ?? 0), push: r4(G.block.push ?? 0), stun: r4((G.block.stun ?? 0) / FPS), parry: G.parry == null ? null : r4(G.parry / FPS), riposte: r4((G.riposte ?? 0) / FPS),
+      ...(G.stamina ? { stamina: { max: G.stamina.max, cost: G.stamina.cost, regen: G.stamina.regen, break: r4(G.stamina.break / FPS) } } : {}) };
+    half('guard', `the guard held (Shift, the pad's left shoulder): the block from the front, the parry ${G.parry == null ? 'on any guard' : `within ${Math.round(G.parry)} frames of raising it`}, the riposte; every foe's blow parryable (the zones are the lab's)${G.perfect ? '; the perfect dodge\'s witch time is not carried' : ''}`);
+    moves.add('guard');
   }
   for (const [field, why] of Object.entries(LOST)) {
     if (moves.has(field)) continue;
@@ -221,7 +256,8 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
 /** The rule a written feel lays over the hero's platform rule: its card lowered, with its takes when it asks for them. */
 export function feelRule(feel) {
   const F = readFeel(feel);
-  return lowerFeel(feelCard(F), { takes: !!F.takes }).rule;
+  // (the template's worn gear with it: a glider it holds is carried, lowerFeel)
+  return lowerFeel(feelCard(F), { gear: POLES[F.pole]?.gear ?? null, takes: !!F.takes, base: POLES[F.pole]?.base ?? null }).rule;
 }
 
 /**
@@ -259,7 +295,7 @@ export function feelVayo(card) {
 
 /** What a gameworld's feel makes of its hero, for the readout: the template, its viewer (advice), and what is carried. */
 export function feelReport(feel) {
-  const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null, takes: !!F.takes });
+  const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null, takes: !!F.takes, base: P.base ?? null });
   return {
     pole: F.pole, name: P.name, after: P.after, ...(F.variant ? { variant: F.variant } : variantsOf(F.pole).length ? { variant: variantsOf(F.pole)[0] } : {}),
     ...(F.toward ? { toward: F.toward, t: F.t } : {}), ...(F.takes ? { takes: true } : {}), view: P.view.camera,

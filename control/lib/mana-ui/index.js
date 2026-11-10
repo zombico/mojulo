@@ -10,28 +10,33 @@
  *   idioms*.js       the shared screens and HUD parts as compositions; samples.js the sample state they bind into
  *   board.js         the wireframe board: every idiom live on the sample state
  *
- *   manaUiPage(spec, { state?, title?, open?, theme?, host?, glyphs? })  → a self-contained page that runs a spec over a plain state object
- *     (a `set` writes the state, every other effect is logged), for the eyes gate and the headless driver
- *     (`window.__manaUi`: the runtime; `window.__manaLog`: the effects it emitted)
+ *   manaUiPage(spec, { state?, title?, open?, theme?, host?, glyphs?, audio?, words? })  → a self-contained page that runs a spec over a plain state object
+ *     (a `set` writes the state, every other effect is logged, the theme's sounds among them), for the eyes gate and the headless driver
+ *     (`window.__manaUi`: the runtime; `window.__manaLog`: the effects it emitted). audio: { source, sets, of } (from
+ *     beats/ui-sounds.js uiSoundAudio, handed in: this folder imports nothing outside itself) plays the UI's sounds in
+ *     the theme's set (`sounds`); without it the page is silent and carries no audio byte. words: the runtime's own
+ *     words in the game's language (playscape/ui/mana-words.js manaWords(locale), handed in), English without them
  */
 import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
-import { themeCss } from './theme.js';
+import { themeCss, readTheme } from './theme.js';
 import { withIdioms } from './idioms.js';
-import { PREVIEW_KEYS, previewKey } from './board.js';
+import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey } from './board.js';
 
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
 export { manaCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
 export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast, gameHudCss } from './theme.js';
 export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms, coverageOverlap } from './idioms.js';
-export { SAMPLE_STATE } from './samples.js';
+export { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
 export { manaUiBoard, boardFrames, BOARD_HUDS, PREVIEW_KEYS, previewKey } from './board.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 /** A self-contained page: the spec (with the idioms) run over `state`. Throws, teaching, on a bad spec. */
-export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null, theme = 'greybox', host = null, glyphs = null } = {}) {
+const soundsOf = (audio, set) => (audio ? `{ K: (${audio.source})(), sets: ${json(audio.sets)}, of: (${audio.of}), set: ${json(set)} }` : 'null');
+
+export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null, theme = 'greybox', host = null, glyphs = null, audio = null, words = null } = {}) {
   const full = withIdioms(spec);
   manaUi.readSpec(full);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -43,12 +48,20 @@ ${themeCss(theme)}
 </style></head><body><div id="mana"></div><div class="log" id="log"></div><script>
 const manaUi = ${manaUiSource()};
 const STATE = window.__manaState = ${json(state)}, LOG = window.__manaLog = [];
+${audio ? AUDIO_SCRIPT : ''}
+const SOUNDS = window.__manaSounds = ${soundsOf(audio, readTheme(theme).sounds)};
 const host = {
   read: (p) => manaUi.readPath(STATE, p),
   // the game's clock (a preview's is the page's; a game hands its own, held while it is)
   now: () => performance.now() / 1000,
+  // the UI's sounds the theme asks for, as effects (logged here; a game plays them)
+  cues: ${json(readTheme(theme).cues)},
+  // a changed number counts for this long on the clock (a results board counts up; accept lands it)
+  countUp: 0.8,
+  ${words ? `words: ${json(words)},` : ''}
   act: (e, from) => {
     if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = STATE; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
+    ${audio ? 'hear(SOUNDS, e);' : ''}
     LOG.push({ e, from }); document.getElementById('log').textContent = LOG.slice(-4).map((x) => (x.from.screen || '-') + ' ' + JSON.stringify(x.e)).join('\\n');
   },
 };

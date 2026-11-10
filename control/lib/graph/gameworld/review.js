@@ -12,8 +12,12 @@
  * world from a few prompts (compose.js); a part the creator has not reviewed is stamped 'auto' when its machine gate
  * holds (its laws), 'revise' when they advise, never 'approved'. The creator can still approve, or send any part back.
  */
+import { scriptsIn } from '../playscape/ui/scene-script.js';
 import { readGameworld, resolveLevel } from './world.js';
 import { landFor } from './nature.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
+import { worldFlow, flowStoryboard } from './game-flow.js';
+import { readTheme } from '../../mana-ui/theme.js';
 import { CHARACTER_PART_IDS, CAST_PART } from './characters.js';
 import { resolveTechDirection } from './tech-direction.js';
 import { cubeOfWorld } from './intent.js';
@@ -61,6 +65,16 @@ export function reviewParts(world) {
   if (G.characters?.cast) parts.push({ id: 'cast', name: 'The cast', content: G.characters.cast });
   if (G.story) parts.push({ id: 'story', name: 'The story', content: G.story });
   if (G.quests) parts.push({ id: 'quests', name: 'The quests', content: G.quests });
+  // the interface's look, as the interface department, the art direction and the colour theorist leave it: where its
+  // words and its colours came from, the words that make it, its colours, and what they read like (advice, never a refusal)
+  if (G.ui !== undefined) {
+    const L = interfaceLook(G), T = readTheme(L.theme), WORDS_SAID = ['frame', 'corner', 'plate', 'focus', 'motion', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds'];
+    parts.push({ id: 'interface:look', name: 'The interface\'s look', content: { from: L.from, preset: T.from, words: Object.fromEntries(WORDS_SAID.map((k) => [k, T[k]])), tokens: { ink: T.tokens.ink, panel: T.tokens.panel, line: T.tokens.line, accent: T.tokens.accent, accent2: T.tokens.accent2 }, languages: Object.keys((G.ui && G.ui.languages) || {}), advice: L.advice.map((a) => `${a.law}: ${a.advice}`) } });
+  }
+  // THE FLOW (game-flow.js): what plays when, the game director's, as a storyboard (each step, whose it is, what it waits
+  // on, where it goes); a world with no flow of its own and no story cinematics has none to show
+  const F = worldFlow(G);
+  if (F) parts.push({ id: 'flow:sequence', name: 'The flow', content: { source: F.source === 'own' ? 'the game\'s own' : 'the default, with the story\'s cinematics', start: F.flow.start, steps: flowStoryboard(F.flow, { scripted: (G.story ?? []).filter((m) => scriptsIn(m.beats).length).map((m) => m.id) }) } });
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 

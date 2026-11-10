@@ -52,6 +52,26 @@ describe('spread and recoil', () => {
     expect(JSON.stringify(range(R, { seconds: 2 }))).toBe(JSON.stringify(range(R, { seconds: 2 })));
   });
 
+  it('a `wait`: a spray whose recovery would outrun its bloom builds while the trigger is held, and settles once it rests', () => {
+    // nine rounds a second, 0.45 a round, 5 a second back: without a wait the cone settles faster than it blooms
+    const G = { fireClass: 'sight', auto: true, rof: 9, damage: 1, range: 60, coreAngle: 1, spread: { base: 0.6, move: 0, bloom: 0.45, recover: 5, max: 4 }, recoil: { kick: 0.45, recover: 4, max: 4 } };
+    const held = (g) => range(g, { seconds: 1.2 }).w;
+    const none = held(G), waits = held({ ...G, spread: { ...G.spread, wait: 0.15 }, recoil: { ...G.recoil, wait: 0.15 } });
+    expect(none.bloomNow).toBeLessThan(0.45);
+    expect(waits.bloomNow).toBeGreaterThan(2);
+    expect(waits.kickNow).toBeGreaterThan(2);
+    // released: once the rest outlasts the wait, it settles
+    const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'walk', speed: 0, eye: 0 }, weapon: { ...G, spread: { ...G.spread, wait: 0.15 }, recoil: { ...G.recoil, wait: 0.15 }, eye: 1.3 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } }] }), P = w.byId.p;
+    for (let k = 0; k < 30; k++) E.stepWorld(w, { fire: 1 }, 1 / 30, hooks);
+    const built = P.weapon.bloomNow;
+    for (let k = 0; k < 3; k++) E.stepWorld(w, {}, 1 / 30, hooks);
+    expect(P.weapon.bloomNow).toBe(built);   // inside the wait: held where it was
+    for (let k = 0; k < 30; k++) E.stepWorld(w, {}, 1 / 30, hooks);
+    expect(P.weapon.bloomNow).toBeLessThan(built);
+    // without a wait the weapon keeps no rest
+    expect(none).not.toHaveProperty('restT');
+  });
+
   it('stylized: a run hardly widens the cone', () => {
     const S = shooterPole('stylized').weapon;
     expect(range(S, { tap: 0.5, run: 6 }).rate).toBeGreaterThan(range(R, { tap: 0.5, run: 6 }).rate);

@@ -54,15 +54,31 @@ Written by hand instead:
 events reactions emit (`pickup:*`, `door:*`, `goal:reached`, `checkpoint`, `lap`, `hit:*`, `enemy:down`, `wave`,
 `beat:hit` …). `vary: true` makes each hit a fresh variant.
 
+`mix` (opt-in, on either form) puts the level's cues through the SFX mixer: `{ space?, send?, voices?, distance? }`.
+`space` is `open`, `interior`, `hangar`, `cavern` or `vacuum` (no air: no space, the sound dulled as it comes
+through a hull), or `{ decay, predelay?, damp?, level? }`. `send` (0..1) is how much of a cue reaches the space where
+its layers name none. `voices` caps the cues sounding at once (a quieter new cue is dropped, a louder one steals the
+quietest). `distance` (on unless `false`) places a combat cue by its source's distance from the pilot: duller and
+roomier the farther it is, as well as quieter. A cue's `duck` gesture dips the score under it. Layers, ducks and
+spaces are in `get_beats_vocab({ id: 'beats-sfx' })`.
+
 ## gait, body and weapon sounds
 
 These read the controllable entity's state and never write back.
 
 - `footsteps`: `step` on each half gait, `jump`, `land`. `true` takes chiptune defaults.
 - `jump`: `{ charge: { level }, release: { level }, land: [gestures], landRef }`, the stop-and-charge jump.
+- `thruster: { level, voice? }` and `jump.charge.voice`: a held voice (`get_beats_vocab({ id: 'beats-sfx' })`,
+  "Held voices") played in place of the channel's own synth, driven by the thrust or the charge.
 - `dodge`: one gesture list fired per roll.
-- `weapon`: `{ shot, hit, reload }` gesture lists.
+- `weapon`: `{ shot, hit, reload, switch? }` gesture lists (`switch` when a gun is drawn); a weapon's own
+  `sfx: { shot, hit, reload, draw }` wins over them.
+- `burst`: a gesture list played where a travelling round (a rocket, a grenade) bursts.
 - `strike`: `{ swing, hit }` gesture lists (melee).
+- `moves`: an action game's moveset (combos, a guard, a bow) by the ids of its `sfx.cues`: `swing` and `hit` as
+  `{ <weapon>: { light, heavy?, finisher? } }` (a heavy is a move its H beat took), and one cue each for `block`,
+  `parry`, `break`, `draw`, `loose`, `arrow` (a foe struck by no blade), `felled`, `cycle`, `foeSwing`, `hurt`. Name
+  the cues from the SFX shelf by word (`katana-swing`, `blade-hit`, `block`, `blade-clash`, `bow-shot`…).
 - `thruster`: `true` or `{ level }`, a roar that swells with boost.
 
 ## ambience

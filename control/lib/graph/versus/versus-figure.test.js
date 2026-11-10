@@ -4,8 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '@/lib/mcp/tools/layered.js';
 import { validateRig } from '@/lib/graph/polygonizer/station-loft-rig.js';
-import { figureBase, characterBase, figurePose, figureSegments, segmentOf } from './versus-figure.js';
-import { rigJoints } from './versus-rig.js';
+import { figureBase, characterBase, figurePose, figureSegments, segmentOf, figureBulk, FIG_LIMITS } from './versus-figure.js';
+import { rigJoints, RIG_LIMITS, limitPose } from './versus-rig.js';
 import { POSES } from './versus-library.js';
 import { compileFighter } from './versus-compile.js';
 import { solveFighter } from './versus-solver.js';
@@ -23,19 +23,35 @@ const BONES = R.bones.map((b) => ({ id: b.id, head: R.joints[b.head], tail: R.jo
 
 describe('versus: the fighter in 3D', () => {
   it('seen from the side it is the sim\'s figure: the hands, the feet and the trunk where the boxes are, both ways it faces', () => {
-    let worst = 0;
+    // (a toe is the sim's, or its foot is held at the ankle's limit against the shin as it is drawn: RIG_LIMITS)
+    const ankle = (N, S) => {
+      const sd = [N[`knee${S}`][1] - N[`ankle${S}`][1], N[`knee${S}`][2] - N[`ankle${S}`][2]], fd = [N[`toe${S}`][1] - N[`ankle${S}`][1], N[`toe${S}`][2] - N[`ankle${S}`][2]];
+      const a = (Math.atan2(sd[1], sd[0]) - Math.atan2(fd[1], fd[0])) * 180 / Math.PI;
+      return Math.atan2(Math.sin(a * Math.PI / 180), Math.cos(a * Math.PI / 180)) * 180 / Math.PI;
+    };
+    const atLimit = (b) => RIG_LIMITS.ankle.some((v) => Math.abs(b - (180 - v)) < 0.01);
+    let worst = 0, held = 0, toes = 0;
     for (const pose of POSE_LIST) {
       const J = rigJoints(F.body, pose);
       for (const face of [1, -1]) {
         const N = figurePose(BASE, J, { face, air: !!pose.air });
         const lead = face > 0 ? 'L' : 'R', rear = lead === 'L' ? 'R' : 'L';
         for (const [S, X] of [[lead, 'F'], [rear, 'B']]) {
-          worst = Math.max(worst, near2(side(N[`wrist${S}`]), J[`hand${X}`]), near2(side(N[`toe${S}`]), J[`toe${X}`]));
+          worst = Math.max(worst, near2(side(N[`wrist${S}`]), J[`hand${X}`]));
+          toes++;
+          const off = near2(side(N[`toe${S}`]), J[`toe${X}`]);
+          if (off < 2) continue;
+          // (and never far: a sixth of the foot)
+          expect(off).toBeLessThan(F.body.foot / 6);
+          expect(atLimit(ankle(N, S)), `a toe ${off.toFixed(1)} mm off the sim's with its ankle not at its limit`).toBe(true);
+          held++;
         }
         worst = Math.max(worst, near2(side(N.pelvisHub), J.pelvis));
       }
     }
     expect(worst).toBeLessThan(2);   // mm
+    // (a hold is the exception: about one toe in twenty, measured 5.2% when it was written)
+    expect(held / toes).toBeLessThan(0.08);
   });
 
   it('keeps every bone its length', () => {
@@ -79,6 +95,12 @@ describe('versus: the fighter in 3D', () => {
     expect(rides).toMatchObject({ pelvis: 'pelvis', lumbar: 'pelvis', jaw: 'head', clavicleR: 'torso', thumb2L: 'foreArmL', handR: 'foreArmR', kneeFoldL: 'shinL', toesR: 'footR', hipFoldR: 'thighR' });
     // a creature's: digitigrade legs, fingers, a tail
     expect(['metaR', 'fingerB2L', 'tail3', 'shinL'].map(segmentOf)).toEqual(['shinR', 'foreArmL', 'pelvis', 'shinL']);
+    // a mascot's face, a beast's horns and ears: on the head, never left on the torso as the head turns
+    expect(['lidR', 'lipU', 'browL', 'earL', 'horn2R', 'snout'].map(segmentOf)).toEqual(Array(6).fill('head'));
+    // a serpent's coil (beast/serpent.js): its first link on the hips, the rest planted where they rest
+    expect(['coil0', 'coil1', 'coil8'].map(segmentOf)).toEqual(['pelvis', 'ground', 'ground']);
+    const S = figureSegments(figureBase({}), figureBase({}));
+    expect(S.ground).toEqual({ R: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], from: [0, 0, 0], at: [0, 0, 0] });
   });
 });
 
@@ -120,5 +142,69 @@ describe('versus: the stance, and the side tilt', () => {
     // and the side view stays the sim's: the hands where the boxes are
     const J = rigJoints(F.body, POSES.guard), N = pose({ open: 60, hips: 40, tilt: 20 });
     expect(Math.hypot(N.wristL[1] * 1000 - J.handF[0], N.wristL[2] * 1000 - J.handF[1])).toBeLessThan(2);
+  });
+});
+
+describe('versus: the round body\'s joints and its own parts', () => {
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const angle = (a, b) => Math.acos(Math.max(-1, Math.min(1, dot(unit(a), unit(b))))) * 180 / Math.PI;
+  const fold = (a, j, b) => 180 - angle(sub(a, j), sub(b, j));
+  // every pose of the fighter, standing in its own stance and turned by its own channels
+  const posed = POSE_LIST.map((pose) => figurePose(BASE, rigJoints(F.body, pose), { air: !!pose.air, stance: F.stance, twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, ...(pose.hands ? { hands: pose.hands } : {}), ...(pose.feet ? { feet: pose.feet } : {}) }));
+
+  it('the side view\'s bends are held as poses become joints: a knee one way and not past its fold, the ankle, the neck, the shoulder', () => {
+    expect(limitPose(POSES.guard)).toBe(POSES.guard);
+    const bad = limitPose({ torso: 0, head: 80, armB: [-90, -60], legF: [10, 40, 200], legB: [90, -100, 90] });
+    expect(bad.head).toBe(RIG_LIMITS.neck);
+    // (an arm thrown behind the back stops there, its forearm carried with it)
+    expect(bad.armB).toEqual([RIG_LIMITS.shoulder, RIG_LIMITS.shoulder + 30]);
+    expect(bad.legF[0] - bad.legF[1]).toBe(RIG_LIMITS.knee[0]);
+    expect(bad.legB[0] - bad.legB[1]).toBe(RIG_LIMITS.knee[1]);
+    expect(bad.legF[2] - bad.legF[1]).toBe(RIG_LIMITS.ankle[1]);
+    expect(rigJoints(F.body, bad)).toEqual(rigJoints(F.body, limitPose(bad)));
+  });
+
+  it('in the round no elbow or knee folds past its limit, and the spine twists no further than its own', () => {
+    let elbow = 0, knee = 0, spine = 0;
+    for (const N of posed) {
+      for (const S of ['L', 'R']) {
+        elbow = Math.max(elbow, fold(N[`shoulder${S}`], N[`elbow${S}`], N[`wrist${S}`]));
+        knee = Math.max(knee, fold(N[`hip${S}`], N[`knee${S}`], N[`ankle${S}`]));
+      }
+      const up = unit(sub(N.neckHub, N.pelvisHub)), flat = (v) => sub(v, up.map((u) => u * dot(v, up)));
+      spine = Math.max(spine, angle(flat(sub(N.hipR, N.hipL)), flat(sub(N.shoulderR, N.shoulderL))));
+    }
+    expect(elbow).toBeLessThanOrEqual(FIG_LIMITS.elbow + 0.5);
+    expect(knee).toBeLessThanOrEqual(FIG_LIMITS.knee + 0.5);
+    // (the turns are whole degrees, and the trunk's tilt reads in the shoulder line)
+    expect(spine).toBeLessThanOrEqual(FIG_LIMITS.spine + 2);
+  });
+
+  it('its arms keep out of its trunk and its head, and its legs out of each other', () => {
+    const B = figureBulk(BASE);
+    // (the shortest distance between two segments, sampled finely: enough to read a depth in millimetres)
+    const segDist = (p, q, a, b) => {
+      let best = Infinity;
+      for (let i = 0; i <= 40; i++) for (let j = 0; j <= 40; j++) {
+        const u = i / 40, v = j / 40, x = p.map((c, k) => c + (q[k] - c) * u), y = a.map((c, k) => c + (b[k] - c) * v);
+        best = Math.min(best, Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]));
+      }
+      return best;
+    };
+    let arm = 0, legs = 0;
+    for (const N of posed.filter((_, i) => i % 7 === 0)) {
+      const up = unit(sub(N.neckHub, N.pelvisHub)), across = unit(sub(N.shoulderR, N.shoulderL)), fwd = unit(cross(up, across)), lat = unit(cross(fwd, up));
+      const k = B.trunkW / B.trunkD, inT = (v) => { const d = sub(v, N.pelvisHub); return [dot(d, lat), dot(d, fwd) * k, dot(d, up)]; };
+      for (const S of ['L', 'R']) {
+        arm = Math.max(arm, B.trunkW + B.limb - segDist(inT(N[`elbow${S}`]), inT(N[`fist${S}`]), inT(N.pelvisHub), inT(N.neckHub)));
+        arm = Math.max(arm, B.head + B.limb - segDist(N[`elbow${S}`], N[`fist${S}`], N.headBase, N.headTop));
+      }
+      legs = Math.max(legs, 2 * B.leg * 0.85 - segDist(N.kneeL, N.ankleL, N.kneeR, N.ankleR));
+    }
+    // (touching to the skin's depth, and a few millimetres of a pose whose hand nothing frees)
+    expect(arm * 1000).toBeLessThan(B.skin * 1000 + 10);
+    expect(legs * 1000).toBeLessThan(B.skin * 1000 + 5);
   });
 });

@@ -1,0 +1,68 @@
+### The practice room's arsenal reaches the game: a world's `arsenal`, laid on every level's hero
+
+- **A world's `arsenal`** (`gameworld/arsenal.js`): the weapons and strings the practice room plays, written once on the
+  world. A template's kit by name (`'fallen-angel'`, `'fable-of-artesia'`), the kit with edits over it (`{ from, … }`:
+  `art` and `ranged` replaced, `timing`, `mp` and `juggle` merged, weapons and their combos edited by id, `{ id, drop:
+  true }` dropping one, a move merged field by field or `null` dropping it), `'auto'` (the kit of the feel's template, the
+  nearer one that has a kit; none where neither has one), `false`, or a whole arsenal. Read with the world: a wrong word
+  is said, a combo left on a dropped move is the combo manifest's own refusal.
+- **Laid on every level** (`levels.js`, `armLevel`): the hero that strikes (a right-hand item serving `strike`), and each
+  seat's copy of it, takes the weapons, the first one's moveset and the sidearm; the foes take the juggle's rules where
+  they write none of their own. A weapon shown on the sheathed figure (the fist) is laid only on an action hero that
+  sheathes its blade. Nothing written, or no hero that strikes: the level as it was, byte for byte.
+- **Suggested, never laid** (`design_game`'s readout): an `arsenal` step suggests `'auto'` for a striking hero whose feel's
+  template has a kit, with its patch; one written for a hero that strikes with nothing is said. The readout's `arsenal`
+  names the kit, the weapons, the combos and the sidearm. The feel card says the key.
+- **The room plays the game's arsenal** (`scripts/spikes/practice-room/room.mjs`): the world's `arsenal` when it writes
+  one, `--kit` over it.
+- **The practice room from the recipe, before any level** (`gameworld/practice-room.js`, its page
+  `practice-room-page.js`): a world that writes a feel that fights hand to hand (or any feel with an arsenal) has a
+  room. It is built from the world alone:
+  - the feel template's own stage, greyboxed (the floor the stick view plays on), or the ring;
+  - the hero: the run's own (its sketch and its sheathed twin) where made, else a stand-in on the template's body with
+    the world's blade, sheathed out of a fight;
+  - the foe: the bestiary's first, its sketch or a person of its class standing in, two metres ahead;
+  - the arsenal: the world's, else the template's kit, else the basic one.
+  
+  The page measures the foe's health on the resolved bodies and lays the HUD (frame data beside the card, the combos,
+  every press taken or dropped and why). It is served on read as `bible?book=practice` (`cast=female` for the stand-in)
+  and linked from design_game's readout (`practiceRoom`) and the rail. `room.mjs` is its CLI (`--kit`, `--combos`,
+  `--art`, `--hero`, `--cast` over the game's). Checked in headless Chrome: a template's room comes up with no error,
+  and three clicks play its L L L string, each press taken and all three blows landing.
+- **The feel measured: the feel chapter's machine gate** (`gameworld/feel/measure.js`). The room's hero is played
+  headless on the runtime the game ships, each number beside what was asked: carried, partly or lost.
+  - The kit: every ground combo of every weapon as written, each move's contact in its window, its chain at its cancel
+    or its length, less its own hitstop, and its travel.
+  - The card: the hitstop, the foe's stun, the dodge's frames and invincible frames, the parry window.
+  - Not measured, and named: air strings and the sidearm's press.
+  
+  design_game's readout carries it as `feel.measured`: the tally, and the lines that fell short or were lost; a loss is
+  a `feel` step in `next`. `measure.mjs` is now its CLI (`--feel`, `--game`, `--page`). What it found on the templates'
+  rooms: every kit carried move by move. The card's stun falls short on every template that asks it (13 or 14 frames
+  where it asks 27 or 30: its hitstun is not lowered onto the foe), and the dodge is invincible all through where the
+  card opens a window.
+- **The practice door** (`gameworld/practice.js`): which practice rooms a game's play has, chosen by how it plays, each
+  built from the world alone before any level.
+  - The action room (`room=practice`): a template that fights hand to hand, or any world with an arsenal.
+  - The platform room (`room=platform`, `gameworld/platform-room.js`): a platformer's template. Its course has steps, a
+    gap, the double jump's ledge and the wall kick's chimney, with walkers and a hopper to stomp. The hero stomps and is
+    touched as a level's hero is.
+  - The mount lane (`room=mount`, `gameworld/mount-lane.js`): any world with `mounts`. The world's horse stands at the
+    start of a posted 200 m lane, with a timed 100 m split, three fences at the horse's jump heights and a ring to turn
+    in.
+
+  The run's hero and foes play where they have been made, stand-ins (the template's body, a person of the foe's class)
+  where they have not.
+- **Templates whose fights are another runtime's have no action room.** The fighting game is practised in its own lab;
+  the RPG's fights are its battles. The door says so.
+- **Mounts suggested for a template that rides** (Fable of Artesia, after Zelda's horse): design_game's readout has a
+  `mounts` step with its patch, never laid.
+- **Served and linked:**
+  - `bible?book=practice&room=…`: the first room by default; a room the world lacks is a 422 saying which it has;
+  - design_game's readout `practice` (each room's link);
+  - the rail's exits (one per room, each its icon).
+
+  The platform room's and the mount lane's spikes are now CLIs over their pages.
+- **Checked in headless Chrome** (`practice-room.live.test.js`): each room comes up with no error. The action room's
+  string lands; the platform room's hero jumps, its four foes standing; the mount lane's hero gets on and rides the
+  horse on down the lane.

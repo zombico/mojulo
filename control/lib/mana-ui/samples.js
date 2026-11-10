@@ -9,7 +9,7 @@ const stats = (atk, def, mag, spd) => ({ atk, def, mag, spd });
 
 export const SAMPLE_STATE = Object.freeze({
   game: { title: 'Ashen Vale', subtitle: 'A greybox adventure', version: 'v0.1 greybox' },
-  load: { progress: 64, ready: false, place: 'The Lower Vale', tip: 'Guarding halves the next blow.' },
+  load: { progress: 64, ready: false, place: 'The Lower Vale', step: 'Raising the gatehouse', tips: ['Guarding halves the next blow.', 'A lantern keeps the hounds at bay.', 'Rest at a shrine to keep what you carry.'] },
   settings: { sound: 1, music: 0, subtitles: 1, volume: 7, fov: 90, difficulty: 'Normal', shake: 1, text: 'Medium' },
   player: { name: 'Ayla', hp: 64, hpMax: 80, mp: 10, mpMax: 20, lives: 2, livesMax: 3, gold: 240, weapon: 'Carbine', ammo: 12, reserve: 90, heading: 30, score: 1450, seconds: 312 },
   party: [
@@ -30,7 +30,7 @@ export const SAMPLE_STATE = Object.freeze({
   map: [{ x: 0.5, y: 0.5, kind: 'self' }, { x: 0.3, y: 0.4, kind: 'foe' }, { x: 0.7, y: 0.6, kind: 'foe' }, { x: 0.8, y: 0.2, kind: 'goal', label: 'Gate' }, { x: 0.2, y: 0.8, kind: 'item' }],
   bearings: [{ bearing: 60, kind: 'goal' }, { bearing: 350, kind: 'foe' }],
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },
-  feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Warden spotted you' }],
+  feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Picked up a tonic' }, { text: 'Picked up a tonic' }, { text: 'Warden spotted you' }],
   prompt: { show: true, action: 'E', label: 'Open the gate' },
   moments: [{ id: 'm1', text: 'Phase 2', sub: 'The Hollow King rises', weight: 'major' }],
   modes: [
@@ -102,6 +102,56 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   // the live game, across the kinds of game: a fight, a race, a firefight, a field, a match, a cutscene
   versus: { p1: { name: 'Ayla', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2, superMax: 3 }, p2: { name: 'Bram', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1, superMax: 3 }, time: 47, combo: 7 },
+  // a fighting game's (idioms-fight.js): the two sides, the round, the callouts and the announcer, training, the roster,
+  // the command list and the match's end
+  // a brawler's practice room (idioms-brawl.js): the line at each body's feet, the tokens, the chain, the clinch, the presses
+  brawl: {
+    practice: {
+      marks: [{ id: 'd1', x: 0.62, y: 0.78, text: 'LINED', kind: 'hit' }, { id: 'd2', x: 0.4, y: 0.7, text: '+60 cm', kind: 'miss' }],
+      heads: [{ id: 'd1', x: 0.62, y: 0.42 }],
+      beats: [{ value: '1', variant: 'strong' }, { value: '2', variant: 'strong' }, { value: '3', variant: 'muted' }, { value: '4', variant: 'muted' }],
+      ended: 'Dropped: the blow before missed',
+      clinch: { left: 64, of: 100, knees: 2, behind: 'Suplex', holding: true },
+      presses: [{ press: 'A', verdict: 'Jab', kind: 'heal' }, { press: 'A', verdict: '2f late: Straight', kind: 'heal' }, { press: 'A', verdict: 'Dropped: the blow before missed', kind: 'miss' }],
+    },
+  },
+  fight: {
+    p1: { tag: 'P1', name: 'Ayla', style: 'Rushdown', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2.4, stock: 2, guard: 640, burst: 1, combo: 7, comboDamage: 238,
+      calls: [{ id: 'c1', text: 'Counter', sub: '+62', weight: 'normal' }, { id: 'c2', text: 'Spark', sub: '+141', weight: 'major', tier: 'rare' }] },
+    p2: { tag: 'P2', name: 'Bram', style: 'Grappler', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1.3, stock: 1, guard: 1000, burst: 0, combo: 0, comboDamage: 0, calls: [{ id: 'c3', text: 'Reversal', weight: 'normal' }] },
+    time: 47, round: 3, toWin: 2, stocks: 3, guardMax: 1000, arena: 'Training ground',
+    announcer: [{ id: 'r3', text: 'Final round', weight: 'decisive' }, { id: 'go', text: 'Fight!', weight: 'decisive' }],
+    pausedBy: { tag: 'P1', side: 0 },
+    roster: [
+      { id: 'ayla', name: 'Ayla', style: 'Rushdown', stats: [{ label: 'Speed', value: 5, max: 5 }, { label: 'Power', value: 3, max: 5 }, { label: 'Reach', value: 2, max: 5 }] },
+      { id: 'bram', name: 'Bram', style: 'Grappler', stats: [{ label: 'Speed', value: 2, max: 5 }, { label: 'Power', value: 5, max: 5 }, { label: 'Reach', value: 3, max: 5 }] },
+      { id: 'kesh', name: 'Kesh', style: 'Zoner', stats: [{ label: 'Speed', value: 3, max: 5 }, { label: 'Power', value: 3, max: 5 }, { label: 'Reach', value: 5, max: 5 }] },
+      { id: 'mira', name: 'Mira', style: 'All-rounder', stats: [{ label: 'Speed', value: 4, max: 5 }, { label: 'Power', value: 4, max: 5 }, { label: 'Reach', value: 3, max: 5 }] },
+    ],
+    moves: [
+      { label: 'Normals', moves: [
+        { name: 'Jab', input: 'LP', about: 'The fastest button: it interrupts pressure.', data: [{ what: 'Startup', value: 4 }, { what: 'Active', value: 2 }, { what: 'Recovery', value: 7 }, { what: 'On hit', value: '+4' }, { what: 'On block', value: '+1' }, { what: 'Damage', value: 30 }] },
+        { name: 'Sweep', input: '↓ HK', about: 'A low that knocks down; punished on block.', data: [{ what: 'Startup', value: 9 }, { what: 'Active', value: 3 }, { what: 'Recovery', value: 20 }, { what: 'On hit', value: 'KD' }, { what: 'On block', value: '-12' }, { what: 'Damage', value: 90 }] },
+      ] },
+      { label: 'Specials', moves: [
+        { name: 'Rising strike', input: '→↓↘ P', about: 'The invincible reversal: it beats everything but a block.', data: [{ what: 'Startup', value: 3 }, { what: 'Active', value: 8 }, { what: 'Recovery', value: 'land' }, { what: 'On block', value: '-34' }, { what: 'Damage', value: 90 }] },
+      ] },
+    ],
+    training: {
+      inputs: [{ text: '→↓↘ + HP' }, { text: '↓ + LK' }, { text: '← (12f)' }],
+      frames: [{ value: '1', variant: 'muted' }, { value: '2', variant: 'muted' }, { value: '3', variant: 'muted' }, { value: '4', variant: 'strong' }, { value: '5', variant: 'strong' }, { value: '6', variant: 'plain' }, { value: '7', variant: 'plain' }],
+      advantage: '+1', stats: [{ label: 'Damage', value: 238 }, { label: 'Hits', value: 7 }, { label: 'Max combo', value: 312 }],
+      dummy: 'Stand', block: 'After first hit', counter: false, boxes: true, meter: true,
+      settings: [
+        { kind: 'cycler', label: 'Dummy', var: 'fight.training.dummy', options: ['Stand', 'Crouch', 'Jump', 'CPU', 'Record'] },
+        { kind: 'cycler', label: 'Guard', var: 'fight.training.block', options: ['None', 'All', 'After first hit', 'Random'] },
+        { kind: 'toggle', label: 'Counter hits', var: 'fight.training.counter' },
+        { kind: 'toggle', label: 'Hitboxes', var: 'fight.training.boxes' },
+        { kind: 'toggle', label: 'Frame meter', var: 'fight.training.meter' },
+      ],
+    },
+    results: { outcome: 'Ayla wins', winner: 'Ayla', tag: 'P1', side: 0, quote: 'You blinked first.', stats: [{ label: 'Damage', value: 1000 }, { label: 'Max combo', value: 312 }, { label: 'Counters', value: 4 }, { label: 'Sparks', value: 1 }] },
+  },
   race: { position: '3/8', lap: '2/3', speed: 142, speedMax: 240, time: 83, best: 79 },
   shooter: {
     threats: [{ bearing: 130 }, { bearing: 250 }],
@@ -128,6 +178,7 @@ export const SAMPLE_STATE = Object.freeze({
   lowerThird: { show: true, name: 'Isa', role: 'Ranger · 12 points' },
   cutscene: { show: true, who: 'Keeper', line: 'The gate has not opened in a hundred years.', skip: 'Hold to skip' },
   questToasts: [{ id: 'q1', text: 'Quest begun: The East Gate', weight: 'major' }, { id: 'q2', text: 'Step done: Find the crest key' }],
+  achievements: [{ id: 'a1', text: 'First Blood', sub: 'Achievement unlocked', icon: 'Sword' }, { id: 'a2', text: 'Untouchable', sub: 'Rare achievement', icon: 'Shield', tier: 'rare', weight: 'major' }],
   labels: [{ x: 0.3, y: 0.58, text: 'Crest Key' }, { x: 0.72, y: 0.5, text: 'Keeper' }, { x: 0.5, y: 0.34, text: 'East Gate' }],
   stealth: { state: 'searching', level: 62, max: 100 },
   touch: ['A', 'B', 'X', 'Y'],
@@ -146,4 +197,12 @@ export const SAMPLE_STATE = Object.freeze({
     foes: [{ id: 'g1', name: 'Warden', hp: 30, hpMax: 40, state: 'combat' }, { id: 'g3', name: 'Hound', hp: 8, hpMax: 22, state: 'combat' }],
   },
   talk: { who: 'Keeper', text: 'You came by the garden gate. Few do. What brings you to the vale?', choices: [{ label: 'The east gate.', then: { emit: 'talk:gate' } }, { label: 'Who lives here?', then: { emit: 'talk:who' } }, { label: 'Goodbye.', then: { close: true } }] },
+});
+
+// A GAME IN THREE LANGUAGES (a spec's `languages`), for the board's frames: each its own name and some of the runtime's
+// words; a word one lacks reads in English, so the board shows the fallback too
+export const SAMPLE_LANGUAGES = Object.freeze({
+  en: { languageName: 'English' },
+  ja: { languageName: '日本語', select: '決定', back: '戻る', change: '変更', tabs: 'タブ', resume: '再開', language: '言語', resetDefaults: '初期設定に戻す', loading: 'ロード中', tip: 'ヒント', tips: 'ヒント', stillLoading: 'まだ読み込んでいます…', retry: 'もう一度', continue: 'つづける', rank: 'ランク', party: 'パーティー', status: 'ステータス', equip: 'そうび', skills: 'スキル', nothingHere: '何もありません', more: 'ほか{n}件', on: 'オン', off: 'オフ' },
+  es: { languageName: 'Español', select: 'Seleccionar', back: 'Atrás', change: 'Cambiar', tabs: 'Pestañas', resume: 'Reanudar', language: 'Idioma', resetDefaults: 'Restablecer', loading: 'Cargando', tip: 'Consejo', tips: 'Consejos', stillLoading: 'Sigue cargando…', retry: 'Reintentar', continue: 'Continuar', rank: 'Rango', party: 'Grupo', nothingHere: 'Aquí no hay nada', more: '{n} más', on: 'Sí', off: 'No' },
 });

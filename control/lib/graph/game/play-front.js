@@ -20,7 +20,8 @@
  *   frontConfig(front, resolvedArt, { levels, run })   → the page's cfg.front: the menu defaulted, the art resolved
  *   FRONT_CSS                                  the front's sheet, laid after the shell's own
  *   playFrontRuntime(cfg, api)                 the page's code (inlined with toString(), references nothing outside
- *                                              itself) → { title(), end(level, envelope), rollFromRun() }
+ *                                              itself) → { attract(), title(), options(), roll(), end() }: what
+ *                                              it draws; where each pick leads is the game's flow (api.go)
  */
 
 export const FRONT_ENTRIES = Object.freeze(['continue', 'play', 'levels', 'options', 'credits']);
@@ -138,31 +139,23 @@ export const FRONT_CSS = [
 ].join('\n  ');
 
 /**
- * The page's code. `cfg.front` is frontConfig's; `api` is the shell's: { el, app, show, home, launch, levels, run,
- * startRun, renderLevels, progress, cleared, isOpen, settings, saveSettings, pushPrefs, reset, playtest, title }.
+ * The page's code. `cfg.front` is frontConfig's; `api` is the shell's: { el, app, show, go, poke, has, continueTo,
+ * progress, settings, saveSettings, pushPrefs, reset, playtest, title }. The front draws; where a pick leads is the
+ * game's flow (flow.js): each pick is an event it hands the shell (`api.go`).
  */
 export function playFrontRuntime(cfg, api) {
   const F = cfg.front, el = api.el;
   const root = document.getElementById('front');
   let pressed = !F.press, focus = 0, items = [], view = null;
 
-  const firstUncleared = () => api.levels.find((l) => api.isOpen(l) && !api.cleared(l.ref)) || null;
-  // continue: the open level after the last one played, else the first open one not cleared
-  function continueTo() {
-    const last = api.progress();
-    if (!last) return null;
-    // (a megaworld: continue is the current map)
-    if (api.current) return api.current();
-    const at = api.levels.findIndex((l) => l.ref === last);
-    const after = api.levels.slice(at + 1).find((l) => api.isOpen(l) && !api.cleared(l.ref));
-    return after || firstUncleared() || api.levels.find((l) => l.ref === last) || null;
-  }
+  // the menu's entries: each a pick the flow steps on (an entry the title's step has no way on from is not drawn)
+  const pick = (event) => () => { close(); api.go(event); };
   const ENTRY = {
-    continue: () => { const lv = continueTo(); return lv ? { label: 'continue', go: () => { close(); api.launch(lv); } } : null; },
-    play: () => ({ label: api.progress() ? 'new game' : 'start', go: () => { close(); if (api.run) api.startRun(); else api.launch(api.levels[0]); } }),
-    levels: () => ({ label: 'levels', go: () => { close(); api.renderLevels(); } }),
-    options: () => ({ label: 'options', go: () => options() }),
-    credits: () => (F.credits ? { label: 'credits', go: () => roll(title) } : null),
+    continue: () => (api.continueTo() ? { label: 'continue', go: pick('continue') } : null),
+    play: () => ({ label: api.progress() ? 'new game' : 'start', go: pick('play') }),
+    levels: () => ({ label: 'levels', go: pick('levels') }),
+    options: () => ({ label: 'options', go: () => api.go('options') }),
+    credits: () => (F.credits ? { label: 'credits', go: pick('credits') } : null),
   };
 
   function open() { root.style.display = 'block'; api.app.style.display = 'none'; }
@@ -181,7 +174,10 @@ export function playFrontRuntime(cfg, api) {
     return s;
   }
 
-  function title() {
+  // the title: its menu shown (the flow's title step), or its press-start first (the flow's attract step)
+  function attract() { pressed = !F.press; draw(); }
+  function title() { pressed = true; draw(); }
+  function draw() {
     api.show('title');
     open();
     view = 'title';
@@ -194,7 +190,7 @@ export function playFrontRuntime(cfg, api) {
       F.tagline && !titled ? el('div', { cls: 'fx-tag', text: F.tagline }) : null,
       api.playtest ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
     ];
-    items = F.menu.map((k) => ENTRY[k]()).filter(Boolean);
+    items = F.menu.filter((k) => api.has(k)).map((k) => ENTRY[k]()).filter(Boolean);
     focus = Math.min(focus, items.length - 1);
     const body = pressed
       ? el('div', { cls: 'fx-menu', role: 'menu' }, items.map((it, i) => el('button', { cls: i === focus ? 'on' : '', role: 'menuitem', text: it.label, on: it.go })))
@@ -208,16 +204,18 @@ export function playFrontRuntime(cfg, api) {
     } else root.appendChild(el('div', { cls: 'fx-col ' + F.layout }, head.concat([body])));
   }
 
+  // options: a panel over the title, its back the flow's
   function options() {
+    if (view !== 'title' && view !== 'options') title();
     view = 'options';
     const p = el('div', { cls: 'fx-panel' });
     let armed = false;
     const draw = () => {
       p.textContent = '';
-      const reset = el('button', { cls: 'link', text: armed ? 'tap again to reset' : 'reset progress', on: () => { if (!armed) { armed = true; draw(); return; } api.reset(); armed = false; title(); } });
+      const reset = el('button', { cls: 'link', text: armed ? 'tap again to reset' : 'reset progress', on: () => { if (!armed) { armed = true; draw(); return; } api.reset(); armed = false; api.go('back'); } });
       items = [
         { label: 'sound: ' + (api.settings().sfxOn ? 'on' : 'off'), go: () => { api.settings().sfxOn = !api.settings().sfxOn; api.saveSettings(); api.pushPrefs(); draw(); } },
-        { label: 'back', go: title },
+        { label: 'back', go: () => api.go('back') },
       ];
       focus = Math.min(focus, items.length - 1);
       p.appendChild(el('div', { cls: 'screen' }, [el('h2', { text: 'options' })].concat(items.map((it, i) => el('button', { cls: i === focus ? 'on' : '', text: it.label, on: it.go })), [api.playtest ? null : reset])));
@@ -227,8 +225,10 @@ export function playFrontRuntime(cfg, api) {
     root.appendChild(p);
   }
 
-  // the roll: the title, each role and its names, the thanks, the closing words, the line that says what made it
-  function roll(after) {
+  // the roll: the title, each role and its names, the thanks, the closing words, the line that says what made it; done
+  // (its end, or skip) is the flow's
+  function roll() {
+    api.show('title');
     open();
     view = 'roll';
     const C = F.credits || { roll: [], attribution: true };
@@ -239,7 +239,7 @@ export function playFrontRuntime(cfg, api) {
     if (C.attribution) kids.push(el('div', { cls: 'fx-made', text: 'made with mojulo · github.com/zombico/mojulo' }));
     const crawl = el('div', { cls: 'fx-crawl' }, kids);
     crawl.style.setProperty('--fx-dur', Math.max(14, 6 + kids.length * 2.4) + 's');
-    const done = () => { if (view === 'roll') { view = null; after(); } };
+    const done = () => { if (view === 'roll') { view = null; api.go('done'); } };
     crawl.addEventListener('animationend', done);
     const wrap = el('div', { cls: 'fx-roll' }, [crawl, el('button', { cls: 'fx-skip', text: 'skip', on: done })]);
     items = [{ label: 'skip', go: done }];
@@ -247,14 +247,14 @@ export function playFrontRuntime(cfg, api) {
     root.appendChild(wrap);
   }
 
-  // the last level first cleared: the end card, then the roll (when the game has credits), then the title
+  // the last level first cleared: the end card; where it goes on to (the roll, the title) is the flow's
   function end() {
     if (!F.end) return false;
     api.show('title');
     open();
     view = 'end';
     root.textContent = '';
-    const next = () => (F.end.credits ? roll(title) : title());
+    const next = () => api.go('done');
     items = [{ label: F.end.credits ? 'credits' : 'title', go: next }];
     root.appendChild(el('div', { cls: 'fx-end' }, [el('div', { cls: 'screen center' }, [
       el('div', { cls: 'result-mark', text: 'game complete' }),
@@ -268,8 +268,9 @@ export function playFrontRuntime(cfg, api) {
   // keys and the pad: up / down move the focus, enter / space / A pick, escape / B back; any of them presses start
   function act(k) {
     if (root.style.display !== 'block' || !view) return;
-    if (view === 'title' && !pressed) { pressed = true; title(); return; }
-    if (k === 'back') { if (view === 'options') title(); else if (view === 'roll') items[0].go(); return; }
+    api.poke();
+    if (view === 'title' && !pressed) { api.go('press'); return; }
+    if (k === 'back') { if (view === 'options') api.go('back'); else if (view === 'roll') items[0].go(); return; }
     if (!items.length) return;
     if (k === 'up' || k === 'down') {
       focus = (focus + (k === 'up' ? items.length - 1 : 1)) % items.length;
@@ -299,5 +300,5 @@ export function playFrontRuntime(cfg, api) {
     padWas = now;
   })();
 
-  return { title, end, rollFromRun: () => roll(api.home) };
+  return { attract, title, options, roll, end };
 }

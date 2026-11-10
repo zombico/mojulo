@@ -146,6 +146,53 @@ describe('versus extend: weapons', () => {
   });
 });
 
+describe('versus extend: priority', () => {
+  // two jabs that land on the same frame: one fighter's tuned to a higher level
+  const strong = withRecipe({ normals: { ...base.normals, 'stand.L': { ...base.normals['stand.L'], tune: { priority: 3 } } } });
+  const both = (d, fighters) => {
+    const { ctx, s } = fight(d, fighters);
+    return run(s, ctx, 20, (k) => [{ x: 0, y: 0, b: tap(k, 0, BTN.L) }, { x: 0, y: 0, b: tap(k, 0, BTN.L) }]);
+  };
+  const traded = (fighters) => {
+    for (let d = 500; d <= 1400; d += 25) {
+      const r = both(d, fighters);
+      const hits = r.events.filter(([, e]) => e.t === 'hit' || e.t === 'counter');
+      if (hits.length) return { r, hits };
+    }
+    return null;
+  };
+
+  it('equal levels trade; the higher level lands alone, the other strike does not', () => {
+    const even = traded([K, K]);
+    expect(new Set(even.hits.map(([, e]) => e.p))).toEqual(new Set([0, 1]));
+    const won = traded([strong, K]);
+    expect(won.hits.map(([, e]) => e.p)).toEqual([0]);
+    expect(won.r.events.find(([, e]) => e.t === 'priority')[1]).toMatchObject({ p: 0, over: [3, 1] });
+    expect(won.r.s.p[0].hp).toBe(strong.hp);
+  });
+
+  it('the scale: a normal\'s strength, a special\'s own, a super 4, the DP 0; a tune moves it within 0 to 5', () => {
+    expect(['L', 'M', 'H'].map((k) => K.moves[`stand.${k}`].priority)).toEqual([1, 2, 3]);
+    const all = withRecipe({ specials: { neutral: { id: 'rising' }, forward: { id: 'rush' }, back: { id: 'spin' }, down: { id: 'leap' } }, super: { id: 'super-rising' } });
+    const at = (dir) => ['L', 'M', 'H'].map((k) => all.moves[`special.${dir}.${k}`].priority);
+    expect(at('neutral')).toEqual([0, 0, 0]);
+    expect(at('forward')).toEqual([2, 3, 4]);
+    expect(at('back')).toEqual([2, 2, 3]);
+    expect(at('down')).toEqual([3, 3, 3]);
+    expect(all.moves.super.priority).toBe(0);
+    expect(withRecipe({ super: { id: 'super-rush' } }).moves.super.priority).toBe(4);
+    expect(K.moves.throw.priority).toBeUndefined();
+    expect(() => withRecipe({ normals: { ...base.normals, 'stand.L': { ...base.normals['stand.L'], tune: { priority: 6 } } } })).toThrow(/priority is a whole number from 0/);
+  });
+
+  it('the laws: priority is paid for in frames, and the DP yields', () => {
+    expect(lawsFor(K).filter((l) => /priority|reversal-yields/.test(l.id)).every((l) => l.ok)).toBe(true);
+    expect(lawsFor(strong).find((l) => l.id === 'priority-pays')).toMatchObject({ ok: false });
+    const dp = withRecipe({ specials: { neutral: { id: 'rising', tune: { priority: 2 } } } });
+    expect(lawsFor(dp).find((l) => l.id === 'reversal-yields')).toMatchObject({ ok: false });
+  });
+});
+
 describe('versus extend: systems and rules', () => {
   it('absent, the systems change nothing: the same seed is the same fight, and no state carries them', () => {
     const a = runVersus({ fighters: [base, base], seed: 9, maxFrames: 1200 });
@@ -266,5 +313,32 @@ describe('versus extend: an arena hosted by its game', () => {
     expect(hostedRules(made, { timer: 45 }, 7000)).toEqual({ timer: 45, half: 7000 });   // parry, dropped from the game, stays dropped
     expect(hostedRules(made, {}, 7000)).toEqual({ half: 7000 });
     expect(hostedRules(made, undefined, 7000)).toEqual({ systems: ['parry'], timer: 60, half: 7000 });   // on its own
+  });
+});
+
+describe('versus extend: a stance that stoops (a beast\'s head carried low)', () => {
+  const top = (F, k) => Math.max(...F.idle[k].hurt.map((b) => b[3]));
+  const front = (F, k) => Math.max(...F.idle[k].hurt.map((b) => b[2]));
+  it('its rests sink: the head lower standing and crouched, the front where it was; the jabs thrown from the rest shorter, every other move as it was', () => {
+    const S = withRecipe({ stance: { stoop: 26 } }), T = withRecipe({ stance: { stoop: 26 }, tradition: 'boxing' }), B = withRecipe({ tradition: 'boxing' });
+    for (const [plain, low] of [[K, S], [B, T]]) {
+      expect(top(low, 'stand')).toBeLessThan(top(plain, 'stand') - 40);
+      expect(top(low, 'crouch')).toBeLessThan(top(plain, 'crouch') - 100);
+      expect(front(low, 'stand')).toBeLessThanOrEqual(front(plain, 'stand') + 30);
+      // (a move's own poses are its own: the mid and heavy normals, the air's and the specials land where they did; the
+      // lights, thrown from the rest, start from the sunk shoulder: the trade a hunched beast makes, a smaller target for
+      // a shorter jab; the grab reaches from the chest, a little further)
+      for (const slot of ['stand.M', 'stand.H', 'crouch.M', 'crouch.H', 'air.M', 'special.back.M']) expect(low.moves[slot].reach, slot).toBe(plain.moves[slot].reach);
+      for (const slot of ['stand.L', 'crouch.L']) { expect(low.moves[slot].reach).toBeLessThan(plain.moves[slot].reach); expect(low.moves[slot].reach).toBeGreaterThan(plain.moves[slot].reach * 0.88); }
+      expect(low.moves.throw.reach).toBeLessThan(plain.moves.throw.reach * 1.06);
+      // (the body drawn stands its rests: the poses it carries are the stooped ones)
+      expect(low.poses.guard.torso).toBeGreaterThan((plain.poses?.guard ?? low.poses.guard).torso - 0.01);
+    }
+    expect(S.poses.crouch.legF[0]).toBeGreaterThan(70);
+  });
+  it('absent, a fighter compiles as it did; a stoop past what the stance reads is refused', () => {
+    expect(JSON.stringify(withRecipe({ stance: { open: 45 } }).idle)).toBe(JSON.stringify(withRecipe({ stance: { open: 45, stoop: 0 } }).idle));
+    expect(K.poses).toBeUndefined();
+    expect(() => withRecipe({ stance: { stoop: 45 } })).toThrow(/stance\.stoop is degrees from 0 to 30/);
   });
 });

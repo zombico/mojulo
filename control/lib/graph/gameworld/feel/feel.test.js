@@ -121,9 +121,13 @@ describe('the report', () => {
     for (const x of [...r.partly, ...r.lost]) expect(x.why.length).toBeGreaterThan(10);
   });
 
-  it('names the worn gear only for a template that wears it, and a variant\'s default', () => {
-    const geared = POLE_IDS.find((id) => POLES[id].gear), bare = POLE_IDS.find((id) => !POLES[id].gear && id !== geared);
-    expect(feelReport(geared).lost.map((x) => x.field)).toContain(POLES[geared].gear);
+  it('names the worn gear only for a template that wears it (carried where the runtime holds it, else lost), and a variant\'s default', () => {
+    // (one case a way of wearing it: a glider held, carried as the capped fall; a jetpack, lost)
+    const held = POLE_IDS.find((id) => POLES[id].gear === 'glide' && poleCard(id).glide?.kind === 'glide'), jet = POLE_IDS.find((id) => POLES[id].gear === 'jet');
+    const bare = POLE_IDS.find((id) => !POLES[id].gear);
+    expect(feelReport(held).partly.map((x) => x.field)).toContain('glide');
+    expect(feelReport(held).lost.map((x) => x.field)).not.toContain('glide');
+    expect(feelReport(jet).lost.map((x) => x.field)).toContain('jet');
     expect(feelReport(bare).lost.map((x) => x.field)).not.toContain('glide');
     expect(feelReport(varied).variant).toBe(variantsOf(varied)[0]);
   });

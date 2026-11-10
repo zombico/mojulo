@@ -8,7 +8,7 @@
  * references nothing outside itself, so a page runs the same code by emitting `buildManaHost.toString()`
  * (mana-controls.js manaHostSource). Node imports the live instance for tests.
  *
- *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop? }) → { key(ev), poll(), drive(fn), stop() }
+ *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop?, repeat?, now? }) → { key(ev), poll(), drive(fn), stop() }
  *     rt, view    a mana-ui runtime and its mount (view.paint after an intent)
  *     keys, pad   the menu scheme resolved (code → action; per printed layout, buttons and half axes → action)
  *     padLayout   the kernel's reader of a pad's printed layout (controls-kernel.js padLayout)
@@ -18,8 +18,9 @@
  *     drivers     [() → { <action>: 1 } | { name?, input?, actions }]: any other device (a headset, a wheel); one that
  *                 comes later (a headset's session starting) joins with the handle's drive(fn) → its removal
  *     listen      false: the page routes its keydowns to key(ev) itself;  loop: false: it calls poll() itself
- *     repeat      a held stick or d-pad's move repeated: { delay: 400, every: 100 } ms by default, false for none
- *     now         () → ms, the clock the repeat is timed on (performance.now by default)
+ *     repeat      a direction held on a pad or a driver repeats, as a key held does: { delay, rate } in seconds
+ *                 (0.38 then every 0.075 by default, estimates to tune by hand), false for none; now() the clock it is
+ *                 timed on, in seconds (the page's by default)
  *   While a screen is up the menu holds the input: a key it knows is taken in the capture phase (the game's own
  *   listeners never see it), and every pad and driver acts on its press edges, what was held as the screen opened not
  *   acting in it. With no screen up, nothing is taken: play has the devices.
@@ -73,10 +74,10 @@ export function buildManaHost() {
       return true;
     }
 
-    // a held stick or d-pad repeats its move as a held key does (a long list scrolls, a slider runs): after `delay` ms, then
-    // every `every` ms; a pick or a back never repeats, and what was held as a screen opened does not repeat in it
-    const rep = o.repeat === false ? null : { delay: 400, every: 100, ...(isObj(o.repeat) ? o.repeat : {}) };
-    const clock = typeof o.now === 'function' ? o.now : () => (typeof performance !== 'undefined' ? performance.now() : 0);
+    // a held stick or d-pad repeats its move as a held key does (a long list scrolls, a slider runs): after `delay`
+    // seconds, then every `rate`; a pick or a back never repeats, and what was held as a screen opened does not repeat in it
+    const rep = o.repeat === false ? null : { delay: 0.38, rate: 0.075, ...(isObj(o.repeat) ? o.repeat : {}) };
+    const clock = typeof o.now === 'function' ? o.now : () => (typeof performance !== 'undefined' ? performance.now() / 1000 : 0);
     const prev = new Map(), due = new Map(), drivers = (o.drivers || []).slice();
     // a device that comes after the connection (a headset's session): its driver joins, and leaves with what it held
     const drive = (fn) => { drivers.push(fn); return () => { const i = drivers.indexOf(fn); if (i >= 0) drivers.splice(i, 1); }; };
@@ -90,7 +91,7 @@ export function buildManaHost() {
       for (const a in now) {
         if (!now[a]) continue;
         if (!was[a]) { did = act(a, mode, layout, controller, fallback) || did; if (rep && REPEATS[a]) D[a] = t + rep.delay; }
-        else if (D[a] !== undefined && t >= D[a]) { did = act(a, mode, layout, controller, fallback) || did; D[a] = t + rep.every; }
+        else if (D[a] !== undefined && t >= D[a]) { did = act(a, mode, layout, controller, fallback) || did; D[a] = t + rep.rate; }
       }
       return did;
     };

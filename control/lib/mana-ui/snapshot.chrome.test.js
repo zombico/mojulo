@@ -20,7 +20,10 @@ let browser = null;
 beforeAll(async () => {
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: ['--disable-threaded-animation', '--disable-threaded-scrolling'] });
+  // (--disable-lcd-text: a desktop Chrome draws the page's text with sub-pixel anti-aliasing, coloured fringes for a
+  // monitor's stripes, and an image of it in grey; a panel in a headset is a texture and has no stripes, so the gate
+  // compares the grey both draw. Without it a box of text is a twelfth fringe on such a browser, and the gate cries wolf.)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: ['--disable-threaded-animation', '--disable-threaded-scrolling', '--disable-lcd-text'] });
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
@@ -33,6 +36,9 @@ async function open() {
   await page.setContent(html.replace('</body>', `<script>window.SNAP = ${manaSnapshotSource()};</script></body>`), { waitUntil: 'load' });
   return { page, errors };
 }
+// the view settled: every animation that ends has ended (a loop, the scanlines', runs on); a loaded runner may take longer
+// than a fixed wait, and a box caught mid-flight is not the box the whole shows a moment later
+const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => { const end = a.effect ? a.effect.getComputedTiming().endTime : 0; return !Number.isFinite(end) || a.playState === 'finished' || a.playState === 'paused'; }), { timeout: 30000 });
 // the page held at this instant (every animation paused where it is), drawn once more so a screenshot is of it
 const hold = (page) => page.evaluate(async () => { for (const a of document.getAnimations()) a.pause(); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
 // the snapshot of the view (or a box of it) drawn into a canvas over the page's ground, as a PNG data URL
@@ -74,6 +80,7 @@ describe('mana-ui: the transfer gate (a headset\'s panel shows what the screen s
     if (!browser) return;
     const { page, errors } = await open();
     await new Promise((r) => setTimeout(r, 1500));
+    await settled(page);
     await hold(page);
     const r = await apart(page, await shot(page), await snapped(page));
     expect(r.same).toBe(true);
@@ -98,11 +105,15 @@ describe('mana-ui: the transfer gate (a headset\'s panel shows what the screen s
     if (!browser) return;
     const { page } = await open();
     await new Promise((r) => setTimeout(r, 1500));
+    await settled(page);
     await hold(page);
     const box = await page.evaluate(() => { const r = document.querySelector('.mana-anchor').getBoundingClientRect(); return { x: Math.floor(r.x), y: Math.floor(r.y), w: Math.ceil(r.width), h: Math.ceil(r.height) }; });
-    const r = await apart(page, await shot(page, { x: box.x, y: box.y, width: box.w, height: box.h }), await snapped(page, box));
-    expect(r.same).toBe(true);
-    expect(r.off).toBeLessThan(ONE_PIXEL);
+    const a = await shot(page, { x: box.x, y: box.y, width: box.w, height: box.h }), b = await snapped(page, box);
+    const r = await apart(page, a, b);
+    // (a box is small, so a failure says what it compared: the box, what it holds in which face, the browser, both pictures)
+    const said = async () => JSON.stringify({ box, rect: await page.evaluate(() => { const e = document.querySelector('.mana-anchor'), r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, text: e.textContent, face: getComputedStyle(e.firstElementChild).fontFamily }; }), browser: await browser.version(), screen: a, snapshot: b });
+    expect(r.same, r.same ? '' : await said()).toBe(true);
+    expect(r.off, r.off < ONE_PIXEL ? '' : await said()).toBeLessThan(ONE_PIXEL);
     await page.close();
   }, 60000);
 });

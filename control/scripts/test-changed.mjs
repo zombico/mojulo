@@ -36,6 +36,7 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/scene\/handoff-hlsl\//, by: ['lib/graph/scene/handoff-common.js'], why: 'the handoff\'s common pack includes the shader fragments Unreal\'s and Unity\'s ports share' },
   { reads: /^scripts\/godot-humanoid-probe\.gd$/, by: ['lib/mcp/tools/export-model.godot-humanoid.test.js'], why: 'the humanoid gate runs the probe in a real Godot' },
   { reads: /^lib\/graph\/versus\/[^/]+\.js$/, by: ['lib/graph/versus/versus-page.js'], why: 'the versus page inlines its modules and clients' },
+  { reads: /^lib\/graph\/brawl\/[^/]+\.js$/, by: ['lib/graph/brawl/brawl-page.js'], why: 'the brawl page inlines its modules and its client' },
   { reads: /^lib\/graph\/broadcast\/broadcast\.client\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the broadcast graphics before its arena client' },
   { reads: /^lib\/graph\/contest\/contest-stats\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the stats fold its broadcast shows' },
   { reads: /^lib\/graph\/contest\/(contest-kernel|meet-sim|meet-arena\.client)\.js$/, by: ['lib/graph/contest/meet-arena.js'], why: 'the meet channel inlines the contest kernel, the meet sim and the arena client' },
@@ -58,7 +59,7 @@ export const TEXT_READERS = Object.freeze([
 export const DATA_READERS = Object.freeze([
   'app/api/sketches/[ref]/model.glb/route.js', 'lib/app-mcp-scaffold/install.js', 'lib/graph/beats/beats-vocab/loader.js',
   'lib/graph/creature-heads/index.js', 'lib/graph/face-acting/recordings.js', 'lib/graph/game/hud-cards/loader.js', 'lib/graph/game/mechanic-cards/loader.js',
-  'lib/graph/game/title-carve.js', 'lib/graph/game/title-words.js',
+  'lib/graph/game/title-carve.js', 'lib/graph/game/title-words.js', 'lib/graph/playscape/ui/theme-cards/loader.js',
   'lib/graph/game/slice-cards/loader.js', 'lib/graph/image-outcomes/fonts/font-shelf.js', 'lib/graph/image-outcomes/render-store.js',
   'lib/graph/image-outcomes/sheet-store.js', 'lib/graph/manji-programs/loader.js', 'lib/graph/motion-vocab/loader.js',
   'lib/graph/painted-landscape-cards/loader.js', 'lib/graph/polygonizer/humanoid-head-fit.js', 'lib/graph/polygonizer/relational-face-store.js',

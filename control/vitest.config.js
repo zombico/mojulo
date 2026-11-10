@@ -27,6 +27,7 @@ export const E2E = [
   'lib/mcp/tools/design-game.quest.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
+  'lib/graph/gameworld/practice-room.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/graph/cycle-shelf/cycle-ride.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',
@@ -53,6 +54,8 @@ export const E2E = [
   // the hover bot over a little world in headless Chromium: its ground cast, its teleport, its flight's step and hole
   'lib/graph/scene/hover-bot.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
+  'lib/graph/game/stage.live.test.js',
+  'lib/graph/playscape/ui/scene-takes.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
   'lib/graph/worlds/controllable/vayo-move.live.test.js',
@@ -66,6 +69,10 @@ export const E2E = [
   'lib/mcp/tools/science-setting.test.js',
   'lib/graph/scene/live-light.chrome.test.js',
   'lib/mana-ui/snapshot.chrome.test.js',
+  'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
+  // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts
+  'lib/graph/gameworld/combat/range-sound.chrome.test.js',
+  'lib/graph/gameworld/combat/artillery.chrome.test.js',
   'lib/graph/scene/visual-gate.chrome.test.js',
 ];
 

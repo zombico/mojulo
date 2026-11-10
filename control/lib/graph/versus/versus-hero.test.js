@@ -89,6 +89,17 @@ describe('versus: a character\'s own strikes', async () => {
     expect(Object.keys(T.clips)).toEqual(['guard']);
   }, 300000);
 
+  it('under a fight game\'s register every body is its lit export: a character in the character light is not baked cel', async () => {
+    const anime = { kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime' }) };
+    const own = await characterBody(anime, { fight: TRADITION_CLIPS });
+    const under = await characterBody(anime, { fight: TRADITION_CLIPS, register: 'anime' });
+    expect(under.played).toBe(true);
+    expect(under.toon).toBeUndefined();
+    expect(under.parts.filter(Boolean).every((p) => !p.colShade)).toBe(true);
+    // (without a register it is played as it always was: cel where its character light draws it so)
+    expect(!!own.toon).toBe(!!own.parts.find(Boolean).colShade);
+  }, 300000);
+
   it('a character with a tradition\'s moves pushes with its stance\'s legs, as one with its own strikes does', async () => {
     const [kar] = await resolveCharacters([{ id: 'karateka', tradition: 'karate', hero: { ref: 'him' } }], lookup);
     const R = rosterEntry(kar, 0).recipe, K = compileFighter(R);

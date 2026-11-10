@@ -388,7 +388,8 @@ export async function GET(request, { params }) {
     // headset's modes for an A/B without a re-mint (?xr=snap, ?xr=smooth,hand: channels/xr.js xrFromParam).
     // Off unless the manifest or the flag asks — the page stays byte-identical otherwise.
     const xr = xrFromParam(request.nextUrl.searchParams.get('xr'), payload.xr || null);
-    const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr });
+    // ?hud=1 also brings back the strip a clean page (a payload's `chrome: false`) leaves out
+    const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr, ...(hudParam != null && hud ? { chrome: true } : {}) });
     if (cacheKey) worldCacheSet(cacheKey, html);
     return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);
   } catch (err) {

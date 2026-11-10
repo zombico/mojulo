@@ -3,6 +3,7 @@
 // game it is, its world, its characters, its systems, its levels, its story, and play. Its parts are what a run made
 // (runner.js), each fresh or not by the runner's own `decide`; it is read in its world bible and its character bible
 // (and, where it fields foes, its cast sheet: a Foes outcome of its own), and played as its game.
+import { practiceFor } from '../gameworld/practice.js';
 import { registerRail, sketchHref } from './rail.js';
 import { isGameworldKind, gameworldOf } from '../gameworld/gameworld-kind.js';
 import { reviewState, fingerprint } from '../gameworld/review.js';
@@ -11,6 +12,7 @@ import { castable, foeState } from '../gameworld/foe-cast.js';
 import { runSteps, decide } from '../gameworld/runner.js';
 import { readGameworld } from '../gameworld/world.js';
 import { chapterOfPart } from '../gameworld/chapters.js';
+import { combatGame } from '../gameworld/combat/game.js';
 
 export const GAMEWORLD_OUTCOMES = Object.freeze([
   { id: 'intent', name: 'Intent' },
@@ -115,7 +117,11 @@ export default registerRail({
     if (ref) exits.push({ id: 'book', href: sketchHref(ref, 'bible') });
     if (ref && world.characters) exits.push({ id: 'characters', href: `${sketchHref(ref, 'bible')}?book=characters` });
     if (ref && world.feel !== undefined && world.feel !== null) exits.push({ id: 'feel', href: `${sketchHref(ref, 'bible')}?book=feel` });
+    // (each practice room the world's play has, practice.js: the action room, the platform room, the mount lane)
+    if (ref) for (const room of practiceFor(world).rooms) exits.push({ id: room, href: `${sketchHref(ref, 'bible')}?book=practice&room=${room}` });
     if (ref && fielding) exits.push({ id: 'foes', href: `${sketchHref(ref, 'bible')}?book=foes` });
+    // (a world that fights with guns, made: its gym, the combat book)
+    if (ref && combatGame(world) && world.made?.game?.ref) exits.push({ id: 'combat', href: `${sketchHref(ref, 'bible')}?book=combat` });
     const gameRef = made.game?.ref;
     if (gameRef && row(gameRef)) exits.push({ id: 'play', href: sketchHref(gameRef, 'game') }, { id: 'playtest', href: sketchHref(gameRef, 'playtest') });
     return { concerns, parts, exits, ...(fielding ? {} : { outcomes: GAMEWORLD_OUTCOMES.filter((o) => o.id !== 'foes') }) };

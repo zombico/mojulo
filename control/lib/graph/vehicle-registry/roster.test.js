@@ -14,6 +14,7 @@ import { RIDES } from '../gameworld/ride.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { ROTOR } from '../skyscape/rotor.js';
 import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CON_ARCHETYPES } from '../construction-shelf/con-archetypes.js';
 import { MECHA_ARCHETYPES } from '../mecha-shelf/mecha-archetypes.js';
@@ -35,6 +36,7 @@ const TABLES = {
   supercar: Object.keys(SUPERCAR_LIBRARY),
   craft: Object.keys(CRAFT_ARCHETYPES),
   sky: Object.keys(CRAFT),
+  rotor: Object.keys(ROTOR),
   cycle: Object.keys(CYCLE_ARCHETYPES),
   construction: Object.keys(CON_ARCHETYPES),
   mecha: Object.keys(MECHA_ARCHETYPES),

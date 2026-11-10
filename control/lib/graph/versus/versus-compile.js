@@ -11,20 +11,21 @@
  *     id, name, cast?: 'heroic' | 'brute' | 'lithe' | 'stout', body?: { …dials },
  *     hp?, walk?: { f, b }, dash?: { f, b }, jump?: { vy, g, vx },
  *     tradition?: 'boxing' | 'karate' | …,   // its guard, crouch, walk and rhythm (versus-traditions.js TRADITIONS)
- *     stance?: { open, hips, tilt },
+ *     stance?: { open, hips, tilt, stoop? },   // stoop: a beast's head carried low, its rests sunk (degrees)
  *     normals: { 'stand.L': { family, strength? }, … },     // the nine slots (versus-library NORMAL_SLOTS), any family
  *                                                          // of any tradition (versus-traditions.js FAMILIES)
  *     specials?: { neutral | forward | back | down: { id, motion?, tune? } },
  *     super?: { id, tune? },
  *     throw?: { tune? },
  *     weapon?: 'sword' | … | { kind?, grip?, length?, width?, butt?, angle?, tempo?, damage?, hurt? },
+ *     element?: 'fire' | 'lightning' | 'frost' | 'void' | { kind, on? },   // what its limbs carry (versus-fx.js): drawn only
  *     library?: { specials?: { <id>: record }, supers?: { <id>: record } },
  *   }
  *
  * Extending a fighter is editing its recipe, never code:
  *   tune      on any normal, special (flat, or per strength `{ L, M, H }`), the super or the throw: startup, active,
- *             recovery, damage, adv { hit, block }, guard, knock, hitstop, push, chip, meter, travel, and the
- *             primitives below. The stun is still solved from the advantage, the frames re-laid from the poses.
+ *             recovery, damage, adv { hit, block }, guard, knock, hitstop, push, chip, meter, travel, priority (0 … 5,
+ *             who wins a trade: versus-library.js PRIORITY), and the primitives below. The stun is still solved from the advantage, the frames re-laid from the poses.
  *   library   the recipe's own specials and supers, the shipped record's shape (versus-library.js SPECIALS, SUPERS),
  *             optionally `from` a shipped one; poses by name ('crouch'), by name and overrides ({ from, armF }), or
  *             written out. Its id goes in a special slot like any other.
@@ -40,9 +41,10 @@
  * plain data (no functions), so a page can compile in the browser from the stored recipe.
  */
 
-import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
-import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
+import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, stoopPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
+import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, COMMAND_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX, STATES, STATE_IDS } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
+import { readElement } from './versus-fx.js';
 
 // movement defaults (mm per frame, frames)
 export const MOVEMENT = Object.freeze({
@@ -211,7 +213,7 @@ const KNOCKS = ['none', 'down', 'launch'];
 const INVULN_KINDS = ['strike', 'projectile', 'throw'];
 // a tune's integer keys and their floors
 const TUNE_INTS = { startup: 1, active: 1, recovery: 1, damage: 0, hitstop: 0, push: 0, chip: 0, meter: 0, travel: -200, landing: 0, speed: 1, hits: 1 };
-const TUNE_KEYS = new Set([...Object.keys(TUNE_INTS), 'adv', 'guard', 'knock', 'invuln', 'armor', 'profile', 'riposte', 'juggle', 'vel', 'reach', 'L', 'M', 'H']);
+const TUNE_KEYS = new Set([...Object.keys(TUNE_INTS), 'adv', 'guard', 'knock', 'invuln', 'armor', 'profile', 'riposte', 'juggle', 'vel', 'reach', 'priority', 'L', 'M', 'H']);
 
 const isInt = (v) => Number.isInteger(v);
 
@@ -223,6 +225,7 @@ export function readTune(T, where) {
     if (!TUNE_KEYS.has(k)) throw new Error(`versus: ${where} tune has no '${k}' (one of ${[...TUNE_KEYS].join(', ')})`);
     if (k in TUNE_INTS && !(isInt(v) && v >= TUNE_INTS[k] && v <= 999)) throw new Error(`versus: ${where} tune.${k} is a whole number from ${TUNE_INTS[k]} to 999`);
     if (k === 'L' || k === 'M' || k === 'H') readTune(v, `${where}.${k}`);
+    if (k === 'priority' && !(isInt(v) && v >= 0 && v <= PRIORITY_MAX)) throw new Error(`versus: ${where} tune.priority is a whole number from 0 (a reversal's) to ${PRIORITY_MAX}`);
   }
   if (T.adv !== undefined) {
     if (typeof T.adv !== 'object') throw new Error(`versus: ${where} tune.adv is { hit?, block? }`);
@@ -290,6 +293,7 @@ function applyTune(m, T, adv) {
   if (T.guard) m.guard = T.guard;
   if (T.knock) m.knock = T.knock;
   if (T.juggle !== undefined) m.juggle = !!T.juggle;
+  if (T.priority !== undefined) m.priority = T.priority;
   const keys = Object.keys(T).filter((k) => k !== 'L' && k !== 'M' && k !== 'H');
   if (keys.length) m.tuned = keys;
   return { ...adv, ...(T.adv ?? {}) };
@@ -344,9 +348,13 @@ const perStrength = (at) => (at && STRENGTH_KEYS.some((k) => at[k]) ? at : { L: 
 
 /** A classic motion as written: numpad digits, 2 to 8 of them ('236', '623', '41236'). */
 export function readMotion(v, where) {
-  if (typeof v !== 'string' || !/^[1-9]{2,8}$/.test(v)) throw new Error(`versus: ${where} motion is 2 to 8 numpad digits (6 toward the opponent: '236', '623', '214')`);
+  // (a CHARGE: a direction held, then another: `[4]6` back held then forward, `[2]8` down held then up)
+  if (typeof v === 'string' && /^\[[1-9]\][1-9]$/.test(v)) return v;
+  if (typeof v !== 'string' || !/^[1-9]{2,8}$/.test(v)) throw new Error(`versus: ${where} motion is 2 to 8 numpad digits (6 toward the opponent: '236', '623', '214'), or a charge: '[4]6' (back held, then forward), '[2]8' (down held, then up)`);
   return v;
 }
+/** Is a motion a charge (a direction held, then another)? */
+export const isCharge = (motion) => typeof motion === 'string' && motion[0] === '[';
 
 /** A recipe's own special (maybe `from` a shipped one) → a record compileSpecial reads. */
 function readSpecial(id, rec, specials) {
@@ -598,6 +606,8 @@ export function compileNormal(body, slot, { family, strength, tune, hero } = {},
   m.guard = fam.guard ?? (stance === 'air' ? 'overhead' : 'mid');
   m.knock = fam.knock ?? 'none';
   m.antiAir = !!fam.antiAir;
+  // (its level in a trade: its strength's, versus-library.js PRIORITY)
+  m.priority = st.priority;
   if (armed) m.disjoint = weapon.length;
   const adv = applyTune(m, T, { ...st.adv, ...(fam.adv ?? {}) });
   primitives(m, T, slot);
@@ -640,7 +650,7 @@ export function compileHeroNormal(body, slot, { hero, strength, tune } = {}, res
   const m = baseMove(slot, 'normal', stance, limb);
   m.id = hero.word ?? 'strike'; m.strength = strength ?? letter; m.hero = true;
   m.startup = st.startup; m.active = st.active; m.recovery = st.recovery;
-  m.damage = st.damage; m.hitstop = st.hitstop; m.push = st.push; m.meter = st.meter; m.guard = 'mid'; m.knock = 'none';
+  m.damage = st.damage; m.hitstop = st.hitstop; m.push = st.push; m.meter = st.meter; m.guard = 'mid'; m.knock = 'none'; m.priority = st.priority;
   const adv = applyTune(m, T, st.adv);
   primitives(m, T, slot);
   m.total = m.startup + m.active - 1 + m.recovery;
@@ -680,6 +690,18 @@ export function compileThrow(body, slot = 'throw', over = {}) {
   return m;
 }
 
+/** A special's or a super's level in a trade (versus-library.js PRIORITY): its record's, a number or one per strength;
+ * else its kind's (a reversal 0); else its strength's, or a super's. */
+function priorityOf(rec, strength, rps) {
+  const v = rec !== null && typeof rec === 'object' ? rec[strength] : rec;
+  if (v !== undefined) {
+    if (!(isInt(v) && v >= 0 && v <= PRIORITY_MAX)) throw new Error(`versus: priority is a whole number from 0 to ${PRIORITY_MAX}, or one per strength { L, M, H }`);
+    return v;
+  }
+  if (PRIORITY.rps[rps] !== undefined) return PRIORITY.rps[rps];
+  return strength ? STRENGTHS[strength].priority : PRIORITY.super;
+}
+
 /**
  * A special at a strength (L / M / H) → a compiled move. o: { lib (the specials shelf, libraryOf), tune, weapon }.
  */
@@ -713,6 +735,7 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
   const m = baseMove(slot, 'special', 'stand', sp.limb);
   Object.assign(m, { id, strength, rps: sp.rps, guard: sp.guard ?? 'mid', knock: at.knock ?? sp.knock ?? 'none', chip: sp.chip ?? 0, hitstop: sp.hitstop ?? 10, push: sp.push ?? 180, meter: sp.meter ?? 40 });
   m.damage = at.damage ?? sp.damage;
+  m.priority = priorityOf(at.priority ?? base.priority, strength, sp.rps);
   m.startup = at.startup;
   m.active = at.active ?? 1;
   m.hits = sp.hits ?? 1;
@@ -750,9 +773,38 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
     m.blockstun = stunFor(m, adv.block);
   }
   if (Object.keys(T).length) m.tuned = Object.keys(T);
+  // THE TRAVERSAL's: a move that strikes nothing (`nohit`: a roll, a blink, a hop), untouchable by `invuln`'s kinds while
+  // it moves, and passing `through` the opponent while it travels (the push boxes off)
+  if (Array.isArray(sp.invuln) && sp.invuln.every((k) => typeof k === 'string')) for (const k of sp.invuln) m.invuln.push([1, m.startup + m.active - 1, k]);
+  if (sp.through) m.through = [2, m.startup + m.active - 1];
   m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
+  if (sp.nohit) {
+    for (const fr of m.frames) if (fr && fr.hit) delete fr.hit;
+    m.nohit = true; m.damage = 0; m.chip = 0;
+  }
   m.reach = reachOf(m.frames);
+  // ALL ROUND (`around`: the desperation's spin): its box reaches behind the body as far as in front of it
+  if (sp.around) for (const fr of m.frames) if (fr && fr.hit) fr.hit = [-fr.hit[2], fr.hit[1], fr.hit[2], fr.hit[3]];
+  // its PRICE (`price`): the health it costs the one who throws it, the first time it lands (never the last of it)
+  if (sp.price !== undefined) {
+    if (!(isInt(sp.price) && sp.price > 0)) throw new Error(`versus: special '${id}' price is whole health points, over 0`);
+    m.price = sp.price;
+  }
   return m;
+}
+
+/**
+ * A REKKA's stages (a special with `stages`): stage 1 the special as it is, each later one its record over the first's
+ * (its limb, its strike, its knock), its frame rows scaled (`scale`: damage, startup, recovery). → the stage records,
+ * each a special compileSpecial reads.
+ */
+export function rekkaStages(base) {
+  return base.stages.map((st, k) => {
+    if (!k) return { ...base, stages: undefined };
+    const sc = st.scale ?? {}, row = (r) => ({ ...r, ...Object.fromEntries(['damage', 'startup', 'recovery'].filter((f) => sc[f] !== undefined && r[f] !== undefined).map((f) => [f, Math.max(f === 'damage' ? 1 : 2, Math.round(r[f] * sc[f]))])), ...(st.adv ? { adv: { ...(r.adv ?? {}), ...st.adv } } : {}) });
+    const { scale: _s, adv: _a, ...own } = st;
+    return { ...base, ...own, stages: undefined, at: Object.fromEntries(Object.entries(base.at).map(([k2, r]) => [k2, row(r)])) };
+  });
 }
 
 /**
@@ -818,6 +870,7 @@ export function compileSuper(body, id, o = {}) {
     if (su.travel) m.travel = su.travel;
   }
   Object.assign(m, { id, kind: 'super', cost: SUPER_COST, freeze: su.freeze, rps: sp.rps });
+  if (!m.throw) m.priority = priorityOf(su.priority, null, sp.rps);
   if (su.meter !== undefined) m.meter = su.meter;
   if (isInt(su.invuln)) m.invuln = [...m.invuln, [1, su.invuln, 'strike'], [1, su.invuln, 'projectile'], [1, su.invuln, 'throw']];
   else primitives(m, { invuln: su.invuln }, 'super');
@@ -841,6 +894,12 @@ export function compileSuper(body, id, o = {}) {
   if (su.lock !== undefined) m.lock = readLock(su.lock, id, m, su.damage);
   if (Object.keys(T).length) m.tuned = Object.keys(T);
   m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
+  // an INSTALL (`install`, a STATES row): the super strikes nothing (`nohit`) and grants the state as it starts
+  if (su.nohit) { for (const fr of m.frames) if (fr && fr.hit) delete fr.hit; m.nohit = true; m.damage = 0; m.chip = 0; }
+  if (su.install !== undefined) {
+    if (!STATES[su.install]) throw new Error(`versus: super '${id}' install is a state (${STATE_IDS.join(', ')})`);
+    m.install = su.install;
+  }
   m.reach = m.throw ? m.throw.range : reachOf(m.frames);
   return m;
 }
@@ -863,7 +922,7 @@ const MOVEMENT_DIALS = {
 // the STANCE a fighter stands in (degrees; versus-figure.js reads it, the sim never does): how far the chest opens to
 // the camera, how far the hips follow, and the SIDE TILT, the trunk bent toward the camera so the shoulder line runs on
 // a diagonal and the torso reads in the silhouette
-export const STANCE_DIALS = { open: [0, 70], hips: [0, 60], tilt: [-20, 25] };
+export const STANCE_DIALS = { open: [0, 70], hips: [0, 60], tilt: [-20, 25], stoop: [0, 30] };
 export const DEFAULT_STANCE = Object.freeze({ open: 45, hips: 28, tilt: 8 });
 export const BODY_DIALS = { height: [1000, 2600], arm: [0.5, 2], leg: [0.5, 2], torso: [0.5, 2], girth: [0.5, 2] };
 
@@ -909,18 +968,27 @@ export function readMovement(recipe) {
   }
 }
 
+// a fighter's rests stooped (the air's left as it is: a jump's tuck is its own)
+const stoopRests = (R, stoop, body) => Object.fromEntries(Object.entries(R).map(([k, pose]) => [k, k === 'air' ? pose : stoopPose(pose, stoop, body)]));
+
 /** A recipe → the compiled fighter (plain data). */
 export function compileFighter(recipe) {
   if (!recipe || typeof recipe !== 'object') throw new Error('versus: a fighter recipe is an object');
   readMovement(recipe);
   const body = versusBody(recipe.cast ?? 'heroic', recipe.body ?? {});
   const weapon = readWeapon(recipe.weapon, body);
+  // (the element its limbs carry, versus-fx.js: drawn, never read by the sim)
+  const element = readElement(recipe.element, `${recipe.id ?? 'fighter'} element`);
   // a tradition's guard is where every move starts and comes home (none: the genre's own)
   const trad = traditionRests(recipe.tradition);
   // (a character's own guard, versus-hero.js: where its moves start and come home, its idle's stand)
   // (its walk the guard's, its legs striding as the walk's: the arms held up as it stands)
   const heroGuard = recipe.guard ? readPose(recipe.guard, `${recipe.id ?? 'fighter'} guard`) : null;
-  const own = heroGuard ? { ...(trad ?? { crouch: POSES.crouch, air: POSES.jump }), stand: heroGuard, walkA: { ...heroGuard, legF: POSES.walkA.legF, legB: POSES.walkA.legB }, walkB: { ...heroGuard, legF: POSES.walkB.legF, legB: POSES.walkB.legB } } : trad;
+  const made = heroGuard ? { ...(trad ?? { crouch: POSES.crouch, air: POSES.jump }), stand: heroGuard, walkA: { ...heroGuard, legF: POSES.walkA.legF, legB: POSES.walkA.legB }, walkB: { ...heroGuard, legF: POSES.walkB.legF, legB: POSES.walkB.legB } } : trad;
+  // (a stance that STOOPS, a beast's head carried low: its rests sunk, the stand, the crouch and the walk, its moves'
+  // own poses as they are; versus-rig.js stoopPose)
+  const stoop = recipe.stance?.stoop ?? 0;
+  const own = stoop > 0 ? stoopRests(made ?? { ...REST_POSES, walkA: POSES.walkA, walkB: POSES.walkB }, stoop, body) : made;
   const rests = own ?? REST_POSES;
   const { specials, supers } = libraryOf(recipe);
   const moves = {};
@@ -939,12 +1007,39 @@ export function compileFighter(recipe) {
     }
   }
   moves.throw = compileThrow(body, 'throw', { tune: recipe.throw?.tune, rests });
+  // its COMMAND NORMALS (forward + a button: an overhead, COMMAND_SLOTS), each a stand normal read off the stick
+  if (recipe.commands !== undefined) {
+    if (!recipe.commands || typeof recipe.commands !== 'object' || Array.isArray(recipe.commands)) throw new Error(`versus: ${recipe.id ?? 'fighter'} commands is { ${COMMAND_SLOTS.join(', ')} }`);
+    for (const [slot, n] of Object.entries(recipe.commands)) {
+      if (!COMMAND_SLOTS.includes(slot)) throw new Error(`versus: ${recipe.id ?? 'fighter'} commands.${slot} is not a command (${COMMAND_SLOTS.join(', ')}: forward + a button)`);
+      const st = slot.split('.')[1];
+      const m = compileNormal(body, `stand.${st}`, { ...n, strength: n?.strength ?? st }, weapon, rests);
+      m.slot = slot; m.command = 'forward';
+      // (an overhead is slow on purpose: its level a heavy's, so no faster button outranks it, versus-laws.js priority-pays)
+      if (n?.tune?.priority === undefined) m.priority = STRENGTHS.H.priority;
+      moves[slot] = m;
+    }
+  }
   for (const dir of SPECIAL_SLOTS) {
     const s = recipe.specials?.[dir];
     if (!s) continue;
+    const motion = readMotion(s.motion ?? specials[s.id].motion, `special.${dir}`);
     for (const st of ['L', 'M', 'H']) {
+      // (a rekka: each later stage its own move, the one before naming it: the same motion again goes on to it)
+      if (specials[s.id].stages) {
+        const stages = rekkaStages(specials[s.id]);
+        stages.forEach((rec, k) => {
+          const key = k ? `special.${dir}.${st}~${k + 1}` : `special.${dir}.${st}`;
+          const m = compileSpecial(body, k ? `special.${dir}~${k + 1}` : `special.${dir}`, s.id, st, { lib: { [s.id]: rec }, tune: s.tune, weapon, rests });
+          m.motion = motion;
+          if (k + 1 < stages.length) m.rekka = `special.${dir}.${st}~${k + 2}`;
+          if (k) m.stage = k + 1;
+          moves[key] = m;
+        });
+        continue;
+      }
       const m = compileSpecial(body, `special.${dir}`, s.id, st, { lib: specials, tune: s.tune, weapon, rests });
-      m.motion = readMotion(s.motion ?? specials[s.id].motion, `special.${dir}`);
+      m.motion = motion;
       moves[`special.${dir}.${st}`] = m;
     }
   }
@@ -974,6 +1069,9 @@ export function compileFighter(recipe) {
     ...(strings ? { strings } : {}),
     ...(own ? { ...(recipe.tradition ? { tradition: recipe.tradition } : {}), poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, ...(recipe.tradition ? { rhythm: TRADITIONS[recipe.tradition].rhythm } : {}) } : {}),
     ...(weapon ? { weapon } : {}),
+    ...(element ? { element } : {}),
+    // (a fighter with a CHARGE special keeps how long it has held back and down: versus-core.js chargeStep)
+    ...(Object.values(moves).some((m) => isCharge(m.motion)) ? { charge: true } : {}),
     moves,
   };
 }

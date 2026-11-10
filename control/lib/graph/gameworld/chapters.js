@@ -51,7 +51,7 @@ export const CHAPTERS = Object.freeze([
   C('direction', 'characters', 'The direction', { paths: ['/characters/direction'], parts: ['characters:direction'], cards: ['gameworld-direction'], reads: ['intent', 'world'], outcome: 'characters' }),
   C('hero', 'characters', 'The hero', { paths: ['/characters/hero'], parts: ['hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base'], steps: ['hero'], cards: ['gameworld-looks'], reads: ['direction'], outcome: 'characters' }),
   C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
-  C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/juice', '/tempo'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
+  C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/arsenal', '/juice', '/tempo'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
   C('actions', 'play', 'The actions', { paths: ['/characters/hero/actions'], parts: ['hero:actions'], cards: ['gameworld-actions'], reads: ['intent', 'hero', 'main-quest'], outcome: 'characters' }),
   C('adornment', 'characters', 'The adornment', { paths: ['/characters/hero/adornment'], parts: ['hero:adornment'], steps: ['hero-equipped', 'hero-sheathed'], cards: ['gameworld-adornment'], reads: ['hero', 'actions'], outcome: 'characters' }),
   C('systems', 'play', 'The systems', { paths: ['/mechanics'], parts: ['mechanics:*'], steps: ['systems'], cards: ['gameworld-systems'], reads: ['hero', 'actions', 'motion'], outcome: 'systems' }),
@@ -63,9 +63,13 @@ export const CHAPTERS = Object.freeze([
   // (a block's play layer: `/levels/<id>/glyphs/play`, a block a unit, `play:<level>/<segment>`)
   C('play-layer', 'level-design', 'The level design', { paths: ['/levels/*/glyphs/play'], parts: ['play:*'], reads: ['levels', 'foes', 'cast', 'motion', 'actions'] }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
-  // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/)
-  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/hud'], reads: ['intent', 'world', 'systems', 'battles', 'cast'] }),
-  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'play-layer'], outcome: 'play' }),
+  // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/), and
+  // their look (`ui`), worked with the art direction (the intent's register) and the colour theorist (the world's palette)
+  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/ui', '/hud'], parts: ['interface:*'], cards: ['gameworld-interface'], reads: ['intent', 'world', 'feel', 'systems', 'battles', 'cast'] }),
+  // the game's flow, what plays when from the first screen to the credits: the game director's page, the main agent's own
+  // (never a subagent's), reading the spine, the levels, the story's cinematics and the interface's screens (game-flow.js)
+  C('flow', 'production', 'The flow', { paths: ['/flow'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
+  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'flow', 'play-layer'], outcome: 'play' }),
 ]);
 
 const BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));

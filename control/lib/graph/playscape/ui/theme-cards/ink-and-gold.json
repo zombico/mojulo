@@ -1,0 +1,14 @@
+{
+  "id": "ink-and-gold",
+  "name": "Ink and Gold",
+  "about": "A dark fantasy's ledger: the grim look on parchment under a cresting of scrolls, heavier frames, a slow fade between screens.",
+  "family": "grave",
+  "tags": ["souls-like", "dark fantasy", "gothic"],
+  "author": "mojulo",
+  "from": "grim",
+  "frame": "double",
+  "material": "parchment",
+  "crest": "victorian",
+  "backing": "torn",
+  "halo": "plate"
+}

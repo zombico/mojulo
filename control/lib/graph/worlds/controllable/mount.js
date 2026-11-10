@@ -10,7 +10,8 @@
  *     `band` either side, so a horse held at a speed between two gaits does not flicker. Its legs keep time with the
  *     ground (gaitPhase advances by distance over the gait's own stride: no skating). Jump (Space) at a trot or faster:
  *     the jump's clip played once (its take-off, flight and landing), carried on at its own speed, the ground's walls
- *     cleared up to `jump.clear` while it is in the air (`jump.air`: the flight's share of the clip). Unridden it stands
+ *     cleared up to `jump.clear` while it is in the air (`jump.air`: the flight's share of the clip); a wall it cannot pass
+ *     pulls it up (its speed what it covered: a fence above its jump refused). Unridden it stands
  *     at ease, its loose clips (no carriage, the reins on the neck), its idle looping. Ground followed (the probe cast from
  *     its height), walls by the shared footprint eject.
  *   GETTING ON AND OFF (wraps stepWorld): the pilot (a body that `rides`: its figure carries the riding clips, mount/game.js)
@@ -79,9 +80,12 @@ export function buildMount(E) {
     // the turn: tighter at a halt, wider the faster
     const turnIn = clamp(inp.turn, -1, 1), rate = (r.turn ?? 1.6) / (1 + Math.abs(v) * (r.tighten ?? 0.08));
     t.heading = (t.heading - turnIn * rate * dt) % TAU;
-    const f = fwdXY(t.heading);
+    const f = fwdXY(t.heading), x0 = t.pos[0], y0 = t.pos[1];
     t.pos[0] += f[0] * v * dt; t.pos[1] += f[1] * v * dt;
     if (world && world.colliders) resolveBlocking(t.pos, t.pos[2], r.height ?? 2.2, r.radius ?? 0.55, world.colliders, r.step ?? 0.35);
+    // (a wall that takes most of the step stops it: its speed what it covered, so a fence above its jump is refused, the
+    // horse pulled up at it and its gait come down, never galloping on the spot)
+    if (Math.abs(v) > 0.5) { const got = ((t.pos[0] - x0) * f[0] + (t.pos[1] - y0) * f[1]) / dt; if (Math.abs(got) < Math.abs(v) * 0.5) v = Math.sign(v) * Math.max(0, Math.abs(got)); }
     ground();
     // the gait: the speed's band, held across its edges by the hysteresis
     let gi = Number.isInteger(e.gaitIx) ? Math.min(G.length - 1, e.gaitIx) : 0;

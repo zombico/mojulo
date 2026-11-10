@@ -47,6 +47,7 @@
  * Pure. `readCharacters` reads the shape alone (the world reader calls it, so it never reads the world back);
  * `resolveDirection(G)` hands the world's direction down onto a read world.
  */
+import { readActorDials } from '../playscape/ui/scene-script.js';
 import { kitCard, languageCard, hasKitCard, hasLanguageCard } from './style-guide.js';
 import { poleOf } from '../era/style/pole.js';
 import { readActions } from './actions.js';
@@ -102,7 +103,7 @@ const NOT_LOOKS = Object.freeze({
  * the systems numbered from the actions (mechanics.js): their stats and their HUD.
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
-const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment'];
+const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment', 'actor'];
 const KEYS = ['direction', 'hero', 'cast', 'casting', 'folk'];
 /** The character book's keys and its hero's (the chapter registry, chapters.js, gives each its chapter). */
 export const CHARACTER_BOOK_KEYS = Object.freeze([...KEYS]), CHARACTER_HERO_KEYS = Object.freeze([...HERO_KEYS]);
@@ -194,8 +195,9 @@ function readLooks(L) {
   return out;
 }
 
+const actorOf = (A, at) => { try { return readActorDials(A, at); } catch (e) { throw err(e.message); } };
 const CAST_ID = /^[a-z][a-z0-9-]{0,23}$/;
-const CAST_KEYS = ['name', 'looks', 'motion', 'joins'];
+const CAST_KEYS = ['name', 'looks', 'motion', 'joins', 'actor'];
 /** The cast: the other people, each { name?, looks?, motion? }. Their looks take the hero's pages but no pinned base. */
 function readCast(c) {
   if (!isObj(c)) throw err('cast is { <id>: { name?, looks?, motion?, joins? } }: the other people, by a short id (mayor, guard)');
@@ -211,7 +213,9 @@ function readCast(c) {
     // joins: the flag that makes them a companion (playscape/ui/party.js): from then on they follow the hero
     if (m.joins !== undefined && !(typeof m.joins === 'string' && /^[a-z][a-z0-9-]{0,47}$/.test(m.joins))) throw err(`${at}.joins is the flag that makes them join the hero (a lowercase name: joined-${id})`);
     const looks = m.looks === undefined ? undefined : readLooks(m.looks);
-    out[id] = { ...(m.name !== undefined ? { name: m.name.trim() } : {}), ...(looks ? { looks } : {}), ...(m.motion !== undefined ? { motion: readMotion(m.motion) } : {}), ...(m.joins ? { joins: m.joins } : {}) };
+    // actor: how they act a script (playscape/ui/scene-script.js: style, role, register), carried to the page
+    const actor = m.actor === undefined ? undefined : actorOf(m.actor, `${at}.actor`);
+    out[id] = { ...(m.name !== undefined ? { name: m.name.trim() } : {}), ...(looks ? { looks } : {}), ...(m.motion !== undefined ? { motion: readMotion(m.motion) } : {}), ...(m.joins ? { joins: m.joins } : {}), ...(actor ? { actor } : {}) };
   }
   return out;
 }
@@ -272,6 +276,7 @@ export function readCharacters(C) {
     if (C.hero.motion !== undefined) out.hero.motion = readMotion(C.hero.motion);
     if (C.hero.actions !== undefined) out.hero.actions = readActions(C.hero.actions);
     if (C.hero.adornment !== undefined) out.hero.adornment = readAdornment(C.hero.adornment);
+    if (C.hero.actor !== undefined) out.hero.actor = actorOf(C.hero.actor, 'hero.actor');
   }
   return out;
 }

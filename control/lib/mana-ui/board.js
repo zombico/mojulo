@@ -9,11 +9,14 @@
  * request leaves it.
  *
  *   BOARD_HUDS            the HUD frames: name → the HUD idioms it layers
- *   manaUiBoard({ state?, title?, theme?, themes?, host?, glyphs? })  → the page (themes: name → theme, the presets
+ *   manaUiBoard({ state?, title?, theme?, themes?, host?, glyphs?, audio? })  → the page (themes: name → theme, the presets
  *                         by default; host: the controls layer's input owner, { source, controls: { keys, pad,
  *                         padLayoutSource } } from controls/mana-controls.js (manaHostSource, manaControls): then the live
  *                         frame is driven through the control schemes, pads too; glyphs: what its legends print. With
- *                         no host the board drives its frames with PREVIEW_KEYS, a stand-in of its own, never mana-ui's)
+ *                         no host the board drives its frames with PREVIEW_KEYS, a stand-in of its own, never mana-ui's;
+ *                         audio: { source, sets, of } (beats/ui-sounds.js uiSoundAudio): the live frame is heard in the
+ *                         set the look names, and the set follows the look as it is switched; words: the runtime's
+ *                         own words in a language, playscape/ui/mana-words.js manaWords(locale))
  *   PREVIEW_KEYS          the stand-in: arrows / WASD, Enter, Escape, [ ] (the menu scheme's defaults, for a preview), and
  *                         its `also`: the keypad, Tab and Shift+Tab, Page Up and Down; previewKey its keydown
  */
@@ -21,18 +24,21 @@ import { manaUiSource, manaUi } from './kernel.js';
 import { manaCss, FRAME_CSS } from './css.js';
 import { THEMES, themeCss, themeAdvice, readTheme } from './theme.js';
 import { IDIOMS, SCREEN_IDIOMS, withIdioms } from './idioms.js';
-import { SAMPLE_STATE } from './samples.js';
+import { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
 
 // a phone's frames (390 × 844, driven by a finger): its HUD and the screens a phone game needs most
 export const BOARD_PHONE = Object.freeze({ hud: ['vitals', 'minimap-corner', 'phone-buttons', 'ability-bar', 'touch-controls'], screens: ['action-sheet', 'options-screen', 'inventory-screen', 'party-screen', 'character-select', 'match-results'] });
 export const BOARD_HUDS = Object.freeze({
   'action HUD': ['vitals', 'objective-tracker', 'minimap-corner', 'ammo-counter', 'interact-prompt', 'event-feed', 'crosshair', 'enemy-plates', 'damage-numbers'],
   'boss fight HUD': ['boss-bar', 'party-strip', 'target-frame', 'score-timer', 'moment-banner', 'enemy-plates'],
+  'fight HUD': ['fight-health', 'fight-meters', 'fight-combo', 'fight-callouts', 'fight-announcer'],
+  'training HUD': ['fight-health', 'input-display', 'frame-meter', 'training-stats'],
+  'brawler practice HUD': ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'input-display'],
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
   'shooter HUD': ['crosshair', 'damage-direction', 'offscreen-markers', 'lock-on', 'ammo-counter', 'event-feed', 'score-timer'],
-  'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'world-labels'],
+  'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'achievement-toast', 'world-labels'],
   'survival HUD': ['vitals', 'hotbar', 'world-labels', 'interact-prompt'],
   'strategy HUD': ['resource-bar', 'unit-card', 'combat-forecast', 'minimap-corner'],
   'tower defence HUD': ['wave-status', 'world-labels', 'event-feed'],
@@ -42,7 +48,7 @@ export const BOARD_HUDS = Object.freeze({
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
-const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play' };
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys and its `also` (the keypad, Tab, the Page
 // keys), used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({
@@ -51,6 +57,26 @@ export const PREVIEW_KEYS = Object.freeze({
   Numpad8: 'up', Numpad2: 'down', Numpad4: 'left', Numpad6: 'right', NumpadEnter: 'accept', Numpad5: 'accept', Numpad0: 'back',
   Tab: 'down', 'Shift+Tab': 'up', PageDown: 'tabNext', PageUp: 'tabPrev', NumpadAdd: 'tabNext', NumpadSubtract: 'tabPrev',
 });
+// the page's ear: a sound effect played from the theme's set through the beats kernel, its engine made on the first sound
+// (a key or a tap has been pressed by then, so the browser lets it start)
+// a screen that opens ripples a soft tick down the rows it fills with, on the theme's own lead and stagger (read off the
+// root, so the sound lands as each row does); rows that came, went or moved are heard as one sound, however many
+export const AUDIO_SCRIPT = `const hear = (SOUNDS, e) => {
+  if (!SOUNDS || typeof e.sound !== 'string') return;
+  const cues = SOUNDS.sets[SOUNDS.set] || SOUNDS.sets[Object.keys(SOUNDS.sets)[0]], g = cues && (cues[SOUNDS.of(e)] || cues[e.sound]);
+  if (!g) return;
+  try {
+    if (!SOUNDS.engine) { const C = window.AudioContext || window.webkitAudioContext; SOUNDS.ctx = new C(); SOUNDS.engine = SOUNDS.K.createEngine(SOUNDS.ctx); }
+    if (SOUNDS.ctx.state === 'suspended') SOUNDS.ctx.resume();
+    SOUNDS.engine.playCue(g);
+    if (e.sound === 'open' && e.rows) {
+      const root = document.querySelector('.mana-root'), cs = root ? getComputedStyle(root) : null;
+      const secs = (x) => { const m = /([\\d.]+)(ms|s)/.exec(x || ''); return m ? Number(m[1]) / (m[2] === 'ms' ? 1000 : 1) : 0; };
+      const lead = cs ? secs(cs.getPropertyValue('--mana-lead')) + secs(cs.getPropertyValue('--mana-dur')) * 0.5 : 0.1, step = cs ? secs(cs.getPropertyValue('--mana-stagger')) : 0;
+      if (step > 0) for (let i = 0; i < e.rows; i++) { const t = cues['appear-' + (1 + (i % 5))]; if (t) SOUNDS.engine.playCue(t, SOUNDS.ctx.currentTime + lead + i * step); }
+    }
+  } catch (err) { /* no audio here: the UI goes on silent */ }
+};`;
 /** The stand-in's keydown, inlined as page source (as controls/mana-host.js does it): a key the screen up takes, a held
  *  one repeating only a move, a chord left to the browser, and a text entry in focus typed into. */
 export function previewKey(rt, view, keys, ev) {
@@ -87,14 +113,15 @@ export function boardFrames() {
   }
   frames.push({ name: 'HUD · phone', group: 'Phone', device: 'phone', input: 'touch', about: BOARD_PHONE.hud.join(' · '), reads: 'the sample state', emits: 'tap ❚❚ for the pause (an action sheet)', spec: withIdioms({ hud: { use: 'hud', children: BOARD_PHONE.hud.map(use) }, screens: { pause: use('action-sheet') } }), hud: true });
   for (const id of BOARD_PHONE.screens) frames.push({ name: `${id} · phone`, group: 'Phone', device: 'phone', input: 'touch', about: IDIOMS[id].about, reads: IDIOMS[id].reads, emits: IDIOMS[id].emits, spec: withIdioms({ screens: { s: use(id) }, start: 's' }) });
-  for (const f of frames) manaUi.readSpec(f.spec);
+  // every frame is a game in the sample's languages (the options screen's picker turns it)
+  for (const f of frames) { f.spec.languages = SAMPLE_LANGUAGES; manaUi.readSpec(f.spec); }
   return frames;
 }
 
 /** The board page. */
-export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, host = null, glyphs = null } = {}) {
+export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, host = null, glyphs = null, audio = null, words = null } = {}) {
   const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))], scope = '.mana-stage .mana-root';
-  const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
+  const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, sounds: readTheme(t).sounds, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
   if (!looks.some((l) => l.id === theme)) throw new Error(`board theme '${theme}' is one of: ${looks.map((l) => l.id).join(', ')}`);
   const body = groups.map((g) => `<h2 class="sec">${esc(g)}</h2><div class="grid">${frames.map((f, i) => (f.group !== g ? '' : `<figure><div class="mana-frame"${f.device ? ` data-device="${f.device}"` : ''}><div class="mana-stage"${f.device ? ` data-device="${f.device}"` : ''} id="f${i}"></div></div><figcaption><b>${esc(f.name)}</b> ${esc(f.about)}<br><span>reads</span> ${esc(f.reads)}<br><span>emits</span> ${esc(f.emits)}<pre id="log${i}"></pre></figcaption></figure>`)).join('')}</div>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -116,22 +143,31 @@ const DEFS = ${json(frames[0].spec.defs)};
 const FRAMES = ${json(frames.map((f) => ({ spec: { ...f.spec, defs: undefined }, hud: !!f.hud, input: f.input || null })))};
 const STATE = ${json(state)};
 const LOOKS = ${json(looks)};
-const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); };
+${audio ? AUDIO_SCRIPT : ''}
+const SOUNDS = window.__manaSounds = ${audio ? `{ K: (${audio.source})(), sets: ${json(audio.sets)}, of: (${audio.of}), set: null }` : 'null'};
+const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); if (SOUNDS) SOUNDS.set = L.sounds; };
 document.getElementById('look').addEventListener('change', (ev) => look(ev.target.value));
 look(${json(theme)});
 // the page's input owner: the controls layer's host when given, else the preview's stand-in keys
 const HOST = ${host ? `{ api: ${host.source}, controls: { keys: ${json(host.controls.keys)}, pad: ${json(host.controls.pad)}, padLayout: (${host.controls.padLayoutSource}) } }` : 'null'};
 const PREVIEW = ${json(PREVIEW_KEYS)}, previewKey = ${previewKey.toString()};
 const GLYPHS = ${json(glyphs)};
+const WORDS = ${words ? json(words) : 'undefined'};
 const runs = [];
 let live = null;
 FRAMES.forEach((F, i) => {
   const S = JSON.parse(JSON.stringify(STATE)), log = [], el = document.getElementById('f' + i), out = document.getElementById('log' + i);
   const host = {
     read: (p) => manaUi.readPath(S, p),
+    // every sound the UI makes is logged too (♪), so the board is heard as well as seen
+    cues: 'full',
+    // the page's clock, so a moment passes, a number counts and a results board can be skipped
+    now: () => performance.now() / 1000, countUp: 0.8,
+    words: WORDS,
     act: (e, from) => {
       if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = S; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
-      log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + JSON.stringify(e)); out.textContent = log.slice(-3).join('\\n');
+      if (typeof e.sound === 'string' && SOUNDS && live === i) hear(SOUNDS, e);
+      log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + (typeof e.sound === 'string' ? '\u266a ' + e.sound : JSON.stringify(e))); out.textContent = log.slice(-3).join('\\n');
     },
   };
   const rt = manaUi.runtime({ ...F.spec, defs: DEFS }, host);
@@ -160,6 +196,9 @@ window.addEventListener('keydown', (ev) => {
 // each frame a 1280×720 screen, scaled to its box
 const fit = () => document.querySelectorAll('.mana-stage').forEach((st) => { st.style.transform = 'scale(' + st.parentNode.clientWidth / st.offsetWidth + ')'; });
 fit(); window.addEventListener('resize', fit);
+// every frame on the clock: a moment passes, a number counts (a frame that reads nothing new draws nothing)
+const frame = () => { runs.forEach((r) => { if (r.rt.tick()) r.m.paint(); }); requestAnimationFrame(frame); };
+requestAnimationFrame(frame);
 // the host's pads drive the live frame only
 if (HOST) { const loop = () => { if (live !== null) runs[live].h.poll(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 window.__manaBoard = runs.map((r) => r.rt);

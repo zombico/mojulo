@@ -35,8 +35,8 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo Cherenkov glow",
   },
   "classical-view": {
-    "hash": "c731e597",
-    "title": "mojulo classical world",
+    "hash": "2093edc4",
+    "title": "Ball: gravity",
   },
   "comet-view": {
     "hash": "492e0c7e",
@@ -139,8 +139,8 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo mechanics",
   },
   "microscopic-view": {
-    "hash": "0fad5b8f",
-    "title": "mojulo microscopic world",
+    "hash": "d508ff12",
+    "title": "Bead: diffusion",
   },
   "molecule-view": {
     "hash": "bd61ce9b",
@@ -188,16 +188,16 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo quadratic",
   },
   "quantum-view": {
-    "hash": "b572946a",
-    "title": "mojulo quantum world",
+    "hash": "dea690e6",
+    "title": "A quantum decay: decay",
   },
   "reactor-view": {
     "hash": "dd649158",
     "title": "mojulo reactor",
   },
   "relativistic-view": {
-    "hash": "4df549bf",
-    "title": "mojulo relativistic world",
+    "hash": "8a21d772",
+    "title": "Clocks: a black hole and clocks",
   },
   "restaurant": {
     "hash": "6c2032e9",

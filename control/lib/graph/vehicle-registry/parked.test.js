@@ -82,8 +82,9 @@ describe('a parked vehicle read', () => {
 
 describe('parked in a room', () => {
   it('side by side across it, noses to its +x, inside it, as many as it holds', () => {
-    // (a room as deep as the field's bodies side by side and the gaps between them: the field grows a class at a time)
-    const deep = { ...room, d: FIELD.reduce((t, id) => t + PHYSICS[parkable(id).class].W + 1.6, 1.6) };
+    // (a room as deep as the field's bodies side by side and the gaps between them: the field grows a class at a time; a
+    // centimetre spare, so the sum's last bit of rounding does not leave the last one out)
+    const deep = { ...room, d: FIELD.reduce((t, id) => t + PHYSICS[parkable(id).class].W + 1.6, 1.6) + 0.01 };
     const P = parkIn(deep, FIELD, { seed: 4, livery: 'desert' });
     expect(P).toHaveLength(FIELD.length);
     for (const p of P) {

@@ -45,9 +45,14 @@ import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-la
 import { goalposts } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
+import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
+import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
+import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
+import { practiceFor, mountSuggestion } from '@/lib/graph/gameworld/practice.js';
+import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
@@ -498,6 +503,14 @@ function readout(ref, world, context = {}) {
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
   const feel = world.feel !== undefined && world.feel !== null ? feelReport(world.feel) : null;
   if (feel?.lost.length) next.push({ step: 'feel', pole: feel.pole, lost: feel.lost.map((x) => x.field), card: 'gameworld-feel' });
+  // the feel measured (gameworld/feel/measure.js, the feel chapter's machine gate): the practice room's hero, its kit and its
+  // card played headless on the runtime the game ships, each number carried, partly or lost; a loss is advised
+  const measured = feel && !roomEligible(world) ? measuredSummary(measureRoom(world)) : null;
+  if (measured?.lost) next.push({ step: 'feel', measured: measured.worst, card: 'gameworld-feel' });
+  // the practice rooms its play has (gameworld/practice.js), and a template that rides with no horse yet: mounts suggested
+  // (written, never laid)
+  const door = practiceFor(world), mountsSuggest = mountSuggestion(world);
+  if (mountsSuggest) next.push({ step: 'mounts', suggest: mountsSuggest.suggest, why: mountsSuggest.why, patch: [{ op: 'set', path: '/mounts', value: mountsSuggest.suggest }], card: 'gameworld-mounts' });
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);
   if (feelSuggest) next.push({ step: 'feel', suggest: feelSuggest.feel, why: feelSuggest.why, from: feelSuggest.from, card: 'gameworld-feel' });
@@ -505,6 +518,12 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
+  // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
+  const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
+  if (arsenalSuggest) next.push({ step: 'arsenal', suggest: arsenalSuggest.suggest, template: arsenalSuggest.template, why: arsenalSuggest.why, patch: [{ op: 'set', path: '/arsenal', value: 'auto' }], card: 'gameworld-feel' });
+  if (armed && !heroStrikes(world)) next.push({ step: 'arsenal', unarmed: true, why: 'the arsenal is laid on a hero that strikes: give the hero a right-hand item that serves strike (a blade)', card: 'gameworld-feel' });
+  const arsenal = armed ? { ...(armed.template ? { template: armed.template } : {}), from: armed.from, weapons: armed.arsenal.weapons.map((W) => W.id), combos: armed.arsenal.weapons.reduce((n, W) => n + W.combos.length, 0), ...(armed.arsenal.ranged?.length ? { sidearm: armed.arsenal.ranged[0].id } : {}) } : null;
   // the body the game puts in its hero (gameworld/game-bodies.js): a book whose direction names none, the rail its kind
   // reads proposed (opt-in: a body is written, never laid)
   const bodyRail = world.characters?.direction && world.characters.direction.body === undefined ? railOfGame({ genre: world.intent?.from ?? null, goal: world.quick?.goal ?? null, feel: typeof world.feel === 'string' ? world.feel : world.feel?.pole ?? null }) : null;
@@ -532,7 +551,7 @@ function readout(ref, world, context = {}) {
   const gauntletGaps = gauntletAdviceOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(MQ?.laws.length ? { mainQuest: MQ.laws } : {}), ...(loopGaps.length ? { loop: loopGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])) } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */

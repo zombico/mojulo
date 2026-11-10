@@ -13,11 +13,14 @@ export const OWNER = {
   classical: [
     'gravity-uniform', 'gravity-newton', 'gravity', 'spring', 'rod', 'rope', 'pendulum', 'drag-linear', 'drag-quadratic',
     'air-resistance', 'buoyancy', 'coulomb', 'lorentz', 'plane', 'ground', 'incline', 'collision', 'projectile', 'orbit',
+    'heat', 'thermal', 'conduction', 'convection', 'cooling', 'melting', 'magnus', 'rolling', 'curveball',
+    'gelling', 'setting', 'yield-stress', 'bingham', 'viscometer',
   ],
   microscopic: [
     'diffusion', 'brownian', 'brownian-motion', 'osmosis', 'reaction', 'mass-action', 'binding', 'enzyme',
     'michaelis-menten', 'membrane', 'transport', 'transcription', 'translation', 'mitosis', 'meiosis',
     'chemotaxis', 'dissolve', 'dissolving', 'equilibrium', 'kinetics', 'random-walk', 'cell-cycle',
+    'aggregation', 'nucleation', 'polymerization', 'coalescence', 'fibrillogenesis', 'assembly',
   ],
   quantum: [
     'orbital', 'wavefunction', 'wave-function', 'tunnelling', 'tunneling', 'superposition', 'spin', 'entanglement',
@@ -34,10 +37,10 @@ export const OWNER = {
 
 // laws that are classical in spirit but not (yet) rows of the table, with what would close the gap
 const NOT_YET = {
-  magnus: 'spin lift on a ball: the curated `mechanics` kind\'s `flight` scenario has it today',
-  rolling: 'rolling without slipping needs rotational state; bodies slide in this table',
-  torque: 'rigid-body rotation is not in the table; bodies are point masses or smooth spheres',
-  'rigid-body': 'rigid-body rotation is not in the table; bodies are point masses or smooth spheres',
+  rolling: 'give a body spin ([0, 0, 0] to start still): it rolls on a plane with friction',
+  curveball: 'the magnus row, on a body given spin',
+  torque: 'bodies are spheres that may spin (give spin), turned only by a surface\'s friction; there is no torque row and no other shape',
+  'rigid-body': 'bodies are spheres that may spin (give spin), turned only by a surface\'s friction; there is no other shape',
   turbulence: 'turbulent flow is not modelled; quadratic drag is the closest row',
   fluid: 'fluid flow fields are not in the table; the curated `fluid` and `hydro` kinds show flow',
   relativity: 'the relativistic scale\'s rows are general relativity round one mass (schwarzschild); special relativity is not in the table yet',
@@ -47,11 +50,12 @@ const NOT_YET = {
   'time-dilation': 'the clock row (a clocks world)', 'event-horizon': 'the schwarzschild row: its horizon is at Rs',
   'perihelion-precession': 'the body row (an orbit world): its advance per orbit is a gate', precession: 'the body row (an orbit world)',
   geodesic: 'every body and every ray here follows one', 'gravitational-redshift': 'the clock row, and the disk row\'s light',
-  kerr: 'a spinning hole (Kerr) is not in the table yet; the curated `black-hole` kind draws one picture of the non-spinning hole',
+  kerr: 'a spinning hole (Kerr) is not in the table yet; the folded `black-hole` kind, called by name, draws one picture of it (its beta)',
   'gravitational-waves': 'gravitational waves are not in the table yet; the curated `gravity-wave` kind shows them',
   wormhole: 'wormholes are not in the table: no known matter holds one open',
-  thermal: 'heat flow is not in the table yet',
-  heat: 'heat flow is not in the table yet',
+  thermal: 'the heat row (conduction, convection, radiation, melting)',
+  conduction: 'the heat row: touching bodies, and a plane with matter, conduct through a contact spot',
+  convection: 'the heat row (h, or the medium\'s order)', cooling: 'the heat row', melting: 'the heat row: the latent heat at the melting point',
   // microscopic laws not yet rows (each species already evens out its own concentration across a membrane it crosses)
   osmosis: 'osmotic flow needs the solvent\'s pressure, which is not modelled; the membrane row shows each species evening out its own concentration',
   transcription: 'a process line (transcription, translation, mitosis) with sourced rates is not in the table yet',
@@ -60,6 +64,10 @@ const NOT_YET = {
   meiosis: 'a process line with sourced rates is not in the table yet; the curated `dna-process` kind shows meiosis',
   'cell-cycle': 'a process line with sourced rates is not in the table yet',
   chemotaxis: 'drift toward a source is not in the table yet; the drift row is a uniform push',
+  setting: 'the gelling row: a liquid whose viscosity and yield move along a curve', 'yield-stress': 'the gelling row (its curve\'s yield)',
+  bingham: 'the gelling row: a body held by the yield, a layer that holds on its slope', viscometer: 'the gelling row with a constant curve (closed-form:viscometer)',
+  nucleation: 'the aggregation row (mode nucleation)', polymerization: 'the aggregation row (mode nucleation)', coalescence: 'the aggregation row (mode coalescence)',
+  fibrillogenesis: 'the aggregation row (mode nucleation); the fibril\'s geometry is a ladder rung, not yet drawn', assembly: 'the aggregation row',
   enzyme: 'compose it from reaction rows: E + S ⇌ ES (rate, reverse), then ES → E + P',
   'michaelis-menten': 'compose it from reaction rows: E + S ⇌ ES (rate, reverse), then ES → E + P',
   binding: 'a reaction row with a reverse rate: A + B ⇌ AB',

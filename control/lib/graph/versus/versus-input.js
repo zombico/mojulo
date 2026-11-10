@@ -89,6 +89,25 @@ function sameRun(hist, i, digit) {
   return true;
 }
 
+// A CHARGE (a motion `[4]6`, `[2]8`): the direction held at least CHARGE frames (or let go of within CHARGE_KEEP frames
+// of being held so long), then the other one within the buffer. `charge` is the player's: { b, d } frames held back and
+// down (versus-core.js chargeStep: what is held now, else what was held when it was let go, while it keeps).
+export const CHARGE = 40, CHARGE_KEEP = 10;
+export function charged(hist, motion, charge) {
+  const held = motion[1], then = Number(motion[3]);
+  const have = held === '4' ? charge?.b ?? 0 : held === '2' ? charge?.d ?? 0 : 0;
+  return have >= CHARGE && lately(hist, then);
+}
+// the stick reached `dir` within the buffer (forward any forward, up any up: a release need not be clean)
+const TOWARD = { 6: [3, 6, 9], 8: [7, 8, 9], 4: [1, 4, 7], 2: [1, 2, 3] };
+function lately(hist, dir) {
+  const ok = TOWARD[dir] ?? [dir];
+  for (let i = hist.length - 1; i >= 0 && i >= hist.length - BUFFER - 1; i--) if (ok.includes(entryDir(hist[i]))) return true;
+  return false;
+}
+/** A special's motion traced (a charge by its charge). */
+export const motionMet = (hist, motion, charge) => (motion[0] === '[' ? charged(hist, motion, charge) : traced(hist, motion));
+
 const strengthOf = (bits) => (bits & BTN.H ? 'H' : bits & BTN.M ? 'M' : 'L');
 const dirSlot = (d) => (d === 6 ? 'forward' : d === 4 ? 'back' : downish(d) ? 'down' : 'neutral');
 
@@ -96,7 +115,7 @@ const dirSlot = (d) => (d === 6 ? 'forward' : d === 4 ? 'back' : downish(d) ? 'd
  * Read a command from a player's history for the moves the fighter has. `stance` is where the body is (stand,
  * crouch, air); `auto` is the simple scheme's auto-combo step (the next normal it would give). → { type, slot } or null.
  */
-export function readCommand(hist, scheme, fighter, { stance, auto, hasShot, meter } = {}) {
+export function readCommand(hist, scheme, fighter, { stance, auto, hasShot, meter, charge } = {}) {
   const now = entryDir(hist[hist.length - 1] ?? 5);
   const has = (slot) => !!fighter.moves[slot];
   const special = (dir, st) => (has(`special.${dir}.${st}`) && !(hasShot && fighter.moves[`special.${dir}.${st}`].projectile) ? { type: 'special', slot: `special.${dir}.${st}` } : null);
@@ -113,7 +132,7 @@ export function readCommand(hist, scheme, fighter, { stance, auto, hasShot, mete
       const st = limb & BTN.L ? 'L' : limb & BTN.M ? 'M' : 'H';
       for (const dir of ['forward', 'down', 'back', 'neutral']) {
         const m = fighter.moves[`special.${dir}.${st}`];
-        if (m && traced(hist, m.motion)) { const c = special(dir, st); if (c) return c; }
+        if (m && motionMet(hist, m.motion, charge)) { const c = special(dir, st); if (c) return c; }
       }
     }
     if (throwBtn && grounded) return { type: 'throw', slot: 'throw', back: now === 4 || now === 7 || now === 1 };
@@ -129,7 +148,7 @@ export function readCommand(hist, scheme, fighter, { stance, auto, hasShot, mete
       const st = strengthOf(atk);
       for (const dir of ['forward', 'down', 'back', 'neutral']) {
         const m = fighter.moves[`special.${dir}.${st}`];
-        if (m && traced(hist, m.motion)) { const c = special(dir, st); if (c) return c; }
+        if (m && motionMet(hist, m.motion, charge)) { const c = special(dir, st); if (c) return c; }
       }
     }
   } else if (sp) {
@@ -144,6 +163,8 @@ export function readCommand(hist, scheme, fighter, { stance, auto, hasShot, mete
       return { type: 'normal', slot: `${grounded ? (downish(now) ? 'crouch' : 'stand') : 'air'}.M` };
     }
     const st = strengthOf(atk);
+    // a COMMAND NORMAL: forward + a button on the ground, where the fighter has one (an overhead)
+    if (grounded && now === 6 && has(`forward.${st}`)) return { type: 'normal', slot: `forward.${st}` };
     return { type: 'normal', slot: `${grounded ? (downish(now) ? 'crouch' : 'stand') : 'air'}.${st}` };
   }
   return null;

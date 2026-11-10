@@ -81,6 +81,28 @@ export const SOUL = Object.freeze({
         four: { status: 'built', lowers: LEVELS, note: SEATS_KERNEL },
       },
     },
+    // built 10-29 (mounts): a horse the hero gets on and rides (worlds/mount-units.js, the runtime's `ride` rule: the gaits,
+    // the jump, getting on and off, any hero's riding clips solved on its own rig), a world's `mounts` laid on each walking
+    // level; 11-10: its mount lane (gameworld/mount-lane.js) tunes the ride before any level, and a template that rides
+    // (the action-adventure) is suggested mounts
+    mount: {
+      values: {
+        none: { status: 'built' },
+        horse: { status: 'built', lowers: 'lib/graph/worlds/mount-units.js', note: 'a world\'s mounts: horses beside each walking level\'s spawn, ridden through walk, trot, canter and gallop, jumping a low wall; the mount lane to tune the ride' },
+        // local 11-08 (1108-realism-combat-tester): the machines the artillery range drives and flies as a gun's base, each on
+        // its own class's rule; a hero does not yet get into one in a gameworld
+        vehicle: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'a field vehicle of the library (a tank, an APC, a truck, a car, a motorcycle) or a walker of the mecha shelf, driven on its class\'s rule, its turret manned; the artillery range only' },
+        aircraft: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/rotorcraft.js', note: 'a fighter on the fly rule at its type\'s envelope, a helicopter or a drone on the hover rule (rules-hover.js), its gun aimed by hand; the artillery range only' },
+        boat: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/boats.js', note: 'a boat of the craft shelf driven on the water (rules-boat.js, boat-water.js) at sea off the range\'s shore; the artillery range only' },
+      },
+    },
+    // built 11-09 (screenplay scenes): how the cast plays a scene, the actor's (actor/): its takes on the page
+    acting: {
+      values: {
+        still: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', note: 'the cast stand and walk where the beats send them; the words go in the box, a line\'s expression a word' },
+        acted: { status: 'built', requires: ['time.shots=covered'], lowers: 'lib/graph/playscape/ui/scene-takes.js', note: 'a script\'s cast act it on the page: the body\'s act on each line, the listener nodding, a realistic face\'s take with its gaze on its partners; each in its own style, role and register (a character\'s actor); a head the page draws no face on acts with its body' },
+      },
+    },
     contest: {
       given: GIVEN,
       values: {
@@ -103,7 +125,10 @@ export const SOUL = Object.freeze({
       values: {
         'follow-all': { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the side and top-down cameras hold every playing seat (rules-basic.js groupFrame, the group leash); a third-person camera follows seat 1 only', requires: TWO },
         fixed: { status: 'partial', effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
-        scroll: { ...NOT_YET, effort: 'M', requires: TWO },
+        // local 11-09 (1109-gen-bodywork): the brawler's belt scrolls one shared view on as the players go (brawl-belt.js
+        // beltScroll: never back, held at a gate until its wave falls, every player kept in the band), up to four seats with
+        // drop-in; only in a brawl, so a run, a top-down field or a ride waits on it being lifted to the shared camera
+        scroll: { status: 'local', effort: 'M', pkg: 'scroll', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'the brawler\'s belt scrolls one shared view on as the players go, never back, held at a gate until its wave falls, every player in its band (brawl-belt.js beltScroll, brawl-core.js); only in a brawl: a scrolling run, a top-down field or a ride waits on it in the shared camera', requires: TWO },
         split: { ...NOT_YET, effort: 'L', requires: TWO },
       },
     },
