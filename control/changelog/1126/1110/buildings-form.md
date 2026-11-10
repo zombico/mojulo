@@ -23,4 +23,12 @@
   reach. A detail tile's material keeps the colour the page already draws (set to the detail's mean), its hue the
   face's. A room's page is byte for byte as it was. Seen in Chrome on an island-noon town, beside gen-6 and the
   gen-7 read before it.
+- **A town's first read in gen-7 is quicker, and its relief whole.** A detail tile's material brings no colour of its
+  own (the page's tile stays, never painted a second time), and a town's maps are read once at full size, with no
+  byte budget and so no second, smaller read of every tile: an island-noon town resolves in about a minute where the
+  first cut took a minute and three quarters (a little over half a minute before its buildings were form; what is
+  left is the tiles' relief being painted, once a process). Its page grows by the maps (49 MB against 30).
+- **Buildings and land shade each other.** Measured on the page: every `town:` and `geotown:` mesh casts into the
+  land's sun map, so a house's shadow lies on the grass; a paved face takes a tree's by the live light, by its sun
+  share.
 

@@ -710,7 +710,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
     if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
-      const R = payload.form.town, F = formRoomMaps(keys);
+      // (no budget on a town's maps: the page is the person's, on their own machine, and a second, smaller read of
+      // every tile doubles what the first resolve costs)
+      const R = payload.form.town, F = formRoomMaps(keys, { budget: Infinity });
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }

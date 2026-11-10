@@ -2,7 +2,8 @@
  * THE FORM RENDER INDOORS (gen-7, era/eras.js): a room's surfaces read as material, its light solved from its palette and
  * baked apart from its colour (form/room-light.js), where gen-6 paints the light into each tile and into the corners.
  *
- *   formMaterialOf(key) → { base, normal, orm, read } | null   one tile key's maps as PNG data URLs (glTF's metal-rough
+ *   formMaterialOf(key) → { base?, normal, orm, read } | null   (no `base` for a detail tile: the page's own stays)
+ *   — in full:   one tile key's maps as PNG data URLs (glTF's metal-rough
  *                         set, form/relief-material.js): its colour under no light, its tangent-space normal, occlusion +
  *                         roughness + the relief's height packed (PARALLAX: the page marches it near the eye), its
  *                         `depth` (that height's range, a repeat being 1) and its `mean` colour (linear: the page divides
@@ -79,10 +80,11 @@ export function formMaterialOf(key, { detail = 1, reliefSize = null } = {}) {
     const S = detailSpec(key), size = reliefSize && reliefSize < DETAIL_SIZE ? reliefSize : DETAIL_SIZE;
     const M = dressedMaterial(S.cfg, { size: DETAIL_SIZE, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 });
     // (its colour is the tile the page already draws, set to the detail's mean: the face's own colour carries the hue,
-    // matte-paint/detail.js, and the page's resampler reads the tile round that mean)
-    out = { ...relief(M, S.cfg.metres ?? 2), base: surfaceTexture(key), mean: [DETAIL_MEAN, DETAIL_MEAN, DETAIL_MEAN], read: 'relief' };
+    // matte-paint/detail.js, and the page's resampler reads the tile round that mean. So no `base` is given: the page's
+    // texture stays, and the tile is not painted a second time)
+    out = { ...relief(M, S.cfg.metres ?? 2, { base: false }), mean: [DETAIL_MEAN, DETAIL_MEAN, DETAIL_MEAN], read: 'relief' };
     if (size < DETAIL_SIZE) {
-      const small = relief(dressedMaterial(S.cfg, { size, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 }), S.cfg.metres ?? 2);
+      const small = relief(dressedMaterial(S.cfg, { size, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 }), S.cfg.metres ?? 2, { base: false });
       out = { ...out, normal: small.normal, orm: small.orm, reliefSize: size };
     }
   } else {
@@ -144,13 +146,14 @@ function greyOf({ px, W, H }, detail) {
  *  is 1), the real relief's, held between PARALLAX.least and PARALLAX.most metres so a mortar joint reads and a pitched
  *  face does not swim. */
 export const PARALLAX = Object.freeze({ least: 0.012, most: 0.05 });
-function relief({ W, H, baseColor, normal, orm, height }, metres) {
+function relief({ W, H, baseColor, normal, orm, height }, metres, { base = true } = {}) {
   let lo = Infinity, hi = -Infinity;
   for (const h of height) { if (h < lo) lo = h; if (h > hi) hi = h; }
   const span = Math.max(1e-6, hi - lo), packed = Buffer.from(orm);
   for (let k = 0; k < W * H; k++) packed[k * 3 + 2] = Math.round(((height[k] - lo) / span) * 255);
   const depth = Math.min(PARALLAX.most, Math.max(PARALLAX.least, span));
-  return { base: png(baseColor, W, H), normal: png(normal, W, H), orm: png(packed, W, H), depth: Math.round((depth / metres) * 1e5) / 1e5, mean: meanLinear(baseColor) };
+  // (`base: false`: a caller that brings its own colour, a detail tile's: none painted here)
+  return { ...(base ? { base: png(baseColor, W, H) } : {}), normal: png(normal, W, H), orm: png(packed, W, H), depth: Math.round((depth / metres) * 1e5) / 1e5, ...(base ? { mean: meanLinear(baseColor) } : {}) };
 }
 // a colour's mean as the page reads it (sRGB bytes decoded to linear): what the solve's base stands for (form/room-light.js)
 function meanLinear(rgb) {
@@ -175,8 +178,10 @@ export function formRoomMaps(keys, { detail = 1, budget = ROOM_MAPS.budget } = {
       const m = formMaterialOf(key, { detail: /^(value|shade):/.test(key) ? detail : 1, reliefSize });
       // (a tile no material is read from keeps its paint, its mean what the page divides it by: form/room-light.js)
       if (!m) { maps[key] = { read: 'paint', mean: paintMean(key) }; continue; }
-      textures[key] = m.base; maps[key] = { normal: m.normal, orm: m.orm, read: m.read, depth: m.depth, mean: m.mean };
-      bytes += m.base.length + (m.normal?.length ?? 0) + (m.orm?.length ?? 0);
+      // (a material that brings no colour of its own, a detail tile's: the page's texture stays)
+      if (m.base) textures[key] = m.base;
+      maps[key] = { normal: m.normal, orm: m.orm, read: m.read, depth: m.depth, mean: m.mean };
+      bytes += (m.base?.length ?? 0) + (m.normal?.length ?? 0) + (m.orm?.length ?? 0);
     }
     return { textures, maps, bytes };
   };

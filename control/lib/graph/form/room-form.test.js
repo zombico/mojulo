@@ -41,6 +41,9 @@ describe('a tile read as material', () => {
     expect(formMaterialOf(key)).toBe(M);
     // (its relief drawn smaller where a page asks: its colour whole)
     const small = formMaterialOf(key, { reliefSize: 256 });
+    // (it brings no colour of its own: the page's tile, set to the detail's mean, stays)
+    expect(M.base).toBeUndefined();
+    expect(M.mean).toEqual([0.8, 0.8, 0.8]);
     expect(small.base).toBe(M.base);
     expect(small.normal.length).toBeLessThan(M.normal.length);
     // (a bonded-brick floor's detail is no dressed cut: read from its paint, as it was)
