@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -37,8 +37,9 @@ scene.add(YARD);
 // ── the register (the fight's look, versus-arena.client.js fightRig): every body drawn the one way under one key ─────
 // 'anime' cel, three tones stepped from the key, its shadows stepped and cool; 'western' lit as an engine lights it, its
 // shadows soft. The key from the greybox's own sun where the yard carries it (the room and the bodies share a light), else
-// the camera's side above; a cool fill, a rim from behind, a sky; a catcher over the street's floor takes the shadows. The
-// key and its shadow's box follow the camera along the belt. A yard with no register lights its bodies as it always did.
+// the camera's side above; a sky over the ground and a rim, both in the bodies' own shader (the cast rig, none of them a
+// light); a catcher over the street's floor takes the shadows. The key and its shadow's box follow the camera along the
+// belt. A yard with no register lights its bodies as it always did.
 const REGISTER = BY.register === 'anime' || BY.register === 'western' ? BY.register : null;
 const MID = (BELT.depth[0] + BELT.depth[1]) / 2;
 function yardRig(register) {
@@ -48,7 +49,11 @@ function yardRig(register) {
   const g = new THREE.Group();
   if (BY.sun) KEY_DIR.set(BY.sun[0], BY.sun[1], BY.sun[2]).normalize().applyAxisAngle(new THREE.Vector3(0, 0, 1), (-BELT.heading * Math.PI) / 180);
   else KEY_DIR.set(-0.35, -0.6, 0.72).normalize();
-  const key = new THREE.DirectionalLight(toon ? 0xfff6ea : 0xffeedb, toon ? 2.4 : 3.3);
+  // THE CAST RIG (color-theorist/cast-rig.js, the yard's `cast`; the kit: scene/channels/cast-rig.js): the key is the one
+  // light, its colour and level the rig's; the sky over the ground and the rim are in each body's own shader, so they
+  // light nothing but the bodies (the street is painted and unlit)
+  const CAST = BY.cast, CU = castKit.uniforms(CAST), kl = CAST.key.linear, km = Math.max(kl[0], kl[1], kl[2], 1e-9);
+  const key = new THREE.DirectionalLight(new THREE.Color().setRGB(kl[0] / km, kl[1] / km, kl[2] / km, THREE.LinearSRGBColorSpace), Math.PI * km);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   // (the shadow's box: the screen's width, the bodies spread across it, and the band)
@@ -56,25 +61,22 @@ function yardRig(register) {
   sc.left = -box; sc.right = box; sc.top = box; sc.bottom = -box; sc.near = 0.5; sc.far = 30;
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025;
   if (!toon) key.shadow.radius = 3;
-  const fill = new THREE.DirectionalLight(0xb9ccff, toon ? 0 : 0.28), rim = new THREE.DirectionalLight(0xffffff, toon ? 0.7 : 1.3);
-  g.add(key, key.target, fill, fill.target, rim, rim.target, toon ? new THREE.HemisphereLight(0xc6d2ff, 0x5c5068, 0.75) : new THREE.HemisphereLight(0xdfe7f2, 0x2e2925, 0.3));
+  g.add(key, key.target);
   const span = BELT.depth[1] - BELT.depth[0];
   const catcher = new THREE.Mesh(new THREE.PlaneGeometry(BELT.length + 12, span + 6), new THREE.ShadowMaterial({ color: toon ? 0x1c1830 : 0x000000, opacity: toon ? 0.6 : 0.55 }));
   catcher.position.set(BELT.length / 2, MID, 0.004); catcher.receiveShadow = true; catcher.renderOrder = 1;
   g.add(catcher);
   YARD.add(g);
-  const ramp = toon ? new THREE.DataTexture(new Uint8Array([92, 92, 92, 255, 165, 165, 165, 255, 255, 255, 255, 255]), 3, 1) : null;
-  if (ramp) { ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true; }
+  const ramp = toon ? castKit.ramp(CAST.bands) : null;
   return {
     toon,
     follow(x) {
       KEY_TO.set(x, MID, 1); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 12);
-      fill.target.position.copy(KEY_TO); fill.position.set(x + 2.8, MID - 2.4, 1.4);
-      rim.target.position.copy(KEY_TO); rim.position.set(x + 0.6, MID + 3.4, 3);
     },
     material(o) {
-      return toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
+      const m = toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
         : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.62, metalness: 0, ...o });
+      return castKit.patch(m, CU, { register, surface: 'paint' });
     },
   };
 }

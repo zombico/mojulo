@@ -1892,6 +1892,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const practice = await withCharacters(sketch.manifest.brawl.practice);
     const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
     payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    // (under a register its bodies are drawn under the cast rig, as a fight's are: versus/versus-cast.js)
+    if (payload.brawl.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.brawl.cast = fightCast(payload.brawl.register); }
     const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
     const fa = fightAudio({ register: sketch.manifest.brawl.register ?? 'western' });
     if (fa) {

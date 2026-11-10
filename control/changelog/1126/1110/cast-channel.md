@@ -54,3 +54,9 @@
   register, a fight's levels being a stage or a greybox, neither painted by a cube) and the kit beside the fight's
   modules. Seen in Chrome on the training greybox in both registers and on the ring: bodies lit and shadowed, the
   coat and the ink as before, no page error.
+- **The brawl yard's bodies are drawn under the cast rig** (a brawl under a register: the brawler, the run & gun, their
+  practice yard and range; a yard with no register is as it was). The yard's rig (`brawl-yard.client.js` `yardRig`)
+  keeps its one key (the greybox's own sun where the yard carries it), its shadows and its catcher over the street;
+  its fill, rim and sky lights are gone from the scene and are in the material every body, limb, prop and gun is drawn
+  with, laid on by the cast kit. The page carries the rig as the yard's `cast` (the same card a fight takes) and the
+  kit beside the brawl's modules.
