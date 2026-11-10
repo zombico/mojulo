@@ -21,3 +21,14 @@
   its dome's horizon by more than a tenth (`form/land-read.js` `HAZE_UNDER`) now carries that share (`form.land.sky.air`)
   and the form sky lays its haze at it (`channels/form-sky.js`). A clear noon's fog is its horizon's, so island-noon
   carries none and its page is as it was; at dusk its ridges darken against the horizon's glow.
+- **The cast rig, as data** (`color-theorist/cast-rig.js` `castRig(cube, { hour, register, palette })`; nothing in a
+  mint or a page reads it yet). The one light a body is drawn under, solved from the world's own: the key is the
+  cube's solved sun at the level's hour (the light the land is lit by), the hemisphere that solve's sky light over
+  what its floor throws back, the rim the horizon's hue. Only the key is a light a page owns; the hemisphere and the
+  rim are for a body's own material, so they light nothing else. Two gains are the body's alone, as a fight lights its
+  bodies: its key raised (to 3× at most) where a sky-lit level turns a figure less than 1.6× from its key side to its
+  shade, its fill raised where a moon over a dark sky leaves the shade more than 6× under the key. The rim is raised
+  where the shade side sits on the horizon's value. `register` (`western` | `anime`) is the body's, the light the same:
+  the cel carries its three tones. With no cube it is the card, the fight rig's own lights in the solve's units, kept
+  as written. Read on the cube presets: the clear and morning looks need no gain; jungle-haze's body key is raised 3×
+  and still turns 1.57× (its level is the sky's); city-night's fill is raised 2.6×; both night looks' rims are raised.
