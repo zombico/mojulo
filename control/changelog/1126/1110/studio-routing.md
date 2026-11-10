@@ -28,5 +28,11 @@ changes to what the door says; nothing refuses that did not refuse before.
   used to be absent: the plan's findings, and each stage the walk cannot prove with its reason. The `first-level`
   goalpost quotes the first of them instead of asking for a check that was already run. `compile.walk` carries the same.
 
+- **The CLI starts again.** The fight game's cast rig joined the scene's channels to the era's modules, which closed
+  an import cycle back to the floorplan: `floorplan-building.js` was reached before `floorplan-structure.js` had run
+  and read `FLOORPLAN_DEFAULTS` as it loaded, so `scripts/mcp-stdio.mjs` threw at startup (vitest loads in another
+  order and did not see it; the critical tier's CLI tests did). The defaults moved, unchanged, to
+  `polygonizer/floorplan-defaults.js`, a module that reads no other; `floorplan-structure.js` re-exports them.
+
 New: `lib/graph/gameworld/routing.js` and `lib/graph/gameworld/level-plan.js` (both pure). Still to come on this theme:
 a beat's place words reaching the level laid for it.
