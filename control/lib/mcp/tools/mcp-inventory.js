@@ -55,49 +55,30 @@ export function registerInventoryTools() {
   registerTool({
     name: 'meta_context_declare_inventory',
     description:
-      "Record the operator's other installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) so a catalyst can be matched to the source and destination it needs: `get_catalyst` materializes against the declared servers, and `semantic_search` recalls them. Call when the user asks for a workflow across their connected services, and again only if an MCP is added or removed mid-task. Not at session start or unprompted: it stores the names of the user's other MCPs. REPLACE semantics — latest declaration wins; tools not in this call are wiped (mojulo can't introspect your environment, so you are the trust anchor). Optionally include each tool's `inputSchema` and `introspectionConfidence` for a richer capability snapshot: `tools_list_full` (you read the full schema from the MCP's tools/list), `agent_inferred` (you guessed the schema from tool name + description), `names_only` (you only know the tool exists). Returns `{ ok, serversSeen, toolsSeen, replaced, declaredAt, warnings? }`; `no_operator_anchor` means no KYC is recorded (optional).",
+      "Record the operator's other installed MCPs (Gmail, Drive, Calendar, Linear …) so a catalyst can be matched to the source and destination it needs: `get_catalyst` materializes against the declared servers, and `semantic_search` recalls them. Call when the user asks for a workflow across their connected services, and again only if an MCP is added or removed mid-task. Not at session start or unprompted: it stores the names of the user's other MCPs. REPLACE semantics: the latest declaration wins and tools not in this call are wiped (mojulo cannot introspect your environment, so you are the trust anchor). Returns `{ ok, serversSeen, toolsSeen, replaced, declaredAt, warnings? }`.",
     inputSchema: {
       type: 'object',
       properties: {
         servers: {
           type: 'array',
-          description:
-            'Every MCP server currently connected to this client. Pass `[]` to explicitly wipe the inventory (e.g., when reporting that nothing is connected).',
+          description: 'Every MCP server connected to this client; `[]` wipes the inventory.',
           items: {
             type: 'object',
             properties: {
-              name: {
-                type: 'string',
-                description:
-                  "Server name as the client sees it (e.g., 'gmail', 'gdrive', 'linear', 'hubspot'). Used as the prefix in canonical tool refs.",
-              },
+              name: { type: 'string', description: "Server name as the client sees it ('gmail', 'linear'); the prefix of each tool's ref." },
               tools: {
                 type: 'array',
-                description:
-                  "Tools this server exposes. Use [] if the server is connected but you're not declaring its tools individually.",
+                description: 'Its tools; `[]` when you are not declaring them one by one.',
                 items: {
                   type: 'object',
                   properties: {
-                    name: {
-                      type: 'string',
-                      description:
-                        "Tool name. Combined with the server name into the canonical ref `${server}.${tool}`.",
-                    },
-                    description: {
-                      type: 'string',
-                      description:
-                        "One-line description from the server's tool list. Optional but helps future readers and downstream consultation tools.",
-                    },
-                    inputSchema: {
-                      type: 'object',
-                      description:
-                        "The tool's JSON Schema for its input parameters (typically from the MCP's tools/list response). When provided, downstream primitive binding can render the actual schema into generated provider artifacts instead of guessing. Optional.",
-                    },
+                    name: { type: 'string', description: 'Tool name; its ref is `<server>.<tool>`.' },
+                    description: { type: 'string', description: "One line from the server's tool list." },
+                    inputSchema: { type: 'object', description: "The tool's input JSON Schema, when you have it." },
                     introspectionConfidence: {
                       type: 'string',
                       enum: ['tools_list_full', 'agent_inferred', 'names_only'],
-                      description:
-                        "How this tool entry was sourced. `tools_list_full` = inputSchema is from the MCP's actual tools/list; `agent_inferred` = inputSchema reflects an educated guess; `names_only` = no inputSchema available. Optional but recommended when you intend to bind primitives against this MCP.",
+                      description: "Where the entry came from: the MCP's own tools/list, your guess from its name and description, or the name alone.",
                     },
                   },
                   required: ['name'],

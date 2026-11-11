@@ -126,18 +126,15 @@ const DESCRIPTION_ALLOWLIST = {
   // the lead: the families became one clause of machinery, and the rail's guide, page cards and samples are off-payload.
   get_game_vocab: 858,
   get_image_render_packet: 708,
-  get_mcp_capabilities: 890,
   get_register_kit: 731,
   get_tool_ledger: 937,
   get_worked_example: 903,
   list_catalysts: 805,
   mint_catalyst: 850,
-  meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
   recommend_catalysts: 1027,
   recommend_kind: 922,
-  record_mcp_capabilities: 1301,
   reference_protocol: 1426,
   semantic_search: 2049,
   sketch_plan: 774,
@@ -460,7 +457,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Lowered 2026-11-11 on 1111-mcp-cleanup (195_900 -> 194_000; measured 193,962) for three folded readers:
 // list_adapters is get_adapter({ list }), custom_catalyst is mint_catalyst({ guide }), list_world_themes is
 // get_view_vocab({ themes }). Three tools off the list, one argument each on the door that owned the intent.
-const PAYLOAD_CEILING = 194_000;
+// Lowered 2026-11-11 on 1111-mcp-cleanup (194_000 -> 191_100; measured 191,051) for the capability trio's diet:
+// record_mcp_capabilities, get_mcp_capabilities and meta_context_declare_inventory cut to routing grade (each under the
+// ceiling, off the allowlist), their schema prose trimmed. They stay listed: make-stuffy and catalyst matching use them.
+const PAYLOAD_CEILING = 191_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

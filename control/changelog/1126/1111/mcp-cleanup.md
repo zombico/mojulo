@@ -34,3 +34,7 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   author's guide for writing a catalyst is `mint_catalyst({ guide: true })`, and a world's theme packs are
   `get_view_vocab({ themes: true })` (or a family: `themes: 'scifi'`). The old names (`list_adapters`,
   `custom_catalyst`, `list_world_themes`) are off the list and still answer by name with the same result.
+- **The tools that record your other MCPs say less.** Declaring which MCP servers you have, and recording and reading
+  what one of them can do, keep working exactly as before and stay on the list, because a catalyst that reaches
+  Blender or another MCP is matched through them. Their descriptions and argument notes are cut to what an agent needs
+  to pick the call; the shape of a capability body is taught by the `research-mcp-vendor` catalyst, as it was.
