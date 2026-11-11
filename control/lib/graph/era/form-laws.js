@@ -12,6 +12,8 @@
  *     value-by-light      a block's tone against its neighbour's at most `vary` (the generator's 0–40)
  *     true-curves         an arch, a vault and a niche's head cut in at least `seg` pieces
  *     dark-is-a-place     the torches at least `torch` m up, the vault's tint no brighter than `vault`
+ *     no-voxel-first, pillars-are-worked (craft, both eras)   the torch turned; a pilaster cut in parts, fluted or a shaft
+ *     layers-stand-proud  a wall's coat, where it has one, neither whole nor all gone
  *   readFormKit(kit) → { ok, rows: [{ law, what, value, limit, ok }] }
  *
  * Pure: reads a card, draws nothing.
@@ -35,6 +37,11 @@ export function readFormKit(kit) {
   for (const [part, S] of [['wall', W], ['floor', F]]) row('value-by-light', `the ${part}'s tone from block to block`, S ? S.cfg.vary ?? null : null, `<= ${M.vary}`, !!S && Number.isFinite(S.cfg.vary) && S.cfg.vary <= M.vary);
   const segs = [['a doorway\'s head', kit.arch?.door?.seg], ['the vault', kit.arch?.vault?.seg], ['a niche\'s head', kit.dress?.niches ? kit.dress.niches.seg ?? 6 : undefined]];
   for (const [what, seg] of segs) if (seg !== undefined) row('true-curves', `${what} (pieces)`, seg, `>= ${M.seg}`, seg >= M.seg);
+  // (craft, in both eras: a fixture turned and a pillar worked; a wall's coat where it has one)
+  if (kit.torch) row('no-voxel-first', 'the torch\'s form', kit.torch.form ?? 'boxes', 'turned (cone)', kit.torch.form === 'cone');
+  if (kit.pilaster) { const P = specOf(T.pillar), worked = !!kit.pilaster.bands || (!!P && ['fluted', 'shaft'].includes(P.cfg.cut));
+    row('pillars-are-worked', 'a pilaster\'s work', [kit.pilaster.bands ? 'cut in parts' : null, P && P.cfg.cut ? P.cfg.cut : null].filter(Boolean).join(', ') || 'a flat strip', 'parts, flutes or a shaft', worked); }
+  if (W && W.cfg.cut === 'render') row('layers-stand-proud', 'the wall\'s coat lost (share)', W.cfg.loss ?? null, 'between 0.2 and 0.8', W.cfg.loss >= 0.2 && W.cfg.loss <= 0.8);
   if (kit.torch) row('dark-is-a-place', 'the torches\' height (m)', kit.torch.z, `>= ${M.torch}`, kit.torch.z >= M.torch);
   if (kit.tint?.ceiling) row('dark-is-a-place', 'the vault\'s tint', Math.round(lum(kit.tint.ceiling) * 1e3) / 1e3, `<= ${M.vault}`, lum(kit.tint.ceiling) <= M.vault);
   return { ok: rows.every((r) => r.ok), rows };

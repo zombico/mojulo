@@ -27,7 +27,7 @@ import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference 
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
-import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
+import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall, lathe } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
 import { roundArch, archInfill, archRing, archSoffit } from './arches.js';
 // a round-headed doorway's jamb is laid in courses about this tall (metres), a mortar joint between each
@@ -170,21 +170,27 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   ...GOTHIC_STONE_BASE,
   plinth: { h: 0.42, out: 0.1 },
   cornice: { h: 0.3, out: 0.18 },
-  pilaster: { w: 0.56, out: 0.18 },
+  // (worked, not a flat strip: a fluted shaft, tiles.pillar below, on a base, a ring and a capital over it)
+  pilaster: { w: 0.56, out: 0.15, bands: { base: { h: 0.24, out: 0.04 }, cap: { h: 0.2, out: 0.05 }, ring: { h: 0.06, out: 0.025, below: 0.12 } } },
   rib: { w: 0.36, drop: 0.3 },
   door: { width: 2, height: 3.6, frame: 0.26, out: 0.08 },
   tiles: {
-    wall: { family: tileFamilyOf({ gen: 'dressed', stone: [112, 113, 114], mortar: [74, 73, 72], rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4 },
+    // (a wall in LAYERS: a coat of lime render over the ashlar, fallen away in patches to the courses behind; the coat
+    // stands proud, and in the form render its broken edge casts its shadow on the stone, matte-paint/dressed.js)
+    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [146, 142, 134], loss: 0.6, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4 },
+    // (its pilasters' shafts fluted: channels between narrow fillets, lit across)
+    pillar: { family: tileFamilyOf({ gen: 'dressed', cut: 'fluted', stone: [108, 107, 106], mortar: [70, 70, 70], flutes: 5, vary: 6, grit: 0.4, scale: 0.56 }), scale: 0.56 },
     floor: { family: tileFamilyOf({ gen: 'dressed', face: 'floor', stone: [96, 92, 86], mortar: [58, 56, 52], rows: 3, cols: 2, joint: 0.014, recess: 0.008, tool: 'none', chamfer: 0.006, pillow: 0.004, spall: 0.35, pit: 0.3, vary: 10, grit: 0.6, scale: 2.4 }), scale: 2.4 },
     ceiling: { key: 'stucco', scale: 2 },
     // (its trim one plain monolith's stone, its grain running up it: a pilaster is never coursed like its wall)
     trim: { family: tileFamilyOf({ gen: 'dressed', cut: 'shaft', stone: [104, 103, 102], mortar: [70, 70, 70], vary: 6, grit: 0.4, scale: 2 }), scale: 2 },
     gutter: { key: 'soil-mud', scale: 1.2 },
   },
-  tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58] },
+  tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58], pillar: [0.76, 0.75, 0.74] },
+  cells: { ...GOTHIC_STONE_BASE.cells, pillar: 0.5 },
   rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.25, tone: '#4e5058' },
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
-  torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5 },
+  torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5, form: 'cone' },
   // its motif, cut and not painted: dentils under the cornice in the wall's own tone, low relief (the crypt's principle
   // holds: a motif is small, in a band; the form register's: the light finds it)
   motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'dentil', ground: [98, 98, 98], figure: [118, 118, 118], relief: 0.35 }), on: 'cornice', tint: [0.78, 0.77, 0.76] },
@@ -781,6 +787,14 @@ export function buildStageGeometry(plan) {
         panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, pillar, cell);
         panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), pillar, 1);
         panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, pillar, 1);
+        // (a pilaster WORKED, a kit's `pilaster.bands`, era/laws.js 'pillars-are-worked': cut in parts as a column is,
+        // a base under its shaft, a ring and a capital over it, each a little proud of the shaft)
+        if (kit.pilaster.bands) {
+          const Bd = kit.pilaster.bands, top = z0p + hp, band = (z0b, hb, ob) => wallBox(out, F, Math.max(0, a - ob), Math.min(F.len, b + ob), z0b, z0b + hb, po + ob, pillar, 0.5);
+          if (Bd.base) band(z0p, Bd.base.h, Bd.base.out);
+          if (Bd.cap) band(top - Bd.cap.h, Bd.cap.h, Bd.cap.out);
+          if (Bd.ring) band(top - (Bd.cap ? Bd.cap.h : 0) - Bd.ring.below - Bd.ring.h, Bd.ring.h, Bd.ring.out);
+        }
         pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
         if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
@@ -1039,8 +1053,37 @@ export const TORCH_FLAME = Object.freeze({ w: 0.3, h: 0.56 });
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
-export function torchFaces(l, live = false, flame = false) {
+export function torchFaces(l, live = false, flame = false, form = null) {
   const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
+  // A TURNED TORCH (a kit's `torch.form: 'cone'`; era/laws.js 'no-voxel-first'): nothing of it is a box. A cone of iron,
+  // its point down, holds the fire; a ring holds the cone; an arm, a rod, holds the ring off the wall
+  if (form === 'cone' && !live) {
+    const turned = (prof, fill, sides = 10) => { const raw = []; lathe(raw, [x, y], prof.map(([r, dz]) => [r, z + dz]), sides, plain, 'stage:fixture'); for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill }); };
+    turned([[0.012, -0.54], [0.05, -0.32], [0.105, -0.1], [0.118, -0.06]], '#2a2420');                 // the cone
+    turned([[0.118, -0.06], [0.128, -0.05], [0.118, -0.04], [0.1, -0.045]], '#3a3028');                // its lip, rolled
+    turned([[0.09, -0.21], [0.108, -0.2], [0.108, -0.165], [0.09, -0.155]], '#3a3028');                // the ring that holds it
+    // (the arm: a six-sided rod from the wall to the ring, along the wall's normal)
+    const [nx, ny] = l.n, len = 0.36, zr = z - 0.182, rr = 0.016, side = [-ny, nx];
+    for (let k = 0; k < 6; k++) {
+      const a0 = (Math.PI * k) / 3, a1 = (Math.PI * (k + 1)) / 3, at = (a, d) => P([x - nx * d + side[0] * Math.cos(a) * rr, y - ny * d + side[1] * Math.cos(a) * rr, zr + Math.sin(a) * rr]);
+      const am = (a0 + a1) / 2, n = [r5(side[0] * Math.cos(am)), r5(side[1] * Math.cos(am)), r5(Math.sin(am))];
+      out.push({ corners: [at(a0, 0.1), at(a1, 0.1), at(a1, len), at(a0, len)], normal: n, outNormal: n, fill: '#2a2420', group: 'stage:fixture' });
+    }
+    if (flame) {
+      out.push({ corners: [P([x - 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y + 0.07, z - 0.055]), P([x - 0.07, y + 0.07, z - 0.055])], normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'stage:fixture',
+        fill: '#fff0c0', emissive: hexRgb(l.color), emissiveStrength: 4, glow: `0 0 8px 3px ${l.color}` });
+      return out;
+    }
+    // (the sixth generation's flame, its two crossed cards, stands in the cone as it stood in the bowl)
+    const fl = l.color, b0 = 0.06, b1 = 0.14, zb = z - 0.06, zm = z + 0.12, zt = z + 0.46;
+    for (const [ax, ay] of [[1, 0], [0, 1]]) {
+      const at = (u, zz) => P([x + ax * u, y + ay * u, zz]), n = [ay, -ax, 0];
+      const common = { normal: n, outNormal: n, group: 'stage:fixture', emissive: hexRgb(fl), emissiveStrength: 4 };
+      out.push({ corners: [at(-b0, zb), at(b0, zb), at(b1, zm), at(-b1, zm)], fill: '#fff0c0', ...common, glow: `0 0 8px 3px ${fl}` });
+      out.push({ corners: [at(-b1, zm), at(b1, zm), at(0.01, zt), at(-0.01, zt)], fill: '#ff9a3c', ...common });
+    }
+    return out;
+  }
   const iron = (mn, mx, fill) => {
     const raw = [];
     box(raw, mn, mx, plain, 1);
@@ -1255,7 +1298,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // (in the form render a torch's flame is live, the cheap kind, scene/channels/flames.js: its two polygons give way to
   // it; under live fire the fire channel's own; for an engine, and in the sixth generation, the polygons as they were)
   const flamed = !live && form && !ctx.unshaded;
-  const fixtures = torches.flatMap((l, i) => torchFaces(l, live, flamed).map((f) => ({ ...f, node: `torch-${i + 1}` })));
+  const fixtures = torches.flatMap((l, i) => torchFaces(l, live, flamed, plan.kit.torch && plan.kit.torch.form ? plan.kit.torch.form : null).map((f) => ({ ...f, node: `torch-${i + 1}` })));
   const flames = flamed ? torches.map((l) => ({ at: [r5(l.at[0]), r5(l.at[1]), r5(l.at[2] - 0.07)], w: TORCH_FLAME.w, h: TORCH_FLAME.h, color: hexRgb(l.color).map(r5) })) : [];
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault

@@ -31,9 +31,23 @@
   are its era's (its blocks drawn and each its own value, its curves faceted). Writing the principles down
   corrected the pass itself: the first cut had dropped the crypt's motif, which its own principle keeps (a motif
   is small, in a band), so it is back as cut stone and not as paint.
+- **More in the kit, each as a law first.** Three things the ashlar crypt gained, each stated as a principle, counted
+  as a law and measured on the card:
+  - *Nothing is a box on its first pass* (`no-voxel-first`, a craft law of both eras). Its torch is turned: a cone
+    of iron, point down, with a rolled lip, held in a ring on an arm that is a rod (`era/stage.js` `torchFaces`, a
+    kit's `torch.form: 'cone'`). The sixth generation's read stands its flame's two cards in the cone; the form
+    render's its live flame.
+  - *A column is worked, never a flat strip* (`pillars-are-worked`, both eras). Its pilasters are cut in parts as
+    a column is (a base, a ring, a capital, each a little proud: a kit's `pilaster.bands`) over a fluted shaft
+    (the dressed `fluted` cut as the pillars' own tile).
+  - *A wall has layers* (`layers-stand-proud`, the seventh generation's). Its walls wear a coat of lime render
+    over the ashlar, fallen away in patches to the courses behind (the dressed `render` cut). The coat stands
+    proud, and in the form render its broken edge casts its shadow on the stone and takes the torch's light.
+  Gothic-stone, measured by the same reader, is told its torch is boxes and its pilaster a flat strip; it is not
+  changed.
 - **Gothic-stone is as it was, byte for byte.** A kit's numbers are a promise over every room already made with
   it, so the pass is a new card, not a change to the old one. Two small openings were cut for it, each the old
   value where a card names none: a niche's head takes its card's `seg`, and the accent wall's stone may name its
   own generator (`era/crypt.js`).
 - Seen in Chrome in gen-7: a 12 by 22 metre hall nine metres high, beside the gothic-stone room and the hangar.
-  Still chunky, and said: a torch's iron (two boxes), and the candles' glow.
+  Still chunky, and said: the candles' glow; a column is fluted and cut in parts but not yet tapered or round.

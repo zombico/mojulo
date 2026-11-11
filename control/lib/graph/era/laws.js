@@ -81,6 +81,10 @@ export const LAWS = Object.freeze({
   'true-curves': { layer: 'composition', form: true, law: 'A curve is cut fine enough to read as a curve at arm\'s length.' },
   'dark-is-a-place': { layer: 'look', form: true, law: 'The dark is part of a room: light falls off to it, and where no lamp reaches shade may be black.' },
   'live-emitters': { layer: 'look', form: true, law: 'What burns moves, and what emits is brighter than white: a flame is live, a lamp blooms.' },
+  'layers-stand-proud': { layer: 'surface', form: true, law: 'A layer over a surface (a coat of render, a patch, a plate) stands proud of what it covers, and its broken edge casts its shadow.' },
+  // CRAFT, in both eras (`craft: true`): what a first pass may not be. A thing made of boxes reads as voxels in any light
+  'no-voxel-first': { layer: 'composition', craft: true, law: 'Nothing is a box on its first pass: a fixture is turned, ringed or tapered (a torch is a cone in a ring on an arm) before it is placed.' },
+  'pillars-are-worked': { layer: 'composition', craft: true, law: 'A column is worked, never a flat strip: tapered, rounded, fluted or cut in parts (a base, a shaft, a ring, a capital).' },
 });
 
 /** Each style card's principles, in order, as the laws they are instances of. */
@@ -103,7 +107,8 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'airless-plain': [['depth-by-air'], ['sky-is-a-place', 'value-order'], ['baked-light', 'shade-is-colour'], ['big-shapes'], ['locked-palette', 'value-order']],
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
   // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
-  'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material']],
+  'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material'],
+    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */

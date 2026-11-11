@@ -2,7 +2,7 @@
 // a graver register. One tall room, beside the same room in gothic-stone: what the card changes, and that it changes
 // nothing of the kit it is cut from.
 import { describe, it, expect } from 'vitest';
-import { assembleStageScene, STAGE_KITS } from './stage.js';
+import { assembleStageScene, torchFaces, STAGE_KITS } from './stage.js';
 import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 
 const ROOM = (kit) => ({ kind: 'stage', kit, rooms: [{ id: 'a', x: 0, y: 0, w: 12, d: 16, h: 9 }] });
@@ -33,5 +33,25 @@ describe('the crypt in ashlar', () => {
     expect(CRYPT_SOBER.accent.stone.gen).toBe('dressed');
     expect(CRYPT.accent.stone.gen).toBeUndefined();
     expect(stone.faces.find((f) => f.group === 'stage:accent').texture).toMatch(/^gen:stone-brick-/);
+  });
+
+  it('its torch is turned and its pilasters worked, in both eras; gothic-stone\'s are as they were', () => {
+    const torch = { at: [1, 1, 3], n: [0, 1], color: '#ff9c48', fixture: 'torch' };
+    const boxes = torchFaces(torch), cone = torchFaces(torch, false, false, 'cone'), coneLive = torchFaces(torch, false, true, 'cone');
+    // (boxes are axis-aligned; a turned thing has faces that look every way round)
+    const ways = (F) => new Set(F.filter((f) => !f.emissive).map((f) => f.normal.map((v) => Math.round(v * 10)).join())).size;
+    expect(ways(cone)).toBeGreaterThan(ways(boxes) * 3);
+    // (the sixth generation keeps its flame's two cards in the cone; the form render's live flame, a bed of coals)
+    expect(cone.filter((f) => f.emissive)).toHaveLength(4);
+    expect(coneLive.filter((f) => f.emissive)).toHaveLength(1);
+    expect(torchFaces(torch, false, false, null)).toEqual(boxes);
+    // (a pilaster cut in parts: more of its surface than gothic-stone's flat strip, in the fluted shaft's own tile)
+    const pil = (P) => P.faces.filter((f) => f.group === 'stage:pillar' || f.group === 'stage:trim').length;
+    expect(ash.faces.some((f) => f.group === 'stage:pillar')).toBe(true);
+    expect(stone.faces.some((f) => f.group === 'stage:pillar')).toBe(false);
+    expect(pil(ash)).toBeGreaterThan(0);
+    // (its wall wears a coat: the render cut over the ashlar)
+    expect(STAGE_KITS['gothic-ashlar'].torch.form).toBe('cone');
+    expect(STAGE_KITS['gothic-stone'].torch.form).toBeUndefined();
   });
 });

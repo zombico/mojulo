@@ -6,8 +6,8 @@ import { STAGE_KITS } from './stage.js';
 import { LAWS, PRINCIPLE_LAWS, statedPrinciples } from './laws.js';
 
 describe('the form render\'s laws, measured', () => {
-  it('every law a kit is measured by is one of the seventh generation\'s', () => {
-    for (const r of readFormKit(STAGE_KITS['gothic-ashlar']).rows) expect(LAWS[r.law]?.form, r.law).toBe(true);
+  it('every law a kit is measured by is one of the seventh generation\'s, or a craft law of both eras', () => {
+    for (const r of readFormKit(STAGE_KITS['gothic-ashlar']).rows) expect(LAWS[r.law]?.form || LAWS[r.law]?.craft, r.law).toBe(true);
   });
 
   it('the crypt in ashlar keeps them all; gothic-stone, the sixth generation\'s, is told which numbers are its era\'s', () => {
@@ -18,6 +18,9 @@ describe('the form render\'s laws, measured', () => {
     const failed = new Set(stone.rows.filter((r) => !r.ok).map((r) => r.law));
     // (its blocks are drawn, each its own value, and its curves are faceted: the frame it was made for)
     for (const law of ['relief-is-material', 'value-by-light', 'true-curves']) expect(failed.has(law), law).toBe(true);
+    // (and its craft: a torch of boxes, a pilaster a flat strip)
+    for (const law of ['no-voxel-first', 'pillars-are-worked']) expect(failed.has(law), law).toBe(true);
+    expect(ash.rows.find((r) => r.law === 'layers-stand-proud').ok).toBe(true);
     // (a tall dark vault is the crypt's own principle in both eras)
     expect(stone.rows.find((r) => r.what === 'the vault\'s tint').ok).toBe(true);
     expect(ash.rows.find((r) => r.what === 'a wall\'s course (m)').value).toBeLessThanOrEqual(FORM_MEASURES.course[1]);
