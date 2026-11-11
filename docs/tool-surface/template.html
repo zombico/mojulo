@@ -349,7 +349,7 @@ const RAILS=[
  {name:'Plan rail',sig:'forge_plan → compile_plan → execute_plan',
   note:'A chain written once. Each step can take an earlier step\'s result as { $step: n, path: \'/ref\' }, a JSON Pointer into it, so mint → vary → measure → export runs from one manifest through the same handler path as typed calls.',
   line:[S('enter_plan_mode','opt in','o'),S('forge_plan','seal goal + manifest; executes nothing'),S('revise_plan','note; back to draft','o'),S('compile_plan','check vs live registry'),S('execute_plan','confirm: true; stops at first failure','g')],
-  branches:[{label:'Observe the plan',line:[S('get_plan'),S('list_plans'),S('sketch_plan','plan as a diagram')]}]},
+  branches:[{label:'Observe the plan',line:[S('get_plan','one plan, or the inbox'),S('sketch_plan','plan as a diagram')]}]},
  {name:'Variation rail',sig:'run_experiment_sweep({ ref, path, values })',
   note:'Copies a stored recipe once per value at a JSON Pointer and mints each copy through create_sketch\'s gates into one new folder. The mechanics form (base, param, values) mints SI-honest runs and a plot of the outcome into one folder.',
   line:[S('create_sketch','or any minted recipe'),S('run_experiment_sweep','one call, N values'),S('create_sketch','each copy through its gates','g'),S('get_exhibit','read back, optional','o')],

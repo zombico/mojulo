@@ -45,3 +45,7 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
 - **A delegate key keeps its reach.** With the roles pack on, a key is granted packs by name. A tool that folds or
   retires moves to another pack, so a key granted its old pack would have been refused the old name; it now still runs
   it. Nothing changes for a key that was never granted that pack.
+- **The plan tools say less, and the inbox is one read.** `get_plan` with no `plan_ref` lists your plans (by
+  `status`, nothing marked read), so `list_plans` is off the list and still answers by name. Forging, revising,
+  sketching, compiling and executing a plan work as before; their descriptions and argument notes are cut to what an
+  agent needs to pick the call.

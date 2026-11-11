@@ -130,7 +130,7 @@ export const TOOL_ANNOTATIONS = {
   sketch_plan: ['Sketch a plan', ADDITIVE],
   compile_plan: ['Compile a plan', ADDITIVE],
   execute_plan: ['Execute a plan', hints(false, true, false, true)], // runs the manifest's tool calls
-  list_plans: ['List plans', READ],
+  list_plans: ['List plans', READ], // folded into get_plan (no plan_ref): callable by name
   get_plan: ['Get plan', READ],
 
   // ── the research book (retired: callable by name) and the sweep (research-mode.js, research-sweep.js) ──

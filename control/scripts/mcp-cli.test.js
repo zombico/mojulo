@@ -340,7 +340,7 @@ describe('runCli', () => {
     expect(await runCli(['tools', 'pack_plan'], io)).toBe(0);
     const names = lines.out.map((l) => l.split('\t')[0]);
     expect(names).toEqual(
-      expect.arrayContaining(['enter_plan_mode', 'forge_plan', 'list_plans'])
+      expect.arrayContaining(['enter_plan_mode', 'forge_plan', 'get_plan'])
     );
 
     const bad = capture();

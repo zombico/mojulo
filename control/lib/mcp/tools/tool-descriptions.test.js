@@ -45,7 +45,6 @@ const DESCRIPTION_ALLOWLIST = {
   // capture_reference 1523 -> 1273 and reference_protocol 1708 -> 1426 (2026-11-04, 1103-dream-loop-death-rebirth): the
   // character target joined both and the target lines were re-cut to routing grade; the protocol teaches the rest.
   capture_reference: 1273,
-  compile_plan: 841,
   // compose_world / create_sketch / get_game_vocab re-pinned 2026-07-10 to
   // bless the visualization-layer branch growth (school base + game vocab
   // families + sketch kinds). compose_world re-pinned 2026-08-10 to bless
@@ -96,7 +95,6 @@ const DESCRIPTION_ALLOWLIST = {
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
   diff_sketches: 875,
-  execute_plan: 1314,
   export_beats: 1124,
   // export_game re-pinned 2026-09-03 (1253 → 1378) to bless an engine-target
   // clause that rode the third-engine-leg commit (that target since retired —
@@ -116,7 +114,6 @@ const DESCRIPTION_ALLOWLIST = {
   // recipe.json a legal input, closing the last mint-once 3D family.
   // Shrink-only from here.
   forge_motion: 1560,
-  forge_plan: 1167,
   forge_publications: 955,
   gather: 1181,
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
@@ -134,7 +131,6 @@ const DESCRIPTION_ALLOWLIST = {
   recommend_kind: 922,
   reference_protocol: 1426,
   semantic_search: 2049,
-  sketch_plan: 774,
   sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
@@ -461,7 +457,10 @@ const DESCRIPTION_ALLOWLIST = {
 // get_ui_map, get_worked_example, check_for_updates and get_tool_ledger cut to routing grade (the three allowlisted ones
 // now under the ceiling), and the register / disclosure argument notes said once, shortly. The names and what each
 // returns are unchanged: the connect-time preamble and forward_context name them.
-const PAYLOAD_CEILING = 189_200;
+// Lowered 2026-11-11 on 1111-mcp-cleanup (189_200 -> 185_100; measured 185,013) for the plan tools: list_plans folded
+// into get_plan (no plan_ref: the inbox), and enter / forge / revise / sketch / compile / execute cut to routing grade
+// (four leave the allowlist; forge_plan's schema prose said once). One tool off the list, no behaviour changed.
+const PAYLOAD_CEILING = 185_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

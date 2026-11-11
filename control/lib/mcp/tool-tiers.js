@@ -107,7 +107,6 @@ export const TOOL_TIERS = Object.freeze({
   // ── workflows: plans and sweeps ──
   enter_plan_mode: 'ride',
   get_plan: 'ride',
-  list_plans: 'ride',
   sketch_plan: 'ride',
   compile_plan: 'ride',
   execute_plan: 'ride', // runs a compiled manifest with no model in the loop

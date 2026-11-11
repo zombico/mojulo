@@ -137,8 +137,7 @@ export const TOOL_LINES = {
   sketch_plan: L('observe', "Preview a plan's manifest as a pipeline diagram without compiling."),
   compile_plan: L('update', 'Check a plan against the live registry: actionable, or draft with the unknown tools named.'),
   execute_plan: L('compose', 'Run an actionable plan step by step with `confirm: true`; stops at the first failure.'),
-  list_plans: L('maintain', 'The plan inbox, by status.'),
-  get_plan: L('maintain', 'One plan in full: goal, manifest, revisions, execution log.'),
+  get_plan: L('maintain', 'One plan in full: goal, manifest, revisions, execution log. With no ref: the plan inbox, by status.'),
 
   // ── workflows: stash, gather, cook ────────────────────────────────────────
   mint_stash: L('create', 'A renameable bucket of typed items; the corpus a `cook` reads.'),

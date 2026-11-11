@@ -262,13 +262,12 @@ export const PACKS = [
     ring: 'workflows',
     title: 'Plans & sweeps (Ring 8)',
     description:
-      "PLANS & SWEEPS — the speculative layer over sealed reality: enter plan mode, forge and revise plans, read and list them, compile a plan to a manifest of tool calls and execute it under per-execution operator approval, sketch a plan visual; run_experiment_sweep makes variations of one thing in a call (visual takes on a design in words, one value swept, a mechanics experiment with its plot). Open for 'let's plan this out', 'turn this session into a plan', 'execute the plan', 'show me four takes on this', 'sweep the parameter and plot the outcome'.",
+      "PLANS & SWEEPS — the speculative layer over sealed reality: enter plan mode, forge and revise plans, read them, compile a plan to a manifest of tool calls and execute it under per-execution operator approval, sketch a plan visual; run_experiment_sweep makes variations of one thing in a call (visual takes on a design in words, one value swept, a mechanics experiment with its plot). Open for 'let's plan this out', 'turn this session into a plan', 'execute the plan', 'show me four takes on this', 'sweep the parameter and plot the outcome'.",
     body: 'Plans are the PROPOSED layer; contextmap is sealed reality. A plan compiles to a manifest of tool calls that executes through the exact same handler path as operator-typed calls. A step takes an earlier step\'s result as `{ $step: n, path: \'/ref\' }`, so a chain is written once. A sweep is the one-call chain: a recipe copied per variant into one folder, the source never written.',
     members: [
       'enter_plan_mode',
       'forge_plan',
       'get_plan',
-      'list_plans',
       'revise_plan',
       'compile_plan',
       'execute_plan',
@@ -473,11 +472,12 @@ export const RETIRED_PACKS = [
     retired: 'after 3.1.1',
     title: 'Folded workflow doors',
     description:
-      "FOLDED WORKFLOW DOORS — reads that moved onto the tool they served: the adapters list is get_adapter's (`list`), the catalyst author's guide is mint_catalyst's (`guide`).",
+      "FOLDED WORKFLOW DOORS — reads that moved onto the tool they served: the adapters list is get_adapter's (`list`), the catalyst author's guide is mint_catalyst's (`guide`), the plan inbox is get_plan's (no `plan_ref`).",
     body: 'Folded for one door per intent. Callable by name; each description names its door.',
     members: [
       'list_adapters',
       'custom_catalyst',
+      'list_plans',
     ],
   },
 ];
@@ -492,6 +492,7 @@ export const CAME_FROM = Object.freeze({
   bind_stash: 'pack_stash',
   unbind_stash: 'pack_stash',
   list_stash_bindings: 'pack_stash',
+  list_plans: 'pack_plan',
 });
 
 /** The office wing's packs, which left the surface in 3.1.0. */

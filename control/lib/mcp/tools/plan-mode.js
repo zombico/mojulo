@@ -25,8 +25,8 @@
  *   - execute_plan    — Actionable → executed/failed. Runs the manifest in
  *     order through the same handler path a remote tools/call hits. Stops on
  *     first failure. Requires an explicit confirm — the per-execution gate.
- *   - list_plans      — list plans (optional status filter). Read-only.
- *   - get_plan        — fetch one plan; flips its read/unread (seen) flag.
+ *   - get_plan        — fetch one plan; flips its read/unread (seen) flag. With no plan_ref,
+ *     the inbox (optional status filter), read-only: what list_plans answered, its folded name.
  *
  * v0 scope: no cross-plan context (plans never see other plans); subplans live
  * inside the prime plan's manifest, not as sibling rows. Execution records a
@@ -95,7 +95,7 @@ Before every reply, privately update a candidate manifest of tool calls + an un-
 
 ## Introspection on signal
 
-When enough signal accumulates that the gem is revealing, ground the candidate frame against committed reality BEFORE presenting it — compose \`list_plans\` for plans already drafted, \`semantic_search\` for prior-art, and \`get_catalyst\` for recipe overlap. Introspection can RE-LENS the frame: you think it's a spike, find an overlapping artifact, and it becomes a reinforcement. Do this signal-triggered, not at session start — early grounding constrains lens-switching prematurely.
+When enough signal accumulates that the gem is revealing, ground the candidate frame against committed reality BEFORE presenting it — compose \`get_plan\` (no ref: the inbox) for plans already drafted, \`semantic_search\` for prior-art, and \`get_catalyst\` for recipe overlap. Introspection can RE-LENS the frame: you think it's a spike, find an overlapping artifact, and it becomes a reinforcement. Do this signal-triggered, not at session start — early grounding constrains lens-switching prematurely.
 
 ## The frame (the moment you present for approval)
 
@@ -238,7 +238,7 @@ export async function revisePlanHandler(input, _ctx) {
   if (sketch_ref !== undefined) patch.sketchRef = sketch_ref;
   const plan = PlanRepository.revise(plan_ref, patch);
   if (!plan) {
-    throw new Error(`Plan '${plan_ref}' not found. Call list_plans to see existing plans.`);
+    throw new Error(`Plan '${plan_ref}' not found. get_plan with no plan_ref lists the plans.`);
   }
   return {
     ok: true,
@@ -610,12 +610,14 @@ export async function listPlansHandler(input, _ctx) {
 }
 
 export async function getPlanHandler(input, _ctx) {
-  if (!input || typeof input !== 'object') {
+  // no plan_ref: the inbox (what list_plans answered, folded onto this door)
+  if (input === undefined || input === null || (typeof input === 'object' && input.plan_ref === undefined)) return listPlansHandler(input, _ctx);
+  if (typeof input !== 'object') {
     throw new Error('get_plan requires an object with plan_ref');
   }
   const { plan_ref } = input;
   if (!plan_ref || typeof plan_ref !== 'string') {
-    throw new Error('plan_ref is required');
+    throw new Error('plan_ref is a plan ref; omit it for the inbox');
   }
   // Opening the plan flips its read/unread flag — the light inbox gate.
   const plan = PlanRepository.getByRef(plan_ref, { markSeen: true });
@@ -653,7 +655,7 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'enter_plan_mode',
     description:
-      "Ring 8 — DELIBERATION surface (plan mode). Returns the plan-mode discipline: the four lenses (spike / segment-expansion / vertical-reinforcement / collider) held loosely, the shadow-scratchpad step-0 (draft tool calls but never fire them while deliberating), introspection-on-signal (ground the frame against committed reality only once the gem reveals), the frame-for-approval moment, and the lifecycle (forge → revise → compile → execute). Call this FIRST when the operator wants to plan a non-trivial piece of work — it primes you to push gently toward an outcome rather than open-endedly chat. Read-only, idempotent.",
+      "Plan mode's discipline, for when the operator wants to plan a non-trivial piece of work: the four lenses (spike, segment expansion, vertical reinforcement, collider) held loosely, drafting tool calls without firing them while you deliberate, grounding the frame against what exists once it firms up, the frame you present for approval, and the lifecycle (forge → revise → compile → execute). Call it FIRST: it primes you to push toward an outcome rather than chat. Read-only.",
     inputSchema: { type: 'object', properties: {} },
     handler: enterPlanModeHandler,
   });
@@ -661,49 +663,23 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'forge_plan',
     description:
-      "Ring 8 — seal a Draft plan from a session that's accumulated enough signal to warrant a solution. Persists the goal plus (optionally) the lens the frame settled into, the frame itself, the candidate manifest (ordered { tool, args } calls), and the un-shared analysis (lens weights, discarded lenses, introspection refs) — i.e. the projected shadow scratchpad. A plan can start goal-only and accrete its manifest through revise_plan.\n\n**Seeding from a cook (the cook→plan bridge).** Pass `source: { kind: 'cook', cook_ref }` to seed a plan from a previously-materialized Cook outcome — the cook's `aim` becomes the seeded goal (overridable via the top-level `goal` arg) and its `suggested_lens` becomes the seeded lens. The source ref is recorded in the plan's analysis for the triangle backlink (stash → cook → plan). This replaces the retired `synthesize_abstract({ from_cook })` path: cook stops at cook, and plan mode pulls the cook itself when (and only when) an outcome later reads as tractable work.\n\nReturns { plan_ref, status:'draft', lens, has_manifest, source? }. Forging does NOT execute anything — plans are speculative until compiled and run.",
+      "Seal a Draft plan once a session has enough signal: its goal and, optionally, the lens it settled into, the frame presented for approval, the candidate `manifest` (ordered { tool, args } calls; a step takes an earlier step's result as `{ $step: n, path }`) and the un-shared `analysis`. A plan can start goal-only and grow its manifest through `revise_plan`. `source: { kind: 'cook', cook_ref }` seeds the goal and lens from a cook's outcome. Forging executes NOTHING: a plan is speculative until `compile_plan` and `execute_plan`. Returns { plan_ref, status: 'draft', lens, has_manifest, source? }.",
     inputSchema: {
       type: 'object',
       properties: {
-        title: { type: 'string', description: 'Short human title for the plan inbox.' },
-        goal: {
-          type: 'string',
-          description:
-            "The named goal (markdown ok) — what spike this plan hammers. Required unless seeded via `source` (in which case the source's natural goal text is used; supply `goal` to override).",
-        },
-        lens: {
-          type: 'string',
-          enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'],
-          description: 'Which of the four lenses the frame settled into (optional while undecided).',
-        },
-        frame: {
-          type: 'object',
-          description:
-            'The crystallized frame presented for approval: lens, goal restatement, first-slice summary, and discarded_lenses. Free-form object.',
-        },
-        manifest: {
-          type: 'array',
-          description:
-            'Ordered candidate tool calls. Each item: { tool: <live tool name>, args: {…}, note?: <why> }. Plan-mode meta-tools may not appear here. Validated at compile time.',
-          items: { type: 'object' },
-        },
-        analysis: {
-          type: 'object',
-          description:
-            'Un-shared deliberation provenance: { lens_weights, discarded_lenses, introspection_refs, … }. Free-form object. If `source` is provided, the resolved source record is merged in as `analysis.source`.',
-        },
-        sketch_ref: {
-          type: 'string',
-          description:
-            'Optional: pin a hand-authored sketch (a `sk_<…>` ref from create_sketch) as this plan\'s diagram. A pinned sketch is left alone by compile (which otherwise auto-mints a pipeline diagram from the manifest). Omit to let compile draw it.',
-        },
+        title: { type: 'string', description: 'Short title for the plan inbox.' },
+        goal: { type: 'string', description: 'The goal (markdown ok). Required unless `source` seeds it.' },
+        lens: { type: 'string', enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'], description: 'The lens the frame settled into.' },
+        frame: { type: 'object', description: 'The frame presented for approval: lens, goal restated, first slice, discarded lenses.' },
+        manifest: { type: 'array', description: 'Ordered calls: { tool, args, note? }. Plan tools may not appear. Checked at compile.', items: { type: 'object' } },
+        analysis: { type: 'object', description: 'Un-shared deliberation: lens weights, discarded lenses, what was looked up.' },
+        sketch_ref: { type: 'string', description: "Pin a hand-drawn sketch as the plan's diagram; compile then leaves it alone." },
         source: {
           type: 'object',
-          description:
-            "Optional: seed this plan from another deliberation node. Discriminator: `kind`. Today supports `kind:'cook'` with `cook_ref` — the cook's aim seeds the goal and its suggested_lens seeds the lens; the source ref lands in analysis.source for the triangle backlink. Forward-compatible: future kinds (e.g. 'stash', 'sketch') will follow the same shape.",
+          description: "Seed from a cook: its aim becomes the goal, its suggested lens the lens.",
           properties: {
-            kind: { type: 'string', enum: ['cook'], description: "Source kind. 'cook' = seed from a materialized Cook outcome." },
-            cook_ref: { type: 'string', description: "Required when kind is 'cook'. A `cook_<…>` ref from list_cooks / a prior cook call." },
+            kind: { type: 'string', enum: ['cook'] },
+            cook_ref: { type: 'string', description: 'The cook to seed from.' },
           },
           required: ['kind'],
         },
@@ -716,33 +692,18 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'revise_plan',
     description:
-      "Ring 8 — apply a revision to a plan. Appends a { note, revised_at } entry to the revision log and optionally patches goal / lens / frame / manifest / analysis. Mode-switching ('this is a reinforcement, not a spike') is a normal revision. A revision ALWAYS resets status to 'draft' — touching the schematic un-commits the compile, so you must compile_plan again before re-executing. Returns { plan_ref, status:'draft', lens, revisions }.",
+      "Revise a plan: append a note to its revision log and patch any of goal, lens, frame, manifest and analysis. Re-lensing ('this is a reinforcement, not a spike') is a normal revision. A revision ALWAYS returns the plan to 'draft', so `compile_plan` again before executing. Returns { plan_ref, status: 'draft', lens, revisions }.",
     inputSchema: {
       type: 'object',
       properties: {
-        plan_ref: { type: 'string', description: 'Plan ref returned by forge_plan.' },
-        note: {
-          type: 'string',
-          description: 'What changed and why (the operator note or your own re-framing rationale).',
-        },
-        goal: { type: 'string', description: 'New goal (optional patch).' },
-        lens: {
-          type: 'string',
-          enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'],
-          description: 'Re-lens the plan (optional patch).',
-        },
-        frame: { type: 'object', description: 'Replace the frame (optional patch).' },
-        manifest: {
-          type: 'array',
-          description: 'Replace the manifest (optional patch).',
-          items: { type: 'object' },
-        },
-        analysis: { type: 'object', description: 'Replace the analysis (optional patch).' },
-        sketch_ref: {
-          type: 'string',
-          description:
-            'Pin (or re-pin) a hand-authored sketch as the plan\'s diagram (a `sk_<…>` ref). Pass an empty string to clear the pin and let the next compile auto-draw the diagram again.',
-        },
+        plan_ref: { type: 'string' },
+        note: { type: 'string', description: 'What changed and why.' },
+        goal: { type: 'string' },
+        lens: { type: 'string', enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'] },
+        frame: { type: 'object', description: 'Replaces the frame.' },
+        manifest: { type: 'array', description: 'Replaces the manifest.', items: { type: 'object' } },
+        analysis: { type: 'object', description: 'Replaces the analysis.' },
+        sketch_ref: { type: 'string', description: "Pin a hand-drawn sketch as the plan's diagram; '' clears the pin." },
       },
       required: ['plan_ref', 'note'],
     },
@@ -752,12 +713,10 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'sketch_plan',
     description:
-      "Ring 8 — preview a Draft plan's current manifest as a diagram WITHOUT compiling. Derives the same left→right pipeline diagram that `compile_plan` auto-mints (goal → mcp_tool stations chained by manifest order) and links it to the plan as the current `sketchRef` (unpinned — a subsequent compile will redraw it). Useful while iterating: see what the spike looks like before paying the validation cost of compile, or after a revision that you don't want to compile yet. NO status change — the plan stays in whatever state it was. Refuses if a hand-authored sketch is pinned (would overwrite operator's work — clear the pin first via revise_plan with sketch_ref:''). Refuses on empty manifest (nothing to draw). Returns { ok, plan_ref, sketch_ref, sketch_url, steps, message }.",
+      "Preview a plan's manifest as a diagram WITHOUT compiling: the left-to-right pipeline `compile_plan` would draw (the goal, then each call in order), linked to the plan until the next compile redraws it. The plan's status does not change. Refuses when a hand-drawn sketch is pinned (clear it with `revise_plan`, `sketch_ref: ''`) and when the manifest is empty. Returns { ok, plan_ref, sketch_ref, sketch_url, steps, message }.",
     inputSchema: {
       type: 'object',
-      properties: {
-        plan_ref: { type: 'string', description: 'Plan ref to sketch.' },
-      },
+      properties: { plan_ref: { type: 'string' } },
       required: ['plan_ref'],
     },
     handler: sketchPlanHandler,
@@ -766,12 +725,10 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'compile_plan',
     description:
-      "Ring 8 — attempt Draft → Actionable. This is a COMPILE STEP, not a status flip: it validates the plan's manifest against the LIVE tool registry. Tractable iff every call resolves to a shipped MCP tool (and none are plan-mode meta-tools or malformed). On success: status becomes 'actionable', the plan is ready for operator-approved execution, AND (unless a sketch was pinned) a pipeline DIAGRAM of the compiled manifest is auto-minted and linked on the plan — `sketch_url` in the response, viewable in the /plan detail pane. On failure: the plan stays Draft and the response carries a structured reason — `unknown_tools` (mojulo can't do this deterministically yet → roadmap signal), `illegal_tools`, or malformed `errors`. Returns { ok, compiled, status, steps?, sketch_ref?, sketch_url?, unknown_tools?, illegal_tools?, errors?, message }.",
+      "Take a plan from Draft to Actionable by checking its manifest against the LIVE tool registry: it compiles only if every call names a shipped tool (no plan tools, nothing malformed). On success the plan is 'actionable' and, unless a sketch is pinned, a pipeline diagram of it is drawn (`sketch_url`). On failure it stays Draft with the reason: `unknown_tools` (mojulo cannot do this yet), `illegal_tools` or `errors`. Returns { ok, compiled, status, steps?, sketch_ref?, sketch_url?, unknown_tools?, illegal_tools?, errors?, message }.",
     inputSchema: {
       type: 'object',
-      properties: {
-        plan_ref: { type: 'string', description: 'Plan ref to compile.' },
-      },
+      properties: { plan_ref: { type: 'string' } },
       required: ['plan_ref'],
     },
     handler: compilePlanHandler,
@@ -780,15 +737,12 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'execute_plan',
     description:
-      "Ring 8 — execute an Actionable plan's manifest. THE PER-EXECUTION APPROVAL GATE: requires confirm:true, and the plan must be in status 'actionable' (compile it first; re-compile after any revision). Runs each manifest call in order through the exact same handler path a remote tools/call hits, so executed steps behave identically to operator-typed calls. Re-validates the manifest at execution time (resets to Draft and aborts if a tool vanished). STOPS ON FIRST FAILURE — completed steps are recorded, the plan is marked 'failed', and the operator re-forges the remainder. On full success the plan is marked 'executed'. CLOSES THE LOOP: a stored plan whose steps sealed artifacts into the retired contextmap timestamps a `plan_release` on each and is archived (status stays 'executed') — the response then carries `release` + `archived:true`. Release-recording is soft (a failure there surfaces as `release_warning`, never failing a successful execution). Returns { ok, status, steps_run, steps_total, execution_log, release?, archived?, message }. Use deliberately — manifest calls can be mutating (writes, exports); the confirm gate is the only thing between Actionable and real side effects.",
+      "Run an Actionable plan's manifest. THE APPROVAL GATE: needs `confirm: true`, and the plan must be 'actionable' (compile it; re-compile after any revision). Each call runs in order through the same handler path as a typed call, the manifest re-checked first. STOPS AT THE FIRST FAILURE: completed steps are recorded and the plan is 'failed'; on full success it is 'executed'. Returns { ok, status, steps_run, steps_total, execution_log, release?, archived?, message }. Use deliberately: steps can write and export, and the confirm is all that stands between Actionable and real side effects.",
     inputSchema: {
       type: 'object',
       properties: {
-        plan_ref: { type: 'string', description: 'Plan ref to execute (must be Actionable).' },
-        confirm: {
-          type: 'boolean',
-          description: 'Must be true. The explicit per-execution operator approval.',
-        },
+        plan_ref: { type: 'string', description: 'An Actionable plan.' },
+        confirm: { type: 'boolean', description: "Must be true: this execution's approval." },
       },
       required: ['plan_ref', 'confirm'],
     },
@@ -798,15 +752,11 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'list_plans',
     description:
-      "Ring 8 — list plans (the inbox). Optional `status` filter (draft / actionable / executing / executed / failed). Returns { total, plans: [{ plan_ref, title, lens, status, seen, steps, revisions, created_at, updated_at }] }. Read-only — does not flip the read/unread flag (only get_plan does).",
+      "Folded into get_plan with no `plan_ref` (the inbox; `status` filters). Callable by name.",
     inputSchema: {
       type: 'object',
       properties: {
-        status: {
-          type: 'string',
-          enum: ['draft', 'actionable', 'executing', 'executed', 'failed'],
-          description: 'Filter by status.',
-        },
+        status: { type: 'string', enum: ['draft', 'actionable', 'executing', 'executed', 'failed'] },
       },
     },
     handler: listPlansHandler,
@@ -815,13 +765,13 @@ export function registerPlanModeTools() {
   registerTool({
     name: 'get_plan',
     description:
-      "Ring 8 — fetch one plan in full (goal, lens, frame, manifest, analysis, revision_log, execution_log). Opening a plan flips its read/unread (`seen`) flag to read — this is the light inbox gate, not a formal review. Returns the full plan object.",
+      "One plan in full (goal, lens, frame, manifest, analysis, revision and execution logs); opening it marks it read. Omit `plan_ref` for the inbox: every plan's summary, optionally by `status`, nothing marked read.",
     inputSchema: {
       type: 'object',
       properties: {
-        plan_ref: { type: 'string', description: 'Plan ref to fetch.' },
+        plan_ref: { type: 'string', description: 'Omit to list the plans.' },
+        status: { type: 'string', enum: ['draft', 'actionable', 'executing', 'executed', 'failed'], description: 'Inbox filter.' },
       },
-      required: ['plan_ref'],
     },
     handler: getPlanHandler,
   });

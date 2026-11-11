@@ -192,7 +192,7 @@ function buildWorkshopPulseLine(pulse) {
   if (sketches) parts.push(`${sketches} sketch${sketches === 1 ? '' : 'es'}`);
   if (stashes) parts.push(`${stashes} open stash${stashes === 1 ? '' : 'es'}`);
   if (cooks) parts.push(`${cooks} open cook${cooks === 1 ? '' : 's'}`);
-  if (unseenPlans) parts.push(`${unseenPlans} unseen plan${unseenPlans === 1 ? '' : 's'} (\`list_plans\`)`);
+  if (unseenPlans) parts.push(`${unseenPlans} unseen plan${unseenPlans === 1 ? '' : 's'} (\`get_plan\`)`);
   const age = fmtPulseAge(lastActivityMs);
   if (age) parts.push(`last activity ${age}`);
   return `*Workshop pulse: ${parts.join(' · ')}.*`;

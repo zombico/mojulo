@@ -28,7 +28,7 @@ async function compileAs(session) {
 
 describe('compile_plan and tiers', () => {
   it('counts steps by tier, lightest first, and names untiered tools', () => {
-    expect(tierCounts(['create_exhibit', 'get_exhibit', 'list_plans', 'design_game'])).toEqual({ ride: 2, fill: 1, design: 1 });
+    expect(tierCounts(['create_exhibit', 'get_exhibit', 'get_plan', 'design_game'])).toEqual({ ride: 2, fill: 1, design: 1 });
     expect(tierCounts(['create_character'])).toEqual({ judge: 1 });
     expect(tierCounts(['not_a_listed_tool'])).toEqual({ untiered: 1 });
   });
