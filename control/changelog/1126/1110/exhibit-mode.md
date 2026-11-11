@@ -9,7 +9,8 @@ narration, and two exhibits to start from.
   exhibit's card is its manual (a historic city's entry still says what is known, reconstructed or conjectured), and a
   made exhibit's measurements are read back in real units from the same place. The separate tools for making a study
   object and for measuring one give way to it, so the list of tools your agent reads gets shorter; their old names
-  still work for a release. Kept setups in your cookbook are recalled by their hall too. Everything already made looks
+  still work for a release. The Claude plugin's helpers keep the old names until the release that updates the
+  plugin, since an installed plugin changes only then. Kept setups in your cookbook are recalled by their hall too. Everything already made looks
   exactly as it did. The manuals for building a world (its bases, stage kits and looks) stay where they were.
 - **A tour you step through.** An exhibit, or any world, can carry stops. At each one the camera glides to a view, a
   caption explains, and the part being talked about is lit while the rest dims; the stop can say how sure it is
