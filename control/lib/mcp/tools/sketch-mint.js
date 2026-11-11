@@ -72,6 +72,7 @@ import {
 import { isGalleryKind, galleryManifest } from '@/lib/graph/exhibit/gallery';
 import { isStatesKind, statesManifest } from '@/lib/graph/exhibit/states';
 import { stampSignoff } from '@/lib/graph/exhibit/brief';
+import { stampNarration } from '@/lib/graph/exhibit/narration';
 // an exhibit's brief, its `curation` (exhibit/brief.js): a sign-off of `claims: 'all'` is stamped at write with a copy of each claim, the
 // record of what the expert signed. Any other manifest passes as it is.
 const stampBrief = (m) => (m && typeof m === 'object' && m.curation && typeof m.curation === 'object' ? { ...m, curation: stampSignoff(m.curation) } : m);
@@ -447,8 +448,10 @@ function gameworldManifest(manifest) {
   return out;
 }
 
-export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
+export function mintSketch({ title, manifest: given, ref, folderRef, bucket } = {}) {
   validateSketchIdentity({ title, ref, folderRef, bucket });
+  // a tour's narration (exhibit/narration.js): each WAV's path saved as a recording before any gate reads the recipe
+  const manifest = stampNarration(given);
   let finalized;
   if (isGameworldKind(manifest?.kind)) {
     // A gameworld (the game book's recipe) bypasses the diagram pipeline: the stored manifest is the recipe as
@@ -570,10 +573,12 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   }
   }
 
-  return persistSketch({ title, manifest: stampBrief(finalized), ref, folderRef, bucket });
+  return persistSketch({ title, manifest: finalized, ref, folderRef, bucket });
 }
 
-function persistSketch({ title, manifest, ref, folderRef, bucket }) {
+function persistSketch({ title, manifest: given, ref, folderRef, bucket }) {
+  // every mint passes here (a world restored by create_sketch too): an exhibit's sign-off is stamped as it is stored
+  const manifest = stampBrief(given);
   const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
   // a house reads out from the recipe as stored (after the mint's draw and laws): its design, the steps open from here,
   // and the fields the mint inferred (their reasons ride notes.inferred)
@@ -852,13 +857,15 @@ export async function createSketchHandler(input) {
   refusePaintedKind('create_sketch', input.manifest);
   const {
     title,
-    manifest,
+    manifest: given,
     ref,
     folder_ref: folderRef,
     bucket,
     preload,
     preloadMetadata,
   } = input;
+  // a tour's narration (exhibit/narration.js): each WAV's path saved as a recording before any gate reads the recipe
+  const manifest = stampNarration(given);
   // create_sketch takes a fully-authored manifest, so preload is purely an
   // echo back so the agent can confirm the prior context it composed
   // against. No prepending — the manifest IS the answer. preloadMetadata is
@@ -1106,6 +1113,8 @@ export async function updateSketchHandler(input) {
     refusePaintedKind('update_sketch', manifest);
   }
 
+  // a tour's narration (exhibit/narration.js): each WAV's path saved as a recording before any gate reads the recipe
+  if (manifest !== undefined) manifest = stampNarration(manifest);
   let nextManifest;
   let gameNote;
   let versusLaws = null;

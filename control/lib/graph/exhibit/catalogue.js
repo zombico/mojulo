@@ -43,7 +43,8 @@ export function catalogueHtml({ title, intro, brief = null, rooms = [] }) {
       const cite = list(s.cite).length ? list(s.cite) : [...new Set(stated.flatMap((c) => list(c.cite)))];
       if (grade) grades.add(grade);
       const caps = [['general', s.caption], ['child', s.captions?.child], ['specialist', s.captions?.specialist]].filter(([, t]) => t);
-      return `<li class="stop"><div class="sh"><span class="n">${i + 1}</span><span class="st">${esc(s.title || '')}</span>${grade ? `<span class="g g-${esc(grade)}">${esc(grade)}</span>` : ''}</div>
+      const spoken = s.narration ? Object.keys(s.narration).map((a) => AUDIENCE_WORDS[a] || a) : [];
+      return `<li class="stop"><div class="sh"><span class="n">${i + 1}</span><span class="st">${esc(s.title || '')}</span>${spoken.length ? `<span class="vo" title="narrated: ${esc(spoken.join(', '))}">narrated</span>` : ''}${grade ? `<span class="g g-${esc(grade)}">${esc(grade)}</span>` : ''}</div>
 ${caps.map(([a, t]) => `<p class="cap"${caps.length > 1 ? ` data-a="${esc(AUDIENCE_WORDS[a])}"` : ''}>${esc(t)}</p>`).join('\n')}
 ${stated.length ? `<p class="cl">States: ${stated.map((c) => `<a href="#c-${ri}-${esc(c.id)}">${esc(c.id)}</a>`).join(', ')}</p>` : ''}${cite.length ? `<p class="src">${cite.map(esc).join(' · ')}</p>` : ''}</li>`;
     }).join('\n');
@@ -88,7 +89,7 @@ ${claims}
   .g-attested{background:#dcefe2}.g-reconstructed{background:#f6ecd0}.g-conjectural{background:#f8e0d6}.g-simulated{background:#dde8fa}.g-depicted{background:#ece2fa}.g-explained{background:#dcf1ee}
   table{width:100%;border-collapse:collapse;font:14px/1.4 system-ui,sans-serif}th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
   th{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--mute)}td.id{font-family:ui-monospace,Menlo,monospace;font-size:12px}
-  .none{color:#a0543a}.so{white-space:nowrap}
+  .none{color:#a0543a}.so{white-space:nowrap}.vo{font:600 10px/1 system-ui,sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:3px 7px}
   .acc{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;font:14px/1.5 system-ui,sans-serif;background:#fff}
   .acc-signed{border-color:#9bc7a8}.acc-changed,.acc-unsigned{border-color:#e0b48f}
   .legend{list-style:none;padding:0;font:14px/1.5 system-ui,sans-serif}.legend li{margin:6px 0}.legend .g{margin:0 8px 0 0}

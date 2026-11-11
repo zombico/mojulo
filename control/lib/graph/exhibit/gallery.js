@@ -166,12 +166,12 @@ export function galleryHtml({ title, intro, rooms, kiosk }, { src }) {
     b.onclick = () => enter(i);
     li.append(b); list.append(li);
   });
-  let at = -1, attract = false, timer = 0, idleTimer = 0, audience = null;
+  let at = -1, attract = false, timer = 0, idleTimer = 0, audience = null, sound = false;
   function enter(i) {
     if (!(i >= 0 && i < ROOMS.length)) return;
     at = i; const r = ROOMS[i];
     const sep = r.src.includes('?') ? '&' : '?';
-    frame.src = r.src + sep + 'gallery=1' + (KIOSK ? '&kiosk=1' : '') + (audience ? '&audience=' + encodeURIComponent(audience) : '');
+    frame.src = r.src + sep + 'gallery=1' + (KIOSK ? '&kiosk=1' : '') + (audience ? '&audience=' + encodeURIComponent(audience) : '') + (sound ? '&sound=1' : '');
     frame.title = r.title; rt.textContent = (i + 1) + ' / ' + ROOMS.length + '  ·  ' + r.title;
     $('next').textContent = i < ROOMS.length - 1 ? 'Next room ›' : 'Back to the start ›';
     stage.classList.add('on'); document.title = r.title;
@@ -201,6 +201,7 @@ export function galleryHtml({ title, intro, rooms, kiosk }, { src }) {
     if (e.source !== frame.contentWindow || !d || typeof d.moj !== 'string') return;
     if (d.moj === 'tour-touch') touched();
     else if (d.moj === 'tour-audience' && typeof d.audience === 'string') audience = d.audience;   // the next room is told the same way
+    else if (d.moj === 'tour-sound') sound = !!d.on;   // and heard the same way
     else if (d.moj === 'tour-ready' && attract) tell({ moj: 'tour-play', from: 0 });
     else if (d.moj === 'tour-end' && attract) walk((at + 1) % ROOMS.length);
   });

@@ -79,6 +79,8 @@ export const FIXTURE = [
   ['our curator needs every fact on the dam exhibit listed with its source so she can sign off before it opens', 'create_exhibit'],
   // prepared states: one exhibit at several settings, switched in one page (create_exhibit's `states`)
   ['let visitors flip between the dam at a low, a middle and a high water level and see what changes', 'create_exhibit'],
+  // narration: a stop's caption spoken, a recording kept per stop (the tour's `narration`)
+  ['have each step of the cell tour read aloud for visitors who would rather listen than read', 'create_exhibit'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],

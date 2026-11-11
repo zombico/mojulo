@@ -71,6 +71,25 @@ itself when left alone: the lobby a moment, then each room's tour played to its 
 with `update_sketch` (`set /rooms`). `export_model({ ref, format: 'html' })` writes it as a folder that opens offline
 (index.html, and rooms/<ref>.html each a self-contained page): the kiosk's form.
 
+## Narration: the caption spoken
+
+The caption is the truth; a voice is a layer over it, never the only way a visitor gets the words. Give a stop
+`narration`: a WAV's path (everyone's) or `{ general?, child?, specialist? }` (each a path, or `{ audio: path }`), with
+the tour at `create_exhibit`, or later through `update_sketch` (`set /tour/stops/1/narration`). The WAV is kept as a
+recording when the recipe is written (content-addressed, under the outcomes directory, the stop keeping its id), so the
+file must be there then; the recipe never names a file.
+
+Make the WAV by whatever speaks, reading the caption as written: the optional local voice worker
+(`cd ~/mojulo-voicegen && node speak.mjs --text "<the caption>" --out stop1.wav`; install:
+`control/scripts/install-local-voicegen.sh`), your own speech if your host has it, or a person reading it. Nothing
+needs it: without a voice the tour is exactly as it was.
+
+The page carries each recording inline (16 kHz, so an exported page stays one file) and offers "Sound off / Sound on";
+a browser plays nothing before the visitor's gesture, so it starts off (`?sound=1` asks for it, a gallery carries the
+choice). A stop speaks in the audience chosen; one with no voice for it is quiet; the attract loop holds a stop until its
+voice has said it. The check notices a quiet stop among voiced ones, a recording this machine does not hold (its page is
+quiet there), and a voice much quicker or slower than its caption's words (likely another stop's recording).
+
 ## Prepared states
 
 One exhibit at several settings, switched in one page: a dam at three water levels, a cell before and after it divides,

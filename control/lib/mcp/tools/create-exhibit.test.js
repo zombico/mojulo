@@ -109,6 +109,42 @@ describe('a gallery: made exhibits joined as rooms', () => {
   }, 120000);
 });
 
+describe('narration: the caption spoken', () => {
+  it('keeps a WAV given with the tour or added later as a recording, and the page carries its voice', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { updateSketchHandler } = await import('./sketch-mint.js');
+    const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
+    const dir = mkdtempSync(join(tmpdir(), 'voice-'));
+    process.env.MOJULO_OUTCOMES_DIR = join(dir, 'outcomes');
+    const wav = (name, seconds) => {
+      const rate = 24000, n = Math.round(seconds * rate), b = Buffer.alloc(44 + n * 2);
+      b.write('RIFF', 0, 'ascii'); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVE', 8, 'ascii'); b.write('fmt ', 12, 'ascii'); b.writeUInt32LE(16, 16);
+      b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34);
+      b.write('data', 36, 'ascii'); b.writeUInt32LE(n * 2, 40);
+      for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin(i / 20) * 6000), 44 + i * 2);
+      const f = join(dir, name); writeFileSync(f, b); return f;
+    };
+    const r = await createExhibitHandler({ id: 'life/cellular', tour: { stops: [
+      { caption: 'A cell is a city in a membrane.', camera: 'angle', narration: wav('one.wav', 2.5) },
+      { caption: 'Power.', camera: 'top' }] } });
+    expect(r.tour).toEqual({ stops: 2 });
+    let m = SketchRepository.getByRef(r.ref).manifest;
+    expect(m.tour.stops[0].narration.general).toEqual({ recording: expect.stringMatching(/^[0-9a-f]{16}$/), seconds: 2.5 });
+    expect(r.audit.findings.map((f) => f.code)).toContain('unnarrated-stop');
+    // added later, by path, through update_sketch: kept as a recording before the world gate reads it
+    await updateSketchHandler({ ref: r.ref, patch: [{ op: 'set', path: '/tour/stops/1/narration', value: wav('two.wav', 1) }] });
+    m = SketchRepository.getByRef(r.ref).manifest;
+    expect(m.tour.stops[1].narration.general.seconds).toBe(1);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(r.ref));
+    expect(payload.tour.narrated).toBe(true);
+    expect(payload.tour.stops.map((s) => Object.keys(s.voice || {}))).toEqual([['general'], ['general']]);
+    expect((await getExhibitHandler({ ref: r.ref, audit: true })).audit.findings.map((f) => f.code)).not.toContain('unnarrated-stop');
+  }, 120000);
+});
+
 describe('prepared states: one exhibit at several settings', () => {
   it('makes a state an exhibit under the shared params, one recipe over them, audited, exported, and a gallery room', async () => {
     const { mkdtempSync, readFileSync } = await import('node:fs');

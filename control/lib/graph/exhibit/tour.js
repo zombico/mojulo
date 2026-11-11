@@ -24,6 +24,8 @@
  *                                  of its own takes the least sure grade and the sources of its claims
  *       captions?,                 { child?, specialist? }: the caption said for another audience (the caption is
  *                                  everyone's); the page offers the switch when any stop has one
+ *       narration?,                the caption spoken, per audience (exhibit/narration.js): a WAV's path at the door,
+ *                                  a kept recording in the recipe; the caption is still always shown
  *     }]
  *   }
  *
@@ -33,6 +35,7 @@
  */
 
 import { gradeOfClaims } from './brief.js';
+import { readNarration } from './narration.js';
 
 export const TOUR_SHAPES = Object.freeze(['ladder', 'process', 'structure', 'stratified', 'quantity', 'formal']);
 export const TOUR_GRADES = Object.freeze({
@@ -43,7 +46,7 @@ export const FRAME_FROM = Object.freeze(['threeQuarter', 'front', 'side', 'top']
 export const TOUR_LIMITS = Object.freeze({ stops: 24, caption: 700, title: 90, cite: 6, citeLength: 240, highlight: 12 });
 
 const KEYS = ['title', 'start', 'stops'];
-const STOP_KEYS = ['id', 'title', 'caption', 'camera', 'highlight', 'shape', 'cite', 'grade', 'claims', 'captions'];
+const STOP_KEYS = ['id', 'title', 'caption', 'camera', 'highlight', 'shape', 'cite', 'grade', 'claims', 'captions', 'narration'];
 const OTHER_AUDIENCES = ['child', 'specialist'];
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
@@ -169,6 +172,7 @@ export function readTour(spec, { cameras = [], groups = [], claims = null } = {}
       ...(grade !== undefined ? { grade } : {}),
       ...(stated ? { claims: stated.map((c) => c.id) } : {}),
       ...(captions && Object.keys(captions).length ? { captions } : {}),
+      ...(s.narration !== undefined ? { narration: readNarration(s.narration, `${at}.narration`, fail) } : {}),
     };
   });
   // the audiences the page offers: everyone's caption, and each other one any stop says

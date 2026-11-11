@@ -2053,6 +2053,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       if (payload.raymarch) throw new Error('tour: a shader exhibit (raymarched) takes no tour yet; tour a mesh exhibit, or stand this one in a world (compose_world overrides.science)');
       const { readTour, tourGroups } = await import('@/lib/graph/exhibit/tour');
       payload.tour = readTour(manifest.tour, { cameras: payload.cameras || [], groups: tourGroups(payload), claims: brief?.claims ?? null });
+      // its narration (exhibit/narration.js): each held recording inline for the page; one this machine lacks is quiet
+      if (payload.tour.stops.some((s) => s.narration)) {
+        const { attachVoices } = await import('@/lib/graph/exhibit/narration');
+        payload.tour = attachVoices(payload.tour).tour;
+      }
     }
   }
 

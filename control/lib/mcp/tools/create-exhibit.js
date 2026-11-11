@@ -23,6 +23,10 @@ import { deriveViewKind } from '@/lib/mcp/tools/save-recipe';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 import { auditExhibit, auditStates } from '@/lib/graph/exhibit/audit';
 import { galleryRooms } from '@/lib/graph/exhibit/gallery';
+import { readRecording } from '@/lib/graph/face-acting/recordings';
+
+// whether this machine holds a narration's recording (the audit says a page is quiet where it does not)
+const held = (id) => !!readRecording(id);
 
 /** The kinds folded into a science world (VIEW_KINDS `listed: false`): no exhibit id, their rows render as before. */
 const FOLDED = () => Object.entries(VIEW_KINDS).filter(([, k]) => k.listed === false).map(([id]) => id);
@@ -62,7 +66,7 @@ async function withStory(res, { tour, brief }) {
   try {
     await updateSketchHandler({ ref: res.ref, patch: ops });
     const m = getSketch(res.ref).manifest;
-    return { ...res, ...(m.tour ? { tour: { stops: m.tour.stops.length } } : {}), audit: auditExhibit({ tour: m.tour ?? null, brief: m.curation ?? null }),
+    return { ...res, ...(m.tour ? { tour: { stops: m.tour.stops.length } } : {}), audit: auditExhibit({ tour: m.tour ?? null, brief: m.curation ?? null, held }),
       catalogue: `/api/sketches/${encodeURIComponent(res.ref)}/bible?book=exhibit` };
   } catch (err) {
     return { ...res, [tour !== undefined ? 'tour_refused' : 'brief_refused']: `${err.message} — fix it with update_sketch (set /curation, set /tour); manual: get_view_vocab({ id: 'tour' })` };
@@ -95,7 +99,7 @@ function auditGallery(manifest) {
   const all = galleryRooms(manifest, getSketch);
   // a room of prepared states is audited as states; the rest as exhibits
   const rooms = all.filter((r) => !r.states).map((r) => ({ ...r, tour: getSketch(r.ref)?.manifest?.tour ?? null, brief: getSketch(r.ref)?.manifest?.curation ?? null }));
-  const a = auditExhibit({ rooms, brief: manifest.curation ?? null });
+  const a = auditExhibit({ rooms, brief: manifest.curation ?? null, held });
   const states = all.filter((r) => r.states).map((r) => ({ ref: r.ref, ...auditStatesOf(getSketch(r.ref).manifest) }));
   if (!states.length) return a;
   const findings = [...a.findings, ...states.flatMap((st) => st.findings.map((f) => ({ ...f, room: st.ref })))];
@@ -185,7 +189,7 @@ export async function getExhibitHandler(input) {
       const sketch = getSketch(ref);
       if (!sketch) throw new Error(`get_exhibit: no exhibit with ref '${ref}'`);
       const a = sketch.manifest?.kind === 'gallery' ? auditGallery(sketch.manifest)
-        : sketch.manifest?.kind === 'exhibit-states' ? auditStatesOf(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null, brief: sketch.manifest?.curation ?? null });
+        : sketch.manifest?.kind === 'exhibit-states' ? auditStatesOf(sketch.manifest) : auditExhibit({ tour: sketch.manifest?.tour ?? null, brief: sketch.manifest?.curation ?? null, held });
       return { ok: true, ref, audit: a, page: 'every stop framed is measured in a browser: node scripts/exhibit-audit.mjs <its exported world.html>' };
     }
     return measureExhibit({ ref, every });

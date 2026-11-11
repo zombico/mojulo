@@ -23,7 +23,7 @@ const finding = (level, code, says, at) => ({ level, code, says, ...(at !== unde
 
 /** One tour (its recipe or its read form, exhibit/tour.js) and the brief it states (or null), as a visitor meets it:
  * { stops, graded, cited, lit, words, seconds, findings }. */
-export function auditTour(tour, brief = null) {
+export function auditTour(tour, brief = null, { held = null } = {}) {
   if (!tour || !Array.isArray(tour.stops) || !tour.stops.length) {
     return { stops: 0, findings: [finding('advice', 'no-tour', 'no tour: a visitor gets a free orbit and no story; give it stops (manual: get_view_vocab({ id: \'tour\' }))')] };
   }
@@ -48,6 +48,22 @@ export function auditTour(tour, brief = null) {
     }
   });
   if (!lit && tour.stops.length > 1) findings.push(finding('advice', 'nothing-lit', 'no stop lights the part it is about: name the groups each caption talks of (highlight)'));
+  // narration (exhibit/narration.js): the caption is the truth, the voice a layer; once some stops speak, a quiet one is
+  // noticed, a recording this machine lacks is a quiet page, and a voice far quicker or slower than its words is likely
+  // another stop's recording
+  const voiced = tour.stops.filter((s) => s.narration && s.narration.general);
+  if (voiced.length) {
+    tour.stops.forEach((s, i) => { if (!s.narration?.general) findings.push(finding('advice', 'unnarrated-stop', 'is quiet where the others speak: narrate its caption, or none', s.id || `s${i + 1}`)); });
+    tour.stops.forEach((s, i) => {
+      for (const [a, v] of Object.entries(s.narration || {})) {
+        const at = s.id || `s${i + 1}`;
+        if (held && v && v.recording && !held(v.recording)) { findings.push(finding('warn', 'missing-recording', `its ${a} narration (${v.recording}) is not on this machine: the page is quiet there`, at)); continue; }
+        const text = a === 'general' ? s.caption : s.captions?.[a];
+        const pace = text && v?.seconds ? words(text) / v.seconds : null;
+        if (pace !== null && (pace < 1 || pace > 4.5)) findings.push(finding('advice', 'narration-pace', `its ${a} voice says ${words(text)} words in ${v.seconds} s: is it this caption's recording?`, at));
+      }
+    });
+  }
   if (claimOf.size) {
     const said = new Set(tour.stops.flatMap((s) => (Array.isArray(s.claims) ? s.claims : s.claims ? [s.claims] : [])));
     for (const c of claimOf.values()) if (!said.has(c.id)) findings.push(finding('advice', 'unsaid-claim', 'is in the brief and no stop says it (a stop states it with claims: [id])', c.id));
@@ -85,10 +101,10 @@ function auditBrief(brief) {
  * `brief` its brief (or null). For a gallery pass `rooms`: [{ ref, title, tour, brief }]: each room is audited, its
  * findings tagged with its ref, and the gallery's own `brief` (the wing's aims) beside them.
  */
-export function auditExhibit({ tour = null, brief = null, rooms = null } = {}) {
+export function auditExhibit({ tour = null, brief = null, rooms = null, held = null } = {}) {
   if (Array.isArray(rooms)) {
     const each = rooms.map((r) => {
-      const t = auditTour(r.tour, r.brief ?? null);
+      const t = auditTour(r.tour, r.brief ?? null, { held });
       return { ref: r.ref, title: r.title, ...t, findings: [...auditBrief(r.brief ?? null).filter((f) => f.code !== 'no-brief'), ...t.findings], accuracy: accuracyOf(r.brief ?? null) };
     });
     const findings = [...(brief ? [] : [finding('advice', 'no-brief', 'the gallery has no brief: say what a visitor should leave the whole of it understanding (params: { curation: { aims } })')]),
@@ -101,7 +117,7 @@ export function auditExhibit({ tour = null, brief = null, rooms = null } = {}) {
       eyes: 'not run: the operator looks at each room, stop by stop',
     };
   }
-  const t = auditTour(tour, brief);
+  const t = auditTour(tour, brief, { held });
   const findings = [...auditBrief(brief), ...t.findings];
   return {
     gate: 'machine', ran: ['tour', 'brief', 'claims', 'reading'],

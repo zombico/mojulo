@@ -1,7 +1,7 @@
 ### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
 
-Planned on this branch. The first five pieces are built (one door for exhibits, the tour, rooms with a kiosk, the
-expert's brief, and prepared states); the lines after them are still plans, and each is rewritten as it lands.
+Planned on this branch. The first six pieces are built (one door for exhibits, the tour, rooms with a kiosk, the
+expert's brief, prepared states, and narration); the line after them is still a plan, rewritten as it lands.
 
 - **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects, the
   science demos built from laws and the historic cities at their period are all asked for in one place, by hall:
@@ -46,6 +46,11 @@ expert's brief, and prepared states); the lines after them are still plans, and 
   it, so the difference is all that changes. The arrow keys work too, and on a kiosk it steps through the versions by
   itself. Each version is made ahead of time, so it looks the same every time; it saves as a folder that opens offline,
   and it can be a room in a gallery.
-- **Narration, when a voice is installed.** Each stop's caption can also be spoken. Without a voice, the captions
-  carry the tour.
+- **Narration.** Each stop can be read aloud: give it a recording of its caption, made by the optional local voice, by
+  your assistant if it can speak, or by a person, and the exhibit keeps it, so it plays on any machine with no voice
+  installed. Visitors turn the sound on with a button (a browser plays nothing until someone touches the page); each
+  stop speaks in the words they chose, for everyone, for young visitors or in depth, and when the exhibit plays itself
+  on a kiosk it waits for the voice to finish. The caption always shows, so nobody needs the sound, and a stop without
+  a recording is simply quiet. The check notices a quiet stop among spoken ones, and a recording that seems to belong
+  to another stop.
 - **Two exhibits to start.** Pompeii in 79 CE, and how hydroelectric power works.

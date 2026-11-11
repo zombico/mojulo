@@ -12,6 +12,8 @@ import { safeJson } from '../emit-util.js';
 // (construction tools) give way to the crumbs, the tour's title stands as a quiet label, and a world on the editor's
 // flat field gets a ground of its own, a glow behind the subject in the colour of what the stop is about (a world with a
 // sky keeps its sky). It reads the page's scene, renderer, camera, controls, meshes, hud, wireBtn, BG, CAMS and VIEW_DIRS.
+// NARRATION (exhibit/narration.js): a stop's caption spoken, a sound toggle when the tour has a voice (`?sound=1` turns it
+// on), the voice of the audience chosen, the attract loop holding a stop until its voice has said it.
 // A KIOSK (`?kiosk=1`, or `?kiosk=<seconds idle>`, never in a capture): large type and touch targets, no text to
 // select, and the attract loop: left alone for the idle time (90 s by default), the tour goes back to its start and
 // plays itself, each stop held as long as its caption takes to read; a touch stops it and the visitor has the exhibit.
@@ -31,6 +33,7 @@ export function tourScript(tour, { capture = false } = {}) {
   sheet.textContent = '.moj-tour{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(660px,calc(100% - 32px));z-index:12;color:#eef2f8;font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:auto;touch-action:pan-y}'
     + '.moj-tour .pl{background:rgba(12,16,24,.84);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:12px 16px 10px;box-shadow:0 6px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px)}'
     + '.moj-tour .hd{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}.moj-tour .no{font:600 12px/1 ui-monospace,Menlo,monospace;opacity:.6;letter-spacing:.5px}'
+    + '.moj-tour .st.snd{min-width:auto;padding:0 12px;font-size:13px;margin-left:8px}.moj-tour .st.snd[aria-pressed=true]{background:rgba(255,255,255,.16)}'
     + '.moj-tour .tt{font-weight:650;font-size:16px}.moj-tour .au{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}'
     + '.moj-tour .au button{font-size:11px;padding:3px 9px;border-radius:999px;background:transparent;opacity:.75}.moj-tour .au button.on{background:rgba(255,255,255,.16);opacity:1}'
     + '.moj-tour .cp{margin:0}.moj-tour .mt{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;font-size:12px}'
@@ -68,7 +71,7 @@ export function tourScript(tour, { capture = false } = {}) {
     if (!AUD || !AUD.includes(a)) return;
     aud = a;
     for (const k of AUD) auBtns[k].classList.toggle('on', k === aud);
-    if (at >= 0) cp.textContent = words(TR.stops[at]);
+    if (at >= 0) { cp.textContent = words(TR.stops[at]); if (soundOn) speak(); }
     if (!quiet) say({ moj: 'tour-audience', audience: aud });
   }
   if (AUD) {
@@ -117,6 +120,27 @@ export function tourScript(tour, { capture = false } = {}) {
   const on = el('button', 'st', '\\u203a'); on.setAttribute('aria-label', 'next stop'); const cr = el('div', 'cr');
   const crumbs = TR.stops.map((s, i) => { const b = el('button'); b.setAttribute('aria-label', 'stop ' + (i + 1) + (s.title ? ': ' + s.title : '')); b.onclick = () => go(i); cr.appendChild(b); return b; });
   nv.append(back, cr, on); root.append(plate, nv); host.appendChild(root);
+  // the caption spoken (exhibit/narration.js), when the tour has a voice: off until the visitor turns it on (a browser
+  // plays no sound before a gesture); a stop speaks in the audience chosen, the caption always shown. Never in a capture.
+  const NARR = !!TR.narrated && !${capture ? 'true' : 'false'};
+  let soundOn = false, voiceEl = null;
+  const snd = NARR ? el('button', 'st snd', 'Sound off') : null;
+  if (snd) { snd.setAttribute('aria-pressed', 'false'); snd.setAttribute('aria-label', 'narration'); nv.appendChild(snd); snd.onclick = () => setSound(!soundOn); }
+  const voiceFor = (s) => (s && s.voice && s.voice[aud]) || null;
+  function hush() { if (voiceEl) { try { voiceEl.pause(); } catch (err) { /* gone */ } voiceEl = null; } }
+  function speak() {
+    hush();
+    const v = soundOn && at >= 0 ? voiceFor(TR.stops[at]) : null;
+    if (!v) return;
+    voiceEl = new Audio(v.src);
+    const p = voiceEl.play(); if (p && p.catch) p.catch(() => { /* no gesture yet: the caption stands */ });
+  }
+  function setSound(on, quiet) {
+    soundOn = !!on && NARR;
+    if (snd) { snd.textContent = soundOn ? 'Sound on' : 'Sound off'; snd.setAttribute('aria-pressed', String(soundOn)); }
+    if (soundOn) speak(); else hush();
+    if (!quiet) say({ moj: 'tour-sound', on: soundOn });
+  }
   back.onclick = () => go(at - 1); on.onclick = () => go(at + 1);
   // the subject centred in the room above the plate, not behind it: the projection is shifted up by half the plate
   // (picks, signs and the guide project through the same camera, so they stay on what they mark)
@@ -187,6 +211,7 @@ export function tourScript(tour, { capture = false } = {}) {
     if (glow) { const c = tint(s.highlight || null) || tint(null); if (c) glow.style.backgroundColor = c.getStyle(); }
     room();
     fly(seat(s.camera), instant);
+    if (soundOn) speak(); else hush();
   }
   window.addEventListener('keydown', (e) => {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
@@ -216,7 +241,8 @@ export function tourScript(tour, { capture = false } = {}) {
   if (kiosk) { root.classList.add('kiosk'); document.documentElement.classList.add('moj-kiosk'); document.addEventListener('contextmenu', (e) => e.preventDefault()); }
   const say = (m) => { if (framed) { try { window.parent.postMessage(m, '*'); } catch (err) { /* an opaque frame */ } } };
   // a stop is held as long as its caption takes to read, aloud or not: 7 to 20 seconds
-  const hold = (s) => Math.min(20000, Math.max(7000, 2500 + (words(s).split(/\s+/).length / 3.2) * 1000));
+  // a stop is held as long as its caption takes to read, or its voice to say it, whichever is longer
+  const hold = (s) => { const v = soundOn ? voiceFor(s) : null; return Math.max(Math.min(20000, Math.max(7000, 2500 + (words(s).split(/\s+/).length / 3.2) * 1000)), v ? v.seconds * 1000 + 1500 : 0); };
   const cue = el('div', 'moj-tour-cue', 'Touch to explore'); host.appendChild(cue);
   let playing = false, playTimer = 0, idleTimer = 0;
   function stop() { playing = false; clearTimeout(playTimer); cue.classList.remove('on'); }
@@ -262,11 +288,13 @@ export function tourScript(tour, { capture = false } = {}) {
     const area = (x1 - x0) * (y1 - y0), seen = span(x0, x1, -1, 1) * span(y0, y1, floor, 1);
     return { at, id: s.id, onScreen: area > 0 ? seen / area : 0, share: seen / (2 * (1 - floor)), behind };
   }
+  if (Q.get('sound') === '1') setSound(true, true);   // a gallery or a link that asks for the voice
   rest();
   say({ moj: 'tour-ready', count: N, title: TR.title || '' });
   window.__mojTour = { get at() { return at; }, count: N, ids: TR.stops.map((s) => s.id), go: (i, instant) => go(i, instant), next: () => go(at + 1), prev: () => go(at - 1),
     get playing() { return playing; }, play: (i) => play(i == null ? 0 : i), stop, kiosk, view,
-    get audience() { return aud; }, audiences: AUD || ['general'], setAudience: (a) => setAudience(a, true) };
+    get audience() { return aud; }, audiences: AUD || ['general'], setAudience: (a) => setAudience(a, true),
+    narrated: NARR, get sound() { return soundOn; }, setSound: (on) => setSound(on, true), get speaking() { return !!voiceEl && !voiceEl.paused; } };
 })();
 `;
 }
