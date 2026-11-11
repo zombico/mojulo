@@ -687,12 +687,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
       if (composedOf(b) && !E) {
         const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), y1 = Math.max(...rects.map((R0) => R0[3]));
         const a = F.toWorld([x0 - APRON.side, y0 - APRON.front]), c = F.toWorld([x1 + APRON.side, y1 + APRON.side]), apron = [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5);
-        // THE SITE IT ASKS THE LAND FOR: its level is the land's own mean across its ground, so what is cut on the high
-        // side is filled on the low one and it is never jammed into a slope at its door's height; the land eases back
+        // THE SITE IT ASKS THE LAND FOR: its level is the land's own mean across its ground where that stands over its
+        // door's land, so what is cut on the high side is filled on the low one and it is never jammed into a slope; the land eases back
         // to itself over a bank no steeper than one in APRON.bank, however far that is. What it asked and what it
         // cost (the cut, the fill, the bank's run) are said on the building
         const hs = []; for (let x = apron[0]; x <= apron[2] + 1e-6; x += 2) for (let y = apron[1]; y <= apron[3] + 1e-6; y += 2) { const z = ground(x, y); if (z !== null) hs.push(z); }
-        const level = hs.length ? hs.reduce((p, q) => p + q, 0) / hs.length : floor - APRON.under, cut = hs.length ? Math.max(...hs) - level : 0, fill = hs.length ? level - Math.min(...hs) : 0;
+        // (never below the land at its door: the way in comes off the land, or up a stoop, never down into a pit)
+        const level = hs.length ? Math.max(hs.reduce((p, q) => p + q, 0) / hs.length, floor - APRON.under) : floor - APRON.under, cut = hs.length ? Math.max(...hs) - level : 0, fill = hs.length ? level - Math.min(...hs) : 0;
         const fall = r5(Math.min(APRON.reach, Math.max(APRON.fall, APRON.bank * Math.max(cut, fill))));
         grades.push({ box: apron, z: r5(level), fall });
         reserved.push(apron);
