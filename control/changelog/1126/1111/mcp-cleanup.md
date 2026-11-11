@@ -38,3 +38,7 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   what one of them can do, keep working exactly as before and stay on the list, because a catalyst that reaches
   Blender or another MCP is matched through them. Their descriptions and argument notes are cut to what an agent needs
   to pick the call; the shape of a capability body is taught by the `research-mcp-vendor` catalyst, as it was.
+- **The always-listed orientation tools say less.** The glossary and refusal legend, the dashboard map, the worked
+  examples, the update check and the tool-call ledger are listed for every host in both list modes, so their wording is
+  paid on every connect. Their descriptions and argument notes are cut to what an agent needs to pick the call; each
+  returns what it did. The packs-mode list, the default for most hosts, drops from 31,771 to 29,805 bytes.

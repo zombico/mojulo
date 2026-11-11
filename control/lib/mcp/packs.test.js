@@ -60,7 +60,9 @@ import {
 // description shorter, two members fewer.
 // Lowered 2026-11-11 (32_500 -> 31_800; measured 31,771) for 1111-mcp-cleanup: pack_research left the list (the
 // research book retired), pack_plan's description names the sweep, pack_stash's drops the links.
-const PACKS_PAYLOAD_CEILING = 31_800;
+// Lowered 2026-11-11 (31_800 -> 29_900; measured 29,805) for the spine's diet (the spine lists with full schemas in
+// packs mode too): five orientation tools' descriptions and the register / disclosure argument notes cut.
+const PACKS_PAYLOAD_CEILING = 29_900;
 
 let server;
 let listTools;
