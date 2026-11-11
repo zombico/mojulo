@@ -75,6 +75,21 @@
   cools it; darker and cooler), `relaid` (a repair: newer slabs, paler and a little cooler), `plain` (the floor as
   laid). A part of a floor names its cause; a field bay now and then is relaid or damp by the room's dice. A floor
   meant all alike (`rhythm: 'same'`) is laid clean, every bay the floor as laid.
+- **Above.** The room was designed to about three and a half metres and stopped: over the niches one sheet of
+  plaster to the cornice, and a vault that was only black. Three things answer it, each a principle first:
+  - *A wall has storeys* (`wall-has-storeys`, both eras; a kit's `storeys`). A string course runs at three fifths
+    of the wall's height, and over it an upper register derived from the lower by the same rule as a bay's second
+    kind, the same with less: one large blind arch a bay, shallow where the niches are deep; a full bay's springs
+    from an impost, a lesser bay's is the arch alone.
+  - *Plaster tells the height* (`layers-stand-proud`, by cause). Damp rises from the floor, so the coat is ragged
+    under the course and nearly whole over it (a second wall tile, `tiles.wallUpper`, laid over the course), and
+    the upper wall is the paler and carries the light further up.
+  - *The air above is furnished and lit by a cause* (`air-is-furnished`, both eras; `era/crypt.js` `cryptAbove`).
+    A ring of candles hangs on chains over the walk of a room tall enough for one (iron, turned: a band, cups, a
+    hub, rods), one baked light a ring, so the upper wall is lit from below; and a slit of cold sky stands high
+    in the wall behind the tomb, its light a pool on the tomb: the second, cooler light the room lacked.
+  Seen in Chrome in gen-7, looking up the hall and along a wall. Not done: the vault's own work (ribs from the
+  capitals, a ridge rib, a boss), and soot above the torches.
 - **The new kit joins what reads a kit**: its starter rooms and the words people ask for it by (`era/entries.js`),
   and the place a level's score is suggested for (`beats/score-suggest.js`); the tier found both missing. The
   generated tool-surface pages name it.

@@ -44,6 +44,8 @@ export function readFormKit(kit) {
   if (W && W.cfg.cut === 'render') row('layers-stand-proud', 'the wall\'s coat lost (share)', W.cfg.loss ?? null, 'between 0.2 and 0.8', W.cfg.loss >= 0.2 && W.cfg.loss <= 0.8);
   if (kit.dress?.niches) row('wall-rhythm', 'a wall\'s bays', kit.dress.niches.rhythm ? `a rhythm, the second kind ${kit.dress.niches.rhythm.less ?? 1} tier less` : 'every bay alike', 'a rhythm', !!kit.dress.niches.rhythm);
   row('floor-is-laid', 'the floor\'s laying', kit.floorPlan ? 'a border, a walk, fields by the bay' : (kit.dress?.floor ? 'zoned' : 'one field of tile'), 'laid by a plan', !!kit.floorPlan || !!kit.dress?.floor);
+  row('wall-has-storeys', 'the wall\'s height', kit.storeys ? `a course at ${kit.storeys.at} of it, an upper register over it` : 'one storey', 'storeys', !!kit.storeys);
+  row('air-is-furnished', 'the air above', kit.dress?.above ? Object.keys(kit.dress.above).join(', ') : 'empty', 'something hung, and a light that reaches up', !!kit.dress?.above);
   if (kit.torch) row('dark-is-a-place', 'the torches\' height (m)', kit.torch.z, `>= ${M.torch}`, kit.torch.z >= M.torch);
   if (kit.tint?.ceiling) row('dark-is-a-place', 'the vault\'s tint', Math.round(lum(kit.tint.ceiling) * 1e3) / 1e3, `<= ${M.vault}`, lum(kit.tint.ceiling) <= M.vault);
   return { ok: rows.every((r) => r.ok), rows };

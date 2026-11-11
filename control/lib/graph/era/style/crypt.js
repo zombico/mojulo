@@ -67,7 +67,10 @@ export const CRYPT_SOBER = Object.freeze({
     'A wall has layers: a coat of lime render over the ashlar, fallen away in patches, standing proud so its broken edge casts a shadow on the stone.',
     'A wall keeps a rhythm: along it never three bays alike and never a pair followed by the same pair (ABBA, never AAAA or ABAB); a wall all alike is a choice a recipe states, and then its bay is clean and repeatable.',
     'The second kind of bay is the first with less on it: one niche where its neighbour has two, and nothing in it; derived, never a new design.',
-    'The floor is laid, not tiled: a darker course along the walls where nobody walks, a worn walk of larger slabs down the room to the tomb, and fields either side laid bay by bay, keeping the walls\' rhythm with the same slabs turned a quarter.',
+'A wall has storeys: a string course two thirds up it, and over the course an upper register derived from the lower, one large blind arch a bay, shallow where the niches are deep.',
+    'Plaster tells the height: damp rises from the floor, so the coat is ragged low and nearly whole high, and the upper wall is the paler.',
+    'The air above is furnished and lit by a cause: a ring of candles hangs on chains over the walk and lights the wall up its height, and a slit of cold sky high behind the tomb lays its light on it.',
+        'The floor is laid, not tiled: a darker course along the walls where nobody walks, a worn walk of larger slabs down the room to the tomb, and fields either side laid bay by bay, keeping the walls\' rhythm with the same slabs turned a quarter.',
   ]) }),
   // (its bays keep a rhythm, era/wall-rhythm.js: the second kind of bay is the first with a tier of niches less)
   niches: Object.freeze({ ...CRYPT.niches, rhythm: Object.freeze({ less: 1 }), seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
@@ -76,6 +79,11 @@ export const CRYPT_SOBER = Object.freeze({
   props: Object.freeze({ ...CRYPT.props, kinds: ['stones', 'boulder', 'planks', 'debris'], share: 0.3 }),
   candles: Object.freeze({ ...CRYPT.candles, per: 2, h: [0.14, 0.26], color: '#ffb866', intensity: 0.9, radius: 3.6 }),
   cobwebs: Object.freeze({ ...CRYPT.cobwebs, tint: [0.6, 0.6, 0.63] }),
+  // THE AIR ABOVE (era/crypt.js cryptAbove): a ring of candles on chains over the walk of a room at least `tall`, one
+  // every `every` metres, hung `drop` under the vault and no higher than `z`, never within `clear` of the tomb; and an
+  // opening high in the wall behind the tomb, a slit of cold sky whose light falls on the tomb as a pool
+  above: Object.freeze({ ring: Object.freeze({ tall: 7, every: 9, drop: 2.6, z: 5.6, r: 0.85, candles: 8, clear: 3.5, color: '#ffb866', intensity: 1.35, radius: 10 }),
+    opening: Object.freeze({ w: 0.5, h: 1.5, below: 0.7, sky: '#b9cdf2', color: '#9fb8ee', intensity: 0.95, radius: 6, lift: 1.3 }) }),
   moss: Object.freeze({ ...CRYPT.moss, tint: [0.3, 0.36, 0.32], max: 0.45 }),
   grime: Object.freeze({ ...CRYPT.grime, tint: [0.6, 0.58, 0.56], max: 0.7 }),
 });

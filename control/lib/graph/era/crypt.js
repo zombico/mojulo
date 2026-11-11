@@ -208,7 +208,22 @@ export function cryptNiches(plan, pilasters, accent, anchors = null) {
       const kind = order ? order.order[bays.indexOf(i)] : 'A', lesser = kind !== 'A', clean = !!(order && order.clean);
       // a round head (an arcosolium) rises half the niche's width over its jambs; a flat one is a loculus's slot
       const round = N.head === 'round', nh = N.h + (round ? wd / 2 : 0), z0 = plan.kit.plinth.h + N.sill;
-      const tiers0 = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((a.top - z0 - 0.3 + N.gap) / (nh + N.gap))));
+      // A WALL HAS STOREYS (a kit's `storeys`, era/laws.js 'wall-has-storeys'): a string course divides it, and over the
+      // course an upper register derived from the lower: one large blind arch a bay, shallow, where the niches below
+      // are deep; a full bay's springs from an impost, a lesser bay's is the arch alone
+      const St = plan.kit.storeys, zs = St ? plan.kit.plinth.h + (a.top - plan.kit.plinth.h) * St.at : Infinity;
+      if (St) {
+        const bu0 = a.u + pw / 2, bu1 = b.u - pw / 2, Sc = St.string, Ar = St.arch;
+        wallBox(out, w.F, bu0, bu1, zs, zs + Sc.h, Sc.out, trim, 0.5, true);
+        const aw = (bu1 - bu0) * Ar.share, au0 = um - aw / 2, au1 = um + aw / 2, zj = zs + Sc.h + Ar.rise, zt = a.top - Ar.under - aw / 2;
+        if (zt - zj > 0.25) {
+          archRing(out, w.F, au0, au1, zt, aw / 2, Ar.seg, Ar.frame, Ar.out, trim);
+          wallBox(out, w.F, au0 - Ar.frame, au0, zj, zt, Ar.out, trim, 0.5, true);
+          wallBox(out, w.F, au1, au1 + Ar.frame, zj, zt, Ar.out, trim, 0.5, true);
+          if (!lesser) wallBox(out, w.F, au0 - Ar.frame - 0.06, au1 + Ar.frame + 0.06, zj - 0.1, zj, Ar.out + 0.03, trim, 0.5, true);   // the impost it springs from
+        }
+      }
+      const tiers0 = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((Math.min(a.top, zs) - z0 - 0.3 + N.gap) / (nh + N.gap))));
       const tiers = lesser ? Math.max(0, tiers0 - (N.rhythm.less ?? 1)) : tiers0;
       for (let t = 0; t < tiers; t++) {
         const zb = z0 + t * (nh + N.gap), zt = zb + N.h, F = w.F, f = N.frame, u0 = um - wd / 2, u1 = um + wd / 2;
@@ -291,6 +306,56 @@ export function ivyGrowth(plan, pilasters, accent, amount, tint) {
   return out;
 }
 
+/** THE AIR ABOVE, FURNISHED (a card's `above`, era/laws.js 'air-is-furnished'): what hangs in a tall room and what
+ *  lights its height. A RING of candles on chains over the walk of every room tall enough for one (iron, turned; its
+ *  candles lit, one baked light a ring, so the upper wall and the vault's ribs are lit from below); and one OPENING
+ *  high in the wall behind the tomb, a slit of cold sky, its light falling as a pool on the tomb.
+ *  → { faces, lights, pools } */
+export function cryptAbove(plan, accent, site) {
+  const A = plan.kit.dress.above, faces = [], lights = [], pools = [];
+  if (!A) return { faces, lights, pools };
+  const iron = (raw, fill) => { for (const { texture, textureLit, uv, tint, ...f } of raw) faces.push({ ...f, fill, group: 'stage:fixture' }); };
+  const plain = { key: null, scale: 1, tint: [1, 1, 1] };
+  if (A.ring) plan.rooms.forEach((r, ri) => {
+    const R = A.ring, h = r.h, alongY = r.y1 - r.y0 >= r.x1 - r.x0, len = alongY ? r.y1 - r.y0 : r.x1 - r.x0;
+    if (h < R.tall) return;
+    const n = Math.max(1, Math.round(len / R.every)), z = Math.min(h - R.drop, R.z);
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n, c = alongY ? [(r.x0 + r.x1) / 2, r.y0 + len * t] : [r.x0 + len * t, (r.y0 + r.y1) / 2];
+      // (never over the set piece: its own candles and its opening light it)
+      if (site && site.room === r.id && Math.hypot(c[0] - site.at[0], c[1] - site.at[1]) < R.clear) continue;
+      const band = []; lathe(band, c, [[R.r - 0.03, z], [R.r + 0.035, z], [R.r + 0.035, z + 0.06], [R.r - 0.03, z + 0.06], [R.r - 0.03, z]], 18, plain, 'stage:fixture'); iron(band, '#2a2420');
+      const hub = []; lathe(hub, c, [[0.02, z + 0.5], [0.07, z + 0.56], [0.07, z + 0.64], [0.02, z + 0.7]], 8, plain, 'stage:fixture'); iron(hub, '#3a3028');
+      for (let j = 0; j < R.candles; j++) {
+        const a = (2 * Math.PI * (j + 0.5 * (ri % 2))) / R.candles, x = c[0] + Math.cos(a) * R.r, y = c[1] + Math.sin(a) * R.r, zc = z + 0.06, ch = 0.12 + 0.05 * hash3(ri * 7 + k, j, 4415);
+        const cup = []; lathe(cup, [x, y], [[0.012, zc - 0.03], [0.05, zc], [0.05, zc + 0.012], [0.02, zc + 0.012]], 6, plain, 'stage:fixture'); iron(cup, '#3a3028');
+        const wax = []; lathe(wax, [x, y], [[0.018, zc + 0.012], [0.018, zc + ch]], 6, plain, 'stage:candle'); for (const { texture, textureLit, uv, tint, ...f } of wax) faces.push({ ...f, fill: plan.kit.dress.candles.wax, group: 'stage:candle' });
+        for (const [ax, ay] of [[1, 0], [0, 1]]) { const zb = zc + ch, nn = [ay, -ax, 0], q = (u, zz) => P([x + ax * u, y + ay * u, zz]);
+          faces.push({ corners: [q(-0.02, zb), q(0.02, zb), q(0.005, zb + 0.08), q(-0.005, zb + 0.08)], fill: '#fff2c8', normal: nn, outNormal: nn, group: 'stage:candle', emissive: hexRgb(R.color), emissiveStrength: 3, glow: `0 0 5px 2px ${R.color}` }); }
+        // (a spoke to the hub, and every other one a chain up into the dark: thin rods)
+        const rod = (p0, p1, th) => { const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(...d) || 1, u = Math.abs(d[2]) / L > 0.9 ? [1, 0, 0] : [0, 0, 1];
+          const s1 = unit([d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]]), s2 = unit([d[1] * s1[2] - d[2] * s1[1], d[2] * s1[0] - d[0] * s1[2], d[0] * s1[1] - d[1] * s1[0]]);
+          for (const sd of [s1, s2]) faces.push({ corners: [[p0[0] - sd[0] * th, p0[1] - sd[1] * th, p0[2] - sd[2] * th], [p0[0] + sd[0] * th, p0[1] + sd[1] * th, p0[2] + sd[2] * th], [p1[0] + sd[0] * th, p1[1] + sd[1] * th, p1[2] + sd[2] * th], [p1[0] - sd[0] * th, p1[1] - sd[1] * th, p1[2] - sd[2] * th]].map(P), normal: sd.map(r5), outNormal: sd.map(r5), fill: '#2a2420', group: 'stage:fixture', doubleSided: true }); };
+        rod([x, y, z + 0.03], [c[0], c[1], z + 0.6], 0.008);
+        if (j % 2 === 0) rod([c[0], c[1], z + 0.68], [c[0], c[1], h - 0.3], 0.008);
+      }
+      lights.push({ at: P([c[0], c[1], z + 0.3]), n: [0, 0, 1], color: R.color, intensity: R.intensity, radius: R.radius, fixture: 'candle' });
+    }
+  });
+  if (A.opening && accent && site) {
+    const O = A.opening, F = accent.F, r = plan.rooms.find((q) => q.id === accent.room), top = r.h - plan.kit.cornice.h, um = F.len / 2, z0 = top - O.below - O.h;
+    const q = (u, z) => P(at(F, u, 0.03, z)), n = P(F.N);
+    faces.push({ corners: [q(um - O.w / 2, z0), q(um + O.w / 2, z0), q(um + O.w / 2, z0 + O.h), q(um - O.w / 2, z0 + O.h)], normal: n, outNormal: n, fill: O.sky, group: 'stage:glass', emissive: hexRgb(O.sky), emissiveStrength: 2.5, glow: `0 0 12px 5px ${O.sky}` });
+    const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
+    wallBox(faces, F, um - O.w / 2 - 0.1, um + O.w / 2 + 0.1, z0 - 0.1, z0, 0.06, trim, 0.5);
+    wallBox(faces, F, um - O.w / 2 - 0.1, um - O.w / 2, z0, z0 + O.h, 0.06, trim, 0.5, true);
+    wallBox(faces, F, um + O.w / 2, um + O.w / 2 + 0.1, z0, z0 + O.h, 0.06, trim, 0.5, true);
+    wallBox(faces, F, um - O.w / 2 - 0.1, um + O.w / 2 + 0.1, z0 + O.h, z0 + O.h + 0.1, 0.06, trim, 0.5);
+    pools.push({ at: P([site.at[0], site.at[1], O.lift]), n: [0, 0, 1], color: O.color, intensity: O.intensity, radius: O.radius, fixture: 'pool' });
+  }
+  return { faces, lights, pools };
+}
+
 /** The accent's stone: larger, darker ashlar than the courses round it, named from its own numbers. */
 // (bonded stone-brick where the card names no generator; a card may name its own, dressed ashlar)
 const accentFamily = (A) => tileFamilyOf(A.stone.gen ? A.stone : { gen: 'stone-brick', ...A.stone });
@@ -323,11 +388,12 @@ export function cryptDress(plan, geom) {
     { id: 'set-piece-lid', kind: 'part', of: 'set-piece', name: 'lid', room: tomb.room, at: tomb.at, solid: true },
     ...(accent ? [{ id: 'accent-wall', kind: 'accent-wall', room: accent.room, at: P(at(accent.F, accent.F.len / 2, 0, 0)), N: P(accent.F.N), length: r5(accent.F.len), ...(D.accent.skulls ? { form: 'ossuary' } : {}) }] : []),
   ];
-  const faces = [...tomb.faces, ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
+  const above = cryptAbove(plan, accent, D.above ? tombSite(plan) : null);
+  const faces = [...tomb.faces, ...above.faces.filter((f) => f.tint), ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
   return {
     cameras: [tombCamera(plan, tomb.corners)],
     faces, anchors,
     blends: (faces) => blendsByCause(plan, faces, D.moss, D.grime, D.earth),
-    after: candles.faces, pools: [], lights: candles.lights, cut: onAccent, shadowSkip: () => false,
+    after: [...candles.faces, ...above.faces.filter((f) => !f.tint)], pools: above.pools, lights: [...candles.lights, ...above.lights], cut: onAccent, shadowSkip: () => false,
   };
 }

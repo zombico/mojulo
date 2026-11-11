@@ -94,4 +94,29 @@ describe('the crypt in ashlar', () => {
     expect(new Set([3, 7, 11, 15, 19].map((y) => uPerX(atS(3, y)) > 1e-6)).size).toBe(1);
     expect(STAGE_KITS['gothic-stone'].floorPlan).toBeUndefined();
   }, 120_000);
+
+  it('above: the wall has storeys, its upper coat the less lost; a ring of candles hangs in a tall room and a slit of sky stands high behind the tomb', () => {
+    const tall = assembleStageScene({ kind: 'stage', kit: 'gothic-ashlar', rooms: [{ id: 'a', x: 0, y: 0, w: 12, d: 22, h: 9 }] }, {});
+    const low = assembleStageScene({ kind: 'stage', kit: 'gothic-ashlar', rooms: [{ id: 'a', x: 0, y: 0, w: 12, d: 22, h: 5 }] }, {});
+    const K = STAGE_KITS['gothic-ashlar'], zs = K.plinth.h + (9 - K.cornice.h - K.plinth.h) * K.storeys.at;
+    // (one wall, two tiles by height: under the string course the ragged coat, over it the same coat less lost)
+    const side = tall.faces.filter((f) => f.group === 'stage:wall' && f.normal[0] > 0.9), zOf = (f) => Math.min(...f.corners.map((c) => c[2]));
+    const fam = (f) => f.texture.slice(0, -2), lower = new Set(side.filter((f) => zOf(f) < zs - 0.01).map(fam)), upper = new Set(side.filter((f) => zOf(f) >= zs - 0.01).map(fam));
+    expect(lower.size).toBe(1);
+    expect(upper.size).toBe(1);
+    expect([...lower][0]).not.toBe([...upper][0]);
+    // (its trim reaches over the course: the string course and the blind arches' rings)
+    const trimHigh = (P) => P.faces.filter((f) => f.group === 'stage:motif' && zOf(f) > zs).length;
+    expect(trimHigh(tall)).toBeGreaterThan(0);
+    // (the air above: candles hang over the walk of a tall room, none in a low one; the slit of sky is high on the wall)
+    const hung = (P, z) => P.faces.filter((f) => f.group === 'stage:candle' && zOf(f) > z).length;
+    expect(hung(tall, 4)).toBeGreaterThan(0);
+    expect(hung(low, 3)).toBe(0);
+    const sky = tall.faces.filter((f) => f.group === 'stage:glass' && f.emissive);
+    expect(sky).toHaveLength(1);
+    expect(zOf(sky[0])).toBeGreaterThan(zs);
+    // (gothic-stone has neither storeys nor anything hung)
+    expect(STAGE_KITS['gothic-stone'].storeys).toBeUndefined();
+    expect(STAGE_KITS['gothic-stone'].dress.above).toBeUndefined();
+  }, 120_000);
 });

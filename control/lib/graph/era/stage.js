@@ -179,7 +179,9 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   tiles: {
     // (a wall in LAYERS: a coat of lime render over the ashlar, fallen away in patches to the courses behind; the coat
     // stands proud, and in the form render its broken edge casts its shadow on the stone, matte-paint/dressed.js)
-    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [146, 142, 134], loss: 0.6, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4, perBay: true },
+    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [146, 142, 134], loss: 0.72, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4, perBay: true },
+    // (over the string course the same coat, less lost: the upper wall the paler and the calmer)
+    wallUpper: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [150, 146, 138], loss: 0.22, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.4, scale: 2.4 }), scale: 2.4 },
     // (its pilasters' shafts fluted: channels between narrow fillets, lit across)
     pillar: { family: tileFamilyOf({ gen: 'dressed', cut: 'fluted', stone: [108, 107, 106], mortar: [70, 70, 70], flutes: 5, vary: 6, grit: 0.4, scale: 0.56 }), scale: 0.56 },
     floor: { family: tileFamilyOf({ gen: 'dressed', face: 'floor', stone: [96, 92, 86], mortar: [58, 56, 52], rows: 3, cols: 2, joint: 0.014, recess: 0.008, tool: 'none', chamfer: 0.006, pillow: 0.004, spall: 0.35, pit: 0.3, vary: 10, grit: 0.6, scale: 2.4 }), scale: 2.4 },
@@ -188,8 +190,10 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
     trim: { family: tileFamilyOf({ gen: 'dressed', cut: 'shaft', stone: [104, 103, 102], mortar: [70, 70, 70], vary: 6, grit: 0.4, scale: 2 }), scale: 2 },
     gutter: { key: 'soil-mud', scale: 1.2 },
   },
-  tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58], pillar: [0.76, 0.75, 0.74] },
-  cells: { ...GOTHIC_STONE_BASE.cells, pillar: 0.5 },
+  tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58], pillar: [0.76, 0.75, 0.74], wallUpper: [0.82, 0.82, 0.84] },
+  cells: { ...GOTHIC_STONE_BASE.cells, pillar: 0.5, wallUpper: 0.5 },
+  // (a wall in storeys: a string course at this share of its height, a blind arch a bay over it, era/crypt.js)
+  storeys: { at: 0.6, string: { h: 0.14, out: 0.06 }, arch: { share: 0.62, rise: 0.5, under: 0.45, frame: 0.1, out: 0.035, seg: 18 } },
   rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.25, tone: '#4e5058' },
   // (its floor laid by a plan: a darker border course along the walls, a worn walk of larger slabs down the room,
   // fields bay by bay that keep a rhythm, the second kind the same slabs turned a quarter; a threshold inside each
@@ -776,14 +780,20 @@ export function buildStageGeometry(plan) {
       // (the pillars, a recipe's own surface when it names one: pilasters and engaged columns, else the trim as ever)
       const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell, pillar = kit.tiles.pillar ? surf('pillar', ri * 4 + si) : trim;
       // the wall: full-height solid spans + the lintel over each opening (a nave composes it per bay instead)
-      const flatWall = (u0, u1, S = wallS) => {
+      // (a wall in storeys, a kit's `storeys` and `tiles.wallUpper`: over its string course the wall wears its upper
+      // tile, the same coat less lost: damp rises from the floor)
+      const zSplit = kit.storeys && kit.tiles.wallUpper ? kit.plinth.h + (h - kit.cornice.h - kit.plinth.h) * kit.storeys.at : null;
+      const flatWall = (u0, u1, S = wallS, S2 = null) => {
         const inBay = cuts.map(([a, b, top]) => [Math.max(a, u0), Math.min(b, u1), top]).filter(([a, b]) => b > a);
-        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, S, cell);
+        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) {
+          if (zSplit && S2) { panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], zSplit, F.N, S, cell); panel(out, add(add(F.o, mul(F.U, u0 + a)), [0, 0, zSplit]), F.U, b - a, [0, 0, 1], h - zSplit, F.N, S2, cell); }
+          else panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, S, cell);
+        }
         for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, S, cell);
       };
       // (a wall whose tile says `perBay`, as a floor's may: each bay its own variant of the tile, so a coat's patches
       // or a course's wear are not the same stamp in every bay; else the wall one run, as ever)
-      if (!nave && kit.tiles.wall.perBay) { const nb = Math.max(1, Math.round(F.len / kit.bay)); for (let k = 0; k < nb; k++) flatWall((F.len * k) / nb, (F.len * (k + 1)) / nb, surf('wall', ri * 4 + si + k)); }
+      if (!nave && kit.tiles.wall.perBay) { const nb = Math.max(1, Math.round(F.len / kit.bay)); for (let k = 0; k < nb; k++) flatWall((F.len * k) / nb, (F.len * (k + 1)) / nb, surf('wall', ri * 4 + si + k), kit.tiles.wallUpper ? { ...surf('wallUpper', ri * 4 + si + k + 2), group: 'stage:wall' } : null); }
       else if (!nave) flatWall(0, F.len);
       else naveWall(F, cuts, flatWall, { wall: wallS, trim, pillar }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
