@@ -54,4 +54,4 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   answer by name. Minting, renaming, drawers, updating and archiving items, ranking kinds, proposing a stash and
   cooking several candidates work as before, with shorter descriptions.
 - **Where the list stands.** Over this theme the flat tool list goes from 212,165 to 179,797 bytes (117 tools to 101)
-  and the packs-mode list from 32,451 to 29,796. Every tool that left the list still answers by its old name.
+  and the packs-mode list drops to 29,796. Every tool that left the list still answers by its old name.
