@@ -21,3 +21,5 @@ A composed building standing on an outdoor map (the hangar, a barracks) is read 
 - The apron is a slab or the ground: a building's `apron: 'ground'` levels its site and lays nothing on it, so a
   building on rock or sand stands on rock or sand. Left out, the land decides: the ground where a sixth of its site is
   already sand, bare rock or scree (read off the land's own faces), else a slab. Its record says which, and the share.
+- The shell and the apron are baked with the sun's shadow of the building on itself (`era/sun.js`), and the page's
+  record says it stands under a sun, so the page draws them as it draws a town's buildings.

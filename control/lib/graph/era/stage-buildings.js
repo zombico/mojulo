@@ -57,7 +57,8 @@ import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
-import { sunLitFaces } from '../form/sun-light.js';
+import { sunLitFaces, skyAt } from '../form/sun-light.js';
+import { makeSunShadow } from './sun.js';
 import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
@@ -847,7 +848,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       return all > 0 ? r5(hard / all) : 0; })() : 0;
     const apronKind = b.apron ?? ctx.apron ?? (hardShare >= APRON.hard ? 'ground' : 'slab');
     if (!['slab', 'ground'].includes(apronKind)) throw new Error(`stage: buildings[${i}].apron is 'slab' (poured concrete) or 'ground' (the land's own, levelled)`);
-    const apronF = was && was.apron && apronKind === 'slab' ? (() => {
+    const apron0 = was && was.apron && apronKind === 'slab' ? (() => {
       const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = stairConcrete(), out = [];
       const lam = (nn) => (payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0), day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
       const face = (c, nn) => { const flat = Math.abs(nn[2]) > 0.5, g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam(nn)) * (0.35 + 0.65 * day)));
@@ -862,9 +863,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const inner = [[ax0 + 0.3, ay0 + 0.3, ax1 - 0.3, ay1 - 0.3]];
       faces = faces.flatMap((f) => (GROUND.test(f.group || '') || ROUGH.test(f.group || '') ? cutOutBoxes(f, inner) : [f]));
       clearedBoxes.push(...inner);
-      return shellLight ? sunLitFaces(out.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : out;
+      return out;
     })() : [];
-    const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : shell0;
+    // (baked with the sun's shadow of the building on itself and on its apron: an eave's on its wall, a wing's on the
+    // hall, the hall's on the slab; what it casts on the land past its apron is the page's live shadow)
+    const castBy = X && shellLight ? makeSunShadow(shell0, shellLight.dir) : null;
+    const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, { shadow: castBy }).faces : shell0;
+    const apronF = shellLight && apron0.length ? sunLitFaces(apron0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, { shadow: castBy ?? makeSunShadow(shell0, shellLight.dir) }).faces : apron0;
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
     const wy = ways[0], drop = floor - (ground(...toWorld([doorPlan[0], doorPlan[1] - 0.6])) ?? floor), run = Math.max(0.6, drop * 2.5);
@@ -1009,5 +1014,5 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const PLANT_CLEAR = { trees: 3, bushes: 1, shrubs: 1, skirt: 3 };
   const plants = payload.plants && clearedBoxes.length ? { ...payload.plants, ...Object.fromEntries(Object.entries(PLANT_CLEAR).filter(([k]) => Array.isArray(payload.plants[k])).map(([k, pad]) => [k,
     payload.plants[k].filter((p) => !clearedBoxes.some((B) => p.x > B[0] - pad && p.x < B[2] + pad && p.y > B[1] - pad && p.y < B[3] + pad))])) } : null;
-  return { ...payload, ...(formRoom ? { form: { ...(payload.form || {}), room: formRoom } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  return { ...payload, ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) } } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }
