@@ -259,7 +259,7 @@ describe('runCli', () => {
       listed: false,
       handler: () => new Promise((resolve) => setTimeout(() => resolve('late'), 300)),
     });
-  });
+  }, 120_000); // registering every tool takes about 30 s with nothing cached, at the hook's default limit
 
   it('tools lists the connect surface: spine then packs, then the orient footer', async () => {
     const { lines, io } = capture();

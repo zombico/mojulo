@@ -150,6 +150,17 @@ export const TOOL_TIERS = Object.freeze({
   verify_asset: 'ride',
 });
 
+// A folded name keeps the tier it had when it was listed, so a stored plan that names one still counts its steps
+// (tierCounts below). Not in TOOL_TIERS: that table is the listed tools'.
+const FOLDED_TOOL_TIERS = Object.freeze({
+  list_plans: 'ride',
+  list_stashes: 'ride',
+  list_cooks: 'ride',
+  list_adapters: 'ride',
+  custom_catalyst: 'ride',
+  list_world_themes: 'ride',
+});
+
 /** The heaviest of these tiers, or undefined when none is known: a door that leads to several tools is as heavy as its
  * heaviest. */
 export function ceilingTier(tiers) {
@@ -162,6 +173,7 @@ export function ceilingTier(tiers) {
  * or unknown tool has none. */
 export function toolTier(name) {
   if (TOOL_TIERS[name]) return TOOL_TIERS[name];
+  if (FOLDED_TOOL_TIERS[name]) return FOLDED_TOOL_TIERS[name];
   const pack = getPack(name);
   return pack ? ceilingTier(pack.members.map((m) => TOOL_TIERS[m])) : undefined;
 }

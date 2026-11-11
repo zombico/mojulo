@@ -20,10 +20,11 @@ import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 
 let server;
 
+// registering every tool takes about 30 s with nothing cached, at the hook's default limit (as packs.test.js)
 beforeAll(async () => {
   server = await import('@/lib/mcp/server');
   await server.ensureToolsRegistered();
-});
+}, 120_000);
 
 afterEach(() => {
   delete process.env.MOJULO_ROLES;

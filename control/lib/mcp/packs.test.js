@@ -693,9 +693,15 @@ describe('pack dispatcher', () => {
     const packed = await callTool('pack_world', { tool: 'get_view_vocab', args: { themes: true } });
     expect(packed.result.isError).toBeFalsy();
     expect(packed.result.content[0].text).toBe(direct.result.content[0].text);
-    // the folded name answers the same rows (list_world_themes, callable by name)
+    // the folded name answers the same rows (list_world_themes, callable by name), and through the pack it came from
     const folded = await callTool('list_world_themes', {});
     expect(folded.result.content[0].text).toBe(direct.result.content[0].text);
+    const viaOldPack = await callTool('pack_world', { tool: 'list_world_themes', args: {} });
+    expect(viaOldPack.result.isError).toBeFalsy();
+    expect(viaOldPack.result.content[0].text).toBe(direct.result.content[0].text);
+    // but not through a pack it never belonged to
+    const viaOther = await callTool('pack_audio', { tool: 'list_world_themes', args: {} });
+    expect(viaOther.result.isError).toBe(true);
   });
 
   it('a taken ref refuses with REF_EXISTS and the revision tool as next_action', async () => {
