@@ -83,12 +83,13 @@ export const LAWS = Object.freeze({
   'live-emitters': { layer: 'look', form: true, law: 'What burns moves, and what emits is brighter than white: a flame is live, a lamp blooms.' },
   'layers-stand-proud': { layer: 'surface', form: true, law: 'A layer over a surface (a coat of render, a patch, a plate) stands proud of what it covers, and its broken edge casts its shadow.' },
   // CRAFT, in both eras (`craft: true`): what a first pass may not be. A thing made of boxes reads as voxels in any light
-  'no-voxel-first': { layer: 'composition', craft: true, law: 'Nothing is a box on its first pass: a fixture is turned, ringed or tapered (a torch is a cone in a ring on an arm) before it is placed.' },
+  // (each one's reason, as the question a room is asked, is in era/room-craft.js: a kit answers the question, never copies another kit's answer)
+  'no-voxel-first': { layer: 'composition', craft: true, law: 'Nothing is a box on its first pass: a fixture shows how it was made (turned, cast, forged, pressed) and what holds it to the room, before it is placed.' },
   'wall-rhythm': { layer: 'composition', craft: true, law: 'Along one wall at most two neighbouring segments look alike and a pair is never followed by the same pair (ABBA, never AAAA or ABAB), a wall of three the odd one in the middle (ABA, BAB); the second kind of segment is the first with less on it; a wall all alike is a stated choice, drawn clean and repeatable.' },
   'floor-is-laid': { layer: 'composition', craft: true, law: 'A floor is laid, not tiled: a border course along the walls, the way down the room in its own slabs, the fields between laid bay by bay on the structure\'s lines, keeping a rhythm.' },
-  'wall-has-storeys': { layer: 'composition', craft: true, law: 'A tall wall has storeys: a course divides it, and what is over the course is derived from what is under it, the same with less (a blind arch over a niche).' },
-  'air-is-furnished': { layer: 'composition', craft: true, law: 'The air of a tall room is furnished and its height lit by a cause: something hangs in it, and light reaches the upper wall and the vault from a thing that gives it.' },
-  'pillars-are-worked': { layer: 'composition', craft: true, law: 'A column is worked, never a flat strip: tapered, rounded, fluted or cut in parts (a base, a shaft, a ring, a capital).' },
+  'wall-has-storeys': { layer: 'composition', craft: true, law: 'A tall wall has storeys: a course divides it, and what is over the course is derived from what is under it, the same with less.' },
+  'air-is-furnished': { layer: 'composition', craft: true, law: 'The air of a tall room is furnished and its height lit by a cause: what the height is for hangs in it or crosses it, and light reaches the upper room from a thing that gives it.' },
+  'pillars-are-worked': { layer: 'composition', craft: true, law: 'A support is worked the way its material is worked, never a flat strip: tapered, rounded, fluted or cut in parts, spread at its foot and gathered at its head.' },
 });
 
 /** Each style card's principles, in order, as the laws they are instances of. */
