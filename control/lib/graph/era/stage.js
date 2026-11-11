@@ -895,6 +895,16 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
+/** A stage's `water` as a circuit: `'works'`, or `{ works: true | { head?, nozzle?, mist? } }` (materials/hydraulics.js);
+ *  any other `water` is the live water it was. → the works' dials, or null. */
+export function waterWorks(w) {
+  if (w === 'works') return {};
+  if (!w || typeof w !== 'object' || !w.works) return null;
+  if (w.works === true) return {};
+  if (typeof w.works !== 'object' || Array.isArray(w.works)) throw new Error('stage: water.works is true or { head?, nozzle?, mist? }');
+  for (const k of Object.keys(w.works)) if (!['head', 'nozzle', 'mist'].includes(k)) throw new Error(`stage: water.works.${k} is not a dial of it (head, nozzle, mist)`);
+  return w.works;
+}
 /** THE FORM RENDER'S BAKE (gen-7 under no sun: form/room-light.js). The room's look is its paint read at arm's length from
  *  its median lamp: each surface's colour there (the sixth generation's bake of its tint over its tile; a toned room, its
  *  ramp's colour at that light: tone.js) is a TARGET, and the bases and one lamp's light are solved for them
@@ -1126,7 +1136,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water, works: waterWorks(manifest.water) }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;
@@ -1280,6 +1290,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // the dressing's weather: the cloud deck over the square, lit by the same sun (an overlay: exports carry none)
     // live water's falling streams (materials/jet.js), drawn on the page; exports carry the painted floor instead
     ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
+    // (a fountain run as a circuit, materials/hydraulics.js: the mist where its water lands, the air solved round it)
+    ...(dress && dress.hydraulics ? { hydraulics: dress.hydraulics } : {}),
     // at night the falling water is seen in the basin's glow and the moon, not the sun (scene/channels/jet.js `lit`)
     ...(plan.night && plan.night.jets && dress && dress.jets && dress.jets.length ? { jetLight: plan.night.jets } : {}),
     ...(dress && dress.jetLight && dress.jets && dress.jets.length ? { jetLight: dress.jetLight } : {}),

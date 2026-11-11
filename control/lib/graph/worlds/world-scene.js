@@ -46,6 +46,8 @@ import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
+import { solveHydraulics } from '@/lib/graph/materials/hydraulics';
+import { normalizeJets } from '@/lib/graph/materials/jet';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
@@ -825,6 +827,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
+  // HYDRAULICS (`hydraulics`, materials/hydraulics.js): a circuit of flowing water any world may carry (a fountain, a wall
+  // spout, a cascade), or a list of them. Each is solved once here: its falls join the world's jets, the mist where they
+  // land goes to the page with the air solved round it (the world's own colliders). Absent ⇒ nothing. (A trail's
+  // `waterworks` is another thing: the land's own rivers and falls, era/water-live.js)
+  if (payload && sketch.manifest.hydraulics !== undefined && sketch.manifest.hydraulics !== null && !unshaded) {
+    const circuits = Array.isArray(sketch.manifest.hydraulics) ? sketch.manifest.hydraulics : [sketch.manifest.hydraulics];
+    const solved = circuits.map((c, i) => solveHydraulics(c && typeof c === 'object' && !c.id ? { ...c, id: `works${i + 1}` } : c, { colliders: Array.isArray(payload.colliders) ? payload.colliders : [] }));
+    const jets = normalizeJets(solved.flatMap((w) => w.jets), { metersPerUnit: payload.metersPerUnit });
+    if (jets.length) payload.jets = [...(Array.isArray(payload.jets) ? payload.jets : []), ...jets];
+    const mine = { mists: solved.flatMap((w) => w.mists), report: solved.map((w) => w.report) };
+    payload.hydraulics = payload.hydraulics ? { mists: [...payload.hydraulics.mists, ...mine.mists], report: [...payload.hydraulics.report, ...mine.report] } : mine;
+  }
   // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
   { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }
   // (a read in another era than its cube's says so where the cube's look is read back)

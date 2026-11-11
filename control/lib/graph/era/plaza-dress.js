@@ -10,6 +10,7 @@
  *              ring round the basin dark where it splashes.
  * Every placement has a cause and a seeded die (integer hashes); a pure function of the plan.
  */
+import { solveHydraulics } from '../materials/hydraulics.js';
 import { hash3, vnoise, walkLine } from './dirt.js';
 import { P, r5, card as cardRaw, box, wallFrame, lathe } from './geom.js';
 import { sunDir } from './sun.js';
@@ -39,8 +40,10 @@ function annulus(out, c, r0, r1, z, sides, face) {
   }
 }
 
+/** The fountain's pump where its recipe names none: the metres of water it lifts, and its nozzle's radius (m). */
+export const PLAZA_PUMP = Object.freeze({ head: 4.5, nozzle: 0.014 });
 /** The fountain: stone (lathed and ringed, baked like the shell) and water (self-lit translucent sheets, drawn after). */
-export function plazaFountain(plan, { live = false } = {}) {
+export function plazaFountain(plan, { live = false, works = null } = {}) {
   const Fo = plan.kit.dress.fountain, { c } = plazaSite(plan), stone = [], water = [], S = Fo.sides, st = { ...Fo.stone };
   const inner = Fo.R - Fo.lip, B = Fo.bowl, br = B.R - 0.14;
   // one path round the solid: up the basin's outside, over its rim, down into it, across its floor, up the pedestal,
@@ -60,6 +63,15 @@ export function plazaFountain(plan, { live = false } = {}) {
   const pool = (r0, r1, z) => annulus(water, c, r0, r1, z, S, () => ({ water: true, ...(live && Fo.look ? { liquid: Fo.look } : {}), fill: Fo.pool, cornerAlpha: [0.86, 0.86, 0.86, 0.86], group: 'stage:water' }));
   pool(Fo.pedestal + 0.02, inner, Fo.water); pool(0.18, br, B.z - 0.1);
   const cut = (f) => f.group === 'stage:floor' && f.corners.every((q) => Math.hypot(q[0] - c[0], q[1] - c[1]) < Fo.R - 0.05);
+  if (live && Fo.jets && works) {
+    // THE FOUNTAIN AS A CIRCUIT (the recipe's `water: { works }`, materials/hydraulics.js): a pump lifts the basin's water
+    // to the finial, the jet falls back into the bowl, and the bowl spills what it receives over its lip to the basin.
+    // The pump's head is the one dial: the flow, the jet's height and each sheet follow from it
+    const W = solveHydraulics({ id: 'fountain', basin: { at: [c[0], c[1], 0.16], radius: inner, level: Fo.water }, pump: { head: works.head ?? PLAZA_PUMP.head },
+      nozzle: { at: [c[0], c[1], Fo.top], radius: works.nozzle ?? PLAZA_PUMP.nozzle }, tiers: [{ id: 'bowl', at: [c[0], c[1], B.z - 0.01], radius: B.R + 0.04, lips: Fo.jets.count, to: Fo.water }],
+      ...(works.mist !== undefined ? { mist: works.mist } : {}) });
+    return { stone, water, cut, jets: W.jets, hydraulics: { mists: W.mists, report: [W.report] } };
+  }
   if (live && Fo.jets) {
     // the bowl brims over its lip in sheets, one per stretch of lip, each pouring outward and falling to the basin
     const Jt = Fo.jets, jets = Array.from({ length: Jt.count }, (_, k) => {
@@ -174,7 +186,7 @@ export function plazaBlends(plan, faces, houses) {
 
 /** Everything the plaza's dressing adds, in the shape the stage composes (see nave.js `naveDress`). */
 export function plazaDress(plan, geom) {
-  const D = plan.kit.dress, site = plazaSite(plan), fo = plazaFountain(plan, { live: !!geom.water }), houses = geom.houses || [];
+  const D = plan.kit.dress, site = plazaSite(plan), fo = plazaFountain(plan, { live: !!geom.water, works: geom.works || null }), houses = geom.houses || [];
   const key = plan.ref.light.key, toSun = sunDir(key.elevation, key.azimuth ?? 225);
   const portico = D.portico ? plazaPortico(plan, site) : null;
   // at night (`time: 'night'`): lanterns, the basin's glow, lit windows (plaza-night.js)
@@ -192,5 +204,6 @@ export function plazaDress(plan, geom) {
     clouds: D.clouds ? (night ? { ...D.clouds, ...plan.night.clouds } : D.clouds) : null,
     ...(night ? { night } : {}),
     jets: fo.jets,
+    ...(fo.hydraulics ? { hydraulics: fo.hydraulics } : {}),
   };
 }

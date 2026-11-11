@@ -45,7 +45,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'trafficLanes', 'trafficConstants', 'flow', 'beacons', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'tempo', 'grade',
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'cone', 'formSky', 'air', 'soften',
-  'knock', 'guide', 'footless', 'finish',
+  'knock', 'guide', 'footless', 'finish', 'hydraulics',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):
