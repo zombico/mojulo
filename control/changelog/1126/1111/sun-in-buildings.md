@@ -25,3 +25,7 @@ A composed building standing on an outdoor map (the hangar, a barracks) is read 
   stands under a sun, so the page draws it as it draws a town's buildings. The building's shadow on its apron and on
   the land is the page's live one: a page of rooms seated on a land keeps the hour's shadow map, which a room's page
   on its own does not have.
+- A dock's first parts. A building's `yard: { containers }` stacks shipping containers on its apron before its front
+  (the city's container, `geocity/industry.js`), one to three high, each in a line's colour, lit as the shell is, each
+  stack a collider. A recipe's `wet: true` (it has just rained) darkens the apron's slab and lays the wet film over it
+  that gives the sky back (`channels/wet-road.js`). The geocube kind passes both.

@@ -2,7 +2,7 @@
  * STAGE BUILDINGS — game buildings standing in open ground, walked into as terrain (`enter: 'walk'`). An outdoor
  * stage recipe's `buildings` seats each one on the land the stage already laid:
  *
- *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays?, embed?, apron? }]
+ *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays?, embed?, apron?, yard? }]
  *     use            a program (era/programs.js): its rooms and doorways, its goal room
  *     at             a pocket beat's id ('pocket-1': the building stands in the clearing, its door to the trail), or
  *                    { x, y, facing: '+x' | '-x' | '+y' | '-y' } (its door's middle, and the way the door faces out);
@@ -59,6 +59,8 @@ import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { makeSunShadow } from './sun.js';
+import { hash3 } from './dirt.js';
+import { containerRaw } from '../geocity/industry.js';
 import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
@@ -75,7 +77,9 @@ const YARD = 8;
 // thickness at its edge
 // (`bank`: the bank round it runs this many metres out for each metre cut or filled, at least `fall` and at most
 // `reach`; `steep`: a cut or a fill past this is said as a finding, the site a poor one)
-const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15 });
+// the lines' colours a yard's containers come in (oxide red, a deep blue, a green, orange, grey, a pale blue, white)
+const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0.42, 0.3], [0.85, 0.42, 0.1], [0.5, 0.52, 0.54], [0.35, 0.58, 0.72], [0.86, 0.86, 0.84]]);
+const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
 const EMBED = { side: 4, back: 6 };
 
@@ -552,6 +556,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
   // (the form render's record of the buildings' rooms, in the world's frame: their lamps, the sun they were baked under)
   const formRooms = [];
+  // (the hard standing a wet recipe films: every building's apron slab)
+  const wetQuads = [];
   // (every footprint the land was cleared under: what the form render grows there, payload.plants, is cleared too)
   const clearedBoxes = [];
   let faces = payload.faces, lights = [...(payload.lights || [])], colliders = [...(payload.colliders || [])], anchors = [...(payload.anchors || [])];
@@ -871,7 +877,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, { shadow: castBy }).faces : shell0;
     // (the apron takes no baked shadow: it is flat and wide, a corner every few metres, and the building's shadow on it
     // is the page's live one, as it is on the land beside it)
-    const apronF = shellLight && apron0.length ? sunLitFaces(apron0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : apron0;
+    // (wet, a slab is darker: the water in its pores drinks the light, and the film over it gives the sky back)
+    const wetK = manifest.wet === true ? APRON.wet : 1, wetHex = '#' + Math.round(255 * wetK).toString(16).padStart(2, '0').repeat(3);
+    const apronF = shellLight && apron0.length ? sunLitFaces(apron0.map((f) => ({ ...f, fill: wetHex })), shellLight, {}).faces
+      : wetK < 1 ? apron0.map((f) => { const d = (h) => '#' + [1, 3, 5].map((q) => Math.round(parseInt(h.slice(q, q + 2), 16) * wetK).toString(16).padStart(2, '0')).join(''); return { ...f, fill: d(f.fill), cornerFills: f.cornerFills.map(d) }; }) : apron0;
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
     const wy = ways[0], drop = floor - (ground(...toWorld([doorPlan[0], doorPlan[1] - 0.6])) ?? floor), run = Math.max(0.6, drop * 2.5);
@@ -911,7 +920,33 @@ export function withBuildings(payload, manifest, ctx = {}) {
       };
       return [...piece(h.u0 - 0.14, h.u1 + 0.14, h.z1, h.z1 + 0.2, 0.09, lin), ...piece(h.u0 - 0.08, h.u1 + 0.08, h.z0 - 0.08, h.z0, 0.11, sl)];
     }) : [];
-    faces = [...faces, ...moved, ...shell, ...apronF, ...trims, ...stoop, ...stairF, ...pathF];
+    // ITS YARD (`yard: { containers }`): shipping containers stacked on its apron before its front, in a row along it,
+    // each stack one to three high by the building's dice, each container in a line's colour; the way to its door kept
+    // clear. Lit as the shell is; each stack a collider
+    const yardF = [];
+    if (b.yard !== undefined) {
+      if (!b.yard || typeof b.yard !== 'object' || Object.keys(b.yard).some((k) => k !== 'containers') || !Number.isInteger(b.yard.containers) || b.yard.containers < 1 || b.yard.containers > 40) throw new Error(`stage: buildings[${i}].yard is { containers: 1 to 40 }`);
+      if (!(was && was.apron)) throw new Error(`stage: buildings[${i}] (${id}) has no apron to stack a yard on (a composed building's, not one set into a slope)`);
+      const raw = containerRaw(), CL = 12.19, CW = 2.44, CH = 2.59, x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1]));
+      const zt = -APRON.under + APRON.over, dice = (k) => hash3(i, k, 4431), slots = [];
+      // (slots along the front, a row nearer the building and one further out, none across the way to the door)
+      for (const yr of [y0 - APRON.front + CW / 2 + 0.6, y0 - APRON.front + CW * 1.5 + 1.4]) for (let x = x0 - APRON.side + CL / 2 + 0.5; x + CL / 2 <= x1 + APRON.side - 0.5; x += CL + 0.8) if (Math.abs(x - doorPlan[0]) > CL / 2 + 2) slots.push([x, yr]);
+      let left = b.yard.containers, k = 0;
+      const day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
+      for (const [sx, sy] of slots) { if (left <= 0) break;
+        const high = Math.min(left, 1 + Math.floor(dice(k++) * 3)); left -= high;
+        for (let lv = 0; lv < high; lv++) { const tint = YARD_LINES[Math.floor(dice(k++) * YARD_LINES.length) % YARD_LINES.length], jog = (dice(k++) - 0.5) * 0.16;
+          for (const f of raw) { const c = f.corners.map(([u, v, z]) => W([sx + u + jog, sy + v, zt + lv * CH + z])), nn = turnN(f.normal), body = f.hex === '#f2f2f2' || f.hex === '#d6d6d6';
+            const col = body ? tint.map((t, q) => t * (f.hex === '#d6d6d6' ? 0.86 : 1)) : [0.77, 0.77, 0.77], lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
+            const shade = shellLight ? 1 : (0.6 + 0.4 * lam) * (0.35 + 0.65 * day), fill = '#' + col.map((t) => Math.round(255 * Math.min(1, t * shade)).toString(16).padStart(2, '0')).join('');
+            yardF.push({ ...quad(c, 'yard:container', fill), normal: P3(nn), outNormal: P3(nn), node: `${id}:container-${k}` }); } }
+        const a = toWorld([sx - CL / 2, sy - CW / 2]), c2 = toWorld([sx + CL / 2, sy + CW / 2]);
+        colliders.push({ min: P3([Math.min(a[0], c2[0]), Math.min(a[1], c2[1]), floor + zt]), max: P3([Math.max(a[0], c2[0]), Math.max(a[1], c2[1]), floor + zt + high * CH]), of: `${id}:yard` }); }
+    }
+    const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, { shadow: makeSunShadow(yardF, shellLight.dir) }).faces : yardF;
+    faces = [...faces, ...moved, ...shell, ...apronF, ...yardLit, ...trims, ...stoop, ...stairF, ...pathF];
+    // WET (`wet: true` on the recipe: it has just rained): the apron's slab films the sky, channels/wet-road.js
+    if (manifest.wet === true && apronF.length) wetQuads.push(...apronF.filter((f) => f.corners.length === 4 && f.normal && f.normal[2] > 0.9).map((f) => f.corners));
     for (const c of P.cutouts || []) cutouts.add(c);
     lights.push(...(P.lights || []).map((l) => ({ ...l, name: `${id}-${l.name}`, position: P3(W(l.position)) })));
     // its colliders: the stage's own, moved (a quarter turn keeps a box a box)
@@ -1016,5 +1051,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const PLANT_CLEAR = { trees: 3, bushes: 1, shrubs: 1, skirt: 3 };
   const plants = payload.plants && clearedBoxes.length ? { ...payload.plants, ...Object.fromEntries(Object.entries(PLANT_CLEAR).filter(([k]) => Array.isArray(payload.plants[k])).map(([k, pad]) => [k,
     payload.plants[k].filter((p) => !clearedBoxes.some((B) => p.x > B[0] - pad && p.x < B[2] + pad && p.y > B[1] - pad && p.y < B[3] + pad))])) } : null;
-  return { ...payload, ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) } } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  if (manifest.wet !== undefined && typeof manifest.wet !== 'boolean') throw new Error('stage: wet is true (it has just rained: the hard standing films the sky) or false');
+  const wetRoad = wetQuads.length ? { quads: wetQuads, lamps: [], zenith: payload.sky?.zenith ?? [120, 150, 200], horizon: payload.sky?.horizon ?? [200, 215, 230] } : null;
+  return { ...payload, ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) } } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }
