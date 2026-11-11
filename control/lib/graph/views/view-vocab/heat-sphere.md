@@ -3,7 +3,7 @@
   "id": "heat-sphere",
   "name": "Heat Equation on a Sphere",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive HEAT-EQUATION explainer — a sphere with a hot (red) top pole and a cold (blue) bottom pole, temperature DIFFUSING across the surface until the ball settles to one lukewarm shade, as a live three.js World.",
   "when": "Reach for this on framing like 'heat equation / diffusion / temperature spreading over a sphere / heat kernel / Laplacian on the sphere / hot pole cold pole'.",
   "retired_tool": "create_heat_sphere_view"
@@ -14,7 +14,7 @@ Mint an interactive HEAT-EQUATION explainer — a sphere with a hot (red) top po
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which initial temperature profile (default 'poles'): 'poles' (hot top hemisphere / cold bottom, sharp equatorial jump), 'cap' (a hot polar cap on a cold ball), 'dipole' (a hot cap and a cold cap with a neutral band between), 'banded' (alternating hot/cold rings — high modes that decay fastest).

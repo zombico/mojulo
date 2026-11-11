@@ -3,7 +3,7 @@
   "id": "microscopic",
   "name": "Microscopic science world (molecules and cells, composed from laws)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Compose a demo at the scale of cells and molecules from a table of laws (Brownian motion, drift, membranes, reactions in a well-mixed volume) instead of picking a ready-made one; seeded and counted, checked against Einstein's diffusion law, mass-action equilibrium and conservation, and the page says what is real and what is drawn.",
   "when": "Reach for this when a teacher or student wants to see molecules move and react: 'show diffusion of a dye in water', 'why does sugar spread out', 'a membrane that lets water through but not salt', 'how an enzyme turns substrate into product', 'binding and unbinding reach equilibrium', 'Brownian motion of a bead under a microscope', 'particles drifting in a flow'. Microscopic means bounded by these laws, from cells down to molecules: a molecule's insides (bonds, electrons) are the quantum scale's, and a ball rolling is the classical scale's."
 }

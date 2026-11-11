@@ -3,7 +3,7 @@
   "id": "complex",
   "name": "Complex Functions",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive COMPLEX-ANALYSIS explainer — a complex function f(z) rendered as an ANALYTIC LANDSCAPE (domain colouring lifted into 3-D), a live traversable three.js World.",
   "when": "Reach for this on framing like 'complex function / domain colouring / poles and zeros / complex analysis / Riemann'.",
   "retired_tool": "create_complex_view"
@@ -14,7 +14,7 @@ Mint an interactive COMPLEX-ANALYSIS explainer — a complex function f(z) rende
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which function (default 'square'): 'square' (z², double zero — phase wheel twice), 'reciprocal' (1/z, a pole at the origin), 'rational' ((z²−1)/(z²+1), zeros at ±1 and poles at ±i together), 'exp' (eᶻ, modulus ramps, phase = colour bands), 'mobius' ((z−1)/(z+1)).

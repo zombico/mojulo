@@ -3,7 +3,7 @@
   "id": "transform",
   "name": "Linear Transformation",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive LINEAR-ALGEBRA explainer — a 2×2 LINEAR MAP shown as the deformation of space itself, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'linear transformation / eigenvectors / determinant / matrix as a deformation / what does this matrix do to the plane'.",
   "retired_tool": "create_transform_view"
@@ -14,7 +14,7 @@ Mint an interactive LINEAR-ALGEBRA explainer — a 2×2 LINEAR MAP shown as the 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which map (default 'eigenbasis'): 'eigenbasis' (two real invariant axes), 'scale' (diagonal, det = area), 'shear' (defective, one axis), 'rotation' (complex eigenvalues, no real axis), 'projection' (det 0, collapses to a line).

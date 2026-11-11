@@ -294,7 +294,7 @@ export function planRocketScene(recipe = {}) {
   };
 }
 
-// ── the physical read-back channel (measure_view): the full mission time-series in real SI,
+// ── the physical read-back channel (get_exhibit({ ref })): the full mission time-series in real SI,
 // sampled from the UNSCALED integrator output — the same numbers the HUD shows. ──
 export function sampleRocketPhysics(recipe = {}, { every = 1 } = {}) {
   const { scenario, mission } = runMission(recipe);

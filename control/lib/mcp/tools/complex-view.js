@@ -37,7 +37,7 @@ export function mintComplexView({ title, scenario, scale, viewBox, scene, ref, f
 }
 
 export async function createComplexViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "complex" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/complex" }) requires a recipe object');
   const { title, scenario, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintComplexView({ title, scenario, scale, viewBox, scene, ref, folderRef });
 }

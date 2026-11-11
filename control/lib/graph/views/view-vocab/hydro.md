@@ -3,7 +3,7 @@
   "id": "hydro",
   "name": "Hydroelectric power (multi-arc)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint one arc of a MULTI-ARC hydroelectric explainer — dam → penstock → turbine → generator → whole plant → night spillway — every arc quoting the same energy chain.",
   "when": "Reach for this on framing like 'how hydroelectric power works / how a dam makes electricity / show me a dam / water turbine / how a generator works / hydro power explainer'."
 }
@@ -13,7 +13,7 @@ Mint one arc of a MULTI-ARC science explainer for HYDROELECTRIC POWER, rendered 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which arc (default 'dam'): 'dam' (stored head + hydrostatic pressure + Torricelli outlet), 'penstock' (PE → KE, Bernoulli down the pipe), 'turbine' (Pelton runner — momentum → torque → spin), 'generator' (Faraday — poles sweep coils, EMF wave), 'plant' (the whole chain in one world), 'spillway' (the night flood-discharge face — gates, veils, interference tailrace).

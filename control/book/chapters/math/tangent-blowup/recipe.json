@@ -1,5 +1,5 @@
 {
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "kind": "trig-circle",
   "title": "Tangent, escaping to infinity",
   "params": { "scenario": "tangent", "angle": 1.37 }

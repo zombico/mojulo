@@ -39,7 +39,7 @@ export function mintHeatSphereView({ title, scenario, kappa, scale, viewBox, sce
 }
 
 export async function createHeatSphereViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "heat-sphere" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/heat-sphere" }) requires a recipe object');
   const { title, scenario, kappa, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintHeatSphereView({ title, scenario, kappa, scale, viewBox, scene, ref, folderRef });
 }

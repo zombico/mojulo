@@ -69,6 +69,13 @@ import {
   resolveMotionComicLayout,
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
+import { isGalleryKind, galleryManifest } from '@/lib/graph/exhibit/gallery';
+import { isStatesKind, statesManifest } from '@/lib/graph/exhibit/states';
+import { stampSignoff } from '@/lib/graph/exhibit/brief';
+import { stampNarration } from '@/lib/graph/exhibit/narration';
+// an exhibit's brief, its `curation` (exhibit/brief.js): a sign-off of `claims: 'all'` is stamped at write with a copy of each claim, the
+// record of what the expert signed. Any other manifest passes as it is.
+const stampBrief = (m) => (m && typeof m === 'object' && m.curation && typeof m.curation === 'object' ? { ...m, curation: stampSignoff(m.curation) } : m);
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
@@ -443,14 +450,31 @@ function gameworldManifest(manifest) {
   return out;
 }
 
-export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
+export function mintSketch({ title, manifest: given, ref, folderRef, bucket } = {}) {
   validateSketchIdentity({ title, ref, folderRef, bucket });
+  // a tour's narration (exhibit/narration.js): each WAV's path saved as a recording before any gate reads the recipe
+  const manifest = stampNarration(given);
   let finalized;
   if (isGameworldKind(manifest?.kind)) {
     // A gameworld (the game book's recipe) bypasses the diagram pipeline: the stored manifest is the recipe as
     // written, read by the gameworld reader, whose teaching errors are the refusal. Its palette is settled here, at
     // authoring time (color-theorist/stamp.js): a new world that names no kit or look gets one rolled for it.
     finalized = gameworldManifest(stampWorldPalette(stampGeocubes(manifest)));
+  } else if (isStatesKind(manifest?.kind)) {
+    // Prepared states (exhibit/states.js): one exhibit's versions, by ref, checked against the store at mint.
+    try {
+      finalized = statesManifest(manifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — make them with create_exhibit({ id, states }); manual: get_view_vocab({ id: 'tour' }).`);
+    }
+  } else if (isGalleryKind(manifest?.kind)) {
+    // A gallery (exhibit/gallery.js): exhibits joined as rooms, by ref. Its rooms are checked against the store at
+    // mint, so a gallery never names a room that is not there.
+    try {
+      finalized = galleryManifest(manifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — make one with create_exhibit({ rooms }); manual: get_view_vocab({ id: 'tour' }).`);
+    }
   } else if (isMotionComicKind(manifest?.kind)) {
     // Motion comics (the click-gated presentation, motion-comic.plan.md)
     // bypass the diagram pipeline like image-outcomes kinds: the stored
@@ -554,7 +578,9 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   return persistSketch({ title, manifest: finalized, ref, folderRef, bucket });
 }
 
-function persistSketch({ title, manifest, ref, folderRef, bucket }) {
+function persistSketch({ title, manifest: given, ref, folderRef, bucket }) {
+  // every mint passes here (a world restored by create_sketch too): an exhibit's sign-off is stamped as it is stored
+  const manifest = stampBrief(given);
   const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
   // a house reads out from the recipe as stored (after the mint's draw and laws): its design, the steps open from here,
   // and the fields the mint inferred (their reasons ride notes.inferred)
@@ -833,13 +859,15 @@ export async function createSketchHandler(input) {
   refusePaintedKind('create_sketch', input.manifest);
   const {
     title,
-    manifest,
+    manifest: given,
     ref,
     folder_ref: folderRef,
     bucket,
     preload,
     preloadMetadata,
   } = input;
+  // a tour's narration (exhibit/narration.js): each WAV's path saved as a recording before any gate reads the recipe
+  const manifest = stampNarration(given);
   // create_sketch takes a fully-authored manifest, so preload is purely an
   // echo back so the agent can confirm the prior context it composed
   // against. No prepending — the manifest IS the answer. preloadMetadata is
@@ -1087,6 +1115,8 @@ export async function updateSketchHandler(input) {
     refusePaintedKind('update_sketch', manifest);
   }
 
+  // a tour's narration (exhibit/narration.js): each WAV's path saved as a recording before any gate reads the recipe
+  if (manifest !== undefined) manifest = stampNarration(manifest);
   let nextManifest;
   let gameNote;
   let versusLaws = null;
@@ -1161,6 +1191,19 @@ export async function updateSketchHandler(input) {
   } else if (manifest !== undefined && isGameworldKind(manifest?.kind)) {
     // the same gate as at mint; an edit keeps the palette the world had (and never gives an old world one)
     nextManifest = gameworldManifest(stampWorldPalette(stampGeocubes(manifest, existingSketch?.manifest ?? null), existingSketch?.manifest ?? {}));
+  } else if (manifest !== undefined && isStatesKind(manifest?.kind)) {
+    try {
+      nextManifest = statesManifest(manifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — manual: get_view_vocab({ id: 'tour' }).`);
+    }
+  } else if (manifest !== undefined && isGalleryKind(manifest?.kind)) {
+    // the same gate as at mint: its rooms checked against the store
+    try {
+      nextManifest = galleryManifest(manifest, (r) => SketchRepository.getByRef(r));
+    } catch (err) {
+      throw new Error(`Invalid manifest: ${err.message} — manual: get_view_vocab({ id: 'tour' }).`);
+    }
   } else if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
     // Same gate as mintSketch — update is the accrete-cheaply surface, so it
     // pays the same normalization + store checks.
@@ -1230,7 +1273,7 @@ export async function updateSketchHandler(input) {
   const updated = SketchRepository.update({
     ref,
     title: title !== undefined ? title.trim() : undefined,
-    manifest: nextManifest,
+    manifest: stampBrief(nextManifest),
     folderRef,
     bucket,
   });

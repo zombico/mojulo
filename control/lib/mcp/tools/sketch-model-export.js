@@ -400,6 +400,109 @@ async function scad2dExport(input, context) {
   return result;
 }
 
+// ── format: 'html' on a gallery (exhibit/gallery.js) ─────────────────────────────────────────
+// A gallery is its rooms: the export is a FOLDER, not one page. index.html is the gallery page with each room's src a
+// sibling file; rooms/<ref>.html is each room's World page, self-contained (three.js inline), as `world.html` is. The
+// folder opens from file:// with no server and no network: the kiosk's offline form. Same rows, same folder.
+// One state's World page, self-contained, framed by a states page: it keeps the camera across a switch (channels/sync.js).
+async function statePage(ref, { cdn = false } = {}) {
+  const s = SketchRepository.getByRef(ref);
+  if (!s) throw new Error(`state '${ref}' is no longer in the store; take it out with update_sketch`);
+  const { payload, kind } = await resolveWorldScene(s);
+  return emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: !cdn, cdn, sync: true });
+}
+
+// Prepared states' pages under `dir`: the states page at `index` and each state at `<sub>/<ref>.html`, its src relative.
+async function writeStates(m, title, dir, index, sub, { cdn = false } = {}) {
+  const { statesHtml } = await import('@/lib/graph/exhibit/states');
+  const files = [];
+  let bytes = 0;
+  await fs.mkdir(path.join(dir, sub), { recursive: true });
+  for (const st of m.states) {
+    const html = await statePage(st.ref, { cdn });
+    const file = `${sub}/${st.ref}.html`;
+    await fs.writeFile(path.join(dir, file), html);
+    files.push(file); bytes += Buffer.byteLength(html, 'utf8');
+  }
+  const base = path.posix.basename(sub);
+  const page = statesHtml({ title, label: m.label, control: m.control, states: m.states, start: m.start, kiosk: m.kiosk },
+    { src: (st) => `${encodeURIComponent(base)}/${encodeURIComponent(st.ref)}.html` });
+  await fs.writeFile(path.join(dir, index), page);
+  files.unshift(index); bytes += Buffer.byteLength(page, 'utf8');
+  return { files, bytes };
+}
+
+// ── format: 'html' on prepared states (exhibit/states.js): a folder, index.html and states/<ref>.html, offline ─────────
+async function statesExport(sketch, { cdn = false } = {}) {
+  const ref = sketch.ref, folder = cdn ? 'states-cdn' : 'states';
+  const dir = path.join(outcomeDirFor(ref), folder);
+  await fs.mkdir(dir, { recursive: true });
+  const { files, bytes } = await writeStates(sketch.manifest, sketch.manifest.title || sketch.title, dir, 'index.html', 'states', { cdn });
+  return {
+    ok: true, ref, kind: 'exhibit-states', format: 'html', dir, files, bytes, ...(cdn ? { cdn: true } : {}),
+    url: `${outcomeUrlFor(ref)}${folder}/index.html`,
+    note: `A prepared-states folder in ${dir}: open index.html${cdn ? ' on a host' : ' straight from the filesystem (file://)'}; each state is a ${cdn ? 'page beside it that loads three.js from cdn.jsdelivr.net' : 'self-contained page beside it'}, and switching keeps the camera. Add ?kiosk=1 for the attract loop.`,
+  };
+}
+
+async function galleryExport(sketch, { cdn = false } = {}) {
+  const { galleryHtml, galleryRooms } = await import('@/lib/graph/exhibit/gallery');
+  const { exhibitLabel } = await import('@/lib/mcp/tools/create-exhibit');
+  const ref = sketch.ref;
+  const folder = cdn ? 'gallery-cdn' : 'gallery', dir = path.join(outcomeDirFor(ref), folder);
+  await fs.mkdir(path.join(dir, 'rooms'), { recursive: true });
+  const getSketch = (r) => SketchRepository.getByRef(r);
+  const rooms = galleryRooms(sketch.manifest, getSketch, { describe: exhibitLabel });
+  const files = [];
+  let bytes = 0;
+  for (const room of rooms) {
+    const roomSketch = getSketch(room.ref);
+    if (!roomSketch) throw new Error(`gallery '${ref}': room '${room.ref}' is no longer in the store; take it out with update_sketch`);
+    if (room.states) {
+      // a room of prepared states: its page at rooms/<ref>.html, its states beside it in rooms/<ref>/
+      const w = await writeStates(roomSketch.manifest, roomSketch.manifest.title || roomSketch.title, path.join(dir, 'rooms'), `${room.ref}.html`, room.ref, { cdn });
+      files.push(...w.files.map((f) => `rooms/${f}`)); bytes += w.bytes;
+      continue;
+    }
+    const { payload, kind } = await resolveWorldScene(roomSketch);
+    const html = emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: !cdn, cdn });
+    const file = `rooms/${room.ref}.html`;
+    await fs.writeFile(path.join(dir, file), html);
+    files.push(file); bytes += Buffer.byteLength(html, 'utf8');
+  }
+  const index = galleryHtml({ title: sketch.manifest.title || sketch.title, intro: sketch.manifest.intro, rooms, kiosk: sketch.manifest.kiosk },
+    { src: (room) => `rooms/${encodeURIComponent(room.ref)}.html` });
+  await fs.writeFile(path.join(dir, 'index.html'), index);
+  files.unshift('index.html'); bytes += Buffer.byteLength(index, 'utf8');
+  return {
+    ok: true, ref, kind: 'gallery', format: 'html', dir, files, bytes, ...(cdn ? { cdn: true } : {}),
+    url: `${outcomeUrlFor(ref)}${folder}/index.html`,
+    note: cdn
+      ? `A gallery folder in ${dir} whose rooms load three.js from cdn.jsdelivr.net: the form an artifact host's page rules run (they refuse an inlined module). Publish index.html with the rooms beside it.`
+      : `A gallery folder in ${dir}: open index.html straight from the filesystem (file://) — every room is a self-contained page beside it, so it needs no server and no network. Add ?kiosk=1 to the address (or give the gallery \`kiosk\`) for the attract loop. \`cdn: true\` writes the host's form (gallery-cdn/).`,
+  };
+}
+
+// Which form an exhibit's folder is seen in (exhibit/where.js): the download is always written; the web form beside it
+// when every page fits a web page host and the build may fetch from the CDN, and it is then the one to show. The result
+// says which, in words to pass on, so nobody opens the download on a web host and thinks the exhibit is broken.
+async function pagesIn(dir, files) {
+  return Promise.all(files.filter((f) => f.endsWith('.html')).map(async (f) => ({ file: f, bytes: (await fs.stat(path.join(dir, f))).size })));
+}
+async function exhibitFolderWhere(out, { run, sketch, cdn, plugin, context }) {
+  const { exhibitWhere } = await import('@/lib/graph/exhibit/where');
+  const pages = await pagesIn(out.dir, out.files);
+  const webOut = !cdn && !plugin ? await run(sketch, { cdn: true }) : null;
+  const web = cdn ? pages : webOut ? await pagesIn(webOut.dir, webOut.files) : null;
+  const largest = (web ?? pages).reduce((m, pg) => Math.max(m, pg.bytes), 0);
+  const fit = fitsForContext(context, { kind: 'page', bytes: largest });
+  const at = (o) => `${path.basename(o.dir)}/index.html`;
+  const where = exhibitWhere({ pages, web, budget: fit.budget, against: fit.against, plugin,
+    entry: cdn ? null : at(out), webEntry: cdn ? at(out) : webOut ? at(webOut) : null });
+  if (webOut && where.form !== 'web') await fs.rm(webOut.dir, { recursive: true, force: true });
+  return { ...out, where, ...(webOut && where.form === 'web' ? { web: { dir: webOut.dir, files: webOut.files, url: webOut.url } } : {}) };
+}
+
 async function blenderExport(input) {
   const { ref, fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
   if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
@@ -1048,6 +1151,12 @@ async function exportModel(input, context = {}) {
   // the drawing set and the schedules are the building read as 2D: they read the house, not the World's faces
   if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
   if (format === 'blender') return blenderExport(input);
+  // a gallery's html is its folder of rooms
+  if (format === 'html') {
+    const g = SketchRepository.getByRef(input.ref);
+    const run = g?.manifest?.kind === 'gallery' ? galleryExport : g?.manifest?.kind === 'exhibit-states' ? statesExport : null;
+    if (run) return exhibitFolderWhere(await run(g, { cdn }), { run, sketch: g, cdn, plugin: pluginBuild, context });
+  }
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
   if (format === 'bom') return bomExport(input, context);
@@ -1551,6 +1660,20 @@ async function exportModel(input, context = {}) {
     // may send the operator to its courier; `recipe` is the recipe.json written beside it.
     const bundled = (isHtml && !cdn) || format === 'glb' || (format === 'stl' && profile === 'literal');
     attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, recipe: 'recipe.json', ...(isHtml && !cdn ? { inlineScripts: true } : {}), ...(bundled ? { bundled: true } : {}) });
+    // an exhibit's page (a tour or a brief on it) says where it is seen (exhibit/where.js): the web twin is written beside
+    // the download when it fits a web page host, and the result says which to show
+    if (isHtml && (sketch.manifest.tour || sketch.manifest.curation)) {
+      const { exhibitWhere } = await import('@/lib/graph/exhibit/where');
+      const twin = !cdn && !pluginBuild ? htmlExport(payload, { kind: kind ?? sketch.manifest.kind, cdn: true }) : null;
+      const webBytes = cdn ? exported.byteLength : twin ? twin.byteLength : null;
+      const fit = fitsForContext(context, { kind: 'page', bytes: webBytes ?? exported.byteLength });
+      result.where = exhibitWhere({ pages: [{ file: fileName, bytes: exported.byteLength }], web: webBytes === null ? null : [{ file: 'world.cdn.html', bytes: webBytes }],
+        budget: fit.budget, against: fit.against, plugin: pluginBuild, entry: cdn ? null : fileName, webEntry: 'world.cdn.html' });
+      if (twin && result.where.form === 'web') {
+        await fs.writeFile(path.join(dir, 'world.cdn.html'), twin.bytes);
+        result.web = { path: path.join(dir, 'world.cdn.html'), bytes: twin.byteLength, download_url: `${outcomeUrlFor(ref)}world.cdn.html` };
+      }
+    }
     // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
     // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
     // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the

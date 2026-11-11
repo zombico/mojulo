@@ -3,7 +3,7 @@
   "id": "surface",
   "name": "3D Surface Plot",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive MULTIVARIABLE-CALCULUS explainer — the graph of z = f(x,y) rendered as a 3-D LANDSCAPE you can traverse, with a ball that ROLLS DOWNHILL (gradient descent) and traces its path as a live three.js World.",
   "when": "Reach for this on framing like 'multivariable calculus / gradient descent / critical points / saddle / local minima / surface plot'.",
   "retired_tool": "create_surface_view"
@@ -14,7 +14,7 @@ Mint an interactive MULTIVARIABLE-CALCULUS explainer — the graph of z = f(x,y)
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which surface (default 'bowl'): 'bowl' (one global min), 'saddle' (∇f=0 but no optimum — the ball rolls away), 'monkey' (three valleys), 'wells' (two basins → local minima), 'ripple' (many local minima — where you start decides where you stop).

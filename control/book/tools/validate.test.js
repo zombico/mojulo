@@ -385,17 +385,17 @@ test('a builder that cannot be imported is reported, not thrown', async (t) => {
   hasError(await validateBook(write(t, builderBook('export const kind = { syntax error'))), /failed to import/);
 });
 
-test('builders exist only for the create_view lane', async (t) => {
+test('builders exist only for the exhibit lane', async (t) => {
   const b = builderBook();
   b.manifest.entries[0].entry = 'mint_solid';
-  hasError(await validateBook(write(t, b)), /only for 'create_view'/);
+  hasError(await validateBook(write(t, b)), /only for 'create_exhibit'/);
 });
 
 // ---- the transcription itself --------------------------------------------
 
 test('CARD_CATALOGS covers every entry tool the book can route to', () => {
   assert.deepEqual(Object.keys(CARD_CATALOGS).sort(), [
-    'compose_world', 'create_beats', 'create_figure', 'create_view', 'edit_solid', 'forge_motion', 'mint_solid', 'stitch_motion',
+    'compose_world', 'create_beats', 'create_exhibit', 'create_figure', 'create_view', 'edit_solid', 'forge_motion', 'mint_solid', 'stitch_motion',
   ]);
 });
 

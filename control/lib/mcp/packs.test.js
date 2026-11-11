@@ -56,7 +56,9 @@ import {
 // sign_asset / verify_asset.
 // Re-pinned 2026-10-14 (32_500 -> 32_600; measured 32,557) for 1014-interior-designer: pack_building lists
 // design_interior beside mint_building and names it in its description.
-const PACKS_PAYLOAD_CEILING = 32_600;
+// Lowered 2026-11-10 (32_600 -> 32_500; measured 32,451) for the exhibit doors: pack_view became pack_exhibit, its
+// description shorter, two members fewer.
+const PACKS_PAYLOAD_CEILING = 32_500;
 
 let server;
 let listTools;
@@ -482,7 +484,7 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
       const names = listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name);
       expect(names).toContain('pack_catalysts');   // ungrouped → always present
       expect(names).toContain('forward_context');  // spine → kernel
-      for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_view']) {
+      for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_exhibit']) {
         expect(names).not.toContain(studio);
       }
     }));

@@ -3,7 +3,7 @@
   "id": "vector-match",
   "name": "Vector Search",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint VECTOR MATCHING (semantic nearest-neighbour search) as a live, traversable three.js World — the mechanic behind vector RAG / `semantic_search`, and one level down, attention's Q·K.",
   "when": "Reach for this on framing like 'vector search / embeddings / semantic search / cosine similarity / how does RAG find / nearest neighbour / how are vectors matched'.",
   "retired_tool": "create_vector_match_view"
@@ -14,7 +14,7 @@ Mint VECTOR MATCHING (semantic nearest-neighbour search) as a live, traversable 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `query` (string) — (no description)

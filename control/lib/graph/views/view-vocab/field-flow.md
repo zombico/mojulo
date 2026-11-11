@@ -3,7 +3,7 @@
   "id": "field-flow",
   "name": "Vector Field Flow",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive VECTOR-CALCULUS explainer — a VECTOR FIELD on the plane, an arrow at every point showing which way a particle is PUSHED, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'vector field / phase portrait / differential equations / divergence and curl / gradient field'.",
   "retired_tool": "create_field_flow_view"
@@ -14,7 +14,7 @@ Mint an interactive VECTOR-CALCULUS explainer — a VECTOR FIELD on the plane, a
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which field (default 'spiral'): 'source' (arrows out, unstable node), 'sink' (arrows in, curl-free gradient field), 'vortex' (circulating centre), 'saddle' (hyperbolic — the control), 'spiral' (rotate & decay, complex eigenvalues).

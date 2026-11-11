@@ -3,7 +3,7 @@
   "id": "area-remembers",
   "name": "The area remembers the curve",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint calculus preset: the Fundamental Theorem explainer on f = sin t with the sweep at x = π — the shaded hump complete, the accumulation curve cresting at its maximum exactly where sin returns to zero.",
   "when": "fundamental theorem of calculus demo; integral of sine; area under one hump of sin; accumulation function for class; why the derivative of the area is the function"
 }

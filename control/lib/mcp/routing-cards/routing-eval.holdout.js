@@ -40,7 +40,7 @@ export const HOLDOUT = [
   ['bar chart of my monthly running: jan 42km, feb 38, mar 55, apr 61, may 70', ['create_sketch']],
   ['pixel art sprite sheet of a little wizard walking in 4 directions', ['create_sprite_sheet', 'create_character']],
   ['book cover for my fantasy novel The Salt Queen, dark and moody, a crown half buried in sand', ['create_cover']],
-  ["interactive thing showing how a pendulum's swing time changes with string length, for my year 10 physics class", ['create_view']],
+  ["interactive thing showing how a pendulum's swing time changes with string length, for my year 10 physics class", ['create_view', 'create_exhibit']],
   ['a painted scene of a lighthouse in a storm, big waves', ['sketch_what_possible']],
   ['make an upbeat chiptune track for a title screen', ['create_beats']],
   ['I need a sound effect for picking up a coin and one for a creaky old gate', ['create_beats']],

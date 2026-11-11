@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { staleFiles, toolsOf, runnerAgent, makerAgent, skillBlock } from './plugin-agents.mjs';
+import { staleFiles, toolsOf, runnerAgent, makerAgent, skillBlock, AWAITING_RELEASE } from './plugin-agents.mjs';
 import { TOOL_TIERS } from '../lib/mcp/tool-tiers.js';
 
 // The plugin's subagents and its skill's tiers block are generated from lib/mcp/tool-tiers.js. A tier change that is
@@ -38,5 +38,14 @@ describe('the Claude plugin subagents', () => {
 
   it('keep the design tools with the main session', () => {
     for (const n of toolsOf(['design'])) expect(skillBlock()).toContain(`\`${n}\``);
+  });
+
+  it('call the released server by its own names until the release that raises the plugin\'s version', () => {
+    for (const [now, released] of Object.entries(AWAITING_RELEASE)) {
+      expect(TOOL_TIERS[now], `${now} is a listed tool`).toBeTruthy();
+      expect(TOOL_TIERS[released], `${released} is no longer listed`).toBeUndefined();
+      expect(runnerAgent()).toContain(`__${released},`);
+      expect(runnerAgent()).not.toContain(`__${now},`);
+    }
   });
 });

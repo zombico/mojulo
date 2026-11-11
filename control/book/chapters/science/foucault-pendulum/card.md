@@ -3,7 +3,7 @@
   "id": "foucault-pendulum",
   "name": "Foucault pendulum",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A Foucault pendulum swinging over a compass floor — the swing plane precesses with latitude (Ω = 15.04°/h × sin lat) while the rosette trail accumulates beneath the bob.",
   "when": "show my student why a Foucault pendulum proves the Earth rotates; the pendulum in the Panthéon; why the swing plane turns at the pole but not the equator; demonstrate Coriolis precession"
 }

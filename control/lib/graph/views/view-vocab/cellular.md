@@ -3,7 +3,7 @@
   "id": "cellular",
   "name": "Cell Structure",
   "family": "bio",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive 3D CELL — a science/education viewer for cell structure.",
   "when": "Reach for this on framing like 'show me an animal cell in 3D / visualize cell organelles / a cell with its parts I can click'.",
   "retired_tool": "create_cellular_view"
@@ -14,7 +14,7 @@ Mint an interactive 3D CELL — a science/education viewer for cell structure. T
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `cell_type` (string) — The cell type to populate (default 'animal'). 'animal' — nucleus, mitochondria, ER, Golgi, lysosomes, ribosomes. 'plant' — boxy cell wall, large central vacuole, chloroplasts, nucleus, mitochondria, ER, Golgi, ribosomes.

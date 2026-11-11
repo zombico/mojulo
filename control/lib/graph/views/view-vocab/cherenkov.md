@@ -3,7 +3,7 @@
   "id": "cherenkov",
   "name": "Cherenkov Radiation",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint CHERENKOV RADIATION — the eerie BLUE GLOW of a submerged reactor core, ray-marched as a time-evolving emission VOLUME.",
   "when": "Reach for this on framing like 'show me Cherenkov radiation / the blue glow in a reactor / why reactor pools glow blue'.",
   "retired_tool": "create_cherenkov_view"
@@ -14,7 +14,7 @@ Mint CHERENKOV RADIATION — the eerie BLUE GLOW of a submerged reactor core, ra
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which depiction (default 'pool'): 'pool' (a submerged reactor core's blue glow with rising particle streaks) or 'cone' (the bare Cherenkov shock cone of one relativistic particle — the light-transport geometry).

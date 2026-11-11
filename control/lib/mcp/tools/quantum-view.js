@@ -1,5 +1,5 @@
 /**
- * create_view({ kind: 'quantum' }) — a quantum science world: states and the rules they follow, composed from the
+ * create_exhibit({ id: 'science/quantum' }) — a quantum science world: states and the rules they follow, composed from the
  * quantum law table (lib/graph/science-worlds/quantum/): a particle on a line (wells, barriers, steps), a packet on a
  * plane through slits (its far field and detections), the hydrogen atom's orbitals, spin through Stern–Gerlach magnets, radioactive decay. The agent writes the model; the solver
  * checks units, runs it (Crank–Nicolson, exact orbitals, seeded outcomes) and its gates; the page draws it with a
@@ -46,7 +46,7 @@ export function mintQuantumView({ model, dress, liberties, title, viewBox, scene
 }
 
 export async function createQuantumViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error("create_view({ kind: 'quantum' }) wants params: { model, dress?, liberties? }");
+  if (!input || typeof input !== 'object') throw new Error("create_exhibit({ id: 'science/quantum' }) wants params: { model, dress?, liberties? }");
   const { model, dress, liberties, title, viewBox, scene, ref, folder_ref: folderRef, ...rest } = input;
   const extra = Object.keys(rest);
   if (extra.length) throw new Error(`science-worlds: params: unknown field '${extra[0]}' (a quantum world's params are { model, dress?, liberties? })`);

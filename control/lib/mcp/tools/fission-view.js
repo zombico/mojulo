@@ -41,7 +41,7 @@ export function mintFissionView({ title, asymmetry, density, viewBox, scene, ref
 
 export async function createFissionViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "fission" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "science/fission" }) requires a recipe object');
   }
   const { title, asymmetry, density, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFissionView({ title, asymmetry, density, viewBox, scene, ref, folderRef });

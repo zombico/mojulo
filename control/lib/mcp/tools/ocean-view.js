@@ -41,7 +41,7 @@ export function mintOceanView({ title, scenario, amplitude, scale, viewBox, scen
 
 export async function createOceanViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "ocean" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "earth/ocean" }) requires a recipe object');
   }
   const { title, scenario, amplitude, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintOceanView({ title, scenario, amplitude, scale, viewBox, scene, ref, folderRef });

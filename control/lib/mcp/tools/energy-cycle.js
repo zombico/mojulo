@@ -33,7 +33,7 @@ export function mintEnergyCycle({ title, speed, scene, viewBox, ref, folderRef }
 }
 
 export async function createEnergyCycleHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "energy-cycle" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "life/energy-cycle" }) requires a recipe object');
   const { title, speed, scene, viewBox, ref, folder_ref: folderRef } = input;
   return mintEnergyCycle({ title, speed, scene, viewBox, ref, folderRef });
 }

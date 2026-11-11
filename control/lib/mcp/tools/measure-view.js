@@ -303,7 +303,7 @@ export function registerMeasureViewTools() {
   registerTool({
     name: 'measure_view',
     description:
-      'Read the physical TIME-SERIES back out of a science-view sketch — the measurement channel the '
+      'Folded into get_exhibit({ ref }). Read the physical TIME-SERIES back out of a science-view sketch — the measurement channel the '
       + 'render never exposes. Re-plans deterministically from the stored recipe (same recipe → same '
       + 'numbers as the in-world readout) and returns per-sample data in DECLARED REAL UNITS: '
       + "mechanics-view dynamics (projectile / free-fall / inclined-plane / pendulum / spring / circular) "

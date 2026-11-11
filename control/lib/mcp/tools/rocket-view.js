@@ -1,5 +1,5 @@
 /**
- * create_view kind 'rocket' — mint a Falcon-9-class LAUNCH + RETURN depictor: a full booster
+ * create_exhibit science/rocket — mint a Falcon-9-class LAUNCH + RETURN depictor: a full booster
  * mission (liftoff → gravity turn → Max-Q → MECO → separation → boostback/entry/landing
  * burns → touchdown) integrated by physics/rocket.js and walked by pose movers in the
  * traversable three.js World, with a live mission HUD in real SI units.
@@ -7,7 +7,7 @@
  * Same fractal-generation philosophy as the other science views: the operator passes a tiny
  * RECIPE (a scenario + a few physical params); the substrate stores ONLY that recipe as a
  * sketch manifest (`kind: 'rocket-view'`, no geometry) and re-integrates the mission on
- * render — same recipe, same flight. Honest read-back via measure_view.
+ * render — same recipe, same flight. Honest read-back via get_exhibit({ ref }).
  *
  * Orbit-only object study — returns a `worldUrl`.
  */
@@ -58,7 +58,7 @@ export function mintRocketView({ title, scenario, payload, vehicle, guidance, pl
 
 export async function createRocketViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view kind rocket requires a recipe object');
+    throw new Error('create_exhibit science/rocket requires a recipe object');
   }
   const { title, scenario, payload, vehicle, guidance, playback, trace, strobe, strobeEvery, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintRocketView({ title, scenario, payload, vehicle, guidance, playback, trace, strobe, strobeEvery, scale, viewBox, scene, ref, folderRef });

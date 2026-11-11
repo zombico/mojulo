@@ -37,7 +37,7 @@ export function mintSeriesView({ title, scenario, scale, viewBox, scene, ref, fo
 }
 
 export async function createSeriesViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "series" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/series" }) requires a recipe object');
   const { title, scenario, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintSeriesView({ title, scenario, scale, viewBox, scene, ref, folderRef });
 }

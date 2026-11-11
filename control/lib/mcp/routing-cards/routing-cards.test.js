@@ -146,8 +146,10 @@ describe('routing eval held-out set — frozen', () => {
     // routing-eval.holdout.js says why. Pinned 2026-10-15 (64 requests written blind, 63 kept).
     // Re-pinned 2026-11-01 (802ed8e4bae0485b -> b03f8e6a765abae7) for a fold: a game's Godot project is export_model's
     // `engine` now (the engine handoff), added to that request's accept set beside export_game.
+    // Re-pinned 2026-11-10 (b03f8e6a765abae7 -> 6ae8ece15374f626) for a fold: a study object is create_exhibit's now (the
+    // exhibit doors), added to the pendulum request's accept set beside create_view.
     const hash = createHash('sha256').update(JSON.stringify(HOLDOUT)).digest('hex').slice(0, 16);
-    expect(hash).toBe('b03f8e6a765abae7');
+    expect(hash).toBe('6ae8ece15374f626');
   });
 
   it('every accept set names tools that exist, listed or folded', async () => {

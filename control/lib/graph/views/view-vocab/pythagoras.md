@@ -3,7 +3,7 @@
   "id": "pythagoras",
   "name": "Pythagorean Theorem",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive GEOMETRY explainer — the iconic a² + b² = c² figure, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'Pythagorean theorem / Pythagoras / a squared plus b squared / right triangle proof'.",
   "retired_tool": "create_pythagoras_view"
@@ -14,7 +14,7 @@ Mint an interactive GEOMETRY explainer — the iconic a² + b² = c² figure, re
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which figure (default 'squares'): 'squares' (the coloured square built on each side — blue a², green b², orange c²), 'dissection' (the one-figure proof — four triangles around a tilted c² square inside an (a+b)² square).

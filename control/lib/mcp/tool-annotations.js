@@ -209,10 +209,12 @@ export const TOOL_ANNOTATIONS = {
   create_cover: ['Create a publication cover', ADDITIVE],
   compose_world: ['Compose a world', ADDITIVE],
   list_world_themes: ['List world themes', READ],
-  create_view: ['Create a study view', ADDITIVE],
+  create_exhibit: ['Create an exhibit', ADDITIVE],
+  get_exhibit: ['Read an exhibit', READ], // a card, a hall, or a made exhibit's measured series
+  create_view: ['Create a study view', ADDITIVE], // folded into create_exhibit: callable by name
   get_view_vocab: ['View vocabulary cards', READ],
   save_recipe: ['Save a recipe to the cookbook', hints(false, false, true, true)], // commits with git
-  measure_view: ['Measure a study view', READ],
+  measure_view: ['Measure a study view', READ], // folded into get_exhibit({ ref }): callable by name
   verify_machina: ['Check a mechanism', READ], // pure compute
 
   // ── motion, audio, voice (motion.js, beats.js, voice.js) ───────────────────

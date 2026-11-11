@@ -91,7 +91,7 @@ describe('experiment items — the provenance-carrying kind', () => {
   it('the brief documents the numerical-experiment workflow', () => {
     expect(_internals.KNOWN_KINDS.has('experiment')).toBe(true);
     expect(_internals.RESEARCH_BRIEF).toMatch(/Numerical experiments/);
-    expect(_internals.RESEARCH_BRIEF).toMatch(/measure_view/);
+    expect(_internals.RESEARCH_BRIEF).toMatch(/get_exhibit\(\{ ref \}\)/);
   });
 });
 

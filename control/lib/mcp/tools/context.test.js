@@ -560,9 +560,9 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     // render_handoff (3.1.0): one door over the image and mesh worker loops; the ten per-op names are unlisted aliases
     'render_handoff',
     'verify_machina',
-    'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
+    'compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
     'mint_building', 'design_interior',
-    'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
+    'create_exhibit', 'get_exhibit', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
     // the shoot plan (1014) folded into forge_motion's `shoot` (1015): create_shoot_plan / update_shoot_plan are retired names
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
@@ -834,7 +834,7 @@ describe('the one body (3.1.0): no office wing, every FORM and entry tool', () =
     'edit_solid',
     'reference_protocol',
     'compose_world',
-    'create_view',
+    'create_exhibit',
     'forge_motion',
     'stitch_motion',
     'create_beats',

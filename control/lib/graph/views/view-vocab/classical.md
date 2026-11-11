@@ -3,7 +3,7 @@
   "id": "classical",
   "name": "Classical science world (composed from Newton's laws)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Compose a classical-physics demo from a table of laws (gravity, springs, rods, ropes, drag, buoyancy, charges, fields, surfaces, collisions) instead of picking a ready-made experiment; the solver steps it, checks it against conservation laws and the textbook answer, and the page says what is real and what is drawn.",
   "when": "Reach for this when a teacher or student wants a physics demo no ready-made kind covers, or wants to change the setup: 'a demo for my class of a ball on a spring in thick oil', 'simulate two moons orbiting a planet', 'what happens if the pendulum swings from the side', 'show a charge curling in a magnetic field', 'a ball bouncing down stairs losing energy', 'Newton's cradle with three balls', 'a block sliding down a rough ramp'. Classical means bounded by Newton's laws, at any size: an orbit and an electron in a magnet are both classical while the regime checks say so."
 }

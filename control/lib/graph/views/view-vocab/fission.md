@@ -3,7 +3,7 @@
   "id": "fission",
   "name": "Nuclear Fission",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a NUCLEAR FISSION event — a compound nucleus (U-236*) that elongates, NECKS, and CLEAVES into two fragments along the Bohr–Wheeler fission coordinate, ray-marched as a time-evolving VOLUME by a per-pixel shader.",
   "when": "Reach for this on framing like 'show me nuclear fission / how a nucleus splits / the liquid-drop model / a uranium nucleus splitting'.",
   "retired_tool": "create_fission_view"
@@ -14,7 +14,7 @@ Mint a NUCLEAR FISSION event — a compound nucleus (U-236*) that elongates, NEC
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `asymmetry` (number) — Fragment mass-split asymmetry 0–1 (default 1): 1 = the realistic asymmetric split (a heavy Ba-like + a lighter Kr-like fragment), 0 = an idealized symmetric split into two equal fragments.

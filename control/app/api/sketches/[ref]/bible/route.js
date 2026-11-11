@@ -18,7 +18,9 @@
  * (lib/graph/historic/field-guide.js): what the solver chose, the record it stands on, and the knob for each. A table game
  * (a game row, engine 'table-rpg') is served as its game book (lib/graph/table-rpg/table-rpg-book.js), in its own style or
  * `?style=<preset>`, the whole book or `?parts=party` (its characters' sheets alone; parts a comma list), its party's
- * characters photographed into it when a browser is at hand.
+ * characters photographed into it when a browser is at hand. An exhibit's catalogue (lib/graph/exhibit/catalogue.js: its
+ * aims, its stops in every audience's words, its claims with their sources and the expert's sign-off) is a gallery's book,
+ * and any toured or briefed exhibit's with `book=exhibit` (or when it has no other book).
  */
 
 import { NextResponse } from 'next/server';
@@ -36,6 +38,19 @@ import { cityBookHtml } from '@/lib/graph/city/plan/book-html';
 import { withSiteEdifices } from '@/lib/graph/city/plan/ref';
 import { cachedPage } from '@/lib/sheet-cache';
 import { historicGuideHtml } from '@/lib/graph/historic/field-guide';
+import { catalogueHtml } from '@/lib/graph/exhibit/catalogue';
+import { galleryRooms } from '@/lib/graph/exhibit/gallery';
+
+/** An exhibit's or a gallery's catalogue, read from the store as it stands. */
+async function catalogueOf(sketch) {
+  const { exhibitLabel } = await import('@/lib/mcp/tools/create-exhibit');
+  const get = (r) => SketchRepository.getByRef(r);
+  const m = sketch.manifest;
+  const rooms = m.kind === 'gallery'
+    ? galleryRooms(m, get, { describe: exhibitLabel }).map((r) => ({ ...r, tour: get(r.ref)?.manifest?.tour ?? null, brief: get(r.ref)?.manifest?.curation ?? null }))
+    : [{ title: m.tour?.title || sketch.title, label: exhibitLabel(sketch), tour: m.tour ?? null, brief: m.curation ?? null }];
+  return catalogueHtml({ title: m.title || sketch.title, intro: m.intro, brief: m.curation ?? null, rooms });
+}
 
 export async function GET(request, { params }) {
   try {
@@ -46,7 +61,11 @@ export async function GET(request, { params }) {
     }
     const download = ['1', 'true'].includes(request.nextUrl.searchParams.get('download'));
     let html, base;
-    if (occupancyOf(sketch.manifest)) {
+    const askedExhibit = request.nextUrl.searchParams.get('book') === 'exhibit';
+    if (sketch.manifest?.kind === 'gallery' || (askedExhibit && (sketch.manifest?.tour || sketch.manifest?.curation))) {
+      html = await catalogueOf(sketch);
+      base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'exhibit'}-catalogue`;
+    } else if (occupancyOf(sketch.manifest)) {
       const lookup = (r) => { const row = SketchRepository.getByRef(r); return row ? { title: row.title } : null; };
       html = structureBookHtml({ ...sketch.manifest, title: sketch.title || sketch.manifest.title }, {
         ref, lookup, world: download ? null : { src: `/api/sketches/${encodeURIComponent(ref)}/world` },
@@ -141,10 +160,13 @@ export async function GET(request, { params }) {
         html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${heroLive.worldSrc ? ':live' : ''}${shots.key ? `:${shots.key}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world, { renders: heroLive }) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portraits: shots.portraits }) : gameworldBibleHtml(world, { foePortraits: shots.portraits })));
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}${book === 'world' ? '' : `-${book}`}`;
       }
+    } else if (sketch.manifest?.tour || sketch.manifest?.curation) {
+      html = await catalogueOf(sketch);
+      base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'exhibit'}-catalogue`;
     } else {
       return NextResponse.json({
         eligible: false,
-        reason: `'/bible' serves a gameworld, a building (floorplan, store, restaurant, mall), a city plan, a historic scene or a table game only (this sketch is '${sketch.manifest?.kind}').`,
+        reason: `'/bible' serves a gameworld, a building (floorplan, store, restaurant, mall), a city plan, a historic scene, a table game or an exhibit with a tour or a brief (its catalogue) only (this sketch is '${sketch.manifest?.kind}').`,
       }, { status: 422 });
     }
     return new Response(html, {

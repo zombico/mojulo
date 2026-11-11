@@ -1,5 +1,5 @@
 /**
- * create_view kind 'waterfall' — mint a WATERFALL: a river that runs off a cliff, falls, and plunges into a pool, in
+ * create_exhibit earth/waterfall — mint a WATERFALL: a river that runs off a cliff, falls, and plunges into a pool, in
  * the traversable three.js World. Three kinds (veil / curtain / horsetail) are the falling-water primitive at
  * different points in its parameter space — a sheet over a lip or a round spout through a notch, glassy at the top,
  * whitening and fraying as it falls, churning a simulated plunge pool.
@@ -42,7 +42,7 @@ export function mintWaterfallView({ title, scenario, seed, scale, flow, viewBox,
 
 export async function createWaterfallViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view waterfall requires a recipe object');
+    throw new Error('create_exhibit earth/waterfall requires a recipe object');
   }
   const { title, scenario, seed, scale, flow, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintWaterfallView({ title, scenario, seed, scale, flow, viewBox, scene, ref, folderRef });

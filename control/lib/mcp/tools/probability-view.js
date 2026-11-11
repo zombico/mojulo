@@ -39,7 +39,7 @@ export function mintProbabilityView({ title, scenario, rows, p, scale, viewBox, 
 }
 
 export async function createProbabilityViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "probability" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/probability" }) requires a recipe object');
   const { title, scenario, rows, p, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintProbabilityView({ title, scenario, rows, p, scale, viewBox, scene, ref, folderRef });
 }

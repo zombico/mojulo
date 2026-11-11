@@ -182,7 +182,7 @@ function mintBookView(bk, merged) {
   };
 }
 
-function resolveKindEntry(kind) {
+export function resolveKindEntry(kind) {
   if (VIEW_KINDS[kind]) return VIEW_KINDS[kind];
   const bk = bookViewKinds().get(kind);
   if (!bk) return null;
@@ -249,7 +249,8 @@ export function registerCreateViewTools() {
   registerTool({
     name: 'create_view',
     description:
-      'Mint an animated 3D STUDY OBJECT — a science / math / bio explainer served as a live World at '
+      "Folded into create_exhibit({ id: '<hall>/<kind>', params }). "
+      + 'Mint an animated 3D STUDY OBJECT — a science / math / bio explainer served as a live World at '
       + '`/api/sketches/<ref>/world` (orbit camera; tiny deterministic recipe stored, regenerated on render). '
       + 'One tool, many kinds: physics (from laws: classical, quantum, …; fission, galaxy, mechanics, …), '
       + 'math explainers (derivative, conics, trig-circle, complex, …), biology (dna, cellular, '
@@ -276,12 +277,10 @@ export function registerCreateViewTools() {
   registerTool({
     name: 'get_view_vocab',
     description:
-      'Read a view-vocab card in full — the depiction prose + routing phrases + parameter manual for one '
-      + '`create_view` kind or `compose_world` base (family \'world\'), or an encyclopedia entry (family '
-      + '\'entry\': a historic culture at its period, with starter manifests). Pass `id` for one card; omit for the '
-      + 'index rows { id, name, family, entry, summary, when } (optional `family` filter: science / math / bio / '
-      + "world / entry). Discover cards by intent via semantic_search({ kinds: ['view_vocab'] }); this reader returns "
-      + 'the full body. Read-only.',
+      "Read a compose_world manual in full (family 'world'): a base's depiction, routing phrases and parameters, an "
+      + 'override (structures, science-setting, weather, terrain), a stage kit or look, the city plan. Pass `id`; omit '
+      + "for the index rows (`family` filters). An exhibit's card is get_exhibit's. Find by intent via "
+      + "semantic_search({ kinds: ['view_vocab'] }). Read-only.",
     inputSchema: {
       type: 'object',
       properties: {

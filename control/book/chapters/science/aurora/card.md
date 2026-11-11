@@ -3,7 +3,7 @@
   "id": "aurora",
   "name": "Aurora borealis",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "The aurora as volume-raymarched curtains folded along the auroral oval over a dark night Earth — green oxygen low, red oxygen high, nitrogen purple at the base, widening with geomagnetic activity.",
   "when": "show my student the northern lights; why auroras are green and red; what the auroral oval is; how a geomagnetic storm changes the aurora; aurora australis"
 }

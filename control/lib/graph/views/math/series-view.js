@@ -130,7 +130,7 @@ export function planSeriesScene(recipe = {}) {
   };
 }
 
-// ── the exact read-back channel (measure_view, tier 'exact'). One series per drawn term
+// ── the exact read-back channel (get_exhibit({ ref }), tier 'exact'). One series per drawn term
 // count: samples of the true f(x), the partial sum Sₙ(x), and the pointwise error, plus
 // max/mean absolute error over the rendered domain. Everything evaluated directly from the
 // scenario's exact f and S — so convergence RATES are measurable (Taylor error collapsing

@@ -95,9 +95,9 @@ export const TOOL_LINES = {
   create_cover: L('create', 'A publication cover: illustration, title and metadata under one art direction, ready to bind onto a `cook` outcome.'),
   reference_protocol: L('orient', 'Step 1 of reading a picture YOU can see into dials (a scene, a pose, an object, a landscape or a character); returns the protocol and the `capture_reference` call to make.'),
   capture_reference: L('create', 'Step 2: file what you read from a picture into a stash (a cage sketch, or for a character the hero itself, drawn back); feeds `mint_solid` pose, `update_character`, `forge_motion` or `cook`.'),
-  create_view: L('create', 'An animated 3D study object (physics, math, biology: fission, orbits, DNA, …). Manual: `get_view_vocab`; find a kind with `semantic_search`.'),
-  get_view_vocab: L('orient', 'A `create_view` kind or `compose_world` base manual: depiction, routing phrases, parameters. Omit `id` for the index.'),
-  measure_view: L('observe', 'The physical time series of a science view in declared real units: the measurement channel the render never shows.'),
+  create_exhibit: L('create', 'An exhibit by hall (`science/fission`, `earth/hydro`, `life/dna`, `math/derivative`, `history/pompeii`): a study object, a science demo or a historic city.'),
+  get_exhibit: L('orient', "An exhibit's card, a hall's rows, or a made exhibit's SI time series (`ref`). Omit `id` for the halls."),
+  get_view_vocab: L('orient', 'A `compose_world` manual: a base, an override, a stage kit or look, the city plan. Omit `id` for the index.'),
   save_recipe: L('maintain', "Keep a tuned study object, beats loop or solid in the operator's cookbook, recallable by intent through `semantic_search`."),
 
   // ── audio ─────────────────────────────────────────────────────────────────

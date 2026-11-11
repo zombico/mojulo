@@ -3,7 +3,7 @@
   "id": "probability",
   "name": "Galton Board",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive PROBABILITY explainer — a GALTON BOARD (quincunx), rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'Galton board / quincunx / binomial / normal distribution / central limit theorem / bell curve'.",
   "retired_tool": "create_probability_view"
@@ -14,7 +14,7 @@ Mint an interactive PROBABILITY explainer — a GALTON BOARD (quincunx), rendere
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which board (default 'classic'): 'few' (6 rows — read C(6,k) directly), 'classic' (12, the symmetric bell), 'tall' (20, smoother → normal), 'skew' (biased pegs p≠½, the bell shifts and goes asymmetric).

@@ -3,7 +3,7 @@
   "id": "ladder",
   "name": "A ladder of scales (one page, from a thing down to its atoms)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Several science worlds on one page, top down, each rung at its own scale and saying what it is: simulated (a classical, microscopic, quantum or relativistic model, run and checked), depicted (drawn at true proportions from sourced numbers and held to them) or explained (a cited sentence, where nothing can be drawn honestly). Each rung sits in its own case, magnified and saying by how much; a breadcrumb across the top steps from one to the next, and a lower rung's measurements can feed the rung above.",
   "when": "Reach for this when the question crosses scales: 'what is a steel ball made of, all the way down', 'zoom from the ball to its atoms', 'show why the gel sets: the protein, then the jar', 'how big is a nucleus next to its atom', 'from a dropped brick down to its crystals'. One scale alone is its own kind (classical, microscopic, quantum, relativistic)."
 }
@@ -13,7 +13,7 @@ A ladder is one recipe and one page: **rungs listed top down**, each at its own 
 the page never lets one pass for another:
 
 - **simulated**: a science world's model, run by its solver and checked by its gates, exactly as its own kind would
-  (`get_view_vocab({ id: 'classical' })` and its siblings for the models);
+  (`get_exhibit({ id: 'science/classical' })` and its siblings for the models);
 - **depicted**: drawn at true proportions from sourced numbers, and held to them by a gate (`ladder-depicted`);
 - **explained**: a cited sentence where nothing can be drawn honestly. Its `source` names a work and its year.
 

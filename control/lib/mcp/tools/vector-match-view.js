@@ -42,7 +42,7 @@ export function mintVectorMatchView({ title, query, candidates, topK, scale, vie
 
 export async function createVectorMatchViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "vector-match" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "math/vector-match" }) requires a recipe object');
   }
   const { title, query, candidates, top_k: topK, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintVectorMatchView({ title, query, candidates, topK, scale, viewBox, scene, ref, folderRef });

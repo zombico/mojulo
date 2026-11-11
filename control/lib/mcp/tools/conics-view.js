@@ -38,7 +38,7 @@ export function mintConicsView({ title, scenario, animate, scale, viewBox, scene
 }
 
 export async function createConicsViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "conics" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/conics" }) requires a recipe object');
   const { title, scenario, animate, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintConicsView({ title, scenario, animate, scale, viewBox, scene, ref, folderRef });
 }

@@ -3,7 +3,7 @@
   "id": "two-branches",
   "name": "The slice that catches both cones",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint geometry preset: the conic-sections explainer in hyperbola mode — the cutting plane tilted steeply enough to pierce BOTH nappes of the double cone, so the two branches appear as one cut.",
   "when": "why a hyperbola has two branches; hyperbola from slicing a cone; the double cone and the cutting plane; conic sections demo for class; where the two arms come from"
 }

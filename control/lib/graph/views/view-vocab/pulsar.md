@@ -3,7 +3,7 @@
   "id": "pulsar",
   "name": "Pulsar",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a PULSAR — a rapidly spinning, magnetised NEUTRON STAR with twin radiation beams that sweep like a lighthouse, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view and galaxy-view.",
   "when": "Mint a PULSAR — a rapidly spinning, magnetised NEUTRON STAR with twin radiation beams that sweep like a lighthouse, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view and galaxy-view.",
   "retired_tool": "create_pulsar_view"
@@ -14,7 +14,7 @@ Mint a PULSAR — a rapidly spinning, magnetised NEUTRON STAR with twin radiatio
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — The look (default 'oblique'): 'oblique', 'orthogonal', or 'aligned'.

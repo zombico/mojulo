@@ -17,7 +17,7 @@ const LADDER = { rungs: [
   { below: { rung: 'drop', body: 'ball' } },
 ] };
 
-describe("create_view({ kind: 'ladder' }): a ladder of scales, end to end", () => {
+describe("create_exhibit({ id: 'science/ladder' }): a ladder of scales, end to end", () => {
   it('mints the recipe as given, reports every rung and its gates, and renders one page with a crumb per rung', async () => {
     const r = await createViewHandler({ kind: 'ladder', params: LADDER });
     expect(r.recipe.kind).toBe('ladder-view');

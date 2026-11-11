@@ -3,7 +3,7 @@
   "id": "star-surface",
   "name": "Star Surface",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a star's SURFACE (the photosphere) — a self-luminous sphere whose colour is a Planck blackbody map of a live temperature field (granulation + cool spots + limb darkening), as an orbit-able three.js World. The solid-body counterpart to mojulo's raymarched gas stars.",
   "when": "Reach for this on framing like 'the Sun / a star's surface / photosphere / granulation / sunspots / starspots / what does a red dwarf / blue giant look like'.",
   "retired_tool": "create_star_surface_view"
@@ -14,7 +14,7 @@ Mint a star's SURFACE (the photosphere) as a live, orbit-able three.js World —
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which star (default 'sun'): 'sun' (G star ~5772 K, warm white), 'red-dwarf' (M star ~3200 K, orange, big granules, spotty), 'blue-giant' (O/B star ~25000 K, blue-white, spotless), 'spotted' (cool ~4800 K star heavily starspotted).

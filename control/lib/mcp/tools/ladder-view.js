@@ -1,5 +1,5 @@
 /**
- * create_view({ kind: 'ladder' }) — a ladder of scales as one page: rungs top down, each simulated (a science world's
+ * create_exhibit({ id: 'science/ladder' }) — a ladder of scales as one page: rungs top down, each simulated (a science world's
  * model, run and gated), depicted (drawn from sourced numbers, held to them) or explained (a cited sentence), each in its
  * own case with its magnification said, and a breadcrumb across the top that steps from one to the next
  * (lib/graph/science-worlds/ladder-view.js).
@@ -36,7 +36,7 @@ export function mintLadderView({ rungs, open, title, viewBox, ref, folderRef } =
 }
 
 export async function createLadderViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error("create_view({ kind: 'ladder' }) wants params: { rungs, open? }");
+  if (!input || typeof input !== 'object') throw new Error("create_exhibit({ id: 'science/ladder' }) wants params: { rungs, open? }");
   const { rungs, open, title, viewBox, ref, folder_ref: folderRef, ...rest } = input;
   const extra = Object.keys(rest);
   if (extra.length) throw new Error(`science-worlds: params: unknown field '${extra[0]}' (a ladder's params are { rungs, open? })`);

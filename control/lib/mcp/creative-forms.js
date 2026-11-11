@@ -18,7 +18,8 @@ export const CREATIVE_FORMS = [
   'object',
   'world',
   'building',
-  'view',
+  // 'exhibit' (1110): was 'view'; a study object, a science world or a historic culture, by hall.
+  'exhibit',
   'motion',
   'motion-comic',
   'audio',

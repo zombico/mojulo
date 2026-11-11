@@ -1,5 +1,5 @@
 /**
- * create_view({ kind: 'microscopic' }) — a microscopic science world: molecules and cells composed from the
+ * create_exhibit({ id: 'science/microscopic' }) — a microscopic science world: molecules and cells composed from the
  * microscopic law table (lib/graph/science-worlds/microscopic/): Brownian motion, drift, membranes, reactions in a
  * well-mixed volume. The agent writes the model; the solver checks units, steps it with seeded dice, counts, and
  * runs its gates; the page draws it with a "what's real · what's drawn" panel.
@@ -43,7 +43,7 @@ export function mintMicroscopicView({ model, dress, liberties, title, viewBox, s
 }
 
 export async function createMicroscopicViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error("create_view({ kind: 'microscopic' }) wants params: { model, dress?, liberties? }");
+  if (!input || typeof input !== 'object') throw new Error("create_exhibit({ id: 'science/microscopic' }) wants params: { model, dress?, liberties? }");
   const { model, dress, liberties, title, viewBox, scene, ref, folder_ref: folderRef, ...rest } = input;
   const extra = Object.keys(rest);
   if (extra.length) throw new Error(`science-worlds: params: unknown field '${extra[0]}' (a microscopic world's params are { model, dress?, liberties? })`);

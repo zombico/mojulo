@@ -3,7 +3,7 @@
   "id": "orbit",
   "name": "Orbital Mechanics",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive ORBITAL-MECHANICS depictor — an orrery where bodies actually MOVE on real Kepler orbits around a central mass.",
   "when": "Reach for this on framing like 'show me planetary orbits / the solar system moving / Kepler's laws / a planet orbiting a star / the Moon's orbit'.",
   "retired_tool": "create_orbit_view",
@@ -12,16 +12,16 @@
 }
 ---
 
-> **Folded into the `classical` science world.** New work composes this from laws there, run, checked and measured: an orbit is the `gravity-newton` law on a sun and its planets (the classical card's worked example: the Earth round the Sun, a year in a few seconds); an orbit that turns (Mercury's) is the relativistic world's `body` row. This kind still renders every recipe stored with it and answers a call by name, but it is no longer listed or searched: `get_view_vocab({ id: 'classical' })` is the manual.
+> **Folded into the `classical` science world.** New work composes this from laws there, run, checked and measured: an orbit is the `gravity-newton` law on a sun and its planets (the classical card's worked example: the Earth round the Sun, a year in a few seconds); an orbit that turns (Mercury's) is the relativistic world's `body` row. This kind still renders every recipe stored with it and answers a call by name, but it is no longer listed or searched: `get_exhibit({ id: 'science/classical' })` is the manual.
 
 
 Mint an interactive ORBITAL-MECHANICS depictor — an orrery where bodies actually MOVE on real Kepler orbits around a central mass. Four scenarios: 'circular' (one body, uniform speed, constant inward acceleration), 'ellipse' (one eccentric body — Kepler's 2nd law made vivid, a big speed swing between perihelion and aphelion), 'system' (the inner solar system — Mercury / Venus / Earth / Mars at true elements, Kepler's 3rd law: outer planets slower with longer periods), and 'moon' (Earth + Moon). ACCURATE MOTION, ARTISTIC SCALE: distances and body sizes are compressed so everything reads in one frame (true scale is invisible — the Moon would be a pixel 60 Earth-radii away), but the MOTION is physically exact — the perihelion speed-up (equal areas in equal time) and real period ratios — and the live readout shows REAL distance, REAL orbital speed (vis-viva, km/s), and REAL period. Each orbit draws as a faint track; the featured body carries velocity (green, tangent) + acceleration (orange, pointing at the central mass) arrows. Served as a live, traversable three.js World at `/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom); CLICK any body for its orbital elements. You pass a tiny recipe (a scenario); the substrate stores ONLY the recipe (`manifest.kind === 'orbit-view'`, no geometry) and regenerates the system on render. ORBIT-ONLY object study: no CSS-3D `/scene` form; open the worldUrl. Reach for this on framing like 'show me planetary orbits / the solar system moving / Kepler's laws / a planet orbiting a star / the Moon's orbit'. (A SINGLE static space-accurate body — Earth as a marble — is the `planetary` base; this is the moving multi-body orrery.)
 
-For orbits whose bodies and starts are the teacher's (two moons round a planet), composed from Newton's gravity and checked against conservation, compose a `classical` world instead (`get_view_vocab({ id: 'classical' })`); for an orbit that turns because spacetime curves (Mercury's perihelion advance), a `relativistic` world (`get_view_vocab({ id: 'relativistic' })`, the `orbit` row). This kind keeps its ready-made Kepler orrery.
+For orbits whose bodies and starts are the teacher's (two moons round a planet), composed from Newton's gravity and checked against conservation, compose a `classical` world instead (`get_exhibit({ id: 'science/classical' })`); for an orbit that turns because spacetime curves (Mercury's perihelion advance), a `relativistic` world (`get_exhibit({ id: 'science/relativistic' })`, the `orbit` row). This kind keeps its ready-made Kepler orrery.
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+These are the stored recipe's fields (a row already minted renders from them); a new demo is its science world's exhibit.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which orbit primitive to depict (default 'system'): 'circular', 'ellipse', 'system' (inner solar system), 'moon' (Earth + Moon).
