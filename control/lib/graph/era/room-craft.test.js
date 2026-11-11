@@ -40,7 +40,7 @@ describe('room craft: the reasons, as questions', () => {
     expect(by.air).not.toBe(Object.fromEntries(readRoomCraft(STAGE_KITS['gothic-ashlar']).rows.map((r) => [r.id, r.by])).air);
   });
 
-  it('a second burial place answers every question in its own things: no answer is the worked crypt's', () => {
+  it('a second burial place answers every question in its own things: no answer is the worked crypt\'s', () => {
     const cat = readRoomCraft(STAGE_KITS.catacomb), ash = Object.fromEntries(readRoomCraft(STAGE_KITS['gothic-ashlar']).rows.map((r) => [r.id, r.by]));
     expect(cat.open).toEqual([]);
     for (const id of ['fixture', 'storeys', 'coat', 'air']) expect(cat.rows.find((r) => r.id === id).by, id).not.toBe(ash[id]);

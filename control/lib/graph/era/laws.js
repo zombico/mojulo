@@ -89,6 +89,7 @@ export const LAWS = Object.freeze({
   'floor-is-laid': { layer: 'composition', craft: true, law: 'A floor is laid, not tiled: a border course along the walls, the way down the room in its own slabs, the fields between laid bay by bay on the structure\'s lines, keeping a rhythm.' },
   'wall-has-storeys': { layer: 'composition', craft: true, law: 'A tall wall has storeys: a course divides it, and what is over the course is derived from what is under it, the same with less.' },
   'air-is-furnished': { layer: 'composition', craft: true, law: 'The air of a tall room is furnished and its height lit by a cause: what the height is for hangs in it or crosses it, and light reaches the upper room from a thing that gives it.' },
+  'openings-have-depth': { layer: 'composition', craft: true, law: 'An opening has depth: what is cut into a wall and is bigger than a hand shows its back and its sides, as deep as what it holds, and what it holds stands inside it; smaller than a hand it is relief in the tile.' },
   'pillars-are-worked': { layer: 'composition', craft: true, law: 'A support is worked the way its material is worked, never a flat strip: tapered, rounded, fluted or cut in parts, spread at its foot and gathered at its head.' },
 });
 
@@ -98,7 +99,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
     ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['arches-and-rounds', 'big-shapes'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters']],
   catacomb: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['arches-and-rounds', 'big-shapes'], ['repeat-adjacent'],
     ['accent-wall', 'focus', 'kit-dressing'], ['blend-by-cause'], ['cutout-cards', 'by-cause', 'distinct-radius'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters'],
-    ['no-voxel-first'], ['pillars-are-worked'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'by-cause'], ['layers-stand-proud', 'blend-by-cause'], ['floor-is-laid', 'subject-line'], ['air-is-furnished', 'light-through']],
+    ['no-voxel-first'], ['pillars-are-worked'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'by-cause'], ['layers-stand-proud', 'blend-by-cause'], ['floor-is-laid', 'subject-line'], ['openings-have-depth'], ['air-is-furnished', 'light-through']],
   'delfino-plaza': [['value-order', 'shade-is-colour'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards'], ['depth-by-air'], ['distinct-radius'], ['kit-dressing'], ['kit-dressing'], ['focus', 'kit-dressing'], ['kit-dressing'], ['sky-is-a-place']],
   'delfino-plaza/night': [['baked-light', 'shade-is-colour'], ['value-order', 'baked-light'], ['focus'], ['distinct-radius', 'by-cause'], ['sky-is-a-place']],
   'gothic-nave': [['value-order'], ['light-through'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['focus'], ['distinct-radius'], ['materials-by-layer'], ['materials-by-layer']],
@@ -114,7 +115,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
   // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
   'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material'],
-    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'wall-rhythm'], ['layers-stand-proud', 'by-cause'], ['air-is-furnished', 'light-through', 'focus'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
+    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'wall-rhythm'], ['layers-stand-proud', 'by-cause'], ['air-is-furnished', 'light-through', 'focus'], ['openings-have-depth'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */

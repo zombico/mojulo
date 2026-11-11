@@ -25,3 +25,7 @@ lab, a hangar and a chapel each answer it (no two alike), and the answer that is
 - As read now: the ashlar crypt, the catacomb and the bay kits (but the vernacular, which has no services) answer all;
   the research lab lacks a rhythm and a coat; the nave a made fixture, a rhythm and a coat; the first crypt
   (`gothic-stone`) answers none and is unchanged.
+- An opening has depth (`openings-have-depth`, a craft law and a question of its own): a niche is cut into the wall
+  and built behind it (a back, a floor, a head, two sides), and what it holds stands inside it. `era/carve.js` cuts a
+  wall's faces round a convex hole, carrying the wall's texture across the cut; a card's `niches.depth` asks for it.
+  The catacomb's slots and the ashlar crypt's niches are cut in; the first crypt's are as they were.

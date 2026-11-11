@@ -186,10 +186,13 @@ export function accentWall(plan, pilasters, tombAt) {
 
 /** The repeating element: a burial niche (a loculus) centred in every bare bay, the same on every wall, in tiers where
  *  the wall is tall; a niche holds an urn now and then. The accent wall carries none: it breaks the repeat. */
-export function cryptNiches(plan, pilasters, accent, anchors = null) {
+export function cryptNiches(plan, pilasters, accent, anchors = null, holes = null) {
   const N = plan.kit.dress.niches, pw = plan.kit.pilaster.w, out = [];
   const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
   const back = { key: null, scale: 1, tint: N.dark, group: 'stage:niche' };
+  // (CUT IN, a card's `niches.depth`, era/carve.js: the wall is cut round each niche and the niche built behind it, a
+  // back, a floor, a head and two sides, so it is hollow and what it holds stands inside it)
+  const D = holes && N.depth ? N.depth : 0, side = { ...trim, tint: trim.tint.map((v) => r5(v * 0.62)), group: 'stage:niche-side' };
   let n = 0, wi = 0;
   for (const w of wallsOf(pilasters)) {
     if (accent && w.room === accent.room && w.F === accent.F) continue;
@@ -236,20 +239,34 @@ export function cryptNiches(plan, pilasters, accent, anchors = null) {
       for (let t = 0; t < tiers; t++) {
         const zb = z0 + t * (nh + N.gap), zt = zb + N.h, F = w.F, f = N.frame, u0 = um - wd / 2, u1 = um + wd / 2;
         // the recess reads by its dark back; the frame stands proud of the wall around it
-        panel(out, at(F, u0, 0.012, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
+        const two = (i0) => { for (let q = i0; q < out.length; q++) out[q].doubleSided = true; };
+        if (D) {
+          const i0 = out.length, arch = round ? roundArch(u0, u1, zt, wd / 2, N.seg ?? 6) : null;
+          holes.push({ F, poly: [[u0, zb], [u1, zb], [u1, zt], ...(arch ? arch.slice(1, -1).reverse().map((q) => [q.u, q.z]) : []), [u0, zt]] });
+          panel(out, at(F, u0, -D, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
+          panel(out, at(F, u0, -D, zb), F.U, wd, F.N, D, [0, 0, 1], side, 0.5);                                  // its floor
+          panel(out, at(F, u0, -D, zb), F.N, D, [0, 0, 1], N.h, F.U, side, 0.5);                                 // its sides
+          panel(out, at(F, u1, -D, zb), F.N, D, [0, 0, 1], N.h, F.U.map((v) => -v), side, 0.5);
+          if (!arch) panel(out, at(F, u0, -D, zt), F.U, wd, F.N, D, [0, 0, -1], side, 0.5);                      // its head, flat
+          else for (let q = 0; q + 1 < arch.length; q++) { const A = arch[q], B = arch[q + 1], du = B.u - A.u, dz = B.z - A.z, L = Math.hypot(du, dz) || 1, nu = dz / L, nz = -du / L;
+            const n3 = [r5(F.U[0] * nu), r5(F.U[1] * nu), r5(nz)];
+            out.push({ corners: [at(F, A.u, -D, A.z), at(F, B.u, -D, B.z), at(F, B.u, 0, B.z), at(F, A.u, 0, A.z)].map(P), normal: n3, outNormal: n3, texture: side.key, textureLit: true,
+              uv: [[0, 0], [r5(L / side.scale), 0], [r5(L / side.scale), r5(D / side.scale)], [0, r5(D / side.scale)]], tint: side.tint, group: side.group }); }
+          two(i0);
+        } else panel(out, at(F, u0, 0.012, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
         wallBox(out, F, u0 - f, u1 + f, zb - f, zb, N.out, trim, 0.5);        // sill
         if (round) {
           // (its head cut in `seg` pieces, six where the card names none)
-          archUnder(out, F, roundArch(u0, u1, zt, wd / 2, N.seg ?? 6), zt, back, 0.012);
+          archUnder(out, F, roundArch(u0, u1, zt, wd / 2, N.seg ?? 6), zt, back, D ? -D : 0.012);
           archRing(out, F, u0, u1, zt, wd / 2, N.seg ?? 6, f, N.out, trim);             // the archivolt
         } else wallBox(out, F, u0 - f, u1 + f, zt, zt + f, N.out, trim, 0.5);   // lintel
         wallBox(out, F, u0 - f, u0, zb, zt, N.out, trim, 0.5, true);          // jambs
         wallBox(out, F, u1, u1 + f, zb, zt, N.out, trim, 0.5, true);
-        const sealed = !lesser && !clean && !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = !lesser && !clean && hash3(n, t, 4401) < N.urns;
+        const sealed = !lesser && !clean && !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = !lesser && !clean && !(D && sealed) && hash3(n, t, 4401) < N.urns;
         if (anchors) anchors.push({ id: `niche-${anchors.filter((q) => q.kind === 'niche').length + 1}`, kind: 'niche', room: w.room, at: P(at(F, um, 0, zb)), N: P(F.N), width: r5(wd), height: r5(nh), tier: t, ...(order ? { bay: kind } : {}), ...(sealed ? { sealed } : {}), ...(urn ? { urn } : {}) });
-        if (sealed) panel(out, at(F, u0 + 0.04, 0.03, zb + 0.03), F.U, wd - 0.08, [0, 0, 1], N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
+        if (sealed) panel(out, at(F, D ? u0 : u0 + 0.04, D ? -0.04 : 0.03, D ? zb : zb + 0.03), F.U, D ? wd : wd - 0.08, [0, 0, 1], D ? N.h : N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
         if ((n++, urn)) {
-          const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, 0.18, zb);
+          const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, D ? -D * 0.45 : 0.18, zb);   // (in a cut niche it stands inside, on the niche's floor)
           for (let k = 0; k < 8; k++) {
             const a0 = (k / 8) * 2 * Math.PI, a1 = ((k + 1) / 8) * 2 * Math.PI, nrm = [Math.cos((a0 + a1) / 2), Math.sin((a0 + a1) / 2), 0].map(r5);
             const pt = (a, rr, z) => P([c[0] + rr * Math.cos(a), c[1] + rr * Math.sin(a), z]);
@@ -417,12 +434,13 @@ export function cryptDress(plan, geom) {
     { id: 'set-piece-lid', kind: 'part', of: 'set-piece', name: 'lid', room: tomb.room, at: tomb.at, solid: true },
     ...(accent ? [{ id: 'accent-wall', kind: 'accent-wall', room: accent.room, at: P(at(accent.F, accent.F.len / 2, 0, 0)), N: P(accent.F.N), length: r5(accent.F.len), ...(D.accent.skulls ? { form: 'ossuary' } : {}) }] : []),
   ];
+  const holes = [];
   const above = cryptAbove(plan, accent, D.above ? tombSite(plan) : null);
-  const faces = [...tomb.faces, ...above.faces.filter((f) => f.tint), ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
+  const faces = [...tomb.faces, ...above.faces.filter((f) => f.tint), ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors, holes), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
   return {
     cameras: [tombCamera(plan, tomb.corners)],
     faces, anchors,
     blends: (faces) => blendsByCause(plan, faces, D.moss, D.grime, D.earth),
-    after: [...candles.faces, ...above.faces.filter((f) => !f.tint)], pools: above.pools, lights: [...candles.lights, ...above.lights], cut: onAccent, shadowSkip: () => false,
+    after: [...candles.faces, ...above.faces.filter((f) => !f.tint)], pools: above.pools, lights: [...candles.lights, ...above.lights], cut: onAccent, carve: holes, shadowSkip: () => false,
   };
 }

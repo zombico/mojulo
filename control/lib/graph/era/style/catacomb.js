@@ -26,6 +26,7 @@ export const CATACOMB = Object.freeze({
     'A gallery is dug down as it fills: a ledge marks the first floor, and over it are the oldest tombs, all sealed and out of reach.',
     'Within reach the rock was plastered round the tombs and hands and damp have had it off in patches; over the ledge the bare rock is sooted by the lamps.',
     'The floor is laid by its use: an unwalked margin at the walls, the way worn down the middle, a threshold at each passage, the ground round the sarcophagus sooted.',
+    'A slot is cut into the rock: it has a back, a floor and sides a forearm deep, and what lies in it lies inside it.',
     'A tall gallery is shored: logs wedged wall to wall on the ledge, a lamp hung from each, and a light shaft cut to the surface over the ossuary lays cold daylight on the sarcophagus.',
   ]),
   values: Object.freeze(['candle', 'torchlit', 'floor', 'vault']),
@@ -37,7 +38,7 @@ export const CATACOMB = Object.freeze({
   tomb: { dais: { w: 3.2, d: 2.2, step: 0.2, steps: 1, inset: 0.3 }, chest: { w: 2.1, d: 0.95, h: 0.8 }, lid: { over: 0.08, h: 0.14, round: 0.16 },
     stone: { key: 'marble-carrara', scale: 1.2, tint: [0.8, 0.74, 0.66] } },
   // the loculi: long low slots in tiers up the bay, flat-headed (the arches are the passages' and the vault's)
-  niches: { rhythm: { less: 1 }, head: 'flat', tiers: 4, w: 1.7, h: 0.42, sill: 0.25, gap: 0.3, frame: 0.08, out: 0.05, dark: [0.1, 0.09, 0.08], urns: 0.12, urn: [0.6, 0.44, 0.32],
+  niches: { rhythm: { less: 1 }, depth: 0.22, head: 'flat', tiers: 4, w: 1.7, h: 0.42, sill: 0.25, gap: 0.3, frame: 0.08, out: 0.05, dark: [0.1, 0.09, 0.08], urns: 0.12, urn: [0.6, 0.44, 0.32],
     sealed: 0.4, slab: [0.92, 0.88, 0.8] },
   // the ossuary wall: courses of bone ends (pale, small, rounded) and skulls on ledges
   // (`radius: 1` rounds each course stone to a disc, a bone seen end-on; `repeat` lays the tile that many times denser

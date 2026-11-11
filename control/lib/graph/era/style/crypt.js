@@ -70,10 +70,11 @@ export const CRYPT_SOBER = Object.freeze({
 'A wall has storeys: a string course two thirds up it, and over the course an upper register derived from the lower, one large blind arch a bay, shallow where the niches are deep.',
     'Plaster tells the height: damp rises from the floor, so the coat is ragged low and nearly whole high, and the upper wall is the paler.',
     'The air above is furnished and lit by a cause: a ring of candles hangs on chains over the walk and lights the wall up its height, and a slit of cold sky high behind the tomb lays its light on it.',
+        'A niche is cut into the wall: it has a back, a floor, a head and sides, and an urn stands inside it.',
         'The floor is laid, not tiled: a darker course along the walls where nobody walks, a worn walk of larger slabs down the room to the tomb, and fields either side laid bay by bay, keeping the walls\' rhythm with the same slabs turned a quarter.',
   ]) }),
   // (its bays keep a rhythm, era/wall-rhythm.js: the second kind of bay is the first with a tier of niches less)
-  niches: Object.freeze({ ...CRYPT.niches, rhythm: Object.freeze({ less: 1 }), seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
+  niches: Object.freeze({ ...CRYPT.niches, rhythm: Object.freeze({ less: 1 }), depth: 0.2, seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
   tomb: Object.freeze({ ...CRYPT.tomb, stone: { key: 'marble-carrara', scale: 1.2, tint: [0.56, 0.55, 0.54] } }),
   accent: Object.freeze({ stone: { gen: 'dressed', stone: [100, 96, 92], mortar: [62, 60, 58], rows: 4, cols: 1, joint: 0.014, recess: 0.008, tool: 'pitched', chamfer: 0.006, pillow: 0.005, spall: 0.35, pit: 0.3, vary: 9, grit: 0.55, scale: 2.4 }, tint: [0.74, 0.73, 0.73] }),
   props: Object.freeze({ ...CRYPT.props, kinds: ['stones', 'boulder', 'planks', 'debris'], share: 0.3 }),
