@@ -170,6 +170,14 @@ describe('prepared states: one exhibit at several settings', () => {
     expect(g.audit.statesRooms).toEqual([expect.objectContaining({ ref: st.ref, states: 2 })]);
     const gout = await exportModelHandler({ ref: g.ref, format: 'html' });
     expect(gout.files).toEqual(['index.html', `rooms/${st.ref}.html`, ...m.states.map((x) => `rooms/${st.ref}/${x.ref}.html`)]);
+    // a host whose page rules refuse an inlined module (an artifact host) gets the cdn form: the same folder, three.js fetched
+    const cout = await exportModelHandler({ ref: g.ref, format: 'html', cdn: true });
+    expect(cout).toMatchObject({ cdn: true, files: gout.files });
+    expect(cout.dir).toMatch(/gallery-cdn$/);
+    const framed = readFileSync(join(cout.dir, `rooms/${st.ref}/${m.states[0].ref}.html`), 'utf8');
+    expect(framed).toContain('cdn.jsdelivr.net');
+    expect(framed).not.toContain('data:text/javascript');
+    expect(readFileSync(join(gout.dir, `rooms/${st.ref}/${m.states[0].ref}.html`), 'utf8')).toContain('data:text/javascript');
   }, 180000);
 });
 

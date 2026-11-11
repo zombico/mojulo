@@ -405,21 +405,21 @@ async function scad2dExport(input, context) {
 // sibling file; rooms/<ref>.html is each room's World page, self-contained (three.js inline), as `world.html` is. The
 // folder opens from file:// with no server and no network: the kiosk's offline form. Same rows, same folder.
 // One state's World page, self-contained, framed by a states page: it keeps the camera across a switch (channels/sync.js).
-async function statePage(ref) {
+async function statePage(ref, { cdn = false } = {}) {
   const s = SketchRepository.getByRef(ref);
   if (!s) throw new Error(`state '${ref}' is no longer in the store; take it out with update_sketch`);
   const { payload, kind } = await resolveWorldScene(s);
-  return emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: true, sync: true });
+  return emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: !cdn, cdn, sync: true });
 }
 
 // Prepared states' pages under `dir`: the states page at `index` and each state at `<sub>/<ref>.html`, its src relative.
-async function writeStates(m, title, dir, index, sub) {
+async function writeStates(m, title, dir, index, sub, { cdn = false } = {}) {
   const { statesHtml } = await import('@/lib/graph/exhibit/states');
   const files = [];
   let bytes = 0;
   await fs.mkdir(path.join(dir, sub), { recursive: true });
   for (const st of m.states) {
-    const html = await statePage(st.ref);
+    const html = await statePage(st.ref, { cdn });
     const file = `${sub}/${st.ref}.html`;
     await fs.writeFile(path.join(dir, file), html);
     files.push(file); bytes += Buffer.byteLength(html, 'utf8');
@@ -433,23 +433,23 @@ async function writeStates(m, title, dir, index, sub) {
 }
 
 // ── format: 'html' on prepared states (exhibit/states.js): a folder, index.html and states/<ref>.html, offline ─────────
-async function statesExport(sketch) {
-  const ref = sketch.ref;
-  const dir = path.join(outcomeDirFor(ref), 'states');
+async function statesExport(sketch, { cdn = false } = {}) {
+  const ref = sketch.ref, folder = cdn ? 'states-cdn' : 'states';
+  const dir = path.join(outcomeDirFor(ref), folder);
   await fs.mkdir(dir, { recursive: true });
-  const { files, bytes } = await writeStates(sketch.manifest, sketch.manifest.title || sketch.title, dir, 'index.html', 'states');
+  const { files, bytes } = await writeStates(sketch.manifest, sketch.manifest.title || sketch.title, dir, 'index.html', 'states', { cdn });
   return {
-    ok: true, ref, kind: 'exhibit-states', format: 'html', dir, files, bytes,
-    url: `${outcomeUrlFor(ref)}states/index.html`,
-    note: `A prepared-states folder in ${dir}: open index.html straight from the filesystem (file://); each state is a self-contained page beside it, and switching keeps the camera. Add ?kiosk=1 for the attract loop.`,
+    ok: true, ref, kind: 'exhibit-states', format: 'html', dir, files, bytes, ...(cdn ? { cdn: true } : {}),
+    url: `${outcomeUrlFor(ref)}${folder}/index.html`,
+    note: `A prepared-states folder in ${dir}: open index.html${cdn ? ' on a host' : ' straight from the filesystem (file://)'}; each state is a ${cdn ? 'page beside it that loads three.js from cdn.jsdelivr.net' : 'self-contained page beside it'}, and switching keeps the camera. Add ?kiosk=1 for the attract loop.`,
   };
 }
 
-async function galleryExport(sketch) {
+async function galleryExport(sketch, { cdn = false } = {}) {
   const { galleryHtml, galleryRooms } = await import('@/lib/graph/exhibit/gallery');
   const { exhibitLabel } = await import('@/lib/mcp/tools/create-exhibit');
   const ref = sketch.ref;
-  const dir = path.join(outcomeDirFor(ref), 'gallery');
+  const folder = cdn ? 'gallery-cdn' : 'gallery', dir = path.join(outcomeDirFor(ref), folder);
   await fs.mkdir(path.join(dir, 'rooms'), { recursive: true });
   const getSketch = (r) => SketchRepository.getByRef(r);
   const rooms = galleryRooms(sketch.manifest, getSketch, { describe: exhibitLabel });
@@ -460,12 +460,12 @@ async function galleryExport(sketch) {
     if (!roomSketch) throw new Error(`gallery '${ref}': room '${room.ref}' is no longer in the store; take it out with update_sketch`);
     if (room.states) {
       // a room of prepared states: its page at rooms/<ref>.html, its states beside it in rooms/<ref>/
-      const w = await writeStates(roomSketch.manifest, roomSketch.manifest.title || roomSketch.title, path.join(dir, 'rooms'), `${room.ref}.html`, room.ref);
+      const w = await writeStates(roomSketch.manifest, roomSketch.manifest.title || roomSketch.title, path.join(dir, 'rooms'), `${room.ref}.html`, room.ref, { cdn });
       files.push(...w.files.map((f) => `rooms/${f}`)); bytes += w.bytes;
       continue;
     }
     const { payload, kind } = await resolveWorldScene(roomSketch);
-    const html = emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: true });
+    const html = emitThreeWorld({ ...payload, walk: htmlWalk(payload, kind), inline: !cdn, cdn });
     const file = `rooms/${room.ref}.html`;
     await fs.writeFile(path.join(dir, file), html);
     files.push(file); bytes += Buffer.byteLength(html, 'utf8');
@@ -475,9 +475,11 @@ async function galleryExport(sketch) {
   await fs.writeFile(path.join(dir, 'index.html'), index);
   files.unshift('index.html'); bytes += Buffer.byteLength(index, 'utf8');
   return {
-    ok: true, ref, kind: 'gallery', format: 'html', dir, files, bytes,
-    url: `${outcomeUrlFor(ref)}gallery/index.html`,
-    note: `A gallery folder in ${dir}: open index.html straight from the filesystem (file://) — every room is a self-contained page beside it, so it needs no server and no network. Add ?kiosk=1 to the address (or give the gallery \`kiosk\`) for the attract loop.`,
+    ok: true, ref, kind: 'gallery', format: 'html', dir, files, bytes, ...(cdn ? { cdn: true } : {}),
+    url: `${outcomeUrlFor(ref)}${folder}/index.html`,
+    note: cdn
+      ? `A gallery folder in ${dir} whose rooms load three.js from cdn.jsdelivr.net: the form an artifact host's page rules run (they refuse an inlined module). Publish index.html with the rooms beside it.`
+      : `A gallery folder in ${dir}: open index.html straight from the filesystem (file://) — every room is a self-contained page beside it, so it needs no server and no network. Add ?kiosk=1 to the address (or give the gallery \`kiosk\`) for the attract loop. \`cdn: true\` writes the host's form (gallery-cdn/).`,
   };
 }
 
@@ -1132,8 +1134,8 @@ async function exportModel(input, context = {}) {
   // a gallery's html is its folder of rooms
   if (format === 'html') {
     const g = SketchRepository.getByRef(input.ref);
-    if (g?.manifest?.kind === 'gallery') return galleryExport(g);
-    if (g?.manifest?.kind === 'exhibit-states') return statesExport(g);
+    if (g?.manifest?.kind === 'gallery') return galleryExport(g, { cdn });
+    if (g?.manifest?.kind === 'exhibit-states') return statesExport(g, { cdn });
   }
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.

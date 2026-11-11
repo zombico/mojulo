@@ -29,7 +29,9 @@ narration, and two exhibits to start from.
   every gallery it stands in. On a kiosk, a single exhibit or a whole gallery plays itself when nobody is touching it,
   each stop held as long as its words take to read, a gallery walking from room to room, and it hands itself to the
   next visitor the moment they touch the screen, in large type with nothing to select by accident. A gallery saves as
-  a folder that opens with no internet and no server, the form a kiosk wants.
+  a folder that opens with no internet and no server, the form a kiosk wants. Asked for the web form, the folder's rooms fetch their 3D
+  engine from the web instead, so the gallery and its prepared states also run on a page host that refuses code built
+  into the page (a downloaded gallery ran; the same gallery published to the web showed only its background).
 - **A check made for exhibits.** An exhibit has nothing to win, so it is checked the way a label wall is: does it tell
   a story, does each stop say how sure it is, does a claim taken from the historical record say where it comes from
   (a warning when it does not), can each caption be read in the time a visitor gives it, and does every stop show its
