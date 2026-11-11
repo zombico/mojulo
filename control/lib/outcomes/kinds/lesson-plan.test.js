@@ -277,3 +277,69 @@ describe('lesson_plan — cook end-to-end', () => {
     expect(lp.score).toBeGreaterThan(0);
   });
 });
+
+describe('lesson_plan — an exhibit in the lesson (resolvers/exhibit.js)', () => {
+  it('carries the exhibit into the folder and reads its stops in the band\'s words; the teacher gets its claims, time and how to show it', async () => {
+    const { createExhibitHandler } = await import('../../mcp/tools/create-exhibit.js');
+    const ex = await createExhibitHandler({
+      id: 'life/cellular', title: 'Inside a cell',
+      curation: { aims: ['A cell is a busy city in a membrane.'], audiences: ['general', 'child'],
+        claims: [{ id: 'atp', text: 'Mitochondria make most of a cell\'s ATP.', cite: ['Alberts, Molecular Biology of the Cell (2022)'], grade: 'depicted' }] },
+      tour: { title: 'Inside a cell', stops: [
+        { title: 'The city', caption: 'A cell is a city wrapped in a membrane.', captions: { child: 'A cell is like a tiny town with a wall.' }, camera: 'angle', grade: 'depicted' },
+        { title: 'Power', caption: 'Mitochondria make the energy the cell spends.', captions: { child: 'Little power stations make energy.' }, camera: 'top', highlight: 'org:mitochondria', claims: ['atp'] },
+      ] },
+    });
+    expect(ex.tour_refused).toBeUndefined();
+    const stash = StashRepository.mint({ title: 'Cells' });
+    StashRepository.mintDrawer({ stashRef: stash.stashRef, name: 'activities' });
+    StashRepository.gather({ stashRef: stash.stashRef, drawer: 'activities', type: 'markdown', bodyMd: '# Visit the cell\n\nWalk the exhibit together.' });
+    StashRepository.gather({ stashRef: stash.stashRef, drawer: 'activities', type: 'sketch', bodyMd: 'Take the tour.', metadata: { sketch_ref: ex.ref, label: 'The cell exhibit' } });
+
+    const result = await cookHandler({ slices: [{ stash_ref: stash.stashRef }], aim: 'Cells', publication: { kind: 'lesson_plan', style: { learner_band: 'upper_primary' } } });
+    expect(result.ok).toBe(true);
+    const dir = result.outcome_dir;
+    const teacher = await fs.readFile(path.join(dir, 'index.html'), 'utf8');
+    const handout = await fs.readFile(path.join(dir, 'handout.html'), 'utf8');
+
+    // the exhibit itself rides in the folder: the download, and its web form beside it (it fits a web page)
+    const page = await fs.readFile(path.join(dir, 'exhibits', ex.ref, 'world.html'), 'utf8');
+    expect(page).toContain('__mojTour');
+    expect(await fs.readFile(path.join(dir, 'exhibits', ex.ref, 'world.cdn.html'), 'utf8')).toContain('cdn.jsdelivr.net');
+    expect(handout).toContain(`href="exhibits/${ex.ref}/world.html"`);
+    // a primary band reads the young visitors' words; nothing teacher-only on the handout
+    expect(handout).toContain('A cell is like a tiny town with a wall.');
+    expect(handout).not.toContain('A cell is a city wrapped in a membrane.');
+    expect(handout).not.toContain('Alberts, Molecular Biology of the Cell');
+    expect(handout).not.toContain('What it sets out to teach');
+    // the teacher: its aims, its claims and sources, the sign-off as it stands, the time, how to show it
+    expect(teacher).toContain('A cell is a busy city in a membrane.');
+    expect(teacher).toContain('Alberts, Molecular Biology of the Cell (2022)');
+    expect(teacher).toMatch(/Accuracy: [^<]*not signed|Accuracy: [^<]*unsigned|Accuracy: /);
+    expect(teacher).toMatch(/Told for young visitors at this band · about \d+ s to read through/);
+    expect(teacher).toContain(`To show it on the web, use exhibits/${ex.ref}/world.cdn.html`);
+
+    const manifest = JSON.parse(await fs.readFile(path.join(dir, 'manifest.json'), 'utf8'));
+    expect(manifest.exhibits).toEqual([{ ref: ex.ref, kind: 'tour', audience: 'child', entry: `exhibits/${ex.ref}/world.html`, web: `exhibits/${ex.ref}/world.cdn.html`, where: 'web' }]);
+    // an ordinary sketch is still a figure: the plain cook test above keeps its figure-001.svg
+  }, 180000);
+
+  it('reads a gallery room by room, a room of prepared states by what each state shows', async () => {
+    const { createExhibitHandler } = await import('../../mcp/tools/create-exhibit.js');
+    const room = await createExhibitHandler({ id: 'earth/hydro', params: { scenario: 'dam' }, tour: { title: 'The dam', stops: [{ title: 'Head', caption: 'Water held high.', camera: 'side' }] } });
+    const st = await createExhibitHandler({ id: 'earth/hydro', title: 'Try the head', params: { scenario: 'dam' }, states: { label: 'Head', of: [
+      { label: '30 m', params: { head: 30 }, caption: 'Low water, less power.' }, { label: '120 m', params: { head: 120 }, caption: 'High water, more power.' }] } });
+    const wing = await createExhibitHandler({ rooms: [room.ref, st.ref], title: 'Water to wire' });
+    const stash = StashRepository.mint({ title: 'Hydro' });
+    StashRepository.mintDrawer({ stashRef: stash.stashRef, name: 'activities' });
+    StashRepository.gather({ stashRef: stash.stashRef, drawer: 'activities', type: 'sketch', metadata: { sketch_ref: wing.ref, label: 'Water to wire' } });
+    const result = await cookHandler({ slices: [{ stash_ref: stash.stashRef }], aim: 'Hydro', publication: { kind: 'lesson_plan' } });
+    const handout = await fs.readFile(path.join(result.outcome_dir, 'handout.html'), 'utf8');
+    expect(handout).toContain('Exhibit · 2 rooms');
+    expect(handout).toContain('Water held high.');
+    expect(handout).toContain('Choose the head:');
+    expect(handout).toContain('<span class="ex-st">120 m</span> High water, more power.');
+    expect(handout).toContain(`href="exhibits/${wing.ref}/gallery/index.html"`);
+    await fs.access(path.join(result.outcome_dir, 'exhibits', wing.ref, 'gallery', 'rooms', `${st.ref}.html`));
+  }, 180000);
+});

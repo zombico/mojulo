@@ -63,6 +63,12 @@ narration, and two exhibits to start from.
   on a kiosk it waits for the voice to finish. The caption always shows, so nobody needs the sound, and a stop without
   a recording is simply quiet. The check notices a quiet stop among spoken ones, and a recording that seems to belong
   to another stop.
+- **An exhibit in a lesson plan.** Add an exhibit to the material for a lesson plan and the plan carries it: the
+  exhibit travels inside the lesson's folder (it opens from there, with no internet), the learners' handout lists its
+  stops in words for their age (the young visitors' captions for primary classes, the in-depth ones for university
+  and professional groups), and the teacher's plan adds what the exhibit sets out to teach, about how long it takes,
+  each fact with its sources and whether the expert has signed it, and how to show it on the web. Before, an exhibit
+  in a lesson plan came out as an empty picture.
 - **Two exhibits to start.** Pompeii in 79 CE: the town before the eruption, its people in that year's dress, a walk
   of nine stops from its walls and forum to its theatre, houses, water and painted election notices, told for
   everyone and for young visitors, every fact taken from the town's own cited record (and graded by how far that

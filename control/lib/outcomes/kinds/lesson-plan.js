@@ -42,6 +42,7 @@ import { renderMarkdown } from '../markdown.js';
 import { renderTemplate } from '../render-template.js';
 import { outcomeDirFor } from '@/lib/outcomes-paths';
 import { resolveSketchItem } from '../resolvers/sketch.js';
+import { resolveExhibitItem } from '../resolvers/exhibit.js';
 
 export const LESSON_PLAN_VERSION = 'lp-1';
 
@@ -189,7 +190,7 @@ function buildSections(full, itemIds) {
 }
 
 /** Resolve a single item into a render-ready record (resolves sketches). */
-async function resolveItem(item, sectionKey, sectionAudience, figureFiles) {
+async function resolveItem(item, sectionKey, sectionAudience, figureFiles, { outDir = null, band = DEFAULT_BAND, exhibitFiles = [] } = {}) {
   const audience = itemAudience(item, sectionAudience);
   const rec = { id: item.id, type: item.type, audience };
 
@@ -209,7 +210,14 @@ async function resolveItem(item, sectionKey, sectionAudience, figureFiles) {
   } else if (item.type === 'link') {
     rec.url = item.sourceUrl || '';
     rec.linkTitle = item.title || rec.url;
+  } else if (item.type === 'sketch' && outDir && (rec.exhibit = await resolveExhibitItem(item?.metadata?.sketch_ref, { outDir, band }))) {
+    // an exhibit (create_exhibit's) is carried, not drawn: its pages copied into the folder, its stops in the band's words
+    rec.sketchRef = item.metadata.sketch_ref;
+    rec.label = item?.metadata?.label || '';
+    rec.captionHtml = item.bodyMd ? renderMarkdown(item.bodyMd) : '';
+    exhibitFiles.push(...rec.exhibit.files);
   } else if (item.type === 'sketch') {
+    delete rec.exhibit;
     const sketchRef = item?.metadata?.sketch_ref;
     const resolved = await resolveSketchItem({ metadata: { sketch_ref: sketchRef } }, { technical: false });
     rec.sketchRef = sketchRef;
@@ -253,6 +261,7 @@ function renderBlock(rec, face) {
     const dom = domainOf(rec.url);
     return `<div class="ref"><a href="${escapeHtml(rec.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(rec.linkTitle)}</a>${dom ? `<span class="ref-domain">${escapeHtml(dom)}</span>` : ''}</div>`;
   }
+  if (rec.type === 'sketch' && rec.exhibit) return renderExhibit(rec, face);
   if (rec.type === 'sketch') {
     const img = rec.inline
       ? `<div class="fig-img">${rec.inline}</div>`
@@ -266,6 +275,37 @@ function renderBlock(rec, face) {
     return `<aside class="callout"><p class="callout-title">${escapeHtml(rec.calloutTitle)}</p><p class="callout-body">${escapeHtml(rec.calloutBody)}</p></aside>`;
   }
   return '';
+}
+
+const GRADE_SAYS = { attested: 'known from the record', reconstructed: 'reconstructed', conjectural: 'a likely guess', simulated: 'computed', depicted: 'drawn as described', explained: 'a model to understand by' };
+const AUDIENCE_SAYS = { general: 'everyone', child: 'young visitors', specialist: 'in-depth' };
+const fmtSeconds = (n) => (n >= 60 ? `${Math.floor(n / 60)} min ${n % 60 ? `${n % 60} s` : ''}`.trim() : `${n} s`);
+
+/** An exhibit carried by the lesson (resolvers/exhibit.js): a link to open it, its stops in the band's words, and on
+ * the teacher face what it teaches, how long it takes, its claims and sources, and how to show it. */
+function renderExhibit(rec, face) {
+  const x = rec.exhibit, teacher = face === 'teacher';
+  const kicker = `Exhibit${x.label ? ` · ${escapeHtml(x.label)}` : ''}${x.kind === 'gallery' ? ` · ${x.rooms.length} rooms` : ''}`;
+  const open = `<a class="ex-open" href="${escapeHtml(x.entry)}">Open the exhibit</a>`;
+  const total = x.rooms.reduce((n, r) => n + r.stops.reduce((m, st) => m + st.seconds, 0), 0);
+  const stopsHtml = (r) => `<ol class="ex-stops">${r.stops.map((st) => `<li><span class="ex-st">${escapeHtml(st.title)}</span> ${escapeHtml(st.caption)}${st.grade ? ` <span class="ex-grade" title="${escapeHtml(GRADE_SAYS[st.grade] || st.grade)}">${escapeHtml(st.grade)}</span>` : ''}${teacher ? ` <span class="ex-time">${fmtSeconds(st.seconds)}</span>` : ''}</li>`).join('')}</ol>`;
+  // prepared states: the visitor switches between them; a lesson lists what each shows
+  const statesHtml = (states, label) => `${label ? `<p class="ex-free">Choose the ${escapeHtml(label.toLowerCase())}:</p>` : ''}<ul class="ex-stops">${states.map((st) => `<li><span class="ex-st">${escapeHtml(st.label)}</span> ${escapeHtml(st.caption)}</li>`).join('')}</ul>`;
+  const rooms = x.kind === 'states'
+    ? statesHtml(x.states, x.statesLabel)
+    : x.rooms.map((r) => `${x.rooms.length > 1 ? `<p class="ex-room">${escapeHtml(r.title)}</p>` : ''}${r.states ? statesHtml(r.states, r.label) : r.stops.length ? stopsHtml(r) : '<p class="ex-free">Explored freely: no tour.</p>'}`).join('');
+  const show = !teacher ? '' : x.where?.form === 'web'
+    ? `It opens from this folder with no internet (${escapeHtml(x.entry)}). To show it on the web, use ${escapeHtml(x.webEntry)}.`
+    : `Open it from this folder on a computer (${escapeHtml(x.entry)}).${x.where?.why ? ` It is too big for a web page (${escapeHtml(x.where.why)}); on one it would show only its background.` : ''}`;
+  const teacherHtml = !teacher ? '' : `<div class="ex-teacher">`
+    + `<p class="ex-meta">Told for ${escapeHtml(AUDIENCE_SAYS[x.audience])} at this band${total ? ` · about ${fmtSeconds(total)} to read through` : ''}. ${show}</p>`
+    + (x.aims.length ? `<p class="ex-h">What it sets out to teach</p><ul class="ex-aims">${x.aims.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>` : '')
+    + (x.claims.length ? `<details class="ex-claims"><summary>Its claims and sources (${x.claims.length})</summary><ul>${x.claims.map((c) => `<li>${escapeHtml(c.text)}${c.grade ? ` <span class="ex-grade">${escapeHtml(c.grade)}</span>` : ''}${c.cite.length ? `<span class="ex-src">${c.cite.map(escapeHtml).join(' · ')}</span>` : ''}</li>`).join('')}</ul></details>` : '')
+    + (x.claims.length ? `<p class="ex-acc">Accuracy: ${escapeHtml(x.accuracy.says)}.</p>` : '')
+    + `</div>`;
+  const cap = (rec.label || rec.captionHtml)
+    ? `<figcaption>${rec.label ? `<span class="fig-label">${escapeHtml(rec.label)}</span>` : ''}${rec.captionHtml ? `<div class="fig-caption">${rec.captionHtml}</div>` : ''}</figcaption>` : '';
+  return `<figure class="figure exhibit"><div class="ex-head"><span class="ex-kick">${kicker}</span><h4 class="ex-title">${escapeHtml(x.title)}</h4>${open}</div>${rooms}${teacherHtml}${cap}</figure>`;
 }
 
 /** Assemble the sections HTML for one face. Sections with no visible item are omitted. */
@@ -322,12 +362,14 @@ export async function writeLessonPlanOutcome({
 
   // Resolve every item once (sketches → shared figure files), then render
   // each face from the same records.
-  const figureFiles = [];
+  const figureFiles = [], exhibitFiles = [];
   const sectionsResolved = [];
+  const dir = outcomeDirFor(cookRef);
+  await fs.mkdir(dir, { recursive: true });
   for (const s of sections) {
     const recs = [];
     for (const it of s.items) {
-      recs.push(await resolveItem(it, s.key, s.audience, figureFiles));
+      recs.push(await resolveItem(it, s.key, s.audience, figureFiles, { outDir: dir, band, exhibitFiles }));
     }
     sectionsResolved.push({ key: s.key, label: s.label, audience: s.audience, recs });
   }
@@ -340,9 +382,6 @@ export async function writeLessonPlanOutcome({
     : '';
 
   const bandLabel = humanizeBand(band);
-
-  const dir = outcomeDirFor(cookRef);
-  await fs.mkdir(dir, { recursive: true });
 
   await fs.writeFile(path.join(dir, 'report.md'), reportMd, 'utf8');
   for (const f of figureFiles) {
@@ -378,7 +417,7 @@ export async function writeLessonPlanOutcome({
   await fs.writeFile(path.join(dir, 'handout.html'), handoutHtml, 'utf8');
 
   const figureFilenames = figureFiles.map((f) => f.filename);
-  const files = ['report.md', 'index.html', 'handout.html', ...figureFilenames];
+  const files = ['report.md', 'index.html', 'handout.html', ...figureFilenames, ...exhibitFiles];
 
   const manifest = {
     cook_ref: cookRef,
@@ -392,6 +431,8 @@ export async function writeLessonPlanOutcome({
     stash_ref: stashRef,
     stash_title: full.stash.title,
     section_count: sectionsResolved.length,
+    ...(sectionsResolved.some((sec) => sec.recs.some((r) => r.exhibit)) ? { exhibits: sectionsResolved.flatMap((sec) => sec.recs.filter((r) => r.exhibit).map((r) => ({
+      ref: r.exhibit.ref, kind: r.exhibit.kind, audience: r.exhibit.audience, entry: r.exhibit.entry, ...(r.exhibit.webEntry ? { web: r.exhibit.webEntry } : {}), where: r.exhibit.where?.form ?? null }))) } : {}),
     drawer_audience: Object.fromEntries(sectionsResolved.map((s) => [s.key, s.audience])),
     sections: sectionsResolved.map((s) => ({
       key: s.key,

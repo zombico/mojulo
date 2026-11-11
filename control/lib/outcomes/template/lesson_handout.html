@@ -104,6 +104,24 @@
     .figure { page-break-inside: avoid; break-inside: avoid; }
     footer.colophon { display: none; }
   }
+  /* an exhibit carried by the lesson (resolvers/exhibit.js) */
+  .figure.exhibit .ex-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0 0 10px; }
+  .figure.exhibit .ex-kick { flex-basis: 100%; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 800; }
+  .figure.exhibit .ex-title { margin: 0; font-size: 1.1em; }
+  .figure.exhibit .ex-open { margin-left: auto; color: var(--accent); font-weight: 700; text-decoration: none; border: 1px solid var(--accent); border-radius: 999px; padding: 3px 12px; font-size: 0.85em; }
+  .figure.exhibit .ex-stops { margin: 0 0 8px; padding-left: 1.3em; }
+  .figure.exhibit .ex-stops li { margin: 0 0 6px; }
+  .figure.exhibit .ex-st { font-weight: 700; }
+  .figure.exhibit .ex-grade, .figure.exhibit .ex-time { display: inline-block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+  .figure.exhibit .ex-room { margin: 10px 0 4px; font-weight: 700; color: var(--muted); }
+  .figure.exhibit .ex-free { color: var(--muted); }
+  .figure.exhibit .ex-teacher { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 10px; font-size: 0.92em; }
+  .figure.exhibit .ex-meta, .figure.exhibit .ex-acc { margin: 0 0 8px; color: var(--muted); }
+  .figure.exhibit .ex-h { margin: 8px 0 4px; font-weight: 700; }
+  .figure.exhibit .ex-aims { margin: 0 0 8px; padding-left: 1.2em; }
+  .figure.exhibit .ex-claims summary { cursor: pointer; font-weight: 700; margin: 4px 0; }
+  .figure.exhibit .ex-claims ul { padding-left: 1.2em; }
+  .figure.exhibit .ex-src { display: block; color: var(--muted); font-size: 0.9em; }
 </style>
 {{style_overrides}}
 </head>

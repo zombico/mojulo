@@ -66,6 +66,13 @@ where it is seen, as `where`: `web` when every page fits a web page host (its we
 never fetches from the CDN). Say `where.tell` to the person before they open it: a download shown on a web page draws
 only its background, and they would think the exhibit broken.
 
+## In a lesson
+
+An exhibit dropped into a lesson plan (`cook` with `publication: { kind: 'lesson_plan' }`, the exhibit's ref gathered
+as a `sketch` item) is carried, not drawn: its pages are copied into the lesson's folder, the handout lists its stops in
+the learner band's words (a primary band reads `captions.child`, undergrad and professional `captions.specialist`),
+and the teacher's plan adds its aims, its claims with their sources, the sign-off as it stands, and how to show it.
+
 ## A kiosk
 
 The same page is a kiosk when its address says `?kiosk=1` (or `?kiosk=<seconds>` for the idle time; 90 by default):
