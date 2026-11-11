@@ -63,6 +63,18 @@
   the tomb, in larger slabs laid along the way, a tone lighter: worn. The fields either side are laid bay by bay,
   their joints on the pilasters' lines, and along the room they keep the walls' rhythm, the second kind of bay the
   same slabs turned a quarter. A stage's `rhythm: 'same'` lays every bay alike.
+- **A threshold and an apron** (`floorPlan.threshold`, `floorPlan.apron`). Inside each doorway a threshold: larger
+  slabs laid across the way in, worn by everyone who comes through. Round the tomb an apron, its dais and a walk
+  round it, laid across the walk and darkened by its candles (`era/crypt.js` `tombSite`: where the tomb will stand,
+  before it is built). Both are laid over the rest, which is cut round them: no part lies on another and none is
+  missing (a test holds the floor's parts to the floor's whole).
+- **Why a floor is not one shade** (`era/floor-shades.js`). The same stone laid the same way is seen in different
+  shades across one room, and each shade has a cause, said in words beside its numbers: `worn` (feet polish stone:
+  the walk, a threshold; lighter), `unwalked` (dust lies where nobody steps: the course along a wall; darker),
+  `soot` (flame blackens what stands under it: the apron; darker and warmer), `damp` (water darkens stone and
+  cools it; darker and cooler), `relaid` (a repair: newer slabs, paler and a little cooler), `plain` (the floor as
+  laid). A part of a floor names its cause; a field bay now and then is relaid or damp by the room's dice. A floor
+  meant all alike (`rhythm: 'same'`) is laid clean, every bay the floor as laid.
 - **The new kit joins what reads a kit**: its starter rooms and the words people ask for it by (`era/entries.js`),
   and the place a level's score is suggested for (`beats/score-suggest.js`); the tier found both missing. The
   generated tool-surface pages name it.

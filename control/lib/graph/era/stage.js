@@ -27,6 +27,7 @@ import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference 
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
 import { wallOrder } from './wall-rhythm.js';
+import { shadeTint } from './floor-shades.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall, lathe } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
@@ -35,7 +36,7 @@ import { roundArch, archInfill, archRing, archSoffit } from './arches.js';
 const JAMB_COURSE = 0.6, JAMB_JOINT = 0.02;
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
-import { cryptDress } from './crypt.js';
+import { cryptDress, tombSite } from './crypt.js';
 import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
 import { kitWithArt, artForBuild } from './art-direction.js';
@@ -190,9 +191,11 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58], pillar: [0.76, 0.75, 0.74] },
   cells: { ...GOTHIC_STONE_BASE.cells, pillar: 0.5 },
   rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.25, tone: '#4e5058' },
-  // (its floor laid by a plan: a darker border course along the walls, a worn walk of larger slabs down the room, and
-  // fields bay by bay that keep a rhythm, the second kind the same slabs turned a quarter)
-  floorPlan: { border: { w: 0.8, tone: 0.84 }, walk: { w: 2.6, scale: 1.5, tone: 1.1 } },
+  // (its floor laid by a plan: a darker border course along the walls, a worn walk of larger slabs down the room,
+  // fields bay by bay that keep a rhythm, the second kind the same slabs turned a quarter; a threshold inside each
+  // doorway and an apron round the tomb; each part's shade by its cause, era/floor-shades.js)
+  floorPlan: { border: { w: 0.8, shade: 'unwalked' }, walk: { w: 2.6, scale: 1.5, shade: 'worn' }, threshold: { depth: 1.5, margin: 0.3, scale: 1.5, shade: 'worn' },
+    apron: { margin: 0.9, shade: 'soot' }, fields: { relaid: 0.15, damp: 0.2 } },
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
   torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5, form: 'cone' },
   // its motif, cut and not painted: dentils under the cornice in the wall's own tone, low relief (the crypt's principle
@@ -607,28 +610,52 @@ export function buildStageGeometry(plan) {
   // along the wall, a tone darker: nobody walks there); the WALK runs down the room's long axis (larger slabs laid
   // along the way, a tone lighter: worn); the FIELDS either side are laid bay by bay, their joints on the pilasters'
   // lines, and along the room they keep a wall's rhythm (era/wall-rhythm.js): the second kind of bay is the first
-  // with its slabs turned a quarter, the same stone laid the other way. A recipe's `rhythm: 'same'` lays every bay alike
+  // with its slabs turned a quarter, the same stone laid the other way. A recipe's `rhythm: 'same'` lays every bay
+  // alike. Every part's shade has a cause (era/floor-shades.js)
   const planRect = (r, ri, X0, Y0, X1, Y1) => {
     const FP = kit.floorPlan, base = surf('floor'), sc = ft.scale ?? 2, alongY = r.y1 - r.y0 >= r.x1 - r.x0;
-    const toned = (k) => base.tint.map((v) => r5(Math.min(1, v * k))), keyOf = (v) => `${ft.family}-${VARIANTS[((v % 4) + 4) % 4]}`;
-    const put = (x0, y0, x1, y1, S, scale, turn) => {
+    const shaded = (cause, v) => ({ ...base, key: `${ft.family}-${VARIANTS[((v % 4) + 4) % 4]}`, tint: shadeTint(base.tint, cause) });
+    // (the floor's own edge is the junction band's, off the wall: the border is measured from there)
+    const fx0 = r.x0 + B, fx1 = r.x1 - B, fy0 = r.y0 + B, fy1 = r.y1 - B;
+    // THE PARTS LAID OVER THE REST, each a rectangle the rest is cut round: a THRESHOLD inside each doorway (the feet
+    // of everyone who comes in: its slabs across the way in, larger, worn), and an APRON round the set piece (a tomb's
+    // dais and a walk round it: under its candles, sooted)
+    const over = [];
+    if (FP.threshold) for (const sd of Object.keys(r.openings)) for (const op of r.openings[sd]) {
+      const T = FP.threshold, lo = op.lo - T.margin, hi = op.hi + T.margin, S = shaded(T.shade ?? 'worn', ri + 3), ts = sc * (T.scale ?? 1);
+      if (sd === '-y') over.push({ x0: lo, y0: r.y0, x1: hi, y1: fy0 + T.depth, S, scale: ts, turn: false });
+      else if (sd === '+y') over.push({ x0: lo, y0: fy1 - T.depth, x1: hi, y1: r.y1, S, scale: ts, turn: false });
+      else if (sd === '-x') over.push({ x0: r.x0, y0: lo, x1: fx0 + T.depth, y1: hi, S, scale: ts, turn: true });
+      else over.push({ x0: fx1 - T.depth, y0: lo, x1: r.x1, y1: hi, S, scale: ts, turn: true });
+    }
+    const site = FP.apron && kit.dress && kit.dress.tomb ? tombSite(plan) : null;
+    if (site && site.room === r.id) { const m = FP.apron.margin; over.push({ x0: Math.max(fx0, site.at[0] - site.w / 2 - m), y0: Math.max(fy0, site.at[1] - site.d / 2 - m), x1: Math.min(fx1, site.at[0] + site.w / 2 + m), y1: Math.min(fy1, site.at[1] + site.d / 2 + m), S: shaded(FP.apron.shade ?? 'soot', ri + 1), scale: sc, turn: alongY ? false : true }); }
+    // (a rectangle less the parts laid over it: up to four pieces a part)
+    const less = (R, H) => (H.x1 <= R.x0 || H.x0 >= R.x1 || H.y1 <= R.y0 || H.y0 >= R.y1 ? [R]
+      : [{ ...R, y1: Math.max(R.y0, H.y0) }, { ...R, y0: Math.min(R.y1, H.y1) }, { ...R, x1: Math.max(R.x0, H.x0), y0: Math.max(R.y0, H.y0), y1: Math.min(R.y1, H.y1) }, { ...R, x0: Math.min(R.x1, H.x1), y0: Math.max(R.y0, H.y0), y1: Math.min(R.y1, H.y1) }]
+        .filter((q) => q.x1 - q.x0 > 1e-6 && q.y1 - q.y0 > 1e-6));
+    const lay = (x0, y0, x1, y1, S, scale, turn) => {
       const a0 = Math.max(X0, x0), a1 = Math.min(X1, x1), b0 = Math.max(Y0, y0), b1 = Math.min(Y1, y1);
       if (a1 - a0 < 1e-6 || b1 - b0 < 1e-6) return;
       panel(out, [a0, b0, 0], [1, 0, 0], a1 - a0, [0, 1, 0], b1 - b0, [0, 0, 1], { ...S, uvOf: turn ? (p) => [p[1] / scale, p[0] / scale] : (p) => [p[0] / scale, p[1] / scale] }, base.cell);
     };
-    // (the floor's own edge is the junction band's, off the wall: the border is measured from there)
-    const fx0 = r.x0 + B, fx1 = r.x1 - B, fy0 = r.y0 + B, fy1 = r.y1 - B;
+    const put = (x0, y0, x1, y1, S, scale, turn) => { for (const q of over.reduce((Rs, H) => Rs.flatMap((R) => less(R, H)), [{ x0, y0, x1, y1 }])) lay(q.x0, q.y0, q.x1, q.y1, S, scale, turn); };
+    // (the parts laid over: each whole, a later one cut round an earlier where they meet)
+    over.forEach((H, i) => { for (const q of over.slice(0, i).reduce((Rs, G) => Rs.flatMap((R) => less(R, G)), [H])) lay(q.x0, q.y0, q.x1, q.y1, H.S, H.scale, H.turn); });
     const bw = Math.min(FP.border.w, (fx1 - fx0) / 4, (fy1 - fy0) / 4), ix0 = fx0 + bw, ix1 = fx1 - bw, iy0 = fy0 + bw, iy1 = fy1 - bw;
-    const edge = { ...base, key: keyOf(ri), tint: toned(FP.border.tone) };
+    const edge = shaded(FP.border.shade ?? 'unwalked', ri);
     put(r.x0, r.y0, r.x1, iy0, edge, sc, false); put(r.x0, iy1, r.x1, r.y1, edge, sc, false); put(r.x0, iy0, ix0, iy1, edge, sc, true); put(ix1, iy0, r.x1, iy1, edge, sc, true);
     // (across the room: a field, the walk, a field; along it: the bays)
     const c = alongY ? (ix0 + ix1) / 2 : (iy0 + iy1) / 2, ww = Math.min(FP.walk.w, (alongY ? ix1 - ix0 : iy1 - iy0) * 0.5) / 2;
-    const walk = { ...base, key: keyOf(ri + 2), tint: toned(FP.walk.tone) }, ws = sc * FP.walk.scale;
+    const walk = shaded(FP.walk.shade ?? 'worn', ri + 2), ws = sc * FP.walk.scale;
     if (alongY) put(c - ww, iy0, c + ww, iy1, walk, ws, true); else put(ix0, c - ww, ix1, c + ww, walk, ws, false);
     const L0 = alongY ? iy0 : ix0, L1 = alongY ? iy1 : ix1, n = Math.max(1, Math.round((alongY ? r.y1 - r.y0 : r.x1 - r.x0) / kit.bay)), step = (L1 - L0) / n;
-    const order = wallOrder(n, { order: plan.rhythm ?? null, pick: hash3(ri, n, 4411) }).order;
+    const O = wallOrder(n, { order: plan.rhythm ?? null, pick: hash3(ri, n, 4411) }), order = O.order, Fs = FP.fields || {};
     for (let k = 0; k < n; k++) for (const side of [0, 1]) {
-      const S = { ...base, key: keyOf(ri + k + side * 2 + 1) }, turned = (order[k] !== 'A') !== !alongY, l0 = L0 + k * step, l1 = l0 + step;
+      // (a field's shade by its cause, a bay now and then: relaid, a repair; damp, where water stands. A floor meant all
+      // alike is laid clean: every bay the floor as laid)
+      const d = hash3(ri * 31 + k, side, 4413), cause = O.clean ? 'plain' : d < (Fs.relaid ?? 0) ? 'relaid' : d < (Fs.relaid ?? 0) + (Fs.damp ?? 0) ? 'damp' : 'plain';
+      const S = shaded(cause, ri + k + side * 2 + 1), turned = (order[k] !== 'A') !== !alongY, l0 = L0 + k * step, l1 = l0 + step;
       if (alongY) put(side ? c + ww : ix0, l0, side ? ix1 : c - ww, l1, S, sc, turned); else put(l0, side ? c + ww : iy0, l1, side ? iy1 : c - ww, S, sc, turned);
     }
   };

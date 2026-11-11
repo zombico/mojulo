@@ -28,6 +28,15 @@ function lastRoom(plan) {
   return { r: last, entry: walk.length > 2 ? walk[walk.length - 2] : walk[0] };
 }
 
+/** Where the tomb stands, before it is built (the floor is laid round it, era/stage.js): the room, the dais's middle
+ *  and its footprint across x and y. The same reckoning cryptTomb places it by. */
+export function tombSite(plan) {
+  const T = plan.kit.dress.tomb, { r, entry } = lastRoom(plan);
+  const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, alongX = r.x1 - r.x0 >= r.y1 - r.y0;
+  const half = alongX ? (r.x1 - r.x0) / 2 : (r.y1 - r.y0) / 2, dl = (alongX ? T.dais.w : T.dais.d) / 2 + 1.2;
+  const away = Math.sign(alongX ? cx - entry[0] : cy - entry[1]) || 1, shift = Math.max(0, Math.min(half * 0.45, half - dl));
+  return { room: r.id, at: alongX ? [cx + away * shift, cy] : [cx, cy + away * shift], w: alongX ? T.dais.w : T.dais.d, d: alongX ? T.dais.d : T.dais.w };
+}
 /** The tomb: dais, chest and lid, set back from the way in along the room's long axis. → { faces, corners }. */
 export function cryptTomb(plan) {
   const T = plan.kit.dress.tomb, { r, entry } = lastRoom(plan), out = [];
