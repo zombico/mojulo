@@ -58,3 +58,6 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   cooking several candidates work as before, with shorter descriptions.
 - **Where the list stands.** Over this theme the flat tool list goes from 212,165 to 179,797 bytes (117 tools to 101)
   and the packs-mode list drops to 29,796. Every tool that left the list still answers by its old name.
+- **The Claude plugin's helpers keep the released names.** An installed plugin changes only at a release, so its
+  helper agents go on naming the tools the released server lists; every one of them still answers. They take the new
+  names at the release that updates the plugin.
