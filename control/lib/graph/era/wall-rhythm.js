@@ -15,6 +15,8 @@
  *     or an array of kinds
  *   wallRhythms(n, kinds = 2) → every order of n segments in `kinds` kinds that keeps the rule (as strings, A, B, …),
  *     mirrored ones first: a wall read from its middle is the same both ways, which is how a wall is built
+ *   wallOrder(n, { order?, kinds, pick }) → the wall's order resolved: the rule unasked, a recipe's intent where it
+ *     states one (below)
  *   wallRhythm(n, { kinds = 2, pick = 0 }) → one of them (by `pick`, a seeded dice's number 0..1); all A for n of 1 or 2
  *
  * Pure: no dice of its own.
@@ -53,4 +55,20 @@ export function wallRhythm(n, { kinds = 2, pick = 0 } = {}) {
   // (a mirrored order where the length has one: a wall is built from its middle)
   const sym = all.filter((s) => s === [...s].reverse().join('')), from = sym.length ? sym : all;
   return from[Math.min(from.length - 1, Math.floor(Math.max(0, Math.min(0.999999, pick)) * from.length))];
+}
+
+/**
+ * A WALL'S ORDER, resolved: the rule by default, an intent where a recipe states one. The rhythm is what a wall reaches
+ * for unasked; a wall all alike is allowed only as a choice (`order: 'same'`, or an order written out, 'AAAA'), and then
+ * its one bay is to be drawn CLEAN AND REPEATABLE (`clean`: nothing in it that marks one bay from the next, so the
+ * repeat reads as meant and not as a stamp).
+ *   wallOrder(n, { order?, kinds = 2, pick = 0 }) → { order, by: 'rule' | 'intent', clean }
+ * An order of the wrong length, or naming a kind the wall has not got, teaches.
+ */
+export function wallOrder(n, { order = null, kinds = 2, pick = 0 } = {}) {
+  if (order === null || order === undefined) return { order: wallRhythm(n, { kinds, pick }), by: 'rule', clean: false };
+  const o = order === 'same' ? 'A'.repeat(n) : String(order).toUpperCase();
+  if (o.length !== n) throw new Error(`wall rhythm: the order '${order}' names ${o.length} segments and the wall has ${n}`);
+  for (const c of o) if (LETTERS.indexOf(c) < 0 || LETTERS.indexOf(c) >= Math.max(1, kinds)) throw new Error(`wall rhythm: '${c}' is not one of the wall's ${kinds} kinds (${LETTERS.slice(0, kinds).split('').join(', ')})`);
+  return { order: o, by: 'intent', clean: new Set(o).size === 1 && n > 2 };
 }

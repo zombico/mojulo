@@ -1,7 +1,7 @@
 // A wall's rhythm (wall-rhythm.js): along a wall never a run of three alike, never a pair followed by the same pair;
 // a local rule, the same on a short wall as a long one.
 import { describe, it, expect } from 'vitest';
-import { rhythmFaults, wallRhythms, wallRhythm } from './wall-rhythm.js';
+import { rhythmFaults, wallRhythms, wallRhythm, wallOrder } from './wall-rhythm.js';
 
 const faults = (s) => rhythmFaults(s).map((f) => f.fault);
 
@@ -41,5 +41,19 @@ describe('a wall\'s rhythm', () => {
     expect(wallRhythm(4, { pick: 0.9 })).toBe('BAAB');
     expect(rhythmFaults(wallRhythm(9, { kinds: 3, pick: 0.42 }))).toEqual([]);
     expect(wallRhythm(7, { pick: 0.3 })).toBe(wallRhythm(7, { pick: 0.3 }));
+  });
+
+  it('the rhythm is reached for unasked; a wall all alike is a stated intent, and then its bay is clean and repeatable', () => {
+    // (unasked: the rule, never all alike on a wall of three or more)
+    const d = wallOrder(4);
+    expect(d).toEqual({ order: 'ABBA', by: 'rule', clean: false });
+    expect(rhythmFaults(wallOrder(10, { pick: 0.5 }).order)).toEqual([]);
+    // (stated: the rule steps aside, and the wall is marked to be drawn clean)
+    expect(wallOrder(4, { order: 'same' })).toEqual({ order: 'AAAA', by: 'intent', clean: true });
+    expect(wallOrder(4, { order: 'aaaa' })).toEqual({ order: 'AAAA', by: 'intent', clean: true });
+    // (any written order is an intent, a beat too; only a wall all alike is the clean one)
+    expect(wallOrder(4, { order: 'ABAB' })).toEqual({ order: 'ABAB', by: 'intent', clean: false });
+    expect(() => wallOrder(4, { order: 'ABA' })).toThrow(/names 3 segments and the wall has 4/);
+    expect(() => wallOrder(4, { order: 'ABCA' })).toThrow(/'C' is not one of the wall's 2 kinds/);
   });
 });
