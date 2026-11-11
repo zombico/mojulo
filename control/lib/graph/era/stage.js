@@ -35,7 +35,7 @@ const JAMB_COURSE = 0.6, JAMB_JOINT = 0.02;
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
 import { cryptDress } from './crypt.js';
-import { CRYPT } from './style/crypt.js';
+import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
 import { kitWithArt, artForBuild } from './art-direction.js';
 import { plazaDress } from './plaza-dress.js';
@@ -156,6 +156,35 @@ STAGE_KITS['gothic-stone'] = Object.freeze({
   // its motif, small: a key carved along the plinth (an art direction picks its own)
   motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'meander', ground: [88, 92, 100], figure: [150, 154, 162], relief: 0.6 }), on: 'plinth', tint: [1, 1, 1] },
   dress: CRYPT,
+});
+// The crypt in ASHLAR (`gothic-ashlar`): the same vault in a graver register, drawn to read as built stone at the scale
+// of the room and not as a pattern of blocks. Where gothic-stone outlines every stone (a deep black joint round a
+// pillowed, bright face, each block its own value), this lays dressed ashlar (matte-paint/dressed.js: long low
+// courses, a third of a metre high and over a metre long, thin joints, a tooled face, each block's tone close to its
+// neighbour's), which the form render reads as its true relief; a floor of large worn slabs; slimmer pilasters, a
+// lower plinth and cornice; arches and a vault cut in twice the segments, so a curve is a curve; no carved key; and
+// torches set higher with a longer reach, so a tall wall is lit up its height and the vault is lost above them. Its dressing is the crypt's, sober
+// (style/crypt.js CRYPT_SOBER). Made for tall rooms: give it height.
+STAGE_KITS['gothic-ashlar'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  plinth: { h: 0.42, out: 0.1 },
+  cornice: { h: 0.3, out: 0.18 },
+  pilaster: { w: 0.56, out: 0.18 },
+  rib: { w: 0.36, drop: 0.3 },
+  door: { width: 2, height: 3.6, frame: 0.26, out: 0.08 },
+  tiles: {
+    wall: { family: tileFamilyOf({ gen: 'dressed', stone: [112, 113, 114], mortar: [74, 73, 72], rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4 },
+    floor: { family: tileFamilyOf({ gen: 'dressed', face: 'floor', stone: [96, 92, 86], mortar: [58, 56, 52], rows: 3, cols: 2, joint: 0.014, recess: 0.008, tool: 'none', chamfer: 0.006, pillow: 0.004, spall: 0.35, pit: 0.3, vary: 10, grit: 0.6, scale: 2.4 }), scale: 2.4 },
+    ceiling: { key: 'stucco', scale: 2 },
+    // (its trim one plain monolith's stone, its grain running up it: a pilaster is never coursed like its wall)
+    trim: { family: tileFamilyOf({ gen: 'dressed', cut: 'shaft', stone: [104, 103, 102], mortar: [70, 70, 70], vary: 6, grit: 0.4, scale: 2 }), scale: 2 },
+    gutter: { key: 'soil-mud', scale: 1.2 },
+  },
+  tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.25, tone: '#4e5058' },
+  arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
+  torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5 },
+  dress: CRYPT_SOBER,
 });
 // The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course
 // and a lancet window above; engaged columns stand at the bay lines; the ceiling is a tall pointed barrel vault with

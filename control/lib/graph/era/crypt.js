@@ -196,8 +196,9 @@ export function cryptNiches(plan, pilasters, accent, anchors = null) {
         panel(out, at(F, u0, 0.012, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
         wallBox(out, F, u0 - f, u1 + f, zb - f, zb, N.out, trim, 0.5);        // sill
         if (round) {
-          archUnder(out, F, roundArch(u0, u1, zt, wd / 2, 6), zt, back, 0.012);
-          archRing(out, F, u0, u1, zt, wd / 2, 6, f, N.out, trim);             // the archivolt
+          // (its head cut in `seg` pieces, six where the card names none)
+          archUnder(out, F, roundArch(u0, u1, zt, wd / 2, N.seg ?? 6), zt, back, 0.012);
+          archRing(out, F, u0, u1, zt, wd / 2, N.seg ?? 6, f, N.out, trim);             // the archivolt
         } else wallBox(out, F, u0 - f, u1 + f, zt, zt + f, N.out, trim, 0.5);   // lintel
         wallBox(out, F, u0 - f, u0, zb, zt, N.out, trim, 0.5, true);          // jambs
         wallBox(out, F, u1, u1 + f, zb, zt, N.out, trim, 0.5, true);
@@ -271,7 +272,8 @@ export function ivyGrowth(plan, pilasters, accent, amount, tint) {
 }
 
 /** The accent's stone: larger, darker ashlar than the courses round it, named from its own numbers. */
-const accentFamily = (A) => tileFamilyOf({ gen: 'stone-brick', ...A.stone });
+// (bonded stone-brick where the card names no generator; a card may name its own, dressed ashlar)
+const accentFamily = (A) => tileFamilyOf(A.stone.gen ? A.stone : { gen: 'stone-brick', ...A.stone });
 
 /** The view the walk leads to: from the way into the last room, eye height, on the tomb. */
 export function tombCamera(plan, corners) {

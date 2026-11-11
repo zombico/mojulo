@@ -40,3 +40,23 @@ export const CRYPT = Object.freeze({
   // candles in a cluster at each dais corner: wax, a flame card, a small warm light baked like a torch
   candles: { per: 3, r: 0.035, h: [0.18, 0.34], wax: '#e8dcc0', color: '#ffc874', intensity: 1.15, radius: 4.2 },
 });
+
+/**
+ * The crypt, SOBER: the same vault and the same principles in a graver register, for the `gothic-ashlar` kit. What the
+ * first card says loudly this says quietly, so the room reads by its scale and its light and not by its outlines:
+ * the niches' frames thin and close to the wall, their dark deeper; the tomb a grey stone that takes the candles'
+ * light and never burns white; fewer, lower candles; the accent wall's blocks large but calm; the corner things
+ * the ones a vault holds (stones, a boulder, fallen planks, debris), never a crate or a barrel; the moss and the
+ * grime darker and thinner, a stain and not a stripe.
+ */
+export const CRYPT_SOBER = Object.freeze({
+  ...CRYPT,
+  niches: Object.freeze({ ...CRYPT.niches, seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
+  tomb: Object.freeze({ ...CRYPT.tomb, stone: { key: 'marble-carrara', scale: 1.2, tint: [0.56, 0.55, 0.54] } }),
+  accent: Object.freeze({ stone: { gen: 'dressed', stone: [100, 96, 92], mortar: [62, 60, 58], rows: 4, cols: 1, joint: 0.014, recess: 0.008, tool: 'pitched', chamfer: 0.006, pillow: 0.005, spall: 0.35, pit: 0.3, vary: 9, grit: 0.55, scale: 2.4 }, tint: [0.74, 0.73, 0.73] }),
+  props: Object.freeze({ ...CRYPT.props, kinds: ['stones', 'boulder', 'planks', 'debris'], share: 0.3 }),
+  candles: Object.freeze({ ...CRYPT.candles, per: 2, h: [0.14, 0.26], color: '#ffb866', intensity: 0.9, radius: 3.6 }),
+  cobwebs: Object.freeze({ ...CRYPT.cobwebs, tint: [0.6, 0.6, 0.63] }),
+  moss: Object.freeze({ ...CRYPT.moss, tint: [0.3, 0.36, 0.32], max: 0.45 }),
+  grime: Object.freeze({ ...CRYPT.grime, tint: [0.6, 0.58, 0.56], max: 0.7 }),
+});
