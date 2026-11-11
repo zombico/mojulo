@@ -22,6 +22,9 @@ const mix = (a, b, t) => a + (b - a) * t;
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const at = (F, u, off, z) => [F.o[0] + F.U[0] * u + F.N[0] * off, F.o[1] + F.U[1] * u + F.N[1] * off, z];
 
+// the corner things a room's debris lays itself when it is asked for (era/skandart.js): the stone that fell
+const SKANDART_LAYS = Object.freeze(['stones', 'boulder', 'debris']);
+
 /** The last room of the walk, and where the way comes into it. */
 function lastRoom(plan) {
   const walk = walkLine(plan), byId = new Map(plan.rooms.map((r) => [r.id, r]));
@@ -143,7 +146,9 @@ export function cryptCobwebs(plan, pilasters) {
   const W = plan.kit.dress.cobwebs, pw = plan.kit.pilaster.w, out = [], dressed = cobwebPilasters(plan, pilasters);
   pilasters.forEach((p, i) => {
     if (!dressed[i]) return;
+    // (a room whose debris is asked for, era/skandart.js: within reach the webs are swept, over it left)
     for (const [lvl, z, up] of [[0, plan.kit.plinth.h + 0.04, 1], [1, p.top - 0.04, -1]]) {
+      if (lvl === 0 && plan.skandart) continue;
       const sg = hash3(i, lvl, 4303) < 0.5 ? -1 : 1;
       if (p.u + sg * pw < 0 || p.u + sg * pw > p.F.len) continue;
       const s = mix(W.size[0], W.size[1], hash3(i, lvl, 4305));
@@ -436,7 +441,7 @@ export function cryptDress(plan, geom) {
   ];
   const holes = [];
   const above = cryptAbove(plan, accent, D.above ? tombSite(plan) : null);
-  const faces = [...tomb.faces, ...above.faces.filter((f) => f.tint), ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors, holes), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
+  const faces = [...tomb.faces, ...above.faces.filter((f) => f.tint), ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors, holes), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props, ...(plan.skandart ? { leave: SKANDART_LAYS } : {}) }, keepClear, anchors)];
   return {
     cameras: [tombCamera(plan, tomb.corners)],
     faces, anchors,

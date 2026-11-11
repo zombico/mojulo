@@ -82,6 +82,7 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
+import { readSkandart, skandartLay, skandartRepeats } from './skandart.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
@@ -202,6 +203,14 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   // doorway and an apron round the tomb; each part's shade by its cause, era/floor-shades.js)
   floorPlan: { border: { w: 0.8, shade: 'unwalked' }, walk: { w: 2.6, scale: 1.5, shade: 'worn' }, threshold: { depth: 1.5, margin: 0.3, scale: 1.5, shade: 'worn' },
     apron: { margin: 0.9, shade: 'soot' }, fields: { relaid: 0.15, damp: 0.2 } },
+  // (its debris, asked for by a recipe's `skandart`, era/skandart.js: what falls here and where it comes to rest, each
+  // by its cause; nothing smaller than a hand is built)
+  skandart: Object.freeze({
+    foot: 'the coat fails low where damp rises: flakes of its render and spall of the ashlar behind it lie along the border course, a strip a bay in the wall\'s rhythm',
+    corner: 'what falls is pushed into the corners: spall heaped against the pilasters\' feet where two walls meet',
+    apron: 'the candles at the tomb\'s corners pour their wax on the dais and down onto the floor at its foot',
+    webs: 'within reach the webs are swept; over the string course nothing disturbs them',
+  }),
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
   torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5, form: 'cone' },
   // its motif, cut and not painted: dentils under the cornice in the wall's own tone, low relief (the crypt's principle
@@ -573,7 +582,10 @@ export function planStage(m = {}) {
   })() : nightRef;
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
+  // DEBRIS (`skandart`, era/skandart.js): the kit's answer to what falls and where it rests, asked for by the recipe
+  const sk = readSkandart(m);
+  if (sk && !nightKit.skandart) throw new Error(`stage: skandart: kit '${kitId}' answers no debris question yet (kits that do: ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].skandart).join(', ')})`);
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -943,7 +955,8 @@ export function buildStageGeometry(plan) {
  *  face carries `tint` + `normal` so the stage bake lights it like the shell. */
 export function stageRubble(plan, drains) {
   const rb = plan.kit.rubble, g = plan.kit.gutter;
-  if (!rb || !drains.length) return [];
+  // (a room whose debris is asked for lays its own, by its causes: era/skandart.js)
+  if (!rb || !drains.length || plan.skandart) return [];
   const pool = rockPool({ rock: rb.rock, variants: rb.variants, detail: 0, tone: rb.tone, seed: 'stage-rubble', group: 'stage:rubble' });
   const items = [];
   drains.forEach(({ F, a, b }, di) => {
@@ -1071,7 +1084,7 @@ export function waterWorks(w) {
  *  the sun by its cosine where its shadow test reaches the corner, what the ground throws back onto a face turned down,
  *  and the lamps in the sun's share; with `sun.share` each corner carries the share of its light the sun gives.
  *  → { faces, light: the solve (under a sun, `sun`: { key, dir, ground: the light a face turned down takes with no sun }) } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -1151,7 +1164,15 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map((sh, j) => light(sh, sw ? sw[j] : null)), ...(shared ? { sunShare: shares[i].map((sh, j) => shareOf(sh, sw[j])) } : {}) };
   });
   const L = scale ? { ...S, keys } : S;
-  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L };
+  // (asked for, era/skandart.js: the light the room lays at points that are no face of it, `probes` [{ at, normal }],
+  // as a corner's; and the base a paint takes in this room, `paints` [{ colour, tint }] (a tile's colour, sRGB 0…1, and
+  // its tint): its target at the reference over the solve's level, as a surface of that paint is solved. Neither
+  // touches the solve: a room asked for none is as it was)
+  const extra = {
+    ...(probes ? { probes: probes.map((p) => light(sharesAt(p, p.at), sun ? sunAt(p, p.at) : null)) } : {}),
+    ...(paints ? { paints: paints.map(({ colour, tint }) => colour.map((c, k) => r4(Math.min(1, (lin(c) * lin(Math.min(1, L6 * tint[k]))) / S.level)))) } : {}),
+  };
+  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L, ...extra };
 }
 /** A torch's live flame (metres): as wide and as tall as the two polygons it stands for. */
 export const TORCH_FLAME = Object.freeze({ w: 0.3, h: 0.56 });
@@ -1413,13 +1434,26 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   };
   const tuner = form && plan.compose ? keyTuner(plan) : null;
+  // DEBRIS (`skandart`, era/skandart.js): its clumps built once and the places they lie; a stamp is lit where it lies, so
+  // the bake is asked for the light at the middle of each one's mass (and, in the form render, the base each matter takes)
+  const skLaid = plan.skandart ? skandartLay(plan, geom) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun ? { sun } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun ? { sun } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
+  // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
+  const paintLs = ctx.unshaded || formLit ? null
+    : (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights);
   // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
   const lit = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
-      : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);
+      : bakeStageLight(raw, paintLs, ambient, dirt(), sun);
+  // (the debris's stamps, each lit where it lies: in the paint, the bake's own light at each probe, on a face of no colour)
+  // (and the grime of the ground each lies on, the room's own: the gutter's wet, the unwalked floor's dark)
+  const skRepeats = skLaid ? (() => {
+    const grime = dirt(), probe = (q) => ({ corners: [[q.at[0] - 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0] + 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0], q.at[1] + 0.05, q.at[2]]], normal: q.normal, group: q.group, tint: [1, 1, 1] });
+    return skandartRepeats(skLaid, formLit ? { form: formLit, grime: skLaid.probes.map((q) => grime(probe(q), q.at)) }
+      : paintLs ? { paintFills: bakeStageLight(skLaid.probes.map(probe), paintLs, ambient, grime, sun) } : {});
+  })() : [];
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
@@ -1470,7 +1504,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
-    ...(stands && stands.repeats.length ? { repeats: stands.repeats } : {}),
+    ...((stands && stands.repeats.length) || skRepeats.length ? { repeats: [...(stands ? stands.repeats : []), ...skRepeats] } : {}),
     // the page sends its textured geometry welded, its baked colour in 8 bits (scene-three.js `pack`): half the bytes
     pack: true,
     // the ends by which this map links to others, and its items (doors.js): only when the recipe names them

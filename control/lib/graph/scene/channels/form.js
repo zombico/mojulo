@@ -33,7 +33,8 @@ import { safeJson } from '../emit-util.js';
 // Absent `form` ⇒ NOT emitted.
 // `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
-//          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes) }
+//          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
+//          instanced?: true (a room under no sun whose instanced repeats carry their baked light: lit as the town's are) }
 export function formScript(cfg) {
   // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
   const NB = cfg.lights.filter((l) => l.beat).length;
@@ -128,13 +129,13 @@ fDirect += fBeat * diffuseColor.rgb;
   const maps = {}, made = { material: 0, colour: 0, pom: 0 };
   for (const [k, m] of Object.entries(F.maps)) maps[k] = { ...m, normal: m.normal ? map(m.normal) : null, orm: m.orm ? map(m.orm) : null };
   // every surface of the room that carries its baked light; the rest keep their look, untoned
-${cfg.sun ? `  const shared = new Map();
+${cfg.sun || cfg.instanced ? `  const shared = new Map();
 ` : ''}  scene.traverse((o) => {
     if (!o.material) return;
     const b = o.material;${cfg.sun ? `
     // (a body under the cast rig, channels/cast-rig.js, is lit and toned as these are: left as it is)
     if (!Array.isArray(b) && b.userData && b.userData.cast) return;` : ''}
-${cfg.sun ? `
+${cfg.sun || cfg.instanced ? `
     // (a street's repeated pieces, baked a template: the tiles of one repeat share one material, so they share its form)
     if (o.isInstancedMesh && !Array.isArray(b) && b.isMeshBasicMaterial && typeof o.userData.g === 'string' && !keep.has(o.userData.g) && o.geometry.getAttribute('aLit')) {
       let m = shared.get(b);

@@ -170,7 +170,7 @@ export function placeThings(plan, pilasters, spec, keepClear = []) {
   return out;
 }
 
-/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room.
+/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone?, leave? }; `keepClear` [{ x, y, r }]. → faces, baked with the room.
  *  `anchors` (an array) takes one record per thing (anchors.js): a doodad's or a built prop's faces carry its id as
  *  their `node`; a heap of stones is pooled with every other, so it is addressed by its place and size alone. */
 export function cornerThings(plan, pilasters, spec, keepClear = [], anchors = null) {
@@ -178,6 +178,9 @@ export function cornerThings(plan, pilasters, spec, keepClear = [], anchors = nu
   const W = spec.wood || PROP_WOOD, S = { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]),
     stone: { ...(spec.stone || { key: 'marble-carrara', scale: 1.2, tint: [0.6, 0.58, 0.55] }), group: 'stage:prop' } };
   for (const t of placeThings(plan, pilasters, spec, keepClear)) {
+    // (a kind the room lays by its own causes, `leave`: era/skandart.js's fallen stone; its place is kept, so the dice of
+    // every other thing fall as they did)
+    if (spec.leave && spec.leave.includes(t.kind)) continue;
     const { kind, seed } = t, it = t, id = `${kind}-${(count[kind] = (count[kind] || 0) + 1)}`, big = DOODAD_KINDS.includes(kind);
     if (anchors) anchors.push({ id, kind: big ? 'doodad' : 'prop', form: kind, at: P(it.p), N: P(it.N), ...(t.cluster ? { cluster: t.cluster } : {}), ...(big ? { solid: true } : {}) });
     {
