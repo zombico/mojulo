@@ -19,6 +19,14 @@
   `shadows.toLight` in `worlds/world-scene.js`: the payload no longer carries it, the page's shadows fall where
   they did. A page the form render draws says its record (`window.__mojSun`), and a test holds a shading channel and
   the live shadows of one emitted page to one sun (`lightAgrees`).
-- **Not yet in the record's use**: its colours. The record carries the solved sun and ambient where the form render
-  has them, but the channels that bring a three light of their own (the surface, the shallows, the seaway) still
-  bring their own colour and level.
+- **On a page the land lights, live water brings no light of its own.** The shallows and the seaway each added a
+  sun and a sky fill of three's when no light stood in the scene yet; on a gen-7 page whose land is drawn as form
+  they ran before the land brought its own, and their fill then lit the land as well, brighter than its solve. There
+  they bring none now (`pageLit`): the land's sun and ambient, the record's, are the page's. Elsewhere they are as
+  they were.
+- **The record on the page.** A page the form render draws carries the record as `__LIGHT` (and `window.__mojSun`,
+  the machine gate's probe); a page without it carries neither, and its bytes are as they were.
+- **Left as they are, and said**: on a page with no light of its own the shading channels take the polygonizer's
+  default sun and a shadow the shadow's default, two directions, as minted pages have them; unifying them would move
+  every such page's shadows. A water surface's own sun (`channels/surface.js`, a kind's argument a surface) is not
+  the record's yet.

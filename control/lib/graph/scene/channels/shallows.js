@@ -16,7 +16,7 @@ import { aquaPatchScript } from './aqua-glsl.js';
 // and the channel drives the standard responses itself each frame: the walk camera and controllable bodies wade
 // (slowed by how deep they stand, a wake behind them, a splash on entry, floating once the water is over their
 // chest), floaters bob on the live surface and drift down its slope, and rain rings it.
-export function shallowsChannelScript({ bodies, floaters = [], rain = 0, toLight = [0.4, 0.3, 0.8], walk = false, ctrl = true, metersPerUnit = 1 }) {
+export function shallowsChannelScript({ bodies, floaters = [], rain = 0, toLight = [0.4, 0.3, 0.8], walk = false, ctrl = true, metersPerUnit = 1, pageLit = false }) {
   const pack = bodies.map((b) => ({
     id: b.id, kind: b.kind, level: b.level, color: b.color, look: b.look, sim: b.sim,
     grid: { nx: b.grid.nx, ny: b.grid.ny, x0: b.grid.x0, y0: b.grid.y0, dx: b.grid.dx, dy: b.grid.dy, depth: b64(new Float32Array(b.grid.depth)) },
@@ -31,9 +31,9 @@ let stepShallows = () => {};
   const L = ${+(1 / (metersPerUnit > 0 ? metersPerUnit : 1)).toFixed(6)}, G = 9.8 * L, DT = 1 / 60, hex = (c) => new THREE.Color(c), SUN = ${safeJson(toLight.map((x) => +(+x).toFixed(6)))};
   // the water and the floaters are lit (the baked faces aren't): one sun along the scene's light, a sky fill — only
   // when no other channel has lit the scene already (walkers, cars, surfaces bring their own)
-  if (!scene.children.some((o) => o.isLight)) { const sun = new THREE.DirectionalLight(0xfff4e0, 2.0); sun.position.set(SUN[0] * 100, SUN[1] * 100, SUN[2] * 100); scene.add(sun);
+${pageLit ? '' : `  if (!scene.children.some((o) => o.isLight)) { const sun = new THREE.DirectionalLight(0xfff4e0, 2.0); sun.position.set(SUN[0] * 100, SUN[1] * 100, SUN[2] * 100); scene.add(sun);
     const hemi = new THREE.HemisphereLight(0xcfe3f2, 0x5a6a48, 0.9); hemi.position.set(0, 0, 1); scene.add(hemi); }
-  const B = SH.map((b) => {
+`}  const B = SH.map((b) => {
     const { nx, ny, x0, y0, dx, dy } = b.grid, N = nx * ny, D = decodeF32(b.grid.depth);
     const wet = new Uint8Array(N), c2 = new Float32Array(N), sink = new Float32Array(N);
     const k2 = b.sim.speed * b.sim.speed * G / (dx * dy);

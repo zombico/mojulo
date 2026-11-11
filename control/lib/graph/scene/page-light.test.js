@@ -4,6 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { pageLight, shadowToLight, lightAgrees, SHADOW_SUN } from './page-light.js';
 import { emitThreeWorld } from './scene-three.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
+import { shallowsChannelScript } from './channels/shallows.js';
+import { seawayChannelScript } from './channels/seaway.js';
 
 const SUN = [-0.3747, -0.3747, 0.848], BAKED = [0.2, 0.3, 0.9327];
 const far = (d) => ({ at: d.map((v) => v * 1e6), key: [0.6, 0.55, 0.42], radius: 1e9, live: true });
@@ -48,5 +50,15 @@ describe('the page\'s light', () => {
     const probe = JSON.parse(/window\.__mojSun = (\{.*?\});/.exec(formed)[1]);
     expect(probe.from).toBe('town');
     expect(lightAgrees([probe.toLight, SUN])).toBe(true);
+  });
+
+  it('on a page the land lights, live water brings no light of its own: the land\'s sun and sky are the page\'s', () => {
+    const own = shallowsChannelScript({ bodies: [] }), lit = shallowsChannelScript({ bodies: [], pageLit: true });
+    expect(own).toContain('THREE.HemisphereLight');
+    expect(lit).not.toContain('THREE.HemisphereLight');
+    expect(lit).not.toContain('THREE.DirectionalLight');
+    const sea = { boat: {}, water: {}, wake: {}, course: {} };
+    expect(seawayChannelScript(sea)).toContain('THREE.HemisphereLight');
+    expect(seawayChannelScript({ ...sea, pageLit: true })).not.toContain('THREE.HemisphereLight');
   });
 });

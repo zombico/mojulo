@@ -275,8 +275,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   // THE PAGE'S LIGHT, one record (scene/page-light.js): every channel below that shades or casts reads its sun from it
   const PL = pageLight({ light, form, sky });
-  // (the machine gate's probe, on a page the form render draws: `window.__mojSun`, the record)
-  const sunProbe = form ? `\nwindow.__mojSun = ${safeJson({ toLight: PL.toLight.map((v) => +(+v).toFixed(6)), from: PL.from, indoor: PL.indoor, ...(PL.sun ? { sun: PL.sun } : {}), ...(PL.ambient ? { ambient: PL.ambient } : {}) })};\n` : '';
+  // (on a page the form render draws the record is the page's own, `__LIGHT`, and the machine gate's probe,
+  // `window.__mojSun`; a page without it carries neither: its channels' own arguments are the record's numbers)
+  const sunProbe = form ? `\nconst __LIGHT = window.__mojSun = ${safeJson({ toLight: PL.toLight.map((v) => +(+v).toFixed(6)), from: PL.from, indoor: PL.indoor, ...(PL.sun ? { sun: PL.sun } : {}), ...(PL.ambient ? { ambient: PL.ambient } : {}) })};\n` : '';
   const litPack = !!(form && ((form.room && Array.isArray(form.room.lights)) || (form.town && Array.isArray(form.town.lights))));
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -628,11 +629,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const softGroundBlock = softGround && softGround.surface && softGround.swash ? softGroundScript(softGround) : '';
   // snow prints (a stage's snow: a footprint bed round the walker, era/snow.js). Absent ⇒ no bytes.
   const snowPrintsBlock = snowPrints && snowPrints.grid ? snowPrintsScript(snowPrints) : '';
-  const shallowsBlock = shallowBodies.length ? shallowsChannelScript({ bodies: shallowBodies, floaters: shallows.floaters || [], rain: shallows.rain || 0, metersPerUnit: Number.isFinite(+metersPerUnit) && +metersPerUnit > 0 ? +metersPerUnit : 1, toLight: PL.toLight, walk: !!walk }) : '';
+  const shallowsBlock = shallowBodies.length ? shallowsChannelScript({ bodies: shallowBodies, floaters: shallows.floaters || [], rain: shallows.rain || 0, metersPerUnit: Number.isFinite(+metersPerUnit) && +metersPerUnit > 0 ? +metersPerUnit : 1, toLight: PL.toLight, walk: !!walk, ...(PL.from === 'land' ? { pageLit: true } : {}) }) : '';
   // jets (materials/jet.js): falling streams and the basins they fill; they touch water through the shallows bus
   const jetBlock = Array.isArray(jets) && jets.length ? (shallowsBlock ? '' : aquaPatchScript()) + jetChannelScript({ jets, sky, toLight: PL.toLight, hud: !!hud, ...(jetLight ? { lit: jetLight } : {}) }) : '';
   // a boat underway on live water (worlds/seaway-scene.js). Absent ⇒ no bytes.
-  const seawayBlock = seaway && seaway.boat && seaway.water ? seawayChannelScript({ ...seaway, toLight: PL.toLight }) : '';
+  const seawayBlock = seaway && seaway.boat && seaway.water ? seawayChannelScript({ ...seaway, toLight: PL.toLight, ...(PL.from === 'land' ? { pageLit: true } : {}) }) : '';
   const blendBlock = blendLayers.length ? blendLayerScript(blendLayers) : '';
 
   // Sky dome: a world-fixed gradient sphere (+ night stars + a phase-carved moon) centred on the
