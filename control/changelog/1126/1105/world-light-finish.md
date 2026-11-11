@@ -26,6 +26,20 @@
   they were.
 - **The record on the page.** A page the form render draws carries the record as `__LIGHT` (and `window.__mojSun`,
   the machine gate's probe); a page without it carries neither, and its bytes are as they were.
+- **The finish is asked for** (`light.finish`, `scene/page-light.js` `readFinish`): `true`, a curve's word
+  (`neutral`) or `{ curve, reflect }`. It is the opt-in to everything laid over the bake; a world without it, every
+  minted one, resolves and emits as it did. An unknown word or key teaches.
+- **A specular face reflects the sky** (under the finish, on a page with a painted sky; `channels/specular.js`).
+  Beside its highlight a spec face now takes the sky along its reflected view, the dome from horizon to zenith and
+  a dark ground under it, weighted by Fresnel from a dielectric's 4% and by the face's own strength. The sky is the
+  record's, as an environment (`skyEnv`, `envAt`: the same dome and ground a metal's studio already reflects), stated
+  once in JS and held to the shader by a test. A room under no sun reflects none of it.
+- **A change to the plan's second step.** The plan captures the page's sky into a cube for every reflective
+  surface. A metal already reflects that sky analytically from its zenith and horizon, and a capture of the same
+  two colours would add a render at load and no new picture; so outdoors the sky's environment stays analytic (no
+  render target, the same frame every time), and a capture is kept for where it shows what the analytic sky cannot:
+  a room reflecting the room. That, water under the finish, and the frame's finish (a linear frame, bloom, exposure,
+  the curve) are not built yet.
 - **Left as they are, and said**: on a page with no light of its own the shading channels take the polygonizer's
   default sun and a shadow the shadow's default, two directions, as minted pages have them; unifying them would move
   every such page's shadows. A water surface's own sun (`channels/surface.js`, a kind's argument a surface) is not

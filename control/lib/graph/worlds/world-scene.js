@@ -45,6 +45,7 @@ import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps } from '@/lib/graph/form/room-form';
+import { readFinish } from '@/lib/graph/scene/page-light';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
@@ -824,6 +825,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
+  // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
+  { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,

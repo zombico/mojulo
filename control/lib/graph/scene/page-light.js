@@ -21,6 +21,15 @@
  *   lightAgrees(dirs, tol?) → do these directions agree (each within `tol` of the first, by their cosine)? The machine
  *     gate's check that one page has one sun.
  *
+ *   readFinish(light) → null | { curve, reflect }: a world's `light.finish`, the opt-in to what is laid over the bake
+ *     (absent ⇒ null ⇒ the page as it was). `true` or a curve's word ('neutral') is the default finish; an object names
+ *     its parts ({ curve?, reflect? }). An unknown word or key teaches
+ *   skyEnv(sky) → { zenith, horizon, ground } (display rgb, 0..1): the painted sky as an environment a face reflects,
+ *     its ground the horizon darkened (SKY_ENV.ground)
+ *   envAt(z, env) → the environment's colour along a direction whose height is z (−1..1): the law the specular
+ *     channel's shader runs (channels/specular.js), mirrored here so a test holds the two together; the metal's studio
+ *     (channels/metal.js metStudio) is the same dome and ground
+ *
  * Pure: no dice, no clock. Shading reads `toLight`; only shadow casting reads `shadowToLight`.
  */
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
@@ -55,4 +64,34 @@ export function lightAgrees(dirs, tol = 1e-3) {
   const U = dirs.map((d) => (vec3(d) ? unit(d) : null));
   if (U.some((u) => !u)) return false;
   return U.every((u) => u[0] * U[0][0] + u[1] * U[0][1] + u[2] * U[0][2] > 1 - tol);
+}
+
+/** The finish's curves (the tone curve a page's lit frame is drawn through), and the sky's environment: how the dome
+ *  rises from the horizon (`rise`), how dark the ground is against the horizon (`ground`), how fast it falls to the
+ *  ground under the horizon (`fall`), and the horizon's share just under itself (`under`). */
+export const FINISH_CURVES = Object.freeze(['neutral']);
+export const SKY_ENV = Object.freeze({ rise: 0.7, ground: 0.35, fall: 8, under: 0.6 });
+
+export function readFinish(light) {
+  const f = light && typeof light === 'object' ? light.finish : undefined;
+  if (f === undefined || f === null || f === false) return null;
+  const no = (msg) => { throw new Error(`light.finish: ${msg}`); };
+  const curve = (w) => (FINISH_CURVES.includes(w) ? w : no(`curve '${w}' is not one of ${FINISH_CURVES.join(', ')}`));
+  if (f === true) return { curve: 'neutral', reflect: true };
+  if (typeof f === 'string') return { curve: curve(f), reflect: true };
+  if (typeof f !== 'object' || Array.isArray(f)) no('is true, a curve\'s word, or { curve?, reflect? }');
+  for (const k of Object.keys(f)) if (!['curve', 'reflect'].includes(k)) no(`'${k}' is not a part of it (curve, reflect)`);
+  if (f.reflect !== undefined && typeof f.reflect !== 'boolean') no('reflect is true or false');
+  return { curve: f.curve === undefined ? 'neutral' : curve(f.curve), reflect: f.reflect !== false };
+}
+
+const rgb01 = (c) => (c.some((v) => v > 1) ? c.map((v) => v / 255) : [...c]).map((v) => Math.round(Math.min(1, Math.max(0, v)) * 1e4) / 1e4);
+export function skyEnv(sky) {
+  if (!sky || !Array.isArray(sky.zenith) || !Array.isArray(sky.horizon)) return null;
+  const zenith = rgb01(sky.zenith.slice(0, 3)), horizon = rgb01(sky.horizon.slice(0, 3));
+  return { zenith, horizon, ground: horizon.map((v) => Math.round(v * SKY_ENV.ground * 1e4) / 1e4) };
+}
+export function envAt(z, env) {
+  const mix = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
+  return z > 0 ? mix(env.horizon, env.zenith, z ** SKY_ENV.rise) : mix(env.ground, env.horizon.map((v) => v * SKY_ENV.under), Math.exp(SKY_ENV.fall * z));
 }

@@ -1,7 +1,8 @@
 // The page's light, one record (page-light.js): one case per place a sun is read from, the shadow's own rule, and the
 // machine check that one page has one sun: on an emitted page, a shading channel and the live shadows agree.
 import { describe, it, expect } from 'vitest';
-import { pageLight, shadowToLight, lightAgrees, SHADOW_SUN } from './page-light.js';
+import { pageLight, shadowToLight, lightAgrees, SHADOW_SUN, readFinish, skyEnv, envAt, SKY_ENV } from './page-light.js';
+import { specularChannelScript } from './channels/specular.js';
 import { emitThreeWorld } from './scene-three.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { shallowsChannelScript } from './channels/shallows.js';
@@ -60,5 +61,37 @@ describe('the page\'s light', () => {
     const sea = { boat: {}, water: {}, wake: {}, course: {} };
     expect(seawayChannelScript(sea)).toContain('THREE.HemisphereLight');
     expect(seawayChannelScript({ ...sea, pageLit: true })).not.toContain('THREE.HemisphereLight');
+  });
+
+  it('the finish is asked for: absent it is nothing, a word or true the default, an unknown word teaches', () => {
+    expect(readFinish(null)).toBeNull();
+    expect(readFinish({ tier: 'full' })).toBeNull();
+    expect(readFinish({ finish: true })).toEqual({ curve: 'neutral', reflect: true });
+    expect(readFinish({ finish: 'neutral' })).toEqual({ curve: 'neutral', reflect: true });
+    expect(readFinish({ finish: { reflect: false } })).toEqual({ curve: 'neutral', reflect: false });
+    expect(() => readFinish({ finish: 'glossy' })).toThrow(/curve 'glossy' is not one of/);
+    expect(() => readFinish({ finish: { bloom: 1 } })).toThrow(/'bloom' is not a part of it/);
+  });
+
+  it('under the finish a spec face reflects the painted sky, by the law the record states; without it the channel is as it was', () => {
+    const env = skyEnv({ zenith: [60, 110, 200], horizon: [200, 215, 235] });
+    // (the law: the zenith overhead, the horizon level, the ground below, continuous enough at the horizon to read as one sky)
+    envAt(1, env).forEach((v, k) => expect(v).toBeCloseTo(env.zenith[k], 6));
+    envAt(1e-9, env).forEach((v, k) => expect(v).toBeCloseTo(env.horizon[k], 3));
+    envAt(-1, env).forEach((v, k) => expect(v).toBeCloseTo(env.ground[k], 2));
+    expect(env.ground[0]).toBeCloseTo(env.horizon[0] * SKY_ENV.ground, 3);
+    // (the shader runs that law with the record's numbers)
+    const plain = specularChannelScript(SUN), lit = specularChannelScript(SUN, env);
+    expect(plain).not.toContain('sE');
+    expect(lit).toContain(`pow(sR.z, ${SKY_ENV.rise.toFixed(4)})`);
+    expect(lit).toContain(`vec3(${env.zenith.map((v) => v.toFixed(4)).join(', ')})`);
+    expect(lit.replace(/      'vec3 sR[\s\S]*?sF \* sE;\\n' \+\n/, '')).toBe(plain);
+    // (the page: only a world that asks, under a painted sky, and never a room under no sun)
+    const face = (extra) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill: '#888888', ...extra });
+    const P = { faces: [face(), face({ spec: [0.8, 24] })], light: { toLight: BAKED }, sky: { zenith: [60, 110, 200], horizon: [200, 215, 235] }, inline: true };
+    expect(emitThreeWorld(P)).not.toContain('sF * sE');
+    expect(emitThreeWorld({ ...P, finish: readFinish({ finish: true }) })).toContain('sF * sE');
+    expect(emitThreeWorld({ ...P, finish: readFinish({ finish: { reflect: false } }) })).not.toContain('sF * sE');
+    expect(emitThreeWorld({ ...P, sky: null, finish: readFinish({ finish: true }) })).not.toContain('sF * sE');
   });
 });
