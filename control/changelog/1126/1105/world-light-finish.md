@@ -2,9 +2,9 @@
 
 - **Under way.** The World page keeps its baked light and gains, opt-in and adding no byte to a page that does not
   ask: one light record (sun, sky, ambient) every lit channel reads (built, below); one capture of the page's own sky
-  as what metal, specular faces and water reflect, and rooms that reflect the room; and a frame drawn in linear light
-  and finished in the frame pass (bloom, exposure that adapts, a tone curve whose highlights roll off to white,
-  dither), with the grade laid over it as today.
+  as what specular faces and water reflect, and rooms that reflect the room; and a frame with headroom finished in
+  the frame pass (bloom, exposure that adapts), with the grade laid over it as today. All of it is asked for by
+  `light.finish`.
 - **One light record a page** (`scene/page-light.js` `pageLight`). Where the sun stands is resolved once from a
   payload, from the first that holds: the form render's land (the cube's solved sun), a town's or a city's baked
   buildings, a stage under a sun or a moon, the payload's baked light, the polygonizer's default. Every channel that
@@ -38,8 +38,22 @@
   surface. A metal already reflects that sky analytically from its zenith and horizon, and a capture of the same
   two colours would add a render at load and no new picture; so outdoors the sky's environment stays analytic (no
   render target, the same frame every time), and a capture is kept for where it shows what the analytic sky cannot:
-  a room reflecting the room. That, water under the finish, and the frame's finish (a linear frame, bloom, exposure,
-  the curve) are not built yet.
+  a room reflecting the room. That, water under the finish, exposure that adapts and the other emitters past
+  white (fire, the sun's disc, lit windows, signs) are not built yet.
+- **Bloom, over a frame with headroom** (under the finish; `channels/frame-pass.js`, `scene/page-light.js`). The
+  plan drew the frame in linear light and finished it in the pass. That would put every painted colour through the
+  curve's inverse, in every custom shader a page has (sky, water, panes, sprites), and one missed is a colour moved.
+  Instead the frame stays as it is drawn, display-referred, in the pass's half-float target, where an emitter may
+  write past white. What is past white is the bloom (`bloomBright`): drawn down a chain of halves, the first with a
+  Karis weight so one hot pixel does not flicker, and back up through a tent, each wider level counted a little more
+  (`FRAME_PASS.wide`), then laid over the frame by `strength` under the grade. A pixel at or under white gives
+  nothing, so no pixel of a page changes but round an emitter. The chain is five levels, four at the half tier,
+  none at off (`BLOOM_LEVELS`). Under the bloom a glow sprite is its emitter's core, smaller and past white
+  (`channels/glow.js` `GLOW_HOT`), and the bloom draws its halo from its light. `light.finish` takes
+  `bloom: false` or `{ strength, radius }`. What this gives up: a tone curve chosen a page (it stays each
+  material's own). Measured in Chrome on a lamp against a dark wall: with the finish the core clips to white and
+  its light spreads past the sprite, where the same page without it is the painted halo. The probe is
+  `window.__mojFrame.bloom`.
 - **Left as they are, and said**: on a page with no light of its own the shading channels take the polygonizer's
   default sun and a shadow the shadow's default, two directions, as minted pages have them; unifying them would move
   every such page's shadows. A water surface's own sun (`channels/surface.js`, a kind's argument a surface) is not

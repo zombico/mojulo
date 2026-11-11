@@ -21,9 +21,11 @@
  *   lightAgrees(dirs, tol?) → do these directions agree (each within `tol` of the first, by their cosine)? The machine
  *     gate's check that one page has one sun.
  *
- *   readFinish(light) → null | { curve, reflect }: a world's `light.finish`, the opt-in to what is laid over the bake
+ *   readFinish(light) → null | { curve, reflect, bloom: { strength, radius } | null }: a world's `light.finish`, the opt-in to what is laid over the bake
  *     (absent ⇒ null ⇒ the page as it was). `true` or a curve's word ('neutral') is the default finish; an object names
- *     its parts ({ curve?, reflect? }). An unknown word or key teaches
+ *     its parts ({ curve?, reflect?, bloom? }). An unknown word or key teaches
+ *   BLOOM_LEVELS, bloomSizes(w, h, levels), bloomBright(c)   the bloom's chain by tier, its sizes, and what of a pixel
+ *     blooms (its light past white): the laws the frame pass's shaders run
  *   skyEnv(sky) → { zenith, horizon, ground } (display rgb, 0..1): the painted sky as an environment a face reflects,
  *     its ground the horizon darkened (SKY_ENV.ground)
  *   envAt(z, env) → the environment's colour along a direction whose height is z (−1..1): the law the specular
@@ -70,6 +72,8 @@ export function lightAgrees(dirs, tol = 1e-3) {
  *  rises from the horizon (`rise`), how dark the ground is against the horizon (`ground`), how fast it falls to the
  *  ground under the horizon (`fall`), and the horizon's share just under itself (`under`). */
 export const FINISH_CURVES = Object.freeze(['neutral']);
+/** The bloom's dials as asked by default: how much of the bloomed light is laid back, and how wide it spreads. */
+export const BLOOM = Object.freeze({ strength: 1, radius: 1 });
 export const SKY_ENV = Object.freeze({ rise: 0.7, ground: 0.35, fall: 8, under: 0.6 });
 
 export function readFinish(light) {
@@ -77,12 +81,33 @@ export function readFinish(light) {
   if (f === undefined || f === null || f === false) return null;
   const no = (msg) => { throw new Error(`light.finish: ${msg}`); };
   const curve = (w) => (FINISH_CURVES.includes(w) ? w : no(`curve '${w}' is not one of ${FINISH_CURVES.join(', ')}`));
-  if (f === true) return { curve: 'neutral', reflect: true };
-  if (typeof f === 'string') return { curve: curve(f), reflect: true };
-  if (typeof f !== 'object' || Array.isArray(f)) no('is true, a curve\'s word, or { curve?, reflect? }');
-  for (const k of Object.keys(f)) if (!['curve', 'reflect'].includes(k)) no(`'${k}' is not a part of it (curve, reflect)`);
+  const whole = { curve: 'neutral', reflect: true, bloom: { ...BLOOM } };
+  if (f === true) return whole;
+  if (typeof f === 'string') return { ...whole, curve: curve(f) };
+  if (typeof f !== 'object' || Array.isArray(f)) no('is true, a curve\'s word, or { curve?, reflect?, bloom? }');
+  for (const k of Object.keys(f)) if (!['curve', 'reflect', 'bloom'].includes(k)) no(`'${k}' is not a part of it (curve, reflect, bloom)`);
   if (f.reflect !== undefined && typeof f.reflect !== 'boolean') no('reflect is true or false');
-  return { curve: f.curve === undefined ? 'neutral' : curve(f.curve), reflect: f.reflect !== false };
+  const b = f.bloom, dial = (o, k, lo, hi) => (o[k] === undefined ? BLOOM[k] : Number.isFinite(o[k]) && o[k] >= lo && o[k] <= hi ? o[k] : no(`bloom.${k} is a number from ${lo} to ${hi}`));
+  if (b !== undefined && typeof b !== 'boolean' && (typeof b !== 'object' || b === null || Array.isArray(b))) no('bloom is true, false or { strength?, radius? }');
+  if (b && typeof b === 'object') for (const k of Object.keys(b)) if (!['strength', 'radius'].includes(k)) no(`bloom.${k} is not a dial of it (strength, radius)`);
+  const bloom = b === false ? null : b && typeof b === 'object' ? { strength: dial(b, 'strength', 0, 2), radius: dial(b, 'radius', 0.25, 2) } : { ...BLOOM };
+  return { curve: f.curve === undefined ? 'neutral' : curve(f.curve), reflect: f.reflect !== false, bloom };
+}
+
+/** How many levels the bloom's chain has by the live light's tier (none at 'off'), each half the last. */
+export const BLOOM_LEVELS = Object.freeze({ full: 5, half: 4, off: 0 });
+/** The chain's sizes from a frame w × h: level 0 half the frame, each next half again, never under 2 px. */
+export function bloomSizes(w, h, levels) {
+  const out = [];
+  for (let i = 0, W = w, H = h; i < levels; i++) { W = Math.max(2, Math.floor(W / 2)); H = Math.max(2, Math.floor(H / 2)); out.push([W, H]); }
+  return out;
+}
+/** What of a pixel blooms: its light past white (the frame is display-referred, drawn with headroom: a pixel at or
+ *  under white gives nothing), each tap weighted by 1 / (1 + its luminance) so one hot pixel does not flicker into a
+ *  blob (Karis). → [rgb excess, weight]: the frame pass's first downsample runs this law (channels/frame-pass.js). */
+export function bloomBright(c) {
+  const e = c.map((v) => Math.max(v - 1, 0));
+  return [e, 1 / (1 + 0.2126 * e[0] + 0.7152 * e[1] + 0.0722 * e[2])];
 }
 
 const rgb01 = (c) => (c.some((v) => v > 1) ? c.map((v) => v / 255) : [...c]).map((v) => Math.round(Math.min(1, Math.max(0, v)) * 1e4) / 1e4);

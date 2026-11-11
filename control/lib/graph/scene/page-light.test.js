@@ -1,7 +1,9 @@
 // The page's light, one record (page-light.js): one case per place a sun is read from, the shadow's own rule, and the
 // machine check that one page has one sun: on an emitted page, a shading channel and the live shadows agree.
 import { describe, it, expect } from 'vitest';
-import { pageLight, shadowToLight, lightAgrees, SHADOW_SUN, readFinish, skyEnv, envAt, SKY_ENV } from './page-light.js';
+import { pageLight, shadowToLight, lightAgrees, SHADOW_SUN, readFinish, skyEnv, envAt, SKY_ENV, BLOOM, BLOOM_LEVELS, bloomSizes, bloomBright } from './page-light.js';
+import { framePassScript } from './channels/frame-pass.js';
+import { glowSpriteScript, GLOW_HOT } from './channels/glow.js';
 import { specularChannelScript } from './channels/specular.js';
 import { emitThreeWorld } from './scene-three.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
@@ -66,11 +68,13 @@ describe('the page\'s light', () => {
   it('the finish is asked for: absent it is nothing, a word or true the default, an unknown word teaches', () => {
     expect(readFinish(null)).toBeNull();
     expect(readFinish({ tier: 'full' })).toBeNull();
-    expect(readFinish({ finish: true })).toEqual({ curve: 'neutral', reflect: true });
-    expect(readFinish({ finish: 'neutral' })).toEqual({ curve: 'neutral', reflect: true });
-    expect(readFinish({ finish: { reflect: false } })).toEqual({ curve: 'neutral', reflect: false });
+    expect(readFinish({ finish: true })).toEqual({ curve: 'neutral', reflect: true, bloom: { ...BLOOM } });
+    expect(readFinish({ finish: 'neutral' })).toEqual({ curve: 'neutral', reflect: true, bloom: { ...BLOOM } });
+    expect(readFinish({ finish: { reflect: false, bloom: false } })).toEqual({ curve: 'neutral', reflect: false, bloom: null });
+    expect(readFinish({ finish: { bloom: { strength: 0.4 } } }).bloom).toEqual({ strength: 0.4, radius: BLOOM.radius });
+    expect(() => readFinish({ finish: { bloom: { strength: 9 } } })).toThrow(/bloom.strength is a number from 0 to 2/);
     expect(() => readFinish({ finish: 'glossy' })).toThrow(/curve 'glossy' is not one of/);
-    expect(() => readFinish({ finish: { bloom: 1 } })).toThrow(/'bloom' is not a part of it/);
+    expect(() => readFinish({ finish: { glare: 1 } })).toThrow(/'glare' is not a part of it/);
   });
 
   it('under the finish a spec face reflects the painted sky, by the law the record states; without it the channel is as it was', () => {
@@ -93,5 +97,34 @@ describe('the page\'s light', () => {
     expect(emitThreeWorld({ ...P, finish: readFinish({ finish: true }) })).toContain('sF * sE');
     expect(emitThreeWorld({ ...P, finish: readFinish({ finish: { reflect: false } }) })).not.toContain('sF * sE');
     expect(emitThreeWorld({ ...P, sky: null, finish: readFinish({ finish: true }) })).not.toContain('sF * sE');
+  });
+
+  it('the bloom is what is past white, down a chain of halves; a page that does not ask carries none of it', () => {
+    // (the law: nothing at or under white; a hot tap weighs less than a dark one)
+    expect(bloomBright([1, 0.6, 0.2])).toEqual([[0, 0, 0], 1]);
+    const [e, w] = bloomBright([3, 2, 1.5]);
+    expect(e).toEqual([2, 1, 0.5]);
+    expect(w).toBeLessThan(0.5);
+    expect(bloomSizes(1280, 720, BLOOM_LEVELS.full)).toEqual([[640, 360], [320, 180], [160, 90], [80, 45], [40, 22]]);
+    expect(bloomSizes(1280, 720, BLOOM_LEVELS.half)).toHaveLength(4);
+    expect(bloomSizes(8, 8, 5).at(-1)).toEqual([2, 2]);
+    // (the pass: with a grade alone it is the pass it was; with the bloom it carries the chain and lays it under the grade)
+    const graded = framePassScript({ grade: true }), both = framePassScript({ grade: true, bloom: { strength: 1, radius: 1, levels: 5 } });
+    expect(graded).not.toContain('bloomPass');
+    expect(both).toContain('bloomPass();');
+    expect(both).toContain('max( c - 1.0, 0.0 )');
+    expect(framePassScript({ bloom: { strength: 1, radius: 1, levels: 0 } })).toBe('');
+    expect(framePassScript({ bloom: { strength: 1, radius: 1, levels: 4 } })).toContain('"levels":4');
+    // (an emitter's sprite under the bloom is its core: smaller and past white; without, as it was)
+    const sp = [{ pos: [0, 0, 1], color: [1, 0.8, 0.5], size: 4 }];
+    expect(glowSpriteScript(sp, 0.95, true)).toContain(`e.color[0] * ${GLOW_HOT.core}`);
+    expect(glowSpriteScript(sp, 0.95)).not.toContain(' * ');
+    // (the page: the tier sizes the chain, and 'off' has none)
+    const face = (extra) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill: '#888888', ...extra }), fin = readFinish({ finish: true });
+    const P = { faces: [face(), face({ fill: '#ffd890', glow: '0 0 28px 9px rgba(255,216,144,0.8)' })], inline: true };
+    expect(emitThreeWorld(P)).not.toContain('__mojFrame');
+    expect(emitThreeWorld({ ...P, finish: fin })).toContain('"levels":5');
+    expect(emitThreeWorld({ ...P, finish: fin, lightTier: { tier: 'half', mapSize: 1024, ao: 0.5 } })).toContain('"levels":4');
+    expect(emitThreeWorld({ ...P, finish: { ...fin, bloom: null } })).not.toContain('__mojFrame');
   });
 });

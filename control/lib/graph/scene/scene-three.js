@@ -67,7 +67,7 @@ import { streamChannelScript } from './channels/stream.js';
 import { scienceChannelScript } from './channels/science.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
-import { pageLight, shadowToLight, skyEnv } from './page-light.js';
+import { pageLight, shadowToLight, skyEnv, BLOOM_LEVELS } from './page-light.js';
 import { crystalChannelScript } from './channels/crystal.js';
 import { resolveAquaLook } from '../materials/aqua-look.js';
 import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
@@ -589,7 +589,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // the SAME `glow` markers the baked face list already carries (see collectGlowSprites).
   const glowCfg = glow && typeof glow === 'object' ? glow : {};
   const sprites = glow ? collectGlowSprites(faces, { scale: glowCfg.scale ?? 1 }) : [];
-  const glowBlock = sprites.length ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95) : '';
+  // THE BLOOM (a world's finish, scene/page-light.js): its chain by the live light's tier, none at 'off'
+  const bloomOn = finish && finish.bloom && BLOOM_LEVELS[lightTier && lightTier.tier ? lightTier.tier : 'full'] > 0
+    ? { ...finish.bloom, levels: BLOOM_LEVELS[lightTier && lightTier.tier ? lightTier.tier : 'full'] } : null;
+  const glowBlock = sprites.length ? (bloomOn ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95, true) : glowSpriteScript(sprites, glowCfg.opacity ?? 0.95)) : '';
 
   // Specular channel: live Blinn-Phong against the fixed baked
   // light for groups whose faces carry `spec`. One-shot setup block (glow/shadow posture) —
@@ -755,7 +758,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (and the grade, channels/grade.js: the page's compositing stage, the frame pass's last; asked by nothing, not a byte)
   // (a tempo moment with a look asks for the grade too, at its rest when the world sets none: worlds/controllable/world-clock.js)
   const gradeOn = grade || (tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look) ? {} : null);
-  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0, ...(gradeOn ? { grade: gradeOn } : {}) });
+  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0, ...(gradeOn ? { grade: gradeOn } : {}), ...(bloomOn ? { bloom: bloomOn } : {}) });
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
   const weatherBlock = weather && weather.weather ? weatherScript({ radius: mesh.radius || 40, fog: haze && Number.isFinite(haze.density) && typeof haze.color === 'string' ? { color: haze.color, density: haze.density } : null, forces: weatherForces(events), ...weather }) : '';
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
