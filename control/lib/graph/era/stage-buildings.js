@@ -57,6 +57,7 @@ import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
+import { sunLitFaces } from '../form/sun-light.js';
 import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
@@ -473,6 +474,49 @@ function offPaving(L, paved) {
   return n ? { ...L, grid: { ...g, m: { ...g.m, __b64: Buffer.from(M.buffer).toString('base64') } } } : L;
 }
 
+// A face less the boxes it crosses (in plan): the pieces of it outside every box, each corner's height and whatever
+// else it carries a corner (a colour, a share) carried along its edges; a face clear of every box is returned as it came.
+function cutOutBoxes(f, boxes) {
+  const n = f.corners.length, hit = boxes.filter((B) => { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); return Math.max(...xs) > B[0] && Math.min(...xs) < B[2] && Math.max(...ys) > B[1] && Math.min(...ys) < B[3]; });
+  if (!hit.length) return [f];
+  // a corner of a piece: a mix of two of the face's own corners
+  let polys = [f.corners.map((c, i) => ({ p: c, a: i, b: i, t: 0 }))];
+  const mix = (P, Q, t) => ({ p: [0, 1, 2].map((k) => P.p[k] + (Q.p[k] - P.p[k]) * t), src: [P, Q, t] });
+  const clip = (poly, axis, at, keepLess) => { const out = [], side = (v) => (keepLess ? at - v.p[axis] : v.p[axis] - at);
+    for (let i = 0; i < poly.length; i++) { const P = poly[i], Q = poly[(i + 1) % poly.length], sp = side(P), sq = side(Q);
+      if (sp >= 0) out.push(P);
+      if ((sp > 0 && sq < 0) || (sp < 0 && sq > 0)) out.push(mix(P, Q, sp / (sp - sq))); }
+    return out; };
+  for (const B of hit) { const next = [];
+    for (let rem of polys) {
+      for (const [axis, at, less] of [[0, B[0], true], [0, B[2], false], [1, B[1], true], [1, B[3], false]]) {
+        if (rem.length < 3) break;
+        const outside = clip(rem, axis, at, less);
+        if (outside.length >= 3) next.push(outside);
+        rem = clip(rem, axis, at, !less);
+      }
+    }
+    polys = next; }
+  // each corner's weights over the face's own corners
+  const weights = (v) => { if (!v.src) return { [v.a]: 1 }; const [P, Q, t] = v.src, wp = weights(P), wq = weights(Q), w = {};
+    for (const [k, x] of Object.entries(wp)) w[k] = (w[k] || 0) + x * (1 - t);
+    for (const [k, x] of Object.entries(wq)) w[k] = (w[k] || 0) + x * t;
+    return w; };
+  const perCorner = Object.keys(f).filter((k) => k !== 'corners' && Array.isArray(f[k]) && f[k].length === n && k !== 'normal' && k !== 'outNormal');
+  const at = (arr, w) => { const ks = Object.keys(w), v0 = arr[ks[0]];
+    if (typeof v0 === 'number') return r5(ks.reduce((s, k) => s + arr[k] * w[k], 0));
+    if (Array.isArray(v0) && typeof v0[0] === 'number') return v0.map((_, c) => r5(ks.reduce((s, k) => s + arr[k][c] * w[k], 0)));
+    return arr[ks.reduce((m, k) => (w[k] > w[m] ? k : m), ks[0])]; };
+  const out = [];
+  for (const poly of polys) for (let i = 1; i + 1 < poly.length; i += 2) {
+    const part = [poly[0], poly[i], poly[i + 1], ...(i + 2 < poly.length ? [poly[i + 2]] : [])], ws = part.map(weights);
+    const area = Math.abs(part.reduce((s, v, k) => { const q = part[(k + 1) % part.length]; return s + v.p[0] * q.p[1] - q.p[0] * v.p[1]; }, 0)) / 2;
+    if (area < 1e-6) continue;
+    out.push({ ...f, corners: part.map((v) => P3(v.p)), ...Object.fromEntries(perCorner.map((k) => [k, ws.map((w) => at(f[k], w))])) });
+  }
+  return out;
+}
+
 /**
  * The outdoor payload with its buildings seated: their faces, lights, colliders and anchors added, the land's growth
  * cleared from their footprints. A recipe without `buildings` returns the payload as it came. `ctx.planOnly` seats
@@ -497,6 +541,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const sideOf = (k) => bounds.filter((c) => String(c.of).endsWith(`:${k}`));
   const inBounds = ['-x', '-y', '+x', '+y'].every((k) => sideOf(k).length) ? [Math.max(...sideOf('-x').map((c) => c.max[0])), Math.max(...sideOf('-y').map((c) => c.max[1])), Math.min(...sideOf('+x').map((c) => c.min[0])), Math.min(...sideOf('+y').map((c) => c.min[1]))] : null;
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
+  // (the form render's record of the buildings' rooms, in the world's frame: their lamps, the sun they were baked under)
+  const formRooms = [];
+  // (every footprint the land was cleared under: what the form render grows there, payload.plants, is cleared too)
+  const clearedBoxes = [];
   let faces = payload.faces, lights = [...(payload.lights || [])], colliders = [...(payload.colliders || [])], anchors = [...(payload.anchors || [])];
   const cutouts = new Set(payload.cutouts || []);
   // the town's street (`town.street`, stage-street.js): the trail through it laid as its language's lane; the houses
@@ -653,8 +701,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
       return;
     }
     const clearUnder = (pad, land = true) => {
+      if (land) clearedBoxes.push(...F.boxes);
       const grow = F.boxes.map((B) => [B[0] - pad, B[1] - pad, B[2] + pad, B[3] + pad]), mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
-      faces = faces.filter((f) => { const g = f.group || ''; if (CLEARED.test(g)) { const [cx, cy] = mid(f); return !grow.some((B) => cx >= B[0] && cx <= B[2] && cy >= B[1] && cy <= B[3]); } if (land && (GROUND.test(g) || ROUGH.test(g))) { const [cx, cy] = mid(f); return !F.boxes.some((B) => cx > B[0] && cx < B[2] && cy > B[1] && cy < B[3]); } return true; });
+      // (the land is CUT at the footprint, not dropped by its faces' middles: a face that straddles a wall keeps what
+      // of it lies outside, so no corner of the land stands inside the building over its floor)
+      faces = faces.flatMap((f) => { const g = f.group || '';
+        if (CLEARED.test(g)) { const [cx, cy] = mid(f); return grow.some((B) => cx >= B[0] && cx <= B[2] && cy >= B[1] && cy <= B[3]) ? [] : [f]; }
+        if (land && (GROUND.test(g) || ROUGH.test(g))) return cutOutBoxes(f, F.boxes);
+        return [f]; });
     };
     if (lot) {
       // the shell: the lot's building as the town draws it, painted and lit by the stage's sun, a plinth to the land,
@@ -721,6 +775,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // the inside, moved
     const moved = P.faces.map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}), node: f.node ? `${id}:${f.node}` : undefined }))
       .map(({ node, ...f }) => (node ? { ...f, node } : f));
+    if (bay && P0.form?.room) formRooms.push({ ...P0.form.room, lights: P0.form.room.lights.map((l) => ({ ...l, at: l.radius >= 1e8 ? P3(turnN(l.at)) : P3(W(l.at)) })) });
+    // (its shell baked as its rooms are, its colour and the day's light apart, under the day the land stands in:
+    // form/sun-light.js, under the land's day, `ctx.dayLight`; the sun's cast shadow is the page's live one)
+    const shellLight = bay && P0.form?.room && ctx.dayLight ? ctx.dayLight : null;
     // the outside, painted and lit by the stage's sun
     const L = decompileAnchor(typeof anchor === 'string' ? ANCHOR_STRUCTURES[anchor] : anchor, typeof anchor === 'string' ? anchor : null);
     // painted as the language paints its houses: the mass's group and value on the walls, the cap's on the roof
@@ -733,7 +791,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // as the street's houses do: the language's wall and roof, painted and dressed as theirs, its windows cut through)
     const vern = bay && /^vernacular/.test(P0.compose?.axes?.construction ?? '');
     const X = bay && !vern ? exteriorOf(P0.compose?.axes) : null;
-    const shell = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
+    const shell0 = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
       // (lit by the land's sun where its sky has one, else by its day alone: a dusk under its moon, a night; the fill is
       // the light the page multiplies the tile by, so a sunlit wall carries white and shows its material as painted)
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
@@ -746,6 +804,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
       return manifest.town?.dress ? dressTownFace(F0, roof ? roofGroup : wallGroup, manifest.town.dress) : F0;
     });
+    const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : shell0;
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
     const wy = ways[0], drop = floor - (ground(...toWorld([doorPlan[0], doorPlan[1] - 0.6])) ?? floor), run = Math.max(0.6, drop * 2.5);
@@ -883,5 +942,11 @@ export function withBuildings(payload, manifest, ctx = {}) {
   }
   // (no grass through the paths of slabs to a building set into its slope)
   if (pathFaces.length && (liveGrass ?? payload.liveGrass)) liveGrass = offPaving(liveGrass ?? payload.liveGrass, pavedBy(pathFaces, /^building:path$/));
-  return { ...payload, faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  // (one record for every building's rooms: the lamps of each, the one sun, the first's ambient)
+  const formRoom = formRooms.length ? { ...formRooms[0], lights: [...formRooms.flatMap((R) => R.lights.filter((l) => l.radius < 1e8)), ...(ctx.dayLight ? [{ at: P3(ctx.dayLight.dir.map((v) => v * 1e6)), key: ctx.dayLight.sun, radius: 1e9, live: true }] : formRooms[0].lights.filter((l) => l.radius >= 1e8))] } : null;
+  // (a plant the form grows from its seat, form/flora-read.js: none inside a building, none whose crown would stand through its wall)
+  const PLANT_CLEAR = { trees: 3, bushes: 1, shrubs: 1, skirt: 3 };
+  const plants = payload.plants && clearedBoxes.length ? { ...payload.plants, ...Object.fromEntries(Object.entries(PLANT_CLEAR).filter(([k]) => Array.isArray(payload.plants[k])).map(([k, pad]) => [k,
+    payload.plants[k].filter((p) => !clearedBoxes.some((B) => p.x > B[0] - pad && p.x < B[2] + pad && p.y > B[1] - pad && p.y < B[3] + pad))])) } : null;
+  return { ...payload, ...(formRoom ? { form: { ...(payload.form || {}), room: formRoom } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

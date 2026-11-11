@@ -144,6 +144,7 @@ import { cubeColours } from '../color-theorist/adapters.js';
 import { grittyOf } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
+import { cubeLight } from './cube-light.js';
 import { townDressOf } from './town-dress.js';
 import { readStyle, styleTownDress, styleReadout } from './arch-style.js';
 import { readClouds, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
@@ -1392,7 +1393,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
@@ -1459,7 +1460,13 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const hallLow = show === 'hall' ? (({ rooms, dress, ...rest }) => ({ ...rest, seed, hall: manifest.hall ?? {} }))(low0) : null;
   const low = hallLow ?? (show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) });
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
-  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
+  // (`buildings`: game buildings seated on the land it walks, era/stage-buildings.js, as a stage's are; on a land a
+  // trail is laid over, so the form render draws their land, their outsides and their rooms under the cube's one sun)
+  if (manifest.buildings !== undefined && !(low.kind === 'stage' && low.trail !== undefined)) no('buildings stand on a land a trail is laid over: show \'path\' or \'town\'');
+  if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
+  // (the day its buildings' shells are baked under, read by the form render: the cube's light at the hour, era/cube-light.js)
+  const dayLight = ctx.formLit && manifest.buildings !== undefined ? (({ sun, ambient }) => ({ sun: sun.linear, ambient: ambient.linear, dir: sun.dir }))(cubeLight(cube, manifest.hour !== undefined ? { hour: readHour(manifest.hour) } : {})) : null;
+  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, ...(dayLight ? { dayLight } : {}), title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }
   if (show === 'path') payload.route = townRoute(low, payload);
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
