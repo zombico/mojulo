@@ -483,6 +483,26 @@ async function galleryExport(sketch, { cdn = false } = {}) {
   };
 }
 
+// Which form an exhibit's folder is seen in (exhibit/where.js): the download is always written; the web form beside it
+// when every page fits a web page host and the build may fetch from the CDN, and it is then the one to show. The result
+// says which, in words to pass on, so nobody opens the download on a web host and thinks the exhibit is broken.
+async function pagesIn(dir, files) {
+  return Promise.all(files.filter((f) => f.endsWith('.html')).map(async (f) => ({ file: f, bytes: (await fs.stat(path.join(dir, f))).size })));
+}
+async function exhibitFolderWhere(out, { run, sketch, cdn, plugin, context }) {
+  const { exhibitWhere } = await import('@/lib/graph/exhibit/where');
+  const pages = await pagesIn(out.dir, out.files);
+  const webOut = !cdn && !plugin ? await run(sketch, { cdn: true }) : null;
+  const web = cdn ? pages : webOut ? await pagesIn(webOut.dir, webOut.files) : null;
+  const largest = (web ?? pages).reduce((m, pg) => Math.max(m, pg.bytes), 0);
+  const fit = fitsForContext(context, { kind: 'page', bytes: largest });
+  const at = (o) => `${path.basename(o.dir)}/index.html`;
+  const where = exhibitWhere({ pages, web, budget: fit.budget, against: fit.against, plugin,
+    entry: cdn ? null : at(out), webEntry: cdn ? at(out) : webOut ? at(webOut) : null });
+  if (webOut && where.form !== 'web') await fs.rm(webOut.dir, { recursive: true, force: true });
+  return { ...out, where, ...(webOut && where.form === 'web' ? { web: { dir: webOut.dir, files: webOut.files, url: webOut.url } } : {}) };
+}
+
 async function blenderExport(input) {
   const { ref, fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
   if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
@@ -1134,8 +1154,8 @@ async function exportModel(input, context = {}) {
   // a gallery's html is its folder of rooms
   if (format === 'html') {
     const g = SketchRepository.getByRef(input.ref);
-    if (g?.manifest?.kind === 'gallery') return galleryExport(g, { cdn });
-    if (g?.manifest?.kind === 'exhibit-states') return statesExport(g, { cdn });
+    const run = g?.manifest?.kind === 'gallery' ? galleryExport : g?.manifest?.kind === 'exhibit-states' ? statesExport : null;
+    if (run) return exhibitFolderWhere(await run(g, { cdn }), { run, sketch: g, cdn, plugin: pluginBuild, context });
   }
   if (format === 'unreal') return unrealExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
@@ -1640,6 +1660,20 @@ async function exportModel(input, context = {}) {
     // may send the operator to its courier; `recipe` is the recipe.json written beside it.
     const bundled = (isHtml && !cdn) || format === 'glb' || (format === 'stl' && profile === 'literal');
     attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, recipe: 'recipe.json', ...(isHtml && !cdn ? { inlineScripts: true } : {}), ...(bundled ? { bundled: true } : {}) });
+    // an exhibit's page (a tour or a brief on it) says where it is seen (exhibit/where.js): the web twin is written beside
+    // the download when it fits a web page host, and the result says which to show
+    if (isHtml && (sketch.manifest.tour || sketch.manifest.curation)) {
+      const { exhibitWhere } = await import('@/lib/graph/exhibit/where');
+      const twin = !cdn && !pluginBuild ? htmlExport(payload, { kind: kind ?? sketch.manifest.kind, cdn: true }) : null;
+      const webBytes = cdn ? exported.byteLength : twin ? twin.byteLength : null;
+      const fit = fitsForContext(context, { kind: 'page', bytes: webBytes ?? exported.byteLength });
+      result.where = exhibitWhere({ pages: [{ file: fileName, bytes: exported.byteLength }], web: webBytes === null ? null : [{ file: 'world.cdn.html', bytes: webBytes }],
+        budget: fit.budget, against: fit.against, plugin: pluginBuild, entry: cdn ? null : fileName, webEntry: 'world.cdn.html' });
+      if (twin && result.where.form === 'web') {
+        await fs.writeFile(path.join(dir, 'world.cdn.html'), twin.bytes);
+        result.web = { path: path.join(dir, 'world.cdn.html'), bytes: twin.byteLength, download_url: `${outcomeUrlFor(ref)}world.cdn.html` };
+      }
+    }
     // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
     // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
     // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the

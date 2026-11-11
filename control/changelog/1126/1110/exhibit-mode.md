@@ -32,6 +32,11 @@ narration, and two exhibits to start from.
   a folder that opens with no internet and no server, the form a kiosk wants. Asked for the web form, the folder's rooms fetch their 3D
   engine from the web instead, so the gallery and its prepared states also run on a page host that refuses code built
   into the page (a downloaded gallery ran; the same gallery published to the web showed only its background).
+- **Told where it runs.** Saving an exhibit as a page or a folder now says which form you got, in words your agent
+  passes on before you open it. When every page fits a web page, the web form is written beside the download and is
+  the one to show; when a page is too big for one (Pompeii with all its people is about 41 MB), it is a download, to
+  save and open from your computer, and you are told why. A download opened on a web page shows only its background,
+  so nobody is left thinking the exhibit is broken.
 - **A check made for exhibits.** An exhibit has nothing to win, so it is checked the way a label wall is: does it tell
   a story, does each stop say how sure it is, does a claim taken from the historical record say where it comes from
   (a warning when it does not), can each caption be read in the time a visitor gives it, and does every stop show its

@@ -5,6 +5,10 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect } from 'vitest';
 import { createExhibitHandler } from '@/lib/mcp/tools/create-exhibit';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { exportModelHandler } from '@/lib/mcp/tools/sketch-model-export';
 import { makeStarter } from './starters.js';
 
 describe('the starters through create_exhibit', () => {
@@ -14,7 +18,13 @@ describe('the starters through create_exhibit', () => {
     expect(town.brief_refused).toBeUndefined();
     expect(town.audit.findings.filter((f) => f.level !== 'advice')).toEqual([]);
     expect(town.audit.accuracy.state).toBe('unsigned');
-  }, 240000);
+    // with its people the page is past a web page host's limit: a download, and the words say so before anyone opens it
+    process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(join(tmpdir(), 'pompeii-'));
+    const out = await exportModelHandler({ ref: town.ref, format: 'html' });
+    expect(out.where).toMatchObject({ form: 'download', fits: false });
+    expect(out.where.tell).toMatch(/too big to show as a web page.*open world\.html from your computer/);
+    expect(out.web).toBeUndefined();
+  }, 400000);
 
   it('hydro: five toured rooms, a states room and their gallery, none warned of', async () => {
     const made = await makeStarter('hydro', createExhibitHandler);

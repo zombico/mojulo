@@ -61,6 +61,24 @@ describe('create_exhibit with a tour', () => {
     expect(bad.tour_refused).toMatch(/names no camera 'nowhere' \(this world's: angle, side, top\).*update_sketch \(set \/curation, set \/tour\)/);
     expect(SketchRepository.getByRef(bad.ref).manifest.tour).toBeUndefined();
   });
+
+  it('exported, says where it is seen: a toured page that fits a web page gets its web twin, and the words to say so', async () => {
+    const { mkdtempSync, readFileSync, existsSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(join(tmpdir(), 'where-'));
+    const { exportModelHandler } = await import('./sketch-model-export.js');
+    const ok = await createExhibitHandler({ id: 'life/cellular', tour: { stops: [{ caption: 'The cell.', camera: 'angle' }] } });
+    const out = await exportModelHandler({ ref: ok.ref, format: 'html' });
+    expect(out.where).toMatchObject({ form: 'web', fits: true });
+    expect(out.where.tell).toMatch(/show world\.cdn\.html.*world\.html is the download/);
+    expect(readFileSync(out.web.path, 'utf8')).toContain('cdn.jsdelivr.net');
+    // an untoured world is not an exhibit's page: no twin, nothing said
+    const plain = await createExhibitHandler({ id: 'life/cellular' });
+    const pout = await exportModelHandler({ ref: plain.ref, format: 'html' });
+    expect(pout.where).toBeUndefined();
+    expect(existsSync(join(pout.dir, 'world.cdn.html'))).toBe(false);
+  }, 120000);
 });
 
 describe('create_exhibit with a brief (its curation)', () => {
@@ -170,9 +188,14 @@ describe('prepared states: one exhibit at several settings', () => {
     expect(g.audit.statesRooms).toEqual([expect.objectContaining({ ref: st.ref, states: 2 })]);
     const gout = await exportModelHandler({ ref: g.ref, format: 'html' });
     expect(gout.files).toEqual(['index.html', `rooms/${st.ref}.html`, ...m.states.map((x) => `rooms/${st.ref}/${x.ref}.html`)]);
+    // the export says where it is seen: this wing fits a web page, so the web form is written beside it and is the one to show
+    expect(gout.where).toMatchObject({ form: 'web', fits: true });
+    expect(gout.where.tell).toMatch(/show gallery-cdn\/index\.html/);
+    expect(gout.web.files).toEqual(gout.files);
     // a host whose page rules refuse an inlined module (an artifact host) gets the cdn form: the same folder, three.js fetched
     const cout = await exportModelHandler({ ref: g.ref, format: 'html', cdn: true });
-    expect(cout).toMatchObject({ cdn: true, files: gout.files });
+    expect(cout).toMatchObject({ cdn: true, files: gout.files, where: { form: 'web' } });
+    expect(cout.web).toBeUndefined();
     expect(cout.dir).toMatch(/gallery-cdn$/);
     const framed = readFileSync(join(cout.dir, `rooms/${st.ref}/${m.states[0].ref}.html`), 'utf8');
     expect(framed).toContain('cdn.jsdelivr.net');

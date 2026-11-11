@@ -58,6 +58,14 @@ theatre and frame it. A shader exhibit (raymarched) takes no tour yet.
   (`scripts/exhibit-audit.mjs`) says when a stop's lit parts are off screen or too small.
 - A stop is opened by `?stop=<id>` (or its number); `window.__mojTour` steps it on the page.
 
+## Where it is seen
+
+`export_model({ ref, format: 'html' })` on an exhibit (a toured or briefed world, a gallery, prepared states) says
+where it is seen, as `where`: `web` when every page fits a web page host (its web twin, `world.cdn.html` or
+`gallery-cdn/`, is written beside the download and is the one to show), else `download` (too big, or a build that
+never fetches from the CDN). Say `where.tell` to the person before they open it: a download shown on a web page draws
+only its background, and they would think the exhibit broken.
+
 ## A kiosk
 
 The same page is a kiosk when its address says `?kiosk=1` (or `?kiosk=<seconds>` for the idle time; 90 by default):
