@@ -13,6 +13,7 @@ import { blendsByCause } from './nave.js';
 import { cornerThings, skull, obox } from './props.js';
 import { tileFamilyOf } from './tile-specs.js';
 import { wallOrder } from './wall-rhythm.js';
+import { tubeAB } from './lab.js';
 import { panel, wallBox } from './geom.js';
 import { roundArch, archUnder, archRing } from './arches.js';
 import './leaf-cards.js';
@@ -215,14 +216,21 @@ export function cryptNiches(plan, pilasters, accent, anchors = null) {
       if (St) {
         const bu0 = a.u + pw / 2, bu1 = b.u - pw / 2, Sc = St.string, Ar = St.arch;
         wallBox(out, w.F, bu0, bu1, zs, zs + Sc.h, Sc.out, trim, 0.5, true);
-        const aw = (bu1 - bu0) * Ar.share, au0 = um - aw / 2, au1 = um + aw / 2, zj = zs + Sc.h + Ar.rise, zt = a.top - Ar.under - aw / 2;
-        if (zt - zj > 0.25) {
+        const aw = Ar ? (bu1 - bu0) * Ar.share : 0, au0 = um - aw / 2, au1 = um + aw / 2, zj = Ar ? zs + Sc.h + Ar.rise : 0, zt = Ar ? a.top - Ar.under - aw / 2 : 0;
+        if (Ar && zt - zj > 0.25) {
           archRing(out, w.F, au0, au1, zt, aw / 2, Ar.seg, Ar.frame, Ar.out, trim);
           wallBox(out, w.F, au0 - Ar.frame, au0, zj, zt, Ar.out, trim, 0.5, true);
           wallBox(out, w.F, au1, au1 + Ar.frame, zj, zt, Ar.out, trim, 0.5, true);
           if (!lesser) wallBox(out, w.F, au0 - Ar.frame - 0.06, au1 + Ar.frame + 0.06, zj - 0.1, zj, Ar.out + 0.03, trim, 0.5, true);   // the impost it springs from
         }
       }
+      // (an upper register of SEALED slots, a kit's `storeys.loculi`: the lower wall's own slot, closed with a slab and
+      // out of reach; a lesser bay has fewer)
+      if (St && St.loculi) { const Lc = St.loculi, rows = lesser ? Lc.lesser ?? 1 : Lc.tiers ?? 2, f = N.frame;
+        for (let t = 0; t < rows; t++) { const zb = zs + St.string.h + Lc.rise + t * (N.h + N.gap);
+          if (zb + N.h > a.top - 0.3) break;
+          wallBox(out, w.F, um - wd / 2 - f, um + wd / 2 + f, zb - f, zb + N.h + f, N.out * 0.6, trim, 0.5);
+          panel(out, at(w.F, um - wd / 2, N.out * 0.6 + 0.012, zb), w.F.U, wd, [0, 0, 1], N.h, w.F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5); } }
       const tiers0 = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((Math.min(a.top, zs) - z0 - 0.3 + N.gap) / (nh + N.gap))));
       const tiers = lesser ? Math.max(0, tiers0 - (N.rhythm.less ?? 1)) : tiers0;
       for (let t = 0; t < tiers; t++) {
@@ -342,7 +350,28 @@ export function cryptAbove(plan, accent, site) {
       lights.push({ at: P([c[0], c[1], z + 0.3]), n: [0, 0, 1], color: R.color, intensity: R.intensity, radius: R.radius, fixture: 'candle' });
     }
   });
-  if (A.opening && accent && site) {
+  // SHORING ACROSS THE GALLERY (a card's `above.span`): where the rock is soft and the walls stand tall, logs are wedged
+  // from wall to wall on the ledge, one every `every` metres of a room at least `tall`; a clay lamp hangs from each
+  // on a cord, so the upper wall is lit from the thing that crosses it
+  if (A.span) plan.rooms.forEach((r, ri) => {
+    const Sp = A.span, K = plan.kit, h = r.h, alongY = r.y1 - r.y0 >= r.x1 - r.x0, len = alongY ? r.y1 - r.y0 : r.x1 - r.x0;
+    if (h < Sp.tall) return;
+    const z = K.storeys ? K.plinth.h + (h - K.cornice.h - K.plinth.h) * K.storeys.at + K.storeys.string.h + Sp.r : Math.min(h - 1.5, Sp.z ?? 4.5);
+    const n = Math.max(1, Math.round(len / Sp.every)), wood = { key: null, scale: 1, tint: [1, 1, 1], group: 'stage:fixture' };
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n + (hash3(ri, k, 4421) - 0.5) * 0.06, c = alongY ? [(r.x0 + r.x1) / 2, r.y0 + len * t] : [r.x0 + len * t, (r.y0 + r.y1) / 2];
+      if (site && site.room === r.id && Math.hypot(c[0] - site.at[0], c[1] - site.at[1]) < Sp.clear) continue;
+      const tilt = (hash3(ri, k, 4423) - 0.5) * 0.12, a = alongY ? [r.x0, c[1], z - tilt] : [c[0], r.y0, z - tilt], b = alongY ? [r.x1, c[1], z + tilt] : [c[0], r.y1, z + tilt];
+      const log = []; tubeAB(log, a, b, Sp.r, 8, wood); iron(log, k % 2 ? '#4a3a2a' : '#54432f');
+      const zl = z - Sp.r - Sp.drop;
+      const cord = []; tubeAB(cord, [c[0], c[1], z - Sp.r], [c[0], c[1], zl + 0.08], 0.006, 4, wood); iron(cord, '#2c241c');
+      const bowl = []; lathe(bowl, c, [[0.0, zl], [0.07, zl], [0.11, zl + 0.04], [0.1, zl + 0.075], [0.05, zl + 0.085]], 8, plain, 'stage:fixture'); iron(bowl, '#9a5c3c');
+      for (const [ax, ay] of [[1, 0], [0, 1]]) { const zb = zl + 0.085, nn = [ay, -ax, 0], q = (u, zz) => P([c[0] + ax * u, c[1] + ay * u, zz]);
+        faces.push({ corners: [q(-0.03, zb), q(0.03, zb), q(0.006, zb + 0.12), q(-0.006, zb + 0.12)], fill: '#fff2c8', normal: nn, outNormal: nn, group: 'stage:candle', emissive: hexRgb(Sp.color), emissiveStrength: 3, glow: `0 0 5px 2px ${Sp.color}` }); }
+      lights.push({ at: P([c[0], c[1], zl + 0.25]), n: [0, 0, 1], color: Sp.color, intensity: Sp.intensity, radius: Sp.radius, fixture: 'candle' });
+    }
+  });
+  if (A.opening && accent && site && !(A.opening.tall && plan.rooms.find((q) => q.id === accent.room).h < A.opening.tall)) {
     const O = A.opening, F = accent.F, r = plan.rooms.find((q) => q.id === accent.room), top = r.h - plan.kit.cornice.h, um = F.len / 2, z0 = top - O.below - O.h;
     const q = (u, z) => P(at(F, u, 0.03, z)), n = P(F.N);
     faces.push({ corners: [q(um - O.w / 2, z0), q(um + O.w / 2, z0), q(um + O.w / 2, z0 + O.h), q(um - O.w / 2, z0 + O.h)], normal: n, outNormal: n, fill: O.sky, group: 'stage:glass', emissive: hexRgb(O.sky), emissiveStrength: 2.5, glow: `0 0 12px 5px ${O.sky}` });

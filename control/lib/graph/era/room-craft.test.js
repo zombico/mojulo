@@ -36,15 +36,21 @@ describe('room craft: the reasons, as questions', () => {
   it('the reasons carry to a place with no stone in it: a bay answers the structure, the storeys and the air in its own things', () => {
     const bay = Object.keys(STAGE_KITS).find((k) => STAGE_KITS[k].shell === 'bay'), R = readRoomCraft(STAGE_KITS[bay]);
     const by = Object.fromEntries(R.rows.map((r) => [r.id, r.by]));
-    for (const id of ['support', 'storeys', 'air', 'light-above']) expect(by[id], id).toBeTruthy();
+    for (const id of ['support', 'bays', 'storeys', 'air', 'light-above']) expect(by[id], id).toBeTruthy();
     expect(by.air).not.toBe(Object.fromEntries(readRoomCraft(STAGE_KITS['gothic-ashlar']).rows.map((r) => [r.id, r.by])).air);
   });
 
+  it('a second burial place answers every question in its own things: no answer is the worked crypt's', () => {
+    const cat = readRoomCraft(STAGE_KITS.catacomb), ash = Object.fromEntries(readRoomCraft(STAGE_KITS['gothic-ashlar']).rows.map((r) => [r.id, r.by]));
+    expect(cat.open).toEqual([]);
+    for (const id of ['fixture', 'storeys', 'coat', 'air']) expect(cat.rows.find((r) => r.id === id).by, id).not.toBe(ash[id]);
+  });
+
   it('the ledger names what is open, and the brief puts each open question to the agent with its law', () => {
-    const L = roomCraftLedger({ a: STAGE_KITS['gothic-ashlar'], b: STAGE_KITS.catacomb });
+    const L = roomCraftLedger({ a: STAGE_KITS['gothic-ashlar'], b: STAGE_KITS['gothic-stone'] });
     expect(L.a.open).toEqual([]);
     expect(L.b.answered.length + L.b.open.length).toBe(ROOM_CRAFT.length);
-    const brief = craftBrief(STAGE_KITS.catacomb).join('\n');
+    const brief = craftBrief(STAGE_KITS['gothic-stone']).join('\n');
     for (const id of L.b.open) expect(brief).toContain(`${id}: OPEN. ${ROOM_CRAFT.find((q) => q.id === id).ask}`);
   });
 });

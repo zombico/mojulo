@@ -300,19 +300,31 @@ STAGE_KITS.catacomb = Object.freeze({
   ...GOTHIC_STONE_BASE,
   plinth: { h: 0.35, out: 0.1 },
   cornice: { h: 0.25, out: 0.14 },
-  pilaster: { w: 0.6, out: 0.18 },
+  // (a pier is the rock left standing: splayed at its foot, an impost cut at its head; no ring, nothing was turned)
+  pilaster: { w: 0.6, out: 0.18, bands: { base: { h: 0.32, out: 0.06 }, cap: { h: 0.16, out: 0.05 } } },
   rib: { w: 0.5, drop: 0.22 },
   door: { width: 2, height: 3.1, frame: 0.3, out: 0.1 },
   tiles: {
-    wall: { family: TUFA([158, 136, 106], 31), scale: 2.2 },
+    // (THE COAT, by its cause: within reach the rock was plastered round the tombs, and hands and damp have had it off
+    // in patches down to the picked rock; over the old floor's ledge nobody plastered, and the lamps have sooted it)
+    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [166, 146, 116], mortar: [136, 118, 94], render: [184, 168, 140], loss: 0.42, rows: 1, cols: 1, joint: 0.004, recess: 0.002, tool: 'pitched', chamfer: 0, pillow: 0.004, spall: 0.4, pit: 0.5, vary: 6, grit: 0.7, scale: 2.2 }), scale: 2.2, perBay: true },
+    wallUpper: { family: TUFA([126, 108, 86], 31), scale: 2.2 },
     floor: { family: tileFamilyOf({ gen: 'flagstone', stone: [138, 120, 98], mortar: [74, 60, 46], gravel: [96, 80, 62], cells: 4, mortarThick: 0.06, wobble: 2.5, vary: 26, grain: 14, lost: 0.16, cracked: 0.4, seed: 37 }), perBay: true },
     ceiling: { family: TUFA([96, 84, 72], 43, 30), scale: 2.4 },
     trim: { family: TUFA([176, 156, 126], 53, 28), scale: 1.6 },
     gutter: { key: 'soil-mud', scale: 1.2 },
   },
-  tint: { wall: [0.92, 0.88, 0.82], floor: [0.7, 0.64, 0.58], ceiling: [0.36, 0.33, 0.31], trim: [0.94, 0.9, 0.84], gutter: [0.78, 0.74, 0.7] },
+  tint: { wall: [0.92, 0.88, 0.82], floor: [0.7, 0.64, 0.58], ceiling: [0.36, 0.33, 0.31], trim: [0.94, 0.9, 0.84], gutter: [0.78, 0.74, 0.7], wallUpper: [0.7, 0.66, 0.62] },
+  cells: { ...GOTHIC_STONE_BASE.cells, wallUpper: 0.5 },
+  // (STOREYS, by their cause: a gallery is dug DOWN as it fills, so a ledge marks the floor the first diggers stood on,
+  // and over it are the oldest tombs, every one long sealed and out of reach: the same slot, with nothing open)
+  storeys: { at: 0.56, string: { h: 0.1, out: 0.09 }, loculi: { tiers: 2, lesser: 1, rise: 0.4 } },
+  // (the floor: an unwalked margin of earth at the walls, the way worn down the middle, a threshold at each passage,
+  // the ground round the sarcophagus sooted by its candles)
+  floorPlan: { border: { w: 0.7, shade: 'unwalked' }, walk: { w: 2.2, shade: 'worn' }, threshold: { depth: 1.2, margin: 0.2, shade: 'worn' }, apron: { margin: 0.8, shade: 'soot' }, fields: { relaid: 0.08, damp: 0.3 } },
   rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#7a6e60' },
-  torch: { ...GOTHIC_STONE_BASE.torch, z: 2.3 },
+  // (its light a clay lamp on a corbel of the rock, close to the wall: no iron was forged down here)
+  torch: { ...GOTHIC_STONE_BASE.torch, z: 2.3, out: 0.02, form: 'lamp', color: '#ffb060', intensity: 1.5 },
   arch: ARCHED,
   motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'scallop', ground: [118, 100, 80], figure: [178, 158, 128], relief: 0.55 }), on: 'cornice', tint: [1, 1, 1] },
   dress: CATACOMB,
@@ -1127,6 +1139,8 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
 }
 /** A torch's live flame (metres): as wide and as tall as the two polygons it stands for. */
 export const TORCH_FLAME = Object.freeze({ w: 0.3, h: 0.56 });
+/** An oil lamp's live flame (a kit's `torch.form: 'lamp'`): a wick's, a hand high. */
+export const LAMP_FLAME = Object.freeze({ w: 0.11, h: 0.22 });
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
@@ -1134,6 +1148,28 @@ export function torchFaces(l, live = false, flame = false, form = null) {
   const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
   // A TURNED TORCH (a kit's `torch.form: 'cone'`; era/laws.js 'no-voxel-first'): nothing of it is a box. A cone of iron,
   // its point down, holds the fire; a ring holds the cone; an arm, a rod, holds the ring off the wall
+  // AN OIL LAMP ON A CORBEL (a kit's `torch.form: 'lamp'`): where the rock is cut and no iron is forged, the light is a
+  // clay lamp on a knob of the rock left standing for it. A corbel turned out of the wall, a low bowl of fired clay, a
+  // small flame at its lip
+  if (form === 'lamp' && !live) {
+    const turned = (c, prof, fill, sides = 10) => { const raw = []; lathe(raw, c, prof.map(([r, dz]) => [r, z + dz]), sides, plain, 'stage:fixture'); for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill }); };
+    const [nx, ny] = l.n, cw = [x - nx * 0.05, y - ny * 0.05];
+    turned(cw, [[0.07, -0.36], [0.1, -0.33], [0.135, -0.26], [0.15, -0.21], [0.15, -0.17], [0.0, -0.17]], '#a08a68');     // the corbel, the wall's rock
+    turned([x, y], [[0.0, -0.17], [0.06, -0.17], [0.095, -0.135], [0.09, -0.105], [0.05, -0.095], [0.03, -0.1]], '#9a5c3c');   // the lamp, fired clay
+    if (flame) {
+      out.push({ corners: [P([x - 0.03, y - 0.03, z - 0.094]), P([x + 0.03, y - 0.03, z - 0.094]), P([x + 0.03, y + 0.03, z - 0.094]), P([x - 0.03, y + 0.03, z - 0.094])], normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'stage:fixture',
+        fill: '#fff0c0', emissive: hexRgb(l.color), emissiveStrength: 4, glow: `0 0 6px 2px ${l.color}` });
+      return out;
+    }
+    const zb = z - 0.095, zm = z - 0.02, zt = z + 0.12;
+    for (const [ax, ay] of [[1, 0], [0, 1]]) {
+      const at = (u, zz) => P([x + ax * u, y + ay * u, zz]), n = [ay, -ax, 0];
+      const common = { normal: n, outNormal: n, group: 'stage:fixture', emissive: hexRgb(l.color), emissiveStrength: 4 };
+      out.push({ corners: [at(-0.02, zb), at(0.02, zb), at(0.045, zm), at(-0.045, zm)], fill: '#fff0c0', ...common, glow: `0 0 6px 2px ${l.color}` });
+      out.push({ corners: [at(-0.045, zm), at(0.045, zm), at(0.005, zt), at(-0.005, zt)], fill: '#ff9a3c', ...common });
+    }
+    return out;
+  }
   if (form === 'cone' && !live) {
     const turned = (prof, fill, sides = 10) => { const raw = []; lathe(raw, [x, y], prof.map(([r, dz]) => [r, z + dz]), sides, plain, 'stage:fixture'); for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill }); };
     turned([[0.012, -0.54], [0.05, -0.32], [0.105, -0.1], [0.118, -0.06]], '#2a2420');                 // the cone
@@ -1376,7 +1412,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // it; under live fire the fire channel's own; for an engine, and in the sixth generation, the polygons as they were)
   const flamed = !live && form && !ctx.unshaded;
   const fixtures = torches.flatMap((l, i) => torchFaces(l, live, flamed, plan.kit.torch && plan.kit.torch.form ? plan.kit.torch.form : null).map((f) => ({ ...f, node: `torch-${i + 1}` })));
-  const flames = flamed ? torches.map((l) => ({ at: [r5(l.at[0]), r5(l.at[1]), r5(l.at[2] - 0.07)], w: TORCH_FLAME.w, h: TORCH_FLAME.h, color: hexRgb(l.color).map(r5) })) : [];
+  const lampForm = plan.kit.torch && plan.kit.torch.form === 'lamp';
+  const flames = flamed ? torches.map((l) => ({ at: [r5(l.at[0]), r5(l.at[1]), r5(l.at[2] - (lampForm ? 0.1 : 0.07))], w: lampForm ? LAMP_FLAME.w : TORCH_FLAME.w, h: lampForm ? LAMP_FLAME.h : TORCH_FLAME.h, color: hexRgb(l.color).map(r5) })) : [];
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
   const setCam = r0.open.length ? (() => {

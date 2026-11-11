@@ -38,7 +38,7 @@ export function readFormKit(kit) {
   const segs = [['a doorway\'s head', kit.arch?.door?.seg], ['the vault', kit.arch?.vault?.seg], ['a niche\'s head', kit.dress?.niches ? kit.dress.niches.seg ?? 6 : undefined]];
   for (const [what, seg] of segs) if (seg !== undefined) row('true-curves', `${what} (pieces)`, seg, `>= ${M.seg}`, seg >= M.seg);
   // (craft, in both eras: a fixture turned and a pillar worked; a wall's coat where it has one)
-  if (kit.torch) row('no-voxel-first', 'the torch\'s form', kit.torch.form ?? 'boxes', 'turned (cone)', kit.torch.form === 'cone');
+  if (kit.torch) row('no-voxel-first', 'the light\'s form', kit.torch.form ?? 'boxes', 'turned (a cone, a lamp)', ['cone', 'lamp'].includes(kit.torch.form));
   if (kit.pilaster) { const P = specOf(T.pillar), worked = !!kit.pilaster.bands || (!!P && ['fluted', 'shaft'].includes(P.cfg.cut));
     row('pillars-are-worked', 'a pilaster\'s work', [kit.pilaster.bands ? 'cut in parts' : null, P && P.cfg.cut ? P.cfg.cut : null].filter(Boolean).join(', ') || 'a flat strip', 'parts, flutes or a shaft', worked); }
   if (W && W.cfg.cut === 'render') row('layers-stand-proud', 'the wall\'s coat lost (share)', W.cfg.loss ?? null, 'between 0.2 and 0.8', W.cfg.loss >= 0.2 && W.cfg.loss <= 0.8);

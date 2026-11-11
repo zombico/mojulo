@@ -81,18 +81,18 @@ const said = (...parts) => parts.filter(Boolean).join(', ') || null;
 // What on a kit's card answers each question, in the card's own words; null where nothing does. A probe names fields a
 // shell builds from (era/stage.js, nave.js, lab.js, bay.js), never a kit by its name.
 const PROBES = {
-  fixture: (k) => said(k.torch?.form === 'cone' && 'a turned torch on an arm', k.lab?.troffer && 'troffers hung on chains', k.B?.light?.highbay && 'high-bay lamps on rods'),
+  fixture: (k) => said(k.torch?.form === 'cone' && 'a turned torch on an arm', k.torch?.form === 'lamp' && 'a clay lamp on a corbel of the rock', k.lab?.troffer && 'troffers hung on chains', k.B?.light?.highbay && 'high-bay lamps on rods'),
   support: (k) => { const P = specOf(k.tiles?.pillar);
     return said(k.pilaster?.bands && 'a pilaster cut in parts', P && ['fluted', 'shaft'].includes(P.cfg.cut) && `its shaft ${P.cfg.cut === 'fluted' ? 'fluted' : 'one stone'}`, k.column && 'engaged round columns on bases',
       k.lab?.column && k.lab?.truss && 'steel columns under trusses', k.B?.pilaster?.foot && 'pilasters with a foot and a strip'); },
-  bays: (k) => said(k.dress?.niches?.rhythm && 'niches in a rhythm, the lesser bay the full one with less'),
-  storeys: (k) => said(k.storeys && 'a string course, an upper register over it', k.string && k.arcade && k.lancet && 'an arcade, a string course, lancets over it',
+  bays: (k) => said(k.dress?.niches?.rhythm && 'niches in a rhythm, the lesser bay the full one with less', k.B?.services?.rhythm && k.B.services.every < 1e8 && 'service boxes in a rhythm, the lesser bay the bare field'),
+  storeys: (k) => said(k.storeys?.arch && 'a string course, blind arches over it', k.storeys?.loculi && 'a ledge at the old floor, sealed slots over it', k.string && k.arcade && k.lancet && 'an arcade, a string course, lancets over it',
     k.lab?.kick && k.lab?.window && 'a kick band, a panel field, a clerestory', k.B?.base && k.B?.crown && 'a base, a field, a crown'),
   coat: (k) => { const W = specOf(k.tiles?.wall), U = specOf(k.tiles?.wallUpper);
-    return said(W && W.cfg.cut === 'render' && `a coat of render, ${U ? 'lost low and kept above' : 'fallen away in patches'}`, k.B?.base && k.B?.floor?.hazard && 'a painted base and hazard band'); },
+    return said(W && W.cfg.cut === 'render' && `a coat of render, ${U && U.cfg.cut === 'render' ? 'lost low and kept above' : k.tiles?.wallUpper ? 'within reach only, bare above' : 'fallen away in patches'}`, k.B?.base && k.B?.floor?.hazard && 'a painted base and hazard band'); },
   floor: (k) => said(k.floorPlan && `a plan: ${Object.keys(k.floorPlan).join(', ')}`, k.dress?.floor && 'zoned by its style card', k.lab?.band && k.dress?.trench && 'a band at the walls, a trench', k.B?.floor?.band && 'a band at the walls, a pad'),
-  air: (k) => said(k.dress?.above?.ring && 'a candle ring on chains', k.dress?.banners && 'banners', k.lab?.duct && 'ducts, a cable tray, trusses', k.B?.crane && 'a crane, a catwalk, pipes'),
-  'light-above': (k) => said(k.dress?.above?.opening && 'a slit of sky, its pool on the set piece', k.dress?.above?.ring && 'the candle ring', k.lancet?.light && 'lancets', k.lab?.window?.light && 'a clerestory', k.lab?.troffer && 'troffers',
+  air: (k) => said(k.dress?.above?.ring && 'a candle ring on chains', k.dress?.above?.span && 'shoring logs across, a lamp hung from each', k.dress?.banners && 'banners', k.lab?.duct && 'ducts, a cable tray, trusses', k.B?.crane && 'a crane, a catwalk, pipes'),
+  'light-above': (k) => said(k.dress?.above?.opening && 'an opening to the sky, its pool on the set piece', k.dress?.above?.ring && 'the candle ring', k.dress?.above?.span && 'the hung lamps', k.lancet?.light && 'lancets', k.lab?.window?.light && 'a clerestory', k.lab?.troffer && 'troffers',
     k.B?.light?.highbay && 'high-bay lamps', k.B?.glass && 'glass'),
 };
 
