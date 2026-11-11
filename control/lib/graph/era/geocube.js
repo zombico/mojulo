@@ -1466,7 +1466,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
   // (the day its buildings' shells are baked under, read by the form render: the cube's light at the hour, era/cube-light.js)
   const dayLight = ctx.formLit && manifest.buildings !== undefined ? (({ sun, ambient }) => ({ sun: sun.linear, ambient: ambient.linear, dir: sun.dir }))(cubeLight(cube, manifest.hour !== undefined ? { hour: readHour(manifest.hour) } : {})) : null;
-  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, ...(dayLight ? { dayLight } : {}), ...(manifest.buildings !== undefined && !(manifest.biocube ?? cube.biocube) ? { apron: 'ground' } : {}), title, ...(show === 'trail' ? { route: true } : {}) });
+  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, ...(dayLight ? { dayLight } : {}), title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }
   if (show === 'path') payload.route = townRoute(low, payload);
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);

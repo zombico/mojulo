@@ -74,7 +74,7 @@ const YARD = 8;
 // thickness at its edge
 // (`bank`: the bank round it runs this many metres out for each metre cut or filled, at least `fall` and at most
 // `reach`; `steep`: a cut or a fill past this is said as a finding, the site a poor one)
-const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5 });
+const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
 const EMBED = { side: 4, back: 6 };
 
@@ -122,6 +122,8 @@ function groundIndex(faces) {
 
 /** The cells (a metre) where the land is rough (a cliff, its lip, a ridge) and where the trail runs. */
 const ROUGH = /:(cliff|lip|ridge)$/, PATH = /:(trail|top)$/;
+// the land's hard ground (era/substrate.js: sand, bare rock's pavement, scree): what a building may stand on as it is
+const HARD = /:(sand|pavement|scree)$/;
 function cellsOf(faces, re) {
   const out = new Set();
   for (const f of faces) {
@@ -832,9 +834,18 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // laid for it, its edge a kerb down into the land; cut round the building, the land under it cut away so nothing
     // grows through it. Lit as the shell is
     // (`apron`: 'slab', poured concrete, a hardstanding on soft land; or 'ground', the land's own, levelled and left
-    // as it is, so a building on rock or sand stands on rock or sand. Its own word, else the land's (`ctx.apron`: a
-    // land nothing grows on is its own hardstanding), else a slab)
-    const apronKind = b.apron ?? ctx.apron ?? 'slab';
+    // as it is, so a building on rock or sand stands on rock or sand. Its own word, else by what the land is
+    // under it: the ground where APRON.hard of it is already hard, else a slab)
+    // (what the land is under its site, read off the land itself: the share of its ground there that is sand, bare
+    // rock or scree, by area; a land mostly hard is its own hardstanding)
+    const hardShare = was && was.apron ? (() => { const [ax0, ay0, ax1, ay1] = was.apron; let hard = 0, all = 0;
+      for (const f of faces) { const g = f.group || ''; if (!(GROUND.test(g) || HARD.test(g))) continue;
+        const n = f.corners.length, cx = f.corners.reduce((p, c) => p + c[0], 0) / n, cy = f.corners.reduce((p, c) => p + c[1], 0) / n;
+        if (cx < ax0 || cx > ax1 || cy < ay0 || cy > ay1) continue;
+        let ar = 0; for (let k = 0; k < n; k++) { const p = f.corners[k], q = f.corners[(k + 1) % n]; ar += p[0] * q[1] - q[0] * p[1]; }
+        ar = Math.abs(ar) / 2; all += ar; if (HARD.test(g)) hard += ar; }
+      return all > 0 ? r5(hard / all) : 0; })() : 0;
+    const apronKind = b.apron ?? ctx.apron ?? (hardShare >= APRON.hard ? 'ground' : 'slab');
     if (!['slab', 'ground'].includes(apronKind)) throw new Error(`stage: buildings[${i}].apron is 'slab' (poured concrete) or 'ground' (the land's own, levelled)`);
     const apronF = was && was.apron && apronKind === 'slab' ? (() => {
       const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = stairConcrete(), out = [];
@@ -943,7 +954,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     };
     anchors.push(anchorRec);
     const siteSays = was?.site && Math.max(was.site.cut, was.site.fill) > APRON.steep ? [`the ${id} stands on a slope: its ground is cut ${was.site.cut} m into the land on its high side and filled ${was.site.fill} m on its low one, the bank round it ${was.site.bank} m wide (a flatter place, at: { x, y, facing }, or a smaller plan)`] : [];
-    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X || vern ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough, ...(was?.site ? { site: { apron: was.apron, of: apronKind, ...was.site } } : {}),
+    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X || vern ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough, ...(was?.site ? { site: { apron: was.apron, of: apronKind, hard: hardShare, ...was.site } } : {}),
       findings: [...inner._program.findings.map((f) => f.says), ...siteSays, ...(!E && !was?.site && into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
         ...(E && !St ? [`the ${id} is set into its slope with no stair beside it: neither side is long enough to hold the flight and its landings, so its bank is the way up`] : []),
         ...(E && Math.abs(embed.drop - E.rise) > 1 ? [`the ${id} is set into land that ${embed.drop >= 0 ? `falls ${embed.drop}` : `rises ${-embed.drop}`} m from its back to its front where its upper storey stands ${E.rise} m up: the land is cut and filled ${r5(Math.abs(embed.drop - E.rise))} m to take it`] : []),
