@@ -76,7 +76,6 @@ import {
 //   - what mojulo is / self-description (phone home? my data? uninstall?) → get_substrate
 //   - full one-line-per-tool idx → get_tool_index
 //   - dashboard page map         → get_ui_map
-// (get_deliberation_overview, the Ring 6 model, left the surface with the office wing in 3.1.0.)
 // The body is register-INVARIANT except the disclosure directive (axis 2 =
 // procedural_disclosure) — an index is agent-facing routing and needs no
 // register voice. The communication-settings notice still reports the active
@@ -629,28 +628,6 @@ const STUDIO_DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 - \`get_tool_index\` (every tool), \`get_register_kit\` (the glossary and the refusal legend), \`get_ui_map\` (dashboard pages), \`get_adapter\` (your host's card — read once before making).
 - \`get_substrate\` — mojulo's own positioning + the substrate facts. Pull for meta-questions about mojulo itself ("what is this really?", phone home? my data? pay? uninstall?) — answer those from its facts, never from guesswork.`;
 
-// --- Deliberation overview (Ring 6 deep block, promoted to its own tool) ---
-//
-// The why-this-is-structured-this-way explainer for the seven Ring 6 surfaces
-// plus the daemon runtime-gating posture. Most sessions never touch Ring 6, so
-// this deep block lives behind get_deliberation_overview rather than in the
-// forward_context body. forward_context keeps the one-liner per surface in the
-// ring TOC + a single pointer here.
-
-const DELIBERATION_OVERVIEW = `# Deliberation surfaces (Ring 6) + runtime gating
-
-Mojulo separates *what fired* (an automation run, an inference — outcome-rate, never written to the contextmap) from *why it was bound this way* (a catalyst materialized through a host adapter into an artifact — deliberation-rate, append-only). It also separates both of those from *what materials the operator has available right now* (their installed MCPs — present-state, replaceable), and from *what gets composed from those materials* (mcp-orbit workflows — recommendation + composition log, replaceable in-flight, sealed at materialization). Rare-call by design — expect 0–3 contextmap calls per session; declare inventory when the user asks for connected-service work (and again only if the environment changes during it); research a vendor when the agent's first encounter with a provider warrants it; the composer fires whenever the user wants an MCP-to-MCP workflow, not on a lifecycle cadence.
-
-- **contextmap** (\`meta_context_brief\` / \`meta_context_commit\`) — the writeable, durable layer for the *why*. Append-only structural decisions sealed via typed commits (\`operator_kyc\`, \`operator_workspace_setup\`, \`primitive_artifact_materialization\`, \`app_materialization\`, \`trigger_artifact_materialization\`; the 2.x bot-bound \`artifact_materialization\` now only answers with a notice, its earlier events stay readable). Commit ONLY AFTER materializing the artifact, never to declare an intention.
-- **inventory** (\`meta_context_declare_inventory\`) — the present-state MCP environment via introspection. Replace-semantic: the latest declaration is authoritative; previously declared tools not in the new call are wiped. The entry point for connected-service work.
-- **connected-service mirror** (\`declare_skills\`) — reflects the host adapter's skills into mojulo for observation (it never writes to your host). Replace-semantic sibling to inventory; the \`skill\` form plus the materialized mcp-orbit form make up the Connected Services paradigm.
-- **capabilities** (\`record_mcp_capabilities\` / \`get_mcp_capabilities\`) — the research facet of a provider, written via primary-source research; transactional supersession preserves full history (\`asOf\` walks the chain). Both inventory and capabilities write into provider rows on a shared identity layer — one logical "Gmail" regardless of which path arrived at it.
-- **composer** (\`recommend_mcp_orbit_compositions\` / \`get_meta_catalyst\` / \`list_mcp_orbit_components\` / \`get_mcp_orbit_component\`) — reads providers + capabilities + inventory through one consolidated view and decomposes an MCP-to-MCP workflow into five typed component kinds (\`mcp\` × \`trigger\` × \`pattern\` × \`idempotency\` × \`render\`). Each chosen provider surfaces one of five states (\`research\` / \`seed\` / \`inventory_only\` / \`capabilities_only\` / \`none\`) as a constraint warning that routes remediation.
-- **primitive + trigger binding** (\`bind_primitives\`, \`bind_trigger\` / \`unbind_trigger\` / \`list_triggers\` / \`get_trigger\`) — composer-anchored binding surfaces that resolve a typed \`component_ref\` and materialize a session-scoped artifact. \`bind_primitives\` fills a primitive's role template with the actual bound tool names + schemas from the operator's installed MCP; \`bind_trigger\` parks a payload template into the agent-tasks queue on cron cadence.
-- **semantic recall** (\`semantic_search\`) — fuzzy lookup over durable mojulo state (principles, capability bodies, orbit components/compositions/artifacts, declared inventory tools, catalysts, and the card libraries — sketch vocab/methods, view vocab, beats vocab, game vocab/mechanics, manji programs, painted-landscape glyphs) when you have an intent but not a specific ref. Pair the ranked refs with the structured readers above to pull full bodies.
-
-**Runtime gating.** The pieces that actually *run* are opt-in daemons under the unified host (\`mojulo-daemons\`, gated by \`MOJULO_DAEMONS=enabled\`). Per-daemon gates: \`MOJULO_TRIGGER_RUNTIME=enabled\` (the scheduler that fires bound triggers) and \`MOJULO_APP_RUNTIME=enabled\` (the app runner that survives a control-plane restart). Without the host up, \`bind_trigger\` still persists durable rows but nothing fires until a later boot enables the runtime, and \`start_app\` / \`stop_app\` throw a clear error while reads degrade (\`list_running\` → \`[]\`, \`status_app\` → \`unknown\`). For App-paradigm inference the agent is the fulfiller (\`pull_agent_task\` → \`submit_envelope_inference\`), driven by your host's own repeat affordance; \`MOJULO_AGENT_RUNTIME=claude-code-headless\` swaps in an in-process node fulfiller for unattended runs (Claude-Code-only today — other hosts fulfil from a session). Mojulo holds no LLM credentials on the inference path. Each fire writes a \`trigger_firing\` principle and each inference an \`app_inference\` principle on the target artifact node — the alternating \`trigger_firing → app_inference\` chain is the operational signature of an autonomous run.`;
-
 // --- Dashboard UI map (shared, promoted to its own tool) ---
 //
 // The page-by-page map of the `mojulo-ui` dashboard. The compressed TWO_FACES
@@ -975,10 +952,6 @@ export async function creativeToolsetHandler(input, _ctx) {
   };
 }
 
-export async function deliberationOverviewHandler(_input, _ctx) {
-  return { content: [{ type: 'text', text: DELIBERATION_OVERVIEW }] };
-}
-
 export async function uiMapHandler(_input, _ctx) {
   const map = dashboardUiMap(getServerVersion());
   return { content: [{ type: 'text', text: pluginProfileActive() ? profileEdit(map, PROFILE_UI_MAP_EDITS, 'get_ui_map') : map }] };
@@ -1053,7 +1026,6 @@ const ORIENTATION_TOOLS = [
   'forward_context',
   'get_tool_index',
   'get_register_kit',
-  'get_deliberation_overview',
   'get_ui_map',
   'get_substrate',
   'get_worked_example',
@@ -1316,14 +1288,6 @@ export function registerContextTools() {
       },
     },
     handler: registerKitHandler,
-  });
-
-  registerTool({
-    name: 'get_deliberation_overview',
-    description:
-      "Return the why-it's-structured-this-way explainer for the Ring 6 deliberation surfaces (contextmap, inventory, connected-service mirror, capabilities, the mcp-orbit composer, primitive + trigger binding, semantic recall) plus the daemon runtime-gating posture (`MOJULO_DAEMONS` / `MOJULO_TRIGGER_RUNTIME` / `MOJULO_APP_RUNTIME` / `MOJULO_AGENT_RUNTIME`). Most sessions never touch Ring 6, so this deep block lives behind its own tool rather than in `forward_context`. Call when doing structural work (MCP-to-MCP wiring, scheduled triggers, apps) and you want the separation-of-concerns model before composing. Read-only, no inputs, idempotent.",
-    inputSchema: { type: 'object', properties: {} },
-    handler: deliberationOverviewHandler,
   });
 
   registerTool({

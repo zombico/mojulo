@@ -572,7 +572,6 @@ async function registerAllTools() {
   const { registerSemanticSearchTools } = await import('@/lib/mcp/tools/semantic-search');
   const { registerWhatPossibleTools } = await import('@/lib/mcp/tools/what-possible');
   const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
-  const { registerRuntimeDaemonTools } = await import('@/lib/mcp/tools/runtime-daemons');
   const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
   const { registerPlanModeTools } = await import('@/lib/mcp/tools/plan-mode');
   const { registerResearchModeTools } = await import('@/lib/mcp/tools/research-mode');
@@ -672,12 +671,10 @@ async function registerAllTools() {
   // schema-validated work: pull_agent_task → submit_envelope_inference (or
   // other per-kind submit tools) → cancel_agent_task). Runner tools register
   // first so the natural reading order in tools/list is lifecycle
-  // (install_scaffold → start_app → status_app → stop_app) → daemon host
-  // lifecycle (list/status/start/stop/restart) → agent-tasks (pull → submit
-  // → cancel). See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md and
+  // (install_scaffold → start_app → status_app → stop_app) → agent-tasks
+  // (pull → submit → cancel). See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md and
   // APP_SPIKE_A_REFRAME_PLAN.md.
   registerRunnerTools();
-  registerRuntimeDaemonTools();
   registerAgentTaskTools();
   // Ring 8 (plan mode) — the PROPOSED layer of the deliberation model: the
   // speculative counterpart to contextmap's committed reality. Sessions that

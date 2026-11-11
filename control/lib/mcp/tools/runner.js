@@ -12,9 +12,7 @@
  * `ensureToolsRegistered` is what readers actually see.
  *
  * Single-runner posture in the spike: there's exactly one runner
- * (`local`), and `start_app` calls it directly. The `list_runners`
- * affordance exists for forward-compatibility with the runner contract
- * (Fly, Docker, Vercel substitutes) but isn't pluggable yet.
+ * (`local`), and `start_app` calls it directly.
  *
  * See APP_SPIKE_B_RUNNER_AND_SCHEMA_PLAN.md.
  */
@@ -47,17 +45,6 @@ export async function installScaffoldHandler(input) {
     app_ref_wired: out.appRefWired === true,
     ...(out.controlPlaneKeyWireReason ? { control_plane_key_wire_reason: out.controlPlaneKeyWireReason } : {}),
     // Bearer NOT returned (same posture as start_app); read from .env if needed.
-  };
-}
-
-export async function listRunnersHandler() {
-  return {
-    runners: [
-      {
-        name: LocalRunner.name,
-        capabilities: LocalRunner.capabilities,
-      },
-    ],
   };
 }
 
@@ -163,14 +150,6 @@ export function registerRunnerTools() {
       required: ['artifact_ref', 'app_name', 'materialization_ref'],
     },
     handler: installScaffoldHandler,
-  });
-
-  registerTool({
-    name: 'list_runners',
-    description:
-      "List the runner implementations available to the control plane. In the spike, returns the single `local` runner. The contract is forward-compatible with cloud runners (Fly, Vercel, Docker) but pluggability lands post-spike.",
-    inputSchema: { type: 'object', properties: {} },
-    handler: listRunnersHandler,
   });
 
   registerTool({

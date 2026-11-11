@@ -54,6 +54,9 @@ const GONE = [
   'create_vector_match_view', 'create_wavepacket_view', 'create_windmill_view', 'create_workbench', 'emote_figure',
   'get_polygonizer_packet', 'get_skin_packet', 'preview_vehicle_instance', 'sketch_polygomer', 'skin_polygomer',
   'submit_polygonizer_manifest',
+  // the office wing's least-used leftovers, deleted outright (1111-mcp-cleanup)
+  'get_deliberation_overview', 'list_daemons', 'list_runners', 'meta_context_analyze', 'restart_daemon', 'start_daemon',
+  'status_daemon', 'stop_daemon',
 ];
 
 // Pointers known dead when the guard landed, to be fixed by the tool-surface sweep. Shrink-only: `file::tool`.
@@ -62,26 +65,10 @@ const KNOWN_DEAD = [
   'lib/graph/scene/blender-project.js::accept_mesh_render',
   'lib/graph/scene/blender-project.js::request_mesh_render',
   'lib/graph/scene/blender-project.js::submit_mesh_render',
-  // forward_context's drawers: the deliberation overview and the dashboard map still name the office wing
+  // forward_context's dashboard map still names the image handoff's per-op names
   'lib/mcp/tools/context.js::accept_image_render',
-  'lib/mcp/tools/context.js::bind_primitives',
-  'lib/mcp/tools/context.js::bind_trigger',
-  'lib/mcp/tools/context.js::declare_skills',
-  'lib/mcp/tools/context.js::get_mcp_orbit_component',
-  'lib/mcp/tools/context.js::get_meta_catalyst',
-  'lib/mcp/tools/context.js::get_trigger',
-  'lib/mcp/tools/context.js::list_mcp_orbit_components',
-  'lib/mcp/tools/context.js::list_running',
-  'lib/mcp/tools/context.js::list_triggers',
-  'lib/mcp/tools/context.js::meta_context_brief',
-  'lib/mcp/tools/context.js::meta_context_commit',
   'lib/mcp/tools/context.js::pull_image_render',
-  'lib/mcp/tools/context.js::recommend_mcp_orbit_compositions',
   'lib/mcp/tools/context.js::reject_image_render',
-  'lib/mcp/tools/context.js::start_app',
-  'lib/mcp/tools/context.js::status_app',
-  'lib/mcp/tools/context.js::stop_app',
-  'lib/mcp/tools/context.js::unbind_trigger',
 ];
 
 function walk(dir, keep, out = []) {

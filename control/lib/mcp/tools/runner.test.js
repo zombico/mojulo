@@ -17,7 +17,6 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
 import {
-  listRunnersHandler,
   startAppHandler,
   stopAppHandler,
   statusAppHandler,
@@ -38,16 +37,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(homeRoot, { recursive: true, force: true });
   delete process.env.MOJULO_HOME;
-});
-
-describe('list_runners', () => {
-  it('returns the single `local` runner with its capability list', async () => {
-    const out = await listRunnersHandler();
-    expect(out.runners).toHaveLength(1);
-    expect(out.runners[0].name).toBe('local');
-    expect(Array.isArray(out.runners[0].capabilities)).toBe(true);
-    expect(out.runners[0].capabilities).toContain('start_app');
-  });
 });
 
 describe('list_running', () => {

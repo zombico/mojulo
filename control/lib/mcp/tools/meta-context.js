@@ -11,7 +11,6 @@
  *   - meta_context_brief — read the contextmap subgraph + principles
  *   - meta_context_commit — seal a structural decision (operator_kyc,
  *     operator_workspace_setup, primitive / app / trigger materializations)
- *   - meta_context_analyze — read-only drift audit over sealed bindings
  *
  * Events and graph rows of the retired artifact_materialization type (a 2.x
  * seal over a deployed bot) stay readable (brief, recommend_catalysts'
@@ -41,7 +40,6 @@ import {
   embedPrincipleBodies,
   upsertPrincipleEmbedding,
 } from '@/lib/mcp/meta-context/principle-embeddings';
-import { analyze, ANALYZE_LENSES } from '@/lib/mcp/meta-context/analyze';
 
 // ---------------------------------------------------------------------------
 // brief
@@ -64,19 +62,6 @@ export async function briefHandler(input, _ctx) {
     );
   }
   return MetaContextRepository.brief(scope);
-}
-
-// ---------------------------------------------------------------------------
-// analyze — read-only arbiter lenses over the contextmap
-// ---------------------------------------------------------------------------
-
-export async function analyzeHandler(input, _ctx) {
-  const scope = input?.scope;
-  const lens = input?.lens || 'stale-bindings';
-  if (!scope || typeof scope !== 'object') {
-    throw new Error("scope is required, e.g. { kind: 'fleet' } or { kind: 'artifact', ref }");
-  }
-  return analyze({ scope, lens });
 }
 
 // ---------------------------------------------------------------------------
@@ -1053,34 +1038,6 @@ export function registerMetaContextTools() {
       required: ['scope'],
     },
     handler: briefHandler,
-  });
-
-  registerTool({
-    name: 'meta_context_analyze',
-    description:
-      "Check recorded connected-service workflows for drift (read-only). Each binding is classed `missing` (its tool is gone), `stale-capability`, `no-capability`, `unknown` (no inventory declared) or `ok`, with recommendations and `summary.providersToRefresh`. Re-declare inventory first.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        scope: {
-          type: 'object',
-          properties: {
-            kind: {
-              type: 'string',
-              enum: ['fleet', 'artifact'],
-            },
-            ref: { type: 'string', description: "The artifact ref, for kind 'artifact'." },
-          },
-          required: ['kind'],
-        },
-        lens: {
-          type: 'string',
-          enum: ANALYZE_LENSES,
-        },
-      },
-      required: ['scope'],
-    },
-    handler: analyzeHandler,
   });
 
   registerTool({

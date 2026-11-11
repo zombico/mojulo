@@ -198,7 +198,7 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
 
   it('the hard deny-list holds even when the home pack is granted', async () => {
     await withRoles(async () => {
-      for (const name of ['set_env', 'list_env', 'start_daemon', 'mint_role_key']) {
+      for (const name of ['set_env', 'list_env', 'delete_env', 'mint_role_key']) {
         const { text, isError } = await callTool(
           name,
           {},

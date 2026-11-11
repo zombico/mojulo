@@ -25,7 +25,6 @@ import {
   buildForwardContextBody,
   buildRegisterKitBody,
   toolIndexHandler,
-  deliberationOverviewHandler,
   substrateHandler,
   FORWARD_CONTEXT_MODES,
 } from './context.js';
@@ -50,7 +49,6 @@ async function sharedBodies() {
   // The compact fallback is a shared surface too — a capped host may never read
   // anything else, so it has to hold the same neutrality bar.
   bodies.rulesCard = text(await toolIndexHandler({ budget_bytes: 20000 }, {}));
-  bodies.deliberationOverview = text(await deliberationOverviewHandler({}, {}));
   bodies.substrate = text(await substrateHandler({}, {}));
   return bodies;
 }
