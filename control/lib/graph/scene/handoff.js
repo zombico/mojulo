@@ -20,11 +20,12 @@
  *     level     the level record (levelRecord), read off the level as it is played (worlds/world-scene.js levelSketch)
  *   stoneInstances(stones) → [instance set]: the form land's scree stones (form/land-stones.js), one set per shape, size
  *     and tone, each stone a node turned to its ground's normal and yawed by its index, as the World page stands them
- *   dressedMaterials(keys) → { <key>: { base, normal, orm, height, depth, metres, rough } }: each tile key painted by the
+ *   dressedMaterials(keys, textures?) → { <key>: { base, normal, orm, height, depth, metres, rough } }: each tile key painted by the
  *     matte painter (matte-paint/dressed.js, the `dressed` generator) painted again as material: its colour under no light,
  *     its relief's tangent-space normal, glTF's ORM (occlusion red, roughness green, no metal) and its height as its own
  *     grey map over `depth` metres, for an engine's parallax. A tile painted any other way keeps its paint (its light
- *     painted in, the ledger says so)
+ *     painted in, the ledger says so). Given the export's `textures`, a detail tile (matte-paint/detail.js: a town's
+ *     wall or roof dressed by a word) leaves with the relief of the cut it was painted from, its colour the tile as it is
  *   landParts(land) → [instance set]: the form render's land (form/land-read.js formPayload), each part of it (a ground
  *     class: rock, scree, soil, sand, the trail's, the shallows' floor) a mesh of its own, shaded smooth as the page
  *     shades it, each corner its palette-solved base colour (the albedo a plain glTF reader shows) and, on the layered
@@ -63,6 +64,7 @@ import { facesToGlb } from './scene-gltf.js';
 import { stoneForms } from '../form/land-stones.js';
 import { dressedMaterial } from '../matte-paint/dressed.js';
 import { FORM_ROUGH } from '../form/room-form.js';
+import { detailSpec } from '../matte-paint/detail.js';
 import { generatedSpecOf, encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
 import { ATLAS_LAYERS } from '../form/land-read.js';
 import { GROUND_PARALLAX } from './channels/form-land.js';
@@ -130,9 +132,27 @@ export function stoneInstances(stones) {
 
 const dressedCache = new Map();
 const pngUrl = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
-export function dressedMaterials(keys) {
+export function dressedMaterials(keys, textures = null) {
   const out = {};
   for (const key of [...new Set(keys)].sort()) {
+    // (a DETAIL tile, matte-paint/detail.js: a town's wall or roof dressed by a word. Its relief is the dressed cut it
+    // was painted from; its colour stays the tile the export already carries, the face's own colour its hue)
+    const D = typeof key === 'string' && textures && typeof textures[key] === 'string' ? detailSpec(key) : null;
+    if (D && D.cfg.gen !== 'stone-brick') {
+      const ck = `detail|${key}`;
+      if (!dressedCache.has(ck)) {
+        const rough = FORM_ROUGH[D.cfg.cut] ?? 0.85;
+        let M = null; try { M = dressedMaterial(D.cfg, { size: 512, seed: D.seed, rough }); } catch { dressedCache.set(ck, null); }
+        if (M) {
+          let lo = Infinity, hi = -Infinity; for (const h of M.height) { if (h < lo) lo = h; if (h > hi) hi = h; }
+          const span = Math.max(1e-6, hi - lo), grey = Buffer.alloc(M.W * M.H);
+          for (let k = 0; k < grey.length; k++) grey[k] = Math.round(((M.height[k] - lo) / span) * 255);
+          dressedCache.set(ck, { normal: pngUrl(encodePng(M.normal, M.W, M.H)), orm: pngUrl(encodePng(M.orm, M.W, M.H)), height: pngUrl(encodePngGrey(grey, M.W, M.H)), depth: r5(span), metres: D.cfg.metres ?? 2, rough });
+        }
+      }
+      if (dressedCache.get(ck)) out[key] = { base: textures[key], ...dressedCache.get(ck) };
+      continue;
+    }
     const spec = typeof key === 'string' ? generatedSpecOf(key) : null;
     if (!spec || spec.gen !== 'dressed') continue;
     if (dressedCache.has(key) && !dressedCache.get(key)) continue;
@@ -541,7 +561,7 @@ export async function resolveHandoff(sketch, { what = 'level' } = {}) {
     // (a room under the solve: its lamps are the solve's, the stage's own lights the same flames at the paint's levels)
     ...(lamps.length ? { lights: lamps } : {}) } : payload;
   const keys = (handed.faces || []).map((f) => f && f.texture).filter((k) => typeof k === 'string');
-  const materials = dressedMaterials(keys);
+  const materials = dressedMaterials(keys, handed.textures || null);
   // (the level record read off the level as it is played: a city segment's city merged in, a building that asks to be a
   // level lowered, as the page and the game read it: its contract and its hour are the lowered recipe's)
   const level = what === 'level' ? levelRecord(await levelSketch(sketch), handed) : null;

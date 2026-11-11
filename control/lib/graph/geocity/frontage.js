@@ -99,16 +99,17 @@ const PART_OF_PIECE = { win: { glass: 'unit', frame: 'unit', stone: 'unit' }, sh
   entry: { door: 'door', transom: 'stone', stone: 'stone', canopy: 'canopy' }, lobby: { shopglass: 'glass', frame: 'frame', canopy: 'canopy' }, balcony: { stone: 'slab', railglass: 'slab', rail: 'rail' }, band: { band: 'band' } };
 const TINTED = new Set(Object.values(PART_OF_PIECE).flatMap((m) => Object.entries(m).filter(([part]) => TINTS.has(part)).map(([, g]) => g)));
 
-/** Every piece's parts each way, lit: { '<piece>-<part>:<facing>': faces }. */
+/** Every piece's parts each way, lit: { '<piece>-<part>:<facing>': faces }; `flat`, each face its paint under no light
+ *  (the form render's, which bakes the day's light beside it: geocity/scene.js). */
 const MEMO = new Map();
-export function frontageTemplates(L, { frames = [] } = {}) {
+export function frontageTemplates(L, { frames = [], flat = false } = {}) {
   // (once a light and a set of paints: a scene asks them every build)
-  const memo = JSON.stringify([L, frames]);
+  const memo = JSON.stringify(flat ? [L, frames, 'flat'] : [L, frames]);
   if (MEMO.has(memo)) return MEMO.get(memo);
   const out = {};
   for (const [f, n] of Object.entries(FACINGS)) {
     const t = [-n[1], n[0]], W = (u, v, z) => [r4(u * t[0] + v * n[0]), r4(u * t[1] + v * n[1]), r4(z)], N = (a, b, c) => [a * t[0] + b * n[0], a * t[1] + b * n[1], c];
-    const face = (corners, nl, hex) => { const nw = N(...nl), len = Math.hypot(...nw); const nn = nw.map((v) => v / len); return { corners: corners.map((c) => W(...c)), normal: nn, fill: scaleHex(hex, litFactor(nn, L)) }; };
+    const face = (corners, nl, hex) => { const nw = N(...nl), len = Math.hypot(...nw); const nn = nw.map((v) => v / len); return { corners: corners.map((c) => W(...c)), normal: nn, fill: flat ? hex : scaleHex(hex, litFactor(nn, L)) }; };
     // (WINDOWS baked once a frame's paint, none tinted, as one or as a BLOCK of WIN_BLOCK bays by storeys: a metro stamps
     // tens of thousands, a block an eighth of them)
     const variants = (piece) => (piece === 'win' && frames.length ? frames.flatMap((hex, k) => [[1, 1], WIN_BLOCK].map(([c, r]) => ({ tag: `${k}x${c}${r}`, frame: hex, cols: c, rows: r }))) : [{ tag: '', frame: null, cols: 1, rows: 1 }]);

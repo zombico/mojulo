@@ -594,14 +594,16 @@ export const WORLD_KINDS = {
       // the page, and no stand-in walks it)
       if (m.show === 'geotown') {
         const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
-        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) });
+        // (formBuildings: its buildings baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
         return played ? p : attachDummy(p);
       }
       // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;
       // played, the level's pilot and game layered over it by the page
       if (m.show === 'side') return assembleSideStrip(m, { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
-      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true } : {}) }));
+      // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
+      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

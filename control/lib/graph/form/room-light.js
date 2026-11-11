@@ -12,6 +12,7 @@
  *                bounce, reach   what a lightmap's bounce holds: a share of each lamp over a wider reach, its own room only
  *   falloff(d, radius) → the share a lamp gives at d
  *   paintMean(key) → a tile's painted mean (linear rgb, the paint the sixth generation draws): what its colour stands for
+ *   solveDayLight({ targets, ambient, sun, lights?, neutral?, contrast? })   the same under a sun or a moon (below)
  *   solveRoomLight({ targets, ambient, lights, neutral?, contrast? }) → { ambient, keys, bases, level, unreached }
  *     targets   { role: '#rrggbb' } what each surface shows at the reference, its lamp the median one
  *     neutral   a light without hue (a toned room: its colour is its ramps', tone.js), its lamps and ambient too;
@@ -101,4 +102,27 @@ export function solveRoomLight({ targets, ambient, lights, neutral = false, cont
   // key's luminance brought back from the reference, in the median's share
   const keys = lights.map((l) => (neutral ? [1, 1, 1] : hue(shown(l))).map((v) => v * keyY * (l.intensity / ref.intensity)));
   return { ambient: neutral ? S.ambient : hue(amb.map((v) => Math.max(v, 1e-5))).map((v) => v * ambY), keys, bases: S.bases, level: S.level, contrast, unreached: S.unreached };
+}
+
+/** The most of the light a surface turned from the sun keeps under a day's (or a moon's) sky. */
+export const DAY_CONTRAST_MOST = 0.9;
+/** THE LIGHT A SUNLIT STAGE'S PALETTE ASKS FOR (a stage under a sun or a moon: era/stage.js). The reference is the sun
+ *  itself: a surface square to it, unshadowed, shows its paint. `sun` is the paint's ({ rgb, gain, bounce, bounceGain }:
+ *  its colour by its gain over the ambient, what the ground throws back onto a face turned down); the lamps beside it
+ *  are solved in its share (what each adds over the ambient at the reference's metres, against what the sun adds).
+ *  → { ambient, sun (its key, linear), bounce (linear, a face turned full down), keys, bases, level, contrast, unreached } */
+export function solveDayLight({ targets, ambient, sun, lights = [], neutral = false, contrast: asked }) {
+  const amb = ambient.map(decodeSrgb), over = (add) => ambient.map((a, k) => decodeSrgb(shoulder(a + add[k])) - amb[k]);
+  const hue = (lin) => { const y = luminance(lin); return y > 1e-6 ? lin.map((v) => Math.max(0, v) / y) : [1, 1, 1]; };
+  const sunAdd = over(sun.rgb.map((v) => v * sun.gain)), sunShown = luminance(sunAdd) > 1e-4 ? sunAdd : sun.rgb.map((v) => v * 1e-4);
+  const contrast = Math.min(DAY_CONTRAST_MOST, Math.max(0.02, asked ?? luminance(amb) / Math.max(1e-4, luminance(amb) + luminance(sunShown))));
+  const S = solveLight({ targets, sky: '#ffffff', sun: '#ffffff', contrast });
+  const ambY = luminance(S.ambient), sunY = luminance(S.sun), per = sunY / luminance(sunShown);
+  const key = (add) => { const d = over(add); return (neutral ? [1, 1, 1] : hue(d)).map((v) => v * luminance(d.map((x) => Math.max(0, x))) * per); };
+  // (a lamp as a room's is: what it adds at the reference's metres, as the paint lays it there, brought back to where
+  // its falloff is whole; one too small to reach the reference, what it adds whole)
+  const lamp = (l) => { const at = falloff(ROOM_LIGHT.at, l.radius), g = Math.max(0, 1 - ROOM_LIGHT.at / l.radius) ** 2, c = rgbOf(l.color);
+    return at > 1e-3 ? key(c.map((v) => v * l.intensity * g)).map((v) => v / at) : key(c.map((v) => v * l.intensity)); };
+  return { ambient: neutral ? S.ambient : hue(amb.map((v) => Math.max(v, 1e-5))).map((v) => v * ambY), sun: (neutral ? [1, 1, 1] : hue(sunShown)).map((v) => v * sunY),
+    bounce: key(sun.bounce.map((v) => v * sun.bounceGain)), keys: lights.map(lamp), bases: S.bases, level: S.level, contrast, unreached: S.unreached };
 }

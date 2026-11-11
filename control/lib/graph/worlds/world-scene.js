@@ -702,10 +702,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // THE FORM RENDER INDOORS (form/room-form.js): a room baked for the form render has its tiles read as material, each
     // key's colour under no light in place of its paint, its normal, occlusion, height and mean beside it
     if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
-      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
+      // (under a sun, a plaza's dress beside its stage: every face that carries its baked light)
+      const sunlit = !!payload.form.room.sun;
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && ((f.group.startsWith('stage:') && f.group !== 'stage:fixture') || (sunlit && f.cornerLight !== undefined))).map((f) => f.texture);
       const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
+    }
+    // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
+    if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
+      // (no budget on a town's maps: the page is the person's, on their own machine, and a second, smaller read of
+      // every tile doubles what the first resolve costs)
+      const R = payload.form.town, F = formRoomMaps(keys, { budget: Infinity });
+      Object.assign(textures, F.textures);
+      payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
@@ -861,6 +872,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (one sun a page: the live light's maps are drawn along the land's solved sun, the one its form and a baked
+    // building are lit by, where the world names none of its own)
+    if (read && payload.shadows && typeof payload.shadows === 'object' && !Array.isArray(payload.shadows.toLight) && Array.isArray(payload.form.land.sun) && payload.form.land.sun[2] > 0.05) payload.shadows = { ...payload.shadows, toLight: payload.form.land.sun };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)

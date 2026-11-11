@@ -61,6 +61,11 @@ import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bl
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
+import { sunLitFaces, skyAt } from '../form/sun-light.js';
+import { cubeLight } from '../era/cube-light.js';
+import { makeSunShadow } from '../era/sun.js';
+import { readHour } from '../era/geocube-hours.js';
+import { unlift } from '../matte-paint/detail.js';
 
 export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'cone']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
@@ -79,6 +84,12 @@ const CELL = 6, PARK_CELL = 6, MARGIN_CELL = 6;
 const UPRIGHT = new Set(['kerb', 'fence-board', 'fence-brick', 'fence-stone']);
 const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 167, road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
 // a building's kit family: a mansion's its own
+/** The groups the form render's bake leaves as painted: glass (the page's own), a sign and a canvas (their colour their own). */
+const FORM_KEEP = new Set(['geotown:glass', 'geotown:sign', 'geotown:canvas']);
+/** How far off a wall its sun test starts (m): clear of the courses, surrounds, panels and frames laid over it. */
+const FORM_LIFT = 0.3;
+// a dressed face's paint, its detail's lift taken back out (matte-paint/detail.js): the colour its base is solved from
+const unlifted = (f) => ({ ...f, fill: unlift(f.fill) });
 const familyOf = (pl) => (pl.form === 'mansion' ? 'mansions' : pl.kind);
 /** A rect less some rects inside it, as rects (u0, v0, u1, v1). */
 function lessRects(r, cuts) {
@@ -268,7 +279,11 @@ export function assembleGeotownScene(m, ctx = {}) {
   const kitId = hasStructureRails(cube.outside.base) ? cube.outside.base : 'isekai-meadow';
   const sStyle = structureStyle(kitId, seed), L = townLanguage(sStyle, anchor), Pt = housePaint(kitId);
   const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
-  const litV = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+  // THE FORM RENDER'S BUILDINGS (ctx.formBuildings, a page read in gen-7 by day: form/sun-light.js): a building's faces
+  // carry their paint as it shows lit, never darkened by their turn to the sun, and are baked below with their colour and
+  // their light apart, the sun's shadow tested. Absent, and at night: the paint, its light in its value, as it always was
+  const formB = !!ctx.formBuildings && !lit.night;
+  const litV = formB ? () => 1 : (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
   const [sLo, sHi] = P.house.storeys, spoken = new Map();
   // an EVOCATION's buildings each a kit of their row's kind (houses.js), no two neighbours alike; each yard its own
   const evoked = !!d.evoked, kits = evoked ? buildingKits(P, m.style ?? P.style, cube, kitId, seed) : null, types = new Map();
@@ -512,7 +527,7 @@ export function assembleGeotownScene(m, ctx = {}) {
           // (a face with its own paint, a shop's frame, sign or awning, wears it)
           const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
           const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
-          const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
+          const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : formB ? own : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
           faces.push(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0);
         }
       }
@@ -1082,10 +1097,25 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
   // grass there (form/land-read.js, worlds/world-scene.js); its trees the form's, `plants`)
   if (form) for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
+  // (the buildings baked for the form render: each corner its base and the day's light on it, the sun's shadow tested
+  // against the buildings themselves, an eave's on its wall and a house's on the next; the glass and what glows kept)
+  let formTown = null;
+  if (formB) {
+    const CL = cubeLight(cube, m.hour !== undefined ? { hour: readHour(m.hour) } : {}), light = { sun: CL.sun.linear, ambient: CL.ambient.linear, dir: CL.sun.dir };
+    const built = (f) => typeof f.group === 'string' && (f.group.startsWith('town:') || f.group.startsWith('geotown:')) && !FORM_KEEP.has(f.group) && !f.group.startsWith('geotown:tree');
+    const idx = faces.map((f, i) => (built(f) ? i : -1)).filter((i) => i >= 0), mine = idx.map((i) => (faces[i].textureLit ? unlifted(faces[i]) : faces[i]));
+    // (a building's dress lies in thin layers over its walls: the test starts clear of them, FORM_LIFT)
+    // (what the town's ground throws back onto a wall and under an eave: its paving's, the cube's stone as solved)
+    const ground = CL.linearBases.stone ?? CL.linearBases.floor ?? null;
+    const B = sunLitFaces(mine, light, { shadow: makeSunShadow(mine, light.dir), lift: FORM_LIFT, ...(ground ? { ground } : {}) });
+    idx.forEach((i, k) => { faces[i] = B.faces[k]; });
+    const far = [light.dir[0] * 1e6, light.dir[1] * 1e6, light.dir[2] * 1e6].map(r5);
+    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}) };
+  }
   // (the shutters' leaves, marched near the eye: channels/leaf-relief.js; a town with none carries no key)
   const leaves = leafPage(new Set(faces.map((f) => f.texture)));
   return {
-    faces, repeats, ...(Object.keys(textures).length ? { textures } : {}), ...(leaves ? { leaves } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
+    faces, repeats, ...(formTown ? { form: { town: formTown } } : {}), ...(Object.keys(textures).length ? { textures } : {}), ...(leaves ? { leaves } : {}), ...(plants ? { plants } : {}), colliders, anchors, cameras,
     viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geotown`,
     bg, haze: { color: air.fog.color, density: r5(air.fog.density * TOWN_HAZE) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
