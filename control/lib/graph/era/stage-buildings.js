@@ -865,11 +865,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
       clearedBoxes.push(...inner);
       return out;
     })() : [];
-    // (baked with the sun's shadow of the building on itself and on its apron: an eave's on its wall, a wing's on the
-    // hall, the hall's on the slab; what it casts on the land past its apron is the page's live shadow)
+    // (baked with the sun's shadow of the building on itself: an eave's on its wall, a wing's on the hall; what it
+    // casts on its apron and on the land is the page's live shadow, the hour's map)
     const castBy = X && shellLight ? makeSunShadow(shell0, shellLight.dir) : null;
     const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, { shadow: castBy }).faces : shell0;
-    const apronF = shellLight && apron0.length ? sunLitFaces(apron0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, { shadow: castBy ?? makeSunShadow(shell0, shellLight.dir) }).faces : apron0;
+    // (the apron takes no baked shadow: it is flat and wide, a corner every few metres, and the building's shadow on it
+    // is the page's live one, as it is on the land beside it)
+    const apronF = shellLight && apron0.length ? sunLitFaces(apron0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : apron0;
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
     const wy = ways[0], drop = floor - (ground(...toWorld([doorPlan[0], doorPlan[1] - 0.6])) ?? floor), run = Math.max(0.6, drop * 2.5);

@@ -822,7 +822,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
   // (a room in the form render, under no sun, bakes its lamps' shadows: of the live light it keeps what moves, the actors)
-  const shadowsOut = payload && payload.form && payload.form.room ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
+  // (a room's page has no hour map: its sun, where it has one, is in its bake. A building's rooms seated on a land,
+  // era/stage-buildings.js (`payload.buildings`), stand outdoors: the hour's map is the land's, and the building casts into it)
+  const shadowsOut = payload && payload.form && payload.form.room && !(Array.isArray(payload.buildings) && payload.buildings.length) ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
