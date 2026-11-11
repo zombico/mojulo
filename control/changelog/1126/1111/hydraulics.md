@@ -17,8 +17,7 @@
 - **The island plaza's fountain runs on it** (a stage's `water: 'works'` or `{ works: { head?, nozzle?, mist? } }`).
   A jet rises from the finial, falls into the bowl, and the bowl brims over to the basin in sheets whose flow is the
   pump's; mist stands where they land. `water: true` is the live water it was, and a stage with no `water` its
-  painted strips: both byte for byte. Seen in Chrome on the island plaza by day in gen-7. Its mist's air is solved in
-  the open (the fountain passes no colliders yet).
+  painted strips: both byte for byte. Seen in Chrome on the island plaza by day in gen-7.
 - **Water landing on water.** Where a circuit's water strikes water the solve says how (`impacts`: the place, the
   ring it lands on, the speed of its fall, its flow): a tier's sheets a little out from its lip on the water below,
   the jet's own fall back on the water under it. The page draws the strike (`channels/hydraulics.js`
@@ -27,5 +26,13 @@
   back. All of it is a formula of the clock: one disc and a few dozen points a landing. `impact: false` leaves it
   out. Seen in Chrome on the island plaza: rings across the basin under the bowl's sheets, and in the bowl round
   the finial.
+- **A fall ends on the water it lands on.** A circuit's sheets and its jet were given a fall a little past their
+  water, as the plaza's live sheets are, and through clear water they were seen running on to the floor. Each now
+  falls exactly to its water: a sheet to the pool below (a tier's own `level`, a little under its lip where it names
+  none), the jet back to the water under its nozzle.
+- **The mist's air meets the world's solids.** A circuit a kit lays is solved before its world has its colliders, so
+  its mist's air was the open air. Where the world is resolved the air is solved again among its solids
+  (`mistAir`, `worlds/world-scene.js`): the world's walls, and the kit's own stone (the plaza's fountain gives its
+  bowl and its pedestal, so the mist under the bowl spreads out from under it).
 - **Named apart from a trail's `waterworks`** (the land's own rivers and falls, `era/water-live.js`): that is a plan
   the land draws; this is a circuit a pump runs.

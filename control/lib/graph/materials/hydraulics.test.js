@@ -1,7 +1,7 @@
 // Flowing water as a circuit (hydraulics.js): a pump, a nozzle, tiers that spill what they receive, and the mist where
 // the water lands on the air solved round it. One small fountain, and the page's channel for its mist.
 import { describe, it, expect } from 'vitest';
-import { solveHydraulics, HYDRAULICS } from './hydraulics.js';
+import { solveHydraulics, mistAir, HYDRAULICS } from './hydraulics.js';
 import { hydraulicsScript, impactDrops, WATER_IMPACT } from '../scene/channels/hydraulics.js';
 import { vayoPoints } from '../rupa/vayo.js';
 import { waterWorks } from '../era/stage.js';
@@ -45,6 +45,10 @@ describe('flowing water as a circuit', () => {
     expect(JSON.stringify(at(1))).not.toBe(JSON.stringify(at(2)));
     expect(JSON.stringify(at(1))).toBe(JSON.stringify(at(1)));
     expect(solveHydraulics({ ...FOUNTAIN, mist: false }).mists).toEqual([]);
+    // (a circuit a kit laid in the open has its air solved again among the world's solids, the mist's spray as it was)
+    const again = mistAir(open.mists, { colliders: [{ min: [1.4, -4, 0], max: [1.8, 4, 4] }] });
+    expect(JSON.stringify(again[0].env)).toBe(JSON.stringify(walled.mists[0].env));
+    expect(again[0].spray).toEqual(open.mists[0].spray);
   });
 
   it('where water strikes water it lands with the speed of its fall: the sheets on a ring round their tier, the jet on the water under it', () => {
@@ -59,7 +63,12 @@ describe('flowing water as a circuit', () => {
     expect(bowl.speed).toBeGreaterThanOrEqual(Math.sqrt(2 * 9.81 * (1.9 - 0.45)) - 1e-3);
     // (the jet falls back from its top onto the bowl: straight down, on the axis)
     expect(riser.ring).toBe(0);
-    expect(riser.speed).toBeCloseTo(Math.sqrt(2 * 9.81 * (2.5 + W.report.rise - 1.9)), 2);
+    // (onto the bowl's own water, a little under its lip, where the jet's fall ends too: it does not pass through)
+    expect(riser.at[2]).toBeCloseTo(1.9 - HYDRAULICS.brim, 6);
+    expect(riser.speed).toBeCloseTo(Math.sqrt(2 * 9.81 * (2.5 + W.report.rise - riser.at[2])), 2);
+    expect(W.jets.find((j) => j.id === 'f:riser').fall).toBeCloseTo(2.5 - riser.at[2], 3);
+    expect(W.jets.find((j) => j.shape === 'sheet').fall).toBeCloseTo(1.9 - 0.45, 3);
+    expect(solveHydraulics({ ...FOUNTAIN, tiers: [{ ...FOUNTAIN.tiers[0], level: 1.7 }] }).impacts.find((i) => i.id === 'f:riser').at[2]).toBe(1.7);
     // (a harder landing throws its drops higher, never past the most; a ring of sheets throws more than a single jet)
     const soft = impactDrops({ ...bowl, speed: 1 }), hard = impactDrops({ ...bowl, speed: 6 });
     expect(hard.high).toBeGreaterThan(soft.high);

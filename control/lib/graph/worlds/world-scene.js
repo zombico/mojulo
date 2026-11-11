@@ -46,7 +46,7 @@ import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
-import { solveHydraulics } from '@/lib/graph/materials/hydraulics';
+import { solveHydraulics, mistAir } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
@@ -838,6 +838,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (jets.length) payload.jets = [...(Array.isArray(payload.jets) ? payload.jets : []), ...jets];
     const mine = { mists: solved.flatMap((w) => w.mists), impacts: solved.flatMap((w) => w.impacts), report: solved.map((w) => w.report) };
     payload.hydraulics = payload.hydraulics ? { mists: [...payload.hydraulics.mists, ...mine.mists], impacts: [...(payload.hydraulics.impacts || []), ...mine.impacts], report: [...payload.hydraulics.report, ...mine.report] } : mine;
+  }
+  // (a circuit a kit laid, a plaza's fountain: its mist's air solved again here, among the world's own solids)
+  else if (payload && payload.hydraulics && Array.isArray(payload.hydraulics.mists) && payload.hydraulics.mists.length && !unshaded) {
+    const { solids = [], ...H } = payload.hydraulics, walls = Array.isArray(payload.colliders) ? payload.colliders : [];
+    payload.hydraulics = walls.length ? { ...H, mists: mistAir(H.mists, { colliders: [...walls, ...solids] }) } : H;
   }
   // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
   { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }

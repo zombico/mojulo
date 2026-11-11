@@ -16,7 +16,8 @@
  *                 nozzle?: { at: [x, y, z], dir?: [0, 0, 1], radius (m) },      the riser's mouth; none ⇒ the flow is
  *                 flow?: L/s,                                                    given (a spring, a channel)
  *                 tiers: [{ id?, at: [x, y, lip z], radius (the lip's), lips?: sheets round it (8), share?: of the lip
- *                           that pours (0.6), to?: z its water lands at (the next tier's lip, or the basin's level) }],
+ *                           that pours (0.6), level?: z of its own water (a little under its lip), to?: z its water
+ *                           lands at (the next tier's water, or the basin's) }],
  *                 mist?: false | { size?, count? } }
  *     jets      raw jets for materials/jet.js normalizeJets: the riser (a round jet up), a sheet a lip
  *     mists     [{ at, env (rupa/vayo.js vayoEnvelope, trimmed), spray }]: one where each tier's water lands and one
@@ -26,6 +27,7 @@
  *               rings running out from where it lands and the drops it throws up (`impact: false` for none)
  *     report    { flow (L/s), speed (m/s), rise (m the jet climbs over its nozzle), power (W the pump gives the
  *               water), tiers: [{ id, per (L/s a sheet), depth (m over the lip, critical), fall (m) }] }
+ *   mistAir(mists, { colliders?, wind? }) → the mists with their air solved among a world's own solids
  *   A circuit that cannot run teaches (a pump too weak to reach its nozzle; a tier above the jet's rise).
  *
  * Pure and deterministic: no dice, no clock. SI units (metres, seconds), `unit` the world's metres a unit.
@@ -34,9 +36,10 @@ import { stepVessels } from '../rupa/fluid.js';
 import { vayoEnvelope } from '../rupa/vayo.js';
 import { sheetProfile } from './jet.js';
 
-/** A fountain's measures where a circuit names none: the sheets round a lip, the share of it that pours, a mist's motes
+/** A fountain's measures where a circuit names none: the sheets round a lip, the share of it that pours, how far under
+ *  its lip a tier's own water stands (`brim`, m), a mist's motes
  *  and their size against the fall that makes them, and the least fall that raises any. */
-export const HYDRAULICS = Object.freeze({ lips: 8, share: 0.6, mist: Object.freeze({ count: 14, size: 0.45, life: 3.2, least: 0.3 }) });
+export const HYDRAULICS = Object.freeze({ lips: 8, share: 0.6, brim: 0.05, mist: Object.freeze({ count: 14, size: 0.45, life: 3.2, least: 0.3 }) });
 
 const G = 9.81, RHO = 1000;
 const r4 = (v) => Math.round(v * 1e4) / 1e4, r3 = (v) => Math.round(v * 1e3) / 1e3;
@@ -70,26 +73,29 @@ export function solveHydraulics(circuit, { colliders = [], wind = [0, 0, 0] } = 
   }
   const impacts = [], jets = [], mists = [], rep = [], M = circuit.mist === false ? null : { ...HYDRAULICS.mist, ...(circuit.mist && typeof circuit.mist === 'object' ? circuit.mist : {}) };
   const id = circuit.id || 'works';
+  // a tier's own water: its `level`, or a little under its lip; and the water under the nozzle
+  const poolOf = (T) => (Number.isFinite(T.level) ? T.level : T.at[2] - HYDRAULICS.brim), under = tiers.length ? poolOf(tiers[0]) : B.level;
   // the air round a landing, solved once: the faces it meets, the wind it rides
   const mistAt = (at, fall, r, key) => {
     if (!M || fall < M.least) return;
     const E = vayoEnvelope(at, { colliders, floor: at[2], wind, size: Math.max(0.4, r), n: 16 });
-    mists.push({ id: key, at: at.map(r4), env: trimEnv(E),
+    mists.push({ id: key, at: at.map(r4), size: r3(Math.max(0.4, r)), env: trimEnv(E),
       spray: { flow: 'smoke', count: Math.max(4, Math.round(M.count * Math.min(2, 0.5 + fall / 2))), life: M.life, size: r3(M.size * Math.min(1.8, 0.6 + fall / 3)), r: r3(Math.max(0.4, r)), rise: 0.35, grow: 1.2, swirl: 0.2, env: 'ends', stagger: M.life } });
   };
   if (N) {
-    jets.push({ id: `${id}:riser`, at: N.at.map(r4), dir: (N.dir || [0, 0, 1]).map(r4), radius: r4(N.radius), discharge: Q, fall: r3(2 * rise + 0.5), mist: false, controls: false });
+    // (the jet climbs, turns and falls back to the water under its nozzle: the first tier's pool, or the basin's)
+    jets.push({ id: `${id}:riser`, at: N.at.map(r4), dir: (N.dir || [0, 0, 1]).map(r4), radius: r4(N.radius), discharge: Q, fall: r3(Math.max(0.05, N.at[2] - under)), mist: false, controls: false });
     if (tiers.length && tiers[0].at[2] > N.at[2] + rise + 1e-6) no(`the jet climbs ${r3(rise)} m over its nozzle and the first tier's lip stands above it: it is never fed`);
   }
   tiers.forEach((T, i) => {
     if (!vec(T.at) || !(T.radius > 0)) no(`tier ${i} is { at: [x, y, lip z], radius, lips?, share?, to? }`);
     const lips = Number.isInteger(T.lips) && T.lips > 0 ? T.lips : HYDRAULICS.lips, share = T.share > 0 && T.share <= 1 ? T.share : HYDRAULICS.share;
     const W = (2 * Math.PI * T.radius * share) / lips, per = Q / lips, S = sheetProfile({ W, Q: per });
-    const to = Number.isFinite(T.to) ? T.to : i + 1 < tiers.length ? tiers[i + 1].at[2] : B.level, fall = T.at[2] - to;
+    const to = Number.isFinite(T.to) ? T.to : i + 1 < tiers.length ? poolOf(tiers[i + 1]) : B.level, fall = T.at[2] - to;
     if (!(fall > 0)) no(`tier ${i} pours onto water that is not below its lip`);
     for (let k = 0; k < lips; k++) {
       const a = (2 * Math.PI * (k + 0.5)) / lips, o = [Math.cos(a), Math.sin(a)];
-      jets.push({ id: `${id}:${T.id || `tier${i}`}:${k}`, shape: 'sheet', width: r4(W), at: [r4(T.at[0] + o[0] * T.radius), r4(T.at[1] + o[1] * T.radius), r4(T.at[2])], dir: [r4(o[0]), r4(o[1]), 0], discharge: per, fall: r3(fall + 0.2), mist: false, controls: false });
+      jets.push({ id: `${id}:${T.id || `tier${i}`}:${k}`, shape: 'sheet', width: r4(W), at: [r4(T.at[0] + o[0] * T.radius), r4(T.at[1] + o[1] * T.radius), r4(T.at[2])], dir: [r4(o[0]), r4(o[1]), 0], discharge: per, fall: r3(fall), mist: false, controls: false });   // (it ends on the water it lands on, not under it)
     }
     rep.push({ id: T.id || `tier${i}`, per: r4(per * 1000), depth: r4(S.hc), fall: r3(fall) });
     // (where the sheets land: thrown out from the lip by their own speed over the fall's time, a ring round the tier,
@@ -99,11 +105,18 @@ export function solveHydraulics(circuit, { colliders = [], wind = [0, 0, 0] } = 
     mistAt([T.at[0], T.at[1], to], fall, T.radius + 0.15, `${id}:${T.id || `tier${i}`}`);
   });
   // (the jet's own fall back, from its top to the water under it: the first tier's, or the basin's)
-  if (N && rise > 0) { const z = tiers.length ? tiers[0].at[2] : B.level, drop = N.at[2] + rise - z;
+  if (N && rise > 0) { const z = under, drop = N.at[2] + rise - z;
     if (drop > 0) impacts.push({ id: `${id}:riser`, at: [r4(N.at[0]), r4(N.at[1]), r4(z)], ring: 0, reach: r4(tiers.length ? tiers[0].radius : B.radius), speed: r3(Math.sqrt(2 * G * drop)), flow: r4(Q * 1000) }); }
-  if (N && rise > 0) mistAt([N.at[0], N.at[1], tiers.length ? tiers[0].at[2] : B.level], rise + Math.max(0, N.at[2] - (tiers.length ? tiers[0].at[2] : B.level)), 0.3, `${id}:riser`);
+  if (N && rise > 0) mistAt([N.at[0], N.at[1], under], rise + Math.max(0, N.at[2] - under), 0.3, `${id}:riser`);
   return { jets, mists, impacts: circuit.impact === false ? [] : impacts, report: { flow: r4(Q * 1000), speed: r3(speed), rise: r3(rise), power: r3(power), tiers: rep } };
 }
 
 // an envelope as a page carries it: what vayoPoints reads, rounded
 const trimEnv = (E) => JSON.parse(JSON.stringify(E, (k, v) => (typeof v === 'number' ? (Number.isFinite(v) ? Math.round(v * 1e3) / 1e3 : null) : v)));
+
+/** The mists' air solved again against a world's own solids (`colliders`: boxes { min, max }) and wind: a circuit laid
+ *  by a kit is solved before its world has its colliders, in the open; the world gives them here. → the mists, each its
+ *  envelope the air round its spot among those solids. */
+export function mistAir(mists, { colliders = [], wind = [0, 0, 0] } = {}) {
+  return (Array.isArray(mists) ? mists : []).map((m) => ({ ...m, env: trimEnv(vayoEnvelope(m.at, { colliders, floor: m.at[2], wind, size: m.size > 0 ? m.size : 0.4, n: 16 })) }));
+}

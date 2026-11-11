@@ -10,7 +10,7 @@
  *              ring round the basin dark where it splashes.
  * Every placement has a cause and a seeded die (integer hashes); a pure function of the plan.
  */
-import { solveHydraulics } from '../materials/hydraulics.js';
+import { solveHydraulics, mistAir } from '../materials/hydraulics.js';
 import { hash3, vnoise, walkLine } from './dirt.js';
 import { P, r5, card as cardRaw, box, wallFrame, lathe } from './geom.js';
 import { sunDir } from './sun.js';
@@ -68,9 +68,12 @@ export function plazaFountain(plan, { live = false, works = null } = {}) {
     // to the finial, the jet falls back into the bowl, and the bowl spills what it receives over its lip to the basin.
     // The pump's head is the one dial: the flow, the jet's height and each sheet follow from it
     const W = solveHydraulics({ id: 'fountain', basin: { at: [c[0], c[1], 0.16], radius: inner, level: Fo.water }, pump: { head: works.head ?? PLAZA_PUMP.head },
-      nozzle: { at: [c[0], c[1], Fo.top], radius: works.nozzle ?? PLAZA_PUMP.nozzle }, tiers: [{ id: 'bowl', at: [c[0], c[1], B.z - 0.01], radius: B.R + 0.04, lips: Fo.jets.count, to: Fo.water }],
+      nozzle: { at: [c[0], c[1], Fo.top], radius: works.nozzle ?? PLAZA_PUMP.nozzle }, tiers: [{ id: 'bowl', at: [c[0], c[1], B.z - 0.01], radius: B.R + 0.04, lips: Fo.jets.count, level: B.z - 0.1, to: Fo.water }],
       ...(works.mist !== undefined ? { mist: works.mist } : {}), ...(works.impact !== undefined ? { impact: works.impact } : {}) });
-    return { stone, water, cut, jets: W.jets, hydraulics: { mists: W.mists, impacts: W.impacts, report: [W.report] } };
+    // (the fountain's own stone the mist's air meets: the bowl over the basin, the pedestal under it; the world's walls
+    // join them where it is resolved, materials/hydraulics.js mistAir)
+    const solids = [{ min: [c[0] - B.R, c[1] - B.R, B.z - B.depth - 0.25], max: [c[0] + B.R, c[1] + B.R, B.z] }, { min: [c[0] - Fo.pedestal, c[1] - Fo.pedestal, 0.16], max: [c[0] + Fo.pedestal, c[1] + Fo.pedestal, B.z - B.depth] }];
+    return { stone, water, cut, jets: W.jets, hydraulics: { mists: mistAir(W.mists, { colliders: solids }), impacts: W.impacts, report: [W.report], solids } };
   }
   if (live && Fo.jets) {
     // the bowl brims over its lip in sheets, one per stretch of lip, each pouring outward and falling to the basin
