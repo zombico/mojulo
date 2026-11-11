@@ -146,7 +146,6 @@ const DESCRIPTION_ALLOWLIST = {
   sketch_what_possible: 1316,
   stitch_motion: 819,
   translate_modeler_lingo: 1178,
-  verify_machina: 2180,
 };
 
 // Whole-body pin: baseline 314,028 bytes at ratchet time. Deliberate growth
@@ -456,7 +455,10 @@ const DESCRIPTION_ALLOWLIST = {
 // the research book's seven tools (the stash is the gathering path, and the only one a cook reads) and the three stash
 // link tools (no build, cook or page read a link). Ten tools off the list; run_experiment_sweep stays, homed in
 // pack_plan, its mechanics form no longer asking for a research book. No new tool.
-const PAYLOAD_CEILING = 199_600;
+// Lowered 2026-11-11 on 1111-mcp-cleanup (199_600 -> 195_900; measured 195,837, 199,558 before) for verify_machina:
+// its 2,180-char description and per-parameter schema prose moved to the `machina` solid-vocab card
+// (get_solid_vocab({ id: 'machina' })); the description is routing grade, under the ceiling, off the allowlist.
+const PAYLOAD_CEILING = 195_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

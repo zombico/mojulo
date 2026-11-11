@@ -31,3 +31,9 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   gets "unknown tool". The daemon host itself and the trigger tools that use it are untouched. `update_game_project`
   was on the same shortlist and stays, because it is the only way to change a stored game project's status. Deleting
   the overview also removed sixteen pointers to unreachable tools that the dead-pointer guard had been carrying.
+- **Machina's manual moves to a card.** `verify_machina` (can this mechanism move this load within these limits?) had
+  the longest description on the list for a tool few sessions call. Its description now says what it is for and when
+  to reach for it, and the full manual (every machine and its parameters, the units, the limits, what comes back, a
+  worked example) is the `machina` card, read with `get_solid_vocab({ id: 'machina' })` and found by
+  `semantic_search` from a question like "how many pulleys do I need". The tool takes the same recipe and gives the
+  same verdict; a malformed recipe is sent to the card. The flat tool list drops again, to 195,837 bytes.
