@@ -12,6 +12,7 @@ import { P, r5, box, card as cardRaw, hexRgb, lathe } from './geom.js';
 import { blendsByCause } from './nave.js';
 import { cornerThings, skull, obox } from './props.js';
 import { tileFamilyOf } from './tile-specs.js';
+import { wallOrder } from './wall-rhythm.js';
 import { panel, wallBox } from './geom.js';
 import { roundArch, archUnder, archRing } from './arches.js';
 import './leaf-cards.js';
@@ -179,17 +180,27 @@ export function cryptNiches(plan, pilasters, accent, anchors = null) {
   const N = plan.kit.dress.niches, pw = plan.kit.pilaster.w, out = [];
   const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
   const back = { key: null, scale: 1, tint: N.dark, group: 'stage:niche' };
-  let n = 0;
+  let n = 0, wi = 0;
   for (const w of wallsOf(pilasters)) {
     if (accent && w.room === accent.room && w.F === accent.F) continue;
+    // A WALL'S RHYTHM (a card's `niches.rhythm`, era/wall-rhythm.js): along a wall never three bays alike and never a
+    // pair followed by the same pair. Its second kind of bay is DERIVED: the same bay with less on it (`less` tiers of
+    // niches fewer, and nothing in them). A recipe's `rhythm: 'same'` means a wall all alike, and then each bay is
+    // drawn clean and repeatable (no urn, no sealed niche: nothing that marks one bay from the next)
+    const bare = (i) => { const a = w.ps[i], b = w.ps[i + 1]; return b.k === a.k + 1 && !doorIn(plan, w.F, a.u + pw / 2, b.u - pw / 2); };
+    const bays = N.rhythm ? Array.from({ length: Math.max(0, w.ps.length - 1) }, (_, i) => i).filter(bare) : null;
+    const order = bays && bays.length ? wallOrder(bays.length, { order: plan.rhythm ?? N.rhythm.order ?? null, pick: hash3(wi, bays.length, 4409) }) : null;
+    wi++;
     for (let i = 0; i + 1 < w.ps.length; i++) {
       const a = w.ps[i], b = w.ps[i + 1];
       if (b.k !== a.k + 1) continue;   // a doorway lies between: not a bare run
       const u0 = a.u + pw / 2, u1 = b.u - pw / 2, wd = Math.min(N.w, (u1 - u0) * 0.6), um = (u0 + u1) / 2;
       if (doorIn(plan, w.F, u0, u1)) continue;   // a doorway inside the bay: not bare either
+      const kind = order ? order.order[bays.indexOf(i)] : 'A', lesser = kind !== 'A', clean = !!(order && order.clean);
       // a round head (an arcosolium) rises half the niche's width over its jambs; a flat one is a loculus's slot
       const round = N.head === 'round', nh = N.h + (round ? wd / 2 : 0), z0 = plan.kit.plinth.h + N.sill;
-      const tiers = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((a.top - z0 - 0.3 + N.gap) / (nh + N.gap))));
+      const tiers0 = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((a.top - z0 - 0.3 + N.gap) / (nh + N.gap))));
+      const tiers = lesser ? Math.max(0, tiers0 - (N.rhythm.less ?? 1)) : tiers0;
       for (let t = 0; t < tiers; t++) {
         const zb = z0 + t * (nh + N.gap), zt = zb + N.h, F = w.F, f = N.frame, u0 = um - wd / 2, u1 = um + wd / 2;
         // the recess reads by its dark back; the frame stands proud of the wall around it
@@ -202,8 +213,8 @@ export function cryptNiches(plan, pilasters, accent, anchors = null) {
         } else wallBox(out, F, u0 - f, u1 + f, zt, zt + f, N.out, trim, 0.5);   // lintel
         wallBox(out, F, u0 - f, u0, zb, zt, N.out, trim, 0.5, true);          // jambs
         wallBox(out, F, u1, u1 + f, zb, zt, N.out, trim, 0.5, true);
-        const sealed = !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = hash3(n, t, 4401) < N.urns;
-        if (anchors) anchors.push({ id: `niche-${anchors.filter((q) => q.kind === 'niche').length + 1}`, kind: 'niche', room: w.room, at: P(at(F, um, 0, zb)), N: P(F.N), width: r5(wd), height: r5(nh), tier: t, ...(sealed ? { sealed } : {}), ...(urn ? { urn } : {}) });
+        const sealed = !lesser && !clean && !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = !lesser && !clean && hash3(n, t, 4401) < N.urns;
+        if (anchors) anchors.push({ id: `niche-${anchors.filter((q) => q.kind === 'niche').length + 1}`, kind: 'niche', room: w.room, at: P(at(F, um, 0, zb)), N: P(F.N), width: r5(wd), height: r5(nh), tier: t, ...(order ? { bay: kind } : {}), ...(sealed ? { sealed } : {}), ...(urn ? { urn } : {}) });
         if (sealed) panel(out, at(F, u0 + 0.04, 0.03, zb + 0.03), F.U, wd - 0.08, [0, 0, 1], N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
         if ((n++, urn)) {
           const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, 0.18, zb);

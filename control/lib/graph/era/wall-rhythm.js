@@ -1,5 +1,5 @@
 /**
- * A WALL'S RHYTHM (the rule and its solver; no kit lays its bays by it yet, so no law is counted for it): along one wall
+ * A WALL'S RHYTHM (era/laws.js 'wall-rhythm'; the crypt in ashlar lays its bays by it, era/crypt.js): along one wall
  * the order of its segments (bays) is neither a run nor a beat. The rule is LOCAL: two checks on what stands side by
  * side, the same on a wall of two segments as on one of ten.
  *

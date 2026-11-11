@@ -65,8 +65,11 @@ export const CRYPT_SOBER = Object.freeze({
     'Nothing is a box on its first pass: the torch is a cone of iron in a ring on an arm, turned, not stacked.',
     'A pilaster is worked like a column: a fluted shaft on a base, a ring and a capital over it, never a flat strip.',
     'A wall has layers: a coat of lime render over the ashlar, fallen away in patches, standing proud so its broken edge casts a shadow on the stone.',
+    'A wall keeps a rhythm: along it never three bays alike and never a pair followed by the same pair (ABBA, never AAAA or ABAB); a wall all alike is a choice a recipe states, and then its bay is clean and repeatable.',
+    'The second kind of bay is the first with less on it: one niche where its neighbour has two, and nothing in it; derived, never a new design.',
   ]) }),
-  niches: Object.freeze({ ...CRYPT.niches, seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
+  // (its bays keep a rhythm, era/wall-rhythm.js: the second kind of bay is the first with a tier of niches less)
+  niches: Object.freeze({ ...CRYPT.niches, rhythm: Object.freeze({ less: 1 }), seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
   tomb: Object.freeze({ ...CRYPT.tomb, stone: { key: 'marble-carrara', scale: 1.2, tint: [0.56, 0.55, 0.54] } }),
   accent: Object.freeze({ stone: { gen: 'dressed', stone: [100, 96, 92], mortar: [62, 60, 58], rows: 4, cols: 1, joint: 0.014, recess: 0.008, tool: 'pitched', chamfer: 0.006, pillow: 0.005, spall: 0.35, pit: 0.3, vary: 9, grit: 0.55, scale: 2.4 }, tint: [0.74, 0.73, 0.73] }),
   props: Object.freeze({ ...CRYPT.props, kinds: ['stones', 'boulder', 'planks', 'debris'], share: 0.3 }),

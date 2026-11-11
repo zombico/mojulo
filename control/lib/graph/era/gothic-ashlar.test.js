@@ -54,4 +54,22 @@ describe('the crypt in ashlar', () => {
     expect(STAGE_KITS['gothic-ashlar'].torch.form).toBe('cone');
     expect(STAGE_KITS['gothic-stone'].torch.form).toBeUndefined();
   });
+
+  it('its walls keep a rhythm: the second kind of bay the first with less on it; a recipe may mean a wall all alike, drawn clean', () => {
+    const HALL = { kind: 'stage', kit: 'gothic-ashlar', rooms: [{ id: 'a', x: 0, y: 0, w: 12, d: 22, h: 9 }] };
+    const rhythm = assembleStageScene(HALL, {}), same = assembleStageScene({ ...HALL, rhythm: 'same' }, {});
+    const niches = (P) => P.faces.filter((f) => f.group === 'stage:niche').length, urns = (P) => P.faces.filter((f) => f.group === 'stage:motif-urn').length;
+    // (a lesser bay has a tier of niches less: the rhythm's walls hold fewer niches than the same walls all alike)
+    expect(niches(rhythm)).toBeGreaterThan(0);
+    expect(niches(rhythm)).toBeLessThan(niches(same));
+    // (a wall all alike, meant, is clean and repeatable: nothing in a niche that marks one bay from the next)
+    expect(urns(same)).toBe(0);
+    expect(() => assembleStageScene({ ...HALL, rhythm: 'ABAB' }, {})).toThrow(/rhythm is 'same'/);
+    // (its coat is not the same stamp in every bay: one wall wears more than one variant of its tile)
+    const sideWall = rhythm.faces.filter((f) => f.group === 'stage:wall' && Math.abs(f.normal[0]) > 0.9 && f.normal[0] > 0);
+    expect(new Set(sideWall.map((f) => f.texture)).size).toBeGreaterThan(1);
+    // (gothic-stone has no rhythm of its own, and every bay its niches, as it was)
+    expect(STAGE_KITS['gothic-stone'].dress.niches.rhythm).toBeUndefined();
+    expect(JSON.stringify(assembleStageScene(HALL, {}).faces.length)).toBe(JSON.stringify(rhythm.faces.length));
+  }, 120_000);
 });

@@ -177,7 +177,7 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   tiles: {
     // (a wall in LAYERS: a coat of lime render over the ashlar, fallen away in patches to the courses behind; the coat
     // stands proud, and in the form render its broken edge casts its shadow on the stone, matte-paint/dressed.js)
-    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [146, 142, 134], loss: 0.6, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4 },
+    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [146, 142, 134], loss: 0.6, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4, perBay: true },
     // (its pilasters' shafts fluted: channels between narrow fillets, lit across)
     pillar: { family: tileFamilyOf({ gen: 'dressed', cut: 'fluted', stone: [108, 107, 106], mortar: [70, 70, 70], flutes: 5, vary: 6, grit: 0.4, scale: 0.56 }), scale: 0.56 },
     floor: { family: tileFamilyOf({ gen: 'dressed', face: 'floor', stone: [96, 92, 86], mortar: [58, 56, 52], rows: 3, cols: 2, joint: 0.014, recess: 0.008, tool: 'none', chamfer: 0.006, pillow: 0.004, spall: 0.35, pit: 0.3, vary: 10, grit: 0.6, scale: 2.4 }), scale: 2.4 },
@@ -532,7 +532,9 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
+  // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
+  if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -712,12 +714,15 @@ export function buildStageGeometry(plan) {
       // (the pillars, a recipe's own surface when it names one: pilasters and engaged columns, else the trim as ever)
       const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell, pillar = kit.tiles.pillar ? surf('pillar', ri * 4 + si) : trim;
       // the wall: full-height solid spans + the lintel over each opening (a nave composes it per bay instead)
-      const flatWall = (u0, u1) => {
+      const flatWall = (u0, u1, S = wallS) => {
         const inBay = cuts.map(([a, b, top]) => [Math.max(a, u0), Math.min(b, u1), top]).filter(([a, b]) => b > a);
-        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, wallS, cell);
-        for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, wallS, cell);
+        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, S, cell);
+        for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, S, cell);
       };
-      if (!nave) flatWall(0, F.len);
+      // (a wall whose tile says `perBay`, as a floor's may: each bay its own variant of the tile, so a coat's patches
+      // or a course's wear are not the same stamp in every bay; else the wall one run, as ever)
+      if (!nave && kit.tiles.wall.perBay) { const nb = Math.max(1, Math.round(F.len / kit.bay)); for (let k = 0; k < nb; k++) flatWall((F.len * k) / nb, (F.len * (k + 1)) / nb, surf('wall', ri * 4 + si + k)); }
+      else if (!nave) flatWall(0, F.len);
       else naveWall(F, cuts, flatWall, { wall: wallS, trim, pillar }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
       for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, kit.tiles.plinth ? surf('plinth', ri * 4 + si) : trim, cell);

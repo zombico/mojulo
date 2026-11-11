@@ -45,6 +45,17 @@
     proud, and in the form render its broken edge casts its shadow on the stone and takes the torch's light.
   Gothic-stone, measured by the same reader, is told its torch is boxes and its pilaster a flat strip; it is not
   changed.
+- **A wall keeps a rhythm** (`wall-rhythm`, a craft law of both eras; `era/wall-rhythm.js`). Along one wall at most
+  two neighbouring bays look alike, and a pair is never followed by the same pair: four bays are ABBA or BAAB, never
+  AAAA or ABAB; five are AABAA or BBABB. The rule is local, two checks on what stands side by side, the same on a
+  wall of two bays as on one of ten (a pair alike is allowed anywhere, so a short wall is solved as it stands), and
+  that a wall needs two kinds follows from it. A mirrored order is taken where the length has one: a wall is built
+  from its middle. The second kind of bay is derived, the first with less on it: in the ashlar crypt a bay with one
+  niche where its neighbour has two, and nothing in it (`era/crypt.js`, a card's `niches.rhythm`). The rhythm is
+  what a wall reaches for unasked. A wall all alike is a stated choice (a stage's `rhythm: 'same'`), and then every
+  bay is drawn clean and repeatable: no urn, no sealed niche, nothing that marks one bay from the next.
+- **A wall's tile by the bay** (a kit's `tiles.wall.perBay`, as a floor's). Seen on the first render of the rhythm:
+  the coat's patches were the same stamp in every bay. Each bay now takes its own variant of the wall's tile.
 - **Gothic-stone is as it was, byte for byte.** A kit's numbers are a promise over every room already made with
   it, so the pass is a new card, not a change to the old one. Two small openings were cut for it, each the old
   value where a card names none: a niche's head takes its card's `seg`, and the accent wall's stone may name its
