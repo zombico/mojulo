@@ -115,12 +115,10 @@ export const TOOL_TIERS = Object.freeze({
   run_experiment_sweep: 'fill',
 
   // ── workflows: stash and cook ──
-  list_stashes: 'ride',
   get_stash: 'ride',
   rename_stash: 'ride',
   mint_drawer: 'ride',
   archive_item: 'ride',
-  list_cooks: 'ride',
   get_cook: 'ride',
   archive_cook: 'ride',
   recommend_kind: 'ride',

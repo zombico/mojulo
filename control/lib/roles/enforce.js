@@ -89,11 +89,13 @@ export function authNotice(name, context, env = process.env) {
     const grants = new Set(context?.userGrants || []);
     // a folded or retired name still runs for a key granted the pack it came from (CAME_FROM, packs.js)
     if (!grants.has(pack.id) && !grants.has(CAME_FROM[name])) {
+      // a folded name is refused in the words of the bay it came from: that is the grant to ask for
+      const bay = CAME_FROM[name] || pack.id;
       return (
-        `This key does not carry the ${pack.id} bay, so '${name}' cannot run here. ` +
+        `This key does not carry the ${bay} bay, so '${name}' cannot run here. ` +
         `Granted bays: ${context?.userGrants?.length ? context.userGrants.join(', ') : '(none)'}. ` +
-        `Ask the operator to grant ${pack.id} if this work is yours to do. ` +
-        `Do not retry ${pack.id} tools with this key.`
+        `Ask the operator to grant ${bay} if this work is yours to do. ` +
+        `Do not retry ${bay} tools with this key.`
       );
     }
   } else if (!SPINE_SET.has(name) && !FOLDED_SET.has(name) && !isPackId(name)) {

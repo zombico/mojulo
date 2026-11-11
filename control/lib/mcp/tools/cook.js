@@ -360,7 +360,7 @@ async function cookSlices(input, _ctx = {}) {
   for (const [i, slice] of slices.entries()) {
     const stash = StashRepository.getByRef(slice.stash_ref);
     if (!stash) {
-      throw new Error(`slices[${i}].stash_ref '${slice.stash_ref}' not found. Use list_stashes.`);
+      throw new Error(`slices[${i}].stash_ref '${slice.stash_ref}' not found. get_stash with no stash_ref lists them.`);
     }
     if (slice.item_ids === undefined) {
       // Whole-stash slice. Capture the total for the header chip.
@@ -1038,12 +1038,14 @@ export async function recommendKindHandler(input, _ctx) {
 }
 
 export async function getCookHandler(input, _ctx) {
-  if (!input || typeof input !== 'object') {
+  // no cook_ref: the outcomes inbox (what list_cooks answered, folded onto this door)
+  if (input === undefined || input === null || (typeof input === 'object' && input.cook_ref === undefined)) return listCooksHandler(input, _ctx);
+  if (typeof input !== 'object') {
     throw new Error('get_cook requires an object with cook_ref');
   }
   const { cook_ref } = input;
   if (!cook_ref || typeof cook_ref !== 'string') {
-    throw new Error('cook_ref is required');
+    throw new Error('cook_ref is a cook ref; omit it for the outcomes inbox');
   }
   const cook = CookRepository.getByRef(cook_ref);
   if (!cook) throw new Error(`Cook '${cook_ref}' not found.`);
@@ -1592,13 +1594,14 @@ export function registerCookTools() {
   registerTool({
     name: 'get_cook',
     description:
-      "Ring 9 — fetch a cook row (the index pointing at its Outcome Artifact folder). Returns { cook_ref, aim, slices, stash_refs, additional_context, suggested_lens, outcome_dir, outcome_url, template_version, created_at }. The actual ideation lives in report.md inside outcome_dir. Cook is a first-class node: any ring (plan mode via forge_plan source, audit/compose/brief surfaces, etc.) can read this row and act on it.",
+      "A cook's row: { cook_ref, aim, slices, stash_refs, additional_context, suggested_lens, outcome_dir, outcome_url, template_version, created_at }; the publication itself is report.md in `outcome_dir`. Omit `cook_ref` for the outcomes inbox, most recent first (`limit`; `status` 'open' by default, 'archived' or 'all'). A `cook_ref` seeds a plan through forge_plan's `source`.",
     inputSchema: {
       type: 'object',
       properties: {
-        cook_ref: { type: 'string', description: 'The cook to fetch.' },
+        cook_ref: { type: 'string', description: 'Omit to list the cooks.' },
+        limit: { type: 'integer', description: 'Most rows listed.' },
+        status: { type: 'string', enum: ['open', 'archived', 'all'], description: 'List filter.' },
       },
-      required: ['cook_ref'],
     },
     handler: getCookHandler,
   });
@@ -1606,16 +1609,12 @@ export function registerCookTools() {
   registerTool({
     name: 'list_cooks',
     description:
-      "Ring 9 — list cooks (the outcomes inbox), most-recent first. Optional `limit` and `status` filter ('open' default / 'archived' / 'all'). Returns { total, cooks: [{ cook_ref, aim, stash_refs, suggested_lens, outcome_url, template_version, created_at, archived_at }] }. Each row is a deliberation node any ring can read — pull a `cook_ref` into forge_plan's `source` to seed a plan from it.",
+      "Folded into get_cook with no `cook_ref` (the outcomes inbox, most recent first; `limit`, `status`). Callable by name.",
     inputSchema: {
       type: 'object',
       properties: {
-        limit: { type: 'integer', description: 'Max rows to return.' },
-        status: {
-          type: 'string',
-          enum: ['open', 'archived', 'all'],
-          description: "Soft-delete filter. 'open' (default) hides archived rows; 'archived' shows only archived; 'all' shows both.",
-        },
+        limit: { type: 'integer' },
+        status: { type: 'string', enum: ['open', 'archived', 'all'] },
       },
     },
     handler: listCooksHandler,
@@ -1624,19 +1623,12 @@ export function registerCookTools() {
   registerTool({
     name: 'sketch_stash',
     description:
-      "Ring 9 — vibe-to-items scaffold: from a free-form intent and an optional target publication kind, PROPOSE a stash structure (drawers + item slots) and a step-by-step script (mint_stash → mint_drawer → create_sketch/gather → cook).\n\n" +
-      "Companion to `sketch_plan`. Use it BEFORE gathering, to confirm shape when the request is vague, and before cooking any kind but essay, for that kind's guide. No DB writes; no LLM call.\n\n" +
-      "Without `target_kind`, returns an essay-shaped default; call `recommend_kind` after gathering to check the kind fits the material.\n\n" +
-      "Returns { intent, target_kind, guide, proposed: { title, drawers, items }, suggested_steps: [string], notes: [string], next_actions: [string] }. `guide` is the kind's layout guide: how items, drawers and metadata map onto it, and the least content that renders well.",
+      "From an intent and an optional publication kind, PROPOSE a stash (drawers and item slots) and the script to fill it (mint_stash → mint_drawer → create_sketch / gather → cook). Writes nothing; no model call. Use it before gathering when the ask is vague, and before cooking any kind but essay, for that kind's `guide`: how items, drawers and metadata map onto it, and the least content that renders well. Without `target_kind` the proposal is essay-shaped. Returns { intent, target_kind, guide, proposed, suggested_steps, notes, next_actions }.",
     inputSchema: {
       type: 'object',
       properties: {
-        intent: { type: 'string', description: 'One-line description of what to make ("a flyer for the open house", "a brief on the Q3 refactor", …). Drives the stash title and the cook aim.' },
-        target_kind: {
-          type: 'string',
-          enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'],
-          description: 'Optional. If known, the proposal is shaped specifically for this kind. Omit to get a default essay-shaped proposal + a nudge toward recommend_kind.',
-        },
+        intent: { type: 'string', description: 'What to make, in a line; it titles the stash and aims the cook.' },
+        target_kind: { type: 'string', enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'] },
       },
       required: ['intent'],
     },
@@ -1646,15 +1638,12 @@ export function registerCookTools() {
   registerTool({
     name: 'archive_cook',
     description:
-      "Ring 9 — soft-delete a cook row, removing it from the default /outputs inbox. Idempotent: already-archived rows return { archived: false, already_archived: true }.\n\n" +
-      "The outcome folder on disk is NOT touched — `/outcomes/<cook_ref>/` stays addressable so downstream consumers (plan-mode sources, contextmap citations, share-links) continue to resolve. This matches the citable-atoms posture from archive_item. To truly remove the artifact, delete the folder manually after archiving.\n\n" +
-      "Pass `unarchive: true` to restore a previously archived cook to the inbox.\n\n" +
-      "Useful pattern: after `forge_publications` materializes N candidate kinds, archive the (N−1) rejects so the inbox stays tight.",
+      "Soft-delete a cook: it leaves the default outputs inbox, and its folder `/outcomes/<cook_ref>/` stays on disk and addressable (delete the folder by hand to remove it). `unarchive: true` restores it. A cook already archived returns { archived: false, already_archived: true }. After `forge_publications`, archive the candidates the operator did not pick.",
     inputSchema: {
       type: 'object',
       properties: {
-        cook_ref: { type: 'string', description: 'The cook to archive (or unarchive).' },
-        unarchive: { type: 'boolean', description: 'If true, restore an already-archived cook to the inbox. Default false.' },
+        cook_ref: { type: 'string' },
+        unarchive: { type: 'boolean', description: 'true: restore it to the inbox.' },
       },
       required: ['cook_ref'],
     },
@@ -1664,10 +1653,7 @@ export function registerCookTools() {
   registerTool({
     name: 'forge_publications',
     description:
-      "Ring 9 — cook the same stash into 2–4 candidate publication kinds in a single call. Convenience verb for the multi-kind preview pattern: gather → forge candidates → operator picks the winner → archive the rest.\n\n" +
-      "Use this when the right kind isn't obvious and `recommend_kind` returns multiple close-scoring options, OR when the operator explicitly wants to compare shapes (e.g. 'show me this as a brief AND a newsletter AND a slide_deck'). The agent doesn't have to pick — the operator does, by browsing the materialized outcomes.\n\n" +
-      "Each forged cook is a REAL cook (full DB row + outcome folder, indexed by `list_cooks` and visible at /outputs). `forge_id` groups them so later cleanup can archive the rejects. v1 has no `archive_cook` yet, so use this judiciously — every forge writes N cooks the operator will see in their inbox.\n\n" +
-      "Returns { forge_id, cooks: [{ kind, cook_ref, outcome_url, skipped_items, template_version, message }], errors?, message }.",
+      "Cook one stash into 2–4 candidate publication kinds in a call, for the operator to compare and pick: use it when `recommend_kind` scores several kinds close, or when they ask to see it as a brief AND a newsletter. Each is a real cook (a row and a folder, in the outputs inbox), grouped by `forge_id`; `archive_cook` the ones not picked. Arguments are cook's, with `kinds` in place of one kind. Returns { forge_id, cooks: [{ kind, cook_ref, outcome_url, skipped_items, template_version, message }], errors?, message }.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1675,44 +1661,16 @@ export function registerCookTools() {
           type: 'array',
           items: {
             type: 'object',
-            properties: {
-              stash_ref: { type: 'string' },
-              item_ids: { type: 'array', items: { type: 'integer' } },
-            },
+            properties: { stash_ref: { type: 'string' }, item_ids: { type: 'array', items: { type: 'integer' } } },
             required: ['stash_ref'],
           },
-          description: 'Same shape as cook(). All forged cooks share this slice manifest.',
         },
-        aim: {
-          type: 'string',
-          description: 'Same shape as cook(). One aim across all forged kinds (the comparison is which SHAPE fits the same aim best).',
-        },
-        report_md: {
-          type: 'string',
-          description: 'Same shape as cook(). Threaded through to every forged cook (each kind slots it differently — body, exec summary, lede, etc.).',
-        },
-        kinds: {
-          type: 'array',
-          items: {
-            type: 'string',
-            enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'],
-          },
-          description: '2–4 distinct publication kinds to materialize against the same slice + aim. Each becomes its own cook (DB row + folder).',
-        },
-        viewer_aspect: {
-          type: 'string',
-          description: "Optional aspect ratio for paginated kinds in the set. Same format as cook's `publication.viewer_aspect`. Ignored for non-paginated kinds.",
-        },
-        suggested_lens: {
-          type: 'string',
-          enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'],
-          description: 'Same shape as cook(). Threaded through to every forged cook.',
-        },
-        additional_context: {
-          type: 'array',
-          items: { type: 'object' },
-          description: 'Same shape as cook(). Recorded on every forged cook for lineage.',
-        },
+        aim: { type: 'string', description: 'One aim across the kinds.' },
+        report_md: { type: 'string' },
+        kinds: { type: 'array', items: { type: 'string', enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'] }, description: '2–4 distinct kinds.' },
+        viewer_aspect: { type: 'string', description: 'Aspect ratio for the paginated kinds.' },
+        suggested_lens: { type: 'string', enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'] },
+        additional_context: { type: 'array', items: { type: 'object' } },
       },
       required: ['slices', 'aim', 'kinds'],
     },
@@ -1722,27 +1680,14 @@ export function registerCookTools() {
   registerTool({
     name: 'recommend_kind',
     description:
-      "Ring 9 — rules-based recommendation: scan a stash, return ranked publication kinds for cook().\n\n" +
-      "No LLM call. Examines item type counts, drawer structure, sketch+caption pairings, and whether an aim is set; scores each kind in the catalog against rules-of-thumb derived from the v1 PUBLISHER.plan.md (e.g. picture_book needs ≥1 sketch; resume rewards an `identity` drawer; pamphlet hits its ideal at exactly 4 markdown items).\n\n" +
-      "Use this *before* cook() when the operator's intent doesn't already pin a kind, or when an agent is uncertain which kind best fits the gathered material. The returned `rationale` is one-line and the `fit_notes` enumerate the score's reasoning so the operator can read the recommendation and pick.\n\n" +
-      "Returns { stash_ref, stash_title, scan: { item_count, type_counts, drawer_count, sketches_with_bodymd, has_aim }, recommendations: [{ kind, score, rationale, fit_notes: [...] }] }. Default limit 3.",
+      "Rank publication kinds for a stash by rules, before `cook`, when the ask does not already name a kind. No model call: it reads the item types, the drawers, sketches with captions and whether an aim is set, and scores each kind (a picture book needs a sketch; a pamphlet is best at four markdown items). Returns { stash_ref, stash_title, scan, recommendations: [{ kind, score, rationale, fit_notes }] }, three by default.",
     inputSchema: {
       type: 'object',
       properties: {
-        stash_ref: { type: 'string', description: 'The stash to scan.' },
-        item_ids: {
-          type: 'array',
-          items: { type: 'integer' },
-          description: 'Optional subset of item ids (matches a planned cook slice). Omit to consider the whole stash.',
-        },
-        aim: {
-          type: 'string',
-          description: 'Optional intended cook aim — biases scoring toward kinds that benefit from a singular framing (essay, brief, flyer).',
-        },
-        limit: {
-          type: 'integer',
-          description: 'Max recommendations to return. Default 3.',
-        },
+        stash_ref: { type: 'string' },
+        item_ids: { type: 'array', items: { type: 'integer' }, description: 'A subset, as a planned cook slice.' },
+        aim: { type: 'string', description: 'The intended aim; favours kinds with one framing.' },
+        limit: { type: 'integer' },
       },
       required: ['stash_ref'],
     },

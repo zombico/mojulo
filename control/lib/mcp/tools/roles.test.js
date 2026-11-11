@@ -270,7 +270,7 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
     await withRoles(async () => {
       const denied = await callTool(
         'pack_stash',
-        { tool: 'list_cooks', args: {} },
+        { tool: 'get_cook', args: {} },
         privilegedContext({ grants: ['pack_world'] })
       );
       expect(denied.isError).toBe(true);
@@ -331,7 +331,7 @@ describe('listTools filtering (privileged sees their bays; admin sees roles tool
   it('flat mode: granted members only, deny-list hidden', async () => {
     await withRoles(async () => {
       const list = names('off', privilegedContext({ grants: ['pack_stash'] }));
-      expect(list).toContain('list_cooks'); // granted member
+      expect(list).toContain('get_cook'); // granted member
       expect(list).not.toContain('set_env'); // deny-listed, granted pack or not
       expect(list).not.toContain('compose_world'); // ungranted bay
       expect(list).toContain('forward_context'); // spine

@@ -288,7 +288,6 @@ export const PACKS = [
       'mint_stash',
       'mint_drawer',
       'get_stash',
-      'list_stashes',
       'rename_stash',
       'update_item',
       'archive_item',
@@ -297,7 +296,6 @@ export const PACKS = [
       'recommend_kind',
       'cook',
       'get_cook',
-      'list_cooks',
       'archive_cook',
       'forge_publications',
       // the creator's receipt for a published file (docs/asset-receipts.md)
@@ -472,12 +470,14 @@ export const RETIRED_PACKS = [
     retired: 'after 3.1.1',
     title: 'Folded workflow doors',
     description:
-      "FOLDED WORKFLOW DOORS — reads that moved onto the tool they served: the adapters list is get_adapter's (`list`), the catalyst author's guide is mint_catalyst's (`guide`), the plan inbox is get_plan's (no `plan_ref`).",
+      "FOLDED WORKFLOW DOORS — reads that moved onto the tool they served: the adapters list is get_adapter's (`list`), the catalyst author's guide is mint_catalyst's (`guide`), the plan inbox is get_plan's (no `plan_ref`), the lists of stashes and cooks are get_stash's and get_cook's (no ref).",
     body: 'Folded for one door per intent. Callable by name; each description names its door.',
     members: [
       'list_adapters',
       'custom_catalyst',
       'list_plans',
+      'list_stashes',
+      'list_cooks',
     ],
   },
 ];
@@ -493,6 +493,8 @@ export const CAME_FROM = Object.freeze({
   unbind_stash: 'pack_stash',
   list_stash_bindings: 'pack_stash',
   list_plans: 'pack_plan',
+  list_stashes: 'pack_stash',
+  list_cooks: 'pack_stash',
 });
 
 /** The office wing's packs, which left the surface in 3.1.0. */

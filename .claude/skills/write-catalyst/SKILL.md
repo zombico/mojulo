@@ -40,7 +40,7 @@ When pushing back, name the specific failure and suggest the right alternative (
 If posture-check passes, ask the user the following in one message. Don't drip questions out one at a time. Skip questions the user already answered in their invocation line.
 
 1. **Workflow intent in one paragraph.** What source data → what destination concept, and the user's motivation.
-2. **Source surface.** Where the workflow reads from: mojulo state through its read tools (`get_stash`, `get_cook`, `list_cooks`, `meta_context_brief`, `semantic_search`, …), or an installed MCP the operator declares through `meta_context_declare_inventory`. Name the tools the materialized artifact calls.
+2. **Source surface.** Where the workflow reads from: mojulo state through its read tools (`get_stash`, `get_cook`, `meta_context_brief`, `semantic_search`, …), or an installed MCP the operator declares through `meta_context_declare_inventory`. Name the tools the materialized artifact calls.
 3. **Destination MCP category.** Pick from existing categories where possible: `crm-like`, `calendar-like`, `ticketing-like`, `actuator-like`, `doc-or-channel-like`, `data-store-like`. If proposing a new category, the user must justify why none of the existing ones fit — don't proliferate categories.
 4. **Catalyst category (the `category` frontmatter field).** Use a category `list_catalysts` already shows where one fits; ask before adding a new one.
 5. **Mapping insight — the value-add.** What's the specific, opinionated decision this catalyst encodes that a future agent would otherwise have to guess at? At least one. If the user gives a generic answer ("map the fields to the destination"), push back to step 1's failure mode 5.

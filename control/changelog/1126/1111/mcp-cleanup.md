@@ -49,3 +49,9 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   `status`, nothing marked read), so `list_plans` is off the list and still answers by name. Forging, revising,
   sketching, compiling and executing a plan work as before; their descriptions and argument notes are cut to what an
   agent needs to pick the call.
+- **The stash tools say less, and each list is one read.** `get_stash` with no `stash_ref` lists your stashes and
+  `get_cook` with no `cook_ref` is the outcomes inbox, so `list_stashes` and `list_cooks` are off the list and still
+  answer by name. Minting, renaming, drawers, updating and archiving items, ranking kinds, proposing a stash and
+  cooking several candidates work as before, with shorter descriptions.
+- **Where the list stands.** Over this theme the flat tool list goes from 212,165 to 179,797 bytes (117 tools to 101)
+  and the packs-mode list from 32,451 to 29,796. Every tool that left the list still answers by its old name.

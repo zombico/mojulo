@@ -114,7 +114,6 @@ const DESCRIPTION_ALLOWLIST = {
   // recipe.json a legal input, closing the last mint-once 3D family.
   // Shrink-only from here.
   forge_motion: 1560,
-  forge_publications: 955,
   gather: 1181,
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
   // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
@@ -128,10 +127,8 @@ const DESCRIPTION_ALLOWLIST = {
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
   recommend_catalysts: 1027,
-  recommend_kind: 922,
   reference_protocol: 1426,
   semantic_search: 2049,
-  sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
   translate_modeler_lingo: 1178,
@@ -460,7 +457,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Lowered 2026-11-11 on 1111-mcp-cleanup (189_200 -> 185_100; measured 185,013) for the plan tools: list_plans folded
 // into get_plan (no plan_ref: the inbox), and enter / forge / revise / sketch / compile / execute cut to routing grade
 // (four leave the allowlist; forge_plan's schema prose said once). One tool off the list, no behaviour changed.
-const PAYLOAD_CEILING = 185_100;
+// Lowered 2026-11-11 on 1111-mcp-cleanup (185_100 -> 179_900; measured 179,797) for the stash tools: list_stashes
+// and list_cooks folded into get_stash and get_cook (no ref: the list), and the housekeeping tools (mint / rename /
+// drawer / update / archive, recommend_kind, sketch_stash, forge_publications) cut to routing grade; three leave the
+// allowlist. Two tools off the list, no behaviour changed.
+const PAYLOAD_CEILING = 179_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -95,7 +95,7 @@ JSON frontmatter between two `---` fences, then a markdown body:
     }
   ],
   "mcpTools": {
-    "mojulo": ["get_stash", "list_stashes"],
+    "mojulo": ["get_stash"],
     "destination": {
       "description": "A channel- or doc-like MCP exposing a post or append call."
     }

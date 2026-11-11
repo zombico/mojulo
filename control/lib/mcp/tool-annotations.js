@@ -148,7 +148,7 @@ export const TOOL_ANNOTATIONS = {
   gather: ['Gather an item into a stash', ADDITIVE],
   mint_drawer: ['Create a stash drawer', ADDITIVE_IDEMPOTENT],
   rename_stash: ['Rename a stash', DESTRUCTIVE_IDEMPOTENT],
-  list_stashes: ['List stashes', READ],
+  list_stashes: ['List stashes', READ], // folded into get_stash (no stash_ref): callable by name
   get_stash: ['Get stash', READ],
   update_item: ['Update a stash item', DESTRUCTIVE_IDEMPOTENT],
   archive_item: ['Archive a stash item', DESTRUCTIVE_IDEMPOTENT],
@@ -157,7 +157,7 @@ export const TOOL_ANNOTATIONS = {
   list_stash_bindings: ['List stash bindings', READ], // retired: callable by name
   cook: ['Cook stashes into a report', ADDITIVE],
   get_cook: ['Get cook outcome', READ],
-  list_cooks: ['List cook outcomes', READ],
+  list_cooks: ['List cook outcomes', READ], // folded into get_cook (no cook_ref): callable by name
   sketch_stash: ['Propose a stash layout', READ],
   archive_cook: ['Archive a cook outcome', DESTRUCTIVE_IDEMPOTENT],
   forge_publications: ['Forge publications', ADDITIVE],
