@@ -85,6 +85,7 @@ export const LAWS = Object.freeze({
   // CRAFT, in both eras (`craft: true`): what a first pass may not be. A thing made of boxes reads as voxels in any light
   'no-voxel-first': { layer: 'composition', craft: true, law: 'Nothing is a box on its first pass: a fixture is turned, ringed or tapered (a torch is a cone in a ring on an arm) before it is placed.' },
   'wall-rhythm': { layer: 'composition', craft: true, law: 'Along one wall at most two neighbouring segments look alike and a pair is never followed by the same pair (ABBA, never AAAA or ABAB); the second kind of segment is the first with less on it; a wall all alike is a stated choice, drawn clean and repeatable.' },
+  'floor-is-laid': { layer: 'composition', craft: true, law: 'A floor is laid, not tiled: a border course along the walls, the way down the room in its own slabs, the fields between laid bay by bay on the structure\'s lines, keeping a rhythm.' },
   'pillars-are-worked': { layer: 'composition', craft: true, law: 'A column is worked, never a flat strip: tapered, rounded, fluted or cut in parts (a base, a shaft, a ring, a capital).' },
 });
 
@@ -109,7 +110,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
   // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
   'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material'],
-    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent']],
+    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */

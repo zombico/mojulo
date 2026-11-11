@@ -62,6 +62,9 @@ const KIT_STARTERS = {
   'gothic-stone': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }, { id: 'passage', x: 22, y: 8, w: 10, d: 4, h: 4 },
     { id: 'charnel', x: 32, y: 2, w: 10, d: 16, h: 6 }, { id: 'chapel', x: 26, y: 18, w: 16, d: 8, h: 5 }, { id: 'sepulchre', x: 14, y: 18, w: 12, d: 12, h: 7 }],
   links: [{ from: 'nave', to: 'gallery' }, { from: 'gallery', to: 'passage' }, { from: 'passage', to: 'charnel' }, { from: 'charnel', to: 'chapel' }, { from: 'chapel', to: 'sepulchre' }], fire: true },
+  // the crypt in ashlar: three tall halls, the walk ending at the tomb (it is made for height)
+  'gothic-ashlar': { rooms: [{ id: 'hall', x: 0, y: 0, w: 12, d: 22, h: 9 }, { id: 'passage', x: 12, y: 8, w: 10, d: 6, h: 6 }, { id: 'sepulchre', x: 22, y: 2, w: 14, d: 18, h: 10 }],
+    links: [{ from: 'hall', to: 'passage' }, { from: 'passage', to: 'sepulchre' }] },
   // long low galleries between small chambers, the last the ossuary chapel with the sarcophagus
   catacomb: { rooms: [{ id: 'stair', x: 0, y: 0, w: 8, d: 8, h: 6 }, { id: 'gallery-a', x: 8, y: 2, w: 16, d: 4, h: 4 }, { id: 'cubiculum', x: 24, y: 0, w: 8, d: 8, h: 4.5 },
     { id: 'gallery-b', x: 26, y: 8, w: 4, d: 14, h: 4 }, { id: 'crossing', x: 22, y: 22, w: 12, d: 10, h: 6 }, { id: 'ossuary', x: 10, y: 22, w: 12, d: 10, h: 6.5 }],
@@ -76,6 +79,7 @@ const KIT_STARTERS = {
 /** How people ask for each kit, in plain words: the search line leads with these. */
 const KIT_WORDS = {
   'gothic-stone': ['castle interior', 'torch-lit stone halls', 'stone dungeon rooms'],
+  'gothic-ashlar': ['a grim stone crypt', 'realistic dungeon hall', 'tall plastered stone vault'],
   catacomb: ['catacombs', 'ossuary', 'underground burial galleries'],
   'gothic-nave': ['cathedral', 'church nave', 'stained glass hall'],
   'island-plaza': ['sunny town square', 'mediterranean plaza', 'fountain square'],

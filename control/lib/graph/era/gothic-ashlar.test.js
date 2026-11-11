@@ -72,4 +72,26 @@ describe('the crypt in ashlar', () => {
     expect(STAGE_KITS['gothic-stone'].dress.niches.rhythm).toBeUndefined();
     expect(JSON.stringify(assembleStageScene(HALL, {}).faces.length)).toBe(JSON.stringify(rhythm.faces.length));
   }, 120_000);
+
+  it('its floor is laid by a plan: a border course, a walk down the room, fields by the bay in a rhythm; gothic-stone\'s is one field', () => {
+    const HALL = { kind: 'stage', kit: 'gothic-ashlar', rooms: [{ id: 'a', x: 0, y: 0, w: 12, d: 22, h: 9 }] };
+    const P = assembleStageScene(HALL, {}), floor = P.faces.filter((f) => f.group === 'stage:floor' && f.uv);
+    const at = (x, y) => floor.find((f) => { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); return x >= Math.min(...xs) && x <= Math.max(...xs) && y >= Math.min(...ys) && y <= Math.max(...ys); });
+    // (how far a face's tile runs along x for a metre of floor: its slabs' size and which way they lie)
+    const uPerX = (f) => { const [a, b] = [f.corners[0], f.corners.find((c) => Math.abs(c[0] - f.corners[0][0]) > 1e-6)], i = f.corners.indexOf(b); return Math.abs((f.uv[i][0] - f.uv[0][0]) / (b[0] - a[0])); };
+    const border = at(1.0, 11), walk = at(6, 11), field = at(3, 11);
+    expect(border && walk && field).toBeTruthy();
+    // (the walk's slabs are larger than the field's; the border's lie along its wall, a quarter turn from a field laid across)
+    expect(new Set([border.texture, walk.texture].map((t) => t.slice(0, -2))).size).toBe(1);
+    expect(uPerX(border)).toBeLessThan(1e-6);
+    // (along the room the fields keep the rhythm: not every bay laid the same way)
+    const lays = [3, 7, 11, 15, 19].map((y) => (uPerX(at(3, y)) > 1e-6 ? 'A' : 'B')).join('');
+    expect(new Set(lays).size).toBe(2);
+    expect(/AAA|BBB|ABAB|BABA/.test(lays)).toBe(false);
+    // (meant all alike: every bay laid one way)
+    const same = assembleStageScene({ ...HALL, rhythm: 'same' }, {}).faces.filter((f) => f.group === 'stage:floor' && f.uv);
+    const atS = (x, y) => same.find((f) => { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); return x >= Math.min(...xs) && x <= Math.max(...xs) && y >= Math.min(...ys) && y <= Math.max(...ys); });
+    expect(new Set([3, 7, 11, 15, 19].map((y) => uPerX(atS(3, y)) > 1e-6)).size).toBe(1);
+    expect(STAGE_KITS['gothic-stone'].floorPlan).toBeUndefined();
+  }, 120_000);
 });

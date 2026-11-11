@@ -56,6 +56,15 @@
   bay is drawn clean and repeatable: no urn, no sealed niche, nothing that marks one bay from the next.
 - **A wall's tile by the bay** (a kit's `tiles.wall.perBay`, as a floor's). Seen on the first render of the rhythm:
   the coat's patches were the same stamp in every bay. Each bay now takes its own variant of the wall's tile.
+- **A floor is laid, not tiled** (`floor-is-laid`, a craft law of both eras; a kit's `floorPlan`, `era/stage.js`).
+  The ashlar crypt's floor is no longer one field of tile. A border course runs round the room along its walls, its
+  slabs' long side along the wall, a tone darker: nobody walks there. The walk runs down the room's long axis to
+  the tomb, in larger slabs laid along the way, a tone lighter: worn. The fields either side are laid bay by bay,
+  their joints on the pilasters' lines, and along the room they keep the walls' rhythm, the second kind of bay the
+  same slabs turned a quarter. A stage's `rhythm: 'same'` lays every bay alike.
+- **The new kit joins what reads a kit**: its starter rooms and the words people ask for it by (`era/entries.js`),
+  and the place a level's score is suggested for (`beats/score-suggest.js`); the tier found both missing. The
+  generated tool-surface pages name it.
 - **Gothic-stone is as it was, byte for byte.** A kit's numbers are a promise over every room already made with
   it, so the pass is a new card, not a change to the old one. Two small openings were cut for it, each the old
   value where a card names none: a niche's head takes its card's `seg`, and the accent wall's stone may name its

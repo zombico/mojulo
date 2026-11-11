@@ -67,6 +67,7 @@ export const CRYPT_SOBER = Object.freeze({
     'A wall has layers: a coat of lime render over the ashlar, fallen away in patches, standing proud so its broken edge casts a shadow on the stone.',
     'A wall keeps a rhythm: along it never three bays alike and never a pair followed by the same pair (ABBA, never AAAA or ABAB); a wall all alike is a choice a recipe states, and then its bay is clean and repeatable.',
     'The second kind of bay is the first with less on it: one niche where its neighbour has two, and nothing in it; derived, never a new design.',
+    'The floor is laid, not tiled: a darker course along the walls where nobody walks, a worn walk of larger slabs down the room to the tomb, and fields either side laid bay by bay, keeping the walls\' rhythm with the same slabs turned a quarter.',
   ]) }),
   // (its bays keep a rhythm, era/wall-rhythm.js: the second kind of bay is the first with a tier of niches less)
   niches: Object.freeze({ ...CRYPT.niches, rhythm: Object.freeze({ less: 1 }), seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
