@@ -58,7 +58,9 @@ import {
 // design_interior beside mint_building and names it in its description.
 // Lowered 2026-11-10 (32_600 -> 32_500; measured 32,451) for the exhibit doors: pack_view became pack_exhibit, its
 // description shorter, two members fewer.
-const PACKS_PAYLOAD_CEILING = 32_500;
+// Lowered 2026-11-11 (32_500 -> 31_800; measured 31,771) for 1111-mcp-cleanup: pack_research left the list (the
+// research book retired), pack_plan's description names the sweep, pack_stash's drops the links.
+const PACKS_PAYLOAD_CEILING = 31_800;
 
 let server;
 let listTools;
@@ -127,9 +129,12 @@ describe('pack registry shape', () => {
   });
 
   it('the retired packs never list, and none of their members is homed in a live pack', () => {
-    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors']);
+    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors', 'pack_research', 'pack_stash_links']);
     expect(RETIRED_OFFICE_TOOLS).not.toContain('create_game_project');
-    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan']));
+    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan',
+      'start_research', 'synthesize_abstract', 'bind_stash', 'list_stash_bindings']));
+    // the sweep outlived the research book: it is homed in a live pack
+    expect(RETIRED_TOOLS).not.toContain('run_experiment_sweep');
     const live = new Set(PACKS.flatMap((p) => [p.id, ...p.members]));
     for (const name of RETIRED_TOOLS) expect(live.has(name), name).toBe(false);
     for (const pack of RETIRED_PACKS) expect(live.has(pack.id), pack.id).toBe(false);
@@ -386,7 +391,7 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
   it('packs declaring NO install group are always present — plumbing is not gatable', () => {
     const ungrouped = PACKS.filter((p) => !p.installGroup);
     expect(ungrouped.map((p) => p.id).sort()).toEqual([
-      'pack_catalysts', 'pack_plan', 'pack_research', 'pack_stash',
+      'pack_catalysts', 'pack_plan', 'pack_stash',
     ]);
     for (const env of [{ MOJULO_PACKS: 'creative' }, { MOJULO_PACKS: 'recall' }]) {
       for (const pack of ungrouped) expect(isPackInstalled(pack, env)).toBe(true);

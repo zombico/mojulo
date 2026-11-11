@@ -5,7 +5,7 @@
  * brainstorm strategy, product direction, features, or any conceptual
  * "what could we do" question — it is the knob-resolution loop that
  * feeds `create_sketch` for scene/figure illustrations. Conceptual
- * ideation routes to `enter_research_mode` or `enter_plan_mode`.
+ * ideation routes to the stash (`mint_stash`, `gather`) or `enter_plan_mode`.
  *
  * How it works (inverse-stable-diffusion retrieval loop): where stable
  * diffusion takes a vague prompt and hallucinates pixels, this tool runs
@@ -156,7 +156,7 @@ export function registerWhatPossibleTools() {
   registerTool({
     name: 'sketch_what_possible',
     description:
-      "**Visual illustration tool ONLY.** This is the knob-resolution loop that feeds `create_sketch` for scene/figure illustrations (recipe families like `architecturalConstruction`, `portraitBust`). The name reads like open-ended ideation but it is NOT — it does not brainstorm strategy, product direction, possible features, or any conceptual 'what could we do' question. For those, use `enter_research_mode` (broad gathering) or `enter_plan_mode` (concretizing a direction) instead. How it works (when the intent IS visual): retrieve the *methods* (family + knob values) most relevant to the user's current illustration intent, narrate them back to the user one underdetermined knob at a time, accumulate their answers, and only call `create_sketch` once every knob is decided — the renderer is deterministic given a complete spec. Call each turn as the intent refines; pass already-decided knobs as `accumulated` so they're filtered out and don't re-pollute context. Read `hint.knobs_underdetermined` to know what to ask the user about next. When `hint.ready_to_create_sketch === true`, compose the accumulated knobs into a `create_sketch` call. Chart/infographic intents go through `semantic_search({ kinds: ['sketch_vocab'] })` and `get_sketch_vocab` instead. Returns `{ intent, results, grouped, hint }`. Read-only.",
+      "**Visual illustration tool ONLY.** This is the knob-resolution loop that feeds `create_sketch` for scene/figure illustrations (recipe families like `architecturalConstruction`, `portraitBust`). The name reads like open-ended ideation but it is NOT — it does not brainstorm strategy, product direction, possible features, or any conceptual 'what could we do' question. For those, use `mint_stash` (broad gathering) or `enter_plan_mode` (concretizing a direction) instead. How it works (when the intent IS visual): retrieve the *methods* (family + knob values) most relevant to the user's current illustration intent, narrate them back to the user one underdetermined knob at a time, accumulate their answers, and only call `create_sketch` once every knob is decided — the renderer is deterministic given a complete spec. Call each turn as the intent refines; pass already-decided knobs as `accumulated` so they're filtered out and don't re-pollute context. Read `hint.knobs_underdetermined` to know what to ask the user about next. When `hint.ready_to_create_sketch === true`, compose the accumulated knobs into a `create_sketch` call. Chart/infographic intents go through `semantic_search({ kinds: ['sketch_vocab'] })` and `get_sketch_vocab` instead. Returns `{ intent, results, grouped, hint }`. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {

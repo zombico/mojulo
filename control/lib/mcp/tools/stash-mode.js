@@ -8,8 +8,9 @@
  * validated at intake. The contract is what lets the UI dispatch on type and
  * Cook (slice 2) treat items as ingredients.
  *
- * Coexists with the legacy research_* tools (start_research / bind_research_item
- * / get_research / list_research / synthesize_abstract / sketch_research) —
+ * Coexists with the research book's tools (start_research / bind_research_item
+ * / get_research / list_research / synthesize_abstract / sketch_research), retired
+ * from the list and callable by name (packs.js RETIRED_PACKS) —
  * migration option 3 in app-system/0531/GATHER_STASH_COOK.md. Legacy data is
  * untouched; new gatherings land here.
  *
@@ -351,7 +352,7 @@ export function registerStashModeTools() {
   registerTool({
     name: 'mint_stash',
     description:
-      "Ring 9 — mint a Stash, the renameable user-facing bucket Gathering binds into. Returns { stash_ref, title, status:'open' }. The successor to start_research with a typed item contract on intake; legacy research_sessions remain accessible via list_research / get_research (option-3 coexistence, see app-system/0531/GATHER_STASH_COOK.md). Use rename_stash to relabel; mint_drawer to sub-organize.",
+      "Ring 9 — mint a Stash, the renameable user-facing bucket Gathering binds into. Returns { stash_ref, title, status:'open' }. Every item is typed at intake (`gather`). Use rename_stash to relabel; mint_drawer to sub-organize.",
     inputSchema: {
       type: 'object',
       properties: {

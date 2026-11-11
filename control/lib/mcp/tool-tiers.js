@@ -105,7 +105,7 @@ export const TOOL_TIERS = Object.freeze({
   forge_motion: 'judge',
   stitch_motion: 'judge',
 
-  // ── workflows: plans ──
+  // ── workflows: plans and sweeps ──
   enter_plan_mode: 'ride',
   get_plan: 'ride',
   list_plans: 'ride',
@@ -121,9 +121,6 @@ export const TOOL_TIERS = Object.freeze({
   get_stash: 'ride',
   rename_stash: 'ride',
   mint_drawer: 'ride',
-  bind_stash: 'ride',
-  unbind_stash: 'ride',
-  list_stash_bindings: 'ride',
   archive_item: 'ride',
   list_cooks: 'ride',
   get_cook: 'ride',
@@ -135,15 +132,6 @@ export const TOOL_TIERS = Object.freeze({
   sketch_stash: 'fill',
   cook: 'design',
   forge_publications: 'design',
-
-  // ── workflows: research ──
-  enter_research_mode: 'ride',
-  list_research: 'ride',
-  get_research: 'ride',
-  sketch_research: 'ride',
-  start_research: 'fill',
-  bind_research_item: 'fill',
-  synthesize_abstract: 'design',
 
   // ── workflows: catalysts and hosts ──
   get_adapter: 'ride',

@@ -688,12 +688,10 @@ async function registerAllTools() {
   // first. See lite-template/integration/app-system/0527/plan-feature/
   // PLAN_MODE.md.
   registerPlanModeTools();
-  // Ring 9 (research mode) — the ACCRETIVE / exploratory layer upstream of
-  // plans. A low-prominence OPTIONAL DRAWER (posture-sibling to sketches):
-  // deliberately NOT woven into forward_context, entered only when the user
-  // asks to research/gather. The legacy research-book path still ships
-  // (start_research / bind_research_item / synthesize_abstract) for existing
-  // books; new gatherings should prefer the typed-intake stash path below.
+  // Ring 9 (the research book) — the accretive layer upstream of plans, retired
+  // from the list (packs.js RETIRED_PACKS): start_research / bind_research_item /
+  // synthesize_abstract and their readers stay registered and callable by name
+  // for existing books; gatherings go through the typed-intake stash path below.
   // synthesize_abstract hands a distilled thesis from a legacy book to plan
   // mojulo via the research→plan bridge (lib/research/evaluate.js, surfaced
   // over HTTP at POST /api/plans/from-abstract); cook outcomes hand to plan
@@ -704,10 +702,9 @@ async function registerAllTools() {
   // lite-template/integration/app-system/0528/research-mode.md and
   // 0601/RESEARCH_PATH_CONVERGENCE.md for the cook-stays-at-cook framing.
   registerResearchModeTools();
-  // run_experiment_sweep — the parameter sweep as one deterministic call: N mechanics-view
-  // mints + N provenance-carrying experiment binds + an auto-plotted param-vs-outcome
-  // figure, all into one research book. Registers immediately after research-mode so the
-  // sweep verb reads beside the bind/synthesize verbs it composes.
+  // run_experiment_sweep — variations in one call (homed in pack_plan). Its mechanics form is
+  // the parameter sweep: N mechanics-view mints, their SI outcomes and an auto-plotted
+  // param-vs-outcome figure in one folder, or bound into a research book already made.
   registerResearchSweepTools();
   // Ring 9 (stash mode) — the sharper-edged successor to research_sessions.
   // Gather/Stash/Drawer with a typed intake contract (seven item types, each

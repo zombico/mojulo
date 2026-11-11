@@ -152,9 +152,6 @@ export const TOOL_LINES = {
   get_stash: L('maintain', 'A stash in full: drawers and every item.'),
   update_item: L('update', 'Change a gathered item in place; the type contract re-checks the merged state.'),
   archive_item: L('maintain', 'Soft-delete an item; asks for `confirm` when a cook cites it.'),
-  bind_stash: L('maintain', 'Link a stash to a plan, cook or other ref with a role. Undo with `unbind_stash`; read with `list_stash_bindings`.'),
-  unbind_stash: L('maintain', 'Remove a stash link made by `bind_stash`.'),
-  list_stash_bindings: L('maintain', "A stash's links, or what links to a ref."),
   sketch_stash: L('orient', 'Propose a stash for an intent: drawers, item slots and the `mint_stash` → `gather` → `cook` script. Writes nothing.'),
   recommend_kind: L('orient', 'Rank publication kinds for a stash by rules, before `cook`.'),
   cook: L('compose', 'One publication from stash slices, or `items` gathered in the same call, and ONE aim (essay, picture book, deck, comic, …), in `/outcomes/<cook_ref>/`.'),
@@ -165,15 +162,8 @@ export const TOOL_LINES = {
   sign_asset: L('maintain', "Sign an exported file with the install's creator key: a `.proof.json` receipt beside it, the file unchanged. Opt-in, for licensing what you made."),
   verify_asset: L('observe', 'Check a file against its creator receipt: bytes, signature, creator id, ref and dates.'),
 
-  // ── workflows: sweeps and the research book ───────────────────────────────
+  // ── workflows: sweeps ─────────────────────────────────────────────────────
   run_experiment_sweep: L('compose', 'Variations in one call: n visual takes on any design from a concept in words, pass after pass, or one value swept; one folder of variants; or a mechanics experiment.'),
-  enter_research_mode: L('orient', 'The light research discipline (the legacy book). Only when the user asks to research.'),
-  start_research: L('create', 'A research book; bind items with `bind_research_item`.'),
-  bind_research_item: L('maintain', 'Add a link, note, quote, summary or sketch to a research book.'),
-  synthesize_abstract: L('compose', 'Distill a research book into a thesis, with a hub-and-spoke diagram.'),
-  sketch_research: L('observe', 'Preview a research book as a diagram without synthesizing.'),
-  get_research: L('maintain', 'A research book in full.'),
-  list_research: L('maintain', 'Research books, most recently active first.'),
 
   // ── workflows: image and mesh render handoffs ─────────────────────────────
   get_image_render_packet: L('maintain', 'The render packet for an image-outcome, comic or character-sheet sketch: instructions, scaffold, style lock, references.'),

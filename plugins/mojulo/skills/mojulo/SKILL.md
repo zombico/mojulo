@@ -15,7 +15,7 @@ description: Make things to play, print, read, hear and watch with the mojulo to
 **Sharing the work across models (Claude Code).** Spend the strongest model on design and run the rest light,
 so the user's usage limits build more:
 
-- Keep design with you: `cook`, `create_game`, `design_game`, `forge_plan`, `forge_publications`, `mint_catalyst`, `synthesize_abstract`, `verify_machina`.
+- Keep design with you: `cook`, `create_game`, `design_game`, `forge_plan`, `forge_publications`, `mint_catalyst`, `verify_machina`.
 - Hand one artifact to write or revise, with a clear brief, to the `mojulo-maker` subagent.
 - Hand a batch of decided calls (exports, measures, lists, gathers) to the `mojulo-runner` subagent.
 - A routing card or catalyst found by `semantic_search`, and every catalyst `list_catalysts`, `get_catalyst` and

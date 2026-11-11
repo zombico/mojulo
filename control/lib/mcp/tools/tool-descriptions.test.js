@@ -42,7 +42,6 @@ const DESCRIPTION_ALLOWLIST = {
   // list_catalysts 833 -> 805, meta_context_brief 972 -> 963, meta_context_commit 2635 -> 2586,
   // meta_context_declare_inventory 1405 -> 1387, pull_agent_task 762 -> 718,
   // recommend_catalysts 1042 -> 1027.
-  bind_research_item: 1233,
   // capture_reference 1523 -> 1273 and reference_protocol 1708 -> 1426 (2026-11-04, 1103-dream-loop-death-rebirth): the
   // character target joined both and the target lines were re-cut to routing grade; the protocol teaches the rest.
   capture_reference: 1273,
@@ -143,11 +142,9 @@ const DESCRIPTION_ALLOWLIST = {
   reference_protocol: 1426,
   semantic_search: 2049,
   sketch_plan: 774,
-  sketch_research: 712,
   sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
-  synthesize_abstract: 1420,
   translate_modeler_lingo: 1178,
   verify_machina: 2180,
 };
@@ -455,7 +452,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-11-10 on 1110-exhibit-mode (212_000 -> 212_200; measured 212,125) for prepared states:
 // create_exhibit's `states` (one exhibit at several settings, switched in one page keeping the camera), one schema
 // property; its grammar on the `tour` card. Still 975 below the 213_100 the fold started from. No new tool.
-const PAYLOAD_CEILING = 212_200;
+// Lowered 2026-11-11 on 1111-mcp-cleanup (212_200 -> 199_600; measured 199,558, 212,165 before) for two retirements:
+// the research book's seven tools (the stash is the gathering path, and the only one a cook reads) and the three stash
+// link tools (no build, cook or page read a link). Ten tools off the list; run_experiment_sweep stays, homed in
+// pack_plan, its mechanics form no longer asking for a research book. No new tool.
+const PAYLOAD_CEILING = 199_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

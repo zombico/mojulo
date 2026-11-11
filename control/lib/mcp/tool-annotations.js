@@ -133,7 +133,7 @@ export const TOOL_ANNOTATIONS = {
   list_plans: ['List plans', READ],
   get_plan: ['Get plan', READ],
 
-  // ── research mode (Ring 9: research-mode.js, research-sweep.js) ────────────
+  // ── the research book (retired: callable by name) and the sweep (research-mode.js, research-sweep.js) ──
   enter_research_mode: ['Enter research mode', READ],
   start_research: ['Start a research book', ADDITIVE],
   bind_research_item: ['Add a research item', ADDITIVE],
@@ -152,9 +152,9 @@ export const TOOL_ANNOTATIONS = {
   get_stash: ['Get stash', READ],
   update_item: ['Update a stash item', DESTRUCTIVE_IDEMPOTENT],
   archive_item: ['Archive a stash item', DESTRUCTIVE_IDEMPOTENT],
-  bind_stash: ['Bind a stash', ADDITIVE_IDEMPOTENT],
-  unbind_stash: ['Unbind a stash', DESTRUCTIVE_IDEMPOTENT],
-  list_stash_bindings: ['List stash bindings', READ],
+  bind_stash: ['Bind a stash', ADDITIVE_IDEMPOTENT], // retired: callable by name
+  unbind_stash: ['Unbind a stash', DESTRUCTIVE_IDEMPOTENT], // retired: callable by name
+  list_stash_bindings: ['List stash bindings', READ], // retired: callable by name
   cook: ['Cook stashes into a report', ADDITIVE],
   get_cook: ['Get cook outcome', READ],
   list_cooks: ['List cook outcomes', READ],

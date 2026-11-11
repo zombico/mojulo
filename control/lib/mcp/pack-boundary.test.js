@@ -120,7 +120,7 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
     expect(straddlers, `files importing BOTH engines:\n${straddlers.join('\n')}`).toEqual([]);
   });
 
-  // C: the office deliberation surfaces (pack_plan / pack_research) must not
+  // C: the office deliberation surfaces (pack_plan, and the retired research book) must not
   // statically import the creative engine, so an ops-only install can load them
   // (install-capabilities.plan.md P3). The pure plan/research→sketch mapper now
   // lives in the kernel (lib/sketch-derive). research-sweep is deliberately NOT
