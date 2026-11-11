@@ -51,6 +51,18 @@ export const CRYPT = Object.freeze({
  */
 export const CRYPT_SOBER = Object.freeze({
   ...CRYPT,
+  // THE FORM REGISTER'S PRINCIPLES (era/laws.js 'crypt/form': the seventh generation's laws; era/form-laws.js measures
+  // a kit against them). The crypt's own principles above hold as they are: these say how they are drawn now.
+  form: Object.freeze({ principles: Object.freeze([
+    'Stone is the size it is built at: courses a third of a metre high, slabs a stride long; nothing is enlarged to be read small.',
+    'A joint is a shadow, not a line: every joint, chip and tool mark is relief the lamps find.',
+    'Blocks agree and the light disagrees: a wall\'s stones are close in tone, and the room\'s contrast is torchlit stone against the dark.',
+    'A curve is a curve: a doorway\'s head, a niche\'s and the vault are cut fine enough to read round at arm\'s length.',
+    'The dark is part of the room: the torches stand high and reach far, and above them the vault is lost.',
+    'What burns moves: a torch\'s flame is live.',
+    'What stands proud of a wall stands a hand\'s breadth, in stone near the wall\'s own: a frame, a plinth, a cornice are quiet.',
+    'The motif is cut, not painted: a small band of dentils under the cornice, in the wall\'s own tone, found by the light.',
+  ]) }),
   niches: Object.freeze({ ...CRYPT.niches, seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
   tomb: Object.freeze({ ...CRYPT.tomb, stone: { key: 'marble-carrara', scale: 1.2, tint: [0.56, 0.55, 0.54] } }),
   accent: Object.freeze({ stone: { gen: 'dressed', stone: [100, 96, 92], mortar: [62, 60, 58], rows: 4, cols: 1, joint: 0.014, recess: 0.008, tool: 'pitched', chamfer: 0.006, pillow: 0.005, spall: 0.35, pit: 0.3, vary: 9, grit: 0.55, scale: 2.4 }, tint: [0.74, 0.73, 0.73] }),

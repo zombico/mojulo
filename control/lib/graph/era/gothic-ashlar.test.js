@@ -14,9 +14,8 @@ describe('the crypt in ashlar', () => {
     const K = STAGE_KITS['gothic-ashlar'];
     expect(K.dress.id).toBe(CRYPT.id);
     expect(K.dress.principles).toBe(CRYPT.principles);
-    // (its wall, its floor and its trim are dressed cuts, painted at the metres they are laid at; no carved key)
+    // (its wall, its floor and its trim are dressed cuts, painted at the metres they are laid at)
     for (const part of ['wall', 'floor', 'trim']) expect(K.tiles[part].family).toMatch(/^gen:dressed-/);
-    expect(K.motif).toBeUndefined();
     // (the same parts, by group: walls, a vault, niches, a tomb)
     const groups = (P) => new Set(P.faces.map((f) => f.group));
     for (const g of ['stage:wall', 'stage:floor', 'stage:ceiling', 'stage:accent']) expect(groups(ash).has(g)).toBe(true);

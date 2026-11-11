@@ -162,7 +162,8 @@ STAGE_KITS['gothic-stone'] = Object.freeze({
 // pillowed, bright face, each block its own value), this lays dressed ashlar (matte-paint/dressed.js: long low
 // courses, a third of a metre high and over a metre long, thin joints, a tooled face, each block's tone close to its
 // neighbour's), which the form render reads as its true relief; a floor of large worn slabs; slimmer pilasters, a
-// lower plinth and cornice; arches and a vault cut in twice the segments, so a curve is a curve; no carved key; and
+// lower plinth and cornice; arches and a vault cut in twice the segments, so a curve is a curve; its motif a low band
+// of dentils under the cornice in the wall's own tone; and
 // torches set higher with a longer reach, so a tall wall is lit up its height and the vault is lost above them. Its dressing is the crypt's, sober
 // (style/crypt.js CRYPT_SOBER). Made for tall rooms: give it height.
 STAGE_KITS['gothic-ashlar'] = Object.freeze({
@@ -184,6 +185,9 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.25, tone: '#4e5058' },
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
   torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5 },
+  // its motif, cut and not painted: dentils under the cornice in the wall's own tone, low relief (the crypt's principle
+  // holds: a motif is small, in a band; the form register's: the light finds it)
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'dentil', ground: [98, 98, 98], figure: [118, 118, 118], relief: 0.35 }), on: 'cornice', tint: [0.78, 0.77, 0.76] },
   dress: CRYPT_SOBER,
 });
 // The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course

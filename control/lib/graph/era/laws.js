@@ -11,6 +11,9 @@
  * The era card and the builder carry laws no style card states (vertex density, texel density, baked light, the
  * readout frame, the cast reading denser than the world); they are listed with `era: true`.
  *
+ * The seventh generation's laws (`form: true`) are listed after them: what the form render affords that paint could
+ * not, each beside the sixth-gen law it answers. A kit is measured against them by era/form-laws.js.
+ *
  * A style card that gains a principle without a mapping here fails laws.test.js: nothing a template was built on is
  * left uncounted when a look is applied somewhere new. Data only; nothing here draws.
  */
@@ -25,7 +28,7 @@ import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 import { ALIEN_NIGHT } from './style/alien-night.js';
 import { AIRLESS_PLAIN } from './style/airless-plain.js';
 import { ISEKAI_GARDEN } from './style/isekai-garden.js';
-import { CRYPT } from './style/crypt.js';
+import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
 
 export const LAYERS = Object.freeze(['look', 'surface', 'composition', 'dressing']);
@@ -67,6 +70,17 @@ export const LAWS = Object.freeze({
   'frame-readout': { layer: 'composition', era: true, law: 'Detail is read at the era\'s frame (640×448), not at today\'s.' },
   // dressing
   'kit-dressing': { layer: 'dressing', law: 'A kit\'s own set pieces.' },
+  // THE SEVENTH GENERATION'S (`form: true`): what the form render affords that paint could not. Each answers a sixth-gen
+  // law that was a limit of its frame and its light, not a taste: detail sized to be read at 640×448 ('texel-density',
+  // 'frame-readout'), contrast drawn into the tile because the light could not make it ('value-order' as baked colour ×
+  // tile mean), shapes faceted because a curve cost vertices ('big-shapes'), shade lifted because black was a hole
+  // ('shade-is-colour'). The composition laws (focus, repeat, accent, corners, causes, height) hold in both eras.
+  'built-scale': { layer: 'surface', form: true, law: 'An element is the size it is built at (a course, a slab, a board), read at today\'s frame; nothing is enlarged to be read small.' },
+  'relief-is-material': { layer: 'surface', form: true, law: 'A joint, a chip and a tool mark are relief the light finds (a normal, a height); no line is drawn.' },
+  'value-by-light': { layer: 'look', form: true, law: 'A surface\'s elements stay close in tone; a place\'s contrast is its light\'s: lit against dark, not block against block.' },
+  'true-curves': { layer: 'composition', form: true, law: 'A curve is cut fine enough to read as a curve at arm\'s length.' },
+  'dark-is-a-place': { layer: 'look', form: true, law: 'The dark is part of a room: light falls off to it, and where no lamp reaches shade may be black.' },
+  'live-emitters': { layer: 'look', form: true, law: 'What burns moves, and what emits is brighter than white: a flame is live, a lamp blooms.' },
 });
 
 /** Each style card's principles, in order, as the laws they are instances of. */
@@ -88,6 +102,8 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'alien-night': [['locked-palette', 'shade-is-colour'], ['baked-light', 'focus'], ['big-shapes'], ['depth-by-air', 'value-order'], ['sky-is-a-place'], ['value-order', 'focus']],
   'airless-plain': [['depth-by-air'], ['sky-is-a-place', 'value-order'], ['baked-light', 'shade-is-colour'], ['big-shapes'], ['locked-palette', 'value-order']],
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
+  // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
+  'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */
@@ -98,6 +114,8 @@ export function statedPrinciples() {
     if (S.night?.principles) out[`${S.id}/night`] = S.night.principles;
     if (S.decay?.principles) out[`${S.id}/decay`] = S.decay.principles;
   }
+  // (a card's form register, the seventh generation's: the crypt's is its sober card's)
+  for (const S of [CRYPT_SOBER]) if (S.form?.principles) out[`${S.id}/form`] = S.form.principles;
   return out;
 }
 
