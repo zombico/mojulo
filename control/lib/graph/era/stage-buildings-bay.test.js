@@ -123,5 +123,16 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     expect(noon.form).toBeUndefined();
     expect(noon.faces.filter((f) => /^building:(wall|roof)/.test(f.group || '')).every((f) => f.cornerLight === undefined)).toBe(true);
   }, 90000);
+
+  it('its apron is a slab on soft land, or the land\'s own where it is asked: levelled the same, nothing laid on it', () => {
+    const slab = noon.faces.filter((f) => f.group === 'building:apron');
+    expect(slab.length).toBeGreaterThan(0);
+    expect(B.site.of).toBe('slab');
+    const G = assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [{ ...OUTPOST, apron: 'ground' }] });
+    expect(G.faces.some((f) => f.group === 'building:apron')).toBe(false);
+    expect(G.buildings[0].site.of).toBe('ground');
+    expect(G.buildings[0].site.level).toBe(B.site.level);
+    expect(() => assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, buildings: [{ ...OUTPOST, apron: 'lawn' }] })).toThrow(/apron is 'slab'/);
+  }, 90000);
 });
 

@@ -18,3 +18,5 @@ A composed building standing on an outdoor map (the hangar, a barracks) is read 
 - The building asks the land for its site: its level is the land's own mean across its ground (cut on the high side,
   filled on the low), the bank round it three metres out for each metre cut or filled (5 to 18 m), and the building's
   record says the level, the cut, the fill and the bank; a cut or a fill past 1.5 m is a finding. The floor is never below the land at its door.
+- The apron is a slab or the ground: a building's `apron: 'ground'` levels its site and lays nothing on it, so a
+  building on rock or sand stands on rock or sand. Left out, a slab, or the ground on a cube nothing grows on.
