@@ -68,6 +68,7 @@ import { scienceChannelScript } from './channels/science.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
 import { pageLight, shadowToLight, skyEnv, BLOOM_LEVELS } from './page-light.js';
+import { collectHotFaces, hotFacesScript } from './channels/hot-faces.js';
 import { crystalChannelScript } from './channels/crystal.js';
 import { resolveAquaLook } from '../materials/aqua-look.js';
 import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
@@ -592,7 +593,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // THE BLOOM (a world's finish, scene/page-light.js): its chain by the live light's tier, none at 'off'
   const bloomOn = finish && finish.bloom && BLOOM_LEVELS[lightTier && lightTier.tier ? lightTier.tier : 'full'] > 0
     ? { ...finish.bloom, levels: BLOOM_LEVELS[lightTier && lightTier.tier ? lightTier.tier : 'full'] } : null;
-  const glowBlock = sprites.length ? (bloomOn ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95, true) : glowSpriteScript(sprites, glowCfg.opacity ?? 0.95)) : '';
+  // (under the bloom the emitters' own faces are drawn past white too, channels/hot-faces.js: a lit window, a sign)
+  const glowBlock = (sprites.length ? (bloomOn ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95, true) : glowSpriteScript(sprites, glowCfg.opacity ?? 0.95)) : '')
+    + (bloomOn ? hotFacesScript(collectHotFaces(faces)) : '');
 
   // Specular channel: live Blinn-Phong against the fixed baked
   // light for groups whose faces carry `spec`. One-shot setup block (glow/shadow posture) —
@@ -664,7 +667,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // a painted cloud band round the dome (matte-paint/sky.js): only a sky that carries one
       ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}) }
     : null;
-  const skyBlock = skyDome ? skyDomeScript(skyDome) : '';
+  const skyBlock = skyDome ? skyDomeScript(bloomOn ? { ...skyDome, hot: true } : skyDome) : '';
   // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material
   // mesh (world groups, textured wraps, instances, streamed tiles) toward the horizon colour — aerial
   // perspective, not the volumetric ground fog. It rides the sky block's string so a page without it
@@ -1128,7 +1131,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     dynamic: [...new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => typeof g === 'string' && !cryRig.stones.some((st) => st.group === g)))] }) : '';
   // fire (flame-depiction): live flames on their props, embers and smoke, lighting the world's basic materials. Present only
   // with a resolved `fire` (fire/fire.js resolveFire); after the terrain block so it can read the wind. Absent → zero bytes.
-  const fireBlock = fire && Array.isArray(fire.sources) && fire.sources.length ? fireChannelScript(fire) : '';
+  const fireBlock = fire && Array.isArray(fire.sources) && fire.sources.length ? fireChannelScript(bloomOn ? { ...fire, hot: true } : fire) : '';
   // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
   // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
   // Absent → zero bytes.

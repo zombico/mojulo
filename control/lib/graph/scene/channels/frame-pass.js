@@ -146,6 +146,7 @@ ${B ? `  // the bloom's chain: each level half the last, half-float, drawn down 
   const BL = Array.from({ length: probe.bloom.levels }, () => new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false }));
   const bq = (frag, add) => { const m = new THREE.Mesh(q.geometry, new THREE.ShaderMaterial({ uniforms: { tS: { value: null }, uT: { value: new THREE.Vector2() }, uFirst: { value: 0 } }, depthTest: false, depthWrite: false, toneMapped: false,
     ...(add ? { blending: THREE.AdditiveBlending, transparent: true } : {}), vertexShader: q.material.vertexShader, fragmentShader: frag })); m.frustumCulled = false; const sc = new THREE.Scene(); sc.add(m); return { m, sc }; };
+  const BNORM = Math.sqrt(BL.reduce((a, _, i) => a + Math.pow(${f(FRAME_PASS.wide)}, i), 0));
   const DN = bq(${JSON.stringify(BLOOM_DOWN)}, false), UP = bq(${JSON.stringify(BLOOM_UP)}, true);
   const bloomPass = () => {
     let W = sz.x, H = sz.y;
@@ -155,7 +156,9 @@ ${B ? `  // the bloom's chain: each level half the last, half-float, drawn down 
     const ac = renderer.autoClear; renderer.autoClear = false;
     for (let i = BL.length - 1; i > 0; i--) { const u = UP.m.material.uniforms; u.tS.value = BL[i].texture; u.uT.value.set(probe.bloom.radius / BL[i].width, probe.bloom.radius / BL[i].height); renderer.setRenderTarget(BL[i - 1]); R0(UP.sc, BC); }
     renderer.autoClear = ac; renderer.setRenderTarget(null);
-    BU.tB.value = BL[0].texture; BU.uBloom.value = probe.bloom.strength;
+    // (the levels are summed, each wider one counted FRAME_PASS.wide times the last: laid back over the root of their weights'
+    // sum, between a wide emitter's bloom, which the sum would multiply, and a point's, which the chain thins)
+    BU.tB.value = BL[0].texture; BU.uBloom.value = probe.bloom.strength / BNORM;
   };
 ` : ''}  renderer.render = function (s, cam) {
     if (s !== scene || ${B ? 'false' : G ? '(probe.air <= 0 && probe.soften <= 0 && !grade.on())' : '(probe.air <= 0 && probe.soften <= 0)'} || renderer.getRenderTarget() !== null || !cam.isPerspectiveCamera || (renderer.xr && renderer.xr.isPresenting)) return R0(s, cam);

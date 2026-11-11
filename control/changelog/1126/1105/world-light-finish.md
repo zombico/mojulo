@@ -38,8 +38,7 @@
   surface. A metal already reflects that sky analytically from its zenith and horizon, and a capture of the same
   two colours would add a render at load and no new picture; so outdoors the sky's environment stays analytic (no
   render target, the same frame every time), and a capture is kept for where it shows what the analytic sky cannot:
-  a room reflecting the room. That, water under the finish, exposure that adapts and the other emitters past
-  white (fire, the sun's disc, lit windows, signs) are not built yet.
+  a room reflecting the room. That, water under the finish and exposure that adapts are not built yet.
 - **Bloom, over a frame with headroom** (under the finish; `channels/frame-pass.js`, `scene/page-light.js`). The
   plan drew the frame in linear light and finished it in the pass. That would put every painted colour through the
   curve's inverse, in every custom shader a page has (sky, water, panes, sprites), and one missed is a colour moved.
@@ -54,6 +53,16 @@
   material's own). Measured in Chrome on a lamp against a dark wall: with the finish the core clips to white and
   its light spreads past the sprite, where the same page without it is the painted halo. The probe is
   `window.__mojFrame.bloom`.
+- **A page's emitters are drawn past white** (under the finish's bloom). A face that says it emits, a lit window's
+  pane or a sign (`emissive` with its strength, what the lit export already reads) and a fixture's face (`glow`), is
+  drawn once more over itself in the frame's headroom, one mesh a page a hair toward the eye
+  (`channels/hot-faces.js`), so the bloom draws its light from the face itself and a lamp's face no longer sits cold
+  inside its glow. The sun's disc on a painted sky (`channels/sky-dome.js` `SUN_HOT`) and a fire's halo
+  (`channels/fire.js` `FIRE_HOT`) go past white with them. The chain's levels are laid back over the root of their
+  weights' sum, between a wide emitter, which their sum would multiply, and a point, which the chain thins. Seen in
+  Chrome: a lit window, a lamp and a neon sign each with its own halo on a test wall; on an island plaza at night
+  the lit window over the square glows. Not past white yet: a lantern's flame (a fixture with no emitting face), the
+  form sky's sun, and an emitter inside a repeat.
 - **Left as they are, and said**: on a page with no light of its own the shading channels take the polygonizer's
   default sun and a shadow the shadow's default, two directions, as minted pages have them; unifying them would move
   every such page's shadows. A water surface's own sun (`channels/surface.js`, a kind's argument a surface) is not
