@@ -1,7 +1,7 @@
 // Flowing water as a circuit (hydraulics.js): a pump, a nozzle, tiers that spill what they receive, and the mist where
 // the water lands on the air solved round it. One small fountain, and the page's channel for its mist.
 import { describe, it, expect } from 'vitest';
-import { solveHydraulics, mistAir, HYDRAULICS } from './hydraulics.js';
+import { solveHydraulics, mistAir, hydraulicsFaces, HYDRAULICS } from './hydraulics.js';
 import { hydraulicsScript, impactDrops, WATER_IMPACT } from '../scene/channels/hydraulics.js';
 import { vayoPoints } from '../rupa/vayo.js';
 import { waterWorks } from '../era/stage.js';
@@ -79,6 +79,29 @@ describe('flowing water as a circuit', () => {
     const page = hydraulicsScript({ impacts: W.impacts });
     expect(page).toContain('#include <logdepthbuf_fragment>');
     expect(page).toContain('"impacts":[');
+  });
+
+  it('a second shape of circuit: a spout thrown from a wall into a trough that pours forward into a basin; its vessels drawn where the world brings none', () => {
+    const SPOUT = { id: 's', basin: { at: [0, -2, 0], radius: 1.5, level: 0.32 }, pump: { head: 2.6 }, nozzle: { at: [0, 0, 1.9], dir: [0, -0.4, -1], radius: 0.018 },
+      tiers: [{ id: 'trough', at: [0, -0.4, 1], radius: 0.45, lips: 5, arc: [Math.PI * 1.1, Math.PI * 1.9] }] };
+    const W = solveHydraulics(SPOUT);
+    // (the jet is thrown along its nozzle's way and comes down in the trough, off the nozzle's own axis)
+    expect(W.report.lands[1]).toBeLessThan(0);
+    expect(Math.hypot(W.report.lands[0], W.report.lands[1] + 0.4)).toBeLessThan(0.45);
+    W.impacts.find((i) => i.id === 's:riser').at.slice(0, 2).forEach((v, k) => expect(v).toBeCloseTo(W.report.lands[k], 2));
+    // (a trough pours over its arc alone: every sheet forward, toward −y, and between them the whole flow)
+    const sheets = W.jets.filter((j) => j.shape === 'sheet');
+    expect(sheets).toHaveLength(5);
+    expect(sheets.every((j) => j.dir[1] < 0)).toBe(true);
+    expect(sheets.reduce((a, j) => a + j.discharge, 0)).toBeCloseTo(W.jets[0].discharge, 9);
+    // (a jet thrown past the water meant for it teaches, with how far it missed)
+    expect(() => solveHydraulics({ ...SPOUT, nozzle: { ...SPOUT.nozzle, dir: [0, -1, 0.15] } })).toThrow(/the jet comes down [\d.]+ m from the middle of its first tier, outside it/);
+    // (its vessels: a basin and a bowl on a stem, each with its water at its level; none where the circuit says so)
+    const F = hydraulicsFaces(SPOUT), water = F.filter((f) => f.water);
+    expect(new Set(water.map((f) => f.group))).toEqual(new Set(['hydraulics:s:basin:water', 'hydraulics:s:trough:water']));
+    expect(water.filter((f) => f.group.includes('basin')).every((f) => f.corners.every((c) => c[2] === 0.32))).toBe(true);
+    expect(F.filter((f) => !f.water).every((f) => f.corners.length === 4 && /^#[0-9a-f]{6}$/.test(f.fill))).toBe(true);
+    expect(JSON.stringify(hydraulicsFaces(SPOUT))).toBe(JSON.stringify(F));
   });
 
   it('the page plays the mist only when carried; a stage\'s water is a circuit only when it says works', () => {

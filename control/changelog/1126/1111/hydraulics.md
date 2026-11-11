@@ -34,5 +34,13 @@
   its mist's air was the open air. Where the world is resolved the air is solved again among its solids
   (`mistAir`, `worlds/world-scene.js`): the world's walls, and the kit's own stone (the plaza's fountain gives its
   bowl and its pedestal, so the mist under the bowl spreads out from under it).
+- **A second shape of circuit, and a circuit that draws itself.** A spout thrown from a wall into a trough that
+  pours forward into a floor basin, in a stone room, from the world's `hydraulics` key alone. What it took: a nozzle
+  that points any way (the jet is thrown along it for as long as it is in the air, and the solve says where it comes
+  down, `report.lands`); a lip that pours over an `arc` of itself, not all the way round (a trough against a wall);
+  and the circuit's own vessels as plain stone and standing water where the world brings none
+  (`hydraulicsFaces`: the basin a walled ring, each tier a bowl on a stem; `stone: false` for none). A jet thrown
+  past the water meant for it teaches, with how far it missed: the first three tries at this very demo were
+  refused that way. Seen in Chrome in a gothic-stone room in gen-7.
 - **Named apart from a trail's `waterworks`** (the land's own rivers and falls, `era/water-live.js`): that is a plan
   the land draws; this is a circuit a pump runs.

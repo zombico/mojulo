@@ -46,7 +46,7 @@ import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
-import { solveHydraulics, mistAir } from '@/lib/graph/materials/hydraulics';
+import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
@@ -835,6 +835,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const circuits = Array.isArray(sketch.manifest.hydraulics) ? sketch.manifest.hydraulics : [sketch.manifest.hydraulics];
     const solved = circuits.map((c, i) => solveHydraulics(c && typeof c === 'object' && !c.id ? { ...c, id: `works${i + 1}` } : c, { colliders: Array.isArray(payload.colliders) ? payload.colliders : [] }));
     const jets = normalizeJets(solved.flatMap((w) => w.jets), { metersPerUnit: payload.metersPerUnit });
+    // (its vessels, as plain stone and standing water, where the world brings none: `stone: false` for none)
+    const stone = circuits.flatMap((c, i) => (c && c.stone === false ? [] : hydraulicsFaces(c.id ? c : { ...c, id: `works${i + 1}` })));
+    if (stone.length) payload.faces = [...payload.faces, ...stone];
     if (jets.length) payload.jets = [...(Array.isArray(payload.jets) ? payload.jets : []), ...jets];
     const mine = { mists: solved.flatMap((w) => w.mists), impacts: solved.flatMap((w) => w.impacts), report: solved.map((w) => w.report) };
     payload.hydraulics = payload.hydraulics ? { mists: [...payload.hydraulics.mists, ...mine.mists], impacts: [...(payload.hydraulics.impacts || []), ...mine.impacts], report: [...payload.hydraulics.report, ...mine.report] } : mine;
