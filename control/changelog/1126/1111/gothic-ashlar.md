@@ -50,7 +50,8 @@
   AAAA or ABAB; five are AABAA or BBABB. The rule is local, two checks on what stands side by side, the same on a
   wall of two bays as on one of ten (a pair alike is allowed anywhere, so a short wall is solved as it stands), and
   that a wall needs two kinds follows from it. A mirrored order is taken where the length has one: a wall is built
-  from its middle. The second kind of bay is derived, the first with less on it: in the ashlar crypt a bay with one
+  from its middle. Three is its own case: a wall of exactly three bays is ABA or BAB alone, the odd one in the
+  middle (AAB keeps both checks and still reads lopsided). The second kind of bay is derived, the first with less on it: in the ashlar crypt a bay with one
   niche where its neighbour has two, and nothing in it (`era/crypt.js`, a card's `niches.rhythm`). The rhythm is
   what a wall reaches for unasked. A wall all alike is a stated choice (a stage's `rhythm: 'same'`), and then every
   bay is drawn clean and repeatable: no urn, no sealed niche, nothing that marks one bay from the next.

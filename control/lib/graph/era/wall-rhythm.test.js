@@ -11,7 +11,13 @@ describe('a wall\'s rhythm', () => {
     expect(faults('ABAB')).toEqual(['beat']);
     expect(faults('BABA')).toEqual(['beat']);
     expect(faults('ABABA')).toContain('beat');
-    for (const ok of ['ABBA', 'BAAB', 'ABA', 'BAB', 'BBA', 'AAB', 'BAA', 'ABB', 'BBABB', 'AABAA']) expect(faults(ok), ok).toEqual([]);
+    for (const ok of ['ABBA', 'BAAB', 'ABA', 'BAB', 'BBABB', 'AABAA']) expect(faults(ok), ok).toEqual([]);
+    // (three is its own case: the odd one in the middle, or it fails though both checks pass; inside a longer wall
+    // the same three are no fault)
+    for (const lopsided of ['BBA', 'AAB', 'BAA', 'ABB']) expect(faults(lopsided), lopsided).toEqual(['three']);
+    expect(faults('AABAA')).toEqual([]);
+    expect(wallRhythms(3, 2)).toEqual(['ABA', 'BAB']);
+    expect(['ABA', 'BAB']).toContain(wallRhythm(3, { pick: 0.7 }));
     // (the rule is local: a pair alike keeps it on a wall of two as inside a wall of ten; kinds may be anything)
     expect(rhythmFaults('A')).toEqual([]);
     expect(rhythmFaults('AA')).toEqual([]);

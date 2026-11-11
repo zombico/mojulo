@@ -6,12 +6,13 @@
  *   no run of three    at most two neighbouring segments look alike (AAA fails; AA is a pair, and a pair is allowed)
  *   no repeated pair   a pair of segments is never followed by the same pair (ABAB fails: it is AB, AB; ABBA does not)
  *
- * So AAAA becomes ABBA or BAAB; three segments may be ABA, BAB, AAB, ABB, BAA, BBA; five may be AABAA or BBABB, never
- * ABABA. That a wall needs two kinds is no rule of its own: it follows from the first check once a wall has three
+ * So AAAA becomes ABBA or BAAB; five may be AABAA or BBABB, never ABABA. THREE IS ITS OWN CASE: a wall of exactly
+ * three is ABA or BAB alone, the odd one in the middle (AAB keeps both checks, and still reads lopsided: three is the
+ * smallest wall with a middle, and the eye goes to it). That a wall needs two kinds is no rule of its own: it follows from the first check once a wall has three
  * segments. A wall of one or two is solved as it stands, all A (a pair alike is allowed anywhere). The rule is a
  * default: a recipe may name a wall's order itself.
  *
- *   rhythmFaults(seq) → [{ at, fault: 'run' | 'beat' }] (empty: the order keeps the rule); `seq` a string
+ *   rhythmFaults(seq) → [{ at, fault: 'run' | 'beat' | 'three' }] (empty: the order keeps the rule); `seq` a string
  *     or an array of kinds
  *   wallRhythms(n, kinds = 2) → every order of n segments in `kinds` kinds that keeps the rule (as strings, A, B, …),
  *     mirrored ones first: a wall read from its middle is the same both ways, which is how a wall is built
@@ -27,6 +28,8 @@ export function rhythmFaults(seq) {
   const s = Array.isArray(seq) ? seq : [...String(seq)], out = [];
   for (let i = 0; i + 2 < s.length; i++) if (s[i] === s[i + 1] && s[i + 1] === s[i + 2]) out.push({ at: i, fault: 'run' });
   for (let i = 0; i + 3 < s.length; i++) if (s[i] !== s[i + 1] && s[i] === s[i + 2] && s[i + 1] === s[i + 3]) out.push({ at: i, fault: 'beat' });
+  // (a wall of exactly three: the odd one stands in the middle, ABA or BAB; a pair to one side leaves it lopsided)
+  if (s.length === 3 && !out.length && s[0] !== s[2]) out.push({ at: 0, fault: 'three' });
   return out;
 }
 
@@ -43,6 +46,8 @@ export function wallRhythms(n, kinds = 2) {
     }
   };
   grow('');
+  // (three segments: the mirrored ones alone)
+  if (n === 3) return out.filter((o) => o[0] === o[2]);
   const mirrored = (s) => s === [...s].reverse().join('');
   return [...out.filter(mirrored), ...out.filter((s) => !mirrored(s))];
 }
