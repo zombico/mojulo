@@ -12,3 +12,6 @@ A composed building standing on an outdoor map (the hangar, a barracks) is read 
 - A building's shell is baked as a town's is (`form/sun-light.js`), its colour and the day's light apart, under the
   cube's light at the hour; the sun joins the page's record as its live light.
 - A painted page is as it was: no record, no baked light on a shell.
+- A composed building lays its own ground: it levels a place on the land a margin wider than itself (deeper before its
+  front), lays an apron of poured concrete there with a kerb at its edge, and the land eases back to its own height
+  round it; the land under the apron is cut away and nothing grows through it. First pass: not yet seen rendered.

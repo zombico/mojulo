@@ -69,6 +69,10 @@ const CLEARED = /:(wood|crown|tree|bough|rock|hat|blaze|debris|grass|grassblend|
 const FACINGS = { '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] };
 // a composed building's yard: how deep the ground before its front is kept clear (m)
 const YARD = 8;
+// a composed building's own ground: how far its apron reaches past its sides and back and before its front (m), how far
+// under its floor the land is laid level beneath it, how far the land eases back to its own height round it, the slab's
+// thickness at its edge
+const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
 const EMBED = { side: 4, back: 6 };
 
@@ -675,6 +679,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
       // kept clear of what grows)
       if (composedOf(b) || E) { const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), a = F.toWorld([x0 - 1, y0 - YARD]), c = F.toWorld([x1 + 1, y0]); reserved.push([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5)); }
       if (ST && String(id).startsWith('town-')) planned.push(T[1]);
+      // (ITS OWN GROUND, a composed building's that is not set into a slope: it clears a level place on the land a
+      // margin wider than itself, its yard before its front, and lays its apron there, era/grade.js; the land eases up
+      // or down to it round its edge, and nothing grows on it)
+      if (composedOf(b) && !E) {
+        const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), y1 = Math.max(...rects.map((R0) => R0[3]));
+        const a = F.toWorld([x0 - APRON.side, y0 - APRON.front]), c = F.toWorld([x1 + APRON.side, y1 + APRON.side]), apron = [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5);
+        grades.push({ box: apron, z: r5(floor - APRON.under), fall: APRON.fall });
+        reserved.push(apron);
+        placed[i] = { T, facing, floor, apron };
+      }
       // (set into its slope: the land cut and filled round it, era/grade.js, and its place kept for the second pass)
       if (E) {
         const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), y1 = Math.max(...rects.map((R0) => R0[3]));
@@ -804,6 +818,26 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
       return manifest.town?.dress ? dressTownFace(F0, roof ? roofGroup : wallGroup, manifest.town.dress) : F0;
     });
+    // THE APRON (its own ground, planned above): a slab of poured concrete over the level place, a hair over the land
+    // laid for it, its edge a kerb down into the land; cut round the building, the land under it cut away so nothing
+    // grows through it. Lit as the shell is
+    const apronF = was && was.apron ? (() => {
+      const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = stairConcrete(), out = [];
+      const lam = (nn) => (payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0), day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
+      const face = (c, nn) => { const flat = Math.abs(nn[2]) > 0.5, g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam(nn)) * (0.35 + 0.65 * day)));
+        return { ...quad(c, 'building:apron', `#${g.toString(16).padStart(2, '0').repeat(3)}`), texture: T.key, textureLit: true, uv: c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / T.scale))), normal: P3(nn), outNormal: P3(nn) }; };
+      // (laid in bays of its own joints' size, so the sun's light has corners to land on; each cut round the building)
+      const step = 4, nx = Math.max(1, Math.round((ax1 - ax0) / step)), ny = Math.max(1, Math.round((ay1 - ay0) / step));
+      for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) { const u0 = ax0 + ((ax1 - ax0) * ix) / nx, u1 = ax0 + ((ax1 - ax0) * (ix + 1)) / nx, v0 = ay0 + ((ay1 - ay0) * iy) / ny, v1 = ay0 + ((ay1 - ay0) * (iy + 1)) / ny;
+        out.push(...cutOutBoxes(face([[u0, v0, zt], [u1, v0, zt], [u1, v1, zt], [u0, v1, zt]].map(P3), [0, 0, 1]), F.boxes)); }
+      for (const [p, q, nn] of [[[ax0, ay0], [ax1, ay0], [0, -1, 0]], [[ax1, ay0], [ax1, ay1], [1, 0, 0]], [[ax1, ay1], [ax0, ay1], [0, 1, 0]], [[ax0, ay1], [ax0, ay0], [-1, 0, 0]]])
+        out.push(face([[p[0], p[1], zt - APRON.edge], [q[0], q[1], zt - APRON.edge], [q[0], q[1], zt], [p[0], p[1], zt]].map(P3), nn));
+      // (the land under it, in from its edge: cut away)
+      const inner = [[ax0 + 0.3, ay0 + 0.3, ax1 - 0.3, ay1 - 0.3]];
+      faces = faces.flatMap((f) => (GROUND.test(f.group || '') || ROUGH.test(f.group || '') ? cutOutBoxes(f, inner) : [f]));
+      clearedBoxes.push(...inner);
+      return shellLight ? sunLitFaces(out.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : out;
+    })() : [];
     const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : shell0;
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
@@ -844,7 +878,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       };
       return [...piece(h.u0 - 0.14, h.u1 + 0.14, h.z1, h.z1 + 0.2, 0.09, lin), ...piece(h.u0 - 0.08, h.u1 + 0.08, h.z0 - 0.08, h.z0, 0.11, sl)];
     }) : [];
-    faces = [...faces, ...moved, ...shell, ...trims, ...stoop, ...stairF, ...pathF];
+    faces = [...faces, ...moved, ...shell, ...apronF, ...trims, ...stoop, ...stairF, ...pathF];
     for (const c of P.cutouts || []) cutouts.add(c);
     lights.push(...(P.lights || []).map((l) => ({ ...l, name: `${id}-${l.name}`, position: P3(W(l.position)) })));
     // its colliders: the stage's own, moved (a quarter turn keeps a box a box)
