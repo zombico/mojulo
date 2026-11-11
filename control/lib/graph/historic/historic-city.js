@@ -101,13 +101,17 @@ function emitHistoric(scene) {
  * Metre masses → scene units: plain boxes for the box emitter, angled solids as their own faces.
  * `focus` (metres): what directed skins face — a temple's sanctuary.
  */
-export function toScene(masses, s, us = UNIT_SCALE.aerial, focus) {
+export function toScene(masses, s, us = UNIT_SCALE.aerial, focus, { parts = false } = {}) {
   const boxes = [], faces = [];
-  for (const b of masses) {
+  for (const b0 of masses) {
+    // `parts`: a monument's masses carry its render group (`monument:<id>`), every other kit piece its asset's
+    // (`asset:<id>`: the houses, the theatre, the walls), so a tour can light one; absent, untouched
+    const part = parts && (b0.monument ? `monument:${b0.monument}` : b0.asset ? `asset:${b0.asset}` : null);
+    const b = part ? { ...b0, group: part } : b0;
     const tile = { us, mpu: METRES_PER_UNIT, toward: focus && [focus[0] * s, focus[1] * s] };
     // a skinned box goes the solid way (an unleaning frustum) so its faces can wear the skin
     const m = b.skin && !b.solid ? { ...b, solid: 'frustum', top: { x: b.x, y: b.y, w: b.w, d: b.d } } : b;
-    if (m.solid) { const fs = solidFaces(scaleSolid(m, s), SCENE_LIGHT, tile); faces.push(...(b.skin ? fs.map((f) => skinFace(f, b.skin, tile)) : fs)); continue; }
+    if (m.solid) { const fs0 = solidFaces(scaleSolid(m, s), SCENE_LIGHT, tile), fs = b.skin ? fs0.map((f) => skinFace(f, b.skin, tile)) : fs0; faces.push(...(b.group ? fs.map((f) => ({ ...f, group: b.group })) : fs)); continue; }
     const o = { ...b, x: b.x * s, y: b.y * s, w: b.w * s, d: b.d * s, z0: b.z0 * s, z1: b.z1 * s };
     if (b.plant) o.plant = { ...b.plant, height: b.plant.height * s, stemRadius: b.plant.stemRadius * s };
     else o.lod = 'mass';   // a plain lit mass in its own tint: the big read
@@ -149,7 +153,7 @@ export function assembleHistoricCityScene(opts = {}) {
   // repeated parts (a plan's `repeats`): the World draws each template once as instances; the CSS page their light stand-ins
   const reps = plan.repeats || [];
   const lows = world ? [] : reps.filter((r) => !r.world).flatMap((r) => r.transforms.flatMap((t) => r.low.map((m) => liftMass(m, t.pos))));
-  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...lows, ...plan.world.boxes] : [...masses, ...lows], s, US, plan.focus);
+  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...lows, ...plan.world.boxes] : [...masses, ...lows], s, US, plan.focus, { parts: !!(world && opts.parts) });
   const { shade, sky } = historicLight(plan, opts);
   const G = groundsToScene(plan.grounds, s, US, true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);

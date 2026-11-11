@@ -1,7 +1,7 @@
 ### Exhibits: interactive pieces for a museum, a classroom or an encyclopedia
 
-Planned on this branch. The first six pieces are built (one door for exhibits, the tour, rooms with a kiosk, the
-expert's brief, prepared states, and narration); the line after them is still a plan, rewritten as it lands.
+Built on this branch: one door for exhibits, the tour, rooms with a kiosk, the expert's brief, prepared states,
+narration, and two exhibits to start from.
 
 - **One door for exhibits, arranged in halls.** The science, space, earth, life and mathematics study objects, the
   science demos built from laws and the historic cities at their period are all asked for in one place, by hall:
@@ -18,8 +18,11 @@ expert's brief, prepared states, and narration); the line after them is still a 
   it too, and a link can open on any stop. A toured page looks like an exhibit rather than a workbench: it fills the
   window, a phone's or a kiosk's, its title stands quietly in the corner, the camera and wireframe buttons step aside,
   and on a plain background the subject glows softly in the colour of the part each stop is about. Give the stops when you ask for the exhibit, or add them to one you have; a stop that names a
-  camera or a part the exhibit does not have is refused, with the ones it does. A historic town is drawn as one piece
-  for now, so its stops move the camera but do not light a building yet.
+  camera or a part the exhibit does not have is refused, with the ones it does. A historic town can name its parts
+  when asked, each monument and each kind of building (its theatre, its houses, its walls, its fountains), so a stop
+  lights the one its caption is about; asked for nothing, it is drawn exactly as before. On a town you can walk
+  through, the panel's arrow keys and its camera moves work as they do anywhere else (they were held back until now),
+  and a science exhibit's own readout moves to the top so the panel never covers it.
 - **Rooms and a kiosk.** Several exhibits join into one gallery, with no score to win and no way to fail: a lobby
   with a card for each room (its hall, its title, how it opens, how many stops), and each room its exhibit, with the
   way back and on to the next. A gallery remembers its rooms, not copies of them, so improving an exhibit improves
@@ -53,4 +56,10 @@ expert's brief, prepared states, and narration); the line after them is still a 
   on a kiosk it waits for the voice to finish. The caption always shows, so nobody needs the sound, and a stop without
   a recording is simply quiet. The check notices a quiet stop among spoken ones, and a recording that seems to belong
   to another stop.
-- **Two exhibits to start.** Pompeii in 79 CE, and how hydroelectric power works.
+- **Two exhibits to start.** Pompeii in 79 CE: the town before the eruption, its people in that year's dress, a walk
+  of nine stops from its walls and forum to its theatre, houses, water and painted election notices, told for
+  everyone and for young visitors, every fact taken from the town's own cited record (and graded by how far that
+  record checks it), with the expert's sign-off left open. And hydroelectric power, from water to wire: five toured
+  rooms (the dam, the falling water, the turbine, the generator, the whole plant) and a room where the visitor changes
+  the water's height, every number quoted being the one the exhibit computes. Ask your agent for either, or for one
+  made the same way from your own notes and sources; the orientation gallery tours the first.

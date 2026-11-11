@@ -46,6 +46,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { EXHIBIT_STARTERS } from '../lib/graph/exhibit/starters.js';
 
 const DATA_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const STATE_PATH = join(DATA_DIR, 'orientation.json');
@@ -229,6 +230,23 @@ const WORKS = [
         },
       },
     },
+  },
+  {
+    // The exhibit: the studio as a museum's contractor. Its recipe is the starter's own (lib/graph/exhibit/starters.js),
+    // so the showpiece and the worked example never drift apart.
+    id: 'the-exhibit',
+    title: 'An Exhibit (Pompeii, 79 CE)',
+    ref: 'sk_pm79xhbtour',
+    urls: { page: '/sketches/sk_pm79xhbtour', world: '/api/sketches/sk_pm79xhbtour/world', catalogue: '/api/sketches/sk_pm79xhbtour/bible?book=exhibit' },
+    shows: 'The studio as a museum’s contractor: a real place drawn from its cited record, a tour that lights each part as its caption explains it, words for young visitors, and a catalogue of every claim and its sources, waiting on the expert’s sign-off.',
+    madeWith: ['create_exhibit (history/pompeii: parts, people, a brief of claims from the record, a tour)', 'get_exhibit (its audit)', 'export_model (one self-contained page)'],
+    story: 'Encarta had curated exhibits written by its editors; this is one, drawn by the studio. Every claim is the town’s record’s, citing only what was read; the machine gate checks the tour, the operator looks, and only the expert signs.',
+    sampleAsks: [
+      'make a museum exhibit about Pompeii before the eruption',
+      'turn my notes and sources on hydroelectric power into an exhibit with a tour',
+      'make it a kiosk for a gallery, with words for children',
+    ],
+    recipe: { tool: 'create_exhibit', input: { ref: 'sk_pm79xhbtour', ...EXHIBIT_STARTERS.pompeii.steps[0].input } },
   },
 ];
 

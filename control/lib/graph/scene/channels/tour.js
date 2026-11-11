@@ -47,6 +47,7 @@ export function tourScript(tour, { capture = false } = {}) {
     + '.moj-tour-label{position:absolute;left:16px;top:14px;z-index:12;max-width:calc(100% - 140px);color:rgba(238,242,248,.78);font:600 12px/1.35 system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.6px;text-transform:uppercase;pointer-events:none}'
     + '.moj-tour-glow{position:absolute;inset:0;z-index:-1;pointer-events:none;transition:background-color 1.1s ease;'
     + '-webkit-mask-image:radial-gradient(ellipse 62% 58% at 50% 42%,#000 0%,rgba(0,0,0,.55) 42%,transparent 100%);mask-image:radial-gradient(ellipse 62% 58% at 50% 42%,#000 0%,rgba(0,0,0,.55) 42%,transparent 100%)}'
+    + '.moj-readout{left:16px;top:38px;bottom:auto}'   // a view's readout gives the bottom edge to the plate
     + '.hud{left:auto;right:12px;top:10px}.hud button{color:#eef2f8;background:rgba(12,16,24,.55);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 12px}'
     + '.hud button.on{background:rgba(255,255,255,.16);color:#fff}.hint{color:rgba(238,242,248,.38)}'
     + '.moj-tour.kiosk{font-size:18px}.moj-tour.kiosk .tt{font-size:21px}.moj-tour.kiosk .mt{font-size:14px}.moj-tour.kiosk .st{min-width:56px;min-height:48px;font-size:24px}'
@@ -182,7 +183,7 @@ export function tourScript(tour, { capture = false } = {}) {
   // a capture is seated, never flown (the page's _capture is defined after this block, so the emitter says it here)
   const calm = ${capture ? 'true' : 'false'} || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function fly(s, instant) {
-    if (typeof walkMode !== 'undefined' && walkMode) return;   // walking owns the camera; the plate still turns
+    if (typeof walkOn !== 'undefined' && walkOn) return;   // walking owns the camera; the plate still turns
     if (!s) return;
     if (typeof hud !== 'undefined' && hud && typeof CAMS !== 'undefined') [...hud.children].slice(0, CAMS.length).forEach((b, k) => b.classList.toggle('on', k === s.cam));
     controls.autoRotate = false;
@@ -215,7 +216,7 @@ export function tourScript(tour, { capture = false } = {}) {
   }
   window.addEventListener('keydown', (e) => {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-    if (typeof walkMode !== 'undefined' && walkMode) return;
+    if (typeof walkOn !== 'undefined' && walkOn) return;
     const k = e.key;
     if (k === 'ArrowRight' || k === 'PageDown') { go(at + 1); e.preventDefault(); }
     else if (k === 'ArrowLeft' || k === 'PageUp') { go(at - 1); e.preventDefault(); }

@@ -76,3 +76,15 @@ describe('a world recipe\'s tour', () => {
     await expect(resolveWorldScene({ ref: 't', title: 't', manifest })).rejects.toThrow(/names no group 'org:chloroplast' of this world \(its groups: .*org:mitochondria/);
   });
 });
+
+describe('the tour on a walkable world', () => {
+  it('steps and flies until the visitor walks (walkOn), not while a walk mode is merely named (walkMode is always set)', () => {
+    const js = tourScript({ stops: [{ id: 's1', caption: 'x', camera: { cam: 0 } }] });
+    expect(js).not.toMatch(/walkMode/);
+    expect(js.match(/typeof walkOn !== 'undefined' && walkOn\) return;/g)).toHaveLength(2);
+  });
+
+  it('gives the bottom edge to its plate: a view\'s readout rides at the top', () => {
+    expect(tourScript({ stops: [{ id: 's1', caption: 'x', camera: { cam: 0 } }] })).toContain('.moj-readout{left:16px;top:38px;bottom:auto}');
+  });
+});

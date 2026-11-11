@@ -1,13 +1,17 @@
 /**
  * historic-kind — the `historic` world kind: a culture at its period, solved from its form and drawn on the World page.
  *
- *   { kind: 'historic', culture: 'thebes', scene?: 'city' | 'region' | 'slice', focus?, form?, seed?, view?, people?, statues? }
+ *   { kind: 'historic', culture: 'thebes', scene?: 'city' | 'region' | 'slice', focus?, form?, seed?, view?, people?, statues?, parts? }
  *
  * Every scene is the solver's (./solver/index.js): `city` the town, `region` the town in its land with the work done
  * in it (its farms and crafts, ../land-kits.js), `slice` a slice of life cut from the region round a `focus` (an
  * activity's id, or 'street', 'monument', 'water', 'gate', 'market'). `form` rewrites any field of the culture's form
  * (./form/schema.js: the site, the water, the armature, the streets, the density, what is placed where), checked and
  * refused by name, so a town is configured as data rather than re-written.
+ *
+ * `parts: true` (any scene, the World's alone): each monument drawn as its own render group, `monument:<id>`, and every
+ * other kit piece as its asset's, `asset:<id>` (the houses, the theatre, the walls), so an exhibit's tour can light one
+ * while the rest dims (exhibit/tour.js); absent, the town is one group, byte-identical.
  *
  * `people` (any scene): its people and beasts, static figures for scale — true, or { density 0–1, year, citizens: false,
  * hands: false, beasts: false, crews: false }. `year` dresses them as the record says that year's people dressed
@@ -60,6 +64,10 @@ export function historicOptions(m = {}) {
     opts.view = m.view;
   }
   // `statues` (historic/statues.js): stored statues stood on the city's statue slots, in the World; absent ⇒ none
+  if (m.parts !== undefined && m.parts !== false) {
+    if (m.parts !== true) throw new Error('historic: parts is true (each monument and kit piece its own group, for a tour to light) or absent');
+    opts.parts = true;
+  }
   if (m.statues !== undefined) {
     const errs = validateStatues(m.statues); if (errs.length) throw new Error(`historic: ${errs.join('; ')}`);
     if (scene !== 'city') throw new Error(`historic: statues stand on a city's statue slots; the '${scene}' scene has none`);

@@ -2441,7 +2441,9 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
     if (rb.texture && !sceneTextures[rb.texture]) { const url = surfaceTexture(rb.texture); if (url) sceneTextures[rb.texture] = url; }
     faces.push(...ribbonFaces(rb, L, camHint));
   }
-  for (const b of boxes) {
+  // a box with a `group` (a historic monument named for a tour, historic-city.js `parts`) gives its faces that group;
+  // a box with none adds nothing, so every other scene is byte-identical
+  for (const b of boxes) { const nFaces = faces.length; try {
     const r = { x: b.x, y: b.y, w: b.w, d: b.d };
     // fidelity prune (fractal-city `massing` / `skyline`): a mass flagged `lod:'mass'` is a plain
     // tinted extrusion — no facade, roof, curtainwall or rooftop kit. Only the prune sets the flag,
@@ -2561,7 +2563,9 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const tint = b.tint || '#9aa3ad';
       faces.push(...cityBox(r, b.z0, b.z1, { top: scaleHex(tint, 1.1), side: tint }, L, camHint));
     }
-  }
+  } finally {
+    if (b.group) for (let q = nFaces; q < faces.length; q++) if (!faces[q].group) faces[q].group = b.group;
+  } }
   // A polygomer's whole face list rides in here — a six-pack of field-solid cans is ~185k
   // faces, and a spread of that many arguments overflows the call stack (soda-product-shot,
   // 2026-09-08). Loop; byte-identical output.

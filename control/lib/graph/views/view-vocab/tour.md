@@ -43,8 +43,9 @@ tour: {
 ```
 
 The groups and cameras a world has are in the refusal when a stop names one it lacks; a study object names its parts
-(`org:mitochondria`, `dam`, `turbine`). A historic town draws as one group today: tour it by camera and frame, not by
-highlight. A shader exhibit (raymarched) takes no tour yet.
+(`org:mitochondria`, `dam`, `turbine`). A historic town names its parts when asked, `params: { parts: true }`: each
+monument `monument:<id>`, every other piece of its kit `asset:<id>` (its card lists the assets), so a stop can light the
+theatre and frame it. A shader exhibit (raymarched) takes no tour yet.
 
 ## Telling it well
 
@@ -52,6 +53,9 @@ highlight. A shader exhibit (raymarched) takes no tour yet.
 - Light what the caption names, and only that. Frame what is small; a world camera for the whole.
 - Grade what you claim, and cite it: a museum's visitor may ask how we know. Never grade above the record: a
   reconstructed street is `reconstructed`, a drawn ion channel is `depicted`.
+- Frame a part that stands once (a theatre); a part spread through a town (its houses, its fountains) framed `from:
+  'top'` is the town's plan as a map, that part lit. A world camera inside a street may face a wall: the page check
+  (`scripts/exhibit-audit.mjs`) says when a stop's lit parts are off screen or too small.
 - A stop is opened by `?stop=<id>` (or its number); `window.__mojTour` steps it on the page.
 
 ## A kiosk
