@@ -25,6 +25,7 @@
 import { lookOf } from './style/looks.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
+import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
 import { wallOrder } from './wall-rhythm.js';
 import { shadeTint } from './floor-shades.js';
@@ -285,7 +286,9 @@ STAGE_KITS['research-lab'] = Object.freeze({
     truss: { depth: 0.75, w: 0.3, web: 0.05, flange: 0.05 },
     duct: { at: [0.3, 0.7], r: 0.32, sides: 10, gap: 0.12 },
     tray: { at: 0.5, w: 0.45, side: 0.1, drop: 0.35, cables: [0.03, 0.025, 0.035] },
-    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5, deadTint: [0.42, 0.44, 0.46] },
+    // (THE CEILING LIGHT REACHES THE FLOOR: in a tall lab the troffers hang on longer chains, no higher than `hang` over
+    // the floor, and a lamp's reach is at least `reach` times its height, so the work floor is lit whatever the roof's height)
+    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, hang: 4.6, reach: 2, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5, deadTint: [0.42, 0.44, 0.46] },
   },
   dress: RESEARCH_LAB,
 });
@@ -433,6 +436,18 @@ export function planStage(m = {}) {
   const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
   let kitG = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
+  // THE COAT IS OPTIONAL (`coat: false`): a kit whose wall wears a coat of render lays its bare wall, the same stone
+  // with nothing over it, on every storey that wore it; a kit without a coat is as it was. Bare by intent answers the
+  // coat's question (era/room-craft.js) as a wall all alike answers the rhythm's
+  if (m.coat !== undefined && m.coat !== false) throw new Error(`stage: coat is false (the wall bare, on purpose), or left out (the kit's own), got ${JSON.stringify(m.coat)}`);
+  if (m.coat === false) {
+    const bare = (t) => { const S = t && t.family ? generatedSpecOf(`${t.family}-a`) : null;
+      if (!S || S.cfg.cut !== 'render') return t;
+      const { cut, render, loss, metres, ...cfg } = S.cfg;
+      return { ...t, family: tileFamilyOf({ gen: S.gen, ...cfg }) }; };
+    const up = kitG.tiles.wallUpper, upSpec = up && up.family ? generatedSpecOf(`${up.family}-a`) : null, { wallUpper, ...rest } = kitG.tiles;
+    kitG = { ...kitG, tiles: { ...rest, wall: bare(kitG.tiles.wall), ...(up && !(upSpec && upSpec.cfg.cut === 'render') ? { wallUpper: up } : {}) } };
+  }
   // EARTH (`earth: 0…1`): how far the floor has given way to packed dirt (era/nave.js blendsByCause); the recipe's
   // own over the art direction's; a kit without blends takes none
   if (m.earth !== undefined && !(typeof m.earth === 'number' && m.earth >= 0 && m.earth <= 1)) throw new Error('stage: earth is a number from 0 (a laid floor) to 1 (mostly packed dirt)');
@@ -558,7 +573,7 @@ export function planStage(m = {}) {
   })() : nightRef;
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)

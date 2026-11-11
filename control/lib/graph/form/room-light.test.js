@@ -38,4 +38,12 @@ describe('a room\'s light solved from its palette', () => {
     expect(falloff(7, 7)).toBe(0);
     expect(falloff(3, 7)).toBeLessThan(falloff(2, 7));
   });
+
+  it('a room whose median lamp is a small signal light is still solved: the reference is a lamp that reaches it', () => {
+    const lamps = [...Array.from({ length: 5 }, (_, k) => ({ at: [k, 0, 1], color: '#40ff80', intensity: 0.3, radius: 1.5 })), { at: [0, 0, 5], color: '#dde8ff', intensity: 1.15, radius: 9 }, { at: [4, 0, 5], color: '#dde8ff', intensity: 1.15, radius: 9 }];
+    const ref = referenceLamp(lamps);
+    expect(falloff(ROOM_LIGHT.at, ref.radius)).toBeGreaterThan(0);
+    const S = solveRoomLight({ targets: { wall: '#8090a0', floor: '#c0c8d0' }, ambient: [0.2, 0.22, 0.28], lights: lamps });
+    for (const k of S.keys) for (const v of k) expect(Number.isFinite(v)).toBe(true);
+  });
 });

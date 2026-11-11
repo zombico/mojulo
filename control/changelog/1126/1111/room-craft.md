@@ -29,3 +29,10 @@ lab, a hangar and a chapel each answer it (no two alike), and the answer that is
   and built behind it (a back, a floor, a head, two sides), and what it holds stands inside it. `era/carve.js` cuts a
   wall's faces round a convex hole, carrying the wall's texture across the cut; a card's `niches.depth` asks for it.
   The catacomb's slots and the ashlar crypt's niches are cut in; the first crypt's are as they were.
+- The coat is optional: a recipe's `coat: false` lays a kit's bare wall (the same stone, nothing over it) on every
+  storey that wore render; a kit without a coat is unchanged. A wall bare by intent answers the coat's question. A room
+  kit's card lists `coat` and `rhythm` among its options where the kit has them.
+- A tall research lab is lit in the form render. It drew black: the room's light is solved under its median lamp at a
+  reference distance, and in a tall lab the median was a lamp that does not reach that far, so the solve divided by
+  nothing. The reference is now a lamp that reaches it (`form/room-light.js` `referenceLamp`). The lab's troffers also
+  hang no higher than `hang` over the floor, on longer chains, with a reach of at least twice their height.

@@ -60,7 +60,7 @@ export const ROOM_CRAFT = Object.freeze([
     ask: 'What covers the structure here, what has taken it off, and where does that act (low, high, at the hand, under a leak)?',
     from: 'the cover the place would have (render, paint, panel, tile, plate) and the cause at work (rising damp, hands and trolleys, heat, water from above): the cover is lost where the cause is',
     answers: { crypt: 'lime render, ragged low where damp rises and nearly whole above the string course', lab: 'paint and panel, scuffed and chipped at trolley height', hangar: 'paint worn to the plate along the base, a hazard band repainted over it', chapel: 'limewash, sooted over the candles' },
-    not: 'patches placed by dice with no cause; a cover drawn in the same plane as what it covers' },
+    not: 'patches placed by dice with no cause; a cover drawn in the same plane as what it covers. A wall left bare is an answer when it is meant (a recipe\'s `coat: false`, a kit whose structure is its finish)' },
   { id: 'floor', law: 'floor-is-laid',
     why: 'A floor is laid from the walls in and then used: it has an edge, a way people take, a place the room is for, and it records where feet, fire, water and repair have been. One field of tile says none of that.',
     ask: 'Where is this floor\'s edge, where do people walk, what is the room\'s centre of use, and what has happened to each part?',

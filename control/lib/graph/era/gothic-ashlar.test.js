@@ -119,4 +119,12 @@ describe('the crypt in ashlar', () => {
     expect(STAGE_KITS['gothic-stone'].storeys).toBeUndefined();
     expect(STAGE_KITS['gothic-stone'].dress.above).toBeUndefined();
   }, 120_000);
+
+  it('the coat is optional: `coat: false` lays the bare wall on both storeys, and a kit without a coat is as it was', () => {
+    const rooms = [{ id: 'a', x: 0, y: 0, w: 8, d: 12, h: 7 }], wallKeys = (m) => new Set(assembleStageScene(m).faces.filter((f) => f.group === 'stage:wall').map((f) => f.texture));
+    const coated = wallKeys({ kind: 'stage', kit: 'gothic-ashlar', rooms }), bare = wallKeys({ kind: 'stage', kit: 'gothic-ashlar', rooms, coat: false });
+    for (const k of bare) expect(coated.has(k), k).toBe(false);
+    expect(wallKeys({ kind: 'stage', kit: 'gothic-stone', rooms, coat: false })).toEqual(wallKeys({ kind: 'stage', kit: 'gothic-stone', rooms }));
+    expect(() => assembleStageScene({ kind: 'stage', kit: 'gothic-ashlar', rooms, coat: true })).toThrow(/coat is false/);
+  });
 });

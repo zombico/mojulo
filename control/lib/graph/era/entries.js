@@ -19,6 +19,7 @@ import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } 
 import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
 import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
 import { ROOM_CRAFT, readRoomCraft } from './room-craft.js';
+import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { GEOCUBE_PRESETS } from './geocube.js';
 import { HEARTBEAT_PRESETS } from './heartbeat.js';
 import { GROUND_EDITS } from './out-ground.js';
@@ -51,7 +52,8 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // register-ink law; it stands at 5602 with them
 // 5650 -> 5800 (2026-10-25): the two lines merged, the city stalker's city-night beside geocube styles' theatre-grey and
 // limestone-crags; it stands at 5729 with all three
-export const STAGE_CARD_BODY_CEILING = 5800;
+// (6000 since the craft laws joined the laws card: the laws of both eras and of craft, one line each)
+export const STAGE_CARD_BODY_CEILING = 6000;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -126,6 +128,8 @@ function kitOptions(kit) {
   if (S.sway) out.push(`"wind": { … } (its hung cloth and leaves swing)`);
   if (S.fire) out.push(`"fire": true (braziers by the portal light the room)`);
   if (kit.shell === 'plaza' || kit.shell === 'lab') out.push(`"water": true`);
+  if (generatedSpecOf(`${kit.tiles?.wall?.family}-a`)?.cfg.cut === 'render') out.push(`"coat": false (the wall bare: no render over it)`);
+  if (kit.dress?.niches?.rhythm) out.push(`"rhythm": "same" (every bay alike, on purpose)`);
   if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
     `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);
   return out;
@@ -250,9 +254,9 @@ function craftLine(kit) {
 export function roomCraftCard() {
   const settings = Object.keys(ROOM_CRAFT[0].answers);
   const lines = ['# Room craft: what a room is asked', '',
-    'A worked interior is not a list of things to place. Each row is a reason and the question it puts to THIS place; answer from the place\'s use, structure, age and light. The examples show one reason giving different things; never carry one place\'s answer to another. A kit card\'s CRAFT line says which questions the kit answers and which are open.'];
+    'A worked interior is not a list of things to place. Each row is a reason and the question it puts to THIS place; answer from the place\'s use, structure, age and light. Each example is one place\'s answer (a crypt\'s would differ); never carry one place\'s answer to another. A kit card\'s CRAFT line says which questions the kit answers and which are open.'];
   for (const Q of ROOM_CRAFT) lines.push('', `${Q.id.toUpperCase()} (law ${Q.law})`, `  WHY   ${Q.why.split('. ')[0]}.`, `  ASK   ${Q.ask}`, `  FROM  ${Q.from}`,
-    `  E.G.  ${settings.slice(0, 2).map((s) => `${s}: ${Q.answers[s]}`).join(' | ')}`, `  NOT   ${Q.not}`);
+    `  E.G.  ${settings[1]}: ${Q.answers[settings[1]]}`, `  NOT   ${Q.not}`);
   return {
     id: 'room-craft', name: 'Room craft', family: 'world', entry: 'create_sketch', generated: true,
     summary: 'The reasons behind a worked interior, as questions a room is asked: its fixtures, supports, bays, storeys, coat, floor, air and light above.',
