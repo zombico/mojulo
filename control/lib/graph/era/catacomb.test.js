@@ -1,3 +1,4 @@
+import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene, planStage, buildStageGeometry, STAGE_KITS } from './stage.js';
 import { cryptTomb, accentWall, ossuaryRows, cryptNiches } from './crypt.js';
@@ -19,7 +20,10 @@ describe('the catacomb: galleries cut in rock, dressed by the crypt\'s dressing 
 
   it('principle 3 — carved, not built: wall, vault and piers are rock tiles, none of them coursed, the vault its own', () => {
     const fam = (g) => new Set(scene.faces.filter((f) => f.group === `stage:${g}` && !f.blend && f.texture).map((f) => f.texture.replace(/-[a-d]$/, '')));
-    for (const g of ['wall', 'ceiling']) for (const k of fam(g)) expect(k).toMatch(/^gen:rock-/);
+    for (const k of fam('ceiling')) expect(k).toMatch(/^gen:rock-/);
+    // (the wall within reach wears plaster over the picked rock, one face and no courses; over the ledge it is the bare rock)
+    for (const k of fam('wall')) { const S = generatedSpecOf(`${k}-a`);
+      expect(S.gen === 'rock' || (S.gen === 'dressed' && S.cfg.cut === 'render' && S.cfg.rows === 1 && S.cfg.cols === 1), k).toBe(true); }
     expect([...fam('ceiling')].some((k) => fam('wall').has(k))).toBe(false);
   });
 
