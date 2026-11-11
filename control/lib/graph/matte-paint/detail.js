@@ -77,6 +77,8 @@ registerTextureResolver('detail:', (key) => {
 });
 
 const lift = (hex) => hexOf(rgbOf(hex).map((v) => srgb(Math.min(1, lin(v) / DETAIL_MEAN))));
+/** A lifted colour's paint again (the form render reads a dressed face's base from it: form/sun-light.js). */
+export const unlift = (hex) => hexOf(rgbOf(hex).map((v) => srgb(Math.min(1, lin(v) * DETAIL_MEAN))));
 // a face's unit normal: its own, else by Newell's sum
 function normalOf(f) {
   if (Array.isArray(f.normal) && f.normal.length === 3) return f.normal;

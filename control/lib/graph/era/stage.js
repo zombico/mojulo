@@ -61,7 +61,7 @@ import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readFormLight, twinMeanValue } from '../form/room-form.js';
 import { GLASS_GROUPS } from './bay-glass.js';
 import { STAIR_PROFILE_IDS } from '../construction/circulation.js';
-import { solveRoomLight, referenceLamp, paintAtReference, paintMean, linHex, falloff, ROOM_LIGHT } from '../form/room-light.js';
+import { solveRoomLight, solveDayLight, referenceLamp, paintAtReference, paintMean, linHex, falloff, ROOM_LIGHT } from '../form/room-light.js';
 import { decodeSrgb, encodeSrgb } from '../color-theorist/light.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
@@ -903,8 +903,13 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
  *  linear): the ambient, every lamp by the solved key, its falloff and its cosine where it can see the corner (its shadow
  *  test), and its bounce in its own room. The page multiplies the two and adds only what the nearest lamps do to the
  *  relief (scene/channels/form.js). `lights` carry their shadow tests (makePointShadow) or none (a pool casts nothing);
- *  `tone` a toned room's (its light neutral, its contrast its ramp's); `roomOf(p)` names the room a point stands in. → { faces, light: the solve } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null } = {}) {
+ *  `tone` a toned room's (its light neutral, its contrast its ramp's); `roomOf(p)` names the room a point stands in.
+ *  UNDER A SUN OR A MOON (`sun`, the paint bake's own: dir, rgb, gain, bounce, bounceGain, shadow, share?) the reference
+ *  is the sun: a surface square to it, unshadowed, shows its paint (solveDayLight), and a corner's light is the ambient,
+ *  the sun by its cosine where its shadow test reaches the corner, what the ground throws back onto a face turned down,
+ *  and the lamps in the sun's share; with `sun.share` each corner carries the share of its light the sun gives.
+ *  → { faces, light: the solve (under a sun, `sun`: { key, dir, ground: the light a face turned down takes with no sun }) } */
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -925,7 +930,7 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   const centroid = (f) => [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length);
   const shares = raw.map((f) => (!f.tint ? null : f.corners.length !== 4 ? [sharesAt(f, centroid(f))] : f.corners.map((c) => sharesAt(f, c))));
   const median = (xs) => { const v = xs.sort((x, y) => x - y); return v.length ? v[Math.floor(v.length / 2)] : 0; };
-  const lit6 = paintAtReference(ambient6, referenceLamp(lights));
+  const lit6 = sun ? ambient6.map((v, k) => shoulder(v + sun.rgb[k] * sun.gain)) : paintAtReference(ambient6, referenceLamp(lights));
   const L6 = 0.2126 * lit6[0] + 0.7152 * lit6[1] + 0.0722 * lit6[2];
   // the target each surface's paint shows at the reference (a role: its tile, its tint, and a toned room's ramp: its grey
   // over the room's middle grey lands on the key, as the toned page's gain brings it there). A toned room's colour is its
@@ -955,27 +960,36 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   };
   for (const f of raw) if (f.tint) roleOf(f);
   const ramp0 = tone ? ramps[tone.default] : null;
-  const S = solveRoomLight({ targets, ambient: ambient6, lights, ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  const S = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   // (a tuner's scale on each lamp's key, solved on these very shares: the scene composer's plot, compose-plot.js keyTuner)
   const scale = tune ? tune({ raw, shares, keys: S.keys, ambient: S.ambient, lights }) : null;
   const keys = scale ? S.keys.map((K, i) => K.map((v) => r4(v * scale[i]))) : S.keys;
   // the light the room lays at a corner (linear, base-multiplier units); a lamp a beat changes (compose-plot.js BEATS) is
   // solved with the rest but laid by the page, live, not here
-  const light = (sh) => {
+  // (under a sun: its cosine where its shadow test reaches the corner, and the ground's bounce on a face turned down)
+  const sunAt = (f, c) => { const lam = Math.max(0, dot(f.normal, sun.dir)); return [lam > 0 ? lam * sun.shadow(c, f.normal) : 0, Math.max(0, 0.5 - 0.5 * f.normal[2])]; };
+  const suns = sun ? raw.map((f) => (!f.tint ? null : f.corners.length !== 4 ? [sunAt(f, centroid(f))] : f.corners.map((c) => sunAt(f, c)))) : null;
+  const lightAt = (sh, sw) => {
     const e = [...S.ambient];
     for (let j = 0; j < sh.length; j += 2) { if (lights[sh[j]].beat) continue; const K = keys[sh[j]]; for (let k = 0; k < 3; k++) e[k] += K[k] * sh[j + 1]; }
-    return e.map(r4);
+    if (sw) for (let k = 0; k < 3; k++) e[k] += S.sun[k] * sw[0] + S.bounce[k] * sw[1];
+    return e;
   };
+  const light = (sh, sw = null) => lightAt(sh, sw).map(r4);
+  const yOf = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const shareOf = (sh, sw) => { const y = yOf(lightAt(sh, sw)); return y > 1e-9 ? Math.round(Math.min(1, (yOf(S.sun) * sw[0]) / y) * 1000) / 1000 : 0; };
   const colour = (base, f, c) => { const g = dirt(f, c); return base.map((v, k) => encodeSrgb(Math.min(1, v * g[k]))); };
   const faces = raw.map((f, i) => {
     if (!f.tint) return f;
     const { tint, top, ...rest } = f, base = S.bases[roleOf(f)];
-    if (f.corners.length !== 4) return { ...rest, fill: rgbHex(colour(base, f, centroid(f))), cornerLight: light(shares[i][0]) };
+    const sw = suns ? suns[i] : null, shared = sun && sun.share;
+    if (f.corners.length !== 4) return { ...rest, fill: rgbHex(colour(base, f, centroid(f))), cornerLight: light(shares[i][0], sw ? sw[0] : null), ...(shared ? { sunShare: shareOf(shares[i][0], sw[0]) } : {}) };
     const cols = f.corners.map((c) => colour(base, f, c)), mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / 4);
-    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map(light) };
+    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map((sh, j) => light(sh, sw ? sw[j] : null)), ...(shared ? { sunShare: shares[i].map((sh, j) => shareOf(sh, sw[j])) } : {}) };
   });
-  return { faces, light: scale ? { ...S, keys } : S };
+  const L = scale ? { ...S, keys } : S;
+  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L };
 }
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
@@ -1165,8 +1179,10 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // THE FORM RENDER INDOORS (a read in an era whose surface is form, gen-7: form/room-light.js): a room under no sun is
   // baked as a lightmap is, its colour and its light apart: every placed light, brazier and pool at the level its palette
   // asks for, each lamp's shadow tested whatever the recipe's `shadows.torch` (the page casts none: scene/channels/form.js),
-  // its bounce in its own room. A toned room's palette is its ramps' (tone.js). A sunlit or night stage is drawn as paint
-  const form = !!ctx.formLit && (!ctx.unshaded || ctx.handoff === true) && !daylight && !plan.night;
+  // its bounce in its own room. A toned room's palette is its ramps' (tone.js). A stage under a sun or a moon is baked
+  // the same way with the sun beside its lamps, its shadow the paint bake's own test (an engine's handoff of one is
+  // paint, as it was)
+  const form = !!ctx.formLit && (ctx.unshaded ? ctx.handoff === true && !daylight : true);
   const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
   const formTest = (ls) => {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
@@ -1174,7 +1190,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   };
   const tuner = form && plan.compose ? keyTuner(plan) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun ? { sun } : {}) }) : null;
   // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
   const lit = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
@@ -1242,7 +1258,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: readFormLight(formLamps, formLit.light.keys), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
+    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,

@@ -54,3 +54,43 @@
   register, a fight's levels being a stage or a greybox, neither painted by a cube) and the kit beside the fight's
   modules. Seen in Chrome on the training greybox in both registers and on the ring: bodies lit and shadowed, the
   coat and the ink as before, no page error.
+- **The brawl yard's bodies are drawn under the cast rig** (a brawl under a register: the brawler, the run & gun, their
+  practice yard and range; a yard with no register is as it was). The yard's rig (`brawl-yard.client.js` `yardRig`)
+  keeps its one key (the greybox's own sun where the yard carries it), its shadows and its catcher over the street;
+  its fill, rim and sky lights are gone from the scene and are in the material every body, limb, prop and gun is drawn
+  with, laid on by the cast kit. The page carries the rig as the yard's `cast` (the same card a fight takes) and the
+  kit beside the brawl's modules.
+- **The hero a player pilots is lit by the land's sun on a form page.** On a level whose land is drawn as form (a
+  glyph map a geocube paints, read in gen-7), the body a player pilots is read as the lit export reads it (its colour
+  under no light; each corner's normal where its form writes one) and carries the cast rig solved from the land's own
+  cube at its hour (`figures.<name>.cast`, `worlds/world-scene.js`): the land's one sun is its key, the sky over the
+  floor's bounce and the horizon's rim its own. The page draws it with the cast material by whichever builder draws
+  it, the merged one or the per-bone one, its normals the read's or its mesh's own
+  (`scene/channels/controllable/`), toned with the land, taking the land's shadows, and with no baked rim over it. Its
+  rig, its clips and its playback are as they were. Every other figure (a walker, a foe, a crowd), every page without
+  a form land, and every gen-6 page are as they were: a bank with no such figure carries none of the kit. Its register
+  is the level's `fxStyle.register` where that is `anime` or `western`, else `western`. Seen in Chrome on a small
+  valley-morning map with the Saikyo body, beside its gen-6 read.
+- **A vehicle's form body takes its sky from the rig, and no longer lights the land.** A body in the form render (a
+  supercar, a racer, a craft: `scene/channels/controllable/`) added a sky light of three's to the scene, which on a
+  page whose land is drawn as form lit the land as well, brighter than its solve. Its sky over its ground is now in
+  the body's own shader, laid on by the cast kit from the body's own setting, and no sky light joins any page. On a
+  form page it asks for no light and no curve of its own (the land's sun lights it, the renderer tones it with the
+  land); over a painted world its key and its own curve are as they were. Seen in Chrome: a supercar on a painted
+  gen-7 lot, its frame as before; on a valley-morning map, the land back at its own light.
+- **One tone rule an era.** On a form page the renderer's curve tones every lit body with the land; on a painted page
+  (the renderer tones nothing) a lit body tones itself.
+- **The records.** The seventh generation's cast conventions `albedo-unlit` and `material-by-response` read partial,
+  each saying what is built and what is not (`era/eras.js`), and the cosmos reads them (`reality.cast=gen-7`). A page
+  read in gen-7 no longer lists its figures as approximated where every one is under the cast rig or a form body, and
+  names the ones that are where the rest are paint (`era/era-marks.js` `eraReading`).
+  [docs/hero-form-light.md](../docs/hero-form-light.md) says what draws a hero now and what is not built.
+- **The WebGPU spike is retired** (`scripts/spikes/webgpu/`, removed): mojulo's pages are WebGL, and the cast and form
+  materials are laid on three's own shaders.
+- **The rig's core is its own module** (`color-theorist/cast-rig-core.js`: the laws, the card and the rig's making,
+  with the solve passed in; it reads none of the era's modules). `castRig` is that under the cube's light solve, and a
+  fight's card (`versus/versus-cast.js` `fightCast`) reads the core alone. The fight's and the brawl's channels, inside
+  the page's emitter, read the rig's card through the cube's solver at first, which put the era's cubes in the
+  emitter's import graph and stopped the CLI, the stdio server and the plugin profile from loading their tools; the
+  candidate's own fix took the card out of the fight's channel, and with the core split both channels take the card
+  again for an arena or a yard handed to them without one, importing nothing of the era's.

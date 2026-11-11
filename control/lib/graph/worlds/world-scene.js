@@ -179,7 +179,7 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -216,7 +216,10 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
     // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}) });
+    // (`lit`: a body the cast rig lights, color-theorist/cast-rig.js: its colour under no light and each corner's normal, as
+    // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
+    // holds are the same read's. Absent: the body as it always was, its light baked)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -699,10 +702,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // THE FORM RENDER INDOORS (form/room-form.js): a room baked for the form render has its tiles read as material, each
     // key's colour under no light in place of its paint, its normal, occlusion, height and mean beside it
     if (payload.form && payload.form.room && Array.isArray(payload.form.room.lights)) {
-      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && f.group.startsWith('stage:') && f.group !== 'stage:fixture').map((f) => f.texture);
+      // (under a sun, a plaza's dress beside its stage: every face that carries its baked light)
+      const sunlit = !!payload.form.room.sun;
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && typeof f.group === 'string' && ((f.group.startsWith('stage:') && f.group !== 'stage:fixture') || (sunlit && f.cornerLight !== undefined))).map((f) => f.texture);
       const R = payload.form.room, F = formRoomMaps(keys, R.detail !== undefined ? { detail: R.detail } : {});
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, room: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
+    }
+    // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
+    if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
+      const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
+      // (no budget on a town's maps: the page is the person's, on their own machine, and a second, smaller read of
+      // every tile doubles what the first resolve costs)
+      const R = payload.form.town, F = formRoomMaps(keys, { budget: Infinity });
+      Object.assign(textures, F.textures);
+      payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
@@ -835,6 +849,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // `handoff: true`) reads it unshaded: its land's data is what an engine is handed, its light the engine's own
   // (and a glyph map a geocube paints, level/grid-scene.js: its land and its plants read as the cube's trail's are, its
   // level's cube, hour, clouds and biocube the recipe's words)
+  // (the cube and the hour a form page's land is lit by: the cast rig's, for the hero that walks it, below)
+  let formCast = null;
   const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
   if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
     // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)
@@ -856,6 +872,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (one sun a page: the live light's maps are drawn along the land's solved sun, the one its form and a baked
+    // building are lit by, where the world names none of its own)
+    if (read && payload.shadows && typeof payload.shadows === 'object' && !Array.isArray(payload.shadows.toLight) && Array.isArray(payload.form.land.sun) && payload.form.land.sun[2] > 0.05) payload.shadows = { ...payload.shadows, toLight: payload.form.land.sun };
+    if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)
     if (read && formMap) payload.form.land.haze = MAP_HAZE;
@@ -1194,7 +1214,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
           const takes = takesOf?.[name] ?? null;
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}) });
+          // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on a page whose
+          // land is drawn as form, the body a player pilots is read lit (its colour under no light, its normals) and carries
+          // the rig solved from the land's own cube at its hour, so the page lights it by the land's one sun; its clips and
+          // its playback are as they were. Every other figure (a walker, a foe, a crowd), and every page without a form
+          // land, as it was: nothing added
+          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+          if (castFig) {
+            const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
+            const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
+            figure.cast = { ...castRigInput(castRig(formCast.cube, { ...(formCast.hour !== undefined ? { hour: formCast.hour } : {}), register: reg })), surface: 'form' };
+          }
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1218,9 +1249,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
-            if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
+            if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = figure.cast ? { ...pose, cast: figure.cast } : pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
           // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
           const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
@@ -1896,6 +1927,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const practice = await withCharacters(sketch.manifest.brawl.practice);
     const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
     payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    // (under a register its bodies are drawn under the cast rig, as a fight's are: versus/versus-cast.js)
+    if (payload.brawl.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.brawl.cast = fightCast(payload.brawl.register); }
     const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
     const fa = fightAudio({ register: sketch.manifest.brawl.register ?? 'western' });
     if (fa) {

@@ -275,7 +275,7 @@ const SCREEN_ZONES_CSS = [
 export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
-  const litPack = !!(form && form.room && Array.isArray(form.room.lights));
+  const litPack = !!(form && ((form.room && Array.isArray(form.room.lights)) || (form.town && Array.isArray(form.town.lights))));
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -446,6 +446,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // textured template faces (a grown plant's bark or trunk): one { key, pos, uv, col, lit } per texture, drawn by
       // the textured-instances block below with the same transforms; the key is absent without them
       ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
+      // (a template baked for the form render, form/sun-light.js: its corners' light and the sun's share of it ride
+      // the one geometry its instances share; the keys absent without them)
+      ...(litPack && gm.lits ? { lt: b64(gm.lits), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}) } : {}),
       ...(creasesCfg && creaseOf(r.template) ? { crease: creaseOf(r.template) } : {}),
       // drawn only NEAR the camera (`near` world units): a street's kit and its paint, a far block needing none
       ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
@@ -455,6 +458,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       ...(typeof r.pool === 'string' ? { pool: r.pool } : {}),
     };
   });
+  const hasRepLit = packedRepeats.some((r) => r.lt);
   // widen the camera-framing bound so a mostly-instanced world still frames fully
   for (const r of packedRepeats) {
     for (const t of r.t) {
@@ -731,7 +735,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // dust in a stage's air (channels/motes.js); absent ⇒ no bytes
   const motesBlock = motes && motes.count > 0 ? motesScript(motes) : '';
   // the form render indoors (channels/form.js): a room's surfaces as material over its baked light; none → not one byte
-  const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : null;
+  // (a room under no sun, or a town's buildings under the day's: channels/form.js draws either)
+  const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : form && form.town && Array.isArray(form.town.lights) ? form.town : null;
   const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, pom: { ...FORM_PAGE.pom, ...(formRoom.pom || {}) }, relief: { ...FORM_PAGE.relief, ...(formRoom.relief || {}) }, maps: formRoom.maps || {} }) : '';
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
   const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) ? { cast: true } : {}) : '';
@@ -1075,7 +1080,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // THE PIXEL BUDGET: a page played live (the controllable channel: its pilot is the page's own pick), never a capture
   // (its frame is its size), a headset's (its own) or the pixel look's (its own density). Every other page keeps its bytes
   const pixelBudget = !!(hasControllable && !capture && !xrCfg && !pixel);
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {}), ...(knock ? { knock } : carriesKnock(entityList, events, game) ? { knock: { attacks: true } } : {})  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun, ...(form && form.land ? { formLand: true } : {}) } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {}), ...(knock ? { knock } : carriesKnock(entityList, events, game) ? { knock: { attacks: true } } : {})  }) : '';
   // the headset: on a page with a controllable channel it drives the pilot (channels/xr.js `ctrl`), else it walks
   // (and on a pilot whose figure carries its hands, hero-xr-hands.js, the hands on the controllers)
   // (a page with a mana-ui surface, a party's battles: its screens on a panel in the headset, the controllers its own)
@@ -1378,7 +1383,9 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
 ` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));${hasRepLit ? `
+  if (r.lt) geo.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(r.lt), 3));   // (a template baked for the form render)
+  if (r.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(r.sun), 1));` : ''}
   geo.computeBoundingSphere();
   ${hasPool ? 'if (r.pool) { __POOLS[r.pool] = geo; if (!r.t.length) continue; }\n  ' : ''}${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();

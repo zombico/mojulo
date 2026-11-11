@@ -42,6 +42,9 @@ export const GRASS_TIERS = Object.freeze([
 /** THE FIELD: the grass and the drifts placed once over the whole map, the same at every distance, as the gen-6 cards
  *  stood. Each section's clump on a grid `spread` × its spacing; the drifts their grown forms on their grids. Drawn in
  *  tiles of `tile` m, so what is out of view is culled. */
+/** A grass patch's edge: how far the place its cover is read at wanders (m), over a field of `cell` m; the cover is read
+ *  between the ground map's cells there, so the edge is ragged and thins out, never the map's squares. */
+export const GRASS_EDGE = Object.freeze({ wander: 0.45, cell: 1.3 });
 export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medium: 1, short: 1 }), tile: 24 });
 /** The field as the eye sees it, by the CAMERA'S MODE: AERIAL (a cutscene's camera) the whole field; POV (gameplay, the
  *  walker's eye, the default) real grass only out to the VIEW CONE's reach (channels/view-cone.js `window.__mojCone`: the
@@ -155,11 +158,17 @@ export function formGrassScript() {
       let view = 'pov';
       window.__formGrassView = (v) => { view = v === 'aerial' ? 'aerial' : 'pov'; return view; };
       window.addEventListener('keydown', (e) => { if (e.key === 'v' || e.key === 'V') console.log('grass view', window.__formGrassView(view === 'pov' ? 'aerial' : 'pov')); });
+      // (the cover where a plant stands: read between the map's cells, not from the nearest one, at a place that wanders
+      // (GRASS_EDGE), so a patch of grass thins out along a ragged edge and never ends on the map's squares)
+      const GE = ${JSON.stringify(GRASS_EDGE)}, cT = (i, j) => gpx[cAt(i, j) + 2] / 255;
+      const covAt = (x, y) => { const wx = x + (vn(x / GE.cell + 11.3, y / GE.cell) - 0.5) * 2 * GE.wander, wy = y + (vn(x / GE.cell, y / GE.cell + 23.7) - 0.5) * 2 * GE.wander;
+        const u = (wx - x0) / Gm.cell, v = (wy - y0) / Gm.cell, i = Math.floor(u), j = Math.floor(v), f = u - i, g = v - j;
+        return (cT(i, j) * (1 - f) + cT(i + 1, j) * f) * (1 - g) + (cT(i, j + 1) * (1 - f) + cT(i + 1, j + 1) * f) * g; };
       // (every cell of a grid sp apart over the map: its point, a little off its place by its dice, and the map there)
       const each = (sp, salt, fn) => { for (let j = Math.floor(y0 / sp); j * sp <= Y1; j++) for (let i = Math.floor(x0 / sp); i * sp <= X1; i++) {
         const x = (i + hb(i * 1.7 + salt, j * 2.3)) * sp, y = (j + hb(j * 3.1, i * 0.7 + salt)) * sp; if (x < x0 || y < y0 || x > X1 || y > Y1) continue;
         const q = cAt(Math.round((x - x0) / Gm.cell), Math.round((y - y0) / Gm.cell));
-        fn(x, y, { cov: gpx[q + 2] / 255, sw: gpx[q + 3] / 255, dr: dpx ? [dpx[q], dpx[q + 1], dpx[q + 2], dpx[q + 3]].map((v) => v / 255) : [0, 0, 0, 0] }, (a, b) => hb(i * a + salt, j * b)); } };
+        fn(x, y, { cov: covAt(x, y), sw: gpx[q + 3] / 255, dr: dpx ? [dpx[q], dpx[q + 1], dpx[q + 2], dpx[q + 3]].map((v) => v / 255) : [0, 0, 0, 0] }, (a, b) => hb(i * a + salt, j * b)); } };
       // (a stand: a shape instanced at its rows, each row its root and height, its turn and its tone; in tiles of SF.tile m,
       // each its own mesh round its rows, so what is behind the eye is not drawn: the same field, only culled)
       const stand = (tg, R, mat, kind = 'grass') => {

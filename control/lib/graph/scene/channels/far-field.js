@@ -19,6 +19,9 @@ export const FAR_FIELD = Object.freeze({
   blend: 0.9,
   tone: Object.freeze([0.85, 1.15]),
   speck: Object.freeze({ px: 1, flowers: 0.3, weeds: 0.12, light: 0.1, dark: 0.1, lift: 1.3, shade: 0.7 }),
+  // (a patch's edge: the place its cell is read at sways by `sway` cells and scatters by `dither` cells in a grain of
+  // `grain` of a cell, so the blanket never ends on the map's squares)
+  edge: Object.freeze({ sway: 0.35, dither: 0.8, grain: 0.25 }),
 });
 
 const C = FAR_FIELD, S = C.speck;
@@ -35,7 +38,11 @@ vec4 farBlanket( vec3 P, vec3 nW ) {
   if ( uFarOn < 0.5 || nW.z < 0.5 ) return vec4( 0.0 );
   float d = length( P.xy - cameraPosition.xy ), k = smoothstep( uFarR * ${C.blend.toFixed(2)}, uFarR, d );
   if ( k <= 0.0 ) return vec4( 0.0 );
-  ivec2 c = ivec2( floor( ( P.xy - uFGo ) / uFGc ) );
+  // (the cell a point reads is found at a place that wanders, in a slow sway and a fine grain (C.edge), so a patch ends
+  // on a ragged, thinning edge and never on the map's squares; inside a patch every neighbour says the same)
+  vec2 fq = floor( P.xy / ( uFGc * ${C.edge.grain.toFixed(2)} ) );
+  vec2 fw = vec2( sin( P.y * 1.7 + P.x * 0.6 ), sin( P.x * 1.9 - P.y * 0.5 ) ) * ${C.edge.sway.toFixed(2)} + ( vec2( farHash( fq ), farHash( fq + 13.1 ) ) - 0.5 ) * ${C.edge.dither.toFixed(2)};
+  ivec2 c = ivec2( floor( ( P.xy + fw * uFGc - uFGo ) / uFGc ) );
   if ( c.x < 0 || c.y < 0 || c.x >= uFGn.x || c.y >= uFGn.y ) return vec4( 0.0 );
   vec4 t = texelFetch( tFarG, c, 0 );
   if ( t.r <= 0.0 ) return vec4( 0.0 );

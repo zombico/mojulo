@@ -2,7 +2,8 @@
  * THE FORM RENDER INDOORS (gen-7, era/eras.js): a room's surfaces read as material, its light solved from its palette and
  * baked apart from its colour (form/room-light.js), where gen-6 paints the light into each tile and into the corners.
  *
- *   formMaterialOf(key) → { base, normal, orm, read } | null   one tile key's maps as PNG data URLs (glTF's metal-rough
+ *   formMaterialOf(key) → { base?, normal, orm, read } | null   (no `base` for a detail tile: the page's own stays)
+ *   — in full:   one tile key's maps as PNG data URLs (glTF's metal-rough
  *                         set, form/relief-material.js): its colour under no light, its tangent-space normal, occlusion +
  *                         roughness + the relief's height packed (PARALLAX: the page marches it near the eye), its
  *                         `depth` (that height's range, a repeat being 1) and its `mean` colour (linear: the page divides
@@ -10,6 +11,8 @@
  *                         how the form was found:
  *                           'relief'     a dressed family (matte-paint/dressed.js): painted from its relief, so the
  *                                        material is the relief itself (every joint, flute and chip its own slope)
+ *                                        ; a detail tile's too (matte-paint/detail.js: a town's wall or roof
+ *                                        dressed by a word), by the dressed cut it was painted from
  *                           'luminance'  any other tile: its painted light read back as height (dark is low), the way the
  *                                        seventh generation's own tools pulled a normal map from a photograph; its colour
  *                                        keeps the light it was painted with, so this is an approximation and says so
@@ -29,6 +32,7 @@ import { reliefMaterial } from './relief-material.js';
 import { surfaceTexture, generatedSpecOf, encodePng, SURFACE_TILING } from '../landscape/surface-textures.js';
 import { decodePng } from '../era/tone.js';
 import { paintMean } from './room-light.js';
+import { detailSpec, DETAIL_MEAN } from '../matte-paint/detail.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const png = (rgb, W, H) => `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
@@ -39,6 +43,8 @@ export const FORM_ROUGH = Object.freeze({ boards: 0.72, brick: 0.82, precast: 0.
   plate: 0.5, tread: 0.42, block: 0.92, panel: 0.55, epoxy: 0.3, grating: 0.55, corrugated: 0.5, sheetpile: 0.6, decking: 0.75, membrane: 0.6,
   perforated: 0.5, terrazzo: 0.22, glazed: 0.18, studded: 0.75, seam: 0.45, acoustic: 0.95,
   matte: 0.9, carbon: 0.15, drywall: 0.85, carpet: 0.98, vinyl: 0.4, laminate: 0.45, porcelain: 0.35, veneer: 0.4 });
+/** A detail tile's size (matte-paint/detail.js paints it at 512). */
+const DETAIL_SIZE = 512;
 /** A painted tile read back as relief: metres of height a unit of luminance stands for, over a nominal metre a repeat. */
 export const LUMINANCE_RELIEF = 0.006;
 
@@ -66,6 +72,20 @@ export function formMaterialOf(key, { detail = 1, reliefSize = null } = {}) {
     if (reliefSize && reliefSize < spec.size) {
       const small = relief(dressedMaterial(spec.cfg, { size: reliefSize, seed: spec.seed, rough: FORM_ROUGH[spec.cfg.cut] ?? 0.85 }), spec.cfg.metres ?? 2);
       out = { ...out, normal: small.normal, orm: small.orm, reliefSize };
+    }
+  } else if (detailSpec(key) && detailSpec(key).cfg.gen !== 'stone-brick') {
+    // a DETAIL tile (matte-paint/detail.js: a town's wall or roof dressed by a word, era/town-dress.js; a land's rock):
+    // the dressed cut it was painted from, so its material is that relief, as a room's dressed tile's is (a bonded
+    // brick floor's is no dressed cut: read from its paint, below)
+    const S = detailSpec(key), size = reliefSize && reliefSize < DETAIL_SIZE ? reliefSize : DETAIL_SIZE;
+    const M = dressedMaterial(S.cfg, { size: DETAIL_SIZE, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 });
+    // (its colour is the tile the page already draws, set to the detail's mean: the face's own colour carries the hue,
+    // matte-paint/detail.js, and the page's resampler reads the tile round that mean. So no `base` is given: the page's
+    // texture stays, and the tile is not painted a second time)
+    out = { ...relief(M, S.cfg.metres ?? 2, { base: false }), mean: [DETAIL_MEAN, DETAIL_MEAN, DETAIL_MEAN], read: 'relief' };
+    if (size < DETAIL_SIZE) {
+      const small = relief(dressedMaterial(S.cfg, { size, seed: S.seed, rough: FORM_ROUGH[S.cfg.cut] ?? 0.85 }), S.cfg.metres ?? 2, { base: false });
+      out = { ...out, normal: small.normal, orm: small.orm, reliefSize: size };
     }
   } else {
     const d = decodePng(surfaceTexture(key));
@@ -126,13 +146,14 @@ function greyOf({ px, W, H }, detail) {
  *  is 1), the real relief's, held between PARALLAX.least and PARALLAX.most metres so a mortar joint reads and a pitched
  *  face does not swim. */
 export const PARALLAX = Object.freeze({ least: 0.012, most: 0.05 });
-function relief({ W, H, baseColor, normal, orm, height }, metres) {
+function relief({ W, H, baseColor, normal, orm, height }, metres, { base = true } = {}) {
   let lo = Infinity, hi = -Infinity;
   for (const h of height) { if (h < lo) lo = h; if (h > hi) hi = h; }
   const span = Math.max(1e-6, hi - lo), packed = Buffer.from(orm);
   for (let k = 0; k < W * H; k++) packed[k * 3 + 2] = Math.round(((height[k] - lo) / span) * 255);
   const depth = Math.min(PARALLAX.most, Math.max(PARALLAX.least, span));
-  return { base: png(baseColor, W, H), normal: png(normal, W, H), orm: png(packed, W, H), depth: Math.round((depth / metres) * 1e5) / 1e5, mean: meanLinear(baseColor) };
+  // (`base: false`: a caller that brings its own colour, a detail tile's: none painted here)
+  return { ...(base ? { base: png(baseColor, W, H) } : {}), normal: png(normal, W, H), orm: png(packed, W, H), depth: Math.round((depth / metres) * 1e5) / 1e5, ...(base ? { mean: meanLinear(baseColor) } : {}) };
 }
 // a colour's mean as the page reads it (sRGB bytes decoded to linear): what the solve's base stands for (form/room-light.js)
 function meanLinear(rgb) {
@@ -157,8 +178,10 @@ export function formRoomMaps(keys, { detail = 1, budget = ROOM_MAPS.budget } = {
       const m = formMaterialOf(key, { detail: /^(value|shade):/.test(key) ? detail : 1, reliefSize });
       // (a tile no material is read from keeps its paint, its mean what the page divides it by: form/room-light.js)
       if (!m) { maps[key] = { read: 'paint', mean: paintMean(key) }; continue; }
-      textures[key] = m.base; maps[key] = { normal: m.normal, orm: m.orm, read: m.read, depth: m.depth, mean: m.mean };
-      bytes += m.base.length + (m.normal?.length ?? 0) + (m.orm?.length ?? 0);
+      // (a material that brings no colour of its own, a detail tile's: the page's texture stays)
+      if (m.base) textures[key] = m.base;
+      maps[key] = { normal: m.normal, orm: m.orm, read: m.read, depth: m.depth, mean: m.mean };
+      bytes += (m.base?.length ?? 0) + (m.normal?.length ?? 0) + (m.orm?.length ?? 0);
     }
     return { textures, maps, bytes };
   };

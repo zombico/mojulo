@@ -13,13 +13,19 @@
 import { safeJson } from '../emit-util.js';
 import { brawlPageSource } from '../../brawl/brawl-page.js';
 import { manaUiSource } from '../../../mana-ui/kernel.js';
+import { castKitSource } from './cast-rig.js';
+import { fightCast } from '../../versus/versus-cast.js';
 
-export function brawlChannelScript(cfg) {
+export function brawlChannelScript(cfg0) {
+  // (under a register the yard's bodies are drawn under the cast rig, versus/versus-cast.js: the yard's `cast`, the card
+  // where its data was built without one, and the kit that lays it on them; a yard with no register carries neither)
+  const cfg = cfg0.register && !cfg0.cast ? { ...cfg0, cast: fightCast(cfg0.register) } : cfg0;
   return `
 // ── brawl: the yard on this world ──
 {
 const BRAWL_YARD = ${safeJson(cfg)};
-const manaUi = ${manaUiSource()};
+const manaUi = ${manaUiSource()};${cfg.register && cfg.cast ? `
+const castKit = ${castKitSource()};` : ''}
 ${brawlPageSource()}
 stepBrawlPage = stepBrawlYard;
 }`;
