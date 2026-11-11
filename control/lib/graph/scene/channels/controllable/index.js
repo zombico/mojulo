@@ -2655,7 +2655,12 @@ if (__MOUSELOOK) {
   // default: hold-to-look drag (walk / glide / orbit worlds keep the cursor visible).
   __canvas.addEventListener('pointerdown', () => { __drag = true; });
   window.addEventListener('pointerup', () => { __drag = false; });
-  __canvas.addEventListener('pointermove', (e) => { if (__drag) { __lookDX += e.movementX || 0; __lookDY += e.movementY || 0; } });
+  __canvas.addEventListener('pointermove', (e) => { if (__drag) { __lookDX += e.movementX || 0; __lookDY += e.movementY || 0; } });${moveset ? `
+  // A MOVESET's beats on a camera that does not capture the mouse: a press strikes at once (no capture to wait for), the
+  // light on fire, heavy the right click, special the forward button; a drag still looks
+  __canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  __canvas.addEventListener('mousedown', (e) => { if (__mb('fire', e)) __fireDown = true; if (__mb('heavy', e)) __heavyDown = true; if (__mb('special', e)) { e.preventDefault(); __specialDown = true; } if (__mb('cycleWeapon', e)) { e.preventDefault(); __cycleDown = true; } });
+  window.addEventListener('mouseup', (e) => { if (__mb('fire', e)) __fireDown = false; if (__mb('heavy', e)) __heavyDown = false; if (__mb('special', e)) { e.preventDefault(); __specialDown = false; } if (__mb('cycleWeapon', e)) __cycleDown = false; if (e.button === 3 || e.button === 4) e.preventDefault(); });` : ''}
 }
 ${lock ? `// TARGET LOCK (lock.js): middle mouse is the lock press beside C and pad R3 — a held flag the
 // input read turns into an edge. preventDefault keeps the browser's autoscroll off the canvas.
@@ -3552,7 +3557,7 @@ function __foeTopOf(e) {
 // the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
 // pulsing, on each bone mesh of the body it is drawn as now, or on its one skinned mesh (a merged figure: its
 // boneMeshes are bones), bound to its skeleton; moved off when the target changes or its body does
-const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+const __tgtRimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   vertexShader: '#include <common>\\n#include <skinning_pars_vertex>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() {\\n#include <beginnormal_vertex>\\n#include <skinbase_vertex>\\n#include <skinnormal_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n vec4 wp = modelMatrix * vec4(transformed + objectNormal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * objectNormal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
   fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
 const __rim = { id: null, g: null, kids: [] };
@@ -3577,14 +3582,14 @@ function __foeRim(id) {
     if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
       if (!m || !m.geometry || !m.geometry.attributes.position) continue;
       __rimNormals(m.geometry);
-      const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __rimMat) : new THREE.Mesh(m.geometry, __rimMat);
+      const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __tgtRimMat) : new THREE.Mesh(m.geometry, __tgtRimMat);
       k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true;
       if (m.isSkinnedMesh) { k.frustumCulled = false; m.parent.add(k); k.bind(m.skeleton, m.bindMatrix); } else m.add(k);
       __rim.kids.push(k);
     }
-    if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
+    if (e && Array.isArray(e.body.targetRim)) __tgtRimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
   }
-  __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
+  __tgtRimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
 }` : ''}` : ''}
 function __updateEnemyHp() {
   if (!__ehp.length) return;

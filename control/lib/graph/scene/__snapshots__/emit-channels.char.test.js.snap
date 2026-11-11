@@ -1,5 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > action-hero emits byte-identically 1`] = `"3056f39fca257360f2d88e218bdf7b2d3a3ceae1a5c5c791b75c5351ec454fdf"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > ao emits byte-identically 1`] = `"252faee93a32afa776465d4009b05f4a9b3d91fc65fbaf2ab750a712cc2d4755"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > ao-repeats emits byte-identically 1`] = `"4041e90c85f6215eb21503c15e23041cf629a423b88682d562e001e6be6d56bc"`;
