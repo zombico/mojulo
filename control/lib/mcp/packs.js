@@ -482,6 +482,18 @@ export const RETIRED_PACKS = [
   },
 ];
 
+// The live pack a folded or retired tool came from. A delegate key is granted packs by id (lib/roles/enforce.js), so a
+// key granted the pack a tool used to be homed in still runs that tool by its old name: a fold moves a name off the
+// list, never out of a key's reach. (pack_research kept its id, so its grant needs no row here.)
+export const CAME_FROM = Object.freeze({
+  list_world_themes: 'pack_world',
+  list_adapters: 'pack_catalysts',
+  custom_catalyst: 'pack_catalysts',
+  bind_stash: 'pack_stash',
+  unbind_stash: 'pack_stash',
+  list_stash_bindings: 'pack_stash',
+});
+
 /** The office wing's packs, which left the surface in 3.1.0. */
 const OFFICE_PACK_IDS = ['pack_runtime', 'pack_connected_services'];
 /** Every tool the office wing took off the surface. */

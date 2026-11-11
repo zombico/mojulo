@@ -188,6 +188,11 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
     await withRoles(async () => {
       const ok = await callTool('get_view_vocab', { themes: true }, privilegedContext({ grants: ['pack_world'] }));
       expect(ok.isError).toBe(false);
+      // a folded name still runs for a key granted the pack it came from, and for no other key
+      const folded = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_world'] }));
+      expect(folded.isError).toBe(false);
+      const elsewhere = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_audio'] }));
+      expect(elsewhere.isError).toBe(true);
 
       const denied = await callTool('list_cooks', {}, privilegedContext({ grants: ['pack_world'] }));
       expect(denied.isError).toBe(true);

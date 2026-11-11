@@ -19,6 +19,7 @@ import {
   RETIRED_PACKS,
   RETIRED_OFFICE_TOOLS,
   RETIRED_TOOLS,
+  CAME_FROM,
   SPINE,
   FOLDED,
   PACK_DESCRIPTION_CEILING,
@@ -135,6 +136,12 @@ describe('pack registry shape', () => {
     expect(RETIRED_OFFICE_TOOLS).not.toContain('create_game_project');
     expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan',
       'start_research', 'synthesize_abstract', 'bind_stash', 'list_stash_bindings']));
+    // a folded name's old pack is a live one, so a key granted it still reaches the name
+    const liveIds = new Set(PACKS.map((p) => p.id));
+    for (const [name, from] of Object.entries(CAME_FROM)) {
+      expect(RETIRED_TOOLS, name).toContain(name);
+      expect(liveIds.has(from), `${name} came from ${from}`).toBe(true);
+    }
     // the sweep outlived the research book: it is homed in a live pack
     expect(RETIRED_TOOLS).not.toContain('run_experiment_sweep');
     const live = new Set(PACKS.flatMap((p) => [p.id, ...p.members]));

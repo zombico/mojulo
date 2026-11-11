@@ -1,4 +1,4 @@
-import { SPINE, FOLDED, isPackId, homePackForTool } from '@/lib/mcp/packs';
+import { SPINE, FOLDED, CAME_FROM, isPackId, homePackForTool } from '@/lib/mcp/packs';
 import { rolesEnabled, isAdminContext } from './keys';
 
 /**
@@ -87,7 +87,8 @@ export function authNotice(name, context, env = process.env) {
   const pack = homePackForTool(name);
   if (pack) {
     const grants = new Set(context?.userGrants || []);
-    if (!grants.has(pack.id)) {
+    // a folded or retired name still runs for a key granted the pack it came from (CAME_FROM, packs.js)
+    if (!grants.has(pack.id) && !grants.has(CAME_FROM[name])) {
       return (
         `This key does not carry the ${pack.id} bay, so '${name}' cannot run here. ` +
         `Granted bays: ${context?.userGrants?.length ? context.userGrants.join(', ') : '(none)'}. ` +

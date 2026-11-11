@@ -42,3 +42,6 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   examples, the update check and the tool-call ledger are listed for every host in both list modes, so their wording is
   paid on every connect. Their descriptions and argument notes are cut to what an agent needs to pick the call; each
   returns what it did. The packs-mode list, the default for most hosts, drops from 31,771 to 29,805 bytes.
+- **A delegate key keeps its reach.** With the roles pack on, a key is granted packs by name. A tool that folds or
+  retires moves to another pack, so a key granted its old pack would have been refused the old name; it now still runs
+  it. Nothing changes for a key that was never granted that pack.
