@@ -15,3 +15,6 @@ A composed building standing on an outdoor map (the hangar, a barracks) is read 
 - A composed building lays its own ground: it levels a place on the land a margin wider than itself (deeper before its
   front), lays an apron of poured concrete there with a kerb at its edge, and the land eases back to its own height
   round it; the land under the apron is cut away and nothing grows through it. First pass: not yet seen rendered.
+- The building asks the land for its site: its level is the land's own mean across its ground (cut on the high side,
+  filled on the low), the bank round it three metres out for each metre cut or filled (5 to 18 m), and the building's
+  record says the level, the cut, the fill and the bank; a cut or a fill past 1.5 m is a finding. Not yet rendered.

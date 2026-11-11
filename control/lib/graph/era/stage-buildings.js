@@ -72,7 +72,9 @@ const YARD = 8;
 // a composed building's own ground: how far its apron reaches past its sides and back and before its front (m), how far
 // under its floor the land is laid level beneath it, how far the land eases back to its own height round it, the slab's
 // thickness at its edge
-const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35 });
+// (`bank`: the bank round it runs this many metres out for each metre cut or filled, at least `fall` and at most
+// `reach`; `steep`: a cut or a fill past this is said as a finding, the site a poor one)
+const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
 const EMBED = { side: 4, back: 6 };
 
@@ -685,9 +687,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
       if (composedOf(b) && !E) {
         const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), y1 = Math.max(...rects.map((R0) => R0[3]));
         const a = F.toWorld([x0 - APRON.side, y0 - APRON.front]), c = F.toWorld([x1 + APRON.side, y1 + APRON.side]), apron = [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5);
-        grades.push({ box: apron, z: r5(floor - APRON.under), fall: APRON.fall });
+        // THE SITE IT ASKS THE LAND FOR: its level is the land's own mean across its ground, so what is cut on the high
+        // side is filled on the low one and it is never jammed into a slope at its door's height; the land eases back
+        // to itself over a bank no steeper than one in APRON.bank, however far that is. What it asked and what it
+        // cost (the cut, the fill, the bank's run) are said on the building
+        const hs = []; for (let x = apron[0]; x <= apron[2] + 1e-6; x += 2) for (let y = apron[1]; y <= apron[3] + 1e-6; y += 2) { const z = ground(x, y); if (z !== null) hs.push(z); }
+        const level = hs.length ? hs.reduce((p, q) => p + q, 0) / hs.length : floor - APRON.under, cut = hs.length ? Math.max(...hs) - level : 0, fill = hs.length ? level - Math.min(...hs) : 0;
+        const fall = r5(Math.min(APRON.reach, Math.max(APRON.fall, APRON.bank * Math.max(cut, fill))));
+        grades.push({ box: apron, z: r5(level), fall });
         reserved.push(apron);
-        placed[i] = { T, facing, floor, apron };
+        placed[i] = { T, facing, floor: r5(level + APRON.under), apron, site: { level: r5(level), cut: r5(cut), fill: r5(fill), bank: fall } };
       }
       // (set into its slope: the land cut and filled round it, era/grade.js, and its place kept for the second pass)
       if (E) {
@@ -927,8 +936,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
       route, goalAt: P3([...toWorld(L2.goal.at), floor + (L2.goal.at[2] ?? 0)]), ...(PI.storeys ? { storeys: PI.storeys.length } : {}), ...(b.goal ? { isGoal: true } : {}),
     };
     anchors.push(anchorRec);
-    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X || vern ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
-      findings: [...inner._program.findings.map((f) => f.says), ...(!E && into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
+    const siteSays = was?.site && Math.max(was.site.cut, was.site.fill) > APRON.steep ? [`the ${id} stands on a slope: its ground is cut ${was.site.cut} m into the land on its high side and filled ${was.site.fill} m on its low one, the bank round it ${was.site.bank} m wide (a flatter place, at: { x, y, facing }, or a smaller plan)`] : [];
+    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X || vern ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough, ...(was?.site ? { site: { apron: was.apron, ...was.site } } : {}),
+      findings: [...inner._program.findings.map((f) => f.says), ...siteSays, ...(!E && !was?.site && into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
         ...(E && !St ? [`the ${id} is set into its slope with no stair beside it: neither side is long enough to hold the flight and its landings, so its bank is the way up`] : []),
         ...(E && Math.abs(embed.drop - E.rise) > 1 ? [`the ${id} is set into land that ${embed.drop >= 0 ? `falls ${embed.drop}` : `rises ${-embed.drop}`} m from its back to its front where its upper storey stands ${E.rise} m up: the land is cut and filled ${r5(Math.abs(embed.drop - E.rise))} m to take it`] : []),
         ...(bay && F.blocked ? [`the ${id} found no place clear of the trail's beats, the stage's edge and the other buildings: it stands over one (a smaller plan, fewer bays or wings, or at: { x, y, facing })`] : [])] });
