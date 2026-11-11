@@ -1001,10 +1001,12 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   const L = scale ? { ...S, keys } : S;
   return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L };
 }
+/** A torch's live flame (metres): as wide and as tall as the two polygons it stands for. */
+export const TORCH_FLAME = Object.freeze({ w: 0.3, h: 0.56 });
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
-export function torchFaces(l, live = false) {
+export function torchFaces(l, live = false, flame = false) {
   const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
   const iron = (mn, mx, fill) => {
     const raw = [];
@@ -1019,6 +1021,13 @@ export function torchFaces(l, live = false) {
   }
   iron([x - 0.07, y - 0.07, z - 0.5], [x + 0.07, y + 0.07, z - 0.14], '#2a2420');   // the bracket
   iron([x - 0.12, y - 0.12, z - 0.14], [x + 0.12, y + 0.12, z - 0.06], '#3a3028');  // the bowl
+  // (a live flame, scene/channels/flames.js, stands where the polygons did: the bowl keeps its bed of coals, which
+  // carries the fixture's glow and what an engine reads as its light)
+  if (flame) {
+    out.push({ corners: [P([x - 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y + 0.07, z - 0.055]), P([x - 0.07, y + 0.07, z - 0.055])], normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'stage:fixture',
+      fill: '#fff0c0', emissive: hexRgb(l.color), emissiveStrength: 4, glow: `0 0 8px 3px ${l.color}` });
+    return out;
+  }
   // the flame: per card, a tapered lower quad (bowl → belly) and a pointed upper quad (belly → tip)
   const fl = l.color, b0 = 0.06, b1 = 0.14, zb = z - 0.06, zm = z + 0.12, zt = z + 0.46;
   for (const [ax, ay] of [[1, 0], [0, 1]]) {
@@ -1210,7 +1219,11 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
   // each torch its own node (anchors.js): an engine can snuff one by name
-  const fixtures = torches.flatMap((l, i) => torchFaces(l, live).map((f) => ({ ...f, node: `torch-${i + 1}` })));
+  // (in the form render a torch's flame is live, the cheap kind, scene/channels/flames.js: its two polygons give way to
+  // it; under live fire the fire channel's own; for an engine, and in the sixth generation, the polygons as they were)
+  const flamed = !live && form && !ctx.unshaded;
+  const fixtures = torches.flatMap((l, i) => torchFaces(l, live, flamed).map((f) => ({ ...f, node: `torch-${i + 1}` })));
+  const flames = flamed ? torches.map((l) => ({ at: [r5(l.at[0]), r5(l.at[1]), r5(l.at[2] - 0.07)], w: TORCH_FLAME.w, h: TORCH_FLAME.h, color: hexRgb(l.color).map(r5) })) : [];
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
   const setCam = r0.open.length ? (() => {
@@ -1292,6 +1305,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
     // (a fountain run as a circuit, materials/hydraulics.js: the mist where its water lands, the air solved round it)
     ...(dress && dress.hydraulics ? { hydraulics: dress.hydraulics } : {}),
+    ...(flames.length ? { flames } : {}),
     // at night the falling water is seen in the basin's glow and the moon, not the sun (scene/channels/jet.js `lit`)
     ...(plan.night && plan.night.jets && dress && dress.jets && dress.jets.length ? { jetLight: plan.night.jets } : {}),
     ...(dress && dress.jetLight && dress.jets && dress.jets.length ? { jetLight: dress.jetLight } : {}),

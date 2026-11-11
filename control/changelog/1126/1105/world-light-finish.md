@@ -63,6 +63,16 @@
   Chrome: a lit window, a lamp and a neon sign each with its own halo on a test wall; on an island plaza at night
   the lit window over the square glows. Not past white yet: a lantern's flame (a fixture with no emitting face), the
   form sky's sun, and an emitter inside a repeat.
+- **A torch's flame is live in the form render** (a room read in gen-7; `scene/channels/flames.js`). The sixth
+  generation draws a torch's flame as two crossed polygons, and the fire channel draws real fire at a real cost: a
+  ray marched through every flamelet, embers, smoke, and every material on the page patched for its light. Between
+  them: every flame on a page is one instanced quad turned to the eye, its shape a formula of the clock in its
+  shader (a teardrop that sways more toward its tip, eddies rising through it, white at its root to orange at its
+  tip), added over the frame. One draw call for all of them, no state, no render target; the light they give is
+  the bake's, as it was. A torch keeps its iron and a bed of coals in its bowl, which carries its glow and what an
+  engine reads as its light (`era/stage.js` `torchFaces`). Under a world's bloom a flame is drawn past white. A
+  room with live fire (`fire`) keeps the fire channel's; gen-6 and an engine's read keep the polygons. Seen in
+  Chrome on a gothic-stone room, beside gen-6 and under the finish.
 - **Left as they are, and said**: on a page with no light of its own the shading channels take the polygonizer's
   default sun and a shadow the shadow's default, two directions, as minted pages have them; unifying them would move
   every such page's shadows. A water surface's own sun (`channels/surface.js`, a kind's argument a surface) is not
