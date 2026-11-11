@@ -28,21 +28,25 @@ export const ROLES_ADMIN_TOOLS = ['mint_role_key', 'list_role_keys', 'revoke_rol
 
 // ── The hard deny-list ───────────────────────────────────────────────────────
 // Never grantable regardless of grants — checked separately and FIRST, so a
-// misconfigured grant table cannot expose it: secrets/env surfaces and roles
-// administration. Admin (the operator) only. (The daemon control tools were
-// on it until they were deleted.)
+// misconfigured grant table cannot expose it: secrets/env surfaces, daemon
+// control, roles administration. Admin (the operator) only.
 export const DENY_LIST = [
   // secrets / env
   'set_env',
   'delete_env',
   'list_env',
+  // daemon control
+  'start_daemon',
+  'stop_daemon',
+  'restart_daemon',
   // roles administration (this pack's own tools)
   ...ROLES_ADMIN_TOOLS,
 ];
 
 // ── Action-class tags (gated by flags on the key, independent of packs) ──────
 // outward: things that LEAVE the host (deploys, anything that spends or
-// publishes). lifecycle: things that start/stop processes.
+// publishes). lifecycle: things that start/stop processes. The daemon tools are
+// deny-listed above and never reach these checks.
 // No tool is outward today. The flag stays mintable and checked, so a key cut
 // earlier keeps its shape and a future outward tool only joins the list.
 export const OUTWARD_TOOLS = [];
@@ -75,7 +79,7 @@ export function authNotice(name, context, env = process.env) {
   if (DENY_SET.has(name)) {
     return (
       `'${name}' is admin-only on this control plane — it sits on the roles pack's hard deny-list ` +
-      `(secrets, roles administration) and is never grantable. Ask the operator. ` +
+      `(secrets, daemon control, roles administration) and is never grantable. Ask the operator. ` +
       `Do not retry it with this key.`
     );
   }

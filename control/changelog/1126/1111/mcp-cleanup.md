@@ -24,13 +24,6 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
 - **A shorter list.** The flat tool list goes from 212,165 to 199,558 bytes (ten tools fewer) and the packs list to
   31,771 bytes; both pins are lowered. The research and link code, their tables and the Research page are
   untouched.
-- **Eight leftover tools are deleted.** These were already off the list since the office wing left in 3.1.0, and
-  nothing pointed at them: the five daemon tools (`list_daemons`, `status_daemon`, `start_daemon`, `stop_daemon`,
-  `restart_daemon`), `list_runners`, `get_deliberation_overview` and `meta_context_analyze`, with the drift audit
-  behind the last one. Unlike the retirements above, these are gone: a compiled plan or a script that names one now
-  gets "unknown tool". The daemon host itself and the trigger tools that use it are untouched. `update_game_project`
-  was on the same shortlist and stays, because it is the only way to change a stored game project's status. Deleting
-  the overview also removed sixteen pointers to unreachable tools that the dead-pointer guard had been carrying.
 - **Machina's manual moves to a card.** `verify_machina` (can this mechanism move this load within these limits?) had
   the longest description on the list for a tool few sessions call. Its description now says what it is for and when
   to reach for it, and the full manual (every machine and its parameters, the units, the limits, what comes back, a

@@ -22,6 +22,7 @@ import {
   creativeToolsetHandler,
   CREATIVE_FORMS,
   FORM_TOOLSETS,
+  deliberationOverviewHandler,
   uiMapHandler,
   substrateHandler,
 } from './context.js';
@@ -379,6 +380,17 @@ describe('get_register_kit — isolated register surface', () => {
     expect(content[0].text).toMatch(/vocabulary_register: mojulo/);
     expect(content[0].text).toMatch(/procedural_disclosure: terse/);
     await expect(registerKitHandler({ register: 'casual' })).rejects.toThrow(/register/);
+  });
+});
+
+describe('get_deliberation_overview — Ring 6 deep block (unlisted since 3.1.0, still answers by name)', () => {
+  it('explains the deliberation surfaces and the daemon runtime gating', async () => {
+    const { content } = await deliberationOverviewHandler({});
+    const text = content[0].text;
+    expect(text).toMatch(/Deliberation surfaces \(Ring 6\)/);
+    expect(text).toContain('meta_context_declare_inventory');
+    expect(text).toContain('MOJULO_TRIGGER_RUNTIME');
+    expect(text).toContain('MOJULO_APP_RUNTIME');
   });
 });
 

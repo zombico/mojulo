@@ -63,6 +63,7 @@ export const TOOL_ANNOTATIONS = {
   get_tool_index: ['Tool index', READ],
   get_creative_toolset: ['Creative toolset by form', READ],
   get_register_kit: ['Vocabulary and refusal legend', READ],
+  get_deliberation_overview: ['Deliberation surfaces overview', READ],
   get_ui_map: ['Dashboard page map', READ],
   get_substrate: ['What mojulo is', READ],
   version: ['Server version', READ],
@@ -81,6 +82,7 @@ export const TOOL_ANNOTATIONS = {
 
   // ── connected services: contextmap, inventory, composer (Ring 6) ───────────
   meta_context_brief: ['Contextmap brief', READ],
+  meta_context_analyze: ['Audit connected-service drift', READ],
   meta_context_commit: ['Seal a decision in the contextmap', ADDITIVE], // append-only
   // Replace semantics: entries missing from the new declaration are dropped.
   meta_context_declare_inventory: ['Declare connected MCP servers', DESTRUCTIVE_IDEMPOTENT],
@@ -99,9 +101,10 @@ export const TOOL_ANNOTATIONS = {
   semantic_search: ['Search mojulo state', READ],
   sketch_what_possible: ['Resolve illustration knobs', READ],
 
-  // ── apps and runtime (Ring 7: runner.js) ───────────────────────────────────
+  // ── apps and runtime (Ring 7: runner.js, runtime-daemons.js) ───────────────
   // App tools act on the operator's app directory and the processes started from it.
   install_scaffold: ['Install app scaffold', hints(false, true, true, true)], // `overwrite: true` repaves
+  list_runners: ['List app runners', READ],
   start_app: ['Start an app', hints(false, false, false, true)],
   stop_app: ['Stop an app', hints(false, true, true, true)],
   status_app: ['App status', READ], // asks mojulo's daemon host
@@ -109,6 +112,11 @@ export const TOOL_ANNOTATIONS = {
   list_env: ['List app env keys', READ_EXTERNAL],
   set_env: ['Set app env var', hints(false, true, true, true)], // overwrites the key's value
   delete_env: ['Delete app env var', hints(false, true, true, true)],
+  list_daemons: ['List runtime daemons', READ],
+  status_daemon: ['Daemon status', READ],
+  start_daemon: ['Start a daemon', ADDITIVE_IDEMPOTENT],
+  stop_daemon: ['Stop a daemon', DESTRUCTIVE_IDEMPOTENT],
+  restart_daemon: ['Restart a daemon', DESTRUCTIVE], // interrupts in-flight work
 
   // ── agent tasks (agent-tasks.js) ───────────────────────────────────────────
   pull_agent_task: ['Pull an agent task', ADDITIVE], // claims the next task

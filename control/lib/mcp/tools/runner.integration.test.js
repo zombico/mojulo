@@ -112,7 +112,7 @@ describe('runner MCP — registered with the dispatcher', () => {
     if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
     else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const names = reply.result.tools.map((t) => t.name);
-    const RUNNER = ['install_scaffold', 'start_app', 'stop_app', 'status_app', 'list_running', 'list_env', 'set_env', 'delete_env'];
+    const RUNNER = ['install_scaffold', 'list_runners', 'start_app', 'stop_app', 'status_app', 'list_running', 'list_env', 'set_env', 'delete_env'];
     for (const name of RUNNER) {
       expect(names, name).not.toContain(name);
       expect(isToolListed(name), name).toBe(false);
@@ -120,8 +120,9 @@ describe('runner MCP — registered with the dispatcher', () => {
     }
   });
 
-  it('list_runners is deleted: an unknown tool', async () => {
-    expect(hasRegisteredTool('list_runners')).toBe(false);
+  it('list_runners returns the local runner', async () => {
+    const out = await callTool('list_runners', {});
+    expect(out.runners[0].name).toBe('local');
   });
 });
 
