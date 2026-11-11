@@ -95,7 +95,6 @@ const DESCRIPTION_ALLOWLIST = {
   // the new local-shelf write path, list_catalysts/custom_catalyst grew to
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
-  custom_catalyst: 764,
   diff_sketches: 875,
   execute_plan: 1314,
   export_beats: 1124,
@@ -458,7 +457,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Lowered 2026-11-11 on 1111-mcp-cleanup (199_600 -> 195_900; measured 195,837, 199,558 before) for verify_machina:
 // its 2,180-char description and per-parameter schema prose moved to the `machina` solid-vocab card
 // (get_solid_vocab({ id: 'machina' })); the description is routing grade, under the ceiling, off the allowlist.
-const PAYLOAD_CEILING = 195_900;
+// Lowered 2026-11-11 on 1111-mcp-cleanup (195_900 -> 194_000; measured 193,962) for three folded readers:
+// list_adapters is get_adapter({ list }), custom_catalyst is mint_catalyst({ guide }), list_world_themes is
+// get_view_vocab({ themes }). Three tools off the list, one argument each on the door that owned the intent.
+const PAYLOAD_CEILING = 194_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -371,7 +371,7 @@ const RAILS=[
   note:'Reaches past mojulo. A catalyst is a curated recipe the host adapter synthesizes into a Skill that runs beside the operator\'s other MCPs (Blender MCP first, mojulo\'s blender-bake as fallback). Mojulo is the anchor and audit trail, not the runtime.',
   line:[S('get_adapter','read once'),S('recommend_catalysts','or list_catalysts','o'),S('get_catalyst','recipe bound to adapter'),S('host Skill','synthesized, runs in host')],
   branches:[{label:'Know the other MCPs',line:[S('meta_context_declare_inventory'),S('record_mcp_capabilities'),S('get_mcp_capabilities')]},
-            {label:'Author a new one',line:[S('custom_catalyst','the guide'),S('mint_catalyst','local shelf, revisions')]},
+            {label:'Author a new one',line:[S('mint_catalyst','guide: true, the guide'),S('mint_catalyst','local shelf, revisions')]},
             {label:'Agent-task queue (outside fulfiller)',line:[S('pull_agent_task','long-poll ~25 s'),S('submit_envelope_inference','validated','g'),S('cancel_agent_task','or cancel','o')]}]},
  {name:'Building rail',sig:'mint_building → next by outcome',
   note:'A house, apartment or furnished room. Its page is the structure book, and next names what is still open by outcome: concept, layout, drawings, build. An edifice is an institutional block for a world, not a building to draw.',

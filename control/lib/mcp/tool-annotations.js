@@ -70,14 +70,14 @@ export const TOOL_ANNOTATIONS = {
   check_for_updates: ['Check for updates', READ_EXTERNAL], // asks the npm registry
   get_tool_ledger: ['Tool-call ledger', READ],
   get_worked_example: ['Worked example', READ],
-  list_adapters: ['List host adapters', READ],
+  list_adapters: ['List host adapters', READ], // folded into get_adapter({ list: true }): callable by name
   get_adapter: ['Get host adapter', READ],
 
   // ── catalysts (catalysts.js) ───────────────────────────────────────────────
   list_catalysts: ['List catalysts', READ],
   get_catalyst: ['Get catalyst', READ],
   mint_catalyst: ['Mint or archive a local catalyst', DESTRUCTIVE], // `archive: true` retires a row
-  custom_catalyst: ['Catalyst authoring guide', READ],
+  custom_catalyst: ['Catalyst authoring guide', READ], // folded into mint_catalyst({ guide: true }): callable by name
   recommend_catalysts: ['Recommend catalysts', READ],
 
   // ── connected services: contextmap, inventory, composer (Ring 6) ───────────
@@ -208,7 +208,7 @@ export const TOOL_ANNOTATIONS = {
   fabricate_solid: ['Fabricate from standard parts', hints(false, false, false, false)], // the plan call writes nothing; the mint adds a row
   create_cover: ['Create a publication cover', ADDITIVE],
   compose_world: ['Compose a world', ADDITIVE],
-  list_world_themes: ['List world themes', READ],
+  list_world_themes: ['List world themes', READ], // folded into get_view_vocab({ themes }): callable by name
   create_exhibit: ['Create an exhibit', ADDITIVE],
   get_exhibit: ['Read an exhibit', READ], // a card, a hall, or a made exhibit's measured series
   create_view: ['Create a study view', ADDITIVE], // folded into create_exhibit: callable by name

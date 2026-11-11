@@ -67,8 +67,7 @@ export const TOOL_LINES = {
   mint_building: L('create', 'A walkable house, apartment, room, store, restaurant, mall, office or school with its structure book, or as a game level; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
 
   // ── worlds ────────────────────────────────────────────────────────────────
-  compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.'),
-  list_world_themes: L('orient', 'The theme packs `compose_world` takes, optionally by family (earth / scifi / fantasy). Call before a themed world.'),
+  compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual and themes: `get_view_vocab`.'),
   export_model: L('maintain', "A stored world or solid as a file: .glb, print STL / 3MF (mm, true scale), USD, IFC for a house; `engine` a team's Godot, Unity, Unreal or Blender."),
   bind_mesh_render: L('maintain', 'Bind a DCC-refined .glb of an `export_model` file back onto its sketch as a derived artifact; worlds place it by `meshRef`.'),
   translate_modeler_lingo: L('orient', 'Modeler words (blockout, kitbash, retopo, bake, rig, LOD) → what mojulo does and the `export_model` handoff for the rest.'),
@@ -97,7 +96,7 @@ export const TOOL_LINES = {
   capture_reference: L('create', 'Step 2: file what you read from a picture into a stash (a cage sketch, or for a character the hero itself, drawn back); feeds `mint_solid` pose, `update_character`, `forge_motion` or `cook`.'),
   create_exhibit: L('create', 'An exhibit by hall (`science/fission`, `earth/hydro`, `life/dna`, `math/derivative`, `history/pompeii`): a study object, a science demo or a historic city.'),
   get_exhibit: L('orient', "An exhibit's card, a hall's rows, or a made exhibit's SI time series (`ref`). Omit `id` for the halls."),
-  get_view_vocab: L('orient', 'A `compose_world` manual: a base, an override, a stage kit or look, the city plan. Omit `id` for the index.'),
+  get_view_vocab: L('orient', 'A `compose_world` manual: a base, an override, a stage kit or look, the city plan; `themes` lists the theme packs. Omit `id` for the index.'),
   save_recipe: L('maintain', "Keep a tuned study object, beats loop or solid in the operator's cookbook, recallable by intent through `semantic_search`."),
 
   // ── audio ─────────────────────────────────────────────────────────────────
@@ -122,10 +121,8 @@ export const TOOL_LINES = {
   recommend_catalysts: L('orient', 'The workflow shelf with what each needs and what it gives. The entry for "what can I automate?"; then `get_catalyst`.'),
   list_catalysts: L('orient', 'Every shipped and local catalyst, by category and kind.'),
   get_catalyst: L('orient', "One catalyst's full recipe, bound to your host's adapter; how a flow reaches Blender or another MCP."),
-  custom_catalyst: L('orient', 'The guide to writing a new catalyst. Read before `mint_catalyst`.'),
-  mint_catalyst: L('maintain', "Keep a drafted catalyst on the operator's local shelf, with revisions; returns the file for a PR."),
-  list_adapters: L('orient', "The host adapters mojulo ships (`generic` is the fallback). Read yours with `get_adapter`; `version` names the build."),
-  get_adapter: L('orient', 'Your host\'s card: how you ride mojulo, artifacts, dry runs, scheduling, secrets. Read once before making.'),
+  mint_catalyst: L('maintain', "Keep a drafted catalyst on the operator's local shelf, with revisions; returns the file for a PR. `guide: true` first: the author's guide."),
+  get_adapter: L('orient', 'Your host\'s card: how you ride mojulo, artifacts, dry runs, scheduling, secrets. Read once before making; `list: true` names every card.'),
   meta_context_declare_inventory: L('maintain', "Record the host's other MCP servers and their tools so a catalyst can be matched to them. Only when the user asks."),
   record_mcp_capabilities: L('maintain', "Write a provider's capability body from research, with sources; history kept. Read it with `get_mcp_capabilities`."),
   get_mcp_capabilities: L('orient', "A provider's capability body by `provider_ref` (current, or `asOf`). Written by `record_mcp_capabilities`."),

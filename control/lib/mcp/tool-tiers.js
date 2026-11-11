@@ -54,7 +54,6 @@ export const TOOL_TIERS = Object.freeze({
   verify_machina: 'design',
 
   // ── worlds ──
-  list_world_themes: 'ride',
   translate_modeler_lingo: 'ride',
   export_model: 'ride',
   bind_mesh_render: 'ride',
@@ -135,11 +134,9 @@ export const TOOL_TIERS = Object.freeze({
 
   // ── workflows: catalysts and hosts ──
   get_adapter: 'ride',
-  list_adapters: 'ride',
   list_catalysts: 'ride',
   get_catalyst: 'ride',
   recommend_catalysts: 'ride',
-  custom_catalyst: 'ride',
   get_mcp_capabilities: 'ride',
   record_mcp_capabilities: 'judge',
   meta_context_declare_inventory: 'judge',

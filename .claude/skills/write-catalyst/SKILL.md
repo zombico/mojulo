@@ -14,7 +14,7 @@ The catalyst paradigm: a `.md` file with JSON frontmatter that mojulo ships thro
 Always pull these into context before drafting anything:
 
 - [docs/catalysts.md](../../../docs/catalysts.md) — the author spec. The two catalyst shapes (making vs workflow), format, validation, body principles, the six-section template, the checklist for adding a new one.
-- [control/lib/mcp/tools/catalysts.js](../../../control/lib/mcp/tools/catalysts.js) — read `CATALYST_CORE_PREAMBLE` and the `custom_catalyst` author guide. The body you draft is read by a future agent *after* the preamble is prepended, so don't repeat what it already says; the guide's posture-check and batched questions are the same ones this skill runs.
+- [control/lib/mcp/tools/catalysts.js](../../../control/lib/mcp/tools/catalysts.js) — read `CATALYST_CORE_PREAMBLE` and the author guide (`CUSTOM_CATALYST_GUIDE`, returned by `mint_catalyst({ guide: true })`). The body you draft is read by a future agent *after* the preamble is prepended, so don't repeat what it already says; the guide's posture-check and batched questions are the same ones this skill runs.
 - [control/lib/mcp/catalysts/loader.js](../../../control/lib/mcp/catalysts/loader.js) — exact validation rules. Your draft must pass `parseCatalystFile`.
 - The existing `.md` files in [control/lib/mcp/catalysts/](../../../control/lib/mcp/catalysts) — these are the exemplars. `refresh-connected-services.md` is the six-section workflow exemplar; `design-object-workbench.md` is the making exemplar. Bias toward the one closest to the user's intent and study its mapping, idempotency and pitfalls sections specifically.
 

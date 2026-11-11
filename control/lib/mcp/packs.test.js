@@ -129,7 +129,7 @@ describe('pack registry shape', () => {
   });
 
   it('the retired packs never list, and none of their members is homed in a live pack', () => {
-    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors', 'pack_research', 'pack_stash_links']);
+    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors', 'pack_research', 'pack_stash_links', 'pack_folded_workflows']);
     expect(RETIRED_OFFICE_TOOLS).not.toContain('create_game_project');
     expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan',
       'start_research', 'synthesize_abstract', 'bind_stash', 'list_stash_bindings']));
@@ -680,10 +680,13 @@ describe('pack dispatcher', () => {
   });
 
   it('dispatches a member and returns its real result', async () => {
-    const direct = await callTool('list_world_themes', {});
-    const packed = await callTool('pack_world', { tool: 'list_world_themes', args: {} });
+    const direct = await callTool('get_view_vocab', { themes: true });
+    const packed = await callTool('pack_world', { tool: 'get_view_vocab', args: { themes: true } });
     expect(packed.result.isError).toBeFalsy();
     expect(packed.result.content[0].text).toBe(direct.result.content[0].text);
+    // the folded name answers the same rows (list_world_themes, callable by name)
+    const folded = await callTool('list_world_themes', {});
+    expect(folded.result.content[0].text).toBe(direct.result.content[0].text);
   });
 
   it('a taken ref refuses with REF_EXISTS and the revision tool as next_action', async () => {

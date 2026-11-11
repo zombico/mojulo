@@ -323,7 +323,7 @@ const GLOSSARY_MIXED = `## Concepts
 - **Stash / Gather / Cook** — \`mint_stash\` makes a typed bucket, \`gather\` binds typed items (validated at intake, rejected when malformed), \`cook\` nucleates ONE outcome per singular aim into a self-contained folder at \`/outcomes/<cook_ref>/\` (14 publication kinds, essay → comic → site): a Read outcome. The agent authors the prose — no server-side LLM.
 - **Catalyst** — a host-neutral workflow recipe shipped with mojulo: a loop run in the session, or one that reaches past mojulo (another MCP, an outside worker) and lands as a Skill on the host. Read one with \`get_catalyst\`; it is a starting point — adapt freely, or skip it and synthesize from scratch.
 - **Skill** — a catalyst materialized into the user's host, in whatever form that host uses (a skill file, a scheduled automation, a workflow file). It runs in the host, beside the operator's other MCPs. \`get_adapter\` names YOUR host's form; don't assume another host's.
-- **Host adapter** — the bridge between a host-neutral catalyst and the host's runnable form. One card per host mojulo knows, plus \`generic\` as the fallback — \`list_adapters\` for the current set. Auto-resolved from your client's \`clientInfo.name\`; pass \`host\` (or \`clientInfoHint\`) when the resolver guessed wrong. Read your adapter once via \`get_adapter\` before making. The card is guidance, not a constraint: if your runtime has a better native form, use it and say what you chose.
+- **Host adapter** — the bridge between a host-neutral catalyst and the host's runnable form. One card per host mojulo knows, plus \`generic\` as the fallback — \`get_adapter({ list: true })\` for the current set. Auto-resolved from your client's \`clientInfo.name\`; pass \`host\` (or \`clientInfoHint\`) when the resolver guessed wrong. Read your adapter once via \`get_adapter\` before making. The card is guidance, not a constraint: if your runtime has a better native form, use it and say what you chose.
 - **Agent-task queue** — where work parked for an outside fulfiller waits (\`pull_agent_task\` → \`submit_envelope_inference\`, or \`cancel_agent_task\`): single-claim, in memory, lost on restart. The render handoffs are its durable sibling for image and mesh workers.`;
 
 const GLOSSARY_PLAIN = `## Concepts
@@ -337,7 +337,7 @@ const GLOSSARY_PLAIN = `## Concepts
 - **Stash / Gather / Cook** *(to the user: "collect material, then turn it into a finished piece")* — collect notes, images, and links into a bucket (the stash), then cook them into one finished thing — an essay, a slide deck, a picture book, a small website — saved as a folder the user can open, share, or host.
 - **Catalyst** *(to the user: "a workflow recipe")* — a recipe shipped with mojulo, run in the session or saved into the user's own agent so it can reach their other connected tools. Adapt freely; the recipe is a starting point.
 - **Skill** *(to the user: "a workflow you can run again")* — a recipe saved into the user's own agent, in whatever form that agent uses.
-- **Host adapter** *(to the user: "how the workflow gets built for your setup" — then name the form YOUR host uses)* — \`list_adapters\` for the current set; auto-resolved from your client. Read your adapter once via \`get_adapter\` before making.
+- **Host adapter** *(to the user: "how the workflow gets built for your setup" — then name the form YOUR host uses)* — \`get_adapter({ list: true })\` for the current set; auto-resolved from your client. Read your adapter once via \`get_adapter\` before making.
 - **Agent-task queue** *(to the user: don't surface; say "a waiting job")* — work parked for an outside helper to pick up and answer.`;
 
 const GLOSSARY_MOJULO = `## Concepts
@@ -349,7 +349,7 @@ const GLOSSARY_MOJULO = `## Concepts
 - **Stash / Gather / Cook** — \`mint_stash\` → \`gather\` (8 item types, intake-validated) → \`cook\` (ONE aim, ≥1 stash slice, 14 kinds; \`site\` is whole-stash) → \`/outcomes/<cook_ref>/\`. Multi-kind preview via \`forge_publications\`; \`recommend_kind\` is rules-based.
 - **Catalyst** — host-neutral workflow recipe in \`control/lib/mcp/catalysts/\`; run in the session or materialized through the host adapter into a Skill that runs beside the host's other MCPs.
 - **Skill** — host-adapter-materialized runnable artifact. Form is per-host (skill file / automation / workflow file) — \`get_adapter\` for yours.
-- **Host adapter** — catalyst → runnable bridge, one card per known host + \`generic\` fallback (\`list_adapters\`). Auto-resolved from \`clientInfo.name\`; \`clientInfoHint\` to self-identify.
+- **Host adapter** — catalyst → runnable bridge, one card per known host + \`generic\` fallback (\`get_adapter({ list: true })\`). Auto-resolved from \`clientInfo.name\`; \`clientInfoHint\` to self-identify.
 - **Agent-task queue** — in-memory FIFO single-claim; parked requests reject on restart with \`INFERENCE_PARKED_LOST\`. Kind: \`envelope_inference\`. Tools: \`pull_agent_task\` / \`submit_envelope_inference\` / \`cancel_agent_task\`.`;
 
 const CONCEPT_GLOSSARY_VARIANTS = {
@@ -479,7 +479,7 @@ const FORM_DEFS = {
   'world': {
     title: 'Worlds (traversable)',
     makes: 'walkable/drivable/flyable three.js environments + glTF export',
-    tools: ['compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    tools: ['compose_world', 'get_view_vocab', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
     notes: ["- A house / apartment / cottage / one furnished room is NOT a base: it is `mint_building` (the building form)."],
   },
   'building': {

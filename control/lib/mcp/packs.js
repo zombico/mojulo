@@ -108,7 +108,7 @@ export const PACKS = [
     title: 'Worlds (traversable)',
     description:
       "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'. A house is pack_building.",
-    members: ['compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    members: ['compose_world', 'get_view_vocab', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
     // The Claude plugin profile leaves out bind_mesh_render (lib/mcp/plugin-profile.js).
     profileEdits: [[', binding refined meshes back (bind_mesh_render),', ',']],
   },
@@ -318,9 +318,7 @@ export const PACKS = [
       'list_catalysts',
       'recommend_catalysts',
       'mint_catalyst',
-      'custom_catalyst',
       'get_adapter',
-      'list_adapters',
       'meta_context_declare_inventory',
       'record_mcp_capabilities',
       'get_mcp_capabilities',
@@ -417,7 +415,7 @@ export const RETIRED_PACKS = [
     wing: 'studio',
     title: 'Folded doors',
     description:
-      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`); a study view is create_exhibit's.",
+      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`); a study view is create_exhibit's; a world's themes are get_view_vocab's (`themes`).",
     body: 'Folded in 3.1.0 for one door per intent. Callable by name; each description names its door.',
     members: [
       'create_shoot_plan',
@@ -425,6 +423,8 @@ export const RETIRED_PACKS = [
       // the exhibit doors (1110): a study object is asked for by hall (create_exhibit), read back by get_exhibit({ ref })
       'create_view',
       'measure_view',
+      // a world's themes are a compose_world manual read (1111): get_view_vocab({ themes })
+      'list_world_themes',
     ],
   },
   // The research book (start a book, bind broad items, synthesize an abstract) was the gathering layer before the stash.
@@ -463,6 +463,21 @@ export const RETIRED_PACKS = [
       'bind_stash',
       'unbind_stash',
       'list_stash_bindings',
+    ],
+  },
+  // The workflows ring's folded doors (1111): a no-argument read that sat beside the tool it served is an argument on
+  // that tool now. The folded name still answers for a plan step, a script or a host that remembers it.
+  {
+    id: 'pack_folded_workflows',
+    ring: 'retired',
+    retired: 'after 3.1.1',
+    title: 'Folded workflow doors',
+    description:
+      "FOLDED WORKFLOW DOORS — reads that moved onto the tool they served: the adapters list is get_adapter's (`list`), the catalyst author's guide is mint_catalyst's (`guide`).",
+    body: 'Folded for one door per intent. Callable by name; each description names its door.',
+    members: [
+      'list_adapters',
+      'custom_catalyst',
     ],
   },
 ];

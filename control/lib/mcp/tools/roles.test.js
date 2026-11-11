@@ -186,7 +186,7 @@ function privilegedContext({ grants = [], flags = {} } = {}) {
 describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
   it('granted bay executes; ungranted bay gets a terminal advisory', async () => {
     await withRoles(async () => {
-      const ok = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_world'] }));
+      const ok = await callTool('get_view_vocab', { themes: true }, privilegedContext({ grants: ['pack_world'] }));
       expect(ok.isError).toBe(false);
 
       const denied = await callTool('list_cooks', {}, privilegedContext({ grants: ['pack_world'] }));
@@ -273,7 +273,7 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
 
       const granted = await callTool(
         'pack_world',
-        { tool: 'list_world_themes', args: {} },
+        { tool: 'get_view_vocab', args: { themes: true } },
         privilegedContext({ grants: ['pack_world'] })
       );
       expect(granted.isError).toBe(false);

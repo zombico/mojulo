@@ -30,3 +30,7 @@ Ten tools leave the list your agent reads, and nothing you have made stops worki
   worked example) is the `machina` card, read with `get_solid_vocab({ id: 'machina' })` and found by
   `semantic_search` from a question like "how many pulleys do I need". The tool takes the same recipe and gives the
   same verdict; a malformed recipe is sent to the card. The flat tool list drops again, to 195,837 bytes.
+- **Three small reads fold onto the tool they served.** The list of host adapters is `get_adapter({ list: true })`, the
+  author's guide for writing a catalyst is `mint_catalyst({ guide: true })`, and a world's theme packs are
+  `get_view_vocab({ themes: true })` (or a family: `themes: 'scifi'`). The old names (`list_adapters`,
+  `custom_catalyst`, `list_world_themes`) are off the list and still answer by name with the same result.

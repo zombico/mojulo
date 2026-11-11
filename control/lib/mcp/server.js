@@ -780,7 +780,7 @@ async function registerAllTools() {
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png.
   registerCoverTools();
-  // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
+  // compose_world (its themes read by get_view_vocab({ themes })) — the generic world-composer: a BASE (geometry generator)
   // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
   // render path as create_fractal_city. One tool → many worlds; themes extensible across
   // earth/scifi/fantasy families. MVP base: 'city'.

@@ -330,7 +330,7 @@ describe('orientation surfaces under the profile', () => {
     ...['media', 'game', 'app', 'connected-service'].map((paradigm) => ['get_worked_example', { paradigm }]),
     ['list_catalysts', {}],
     ['recommend_catalysts', {}],
-    ['list_adapters', {}],
+    ['get_adapter', { list: true }],
     ...['claude-code', 'generic', 'codex', 'grok-build', 'hermes', 'chatgpt', 'muse'].map((id) => ['get_adapter', { id }]),
     ['get_catalyst', { id: 'print-object' }],
     ['get_sketch_vocab', {}],
@@ -400,9 +400,9 @@ describe('every served card, catalyst, form and manual under the profile', () =>
       budget: 4 * 60_000,
       script: async (call) => {
         const read = [];
-        const ids = async (name, key, pick = (row) => row.id) => {
-          const r = await call(name, {});
-          read.push([name, {}, r]);
+        const ids = async (name, key, pick = (row) => row.id, args = {}) => {
+          const r = await call(name, args);
+          read.push([name, args, r]);
           return JSON.parse(r.text)[key].map(pick);
         };
         const byId = async (name, list, arg = 'id') => {
@@ -423,7 +423,7 @@ describe('every served card, catalyst, form and manual under the profile', () =>
           await byId(reader, rows.map((row) => row.id || row.kind).filter(Boolean));
         }
         await byId('get_catalyst', await ids('list_catalysts', 'catalysts'));
-        await byId('get_adapter', await ids('list_adapters', 'adapters'));
+        await byId('get_adapter', await ids('get_adapter', 'adapters', (row) => row.id, { list: true }));
         const { CREATIVE_FORMS } = await import('./creative-forms.js');
         await byId('get_creative_toolset', CREATIVE_FORMS.filter((f) => !PLUGIN_PROFILE_HIDDEN_FORMS.includes(f)), 'form');
         const { PACKS } = await import('./packs.js');
