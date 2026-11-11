@@ -836,8 +836,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const solved = circuits.map((c, i) => solveHydraulics(c && typeof c === 'object' && !c.id ? { ...c, id: `works${i + 1}` } : c, { colliders: Array.isArray(payload.colliders) ? payload.colliders : [] }));
     const jets = normalizeJets(solved.flatMap((w) => w.jets), { metersPerUnit: payload.metersPerUnit });
     if (jets.length) payload.jets = [...(Array.isArray(payload.jets) ? payload.jets : []), ...jets];
-    const mine = { mists: solved.flatMap((w) => w.mists), report: solved.map((w) => w.report) };
-    payload.hydraulics = payload.hydraulics ? { mists: [...payload.hydraulics.mists, ...mine.mists], report: [...payload.hydraulics.report, ...mine.report] } : mine;
+    const mine = { mists: solved.flatMap((w) => w.mists), impacts: solved.flatMap((w) => w.impacts), report: solved.map((w) => w.report) };
+    payload.hydraulics = payload.hydraulics ? { mists: [...payload.hydraulics.mists, ...mine.mists], impacts: [...(payload.hydraulics.impacts || []), ...mine.impacts], report: [...payload.hydraulics.report, ...mine.report] } : mine;
   }
   // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
   { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }

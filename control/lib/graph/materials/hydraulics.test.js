@@ -2,7 +2,7 @@
 // the water lands on the air solved round it. One small fountain, and the page's channel for its mist.
 import { describe, it, expect } from 'vitest';
 import { solveHydraulics, HYDRAULICS } from './hydraulics.js';
-import { hydraulicsScript } from '../scene/channels/hydraulics.js';
+import { hydraulicsScript, impactDrops, WATER_IMPACT } from '../scene/channels/hydraulics.js';
 import { vayoPoints } from '../rupa/vayo.js';
 import { waterWorks } from '../era/stage.js';
 
@@ -45,6 +45,31 @@ describe('flowing water as a circuit', () => {
     expect(JSON.stringify(at(1))).not.toBe(JSON.stringify(at(2)));
     expect(JSON.stringify(at(1))).toBe(JSON.stringify(at(1)));
     expect(solveHydraulics({ ...FOUNTAIN, mist: false }).mists).toEqual([]);
+  });
+
+  it('where water strikes water it lands with the speed of its fall: the sheets on a ring round their tier, the jet on the water under it', () => {
+    const W = solveHydraulics(FOUNTAIN), bowl = W.impacts.find((i) => i.id === 'f:bowl'), riser = W.impacts.find((i) => i.id === 'f:riser');
+    // (the sheets are thrown a little out from the lip, onto the basin's water, inside the basin)
+    expect(bowl.ring).toBeGreaterThan(1);
+    expect(bowl.ring).toBeLessThan(bowl.reach);
+    expect(bowl.reach).toBe(2.2);
+    expect(bowl.at[2]).toBe(0.45);
+    expect(bowl.lips).toBe(HYDRAULICS.lips);
+    // (a fall's speed: the root of twice g times the drop, and a little more for the speed it left the lip with)
+    expect(bowl.speed).toBeGreaterThanOrEqual(Math.sqrt(2 * 9.81 * (1.9 - 0.45)) - 1e-3);
+    // (the jet falls back from its top onto the bowl: straight down, on the axis)
+    expect(riser.ring).toBe(0);
+    expect(riser.speed).toBeCloseTo(Math.sqrt(2 * 9.81 * (2.5 + W.report.rise - 1.9)), 2);
+    // (a harder landing throws its drops higher, never past the most; a ring of sheets throws more than a single jet)
+    const soft = impactDrops({ ...bowl, speed: 1 }), hard = impactDrops({ ...bowl, speed: 6 });
+    expect(hard.high).toBeGreaterThan(soft.high);
+    expect(impactDrops({ ...bowl, speed: 60 }).high).toBe(WATER_IMPACT.high);
+    expect(impactDrops(bowl).n).toBeGreaterThan(impactDrops(riser).n);
+    expect(solveHydraulics({ ...FOUNTAIN, impact: false }).impacts).toEqual([]);
+    // (the page: the rings' shader writes the page's logarithmic depth, or it is hidden behind everything)
+    const page = hydraulicsScript({ impacts: W.impacts });
+    expect(page).toContain('#include <logdepthbuf_fragment>');
+    expect(page).toContain('"impacts":[');
   });
 
   it('the page plays the mist only when carried; a stage\'s water is a circuit only when it says works', () => {

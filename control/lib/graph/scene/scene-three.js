@@ -1650,7 +1650,7 @@ window.addEventListener('message', (e) => {
   else if (d.moj === '${MSG_FOCUS}') applyFocus(d.group ?? null);
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
-${sunProbe}${formBlock}${hydraulics && Array.isArray(hydraulics.mists) ? hydraulicsScript(hydraulics) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
+${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
 ${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't

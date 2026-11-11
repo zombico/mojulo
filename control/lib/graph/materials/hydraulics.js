@@ -10,7 +10,7 @@
  *   the air          rupa/vayo.js: where water lands, mist is carried by the air round that spot, presolved here (the
  *                    walls and the ground it meets, the wind) so each mote's path is a formula of time
  *
- *   solveHydraulics(circuit, { colliders?, wind?, unit? }) → { jets, mists, report }
+ *   solveHydraulics(circuit, { colliders?, wind? }) → { jets, mists, impacts, report }
  *     circuit   { id?, basin: { at: [x, y, floor z], radius, level (z of its water) },
  *                 pump: { head (m of water the pump lifts) }, liquid?: 'water',
  *                 nozzle?: { at: [x, y, z], dir?: [0, 0, 1], radius (m) },      the riser's mouth; none ⇒ the flow is
@@ -21,6 +21,9 @@
  *     jets      raw jets for materials/jet.js normalizeJets: the riser (a round jet up), a sheet a lip
  *     mists     [{ at, env (rupa/vayo.js vayoEnvelope, trimmed), spray }]: one where each tier's water lands and one
  *               where the riser falls back; the page's channel (scene/channels/hydraulics.js) plays them on the clock
+ *     impacts   [{ at (on the water it lands on), ring (m from the axis the water lands at: 0 a jet's own fall), reach
+ *               (the pool's radius), speed (m/s it lands with), flow (L/s), lips? (the sheets round a lip that land there) }]: what the page draws on the struck water,
+ *               rings running out from where it lands and the drops it throws up (`impact: false` for none)
  *     report    { flow (L/s), speed (m/s), rise (m the jet climbs over its nozzle), power (W the pump gives the
  *               water), tiers: [{ id, per (L/s a sheet), depth (m over the lip, critical), fall (m) }] }
  *   A circuit that cannot run teaches (a pump too weak to reach its nozzle; a tier above the jet's rise).
@@ -65,7 +68,7 @@ export function solveHydraulics(circuit, { colliders = [], wind = [0, 0, 0] } = 
     if (!(circuit.flow > 0)) no('with no nozzle the flow is given: flow (L/s)');
     Q = circuit.flow / 1000;
   }
-  const jets = [], mists = [], rep = [], M = circuit.mist === false ? null : { ...HYDRAULICS.mist, ...(circuit.mist && typeof circuit.mist === 'object' ? circuit.mist : {}) };
+  const impacts = [], jets = [], mists = [], rep = [], M = circuit.mist === false ? null : { ...HYDRAULICS.mist, ...(circuit.mist && typeof circuit.mist === 'object' ? circuit.mist : {}) };
   const id = circuit.id || 'works';
   // the air round a landing, solved once: the faces it meets, the wind it rides
   const mistAt = (at, fall, r, key) => {
@@ -89,10 +92,17 @@ export function solveHydraulics(circuit, { colliders = [], wind = [0, 0, 0] } = 
       jets.push({ id: `${id}:${T.id || `tier${i}`}:${k}`, shape: 'sheet', width: r4(W), at: [r4(T.at[0] + o[0] * T.radius), r4(T.at[1] + o[1] * T.radius), r4(T.at[2])], dir: [r4(o[0]), r4(o[1]), 0], discharge: per, fall: r3(fall + 0.2), mist: false, controls: false });
     }
     rep.push({ id: T.id || `tier${i}`, per: r4(per * 1000), depth: r4(S.hc), fall: r3(fall) });
+    // (where the sheets land: thrown out from the lip by their own speed over the fall's time, a ring round the tier,
+    // on the water below; what they hit it with is their speed there)
+    const tf = Math.sqrt((2 * fall) / G), ring = T.radius + S.v0 * tf, pool = i + 1 < tiers.length ? tiers[i + 1].radius : B.radius;
+    impacts.push({ id: `${id}:${T.id || `tier${i}`}`, at: [r4(T.at[0]), r4(T.at[1]), r4(to)], ring: r4(Math.min(ring, pool - 0.05)), reach: r4(pool), speed: r3(Math.hypot(S.v0, G * tf)), flow: r4(Q * 1000), lips });
     mistAt([T.at[0], T.at[1], to], fall, T.radius + 0.15, `${id}:${T.id || `tier${i}`}`);
   });
+  // (the jet's own fall back, from its top to the water under it: the first tier's, or the basin's)
+  if (N && rise > 0) { const z = tiers.length ? tiers[0].at[2] : B.level, drop = N.at[2] + rise - z;
+    if (drop > 0) impacts.push({ id: `${id}:riser`, at: [r4(N.at[0]), r4(N.at[1]), r4(z)], ring: 0, reach: r4(tiers.length ? tiers[0].radius : B.radius), speed: r3(Math.sqrt(2 * G * drop)), flow: r4(Q * 1000) }); }
   if (N && rise > 0) mistAt([N.at[0], N.at[1], tiers.length ? tiers[0].at[2] : B.level], rise + Math.max(0, N.at[2] - (tiers.length ? tiers[0].at[2] : B.level)), 0.3, `${id}:riser`);
-  return { jets, mists, report: { flow: r4(Q * 1000), speed: r3(speed), rise: r3(rise), power: r3(power), tiers: rep } };
+  return { jets, mists, impacts: circuit.impact === false ? [] : impacts, report: { flow: r4(Q * 1000), speed: r3(speed), rise: r3(rise), power: r3(power), tiers: rep } };
 }
 
 // an envelope as a page carries it: what vayoPoints reads, rounded

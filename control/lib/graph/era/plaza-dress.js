@@ -69,8 +69,8 @@ export function plazaFountain(plan, { live = false, works = null } = {}) {
     // The pump's head is the one dial: the flow, the jet's height and each sheet follow from it
     const W = solveHydraulics({ id: 'fountain', basin: { at: [c[0], c[1], 0.16], radius: inner, level: Fo.water }, pump: { head: works.head ?? PLAZA_PUMP.head },
       nozzle: { at: [c[0], c[1], Fo.top], radius: works.nozzle ?? PLAZA_PUMP.nozzle }, tiers: [{ id: 'bowl', at: [c[0], c[1], B.z - 0.01], radius: B.R + 0.04, lips: Fo.jets.count, to: Fo.water }],
-      ...(works.mist !== undefined ? { mist: works.mist } : {}) });
-    return { stone, water, cut, jets: W.jets, hydraulics: { mists: W.mists, report: [W.report] } };
+      ...(works.mist !== undefined ? { mist: works.mist } : {}), ...(works.impact !== undefined ? { impact: works.impact } : {}) });
+    return { stone, water, cut, jets: W.jets, hydraulics: { mists: W.mists, impacts: W.impacts, report: [W.report] } };
   }
   if (live && Fo.jets) {
     // the bowl brims over its lip in sheets, one per stretch of lip, each pouring outward and falling to the basin

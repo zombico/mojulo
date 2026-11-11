@@ -895,14 +895,14 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
-/** A stage's `water` as a circuit: `'works'`, or `{ works: true | { head?, nozzle?, mist? } }` (materials/hydraulics.js);
+/** A stage's `water` as a circuit: `'works'`, or `{ works: true | { head?, nozzle?, mist?, impact? } }` (materials/hydraulics.js);
  *  any other `water` is the live water it was. → the works' dials, or null. */
 export function waterWorks(w) {
   if (w === 'works') return {};
   if (!w || typeof w !== 'object' || !w.works) return null;
   if (w.works === true) return {};
-  if (typeof w.works !== 'object' || Array.isArray(w.works)) throw new Error('stage: water.works is true or { head?, nozzle?, mist? }');
-  for (const k of Object.keys(w.works)) if (!['head', 'nozzle', 'mist'].includes(k)) throw new Error(`stage: water.works.${k} is not a dial of it (head, nozzle, mist)`);
+  if (typeof w.works !== 'object' || Array.isArray(w.works)) throw new Error('stage: water.works is true or { head?, nozzle?, mist?, impact? }');
+  for (const k of Object.keys(w.works)) if (!['head', 'nozzle', 'mist', 'impact'].includes(k)) throw new Error(`stage: water.works.${k} is not a dial of it (head, nozzle, mist, impact)`);
   return w.works;
 }
 /** THE FORM RENDER'S BAKE (gen-7 under no sun: form/room-light.js). The room's look is its paint read at arm's length from
