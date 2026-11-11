@@ -3,7 +3,7 @@
 // lit where each stamp lies, and steps the old rubble aside; asked for nothing, it adds nothing.
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene, planStage, buildStageGeometry, formLightFaces } from './stage.js';
-import { readSkandart, skandartTemplates, skandartStamps, skandartLaws, SKANDART } from './skandart.js';
+import { readSkandart, skandartTemplates, skandartStamps, skandartLaws, skandartRead } from './skandart.js';
 import { rhythmFaults } from './wall-rhythm.js';
 import { formScript, FORM_PAGE } from '../scene/channels/form.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -27,21 +27,40 @@ describe('skandart: a room\'s debris by its causes', () => {
     expect(() => planStage({ ...ROOM({ skandart: true }), kit: 'gothic-stone' })).toThrow(/answers no debris question/);
   }, 120_000);
 
-  it('lays each clump where its cause puts it, keeping its laws: on its ground, out of the wall, on the border course, bigger than a hand, a wall\'s strips in its rhythm', () => {
-    const plan = planStage(ROOM({ skandart: true })), geom = buildStageGeometry(plan);
-    const T = skandartTemplates(plan, plan.skandart.amount), S = skandartStamps(plan, geom), laws = skandartLaws(plan, T, S);
-    expect(laws.filter((r) => !r.ok)).toEqual([]);
-    for (const law of ['no-floating', 'hand', 'not-in-the-wall', 'on-the-border', 'wall-rhythm', 'placed']) expect(laws.some((r) => r.law === law)).toBe(true);
+  it('lays each clump where its cause puts it, keeping its laws: on its ground, out of the wall, on the border course, big enough to read, a wall\'s strips in its rhythm', () => {
+    const plan = planStage(ROOM({ skandart: true })), geom = buildStageGeometry(plan), fine = skandartRead(1080);
+    const T = skandartTemplates(plan, plan.skandart.amount, fine), S = skandartStamps(plan, geom);
+    for (const read of [fine, skandartRead()]) {
+      const laws = skandartLaws(plan, skandartTemplates(plan, plan.skandart.amount, read), S, read);
+      expect(laws.filter((r) => !r.ok)).toEqual([]);
+      for (const law of ['no-floating', 'too-small-to-read', 'not-in-the-wall', 'on-the-border', 'wall-rhythm', 'placed']) expect(laws.some((r) => r.law === law)).toBe(true);
+    }
     // (the foot, the corners and the apron each laid; the lesser strip is the full one with less on it)
     for (const role of ['foot', 'corner', 'apron']) expect(S.some((s) => T[s.tpl].role === role)).toBe(true);
     expect(T['foot-0b'].pieces.length).toBeLessThan(T['foot-0a'].pieces.length);
     expect(T['foot-0b'].pieces.filter((q) => q.kind === 'anchor')).toEqual(T['foot-0a'].pieces.filter((q) => q.kind === 'anchor'));
-    expect(Object.values(T).flatMap((t) => t.pieces || []).every((q) => q.w >= SKANDART.hand)).toBe(true);
     const walls = new Map();
     for (const s of S) if (s.wall !== undefined) walls.set(s.wall, [...(walls.get(s.wall) || []), s.tpl.endsWith('a') ? 'A' : 'B']);
     for (const seq of walls.values()) expect(rhythmFaults(seq)).toEqual([]);
     // (in the kit's gutter what falls lies on the gutter's floor)
     expect(T['foot-0a'].pieces.some((q) => q.z === -plan.kit.gutter.depth)).toBe(true);
+  });
+
+  it('leaves out what is too small to be read where it is seen: the eye spot at filler\'s distance, in the frame the render reads at; a coarser frame keeps the same heap with fewer of its small pieces', () => {
+    const coarse = skandartRead(), fine = skandartRead(1080);
+    // (the sixth generation's 640×448 at six metres, and a 1080-line target's)
+    expect(coarse).toEqual({ distance: 6, screenPx: 448, least: expect.closeTo(0.186, 3) });
+    expect(fine.least).toBeCloseTo(0.077, 3);
+    const plan = planStage(ROOM({ skandart: true })), C = skandartTemplates(plan, 0.6, coarse), F = skandartTemplates(plan, 0.6, fine);
+    const all = (T) => Object.values(T).flatMap((t) => t.pieces || []);
+    expect(all(C).every((q) => q.w >= coarse.least)).toBe(true);
+    expect(all(F).every((q) => q.w >= fine.least)).toBe(true);
+    expect(all(C).length).toBeLessThan(all(F).length);
+    // (the same dice: every piece the coarse frame keeps stands where the fine one has it)
+    const at = (q) => `${q.kind}@${q.x},${q.y},${q.w}`, fineAt = new Set(all(F).map(at));
+    for (const q of all(C)) expect(fineAt.has(at(q))).toBe(true);
+    // (a drop of wax too small to read goes as well: the pour's whole pool in the coarse frame)
+    expect(C['apron-pour'].faces.length).toBeLessThan(F['apron-pour'].faces.length);
   });
 
   it('rides to the page as instanced repeats, one a clump, each stamp lit where it lies; the rubble and the fallen stone it replaces step aside, and the webs within reach are swept', () => {

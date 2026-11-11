@@ -82,7 +82,8 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
-import { readSkandart, skandartLay, skandartRepeats } from './skandart.js';
+import { readSkandart, skandartLay, skandartRepeats, skandartRead } from './skandart.js';
+import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
@@ -1436,7 +1437,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const tuner = form && plan.compose ? keyTuner(plan) : null;
   // DEBRIS (`skandart`, era/skandart.js): its clumps built once and the places they lie; a stamp is lit where it lies, so
   // the bake is asked for the light at the middle of each one's mass (and, in the form render, the base each matter takes)
-  const skLaid = plan.skandart ? skandartLay(plan, geom) : null;
+  // (what is too small to be read is left out, era/laws.js 'too-small-to-read': read in the frame the render reads at,
+  // the sixth generation's 640×448, or the form render's target's lines)
+  const skLaid = plan.skandart ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
     ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun ? { sun } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
   // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
