@@ -37,7 +37,7 @@ export function chapterPages(world, id) {
 }
 
 // the readout's next moves, each by the chapter it is (gameworld-next's step ids); a move naming parts is each part's
-const MOVE = { req: 'build', composite: 'build', play: 'build', share: 'build', run: 'build', rerun: 'build', compile: 'build', adornment: 'adornment', intent: 'intent', target: 'intent', feel: 'feel', juice: 'feel', foes: 'foes', story: 'story', advice: 'intent' };
+const MOVE = { req: 'build', composite: 'build', play: 'build', playthrough: 'build', share: 'build', run: 'build', rerun: 'build', compile: 'build', adornment: 'adornment', intent: 'intent', target: 'intent', feel: 'feel', juice: 'feel', foes: 'foes', story: 'story', advice: 'intent' };
 /** The chapter a next move is, or null (a review names parts: each its own; a wait names its chapter; a form ask its
  * field, which is a chapter's id). */
 export function chapterOfMove(move) {

@@ -1301,6 +1301,15 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
     // a check that walks none says why (the plan's findings, the stages the walk cannot prove), never nothing
     if (check === true && !full.audits && full.compile.walk) { const { levels: of, ...why } = full.compile.walk; full.audits = { gate: 'machine', proved: 0, of, ...why }; }
+    // a check plays each fight level through (the playthrough): a level its basic player loses is a `playthrough` step
+    if (run && check === true) {
+      const playthrough = await playReadout(W);
+      if (playthrough) {
+        full.playthrough = playthrough;
+        const lost = playthrough.levels.filter((l) => !l.pass).map((l) => l.level);
+        if (lost.length) full.next = [...full.next, { step: 'playthrough', lost, card: 'gameworld-next' }];
+      }
+    }
   }
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
@@ -1403,13 +1412,39 @@ async function fightReadout(W) {
   return { fight: { fighters: fighters.map((f) => ({ ...f, laws: stamp[f.id] })) } };
 }
 
+/** THE PLAYTHROUGH (gameworld/playthrough.js), a check's: each made level where foes stand and the hero plays a moveset
+ * (an action game's), resolved as its page resolves it and played by the basic player and the still one. A level passes
+ * when the basic player wins it and the still one does not. Resolving a level is the cost (seconds to minutes), so the
+ * levels are played in order while the run's budget lasts, the first always; the rest are named `unplayed` (the shell's
+ * scripts/playthrough.mjs plays them all). Machine gate only; advice, never a refusal. */
+export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.now } = {}) {
+  const made = Object.entries(W.made ?? {}).filter(([k, v]) => k.startsWith('level-') && v?.ref);
+  const fights = made.map(([key, v]) => ({ key, ref: v.ref, row: SketchRepository.getByRef(v.ref) })).filter(({ row }) => {
+    const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
+    return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
+  });
+  if (!fights.length) return null;
+  const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js');
+  const { playLevel, playthroughSummary } = await import('@/lib/graph/gameworld/playthrough.js');
+  const levels = [], unplayed = [], t0 = clock();
+  for (const { key, row } of fights) {
+    if (levels.length && budgetMs > 0 && clock() - t0 >= budgetMs) { unplayed.push(key); continue; }
+    try {
+      const { payload } = await resolveWorldScene(row);
+      const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });
+      levels.push({ level: key, pass: basic.won && !still.won, basic: playthroughSummary(basic), still: playthroughSummary(still), hitsBy: basic.hitsBy });
+    } catch (e) { levels.push({ level: key, pass: false, error: String(e?.message ?? e).slice(0, 200) }); }
+  }
+  return { gate: 'machine', won: levels.filter((l) => l.pass).length, of: levels.length, levels, ...(unplayed.length ? { unplayed } : {}) };
+}
+
 // readout: 'changed': the parts whose stamp moved since the call began, any other section that differs, and the next
 // moves (always: they are what to do now). A new world has no before, so every part is new.
 function changedOnly(full, prev) {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const prevParts = new Map((prev?.parts ?? []).map((p) => [p.id, p]));
   const out = { ref: full.ref, url: full.url, parts: full.parts.filter((p) => !same(p, prevParts.get(p.id))) };
-  for (const k of ['intent', 'advice', 'numbers', 'steps', 'chapters', 'made', 'audits', 'mode', 'fight']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
+  for (const k of ['intent', 'advice', 'numbers', 'steps', 'chapters', 'made', 'audits', 'mode', 'fight', 'playthrough']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
   return { ...out, next: full.next };
 }
 

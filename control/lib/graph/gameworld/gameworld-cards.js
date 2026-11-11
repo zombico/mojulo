@@ -1047,6 +1047,8 @@ function nextCard() {
     '  run        run: true makes every step that is ready: the hero first; a world with no characters (a composed one), its levels and the game.',
     '             A run stops at its budget (~2 min): with `pending`, run again (tell the creator). Each',
     '             reach or survive level is walked after the game, a step each, on check: true: `audits` (machine gate).',
+    '  playthrough  check: true plays each fight level by a basic player and a still one (machine gate), as the budget',
+    '             lasts (`unplayed`); `lost`: those the basic one could not win (`playthrough.levels`: how far, who hit it).',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',
