@@ -7,6 +7,8 @@ import { CRAFT } from '../skyscape/eye.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { capabilityRegistry } from '../cosmos/registry.js';
 import { reviewParts } from './review.js';
+import { readGameworld } from './index.js';
+import { gameStages, stageLevelOrder } from './levels.js';
 
 // WHAT GAME IT IS: a world says its game as a cosmos cube; a genre is a preset to start from; each cube value raises
 // what it asks of the world (concerns), so the levels can be laid for it.
@@ -236,5 +238,19 @@ describe('the intent written on the quick and compose paths', () => {
     const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests, fighting goblins and slimes', seed: 1 });
     expect(W.intent).toEqual({ from: 'action-rpg' });
     expect(W.battles).toBeUndefined();
+  });
+
+  it('the sentence door lays the camera its genre asks: the orbit an action hero turns by the mouse and locks on with', () => {
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests', seed: 1 });
+    expect(W.camera).toBe('orbit');
+    expect(composeGameworld({ prompt: 'a stylish action game like devil may cry', seed: 1 }).camera).toBe('orbit');
+    // (a genre whose hero takes the default chase writes none)
+    expect(composeGameworld({ prompt: 'a dungeon crawler through crypt rooms full of loot', seed: 1 }).camera).toBeUndefined();
+    // (its level: the hero runs where the camera looks, the mouse turns it, the lock is on)
+    const st = gameStages(W).find((s) => s.section !== 'building');
+    const m = stageLevelOrder(readGameworld(W), st, { ref: 'lv', heroRef: 'gw-hero' }).args.manifest;
+    expect(m.camera).toMatchObject({ steer: 'orbit', mouseLook: true, lockTrack: true });
+    expect(m.lock).toBe(true);
+    expect(m.entities.find((e) => e.pilotable).rule.move).toBe('camera');
   });
 });

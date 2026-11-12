@@ -3,8 +3,8 @@
 Two action games were made end to end from a sentence (a stylish action game and an anime action RPG), exported and
 played by a scripted player on the shipped pages. Every level built and loaded and every action piece ran, and no level
 could be won: the rails wrote what the runtime does not play, and the hero, its blows and its foes were numbered in three
-scales. The player gate is built, the page binds what its legend says and the sentence door reads the action genres; the
-rest below is designed, not built yet.
+scales. The player gate is built, the page binds what its legend says, and the sentence door reads the action genres
+and lays their camera; the rest below is designed, not built yet.
 
 - **The playthrough: a made level played by a scripted player** (`gameworld/playthrough.js`). A level is resolved as its
   page resolves it and played headless on the runtime it ships, in about a second: the BASIC player fights the foe in
@@ -48,11 +48,15 @@ rest below is designed, not built yet.
   composes the action RPG now; "an open world rpg", a tie read as nothing, is the long RPG. "An rpg" is the party RPG,
   as it was. A world of either genre that writes no feel is suggested its template (`feel/suggest.js`: Fallen Angel for
   stylish action, Fable of Artesia for the action RPG), never laid.
+- **The sentence door lays the camera the genre asks** (`gameworld/genre-forms.js`). The orbit camera (and the 3D
+  platformer's follow) were missing from the cameras a genre's frame writes, so both action genres were laid on the
+  default chase: tank turning, no mouse look, no lock-on. A stylish action game or an action RPG composed from a
+  sentence now writes `camera: 'orbit'`, and its levels' striking hero runs where the camera looks, turns it by the
+  mouse and locks on (C). A genre whose hero takes the default chase writes none, as before.
 - **What the gate found first, on the anime action RPG** (no level won): in the town square the basic player downs two
   of four foes and goes down at 87 s; on the crossing it shoots the archer down, downs the first charger, then needs
   about two minutes and 278 presses for the 240-hp elite and goes down at 168 s; on the boss's heights the boss's counter
   (the opportunist mind's tackle, which beats any swing it sees) answers every string and the sword never lands. The
   still player goes down at 22 to 45 s wherever foes reach it.
-- Designed, not built yet: the composer lays the orbit camera a genre asks for; one scale for a world that writes an
-  arsenal (the kit's blows, the hero's health and each foe's hit in the foe shelf's frame); a casting call that reads
-  the kit and the place; rails that say what they wrote.
+- Designed, not built yet: one scale for a world that writes an arsenal (the kit's blows, the hero's health and each
+  foe's hit in the foe shelf's frame); a casting call that reads the kit and the place; rails that say what they wrote.
