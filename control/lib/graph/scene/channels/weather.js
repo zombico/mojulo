@@ -165,7 +165,10 @@ let stepWeather = () => {};   // __mojStep(t) drives it
   const ground = (x, y) => (window.__mojGround ? window.__mojGround(x, y) : CFG.ground != null ? CFG.ground : camP[2] - 1.6);
   function land(name, k, t, used) {
     const P = pools[name]; if (!P || P.F.impact === 'none') return;
-    const n = Math.round(impactCount(P.F) * k), pts = impactPoints(P.F, camP, t, n), im = P.F.impact, ring = im === 'rings' || im === 'crowns';
+${cfg.surfaceRings ? `    // (a page whose wet surfaces are struck in their own material, channels/form.js: the rain's rings are theirs, lying
+    // on the surface they strike; none are stood in the air here)
+    if (P.F.impact === 'rings' || P.F.impact === 'crowns') return;
+` : ''}    const n = Math.round(impactCount(P.F) * k), pts = impactPoints(P.F, camP, t, n), im = P.F.impact, ring = im === 'rings' || im === 'crowns';
     const M = ring ? rings : discs, U = ring ? used.r : used.d;
     for (const q of pts) {
       if (U.n >= CAP) break;

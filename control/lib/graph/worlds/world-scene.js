@@ -908,6 +908,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && formMap) payload.form.land.haze = MAP_HAZE;
     // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
     // what the stage painted)
+    // (buildings under a wet weather and no clouds named: the weather's own sky, era/geocube.js)
+    if (read && M.clouds === undefined && M.buildings !== undefined && CLOUDS_OF_WEATHER[M.weather] === 'storm' || read && M.clouds === undefined && M.buildings !== undefined && M.weather === 'drizzle') payload.form.land.clouds = { kind: CLOUDS_OF_WEATHER[M.weather], cover: 0.5, seed: 1 };
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
     // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);

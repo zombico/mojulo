@@ -84,3 +84,6 @@
 - A weather and its wetness are one thing said once: a geocube recipe with buildings that names a weather and no `wet`
   is as wet as that weather leaves a place (`wetOfWeather`: rain raining, a downpour or a thunderstorm a downpour,
   drizzle wet, mist damp), beside the weather's own falling rain and sky.
+- Rain's rings are one system: on a page whose wet surfaces are struck in their own material, the weather channel
+  stands none of its own (they lay at the camera's height, in the air beside a raised eye). A place with buildings
+  under a wet weather and no clouds named takes the weather's own sky and its dimmer light.

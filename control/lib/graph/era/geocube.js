@@ -1425,7 +1425,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const hour = manifest.hour ?? D?.hour;
   const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : SHOWN[show]}`;
   const low0 = lowerGeocube(cube, inside ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour),
-    !inside ? cloudsOf(manifest.clouds, manifest.weather) : undefined);
+    // (a place with buildings under a wet weather and no clouds named: the weather's own sky, and its dimmer light)
+    !inside ? cloudsOf(manifest.clouds ?? (manifest.buildings !== undefined && wetOfWeather(manifest.weather) ? 'weather' : undefined), manifest.weather) : undefined);
   // a domain with a town shows its street, on a trail in the land's look; the trail: every way up the island drawn, the
   // island laid from the seed and its way up rolled from it (local-meru/roll.js); an island-less cube's ways are all drawn
   // the micro-town: the domain's street, else the cube's first, else a hamlet's, on a short trail laid from the seed
