@@ -1,3 +1,4 @@
+import { pageLight, shadowToLight } from '../scene/page-light.js';
 import { describe, it, expect } from 'vitest';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 
@@ -66,8 +67,10 @@ describe('a glyph map, built', () => {
     const { payload: H7 } = await resolveWorldScene({ ref: 'glyph-hero7', manifest: piloted('gen-7') });
     expect(H7.figures.hero.cast).toMatchObject({ register: 'western', surface: 'form', key: { toLight: H7.form.land.sun } });
     expect(H7.figures.hero.cast.key.linear).toEqual(H7.form.land.light.sun);
-    // (one sun a page: the live light's maps are drawn along the land's sun)
-    expect(H7.shadows.toLight).toEqual(H7.form.land.sun);
+    // (one sun a page, scene/page-light.js: the record is the land's sun, and a shadow is cast along it)
+    const PLR = pageLight(H7);
+    expect([PLR.from, PLR.toLight]).toEqual(['land', H7.form.land.sun]);
+    expect(shadowToLight(PLR, H7.shadows)).toEqual(H7.form.land.sun);
     expect((await resolveWorldScene({ ref: 'glyph-hero6', manifest: piloted('gen-6') })).payload.figures.hero.cast).toBeUndefined();
     expect((await resolveWorldScene({ ref: 'glyph-extra7', manifest: piloted('gen-7', false) })).payload.figures.hero.cast).toBeUndefined();
     const { payload: Pk } = await resolveWorldScene({ ref: 'glyph-kit7', manifest: { kind: 'map', level: { seed: 5, kit: 'isekai-meadow', grid: { tile: 24, rows: ['# # #'] } } } }, { era: 'gen-7' });

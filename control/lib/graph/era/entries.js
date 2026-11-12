@@ -18,6 +18,8 @@ import { STAGE_KITS, STAGE_KIT_PROPORTIONS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
 import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
 import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
+import { ROOM_CRAFT, readRoomCraft } from './room-craft.js';
+import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { GEOCUBE_PRESETS } from './geocube.js';
 import { HEARTBEAT_PRESETS } from './heartbeat.js';
 import { GROUND_EDITS } from './out-ground.js';
@@ -50,7 +52,8 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // register-ink law; it stands at 5602 with them
 // 5650 -> 5800 (2026-10-25): the two lines merged, the city stalker's city-night beside geocube styles' theatre-grey and
 // limestone-crags; it stands at 5729 with all three
-export const STAGE_CARD_BODY_CEILING = 5800;
+// (6000 since the craft laws joined the laws card: the laws of both eras and of craft, one line each)
+export const STAGE_CARD_BODY_CEILING = 6000;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -62,6 +65,9 @@ const KIT_STARTERS = {
   'gothic-stone': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }, { id: 'passage', x: 22, y: 8, w: 10, d: 4, h: 4 },
     { id: 'charnel', x: 32, y: 2, w: 10, d: 16, h: 6 }, { id: 'chapel', x: 26, y: 18, w: 16, d: 8, h: 5 }, { id: 'sepulchre', x: 14, y: 18, w: 12, d: 12, h: 7 }],
   links: [{ from: 'nave', to: 'gallery' }, { from: 'gallery', to: 'passage' }, { from: 'passage', to: 'charnel' }, { from: 'charnel', to: 'chapel' }, { from: 'chapel', to: 'sepulchre' }], fire: true },
+  // the crypt in ashlar: three tall halls, the walk ending at the tomb (it is made for height)
+  'gothic-ashlar': { rooms: [{ id: 'hall', x: 0, y: 0, w: 12, d: 22, h: 9 }, { id: 'passage', x: 12, y: 8, w: 10, d: 6, h: 6 }, { id: 'sepulchre', x: 22, y: 2, w: 14, d: 18, h: 10 }],
+    links: [{ from: 'hall', to: 'passage' }, { from: 'passage', to: 'sepulchre' }] },
   // long low galleries between small chambers, the last the ossuary chapel with the sarcophagus
   catacomb: { rooms: [{ id: 'stair', x: 0, y: 0, w: 8, d: 8, h: 6 }, { id: 'gallery-a', x: 8, y: 2, w: 16, d: 4, h: 4 }, { id: 'cubiculum', x: 24, y: 0, w: 8, d: 8, h: 4.5 },
     { id: 'gallery-b', x: 26, y: 8, w: 4, d: 14, h: 4 }, { id: 'crossing', x: 22, y: 22, w: 12, d: 10, h: 6 }, { id: 'ossuary', x: 10, y: 22, w: 12, d: 10, h: 6.5 }],
@@ -76,6 +82,7 @@ const KIT_STARTERS = {
 /** How people ask for each kit, in plain words: the search line leads with these. */
 const KIT_WORDS = {
   'gothic-stone': ['castle interior', 'torch-lit stone halls', 'stone dungeon rooms'],
+  'gothic-ashlar': ['a grim stone crypt', 'realistic dungeon hall', 'tall plastered stone vault'],
   catacomb: ['catacombs', 'ossuary', 'underground burial galleries'],
   'gothic-nave': ['cathedral', 'church nave', 'stained glass hall'],
   'island-plaza': ['sunny town square', 'mediterranean plaza', 'fountain square'],
@@ -121,6 +128,8 @@ function kitOptions(kit) {
   if (S.sway) out.push(`"wind": { … } (its hung cloth and leaves swing)`);
   if (S.fire) out.push(`"fire": true (braziers by the portal light the room)`);
   if (kit.shell === 'plaza' || kit.shell === 'lab') out.push(`"water": true`);
+  if (generatedSpecOf(`${kit.tiles?.wall?.family}-a`)?.cfg.cut === 'render') out.push(`"coat": false (the wall bare: no render over it)`);
+  if (kit.dress?.niches?.rhythm) out.push(`"rhythm": "same" (every bay alike, on purpose)`);
   if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
     `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);
   return out;
@@ -150,6 +159,7 @@ export function kitCard(kitId) {
     ...(['nature', 'isekai'].includes(kit.shell) ? ['TRAIL      "trail": { "run"?: 12–25 s, "heartbeat"?: 0–1, "bumpiness"?: 0–1, "beats"?: [pinch|reveal|landmark|crossing|pocket|rest|pit] } builds the trail from the grammar: its beats, hazards and stairs sites annotated, its laws measured; "after" the trail it follows; "bounds" its outer wall per side (wall, natural, paint, mirror with offset and stutter, penalty, open); card \'stage\''] : []),
     `ERA        ${ERA}`,
     ...(kitLaws(kit).length ? [`LAWS       ${kitLaws(kit).join(', ')} (card 'sixth-gen-laws')`] : []),
+    ...(isRooms(kit) && kit.shell !== 'plaza' ? [craftLine(kit)] : []),
   ];
   if (S?.principles?.length) lines.push('', `PRINCIPLES (its style card: each machine-checked; the eyes gate is the operator's)`, ...S.principles.slice(0, 5).map((p) => `  - ${p}`), ...(S.principles.length > 5 ? [`  … ${S.principles.length - 5} more on the style card`] : []));
   lines.push('', 'STARTER (a manifest: copy it, change it, mint it)', `  ${JSON.stringify(starter(kitId))}`);
@@ -193,7 +203,7 @@ export function stageHubCard() {
   const missing = looks.filter((l) => !STAGE_KITS[lookRef(l).kit]);
   const lines = [
     '# Stage: a level built the sixth-gen way', '',
-    `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
+    `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws', the questions a room is asked on card 'room-craft'.`, '',
     'GEOCUBE FIRST  forge the look as a cube (card geocube), then build here on it ("geocube").', '',
     'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], "program"?: { "use" }, "level"?: {} (card game-building), … }; rooms: room kits',
     '', `ART FIRST (room kits ${ART_KITS.join(', ')})  "art": "propose" mints with a direction (palette, materials, architecture, motifs, plan) and answers with its board as an image: show it, then per item update_sketch patch /art/status/<item> "approved", or /art/<item> "reroll". "art": "auto" is hands off.`,
@@ -230,6 +240,27 @@ export function lawsCard() {
     id: 'sixth-gen-laws', name: 'Sixth-gen laws', family: 'world', entry: 'create_sketch', generated: true,
     summary: `The principles behind every sixth-gen template, counted into laws by layer: look, surface, composition, dressing.`,
     when: '"art principles", "art direction rules", "sixth-gen look", "why it looks retro", "baked vertex light", "value order", "early 2000s 3d style"',
+    body: lines.join('\n'),
+  };
+}
+
+/** A room kit's craft in one line: the questions its card answers and the ones left to whoever builds with it. */
+function craftLine(kit) {
+  const R = readRoomCraft(kit), done = R.rows.filter((r) => r.by).map((r) => r.id);
+  return `CRAFT      ${done.length ? `answers ${done.join(', ')}` : 'answers none'}${R.open.length ? `; OPEN: ${R.open.join(', ')} (answer each for this place with "items" and "lights": card 'room-craft')` : ` (card 'room-craft')`}`;
+}
+
+/** The room-craft card: the reasons behind a worked interior, each a question the place being built is asked. */
+export function roomCraftCard() {
+  const settings = Object.keys(ROOM_CRAFT[0].answers);
+  const lines = ['# Room craft: what a room is asked', '',
+    'A worked interior is not a list of things to place. Each row is a reason and the question it puts to THIS place; answer from the place\'s use, structure, age and light. Each example is one place\'s answer (a crypt\'s would differ); never carry one place\'s answer to another. A kit card\'s CRAFT line says which questions the kit answers and which are open.'];
+  for (const Q of ROOM_CRAFT) lines.push('', `${Q.id.toUpperCase()} (law ${Q.law})`, `  WHY   ${Q.why.split('. ')[0]}.`, `  ASK   ${Q.ask}`, `  FROM  ${Q.from}`,
+    `  E.G.  ${settings[1]}: ${Q.answers[settings[1]]}`, `  NOT   ${Q.not}`);
+  return {
+    id: 'room-craft', name: 'Room craft', family: 'world', entry: 'create_sketch', generated: true,
+    summary: 'The reasons behind a worked interior, as questions a room is asked: its fixtures, supports, bays, storeys, coat, floor, air and light above.',
+    when: '"dress a room", "what goes in this room", "interior design principles", "why the room looks empty", "room looks blocky", "furnish the ceiling", "wall rhythm", "floor plan of slabs", "room craft"',
     body: lines.join('\n'),
   };
 }
@@ -316,5 +347,5 @@ export function heartbeatCard() {
 
 /** Every generated card: the hub, the geocube, the laws, the rails, each kit, each look. */
 export function stageEntryCards() {
-  return [stageHubCard(), geocubeCard(), heartbeatCard(), lawsCard(), railsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
+  return [stageHubCard(), geocubeCard(), heartbeatCard(), lawsCard(), railsCard(), roomCraftCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
 }

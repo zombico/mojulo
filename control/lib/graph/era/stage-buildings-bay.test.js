@@ -99,3 +99,40 @@ describe('the exterior table', () => {
     expect(exteriorOf({ construction: one })).toEqual(exteriorOf({ construction: one }));
   });
 });
+
+describe('a base building on the land, seated clean and lit by the one sun', () => {
+  it('the land is cut at its footprint: no corner of the ground stands inside a room', () => {
+    const boxes = A.rooms.filter((r) => !r.storey).map((r) => r.box), ground = noon.faces.filter((f) => /ground|land/.test(f.group || '') && !/^(stage|building)/.test(f.group || ''));
+    expect(ground.length).toBeGreaterThan(0);
+    const inside = ground.filter((f) => f.corners.some((c) => boxes.some((B) => c[0] > B.min[0] + 0.01 && c[0] < B.max[0] - 0.01 && c[1] > B.min[1] + 0.01 && c[1] < B.max[1] - 0.01)));
+    expect(inside.length).toBe(0);
+  });
+
+  it('read by the form render, its rooms\' light comes with it and its shell is baked under the same sun', () => {
+    const F = assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [OUTPOST] }, { formLit: true, dayLight: { sun: [1.6, 1.5, 1.3], ambient: [0.3, 0.35, 0.45], dir: noon.sky.sun.dir } });
+    const R = F.form?.room, sun = R?.lights.find((l) => l.radius >= 1e8);
+    expect(sun, 'the sun in the record').toBeTruthy();
+    expect(R.lights.some((l) => l.radius < 1e8)).toBe(true);
+    // (the sun in the world's frame: toward the land's own sun)
+    const d = F.sky.sun.dir, n = Math.hypot(...sun.at), cos = (sun.at[0] * d[0] + sun.at[1] * d[1] + sun.at[2] * d[2]) / (n * Math.hypot(...d));
+    expect(cos).toBeGreaterThan(0.999);
+    const shell = F.faces.filter((f) => /^building:(wall|roof)/.test(f.group || ''));
+    expect(shell.length).toBeGreaterThan(0);
+    for (const f of shell) expect(f.cornerLight, f.group).toBeDefined();
+    // (and painted, the paint's page, nothing of it: no record, no baked light on the shell)
+    expect(noon.form).toBeUndefined();
+    expect(noon.faces.filter((f) => /^building:(wall|roof)/.test(f.group || '')).every((f) => f.cornerLight === undefined)).toBe(true);
+  }, 90000);
+
+  it('its apron is a slab on soft land, or the land\'s own where it is asked: levelled the same, nothing laid on it', () => {
+    const slab = noon.faces.filter((f) => f.group === 'building:apron');
+    expect(slab.length).toBeGreaterThan(0);
+    expect(B.site.of).toBe('slab');
+    const G = assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [{ ...OUTPOST, apron: 'ground' }] });
+    expect(G.faces.some((f) => f.group === 'building:apron')).toBe(false);
+    expect(G.buildings[0].site.of).toBe('ground');
+    expect(G.buildings[0].site.level).toBe(B.site.level);
+    expect(() => assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, buildings: [{ ...OUTPOST, apron: 'lawn' }] })).toThrow(/apron is 'slab'/);
+  }, 90000);
+});
+

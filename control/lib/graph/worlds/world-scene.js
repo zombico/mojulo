@@ -45,6 +45,9 @@ import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps } from '@/lib/graph/form/room-form';
+import { readFinish } from '@/lib/graph/scene/page-light';
+import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
+import { normalizeJets } from '@/lib/graph/materials/jet';
 import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
@@ -819,11 +822,35 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   // (the live light's defaults filled in: liveL above; the unshaded export carries the recipe's own)
   // (a room in the form render, under no sun, bakes its lamps' shadows: of the live light it keeps what moves, the actors)
-  const shadowsOut = payload && payload.form && payload.form.room ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
+  // (a room's page has no hour map: its sun, where it has one, is in its bake. A building's rooms seated on a land,
+  // era/stage-buildings.js (`payload.buildings`), stand outdoors: the hour's map is the land's, and the building casts into it)
+  const shadowsOut = payload && payload.form && payload.form.room && !(Array.isArray(payload.buildings) && payload.buildings.length) ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
   if (payload && shadowsOut) payload.shadows = shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
+  // HYDRAULICS (`hydraulics`, materials/hydraulics.js): a circuit of flowing water any world may carry (a fountain, a wall
+  // spout, a cascade), or a list of them. Each is solved once here: its falls join the world's jets, the mist where they
+  // land goes to the page with the air solved round it (the world's own colliders). Absent ⇒ nothing. (A trail's
+  // `waterworks` is another thing: the land's own rivers and falls, era/water-live.js)
+  if (payload && sketch.manifest.hydraulics !== undefined && sketch.manifest.hydraulics !== null && !unshaded) {
+    const circuits = Array.isArray(sketch.manifest.hydraulics) ? sketch.manifest.hydraulics : [sketch.manifest.hydraulics];
+    const solved = circuits.map((c, i) => solveHydraulics(c && typeof c === 'object' && !c.id ? { ...c, id: `works${i + 1}` } : c, { colliders: Array.isArray(payload.colliders) ? payload.colliders : [] }));
+    const jets = normalizeJets(solved.flatMap((w) => w.jets), { metersPerUnit: payload.metersPerUnit });
+    // (its vessels, as plain stone and standing water, where the world brings none: `stone: false` for none)
+    const stone = circuits.flatMap((c, i) => (c && c.stone === false ? [] : hydraulicsFaces(c.id ? c : { ...c, id: `works${i + 1}` })));
+    if (stone.length) payload.faces = [...payload.faces, ...stone];
+    if (jets.length) payload.jets = [...(Array.isArray(payload.jets) ? payload.jets : []), ...jets];
+    const mine = { mists: solved.flatMap((w) => w.mists), impacts: solved.flatMap((w) => w.impacts), report: solved.map((w) => w.report) };
+    payload.hydraulics = payload.hydraulics ? { mists: [...payload.hydraulics.mists, ...mine.mists], impacts: [...(payload.hydraulics.impacts || []), ...mine.impacts], report: [...payload.hydraulics.report, ...mine.report] } : mine;
+  }
+  // (a circuit a kit laid, a plaza's fountain: its mist's air solved again here, among the world's own solids)
+  else if (payload && payload.hydraulics && Array.isArray(payload.hydraulics.mists) && payload.hydraulics.mists.length && !unshaded) {
+    const { solids = [], ...H } = payload.hydraulics, walls = Array.isArray(payload.colliders) ? payload.colliders : [];
+    payload.hydraulics = walls.length ? { ...H, mists: mistAir(H.mists, { colliders: [...walls, ...solids] }) } : H;
+  }
+  // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
+  { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,
@@ -872,9 +899,6 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
-    // (one sun a page: the live light's maps are drawn along the land's solved sun, the one its form and a baked
-    // building are lit by, where the world names none of its own)
-    if (read && payload.shadows && typeof payload.shadows === 'object' && !Array.isArray(payload.shadows.toLight) && Array.isArray(payload.form.land.sun) && payload.form.land.sun[2] > 0.05) payload.shadows = { ...payload.shadows, toLight: payload.form.land.sun };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)

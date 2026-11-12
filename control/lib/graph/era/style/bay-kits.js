@@ -85,7 +85,7 @@ const SHELL = Object.freeze({
   // soffit (`hole`: its size, the plenum's depth over it, the panel hung `hang` radians off its hinge, the wiring's droop)
   // in a share (`open`) of the low rooms; the boxes and breaker panels and the ceiling's pipes only in a room `long`
   // enough to run services along, a return in the ceiling of a room `ceilingReturn` wide, low on a narrower one's wall
-  services: { every: 2, box: { w: 0.4, h: 0.5, d: 0.16, z: 1.5, inset: 0.35 }, conduit: { r: 0.025, off: 0.06 }, panel: { w: 0.7, h: 1.1, d: 0.22, z: 0.9, gap: 0.4 },
+  services: { every: 2, rhythm: 'full', box: { w: 0.4, h: 0.5, d: 0.16, z: 1.5, inset: 0.35 }, conduit: { r: 0.025, off: 0.06 }, panel: { w: 0.7, h: 1.1, d: 0.22, z: 0.9, gap: 0.4 },
     open: 0.35, long: 10, ceilingReturn: 5, hook: { drop: 0.25 }, cables: [0.022, 0.018, 0.026], sag: 0.28, indicator: '#40ff80', plenum: [0.06, 0.06, 0.07],
     hole: { l: 1.2, w: 0.6, plenum: 0.5, hang: 1.1, droop: 0.6 } },
   // the glass (era/bay-glass.js): windows where a wall faces out (a tall room's ribbon under its crown, `over` clear of

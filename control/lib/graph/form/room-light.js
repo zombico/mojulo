@@ -67,8 +67,12 @@ const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.lengt
 
 /** The median lamp (by intensity, then radius): the one the targets are read under. */
 export function referenceLamp(lights) {
-  const I = median(lights.map((l) => l.intensity));
-  return lights.filter((l) => l.intensity === I).sort((a, b) => a.radius - b.radius)[0] || { color: '#ffffff', intensity: 1, radius: 8 };
+  const pick = (ls) => { const I = median(ls.map((l) => l.intensity)); return ls.filter((l) => l.intensity === I).sort((a, b) => a.radius - b.radius)[0]; };
+  const ref = pick(lights);
+  // (a lamp that does not reach the reference gives nothing there, and the targets cannot be read under it: where the
+  // median is such a lamp, a room of small signal lights, the median of the lamps that do reach stands in)
+  const reaches = (l) => falloff(ROOM_LIGHT.at, l.radius) > 0;
+  return (ref && reaches(ref) ? ref : pick(lights.filter(reaches))) || { color: '#ffffff', intensity: 1, radius: 8 };
 }
 
 // the paint's own shoulder (era/stage.js bakeStageLight): its light rolls off before white

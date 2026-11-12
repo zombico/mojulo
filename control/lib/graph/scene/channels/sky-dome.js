@@ -9,6 +9,9 @@ import { safeJson } from '../emit-util.js';
 // Either way the dome + stars live in WORLD space (not parented to the camera), so orbiting
 // pans across them. The luminaries ride the dome too: a phase-carved moon at night and a warm
 // sun by day, each world-positioned from its sky-still { u, h } so it stays put as the camera orbits.
+/** Under the bloom (`d.hot`, a world's finish: channels/frame-pass.js) the sun's disc is drawn this much past its paint
+ *  (linear light: about 2.2 past the curve), so the bloom draws its glare from the disc. */
+export const SUN_HOT = 6;
 export function skyDomeScript(d) {
   // a moon may carry its own colour (a world hanging in a void sky: a blue planet, a banded giant); absent, the pale
   // moon as ever, the page's bytes unchanged
@@ -132,7 +135,8 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     const sz = R * 0.06 * (S.size || 1);
     ssp.position.set(SKY.center[0] + dir[0] * rr, SKY.center[1] + dir[1] * rr, SKY.center[2] + dir[2] * rr);
     ssp.scale.set(sz, sz, 1); ssp.renderOrder = -1;
-    scene.add(ssp);
+    scene.add(ssp);${d.hot ? `
+    ssp.material.color.setScalar(${SUN_HOT});   // (under the bloom the sun's disc is drawn past white: a world's finish)` : ''}
   }
 }`;
 }

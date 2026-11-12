@@ -25,7 +25,7 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
    tall use's main room (a hall, a nave, a work floor) takes the town's taller storey. Left out, the cube's builders
    speak, or else the kit's own.
 3. **What is it made of?** `geocube` (a preset or a cube): its room kit, colours, patterns and light dress the rooms.
-   Or name a room kit (`kit: 'gothic-stone' | 'catacomb' | 'research-lab' | 'gothic-nave'`).
+   Or name a room kit (`kit: 'gothic-stone' | 'gothic-ashlar' (the same crypt, graver: dressed ashlar, made for tall rooms) | 'catacomb' | 'research-lab' | 'gothic-nave'`).
 4. **Your changes.**
    - `program.seed` gives another plan.
    - `program.rooms: { <role or id>: { w?, d?, h?, drop? } }` resizes or drops a room.

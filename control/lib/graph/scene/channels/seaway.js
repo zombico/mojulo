@@ -17,7 +17,7 @@ import { kelvinField } from '../../craft-shelf/kelvin.js';
 // and the boat rides the swell (heave, pitch and roll from the swell under it), banks in its turn, and throws seeded
 // spray off its chines and its rooster tails on the plane. The camera follows it (the orbit keeps its offset).
 // Fixed substeps off the channel clock and seeded dice, so a capture's frames are the same every time.
-export function seawayChannelScript({ boat, water, wake, course, toLight = [0.4, 0.3, 0.8], follow = true }) {
+export function seawayChannelScript({ boat, water, wake, course, toLight = [0.4, 0.3, 0.8], follow = true, pageLit = false }) {
   return `${aquaPatchScript()}
 // --- seaway (a boat underway on live water: its swell, its wake, its foam, its spray) ---
 let stepSeaway = () => {};
@@ -25,9 +25,9 @@ let stepSeaway = () => {};
   const SW = ${safeJson({ water, wake, course, follow: !!follow })}, BOAT = ${safeJson(boat)}, SUN = ${safeJson(toLight.map((x) => +(+x).toFixed(6)))};
   const G = 9.81, W = SW.wake, U = W.speed, R = SW.course.loop, C = 2 * Math.PI * R, CX = SW.course.center[0], CY = SW.course.center[1];
   const LW = W.waterline.length, LIFT = W.regime !== 'displacement', APP = W.angle * Math.PI / 180;
-  if (!scene.children.some((o) => o.isLight)) { const sun = new THREE.DirectionalLight(0xfff4e0, 2.0); sun.position.set(SUN[0] * 100, SUN[1] * 100, SUN[2] * 100); scene.add(sun);
+${pageLit ? '' : `  if (!scene.children.some((o) => o.isLight)) { const sun = new THREE.DirectionalLight(0xfff4e0, 2.0); sun.position.set(SUN[0] * 100, SUN[1] * 100, SUN[2] * 100); scene.add(sun);
     const hemi = new THREE.HemisphereLight(0xcfe3f2, 0x5a6a48, 0.9); hemi.position.set(0, 0, 1); scene.add(hemi); }
-  // the sheet: a grid over the course, each vertex's place along the track (its arc s) and across it (η) fixed once
+`}  // the sheet: a grid over the course, each vertex's place along the track (its arc s) and across it (η) fixed once
   const { n, size } = SW.water, N = n * n, dx = size / (n - 1), x0 = CX - size / 2, y0 = CY - size / 2;
   const pos = new Float32Array(N * 3), nor = new Float32Array(N * 3), col = new Float32Array(N * 3), fa = new Float32Array(N), S = new Float32Array(N), ETA = new Float32Array(N), H = new Float32Array(N);
   const tint = new THREE.Color(SW.water.color);

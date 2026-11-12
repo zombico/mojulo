@@ -40,3 +40,51 @@ export const CRYPT = Object.freeze({
   // candles in a cluster at each dais corner: wax, a flame card, a small warm light baked like a torch
   candles: { per: 3, r: 0.035, h: [0.18, 0.34], wax: '#e8dcc0', color: '#ffc874', intensity: 1.15, radius: 4.2 },
 });
+
+/**
+ * The crypt, SOBER: the same vault and the same principles in a graver register, for the `gothic-ashlar` kit. What the
+ * first card says loudly this says quietly, so the room reads by its scale and its light and not by its outlines:
+ * the niches' frames thin and close to the wall, their dark deeper; the tomb a grey stone that takes the candles'
+ * light and never burns white; fewer, lower candles; the accent wall's blocks large but calm; the corner things
+ * the ones a vault holds (stones, a boulder, fallen planks, debris), never a crate or a barrel; the moss and the
+ * grime darker and thinner, a stain and not a stripe.
+ */
+export const CRYPT_SOBER = Object.freeze({
+  ...CRYPT,
+  // THE FORM REGISTER'S PRINCIPLES (era/laws.js 'crypt/form': the seventh generation's laws; era/form-laws.js measures
+  // a kit against them). The crypt's own principles above hold as they are: these say how they are drawn now.
+  form: Object.freeze({ principles: Object.freeze([
+    'Stone is the size it is built at: courses a third of a metre high, slabs a stride long; nothing is enlarged to be read small.',
+    'A joint is a shadow, not a line: every joint, chip and tool mark is relief the lamps find.',
+    'Blocks agree and the light disagrees: a wall\'s stones are close in tone, and the room\'s contrast is torchlit stone against the dark.',
+    'A curve is a curve: a doorway\'s head, a niche\'s and the vault are cut fine enough to read round at arm\'s length.',
+    'The dark is part of the room: the torches stand high and reach far, and above them the vault is lost.',
+    'What burns moves: a torch\'s flame is live.',
+    'What stands proud of a wall stands a hand\'s breadth, in stone near the wall\'s own: a frame, a plinth, a cornice are quiet.',
+    'The motif is cut, not painted: a small band of dentils under the cornice, in the wall\'s own tone, found by the light.',
+    'Nothing is a box on its first pass: the torch is a cone of iron in a ring on an arm, turned, not stacked.',
+    'A pilaster is worked like a column: a fluted shaft on a base, a ring and a capital over it, never a flat strip.',
+    'A wall has layers: a coat of lime render over the ashlar, fallen away in patches, standing proud so its broken edge casts a shadow on the stone.',
+    'A wall keeps a rhythm: along it never three bays alike and never a pair followed by the same pair (ABBA, never AAAA or ABAB); a wall all alike is a choice a recipe states, and then its bay is clean and repeatable.',
+    'The second kind of bay is the first with less on it: one niche where its neighbour has two, and nothing in it; derived, never a new design.',
+'A wall has storeys: a string course two thirds up it, and over the course an upper register derived from the lower, one large blind arch a bay, shallow where the niches are deep.',
+    'Plaster tells the height: damp rises from the floor, so the coat is ragged low and nearly whole high, and the upper wall is the paler.',
+    'The air above is furnished and lit by a cause: a ring of candles hangs on chains over the walk and lights the wall up its height, and a slit of cold sky high behind the tomb lays its light on it.',
+        'A niche is cut into the wall: it has a back, a floor, a head and sides, and an urn stands inside it.',
+        'The floor is laid, not tiled: a darker course along the walls where nobody walks, a worn walk of larger slabs down the room to the tomb, and fields either side laid bay by bay, keeping the walls\' rhythm with the same slabs turned a quarter.',
+  ]) }),
+  // (its bays keep a rhythm, era/wall-rhythm.js: the second kind of bay is the first with a tier of niches less)
+  niches: Object.freeze({ ...CRYPT.niches, rhythm: Object.freeze({ less: 1 }), depth: 0.2, seg: 14, frame: 0.07, out: 0.04, dark: [0.07, 0.07, 0.075], urns: 0.2, urn: [0.42, 0.36, 0.3] }),
+  tomb: Object.freeze({ ...CRYPT.tomb, stone: { key: 'marble-carrara', scale: 1.2, tint: [0.56, 0.55, 0.54] } }),
+  accent: Object.freeze({ stone: { gen: 'dressed', stone: [100, 96, 92], mortar: [62, 60, 58], rows: 4, cols: 1, joint: 0.014, recess: 0.008, tool: 'pitched', chamfer: 0.006, pillow: 0.005, spall: 0.35, pit: 0.3, vary: 9, grit: 0.55, scale: 2.4 }, tint: [0.74, 0.73, 0.73] }),
+  props: Object.freeze({ ...CRYPT.props, kinds: ['stones', 'boulder', 'planks', 'debris'], share: 0.3 }),
+  candles: Object.freeze({ ...CRYPT.candles, per: 2, h: [0.14, 0.26], color: '#ffb866', intensity: 0.9, radius: 3.6 }),
+  cobwebs: Object.freeze({ ...CRYPT.cobwebs, tint: [0.6, 0.6, 0.63] }),
+  // THE AIR ABOVE (era/crypt.js cryptAbove): a ring of candles on chains over the walk of a room at least `tall`, one
+  // every `every` metres, hung `drop` under the vault and no higher than `z`, never within `clear` of the tomb; and an
+  // opening high in the wall behind the tomb, a slit of cold sky whose light falls on the tomb as a pool
+  above: Object.freeze({ ring: Object.freeze({ tall: 7, every: 9, drop: 2.6, z: 5.6, r: 0.85, candles: 8, clear: 3.5, color: '#ffb866', intensity: 1.35, radius: 10 }),
+    opening: Object.freeze({ w: 0.5, h: 1.5, below: 0.7, sky: '#b9cdf2', color: '#9fb8ee', intensity: 0.95, radius: 6, lift: 1.3 }) }),
+  moss: Object.freeze({ ...CRYPT.moss, tint: [0.3, 0.36, 0.32], max: 0.45 }),
+  grime: Object.freeze({ ...CRYPT.grime, tint: [0.6, 0.58, 0.56], max: 0.7 }),
+});

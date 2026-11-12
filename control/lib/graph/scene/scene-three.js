@@ -69,7 +69,10 @@ import { streamChannelScript } from './channels/stream.js';
 import { scienceChannelScript } from './channels/science.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
-import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
+import { pageLight, shadowToLight, skyEnv, BLOOM_LEVELS } from './page-light.js';
+import { collectHotFaces, hotFacesScript } from './channels/hot-faces.js';
+import { hydraulicsScript } from './channels/hydraulics.js';
+import { flamesScript } from './channels/flames.js';
 import { crystalChannelScript } from './channels/crystal.js';
 import { resolveAquaLook } from '../materials/aqua-look.js';
 import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
@@ -272,9 +275,14 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
+  // THE PAGE'S LIGHT, one record (scene/page-light.js): every channel below that shades or casts reads its sun from it
+  const PL = pageLight({ light, form, sky });
+  // (on a page the form render draws the record is the page's own, `__LIGHT`, and the machine gate's probe,
+  // `window.__mojSun`; a page without it carries neither: its channels' own arguments are the record's numbers)
+  const sunProbe = form ? `\nconst __LIGHT = window.__mojSun = ${safeJson({ toLight: PL.toLight.map((v) => +(+v).toFixed(6)), from: PL.from, indoor: PL.indoor, ...(PL.sun ? { sun: PL.sun } : {}), ...(PL.ambient ? { ambient: PL.ambient } : {}) })};\n` : '';
   const litPack = !!(form && ((form.room && Array.isArray(form.room.lights)) || (form.town && Array.isArray(form.town.lights))));
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -586,7 +594,12 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // the SAME `glow` markers the baked face list already carries (see collectGlowSprites).
   const glowCfg = glow && typeof glow === 'object' ? glow : {};
   const sprites = glow ? collectGlowSprites(faces, { scale: glowCfg.scale ?? 1 }) : [];
-  const glowBlock = sprites.length ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95) : '';
+  // THE BLOOM (a world's finish, scene/page-light.js): its chain by the live light's tier, none at 'off'
+  const bloomOn = finish && finish.bloom && BLOOM_LEVELS[lightTier && lightTier.tier ? lightTier.tier : 'full'] > 0
+    ? { ...finish.bloom, levels: BLOOM_LEVELS[lightTier && lightTier.tier ? lightTier.tier : 'full'] } : null;
+  // (under the bloom the emitters' own faces are drawn past white too, channels/hot-faces.js: a lit window, a sign)
+  const glowBlock = (sprites.length ? (bloomOn ? glowSpriteScript(sprites, glowCfg.opacity ?? 0.95, true) : glowSpriteScript(sprites, glowCfg.opacity ?? 0.95)) : '')
+    + (bloomOn ? hotFacesScript(collectHotFaces(faces)) : '');
 
   // Specular channel: live Blinn-Phong against the fixed baked
   // light for groups whose faces carry `spec`. One-shot setup block (glow/shadow posture) —
@@ -599,7 +612,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const anyRigSpec = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.spec));
   const specBlock = (anyRigSpec || groups.some((g) => g.spec || (g.tex || []).some((t) => t.spec)))
-    ? specularChannelScript(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight)
+    ? specularChannelScript(PL.toLight, finish && finish.reflect && !PL.indoor ? skyEnv(PL.sky) : null)
     : '';
 
   // Shadow decals: the CSS-3D cast/contact shadows, realized as flat dark ground quads.
@@ -619,18 +632,18 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const waterMesh = glassRaw.length ? collectWaterMesh(glassRaw) : null;
   const liquidMesh = hasLiquid ? collectWaterMesh(waterRaw.filter((f) => f.liquid)) : null;
   const waterBlock = (waterMesh ? waterMeshScript(waterMesh) : '')
-    + (liquidMesh ? liquidMeshScript(liquidMesh, liquidLook, light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight) : '');
+    + (liquidMesh ? liquidMeshScript(liquidMesh, liquidLook, PL.toLight) : '');
   // wet sand (a beach's swash darkening and filming its sand group). Absent ⇒ no bytes.
   const wetSandBlock = wetSand && Number.isFinite(+wetSand.edgeY) && +wetSand.swashRange > 0 ? wetSandScript(wetSand) : '';
   // soft ground (the touch tier's footprint bed around the walker). Absent ⇒ no bytes.
   const softGroundBlock = softGround && softGround.surface && softGround.swash ? softGroundScript(softGround) : '';
   // snow prints (a stage's snow: a footprint bed round the walker, era/snow.js). Absent ⇒ no bytes.
   const snowPrintsBlock = snowPrints && snowPrints.grid ? snowPrintsScript(snowPrints) : '';
-  const shallowsBlock = shallowBodies.length ? shallowsChannelScript({ bodies: shallowBodies, floaters: shallows.floaters || [], rain: shallows.rain || 0, metersPerUnit: Number.isFinite(+metersPerUnit) && +metersPerUnit > 0 ? +metersPerUnit : 1, toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight, walk: !!walk }) : '';
+  const shallowsBlock = shallowBodies.length ? shallowsChannelScript({ bodies: shallowBodies, floaters: shallows.floaters || [], rain: shallows.rain || 0, metersPerUnit: Number.isFinite(+metersPerUnit) && +metersPerUnit > 0 ? +metersPerUnit : 1, toLight: PL.toLight, walk: !!walk, ...(PL.from === 'land' ? { pageLit: true } : {}) }) : '';
   // jets (materials/jet.js): falling streams and the basins they fill; they touch water through the shallows bus
-  const jetBlock = Array.isArray(jets) && jets.length ? (shallowsBlock ? '' : aquaPatchScript()) + jetChannelScript({ jets, sky, toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight, hud: !!hud, ...(jetLight ? { lit: jetLight } : {}) }) : '';
+  const jetBlock = Array.isArray(jets) && jets.length ? (shallowsBlock ? '' : aquaPatchScript()) + jetChannelScript({ jets, sky, toLight: PL.toLight, hud: !!hud, ...(jetLight ? { lit: jetLight } : {}) }) : '';
   // a boat underway on live water (worlds/seaway-scene.js). Absent ⇒ no bytes.
-  const seawayBlock = seaway && seaway.boat && seaway.water ? seawayChannelScript({ ...seaway, toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight }) : '';
+  const seawayBlock = seaway && seaway.boat && seaway.water ? seawayChannelScript({ ...seaway, toLight: PL.toLight, ...(PL.from === 'land' ? { pageLit: true } : {}) }) : '';
   const blendBlock = blendLayers.length ? blendLayerScript(blendLayers) : '';
 
   // Sky dome: a world-fixed gradient sphere (+ night stars + a phase-carved moon) centred on the
@@ -658,7 +671,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // a painted cloud band round the dome (matte-paint/sky.js): only a sky that carries one
       ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}) }
     : null;
-  const skyBlock = skyDome ? skyDomeScript(skyDome) : '';
+  const skyBlock = skyDome ? skyDomeScript(bloomOn ? { ...skyDome, hot: true } : skyDome) : '';
   // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material
   // mesh (world groups, textured wraps, instances, streamed tiles) toward the horizon colour — aerial
   // perspective, not the volumetric ground fog. It rides the sky block's string so a page without it
@@ -752,7 +765,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (and the grade, channels/grade.js: the page's compositing stage, the frame pass's last; asked by nothing, not a byte)
   // (a tempo moment with a look asks for the grade too, at its rest when the world sets none: worlds/controllable/world-clock.js)
   const gradeOn = grade || (tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look) ? {} : null);
-  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0, ...(gradeOn ? { grade: gradeOn } : {}) });
+  const frameEarly = framePassScript({ air: airOn ? air : null, soften: Number.isFinite(soften) && soften > 0 ? soften : 0, ...(gradeOn ? { grade: gradeOn } : {}), ...(bloomOn ? { bloom: bloomOn } : {}) });
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
   const weatherBlock = weather && weather.weather ? weatherScript({ radius: mesh.radius || 40, fog: haze && Number.isFinite(haze.density) && typeof haze.color === 'string' ? { color: haze.color, density: haze.density } : null, forces: weatherForces(events), ...weather }) : '';
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
@@ -947,8 +960,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const liveShadowBlock = liveShadows ? liveShadowScript({
     actors: liveShadows.actors, hour: liveShadows.hour,
     // (indoors the actors' light stands below, straight up: the blob's map)
-    toLight: liveIndoor ? [0, 0, -1] : Array.isArray(shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight
-      : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
+    toLight: liveIndoor ? [0, 0, -1] : shadowToLight(PL, shadows),
     alpha: typeof shadows.alpha === 'number' ? shadows.alpha : 0.38,
     mapSize: shadows.mapSize || (lightTier && lightTier.mapSize) || 2048,
     span: shadows.span || Math.round((16 / liveUnit) * 1e4) / 1e4,
@@ -962,8 +974,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (walkers, cars and the controllable bodies flag themselves as casters for `cast` and for `actors`)
   const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors);
   const castShadowBlock = castShadows ? castShadowScript({
-    toLight: Array.isArray(castShadows.toLight) && castShadows.toLight.length === 3 ? castShadows.toLight
-      : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
+    toLight: shadowToLight(PL, castShadows),
     alpha: typeof castShadows.alpha === 'number' ? castShadows.alpha : 0.38,
     mapSize: castShadows.mapSize || 2048,
     span: castShadows.span || 420,
@@ -1074,7 +1085,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   const mountRideBlock = hasControllable && entityList.some((e) => e && e.mount) ? mountRideScript() : '';
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
-    ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
+    ? shadowToLight(PL, shadows && typeof shadows === 'object' ? shadows : null) : null;
   // a fight solved onto the map (rpg rules.stage 'arena'): the props' clearing (__mojClip), emitted only for it
   const arenaClip = !!(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'arena');
   // THE PIXEL BUDGET: a page played live (the controllable channel: its pilot is the page's own pick), never a capture
@@ -1111,7 +1122,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // groups, and each stone's print traced once here (crystal-prints.js). Absent → zero bytes.
   const cryGroups = groups.filter((g) => g.crystal);
   const crystalBlock = cryGroups.length ? (() => {
-    const toL = crystalSun(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight);
+    const toL = crystalSun(PL.toLight);
     const gems = Object.fromEntries([...new Set(cryGroups.flatMap((g) => g.crystal.gems))].map((name) => [name, shineOptics(name)]));
     // a crystal group a mover drives throws its print live (re-traced on the page as it turns); the rest bake here
     const moving = new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => cryGroups.some((cg) => cg.name === g)));
@@ -1126,14 +1137,14 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     dynamic: [...new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => typeof g === 'string' && !cryRig.stones.some((st) => st.group === g)))] }) : '';
   // fire (flame-depiction): live flames on their props, embers and smoke, lighting the world's basic materials. Present only
   // with a resolved `fire` (fire/fire.js resolveFire); after the terrain block so it can read the wind. Absent → zero bytes.
-  const fireBlock = fire && Array.isArray(fire.sources) && fire.sources.length ? fireChannelScript(fire) : '';
+  const fireBlock = fire && Array.isArray(fire.sources) && fire.sources.length ? fireChannelScript(bloomOn ? { ...fire, hot: true } : fire) : '';
   // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
   // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
   // Absent → zero bytes.
   // (and a rigged figure's bone parts that carry metal: a hero wearing its cube's materials, rig-bake.js `metal`)
   const rigMetal = Object.values(packedFigures).flatMap((f) => (f && f.rig === true && Array.isArray(f.parts) ? f.parts.flatMap((p) => (p && p.metal ? p.metal.surfaces : [])) : []));
   const metKeys = [...new Set([...groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces), ...rigMetal])].sort();
-  const metalBlock = metKeys.length ? metalChannelScript({ toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight,
+  const metalBlock = metKeys.length ? metalChannelScript({ toLight: PL.toLight,
     inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit,
       // a cube's contrast with its `metal` term: the metal multiplies in the occlusion its faces carry, over the cube's ground
       ...(vertexContrast && vertexContrast.metal > 0 ? { shade: true, ground: vertexContrast.ground, air: vertexContrast.sky } : {}) }) }) : '';
@@ -1649,7 +1660,7 @@ window.addEventListener('message', (e) => {
   else if (d.moj === '${MSG_FOCUS}') applyFocus(d.group ?? null);
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
-${formBlock}${channelSetupSection('pre-runtime', setupBlocks)}
+${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
 ${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
