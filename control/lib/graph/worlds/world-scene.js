@@ -64,6 +64,7 @@ import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
 import { GLASS_GROUPS } from '@/lib/graph/era/bay-glass';
 import { floraRead, floraBox, viewHeld, FLORA_HIDES } from '@/lib/graph/form/flora-read';
 import { snowBase, readSnow } from '@/lib/graph/era/snow';
@@ -912,6 +913,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && M.clouds === undefined && M.buildings !== undefined && CLOUDS_OF_WEATHER[M.weather] === 'storm' || read && M.clouds === undefined && M.buildings !== undefined && M.weather === 'drizzle') payload.form.land.clouds = { kind: CLOUDS_OF_WEATHER[M.weather], cover: 0.5, seed: 1 };
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
     // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
+    // (rain on the land: where it is raining, the land wears the film its buildings' walls and slabs do, era/wetness.js;
+    // by the recipe's `wet`, or its weather's where it has buildings, as the buildings read it)
+    { const rain = read ? readWetness(M.wet !== undefined ? M.wet : M.buildings !== undefined ? wetOfWeather(M.weather) : null) : null;
+      if (rain && rain.rain > 0) payload.form.land.rain = rain.rain; }
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };

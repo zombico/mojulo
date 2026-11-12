@@ -331,7 +331,13 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     float wet = ( 1.0 - smoothstep( 0.0, uWet.y, abs( vWPos.z - uWet.x + ( vn( vWPos.xy / 1.7 + 3.1 ) - 0.5 ) * uWet.y * 0.8 ) ) ) * ws[ 3 ] / max( 1e-4, tw );
     diffuseColor.rgb *= mix( 1.0, uWet.z, wet );
     roughnessFactor = mix( roughnessFactor, uWet.w, wet );
-    // the FAR FIELD's blanket past the view cone's reach: the grass one colour, offset by its cells (channels/far-field.js)
+${form.rain ? `    // (RAIN on the land, form.rain: a film of no thickness over all of it, cliffs and slopes as the ground: darker,
+    // smooth enough to take the sky and a lamp, its relief kept, a little uneven so it is not a coat of paint)
+    { float rw = ${form.rain >= 2 ? '1.0' : '0.8'} * mix( 0.72, 1.0, vn( vWPos.xy / 2.3 + 7.7 ) );
+      // (where it stands steep the water runs: streaks down the face, smoother in them, the rock between only damp)
+      float rs = 1.0 - smoothstep( 0.35, 0.8, nW.z ), rr = smoothstep( 0.4, 0.75, vn( vec2( ( vWPos.x + vWPos.y ) * 2.6, vWPos.z * 0.3 ) ) );
+      diffuseColor.rgb *= mix( 1.0, 0.62, rw ); roughnessFactor = mix( roughnessFactor, mix( 0.16, mix( 0.3, 0.07, rr ), rs ), rw ); }
+` : ''}    // the FAR FIELD's blanket past the view cone's reach: the grass one colour, offset by its cells (channels/far-field.js)
     { vec4 fb = farBlanket( vWPos, nW ); if ( fb.a > 0.0 ) { diffuseColor.rgb = mix( diffuseColor.rgb, fb.rgb, fb.a ); roughnessFactor = mix( roughnessFactor, 0.8, fb.a ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), fb.a ) ); } }
     normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
 ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}${form.snow ? `      sh.fragmentShader = SNOW_HEAD + sh.fragmentShader.replace('    // (the sand WET', SNOW_COVER + '    // (the sand WET'); Object.assign(sh.uniforms, SNOW_U);\n` : ''}${form.dunes || form.snow ? `      sh.fragmentShader = PRINT_HEAD + sh.fragmentShader.replace('    // (the sand WET', PRINT_PRESS + '    // (the sand WET'); Object.assign(sh.uniforms, PRINT_U);\n` : ''}    };
@@ -424,7 +430,9 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
       : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, side: THREE.DoubleSide });
     const ground = !water && D.layers.keys.includes(R.key.split(':')[0]);
     if (ground) layeredGround(m, 1);
-    // (the land is shaded flat, its normals the faces'; the sea's are its own; the shallows' floor, all but level, lit as
+${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
+    if (!water) { m.envMap = skyEnv; m.envMapIntensity = 0.6; }
+` : ''}    // (the land is shaded flat, its normals the faces'; the sea's are its own; the shallows' floor, all but level, lit as
     // one surface facing up, so its faces never show through the sea as facets)
     const floor = R.key === 'sand:under', g = RF && R.key === 'cliff' ? reliefPart(R) : part(R, C7, { splat: ground, smooth: !water && !floor && R.key !== 'unread' });
     if (water) g.computeVertexNormals();

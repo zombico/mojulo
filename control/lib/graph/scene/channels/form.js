@@ -137,6 +137,10 @@ const ENV_BODY = `
     eR = mix( eR, min( eR, 0.34 ), eDamp ); eR = mix( eR, 0.06, eFill );
     // (a face running with rain is a film of water: smooth, whatever it is made of)
     eR = mix( eR, min( eR, 0.16 ), eAll * uFWet.x );
+    // (and the film on a standing face SHEETS: thin bright runs of the sky's own light sliding down it, by the face's
+    // length, so a wall or a crate's side reads wet where it holds no lamp and no sun; of no thickness, as the floor's)
+    { float eSh = smoothstep( 0.5, 0.85, fVN( vec2( eAlong * 7.0 + uFWet.y, eP.z * 0.45 + uFNow * 0.7 ) ) ) * ( 0.55 + 0.45 * fVN( vec2( eAlong * 1.1, eP.z * 0.2 + uFNow * 0.25 ) ) );
+      eRingSum += eSh * eAll * uFWet.x * 0.55; }
     eN = normalize( mix( eN, eG, eFill ) );
     // (and the film is struck: small rings everywhere on it, each cell on its own beat, larger and slower where water
     // stands deep; they bend what the ground holds, as a footfall's do)

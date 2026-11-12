@@ -98,3 +98,7 @@
   the site was filled. A test walks the skirt and finds none hanging.
 - A night's weather takes a third of the light a day's does (a night is dark already), on a page lit by the form
   render; a yard's floodlights are brighter and reach further.
+- Rain's film on what stands: while it rains a wall's and a crate's side sheet, thin runs of the sky's own light
+  sliding down the face by its length, of no thickness, as the floor's film is; and the land wears the film too
+  (`form.land.rain`, from the recipe's wetness): darker, smooth, the sky held in it, running in streaks where it
+  stands steep, so a cliff reads wet. A land it does not rain on is as it was.
