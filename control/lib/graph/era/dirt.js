@@ -80,8 +80,11 @@ export function makeDirt(plan, allLights, knobs = {}) {
     return m;
   };
 
+  // (asked by weathering, `every`, era/weathering.js: a bay's own surfaces take the dirt too, its base band, columns and
+  // crown as walls take it, its floor band and hazard paint as the floor does; unasked, only the wall and the floor)
+  const ALIKE = k.every ? { 'stage:base': 'stage:wall', 'stage:column': 'stage:wall', 'stage:crown': 'stage:wall', 'stage:band': 'stage:floor', 'stage:hazard': 'stage:floor' } : null;
   const inner = (f, c) => {
-    const n = f.normal, g = f.group;
+    const n = f.normal, g = ALIKE && ALIKE[f.group] ? ALIKE[f.group] : f.group;
     if (g === 'stage:floor') {
       const r = roomAt(c[0], c[1]);
       const wear = 1 + 0.14 * k.traffic * Math.exp(-((distToLine(c, walk) / 1.0) ** 2));

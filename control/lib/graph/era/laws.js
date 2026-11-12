@@ -68,6 +68,10 @@ export const LAWS = Object.freeze({
   'corner-things': { layer: 'composition', law: 'Things gather where floor meets wall: clusters in corners, singles at wall bases, off the way.' },
   'cast-over-world': { layer: 'composition', era: true, law: 'The cast reads denser on screen than the world behind it.' },
   'frame-readout': { layer: 'composition', era: true, law: 'Detail is read at the era\'s frame (640×448), not at today\'s.' },
+  // (the builder's, in both eras: a placer that strews small things measures each against the eye spot, 12 pixels of the
+  // frame its era reads at, at the distance the player meets it, playscape/objects/laws.js eyeSpot, and leaves out what
+  // is under it, neither built nor painted in; era/skandart.js is the first)
+  'too-small-to-read': { layer: 'composition', era: true, law: 'What is too small to be read where it is seen (under the eye spot) is not made.' },
   // dressing
   'kit-dressing': { layer: 'dressing', law: 'A kit\'s own set pieces.' },
   // THE SEVENTH GENERATION'S (`form: true`): what the form render affords that paint could not. Each answers a sixth-gen

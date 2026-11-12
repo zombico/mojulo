@@ -3,7 +3,8 @@
  * game (or a level) says how much does. The action game's convention, for one: buildings and map fixtures hold, a set
  * of destructible objects breaks.
  *
- *   DEGREES                      none · objects (the action default: crates, barrels, amphorae, pots, glass, planks,
+ *   DEGREES                      none · objects (the action default: crates, barrels, chests, baskets, amphorae, pots, urns,
+ *                                glass, planks,
  *                                bones, a lid) · cover (a shooter's: furniture, doors, boulders, coffins too) · world
  *                                (walls, pilasters and set pieces as well) · physical (what world breaks, broken by
  *                                its MATTER and held up by what it rests on: destructible physics, rupa/, a game that
@@ -46,13 +47,13 @@ import { CLASS_ROLE } from '../../rupa/look-matter.js';
 const CUT_IDS = Object.keys(CUT_NAMES);
 const same = (a, b) => ['pattern', 'style', 'count', 'cell'].every((k) => a[k] === b[k]);
 
-const OBJECTS = Object.freeze(['crate', 'barrel', 'amphora', 'pot', 'vase', 'glass', 'planks', 'bones', 'lid']);
+const OBJECTS = Object.freeze(['crate', 'barrel', 'chest', 'basket', 'amphora', 'pot', 'urn', 'vase', 'glass', 'planks', 'bones', 'lid']);
 const COVER = Object.freeze([...OBJECTS, 'bench', 'chair', 'rack', 'lockers', 'cart', 'door', 'boulder', 'coffin']);
 const WORLD = Object.freeze([...COVER, 'wall', 'pilaster', 'set-piece']);
 export const DEGREES = Object.freeze({ none: Object.freeze([]), objects: OBJECTS, cover: COVER, world: WORLD, physical: WORLD });
 export const DEGREE_IDS = Object.freeze(Object.keys(DEGREES));
 // how many blows a thing takes, by class (a crate one, a coffin three); absent: one
-export const THING_HP = Object.freeze({ crate: 1, barrel: 2, amphora: 1, pot: 1, vase: 1, glass: 1, lid: 2, coffin: 3, door: 3, boulder: 4, 'set-piece': 6, wall: 6, pilaster: 4 });
+export const THING_HP = Object.freeze({ crate: 1, barrel: 2, chest: 2, basket: 1, amphora: 1, pot: 1, urn: 1, vase: 1, glass: 1, lid: 2, coffin: 3, door: 3, boulder: 4, 'set-piece': 6, wall: 6, pilaster: 4 });
 
 export function readDegree(v, where = 'destruction') {
   if (v === undefined || v === null) return null;

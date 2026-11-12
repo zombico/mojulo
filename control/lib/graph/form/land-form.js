@@ -41,7 +41,12 @@ export const LAND_CLASSES = Object.freeze({
   // cube names no bark of its own)
   crown: { colour: 'foliage', rough: 0.85, tone: 1, vary: 0.08 },
   wood: { colour: 'floor', rough: 0.9, tone: 0.5, vary: 0.05 },
+  // a tree's fallen wood by a trail (era/deadfall.js): its floor, weathered paler than a standing trunk's bark
+  deadwood: { colour: 'floor', rough: 0.95, tone: 0.62, vary: 0.1 },
 });
+/** The classes only some lands draw (a trail's deadfall, era/deadfall.js): a land's payload lists one only where its faces
+ *  stand, so a land without them carries none of it (form/land-read.js). */
+export const OPT_CLASSES = Object.freeze(new Set(['deadwood']));
 /** Wet sand: how high above the water's line, its colour (× dry) and its roughness. */
 export const WET_BAND = 0.3, WET_TONE = 0.68, WET_ROUGH = 0.25;
 /** Sand under the sea: its colour (× dry), lighter than the wet line's (the sea over it, not a film of water, darkens it). */

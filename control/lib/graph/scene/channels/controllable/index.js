@@ -691,7 +691,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -1152,8 +1152,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
 ` : ''}${commanderBlock}${flyHudBlock}${(() => {
@@ -4457,7 +4457,7 @@ function __msHookParams() {
   });
 }
 if (__ctrlOwnsCamera) __driveCamera();
-${breakables ? `// breakability: a block that broke (the runtime's state.breaks) leaves the scene: its render group (break:<id>) hides,
+${breakables || loose ? `// breakability: a block that broke (the runtime's state.breaks) leaves the scene: its render group (break:<id>) hides,
 // a flash and a ring cover the swap, and its pre-cut pieces (playscape/destruct/breakability.js piecesOf: the cut of
 // how it broke) take its place, parting the cut's way (impact bursts from the blow, a blade slips the halves apart,
 // anime holds the beat first), falling, tumbling and settling on the floor it stood on, then sinking away. Seeded by
@@ -4470,7 +4470,7 @@ let __breaksSeen = 0;
 const __PART = { impact: { speed: 3.2, up: 2.2, blow: 1.6, hold: 0 }, blade: { speed: 0.9, up: 0.6, blow: 0.9, hold: 0.06 }, laser: { speed: 0.3, up: 0.2, blow: 0.2, hold: 0.25 }, anime: { speed: 1.2, up: 0.5, blow: 0.7, hold: 0.42 } };
 const __pieceLight = [0.35, -0.55, 0.76];
 function __spawnBreak(br) {
-  const blk = (__world.breakables || []).find((q) => q.id === br.id);
+  const blk = (__world.breakables || []).find((q) => q.id === br.id)${loose ? ' || (__world.loose || []).find((q) => q.id === br.id)' : ''};
   const ext = blk ? Math.max(blk.max[0] - blk.min[0], blk.max[1] - blk.min[1], blk.max[2] - blk.min[2]) : 1;
   const floor = blk ? blk.min[2] : 0;
   const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
@@ -4560,7 +4560,7 @@ ${hangarHook}  __msHookParams();
     __updateProjectiles();
     __updateClashes();
     __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
-    __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
+    __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables || loose ? `
     __updateBreaks(${tempo ? 'wdt' : 'dt'});${distort ? `
     __updateDents();` : ''}${rupa ? `
     __updateSmoke();` : ''}` : ''}${panelsOn ? `

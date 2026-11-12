@@ -23,6 +23,7 @@ import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
+import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
 import { readPanels } from '@/lib/graph/rupa/panels.js';
@@ -66,7 +67,7 @@ import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
 import { GLASS_GROUPS } from '@/lib/graph/era/bay-glass';
-import { floraRead, floraBox, viewHeld, FLORA_HIDES } from '@/lib/graph/form/flora-read';
+import { floraRead, floraBox, viewHeld, FLORA_HIDES, leafPilesRead } from '@/lib/graph/form/flora-read';
 import { snowBase, readSnow } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
@@ -927,6 +928,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    // (the fall's leaf piles, era/leaf-piles.js: each in its tree's own leaves, packed beside the trees; the level says how
+    // many the page draws)
+    if (payload._leafPiles) { const LP = leafPilesRead(flora, payload._leafPiles); if (LP) flora.piles = LP; payload.leafPiles = { ...payload.leafPiles, drawn: LP ? LP.n : 0 }; delete payload._leafPiles; }
     // (a glyph map says what of the form it got: a gen-7 map is the form render's, never paint under the live light)
     if (formMap && payload.map) payload.map.form = read ? { read: true, plants: !!flora, far: 'range' } : { read: false, why: 'the map has no land the form reads' };
     // (and a metro says what of the form it got, geocity/scene.js: its lawns, its street trees and its towns' grown)
@@ -949,6 +953,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (leaf piles no form flora took: none on the page)
+  if (payload && payload._leafPiles) delete payload._leafPiles;
   // (a glyph map read in a form era that no geocube paints: drawn as paint under the live light, and says so, with how to
   // have the form's: the map's level names its geocube, level/grid-scene.js)
   if (payload && payload.map && !formMap && sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true) payload.map.form = { read: false, why: 'no geocube paints the map: name its level\'s geocube (level.geocube, or a gameworld style\'s) for the form render\'s land, plants and far range' };
@@ -1104,6 +1110,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
     // (a town's houses break as the settlement they were built from: its style's words, era/geocube.js settlementMatter)
     const townMatterOf = destruction === 'physical' ? geocubeTownMatterOf(sketch.manifest, payload) : null;
+    // (a room's debris heaps, era/skandart.js, as LOOSE things under any degree: each its own faces and a walk-through
+    // breakable, worlds/controllable/loose.js; struck, it is gone. No heaps, nothing changes)
+    const looseSk = destruction && destruction !== 'none' ? skandartLoose(payload.repeats || []) : null;
+    if (looseSk) { payload.faces = [...(payload.faces || []), ...looseSk.faces]; payload.repeats = looseSk.repeats; payload.loose = looseSk.loose; }
+    // (and a land's: a trail's rockfall, its trees' fallen wood, its drifts, a cave's heaps, each named on its faces)
+    const looseLand = destruction && destruction !== 'none' ? landLoose(payload.faces || []) : null;
+    if (looseLand) { payload.faces = looseLand.faces; payload.loose = [...(payload.loose || []), ...looseLand.loose]; }
     const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
     // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
     // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)
@@ -1122,6 +1135,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
       if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
     }
+    // (the loose things' pieces, pre-cut as a block's are, in their own colour: what the page scatters as one dissipates)
+    if (payload.loose) payload.breakPieces = { ...(payload.breakPieces || {}), ...piecesOf(payload.loose, payload.faces) };
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.

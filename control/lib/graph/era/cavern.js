@@ -435,18 +435,21 @@ export function floorDress(faces, site, st, C, { open = 1, seed = 1, rocks = [] 
  * three a step, most small, out of the walk: what has come down off the rock. → [{ x, y, z0, s, v }] (`s` metres across)
  */
 export const WALL_ROCKS = Object.freeze({ step: 1.1, most: 3, size: [0.3, 1.1], reach: 1.8 });
-export function wallRocks(site, C, seed = 1) {
-  const out = [], W = WALL_ROCKS;
-  let v = 30000;
-  // (a wall's foot: from behind its face, out over it, the first place past a steep step the land lies level, a quarter
-  // metre at a time; the land over the wall is level too, so the face must be passed first)
-  const footOf = (x0, dir, y) => {
+/** A wall's foot at station y: from behind its face, out over it, the first place past a steep step the land lies level,
+ *  a quarter metre at a time (the land over the wall is level too, so the face must be passed first). → [left x, right x] */
+export function wallFeet(site, y) {
+  const footOf = (x0, dir) => {
     let x = x0, steep = false;
     for (let k = 0; k < 60; k++, x += dir * 0.25) { const dz = Math.abs(site.ground(x + dir * 0.25, y) - site.ground(x, y)); if (dz >= 0.12) steep = true; else if (steep) return x; }
     return x;
   };
+  return [footOf(site.cliffX(y) - 3, 1), footOf(site.trailX(y) + site.halfWAt(y) + site.fringeAt(y) + CAVERN.gap + CAVERN.face, -1)];
+}
+export function wallRocks(site, C, seed = 1) {
+  const out = [], W = WALL_ROCKS;
+  let v = 30000;
   for (let y = CAVERN.endRun; y < site.D - CAVERN.endRun; y += W.step) {
-    const foot = [footOf(site.cliffX(y) - 3, 1, y), footOf(site.trailX(y) + site.halfWAt(y) + site.fringeAt(y) + CAVERN.gap + CAVERN.face, -1, y)];
+    const foot = wallFeet(site, y);
     foot.forEach((fx, side) => {
       const n = 1 + Math.floor(hash(Math.round(y * 10), side, seed + 801) * W.most);
       for (let k = 0; k < n; k++, v++) {

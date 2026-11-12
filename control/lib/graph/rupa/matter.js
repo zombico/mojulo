@@ -121,6 +121,8 @@ const BASE = {
   // 6061-T6 plate; its weld is weaker than the plate (the heat-affected zone)
   aluminium: M('aluminium', { label: 'Aluminium (6061-T6)', family: 'metal', density: 2700, E: 69 * GPa, compressive: 276 * MPa, tensile: 310 * MPa, bond: 200 * MPa, strain: 0.12, toughness: 35e6, fill: 1, yield: 276 * MPa }),
   lead: M('lead', { label: 'Lead (cast)', family: 'metal', density: 11340, E: 16 * GPa, compressive: 5 * MPa, tensile: 17 * MPa, bond: 17 * MPa, strain: 0.5, toughness: 5.5e6, fill: 1, yield: 5 * MPa }),
+  // moulded plastic (a drum, a tote, a case): polycarbonate's numbers from the strength table, a shell round air
+  plastic: fromStrength('pc', { id: 'plastic', label: 'Moulded plastic (a shell round air)', fill: 0.04 }),
   // ── pastes: solids soft enough to flow under a blow and keep the shape it leaves, far more ductile than any metal
   //    (they spread rather than tear): the cohesion dial's step between a Bingham liquid and a metal. Their yield is an
   //    impact's, the stiff end of their range (a paste creeps under far less, given time) ──
@@ -165,6 +167,8 @@ const THERMAL = {
   glass: T(1400, 550, 840, 2e5), ice: T(0, -2, 2100, 334e3),
   steel: T(1510, 550, 490, 270e3), 'sheet-metal': T(1510, 550, 490, 270e3), 'armour-steel': T(1500, 550, 470, 270e3),
   brass: T(930, 400, 380, 168e3), aluminium: T(660, 300, 900, 397e3), lead: T(327, 150, 130, 23e3),
+  // (a thermoplastic: softens near 125 °C and burns, as what burns here has no melt of its own)
+  plastic: T(null, 125, 1200, 0, { ignite: 450, burn: 30e6 }),
   putty: T(70, 35, 1500, 1e5), dough: T(null, 60, 2500, 0),
   timber: T(null, 200, 1700, 0, { ignite: 300, burn: 15e6 }), pine: T(null, 200, 1700, 0, { ignite: 280, burn: 17e6 }),
   drywall: T(1450, 600, 1090, 4e5), bone: T(1670, 300, 1300, 4e5),
@@ -175,7 +179,7 @@ const THERMAL = {
 // masonry thuds, soils and snow take it dead
 const BOUNCE = {
   concrete: 0.2, 'reinforced-concrete': 0.2, brick: 0.2, stone: 0.3, sandstone: 0.2, adobe: 0.1, ceramic: 0.3, glass: 0.4, ice: 0.3,
-  steel: 0.5, 'sheet-metal': 0.3, 'armour-steel': 0.5, brass: 0.45, aluminium: 0.4, lead: 0.05, putty: 0.02, dough: 0, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
+  steel: 0.5, 'sheet-metal': 0.3, 'armour-steel': 0.5, brass: 0.45, aluminium: 0.4, lead: 0.05, plastic: 0.35, putty: 0.02, dough: 0, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
   water: 0, seawater: 0, oil: 0, honey: 0, gasoline: 0, crude: 0, mud: 0, lava: 0, air: 0,
 };
 // DEBRIS, what a breaking leaves (handbook orders): `frac` the fracture energy, J/m² (the joules one square metre of new
@@ -188,7 +192,7 @@ const DEBRIS = {
   concrete: [100, 'chunk', 1.2], 'reinforced-concrete': [1000, 'chunk', 1.6], brick: [50, 'chunk', 1.2], stone: [150, 'chunk', 1.4],
   sandstone: [60, 'chunk', 1.2], adobe: [20, 'chunk', 1.0], ceramic: [20, 'shard', 1.3], glass: [8, 'shard', 1.6], ice: [1, 'shard', 1.4],
   steel: [2e5, 'plate', 3], 'sheet-metal': [2e5, 'plate', 3], 'armour-steel': [1e5, 'plate', 3], brass: [1e5, 'plate', 3],
-  aluminium: [2e4, 'plate', 3], lead: [5e4, 'plate', 2.5], putty: [20, 'clod', 1], dough: [5, 'clod', 1], timber: [1e4, 'splinter', 2.5], pine: [6e3, 'splinter', 2.5],
+  aluminium: [2e4, 'plate', 3], lead: [5e4, 'plate', 2.5], plastic: [5e3, 'plate', 2.5], putty: [20, 'clod', 1], dough: [5, 'clod', 1], timber: [1e4, 'splinter', 2.5], pine: [6e3, 'splinter', 2.5],
   drywall: [50, 'plate', 1.5], bone: [1e3, 'splinter', 2], sand: [0.1, 'clod', 1], loam: [2, 'clod', 1], clay: [10, 'clod', 1.2],
   gravel: [0.5, 'clod', 1], snow: [1, 'clod', 1],
 };
@@ -222,8 +226,8 @@ export const PLASTIC_IDS = Object.freeze(MATTER_IDS.filter((k) => isPlastic(MATT
 
 /** A thing's matter by its class (breakability.js classOf) when it names none; a class not here is `brick`. */
 export const CLASS_MATTER = Object.freeze({
-  crate: { matter: 'pine', fill: 0.02 }, barrel: { matter: 'timber', fill: 0.03 }, amphora: { matter: 'ceramic', fill: 0.05 },
-  pot: { matter: 'ceramic', fill: 0.05 }, vase: { matter: 'ceramic', fill: 0.05 }, glass: { matter: 'glass', fill: 0.05 },
+  crate: { matter: 'pine', fill: 0.02 }, barrel: { matter: 'timber', fill: 0.03 }, chest: { matter: 'timber', fill: 0.04 }, basket: { matter: 'pine', fill: 0.01 }, amphora: { matter: 'ceramic', fill: 0.05 },
+  pot: { matter: 'ceramic', fill: 0.05 }, urn: { matter: 'ceramic', fill: 0.05 }, vase: { matter: 'ceramic', fill: 0.05 }, glass: { matter: 'glass', fill: 0.05 },
   planks: { matter: 'pine', fill: 0.5 }, bones: { matter: 'bone' }, lid: { matter: 'stone', fill: 0.5 },
   bench: { matter: 'pine', fill: 0.15 }, chair: { matter: 'pine', fill: 0.1 }, rack: { matter: 'sheet-metal' },
   lockers: { matter: 'sheet-metal' }, cart: { matter: 'pine', fill: 0.15 }, door: { matter: 'timber', fill: 0.5 },

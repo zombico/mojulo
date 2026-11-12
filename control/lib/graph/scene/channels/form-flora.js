@@ -44,6 +44,71 @@ export const LITTER = Object.freeze({ reach: 0.85, most: 4.5, cell: 0.26, size: 
   fall: Object.freeze({ reach: 0.75, most: 3, thick: 0.25, brown: 0.3 }) });
 const LITTER_SHAPES = Object.freeze(['ovate', 'lobed', 'broad', 'lance', 'needle']);
 /**
+ * THE FALL's LEAF PILES (era/leaf-piles.js, `FL.piles`): each a body of its tree's leaves heaped by the wind, read as a
+ * PILE, one mass, not as leaves: its tree's own turned colour (warmed, `warm`) blended in patches (`patch` m and a finer
+ * third of it) with the litter's yellow and its brown (`share`: how much of each, the brown less the further into the
+ * fall), never a hard edge between them; a leaf-sized grain over it (`grain` m), in its colour (`grainK` either way) and
+ * in its light (`bump`: the normal tipped by the grain's slope), both fading out where it is under a couple of pixels,
+ * so near it is a heap of leaves and far a heap; its SHEETS (era/leaf-piles.js) told apart: the lower browner (`older`,
+ * by its rise from its foot), each lip where the surface turns down a shade darker (`lip`) and the crease under it,
+ * where a sheet's edge meets the sheet below, darker still (`crease`: at its deepest); and darker
+ * toward its foot and in its hollows (`foot`: its lowest `footH` m and its faces that turn from the sky), as a heap's
+ * underside is damp and shaded. Shaded smooth (its welded corners), lit, casting its shadow.
+ * Only on a level whose fall laid piles: a page without them carries none of it.
+ */
+export const PILE = Object.freeze({ patch: 0.45, share: Object.freeze({ brown: 0.3, yellow: 0.35 }), warm: 1.25, grain: 0.07, grainK: 0.16, bump: 0.22, older: 0.45, lip: 0.72, crease: 0.55, foot: 0.6, footH: 0.12 });
+function pileScript() {
+  const LT = LITTER, P = PILE, v3 = (c) => `vec3(${c.join(', ')})`;
+  return `
+    // the fall's LEAF PILES (era/leaf-piles.js): each its tree's leaves heaped by the wind, one mass in its turned colour
+    (function () {
+      const V = f32(FL.piles.verts), I = f32(FL.piles.idx), AU = FL.autumn || 0;
+      const pos = [], col = [], low = [];
+      for (let v = 0; v < V.length; v += 5) { const b = V[v + 3] * STRIDE; pos.push(V[v], V[v + 1], V[v + 2]); col.push(P[b + 5], P[b + 6], P[b + 7]); }
+      // (each corner's height over its pile's foot: the lowest corner of the pile it belongs to, by its tree)
+      const foot = new Map(); for (let v = 0; v < V.length; v += 5) foot.set(V[v + 3], Math.min(foot.get(V[v + 3]) ?? Infinity, V[v + 2]));
+      // (and its rise, 0 at its foot and 1 at its top: the sheets under are older, browner)
+      const top = new Map(); for (let v = 0; v < V.length; v += 5) top.set(V[v + 3], Math.max(top.get(V[v + 3]) ?? -Infinity, V[v + 2]));
+      for (let v = 0; v < V.length; v += 5) { const f0 = foot.get(V[v + 3]); low.push(V[v + 2] - f0, (V[v + 2] - f0) / Math.max(0.05, top.get(V[v + 3]) - f0), V[v + 4]); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aGreen', new THREE.Float32BufferAttribute(col, 3));
+      g.setAttribute('aUp', new THREE.Float32BufferAttribute(low, 3)); g.setIndex(Array.from(I)); g.computeVertexNormals();
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.96, metalness: 0 });
+      m.onBeforeCompile = (sh) => {
+        sh.vertexShader = 'attribute vec3 aGreen;\\nattribute vec3 aUp;\\nvarying vec3 vGreen;\\nvarying vec3 vWp;\\nvarying vec3 vUp;\\nvarying float vNz;\\n' + sh.vertexShader
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vGreen = aGreen; vUp = aUp; vNz = normal.z; vWp = ( modelMatrix * vec4( position, 1.0 ) ).xyz;');
+        sh.fragmentShader = 'varying vec3 vGreen;\\nvarying vec3 vWp;\\nvarying vec3 vUp;\\nvarying float vNz;\\n'
+          + 'float plH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\n'
+          + 'float plN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( plH( i ), plH( i + vec2( 1.0, 0.0 ) ), f.x ), mix( plH( i + vec2( 0.0, 1.0 ) ), plH( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
+          + sh.fragmentShader.replace('#include <color_fragment>', [
+            '#include <color_fragment>',
+            // (its patches: a broad field and a finer, each picking where the brown, the yellow and the tree's colour lie)
+            '  float pn = 0.65 * plN( vWp.xy / ${P.patch.toFixed(3)} ) + 0.35 * plN( vWp.xy / ${(P.patch / 3).toFixed(3)} + 17.0 );',
+            '  float brown = ${P.share.brown.toFixed(3)} * ( 1.0 - 0.5 * ' + AU.toFixed(3) + ' ), yellow = ${P.share.yellow.toFixed(3)};',
+            '  vec3 turned = min( vGreen * ${P.warm.toFixed(3)}, vec3( 1.0 ) );',
+            '  vec3 c2 = mix( mix( ${v3(LT.tones[0])}, ${v3(LT.tones[1])}, smoothstep( brown - 0.12, brown + 0.12, pn ) ), turned, smoothstep( brown + yellow - 0.15, brown + yellow + 0.15, pn ) );',
+            // (a leaf-sized grain, fading where it is under a couple of pixels; darker toward its foot and in its hollows)
+            '  float fw = max( fwidth( vWp.x ), fwidth( vWp.y ) ), gk = 1.0 - smoothstep( ${(P.grain / 3).toFixed(4)}, ${P.grain.toFixed(4)}, fw );',
+            '  float gr = 1.0 + ${P.grainK.toFixed(3)} * gk * ( 2.0 * plN( vWp.xy / ${P.grain.toFixed(4)} ) - 1.0 );',
+            // (the sheets under browner, older; each lip, where the surface turns down, in its shade)
+            '  c2 = mix( c2, ${v3(LT.tones[0])} * 1.4, ${P.older.toFixed(3)} * ( 1.0 - smoothstep( 0.0, 0.85, vUp.y ) ) );',
+            '  float shade = mix( ${P.foot.toFixed(3)}, 1.0, smoothstep( 0.0, ${P.footH.toFixed(3)}, vUp.x ) ) * mix( ${P.lip.toFixed(3)}, 1.0, smoothstep( 0.82, 0.98, vNz ) );',
+            // (and the line under each lip, its crease: era/leaf-piles.js)
+            '  shade *= 1.0 - ${P.crease.toFixed(3)} * vUp.z * vUp.z;',
+            '  diffuseColor.rgb = c2 * gr * shade;'].join('\\n'))
+          .replace('#include <normal_fragment_begin>', [
+            '#include <normal_fragment_begin>',
+            '  { float gq = max( fwidth( vWp.x ), fwidth( vWp.y ) ), bk = ${P.bump.toFixed(3)} * ( 1.0 - smoothstep( ${(P.grain / 3).toFixed(4)}, ${P.grain.toFixed(4)}, gq ) ); vec2 q = vWp.xy / ${P.grain.toFixed(4)}, e = vec2( 0.5, 0.0 );',
+            '    vec2 gd = vec2( plN( q + e.xy ) - plN( q - e.xy ), plN( q + e.yx ) - plN( q - e.yx ) );',
+            '    normal = normalize( normal - ( viewMatrix * vec4( gd * bk, 0.0, 0.0 ) ).xyz ); }'].join('\\n'));
+      };
+      m.customProgramCacheKey = () => 'form-leaf-piles';
+      const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; mesh.castShadow = true; scene.add(mesh);
+      window.__formLeafPiles = I.length / 3;
+    })();
+`;
+}
+
+/**
  * A needled crown's NEEDLES, drawn in its sleeves (form/tree-form.js SLEEVE): a pixel of a sleeve marches into it along the
  * eye's ray (`steps` samples across two of its radii), its depth there the true one, from the run's axis, so a ray
  * grazing the sleeve's edge stays in its outer bristle and leaves it spiky; the needles are strands out from the axis on a
@@ -540,7 +605,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
       window.__formLitter = idx.length / 3;
     })();
-    window.__formFlora = () => ({ ...stat, soft: soft.length, shaking: soft.filter((i) => shake[i] > 0).length });
+${flora && flora.piles ? pileScript() : ''}    window.__formFlora = () => ({ ...stat, soft: soft.length, shaking: soft.filter((i) => shake[i] > 0).length });
   }
 `;
 }

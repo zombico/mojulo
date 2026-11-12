@@ -85,6 +85,11 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
+import { readSkandart, skandartLay, skandartRepeats, skandartRead, resolveSkandartCard, SKANDART, SKANDART_CAUSES, skandartStamps } from './skandart.js';
+import { skandartVessels } from './skandart-vessels.js';
+import { withCondition } from './condition.js';
+import { withWeathering, weatherKit } from './weathering.js';
+import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
@@ -205,6 +210,19 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   // doorway and an apron round the tomb; each part's shade by its cause, era/floor-shades.js)
   floorPlan: { border: { w: 0.8, shade: 'unwalked' }, walk: { w: 2.6, scale: 1.5, shade: 'worn' }, threshold: { depth: 1.5, margin: 0.3, scale: 1.5, shade: 'worn' },
     apron: { margin: 0.9, shade: 'soot' }, fields: { relaid: 0.15, damp: 0.2 } },
+  // (its debris, asked for by a recipe's `skandart`, era/skandart.js: what falls here and where it comes to rest, each
+  // by its cause, its pieces named off the debris shelf, era/debris-shelf.js, as many as a heap holds at the most)
+  skandart: Object.freeze({
+    foot: Object.freeze({ why: 'the coat fails low where damp rises: its render flakes, the ashlar behind it spalls and a block comes away; they heap at the wall\'s foot, filling the gutter and spilling onto the border course, a heap a bay in the wall\'s rhythm',
+      pieces: Object.freeze({ 'fallen-block': 1, spall: 16, 'render-flake': 12 }) }),
+    corner: Object.freeze({ why: 'what falls is pushed into the corners: a deeper heap against the pilasters\' feet where two walls meet, a block or two at its toe',
+      pieces: Object.freeze({ 'fallen-block': 2, spall: 14, 'render-flake': 8 }) }),
+    apron: 'the candles at the tomb\'s corners pour their wax on the dais and down onto the floor at its foot',
+    // (and what the tomb's keepers stored here, era/skandart-vessels.js: urns, pots and a chest in the bays, tipped and broken
+    // the further the room is gone)
+    vessels: Object.freeze({ kinds: Object.freeze({ urn: 2, pot: 2, jar: 1, chest: 0.6 }), every: 3 }),
+    webs: 'within reach the webs are swept; over the string course nothing disturbs them',
+  }),
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
   torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5, form: 'cone' },
   // its motif, cut and not painted: dentils under the cornice in the wall's own tone, low relief (the crypt's principle
@@ -265,6 +283,23 @@ STAGE_KITS['island-plaza'] = Object.freeze({
 STAGE_KITS['research-lab'] = Object.freeze({
   shell: 'lab', grid: 1, bay: 4.8, wall: 0.5,
   door: { width: 2, height: 3, frame: 0.3, out: 0.1 },
+  // (its debris, asked for by a recipe's `skandart` or its `condition`, era/skandart.js: a lab sheds no stone; what lies
+  // in it is what the draughts carried and the walls let go, and where its roof came down (decay's collapse), the deck)
+  skandart: Object.freeze({
+    foot: Object.freeze({ why: 'the upper boards come loose and fall, and the draughts carry papers and broken glass to the kick band: a drift a bay, over a skin of dust',
+      pieces: Object.freeze({ board: 3, paper: 10, 'glass-shard': 8, 'concrete-chunk': 2 }) }),
+    corner: Object.freeze({ why: 'what drifts is pushed into the corners: boards, papers and glass deeper in the angle',
+      pieces: Object.freeze({ board: 3, paper: 9, 'glass-shard': 6, 'concrete-chunk': 3 }) }),
+    collapse: Object.freeze({ why: 'where the roof came down the deck lies under its hole: concrete broken off the slab, the deck\'s sheets across it',
+      pieces: Object.freeze({ 'slab-chunk': 26, 'concrete-chunk': 34, 'deck-sheet': 6 }), spread: 2.6 }),
+    // (its stores: crates, some stacked, and kegs in the bays, era/skandart-vessels.js)
+    vessels: Object.freeze({ kinds: Object.freeze({ crate: 3, keg: 1 }), every: 4 }),
+    // (a drift is a skin of dust, not a talus; a collapse a heap of the slab; what lies is carried past the body)
+    // (a roof's slab breaks into pieces, not into fines: its heap a low bed of dust under many chunks)
+    heights: Object.freeze({ foot: Object.freeze([0.03, 0.12]), corner: Object.freeze([0.06, 0.24]), cone: Object.freeze([0.3, 0.7]) }),
+    spread: 1.2, reach: 2.2,
+    matters: Object.freeze({ concrete: '#8c8a85', steel: '#9ea4aa', board: '#8f918e', paper: '#dcd7ca', glass: '#5c7477', grit: '#7c7a75' }),
+  }),
   torch: { color: '#e8f0ff', intensity: 1.2, radius: 8 },
   rubble: null,
   cells: { wall: 0.6, trim: 0.6, floor: 0.6, ceiling: 1.2, kick: 0.6, upper: 0.8, column: 0.6, skirt: 1, duct: 1.2, cable: 2, housing: 1 },
@@ -464,6 +499,10 @@ export function planStage(m = {}) {
     ...(kit00.B.light?.daylight ? { light: { ...kit00.B.light, daylight: { ...kit00.B.light.daylight, intensity: r5(kit00.B.light.daylight.intensity * day) } } } : {}) } }))(m._sun) : kit00;
   const kit0 = m._ground && kitS?.B ? { ...kitS, B: { ...kitS.B, ground: m._ground } } : kitS;
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
+  // a room's CONDITION (`condition`: kept … ruined, or a word for one, condition.js): its debris and its grime from one word
+  if (m.condition !== undefined && !m._condition) return planStage(withCondition(m, kit0));
+  // its WEATHERING (`weathering`, weathering.js): one scale told by its causes, each where it acts on the surfaces
+  if (m.weathering !== undefined && !m._weathering) return planStage(withWeathering(m, kit0));
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
   const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || [], tileFamilyOf) : null;
@@ -473,6 +512,8 @@ export function planStage(m = {}) {
   const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
   let kitG = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
+  // (weathered, weathering.js: its render walls' coat lost as far as its causes took it, damp low and water high)
+  if (m._weathering && m.coat !== false) kitG = weatherKit(kitG, m._weathering);
   // THE COAT IS OPTIONAL (`coat: false`): a kit whose wall wears a coat of render lays its bare wall, the same stone
   // with nothing over it, on every storey that wore it; a kit without a coat is as it was. Bare by intent answers the
   // coat's question (era/room-craft.js) as a wall all alike answers the rhythm's
@@ -633,7 +674,13 @@ export function planStage(m = {}) {
   }
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
+  // DEBRIS (`skandart`, era/skandart.js): the kit's answer to what falls and where it rests, asked for by the recipe
+  // (the answer: the recipe's own over the kit's card, or over what the room's materials shed when it has none,
+  // skandart-derive.js; a room whose materials shed nothing and that names no answer of its own says so)
+  const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
+  if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
+  const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -1003,7 +1050,8 @@ export function buildStageGeometry(plan) {
  *  face carries `tint` + `normal` so the stage bake lights it like the shell. */
 export function stageRubble(plan, drains) {
   const rb = plan.kit.rubble, g = plan.kit.gutter;
-  if (!rb || !drains.length) return [];
+  // (a room whose debris is asked for lays its own, by its causes: era/skandart.js)
+  if (!rb || !drains.length || plan.skandart) return [];
   const pool = rockPool({ rock: rb.rock, variants: rb.variants, detail: 0, tone: rb.tone, seed: 'stage-rubble', group: 'stage:rubble' });
   const items = [];
   drains.forEach(({ F, a, b }, di) => {
@@ -1131,7 +1179,7 @@ export function waterWorks(w) {
  *  the sun by its cosine where its shadow test reaches the corner, what the ground throws back onto a face turned down,
  *  and the lamps in the sun's share; with `sun.share` each corner carries the share of its light the sun gives.
  *  → { faces, light: the solve (under a sun, `sun`: { key, dir, ground: the light a face turned down takes with no sun }) } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -1214,7 +1262,15 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map((sh, j) => light(sh, sw ? sw[j] : null)), ...(shared ? { sunShare: shares[i].map((sh, j) => shareOf(sh, sw[j])) } : {}) };
   });
   const L = scale ? { ...S, keys } : S;
-  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L };
+  // (asked for, era/skandart.js: the light the room lays at points that are no face of it, `probes` [{ at, normal }],
+  // as a corner's; and the base a paint takes in this room, `paints` [{ colour, tint }] (a tile's colour, sRGB 0…1, and
+  // its tint): its target at the reference over the solve's level, as a surface of that paint is solved. Neither
+  // touches the solve: a room asked for none is as it was)
+  const extra = {
+    ...(probes ? { probes: probes.map((p) => light(sharesAt(p, p.at), sun ? sunAt(p, p.at) : null)) } : {}),
+    ...(paints ? { paints: paints.map(({ colour, tint }) => colour.map((c, k) => r4(Math.min(1, (lin(c) * lin(Math.min(1, L6 * tint[k]))) / S.level)))) } : {}),
+  };
+  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L, ...extra };
 }
 /** A torch's live flame (metres): as wide and as tall as the two polygons it stands for. */
 export const TORCH_FLAME = Object.freeze({ w: 0.3, h: 0.56 });
@@ -1402,6 +1458,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (kit && kit.shell === 'isekai') return seat((m) => assembleIsekaiScene({ style: kit.style, ...m }, ctx));
   if (manifest.buildings !== undefined || manifest.town !== undefined) throw new Error(`stage: buildings and a town's street stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
   // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
+  // (a room's condition, condition.js, filled into the recipe before anything reads it: the bake's grime reads the recipe)
+  if (manifest.condition !== undefined && !manifest._condition) return assembleStageScene(withCondition(manifest, kit), ctx);
+  if (manifest.weathering !== undefined && !manifest._weathering) return assembleStageScene(withWeathering(manifest, kit), ctx);
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
   const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
@@ -1431,7 +1490,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return new Set(dress.anchors.filter((a) => a.kind !== 'part' && (boxInStairs(plan.cuts, b[a.id] || a.box) || (plan.cuts.bare && a.kind === 'set-piece'))).map((a) => a.id)); })();
   const goneAnchor = (a) => !!plan.cuts && (gone.has(a.id) || gone.has(a.of) || (a.at && inStairs(plan.cuts, [a.at[0], a.at[1], 1])));
   const dressFaces = !dress ? [] : plan.cuts ? dress.faces.filter((f) => !(f.node && gone.has(f.node)) && !inStairs(plan.cuts, mid3(f))) : dress.faces;
-  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...sampleFaces(plan), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  // (and the VESSELS its debris answer keeps, era/skandart-vessels.js: groups in a share of its bays, standing, tipped or
+  // broken by the amount; each standing or tipped one a solid thing of its own, so a game that breaks objects breaks it)
+  const skV = plan.skandart && plan.skandart.amount > 0 && plan.skandart.card.vessels
+    ? skandartVessels(plan, skandartStamps(plan, geom).vessels, { amount: plan.skandart.amount, seed: Number.isFinite(manifest.seed) ? manifest.seed : 1, card: plan.skandart.card.vessels, read: ctx.formLit ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead() })
+    : null;
+  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : []), ...(skV ? skV.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
@@ -1484,13 +1548,28 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   };
   const tuner = form && plan.compose ? keyTuner(plan) : null;
+  // DEBRIS (`skandart`, era/skandart.js): its clumps built once and the places they lie; a stamp is lit where it lies, so
+  // the bake is asked for the light at the middle of each one's mass (and, in the form render, the base each matter takes)
+  // (what is too small to be read is left out, era/laws.js 'too-small-to-read': read in the frame the render reads at,
+  // the sixth generation's 640×448, or the form render's target's lines)
+  const skLaid = plan.skandart && plan.skandart.amount > 0 ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
+  // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
+  const paintLs = ctx.unshaded || formLit ? null
+    : (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights);
   // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
   const lit = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
-      : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);
+      : bakeStageLight(raw, paintLs, ambient, dirt(), sun);
+  // (the debris's stamps, each lit where it lies: in the paint, the bake's own light at each probe, on a face of no colour)
+  // (and the grime of the ground each lies on, the room's own: the gutter's wet, the unwalked floor's dark)
+  const skRepeats = skLaid ? (() => {
+    const grime = dirt(), probe = (q) => ({ corners: [[q.at[0] - 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0] + 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0], q.at[1] + 0.05, q.at[2]]], normal: q.normal, group: q.group, tint: [1, 1, 1] });
+    return skandartRepeats(skLaid, formLit ? { form: formLit, grime: skLaid.probes.map((q) => grime(probe(q), q.at)) }
+      : paintLs ? { paintFills: bakeStageLight(skLaid.probes.map(probe), paintLs, ambient, (f, c) => grime(f, c).map((v) => 1 + (v - 1) * SKANDART.age), sun) } : {});
+  })() : [];
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
@@ -1532,6 +1611,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
     ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
     ...(geom.propAnchors || []),
+    ...(skV ? skV.anchors : []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky
@@ -1541,7 +1621,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
-    ...(stands && stands.repeats.length ? { repeats: stands.repeats } : {}),
+    ...((stands && stands.repeats.length) || skRepeats.length ? { repeats: [...(stands ? stands.repeats : []), ...skRepeats] } : {}),
     // the page sends its textured geometry welded, its baked colour in 8 bits (scene-three.js `pack`): half the bytes
     pack: true,
     // the ends by which this map links to others, and its items (doors.js): only when the recipe names them
@@ -1602,6 +1682,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     rooms: stageRooms(plan), anchors, colliders,
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
+    // the condition the room was asked in (condition.js): its step, the dials it set, what the kit could not answer
+    ...(plan.condition ? { condition: plan.condition } : {}),
+    // how weathered it was asked to be (weathering.js): the scale, its causes, and the dials they set
+    ...(plan.weathering ? { weathering: plan.weathering } : {}),
+    // its debris (skandart.js): how much, whose answer (the recipe's, the kit's card, or what its materials shed) and what
+    ...(plan.skandart ? { skandart: { amount: plan.skandart.amount, from: plan.skandart.from, causes: SKANDART_CAUSES.filter((c) => plan.skandart.card[c]), ...(plan.skandart.card.derived ? { derived: plan.skandart.card.derived } : {}), ...(skV ? { vessels: { ...skV.readout, laws: skV.laws.filter((r) => !r.ok).map((r) => r.what) } } : {}) } } : {}),
     ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

@@ -36,6 +36,7 @@ import { safeJson } from '../emit-util.js';
 //          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
 //          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal?, clear?, film? } }, wet?: { amount, seed, groups, damp?, walls?, pools?, rain?, spots?: [{ at, r, amount, pool }], mask?: { rect, size, data } (rupa/splatter.js, base64) }, floods?: [{ at, key, radius }] (lamps out of doors the page lays whole: the nearest four),
 //          probe?: { at: [x, y, z], box: [[x0, y0, z0], [x1, y1, z1]] } (a room's capture and the box it is corrected to), size? } }
+//          instanced?: true (a room under no sun whose instanced repeats carry their baked light: lit as the town's are) }
 // WHAT A SURFACE GIVES BACK (`cfg.reflect`, a page whose built things stand under a sky): the sky by Fresnel, blurred by
 // the surface's roughness, and the sun's highlight where the bake says the sun reaches; a metal's base colours both and
 // it keeps no diffuse. WET (`reflect.wet`): one field of water over the ground, by the world's own place (so the same
@@ -368,13 +369,13 @@ fDirect += fBeat * diffuseColor.rgb;
   const maps = {}, made = { material: 0, colour: 0, pom: 0 };
   for (const [k, m] of Object.entries(F.maps)) maps[k] = { ...m, normal: m.normal ? map(m.normal) : null, orm: m.orm ? map(m.orm) : null };
   // every surface of the room that carries its baked light; the rest keep their look, untoned
-${cfg.sun ? `  const shared = new Map();
+${cfg.sun || cfg.instanced ? `  const shared = new Map();
 ` : ''}  scene.traverse((o) => {
     if (!o.material) return;
     const b = o.material;${cfg.sun ? `
     // (a body under the cast rig, channels/cast-rig.js, is lit and toned as these are: left as it is)
     if (!Array.isArray(b) && b.userData && b.userData.cast) return;` : ''}
-${cfg.sun ? `
+${cfg.sun || cfg.instanced ? `
     // (a street's repeated pieces, baked a template: the tiles of one repeat share one material, so they share its form)
     if (o.isInstancedMesh && !Array.isArray(b) && b.isMeshBasicMaterial && typeof o.userData.g === 'string' && !keep.has(o.userData.g) && o.geometry.getAttribute('aLit')) {
       let m = shared.get(b);
