@@ -58,7 +58,6 @@ import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
-import { makeSunShadow } from './sun.js';
 import { hash3 } from './dirt.js';
 import { containerRaw } from '../geocity/industry.js';
 import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
@@ -874,10 +873,11 @@ export function withBuildings(payload, manifest, ctx = {}) {
       clearedBoxes.push(...inner);
       return out;
     })() : [];
-    // (baked with the sun's shadow of the building on itself: an eave's on its wall, a wing's on the hall; what it
-    // casts on its apron and on the land is the page's live shadow, the hour's map)
-    const castBy = X && shellLight ? makeSunShadow(shell0, shellLight.dir) : null;
-    const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, { shadow: castBy }).faces : shell0;
+    // (THE SUN'S SHADOW IS LIVE, never baked into a built thing's corners: a corner every few metres of a flat wall
+    // holds a shadow's edge as blotches. Each corner carries the sun's share of its light, and the page's hour map
+    // takes that share away where the sun is hidden: an eave's shadow on its wall, a wing's on the hall, a
+    // container's on the next and on the slab, each with its own edge)
+    const shell = X && shellLight ? sunLitFaces(shell0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces : shell0;
     // (the apron takes no baked shadow: it is flat and wide, a corner every few metres, and the building's shadow on it
     // is the page's live one, as it is on the land beside it)
     // (wet, a slab is darker: the water in its pores drinks the light, and the film over it gives the sky back; the
@@ -947,7 +947,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
         const a = toWorld([sx - CL / 2, sy - CW / 2]), c2 = toWorld([sx + CL / 2, sy + CW / 2]);
         colliders.push({ min: P3([Math.min(a[0], c2[0]), Math.min(a[1], c2[1]), floor + zt]), max: P3([Math.max(a[0], c2[0]), Math.max(a[1], c2[1]), floor + zt + high * CH]), of: `${id}:yard` }); }
     }
-    const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, { shadow: makeSunShadow(yardF, shellLight.dir) }).faces : yardF;
+    const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, {}).faces : yardF;
     faces = [...faces, ...moved, ...shell, ...apronF, ...yardLit, ...trims, ...stoop, ...stairF, ...pathF];
     // WET (`wet: true` on the recipe: it has just rained): on a painted page the apron's slab films the sky,
     // channels/wet-road.js; the form render wets the slab itself (its record's `reflect.wet`, below)
