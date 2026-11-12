@@ -215,9 +215,9 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
     corner: Object.freeze({ why: 'what falls is pushed into the corners: a deeper heap against the pilasters\' feet where two walls meet, a block or two at its toe',
       pieces: Object.freeze({ 'fallen-block': 2, spall: 14, 'render-flake': 8 }) }),
     apron: 'the candles at the tomb\'s corners pour their wax on the dais and down onto the floor at its foot',
-    // (and what the tomb's keepers stored here, era/skandart-vessels.js: urns and pots in the bays, tipped and broken
+    // (and what the tomb's keepers stored here, era/skandart-vessels.js: urns, pots and a chest in the bays, tipped and broken
     // the further the room is gone)
-    vessels: Object.freeze({ kinds: Object.freeze({ urn: 2, pot: 2, jar: 1 }), every: 3 }),
+    vessels: Object.freeze({ kinds: Object.freeze({ urn: 2, pot: 2, jar: 1, chest: 0.6 }), every: 3 }),
     webs: 'within reach the webs are swept; over the string course nothing disturbs them',
   }),
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
@@ -289,8 +289,8 @@ STAGE_KITS['research-lab'] = Object.freeze({
       pieces: Object.freeze({ board: 3, paper: 9, 'glass-shard': 6, 'concrete-chunk': 3 }) }),
     collapse: Object.freeze({ why: 'where the roof came down the deck lies under its hole: concrete broken off the slab, the deck\'s sheets across it',
       pieces: Object.freeze({ 'slab-chunk': 26, 'concrete-chunk': 34, 'deck-sheet': 6 }), spread: 2.6 }),
-    // (its stores: crates in the bays, era/skandart-vessels.js)
-    vessels: Object.freeze({ kinds: Object.freeze({ crate: 3, barrel: 1 }), every: 4 }),
+    // (its stores: crates, some stacked, and kegs in the bays, era/skandart-vessels.js)
+    vessels: Object.freeze({ kinds: Object.freeze({ crate: 3, keg: 1 }), every: 4 }),
     // (a drift is a skin of dust, not a talus; a collapse a heap of the slab; what lies is carried past the body)
     // (a roof's slab breaks into pieces, not into fines: its heap a low bed of dust under many chunks)
     heights: Object.freeze({ foot: Object.freeze([0.03, 0.12]), corner: Object.freeze([0.06, 0.24]), cone: Object.freeze([0.3, 0.7]) }),

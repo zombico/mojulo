@@ -1,11 +1,13 @@
 /**
- * SKANDART'S VESSELS — what a room kept and left: its pots, urns, jars, crates and barrels, standing in groups against
+ * SKANDART'S VESSELS — what a room kept and left: its pots, urns, jars, crates, barrels, kegs, chests and baskets,
+ * standing in groups against
  * its walls where they were stored (a kit's card's `vessels`, or its use's: era/skandart-derive.js USES). They are a
  * room's leavings like its heaps (era/skandart.js), so the room's amount says how they were left: the further gone, the
  * more lie tipped on their sides and the more are already broken where they stood, sherds and splinters off the debris
  * shelf. Each standing or tipped vessel is one THING (a solid doodad of its own, its faces named), so a game that lets
  * objects break (playscape/destruct/breakability.js: `destruction`, objects and up) breaks it like any crate or pot:
  * slashed, shot, blown apart. A group takes a bay in a heap's place (skandartStamps, before the wall's heap rhythm).
+ * A standing crate may carry another (VESSELS.stack), each its own thing: break the one under, and the top comes down.
  *
  *   VESSELS                                      the numbers
  *   CLASS_OF                                     a vessel's kind → the thing it is to the breakables (a jar is an amphora)
@@ -29,7 +31,13 @@ export const VESSELS = Object.freeze({
     jar: Object.freeze({ r: 0.21, breaks: 'sherd', size: Object.freeze([0.12, 0.24]), tint: Object.freeze([0.62, 0.42, 0.3]) }),
     crate: Object.freeze({ r: 0.38, breaks: 'plank', size: Object.freeze([0.35, 0.7]), tint: Object.freeze([0.42, 0.36, 0.3]) }),
     barrel: Object.freeze({ r: 0.33, breaks: 'plank', size: Object.freeze([0.3, 0.6]), tint: Object.freeze([0.36, 0.3, 0.25]) }),
+    chest: Object.freeze({ r: 0.44, breaks: 'plank', size: Object.freeze([0.3, 0.6]), tint: Object.freeze([0.3, 0.25, 0.21]) }),
+    keg: Object.freeze({ r: 0.21, breaks: 'plank', size: Object.freeze([0.22, 0.4]), tint: Object.freeze([0.33, 0.27, 0.22]) }),
+    basket: Object.freeze({ r: 0.26, breaks: 'splinter', size: Object.freeze([0.15, 0.3]), tint: Object.freeze([0.62, 0.5, 0.32]) }),
   }),
+  // what stacks on what stands: a crate on a crate (each its own thing: the top falls when the one under it breaks), the
+  // share of standing crates that carry one
+  stack: Object.freeze({ crate: 0.45 }),
   // a wall's bays that hold a group (one in `every`), the group's size, the gap between two vessels (m)
   every: 3, group: Object.freeze([2, 4]), gap: 0.08,
   // the share tipped at the amount's ends, and the share already broken (from `from` of the amount, at most `most`)
@@ -37,7 +45,7 @@ export const VESSELS = Object.freeze({
   // a broken clay vessel's lower part left standing (of its height)
   rest: Object.freeze([0.25, 0.5]),
 });
-export const CLASS_OF = Object.freeze({ pot: 'pot', urn: 'urn', jar: 'amphora', crate: 'crate', barrel: 'barrel' });
+export const CLASS_OF = Object.freeze({ pot: 'pot', urn: 'urn', jar: 'amphora', crate: 'crate', barrel: 'barrel', chest: 'chest', keg: 'barrel', basket: 'basket' });
 
 const mix = (a, b, t) => a + (b - a) * t;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -68,10 +76,11 @@ export function skandartVessels(plan, bays, { amount, read = skandartRead(), see
   const S = propSurfaces(plan.kit.dress?.props ?? {}), kinds = Object.entries(V.kinds), total = kinds.reduce((a, [, n]) => a + n, 0);
   const pick = (d) => { let acc = 0; for (const [k, n] of kinds) { acc += n / total; if (d < acc) return k; } return kinds[kinds.length - 1][0]; };
   const tipShare = mix(A.tipped[0], A.tipped[1], amount), breakShare = Math.min(A.broken.most, Math.max(0, (amount - A.broken.from) / (1 - A.broken.from)) * A.broken.most);
-  let standing = 0, tipped = 0, broken = 0;
+  let standing = 0, tipped = 0, broken = 0, stacked = 0;
   bays.forEach((b, bi) => {
     const h = (q) => hash3(seed, bi, 7601 + q), n = A.group[0] + Math.floor(h(1) * (A.group[1] - A.group[0] + 1));
-    const group = Array.from({ length: n }, (_, k) => pick(hash3(seed * 7 + bi, k, 7611)));
+    // (its kinds by their shares: the dice fed scrambled whole numbers, so neighbouring bays and places draw apart)
+    const group = Array.from({ length: n }, (_, k) => pick(hash3(seed * 7919 + bi * 104729 + k * 1009, k * 31 + 7, 7611)));
     // (along the bay, side by side, the group centred in it; as many as fit)
     const widths = group.map((k) => 2 * A.kinds[k].r + A.gap);
     while (widths.reduce((a, w) => a + w, 0) > b.len && group.length > 1) { group.pop(); widths.pop(); }
@@ -109,11 +118,20 @@ export function skandartVessels(plan, bays, { amount, read = skandartRead(), see
       } else standing++;
       for (const f of out) faces.push({ ...f, group: 'stage:prop-doodad', doubleSided: true, node: id });
       anchors.push({ id, kind: 'doodad', form: CLASS_OF[kind], vessel: kind, at: p, N: P(b.N), solid: true, ...(state === 'tipped' ? { tipped: true } : {}) });
+      // (a STACK: a standing crate carries another on its lid, the top its own thing resting on it)
+      if (state === 'standing' && A.stack[kind] && g(8) < A.stack[kind]) {
+        const lid = Math.max(...out.flatMap((f) => f.corners.map((c) => c[2]))), top = [], tid = `${kind}-sk-${(count[kind] = (count[kind] || 0) + 1)}`, pt = P([p[0], p[1], lid]);
+        // (no bigger than the one under it: its breadth that one's height, less a little)
+        buildProp(kind, top, pt, b.N, b.U, 0, sd + 1, { ...S, size: r5((lid - p[2]) * mix(0.72, 0.94, g(10))) });
+        for (const f of top) faces.push({ ...f, group: 'stage:prop-doodad', doubleSided: true, node: tid });
+        anchors.push({ id: tid, kind: 'doodad', form: CLASS_OF[kind], vessel: kind, at: pt, N: P(b.N), solid: true, on: id });
+        stacked++;
+      }
     });
   });
   // the laws: none floating, none sunk through the floor
   const low = faces.length ? Math.min(...faces.flatMap((f) => f.corners.map((c) => c[2]))) : 0;
   laws.push({ law: 'on-the-floor', what: `the vessels' lowest point ${r5(low)} m`, ok: low >= -0.02 });
-  laws.push({ law: 'placed', what: `${standing} standing, ${tipped} tipped, ${broken} broken`, ok: standing + tipped + broken > 0 || !bays.length });
-  return { faces, anchors, laws, readout: { standing, tipped, broken } };
+  laws.push({ law: 'placed', what: `${standing} standing (${stacked} with another on it), ${tipped} tipped, ${broken} broken`, ok: standing + tipped + broken > 0 || !bays.length });
+  return { faces, anchors, laws, readout: { standing, tipped, broken, ...(stacked ? { stacked } : {}) } };
 }

@@ -42,8 +42,8 @@ const ORDER = F(['glass', 'slate', 'brick', 'render', 'wood', 'board', 'metal', 
 /** What people leave behind, by the words of a room's use. */
 export const USES = F([
   F({ words: F(['lab', 'office', 'library', 'archive', 'school', 'clinic', 'hospital', 'study', 'records', 'control']), leave: F({ paper: 8 }) }),
-  F({ words: F(['store', 'shop', 'kitchen', 'tavern', 'market', 'pantry', 'cellar', 'granary']), leave: F({ sherd: 6 }), vessels: F({ kinds: F({ pot: 3, jar: 2, barrel: 1 }), every: 2 }) }),
-  F({ words: F(['workshop', 'forge', 'mill', 'warehouse', 'hangar', 'depot', 'barn', 'stable', 'shed']), leave: F({ splinter: 6 }), vessels: F({ kinds: F({ crate: 3, barrel: 2 }), every: 3 }) }),
+  F({ words: F(['store', 'shop', 'kitchen', 'tavern', 'market', 'pantry', 'cellar', 'granary']), leave: F({ sherd: 6 }), vessels: F({ kinds: F({ pot: 3, jar: 2, basket: 2, barrel: 1 }), every: 2 }) }),
+  F({ words: F(['workshop', 'forge', 'mill', 'warehouse', 'hangar', 'depot', 'barn', 'stable', 'shed']), leave: F({ splinter: 6 }), vessels: F({ kinds: F({ crate: 4, barrel: 2, keg: 1, chest: 1 }), every: 3 }) }),
 ]);
 
 /** A tile's matter: its generator's settings read first (gen, cut, style, face), then its key; null if nothing sheds. */

@@ -35,4 +35,21 @@ describe('a room\'s vessels', () => {
     expect(() => readVessels({ kinds: { teapot: 1 } })).toThrow(new RegExp(Object.keys(VESSELS.kinds).join(', ')));
     expect(readVessels({ kinds: { crate: 2 } })).toEqual({ kinds: { crate: 2 }, every: VESSELS.every });
   }, 120_000);
+
+  it('keeps a warehouse\'s wooden things: crates, some stacked (the top resting on the one under it, no bigger), barrels, kegs and chests, all breakable', () => {
+    const P = assembleStageScene({ kind: 'stage', kit: 'bay-military', rooms: [{ id: 'a', x: 0, y: 0, w: 16, d: 20, h: 8 }], skandart: 0.3, _program: { use: 'warehouse' } }, {});
+    expect(P.skandart.vessels).toMatchObject({ laws: [] });
+    const V = mine(P), kinds = new Set(V.map((a) => a.vessel));
+    expect([...kinds].every((k) => ['crate', 'barrel', 'keg', 'chest'].includes(k))).toBe(true);
+    const tops = V.filter((a) => a.on);
+    expect(tops.length).toBeGreaterThan(0);
+    for (const t of tops) {
+      const T = box(P, t.id), B = box(P, t.on);
+      expect(Math.abs(T.min[2] - B.max[2])).toBeLessThan(0.005);
+      expect(T.max[0] - T.min[0] + (T.max[1] - T.min[1])).toBeLessThanOrEqual(B.max[0] - B.min[0] + (B.max[1] - B.min[1]) + 1e-6);
+    }
+    const B = breakablesOf(P, 'objects');
+    expect(B.breakables.filter((b) => /-sk-/.test(b.id))).toHaveLength(V.length);
+    expect(B.skipped.filter((q) => /-sk-/.test(q.id))).toEqual([]);
+  }, 120_000);
 });

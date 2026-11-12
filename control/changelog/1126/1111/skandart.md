@@ -154,3 +154,8 @@ size it would be.
   and jars; a workshop, warehouse or hangar crates and barrels); a recipe names its own (`skandart.vessels: { kinds,
   every }`) or none (`vessels: false`). New prop forms on the shelf (`pot`, `urn`, `jar`, each one turned vessel) and a
   breakable class, `urn` (fired clay, one blow). The room says how its vessels were left (`skandart.vessels`).
+- The wooden things join them: a `chest` (long along the wall, a lid proud, two iron straps), a `keg` and a woven
+  `basket` on the prop shelf, breakable as `chest` (timber, two blows), `barrel` and `basket` (wicker, one). A standing
+  crate may carry another, no bigger than it, each its own thing: break the one under and the top comes down (the
+  runtime drops what nothing holds). The crypt keeps a chest of grave goods with its urns, the lab crates and kegs, a
+  store baskets with its pots, a workshop or warehouse crates, barrels, kegs and a chest.

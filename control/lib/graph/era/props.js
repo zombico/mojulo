@@ -69,7 +69,8 @@ export const blockSink = () => Object.defineProperty([], 'boxes', { value: [], e
 
 const ITEMS = {
   crate(out, p, N, U, s, i, S) {
-    const w = mix(0.55, 0.85, hash3(i, 1, 5101)), c = add(p, [0, 0, w / 2]);
+    // (its size its own die's, or the one asked, `S.size`: a crate stacked on another no bigger than it)
+    const w = S?.size ?? mix(0.55, 0.85, hash3(i, 1, 5101)), c = add(p, [0, 0, w / 2]);
     obox(out, add(c, mul(N, w / 2)), N, U, [0, 0, 1], [w / 2, w / 2, w / 2], S.wood);
     if (s > 0.5) { const w2 = w * 0.7; obox(out, add(add(c, mul(N, w / 2)), [0, 0, w / 2 + w2 / 2]), N, U, [0, 0, 1], [w2 / 2, w2 / 2, w2 / 2], S.dark); }
   },
@@ -123,6 +124,26 @@ const ITEMS = {
     // one amphora standing: shoulders, a neck, a lip
     const sz = mix(0.9, 1.15, hash3(i, 3, 5165)), c = add(p, mul(N, 0.21 * sz));
     lathe(out, c, cutProfile([[0.05, 0], [0.15, 0.1], [0.2, 0.32], [0.15, 0.55], [0.06, 0.63], [0.07, 0.72], [0.045, 0.73], [0, 0.73]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 8, CLAY.pot, 'stage:prop');
+  },
+  // (and the wooden things a room stores, era/skandart-vessels.js: a chest, a keg, a basket)
+  chest(out, p, N, U, s, i, S) {
+    // long along the wall, its lid a board's thickness proud, two iron straps over the lid and down the front
+    const L = mix(0.72, 0.9, hash3(i, 4, 5167)), D = 0.44, H = 0.42, c = add(add(p, mul(N, D / 2)), [0, 0, H / 2]), up = [0, 0, 1], iron = { key: null, scale: 1, tint: IRON, group: 'stage:prop' };
+    obox(out, c, U, N, up, [L / 2, D / 2, H / 2], S.dark, 0.5);
+    obox(out, add(c, [0, 0, H / 2 + 0.03]), U, N, up, [L / 2 + 0.02, D / 2 + 0.02, 0.03], S.wood, 0.5);
+    // (from the floor up over the lid's top)
+    for (const k of [-0.3, 0.3]) obox(out, add(add(c, mul(U, k * L)), [0, 0, 0.03]), U, N, up, [0.025, D / 2 + 0.025, H / 2 + 0.03], iron, 0.5);
+  },
+  keg(out, p, N, U, s, i, S) {
+    // a small barrel: staves bulging, two hoops
+    const r = 0.17, h = 0.46, c = add(p, mul(N, r + 0.04)), bulge = (z) => r + 0.03 * Math.sin((z / h) * Math.PI);
+    lathe(out, c, [[r, p[2]], [bulge(0.12), p[2] + 0.12], [bulge(h / 2), p[2] + h / 2], [bulge(h - 0.12), p[2] + h - 0.12], [r, p[2] + h], [0, p[2] + h]], 9, S.dark, 'stage:prop');
+    for (const z of [0.08, h - 0.11]) lathe(out, c, [[bulge(z) + 0.01, p[2] + z], [bulge(z + 0.035) + 0.01, p[2] + z + 0.035]], 9, { key: null, scale: 1, tint: IRON }, 'stage:prop');
+  },
+  basket(out, p, N, U, s, i) {
+    // woven, flared, open: a rim and the dark of its inside
+    const sz = mix(0.9, 1.1, hash3(i, 5, 5169)), c = add(p, mul(N, 0.24 * sz)), wicker = { key: null, scale: 1, tint: [0.62, 0.5, 0.32] };
+    lathe(out, c, [[0.15, 0], [0.19, 0.08], [0.23, 0.3], [0.25, 0.34], [0.22, 0.34], [0.2, 0.06], [0, 0.06]].map(([r, z]) => [r * sz, p[2] + z * sz]), 10, wicker, 'stage:prop');
   },
   planks(out, p, N, U, s, i, S) {
     const n = 2 + Math.floor(hash3(i, 3, 5103) * 2), len = mix(1.6, 2.1, hash3(i, 4, 5105));

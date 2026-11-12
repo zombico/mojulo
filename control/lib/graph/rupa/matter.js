@@ -219,7 +219,7 @@ export const PLASTIC_IDS = Object.freeze(MATTER_IDS.filter((k) => isPlastic(MATT
 
 /** A thing's matter by its class (breakability.js classOf) when it names none; a class not here is `brick`. */
 export const CLASS_MATTER = Object.freeze({
-  crate: { matter: 'pine', fill: 0.02 }, barrel: { matter: 'timber', fill: 0.03 }, amphora: { matter: 'ceramic', fill: 0.05 },
+  crate: { matter: 'pine', fill: 0.02 }, barrel: { matter: 'timber', fill: 0.03 }, chest: { matter: 'timber', fill: 0.04 }, basket: { matter: 'pine', fill: 0.01 }, amphora: { matter: 'ceramic', fill: 0.05 },
   pot: { matter: 'ceramic', fill: 0.05 }, urn: { matter: 'ceramic', fill: 0.05 }, vase: { matter: 'ceramic', fill: 0.05 }, glass: { matter: 'glass', fill: 0.05 },
   planks: { matter: 'pine', fill: 0.5 }, bones: { matter: 'bone' }, lid: { matter: 'stone', fill: 0.5 },
   bench: { matter: 'pine', fill: 0.15 }, chair: { matter: 'pine', fill: 0.1 }, rack: { matter: 'sheet-metal' },
