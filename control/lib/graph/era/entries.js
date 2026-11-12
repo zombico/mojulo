@@ -13,6 +13,7 @@
  * No card names a game, a studio or a console: the reference cards keep that research record, and a card describes
  * what each look and kit offers so the agent can match an ask to it on its own.
  */
+import { CONDITIONS } from './condition.js';
 import { ART_KITS } from './art-direction.js';
 import { STAGE_KITS, STAGE_KIT_PROPORTIONS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
@@ -131,6 +132,8 @@ function kitOptions(kit) {
   if (kit.shell === 'plaza' || kit.shell === 'lab') out.push(`"water": true`);
   if (generatedSpecOf(`${kit.tiles?.wall?.family}-a`)?.cfg.cut === 'render') out.push(`"coat": false (the wall bare: no render over it)`);
   if (kit.dress?.niches?.rhythm) out.push(`"rhythm": "same" (every bay alike, on purpose)`);
+  if (isRooms(kit)) out.push(`"condition": ${Object.keys(CONDITIONS).join(' | ')} (or a word for one: its debris and grime together)`);
+  if (kit.skandart) out.push(`"skandart": 0–1 (its debris, heaped by cause)`);
   if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
     `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);
   return out;

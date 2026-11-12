@@ -83,6 +83,7 @@ import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from '
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
 import { readSkandart, skandartLay, skandartRepeats, skandartRead, SKANDART } from './skandart.js';
+import { withCondition } from './condition.js';
 import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
@@ -439,6 +440,8 @@ export function planStage(m = {}) {
     ...(kit00.B.light?.daylight ? { light: { ...kit00.B.light, daylight: { ...kit00.B.light.daylight, intensity: r5(kit00.B.light.daylight.intensity * day) } } } : {}) } }))(m._sun) : kit00;
   const kit0 = m._ground && kitS?.B ? { ...kitS, B: { ...kitS.B, ground: m._ground } } : kitS;
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
+  // a room's CONDITION (`condition`: kept … ruined, or a word for one, condition.js): its debris and its grime from one word
+  if (m.condition !== undefined && !m._condition) return planStage(withCondition(m, kit0));
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
   const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || [], tileFamilyOf) : null;
@@ -588,7 +591,7 @@ export function planStage(m = {}) {
   // DEBRIS (`skandart`, era/skandart.js): the kit's answer to what falls and where it rests, asked for by the recipe
   const sk = readSkandart(m);
   if (sk && !nightKit.skandart) throw new Error(`stage: skandart: kit '${kitId}' answers no debris question yet (kits that do: ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].skandart).join(', ')})`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -1363,6 +1366,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (kit && kit.shell === 'isekai') return seat((m) => assembleIsekaiScene({ style: kit.style, ...m }, ctx));
   if (manifest.buildings !== undefined || manifest.town !== undefined) throw new Error(`stage: buildings and a town's street stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
   // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
+  // (a room's condition, condition.js, filled into the recipe before anything reads it: the bake's grime reads the recipe)
+  if (manifest.condition !== undefined && !manifest._condition) return assembleStageScene(withCondition(manifest, kit), ctx);
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
   const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
@@ -1441,7 +1446,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the bake is asked for the light at the middle of each one's mass (and, in the form render, the base each matter takes)
   // (what is too small to be read is left out, era/laws.js 'too-small-to-read': read in the frame the render reads at,
   // the sixth generation's 640×448, or the form render's target's lines)
-  const skLaid = plan.skandart ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
+  const skLaid = plan.skandart && plan.skandart.amount > 0 ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
     ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun ? { sun } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
   // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
@@ -1564,6 +1569,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     rooms: stageRooms(plan), anchors, colliders,
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
+    // the condition the room was asked in (condition.js): its step, the dials it set, what the kit could not answer
+    ...(plan.condition ? { condition: plan.condition } : {}),
     ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

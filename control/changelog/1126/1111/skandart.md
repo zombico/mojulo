@@ -43,3 +43,11 @@ size it would be.
   sun). A page without them is as it was.
 - The form render's bake answers the light at points that are no face of the room and the base a paint takes in it,
   when asked; asked nothing, it is as it was.
+- A room's condition (`condition`, `era/condition.js`): one word for its state of repair sets its debris, its grime and
+  whether anyone still sweeps, together, on a ladder: `kept`, `worn`, `neglected`, `derelict`, `ruined`, or a word for
+  one ("abandoned" is derelict, "crumbling" is ruined). From neglected up nobody sweeps, so the webs within reach stay.
+  A kept room is one where nothing has come down: it lays no heap and keeps none of its kit's fallen stone. A recipe's
+  own `skandart` or `grime` stands over the word's. On a kit that answers no debris question the word sets the grime
+  and the room says what it could not (`condition.unanswered`); every room asked in a condition says it (`condition`:
+  its step, the dials it set). A room kit's card lists the word among its options, and a kit that answers the debris
+  question lists `skandart` too.

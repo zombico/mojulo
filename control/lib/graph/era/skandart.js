@@ -83,20 +83,24 @@ export function skandartRead(screenPx = FRAME.height) {
   return { distance, screenPx, least: r5(eyeSpot(distance, screenPx)) };
 }
 
-/** A recipe's `skandart`: true (the kit's answer at its middle amount), a number 0…1, or { amount }. → null | { amount } */
+/** A recipe's `skandart`: true (the kit's answer at its middle amount), a number 0…1, or { amount?, swept? } (`swept`:
+ *  false, nobody sweeps: the webs within reach stay; a room's `condition` sets it, era/condition.js). → null | { amount, swept? } */
 export function readSkandart(m) {
   const v = m.skandart;
   if (v === undefined || v === false) return null;
   const amt = (a) => {
-    if (!(typeof a === 'number' && a >= 0 && a <= 1)) throw new Error('stage: skandart is true, a number from 0 (none) to 1 (the place has given way), or { amount }');
+    if (!(typeof a === 'number' && a >= 0 && a <= 1)) throw new Error('stage: skandart is true, a number from 0 (none) to 1 (the place has given way), or { amount, swept }');
     return a;
   };
   if (v === true) return { amount: 0.6 };
   if (typeof v === 'number') return amt(v) > 0 ? { amount: v } : null;
   if (v && typeof v === 'object' && !Array.isArray(v)) {
-    for (const k of Object.keys(v)) if (k !== 'amount') throw new Error(`stage: skandart.${k} is not a dial of it (amount)`);
+    for (const k of Object.keys(v)) if (k !== 'amount' && k !== 'swept') throw new Error(`stage: skandart.${k} is not a dial of it (amount, swept)`);
+    if (v.swept !== undefined && typeof v.swept !== 'boolean') throw new Error('stage: skandart.swept is true (the webs within reach are swept) or false (nobody sweeps)');
+    // (asked as an object at 0, the room is one where nothing has come down: it lays no heap, and the kit's own fallen
+    // stone, which skandart stands in for, is not laid either; a bare 0 asks for nothing at all)
     const a = v.amount === undefined ? 0.6 : amt(v.amount);
-    return a > 0 ? { amount: a } : null;
+    return { amount: a, ...(v.swept === false ? { swept: false } : {}) };
   }
   return amt(v);
 }

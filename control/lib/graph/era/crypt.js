@@ -146,9 +146,10 @@ export function cryptCobwebs(plan, pilasters) {
   const W = plan.kit.dress.cobwebs, pw = plan.kit.pilaster.w, out = [], dressed = cobwebPilasters(plan, pilasters);
   pilasters.forEach((p, i) => {
     if (!dressed[i]) return;
-    // (a room whose debris is asked for, era/skandart.js: within reach the webs are swept, over it left)
+    // (a room whose debris is asked for, era/skandart.js: within reach the webs are swept, over it left; where nobody
+    // sweeps, `swept: false` (a derelict room's, era/condition.js), they stay)
     for (const [lvl, z, up] of [[0, plan.kit.plinth.h + 0.04, 1], [1, p.top - 0.04, -1]]) {
-      if (lvl === 0 && plan.skandart) continue;
+      if (lvl === 0 && plan.skandart && plan.skandart.swept !== false) continue;
       const sg = hash3(i, lvl, 4303) < 0.5 ? -1 : 1;
       if (p.u + sg * pw < 0 || p.u + sg * pw > p.F.len) continue;
       const s = mix(W.size[0], W.size[1], hash3(i, lvl, 4305));
