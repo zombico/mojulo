@@ -20,3 +20,5 @@
   as it stands lit, a few frames in (after the hour's map is drawn), and a glossy surface looks it up along its
   reflected ray where that meets the room's own box, down its mips by its roughness. A pool holds the wall's lamps and
   a chrome cube the floor's markings; a rougher metal holds them blurred. A room with samples asks for it.
+- A liquid stands proud of what it lies on: a pool's face is its `thick` over the floor (oil 14 mm, water 9 mm), its
+  edge a rounded lip down to it, so the lip turns the light and the pool reads as lying on the floor.

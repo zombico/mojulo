@@ -415,10 +415,10 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 /** The materials a recipe may set down to be looked at (`samples`): a liquid a pool on the floor, a metal a cube; `tint`
- *  its colour under no light, `rough` 0 a mirror to 1 chalk, `metal` 1 a bare metal (the form render's, channels/form.js). */
+ *  its colour under no light, `thick` how far a liquid's face stands over the floor (m), `rough` 0 a mirror to 1 chalk, `metal` 1 a bare metal (the form render's, channels/form.js). */
 export const SAMPLES = Object.freeze({
-  oil: Object.freeze({ pool: true, tint: [0.035, 0.032, 0.03], rough: 0.05, metal: 0 }),
-  water: Object.freeze({ pool: true, tint: [0.16, 0.18, 0.19], rough: 0.04, metal: 0 }),
+  oil: Object.freeze({ pool: true, thick: 0.014, tint: [0.035, 0.032, 0.03], rough: 0.05, metal: 0 }),
+  water: Object.freeze({ pool: true, thick: 0.009, tint: [0.16, 0.18, 0.19], rough: 0.04, metal: 0 }),
   chrome: Object.freeze({ tint: [0.9, 0.9, 0.92], rough: 0.1, metal: 1 }),
   steel: Object.freeze({ tint: [0.56, 0.57, 0.6], rough: 0.34, metal: 1 }),
 });
@@ -427,9 +427,18 @@ function sampleFaces(plan) {
   (plan.samples || []).forEach((q, i) => {
     const M = SAMPLES[q.of], [x, y] = q.at, group = `stage:sample-${q.of}`, node = `sample-${i + 1}`, n0 = out.length;
     if (M.pool) {
-      // (a pool: a ring of sixteen, its edge wandering by the sample's own dice; a hair over the floor)
-      const R = (q.size ?? 3) / 2, z = 0.006, pts = Array.from({ length: 16 }, (_, k) => { const a = (k / 16) * 2 * Math.PI, r = R * (0.78 + 0.34 * hash3(i, k, 4441)); return P([x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r, z]); });
-      for (let k = 0; k < 16; k++) out.push({ corners: [P([x, y, z]), pts[k], pts[(k + 1) % 16]], normal: [0, 0, 1], outNormal: [0, 0, 1], tint: M.tint, group });
+      // (a pool: a ring of twenty-four, its edge wandering by the sample's own dice. A LIQUID STANDS PROUD of what it
+      // lies on, as a coat does of its wall (era/laws.js 'layers-stand-proud'): its face `thick` over the floor, its
+      // edge a rounded lip down to it in two steps, so the lip turns the light and the pool reads as lying ON the floor)
+      const R = (q.size ?? 3) / 2, N = 24, T = M.thick, ring = (k, inset, z) => { const a = (k / N) * 2 * Math.PI, r = R * (0.78 + 0.34 * hash3(i, k % N, 4441)) - inset; return P([x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r, z]); };
+      const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((c) => r5(c / l)); };
+      const lip = (k, i0, z0, i1, z1) => { const a = ring(k, i0, z0), b = ring(k + 1, i0, z0), c = ring(k + 1, i1, z1), d = ring(k, i1, z1), u = sub(b, a), v = sub(d, a);
+        const n = unit([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]), up = n[2] < 0 ? n.map((c2) => -c2) : n;
+        out.push({ corners: [a, b, c, d], normal: up, outNormal: up, tint: M.tint, group }); };
+      for (let k = 0; k < N; k++) {
+        out.push({ corners: [P([x, y, T]), ring(k, T * 3, T), ring(k + 1, T * 3, T)], normal: [0, 0, 1], outNormal: [0, 0, 1], tint: M.tint, group });
+        lip(k, T * 3, T, T * 1.2, T * 0.7); lip(k, T * 1.2, T * 0.7, 0, 0.002);
+      }
     } else { const h = q.size ?? 1; box(out, [x - h / 2, y - h / 2, 0], [x + h / 2, y + h / 2, h], { key: null, scale: 1, tint: M.tint, group }, h, ['-z']); }
     for (let k = n0; k < out.length; k++) out[k].node = node;
   });
