@@ -33,7 +33,67 @@ import { safeJson } from '../emit-util.js';
 // Absent `form` ⇒ NOT emitted.
 // `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
-//          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes) }
+//          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
+//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal? } }, wet?: { amount, seed, groups } } }
+// WHAT A SURFACE GIVES BACK (`cfg.reflect`, a page whose built things stand under a sky): the sky by Fresnel, blurred by
+// the surface's roughness, and the sun's highlight where the bake says the sun reaches; a metal's base colours both and
+// it keeps no diffuse. WET (`reflect.wet`): one field of water over the ground, by the world's own place (so the same
+// recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
+// that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
+// sheens on damp ground. Only a page that carries `reflect` carries this code.
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec2 uFSurf;\nuniform vec2 uFWet;\n'
+  + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
+  + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
+const ENV_BODY = `
+#ifdef FORM_ENV
+{
+  // (the face's normal toward the eye: the screen's derivatives give it either way round)
+  vec3 eV = - vFPos / fD, eG = dot( fN, eV ) < 0.0 ? - fN : fN, eN = eG;
+#if defined( FORM_RELIEF ) && defined( USE_AOMAP )
+  { vec3 etn = texture2D( uFNorm, fUV ).xyz * 2.0 - 1.0; eN = normalize( fT * etn.x + fB * etn.y + eG * etn.z ); }
+#endif
+  float eR = uFSurf.x, eM = uFSurf.y;
+#ifdef USE_AOMAP
+  eR = clamp( mix( eR, texture2D( aoMap, fUV ).g, 0.5 ), 0.05, 1.0 );
+#endif
+#ifdef FORM_WET
+  {
+    // (the place in the world: the view's offset turned back, unnormalised)
+    vec3 eP = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz;
+    float eUpF = smoothstep( 0.7, 0.95, inverseTransformDirection( eG, viewMatrix ).z );
+    float ew = fVN( eP.xy * 0.11 + uFWet.y ) * 0.6 + fVN( eP.xy * 0.37 + uFWet.y * 1.7 ) * 0.28 + fVN( eP.xy * 1.9 + 3.1 ) * 0.12;
+    float eDepth = ew - ( 1.0 - 0.4 * uFWet.x );
+    float ePud = smoothstep( 0.0, 0.03, eDepth ) * eUpF, eSoak = smoothstep( -0.08, 0.0, eDepth ) * eUpF;
+    float eDamp = ( 0.45 + 0.55 * smoothstep( -0.34, -0.06, eDepth ) ) * uFWet.x * mix( 0.5, 1.0, eUpF );
+    diffuseColor.rgb *= mix( 1.0, 0.5, eDamp ) * mix( 1.0, 0.72, eSoak );
+    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.55, ePud );
+    eR = mix( eR, 0.4, eDamp ); eR = mix( eR, 0.2, eSoak ); eR = mix( eR, 0.05, ePud );
+    eN = normalize( mix( eN, eG, max( ePud, eSoak * 0.6 ) ) );
+  }
+#endif
+  vec3 eRw = inverseTransformDirection( reflect( - eV, eN ), viewMatrix );
+  float eB = eR * eR, eUp = eRw.z;
+  vec3 eSky = mix( uFEnvH, uFEnvZ, pow( clamp( eUp, 0.0, 1.0 ), 0.45 ) );
+  vec3 eEnv = mix( uFEnvG, eSky, smoothstep( -0.05 - eB * 0.6, 0.05 + eB * 0.6, eUp ) );
+  eEnv = mix( eEnv, ( uFEnvZ + uFEnvH * 2.0 + uFEnvG ) * 0.25, eB );
+  float eC = clamp( dot( eN, eV ), 0.0, 1.0 );
+  vec3 eF0 = mix( vec3( 0.04 ), diffuseColor.rgb, eM ), eF = eF0 + ( max( vec3( 1.0 - eR ), eF0 ) - eF0 ) * pow( 1.0 - eC, 5.0 );
+  float eO = clamp( fLum( vFLit ) / max( fLum( uFAmb ), 1e-3 ), 0.25, 1.0 );
+  fDirect += eEnv * eF * eO;
+  float eShine = clamp( 2.0 / ( eB * eB ) - 2.0, 1.0, 4096.0 );
+  vec3 eSkyOnly = mix( uFGround, uFAmb, 0.5 + 0.5 * inverseTransformDirection( eG, viewMatrix ).z );
+  for ( int i = 0; i < __K__; i++ ) {
+    if ( uFLr[ i ] < 1e8 ) continue;
+    vec3 eL = normalize( uFLp[ i ] - vFPos );
+    float eNg = max( dot( eG, eL ), 0.0 ), eNl = max( dot( eN, eL ), 0.0 );
+    float eSun = clamp( ( fLum( vFLit ) - fLum( eSkyOnly ) ) / max( fLum( uFLk[ i ] ) * eNg, 1e-3 ), 0.0, 1.0 );
+    fDirect += uFLk[ i ] * eF * eNl * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eL + eV ) ), 0.0 ), eShine ) * eSun;
+  }
+  diffuseColor.rgb *= 1.0 - eM;
+}
+#endif
+`;
+
 export function formScript(cfg) {
   // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
   const NB = cfg.lights.filter((l) => l.beat).length;
@@ -43,12 +103,16 @@ const __mojForm = (function () {
   const F = ${safeJson(cfg)}, keep = new Set(F.keep), loader = new THREE.TextureLoader(), K = Math.max(1, F.live);
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;
   const U = { uFLp: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uFLk: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
-    uFLr: { value: new Array(K).fill(1) }, uFFall: { value: F.fall }, uFAmb: { value: new THREE.Vector3(...F.ambient) }, uFPom: { value: new THREE.Vector4(F.pom.near, F.pom.far, F.relief.near, F.relief.far) } };
+    uFLr: { value: new Array(K).fill(1) }, uFFall: { value: F.fall }, uFAmb: { value: new THREE.Vector3(...F.ambient) }, uFPom: { value: new THREE.Vector4(F.pom.near, F.pom.far, F.relief.near, F.relief.far) } };${cfg.reflect ? `
+  Object.assign(U, { uFEnvZ: { value: new THREE.Vector3(...F.reflect.env.zenith) }, uFEnvH: { value: new THREE.Vector3(...F.reflect.env.horizon) }, uFEnvG: { value: new THREE.Vector3(...F.reflect.env.ground) },
+    uFWet: { value: new THREE.Vector2(F.reflect.wet ? F.reflect.wet.amount : 0, F.reflect.wet ? F.reflect.wet.seed : 0) } });
+  const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);` : ''}
 ${NB ? `  const BL = F.lights.map((l, i) => ({ l, i })).filter(({ l }) => l.beat);
   Object.assign(U, { uFBp: { value: BL.map(() => new THREE.Vector3()) }, uFBk: { value: BL.map(() => new THREE.Vector3()) }, uFBr: { value: BL.map(({ l }) => l.radius) } });
 ` : ''}  const VERT = 'attribute vec3 aLit;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n';
   const FRAG = 'uniform vec3 uFLp[' + K + '];\\nuniform vec3 uFLk[' + K + '];\\nuniform float uFLr[' + K + '];\\nuniform float uFFall;\\nuniform vec3 uFAmb;\\nuniform vec4 uFPom;\\nuniform vec3 uFMean;\\nuniform float uFDepth;\\nuniform sampler2D uFNorm;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n'
-    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n'${cfg.sun ? `
+    + 'float fLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }\\n'${cfg.reflect ? `
+    + ${safeJson(ENV_HEAD)}` : ''}${cfg.sun ? `
     + 'uniform vec3 uFGround;\\n'` : ''}${NB ? `
     + 'uniform vec3 uFBp[${NB}];\\nuniform vec3 uFBk[${NB}];\\nuniform float uFBr[${NB}];\\n'` : ''};
   // the face's own frame from the screen's derivatives (its normal, and the tile's directions on it), then the parallax:
@@ -107,19 +171,19 @@ for ( int i = 0; i < ${NB}; i++ ) {
   fBeat += uFBk[ i ] * pow( t * t, uFFall ) * max( dot( fN, d / max( r, 1e-3 ) ), 0.0 );
 }
 fDirect += fBeat * diffuseColor.rgb;
-` : ''}\`;
-  const lit = (params, M) => {
+` : ''}\`${cfg.reflect ? ` + ${safeJson(ENV_BODY)}.split('__K__').join(String(K))` : ''};
+  const lit = (params, M, S, wet) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {}) };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {}), ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}) };
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null } });
+      Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector2(S ? S.rough : 1, S ? S.metal || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
       sh.fragmentShader = FRAG + sh.fragmentShader.replace('#include <map_fragment>', MAP)
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '');${cfg.sun ? `
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '')" : ''};${cfg.sun ? `
     // (lit by the day: toned with the land, channels/form-land.js leaves it so)
     mat.userData.cast = true;` : ''}
     return mat;
@@ -144,7 +208,7 @@ ${cfg.sun ? `
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
-      ...(M && M.orm ? { aoMap: M.orm } : {}) }, M);
+      ...(M && M.orm ? { aoMap: M.orm } : {}) }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g)' : ''});
     if (M && M.normal) made.material++; else made.colour++;
     if (M && M.depth > 0 && F.pom.steps > 0) made.pom++;
   });

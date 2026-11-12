@@ -29,3 +29,11 @@ A composed building standing on an outdoor map (the hangar, a barracks) is read 
   (the city's container, `geocity/industry.js`), one to three high, each in a line's colour, lit as the shell is, each
   stack a collider. A recipe's `wet: true` (it has just rained) darkens the apron's slab and lays the wet film over it
   that gives the sky back (`channels/wet-road.js`). The geocube kind passes both.
+- Built surfaces give the sky back. The form render's material takes a page's `reflect` (`scene/channels/form.js`): the
+  sky by Fresnel, blurred by each surface's roughness, and the sun's highlight where the bake says the sun reaches; a
+  metal's base colours both. A building on a land asks for it: painted steel and a container's enamel sheen, poured
+  concrete barely. A page that asks for none carries none of its code.
+- Wet is a state of the material. Where a recipe is `wet`, the form render lays one field of water over the apron by
+  the world's own place and the recipe's seed: standing water, a soaked band at its edge, damp past that; each darkens
+  the slab, smooths it and flattens its relief, so the sky lies in a puddle and only sheens on damp concrete. The
+  painted page keeps its film.
