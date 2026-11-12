@@ -1,6 +1,6 @@
 // How wet a place is, by degree (era/wetness.js).
 import { describe, it, expect } from 'vitest';
-import { readWetness, DEGREES, WET_SPOTS_MOST } from './wetness.js';
+import { readWetness, DEGREES, WET_SPOTS_MOST, wetOfWeather, WET_OF_WEATHER } from './wetness.js';
 
 describe('wetness: degrees, and what each lays', () => {
   it('the degrees rise together: a place is never wetter on its faces than it has pools for, and only rain strikes them', () => {
@@ -31,5 +31,13 @@ describe('wetness: degrees, and what each lays', () => {
     expect(() => readWetness('soggy')).toThrow(/wet is/);
     expect(() => readWetness(2)).toThrow(/wet is/);
     expect(() => readWetness({ spots: Array.from({ length: WET_SPOTS_MOST + 1 }, () => ({ at: [0, 0], size: 1 })) })).toThrow(/wet is/);
+  });
+
+  it('a weather says how wet it leaves a place: rain is raining, a storm a downpour, a clear day nothing', () => {
+    expect(wetOfWeather('rain')).toBe('raining');
+    expect(wetOfWeather('thunderstorm')).toBe('downpour');
+    expect(wetOfWeather('drizzle')).toBe('wet');
+    for (const w of ['clear', 'haze', undefined, { climate: 'x' }]) expect(wetOfWeather(w)).toBeNull();
+    for (const d of Object.values(WET_OF_WEATHER)) expect(DEGREES[d]).toBeDefined();
   });
 });

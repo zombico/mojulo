@@ -145,6 +145,7 @@ import { grittyOf } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
 import { cubeLight } from './cube-light.js';
+import { wetOfWeather } from './wetness.js';
 import { townDressOf } from './town-dress.js';
 import { readStyle, styleTownDress, styleReadout } from './arch-style.js';
 import { readClouds, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
@@ -1466,6 +1467,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
   // (`wet`: it has just rained, a stage's word: the hard standing films the sky)
   if (manifest.wet !== undefined) low.wet = manifest.wet;
+  // (and where it names a weather and no wetness, the weather's own: rain is raining, era/wetness.js)
+  else if (manifest.buildings !== undefined && wetOfWeather(manifest.weather)) low.wet = wetOfWeather(manifest.weather);
   // (the day its buildings' shells are baked under, read by the form render: the cube's light at the hour, era/cube-light.js)
   const dayLight = ctx.formLit && manifest.buildings !== undefined ? (({ sun, ambient }) => ({ sun: sun.linear, ambient: ambient.linear, dir: sun.dir }))(cubeLight(cube, manifest.hour !== undefined ? { hour: readHour(manifest.hour) } : {})) : null;
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, ...(dayLight ? { dayLight } : {}), title, ...(show === 'trail' ? { route: true } : {}) });

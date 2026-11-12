@@ -79,3 +79,8 @@
 - A yard's containers wear corrugated steel sheet (`containerSkin`, a made cut as a shed's wall is): its flutes upright
   on the sides and across the top, the line's colour its tint, read by the form render as relief, so light and wet
   work on them as on any wall. The painted rib stripes give way to it.
+- A container has its frame: a square rail round its foot and its head and a post up each corner, a hand proud of the
+  sheet (`geocity/industry.js`, the one builder: a metro's containers and a yard's alike).
+- A weather and its wetness are one thing said once: a geocube recipe with buildings that names a weather and no `wet`
+  is as wet as that weather leaves a place (`wetOfWeather`: rain raining, a downpour or a thunderstorm a downpour,
+  drizzle wet, mist damp), beside the weather's own falling rain and sky.

@@ -954,7 +954,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
           // line's colour its tint; the painted ribs give way to the sheet's own relief. Its doors' bars stay)
           for (const f of raw) { if (f.hex === '#d6d6d6') continue;
             const c = f.corners.map(([u, v, z]) => W([sx + u + jog, sy + v, zt + lv * CH + z])), nn = turnN(f.normal), body = f.hex === '#f2f2f2';
-            const col = body ? tint : [0.5, 0.5, 0.5], lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
+            const frame = f.hex === '#dedede', col = body ? tint : frame ? tint.map((t) => t * 0.8) : [0.5, 0.5, 0.5], lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
             const shade = shellLight ? 1 : (0.6 + 0.4 * lam) * (0.35 + 0.65 * day), fill = '#' + col.map((t) => Math.round(255 * Math.min(1, t * shade)).toString(16).padStart(2, '0')).join('');
             const flat = Math.abs(nn[2]) > 0.5, uv = body ? c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / SKIN.scale))) : null;
             yardF.push({ ...quad(c, 'yard:container', fill), ...(uv ? { texture: SKIN.key, textureLit: true, uv } : {}), normal: P3(nn), outNormal: P3(nn), node: `${id}:container-${k}` }); } }

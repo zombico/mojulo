@@ -22,6 +22,8 @@
  *             wet      it has just rained: faces sheened, joints full, pools in the hollows, the walls run
  *             raining  as wet, more of it, the pools struck with rings
  *             downpour water standing over nearly all the ground, struck hard
+ *   wetOfWeather(weather) → the degree a weather's state leaves (rain: raining, a downpour or a thunderstorm: downpour,
+ *             drizzle: wet, mist or fog: damp), or null: a recipe's weather and its wetness are one thing said once
  *   readWetness(wet) → { amount, walls, pools, rain, spots: [{ at: [x, y, z], r, amount, pool }] } | null
  *     wet     true ('wet') | a degree's name | 0 to 1 (the faces' dial alone: damp to brimming, no pool)
  *             | { degree?, amount?, spots?: [{ at: [x, y] | [x, y, z], size, amount?, pool? }] }
@@ -38,6 +40,9 @@ export const DEGREES = Object.freeze({
   // (a downpour: the ground cannot shed it, so water stands over nearly all of it, and the rain strikes hard)
   downpour: Object.freeze({ amount: 1, walls: 1, pools: 0.9, rain: 2 }),
 });
+/** How wet a weather leaves a place (weather/weather.js states): a recipe that names a weather and no `wet` is this wet. */
+export const WET_OF_WEATHER = Object.freeze({ mist: 'damp', fog: 'damp', drizzle: 'wet', rain: 'raining', downpour: 'downpour', thunderstorm: 'downpour' });
+export const wetOfWeather = (weather) => (typeof weather === 'string' ? WET_OF_WEATHER[weather] ?? null : null);
 export const WET_SPOTS_MOST = 6;
 
 export function readWetness(wet) {
