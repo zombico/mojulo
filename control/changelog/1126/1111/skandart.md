@@ -133,3 +133,13 @@ size it would be.
   walk, and the grass keeps off each heap and block. Read at the form render's frame (1080 lines) when it reads them, so
   its spalls are made. The level says what it laid (`skandart`: its cones, runners and rings). A `condition` on open
   ground is still refused, now saying why: a condition word is a room's or a cave's.
+- A trail's debris takes in its trees and its rain. DEADFALL (`era/deadfall.js`): each tree near the walk lets fall its
+  dead branches and now and then a limb, lying under its crown where they fell, mostly pointing out from the trunk, each a
+  curved, tapered stem with its forks, one propped up off the ground as a fallen branch lies; never across the walk's
+  middle, never in a rock, none too thin to be read where it is seen. Drawn as its own wood (`isekai:deadwood`, a new land
+  class: the cube's floor, weathered paler than a standing trunk's bark, so the form render's own trees do not hide it), on
+  a polygon land. WASH (`era/wash-fans.js`): where rain running down a trail slows (its dips and the foot of each
+  descent) it drops its load: a fan of washed sand opening off the trail on the side lower at its toe, or, where the
+  trail is sunk in its banks and the water stays in it, a lobe of sand across its tread run on down it; centimetres deep,
+  so drawn by its colour (the land cut as sand, as a shore's is, no grass on it), and it never climbs. Both with the
+  trail's rockfall under the same `skandart`; the level says what each laid (`skandart.deadfall`, `skandart.wash`).
