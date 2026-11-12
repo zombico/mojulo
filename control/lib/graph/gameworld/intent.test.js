@@ -224,4 +224,17 @@ describe('the intent written on the quick and compose paths', () => {
     // (plain words alone still need two, the first ahead)
     expect(readGenre('a dungeon crawl through crypt rooms')).toMatchObject({ id: 'dungeon-crawler', by: 'words' });
   });
+
+  it('a name said inside another genre\'s longer name is the longer one\'s', () => {
+    // ("rpg" is the party RPG's name; "action rpg" and "open world rpg" are longer names that hold it)
+    expect(readGenre('an rpg')).toMatchObject({ id: 'jrpg', by: 'name' });
+    expect(readGenre('an anime action rpg like zelda')).toMatchObject({ id: 'action-rpg', by: 'name' });
+    expect(readGenre('an arpg')).toMatchObject({ id: 'action-rpg', by: 'name' });
+    expect(readGenre('an open world rpg')).toMatchObject({ id: 'long-rpg', by: 'name' });
+    expect(readGenre('a stylish action game')).toMatchObject({ id: 'stylish-action', by: 'name' });
+    // (the sentence door lays the action RPG it reads: no party battles)
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests, fighting goblins and slimes', seed: 1 });
+    expect(W.intent).toEqual({ from: 'action-rpg' });
+    expect(W.battles).toBeUndefined();
+  });
 });

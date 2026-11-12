@@ -3,7 +3,8 @@
 Two action games were made end to end from a sentence (a stylish action game and an anime action RPG), exported and
 played by a scripted player on the shipped pages. Every level built and loaded and every action piece ran, and no level
 could be won: the rails wrote what the runtime does not play, and the hero, its blows and its foes were numbered in three
-scales. The player gate is built, and the page binds what its legend says; the rest below is designed, not built yet.
+scales. The player gate is built, the page binds what its legend says and the sentence door reads the action genres; the
+rest below is designed, not built yet.
 
 - **The playthrough: a made level played by a scripted player** (`gameworld/playthrough.js`). A level is resolved as its
   page resolves it and played headless on the runtime it ships, in about a second: the BASIC player fights the foe in
@@ -41,11 +42,17 @@ scales. The player gate is built, and the page binds what its legend says; the r
   on a page with an explosion: on a page whose moments flash but nothing explodes, the first such moment threw
   "__moAir is not defined". The sprite is declared wherever moments are; a page with an explosion is byte for byte as
   it was. Found by the channel contract lint on the new `action-hero` fixture.
+- **The sentence door reads the action genres** (`gameworld/intent.js`). "Stylish action" and "character action" name
+  the stylish action game, "action rpg", "action-rpg" and "arpg" the action RPG; and a name said inside another genre's
+  longer name is that one's: "an anime action rpg like zelda" composed a turn-based party RPG (whose name is "rpg"), and
+  composes the action RPG now; "an open world rpg", a tie read as nothing, is the long RPG. "An rpg" is the party RPG,
+  as it was. A world of either genre that writes no feel is suggested its template (`feel/suggest.js`: Fallen Angel for
+  stylish action, Fable of Artesia for the action RPG), never laid.
 - **What the gate found first, on the anime action RPG** (no level won): in the town square the basic player downs two
   of four foes and goes down at 87 s; on the crossing it shoots the archer down, downs the first charger, then needs
   about two minutes and 278 presses for the 240-hp elite and goes down at 168 s; on the boss's heights the boss's counter
   (the opportunist mind's tackle, which beats any swing it sees) answers every string and the sword never lands. The
   still player goes down at 22 to 45 s wherever foes reach it.
-- Designed, not built yet: the sentence door reads "action rpg" and "stylish action" and lays the orbit camera a
-  genre asks for; one scale for a world that writes an arsenal (the kit's blows, the hero's health and each foe's hit in
-  the foe shelf's frame); a casting call that reads the kit and the place; rails that say what they wrote.
+- Designed, not built yet: the composer lays the orbit camera a genre asks for; one scale for a world that writes an
+  arsenal (the kit's blows, the hero's health and each foe's hit in the foe shelf's frame); a casting call that reads
+  the kit and the place; rails that say what they wrote.
