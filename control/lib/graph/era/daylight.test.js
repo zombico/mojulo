@@ -2,6 +2,7 @@
 // painted page, are as they were.
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene } from './stage.js';
+import { liquidLook } from '../rupa/liquid-look.js';
 
 const rooms = [{ id: 'a', x: 0, y: 0, w: 10, d: 14, h: 7 }], M = { kind: 'stage', kit: 'bay-military', rooms };
 const day = { elevation: 38, azimuth: 200 };
@@ -35,15 +36,15 @@ describe('daylight: a sun for rooms indoors', () => {
   });
 
   it('a sample is a material set down to be looked at: a liquid a pool on the floor, a metal a cube, each its own surface', () => {
-    const P = assembleStageScene({ ...M, daylight: day, samples: [{ of: 'oil', at: [5, 6], size: 3 }, { of: 'chrome', at: [7, 9] }] }, { formLit: true });
-    const oil = P.faces.filter((f) => f.group === 'stage:sample-oil'), cube = P.faces.filter((f) => f.group === 'stage:sample-chrome');
+    const P = assembleStageScene({ ...M, daylight: day, samples: [{ of: 'crude', at: [5, 6], size: 3 }, { of: 'chrome', at: [7, 9] }] }, { formLit: true });
+    const oil = P.faces.filter((f) => f.group === 'stage:sample-crude'), cube = P.faces.filter((f) => f.group === 'stage:sample-chrome');
     expect(oil.length).toBeGreaterThan(0);
     expect(Math.max(...oil.flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(0.02);
     expect(Math.max(...cube.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(1, 3);
     const S = P.form.room.reflect.surfaces;
-    expect(S['stage:sample-oil'].metal).toBe(0);
+    expect(S['stage:sample-crude'].metal).toBe(0);
     expect(S['stage:sample-chrome'].metal).toBe(1);
-    expect(S['stage:sample-oil'].rough).toBeLessThan(S['stage:sample-chrome'].rough + 1);
-    expect(() => assembleStageScene({ ...M, samples: [{ of: 'lava', at: [1, 1] }] })).toThrow(/samples are/);
+    expect(S['stage:sample-crude'].rough).toBe(liquidLook('crude').rough);
+    expect(() => assembleStageScene({ ...M, samples: [{ of: 'plasma', at: [1, 1] }] })).toThrow(/samples are/);
   }, 60000);
 });

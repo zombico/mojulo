@@ -27,6 +27,8 @@ import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference 
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
+import { LIQUID_IDS } from '../rupa/matter.js';
+import { liquidLook } from '../rupa/liquid-look.js';
 import { wallOrder } from './wall-rhythm.js';
 import { shadeTint } from './floor-shades.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
@@ -414,16 +416,15 @@ function withRecipeTiles(kit, kitId, tiles) {
 const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
-/** The materials a recipe may set down to be looked at (`samples`): a liquid a pool on the floor, a metal a cube; `tint`
- *  its colour under no light, `thick` how far a liquid's face stands over the floor (m), `rough` 0 a mirror to 1 chalk, `metal` 1 a bare metal, `clear` a liquid seen through, `film` a thin film's colours on its face (how much of its own colour it keeps square on: the floor shows under it, and it mirrors more the lower it is looked along); the form render's, channels/form.js. */
-export const SAMPLES = Object.freeze({
-  oil: Object.freeze({ pool: true, thick: 0.014, tint: [0.035, 0.032, 0.03], rough: 0.05, metal: 0 }),
-  water: Object.freeze({ pool: true, thick: 0.009, tint: [0.045, 0.055, 0.06], rough: 0.04, metal: 0, clear: 0.42 }),   // (dark under it: a wet floor drinks the light)
-  // (a fuel: thin, pale amber, seen through, and its face a film that colours what it gives back)
-  gasoline: Object.freeze({ pool: true, thick: 0.006, tint: [0.1, 0.085, 0.045], rough: 0.035, metal: 0, clear: 0.34, film: 0.8 }),
+/** The materials a recipe may set down to be looked at (`samples`). A LIQUID is any of the matter table's (rupa/matter.js),
+ *  drawn as every liquid is, from its own look (rupa/liquid-look.js: its thickness and smoothness from its physics, its
+ *  colour, clearness and film beside); a METAL a cube: `tint` its colour under no light, `rough` 0 a mirror to 1 chalk,
+ *  `metal` 1 a bare metal (the form render's, channels/form.js). */
+const METAL_SAMPLES = Object.freeze({
   chrome: Object.freeze({ tint: [0.9, 0.9, 0.92], rough: 0.1, metal: 1 }),
   steel: Object.freeze({ tint: [0.56, 0.57, 0.6], rough: 0.34, metal: 1 }),
 });
+export const SAMPLES = Object.freeze({ ...Object.fromEntries(LIQUID_IDS.map((id) => [id, Object.freeze({ pool: true, metal: 0, ...liquidLook(id) })])), ...METAL_SAMPLES });
 function sampleFaces(plan) {
   const out = [];
   (plan.samples || []).forEach((q, i) => {
@@ -607,8 +608,8 @@ export function planStage(m = {}) {
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
   // SAMPLES (`samples: [{ of, at: [x, y], size? }]`): a material set down in a room to be looked at under its light. A
-  // liquid (`oil`, `water`) lies on the floor as a pool `size` metres across; a metal (`chrome`, `steel`) stands as a
-  // cube `size` metres on a side. Each is its own material to the form render: how rough, how much a metal
+  // liquid (any of rupa's: water, crude, gasoline, honey, mud, …) lies on the floor as a pool `size` metres across; a
+  // metal (`chrome`, `steel`) stands as a cube `size` metres on a side. Each is its own material to the form render: how rough, how much a metal
   if (m.samples !== undefined) {
     if (!Array.isArray(m.samples) || m.samples.length > 24 || m.samples.some((q) => !q || !SAMPLES[q.of] || !Array.isArray(q.at) || q.at.length !== 2 || !q.at.every(Number.isFinite) || (q.size !== undefined && !(q.size > 0.1 && q.size <= 20))))
       throw new Error(`stage: samples are [{ of: ${Object.keys(SAMPLES).join(' | ')}, at: [x, y], size?: metres }] (at most 24)`);

@@ -145,6 +145,9 @@ const BASE = {
   seawater: M('seawater', { label: 'Seawater', family: 'liquid', density: 1025, c: 0, phi: 0, viscosity: 1.08e-3, yield: 0 }),
   oil: M('oil', { label: 'Oil (olive)', family: 'liquid', density: 910, c: 0, phi: 0, viscosity: 0.08, yield: 0 }),
   honey: M('honey', { label: 'Honey', family: 'liquid', density: 1420, c: 0, phi: 0, viscosity: 10, yield: 0 }),
+  // (the fuels: a light spirit thinner than water, and a heavy oil black as it comes from the ground or a sump)
+  gasoline: M('gasoline', { label: 'Gasoline', family: 'liquid', density: 745, c: 0, phi: 0, viscosity: 6e-4, yield: 0 }),
+  crude: M('crude', { label: 'Heavy oil (crude, a sump\'s)', family: 'liquid', density: 870, c: 0, phi: 0, viscosity: 0.25, yield: 0 }),
   mud: M('mud', { label: 'Mud (slurry)', family: 'liquid', density: 1600, c: 0, phi: 0, viscosity: 50, yield: 200 }),
   lava: M('lava', { label: 'Basaltic lava', family: 'liquid', density: 2600, c: 0, phi: 0, viscosity: 1000, yield: 500 }),
   // ── a gas: the same fluid law at its lightest (no shear strength, its weight pressure, its motion drag): the air the
@@ -173,7 +176,7 @@ const THERMAL = {
 const BOUNCE = {
   concrete: 0.2, 'reinforced-concrete': 0.2, brick: 0.2, stone: 0.3, sandstone: 0.2, adobe: 0.1, ceramic: 0.3, glass: 0.4, ice: 0.3,
   steel: 0.5, 'sheet-metal': 0.3, 'armour-steel': 0.5, brass: 0.45, aluminium: 0.4, lead: 0.05, putty: 0.02, dough: 0, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
-  water: 0, seawater: 0, oil: 0, honey: 0, mud: 0, lava: 0, air: 0,
+  water: 0, seawater: 0, oil: 0, honey: 0, gasoline: 0, crude: 0, mud: 0, lava: 0, air: 0,
 };
 // DEBRIS, what a breaking leaves (handbook orders): `frac` the fracture energy, J/m² (the joules one square metre of new
 // crack costs: glass a few, concrete ~100, wood ~10⁴, a ductile steel ~10⁵, so the same joules shatter glass and only
@@ -193,7 +196,7 @@ const EJECTA_MU = { sand: 0.41, loam: 0.45, clay: 0.55, gravel: 0.41, snow: 0.4 
 // a soil's loose grain (m), the share of it that is fines (silt and clay, under 63 µm) and its particles' density: thrown,
 // its torn-apart soil flies as grains whose size sets their drag, and the fines hang as dust
 const SOIL_GRAIN = { sand: [0.0004, 0.02, 2650], loam: [0.0002, 0.4, 2650], clay: [0.0001, 0.6, 2650], gravel: [0.005, 0.05, 2650], snow: [0.001, 0, 917] };
-const TENSION = { water: 0.072, seawater: 0.073, oil: 0.032, honey: 0.05, mud: 0.06, lava: 0.35 };
+const TENSION = { water: 0.072, seawater: 0.073, oil: 0.032, honey: 0.05, gasoline: 0.022, crude: 0.03, mud: 0.06, lava: 0.35 };
 const debrisOf = (k) => (DEBRIS[k] ? { frac: DEBRIS[k][0], shape: DEBRIS[k][1], spread: DEBRIS[k][2] } : {});
 export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k], ...debrisOf(k), ...(EJECTA_MU[k] ? { mu: EJECTA_MU[k] } : {}), ...(SOIL_GRAIN[k] ? { grain: SOIL_GRAIN[k][0], fines: SOIL_GRAIN[k][1], particle: SOIL_GRAIN[k][2] } : {}), ...(TENSION[k] ? { tension: TENSION[k] } : {}) })])));
 // TRANSPORT, how heat moves through and off a matter (handbook orders, Incropera & DeWitt's appendix tables): `k` the
@@ -207,7 +210,7 @@ export const TRANSPORT = Object.freeze({
   steel: TR(50, 0.7), 'sheet-metal': TR(50, 0.7), 'armour-steel': TR(30, 0.7), brass: TR(110, 0.2), aluminium: TR(167, 0.1), lead: TR(35, 0.4),
   putty: TR(0.5, 0.9), dough: TR(0.4, 0.9), timber: TR(0.17, 0.9), pine: TR(0.12, 0.9), drywall: TR(0.17, 0.9), bone: TR(0.4, 0.95),
   sand: TR(0.3, 0.9), loam: TR(0.5, 0.92), clay: TR(1.0, 0.92), gravel: TR(0.7, 0.9), snow: TR(0.2, 0.98),
-  water: TR(0.6, 0.96), seawater: TR(0.6, 0.96), oil: TR(0.17, 0.9), honey: TR(0.5, 0.9), mud: TR(1.0, 0.95), lava: TR(1.5, 0.95),
+  water: TR(0.6, 0.96), seawater: TR(0.6, 0.96), oil: TR(0.17, 0.9), honey: TR(0.5, 0.9), gasoline: TR(0.13, 0.9), crude: TR(0.14, 0.9), mud: TR(1.0, 0.95), lava: TR(1.5, 0.95),
   air: TR(0.026, 0),
 });
 export const CHAR_RATE = 0.65e-3 / 60;   // m/s, the char front's speed into a face of burning wood (Eurocode 5, softwood)

@@ -31,7 +31,7 @@
  *   stepVessels(net, { seconds, ground? }) → { net, ground, jets: [{ pipe, at, dir, speed, flow }], events }
  *   jetOf(pressure, { radius, liquid? }) → { speed, flow, reach45 }: a nozzle's jet from the pressure behind it
  */
-import { resolveMatter, isLiquid } from './matter.js';
+import { resolveMatter, isLiquid, LIQUID_IDS } from './matter.js';
 import { rupaPhysics } from './index.js';
 
 // one pressure law with the runtime and the air (rupaPhysics.pressure: ρ·g·depth + Cp·½ρv²; flowOf its inverse)
@@ -40,7 +40,7 @@ const { pressure, flowOf } = rupaPhysics;
 const G = 9.81, CD = 0.6, CV = 0.97;   // a sharp opening's discharge coefficient; a smooth nozzle's velocity coefficient
 const liquidOf = (id, where = 'liquid') => {
   const m = resolveMatter(id, where);
-  if (!isLiquid(m)) throw new Error(`${where}: '${m.id}' is not a liquid (water, seawater, oil, honey, mud, lava)`);
+  if (!isLiquid(m)) throw new Error(`${where}: '${m.id}' is not a liquid (${LIQUID_IDS.join(', ')})`);
   return m;
 };
 const copy = (f) => ({ ...f, h: f.h.slice(), rock: f.rock.slice(), ...(f.fluid ? { fluid: { ...f.fluid, d: f.fluid.d.slice(), q: f.fluid.q.slice() } } : {}), ...(f.bars ? { bars: f.bars.map((b) => ({ ...b })) } : {}) });

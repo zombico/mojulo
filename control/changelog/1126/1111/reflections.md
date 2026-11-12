@@ -26,3 +26,8 @@
   (`clear`): square on it keeps a share of its own colour and the floor shows under it, darker where it is wet; the
   lower it is looked along the more it mirrors. Water is so. A fuel carries a thin film on its face (`film`): what it
   gives back is coloured by the film's thickness and the eye's angle. `gasoline` joins the samples.
+- A liquid is seen as what it is. `rupa/liquid-look.js` reads a liquid's look off its matter: its thickness from the
+  puddle its surface tension holds against its weight (and what a yield stress holds over that), its smoothness from
+  whether it flows; its colour, clearness and film beside (`LIQUID_OPTICS`, a row a liquid, held to the matter table's
+  own list). A room's samples take any of the table's liquids and draw them from it. `gasoline` and `crude` join the
+  matter table.
