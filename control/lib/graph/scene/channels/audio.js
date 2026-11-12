@@ -26,18 +26,22 @@ export function audioChannelScript(audio) {
   const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
   const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
+  // an environment's bed (audio.bed, sfx-shelf/beds.js): a pattern of the shelf's one-shots on its own engine, under the
+  // score at its own level. Absent, not a byte of it is emitted.
+  const bed = !!audio.bed, bedLevel = Number(audio.bedLevel ?? 0.5);
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
 const __BEATS_PATCHES = ${safeJson(combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
-let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;
+let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
 // CPU quiet while muted. resume() only sticks post-gesture — the pointerdown unlock owns that.
 function __beatsApply() {
   __beatsBtn.textContent = __beatsMuted ? '\\u{1F507}' : '\\u{1F50A}';
   if (!__beatsEng) return;
-  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${combat ? `
+  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${bed ? `
+  if (__bedEng) __bedEng.master.gain.value = __beatsMuted ? 0 : ${bedLevel} * __beatsVol;` : ''}${combat ? `
   if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});
 }
@@ -56,7 +60,8 @@ ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
     else __beatsEng.startAmbient(__AUDIO.soundtrack, __BEATS_PATCHES);`}
   }
-  if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);
+  if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);${bed ? `
+  __bedEng = __BEATS.createEngine(__beatsCtx); __bedEng.startPattern(__AUDIO.bed, __BEATS_PATCHES);   // the environment's bed` : ''}
   __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
 }
 renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.tension ? `
@@ -171,7 +176,18 @@ __proxGain = (function (g) { var k = ${900 / reach}; return function (p) { var L
 ` : ''}${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
-// bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
+${audio.breath ? `// one breath across the game's hits (audio.breath, the sound sheet's): each hit is played at the breath left (down to
+// floor), spends spend of it, and a rest refills recover a second: a fast combo lightens, the first hit after a pause
+// is the strongest
+let __breath = 1, __breathT = 0;
+__beatsCue = (function (play) { return function (cue, gain) {
+  var now = __beatsCtx ? __beatsCtx.currentTime : 0;
+  __breath = Math.min(1, __breath + (now - __breathT) * ${Number(audio.breath.recover)}); __breathT = now;
+  var k = ${Number(audio.breath.floor)} + ${1 - Number(audio.breath.floor)} * __breath;
+  __breath = Math.max(0, __breath - ${Number(audio.breath.spend)});
+  return play(cue, gain == null ? k : gain * k);
+}; })(__beatsCue);
+` : ''}// bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
 // events and never touches state, so bus determinism (hash → replay) is untouched. Match the
 // state.log DELTA, not the incoming array: the reducer cascades reaction-emitted events
 // (goal:reached, pickup:*, door:*) internally, so only the log holds the whole drained stream.

@@ -86,6 +86,10 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //   trace   the trace gesture: a sound traced into numbers (band levels,
 //           voicing, pitch, pan by frame) and synthesized back by a noise
 //           vocoder. How a voice becomes a recipe without a sample.
+//   syrinx  the syrinx gesture: a bird's call synthesized whole, a buzz on a
+//           pitch path (its period jittered, a doubled period under it, a
+//           rattle on it) and a breath of noise through the bird's moving
+//           resonances. A tonal call a trace would turn to sandpaper.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -95,8 +99,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'], syrinx: ['sfx'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -1118,6 +1122,20 @@ export function buildBeatsKernel() {
     }
 /*|
 @*/
+/*@syrinx{*/
+    // syrinx (mouth foley's birds): a call synthesized whole. A sawtooth on
+    // `pitch` ([[t 0..1 of dur, Hz]…]), its period wandering by `jitter` (a
+    // share), a sawtooth an octave under it at `sub` (the doubled period that
+    // makes a caw harsh), its level rattled (`rattle`: { rate, depth }), seeded
+    // noise at `noise` beside it (the breath), the buzz at `buzz` (0: breath alone), all through `formants` (each
+    // { hz | path: [[t, Hz]…], width (octaves), gain }), under an envelope: an
+    // `attack`, then an exponential `decay` (a rate over the call) or a fade over
+    // its last `release` share.
+    if (g.type === 'syrinx') {
+      return [{ at: g.at || 0, kind: 'syrinx', dur: g.dur == null ? 0.3 : g.dur, pitch: g.pitch || [[0, 500], [1, 500]], formants: g.formants || [{ hz: 1500 }], sub: g.sub || 0, jitter: g.jitter || 0, rattle: g.rattle || null, noise: g.noise || 0, buzz: g.buzz == null ? 1 : g.buzz, attack: g.attack == null ? 0.01 : g.attack, decay: g.decay || 0, release: g.release == null ? 0.3 : g.release, vol: g.vol == null ? 0.5 : g.vol }];
+    }
+/*|
+@*/
 /*@sfx{*/
     throw new Error('beats: unknown gesture type "' + g.type + '" (sweep | flutter | burst | thump | grain | ring | tone)');
 /*|
@@ -1155,6 +1173,30 @@ export function buildBeatsKernel() {
         for (const k of ['decay', 'dur']) if (op[k]) op[k] *= df;
 @*/
         if (op.kind === 'noise') op.offset = rng();
+/*@trace{*/
+        // a traced sound never says itself twice (a beatboxer's rule): its noise
+        // enters at its own place, its bands and its hum move a little (±4 %, ±40
+        // cents), its frames stretch or hurry (±6 %), its level ±1.5 dB
+        if (op.kind === 'trace') {
+          op.offset = rng();
+          const bf = 1 + (rng() * 2 - 1) * 0.04; op.bands = op.bands.map(function (b) { return b * bf; });
+          op.step *= 1 + (rng() * 2 - 1) * 0.06; op.len = op.lv.length * op.step;
+          const hf = Math.pow(2, (rng() * 2 - 1) * 40 / 1200); if (op.pitch) op.pitch = op.pitch.map(function (h) { return h * hf; });
+          op.vol *= Math.pow(10, (rng() * 2 - 1) * 1.5 / 20);
+        }
+/*|
+@*/
+/*@syrinx{*/
+        // a call likewise: its pitch path ±60 cents, its resonances ±5 %, its level ±1.5 dB
+        if (op.kind === 'syrinx') {
+          op.offset = rng();
+          const pv = Math.pow(2, (rng() * 2 - 1) * 60 / 1200), ff = 1 + (rng() * 2 - 1) * 0.05;
+          op.pitch = op.pitch.map(function (q) { return [q[0], q[1] * pv]; });
+          op.formants = op.formants.map(function (f) { return f.path ? Object.assign({}, f, { path: f.path.map(function (q) { return [q[0], q[1] * ff]; }) }) : Object.assign({}, f, { hz: (f.hz == null ? 1500 : f.hz) * ff }); });
+          op.vol *= Math.pow(10, (rng() * 2 - 1) * 1.5 / 20);
+        }
+/*|
+@*/
 /*@sfxmix{*/
         if (lay != null) op.layer = lay;
 /*|
@@ -2903,6 +2945,58 @@ export function buildBeatsKernel() {
           if (op.dir === 'down') { g.gain.setValueAtTime(pk, t); g.gain.exponentialRampToValueAtTime(pk * 1e-3, t + op.len); }
           else { g.gain.setValueAtTime(pk * 1e-3, t); g.gain.exponentialRampToValueAtTime(pk, t + op.len); g.gain.linearRampToValueAtTime(0, t + op.len + 0.03); }
           src.connect(f); f.connect(g); g.connect(out); src.stop(t + op.len + 0.08);
+        }
+/*|
+@*/
+/*@syrinx{*/
+        else if (op.kind === 'syrinx') {
+          // a buzz and a breath through the bird's resonances (the gesture's
+          // header): every node stopped a moment after the call's end.
+          const d = op.dur, end = t + d, stop = end + 0.05;
+          const ride = (param, pts, f) => {
+            param.setValueAtTime(f(pts[0][1]), t + pts[0][0] * d);
+            for (let k = 1; k < pts.length; k++) param.linearRampToValueAtTime(f(pts[k][1]), t + pts[k][0] * d);
+          };
+          const lfoTo = (rate, amt, param) => { const l = ctx.createOscillator(); l.frequency.value = rate; const lg = ctx.createGain(); lg.gain.value = amt; l.connect(lg); lg.connect(param); l.start(t); l.stop(stop); };
+          const src = ctx.createGain();
+          const o = ctx.createOscillator(); o.type = 'sawtooth'; ride(o.frequency, op.pitch, (h) => Math.max(20, h));
+          // the period's wander: two slow detunes at unrelated rates, cents from the share
+          if (op.jitter) { const c = 1200 * Math.log2(1 + op.jitter); lfoTo(29, c * 0.6, o.detune); lfoTo(47, c * 0.4, o.detune); }
+          // (`buzz` 0: the breath alone through the resonances, a breath; 1, the buzz whole)
+          const bz = ctx.createGain(); bz.gain.value = op.buzz; bz.connect(src);
+          o.connect(bz); o.start(t); o.stop(stop);
+          if (op.sub) {
+            const o2 = ctx.createOscillator(); o2.type = 'sawtooth'; ride(o2.frequency, op.pitch, (h) => Math.max(20, h / 2));
+            const sg = ctx.createGain(); sg.gain.value = op.sub * 0.5; o2.connect(sg); sg.connect(bz); o2.start(t); o2.stop(stop);
+          }
+          let mix = src;
+          if (op.rattle) {
+            const depth = Math.max(0, Math.min(1, op.rattle.depth == null ? 0.5 : op.rattle.depth));
+            const am = ctx.createGain(); am.gain.value = 1 - depth / 2; lfoTo(op.rattle.rate == null ? 30 : op.rattle.rate, depth / 2, am.gain);
+            src.connect(am); mix = am;
+          }
+          const bus = ctx.createGain(); mix.connect(bus);
+          if (op.noise) {
+            const nz = noiseSrc(t, op.offset), hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 600;
+            const ng = ctx.createGain(); ng.gain.value = op.noise; nz.connect(hp); hp.connect(ng); ng.connect(bus); nz.stop(stop);
+          }
+          const env = ctx.createGain(), pk = dbGain(-6) * op.vol * vs;
+          env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(pk, t + op.attack);
+          if (op.decay) env.gain.setTargetAtTime(0, t + op.attack, d / op.decay);
+          else { env.gain.setValueAtTime(pk, Math.max(t + op.attack, end - d * op.release)); env.gain.linearRampToValueAtTime(0, end); }
+          env.connect(out);
+          for (const f of op.formants) {
+            // two bandpasses in a row on each resonance, its width in octaves to a q
+            const q = 1.4 / (2.355 * (f.width == null ? 0.5 : f.width));
+            const fg = ctx.createGain(); fg.gain.value = f.gain == null ? 1 : f.gain;
+            let node = bus;
+            for (let k = 0; k < 2; k++) {
+              const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+              if (f.path) ride(bp.frequency, f.path, (h) => h); else bp.frequency.value = f.hz == null ? 1500 : f.hz;
+              node.connect(bp); node = bp;
+            }
+            node.connect(fg); fg.connect(env);
+          }
         }
 /*|
 @*/

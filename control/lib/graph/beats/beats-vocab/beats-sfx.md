@@ -70,9 +70,18 @@ A held voice:
 
 - **tone** — a sustained oscillator: `{ note?|hz?, to?, dur?, wave?,
   attack?, release?, tremolo?: { rate, depth 0..1 }, vibrato?: { rate,
-  depth (cents) }, lowpass?, vol?, at? }`. `to` bends slowly across `dur`.
+  depth (cents) }, lowpass?, vol?, at? }`. `to` (a note, or Hz) bends slowly across `dur`.
   Use it for beams, engine hums, machinery drones and charge whines that
   hold, which a `sweep` (a one-shot ramp) can't.
+
+A bird's call (kernel feature `syrinx`):
+
+- **syrinx** — a call synthesized whole: `{ dur?, pitch?: [[t 0..1, Hz]…],
+  formants?: [{ hz? | path?: [[t, Hz]…], width? (octaves), gain? }], sub?,
+  jitter?, rattle?: { rate, depth }, noise?, attack?, decay?, release?,
+  vol?, at? }`. A sawtooth on its pitch path, its period wandering (`jitter`),
+  an octave under it (`sub`: a caw's harshness), rattled, a breath of noise,
+  through the bird's resonances. Mouth foley's crows, geese and roosters.
 
 A traced sound (kernel feature `trace`):
 

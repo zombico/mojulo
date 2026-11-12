@@ -31,9 +31,9 @@ function bandEdges(bands, sr) {
   return bands.map((f, i) => [i ? Math.sqrt(bands[i - 1] * f) : 20, i < bands.length - 1 ? Math.sqrt(f * bands[i + 1]) : sr / 2]);
 }
 
-// the normalized autocorrelation's best lag in [sr/500, sr/30]: { r, hz }
-function periodicity(x, start, n, sr) {
-  const lo = Math.floor(sr / 500), hi = Math.min(n - 64, Math.ceil(sr / 30));
+// the normalized autocorrelation's best lag in [sr/maxHz, sr/30]: { r, hz }
+function periodicity(x, start, n, sr, maxHz = 500) {
+  const lo = Math.floor(sr / maxHz), hi = Math.min(n - 64, Math.ceil(sr / 30));
   const f = new Float64Array(n);
   let mean = 0;
   for (let i = 0; i < n; i++) mean += x[start + i] || 0;
@@ -43,12 +43,17 @@ function periodicity(x, start, n, sr) {
   for (let i = 0; i < n; i++) c[i + 1] = c[i] + f[i] * f[i];
   if (c[n] < 1e-9) return { r: 0, hz: 0 };
   let best = 0, lag = 0;
+  const rs = maxHz > 500 ? new Float64Array(hi + 1) : null;
   for (let L = lo; L <= hi; L++) {
     let s = 0;
     for (let i = 0; i + L < n; i++) s += f[i] * f[i + L];
     const r = s / Math.sqrt((c[n - L] - c[0]) * (c[n] - c[L]) + 1e-12);
+    if (rs) rs[L] = r;
     if (r > best) { best = r; lag = L; }
   }
+  // (a range opened past a voice's: a buzz correlates nearly as well at every multiple of its period, so the first lag
+  // within 20 % of the best that is a peak is its period, not the best's multiple; a voice's range keeps the best)
+  if (rs) for (let L = lo + 1; L < lag; L++) if (rs[L] >= 0.8 * best && rs[L] >= rs[L - 1] && rs[L] >= rs[L + 1]) { lag = L; break; }
   return { r: best, hz: lag ? sr / lag : 0 };
 }
 
@@ -56,7 +61,7 @@ function periodicity(x, start, n, sr) {
  * The analysis on a frame grid: `F` frames, frame k centred at `start + k * step` seconds. `{ db, voiced, pitch, side }`,
  * each a lane (db: F × bands). The levels are mean power per bin in each band, in dB.
  */
-export function analyzeFrames(y, sr, { start = 0, frames, step = TRACE_STEP, bands = TRACE_BANDS } = {}) {
+export function analyzeFrames(y, sr, { start = 0, frames, step = TRACE_STEP, bands = TRACE_BANDS, maxHz = 500 } = {}) {
   const m = mono(y), [L, R] = Array.isArray(y) && y.length > 1 ? y : [m, m];
   const edges = bandEdges(bands, sr), half = WINDOW / 2;
   const db = [], voiced = [], pitch = [], side = [];
@@ -69,7 +74,7 @@ export function analyzeFrames(y, sr, { start = 0, frames, step = TRACE_STEP, ban
       return nb ? 10 * Math.log10(p / nb + 1e-20) : FLOOR;
     });
     db.push(row);
-    const { r, hz } = periodicity(m, Math.max(0, s0), WINDOW, sr);
+    const { r, hz } = periodicity(m, Math.max(0, s0), WINDOW, sr, maxHz);
     voiced.push(Math.round(Math.max(0, Math.min(1, (r - 0.35) / 0.4)) * 100));
     pitch.push(Math.round(hz || 100));
     let el = 0, er = 0;
@@ -102,8 +107,10 @@ export function steadyHum(voiced, pitch) {
  * A sound (`y`: one channel, or [left, right]) at `sr` traced into a trace gesture: the frames from its onset to its
  * last sample within `rangeDb` of its peak. The levels are the analysis's, uncalibrated: `refineTrace` makes them the
  * synth's. `voicing: false` traces it as air only: band-limited noise reads as periodic, so a sound made of air says so.
+ * `maxHz` is the highest pitch the hum is looked for at (500, a voice's; a bird's buzz is higher): a buzz above it is
+ * traced as band noise, which sounds like sandpaper.
  */
-export function traceSound(y, sr, { step = TRACE_STEP, bands = TRACE_BANDS, rangeDb = 50, voicing = true } = {}) {
+export function traceSound(y, sr, { step = TRACE_STEP, bands = TRACE_BANDS, rangeDb = 50, voicing = true, maxHz = 500 } = {}) {
   const m = mono(y);
   let pk = 0;
   for (const v of m) pk = Math.max(pk, Math.abs(v));
@@ -113,7 +120,7 @@ export function traceSound(y, sr, { step = TRACE_STEP, bands = TRACE_BANDS, rang
   while (on < m.length && Math.abs(m[on]) < th) on++;
   while (end > on && Math.abs(m[end]) < th) end--;
   const frames = Math.max(1, Math.ceil((end - on) / (step * sr)) + 1);
-  const a = analyzeFrames(y, sr, { start: on / sr, frames, step, bands });
+  const a = analyzeFrames(y, sr, { start: on / sr, frames, step, bands, maxHz });
   const g = { type: 'trace', step, lv: a.db.map((row) => row.map(clampDb)) };
   if (bands !== TRACE_BANDS) g.bands = [...bands];
   if (voicing && a.voiced.some((v) => v >= 20)) { const h = steadyHum(a.voiced, a.pitch); g.voiced = h.voiced; g.pitch = h.pitch; }

@@ -47,7 +47,9 @@ import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
-import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx } from './sfx-palettes.js';
+import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-palettes.js';
+import { sfxSound } from '../sfx-shelf/resolve.js';
+import { bedManifest, resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { resolveTension } from './adaptive-music.js';
 import { SURFACES } from '../weather/weather.js';
 
@@ -193,6 +195,38 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (!out.tension && out.bindings && out.bindings.some((b) => b.source === 'tension')) out.tension = resolveTension(audioSpec.tension, Array.isArray(ctx.mechanics) ? ctx.mechanics : []);
   if (audioSpec.tension !== undefined && !out.tension) throw new Error('audio.tension drives audio.combat or a tension binding: add audio.combat (the fight score) or a binding with source: \'tension\'');
 
+  // sfx { sheet: { style?, slots?, on? } } (gameworld/sound-sheet.js): the SFX shelf's own voices by word, the newest
+  // first (the sheet's style, `mouth` unless it names another: a row the mouth does not voice is realistic). Wired as
+  // `auto` wires a palette: each cue id the level's mechanics play (MECHANIC_SFX) is voiced by the sheet's word for it,
+  // else by the shelf's row of that id (every palette cue id is a row); the gait, weapon, melee and dodge by its slots.
+  // What the spec writes wins.
+  const sheet = audioSpec.sfx && typeof audioSpec.sfx === 'object' && audioSpec.sfx.sheet ? audioSpec.sfx.sheet : null;
+  if (sheet) {
+    const style = sheet.style ?? 'mouth';
+    const cueOf = (word) => { const v = sfxSound(word, { style }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
+    const cues = {}, on = {};
+    for (const kind of Array.isArray(ctx.mechanics) ? ctx.mechanics : []) {
+      for (const [glob, cue] of Object.entries(MECHANIC_SFX[kind] || {})) {
+        if (glob in on) continue;
+        const g = cues[cue] ?? cueOf(sheet.on?.[cue] ?? cue);
+        if (g) { cues[cue] = g; on[glob] = cue; }
+      }
+    }
+    const slot = (k, row) => cueOf(sheet.slots?.[k] ?? row) ?? undefined;
+    const kept = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
+    audioSpec = {
+      ...audioSpec,
+      sfx: { cues, ...(Object.keys(on).length ? { on } : {}), vary: sheet.vary !== false, ...(sheet.mix !== undefined ? { mix: sheet.mix } : {}) },
+      footsteps: audioSpec.footsteps ?? kept({ step: slot('step', 'step'), jump: slot('jump', 'jump'), land: slot('land', 'land') }),
+      weapon: audioSpec.weapon ?? kept({ shot: slot('shot', 'shoot'), hit: slot('hit', 'hit'), reload: slot('reload', 'reload') }),
+      strike: audioSpec.strike ?? kept({ swing: slot('swing', 'swing'), hit: slot('strike', 'strike') }),
+      dodge: audioSpec.dodge ?? slot('dodge', 'dodge'),
+    };
+    out.sheet = style;
+    // one breath across the game's hits (a performer's): each hit spends some, a rest refills it; `breath: false` off
+    if (sheet.breath !== false) out.breath = { spend: 0.18, recover: 0.8, floor: 0.7, ...(typeof sheet.breath === 'object' ? sheet.breath : {}) };
+  }
+
   // sfx 'auto' | { auto: '<palette>' | true, cues?, on?, beatsRef?, vary? } (sfx-palettes.js): a palette's cues in the
   // soundtrack's key, wired to the events this level's mechanics emit (ctx.mechanics), and the gait, weapon, melee and
   // dodge sounds from the same palette where the spec names none. What the spec writes wins: its rows first, its cues
@@ -217,7 +251,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
 
   if (audioSpec.sfx) {
     const sfx = audioSpec.sfx;
-    if (typeof sfx !== 'object') throw new Error(`audio.sfx is 'auto' or { cues?, on?, beatsRef?, vary?, auto? } (got ${JSON.stringify(sfx)})`);
+    if (typeof sfx !== 'object') throw new Error(`audio.sfx is 'auto' or { cues?, on?, beatsRef?, vary?, auto?, sheet? } (got ${JSON.stringify(sfx)})`);
     let cues = sfx.cues && typeof sfx.cues === 'object' ? sfx.cues : {};
     if (sfx.beatsRef) {
       cues = { ...resolveBeatsRef(sfx.beatsRef, ['beats-sfx']).cues, ...cues };
@@ -254,6 +288,16 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       jump: f.jump || DEFAULT_FOOTSTEPS.jump,
       land: f.land || DEFAULT_FOOTSTEPS.land,
     };
+  }
+
+  // bed '<bed>' | { bed, level?, style? } (sfx-shelf/beds.js): the environment's bed, the shelf's one-shots as a groove,
+  // played on its own engine under the score
+  if (audioSpec.bed !== undefined && audioSpec.bed !== null && audioSpec.bed !== false) {
+    const b = typeof audioSpec.bed === 'string' ? { bed: audioSpec.bed } : audioSpec.bed;
+    if (!b || typeof b !== 'object' || !resolveBed(b.bed)) throw new Error(`audio.bed is a bed (${Object.keys(BEDS).join(', ')}) or { bed, level?, style? } (got ${JSON.stringify(audioSpec.bed)})`);
+    if (b.level !== undefined && !(Number.isFinite(b.level) && b.level >= 0 && b.level <= 1)) throw new Error('audio.bed.level is in [0, 1] (the bed under the score)');
+    out.bed = bedManifest(b.bed, { style: b.style ?? 'mouth' });
+    out.bedLevel = b.level ?? 0.5;
   }
 
   if (audioSpec.wind) {

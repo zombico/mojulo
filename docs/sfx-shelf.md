@@ -61,6 +61,12 @@ reads as a lightsaber rather than a heavy blade; those takes stay in the bake as
 generated (`sets/mouth-traces.js`) by `node scripts/mouth-foley/bake.mjs`, the only step that needs the worker: the
 recipes (word, voice, speed, chain) are in the script, and `--check` says whether the page is stale.
 
+Mouth foley also builds sounds from a word's syllables (`scripts/mouth-foley/body.py`). It cuts each syllable once,
+then holds and layers it the way a throat, a voice, a mouth and a diaphragm make a creature's growl, snarl or roar.
+Or it strikes it under about 150 ms, where a voice stops being a voice and becomes motion: a punch, a kick, a staff,
+nunchaku. Or it takes a word's own bursts and clicks: the ch sounds, a latch カチャ, a coin チャリン, a spark パチッ.
+A ring is not traced. The bake strikes it with the kernel's own `ring` gesture over the traced dry part.
+
 `sfxSound(word, { style, dials })` finds a sound's voice in this order:
 
 1. the row's own (a set's cue, or its family's build at its dials and yours);
@@ -193,6 +199,41 @@ a person's ears.
 
 A new sound is a row first.
 
+## Finding a sound
+
+A row says what it is for as well as what it is (`facets.js`):
+
+- **`matter`:** what sounds (metal, wood, water, air, creature…).
+- **`weight`:** light, mid or heavy.
+- **`genres`:** the game types that use it (the cosmos genre ids).
+
+Each facet is set once on a family, read off the dials a row is built at (an impact's `material`, a blast's `size`),
+or written on a row where neither says it. A row's `say` holds its sound words, in kana with romaji and in English
+(`カチャ`, `kacha`, `clink`). They are the words mouth foley scores with, so the word that makes a sound also finds it.
+
+`find.js` searches by intent, as the vehicle registry does:
+
+- **`findSounds({ words, category, slot, matter, weight, genre, style })`:** words rank and facets filter. A word
+  that names two things is read by the rest of the phrase: "a crackling fire" is the fire, and "fire" alone is the
+  shot. Ties go to the newest voices.
+- **`solveSound(words)`:** sets the dials the words name: "heavy footsteps on gravel" is `step-gravel` at
+  `body: heavy`.
+- **`suggestSounds(word)`:** the tail a refusal throws with.
+
+## A game's sound sheet
+
+A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, the game book's `sound` chapter):
+
+- **Its weapon:** the first weapon of its arsenal, by its words: a staff, nunchaku, a katana, a blade or a fist.
+- **Its ground:** grass on a nature or jungle stage, else stone.
+- **Its foes:** a beast's voice by its species, heard when it spots the hero.
+- **Its doors:** a door opens on a latch.
+
+**The newest voices come first.** The sheet's style is `mouth` unless the game says otherwise, so a sound the mouth
+doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on? }`, each a shelf word.
+A quick game's levels hear the sheet with `sfx: 'sheet'`. `beats-world.js` voices `sfx: { sheet }`, wiring each event
+the level's mechanics emit as `auto` wires a palette. `auto` and the palettes are as they were.
+
 ## Who plays it
 
 A fight game (the versus kind, under its register) sounds its blows from the families: `versus/versus-sfx.js` builds
@@ -210,7 +251,7 @@ names its own word for any of them.
 
 ## Not yet
 
-Beyond the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
+Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
 (`gameworld/practice-room.js`) name their sounds by word and wire them to a moveset's events (`audio.moves`, the
 world-audio card); made levels do not yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's

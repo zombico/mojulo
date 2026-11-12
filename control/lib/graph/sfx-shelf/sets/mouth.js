@@ -9,6 +9,8 @@
  * The katana has no heavy cut here: the air a blade cuts sounds the same light or hard, so `katana-heavy-swing` is the
  * swing's own sound (the realistic style keeps its heavier cut).
  *
+ * A whistle (`cue`: the kernel's own tones, scored from a bird word's pitch shape) is its cue as written: nothing traced.
+ *
  * A trace with `with` is laid under a family's own cue, its loudest moment on the cue's (the katana's swing with the
  * voice 6 dB under it): the synth keeps its attack, the mouth fills the band between.
  */
@@ -19,7 +21,7 @@ import { MOUTH_TRACES } from './mouth-traces.js';
 // a row the mouth voices with another row's sound: air cut by a katana sounds the same however hard the cut
 const ALIKE = { 'katana-heavy-swing': 'katana-swing' };
 
-const traced = Object.fromEntries(Object.entries(MOUTH_TRACES).map(([id, e]) => [id, e.with ? [...familyCue(e.with.family, e.with.dials), e.trace] : [e.trace]]));
+const traced = Object.fromEntries(Object.entries(MOUTH_TRACES).map(([id, e]) => [id, e.cue ? e.cue : e.with ? [...familyCue(e.with.family, e.with.dials), e.trace] : [e.trace, ...(e.rings || []), ...(e.plus || [])]]));
 export const MOUTH = freeze({
   label: 'Mouth foley',
   cues: { ...traced, ...Object.fromEntries(Object.entries(ALIKE).map(([id, as]) => [id, traced[as]])) },

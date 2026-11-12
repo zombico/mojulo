@@ -35,6 +35,7 @@
 import { POLES } from './feel/cards.js';
 import { readFeel } from './feel/lower.js';
 import { practiceRoom, roomEligible, FIGHTS_ELSEWHERE } from './practice-room.js';
+import { variesHits } from './sound-sheet.js';
 import { platformRoom } from './platform-room.js';
 import { mountLane } from './mount-lane.js';
 import { loadoutOf } from './loadout.js';
@@ -66,7 +67,7 @@ export function artilleryFor(G) {
 /** The firing range's spec for a world that carries guns (loadout.js), or null. */
 export function rangeFor(G) {
   const L = loadoutOf(G);
-  return L ? { weapons: L.weapons, ...(L.skins ? { skins: L.skins } : {}), name: G?.name ?? G?.id ?? 'game' } : null;
+  return L ? { weapons: L.weapons, ...(L.skins ? { skins: L.skins } : {}), name: G?.name ?? G?.id ?? 'game', ...(variesHits(G) ? { vary: true } : {}) } : null;
 }
 
 // the range's measures by the guns they were taken on (the same guns measure the same: a pure function, kept); a few

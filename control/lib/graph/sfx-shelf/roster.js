@@ -21,6 +21,11 @@
  *   channel   the audio channel slot whose own code synthesizes it (SLOTS) unless the level gives that slot this row's
  *             voice (the thruster's `voice`, the jump charge's)
  *   slot      the audio channel slot it fills (SLOTS): where a level plays it
+ *   say       the sound's own words (optional): its onomatopoeia, the Japanese in kana with its romaji (`カチャ`,
+ *             `kacha`), English where it has one (`clink`). Mouth foley's scores are these words, so the word that
+ *             makes a sound also finds it (find.js). One word may score several sounds (ヒュン is the katana's swing
+ *             and the staff's), so a sound word ranks rows where an alias names one.
+ *   matter, weight, genres   facets (facets.js) where the row's family and dials do not already say them
  *
  * Pure data and pure functions: no clock, no dice.
  */
@@ -42,6 +47,7 @@ export const CATEGORIES = Object.freeze({
   magic: 'a spell cast, healed, summoned, cursed',
   play: 'a run\'s, a puzzle\'s, a table\'s: coins and power-ups, pieces matched and placed, cards, dice',
   work: 'hands at work and things built: digging, chopping, mining, hammering, a tower raised',
+  creature: 'an animal or a monster heard: a growl, a snarl, a roar',
 });
 
 /**
@@ -61,25 +67,27 @@ const pal = (category, slot, label, aliases = []) => ({ label, aliases, category
 // voiced realistic by the layered set; the rescued `mecha` set is its floor (sets.js)
 const mecha = (category, family, slot, label, aliases = []) => ({ label, aliases, category, family, voices: { realistic: 'mecha-layered' }, slot });
 
-// a row the mouth set voices too (sets/mouth.js): mouth foley, traced from a voice
-const mouthed = (r) => ({ ...r, voices: { ...(r.voices || {}), mouth: 'mouth' } });
+// a row the mouth set voices too (sets/mouth.js): mouth foley, traced from a voice; `more` its sound words and facets
+const mouthed = (r, more = {}) => ({ ...r, ...more, voices: { ...(r.voices || {}), mouth: 'mouth' } });
+// a row only the mouth voices (round 6: a body built from syllables, sets/mouth.js): its palette stand-in, if any, in `family`
+const mouthOnly = (category, family, slot, label, aliases, more = {}) => ({ label, aliases, category, family, voices: { mouth: 'mouth' }, slot, ...more });
 
 // built by a family (families.js) at a dial preset, voiced realistic
 const made = (category, family, slot, label, aliases, fam, dials = {}) => ({ label, aliases, category, family, voices: { realistic: 'families' }, make: { family: fam, dials }, slot });
 
 const ROWS = {
   // ── the palettes' cue ids (beats/sfx-palettes.js): voiced by arcade, foley, orchestral and synth ──
-  jump: pal('movement', 'footsteps.jump', 'a jump', ['jumping']),
-  land: pal('movement', 'footsteps.land', 'a landing', ['landing']),
+  jump: mouthed(pal('movement', 'footsteps.jump', 'a jump', ['jumping']), { say: ['ピョン', 'pyon'] }),
+  land: mouthed(pal('movement', 'footsteps.land', 'a landing', ['landing']), { say: ['スタッ', 'suta'] }),
   step: pal('movement', 'footsteps.step', 'a footstep', ['footstep', 'footsteps']),
-  dodge: pal('movement', 'dodge', 'a dodge', ['dodging', 'roll']),
+  dodge: mouthed(pal('movement', 'dodge', 'a dodge', ['dodging', 'roll']), { say: ['シュタッ', 'shuta'] }),
   shoot: pal('weapon', 'weapon.shot', 'a shot', ['shot', 'fire']),
   reload: pal('weapon', 'weapon.reload', 'a reload', ['reloading']),
-  hit: pal('impact', 'weapon.hit', 'a hit landing', ['hit confirm']),
+  hit: mouthed(pal('impact', 'weapon.hit', 'a hit landing', ['hit confirm']), { say: ['バシッ', 'bashi', 'whack'] }),
   thud: pal('impact', 'on', 'a heavy thud', ['thump']),
-  swing: mouthed(pal('melee', 'strike.swing', 'a swing', ['swipe', 'whoosh'])),
+  swing: mouthed(pal('melee', 'strike.swing', 'a swing', ['swipe', 'whoosh']), { say: ['シュッ', 'shu', 'swoosh'] }),
   strike: pal('melee', 'strike.hit', 'a melee hit', ['melee hit']),
-  down: pal('body', 'on', 'a foe going down', ['downed', 'knockout']),
+  down: mouthed(pal('body', 'on', 'a foe going down', ['downed', 'knockout']), { say: ['ドサッ', 'dosa', 'thud down'] }),
   death: pal('body', 'on', 'a death', ['dead', 'dying']),
   pickup: pal('world', 'on', 'a pickup', ['collect', 'pick up']),
   door: pal('world', 'on', 'a door', ['doorway']),
@@ -113,33 +121,33 @@ const ROWS = {
   'big-explosion': made('explosion', 'down', 'on', 'a large blast', ['large explosion', 'big blast'], 'explosion', { size: 'large' }),
   'huge-explosion': made('explosion', 'down', 'on', 'a huge blast', ['massive explosion', 'huge blast'], 'explosion', { size: 'huge' }),
   'wreck-explosion': made('explosion', 'death', 'on', 'a machine\'s wreck going up: the blast and its plates coming apart', ['wreck', 'mech destroyed', 'suit destroyed'], 'explosion', { size: 'huge', metal: true }),
-  'metal-impact': made('impact', 'hit', 'weapon.hit', 'a blow on metal', ['metal hit', 'clang'], 'impact', { material: 'metal' }),
+  'metal-impact': mouthed(made('impact', 'hit', 'weapon.hit', 'a blow on metal', ['metal hit', 'clang'], 'impact', { material: 'metal' }), { say: ['カン', 'kan', 'clank'] }),
   'stone-impact': made('impact', 'hit', 'weapon.hit', 'a blow on stone', ['stone hit', 'rock hit'], 'impact', { material: 'stone' }),
-  'wood-impact': made('impact', 'hit', 'weapon.hit', 'a blow on wood', ['wood hit', 'knock'], 'impact', { material: 'wood' }),
+  'wood-impact': mouthed(made('impact', 'hit', 'weapon.hit', 'a blow on wood', ['wood hit', 'knock'], 'impact', { material: 'wood' }), { say: ['コツ', 'kotsu', 'knock'] }),
   'dirt-impact': made('impact', 'thud', 'weapon.hit', 'a blow into the ground', ['dirt hit', 'ground hit'], 'impact', { material: 'dirt' }),
   'flesh-impact': made('impact', 'hit', 'weapon.hit', 'a blow on a body', ['body hit', 'flesh hit'], 'impact', { material: 'flesh' }),
   'water-impact': made('impact', 'hit', 'weapon.hit', 'a blow into water', ['water hit'], 'impact', { material: 'water' }),
   'armor-hit': made('body', 'hit', 'on', 'a machine\'s plating taking a hit', ['armor impact', 'plating hit', 'armour hit'], 'impact', { material: 'armor' }),
   'shield-hit': made('body', 'hit', 'on', 'a raised energy shield taking a hit', ['shield impact', 'energy hit'], 'impact', { material: 'energy' }),
   'step-concrete': made('movement', 'step', 'footsteps.step', 'a footstep on concrete', ['concrete step', 'concrete footstep'], 'footstep', { surface: 'concrete' }),
-  'step-metal': made('movement', 'step', 'footsteps.step', 'a footstep on metal', ['metal step', 'metal footstep'], 'footstep', { surface: 'metal' }),
-  'step-dirt': made('movement', 'step', 'footsteps.step', 'a footstep on dirt', ['dirt step', 'dirt footstep'], 'footstep', { surface: 'dirt' }),
-  'step-grass': made('movement', 'step', 'footsteps.step', 'a footstep on grass', ['grass step', 'grass footstep'], 'footstep', { surface: 'grass' }),
-  'step-gravel': made('movement', 'step', 'footsteps.step', 'a footstep on gravel', ['gravel step', 'gravel footstep'], 'footstep', { surface: 'gravel' }),
-  'step-wood': made('movement', 'step', 'footsteps.step', 'a footstep on wood', ['wood step', 'wooden footstep'], 'footstep', { surface: 'wood' }),
-  'step-snow': made('movement', 'step', 'footsteps.step', 'a footstep in snow', ['snow step', 'snow footstep'], 'footstep', { surface: 'snow' }),
-  'step-water': made('movement', 'step', 'footsteps.step', 'a footstep in shallow water', ['water step', 'wading step'], 'footstep', { surface: 'water' }),
+  'step-metal': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on metal', ['metal step', 'metal footstep'], 'footstep', { surface: 'metal' }), { say: ['ガン', 'gan'] }),
+  'step-dirt': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on dirt', ['dirt step', 'dirt footstep'], 'footstep', { surface: 'dirt' }), { say: ['ザッ', 'za'] }),
+  'step-grass': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on grass', ['grass step', 'grass footstep'], 'footstep', { surface: 'grass' }), { say: ['サッ', 'sa'] }),
+  'step-gravel': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on gravel', ['gravel step', 'gravel footstep'], 'footstep', { surface: 'gravel' }), { say: ['ジャリッ', 'jari', 'crunch'] }),
+  'step-wood': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on wood', ['wood step', 'wooden footstep'], 'footstep', { surface: 'wood' }), { say: ['トン', 'ton'] }),
+  'step-snow': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep in snow', ['snow step', 'snow footstep'], 'footstep', { surface: 'snow' }), { say: ['サクッ', 'saku'] }),
+  'step-water': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep in shallow water', ['water step', 'wading step'], 'footstep', { surface: 'water' }), { say: ['バシャ', 'basha'] }),
   'heavy-step': made('movement', 'step', 'footsteps.step', 'a heavy footstep: an armoured trooper, a brute', ['heavy footstep', 'armored footstep'], 'footstep', { body: 'heavy' }),
   'giant-step': made('movement', 'step', 'footsteps.step', 'a giant\'s footfall: the ground shaking', ['giant footstep', 'titan step'], 'footstep', { body: 'giant' }),
-  'blade-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a blade swung', ['sword swing', 'blade whoosh'], 'melee', { act: 'blade-swing' })),
+  'blade-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a blade swung', ['sword swing', 'blade whoosh'], 'melee', { act: 'blade-swing' }), { say: ['ザシュッ', 'zashu', 'shing'] }),
   'blade-hit': made('melee', 'strike', 'strike.hit', 'a blade connecting', ['sword hit', 'blade strike'], 'melee', { act: 'blade-hit' }),
-  'blade-clash': made('melee', 'strike', 'on', 'two blades meeting', ['sword clash', 'parry'], 'melee', { act: 'clash' }),
+  'blade-clash': mouthed(made('melee', 'strike', 'on', 'two blades meeting', ['sword clash', 'parry'], 'melee', { act: 'clash' }), { say: ['ガキン', 'gakin', 'clang'] }),
   'energy-clash': made('melee', 'strike', 'on', 'two energy blades meeting', ['beam clash', 'saber clash'], 'melee', { act: 'clash', kind: 'energy' }),
   block: made('melee', 'strike', 'on', 'a blow blocked on a shield', ['shield block', 'blocked'], 'melee', { act: 'block' }),
   'blunt-swing': made('melee', 'swing', 'strike.swing', 'a club or a hammer swung', ['club swing', 'hammer swing'], 'melee', { act: 'blunt-swing' }),
   'blunt-hit': made('melee', 'strike', 'strike.hit', 'a club or a hammer connecting', ['club hit', 'hammer hit'], 'melee', { act: 'blunt-hit' }),
-  punch: made('melee', 'strike', 'strike.hit', 'a punch landing', ['fist hit', 'punch hit'], 'melee', { act: 'punch' }),
-  kick: made('melee', 'strike', 'strike.hit', 'a kick landing', ['kick hit'], 'melee', { act: 'kick' }),
+  punch: mouthed(made('melee', 'strike', 'strike.hit', 'a punch landing', ['fist hit', 'punch hit'], 'melee', { act: 'punch' }), { say: ['シュッ', 'shu'] }),
+  kick: mouthed(made('melee', 'strike', 'strike.hit', 'a kick landing', ['kick hit'], 'melee', { act: 'kick' }), { say: ['ブン', 'bun'] }),
   'pistol-shot': made('weapon', 'shoot', 'weapon.shot', 'a pistol fired', ['pistol', 'handgun shot', 'gunshot'], 'gunshot', { caliber: 'pistol' }),
   'smg-shot': made('weapon', 'shoot', 'weapon.shot', 'one round of a submachine gun', ['smg', 'submachine gun'], 'gunshot', { caliber: 'smg' }),
   'magnum-shot': made('weapon', 'shoot', 'weapon.shot', 'a magnum revolver fired', ['magnum', 'revolver shot'], 'gunshot', { caliber: 'magnum' }),
@@ -155,7 +163,7 @@ const ROWS = {
   'bullet-flyby': made('weapon', null, 'on', 'a bullet whizzing past', ['whiz', 'near miss'], 'projectile', { act: 'flyby' }),
   'beam-flyby': made('weapon', null, 'on', 'a beam passing close', ['beam pass'], 'projectile', { act: 'flyby', kind: 'beam' }),
   'rocket-flyby': made('weapon', null, 'on', 'a rocket roaring past', ['rocket pass', 'missile flyby'], 'projectile', { act: 'flyby', kind: 'rocket' }),
-  ricochet: made('impact', 'hit', 'on', 'a round glancing off', ['ricochet ping', 'glancing hit'], 'projectile', { act: 'ricochet' }),
+  ricochet: mouthed(made('impact', 'hit', 'on', 'a round glancing off', ['ricochet ping', 'glancing hit'], 'projectile', { act: 'ricochet' }), { say: ['チュン', 'chun', 'ping', 'zing'] }),
   'casing-drop': made('weapon', null, 'on', 'a spent casing bouncing on the floor', ['shell casing', 'brass drop'], 'projectile', { act: 'casing' }),
   'glass-break': made('destruction', 'thud', 'on', 'glass shattering', ['shatter', 'window break'], 'breakage', { material: 'glass' }),
   'wood-break': made('destruction', 'thud', 'on', 'wood splintering: a crate, a door', ['splinter', 'crate break'], 'breakage', { material: 'wood' }),
@@ -164,7 +172,7 @@ const ROWS = {
   collapse: made('destruction', 'thud', 'on', 'a structure coming down', ['building collapse', 'cave in'], 'breakage', { material: 'stone', size: 'large' }),
   'fire-whoosh': made('elemental', null, 'on', 'fire flaring up', ['fireball', 'flame burst'], 'elemental', { element: 'fire' }),
   'ice-crack': made('elemental', null, 'on', 'ice cracking', ['ice shatter', 'freeze'], 'elemental', { element: 'ice' }),
-  'lightning-strike': made('elemental', null, 'on', 'lightning striking, its thunder rolling', ['lightning', 'thunder'], 'elemental', { element: 'lightning' }),
+  'lightning-strike': mouthed(made('elemental', null, 'on', 'lightning striking, its thunder rolling', ['lightning', 'thunder'], 'elemental', { element: 'lightning' }), { say: ['ゴロゴロ', 'gorogoro', 'kaboom'] }),
   'water-splash': made('elemental', 'land', 'on', 'water splashing', ['splash'], 'elemental', { element: 'water' }),
   'wind-gust': made('elemental', null, 'on', 'a gust of wind', ['gust', 'wind'], 'elemental', { element: 'wind' }),
   'shield-up': made('body', null, 'on', 'an energy shield raised', ['shield on', 'barrier up'], 'shield', { act: 'up' }),
@@ -193,7 +201,7 @@ const ROWS = {
   whistle: made('sport', 'alarm', 'on', 'a referee\'s whistle', ['referee whistle', 'foul'], 'sport', { act: 'whistle' }),
   'whistle-full-time': made('sport', 'goal', 'on', 'the final whistle: three blasts', ['final whistle', 'full time'], 'sport', { act: 'whistle-triple' }),
   'bat-crack': made('sport', 'hit', 'on', 'a bat cracking a ball', ['home run', 'bat hit'], 'sport', { act: 'bat-crack' }),
-  'net-swish': mouthed(made('sport', 'goal', 'on', 'a ball through the net, nothing but net', ['swish', 'basket'], 'sport', { act: 'net-swish' })),
+  'net-swish': mouthed(made('sport', 'goal', 'on', 'a ball through the net, nothing but net', ['swish', 'basket'], 'sport', { act: 'net-swish' }), { say: ['スパッ', 'supa', 'swish'] }),
   'goal-net': made('sport', 'goal', 'on', 'a ball hitting the back of the net', ['back of the net', 'goal scored'], 'sport', { act: 'goal-net' }),
   'goal-horn': made('sport', 'goal', 'on', 'the venue\'s horn for a goal', ['air horn', 'hockey horn'], 'sport', { act: 'horn' }),
   buzzer: made('sport', 'lose', 'on', 'the clock\'s buzzer', ['shot clock', 'time buzzer'], 'sport', { act: 'buzzer' }),
@@ -232,23 +240,23 @@ const ROWS = {
   'bow-shot': made('weapon', 'shoot', 'weapon.shot', 'an arrow loosed', ['arrow shot', 'bow release', 'loose'], 'bow', { act: 'release' }),
   'crossbow-shot': made('weapon', 'shoot', 'weapon.shot', 'a crossbow bolt loosed', ['crossbow', 'bolt shot'], 'bow', { act: 'release', kind: 'crossbow' }),
   'arrow-flyby': made('weapon', null, 'on', 'an arrow passing close', ['arrow whiz', 'arrow pass'], 'bow', { act: 'flyby' }),
-  'arrow-hit': made('impact', 'hit', 'weapon.hit', 'an arrow striking wood', ['arrow thunk', 'arrow in wood'], 'bow', { act: 'hit-wood' }),
+  'arrow-hit': mouthed(made('impact', 'hit', 'weapon.hit', 'an arrow striking wood', ['arrow thunk', 'arrow in wood'], 'bow', { act: 'hit-wood' }), { say: ['トスッ', 'tosu', 'thunk'] }),
   'arrow-target': made('impact', 'hit', 'weapon.hit', 'an arrow striking a target', ['bullseye', 'target hit'], 'bow', { act: 'hit-target' }),
   'chest-open': made('world', 'door', 'on', 'a chest opened', ['open chest', 'treasure chest'], 'interact', { act: 'chest-open' }),
   'chest-close': made('world', 'door', 'on', 'a chest closed', ['close chest', 'lid shut'], 'interact', { act: 'chest-close' }),
-  lever: made('world', 'door', 'on', 'a lever pulled', ['pull lever', 'switch lever'], 'interact', { act: 'lever', material: 'metal' }),
+  lever: mouthed(made('world', 'door', 'on', 'a lever pulled', ['pull lever', 'switch lever'], 'interact', { act: 'lever', material: 'metal' }), { say: ['ガコン', 'gakon'] }),
   'pressure-plate': made('world', 'thud', 'on', 'a pressure plate pressed', ['floor switch', 'trap trigger'], 'interact', { act: 'pressure-plate', material: 'stone' }),
   'key-unlock': made('world', 'door', 'on', 'a key turned in a lock', ['unlock', 'unlocked'], 'interact', { act: 'key-unlock', material: 'metal' }),
   portcullis: made('world', 'door', 'on', 'a gate raised: a portcullis, a chain', ['gate open', 'gate raise'], 'interact', { act: 'gate', material: 'metal' }),
-  'coin-drop': made('world', 'pickup', 'on', 'coins dropped and scattering', ['coins', 'gold coins', 'loot'], 'interact', { act: 'coins' }),
-  'potion-drink': made('world', 'pickup', 'on', 'a potion drunk', ['drink potion', 'quaff'], 'interact', { act: 'potion' }),
-  'door-creak': made('world', 'door', 'on', 'a door creaking open', ['creaking door', 'creak'], 'interact', { act: 'creak' }),
+  'coin-drop': mouthed(made('world', 'pickup', 'on', 'coins dropped and scattering', ['coins', 'gold coins', 'loot'], 'interact', { act: 'coins' }), { say: ['チャリン', 'charin', 'clink', 'jingle'] }),
+  'potion-drink': mouthed(made('world', 'pickup', 'on', 'a potion drunk', ['drink potion', 'quaff'], 'interact', { act: 'potion' }), { say: ['ゴクッ', 'goku', 'gulp'] }),
+  'door-creak': mouthed(made('world', 'door', 'on', 'a door creaking open', ['creaking door', 'creak'], 'interact', { act: 'creak' }), { say: ['ギギギ', 'gigigi', 'creak'] }),
   'metal-creak': made('world', 'door', 'on', 'metal creaking: a hatch, a hull', ['hatch creak', 'hull groan'], 'interact', { act: 'creak', material: 'metal' }),
   // platformers, puzzles, tables
   coin: made('play', 'pickup', 'on', 'a coin collected', ['coin pickup', 'collect coin'], 'platform', { act: 'coin' }),
   gem: made('play', 'pickup', 'on', 'a gem collected', ['gem pickup', 'crystal pickup'], 'platform', { act: 'gem' }),
-  'power-up': made('play', 'checkpoint', 'on', 'a power-up taken', ['powerup', 'level up'], 'platform', { act: 'power-up' }),
-  'bounce-pad': made('play', 'jump', 'on', 'a bounce pad, a spring', ['spring', 'trampoline'], 'platform', { act: 'bounce-pad' }),
+  'power-up': mouthed(made('play', 'checkpoint', 'on', 'a power-up taken', ['powerup', 'level up'], 'platform', { act: 'power-up' }), { say: ['キュイーン', 'kyuiin'] }),
+  'bounce-pad': mouthed(made('play', 'jump', 'on', 'a bounce pad, a spring', ['spring', 'trampoline'], 'platform', { act: 'bounce-pad' }), { say: ['ピョーン', 'pyoon', 'boing'] }),
   stomp: made('play', 'strike', 'on', 'a foe stomped on', ['stomp enemy', 'head stomp'], 'platform', { act: 'stomp' }),
   'crumbling-ledge': made('play', 'thud', 'on', 'a ledge crumbling away', ['ledge crumble', 'platform crumble'], 'platform', { act: 'crumble' }),
   'ledge-grab': made('play', 'land', 'on', 'a ledge caught', ['grab ledge', 'hang'], 'platform', { act: 'ledge-grab' }),
@@ -306,18 +314,103 @@ const ROWS = {
   grab: made('melee', 'strike', 'on', 'a grab', ['grapple', 'clinch'], 'brawl', { act: 'grab' }),
   throw: made('melee', 'swing', 'on', 'a throw', ['toss', 'hurl'], 'brawl', { act: 'throw' }),
   'body-slam': made('melee', 'down', 'on', 'a body slammed down', ['slam', 'suplex'], 'brawl', { act: 'body-slam' }),
-  uppercut: made('melee', 'strike', 'strike.hit', 'an uppercut', ['heavy punch', 'haymaker'], 'brawl', { act: 'uppercut' }),
+  uppercut: mouthed(made('melee', 'strike', 'strike.hit', 'an uppercut', ['heavy punch', 'haymaker'], 'brawl', { act: 'uppercut' }), { say: ['ドカッ', 'doka', 'pow'] }),
   counter: made('melee', 'strike', 'on', 'a counter: a blow turned and returned', ['counter hit', 'riposte'], 'brawl', { act: 'counter' }),
   'knockout-blow': made('melee', 'down', 'on', 'a knockout blow', ['ko punch', 'finishing blow'], 'brawl', { act: 'knockout' }),
   // a katana (families/blades.js): the swing a stylized slash
-  'katana-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a katana swung: a stylized slash', ['katana', 'katana slash', 'katana cut'], 'katana', { act: 'swing' })),
+  'katana-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a katana swung: a stylized slash', ['katana', 'katana slash', 'katana cut'], 'katana', { act: 'swing' }), { say: ['ヒュン', 'hyun'] }),
   'katana-heavy-swing': mouthed(made('melee', 'swing', 'strike.swing', 'a heavy two-handed katana cut', ['heavy slash', 'katana heavy cut'], 'katana', { act: 'swing', weight: 'heavy' })),
   // a swish reversed into a short forward tail: the swell before a strike lands or a dash goes. Only the mouth voices it
-  'swell-in': { label: 'a swish swelling in: a reversed whoosh', aliases: ['swell', 'reverse whoosh', 'whoosh in'], category: 'melee', family: 'swing', voices: { mouth: 'mouth' }, slot: 'strike.swing' },
-  'katana-draw': made('melee', 'reload', 'on', 'a katana drawn from its saya', ['draw katana', 'unsheathe'], 'katana', { act: 'draw' }),
-  'katana-sheathe': made('melee', 'reload', 'on', 'a katana sheathed', ['sheathe katana', 'sheathe'], 'katana', { act: 'sheathe' }),
+  'swell-in': { label: 'a swish swelling in: a reversed whoosh', aliases: ['swell', 'reverse whoosh', 'whoosh in'], category: 'melee', family: 'swing', voices: { mouth: 'mouth' }, slot: 'strike.swing', say: ['スッ', 'su'] },
+  'katana-draw': mouthed(made('melee', 'reload', 'on', 'a katana drawn from its saya', ['draw katana', 'unsheathe'], 'katana', { act: 'draw' }), { say: ['シャキーン', 'shakiin', 'shing'] }),
+  'katana-sheathe': mouthed(made('melee', 'reload', 'on', 'a katana sheathed', ['sheathe katana', 'sheathe'], 'katana', { act: 'sheathe' }), { say: ['チャキン', 'chakin'] }),
   'katana-jostle': made('melee', 'step', 'footsteps.step', 'a sheathed katana jostling with a step', ['saya rattle', 'sword jostle'], 'katana', { act: 'jostle' }),
 
+  // ── mouth foley's bodies (sets/mouth.js, the bake's round 6): the word the score, its syllables held, layered or struck
+  //    under ~150 ms; only the mouth voices them, so a realistic or palette game hears its stand-in (`family`) or none ──
+  growl: mouthOnly('creature', null, 'on', 'a growl: a beast held low in its throat, a warning', ['growling', 'beast growl', 'low growl'], { say: ['グルル', 'gururu', 'grr'], matter: ['creature', 'voice'] }),
+  snarl: mouthOnly('creature', null, 'on', 'a snarl: teeth bared, the breath through them', ['snarling', 'bared teeth'], { say: ['ガルル', 'garuru'], matter: ['creature', 'voice'] }),
+  'roar-lion': mouthOnly('creature', null, 'on', 'a lion\'s roar: dark and low, rising into its A', ['lion roar', 'roar', 'big cat roar', 'beast roar'], { say: ['ガオー', 'gao', 'oa'], matter: ['creature', 'voice'], weight: 'heavy' }),
+  'roar-bear': mouthOnly('creature', null, 'on', 'a bear\'s roar: mid and breathy, rising', ['bear roar', 'bear growl'], { say: ['グワァ', 'guwa', 'ea'], matter: ['creature', 'voice'], weight: 'heavy' }),
+  'roar-monster': mouthOnly('creature', null, 'on', 'a giant monster\'s roar: a high screech climbing higher', ['monster roar', 'kaiju roar', 'giant monster', 'dragon roar'], { say: ['ギャオー', 'gyao', 'ia'], matter: ['creature', 'voice'], weight: 'heavy' }),
+  'staff-swing': mouthOnly('melee', 'swing', 'strike.swing', 'a staff swung through the air', ['staff', 'bo staff', 'quarterstaff', 'pole swing'], { say: ['ヒュン', 'hyun'], matter: ['air', 'wood'] }),
+  'staff-twirl': mouthOnly('melee', 'swing', 'strike.swing', 'a staff twirled: whop whop', ['twirl', 'staff spin', 'spin staff', 'whop whop'], { say: ['ブンブン', 'bunbun', 'whop'], matter: ['air', 'wood'] }),
+  nunchaku: mouthOnly('melee', 'swing', 'strike.swing', 'nunchaku whipped in a figure-eight', ['nunchucks', 'nunchuks', 'chain sticks'], { say: ['ヒュンヒュン', 'hyunhyun'], matter: ['air', 'wood'], weight: 'light' }),
+  'sword-guard': mouthOnly('melee', 'reload', 'on', 'a sword\'s guard clicked, a gun handled: a ready click', ['guard click', 'blade ready', 'sword click', 'koiguchi'], { say: ['チャキッ', 'chaki'], matter: ['metal'], weight: 'light' }),
+  latch: mouthOnly('world', 'door', 'on', 'a latch, a catch, a clasp', ['door catch', 'clasp', 'latch click'], { say: ['カチャ', 'kacha'], matter: ['metal'], weight: 'light' }),
+  'armour-clank': mouthOnly('movement', 'step', 'footsteps.step', 'armour clanking: a heavy latch, plates as a body moves', ['armour', 'armor', 'armor clank', 'plate armour', 'heavy latch'], { say: ['ガチャ', 'gacha', 'clank'], matter: ['metal'], weight: 'heavy' }),
+  spark: mouthOnly('elemental', 'hit', 'on', 'a spark, a switch flicked', ['switch', 'light switch', 'snap spark'], { say: ['パチッ', 'pachi', 'snap'], matter: ['electric'], weight: 'light' }),
+  'electric-crackle': mouthOnly('elemental', null, 'on', 'electricity crackling over a low hum', ['electric', 'electricity', 'live wire', 'sparking'], { say: ['バチバチ', 'bachibachi', 'crackle', 'zap'], matter: ['electric'] }),
+  drip: mouthOnly('elemental', null, 'on', 'a drip, a small splash', ['dripping', 'water drop', 'droplet'], { say: ['ピチャ', 'picha', 'plip'], matter: ['water'], weight: 'light' }),
+  scissors: mouthOnly('work', null, 'on', 'scissors snipping', ['snip', 'shears', 'cut cloth'], { say: ['チョキン', 'chokin'], matter: ['metal'], weight: 'light' }),
+  ticking: mouthOnly('world', null, 'on', 'ticking: a clock, a timer, a fuse counting down', ['tick tock', 'clock', 'timer', 'countdown tick'], { say: ['カチカチ', 'kachikachi', 'tick'], matter: ['machine', 'metal'], weight: 'light' }),
+  wade: mouthOnly('movement', 'step', 'footsteps.step', 'wading: a step through water', ['wading', 'splash step', 'water wade'], { say: ['バシャッ', 'basha', 'splash'], matter: ['water'] }),
+  'fire-crackle': mouthOnly('elemental', null, 'on', 'a fire crackling: its pops, scattered', ['crackling fire', 'fire pops', 'fire crackling', 'bonfire'], { say: ['パチパチ', 'pachipachi'], matter: ['fire', 'wood'] }),
+  // round 7 (passed by ear 2026-11-11)
+  slide: mouthOnly('movement', 'dodge', 'dodge', 'a slide along the ground', ['sliding', 'baseball slide', 'ground slide'], { say: ['ズザーッ', 'zuza'], matter: ['earth', 'cloth'] }),
+  stab: mouthOnly('melee', 'strike', 'strike.hit', 'a stab: a blade going in', ['stabbing', 'thrust', 'blade in'], { say: ['ズブッ', 'zubu'], matter: ['metal', 'flesh'] }),
+  shuriken: mouthOnly('weapon', 'swing', 'on', 'shuriken thrown: two whips through the air', ['throwing star', 'throwing stars'], { say: ['シュシュッ', 'shushu'], matter: ['air', 'metal'], weight: 'light' }),
+  sparkle: mouthOnly('magic', 'chime', 'on', 'a sparkle: a twinkle of small bright rings', ['twinkle', 'magic sparkle', 'glitter'], { say: ['キラキラ', 'kirakira'], matter: ['energy', 'glass'], weight: 'light' }),
+  eat: mouthOnly('body', 'pickup', 'on', 'eating: chewing, twice', ['eating', 'chewing', 'munch', 'chomp'], { say: ['モグモグ', 'mogumogu'], matter: ['flesh', 'voice'] }),
+  // round 7b (passed by ear 2026-11-11), and what the operator heard some takes as
+  'power-up-rings': mouthOnly('play', 'checkpoint', 'on', 'a power-up as rising rings', ['rising chime', 'power chime', 'chime up'], { say: ['キラリン', 'kirarin'], matter: ['energy', 'metal'] }),
+  'power-up-glass': mouthOnly('play', 'checkpoint', 'on', 'a power-up struck like glass: a bright ring and its tinkles', ['glass chime', 'crystal chime', 'tinkle up'], { say: ['パリン', 'parin'], matter: ['glass', 'energy'] }),
+  bubbles: mouthOnly('elemental', null, 'on', 'bubbles rising: a pop and a quick rise, underwater', ['bubble', 'underwater bubbles', 'air bubbles'], { say: ['ポコポコ', 'pokopoko', 'blub'], matter: ['water', 'air'], weight: 'light' }),
+  bubbling: mouthOnly('elemental', null, 'on', 'bubbling: a pot, a swamp, a cauldron', ['boiling', 'cauldron', 'swamp bubbles'], { matter: ['water'] }),
+  button: mouthOnly('world', 'checkpoint', 'on', 'a button pressed', ['press button', 'button click', 'push button'], { say: ['カチッ', 'kachi', 'click'], matter: ['synthetic', 'metal'], weight: 'light' }),
+  rattle: mouthOnly('creature', null, 'on', 'a rattle: a rattlesnake, maracas', ['rattlesnake', 'maracas', 'snake rattle', 'shaker'], { matter: ['creature', 'synthetic'] }),
+  'bucket-splash': mouthOnly('elemental', null, 'on', 'water hitting a bucket', ['bucket', 'water in bucket', 'pail splash'], { matter: ['water', 'metal'], weight: 'light' }),
+  'horse-neigh': mouthOnly('creature', null, 'on', 'a horse\'s neigh', ['horse', 'neigh', 'whinny'], { say: ['ヒヒーン', 'hihiin'], matter: ['creature', 'voice'] }),
+  // round 7c: birds whistled (the kernel's own tones), passed by ear 2026-11-11
+  'bird-chirp': mouthOnly('creature', 'chime', 'on', 'a small bird\'s chirp: piyo piyo', ['chirp', 'bird', 'tweet', 'songbird'], { say: ['ピヨピヨ', 'piyopiyo'], matter: ['creature', 'air'], weight: 'light' }),
+  sparrow: mouthOnly('creature', 'chime', 'on', 'a sparrow\'s quick chirps', ['sparrows', 'chirping'], { say: ['チュンチュン', 'chunchun'], matter: ['creature', 'air'], weight: 'light' }),
+  'bird-trill': mouthOnly('creature', 'chime', 'on', 'a bird\'s trill', ['trill', 'bird trill'], { say: ['ピピピッ', 'pipipi'], matter: ['creature', 'air'], weight: 'light' }),
+  'bird-warble': mouthOnly('creature', 'chime', 'on', 'a bird\'s warble: a held note, then a fall', ['warble', 'birdsong'], { say: ['ピーヨ', 'piiyo'], matter: ['creature', 'air'], weight: 'light' }),
+  // round 8b: bird calls whose traces were heard as other animals (the operator, 2026-11-11)
+  'dog-bark': mouthOnly('creature', null, 'on', 'a dog barking, twice', ['bark', 'barking', 'dog', 'woof'], { matter: ['creature', 'voice'] }),
+  'cat-hiss': mouthOnly('creature', null, 'on', 'a cat hissing', ['cat', 'hissing cat', 'angry cat'], { matter: ['creature', 'air'] }),
+  'trumpet-call': mouthOnly('stinger', 'goal', 'on', 'a short trumpet call: four notes rising, the last held', ['trumpet', 'bugle', 'bugle call'], { matter: ['machine', 'metal'] }),
+  // birds in the kernel's syrinx (passed by ear 2026-11-11): a buzz and a breath through the bird's resonances
+  crow: mouthOnly('creature', null, 'on', 'a crow cawing, three times', ['caw', 'crows', 'cawing'], { say: ['カァ', 'kaa'], matter: ['creature', 'voice'] }),
+  raven: mouthOnly('creature', null, 'on', 'a raven croaking, twice', ['croak', 'ravens', 'croaking'], { say: ['グワッ', 'guwa'], matter: ['creature', 'voice'] }),
+  eagle: mouthOnly('creature', null, 'on', 'an eagle\'s scream, a hawk\'s', ['hawk', 'screech', 'raptor', 'bird of prey'], { say: ['キィーアー', 'kiiaa'], matter: ['creature', 'voice'] }),
+  goose: mouthOnly('creature', null, 'on', 'a goose honking, twice', ['goose honk', 'honking goose'], { say: ['ガー', 'gaa'], matter: ['creature', 'voice'] }),
+  geese: mouthOnly('creature', null, 'on', 'a flock of geese honking', ['flock', 'geese flock', 'flock of geese'], { say: ['ガーガー', 'gaagaa'], matter: ['creature', 'voice'] }),
+  duck: mouthOnly('creature', null, 'on', 'a duck quacking, three times', ['quack', 'ducks', 'quacking'], { say: ['グワッグワッ', 'guwaguwa'], matter: ['creature', 'voice'] }),
+  chicken: mouthOnly('creature', null, 'on', 'a hen clucking, then a bawk', ['cluck', 'hen', 'clucking'], { say: ['コッコッ', 'kokko'], matter: ['creature', 'voice'] }),
+  rooster: mouthOnly('creature', null, 'on', 'a rooster crowing', ['crowing', 'cockerel', 'cock a doodle doo', 'dawn crow'], { say: ['コケコッコー', 'kokekokkoo'], matter: ['creature', 'voice'] }),
+  // round 10 (passed 2026-11-11): what a game's environments need most
+  'step-sand': mouthOnly('movement', 'step', 'footsteps.step', 'a footstep in sand', ['sand step', 'sand footstep', 'beach step'], { say: ['サッ', 'sa'], matter: ['earth'] }),
+  'step-mud': mouthOnly('movement', 'step', 'footsteps.step', 'a footstep in mud', ['mud step', 'mud', 'muddy step', 'squelch'], { say: ['ベチャ', 'becha'], matter: ['earth', 'water'] }),
+  'step-leaves': mouthOnly('movement', 'step', 'footsteps.step', 'a footstep on dry leaves', ['leaves', 'leaf step', 'dry leaves', 'leaf litter'], { say: ['ガサッ', 'gasa'], matter: ['earth', 'paper'] }),
+  raindrop: mouthOnly('elemental', null, 'on', 'a raindrop', ['rain drop', 'drop'], { say: ['ポツ', 'potsu'], matter: ['water'], weight: 'light' }),
+  'thunder-far': mouthOnly('elemental', null, 'on', 'thunder far off: a long dark rumble', ['distant thunder', 'rumble', 'far thunder'], { matter: ['air', 'electric'], weight: 'heavy' }),
+  cricket: mouthOnly('creature', null, 'on', 'a cricket chirping', ['crickets', 'chirping cricket', 'night insects'], { say: ['リリリ', 'ririri'], matter: ['creature'], weight: 'light' }),
+  frog: mouthOnly('creature', null, 'on', 'a frog croaking, twice', ['croaking frog', 'toad', 'ribbit'], { say: ['ゲロゲロ', 'gerogero'], matter: ['creature', 'voice'] }),
+  owl: mouthOnly('creature', null, 'on', 'an owl hooting', ['hoot', 'owls', 'hooting'], { say: ['ホーホー', 'hoohoo'], matter: ['creature', 'air'] }),
+  fly: mouthOnly('creature', null, 'on', 'a fly buzzing by', ['buzzing fly', 'housefly', 'insect buzz'], { say: ['ブーン', 'buun', 'bzz'], matter: ['creature', 'air'], weight: 'light' }),
+  // the wolf's howl (round 10) heard as a European ambulance (the operator)
+  siren: mouthOnly('machinery', 'alarm', 'on', 'a siren: a European ambulance\'s rise and fall', ['ambulance', 'ambulance siren', 'emergency siren'], { matter: ['machine'] }),
+  // round 10b's howls, heard as other things (the operator, 2026-11-11)
+  'retro-howl': mouthOnly('stinger', 'wave', 'on', 'a retro howl: an 80s arcade game\'s', ['arcade howl', '8-bit howl', 'retro wolf'], { matter: ['synthetic'], genres: ['run-and-gun', 'endless-runner', 'collectathon'] }),
+  'retro-howl-duo': mouthOnly('stinger', 'wave', 'on', 'a retro howl in two voices, a third apart: an 80s arcade game\'s', ['arcade howl duo', 'retro howl pair'], { matter: ['synthetic'], genres: ['run-and-gun', 'endless-runner', 'collectathon'] }),
+  'roar-lion-long': mouthOnly('creature', null, 'on', 'a lion\'s long roar, rising and held', ['long roar', 'lion long roar'], { matter: ['creature', 'voice'], weight: 'heavy' }),
+  'motor-rev': mouthOnly('machinery', null, 'on', 'a small motor revving up and down', ['motor', 'small motor', 'motor whine', 'rev'], { matter: ['machine'] }),
+  'wolf-howl': mouthOnly('creature', null, 'on', 'wolves howling: two, the second joining higher, each closing tight', ['howl', 'wolf', 'wolves howling', 'howling'], { say: ['ワオーン', 'waoon', 'awoo'], matter: ['creature', 'voice'] }),
+  'bat-squeak': mouthOnly('creature', null, 'on', 'a bat\'s squeak', ['bat', 'squeak bat'], { matter: ['creature'], weight: 'light' }),
+  'bat-squeak-high': mouthOnly('creature', null, 'on', 'a bat\'s squeak, higher and shorter', ['high bat squeak', 'small bat'], { matter: ['creature'], weight: 'light' }),
+  'bat-chatter': mouthOnly('creature', null, 'on', 'bats chattering', ['bats', 'bat swarm', 'cave bats'], { matter: ['creature'], weight: 'light' }),
+  'bat-wings': mouthOnly('creature', null, 'on', 'wings flapping: a bat, a small bird', ['wings', 'flapping', 'wing flaps', 'flutter'], { say: ['バサバサ', 'basabasa', 'flap'], matter: ['air', 'creature'], weight: 'light' }),
+  // the voice protoform (families/voice.js): a person's efforts, composed for any voice by its dials (a game's hero's)
+  'jump-effort': made('body', 'jump', 'footsteps.jump', 'a jump\'s effort: a short hup', ['jump grunt', 'hup', 'jump effort'], 'voice', { effort: 'jump' }),
+  'hurt-grunt': made('body', 'hit', 'on', 'a grunt on being hit', ['grunt', 'hit grunt', 'pain grunt'], 'voice', { effort: 'hurt' }),
+  'hurt-heavy': made('body', 'hit', 'on', 'a cry on a heavy hit', ['pain cry', 'heavy grunt', 'cry out'], 'voice', { effort: 'hurt-heavy' }),
+  'land-grunt': made('body', 'land', 'footsteps.land', 'a landing\'s oof', ['oof', 'land grunt', 'landing grunt'], 'voice', { effort: 'land' }),
+  'attack-shout': made('body', 'strike', 'strike.swing', 'an attack\'s shout: a kiai', ['kiai', 'battle cry', 'attack yell'], 'voice', { effort: 'attack' }),
+  'strain-grunt': made('body', null, 'on', 'a strain: pushing, climbing, lifting', ['strain', 'effort grunt', 'pushing'], 'voice', { effort: 'strain' }),
+  // the door creak's trace heard as a lion (operator, 2026-11-11): a short roar, smooth and rough
+  'roar-lion-short': mouthOnly('creature', null, 'on', 'a lion\'s short roar', ['short roar', 'lion grunt', 'big cat snarl'], { matter: ['creature', 'voice'], weight: 'heavy' }),
+  'roar-lion-rough': mouthOnly('creature', null, 'on', 'a lion\'s short roar, rough in the throat', ['rough roar', 'lion snarl', 'big cat growl'], { matter: ['creature', 'voice'], weight: 'heavy' }),
   // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
   //    slot the row's voice (a port of that code, range for range) ──
   'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },
@@ -325,7 +418,7 @@ const ROWS = {
   'jump-launch': { ...made('machinery', null, 'jump.release', 'a jump released: a piston slam, heavier the longer it was held', ['piston slam', 'jump release'], 'launch'), channel: 'jump.release' },
 };
 
-const freezeRow = (r) => Object.freeze({ ...r, aliases: Object.freeze(r.aliases.slice()), ...(r.voices ? { voices: Object.freeze({ ...r.voices }) } : {}), ...(r.make ? { make: Object.freeze({ family: r.make.family, dials: Object.freeze({ ...r.make.dials }) }) } : {}) });
+const freezeRow = (r) => Object.freeze({ ...r, aliases: Object.freeze(r.aliases.slice()), ...(r.say ? { say: Object.freeze(r.say.slice()) } : {}), ...(r.matter ? { matter: Object.freeze(r.matter.slice()) } : {}), ...(r.genres ? { genres: Object.freeze(r.genres.slice()) } : {}), ...(r.voices ? { voices: Object.freeze({ ...r.voices }) } : {}), ...(r.make ? { make: Object.freeze({ family: r.make.family, dials: Object.freeze({ ...r.make.dials }) }) } : {}) });
 export const SOUNDS = Object.freeze(Object.fromEntries(Object.entries(ROWS).map(([id, r]) => [id, freezeRow(r.palette ? { ...r, palette: id, family: id } : r)])));
 export const SOUND_IDS = Object.freeze(Object.keys(SOUNDS));
 

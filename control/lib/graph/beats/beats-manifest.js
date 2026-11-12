@@ -23,7 +23,7 @@ import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace', 'syrinx']);
 // the SFX mixer (sfxmix): the effects a gesture's own `chain` may carry (none runs an oscillator or computes an impulse
 // per hit: the space is the reverb), and the spaces setSfx knows (the kernel's SFX_SPACES; beats-sfxmix.test.js holds
 // the two lists equal).
@@ -530,6 +530,28 @@ function checkTrace(g, w, errors) {
   if (g.at !== undefined && !inRange(g.at, 0, 60)) errors.push(`${w}.at must be seconds in [0, 60] (after the hit)`);
 }
 
+/**
+ * A syrinx gesture (mouth foley's birds, synthesized whole): { dur?, pitch?: [[t 0..1, Hz]…], formants?: [{ hz? |
+ * path?: [[t, Hz]…], width?: octaves, gain? }], sub?, jitter?, rattle?: { rate, depth }, noise?, buzz?, attack?, decay?,
+ * release?, vol?, at? }.
+ */
+function checkSyrinx(g, w, errors) {
+  const path = (p, lo, hi) => Array.isArray(p) && p.length >= 1 && p.length <= 64 && p.every((q) => Array.isArray(q) && q.length === 2 && inRange(q[0], 0, 1) && inRange(q[1], lo, hi));
+  if (g.dur !== undefined && !inRange(g.dur, 0.01, 10)) errors.push(`${w}.dur must be seconds in [0.01, 10] (the call)`);
+  if (g.pitch !== undefined && !path(g.pitch, 20, 12000)) errors.push(`${w}.pitch must be 1..64 points [t 0..1, Hz 20..12000] (its pitch along the call)`);
+  if (g.formants !== undefined && !(Array.isArray(g.formants) && g.formants.length >= 1 && g.formants.length <= 6 && g.formants.every((f) => f && typeof f === 'object'
+    && (f.path !== undefined ? path(f.path, 50, 16000) : f.hz === undefined || inRange(f.hz, 50, 16000))
+    && (f.width === undefined || inRange(f.width, 0.05, 3)) && (f.gain === undefined || inRange(f.gain, 0, 4))))) {
+    errors.push(`${w}.formants must be 1..6 of { hz | path: [[t, Hz]…], width?: octaves 0.05..3, gain?: 0..4 } (its resonances)`);
+  }
+  for (const [k, lo, hi] of [['sub', 0, 1], ['jitter', 0, 0.5], ['noise', 0, 4], ['buzz', 0, 1], ['attack', 0, 1], ['decay', 0, 50], ['release', 0, 1], ['vol', 0, 4], ['at', 0, 60]]) {
+    if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]`);
+  }
+  if (g.rattle !== undefined && !(g.rattle && typeof g.rattle === 'object' && (g.rattle.rate === undefined || inRange(g.rattle.rate, 0.1, 200)) && (g.rattle.depth === undefined || inRange(g.rattle.depth, 0, 1)))) {
+    errors.push(`${w}.rattle must be { rate?: Hz 0.1..200, depth?: 0..1 }`);
+  }
+}
+
 function checkGestures(list, where, errors) {
   if (!Array.isArray(list) || !list.length) { errors.push(`${where} must be a non-empty gesture array`); return; }
   list.forEach((g, i) => {
@@ -540,6 +562,7 @@ function checkGestures(list, where, errors) {
     if (g.type === 'sweep') { if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors); if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors); }
     checkLayer(g, `${where}[${i}]`, errors);
     if (g.type === 'trace') checkTrace(g, `${where}[${i}]`, errors);
+    if (g.type === 'syrinx') checkSyrinx(g, `${where}[${i}]`, errors);
     if (PRODUCTION_GESTURES.has(g.type)) {
       const w = `${where}[${i}]`, lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
       lim('dur', 0.05, 60, 'seconds'); lim('bars', 0.25, 64, 'bars at the recipe\'s tempo'); lim('beats', 0.25, 256); lim('vol', 0, 2); lim('at', 0, 60, 'seconds after the hit');
@@ -562,7 +585,8 @@ function checkGestures(list, where, errors) {
     if (g.type === 'tone') {
       const w = `${where}[${i}]`;
       if (g.note != null) checkNote(g.note, `${w}.note`, errors);
-      if (g.to != null) checkNote(g.to, `${w}.to`, errors);
+      // (`to` a note, or Hz as `hz` is: the kernel's noteHz takes either; a whistle bends between Hz)
+      if (g.to != null && !(Number.isFinite(g.to) && g.to > 0)) checkNote(g.to, `${w}.to`, errors);
       if (g.wave !== undefined && !WAVES.has(g.wave)) errors.push(`${w}.wave must be one of: ${[...WAVES].join(', ')}`);
       if (g.dur !== undefined && !inRange(g.dur, 0.01, 30)) errors.push(`${w}.dur must be seconds in [0.01, 30] (how long the tone holds)`);
       for (const k of ['hz', 'attack', 'release', 'lowpass', 'vol']) if (g[k] !== undefined && !(Number.isFinite(g[k]) && g[k] >= 0)) errors.push(`${w}.${k} must be a non-negative number`);

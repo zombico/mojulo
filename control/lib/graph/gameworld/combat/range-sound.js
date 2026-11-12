@@ -2,7 +2,8 @@
  * THE FIRING RANGE, HEARD — the range's weapons voiced from the SFX shelf (sfx-shelf/, its realistic style): what each
  * weapon sounds like is a shelf word, chosen by what it is unless the game names its own. Pure.
  *
- *   rangeAudio({ slots, knife, sounds })  → { audio, sfx: { <slot name>: { shot, reload, hit, draw } } }
+ *   rangeAudio({ slots, knife, sounds, vary? })  → { audio, sfx: { <slot name>: { shot, reload, hit, draw } } } (`vary`:
+ *                                         every hit a seeded variant)
  *
  *   a gun's shot      its cartridge's (the kit's archetype, or a hitscan's rate and pellets): a pistol, a submachine gun, a
  *                     magnum, a rifle, a shotgun, a sniper rifle, suppressed when it says so; a projectile's launch
@@ -48,7 +49,7 @@ export function reloadCue(slot) {
   return [...cue('mag out'), ...later(cue('mag in'), r * 0.55), ...later(cue('rack'), r * 0.8)];
 }
 
-export function rangeAudio({ slots = [], knife = null, sounds = {} } = {}) {
+export function rangeAudio({ slots = [], knife = null, sounds = {}, vary = false } = {}) {
   const sfx = {}, cues = {};
   const word = (name, k, fallback) => {
     const w = sounds?.[name]?.[k];
@@ -75,6 +76,7 @@ export function rangeAudio({ slots = [], knife = null, sounds = {} } = {}) {
     footsteps: { step: cue('step concrete'), land: cue('step concrete') },
     ...(knife ? { strike: { swing: cue(word(knife.name ?? 'knife', 'swing', 'blade swing')), hit: cue(word(knife.name ?? 'knife', 'hit', 'blade hit')) } } : {}),
     ...(blast ? { burst: blast } : {}),
+    ...(vary ? { vary: true } : {}),
   };
   return { audio, sfx };
 }

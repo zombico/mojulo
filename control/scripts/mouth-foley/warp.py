@@ -210,8 +210,20 @@ def main():
     w = Path(a.worker)
     kokoro = Kokoro(str(w / "models" / "kokoro-v1.0.onnx"), str(w / "models" / "voices-v1.0.bin"))
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    done = []
+    done, kit = [], None
     for r in json.loads(Path(a.recipes).read_text()):
+        if r.get("build"):
+            # a body build (body.py): syllables cut once, held and layered; a Split's rings are written apart
+            import body
+            kit = kit or body.Kit(kokoro)
+            st = body.BUILDS[r["build"]](kit)
+            if isinstance(st, body.Split):
+                write_wav(out / f"{r['id']}--dry.wav", st.dry)
+                (out / f"{r['id']}.rings.json").write_text(json.dumps(st.rings))
+                st = st.full
+            write_wav(out / f"{r['id']}.wav", norm(st))
+            done.append(r["id"])
+            continue
         s = seed(kokoro, r["text"], r["voice"], r["speed"])
         if r["chain"] == "blade-kiin":
             ring = r["ring"]

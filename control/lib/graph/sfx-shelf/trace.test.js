@@ -99,3 +99,66 @@ describe('the mouth set', () => {
     expect(MOUTH.cues[id].at(-1).type).toBe('trace');
   });
 });
+
+describe('the tracer\'s hum range', () => {
+  it('finds a hum only up to maxHz: a bird\'s buzz above a voice\'s range is traced as a buzz when asked, as air if not', () => {
+    const sr = 44100, hz = 1500, n = Math.round(0.3 * sr);
+    const saw = Float32Array.from({ length: n }, (_, i) => 0.5 * (2 * ((i * hz / sr) % 1) - 1));
+    const asVoice = traceSound(saw, sr).gesture;
+    expect((asVoice.pitch ?? []).some((p) => Math.abs(p - hz) < hz * 0.05)).toBe(false);
+    const asBird = traceSound(saw, sr, { maxHz: 3000 }).gesture;
+    const mid = asBird.pitch[asBird.pitch.length >> 1];
+    expect(Math.abs(mid - hz)).toBeLessThan(hz * 0.05);
+    expect(asBird.voiced[asBird.voiced.length >> 1]).toBeGreaterThan(50);
+  });
+});
+
+describe('the syrinx gesture (the kernel: a bird\'s call synthesized whole)', () => {
+  const CALL = { type: 'syrinx', dur: 0.25, pitch: [[0, 550], [0.3, 610], [1, 470]], formants: [{ hz: 1400, width: 0.6 }, { path: [[0, 800], [1, 1500]], width: 0.5 }], sub: 0.5, jitter: 0.06, rattle: { rate: 35, depth: 0.5 }, noise: 0.3 };
+
+  it('is an opt-in feature: a syrinx brings it, nothing else does', () => {
+    expect(beatsFeatures(manifest([CALL]))).toContain('syrinx');
+    expect(beatsFeatures(manifest([{ type: 'trace', lv: [Array(12).fill(-10)] }]))).not.toContain('syrinx');
+    expect(emitBeatsKernel(['syrinx'])).toContain("op.kind === 'syrinx'");
+    expect(emitBeatsKernel(['trace'])).not.toContain("'syrinx'");
+  });
+
+  it('is checked: paths of [t 0..1, Hz], at most six resonances, its shares in range', () => {
+    expect(validateBeatsManifest(manifest([CALL])).errors ?? []).toEqual([]);
+    const bad = (g) => (validateBeatsManifest(manifest([{ ...CALL, ...g }])).errors || []).join(' ');
+    expect(bad({ pitch: [[2, 500]] })).toMatch(/pitch must be/);
+    expect(bad({ formants: Array(7).fill({ hz: 1000 }) })).toMatch(/formants must be/);
+    expect(bad({ jitter: 0.9 })).toMatch(/jitter/);
+  });
+
+  it('sounds for its length and the same every time', async () => {
+    const [a, b] = [await render([CALL]), await render([CALL])];
+    expect(peak(a.channels[0])).toBeGreaterThan(0.01);
+    expect(Buffer.from(a.channels[0].buffer).equals(Buffer.from(b.channels[0].buffer))).toBe(true);
+    // (silent before the call and a moment after it)
+    const at = (s) => Math.abs(a.channels[0][Math.round(s * SR)] ?? 0);
+    expect(at(0.45)).toBeLessThan(1e-3);
+  });
+});
+
+describe('a hit never says itself twice (per-hit variants reach traces and calls)', () => {
+  const plan = (g, v) => K.cuePlan([g], v);
+  const TR = { type: 'trace', lv: [Array(12).fill(-10), Array(12).fill(-14)], voiced: [60, 60], pitch: [200, 200] };
+  const CALL = { type: 'syrinx', dur: 0.2, pitch: [[0, 500], [1, 450]], formants: [{ hz: 1400, width: 0.6 }], noise: 0.2 };
+
+  it('a variant moves a trace\'s noise, bands, hum, pace and level, and a call\'s pitch, resonances and level; none is the plain path', () => {
+    const [plainT] = plan(TR, 0), [t1] = plan(TR, 1), [t2] = plan(TR, 2);
+    expect(plainT.offset ?? null).toBeNull();
+    expect(t1.offset).not.toBe(t2.offset);
+    expect(t1.bands[0]).not.toBe(plainT.bands[0]);
+    expect(t1.pitch[0]).not.toBe(plainT.pitch[0]);
+    const [plainC] = plan(CALL, 0), [c1] = plan(CALL, 1);
+    expect(c1.pitch[0][1]).not.toBe(plainC.pitch[0][1]);
+    expect(c1.formants[0].hz).not.toBe(plainC.formants[0].hz);
+  });
+
+  it('is seeded: the same variant is the same hit', () => {
+    expect(plan(TR, 3)).toEqual(plan(TR, 3));
+    expect(plan(CALL, 3)).toEqual(plan(CALL, 3));
+  });
+});
