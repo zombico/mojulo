@@ -16,3 +16,7 @@
   `water`) a pool on the floor, a metal (`chrome`, `steel`) a cube, each with its own roughness and metal to the form
   render. What they show today: a room gives a mirror nothing to hold but a plain gradient, so a pool is dark and a
   chrome cube a dark box; neither holds the windows, the sun on the floor or each other.
+- A room's capture. Where a room's page asks for reflection with a `probe`, the form render takes one cube of the room
+  as it stands lit, a few frames in (after the hour's map is drawn), and a glossy surface looks it up along its
+  reflected ray where that meets the room's own box, down its mips by its roughness. A pool holds the wall's lamps and
+  a chrome cube the floor's markings; a rougher metal holds them blurred. A room with samples asks for it.

@@ -34,14 +34,15 @@ import { safeJson } from '../emit-util.js';
 // `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
 //          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
-//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal? } }, wet?: { amount, seed, groups } } }
+//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal? } }, wet?: { amount, seed, groups },
+//          probe?: { at: [x, y, z], box: [[x0, y0, z0], [x1, y1, z1]] } (a room's capture and the box it is corrected to), size? } }
 // WHAT A SURFACE GIVES BACK (`cfg.reflect`, a page whose built things stand under a sky): the sky by Fresnel, blurred by
 // the surface's roughness, and the sun's highlight where the bake says the sun reaches; a metal's base colours both and
 // it keeps no diffuse. WET (`reflect.wet`): one field of water over the ground, by the world's own place (so the same
 // recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
 // that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
 // sheens on damp ground. Only a page that carries `reflect` carries this code.
-const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec2 uFSurf;\nuniform vec2 uFWet;\n'
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec2 uFSurf;\nuniform vec2 uFWet;\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
   + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
   + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
 const ENV_BODY = `
@@ -76,6 +77,19 @@ const ENV_BODY = `
   vec3 eSky = mix( uFEnvH, uFEnvZ, pow( clamp( eUp, 0.0, 1.0 ), 0.45 ) );
   vec3 eEnv = mix( uFEnvG, eSky, smoothstep( -0.05 - eB * 0.6, 0.05 + eB * 0.6, eUp ) );
   eEnv = mix( eEnv, ( uFEnvZ + uFEnvH * 2.0 + uFEnvG ) * 0.25, eB );
+#ifdef FORM_ENVMAP
+  {
+    // THE ROOM ITSELF, held in a capture taken from the probe once the room stands lit: looked up along the reflected
+    // ray where it meets the room's own box (so what a floor or a pool holds lies where it stands, not at infinity),
+    // blurred down its mips by the surface's roughness
+    vec3 ePw = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz;
+    vec3 eInv = 1.0 / ( abs( eRw ) + 1e-5 ) * sign( eRw + 1e-9 );
+    vec3 eT = max( ( uFBoxA - ePw ) * eInv, ( uFBoxB - ePw ) * eInv );
+    float eHit = max( min( eT.x, min( eT.y, eT.z ) ), 0.0 );
+    vec3 eDir = ePw + eRw * eHit - uFProbe;
+    eEnv = textureLod( uFCube, eDir, eR * 6.0 ).rgb;
+  }
+#endif
   float eC = clamp( dot( eN, eV ), 0.0, 1.0 );
   vec3 eF0 = mix( vec3( 0.04 ), diffuseColor.rgb, eM ), eF = eF0 + ( max( vec3( 1.0 - eR ), eF0 ) - eF0 ) * pow( 1.0 - eC, 5.0 );
   float eO = clamp( fLum( vFLit ) / max( fLum( uFAmb ), 1e-3 ), 0.25, 1.0 );
@@ -106,7 +120,13 @@ const __mojForm = (function () {
     uFLr: { value: new Array(K).fill(1) }, uFFall: { value: F.fall }, uFAmb: { value: new THREE.Vector3(...F.ambient) }, uFPom: { value: new THREE.Vector4(F.pom.near, F.pom.far, F.relief.near, F.relief.far) } };${cfg.reflect ? `
   Object.assign(U, { uFEnvZ: { value: new THREE.Vector3(...F.reflect.env.zenith) }, uFEnvH: { value: new THREE.Vector3(...F.reflect.env.horizon) }, uFEnvG: { value: new THREE.Vector3(...F.reflect.env.ground) },
     uFWet: { value: new THREE.Vector2(F.reflect.wet ? F.reflect.wet.amount : 0, F.reflect.wet ? F.reflect.wet.seed : 0) } });
-  const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);` : ''}
+  const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);
+  // (the room's capture: a cube of the room as it stands lit, taken from the probe a few frames in, once the hour's
+  // map is drawn; half-float, with its mips for the blur. Until it is taken it is black, and the gradient stands)
+  const PR = F.reflect.probe || null;
+  const cubeRT = PR ? new THREE.WebGLCubeRenderTarget(F.reflect.size || 256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter }) : null;
+  const cubeCam = PR ? new THREE.CubeCamera(0.1, 400, cubeRT) : null;
+  if (PR) { cubeCam.position.set(...PR.at); Object.assign(U, { uFCube: { value: cubeRT.texture }, uFProbe: { value: new THREE.Vector3(...PR.at) }, uFBoxA: { value: new THREE.Vector3(...PR.box[0]) }, uFBoxB: { value: new THREE.Vector3(...PR.box[1]) } }); }` : ''}
 ${NB ? `  const BL = F.lights.map((l, i) => ({ l, i })).filter(({ l }) => l.beat);
   Object.assign(U, { uFBp: { value: BL.map(() => new THREE.Vector3()) }, uFBk: { value: BL.map(() => new THREE.Vector3()) }, uFBr: { value: BL.map(({ l }) => l.radius) } });
 ` : ''}  const VERT = 'attribute vec3 aLit;\\nvarying vec3 vFLit;\\nvarying vec3 vFPos;\\n';
@@ -175,7 +195,7 @@ fDirect += fBeat * diffuseColor.rgb;
   const lit = (params, M${cfg.reflect ? ', S, wet' : ''}) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {})' : ''} };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {})' : ''} };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector2(S ? S.rough : 1, S ? S.metal || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
@@ -183,7 +203,7 @@ fDirect += fBeat * diffuseColor.rgb;
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '')" : ''};${cfg.sun ? `
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '') + (S && PR ? 'c' : '')" : ''};${cfg.sun ? `
     // (lit by the day: toned with the land, channels/form-land.js leaves it so)
     mat.userData.cast = true;` : ''}
     return mat;
@@ -277,7 +297,16 @@ ${NB ? `    // the beats: each key swung in time (an alarm's sweep, a pulse's br
     });
 ` : ''}    probe.first = true;
   };
-  return probe;
+${cfg.reflect && cfg.reflect.probe ? `  // the capture, taken before a frame is drawn (the page calls it: scene/scene-three.js), a few frames in
+  let capN = 0;
+  probe.capture = () => {
+    if (probe.captured || !probe.first || ++capN < 3) return;
+    const rt = renderer.getRenderTarget(), xr = renderer.xr.enabled; renderer.xr.enabled = false;
+    cubeCam.update(renderer, scene);
+    renderer.xr.enabled = xr; renderer.setRenderTarget(rt);
+    probe.captured = true;
+  };
+` : ''}  return probe;
 })();
 window.__mojForm = __mojForm;
 `;
