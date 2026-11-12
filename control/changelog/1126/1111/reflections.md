@@ -87,3 +87,9 @@
 - Rain's rings are one system: on a page whose wet surfaces are struck in their own material, the weather channel
   stands none of its own (they lay at the camera's height, in the air beside a raised eye). A place with buildings
   under a wet weather and no clouds named takes the weather's own sky and its dimmer light.
+- While it rains no puddle shows apart from the sheet (`raining` and `downpour` stand no pools; they stand out once it
+  has stopped, `wet`); a downpour's sheet is deeper.
+- Nothing falls under a roof: a building's footprint up to its roof is kept dry of the weather's falling drops, so it
+  rains outside the door and not within.
+- A net under a building's ground: one unseen level face a hand under its apron and a stride past its edge, so a
+  walker who finds a gap lands on it and never falls through.

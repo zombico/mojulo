@@ -14,14 +14,15 @@
  *      as a pool, if it is asked to) to nothing, by distance and never at a line.
  *   3. A wall is wet by what runs down it: streaks, heaviest at its foot. A wall is never wetter than the ground
  *      under it.
- *   4. While it rains the pools are struck: rings in every one. When it has stopped they lie still and the faces dry
- *      before the joints, the joints before the pools.
+ *   4. While it rains the whole ground is one sheet of water, struck with rings, and no puddle shows apart from it.
+ *      When it has stopped the sheet drains to its hollows: the puddles stand out, lie still, and the faces dry before
+ *      the joints, the joints before the pools.
  *
  *   DEGREES   dry      nothing
  *             damp     it rained a while ago: the joints hold, the faces a little dark, the walls' feet; no pool
  *             wet      it has just rained: faces sheened, joints full, pools in the hollows, the walls run
- *             raining  as wet, more of it, the pools struck with rings
- *             downpour water standing over nearly all the ground, struck hard
+ *             raining  everything wet at once: one film over the whole ground, struck with rings; no puddle apart
+ *             downpour the same sheet, deeper, struck hard
  *   wetOfWeather(weather) → the degree a weather's state leaves (rain: raining, a downpour or a thunderstorm: downpour,
  *             drizzle: wet, mist or fog: damp), or null: a recipe's weather and its wetness are one thing said once
  *   readWetness(wet) → { amount, walls, pools, rain, spots: [{ at: [x, y, z], r, amount, pool }] } | null
@@ -36,9 +37,10 @@ export const DEGREES = Object.freeze({
   dry: Object.freeze({ amount: 0, walls: 0, pools: 0, rain: 0 }),
   damp: Object.freeze({ amount: 0.38, walls: 0.35, pools: 0, rain: 0 }),
   wet: Object.freeze({ amount: 0.78, walls: 0.75, pools: 0.22, rain: 0 }),
-  raining: Object.freeze({ amount: 0.95, walls: 1, pools: 0.34, rain: 1 }),
-  // (a downpour: the ground cannot shed it, so water stands over nearly all of it, and the rain strikes hard)
-  downpour: Object.freeze({ amount: 1, walls: 1, pools: 0.9, rain: 2 }),
+  // (WHILE IT RAINS the ground is one sheet: no puddle shows apart from the film; they stand out once it stops)
+  raining: Object.freeze({ amount: 0.95, walls: 1, pools: 0, rain: 1 }),
+  // (a downpour: the same sheet, deeper, struck hard)
+  downpour: Object.freeze({ amount: 1, walls: 1, pools: 0, rain: 2 }),
 });
 /** How wet a weather leaves a place (weather/weather.js states): a recipe that names a weather and no `wet` is this wet. */
 export const WET_OF_WEATHER = Object.freeze({ mist: 'damp', fog: 'damp', drizzle: 'wet', rain: 'raining', downpour: 'downpour', thunderstorm: 'downpour' });

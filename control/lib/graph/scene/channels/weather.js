@@ -134,7 +134,8 @@ let stepWeather = () => {};   // __mojStep(t) drives it
     o.frustumCulled = false; o.visible = false; o.raycast = function () {}; scene.add(o);
     pools[n] = { F, count, streak, o, pos, col, rgb, geo };
   }
-  const camV = new THREE.Vector3();
+${cfg.roofs && cfg.roofs.length ? `  const ROOFS = ${JSON.stringify(cfg.roofs)};
+` : ''}  const camV = new THREE.Vector3();
   function fall(name, k, t) {
     const P = pools[name]; if (!P) return;
     const n = Math.min(P.count, Math.round(P.count * k));
@@ -142,8 +143,10 @@ let stepWeather = () => {};   // __mojStep(t) drives it
     const pts = fallPoints(P.F, camP, t, n, heading), op = P.streak ? 0.5 : 0.85;
     let i = 0;
     for (const q of pts) {
-      const w = q.w * op;
-      if (P.streak) {
+${cfg.roofs && cfg.roofs.length ? `      // (nothing falls under a roof: a drop inside a building's own box is not drawn, so it rains outside the door and not within)
+      const w = ROOFS.some((B) => q.p[0] > B[0] && q.p[0] < B[2] && q.p[1] > B[1] && q.p[1] < B[3] && q.p[2] < B[4]) ? 0 : q.w * op;
+` : `      const w = q.w * op;
+`}      if (P.streak) {
         const sp = Math.hypot(q.v[0], q.v[1], q.v[2]) || 1, l = q.len;
         P.pos[i * 6] = q.p[0]; P.pos[i * 6 + 1] = q.p[1]; P.pos[i * 6 + 2] = q.p[2];
         P.pos[i * 6 + 3] = q.p[0] - q.v[0] / sp * l; P.pos[i * 6 + 4] = q.p[1] - q.v[1] / sp * l; P.pos[i * 6 + 5] = q.p[2] - q.v[2] / sp * l;

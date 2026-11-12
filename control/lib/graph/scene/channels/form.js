@@ -129,7 +129,7 @@ const ENV_BODY = `
     // (WHILE IT RAINS the whole ground wears a film: a skin of water over every face that looks up, thin enough that
     // the joints still show through it, smooth enough to hold the lamps)
     float eFilm = uFWet.w * eUpF;
-    eFill = max( eFill, 0.72 * eFilm );
+    eFill = max( eFill, min( 0.95, 0.72 + 0.2 * ( uFWet.w - 1.0 ) ) * eFilm );   // (a downpour's sheet is deeper: less of the joints shows)
     float eDamp = smoothstep( 0.0, 0.35, eAmt );
     diffuseColor.rgb *= mix( 1.0, uFSurf.z > 0.0 ? uFSurf.z : 0.55, eDamp );
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.7, eFill );

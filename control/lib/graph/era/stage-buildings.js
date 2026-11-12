@@ -566,6 +566,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const lampFaces = [], floods = [];
   // (each slab apron laid: its rect and the boxes that stand on it)
   const aprons = [];
+  const roofs = [], netFaces = [];
   // (the hard standing a wet recipe films: every building's apron slab)
   const wetQuads = [];
   // (every footprint the land was cleared under: what the form render grows there, payload.plants, is cleared too)
@@ -865,6 +866,12 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const apronKind = b.apron ?? ctx.apron ?? (hardShare >= APRON.hard ? 'ground' : 'slab');
     if (!['slab', 'ground'].includes(apronKind)) throw new Error(`stage: buildings[${i}].apron is 'slab' (poured concrete) or 'ground' (the land's own, levelled)`);
     if (was && was.apron && apronKind === 'slab') aprons.push({ rect: was.apron, boxes: F.boxes });
+    // (what its roofs keep dry: its footprint up to its roof, for the weather that falls, scene/channels/weather.js)
+    { const top = floor + Math.max(0, ...shell0.flatMap((f) => f.corners.map((c) => c[2]))); for (const B of F.boxes) roofs.push([B[0], B[1], B[2], B[3], top].map(r5)); }
+    // A NET UNDER ITS GROUND (unseen): one level face a hand under its apron and a stride past its edge, so a walker who
+    // finds a gap (at a threshold, at the slab's kerb, where the land's bank meets it) lands on it and never falls through
+    if (was && was.apron) { const [nx0, ny0, nx1, ny1] = was.apron, m = 1, zn = floor - APRON.under - 0.04;
+      netFaces.push({ corners: [[nx0 - m, ny0 - m, zn], [nx1 + m, ny0 - m, zn], [nx1 + m, ny1 + m, zn], [nx0 - m, ny1 + m, zn]].map(P3), normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'building:net', fill: '#000000', alpha: 0, noInk: true }); }
     const apron0 = was && was.apron && apronKind === 'slab' ? (() => {
       const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = yardSlab(), out = [];
       const lam = (nn) => (payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0), day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
@@ -1110,5 +1117,6 @@ export function withBuildings(payload, manifest, ctx = {}) {
     ...(wetness ? { wet: { ...wetness, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: Object.keys(BUILT_SURFACES), damp: true, ...(puddleMask ? { mask: puddleMask } : {}) } } : {}) } : null;
 
   const wetRoad = wetQuads.length ? { quads: wetQuads, lamps: [], zenith: payload.sky?.zenith ?? [120, 150, 200], horizon: payload.sky?.horizon ?? [200, 215, 230] } : null;
-  return { ...payload, ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  faces = [...faces, ...netFaces];
+  return { ...payload, ...(roofs.length ? { roofs } : {}), ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }
