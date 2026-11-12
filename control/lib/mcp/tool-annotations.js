@@ -70,14 +70,14 @@ export const TOOL_ANNOTATIONS = {
   check_for_updates: ['Check for updates', READ_EXTERNAL], // asks the npm registry
   get_tool_ledger: ['Tool-call ledger', READ],
   get_worked_example: ['Worked example', READ],
-  list_adapters: ['List host adapters', READ],
+  list_adapters: ['List host adapters', READ], // folded into get_adapter({ list: true }): callable by name
   get_adapter: ['Get host adapter', READ],
 
   // ── catalysts (catalysts.js) ───────────────────────────────────────────────
   list_catalysts: ['List catalysts', READ],
   get_catalyst: ['Get catalyst', READ],
   mint_catalyst: ['Mint or archive a local catalyst', DESTRUCTIVE], // `archive: true` retires a row
-  custom_catalyst: ['Catalyst authoring guide', READ],
+  custom_catalyst: ['Catalyst authoring guide', READ], // folded into mint_catalyst({ guide: true }): callable by name
   recommend_catalysts: ['Recommend catalysts', READ],
 
   // ── connected services: contextmap, inventory, composer (Ring 6) ───────────
@@ -130,10 +130,10 @@ export const TOOL_ANNOTATIONS = {
   sketch_plan: ['Sketch a plan', ADDITIVE],
   compile_plan: ['Compile a plan', ADDITIVE],
   execute_plan: ['Execute a plan', hints(false, true, false, true)], // runs the manifest's tool calls
-  list_plans: ['List plans', READ],
+  list_plans: ['List plans', READ], // folded into get_plan (no plan_ref): callable by name
   get_plan: ['Get plan', READ],
 
-  // ── research mode (Ring 9: research-mode.js, research-sweep.js) ────────────
+  // ── the research book (retired: callable by name) and the sweep (research-mode.js, research-sweep.js) ──
   enter_research_mode: ['Enter research mode', READ],
   start_research: ['Start a research book', ADDITIVE],
   bind_research_item: ['Add a research item', ADDITIVE],
@@ -148,16 +148,16 @@ export const TOOL_ANNOTATIONS = {
   gather: ['Gather an item into a stash', ADDITIVE],
   mint_drawer: ['Create a stash drawer', ADDITIVE_IDEMPOTENT],
   rename_stash: ['Rename a stash', DESTRUCTIVE_IDEMPOTENT],
-  list_stashes: ['List stashes', READ],
+  list_stashes: ['List stashes', READ], // folded into get_stash (no stash_ref): callable by name
   get_stash: ['Get stash', READ],
   update_item: ['Update a stash item', DESTRUCTIVE_IDEMPOTENT],
   archive_item: ['Archive a stash item', DESTRUCTIVE_IDEMPOTENT],
-  bind_stash: ['Bind a stash', ADDITIVE_IDEMPOTENT],
-  unbind_stash: ['Unbind a stash', DESTRUCTIVE_IDEMPOTENT],
-  list_stash_bindings: ['List stash bindings', READ],
+  bind_stash: ['Bind a stash', ADDITIVE_IDEMPOTENT], // retired: callable by name
+  unbind_stash: ['Unbind a stash', DESTRUCTIVE_IDEMPOTENT], // retired: callable by name
+  list_stash_bindings: ['List stash bindings', READ], // retired: callable by name
   cook: ['Cook stashes into a report', ADDITIVE],
   get_cook: ['Get cook outcome', READ],
-  list_cooks: ['List cook outcomes', READ],
+  list_cooks: ['List cook outcomes', READ], // folded into get_cook (no cook_ref): callable by name
   sketch_stash: ['Propose a stash layout', READ],
   archive_cook: ['Archive a cook outcome', DESTRUCTIVE_IDEMPOTENT],
   forge_publications: ['Forge publications', ADDITIVE],
@@ -208,7 +208,7 @@ export const TOOL_ANNOTATIONS = {
   fabricate_solid: ['Fabricate from standard parts', hints(false, false, false, false)], // the plan call writes nothing; the mint adds a row
   create_cover: ['Create a publication cover', ADDITIVE],
   compose_world: ['Compose a world', ADDITIVE],
-  list_world_themes: ['List world themes', READ],
+  list_world_themes: ['List world themes', READ], // folded into get_view_vocab({ themes }): callable by name
   create_exhibit: ['Create an exhibit', ADDITIVE],
   get_exhibit: ['Read an exhibit', READ], // a card, a hall, or a made exhibit's measured series
   create_view: ['Create a study view', ADDITIVE], // folded into create_exhibit: callable by name

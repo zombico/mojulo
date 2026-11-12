@@ -2,9 +2,9 @@
 {
   "id": "numerical-experiment-notebook",
   "name": "Numerical experiment notebook",
-  "summary": "Run a quantitative physics question as a parameter sweep over the SI-honest science views, bind every run into a research book as a provenance-carrying experiment, and synthesize a reviewed, reproducible finding.",
-  "valueHook": "Turn 'what happens to X as I vary Y?' into a lab notebook: every run reproducible from its recipe, every number in real units, the whole book deterministically re-verifiable at synthesis.",
-  "version": 1,
+  "summary": "Run a quantitative physics question as a parameter sweep over the SI-honest science views, keep every run in a stash as a reproducible experiment, and cook a finding whose every number is read back from a recipe.",
+  "valueHook": "Turn 'what happens to X as I vary Y?' into a lab notebook: every run reproducible from its recipe, every number in real units, read back from the recipe before it is written down.",
+  "version": 2,
   "category": "research-science",
   "tier": "design",
   "parameters": [
@@ -19,20 +19,21 @@
     }
   ],
   "mcpTools": {
-    "mojulo": ["start_research", "run_experiment_sweep", "create_exhibit", "bind_research_item", "get_exhibit", "synthesize_abstract", "get_research"]
+    "mojulo": ["mint_stash", "run_experiment_sweep", "create_exhibit", "gather", "get_exhibit", "get_stash", "cook"]
   }
 }
 ---
 
 # Numerical experiment notebook
 
-The mapping insight this catalyst earns its shelf spot with: **a research book is a lab
-notebook, and a parameter sweep is just repeated mints.** The science views are not
-illustrations — each one is a deterministic simulation whose stored recipe IS the exact
-initial conditions (same recipe → byte-identical world) and whose `stats` digest is the
-measured outcome. Bound into a research book with its provenance, a view becomes a citable,
-re-runnable experiment. Nobody designed research mode as a lab bench; the primitives
-compose that way, and this catalyst is the composition written down.
+The mapping insight this catalyst earns its shelf spot with: **a stash is a lab notebook, and a
+parameter sweep is just repeated mints.** The science views are not illustrations — each one is a
+deterministic simulation whose stored recipe IS the exact initial conditions (same recipe →
+byte-identical world) and whose read-back is the measured outcome. Gathered into a stash by its
+ref, a view becomes a citable, re-runnable experiment: the notebook holds the pointer, the recipe
+holds the conditions, and the numbers are recomputed from it on every read. Nobody designed the
+stash as a lab bench; the primitives compose that way, and this catalyst is the composition
+written down.
 
 ## The honesty boundary (read before promising anything)
 
@@ -52,49 +53,49 @@ report it rather than approximating.
 
 ## The workflow
 
-1. **Pose.** `start_research({ title: <the question> })`. Bind the question and the sweep
-   design (varied parameter, range, held-constant values) as a `note` — the book's first
-   item is the hypothesis, so the notebook records what was asked before what was found.
+1. **Pose.** `mint_stash({ title: <the question> })`. Gather the question and the sweep design
+   (varied parameter, range, held-constant values) as a `markdown` item — the notebook's first
+   item is the hypothesis, so it records what was asked before what was found.
 
 2. **Sweep.** Mint the science world once (`create_exhibit` with `science/classical`, …), then vary
    it: `run_experiment_sweep({ ref, path, values })` mints one variant per value at a JSON Pointer
    into its recipe (`/model/frame/g`, `/model/bodies/0/v/0`), varying ONLY the swept parameter,
-   all in one folder. Bind each variant as its own experiment item, provenance verbatim (for the
-   older mechanics-view dynamics, the one-call `run_experiment_sweep({ research_ref, base, param,
-   values, outcome })` mints, binds and plots in one step):
+   all in one folder (for the older mechanics-view dynamics, the one-call
+   `run_experiment_sweep({ base, param, values, outcome })` mints the runs, derives their SI
+   outcomes and plots them in one step). Gather each variant as its own experiment:
 
    ```
-   bind_research_item({
-     research_ref, kind: 'experiment',
+   gather({
+     stash_ref, type: 'sketch',
      title: '<scenario>, <param>=<value>',
-     media_ref: <ref from the mint response>,
-     metadata: { recipe: <recipe from the response>, stats: <stats from the response> }
+     metadata: { sketch_ref: <the variant's ref>, label: '<param>=<value>' }
    })
    ```
 
-   The gate rejects an experiment without its recipe — that is the point, not a hurdle.
+   The item is a pointer, not a copy: the variant's recipe stays the one source of its
+   conditions, so the notebook cannot drift from the run it cites. Do not `update_sketch` a
+   variant after gathering it; a changed question is a new variant.
 
-3. **Measure.** Where the stats digest is too coarse for the question (you need the
-   trajectory, the speed profile, energy exchange), call `get_exhibit({ ref })` and use
-   the returned time-series — every value in declared real units. Cite the numbers you
-   actually use in the next step's summary so the book holds them.
+3. **Measure.** Call `get_exhibit({ ref })` on each variant and use the returned time-series —
+   every value in declared real units, recomputed from the stored recipe on this read. Take the
+   numbers for the next step from this read-back, never from memory of the mint.
 
-4. **Analyze.** Bind the comparative analysis as a `summary` item: the trend across the
-   sweep, the numbers behind it, and any closed-form check you can make (e.g. range
-   ∝ 1/g at fixed v₀ and angle). Summaries are items too — the book remembers what it
-   concluded, not just what it collected.
+4. **Analyze.** Gather the comparative analysis as a `markdown` item: the trend across the
+   sweep, the numbers behind it (with the ref each came from), and any closed-form check you can
+   make (e.g. range ∝ 1/g at fixed v₀ and angle). The analysis is an item too — the notebook
+   remembers what it concluded, not just what it collected.
 
-5. **Synthesize, reviewed.** `synthesize_abstract({ research_ref, abstract, review: true })`.
-   The deterministic reviewer recomputes every experiment from its stored artifact and
-   flags `artifact_missing` / `recipe_drift` / `stats_mismatch`; the result is recorded
-   with the abstract snapshot. A clean review means every number in the thesis traces to
-   a recipe that still reproduces it. A discrepancy is not a failure — it is the notebook
-   telling you which citation went stale; re-run that point and re-synthesize.
+5. **Verify, then publish.** Before writing the finding, re-read every cited run with
+   `get_exhibit({ ref })` and compare it with the number in your analysis: a run whose ref no
+   longer resolves, or whose read-back differs from what the analysis says, is a stale citation —
+   re-run that point and correct the analysis item (`get_stash` lists what the notebook holds).
+   Then `cook({ slices: [{ stash_ref }], aim: <the question>, report_md })`: the finding as one
+   outcome, each number traceable to a recipe that reproduces it. Say in the report that the
+   check was this re-read; it is yours to run, nothing runs it for you.
 
-6. **Hand off, only if warranted.** Add `evaluate: true` with your `suggested_lens` +
-   `recommendation` ONLY if the finding suggests tractable substrate work. Most
-   experiments end at the reviewed abstract — that is a complete outcome, not an
-   unfinished one. Never force convergence; that is plan mode's job.
+6. **Stop at the finding.** Most experiments end at the cooked report — that is a complete
+   outcome, not an unfinished one. If the finding suggests work worth doing, say so to the
+   operator; a plan is theirs to ask for.
 
 ## Worked example — range vs gravity
 
@@ -103,11 +104,11 @@ Question: how does projectile range fall as g rises, at v₀ = 18 m/s, angle = 4
 - Mint the projectile once as a classical world: `frame: { g: 9.8 }`, a body at the origin with
   `v: [12.73, 0, 12.73]` (18 m/s at 45°), `gravity-uniform`, `observe: [{ quantity: 'range', of: 'ball' }]`, and a duration long enough to land. Then
   sweep g ∈ {1.62 (Moon), 3.71 (Mars), 9.8 (Earth), 24.79 (Jupiter)}:
-  `run_experiment_sweep({ ref, path: '/model/frame/g', values: [1.62, 3.71, 9.8, 24.79] })`, each variant bound as
-  an experiment.
+  `run_experiment_sweep({ ref, path: '/model/frame/g', values: [1.62, 3.71, 9.8, 24.79] })`, each variant gathered
+  as an experiment.
 - The closed form predicts range = v₀²·sin(2θ)/g, and each run already checks it (its `closed-form:ballistic` gate):
-  bind a `summary` comparing the measured ranges (each mint's `observed`, or `get_exhibit({ ref })`) to the prediction; the
+  gather a `markdown` analysis comparing the measured ranges (each mint's `observed`, or `get_exhibit({ ref })`) to the prediction; the
   ratio test (range × g = const) is the analysis.
-- Synthesize with `review: true`: "range is inversely proportional to g across two orders
+- Re-read the four runs, then cook: "range is inversely proportional to g across two orders
   of magnitude of surface gravity; measured ranges match v₀²sin2θ/g to within sampling
   tolerance" — with all four recipes reproducibly behind it.

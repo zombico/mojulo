@@ -14,7 +14,7 @@ The catalyst paradigm: a `.md` file with JSON frontmatter that mojulo ships thro
 Always pull these into context before drafting anything:
 
 - [docs/catalysts.md](../../../docs/catalysts.md) — the author spec. The two catalyst shapes (making vs workflow), format, validation, body principles, the six-section template, the checklist for adding a new one.
-- [control/lib/mcp/tools/catalysts.js](../../../control/lib/mcp/tools/catalysts.js) — read `CATALYST_CORE_PREAMBLE` and the `custom_catalyst` author guide. The body you draft is read by a future agent *after* the preamble is prepended, so don't repeat what it already says; the guide's posture-check and batched questions are the same ones this skill runs.
+- [control/lib/mcp/tools/catalysts.js](../../../control/lib/mcp/tools/catalysts.js) — read `CATALYST_CORE_PREAMBLE` and the author guide (`CUSTOM_CATALYST_GUIDE`, returned by `mint_catalyst({ guide: true })`). The body you draft is read by a future agent *after* the preamble is prepended, so don't repeat what it already says; the guide's posture-check and batched questions are the same ones this skill runs.
 - [control/lib/mcp/catalysts/loader.js](../../../control/lib/mcp/catalysts/loader.js) — exact validation rules. Your draft must pass `parseCatalystFile`.
 - The existing `.md` files in [control/lib/mcp/catalysts/](../../../control/lib/mcp/catalysts) — these are the exemplars. `refresh-connected-services.md` is the six-section workflow exemplar; `design-object-workbench.md` is the making exemplar. Bias toward the one closest to the user's intent and study its mapping, idempotency and pitfalls sections specifically.
 
@@ -40,7 +40,7 @@ When pushing back, name the specific failure and suggest the right alternative (
 If posture-check passes, ask the user the following in one message. Don't drip questions out one at a time. Skip questions the user already answered in their invocation line.
 
 1. **Workflow intent in one paragraph.** What source data → what destination concept, and the user's motivation.
-2. **Source surface.** Where the workflow reads from: mojulo state through its read tools (`get_stash`, `get_cook`, `list_cooks`, `meta_context_brief`, `semantic_search`, …), or an installed MCP the operator declares through `meta_context_declare_inventory`. Name the tools the materialized artifact calls.
+2. **Source surface.** Where the workflow reads from: mojulo state through its read tools (`get_stash`, `get_cook`, `meta_context_brief`, `semantic_search`, …), or an installed MCP the operator declares through `meta_context_declare_inventory`. Name the tools the materialized artifact calls.
 3. **Destination MCP category.** Pick from existing categories where possible: `crm-like`, `calendar-like`, `ticketing-like`, `actuator-like`, `doc-or-channel-like`, `data-store-like`. If proposing a new category, the user must justify why none of the existing ones fit — don't proliferate categories.
 4. **Catalyst category (the `category` frontmatter field).** Use a category `list_catalysts` already shows where one fits; ask before adding a new one.
 5. **Mapping insight — the value-add.** What's the specific, opinionated decision this catalyst encodes that a future agent would otherwise have to guess at? At least one. If the user gives a generic answer ("map the fields to the destination"), push back to step 1's failure mode 5.

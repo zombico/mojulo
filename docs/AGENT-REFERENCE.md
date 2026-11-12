@@ -28,7 +28,7 @@ Recipes are **starters**: `update_sketch` iterates in place on the same ref rath
 ## Workflows: the agent hands over a list once
 
 - **Plans**: `forge_plan` → `compile_plan` → `execute_plan` (confirm-gated). A step takes an earlier step's result as `{ $step, path }`, a JSON Pointer into it ([plan-refs.js](../control/lib/mcp/plan-refs.js)), so a chain (mint → vary → measure → export) is written once.
-- **Variations**: `run_experiment_sweep({ ref, path, values })` copies a stored recipe once per value at a JSON Pointer and mints each copy through `create_sketch`'s gates into one new folder. The mechanics form (`research_ref`, `base`, `param`) binds SI-honest experiments into a research book with a plot.
+- **Variations**: `run_experiment_sweep({ ref, path, values })` copies a stored recipe once per value at a JSON Pointer and mints each copy through `create_sketch`'s gates into one new folder. The mechanics form (`base`, `param`, `values`) mints SI-honest runs and a plot of the outcome into one folder.
 - **Stash → cook**: `cook({ items, aim, report_md })` gathers intake-checked items into a new stash and publishes it in one call; `mint_stash` → `gather` → `cook({ slices })` is the path for material collected over many turns.
 - **The game rail**: `design_game` answers each stamp and the `next` step ids (meanings on the `gameworld-next` card); `readout:'changed'` returns only what moved, and a no-op writes nothing.
 - **Worker handoffs**: `render_handoff({ medium: 'image' | 'mesh', op })` is the durable request → pull → submit → accept | reject loop for an external generator. The ten per-op names (`request_image_render` … `reject_mesh_render`) stay registered for worker scripts, unlisted.
@@ -74,11 +74,11 @@ The control plane exposes an HTTP MCP server at `/api/mcp` with bearer auth. Pro
 
 Auth is local-user only. MCP calls are scoped to the single control-plane user: the MCP route ([app/api/mcp/route.js](../control/app/api/mcp/route.js)) mints the execution context's `userId` — `'local'` for the operator's key, or a delegate's id when the opt-in roles pack resolves an operator-issued key ([lib/roles/keys.js](../control/lib/roles/keys.js)). There is no multi-tenant identity model.
 
-## Plan and research modes
+## Plan mode and the retired research book
 
 Plan mode lives in [plan-mode.js](../control/lib/mcp/tools/plan-mode.js). Plans are rows in the `plans` table: proposed reality, not contextmap commits. `compile_plan` validates manifest tool calls against the live registry; `execute_plan` requires confirmation and invokes registered tools through the same handler path as remote MCP calls. When execution materializes artifacts, [plan-release.js](../control/lib/mcp/meta-context/plan-release.js) writes `plan_release` principles onto artifact histories and archives the plan.
 
-Research mode lives in [research-mode.js](../control/lib/mcp/tools/research-mode.js). It is an accretive book upstream of plans, storing research items and append-only abstracts; the `numerical-experiment-notebook` catalyst runs it as a lab notebook over `run_experiment_sweep`. `synthesize_abstract` can evaluate through the research-to-plan bridge in [evaluate.js](../control/lib/research/evaluate.js); a draft plan is forged only when the recommendation is `forge`. New gatherings should prefer the typed-intake stash path.
+The research book lives in [research-mode.js](../control/lib/mcp/tools/research-mode.js): an accretive book upstream of plans, storing research items and append-only abstracts. Its tools are retired (`RETIRED_PACKS` in `packs.js`): callable by name for books already made, never listed, and `/research` still shows the books. Gathering goes through the stash (`mint_stash`, `gather`, `cook`), and the `numerical-experiment-notebook` catalyst keeps its lab notebook in a stash over `run_experiment_sweep`, which is homed in `pack_plan`. The stash link tools (`bind_stash`, `unbind_stash`, `list_stash_bindings`) are retired the same way: nothing read a link.
 
 ## The retired office surface
 

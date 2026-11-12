@@ -155,7 +155,7 @@ export function registerWorkedExampleTools() {
   registerTool({
     name: 'get_worked_example',
     description:
-      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs made, dry-run vs promoted, machine gate vs eyes gate), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook), `exhibit` (a brief → a tour). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
+      "One annotated end-to-end trace of a successful build: the real call sequence with realistic args, the gates named where they happen (proposed vs made, machine gate vs eyes gate) and one refusal with its recovery, so the first 'no' you meet is a shape you know. `game` (a level refused, proved completable, re-minted), `media` (stash → gather → cook), `exhibit` (a brief → a tour); omit `paradigm` for the index. Pull BEFORE your first build of a kind. Refs and values are illustrative; the sequence, gate order and refusals are real. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {

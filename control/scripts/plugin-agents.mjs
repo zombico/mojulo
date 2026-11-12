@@ -40,9 +40,22 @@ export const AWAITING_RELEASE = Object.freeze({
   get_exhibit: 'measure_view',
 });
 
+// A tool the plugin's last release lists that has since left the list (retired or folded onto another door), with the
+// tier it had. The released server still lists it and the newer one still answers it by name, so the plugin's agents
+// keep it for the same reason as above. Emptied at the release that raises the version; then regenerate.
+export const LISTED_AT_RELEASE = Object.freeze({
+  // the research book and the stash links, retired
+  enter_research_mode: 'ride', list_research: 'ride', get_research: 'ride', sketch_research: 'ride',
+  start_research: 'fill', bind_research_item: 'fill', synthesize_abstract: 'design',
+  bind_stash: 'ride', unbind_stash: 'ride', list_stash_bindings: 'ride',
+  // reads folded onto the door they served
+  list_world_themes: 'ride', list_adapters: 'ride', custom_catalyst: 'ride',
+  list_plans: 'ride', list_stashes: 'ride', list_cooks: 'ride',
+});
+
 /** Plugin-visible tools of the given tiers, sorted, each by the name the plugin's released server lists. */
 export function toolsOf(tiers) {
-  return Object.entries(TOOL_TIERS)
+  return Object.entries({ ...TOOL_TIERS, ...LISTED_AT_RELEASE })
     .filter(([name, tier]) => tiers.includes(tier) && !hiddenInPluginProfile(name, PLUGIN_ENV))
     .map(([name]) => AWAITING_RELEASE[name] ?? name)
     .sort();

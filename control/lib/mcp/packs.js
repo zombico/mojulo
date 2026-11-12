@@ -108,7 +108,7 @@ export const PACKS = [
     title: 'Worlds (traversable)',
     description:
       "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'. A house is pack_building.",
-    members: ['compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    members: ['compose_world', 'get_view_vocab', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
     // The Claude plugin profile leaves out bind_mesh_render (lib/mcp/plugin-profile.js).
     profileEdits: [[', binding refined meshes back (bind_mesh_render),', ',']],
   },
@@ -260,36 +260,19 @@ export const PACKS = [
   {
     id: 'pack_plan',
     ring: 'workflows',
-    title: 'Plan mode (Ring 8)',
+    title: 'Plans & sweeps (Ring 8)',
     description:
-      "PLAN MODE — the speculative layer over sealed reality: enter plan mode, forge and revise plans, read and list them, compile a plan to a manifest of tool calls and execute it under per-execution operator approval, sketch a plan visual. Open for 'let's plan this out', 'turn this session into a plan', 'execute the plan'.",
-    body: 'Plans are the PROPOSED layer; contextmap is sealed reality. A plan compiles to a manifest of tool calls that executes through the exact same handler path as operator-typed calls. A step takes an earlier step\'s result as `{ $step: n, path: \'/ref\' }`, so a chain is written once.',
+      "PLANS & SWEEPS — the speculative layer over sealed reality: enter plan mode, forge and revise plans, read them, compile a plan to a manifest of tool calls and execute it under per-execution operator approval, sketch a plan visual; run_experiment_sweep makes variations of one thing in a call (visual takes on a design in words, one value swept, a mechanics experiment with its plot). Open for 'let's plan this out', 'turn this session into a plan', 'execute the plan', 'show me four takes on this', 'sweep the parameter and plot the outcome'.",
+    body: 'Plans are the PROPOSED layer; contextmap is sealed reality. A plan compiles to a manifest of tool calls that executes through the exact same handler path as operator-typed calls. A step takes an earlier step\'s result as `{ $step: n, path: \'/ref\' }`, so a chain is written once. A sweep is the one-call chain: a recipe copied per variant into one folder, the source never written.',
     members: [
       'enter_plan_mode',
       'forge_plan',
       'get_plan',
-      'list_plans',
       'revise_plan',
       'compile_plan',
       'execute_plan',
       'sketch_plan',
-    ],
-  },
-  {
-    id: 'pack_research',
-    ring: 'workflows',
-    title: 'Research mode (Ring 9)',
-    description:
-      "RESEARCH MODE — accretive gathering upstream of plans: enter research mode, start a research book, bind items into it, read and list books, synthesize an abstract (with deterministic review), run a parameter experiment sweep with auto-plotted outcomes, sketch the research. Open for 'research this', 'gather sources into a book', 'sweep the parameter and plot the outcome'.",
-    body: 'The exploratory drawer upstream of plans. A synthesized abstract can hand a distilled thesis to plan mode via the research→plan bridge; new gatherings should generally prefer the typed-intake stash path (pack_stash).',
-    members: [
-      'enter_research_mode',
-      'start_research',
-      'bind_research_item',
-      'get_research',
-      'list_research',
-      'synthesize_abstract',
-      'sketch_research',
+      // variations in one call (lib/mcp/tools/research-sweep.js); homed here since the research book retired
       'run_experiment_sweep',
     ],
   },
@@ -298,26 +281,21 @@ export const PACKS = [
     ring: 'workflows',
     title: 'Gather / stash / cook / publish',
     description:
-      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes and their drawers (gather, mint / get / list / rename a stash, mint_drawer, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications; sign_asset / verify_asset: a creator receipt for an exported file. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
+      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes and their drawers (gather, mint / get / list / rename a stash, mint_drawer, update / archive items), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications; sign_asset / verify_asset: a creator receipt for an exported file. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
     body: 'The typed-intake collection layer (seven item types, required-per-type metadata validated at the gate) and the multi-input collider on top of it. Cook files the report the AGENT authors — no server-side LLM call; outcomes land under data/outcomes/<cook_ref>/.',
     members: [
       'gather',
       'mint_stash',
       'mint_drawer',
       'get_stash',
-      'list_stashes',
       'rename_stash',
       'update_item',
       'archive_item',
-      'bind_stash',
-      'unbind_stash',
-      'list_stash_bindings',
       'sketch_stash',
       // recommend_kind ranks publication kinds for cook().
       'recommend_kind',
       'cook',
       'get_cook',
-      'list_cooks',
       'archive_cook',
       'forge_publications',
       // the creator's receipt for a published file (docs/asset-receipts.md)
@@ -337,9 +315,7 @@ export const PACKS = [
       'list_catalysts',
       'recommend_catalysts',
       'mint_catalyst',
-      'custom_catalyst',
       'get_adapter',
-      'list_adapters',
       'meta_context_declare_inventory',
       'record_mcp_capabilities',
       'get_mcp_capabilities',
@@ -436,7 +412,7 @@ export const RETIRED_PACKS = [
     wing: 'studio',
     title: 'Folded doors',
     description:
-      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`); a study view is create_exhibit's.",
+      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`); a study view is create_exhibit's; a world's themes are get_view_vocab's (`themes`).",
     body: 'Folded in 3.1.0 for one door per intent. Callable by name; each description names its door.',
     members: [
       'create_shoot_plan',
@@ -444,9 +420,82 @@ export const RETIRED_PACKS = [
       // the exhibit doors (1110): a study object is asked for by hall (create_exhibit), read back by get_exhibit({ ref })
       'create_view',
       'measure_view',
+      // a world's themes are a compose_world manual read (1111): get_view_vocab({ themes })
+      'list_world_themes',
+    ],
+  },
+  // The research book (start a book, bind broad items, synthesize an abstract) was the gathering layer before the stash.
+  // New gatherings go through pack_stash (mint_stash, gather, cook), which types every item at the gate and is the only
+  // path a cook reads; run_experiment_sweep is homed in pack_plan. The tools stay callable by name, so a book already
+  // made, a compiled plan or a key granted this pack keeps working, and /research still shows the books.
+  {
+    id: 'pack_research',
+    ring: 'retired',
+    retired: 'after 3.1.1',
+    title: 'Research book',
+    description:
+      "RESEARCH BOOK — the gathering layer before the stash: start a book, bind items into it, read and list books, synthesize an abstract. Retired: gather into a stash (mint_stash, gather) and cook it.",
+    body: 'Retired for the stash (pack_stash). Callable by name for books already made.',
+    members: [
+      'enter_research_mode',
+      'start_research',
+      'bind_research_item',
+      'get_research',
+      'list_research',
+      'synthesize_abstract',
+      'sketch_research',
+    ],
+  },
+  // A stash link tied a stash to a plan, a cook or another ref with a role. No build, cook or page ever read a link, so
+  // the three tools were bookkeeping an agent could spend calls on for nothing. Callable by name for links already made.
+  {
+    id: 'pack_stash_links',
+    ring: 'retired',
+    retired: 'after 3.1.1',
+    title: 'Stash links',
+    description:
+      "STASH LINKS — link a stash to a plan, a cook or another ref with a role, unlink it, list the links. Retired: nothing read a link; a cook names its stashes in its own `slices`.",
+    body: 'Retired: navigational rows nothing read. Callable by name for links already made.',
+    members: [
+      'bind_stash',
+      'unbind_stash',
+      'list_stash_bindings',
+    ],
+  },
+  // The workflows ring's folded doors (1111): a no-argument read that sat beside the tool it served is an argument on
+  // that tool now. The folded name still answers for a plan step, a script or a host that remembers it.
+  {
+    id: 'pack_folded_workflows',
+    ring: 'retired',
+    retired: 'after 3.1.1',
+    title: 'Folded workflow doors',
+    description:
+      "FOLDED WORKFLOW DOORS — reads that moved onto the tool they served: the adapters list is get_adapter's (`list`), the catalyst author's guide is mint_catalyst's (`guide`), the plan inbox is get_plan's (no `plan_ref`), the lists of stashes and cooks are get_stash's and get_cook's (no ref).",
+    body: 'Folded for one door per intent. Callable by name; each description names its door.',
+    members: [
+      'list_adapters',
+      'custom_catalyst',
+      'list_plans',
+      'list_stashes',
+      'list_cooks',
     ],
   },
 ];
+
+// The live pack a folded or retired tool came from. A delegate key is granted packs by id (lib/roles/enforce.js), so a
+// key granted the pack a tool used to be homed in still runs that tool by its old name: a fold moves a name off the
+// list, never out of a key's reach. (pack_research kept its id, so its grant needs no row here.)
+export const CAME_FROM = Object.freeze({
+  list_world_themes: 'pack_world',
+  list_adapters: 'pack_catalysts',
+  custom_catalyst: 'pack_catalysts',
+  bind_stash: 'pack_stash',
+  unbind_stash: 'pack_stash',
+  list_stash_bindings: 'pack_stash',
+  list_plans: 'pack_plan',
+  list_stashes: 'pack_stash',
+  list_cooks: 'pack_stash',
+});
 
 /** The office wing's packs, which left the surface in 3.1.0. */
 const OFFICE_PACK_IDS = ['pack_runtime', 'pack_connected_services'];
@@ -558,7 +607,7 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 //              and the rest of the pack works. Only an explicit MOJULO_PACKS override
 //              gates it off.
 //   recall   — the embedding runtime, below. No pack joins it.
-// The workflows ring (plan / research / stash / catalysts) and the retired office
+// The workflows ring (plan / stash / catalysts) and the retired office
 // packs declare no group and are therefore ALWAYS present.
 //
 // SOURCE OF TRUTH = physical presence per group — so an install self-describes

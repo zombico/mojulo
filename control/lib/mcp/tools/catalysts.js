@@ -206,6 +206,8 @@ export async function getCatalystHandler(input, ctx) {
 // the head, reviving an archived row; `archive: true` → off the shelf, out of
 // search, revisions kept. Curated ids are refused in both directions (D4).
 export async function mintCatalystHandler(input, _ctx) {
+  // `guide: true`: the author's guide, read before a mint (what custom_catalyst answered, folded onto this door)
+  if (input?.guide === true) return customCatalystHandler(input, _ctx);
   const { id, archive, note, body, ...meta } = input || {};
   if (!id || typeof id !== 'string') throw new Error('id is required (kebab-case slug)');
 
@@ -265,7 +267,7 @@ export async function mintCatalystHandler(input, _ctx) {
   };
 }
 
-// Returned by custom_catalyst. The audience here is the **opposite** of the
+// Returned by mint_catalyst({ guide: true }) (and custom_catalyst, its folded name). The audience here is the **opposite** of the
 // in-repo /write-catalyst skill's audience: this body is for a Claude Code
 // session connected to mojulo over MCP whose user wants to contribute a new
 // catalyst back to the library. They do not have the mojulo repo, the spec
@@ -548,7 +550,7 @@ export function registerCatalystTools() {
   registerTool({
     name: 'list_catalysts',
     description:
-      "List catalyst recipes — the curated shelf shipped with mojulo plus the operator's local shelf (minted via `mint_catalyst`, `origin: 'local'`). Two kinds: `workflow` (the default — run in the session, or materialized through a host adapter against a source + a destination MCP) and `technique` (binds a runtime substrate to an artifact; none ship since 3.1.0, a local one can still be minted). Returns id, name, summary, kind, category, origin, and requirements (notably the destination MCP category); a local entry flagged `eclipsed: true` lost its id to a newly shipped curated catalyst and needs a re-slug. Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound (workflows only).",
+      "List catalyst recipes — the curated shelf shipped with mojulo plus the operator's local shelf (minted via `mint_catalyst`, `origin: 'local'`). Two kinds: `workflow` (the default — run in the session, or materialized through a host adapter against a source + a destination MCP) and `technique` (binds a runtime substrate to an artifact; none ship since 3.1.0, a local one can still be minted). Returns id, name, summary, kind, category, origin, and requirements (notably the destination MCP category); a local entry flagged `eclipsed: true` lost its id to a newly shipped curated catalyst and needs a re-slug. Read the full body with `get_catalyst`; see `get_adapter` for how host-specific materialization is bound (workflows only).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -577,7 +579,7 @@ export function registerCatalystTools() {
         host: {
           type: 'string',
           description:
-            "Optional host adapter id (e.g. 'claude-code', 'codex', 'generic'). When omitted, the server resolves from clientInfo / falls back to 'generic'. Call list_adapters to see what's available.",
+            "Optional host adapter id (e.g. 'claude-code', 'codex', 'generic'). When omitted, the server resolves from clientInfo / falls back to 'generic'. `get_adapter({ list: true })` names them.",
         },
         rev: {
           type: 'number',
@@ -593,10 +595,11 @@ export function registerCatalystTools() {
   registerTool({
     name: 'mint_catalyst',
     description:
-      "Mint (or update / archive) a catalyst on the operator's LOCAL shelf — it persists in the control-plane DB and is immediately live in `list_catalysts` / `get_catalyst` / `recommend_catalysts` / `semantic_search`, exactly like a shipped catalyst. Read the author's guide via `custom_catalyst` FIRST — the posture-check and six-section body template apply; this tool enforces the structural spec (required fields, kind, destinationExamples pairing, non-empty body) but not prose quality. Upsert keyed on `id`: a new id mints rev 1; an existing local id appends a revision (`note` required — the revision's commit message) and revives it if archived; `archive: true` takes it off the shelf and out of search, keeping history. Curated ids are refused. The response's `fileText` is the exact `.md` for graduating the catalyst to the shipped library via PR.",
+      "Mint (or update / archive) a catalyst on the operator's LOCAL shelf — it persists in the control-plane DB and is immediately live in `list_catalysts` / `get_catalyst` / `recommend_catalysts` / `semantic_search`, exactly like a shipped catalyst. Read the author's guide (`guide: true`) FIRST — the posture-check and six-section body template apply; this tool enforces the structural spec (required fields, kind, destinationExamples pairing, non-empty body) but not prose quality. Upsert keyed on `id`: a new id mints rev 1; an existing local id appends a revision (`note` required — the revision's commit message) and revives it if archived; `archive: true` takes it off the shelf and out of search, keeping history. Curated ids are refused. The response's `fileText` is the exact `.md` for graduating the catalyst to the shipped library via PR.",
     inputSchema: {
       type: 'object',
       properties: {
+        guide: { type: 'boolean', description: "true: return the author's guide and write nothing. Read it before a first mint." },
         id: { type: 'string', description: 'Kebab-case slug, ≤ ~40 chars — same conventions as curated ids.' },
         name: { type: 'string', description: 'Human-readable title.' },
         summary: { type: 'string', description: 'One line, implementation-shaped (shown in list_catalysts).' },
@@ -607,7 +610,7 @@ export function registerCatalystTools() {
         body: {
           type: 'string',
           description:
-            'The markdown body — the catalyst\'s value. Follow the six-section template from custom_catalyst: opening, materialization, mapping intent, idempotency, pitfalls, behavior contract.',
+            'The markdown body — the catalyst\'s value. Follow the six-section template from the guide (`guide: true`): opening, materialization, mapping intent, idempotency, pitfalls, behavior contract.',
         },
         kind: {
           type: 'string',
@@ -636,7 +639,7 @@ export function registerCatalystTools() {
           description: 'Archive the local catalyst instead of writing. Revisions are kept; an update revives it.',
         },
       },
-      required: ['id'],
+      required: [],
     },
     handler: mintCatalystHandler,
   });
@@ -644,7 +647,7 @@ export function registerCatalystTools() {
   registerTool({
     name: 'custom_catalyst',
     description:
-      "Author's guide for drafting a NEW catalyst. Read this BEFORE calling `mint_catalyst` — the default endpoint is minting to the operator's LOCAL shelf (persists in the mojulo DB, immediately live in list/get/recommend/search); contributing to the shipped library via PR is the graduation path for catalysts that prove out. Use when the user wants to write/mint/propose a catalyst — NOT when they want to automate one thing for themselves (that's a local skill, synthesized from `get_catalyst` or directly from intent). Guide is self-contained: posture-check rules, context-gathering questions, field spec, six-section body template, validation checklist, mint + graduation hand-off. Anchor on existing exemplars via `list_catalysts` + `get_catalyst` before drafting.",
+      "Folded into mint_catalyst({ guide: true }): the author's guide for drafting a new catalyst. Callable by name.",
     inputSchema: { type: 'object', properties: {} },
     handler: customCatalystHandler,
   });

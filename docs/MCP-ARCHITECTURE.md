@@ -65,7 +65,7 @@ What the connecting agent sees is **the packs declared in `packs.js`, grouped by
    characters   pack_character                         │  games      pack_game
    solids       pack_object · pack_building            │  read       pack_exhibit · pack_illustration · pack_reference · pack_diagram
    worlds       pack_world                             │  audio      pack_audio · pack_voice
-   kernel       pack_motion (Observe)                  │  workflows  pack_plan · pack_research · pack_stash · pack_catalysts
+   kernel       pack_motion (Observe)                  │  workflows  pack_plan · pack_stash · pack_catalysts
                                                        │             · pack_image_render (the worker handoffs)
    ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
    retired (3.1.0): pack_runtime · pack_connected_services   — registered, never listed, never routed
@@ -101,7 +101,7 @@ Rings are the order tools register in, and the vocabulary much of the code and p
 | 6 | Deliberation about structure — the surfaces listed in §4; mostly retired from the surface in 3.1.0 (semantic recall, the inventory and capability reads stay listed) | see §4 |
 | 7 | Runtime: app lifecycle (retired from the surface in 3.1.0) + the agent-task queue (listed, `pack_catalysts`) | [runner.js](../control/lib/mcp/tools/runner.js), [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) |
 | 8 | Plan mode — proposed/speculative, compiles against the live registry | [plan-mode.js](../control/lib/mcp/tools/plan-mode.js) |
-| 9 | Research mode — accretive exploratory drawer upstream of plans | [research-mode.js](../control/lib/mcp/tools/research-mode.js) |
+| 9 | The research book — retired from the list, callable by name; the stash is the gathering path | [research-mode.js](../control/lib/mcp/tools/research-mode.js) |
 | 10 | **Creative mints — the whole studio.** Re-cut by FORM rather than listed flat: `get_creative_toolset` (no arg → the form map; `{ form }` → that form's tools) is the reader, and `get_tool_index` points at it instead of enumerating. | [creative-forms.js](../control/lib/mcp/creative-forms.js), [context.js](../control/lib/mcp/tools/context.js) |
 
 Ring number is a poor proxy for weight — Ring 10 carries most packs behind one folded reader, while Rings 1–4 are empty. **Ring 11** ("operations view") is deprecated; it survives only as internal naming in [ops-tags.js](../control/lib/db/repositories/ops-tags.js).
@@ -394,7 +394,7 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 | [control/lib/mcp/tools/plan-mode.js](../control/lib/mcp/tools/plan-mode.js) | Ring 8 — plan mode tools (`enter_plan_mode`, `forge_plan`, `compile_plan`, `execute_plan`, `list_plans`, `get_plan`) |
 | [control/lib/mcp/meta-context/plan-release.js](../control/lib/mcp/meta-context/plan-release.js) | One-way plan→contextmap bridge; writes `plan_release` principles and archives plans on materialization |
 | [control/app/plan/page.jsx](../control/app/plan/page.jsx) | Dashboard plan inbox (read-only; archived plans hidden behind toggle) |
-| [control/lib/mcp/tools/research-mode.js](../control/lib/mcp/tools/research-mode.js) | Ring 9 — research mode tools (`enter_research_mode`, `start_research`, `bind_research_item`, `synthesize_abstract`, `get_research`, `list_research`) |
+| [control/lib/mcp/tools/research-mode.js](../control/lib/mcp/tools/research-mode.js) | Ring 9 — the research book's tools (`enter_research_mode`, `start_research`, `bind_research_item`, `synthesize_abstract`, `get_research`, `list_research`), retired: registered and callable by name, never listed |
 | [control/lib/research/evaluate.js](../control/lib/research/evaluate.js) | Shared research→plan evaluator; also surfaced at `POST /api/plans/from-abstract` |
 
 ---
