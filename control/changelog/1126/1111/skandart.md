@@ -125,3 +125,11 @@ size it would be.
   it. A needled or a far tree lays none, nor a level in snow, nor a painted (gen-6) page. The level says what it laid
   (`leafPiles`: each pile's role, place and height); a page with none carries none of the code. A dozen piles add about
   a megabyte to a page, most of it the grid their edges need.
+- Open ground answers the debris question (`skandart` on a stage's trail or a geocube path, no snow): its rockfall
+  (`era/skandart-land.js trailSkandart`). What a cliff lets go comes to rest by its size, so cones of fallen rock lie
+  past its talus apron's toe, and the biggest blocks of each, rolled farthest, lie alone at the walk's edge on the cliff's
+  side, sunk where they stopped; every big stone beside the walk sheds a ring of spalls round its own foot. A new shelf
+  row, `talus-block` (a cliff's own rock, broken, no face squared). More falls the more is asked; nothing lies on the
+  walk, and the grass keeps off each heap and block. Read at the form render's frame (1080 lines) when it reads them, so
+  its spalls are made. The level says what it laid (`skandart`: its cones, runners and rings). A `condition` on open
+  ground is still refused, now saying why: a condition word is a room's or a cave's.

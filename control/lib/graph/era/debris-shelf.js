@@ -33,6 +33,8 @@ export const DEBRIS = Object.freeze({
   'glass-shard': Object.freeze({ words: ['glass', 'broken glass', 'shards', 'glass shard'], shape: 'plate', matter: 'glass', size: [0.04, 0.22], how: 'lies', thick: 0.006, sides: 3 }),
   spall: Object.freeze({ words: ['spall', 'chips', 'rubble', 'broken stone'], shape: 'chip', matter: 'stone', size: [0.05, 0.2], how: 'rolls' }),
   'fallen-block': Object.freeze({ words: ['fallen block', 'ashlar block', 'masonry', 'a stone from the wall'], shape: 'block', matter: 'stone', size: [0.32, 0.6], how: 'rolls', prop: [1, 0.55, 0.5] }),
+  // (a cliff's own rock let go, broken on the way down: chunky, no face squared)
+  'talus-block': Object.freeze({ words: ['talus block', 'fallen rock', 'rock from the cliff'], shape: 'block', matter: 'stone', size: [0.28, 0.7], how: 'rolls', prop: [1, 0.8, 0.62] }),
   'breakdown-slab': Object.freeze({ words: ['breakdown', 'slab', 'fallen slab', 'rockfall', 'ceiling slab'], shape: 'block', matter: 'stone', size: [0.45, 1.1], how: 'rolls', prop: [1, 0.7, 0.28] }),
   brick: Object.freeze({ words: ['brick', 'bricks', 'brickbat', 'half brick'], shape: 'block', matter: 'brick', size: [0.11, 0.23], how: 'rolls', prop: [1, 0.47, 0.3] }),
   'render-flake': Object.freeze({ words: ['plaster', 'render', 'flakes of plaster', 'fallen coat'], shape: 'plate', matter: 'render', size: [0.05, 0.26], how: 'lies', thick: 0.016, sides: 6 }),

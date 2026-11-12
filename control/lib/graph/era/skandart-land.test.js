@@ -1,7 +1,7 @@
 // A land's debris (era/skandart-land.js): the cavern answers the debris question with talus at its walls' feet and
 // breakdown standing free on its floor, each heap laid on the land under it. One cavern asked to be ruined holds the
 // concept: its heaps keep the heaps' laws, stand off the walk, follow the ground and join its rock; asked nothing, or
-// kept, it is the cavern it was; open ground asked for debris says it has none to give.
+// kept, it is the cavern it was; open ground asked for a condition says it has none (its debris is its own: skandart-trail).
 import { describe, it, expect } from 'vitest';
 import { CAVE_SKANDART } from './skandart-land.js';
 import { buildHeap } from './skandart.js';
@@ -34,7 +34,7 @@ describe('a cavern\'s debris', () => {
     expect(ruined.faces.some((f) => f.group === 'cave:debris')).toBe(false);
     // (asked for none, kept, nothing came down: the same cavern)
     expect(JSON.stringify(assembleStageScene(CAVE({ condition: 'kept' }), {}).faces)).toBe(JSON.stringify(plain.faces));
-    // (open ground has no debris question to answer, and says so)
-    expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, condition: 'ruined' }, {})).toThrow(/open ground answers no debris question/);
+    // (open ground has no condition word, and says so)
+    expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, condition: 'ruined' }, {})).toThrow(/open ground has no condition word/);
   }, 400_000);
 });

@@ -80,9 +80,11 @@ import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
 import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './cave.js';
-import { readSkandart } from './skandart.js';
+import { readSkandart, skandartRead } from './skandart.js';
+// (the lines the form render's frame is read at for what is too small to be read, a gen-7 page's: 1080)
+const FORM_LINES = 1080;
 import { readCondition } from './condition.js';
-import { caveSkandart } from './skandart-land.js';
+import { caveSkandart, trailSkandart } from './skandart-land.js';
 import { snowDrifts } from './skandart-snow.js';
 import { leafPiles } from './leaf-piles.js';
 import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, cavernSet, crackFaces, floorDress, wallRocks, CAVERN_EDGE } from './cavern.js';
@@ -463,13 +465,28 @@ function caveDebris(manifest, site, st, seed, rocks) {
   const sk = readSkandart(manifest), cond = manifest.skandart === undefined ? readCondition(manifest) : null;
   const amount = sk ? sk.amount : cond ? cond.dials.skandart : 0;
   if (!(amount > 0)) return null;
-  const L = caveSkandart(site, { amount, seed, rocks }), sc = st.tiles.rock.scale;
-  const uvOf = (p, n) => (Math.abs(n[2]) > 0.5 ? [p[0], p[1]] : Math.abs(n[0]) > Math.abs(n[1]) ? [p[1], p[2]] : [p[0], p[2]]).map((v) => r5(v / sc));
-  const boulders = L.heaps.filter((h) => h.faces.length).map((h) => {
+  const L = caveSkandart(site, { amount, seed, rocks });
+  return { boulders: heapBoulders(L, st, true), readout: { amount, ...(cond ? { condition: cond.id } : {}), heaps: L.heaps.length, laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
+}
+/** A land's heaps (era/skandart-land.js) as its boulders: each its faces in the rock, mapped three ways; a cave's no hat. */
+function heapBoulders(L, st, cave) {
+  const sc = st.tiles.rock.scale, uvOf = (p, n) => (Math.abs(n[2]) > 0.5 ? [p[0], p[1]] : Math.abs(n[0]) > Math.abs(n[1]) ? [p[1], p[2]] : [p[0], p[2]]).map((v) => r5(v / sc));
+  return L.heaps.filter((h) => h.faces.length).map((h) => {
     const sides = h.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, cel: 'rock', uv: f.corners.map((p) => uvOf(p, f.normal)), group: 'isekai:rock', size: 1 }));
-    return { it: { x: h.at[0], y: h.at[1], size: 1 }, sides, cap: [], rim: [], s: 1, cave: true, debris: true };
+    return cave ? { it: { x: h.at[0], y: h.at[1], size: 1 }, sides, cap: [], rim: [], s: 1, cave: true, debris: true } : { it: { x: h.at[0], y: h.at[1], size: 1, role: 'talus' }, sides, cap: [], rim: [], s: 0, debris: true };
   });
-  return { boulders, readout: { amount, ...(cond ? { condition: cond.id } : {}), heaps: L.heaps.length, laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
+}
+/**
+ * The TRAIL's rockfall on open ground (era/skandart-land.js trailSkandart), asked for by a recipe's `skandart` where no
+ * snow lies: its cliff's talus past the apron's toe and its big stones' spalls round their feet, each heap one of the
+ * land's boulders (walked over: no collider, `role: 'talus'`). Read at the form render's frame when it reads them.
+ */
+function trailDebris(manifest, site, st, seed, boulders, form) {
+  const sk = readSkandart(manifest), amount = sk ? sk.amount : 0;
+  if (!(amount > 0)) return null;
+  const L = trailSkandart(site, { amount, seed, rocks: rockObstacles(boulders, site), apronMin: st.landform?.apronMin ?? 0.5, ...(form ? { read: skandartRead(FORM_LINES) } : {}) });
+  const n = (p) => L.heaps.filter((h) => h.tpl.startsWith(p)).length;
+  return { boulders: heapBoulders(L, st, false), claims: L.claims, readout: { amount, heaps: L.heaps.length, talus: n('talus'), runners: n('runner'), rings: n('ring'), laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
 }
 
 /** What stands on the land in the wind's way: each boulder (no pebble, no talus, no drift) its middle, its reach (a
@@ -556,8 +573,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // (the CAVERN, era/cavern.js: its floor soil, no meadow; its pretend ceiling, a dome of the cliff's rock, down-facing)
   // (debris is a cavern's on open ground: the open land answers no debris question yet, and says so)
-  // (and on open ground the snow answers it, the wind's drifts: era/skandart-snow.js; a condition is a room's or a cave's)
-  if (!site.cavern && (manifest.condition !== undefined || (manifest.skandart !== undefined && !SN))) throw new Error(`stage: ${manifest.condition !== undefined ? 'condition' : 'skandart'}: open ground answers no debris question yet but its snow's drifts (snow, skandart); a cavern does (trail: { ground: { cavern: true } }), and the room kits`);
+  // (and on open ground its rockfall answers it, or under snow the wind's drifts: era/skandart-land.js, era/skandart-snow.js;
+  // a condition is a room's or a cave's)
+  if (!site.cavern && manifest.condition !== undefined) throw new Error('stage: condition: open ground has no condition word (a room\'s or a cave\'s); its debris is `skandart`: its cliff\'s rockfall and its stones\' spalls, or under snow its drifts');
   if (site.cavern) {
     // (its colour key, the colour theorist's from the world's palette and its register: its lamps, its shade, its
     // formations and its set painted in one key, era/cavern-key.js)
@@ -671,6 +689,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // drawn as its snow, era/skandart-snow.js)
   const SNK = SF && !site.cavern ? snowDebris(manifest, site, st, SN, SF, seed, boulders, trees, !!ctx.form) : null;
   if (SNK) boulders.push(...SNK.boulders);
+  // (and with no snow, the TRAIL's rockfall, when asked for: era/skandart-land.js trailSkandart)
+  const TRK = !SF && !site.cavern ? trailDebris(manifest, site, st, seed, boulders, !!ctx.form) : null;
+  if (TRK) boulders.push(...TRK.boulders);
   // (the FALL's leaf piles, read by the form render: era/leaf-piles.js; a bamboo or a blossom card's painted clumps none)
   const AU = B?.flora?.autumn ?? 0, LP = ctx.form && AU > 0 && !SN && !site.cavern && !bamboo && !sakura ? fallPiles(manifest, site, AU, trees, boulders, seed) : null;
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
@@ -1050,14 +1071,14 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
-    ...(ctx.form ? { plants: withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), LP?.claims) } : {}),
+    ...(ctx.form ? { plants: withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? [])]) } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
     // (a drift's ground all snow: the wind fills the hollows it opened in the cover first, era/skandart-snow.js)
     ...(ctx.form && SF ? { snowMap: snowMap(site, SNK ? (x, y, z, n) => (SNK.covers(x, y) ? Math.max(1, SF(x, y, z, n)) : SF(x, y, z, n)) : SF, SN, snowR) } : {}),
     // (and what its snow's drifts laid, when asked for: era/skandart-snow.js)
-    ...(SNK ? { skandart: SNK.readout } : {}),
+    ...(SNK ? { skandart: SNK.readout } : TRK ? { skandart: TRK.readout } : {}),
     // (and the fall's leaf piles, for the form's flora to draw in each tree's own leaves: era/leaf-piles.js)
     ...(LP ? { leafPiles: LP.readout, _leafPiles: LP.piles } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
