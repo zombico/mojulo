@@ -87,7 +87,10 @@ const ENV_BODY = `
     float eAlong = eP.y * eGw.x - eP.x * eGw.y;
     float eRun = fVN( vec2( eAlong * 1.3 + uFWet.y, eP.z * 0.1 ) ) * 0.65 + fVN( vec2( eAlong * 4.3 + 5.0, eP.z * 0.33 + 3.0 ) ) * 0.35;
     float eWallF = ( 1.0 - eUpF ) * ( 1.0 - smoothstep( 0.4, 0.6, abs( eGw.z ) ) ) * smoothstep( 0.38, 0.7, eRun ) * mix( 1.0, 0.5, smoothstep( 0.3, 4.0, eP.z ) );
-    float eAmt = uFWet.x * ( eVar * eUpF + eWallF * uFWetW );
+    // (while it RAINS nothing out of doors is dry: every face that is not a floor is wet all over, the runs only the
+    // heavier part of it)
+    float eSide = 1.0 - eUpF, eAll = uFWet.w * eSide * 0.62;
+    float eAmt = uFWet.x * max( eVar * eUpF + eWallF * uFWetW, eAll );
     // A SPOT (a leak, a spill, a hose: a wetness with a cause somewhere): wet at its heart, fading with distance and
     // never at a line; its edge wanders by the world's place. Where it is asked to, its heart stands as water
     float ePool = 0.0;
@@ -115,6 +118,8 @@ const ENV_BODY = `
     diffuseColor.rgb *= mix( 1.0, uFSurf.z > 0.0 ? uFSurf.z : 0.55, eDamp );
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.7, eFill );
     eR = mix( eR, min( eR, 0.34 ), eDamp ); eR = mix( eR, 0.06, eFill );
+    // (a face running with rain is a film of water: smooth, whatever it is made of)
+    eR = mix( eR, min( eR, 0.16 ), eAll * uFWet.x );
     eN = normalize( mix( eN, eG, eFill ) );
     // (while it rains, standing water is struck: a ring in every cell of it, each on its own beat, bending what it holds)
     if ( uFWet.w > 0.0 && ePool > 0.01 ) {

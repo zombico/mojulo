@@ -59,3 +59,5 @@
 - What a floodlight lays is not the sun's or the moon's to take: the hour's shadow leaves it standing.
 - Open, on a wet yard at night: a floodlight casts no shadow of its own; standing pools and rain rings are faint; the
   slab is plainer than a room's worked floor.
+- While it rains every face out of doors that is not a floor is wet all over (darkened and smooth as a film of water),
+  its runs only the heavier part.
