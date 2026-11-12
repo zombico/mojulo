@@ -169,3 +169,14 @@ size it would be.
   instead), and each breaks as what it is made of: sheet steel dents, and a new matter, moulded plastic (polycarbonate's
   numbers, a shell round air, softening and burning), cracks into plates. The room says which look it took
   (`skandart.vessels.look`).
+- Debris can be struck and gone. A level that lets things break (`destruction`, any degree) turns a room's debris heaps
+  into LOOSE things (`worlds/controllable/loose.js`, an opt-in builder emitted only where a world has them): each heap
+  its own faces in its own render group (its instance's turn and light baked in, so it looks as it did) and a
+  walk-through breakable. A loose thing is never a collider: the walker wades through it, sight and rounds pass over and
+  through it. A blow still finds it: a round strikes every loose thing its line crosses on the way to where it stopped,
+  a burst everything in its splash, a swing what is in its reach and in front; struck, it bursts into many small bits of
+  its own colour (`SKANDART_BURST`), which settle and sink away. It leaves the same break record a block does, so the
+  page hides it and plays it with the same break player. A page without loose things keeps every byte. A land's debris
+  is loose the same way (each named on its faces, `skl-`): a trail's cones, runners and rings, its trees' fallen
+  branches and limbs, its snow's drifts (a round through a drift bursts it white), a cave's heaps. The fall's leaf piles
+  are not yet: they lie only on a geocube's path page, which no played level is.

@@ -23,6 +23,7 @@ import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
+import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
 import { readPanels } from '@/lib/graph/rupa/panels.js';
@@ -1095,6 +1096,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
     // (a town's houses break as the settlement they were built from: its style's words, era/geocube.js settlementMatter)
     const townMatterOf = destruction === 'physical' ? geocubeTownMatterOf(sketch.manifest, payload) : null;
+    // (a room's debris heaps, era/skandart.js, as LOOSE things under any degree: each its own faces and a walk-through
+    // breakable, worlds/controllable/loose.js; struck, it is gone. No heaps, nothing changes)
+    const looseSk = destruction && destruction !== 'none' ? skandartLoose(payload.repeats || []) : null;
+    if (looseSk) { payload.faces = [...(payload.faces || []), ...looseSk.faces]; payload.repeats = looseSk.repeats; payload.loose = looseSk.loose; }
+    // (and a land's: a trail's rockfall, its trees' fallen wood, its drifts, a cave's heaps, each named on its faces)
+    const looseLand = destruction && destruction !== 'none' ? landLoose(payload.faces || []) : null;
+    if (looseLand) { payload.faces = looseLand.faces; payload.loose = [...(payload.loose || []), ...looseLand.loose]; }
     const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
     // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
     // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)
@@ -1113,6 +1121,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
       if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
     }
+    // (the loose things' pieces, pre-cut as a block's are, in their own colour: what the page scatters as one dissipates)
+    if (payload.loose) payload.breakPieces = { ...(payload.breakPieces || {}), ...piecesOf(payload.loose, payload.faces) };
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.

@@ -562,3 +562,53 @@ export function skandartRepeats(laid, { form = null, paintFills = null, grime = 
   }
   return out;
 }
+
+/** How a struck heap comes apart (playscape/destruct/cuts.js): many small bits scattered from the blow. */
+export const SKANDART_BURST = Object.freeze({ pattern: 'voronoi', count: 20, style: 'impact' });
+
+/**
+ * The room's heaps as LOOSE things (worlds/controllable/loose.js): under a game that lets things break, each stamped heap
+ * drawn as its own faces in its own render group (`break:<id>`, the instance's turn and its light baked into them, so it
+ * looks as it did) and handed to the runtime as a walk-through breakable, its box its faces' bounds. Struck, it is gone.
+ * `repeats` a payload's; the rest of them are kept. → { faces, loose, repeats } (no heaps: null)
+ */
+export function skandartLoose(repeats = []) {
+  const mine = repeats.filter((r) => typeof r.group === 'string' && r.group.startsWith('skandart:'));
+  if (!mine.length) return null;
+  const lin = (hex) => hexRgb(hex).map((v) => decodeSrgb(v)), hexOf = (c) => rgbHex(c.map((v) => encodeSrgb(Math.min(1, Math.max(0, v)))));
+  const faces = [], loose = [];
+  let n = 0;
+  for (const r of mine) for (const t of r.transforms) {
+    const id = `heap-${++n}`, c = Math.cos(t.rotZ || 0), s = Math.sin(t.rotZ || 0), k = Number.isFinite(t.scale) ? t.scale : 1, p0 = t.pos || [0, 0, 0];
+    const at = (p) => [r5(p0[0] + (p[0] * c - p[1] * s) * k), r5(p0[1] + (p[0] * s + p[1] * c) * k), r5(p0[2] + p[2] * k)];
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const f of r.template) {
+      const corners = f.corners.map(at), nrm = f.normal ? [r5(f.normal[0] * c - f.normal[1] * s) + 0, r5(f.normal[0] * s + f.normal[1] * c) + 0, f.normal[2]] : f.normal;
+      for (const q of corners) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], q[i]); hi[i] = Math.max(hi[i], q[i]); }
+      const fill = t.tint && f.fill ? hexOf(lin(f.fill).map((v, i) => v * t.tint[i])) : f.fill;
+      faces.push({ ...f, corners, normal: nrm, outNormal: nrm, fill, group: `break:${id}`, node: id });
+    }
+    // (struck, it bursts into many small bits, not a few slabs of its box: SKANDART_BURST)
+    loose.push({ id, min: lo.map(r5), max: hi.map(r5), cut: SKANDART_BURST });
+  }
+  return { faces, loose, repeats: repeats.filter((r) => !mine.includes(r)) };
+}
+
+/**
+ * A land's debris as LOOSE things (era/isekai.js names each on its faces, `skl-`: a trail's talus, rings and runners, a
+ * tree's fallen wood, a drift, a cave's heaps): under a game that lets things break, each its own render group and a
+ * walk-through breakable, its box its faces' bounds. → { faces, loose } (none named: null)
+ */
+export function landLoose(faces = []) {
+  const box = new Map();
+  for (const f of faces) {
+    if (typeof f.node !== 'string' || !f.node.startsWith('skl-')) continue;
+    const b = box.get(f.node) ?? box.set(f.node, { lo: [Infinity, Infinity, Infinity], hi: [-Infinity, -Infinity, -Infinity] }).get(f.node);
+    for (const q of f.corners) for (let i = 0; i < 3; i++) { b.lo[i] = Math.min(b.lo[i], q[i]); b.hi[i] = Math.max(b.hi[i], q[i]); }
+  }
+  if (!box.size) return null;
+  return {
+    faces: faces.map((f) => (typeof f.node === 'string' && box.has(f.node) ? { ...f, group: `break:${f.node}` } : f)),
+    loose: [...box].map(([id, b]) => ({ id, min: b.lo.map(r5), max: b.hi.map(r5), cut: SKANDART_BURST })),
+  };
+}

@@ -473,8 +473,10 @@ function caveDebris(manifest, site, st, seed, rocks) {
 /** A land's heaps (era/skandart-land.js) as its boulders: each its faces in the rock, mapped three ways; a cave's no hat. */
 function heapBoulders(L, st, cave) {
   const sc = st.tiles.rock.scale, uvOf = (p, n) => (Math.abs(n[2]) > 0.5 ? [p[0], p[1]] : Math.abs(n[0]) > Math.abs(n[1]) ? [p[1], p[2]] : [p[0], p[2]]).map((v) => r5(v / sc));
-  return L.heaps.filter((h) => h.faces.length).map((h) => {
-    const sides = h.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, cel: 'rock', uv: f.corners.map((p) => uvOf(p, f.normal)), group: 'isekai:rock', size: 1 }));
+  // (each heap named on its faces, `skl-`: a level that lets things break takes it as a loose thing, worlds/world-scene.js)
+  return L.heaps.filter((h) => h.faces.length).map((h, i) => {
+    const node = `skl-${cave ? 'cave' : 'rock'}-${i + 1}`;
+    const sides = h.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, cel: 'rock', uv: f.corners.map((p) => uvOf(p, f.normal)), group: 'isekai:rock', size: 1, node }));
     return cave ? { it: { x: h.at[0], y: h.at[1], size: 1 }, sides, cap: [], rim: [], s: 1, cave: true, debris: true } : { it: { x: h.at[0], y: h.at[1], size: 1, role: 'talus' }, sides, cap: [], rim: [], s: 0, debris: true };
   });
 }
@@ -522,7 +524,7 @@ function treeDeadfall(manifest, site, trees, boulders, seed, form) {
   const T = trees.map((t) => ({ x: t.x, y: t.y, crown: t.crownR ?? Math.max(1, (t.h ?? 6) * 0.35) }));
   const L = deadfall(site, { amount, trees: T, rocks: rockObstacles(boulders, site), seed, ...(form ? { read: skandartRead(FORM_LINES) } : {}) });
   if (!L.pieces.length) return null;
-  const out = L.pieces.map((p) => ({ it: { x: p.at[0], y: p.at[1], size: 0, role: 'talus' }, sides: p.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, group: 'isekai:deadwood', size: 0 })), cap: [], rim: [], s: 0, debris: true }));
+  const out = L.pieces.map((p, i) => ({ it: { x: p.at[0], y: p.at[1], size: 0, role: 'talus' }, sides: p.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, group: 'isekai:deadwood', size: 0, node: `skl-wood-${i + 1}` })), cap: [], rim: [], s: 0, debris: true }));
   return { boulders: out, claims: L.claims, readout: { branches: L.pieces.filter((p) => p.kind === 'branch').length, limbs: L.pieces.filter((p) => p.kind === 'limb').length, laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
 }
 
@@ -543,7 +545,7 @@ function snowDebris(manifest, site, st, SN, SF, seed, boulders, trees, form) {
   const trunks = trees.filter((t) => !t.hero || t.trunks).map((t) => ({ of: 'trunk', x: t.x, y: t.y, r: Math.max(0.15, t.trunks?.[0]?.radii?.[0] ?? 0.2), h: t.h ?? 3 }));
   const L = snowDrifts(site, { field: SF, snow: SN, amount, wind, obstacles: [...rocks, ...trunks], seed });
   const group = form ? 'isekai:ground' : 'isekai:snow';
-  const out = L.drifts.map((d) => ({ it: { x: d.at[0], y: d.at[1], size: 0, role: 'drift' }, sides: d.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, group, size: 0 })), cap: [], rim: [], s: 0, drift: true }));
+  const out = L.drifts.map((d, i) => ({ it: { x: d.at[0], y: d.at[1], size: 0, role: 'drift' }, sides: d.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, group, size: 0, node: `skl-drift-${i + 1}` })), cap: [], rim: [], s: 0, drift: true }));
   return { boulders: out, covers: L.covers, readout: { amount, wind, drifts: L.drifts.map(({ of, at, H, L: l }) => ({ of, at, H, L: l })), laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
 }
 
