@@ -31,3 +31,7 @@
   whether it flows; its colour, clearness and film beside (`LIQUID_OPTICS`, a row a liquid, held to the matter table's
   own list). A room's samples take any of the table's liquids and draw them from it. `gasoline` and `crude` join the
   matter table.
+- Footfalls in a liquid (visual cues, no solve). A step that comes down inside a pool's outline rings it: the rings
+  bend what the pool holds and die as its liquid lets them (`liquidLook().ripple`: water rings, honey barely, mud not
+  at all). The steps after it, past the pool's edge, are wet: a dark print each, fainter step by step, drying away
+  (`print`, the liquid's own count). A step is a piloted figure's gait or the walk's own stride.

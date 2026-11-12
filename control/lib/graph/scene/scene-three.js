@@ -330,7 +330,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a group's (or a repeat's) class in the crease mask: angular if any face is, else land if any face is, else none
   const creaseOf = (fs) => (fs.some((f) => f && !f.organic) ? true : fs.some((f) => f && f.organic === 'land') ? 'land' : null);
   // (the live light's hour pass goes first: it arms the static map for the next render, whichever that is)
-  const prePass = (liveShadows ? '__mojHourPass(); ' : '') + (form && form.room && form.room.reflect && form.room.reflect.probe ? '__mojForm.capture(); ' : '') + (creasesCfg || occlusionCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
+  const prePass = (liveShadows ? '__mojHourPass(); ' : '') + (form && form.room && form.room.reflect && form.room.reflect.probe ? '__mojForm.capture(); ' : '') + (form && form.room && form.room.reflect && form.room.reflect.pools && form.room.reflect.pools.length ? '__mojForm.feet(); ' : '') + (creasesCfg || occlusionCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
   // effects[] — additional stacked overlay layers beside fog. Each gets its own fullscreen quad,
   // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
   // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.

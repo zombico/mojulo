@@ -42,7 +42,7 @@ import { safeJson } from '../emit-util.js';
 // recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
 // that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
 // sheens on damp ground. Only a page that carries `reflect` carries this code.
-const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec2 uFWet;\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec2 uFWet;\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
   + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
   + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
 const ENV_BODY = `
@@ -70,6 +70,21 @@ const ENV_BODY = `
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.55, ePud );
     eR = mix( eR, 0.4, eDamp ); eR = mix( eR, 0.2, eSoak ); eR = mix( eR, 0.05, ePud );
     eN = normalize( mix( eN, eG, max( ePud, eSoak * 0.6 ) ) );
+  }
+#endif
+#ifdef FORM_POOL
+  {
+    // (a footfall's rings: each a band running out from where the foot came down, dying as its liquid lets it; it
+    // bends the face's normal along its way, so what the pool holds shivers and settles)
+    vec3 eW = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz; vec2 eTilt = vec2( 0.0 );
+    for ( int i = 0; i < 8; i++ ) {
+      float eAge = uFTime - uFRip[ i ].z; if ( eAge < 0.0 || eAge > 6.0 || uFRip[ i ].w <= 0.0 ) continue;
+      vec2 eD = eW.xy - uFRip[ i ].xy; float eL = length( eD ) + 1e-4, eRr = 0.08 + 0.5 * eAge;
+      float eBand = exp( - pow( ( eL - eRr ) / 0.09, 2.0 ) ) + 0.6 * exp( - pow( ( eL - eRr * 0.62 ) / 0.07, 2.0 ) );
+      eTilt += eD / eL * eBand * sin( ( eL - eRr ) * 46.0 ) * uFRip[ i ].w * exp( - eAge * 1.3 ) * 0.22;
+    }
+    vec3 eNw = normalize( inverseTransformDirection( eN, viewMatrix ) + vec3( eTilt, 0.0 ) );
+    eN = normalize( ( viewMatrix * vec4( eNw, 0.0 ) ).xyz );
   }
 #endif
   vec3 eRw = inverseTransformDirection( reflect( - eV, eN ), viewMatrix );
@@ -137,6 +152,9 @@ const __mojForm = (function () {
   const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);
   // (the room's capture: a cube of the room as it stands lit, taken from the probe a few frames in, once the hour's
   // map is drawn; half-float, with its mips for the blur. Until it is taken it is black, and the gradient stands)
+  // (its pools: a footfall in one rings it, and past its edge leaves wet steps that dry; below)
+  const POOLS = F.reflect.pools || [], POOLG = new Set(POOLS.map((p) => p.group));
+  Object.assign(U, { uFRip: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, -1e3, 0)) }, uFTime: { value: 0 } });
   const PR = F.reflect.probe || null;
   const cubeRT = PR ? new THREE.WebGLCubeRenderTarget(F.reflect.size || 256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter }) : null;
   const cubeCam = PR ? new THREE.CubeCamera(0.1, 400, cubeRT) : null;
@@ -206,10 +224,10 @@ for ( int i = 0; i < ${NB}; i++ ) {
 }
 fDirect += fBeat * diffuseColor.rgb;
 ` : ''}\`${cfg.reflect ? ` + ${safeJson(ENV_BODY)}.split('__K__').join(String(K))` : ''};
-  const lit = (params, M${cfg.reflect ? ', S, wet' : ''}) => {
+  const lit = (params, M${cfg.reflect ? ', S, wet, o_g' : ''}) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {})' : ''} };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {}), ...(S && POOLG.has(o_g) ? { FORM_POOL: 1 } : {})' : ''} };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector4(S ? S.rough : 1, S ? S.metal || 0 : 0, S ? S.clear || 0 : 0, S ? S.film || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
@@ -217,7 +235,7 @@ fDirect += fBeat * diffuseColor.rgb;
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '')" : ''};${cfg.sun ? `
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '') + (S && POOLG.has(o_g) ? 'p' : '')" : ''};${cfg.sun ? `
     // (lit by the day: toned with the land, channels/form-land.js leaves it so)
     mat.userData.cast = true;` : ''}
     return mat;
@@ -242,7 +260,7 @@ ${cfg.sun ? `
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
-      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g)' : ''});
+      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''});
     if (M && M.normal) made.material++; else made.colour++;
     if (M && M.depth > 0 && F.pom.steps > 0) made.pom++;
   });
@@ -311,7 +329,42 @@ ${NB ? `    // the beats: each key swung in time (an alarm's sweep, a pulse's br
     });
 ` : ''}    probe.first = true;
   };
-${cfg.reflect && cfg.reflect.probe ? `  // the capture, taken before a frame is drawn (the page calls it: scene/scene-three.js), a few frames in
+${cfg.reflect && cfg.reflect.pools && cfg.reflect.pools.length ? `  // FOOTFALLS IN A LIQUID (visual cues, no solve): a step that comes down inside a pool's outline rings it (the rings bend
+  // what it holds, as its liquid answers: rupa/liquid-look.js); the steps after it, past the pool's edge, are WET: a dark
+  // print each, fainter step by step, drying away. A step is a gait's half crossing (a piloted figure) or a stride of the
+  // walk's own travel. \`probe.step(x, y, dx, dy, z)\` lays one by hand
+  const inPool = (p, x, y) => { const dx = (x - p.at[0]) / 1.5, dy = y - p.at[1], a = Math.atan2(dy, dx), r = p.r * (0.9 + 0.1 * Math.sin(a * 2 + p.ph[0]) + 0.06 * Math.sin(a * 3 + p.ph[1]) + 0.03 * Math.sin(a * 5 + p.ph[2])); return Math.hypot(dx, dy) < r; };
+  const NP = 40, pg = new THREE.PlaneGeometry(1, 1), pInfo = new THREE.InstancedBufferAttribute(new Float32Array(NP * 4).fill(-1e3), 4), pTint = new THREE.InstancedBufferAttribute(new Float32Array(NP * 3), 3);
+  pg.setAttribute('aInfo', pInfo); pg.setAttribute('aTint', pTint);
+  const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, toneMapped: false, uniforms: { uT: U.uFTime },
+    vertexShader: 'attribute vec4 aInfo;\\nattribute vec3 aTint;\\nvarying vec2 vQ;\\nvarying vec4 vI;\\nvarying vec3 vT;\\n#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvoid main() { vQ = uv * 2.0 - 1.0; vI = aInfo; vT = aTint; vec4 mv = modelViewMatrix * instanceMatrix * vec4( position, 1.0 ); gl_Position = projectionMatrix * mv;\\n#include <logdepthbuf_vertex>\\n}',
+    fragmentShader: 'uniform float uT;\\nvarying vec2 vQ;\\nvarying vec4 vI;\\nvarying vec3 vT;\\n#include <common>\\n#include <logdepthbuf_pars_fragment>\\nvoid main() {\\n#include <logdepthbuf_fragment>\\n  float age = uT - vI.x; if ( age < 0.0 || age > vI.z ) discard;\\n  float m = 1.0 - smoothstep( 0.55, 1.0, length( vQ * vec2( 1.0, 0.82 ) ) );\\n  float heel = 1.0 - smoothstep( 0.3, 0.5, length( ( vQ - vec2( 0.0, -0.62 ) ) * vec2( 1.3, 2.4 ) ) );\\n  gl_FragColor = vec4( vT, max( m, heel ) * vI.y * ( 1.0 - age / vI.z ) * 0.62 );\\n}' });
+  const prints = new THREE.InstancedMesh(pg, pm, NP); prints.frustumCulled = false; prints.renderOrder = 3; scene.add(prints);
+  const pM = new THREE.Matrix4(), pQ = new THREE.Quaternion(), pS = new THREE.Vector3(0.12, 0.3, 1), pP = new THREE.Vector3(), pZ = new THREE.Vector3(0, 0, 1);
+  let ripI = 0, prI = 0, wet = 0, wetOf = null, side = 1;
+  probe.step = (x, y, dx, dy, z) => {
+    const now = U.uFTime.value, p = POOLS.find((q) => inPool(q, x, y));
+    if (p) { U.uFRip.value[ripI++ % 8].set(x, y, now, p.ripple.amp); wet = p.print; wetOf = p; probe.rings = (probe.rings || 0) + 1; return; }
+    if (wet <= 0 || !wetOf) return;
+    const l = Math.hypot(dx, dy) || 1, k = prI++ % NP; side = -side;
+    pQ.setFromAxisAngle(pZ, Math.atan2(dy, dx) - Math.PI / 2);
+    pM.compose(pP.set(x - (dy / l) * 0.09 * side, y + (dx / l) * 0.09 * side, (z || 0) + 0.004), pQ, pS); prints.setMatrixAt(k, pM); prints.instanceMatrix.needsUpdate = true;
+    pInfo.setXYZW(k, now, wet / wetOf.print, 14 + 10 * (wet / wetOf.print), 0); pInfo.needsUpdate = true;
+    pTint.setXYZ(k, wetOf.tint[0] * 0.5, wetOf.tint[1] * 0.5, wetOf.tint[2] * 0.5); pTint.needsUpdate = true;
+    wet--; probe.prints = (probe.prints || 0) + 1;
+  };
+  const gaitLast = {}; let travel = 0, px = null, py = null;
+  probe.feet = () => {
+    U.uFTime.value = window.__mojClock != null && window.__mojClock > 0 ? window.__mojClock : performance.now() / 1000;
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world;
+    if (ctrl) for (const e of ctrl.entities) { if (ctrl.pilotId && e.id !== ctrl.pilotId) continue;
+      const ix = Math.floor((e.gaitPhase || 0) * 2), was = gaitLast[e.id];
+      if (was !== undefined && ix !== was && e.moving && e.grounded !== false) { const t = e.transform || e, q = t.pos || [e.x || 0, e.y || 0, e.z || 0], h = t.heading || 0; probe.step(q[0], q[1], Math.cos(h), Math.sin(h), 0); }
+      gaitLast[e.id] = ix; }
+    if (typeof walkOn !== 'undefined' && walkOn) { if (px !== null) { const dx = camera.position.x - px, dy = camera.position.y - py; travel += Math.hypot(dx, dy); if (travel > 0.72) { travel = 0; probe.step(camera.position.x, camera.position.y, dx, dy, 0); } }
+      px = camera.position.x; py = camera.position.y; } else { px = null; py = null; }
+  };
+` : ''}${cfg.reflect && cfg.reflect.probe ? `  // the capture, taken before a frame is drawn (the page calls it: scene/scene-three.js), a few frames in
   let capN = 0;
   probe.capture = () => {
     if (probe.captured || !probe.first || ++capN < 3) return;

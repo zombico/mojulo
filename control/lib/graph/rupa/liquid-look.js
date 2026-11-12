@@ -16,7 +16,10 @@
  *   film    a thin film's colours on its face, 0 to 1 (a fuel's sheen)
  *   glow    what it gives off itself (lava)
  *
- *   liquidLook(id) → { id, tint, rough, thick, clear?, film?, glow? }
+ *   ripple  how it answers a footfall: { amp, speed, decay } (water rings, honey barely, mud not at all)
+ *   print   how many wet steps it leaves past its edge
+ *
+ *   liquidLook(id) → { id, tint, rough, thick, ripple, print, clear?, film?, glow? }
  *   LIQUID_OPTICS, LOOK
  *
  * Pure. The form render reads it (era/stage.js samples → scene/channels/form.js `reflect.surfaces`).
@@ -46,5 +49,9 @@ export function liquidLook(id) {
   const puddle = 2 * Math.sqrt((m.tension ?? 0.05) / (m.density * G)), stand = (LOOK.hold * (m.yield || 0)) / (m.density * G);
   const thick = Math.min(LOOK.most, Math.max(LOOK.least, (puddle + stand) * LOOK.read));
   const rough = m.yield > 0 ? 0.45 : Math.min(0.08, 0.03 + 0.006 * Math.max(0, Math.log10(m.viscosity / 1e-3)));
-  return { id: m.id, tint: O.tint, rough: r4(rough), thick: r4(thick), ...(O.clear !== undefined ? { clear: O.clear } : {}), ...(O.film ? { film: O.film } : {}), ...(O.glow ? { glow: O.glow } : {}) };
+  // (how it answers a footfall: a thin liquid rings wide and long, a thick one barely and briefly, one that holds a
+  // yield stress not at all; `print` how many wet steps it leaves on the floor past its edge)
+  const v = Math.sqrt(m.viscosity), ripple = m.yield > 0 ? { amp: 0, speed: 0.5, decay: 9 } : { amp: r4(1 / (1 + 4 * v)), speed: 0.5, decay: r4(1.2 + 6 * v) };
+  const print = m.yield > 0 ? 9 : Math.round(4 + 4 * Math.min(1, v * 2));
+  return { id: m.id, tint: O.tint, rough: r4(rough), thick: r4(thick), ripple, print, ...(O.clear !== undefined ? { clear: O.clear } : {}), ...(O.film ? { film: O.film } : {}), ...(O.glow ? { glow: O.glow } : {}) };
 }
