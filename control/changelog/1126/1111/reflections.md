@@ -111,3 +111,5 @@
   lays its patch on the floor and the far wall, what stands outside it its shadow in the patch; the lamps stand lower
   by day beside it; the painted patches at the windows give way to the real ones. A face turned from the sun takes
   none of its cast (a tree outside drew its shadow on the inner face of the wall it stood behind).
+- What lies loose in a wet room is wet with it: the debris's heaps and the vessels join the room's wet surfaces, each
+  by its own group, in the form render (its instanced repeats take a surface as its faces do).

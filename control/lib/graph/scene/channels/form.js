@@ -379,7 +379,7 @@ ${cfg.sun || cfg.instanced ? `
     // (a street's repeated pieces, baked a template: the tiles of one repeat share one material, so they share its form)
     if (o.isInstancedMesh && !Array.isArray(b) && b.isMeshBasicMaterial && typeof o.userData.g === 'string' && !keep.has(o.userData.g) && o.geometry.getAttribute('aLit')) {
       let m = shared.get(b);
-      if (!m) { m = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest }, null); shared.set(b, m); made.colour++; }
+      if (!m) { m = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest }, null${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''}); shared.set(b, m); made.colour++; }
       o.material = m; return;
     }` : ''}
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
