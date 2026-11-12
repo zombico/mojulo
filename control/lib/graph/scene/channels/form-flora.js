@@ -44,6 +44,65 @@ export const LITTER = Object.freeze({ reach: 0.85, most: 4.5, cell: 0.26, size: 
   fall: Object.freeze({ reach: 0.75, most: 3, thick: 0.25, brown: 0.3 }) });
 const LITTER_SHAPES = Object.freeze(['ovate', 'lobed', 'broad', 'lance', 'needle']);
 /**
+ * THE FALL's LEAF PILES (era/leaf-piles.js, `FL.piles`): each a body of its tree's leaves heaped by the wind, drawn as the
+ * litter's leaves are (its tree's outline, its own turned colour, cells in layers a parallax apart, the same tones) but
+ * whole: every cell a leaf at `PILE.thick`, and between them not the ground but the pile's deep, its rotting mould
+ * (`deep` × the darkest tone); where its leaves are under the litter's least pixels it is drawn as their mean, so far off
+ * a pile is a shape in its colour, never dots. Shaded smooth (its welded corners), lit, casting its little shadow.
+ * Only on a level whose fall laid piles: a page without them carries none of it.
+ */
+export const PILE = Object.freeze({ thick: 0.95, deep: 0.55 });
+function pileScript() {
+  const LT = LITTER, tone = () => `tn < ( 0.45 - ${LT.fall.brown.toFixed(2)} * AU ) ? vec3(${LT.tones[0].join(', ')}) : tn < ( 0.8 - 0.4 * AU ) ? vec3(${LT.tones[1].join(', ')}) : vGreen * ( 0.9 + 0.3 * ltH( key + 4.4 ) )`;
+  return `
+    // the fall's LEAF PILES (era/leaf-piles.js): each its tree's leaves heaped by the wind, whole, its deep between them
+    (function () {
+      const LT = ${safeJson(LITTER)}, SH = ${safeJson(LITTER_SHAPES)}, PL = ${safeJson(PILE)}, V = f32(FL.piles.verts), I = f32(FL.piles.idx), AU = FL.autumn || 0;
+      const pos = [], tree = [], col = [];
+      for (let v = 0; v < V.length; v += 4) {
+        const b = V[v + 3] * STRIDE, t = FL.templates[P[b + 11]];
+        pos.push(V[v], V[v + 1], V[v + 2]); tree.push(Math.max(0, SH.indexOf(t.litter)), (V[v + 3] * 37) % 97); col.push(P[b + 5], P[b + 6], P[b + 7]);
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aTree', new THREE.Float32BufferAttribute(tree, 2));
+      g.setAttribute('aGreen', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(Array.from(I)); g.computeVertexNormals();
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
+      m.onBeforeCompile = (sh) => {
+        sh.vertexShader = 'attribute vec2 aTree;\nattribute vec3 aGreen;\nvarying vec2 vTree;\nvarying vec3 vGreen;\nvarying vec3 vWp;\n' + sh.vertexShader
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vTree = aTree; vGreen = aGreen; vWp = ( modelMatrix * vec4( position, 1.0 ) ).xyz;');
+        const shapes = SH.map((n, k) => '    if ( s == ' + k + ' ) w = ' + ({ ovate: '0.42 * sqrt( max( 0.0, 1.0 - x * x ) ) * ( 1.05 - 0.35 * x )', lobed: '0.52 * sqrt( max( 0.0, 1.0 - x * x ) ) * ( 0.72 + 0.28 * cos( x * 9.4 ) )', broad: '0.62 * sqrt( max( 0.0, 1.0 - x * x ) )', lance: '0.2 * sqrt( max( 0.0, 1.0 - x * x ) )', needle: '0.05' })[n] + ';').join('\n');
+        sh.fragmentShader = 'varying vec2 vTree;\nvarying vec3 vGreen;\nvarying vec3 vWp;\nuniform float AU;\n'
+          + 'float ltH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
+          + 'float ltW( int s, float x ) { float w = 0.0;\n' + shapes + '\n  return w; }\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', [
+            '#include <color_fragment>',
+            '  vec3 eyeL = normalize( cameraPosition - vWp ); vec2 par = eyeL.xy / max( eyeL.z, 0.3 );',
+            '  int sL = int( vTree.x + 0.5 ); float sd = floor( vTree.y + 0.5 );',
+            '  vec2 fw = fwidth( vWp.xy ); float pxL = ' + LT.cell.toFixed(3) + ' * 0.7 / max( 1e-5, max( fw.x, fw.y ) ), seen = smoothstep( ' + LT.px[0].toFixed(1) + ', ' + LT.px[1].toFixed(1) + ', pxL );',
+            // (the pile's mean: its tones in their shares, a little darker for the shade among them)
+            '  vec3 mean = ( vec3(' + LT.tones[0].join(', ') + ') * ( 0.45 - ' + LT.fall.brown.toFixed(2) + ' * AU ) + vec3(' + LT.tones[1].join(', ') + ') * ( 0.35 + ' + LT.fall.brown.toFixed(2) + ' * AU - 0.4 * AU ) + vGreen * ( 0.2 + 0.4 * AU ) ) * 0.85;',
+            '  vec3 got = vec3(' + LT.tones[0].join(', ') + ') * PILE_DEEP;',
+            '  for ( int k = 0; k < ' + LT.layers + '; k++ ) {',
+            '    vec2 p = vWp.xy + par * float( k ) * ' + LT.depth.toFixed(3) + ' + vec2( float( k ) * 0.37, float( k ) * 0.61 );',
+            '    vec2 c = floor( p / ' + LT.cell.toFixed(3) + ' ), f = p / ' + LT.cell.toFixed(3) + ' - c - 0.5; vec2 key = c + vec2( sd * 13.0, float( k ) * 57.0 );',
+            '    if ( ltH( key ) > PILE_THICK ) continue;',
+            '    float a = ltH( key + 3.1 ) * 6.2832, sz = mix( ' + LT.size[0].toFixed(2) + ', ' + LT.size[1].toFixed(2) + ', ltH( key + 7.7 ) ) * 0.5;',
+            '    vec2 o = ( vec2( ltH( key + 1.3 ), ltH( key + 5.9 ) ) - 0.5 ) * ( 0.5 - sz ) * 2.0, q = f - o; q = mat2( cos( a ), sin( a ), -sin( a ), cos( a ) ) * q / sz;',
+            '    if ( abs( q.x ) > 1.0 || abs( q.y ) > ltW( sL, q.x ) ) continue;',
+            '    float tn = ltH( key + 9.3 );',
+            '    vec3 tone = ${tone()};',
+            '    got = tone * ( 0.75 + 0.5 * ltH( key + 2.2 ) ) * ( 1.0 - 0.22 * float( k ) ) * ( sL == 4 ? 1.0 : 1.0 - 0.3 * ( 1.0 - smoothstep( 0.0, 0.1, abs( q.y ) ) ) );',
+            '    break;',
+            '  }',
+            '  diffuseColor.rgb = mix( mean, got, seen );'].join('\n'))
+          .replace('uniform float AU;', 'const float AU = ' + AU.toFixed(3) + ';\nconst float PILE_THICK = ' + PL.thick.toFixed(3) + ';\nconst float PILE_DEEP = ' + PL.deep.toFixed(3) + ';');
+      };
+      m.customProgramCacheKey = () => 'form-leaf-piles';
+      const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; mesh.castShadow = true; scene.add(mesh);
+      window.__formLeafPiles = I.length / 3;
+    })();
+`;
+}
+/**
  * A needled crown's NEEDLES, drawn in its sleeves (form/tree-form.js SLEEVE): a pixel of a sleeve marches into it along the
  * eye's ray (`steps` samples across two of its radii), its depth there the true one, from the run's axis, so a ray
  * grazing the sleeve's edge stays in its outer bristle and leaves it spiky; the needles are strands out from the axis on a
@@ -540,7 +599,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
       window.__formLitter = idx.length / 3;
     })();
-    window.__formFlora = () => ({ ...stat, soft: soft.length, shaking: soft.filter((i) => shake[i] > 0).length });
+${flora && flora.piles ? pileScript() : ''}    window.__formFlora = () => ({ ...stat, soft: soft.length, shaking: soft.filter((i) => shake[i] > 0).length });
   }
 `;
 }

@@ -84,6 +84,7 @@ import { readSkandart } from './skandart.js';
 import { readCondition } from './condition.js';
 import { caveSkandart } from './skandart-land.js';
 import { snowDrifts } from './skandart-snow.js';
+import { leafPiles } from './leaf-piles.js';
 import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, cavernSet, crackFaces, floorDress, wallRocks, CAVERN_EDGE } from './cavern.js';
 import { cavernKey, keyReadout } from './cavern-key.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
@@ -471,6 +472,27 @@ function caveDebris(manifest, site, st, seed, rocks) {
   return { boulders, readout: { amount, ...(cond ? { condition: cond.id } : {}), heaps: L.heaps.length, laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
 }
 
+/** What stands on the land in the wind's way: each boulder (no pebble, no talus, no drift) its middle, its reach (a
+ *  little inside its widest) and its height over the ground. */
+const rockObstacles = (boulders, site) => boulders.filter((b) => b.it && b.sides?.length && b.it.role !== 'pebble' && b.it.role !== 'talus' && b.it.role !== 'drift').map((b) => {
+  const cs = [...b.sides, ...(b.cap ?? [])].flatMap((f) => f.corners), top = Math.max(...cs.map((c) => c[2])), r = Math.max(...cs.map((c) => Math.hypot(c[0] - b.it.x, c[1] - b.it.y)));
+  return { of: 'rock', x: b.it.x, y: b.it.y, r: r * 0.85, h: top - site.ground(b.it.x, b.it.y) };
+});
+const windDir = (manifest) => (manifest.wind && typeof manifest.wind === 'object' && Number.isFinite(manifest.wind.dir) ? manifest.wind.dir : TERRAIN_WIND_DEFAULTS.dir);
+
+/**
+ * The FALL's leaf piles (era/leaf-piles.js): a biocube's `flora.autumn` read by the form render (ctx.form), each tree's
+ * leaves heaped by the wind against its trunk, against the rock downwind and loose past its crown. Handed to the page as
+ * data (`_leafPiles`, each pile its tree's foot and its faces) for the form's flora to draw in that tree's own leaves
+ * (worlds/world-scene.js packs them beside the trees, channels/form-flora.js); the readout says what was laid.
+ */
+function fallPiles(manifest, site, autumn, trees, boulders, seed) {
+  const T = trees.map((t) => ({ x: t.x, y: t.y, r: Math.max(0.15, t.trunks?.[0]?.radii?.[0] ?? 0.22), crown: t.crownR ?? Math.max(1, (t.h ?? 6) * 0.35) }));
+  const L = leafPiles(site, { autumn, wind: windDir(manifest), trees: T, rocks: rockObstacles(boulders, site), seed });
+  return { piles: L.piles.map((p) => ({ tree: [r5(trees[p.tree].x), r5(trees[p.tree].y)], role: p.role, H: p.H, faces: p.faces.map((f) => f.corners) })),
+    readout: { autumn, piles: L.piles.length, roles: Object.fromEntries(['foot', 'bank', 'heap'].map((r) => [r, L.piles.filter((p) => p.role === r).length])), laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
+}
+
 /**
  * The SNOW's drifts on open ground (era/skandart-snow.js), asked for by a recipe's `skandart` where snow lies: one in the
  * lee of each rock and trunk the wind meets (its way the recipe's `wind`, else the default's), each joining the land's
@@ -481,11 +503,7 @@ function caveDebris(manifest, site, st, seed, rocks) {
 function snowDebris(manifest, site, st, SN, SF, seed, boulders, trees, form) {
   const sk = readSkandart(manifest), amount = sk ? sk.amount : 0;
   if (!(amount > 0)) return null;
-  const wind = manifest.wind && typeof manifest.wind === 'object' && Number.isFinite(manifest.wind.dir) ? manifest.wind.dir : TERRAIN_WIND_DEFAULTS.dir;
-  const rocks = boulders.filter((b) => b.it && b.sides?.length && b.it.role !== 'pebble' && b.it.role !== 'talus').map((b) => {
-    const cs = [...b.sides, ...(b.cap ?? [])].flatMap((f) => f.corners), top = Math.max(...cs.map((c) => c[2])), r = Math.max(...cs.map((c) => Math.hypot(c[0] - b.it.x, c[1] - b.it.y)));
-    return { of: 'rock', x: b.it.x, y: b.it.y, r: r * 0.85, h: top - site.ground(b.it.x, b.it.y) };
-  });
+  const wind = windDir(manifest), rocks = rockObstacles(boulders, site);
   const trunks = trees.filter((t) => !t.hero || t.trunks).map((t) => ({ of: 'trunk', x: t.x, y: t.y, r: Math.max(0.15, t.trunks?.[0]?.radii?.[0] ?? 0.2), h: t.h ?? 3 }));
   const L = snowDrifts(site, { field: SF, snow: SN, amount, wind, obstacles: [...rocks, ...trunks], seed });
   const group = form ? 'isekai:ground' : 'isekai:snow';
@@ -650,6 +668,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // drawn as its snow, era/skandart-snow.js)
   const SNK = SF && !site.cavern ? snowDebris(manifest, site, st, SN, SF, seed, boulders, trees, !!ctx.form) : null;
   if (SNK) boulders.push(...SNK.boulders);
+  // (the FALL's leaf piles, read by the form render: era/leaf-piles.js; a bamboo or a blossom card's painted clumps none)
+  const AU = B?.flora?.autumn ?? 0, LP = ctx.form && AU > 0 && !SN && !site.cavern && !bamboo && !sakura ? fallPiles(manifest, site, AU, trees, boulders, seed) : null;
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
@@ -1035,6 +1055,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(ctx.form && SF ? { snowMap: snowMap(site, SNK ? (x, y, z, n) => (SNK.covers(x, y) ? Math.max(1, SF(x, y, z, n)) : SF(x, y, z, n)) : SF, SN, snowR) } : {}),
     // (and what its snow's drifts laid, when asked for: era/skandart-snow.js)
     ...(SNK ? { skandart: SNK.readout } : {}),
+    // (and the fall's leaf piles, for the form's flora to draw in each tree's own leaves: era/leaf-piles.js)
+    ...(LP ? { leafPiles: LP.readout, _leafPiles: LP.piles } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // (a CAVERN: underground, so the page's sky is a room's, no clouds, no live grass; every face lit by what it sees)

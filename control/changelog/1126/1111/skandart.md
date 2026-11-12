@@ -113,3 +113,11 @@ size it would be.
   lower than the eye spot. It is the cover's snow: painted in its colour, and in the form render the ground the snow's
   map covers, the map filling the hollows the cover's patches opened under it. Walked over, never a collider. The level
   says what it laid (`skandart.drifts`) and any law it broke. Debris words on open ground without snow are still refused.
+- The fall heaps its leaves (`era/leaf-piles.js`): a level whose biocube is in the fall (`flora.autumn`) gives each
+  tree that turns its own leaf piles, drawn by the form render (gen-7) in that tree's own leaf outline and turned colour,
+  the litter's leaves at full cover over a dark leaf mould. Blown along the ground, leaves bank against the windward
+  face of what stops them: one against the tree's own trunk, one against the nearest rock downwind within its reach,
+  and on some trees a loose heap blown out past the crown. Each is a low bell no steeper than dry leaves stand, rising
+  the further into the fall, a bank never past half what it leans on; none on the walk, in a rock or lower than the eye
+  spot. A needled or a far tree lays none, nor a level in snow, nor a painted (gen-6) page. The level says what it laid
+  (`leafPiles`); a page with none carries none of the code.

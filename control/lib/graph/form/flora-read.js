@@ -317,3 +317,31 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   }
   return { templates, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}) };
 }
+
+/**
+ * The fall's LEAF PILES (era/leaf-piles.js) packed beside the trees for the page (channels/form-flora.js): each pile
+ * matched to the tree whose leaves it holds (its foot where that tree's stands), and kept only for a tree that turns
+ * in the fall and lays its litter (a needled or a far tree none). Its faces welded into one surface a pile, so the page
+ * shades it smooth. → { n, verts (Float32 b64: x, y, z, the tree's index), idx (Float32 b64: three a triangle) } | null
+ */
+export function leafPilesRead(flora, piles) {
+  if (!flora || !piles?.length) return null;
+  const buf = Buffer.from(flora.trees, 'base64'), P = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4), S = FLORA_STRIDE;
+  const treeAt = (x, y) => {
+    for (let i = 0; i < flora.n; i++) {
+      const b = i * S, T = flora.templates[P[b + 11]];
+      if (Math.abs(P[b] - x) < 0.01 && Math.abs(P[b + 1] - y) < 0.01) return T.kind === 'tree' && T.litter && T.litter !== 'needle' && AUTUMN.colours[T.name] && P[b + 12] < SKIRT_FLAG ? i : -1;
+    }
+    return -1;
+  };
+  const verts = [], idx = [];
+  let n = 0;
+  for (const p of piles) {
+    const ti = treeAt(p.tree[0], p.tree[1]);
+    if (ti < 0) continue;
+    const at = new Map(), vi = (c) => { const k = `${c[0]},${c[1]}`; if (!at.has(k)) { at.set(k, verts.length / 4); verts.push(c[0], c[1], c[2], ti); } return at.get(k); };
+    for (const f of p.faces) { const q = f.map(vi); for (let k = 1; k + 1 < q.length; k++) idx.push(q[0], q[k], q[k + 1]); }
+    n++;
+  }
+  return n ? { n, verts: b64(Float32Array.from(verts)), idx: b64(Float32Array.from(idx)) } : null;
+}
