@@ -4,10 +4,10 @@ import { readWetness, DEGREES, WET_SPOTS_MOST } from './wetness.js';
 
 describe('wetness: degrees, and what each lays', () => {
   it('the degrees rise together: a place is never wetter on its faces than it has pools for, and only rain strikes them', () => {
-    const order = ['dry', 'damp', 'wet', 'raining'].map((d) => DEGREES[d]);
+    const order = ['dry', 'damp', 'wet', 'raining', 'downpour'].map((d) => DEGREES[d]);
     for (let i = 1; i < order.length; i++) for (const k of ['amount', 'walls', 'pools']) expect(order[i][k], k).toBeGreaterThanOrEqual(order[i - 1][k]);
     expect(DEGREES.damp.pools).toBe(0);
-    expect(order.filter((d) => d.rain > 0)).toEqual([DEGREES.raining]);
+    expect(order.filter((d) => d.rain > 0)).toEqual([DEGREES.raining, DEGREES.downpour]);
     // (a wall never wetter than the ground under it)
     for (const d of order) expect(d.walls).toBeLessThanOrEqual(Math.max(d.amount, 1));
   });

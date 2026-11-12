@@ -56,9 +56,11 @@ export function seam(from, to, width) { return [cap(from, to, width / 2, 0.75)];
 export function puddles([x0, y0, x1, y1], { cover = 0.25, size = [0.5, 2.6], seed = 1, keepOut = [] } = {}) {
   const R = mulberry32(seed + 29), area = (x1 - x0) * (y1 - y0), out = [];
   let stood = 0, tries = 0;
-  while (stood < area * cover && tries++ < 600) {
+  // (the more of it stands, the larger its pools: a flat mostly under water is a few wide sheets, not many small ones)
+  const hi = size[1] * (1 + 3 * Math.max(0, cover - 0.4));
+  while (stood < area * cover && tries++ < 4000) {
     // (most are small, a few large: a rained-on slab)
-    const s = size[0] + (size[1] - size[0]) * R() ** 2.2, at = [x0 + R() * (x1 - x0), y0 + R() * (y1 - y0)];
+    const s = size[0] + (hi - size[0]) * R() ** 2.2, at = [x0 + R() * (x1 - x0), y0 + R() * (y1 - y0)];
     if (keepOut.some((B) => at[0] > B[0] && at[0] < B[2] && at[1] > B[1] && at[1] < B[3])) continue;
     out.push(...(R() < 0.25 ? splash(at, s * 1.2, Math.floor(R() * 1e6)) : blot(at, s, Math.floor(R() * 1e6))));
     stood += 0.5 * s * s;

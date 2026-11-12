@@ -21,6 +21,7 @@
  *             damp     it rained a while ago: the joints hold, the faces a little dark, the walls' feet; no pool
  *             wet      it has just rained: faces sheened, joints full, pools in the hollows, the walls run
  *             raining  as wet, more of it, the pools struck with rings
+ *             downpour water standing over nearly all the ground, struck hard
  *   readWetness(wet) → { amount, walls, pools, rain, spots: [{ at: [x, y, z], r, amount, pool }] } | null
  *     wet     true ('wet') | a degree's name | 0 to 1 (the faces' dial alone: damp to brimming, no pool)
  *             | { degree?, amount?, spots?: [{ at: [x, y] | [x, y, z], size, amount?, pool? }] }
@@ -34,6 +35,8 @@ export const DEGREES = Object.freeze({
   damp: Object.freeze({ amount: 0.38, walls: 0.35, pools: 0, rain: 0 }),
   wet: Object.freeze({ amount: 0.78, walls: 0.75, pools: 0.22, rain: 0 }),
   raining: Object.freeze({ amount: 0.95, walls: 1, pools: 0.34, rain: 1 }),
+  // (a downpour: the ground cannot shed it, so water stands over nearly all of it, and the rain strikes hard)
+  downpour: Object.freeze({ amount: 1, walls: 1, pools: 0.9, rain: 2 }),
 });
 export const WET_SPOTS_MOST = 6;
 

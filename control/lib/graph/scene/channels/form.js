@@ -54,6 +54,7 @@ const ENV_BODY = `
   { vec3 etn = texture2D( uFNorm, fUV ).xyz * 2.0 - 1.0; eN = normalize( fT * etn.x + fB * etn.y + eG * etn.z ); }
 #endif
   float eR = uFSurf.x, eM = uFSurf.y;
+  float eRingSum = 0.0;
 #ifdef USE_AOMAP
   eR = clamp( mix( eR, texture2D( aoMap, fUV ).g, 0.5 ), 0.05, 1.0 );
 #endif
@@ -132,6 +133,7 @@ const ENV_BODY = `
     float eDamp = smoothstep( 0.0, 0.35, eAmt );
     diffuseColor.rgb *= mix( 1.0, uFSurf.z > 0.0 ? uFSurf.z : 0.55, eDamp );
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.7, eFill );
+    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.62, ePool );
     eR = mix( eR, min( eR, 0.34 ), eDamp ); eR = mix( eR, 0.06, eFill );
     // (a face running with rain is a film of water: smooth, whatever it is made of)
     eR = mix( eR, min( eR, 0.16 ), eAll * uFWet.x );
@@ -145,8 +147,9 @@ const ENV_BODY = `
         if ( eWt < 0.01 ) continue;
         vec2 eCell = floor( eP.xy / eCs ), eIn = fract( eP.xy / eCs ) - 0.5; float eH = fH2( eCell + 3.7 + float( q ) * 11.0 );
         vec2 eC2 = eIn - ( vec2( fH2( eCell + 1.3 ), fH2( eCell + 7.9 ) ) - 0.5 ) * 0.5; float eBeat = fract( uFNow * ( 0.9 + 0.8 * eH ) + eH * 7.0 ), eLr = length( eC2 ) + 1e-4;
-        float eRing = exp( - pow( ( eLr - eBeat * 0.42 ) / 0.05, 2.0 ) ) * ( 1.0 - eBeat ) * step( 0.35, eH + 0.3 * float( q ) );
+        float eRing = exp( - pow( ( eLr - eBeat * 0.42 ) / 0.05, 2.0 ) ) * ( 1.0 - eBeat ) * step( 0.35 - 0.25 * ( uFWet.w - 1.0 ), eH + 0.3 * float( q ) );
         eTilt2 += eC2 / eLr * eRing * 0.35 * eWt * uFWet.w;
+        eRingSum += eRing * eWt * min( uFWet.w, 2.0 );
       }
       vec3 eNw2 = normalize( inverseTransformDirection( eN, viewMatrix ) + vec3( eTilt2, 0.0 ) );
       eN = normalize( ( viewMatrix * vec4( eNw2, 0.0 ) ).xyz );
@@ -198,6 +201,8 @@ const ENV_BODY = `
     eF *= mix( vec3( 1.0 ), eIr * 1.7, uFSurf.w ); }
 #endif
   vec3 eAdd = eEnv * eF * eO;
+  // (a ring's crest catches what light there is: a faint line of the sky's own, so rain reads on water that holds no lamp)
+  eAdd += eRingSum * ( uFEnvH * 0.35 + vFLit * 0.05 );
   float eShine = clamp( 2.0 / ( eB * eB ) - 2.0, 1.0, 4096.0 );
 #ifdef FORM_SUNLIT
   vec3 eSkyOnly = mix( uFGround, uFAmb, 0.5 + 0.5 * inverseTransformDirection( eG, viewMatrix ).z );

@@ -73,3 +73,6 @@
 - While it rains the whole ground wears a film: a skin of water over every face that looks up, thin enough that the
   joints show through, and struck everywhere with small rings (each cell on its own beat), larger and slower where
   water stands deep.
+- A downpour (`wet: 'downpour'`): water stands over nearly all the ground, in a few wide sheets, and the rain strikes
+  hard (more of the ground struck at once). A ring's crest catches a faint line of the sky, so rain reads on water that
+  holds no lamp; standing water is darker than the film round it.
