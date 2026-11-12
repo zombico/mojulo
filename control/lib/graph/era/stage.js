@@ -29,6 +29,7 @@ import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
 import { LIQUID_IDS } from '../rupa/matter.js';
 import { liquidLook } from '../rupa/liquid-look.js';
+import { readWetness } from './wetness.js';
 import { wallOrder } from './wall-rhythm.js';
 import { shadeTint } from './floor-shades.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
@@ -614,11 +615,11 @@ export function planStage(m = {}) {
     if (!Array.isArray(m.samples) || m.samples.length > 24 || m.samples.some((q) => !q || !SAMPLES[q.of] || !Array.isArray(q.at) || q.at.length !== 2 || !q.at.every(Number.isFinite) || (q.size !== undefined && !(q.size > 0.1 && q.size <= 20))))
       throw new Error(`stage: samples are [{ of: ${Object.keys(SAMPLES).join(' | ')}, at: [x, y], size?: metres }] (at most 24)`);
   }
-  // WET (`wet: true | 0 to 1`, a room kit's): the floor wet with no depth. A wetness is a state of the surface it lies
+  // WET (`wet`, era/wetness.js: true, a degree, 0 to 1, or { degree?, amount?, spots? }): the place wet with no depth. A wetness is a state of the surface it lies
   // on (era/laws.js 'wet-hugs-the-surface'): no thickness and no edge of its own, the relief kept, the water lying by
   // the tile's own height (its joints fill first and lie mirror-smooth, its faces darken and sheen). The dial: damp,
   // wet, brimming; past that it is a pool, which has a thickness (a sample). The form render's; a painted page none
-  if (m.wet !== undefined && m.wet !== true && m.wet !== false && !(typeof m.wet === 'number' && m.wet >= 0 && m.wet <= 1)) throw new Error('stage: wet is true, false, or how wet from 0 to 1 (damp, wet, brimming)');
+  const wetness = (() => { try { return readWetness(m.wet); } catch (e) { throw new Error(`stage: ${e.message}`); } })();
   // DAYLIGHT (`daylight: { elevation, azimuth?, color?, gain?, alone? }`, a room kit's): a sun over rooms that stand indoors.
   // The form render takes it LIVE: every corner turned to it carries its share, and the page's hour map takes that
   // share away where a roof or a wall hides it, so it comes in at a window, a roof light or an open door as its own
@@ -632,7 +633,7 @@ export function planStage(m = {}) {
   }
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(m.wet ? { wet: m.wet === true ? 0.6 : m.wet } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -1557,7 +1558,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...((formLit.light.sun && plan.samples) || (plan.wet && isRoomWet) ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, ...(plan.wet && isRoomWet ? { wet: { amount: plan.wet, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: WET_GROUPS, damp: true } } : {}),
+    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...((formLit.light.sun && plan.samples) || (plan.wet && isRoomWet) ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, ...(plan.wet && isRoomWet ? { wet: { ...plan.wet, pools: 0, rain: 0, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: WET_GROUPS, damp: true } } : {}),   // (under a roof: no rain falls and no hollow fills; a spot may pool)
       surfaces: Object.fromEntries([...(plan.wet && isRoomWet ? WET_GROUPS.map((g) => [g, { rough: 0.82 }]) : []), ...[...new Set((plan.samples || []).map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal, ...(SAMPLES[of].clear ? { clear: SAMPLES[of].clear } : {}), ...(SAMPLES[of].film ? { film: SAMPLES[of].film } : {}) }])]),
       // (its pools, for what a footfall does in one: where each lies, its outline's own waves, how its liquid answers)
       pools: (plan.samples || []).map((q, i) => ({ q, i })).filter(({ q }) => SAMPLES[q.of].pool).map(({ q, i }) => ({ group: `stage:sample-${q.of}`, at: q.at, r: r5((q.size ?? 3) / 2), ph: [1, 2, 3].map((j) => r5(hash3(i, j, 4441) * 2 * Math.PI)),

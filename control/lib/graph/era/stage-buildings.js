@@ -58,6 +58,7 @@ import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
+import { readWetness } from './wetness.js';
 import { hash3 } from './dirt.js';
 import { containerRaw } from '../geocity/industry.js';
 import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
@@ -80,7 +81,9 @@ const YARD = 8;
 const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0.42, 0.3], [0.85, 0.42, 0.1], [0.5, 0.52, 0.54], [0.35, 0.58, 0.72], [0.86, 0.86, 0.84]]);
 // how each built part gives the sky back (roughness 0 a mirror to 1 chalk; metal 1 a bare metal): painted steel
 // sheens, a container's enamel more, poured concrete barely
-const BUILT_SURFACES = Object.freeze({ 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 } });
+// a yard's floodlight: its mast's height (m), its light where its falloff is whole (linear, the solve's units) and its reach
+const FLOOD = Object.freeze({ h: 9, key: Object.freeze([3.4, 3.2, 2.7]), radius: 30 });
+const BUILT_SURFACES = Object.freeze({ 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
 const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
 const EMBED = { side: 4, back: 6 };
@@ -558,6 +561,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
   // (the form render's record of the buildings' rooms, in the world's frame: their lamps, the sun they were baked under)
   const formRooms = [];
+  // (the yards' floodlights: their lamp faces, and their lights for the form render's record)
+  const lampFaces = [], floods = [];
   // (the hard standing a wet recipe films: every building's apron slab)
   const wetQuads = [];
   // (every footprint the land was cleared under: what the form render grows there, payload.plants, is cleared too)
@@ -929,13 +934,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // clear. Lit as the shell is; each stack a collider
     const yardF = [];
     if (b.yard !== undefined) {
-      if (!b.yard || typeof b.yard !== 'object' || Object.keys(b.yard).some((k) => k !== 'containers') || !Number.isInteger(b.yard.containers) || b.yard.containers < 1 || b.yard.containers > 40) throw new Error(`stage: buildings[${i}].yard is { containers: 1 to 40 }`);
+      if (!b.yard || typeof b.yard !== 'object' || Object.keys(b.yard).some((k) => !['containers', 'floods'].includes(k)) || (b.yard.containers !== undefined && !(Number.isInteger(b.yard.containers) && b.yard.containers >= 1 && b.yard.containers <= 40))
+        || (b.yard.floods !== undefined && !(Number.isInteger(b.yard.floods) && b.yard.floods >= 1 && b.yard.floods <= 8))) throw new Error(`stage: buildings[${i}].yard is { containers?: 1 to 40, floods?: 1 to 8 (floodlights on masts along its yard's edge) }`);
       if (!(was && was.apron)) throw new Error(`stage: buildings[${i}] (${id}) has no apron to stack a yard on (a composed building's, not one set into a slope)`);
       const raw = containerRaw(), CL = 12.19, CW = 2.44, CH = 2.59, x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1]));
       const zt = -APRON.under + APRON.over, dice = (k) => hash3(i, k, 4431), slots = [];
       // (slots along the front, a row nearer the building and one further out, none across the way to the door)
       for (const yr of [y0 - APRON.front + CW / 2 + 0.6, y0 - APRON.front + CW * 1.5 + 1.4]) for (let x = x0 - APRON.side + CL / 2 + 0.5; x + CL / 2 <= x1 + APRON.side - 0.5; x += CL + 0.8) if (Math.abs(x - doorPlan[0]) > CL / 2 + 2) slots.push([x, yr]);
-      let left = b.yard.containers, k = 0;
+      let left = b.yard.containers ?? 0, k = 0;
       const day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
       for (const [sx, sy] of slots) { if (left <= 0) break;
         const high = Math.min(left, 1 + Math.floor(dice(k++) * 3)); left -= high;
@@ -947,8 +953,27 @@ export function withBuildings(payload, manifest, ctx = {}) {
         const a = toWorld([sx - CL / 2, sy - CW / 2]), c2 = toWorld([sx + CL / 2, sy + CW / 2]);
         colliders.push({ min: P3([Math.min(a[0], c2[0]), Math.min(a[1], c2[1]), floor + zt]), max: P3([Math.max(a[0], c2[0]), Math.max(a[1], c2[1]), floor + zt + high * CH]), of: `${id}:yard` }); }
     }
+    // ITS FLOODLIGHTS (`yard.floods`): masts along the yard's outer edge, a lamp head on each turned in over the yard.
+    // Each is a light no bake holds: the page lays it live (scene/channels/form.js), on the slab, the walls and what
+    // stands in the yard, with its highlight; its lamp's face glows
+    if (b.yard && b.yard.floods) {
+      const x0f = Math.min(...rects.map((R0) => R0[0])), x1f = Math.max(...rects.map((R0) => R0[2])), y0f = Math.min(...rects.map((R0) => R0[1])), n = b.yard.floods, H = FLOOD.h, zt = -APRON.under + APRON.over;
+      for (let q = 0; q < n; q++) {
+        const px = n === 1 ? (x0f + x1f) / 2 : x0f - APRON.side + 0.7 + ((x1f - x0f + 2 * APRON.side - 1.4) * q) / (n - 1), py = y0f - APRON.front + 0.5;
+        // (the mast: six sides, tapering; never a box)
+        for (let sd = 0; sd < 6; sd++) { const a0 = (sd / 6) * 2 * Math.PI, a1 = ((sd + 1) / 6) * 2 * Math.PI, am = (a0 + a1) / 2, at = (a, r, z) => W([px + Math.cos(a) * r, py + Math.sin(a) * r, zt + z]);
+          const nn = turnN([Math.cos(am), Math.sin(am), 0]);
+          yardF.push({ ...quad([at(a0, 0.11, 0), at(a1, 0.11, 0), at(a1, 0.06, H), at(a0, 0.06, H)], 'yard:mast', '#5a5e62'), normal: P3(nn), outNormal: P3(nn), node: `${id}:flood-${q + 1}` }); }
+        // (its head: a lamp face a hand under the mast's top, turned down and in toward the building)
+        const hx = px, hy = py + 0.5, hz = zt + H - 0.1, down = turnN([0, 0, -1]);
+        const lampC = [[hx - 0.3, hy - 0.2, hz], [hx + 0.3, hy - 0.2, hz], [hx + 0.3, hy + 0.2, hz], [hx - 0.3, hy + 0.2, hz]].map(W);
+        lampFaces.push({ corners: lampC.map(P3), group: 'yard:flood', fill: '#fff6dc', normal: P3(down), outNormal: P3(down), emissive: [1, 0.95, 0.82], emissiveStrength: 4, glow: '0 0 14px 6px #ffe9b8', doubleSided: true, node: `${id}:flood-${q + 1}` });
+        const L = W([hx, hy + 0.6, hz - 0.2]);
+        floods.push({ at: P3(L), key: FLOOD.key, radius: FLOOD.radius });
+      }
+    }
     const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, {}).faces : yardF;
-    faces = [...faces, ...moved, ...shell, ...apronF, ...yardLit, ...trims, ...stoop, ...stairF, ...pathF];
+    faces = [...faces, ...moved, ...shell, ...apronF, ...yardLit, ...lampFaces.splice(0), ...trims, ...stoop, ...stairF, ...pathF];
     // WET (`wet: true` on the recipe: it has just rained): on a painted page the apron's slab films the sky,
     // channels/wet-road.js; the form render wets the slab itself (its record's `reflect.wet`, below)
     if (manifest.wet && apronF.length && !shellLight) wetQuads.push(...apronF.filter((f) => f.corners.length === 4 && f.normal && f.normal[2] > 0.9).map((f) => f.corners));
@@ -1058,13 +1083,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
     payload.plants[k].filter((p) => !clearedBoxes.some((B) => p.x > B[0] - pad && p.x < B[2] + pad && p.y > B[1] - pad && p.y < B[3] + pad))])) } : null;
   // WHAT ITS BUILT THINGS GIVE BACK (the form render's, scene/channels/form.js `reflect`): the sky its land stands under,
   // each part's roughness (painted steel sheens, concrete barely), and where it has just rained the water on its slab
+  const wetness = (() => { try { return readWetness(manifest.wet); } catch (e) { throw new Error(`stage: ${e.message}`); } })();
   const lin = (c) => c.map((v) => r5((v / 255) ** 2.2));
   const reflect = ctx.dayLight && formRooms.length && payload.sky?.zenith && payload.sky?.horizon ? {
     env: { zenith: lin(payload.sky.zenith.slice(0, 3)), horizon: lin(payload.sky.horizon.slice(0, 3)), ground: lin(payload.sky.horizon.slice(0, 3)).map((v) => r5(v * 0.35)) },
-    surfaces: BUILT_SURFACES,
+    surfaces: BUILT_SURFACES, ...(floods.length ? { floods } : {}),
     // (it has rained: every built thing out of doors is wet with no depth, era/laws.js 'wet-hugs-the-surface': the slab's
     // joints full, its faces dark, walls and containers run with it)
-    ...(manifest.wet ? { wet: { amount: manifest.wet === true ? 0.85 : manifest.wet, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: Object.keys(BUILT_SURFACES), damp: true } } : {}) } : null;
+    ...(wetness ? { wet: { ...wetness, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: Object.keys(BUILT_SURFACES), damp: true } } : {}) } : null;
 
   const wetRoad = wetQuads.length ? { quads: wetQuads, lamps: [], zenith: payload.sky?.zenith ?? [120, 150, 200], horizon: payload.sky?.horizon ?? [200, 215, 230] } : null;
   return { ...payload, ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };

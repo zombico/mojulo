@@ -44,3 +44,13 @@
   a ledge or a joint still holds it. A wet room's walls, plinth and trim take it with its floor.
 - Out of doors a wet recipe wets every built thing with no depth: the apron, the walls, the roofs and a yard's
   containers, each by the same law (the slab's joints full and its faces dark, the walls and containers run with it).
+- Degrees of wetness (`era/wetness.js`). A recipe's `wet` is true, a degree (`damp`, `wet`, `raining`), 0 to 1, or
+  `{ degree?, amount?, spots? }`. The rules: water finds the low ground first (joints, then hollows, then faces); a
+  wetness has a cause (rain is everywhere and shows no edge; a leak or a spill is a spot that fades from its heart and
+  may stand as a pool there); a wall is wet by what runs down it and never wetter than the ground under it; while it
+  rains the standing water is struck with rings. Out of doors `wet` and `raining` stand pools in the ground's hollows;
+  under a roof no rain falls and only a spot pools.
+- Floodlights: a building's `yard: { floods }` stands masts along its yard's edge. Each is a lamp no bake holds, laid
+  whole by the page with its highlight (the nearest four, apart from a room's own lamps).
+- Open, seen on a wet yard at night: a floodlight casts no shadow and stops at the shadow the moon's map draws, so
+  the slab is black in the building's moon shadow; standing pools and rain rings are not yet seen to read.

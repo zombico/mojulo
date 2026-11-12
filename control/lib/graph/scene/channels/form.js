@@ -34,7 +34,7 @@ import { safeJson } from '../emit-util.js';
 // `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
 //          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
-//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal?, clear?, film? } }, wet?: { amount, seed, groups },
+//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal?, clear?, film? } }, wet?: { amount, seed, groups, damp?, walls?, pools?, rain?, spots?: [{ at, r, amount, pool }] }, floods?: [{ at, key, radius }] (lamps out of doors the page lays whole: the nearest four),
 //          probe?: { at: [x, y, z], box: [[x0, y0, z0], [x1, y1, z1]] } (a room's capture and the box it is corrected to), size? } }
 // WHAT A SURFACE GIVES BACK (`cfg.reflect`, a page whose built things stand under a sky): the sky by Fresnel, blurred by
 // the surface's roughness, and the sun's highlight where the bake says the sun reaches; a metal's base colours both and
@@ -42,7 +42,7 @@ import { safeJson } from '../emit-util.js';
 // recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
 // that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
 // sheens on damp ground. Only a page that carries `reflect` carries this code.
-const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec2 uFWet;\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec4 uFWet;\nuniform float uFWetW;\nuniform vec4 uFSpot[ 6 ];\nuniform vec2 uFSpotK[ 6 ];\nuniform float uFNow;\nuniform vec4 uFFlood[ 4 ];\nuniform vec3 uFFloodK[ 4 ];\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
   + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
   + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
 const ENV_BODY = `
@@ -87,18 +87,43 @@ const ENV_BODY = `
     float eAlong = eP.y * eGw.x - eP.x * eGw.y;
     float eRun = fVN( vec2( eAlong * 1.3 + uFWet.y, eP.z * 0.1 ) ) * 0.65 + fVN( vec2( eAlong * 4.3 + 5.0, eP.z * 0.33 + 3.0 ) ) * 0.35;
     float eWallF = ( 1.0 - eUpF ) * ( 1.0 - smoothstep( 0.4, 0.6, abs( eGw.z ) ) ) * smoothstep( 0.38, 0.7, eRun ) * mix( 1.0, 0.5, smoothstep( 0.3, 4.0, eP.z ) );
-    float eAmt = uFWet.x * ( eVar * eUpF + eWallF );
+    float eAmt = uFWet.x * ( eVar * eUpF + eWallF * uFWetW );
+    // A SPOT (a leak, a spill, a hose: a wetness with a cause somewhere): wet at its heart, fading with distance and
+    // never at a line; its edge wanders by the world's place. Where it is asked to, its heart stands as water
+    float ePool = 0.0;
+    for ( int i = 0; i < 6; i++ ) {
+      if ( uFSpot[ i ].w <= 0.0 ) continue;
+      float eSd = length( eP - uFSpot[ i ].xyz ) / uFSpot[ i ].w + ( fVN( eP.xy * 1.7 + float( i ) * 9.1 ) - 0.5 ) * 0.34;
+      eAmt = max( eAmt, uFSpotK[ i ].x * ( 1.0 - smoothstep( 0.3, 1.0, eSd ) ) * max( eUpF, 0.7 * ( 1.0 - smoothstep( 0.4, 0.6, abs( eGw.z ) ) ) ) );
+      ePool = max( ePool, uFSpotK[ i ].y * ( 1.0 - smoothstep( 0.34, 0.42, eSd ) ) * eUpF );
+    }
+    // POOLS IN THE HOLLOWS (open ground that has been rained on): the ground's own slow unevenness, by the world's
+    // place; the share of it that lies low stands in water, level with the ground, ringed by a soaked band
+    if ( uFWet.z > 0.0 ) {
+      float eHol = fVN( eP.xy * 0.13 + uFWet.y * 2.3 ) * 0.6 + fVN( eP.xy * 0.41 + uFWet.y ) * 0.3 + fVN( eP.xy * 1.3 + 4.0 ) * 0.1, eTh = 1.0 - uFWet.z * 0.62;
+      ePool = max( ePool, smoothstep( eTh, eTh + 0.025, eHol ) * eUpF );
+      eAmt = max( eAmt, smoothstep( eTh - 0.16, eTh, eHol ) * eUpF );
+    }
 #ifdef USE_AOMAP
     float eHt = texture2D( aoMap, fUV ).b;
 #else
     float eHt = 0.6;
 #endif
     float eFill = ( 1.0 - smoothstep( eAmt * 0.95 - 0.14, eAmt * 0.95 + 0.02, eHt ) ) * step( 0.02, eAmt );
+    eFill = max( eFill, ePool );
     float eDamp = smoothstep( 0.0, 0.35, eAmt );
     diffuseColor.rgb *= mix( 1.0, uFSurf.z > 0.0 ? uFSurf.z : 0.55, eDamp );
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.7, eFill );
     eR = mix( eR, min( eR, 0.34 ), eDamp ); eR = mix( eR, 0.06, eFill );
     eN = normalize( mix( eN, eG, eFill ) );
+    // (while it rains, standing water is struck: a ring in every cell of it, each on its own beat, bending what it holds)
+    if ( uFWet.w > 0.0 && ePool > 0.01 ) {
+      vec2 eCell = floor( eP.xy / 0.42 ), eIn = fract( eP.xy / 0.42 ) - 0.5; float eH = fH2( eCell + 3.7 );
+      vec2 eC2 = eIn - ( vec2( fH2( eCell + 1.3 ), fH2( eCell + 7.9 ) ) - 0.5 ) * 0.5; float eBeat = fract( uFNow * ( 0.7 + 0.5 * eH ) + eH * 7.0 ), eLr = length( eC2 ) + 1e-4;
+      float eRing = exp( - pow( ( eLr - eBeat * 0.42 ) / 0.035, 2.0 ) ) * ( 1.0 - eBeat );
+      vec3 eNw2 = normalize( inverseTransformDirection( eN, viewMatrix ) + vec3( eC2 / eLr * eRing * 0.35 * ePool * uFWet.w, 0.0 ) );
+      eN = normalize( ( viewMatrix * vec4( eNw2, 0.0 ) ).xyz );
+    }
   }
 #endif
 #ifdef FORM_POOL
@@ -165,6 +190,14 @@ const ENV_BODY = `
       eAdd += uFLk[ i ] * pow( eT * eT, uFFall ) * eF * max( dot( eN, eL ), 0.0 ) * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eL + eV ) ), 0.0 ), eShine ) * eLitK;
     } }
 #endif
+  // (a FLOODLIGHT, a lamp standing out of doors: no bake holds it, so its own light is laid here whole, by its falloff
+  // and the pixel's turn to it, and its highlight; no shadow of its own)
+  for ( int i = 0; i < 4; i++ ) {
+    if ( uFFlood[ i ].w <= 0.0 ) continue;
+    vec3 eFd = uFFlood[ i ].xyz - vFPos; float eFr = length( eFd ); vec3 eFl = eFd / max( eFr, 1e-3 );
+    float eFt = clamp( 1.0 - max( eFr, 1.1 ) / uFFlood[ i ].w, 0.0, 1.0 ); vec3 eFc = uFFloodK[ i ] * eFt * eFt;
+    eAdd += eFc * max( dot( eN, eFl ), 0.0 ) * ( diffuseColor.rgb * ( 1.0 - eM ) + eF * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eFl + eV ) ), 0.0 ), eShine ) );
+  }
 #ifdef FORM_CLEAR
   // (seen through: square on it keeps a share of its own colour and lets the floor show; the lower it is looked
   // along the more it mirrors and the less it shows. What it gives back is laid whole, whatever its cover)
@@ -187,7 +220,11 @@ const __mojForm = (function () {
   const U = { uFLp: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uFLk: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
     uFLr: { value: new Array(K).fill(1) }, uFFall: { value: F.fall }, uFAmb: { value: new THREE.Vector3(...F.ambient) }, uFPom: { value: new THREE.Vector4(F.pom.near, F.pom.far, F.relief.near, F.relief.far) } };${cfg.reflect ? `
   Object.assign(U, { uFEnvZ: { value: new THREE.Vector3(...F.reflect.env.zenith) }, uFEnvH: { value: new THREE.Vector3(...F.reflect.env.horizon) }, uFEnvG: { value: new THREE.Vector3(...F.reflect.env.ground) },
-    uFWet: { value: new THREE.Vector2(F.reflect.wet ? F.reflect.wet.amount : 0, F.reflect.wet ? F.reflect.wet.seed : 0) } });
+    uFWet: { value: new THREE.Vector4(F.reflect.wet ? F.reflect.wet.amount : 0, F.reflect.wet ? F.reflect.wet.seed : 0, F.reflect.wet ? F.reflect.wet.pools || 0 : 0, F.reflect.wet ? F.reflect.wet.rain || 0 : 0) },
+    uFWetW: { value: F.reflect.wet && F.reflect.wet.walls !== undefined ? F.reflect.wet.walls : 1 }, uFNow: { value: 0 },
+    uFFlood: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) }, uFFloodK: { value: Array.from({ length: 4 }, () => new THREE.Vector3()) },
+    uFSpot: { value: Array.from({ length: 6 }, (_, i) => { const q = ((F.reflect.wet && F.reflect.wet.spots) || [])[i]; return q ? new THREE.Vector4(q.at[0], q.at[1], q.at[2], q.r) : new THREE.Vector4(0, 0, 0, 0); }) },
+    uFSpotK: { value: Array.from({ length: 6 }, (_, i) => { const q = ((F.reflect.wet && F.reflect.wet.spots) || [])[i]; return q ? new THREE.Vector2(q.amount, q.pool ? 1 : 0) : new THREE.Vector2(0, 0); }) } });
   const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);
   const DAMP = !!(F.reflect.wet && F.reflect.wet.damp), SUNLIT = !!F.sun;
   // (the room's capture: a cube of the room as it stands lit, taken from the probe a few frames in, once the hour's
@@ -346,7 +383,9 @@ ${cfg.sun ? `
     if (rt) return;
     const t = performance.now(), dt = lastT < 0 ? 1 : Math.min(0.1, (t - lastT) / 1000);
     lastT = t;
-    cam.getWorldPosition(eye);
+${cfg.reflect ? `    U.uFNow.value = window.__mojClock != null && window.__mojClock > 0 ? window.__mojClock : t / 1000;
+` : ''}${cfg.reflect && cfg.reflect.floods ? `    (F.reflect.floods || []).map((f) => ({ f, d: tmp.set(...f.at).distanceToSquared(eye) })).sort((a, b) => a.d - b.d).slice(0, 4).forEach(({ f }, k) => { tmp.set(...f.at).applyMatrix4(cam.matrixWorldInverse); U.uFFlood.value[k].set(tmp.x, tmp.y, tmp.z, f.radius); U.uFFloodK.value[k].set(...f.key); });
+` : ''}    cam.getWorldPosition(eye);
     // (a toned room's void and its haze are its ramp's darkest colour, as its toned page paints them: set at the first
     // frame, after the page's own haze has laid its colour)
     if (F.void && !probe.first) { scene.background = new THREE.Color(F.void); if (scene.fog) scene.fog.color.set(F.void); }
