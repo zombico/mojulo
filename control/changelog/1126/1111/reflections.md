@@ -35,3 +35,8 @@
   bend what the pool holds and die as its liquid lets them (`liquidLook().ripple`: water rings, honey barely, mud not
   at all). The steps after it, past the pool's edge, are wet: a dark print each, fainter step by step, drying away
   (`print`, the liquid's own count). A step is a piloted figure's gait or the walk's own stride.
+- Wet with no depth (`wet-hugs-the-surface`). A room kit's `wet: true | 0 to 1` wets its floor as a state of the
+  surface: no thickness and no edge of its own, the relief kept, the water lying by the tile's own height (its joints
+  fill first and lie mirror-smooth, its faces darken and take a sheen), thinner and thicker over the floor by the
+  world's place. It holds the room's capture and, under lamps alone, each lamp's highlight. Past brimming it is a
+  pool, which has a thickness. The form render's; a painted page lays none.

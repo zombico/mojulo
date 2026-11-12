@@ -72,6 +72,29 @@ const ENV_BODY = `
     eN = normalize( mix( eN, eG, max( ePud, eSoak * 0.6 ) ) );
   }
 #endif
+#ifdef FORM_DAMP
+  {
+    // WET WITHOUT DEPTH (a wetness that hugs the surface: no thickness, no edge of its own). The surface keeps its
+    // relief; the water lies by HEIGHT, the tile's own: its low parts (joints, pits) fill first and lie flat and
+    // mirror-smooth, its high faces only darken and take a sheen. One dial: damp, wet, brimming. It thins
+    // and thickens over the floor by the world's place, so no two slabs are wet alike
+    vec3 eP = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz;
+    float eUpF = smoothstep( 0.55, 0.9, inverseTransformDirection( eG, viewMatrix ).z );
+    float eVar = 0.72 + 0.28 * ( fVN( eP.xy * 0.23 + uFWet.y ) * 0.6 + fVN( eP.xy * 0.9 + uFWet.y * 1.7 ) * 0.4 );
+    float eAmt = uFWet.x * eVar * eUpF;
+#ifdef USE_AOMAP
+    float eHt = texture2D( aoMap, fUV ).b;
+#else
+    float eHt = 0.6;
+#endif
+    float eFill = ( 1.0 - smoothstep( eAmt * 0.95 - 0.14, eAmt * 0.95 + 0.02, eHt ) ) * step( 0.02, eAmt );
+    float eDamp = smoothstep( 0.0, 0.35, eAmt );
+    diffuseColor.rgb *= mix( 1.0, uFSurf.z > 0.0 ? uFSurf.z : 0.55, eDamp );
+    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.7, eFill );
+    eR = mix( eR, min( eR, 0.34 ), eDamp ); eR = mix( eR, 0.06, eFill );
+    eN = normalize( mix( eN, eG, eFill ) );
+  }
+#endif
 #ifdef FORM_POOL
   {
     // (a footfall's rings: each a band running out from where the foot came down, dying as its liquid lets it; it
@@ -118,6 +141,7 @@ const ENV_BODY = `
 #endif
   vec3 eAdd = eEnv * eF * eO;
   float eShine = clamp( 2.0 / ( eB * eB ) - 2.0, 1.0, 4096.0 );
+#ifdef FORM_SUNLIT
   vec3 eSkyOnly = mix( uFGround, uFAmb, 0.5 + 0.5 * inverseTransformDirection( eG, viewMatrix ).z );
   for ( int i = 0; i < __K__; i++ ) {
     if ( uFLr[ i ] < 1e8 ) continue;
@@ -126,6 +150,15 @@ const ENV_BODY = `
     float eSun = clamp( ( fLum( vFLit ) - fLum( eSkyOnly ) ) / max( fLum( uFLk[ i ] ) * eNg, 1e-3 ), 0.0, 1.0 );
     eAdd += uFLk[ i ] * eF * eNl * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eL + eV ) ), 0.0 ), eShine ) * eSun;
   }
+#else
+  // (a room under its lamps alone: each live lamp's highlight, by its own falloff, where the bake says the spot is lit)
+  { float eLitK = clamp( ( fLum( vFLit ) - fLum( uFAmb ) ) / max( fLum( vFLit ), 1e-3 ), 0.0, 1.0 );
+    for ( int i = 0; i < __K__; i++ ) {
+      vec3 eLd = uFLp[ i ] - vFPos; float eLr = length( eLd ); vec3 eL = eLd / max( eLr, 1e-3 );
+      float eT = clamp( 1.0 - max( eLr, 1.1 ) / uFLr[ i ], 0.0, 1.0 );
+      eAdd += uFLk[ i ] * pow( eT * eT, uFFall ) * eF * max( dot( eN, eL ), 0.0 ) * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eL + eV ) ), 0.0 ), eShine ) * eLitK;
+    } }
+#endif
 #ifdef FORM_CLEAR
   // (seen through: square on it keeps a share of its own colour and lets the floor show; the lower it is looked
   // along the more it mirrors and the less it shows. What it gives back is laid whole, whatever its cover)
@@ -150,6 +183,7 @@ const __mojForm = (function () {
   Object.assign(U, { uFEnvZ: { value: new THREE.Vector3(...F.reflect.env.zenith) }, uFEnvH: { value: new THREE.Vector3(...F.reflect.env.horizon) }, uFEnvG: { value: new THREE.Vector3(...F.reflect.env.ground) },
     uFWet: { value: new THREE.Vector2(F.reflect.wet ? F.reflect.wet.amount : 0, F.reflect.wet ? F.reflect.wet.seed : 0) } });
   const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);
+  const DAMP = !!(F.reflect.wet && F.reflect.wet.damp), SUNLIT = !!F.sun;
   // (the room's capture: a cube of the room as it stands lit, taken from the probe a few frames in, once the hour's
   // map is drawn; half-float, with its mips for the blur. Until it is taken it is black, and the gradient stands)
   // (its pools: a footfall in one rings it, and past its edge leaves wet steps that dry; below)
@@ -227,7 +261,7 @@ fDirect += fBeat * diffuseColor.rgb;
   const lit = (params, M${cfg.reflect ? ', S, wet, o_g' : ''}) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {}), ...(S && POOLG.has(o_g) ? { FORM_POOL: 1 } : {})' : ''} };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? (DAMP ? { FORM_DAMP: 1 } : { FORM_WET: 1 }) : {}), ...(S && SUNLIT ? { FORM_SUNLIT: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {}), ...(S && POOLG.has(o_g) ? { FORM_POOL: 1 } : {})' : ''} };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector4(S ? S.rough : 1, S ? S.metal || 0 : 0, S ? S.clear || 0 : 0, S ? S.film || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
@@ -235,7 +269,7 @@ fDirect += fBeat * diffuseColor.rgb;
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '') + (S && POOLG.has(o_g) ? 'p' : '')" : ''};${cfg.sun ? `
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? (DAMP ? 'd' : 'w') : '') + (S && SUNLIT ? 's' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '') + (S && POOLG.has(o_g) ? 'p' : '')" : ''};${cfg.sun ? `
     // (lit by the day: toned with the land, channels/form-land.js leaves it so)
     mat.userData.cast = true;` : ''}
     return mat;

@@ -882,7 +882,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // is the page's live one, as it is on the land beside it)
     // (wet, a slab is darker: the water in its pores drinks the light, and the film over it gives the sky back; the
     // form render darkens it where its water lies, so its bake stays dry)
-    const wetK = manifest.wet === true ? APRON.wet : 1, wetHex = '#' + Math.round(255 * wetK).toString(16).padStart(2, '0').repeat(3);
+    const wetK = manifest.wet ? APRON.wet : 1, wetHex = '#' + Math.round(255 * wetK).toString(16).padStart(2, '0').repeat(3);
     const apronF = shellLight && apron0.length ? sunLitFaces(apron0.map((f) => ({ ...f, fill: '#ffffff' })), shellLight, {}).faces
       : wetK < 1 ? apron0.map((f) => { const d = (h) => '#' + [1, 3, 5].map((q) => Math.round(parseInt(h.slice(q, q + 2), 16) * wetK).toString(16).padStart(2, '0')).join(''); return { ...f, fill: d(f.fill), cornerFills: f.cornerFills.map(d) }; }) : apron0;
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
@@ -951,7 +951,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     faces = [...faces, ...moved, ...shell, ...apronF, ...yardLit, ...trims, ...stoop, ...stairF, ...pathF];
     // WET (`wet: true` on the recipe: it has just rained): on a painted page the apron's slab films the sky,
     // channels/wet-road.js; the form render wets the slab itself (its record's `reflect.wet`, below)
-    if (manifest.wet === true && apronF.length && !shellLight) wetQuads.push(...apronF.filter((f) => f.corners.length === 4 && f.normal && f.normal[2] > 0.9).map((f) => f.corners));
+    if (manifest.wet && apronF.length && !shellLight) wetQuads.push(...apronF.filter((f) => f.corners.length === 4 && f.normal && f.normal[2] > 0.9).map((f) => f.corners));
     for (const c of P.cutouts || []) cutouts.add(c);
     lights.push(...(P.lights || []).map((l) => ({ ...l, name: `${id}-${l.name}`, position: P3(W(l.position)) })));
     // its colliders: the stage's own, moved (a quarter turn keeps a box a box)
@@ -1062,8 +1062,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const reflect = ctx.dayLight && formRooms.length && payload.sky?.zenith && payload.sky?.horizon ? {
     env: { zenith: lin(payload.sky.zenith.slice(0, 3)), horizon: lin(payload.sky.horizon.slice(0, 3)), ground: lin(payload.sky.horizon.slice(0, 3)).map((v) => r5(v * 0.35)) },
     surfaces: BUILT_SURFACES,
-    ...(manifest.wet === true ? { wet: { amount: 1, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: ['building:apron'] } } : {}) } : null;
-  if (manifest.wet !== undefined && typeof manifest.wet !== 'boolean') throw new Error('stage: wet is true (it has just rained: the hard standing films the sky) or false');
+    ...(manifest.wet ? { wet: { amount: 1, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: ['building:apron'] } } : {}) } : null;
+
   const wetRoad = wetQuads.length ? { quads: wetQuads, lamps: [], zenith: payload.sky?.zenith ?? [120, 150, 200], horizon: payload.sky?.horizon ?? [200, 215, 230] } : null;
   return { ...payload, ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

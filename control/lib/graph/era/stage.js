@@ -614,6 +614,11 @@ export function planStage(m = {}) {
     if (!Array.isArray(m.samples) || m.samples.length > 24 || m.samples.some((q) => !q || !SAMPLES[q.of] || !Array.isArray(q.at) || q.at.length !== 2 || !q.at.every(Number.isFinite) || (q.size !== undefined && !(q.size > 0.1 && q.size <= 20))))
       throw new Error(`stage: samples are [{ of: ${Object.keys(SAMPLES).join(' | ')}, at: [x, y], size?: metres }] (at most 24)`);
   }
+  // WET (`wet: true | 0 to 1`, a room kit's): the floor wet with no depth. A wetness is a state of the surface it lies
+  // on (era/laws.js 'wet-hugs-the-surface'): no thickness and no edge of its own, the relief kept, the water lying by
+  // the tile's own height (its joints fill first and lie mirror-smooth, its faces darken and sheen). The dial: damp,
+  // wet, brimming; past that it is a pool, which has a thickness (a sample). The form render's; a painted page none
+  if (m.wet !== undefined && m.wet !== true && m.wet !== false && !(typeof m.wet === 'number' && m.wet >= 0 && m.wet <= 1)) throw new Error('stage: wet is true, false, or how wet from 0 to 1 (damp, wet, brimming)');
   // DAYLIGHT (`daylight: { elevation, azimuth?, color?, gain?, alone? }`, a room kit's): a sun over rooms that stand indoors.
   // The form render takes it LIVE: every corner turned to it carries its share, and the page's hour map takes that
   // share away where a roof or a wall hides it, so it comes in at a window, a roof light or an open door as its own
@@ -627,7 +632,7 @@ export function planStage(m = {}) {
   }
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(m.wet ? { wet: m.wet === true ? 0.6 : m.wet } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -1445,6 +1450,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain, ...(ctx.liveSun ? { share: true } : {}),
       shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => !GLASS.has(f.group) && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
+  // (a room's wet floor, the form render's: a kit of rooms indoors, not a plaza under its own sun)
+  const isRoomWet = !plan.kit.sun && !!ctx.formLit && !ctx.unshaded, WET_GROUPS = ['stage:floor', 'stage:gutter', 'stage:path'];
   // (a room's daylight, the form render's: no shadow baked, every corner turned to it its share; the page's hour map)
   const liveDay = !daylight && plan.daylight && !!ctx.formLit && !ctx.unshaded ? { dir: sunDir(plan.daylight.elevation, plan.daylight.azimuth ?? 225), rgb: hexRgb(plan.daylight.color ?? '#fff1dc'),
     gain: 1, over: plan.daylight.gain ?? 1, bounce: [0.9, 0.86, 0.8], bounceGain: 0.15, share: true, live: true, shadow: () => 1 } : null;
@@ -1550,9 +1557,10 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...(formLit.light.sun && plan.samples ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, surfaces: Object.fromEntries([...new Set(plan.samples.map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal, ...(SAMPLES[of].clear ? { clear: SAMPLES[of].clear } : {}), ...(SAMPLES[of].film ? { film: SAMPLES[of].film } : {}) }])),
+    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...((formLit.light.sun && plan.samples) || (plan.wet && isRoomWet) ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, ...(plan.wet && isRoomWet ? { wet: { amount: plan.wet, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: WET_GROUPS, damp: true } } : {}),
+      surfaces: Object.fromEntries([...(plan.wet && isRoomWet ? WET_GROUPS.map((g) => [g, { rough: 0.82 }]) : []), ...[...new Set((plan.samples || []).map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal, ...(SAMPLES[of].clear ? { clear: SAMPLES[of].clear } : {}), ...(SAMPLES[of].film ? { film: SAMPLES[of].film } : {}) }])]),
       // (its pools, for what a footfall does in one: where each lies, its outline's own waves, how its liquid answers)
-      pools: plan.samples.map((q, i) => ({ q, i })).filter(({ q }) => SAMPLES[q.of].pool).map(({ q, i }) => ({ group: `stage:sample-${q.of}`, at: q.at, r: r5((q.size ?? 3) / 2), ph: [1, 2, 3].map((j) => r5(hash3(i, j, 4441) * 2 * Math.PI)),
+      pools: (plan.samples || []).map((q, i) => ({ q, i })).filter(({ q }) => SAMPLES[q.of].pool).map(({ q, i }) => ({ group: `stage:sample-${q.of}`, at: q.at, r: r5((q.size ?? 3) / 2), ph: [1, 2, 3].map((j) => r5(hash3(i, j, 4441) * 2 * Math.PI)),
         z: SAMPLES[q.of].thick, tint: SAMPLES[q.of].tint, ripple: SAMPLES[q.of].ripple, print: SAMPLES[q.of].print })),
       // (the room's capture, the form render's: from the middle of the first room at a standing eye, corrected to that room's box)
       probe: (({ x0, y0, x1, y1, h }) => ({ at: [r5((x0 + x1) / 2), r5((y0 + y1) / 2), r5(Math.min(h * 0.45, 1.7))], box: [[x0, y0, 0], [x1, y1, h]].map((c) => c.map(r5)) }))(plan.rooms[0]) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),

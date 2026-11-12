@@ -52,8 +52,8 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // register-ink law; it stands at 5602 with them
 // 5650 -> 5800 (2026-10-25): the two lines merged, the city stalker's city-night beside geocube styles' theatre-grey and
 // limestone-crags; it stands at 5729 with all three
-// (6000 since the craft laws joined the laws card: the laws of both eras and of craft, one line each)
-export const STAGE_CARD_BODY_CEILING = 6000;
+// (6200 since the craft laws and the wetness law joined the laws card: the laws of both eras and of craft, one line each)
+export const STAGE_CARD_BODY_CEILING = 6200;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
