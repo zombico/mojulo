@@ -99,3 +99,9 @@ size it would be.
   `condition: "derelict", skandart: 0` is a derelict room swept clean.
 - `skandart: 0` is a room where nothing lies, the kit's own fallen stone gone too; only an absent key or `false` leaves a
   kit as it was drawn.
+- Weathering reaches every made surface by the cause that acts on it: a dressed tile's wear (`grit`: paint off the
+  arrises and rivets, dents, scuffs, stains) by `use` on a floor and by time elsewhere, a corrugated roof's rust by
+  water, a render's coat as before; and its baked dirt reaches a bay's own surfaces (its base band, columns and crown as
+  walls, its floor band and hazard paint as the floor), asked by weathering only. A new cause, `use` (traffic), wears
+  the floor and the walk. A hangar weathered and kept (`kit: "bay-military", weathering: 1, skandart: 0`) shows its
+  roof rusted through, its floor stained and scuffed and nothing lying on it.

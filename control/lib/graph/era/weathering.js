@@ -11,24 +11,29 @@
  *           walls' feet, fungus and creep in the corners
  *   water   water from above: streaks down from the cornice, the upper wall's coat lost
  *   fire    flame: soot over every lamp and torch
- *   time    years: the dirt's age, the blends' reach, the stone's worn joints and chipped arrises, cracks in the floor
+ *   time    years: the dirt's age, the blends' reach, the stone's worn joints and chipped arrises, cracks in the floor;
+ *           a made surface's wear (a dressed tile's `grit`: paint off the arrises and the rivets, dents and scuffs, stains)
+ *   use     traffic: the floor's lanes scuffed and its stains (its tile's `grit`), the walk's wear in the dirt; a kept
+ *           place that is used shows it here, and none of it lies on the floor
  *
  *   readWeathering(m)          → null | { amount, causes: { damp, water, fire, time } }
  *   withWeathering(m, kit)     → the recipe with the dials the causes set filled where the recipe set none (`grime`,
  *                                `dirt`, `cracks`, `growth`), and `_weathering`: what was asked and what it set (its
  *                                render walls' coat loss among it)
- *   weatherKit(kit, W)         → the kit with its render walls' coat at what `_weathering` set (its tint and laying kept)
+ *   weatherKit(kit, W)         → the kit with its made surfaces at what `_weathering` set (its tints and laying kept)
  * A recipe's own `grime`, `dirt`, `cracks`, `growth` or wall `tiles` stand over what the scale would set. Pure.
  */
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { tileFamilyOf } from './tile-specs.js';
 
-export const WEATHER_CAUSES = Object.freeze(['damp', 'water', 'fire', 'time']);
+export const WEATHER_CAUSES = Object.freeze(['damp', 'water', 'fire', 'time', 'use']);
 /** The scale's numbers: where the kit as drawn stands on it, and the most each surface dial reaches. */
 export const WEATHERING = Object.freeze({
   authored: 0.5,
   // a render's coat lost at the wall's foot (damp) and over the string course (water), at the scale's top
   coat: Object.freeze({ low: 0.95, high: 0.7 }),
+  // a made surface's wear (`grit`) and a corrugated roof's rust through its coat (`rust`), at the scale's top
+  grit: 1, rust: 0.8,
   // the floor's cracks and the corners' growth, at the scale's top (interceptors.js: 0…1)
   cracks: 0.7, growth: 0.55,
 });
@@ -48,14 +53,6 @@ export function readWeathering(m) {
   return { amount: v.amount === undefined ? WEATHERING.authored : num(v.amount, 'weathering.amount'), causes };
 }
 
-/** A render wall's coat lost to `loss` (its family regenerated, its every other setting kept); other walls as they are. */
-function coatAt(tile, loss) {
-  const S = tile?.family ? generatedSpecOf(`${tile.family}-a`) : null;
-  if (!S || S.gen !== 'dressed' || S.cfg.cut !== 'render' || !Number.isFinite(S.cfg.loss)) return null;
-  const { metres, ...p } = S.cfg;
-  return { gen: 'dressed', ...p, scale: metres, loss: r5(Math.min(0.98, loss)) };
-}
-
 /**
  * The recipe with the scale's dials filled where it set none. The scale reaches each surface by its cause, relative to
  * the kit as drawn (at WEATHERING.authored every dial is the kit's own): the grime by time, the baked dirt cause by
@@ -69,16 +66,29 @@ export function withWeathering(m, kit) {
   if (m.grime === undefined) { out.grime = r5(Math.min(1, a * C.time)); set.grime = out.grime; }
   // the baked dirt, cause by cause (dirt.js: each its default at the kit as drawn, scaled)
   if (m.dirt === undefined) {
-    out.dirt = { age: r5(Math.min(1, 0.5 * k * C.time)), damp: r5(Math.min(1, 0.5 * k * C.damp)), soot: r5(Math.min(1, 0.5 * k * C.fire)) };
+    // (and every made surface of the room takes it, not only its walls and floor: a bay's bands, columns and paint)
+    out.dirt = { age: r5(Math.min(1, 0.5 * k * C.time)), damp: r5(Math.min(1, 0.5 * k * C.damp)), soot: r5(Math.min(1, 0.5 * k * C.fire)), traffic: r5(Math.min(1, 0.5 * k * C.use)), every: true };
     set.dirt = out.dirt;
   }
-  // a render wall's coat, lost low where damp rises and high where water runs down (the kit's own loss at the middle)
-  if (m.tiles?.wall === undefined && m.tiles?.wallUpper === undefined && kit?.tiles) {
-    const lowS = kit.tiles.wall?.family ? generatedSpecOf(`${kit.tiles.wall.family}-a`) : null, hiS = kit.tiles.wallUpper?.family ? generatedSpecOf(`${kit.tiles.wallUpper.family}-a`) : null;
-    const lose = (base, most, w) => (a <= WEATHERING.authored ? base * (a / WEATHERING.authored) * w + base * (1 - w) : base + (most - base) * ((a - WEATHERING.authored) / (1 - WEATHERING.authored)) * w);
-    const low = lowS?.cfg?.loss !== undefined ? coatAt(kit.tiles.wall, lose(lowS.cfg.loss, WEATHERING.coat.low, C.damp)) : null;
-    const high = hiS?.cfg?.loss !== undefined ? coatAt(kit.tiles.wallUpper, lose(hiS.cfg.loss, WEATHERING.coat.high, C.water)) : null;
-    if (low || high) set.coat = { ...(low ? { low: low.loss } : {}), ...(high ? { high: high.loss } : {}) };
+  // its made surfaces, each by the cause that acts on it (the kit's own at the middle): a render wall's coat lost low by
+  // damp and high by water; every dressed surface's wear (`grit`) by use on a floor and by time elsewhere; a corrugated
+  // roof's rust by water. A part the recipe tiles itself is the recipe's
+  const toward = (base, most, w) => (a <= WEATHERING.authored ? base * (a / WEATHERING.authored) * w + base * (1 - w) : base + (most - base) * ((a - WEATHERING.authored) / (1 - WEATHERING.authored)) * w);
+  const parts = {};
+  for (const [part, tile] of Object.entries(kit?.tiles || {})) {
+    if (m.tiles?.[part] !== undefined || !tile?.family) continue;
+    const S = generatedSpecOf(`${tile.family}-a`);
+    if (!S || S.gen !== 'dressed') continue;
+    const c = S.cfg, P = {}, floor = /floor|path/.test(part), ceiling = /ceiling|roof/.test(part);
+    if (c.cut === 'render' && Number.isFinite(c.loss)) P.loss = r5(toward(c.loss, part === 'wallUpper' ? WEATHERING.coat.high : WEATHERING.coat.low, part === 'wallUpper' ? C.water : C.damp));
+    if (Number.isFinite(c.grit)) P.grit = r5(Math.min(1, toward(c.grit, WEATHERING.grit, floor ? C.use : C.time)));
+    if (c.cut === 'corrugated') P.rust = r5(Math.min(1, toward(c.rust ?? 0, WEATHERING.rust, ceiling ? C.water : C.time)));
+    parts[part] = P;
+  }
+  if (Object.keys(parts).length) {
+    set.tiles = parts;
+    const low = parts.wall?.loss, high = parts.wallUpper?.loss;
+    if (low !== undefined || high !== undefined) set.coat = { ...(low !== undefined ? { low } : {}), ...(high !== undefined ? { high } : {}) };
   }
   // the floor's cracks by time, the corners' growth (fungus, creep) by damp (interceptors.js), past the kit as drawn
   const over = Math.max(0, (a - WEATHERING.authored) / (1 - WEATHERING.authored));
@@ -90,13 +100,14 @@ export function withWeathering(m, kit) {
 /** The kit with its render walls' coat at what weathering set (`W` a recipe's `_weathering`): each wall's family
  *  regenerated at its new loss, every other setting, its tint and its laying kept. A kit without a coat is as it was. */
 export function weatherKit(kit, W) {
-  const C = W?.set?.coat;
-  if (!C || !kit?.tiles) return kit;
+  const T = W?.set?.tiles;
+  if (!T || !kit?.tiles) return kit;
   const tiles = { ...kit.tiles };
-  for (const [part, at] of [['wall', 'low'], ['wallUpper', 'high']]) {
-    if (C[at] === undefined || !tiles[part]) continue;
-    const spec = coatAt(tiles[part], C[at]);
-    if (spec) tiles[part] = { ...tiles[part], family: tileFamilyOf(spec, `weathering: tiles.${part}`) };
+  for (const [part, P] of Object.entries(T)) {
+    const tile = tiles[part], S = tile?.family ? generatedSpecOf(`${tile.family}-a`) : null;
+    if (!S || S.gen !== 'dressed') continue;
+    const { metres, ...p } = S.cfg;
+    tiles[part] = { ...tile, family: tileFamilyOf({ gen: 'dressed', ...p, scale: metres, ...P }, `weathering: tiles.${part}`) };
   }
   return { ...kit, tiles };
 }
