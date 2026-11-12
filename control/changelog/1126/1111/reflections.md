@@ -42,3 +42,5 @@
   pool, which has a thickness. The form render's; a painted page lays none.
 - On a wall a wetness runs: streaks down the face by the wall's own length, heaviest at its foot and thinning up it;
   a ledge or a joint still holds it. A wet room's walls, plinth and trim take it with its floor.
+- Out of doors a wet recipe wets every built thing with no depth: the apron, the walls, the roofs and a yard's
+  containers, each by the same law (the slab's joints full and its faces dark, the walls and containers run with it).
