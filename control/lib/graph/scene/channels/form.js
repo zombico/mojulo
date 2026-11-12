@@ -42,7 +42,7 @@ import { safeJson } from '../emit-util.js';
 // recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
 // that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
 // sheens on damp ground. Only a page that carries `reflect` carries this code.
-const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec4 uFWet;\nuniform float uFWetW;\nuniform vec4 uFSpot[ 6 ];\nuniform vec2 uFSpotK[ 6 ];\nuniform float uFNow;\nuniform vec4 uFFlood[ 4 ];\nuniform vec3 uFFloodK[ 4 ];\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec4 uFWet;\nuniform float uFWetW;\nuniform vec4 uFSpot[ 6 ];\nuniform vec2 uFSpotK[ 6 ];\nuniform float uFNow;\nuniform vec4 uFFlood[ 4 ];\nuniform vec3 uFFloodK[ 4 ];\nfloat fCsKeep = 0.0;\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
   + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
   + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
 const ENV_BODY = `
@@ -192,12 +192,16 @@ const ENV_BODY = `
 #endif
   // (a FLOODLIGHT, a lamp standing out of doors: no bake holds it, so its own light is laid here whole, by its falloff
   // and the pixel's turn to it, and its highlight; no shadow of its own)
+  vec3 eFloodSum = vec3( 0.0 );
   for ( int i = 0; i < 4; i++ ) {
     if ( uFFlood[ i ].w <= 0.0 ) continue;
     vec3 eFd = uFFlood[ i ].xyz - vFPos; float eFr = length( eFd ); vec3 eFl = eFd / max( eFr, 1e-3 );
     float eFt = clamp( 1.0 - max( eFr, 1.1 ) / uFFlood[ i ].w, 0.0, 1.0 ); vec3 eFc = uFFloodK[ i ] * eFt * eFt;
-    eAdd += eFc * max( dot( eN, eFl ), 0.0 ) * ( diffuseColor.rgb * ( 1.0 - eM ) + eF * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eFl + eV ) ), 0.0 ), eShine ) );
+    eFloodSum += eFc * max( dot( eN, eFl ), 0.0 ) * ( diffuseColor.rgb * ( 1.0 - eM ) + eF * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eFl + eV ) ), 0.0 ), eShine ) );
   }
+  // (what a flood lays is no part of the sun's or the moon's light: the hour's shadow leaves it standing)
+  fCsKeep = fLum( eFloodSum ) / max( fLum( eFloodSum ) + fLum( eAdd ) + fLum( vFLit * diffuseColor.rgb ), 1e-4 );
+  eAdd += eFloodSum;
 #ifdef FORM_CLEAR
   // (seen through: square on it keeps a share of its own colour and lets the floor show; the lower it is looked
   // along the more it mirrors and the less it shows. What it gives back is laid whole, whatever its cover)
@@ -338,7 +342,10 @@ ${cfg.sun ? `
     const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
       ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''});
-    if (M && M.normal) made.material++; else made.colour++;
+${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and drawn both sides: into the shadow map it casts by its far faces only,
+    // so its lit faces never shade themselves in bands)
+    if (SURF[o.userData.g]) o.material.shadowSide = THREE.BackSide;
+` : ''}    if (M && M.normal) made.material++; else made.colour++;
     if (M && M.depth > 0 && F.pom.steps > 0) made.pom++;
   });
   // the glass: a pane reflects by Fresnel (Schlick from F0, \`F.f0\`, held up a little: a game's glass must be seen), the room in it (the floor's dark under its horizon,

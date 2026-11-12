@@ -52,5 +52,10 @@
   under a roof no rain falls and only a spot pools.
 - Floodlights: a building's `yard: { floods }` stands masts along its yard's edge. Each is a lamp no bake holds, laid
   whole by the page with its highlight (the nearest four, apart from a room's own lamps).
-- Open, seen on a wet yard at night: a floodlight casts no shadow and stops at the shadow the moon's map draws, so
-  the slab is black in the building's moon shadow; standing pools and rain rings are not yet seen to read.
+- A yard's slab is laid in bays three metres square with a sealed joint (`yardSlab`, a floor's dressed cut), as a
+  room's flags are, so its joints hold water.
+- A built thing out of doors casts into the shadow map by its far faces only (it is closed and drawn both sides), so
+  its lit faces no longer shade themselves in bands: the fault on the containers and the slab.
+- What a floodlight lays is not the sun's or the moon's to take: the hour's shadow leaves it standing.
+- Open, on a wet yard at night: a floodlight casts no shadow of its own; standing pools and rain rings are faint; the
+  slab is plainer than a room's worked floor.

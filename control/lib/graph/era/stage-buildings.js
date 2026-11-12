@@ -56,7 +56,7 @@ import { registerPalette, registerConstruction, CONSTRUCTIONS } from './style/ba
 import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
-import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
+import { exteriorOf, stairConcrete, yardSlab } from './style/bay-exterior.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { readWetness } from './wetness.js';
 import { hash3 } from './dirt.js';
@@ -82,7 +82,7 @@ const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0
 // how each built part gives the sky back (roughness 0 a mirror to 1 chalk; metal 1 a bare metal): painted steel
 // sheens, a container's enamel more, poured concrete barely
 // a yard's floodlight: its mast's height (m), its light where its falloff is whole (linear, the solve's units) and its reach
-const FLOOD = Object.freeze({ h: 9, key: Object.freeze([3.4, 3.2, 2.7]), radius: 30 });
+const FLOOD = Object.freeze({ h: 9, key: Object.freeze([1.9, 1.55, 0.95]), radius: 26 });   // (a sodium lamp's amber)
 const BUILT_SURFACES = Object.freeze({ 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
 const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
@@ -862,12 +862,12 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const apronKind = b.apron ?? ctx.apron ?? (hardShare >= APRON.hard ? 'ground' : 'slab');
     if (!['slab', 'ground'].includes(apronKind)) throw new Error(`stage: buildings[${i}].apron is 'slab' (poured concrete) or 'ground' (the land's own, levelled)`);
     const apron0 = was && was.apron && apronKind === 'slab' ? (() => {
-      const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = stairConcrete(), out = [];
+      const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = yardSlab(), out = [];
       const lam = (nn) => (payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0), day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
       const face = (c, nn) => { const flat = Math.abs(nn[2]) > 0.5, g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam(nn)) * (0.35 + 0.65 * day)));
         return { ...quad(c, 'building:apron', `#${g.toString(16).padStart(2, '0').repeat(3)}`), texture: T.key, textureLit: true, uv: c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / T.scale))), normal: P3(nn), outNormal: P3(nn) }; };
       // (laid in bays of its own joints' size, so the sun's light has corners to land on; each cut round the building)
-      const step = 4, nx = Math.max(1, Math.round((ax1 - ax0) / step)), ny = Math.max(1, Math.round((ay1 - ay0) / step));
+      const step = 3, nx = Math.max(1, Math.round((ax1 - ax0) / step)), ny = Math.max(1, Math.round((ay1 - ay0) / step));
       for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) { const u0 = ax0 + ((ax1 - ax0) * ix) / nx, u1 = ax0 + ((ax1 - ax0) * (ix + 1)) / nx, v0 = ay0 + ((ay1 - ay0) * iy) / ny, v1 = ay0 + ((ay1 - ay0) * (iy + 1)) / ny;
         out.push(...cutOutBoxes(face([[u0, v0, zt], [u1, v0, zt], [u1, v1, zt], [u0, v1, zt]].map(P3), [0, 0, 1]), F.boxes)); }
       for (const [p, q, nn] of [[[ax0, ay0], [ax1, ay0], [0, -1, 0]], [[ax1, ay0], [ax1, ay1], [1, 0, 0]], [[ax1, ay1], [ax0, ay1], [0, 1, 0]], [[ax0, ay1], [ax0, ay0], [-1, 0, 0]]])

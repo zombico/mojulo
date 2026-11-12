@@ -310,6 +310,9 @@ ${A ? '  vCsCoord = csMat * csW;\n' : ''}${H ? '  vHrCoord = hrMat * csW;\n' : '
   float lit = ${litExpr};
 #ifdef CS_SUN
   float k = vCsSun;
+#ifdef FORM_ENV
+  k *= 1.0 - fCsKeep;   // (the form render's floodlights, channels/form.js: their share of a pixel is not the sun's to take)
+#endif
 #else
   float k = ${Number(cfg.alpha).toFixed(3)};
 #endif

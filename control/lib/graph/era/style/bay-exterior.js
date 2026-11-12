@@ -55,6 +55,12 @@ export function exteriorOf({ construction, palette } = {}) {
 }
 
 /** The poured concrete an outdoor stair and its cheeks are cast in, whatever the building beside it. */
+/** A yard's hardstanding: poured concrete in bays three metres square, a sealed joint round each, its face floated and
+ *  pitted: slabs with joints deep enough to hold water (a floor's dressed cut, as a room's flags are). */
+export function yardSlab() {
+  const family = tileFamilyOf({ gen: 'dressed', face: 'floor', stone: [96, 96, 94], mortar: [40, 40, 39], rows: 1, cols: 1, joint: 0.012, recess: 0.012, tool: 'none', chamfer: 0.008, pillow: 0.004, spall: 0.25, pit: 0.45, vary: 9, grit: 0.7, scale: 3 });
+  return { family, scale: 3, key: `${family}-a` };
+}
 export function stairConcrete() {
   return tile(d('concrete', 2, { cols: 2, rows: 1, grit: 0.6 }), { stone: [146, 144, 138], mortar: [104, 102, 98] });
 }
