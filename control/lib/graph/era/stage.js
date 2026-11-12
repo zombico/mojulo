@@ -414,6 +414,28 @@ function withRecipeTiles(kit, kitId, tiles) {
 const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
+/** The materials a recipe may set down to be looked at (`samples`): a liquid a pool on the floor, a metal a cube; `tint`
+ *  its colour under no light, `rough` 0 a mirror to 1 chalk, `metal` 1 a bare metal (the form render's, channels/form.js). */
+export const SAMPLES = Object.freeze({
+  oil: Object.freeze({ pool: true, tint: [0.035, 0.032, 0.03], rough: 0.05, metal: 0 }),
+  water: Object.freeze({ pool: true, tint: [0.16, 0.18, 0.19], rough: 0.04, metal: 0 }),
+  chrome: Object.freeze({ tint: [0.9, 0.9, 0.92], rough: 0.1, metal: 1 }),
+  steel: Object.freeze({ tint: [0.56, 0.57, 0.6], rough: 0.34, metal: 1 }),
+});
+function sampleFaces(plan) {
+  const out = [];
+  (plan.samples || []).forEach((q, i) => {
+    const M = SAMPLES[q.of], [x, y] = q.at, group = `stage:sample-${q.of}`, node = `sample-${i + 1}`, n0 = out.length;
+    if (M.pool) {
+      // (a pool: a ring of sixteen, its edge wandering by the sample's own dice; a hair over the floor)
+      const R = (q.size ?? 3) / 2, z = 0.006, pts = Array.from({ length: 16 }, (_, k) => { const a = (k / 16) * 2 * Math.PI, r = R * (0.78 + 0.34 * hash3(i, k, 4441)); return P([x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r, z]); });
+      for (let k = 0; k < 16; k++) out.push({ corners: [P([x, y, z]), pts[k], pts[(k + 1) % 16]], normal: [0, 0, 1], outNormal: [0, 0, 1], tint: M.tint, group });
+    } else { const h = q.size ?? 1; box(out, [x - h / 2, y - h / 2, 0], [x + h / 2, y + h / 2, h], { key: null, scale: 1, tint: M.tint, group }, h, ['-z']); }
+    for (let k = n0; k < out.length; k++) out[k].node = node;
+  });
+  return out;
+}
+
 export function planStage(m = {}) {
   // a composed interior (era/compose.js): its kit composed from a value on each bay axis, its id the bay kit it names
   const composed = m.compose !== undefined ? composeForBuild(m) : null;
@@ -571,6 +593,13 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
+  // SAMPLES (`samples: [{ of, at: [x, y], size? }]`): a material set down in a room to be looked at under its light. A
+  // liquid (`oil`, `water`) lies on the floor as a pool `size` metres across; a metal (`chrome`, `steel`) stands as a
+  // cube `size` metres on a side. Each is its own material to the form render: how rough, how much a metal
+  if (m.samples !== undefined) {
+    if (!Array.isArray(m.samples) || m.samples.length > 24 || m.samples.some((q) => !q || !SAMPLES[q.of] || !Array.isArray(q.at) || q.at.length !== 2 || !q.at.every(Number.isFinite) || (q.size !== undefined && !(q.size > 0.1 && q.size <= 20))))
+      throw new Error(`stage: samples are [{ of: ${Object.keys(SAMPLES).join(' | ')}, at: [x, y], size?: metres }] (at most 24)`);
+  }
   // DAYLIGHT (`daylight: { elevation, azimuth?, color?, gain?, alone? }`, a room kit's): a sun over rooms that stand indoors.
   // The form render takes it LIVE: every corner turned to it carries its share, and the page's hour map takes that
   // share away where a roof or a wall hides it, so it comes in at a window, a roof light or an open door as its own
@@ -584,7 +613,7 @@ export function planStage(m = {}) {
   }
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -1133,7 +1162,10 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   };
   for (const f of raw) if (f.tint) roleOf(f);
   const ramp0 = tone ? ramps[tone.default] : null;
-  const S = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  const S0 = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  // (a sun that stands over its paint, `sun.over`: the solve lays the sunlit colour as painted, and the sun is then this
+  // many times that, so a sunlit floor is brighter than its paint: a daylight's `gain`)
+  const S = sun && sun.over && sun.over !== 1 ? { ...S0, sun: S0.sun.map((v) => v * sun.over) } : S0;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   // (a tuner's scale on each lamp's key, solved on these very shares: the scene composer's plot, compose-plot.js keyTuner)
   const scale = tune ? tune({ raw, shares, keys: S.keys, ambient: S.ambient, lights }) : null;
@@ -1379,7 +1411,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return new Set(dress.anchors.filter((a) => a.kind !== 'part' && (boxInStairs(plan.cuts, b[a.id] || a.box) || (plan.cuts.bare && a.kind === 'set-piece'))).map((a) => a.id)); })();
   const goneAnchor = (a) => !!plan.cuts && (gone.has(a.id) || gone.has(a.of) || (a.at && inStairs(plan.cuts, [a.at[0], a.at[1], 1])));
   const dressFaces = !dress ? [] : plan.cuts ? dress.faces.filter((f) => !(f.node && gone.has(f.node)) && !inStairs(plan.cuts, mid3(f))) : dress.faces;
-  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...sampleFaces(plan), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
@@ -1401,7 +1433,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   })() : null;
   // (a room's daylight, the form render's: no shadow baked, every corner turned to it its share; the page's hour map)
   const liveDay = !daylight && plan.daylight && !!ctx.formLit && !ctx.unshaded ? { dir: sunDir(plan.daylight.elevation, plan.daylight.azimuth ?? 225), rgb: hexRgb(plan.daylight.color ?? '#fff1dc'),
-    gain: plan.daylight.gain ?? 1, bounce: [0.9, 0.86, 0.8], bounceGain: 0.15, share: true, live: true, shadow: () => 1 } : null;
+    gain: 1, over: plan.daylight.gain ?? 1, bounce: [0.9, 0.86, 0.8], bounceGain: 0.15, share: true, live: true, shadow: () => 1 } : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them
   // (under a live sun the painted patches under the windows give way: the sun lays its own)
   const baseD = liveDay ? base.filter((f) => f.group !== 'stage:sunpatch') : base;
@@ -1504,7 +1536,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
+    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...(formLit.light.sun && plan.samples ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, surfaces: Object.fromEntries([...new Set(plan.samples.map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal }])) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,

@@ -10,3 +10,9 @@
   did not have) takes it away where a roof or a wall hides it, so the sun comes in at a window as its own shape on the
   floor. Glass, sky cards and the painted sun patches let it by, and the painted patches give way. A painted page lays
   none, and a room without the word is as it was. `alone: true` turns the lamps off: the room lit by the day alone.
+- A daylight's `gain` stands the sun over its paint: the solve lays a sunlit surface as painted, and the sun is then
+  that many times it.
+- Samples: a recipe's `samples: [{ of, at, size? }]` sets a material down in a room to be looked at: a liquid (`oil`,
+  `water`) a pool on the floor, a metal (`chrome`, `steel`) a cube, each with its own roughness and metal to the form
+  render. What they show today: a room gives a mirror nothing to hold but a plain gradient, so a pool is dark and a
+  chrome cube a dark box; neither holds the windows, the sun on the floor or each other.

@@ -33,4 +33,17 @@ describe('daylight: a sun for rooms indoors', () => {
     expect(() => assembleStageScene({ ...M, daylight: { elevation: 120 } })).toThrow(/daylight is/);
     expect(() => assembleStageScene({ ...M, daylight: { elevation: 30, haze: 1 } })).toThrow(/daylight is/);
   });
+
+  it('a sample is a material set down to be looked at: a liquid a pool on the floor, a metal a cube, each its own surface', () => {
+    const P = assembleStageScene({ ...M, daylight: day, samples: [{ of: 'oil', at: [5, 6], size: 3 }, { of: 'chrome', at: [7, 9] }] }, { formLit: true });
+    const oil = P.faces.filter((f) => f.group === 'stage:sample-oil'), cube = P.faces.filter((f) => f.group === 'stage:sample-chrome');
+    expect(oil.length).toBeGreaterThan(0);
+    expect(Math.max(...oil.flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(0.02);
+    expect(Math.max(...cube.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(1, 3);
+    const S = P.form.room.reflect.surfaces;
+    expect(S['stage:sample-oil'].metal).toBe(0);
+    expect(S['stage:sample-chrome'].metal).toBe(1);
+    expect(S['stage:sample-oil'].rough).toBeLessThan(S['stage:sample-chrome'].rough + 1);
+    expect(() => assembleStageScene({ ...M, samples: [{ of: 'lava', at: [1, 1] }] })).toThrow(/samples are/);
+  }, 60000);
 });
