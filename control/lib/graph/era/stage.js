@@ -1451,7 +1451,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
       shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => !GLASS.has(f.group) && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
   // (a room's wet floor, the form render's: a kit of rooms indoors, not a plaza under its own sun)
-  const isRoomWet = !plan.kit.sun && !!ctx.formLit && !ctx.unshaded, WET_GROUPS = ['stage:floor', 'stage:gutter', 'stage:path'];
+  const isRoomWet = !plan.kit.sun && !!ctx.formLit && !ctx.unshaded, WET_GROUPS = ['stage:floor', 'stage:gutter', 'stage:path', 'stage:wall', 'stage:plinth', 'stage:trim'];
   // (a room's daylight, the form render's: no shadow baked, every corner turned to it its share; the page's hour map)
   const liveDay = !daylight && plan.daylight && !!ctx.formLit && !ctx.unshaded ? { dir: sunDir(plan.daylight.elevation, plan.daylight.azimuth ?? 225), rgb: hexRgb(plan.daylight.color ?? '#fff1dc'),
     gain: 1, over: plan.daylight.gain ?? 1, bounce: [0.9, 0.86, 0.8], bounceGain: 0.15, share: true, live: true, shadow: () => 1 } : null;

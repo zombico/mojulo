@@ -79,9 +79,15 @@ const ENV_BODY = `
     // mirror-smooth, its high faces only darken and take a sheen. One dial: damp, wet, brimming. It thins
     // and thickens over the floor by the world's place, so no two slabs are wet alike
     vec3 eP = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz;
-    float eUpF = smoothstep( 0.55, 0.9, inverseTransformDirection( eG, viewMatrix ).z );
+    vec3 eGw = inverseTransformDirection( eG, viewMatrix );
+    float eUpF = smoothstep( 0.55, 0.9, eGw.z );
     float eVar = 0.72 + 0.28 * ( fVN( eP.xy * 0.23 + uFWet.y ) * 0.6 + fVN( eP.xy * 0.9 + uFWet.y * 1.7 ) * 0.4 );
-    float eAmt = uFWet.x * eVar * eUpF;
+    // (ON A WALL water does not lie, it RUNS: in streaks down the face, by the wall's own length and stretched along
+    // its height, heaviest at its foot where it gathers and thinning up it; a ledge or a joint still holds it)
+    float eAlong = eP.y * eGw.x - eP.x * eGw.y;
+    float eRun = fVN( vec2( eAlong * 1.3 + uFWet.y, eP.z * 0.1 ) ) * 0.65 + fVN( vec2( eAlong * 4.3 + 5.0, eP.z * 0.33 + 3.0 ) ) * 0.35;
+    float eWallF = ( 1.0 - eUpF ) * ( 1.0 - smoothstep( 0.4, 0.6, abs( eGw.z ) ) ) * smoothstep( 0.38, 0.7, eRun ) * mix( 1.0, 0.5, smoothstep( 0.3, 4.0, eP.z ) );
+    float eAmt = uFWet.x * ( eVar * eUpF + eWallF );
 #ifdef USE_AOMAP
     float eHt = texture2D( aoMap, fUV ).b;
 #else

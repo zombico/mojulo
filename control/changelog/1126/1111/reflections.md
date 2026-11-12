@@ -40,3 +40,5 @@
   fill first and lie mirror-smooth, its faces darken and take a sheen), thinner and thicker over the floor by the
   world's place. It holds the room's capture and, under lamps alone, each lamp's highlight. Past brimming it is a
   pool, which has a thickness. The form render's; a painted page lays none.
+- On a wall a wetness runs: streaks down the face by the wall's own length, heaviest at its foot and thinning up it;
+  a ledge or a joint still holds it. A wet room's walls, plinth and trim take it with its floor.
