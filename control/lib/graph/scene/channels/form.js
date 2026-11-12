@@ -172,10 +172,10 @@ for ( int i = 0; i < ${NB}; i++ ) {
 }
 fDirect += fBeat * diffuseColor.rgb;
 ` : ''}\`${cfg.reflect ? ` + ${safeJson(ENV_BODY)}.split('__K__').join(String(K))` : ''};
-  const lit = (params, M, S, wet) => {
+  const lit = (params, M${cfg.reflect ? ', S, wet' : ''}) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {}), ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}) };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {})' : ''} };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector2(S ? S.rough : 1, S ? S.metal || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
