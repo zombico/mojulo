@@ -76,3 +76,6 @@
 - A downpour (`wet: 'downpour'`): water stands over nearly all the ground, in a few wide sheets, and the rain strikes
   hard (more of the ground struck at once). A ring's crest catches a faint line of the sky, so rain reads on water that
   holds no lamp; standing water is darker than the film round it.
+- A yard's containers wear corrugated steel sheet (`containerSkin`, a made cut as a shed's wall is): its flutes upright
+  on the sides and across the top, the line's colour its tint, read by the form render as relief, so light and wet
+  work on them as on any wall. The painted rib stripes give way to it.

@@ -56,7 +56,7 @@ import { registerPalette, registerConstruction, CONSTRUCTIONS } from './style/ba
 import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
-import { exteriorOf, stairConcrete, yardSlab } from './style/bay-exterior.js';
+import { exteriorOf, stairConcrete, yardSlab, containerSkin } from './style/bay-exterior.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { readWetness } from './wetness.js';
 import { puddles, join, rasterSplatter } from '../rupa/splatter.js';
@@ -941,7 +941,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       if (!b.yard || typeof b.yard !== 'object' || Object.keys(b.yard).some((k) => !['containers', 'floods', 'floodsAt'].includes(k)) || (b.yard.floodsAt !== undefined && !['edge', 'middle'].includes(b.yard.floodsAt)) || (b.yard.containers !== undefined && !(Number.isInteger(b.yard.containers) && b.yard.containers >= 1 && b.yard.containers <= 40))
         || (b.yard.floods !== undefined && !(Number.isInteger(b.yard.floods) && b.yard.floods >= 1 && b.yard.floods <= 8))) throw new Error(`stage: buildings[${i}].yard is { containers?: 1 to 40, floods?: 1 to 8 (floodlights on masts), floodsAt?: 'edge' (along its yard's outer edge) | 'middle' (down the middle of its yard) }`);
       if (!(was && was.apron)) throw new Error(`stage: buildings[${i}] (${id}) has no apron to stack a yard on (a composed building's, not one set into a slope)`);
-      const raw = containerRaw(), CL = 12.19, CW = 2.44, CH = 2.59, x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1]));
+      const SKIN = containerSkin(), raw = containerRaw(), CL = 12.19, CW = 2.44, CH = 2.59, x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1]));
       const zt = -APRON.under + APRON.over, dice = (k) => hash3(i, k, 4431), slots = [];
       // (slots along the front, a row nearer the building and one further out, none across the way to the door)
       for (const yr of [y0 - APRON.front + CW / 2 + 0.6, y0 - APRON.front + CW * 1.5 + 1.4]) for (let x = x0 - APRON.side + CL / 2 + 0.5; x + CL / 2 <= x1 + APRON.side - 0.5; x += CL + 0.8) if (Math.abs(x - doorPlan[0]) > CL / 2 + 2) slots.push([x, yr]);
@@ -950,10 +950,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
       for (const [sx, sy] of slots) { if (left <= 0) break;
         const high = Math.min(left, 1 + Math.floor(dice(k++) * 3)); left -= high;
         for (let lv = 0; lv < high; lv++) { const tint = YARD_LINES[Math.floor(dice(k++) * YARD_LINES.length) % YARD_LINES.length], jog = (dice(k++) - 0.5) * 0.16;
-          for (const f of raw) { const c = f.corners.map(([u, v, z]) => W([sx + u + jog, sy + v, zt + lv * CH + z])), nn = turnN(f.normal), body = f.hex === '#f2f2f2' || f.hex === '#d6d6d6';
-            const col = body ? tint.map((t, q) => t * (f.hex === '#d6d6d6' ? 0.86 : 1)) : [0.77, 0.77, 0.77], lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
+          // (its body the container's skin: corrugated sheet, the flutes upright on its sides and across its top, the
+          // line's colour its tint; the painted ribs give way to the sheet's own relief. Its doors' bars stay)
+          for (const f of raw) { if (f.hex === '#d6d6d6') continue;
+            const c = f.corners.map(([u, v, z]) => W([sx + u + jog, sy + v, zt + lv * CH + z])), nn = turnN(f.normal), body = f.hex === '#f2f2f2';
+            const col = body ? tint : [0.5, 0.5, 0.5], lam = payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0;
             const shade = shellLight ? 1 : (0.6 + 0.4 * lam) * (0.35 + 0.65 * day), fill = '#' + col.map((t) => Math.round(255 * Math.min(1, t * shade)).toString(16).padStart(2, '0')).join('');
-            yardF.push({ ...quad(c, 'yard:container', fill), normal: P3(nn), outNormal: P3(nn), node: `${id}:container-${k}` }); } }
+            const flat = Math.abs(nn[2]) > 0.5, uv = body ? c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / SKIN.scale))) : null;
+            yardF.push({ ...quad(c, 'yard:container', fill), ...(uv ? { texture: SKIN.key, textureLit: true, uv } : {}), normal: P3(nn), outNormal: P3(nn), node: `${id}:container-${k}` }); } }
         const a = toWorld([sx - CL / 2, sy - CW / 2]), c2 = toWorld([sx + CL / 2, sy + CW / 2]);
         colliders.push({ min: P3([Math.min(a[0], c2[0]), Math.min(a[1], c2[1]), floor + zt]), max: P3([Math.max(a[0], c2[0]), Math.max(a[1], c2[1]), floor + zt + high * CH]), of: `${id}:yard` }); }
     }

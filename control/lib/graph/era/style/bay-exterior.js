@@ -55,6 +55,11 @@ export function exteriorOf({ construction, palette } = {}) {
 }
 
 /** The poured concrete an outdoor stair and its cheeks are cast in, whatever the building beside it. */
+/** A shipping container's skin: corrugated steel sheet, its flutes a hand apart, painted white for a line's colour to
+ *  tint (a made cut, as a shed's wall is: the form render reads its flutes as relief). */
+export function containerSkin() {
+  return tile(d('corrugated', 1.5, { cols: 12, grit: 0.35 }), { stone: [236, 236, 234], mortar: [150, 150, 148] });
+}
 /** A yard's hardstanding: poured concrete in bays three metres square, a sealed joint round each, its face floated and
  *  pitted: slabs with joints deep enough to hold water (a floor's dressed cut, as a room's flags are). */
 export function yardSlab() {
