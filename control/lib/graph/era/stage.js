@@ -571,15 +571,15 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  // DAYLIGHT (`daylight: { elevation, azimuth?, color?, gain? }`, a room kit's): a sun over rooms that stand indoors.
+  // DAYLIGHT (`daylight: { elevation, azimuth?, color?, gain?, alone? }`, a room kit's): a sun over rooms that stand indoors.
   // The form render takes it LIVE: every corner turned to it carries its share, and the page's hour map takes that
   // share away where a roof or a wall hides it, so it comes in at a window, a roof light or an open door as its own
   // shape on the floor, at this elevation and bearing (degrees: 0 along +x, 90 along +y). A painted page lays none.
   if (m.daylight !== undefined) {
     const D = m.daylight;
-    if (!D || typeof D !== 'object' || Array.isArray(D) || Object.keys(D).some((k) => !['elevation', 'azimuth', 'color', 'gain'].includes(k)) || !(D.elevation >= 2 && D.elevation <= 88)
+    if (!D || typeof D !== 'object' || Array.isArray(D) || Object.keys(D).some((k) => !['elevation', 'azimuth', 'color', 'gain', 'alone'].includes(k)) || (D.alone !== undefined && typeof D.alone !== 'boolean') || !(D.elevation >= 2 && D.elevation <= 88)
       || (D.azimuth !== undefined && !(D.azimuth >= 0 && D.azimuth < 360)) || (D.color !== undefined && !/^#[0-9a-fA-F]{6}$/.test(D.color)) || (D.gain !== undefined && !(D.gain > 0 && D.gain <= 3)))
-      throw new Error('stage: daylight is { elevation: 2 to 88 degrees, azimuth?: 0 up to 360, color?: \'#rrggbb\', gain?: over 0 up to 3 }');
+      throw new Error('stage: daylight is { elevation: 2 to 88 degrees, azimuth?: 0 up to 360, color?: \'#rrggbb\', gain?: over 0 up to 3, alone?: true (the lamps off: the room lit by the day alone) }');
     if (kit0.sun) throw new Error(`stage: kit '${kitId}' stands under its look's own sun; daylight is for rooms indoors`);
   }
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
@@ -1423,7 +1423,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the same way with the sun beside its lamps, its shadow the paint bake's own test (an engine's handoff of one is
   // paint, as it was)
   const form = !!ctx.formLit && (ctx.unshaded ? ctx.handoff === true && !daylight : true);
-  const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
+  // (`daylight.alone`: the lamps off, the room lit by the day alone)
+  const formLamps = form ? (liveDay && plan.daylight.alone ? [] : [...lights, ...braziers, ...(dress ? dress.pools : [])]) : null;
   const formTest = (ls) => {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
