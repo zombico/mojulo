@@ -58,7 +58,7 @@ describe('a snow drift', () => {
 
 describe('the drifts on a snowy stage', () => {
   const M = { kind: 'stage', trail: {}, seed: 3, geocube: { from: 'island-noon', snow: 'deep', wind: { dir: 0 } } };
-  it('are laid when asked, as the land\'s snow (its own colour painted, the ground the snow lies on in the form render), walked over; asked on bare ground, refused', () => {
+  it('are laid when asked, as the land\'s snow (its own colour painted, the ground the snow lies on in the form render), walked over; on bare ground, none', () => {
     const P = assembleStageScene({ ...M, skandart: 1 }, {}), F = assembleStageScene({ ...M, skandart: 1 }, { form: true });
     expect(P.skandart.drifts.length).toBeGreaterThan(0);
     expect(P.skandart.laws).toEqual([]);
@@ -70,6 +70,7 @@ describe('the drifts on a snowy stage', () => {
     // (no collider stands where a drift does: it is walked over)
     const cols = (Q) => (Q.colliders ?? []).length;
     expect(cols(P)).toBe(cols(plain));
-    expect(() => assembleStageScene({ kind: 'stage', trail: {}, seed: 3, geocube: { from: 'island-noon' }, skandart: 1 }, {})).toThrow(/snow's drifts/);
+    // (on bare ground the same word lays the trail's rockfall, era/skandart-land.js: no drifts)
+    expect(assembleStageScene({ kind: 'stage', trail: {}, seed: 3, geocube: { from: 'island-noon' }, skandart: 1 }, {}).skandart.drifts).toBeUndefined();
   }, 120_000);
 });
