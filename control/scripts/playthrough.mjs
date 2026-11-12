@@ -37,6 +37,7 @@ for (const [key, { ref: levelRef }] of levels) {
   const t0 = Date.now();
   const { payload } = await resolveWorldScene(lr);
   const basic = playLevel(payload, { player: 'basic', seconds }), still = playLevel(payload, { player: 'still', seconds });
+  if (basic.fight === false) { console.log(`---- ${key}: ${basic.reason}`); out.push({ key, ref: levelRef, fight: false }); continue; }
   const pass = basic.won && !still.won;
   if (!pass) fails++;
   console.log(`${pass ? 'PASS' : 'FAIL'} ${key} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
@@ -46,5 +47,6 @@ for (const [key, { ref: levelRef }] of levels) {
 }
 const json = opt('--json');
 if (json) writeFileSync(json, JSON.stringify(out, null, 2));
-console.log(`${out.length - fails}/${out.length} levels won by the basic player and not by the still one`);
+const fought = out.filter((o) => o.fight !== false).length;
+console.log(`${fought - fails}/${fought} fight levels won by the basic player and not by the still one${out.length > fought ? ` (${out.length - fought} with no foe: the walk audit's)` : ''}`);
 process.exit(0);

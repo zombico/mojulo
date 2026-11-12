@@ -40,7 +40,7 @@ const AXES = ['forward', 'strafe', 'turn', 'lookDX', 'lookDY', 'jump', 'jumpHeld
 // a person's pace: a press every quarter second through a string of three, a guard held between strings
 const PRESS_EVERY = 8, STRING = 3, GUARD_FOR = 18, LOCK_EVERY = 12;
 // the reach a string is pressed at (the blade's reach and a step), the range a lock is asked for
-const STRIKE_AT = 2.2, LOCK_AT = 14, SHOOT_AT = 30, SHOOT_LOCK_AT = 45, LOCK_WAIT = 30;
+const STRIKE_AT = 2.2, LOCK_AT = 14, SHOOT_AT = 30, SHOOT_LOCK_AT = 45, LOCK_WAIT = 30, MISS_AFTER = 6;
 
 const alive = (e) => !!(e && e.body && Number.isFinite(e.body.hp) && e.body.hp > 0 && !e.downed && e.deadAt == null);
 const shoots = (e) => !!(e && (e.weapon?.fireClass || e.rule?.weapon?.fireClass));
@@ -116,6 +116,13 @@ function basicInput(sim, hero, M, contract) {
   // (a lock that will not take, a shooter out of sight behind a wall: after LOCK_WAIT it closes on it instead)
   if (shooting && W.lock && locked !== T.id) M.lockWait++; else M.lockWait = 0;
   if (shooting && M.lockWait > LOCK_WAIT) { Object.assign(inp, approach(W, hero, M, T.transform.pos, T.id)); M.draw = 0; return inp; }
+  // (shots that do not tell, MISS_AFTER loosed at one foe with its health unchanged: a person stops and closes in)
+  if (shooting) {
+    if (M.aimAt !== T.id) { M.aimAt = T.id; M.aimHp = T.body.hp; M.aimShots = M.shots; }
+    if (T.body.hp < M.aimHp) { M.aimHp = T.body.hp; M.aimShots = M.shots; }
+    if (M.shots - M.aimShots >= MISS_AFTER) M.closing.add(T.id);
+  }
+  if (shooting && M.closing.has(T.id)) { Object.assign(inp, approach(W, hero, M, T.transform.pos, T.id)); M.draw = 0; return inp; }
   if (shooting) {
     if (W.lock && locked !== T.id) { M.draw = 0; return inp; }
     if (sidearm.auto) { inp.special = 1; M.shots += M.k % 3 === 0 ? 1 : 0; return inp; }
@@ -141,8 +148,10 @@ export function playLevel(payload, { player = 'basic', seconds = 180 } = {}) {
   const sim = pageSim(payload), W = sim.world, hero = W.byId[W.pilotId];
   if (!hero) return { player, outcome: null, won: false, t: 0, reason: 'the level has no hero to play' };
   const foes0 = W.entities.filter((e) => e.team === 'foes' && e.body && Number.isFinite(e.body.hp));
+  // (a level with no foe on it is no fight: the walk audit proves it can be crossed, not this)
+  if (!foes0.length) return { player, outcome: null, won: false, t: 0, fight: false, foes: [], downs: 0, reason: 'no foe stands here: no fight to play' };
   const start = Object.fromEntries(foes0.map((e) => [e.id, e.body.hp]));
-  const M = { k: 0, lockAt: 0, next: 0, beat: 0, guardFrom: Infinity, draw: 0, presses: 0, shots: 0, goal: null, best: Infinity, still: 0, since: 0, hop: 0, stuck: new Set(), lockWait: 0 };
+  const M = { k: 0, lockAt: 0, next: 0, beat: 0, guardFrom: Infinity, draw: 0, presses: 0, shots: 0, goal: null, best: Infinity, still: 0, since: 0, hop: 0, stuck: new Set(), lockWait: 0, aimAt: null, aimHp: 0, aimShots: 0, closing: new Set() };
   const hitsBy = {};
   // (the hp is read once the first frame has run: the stats bind the body's hp on it)
   let hp0 = null, outcome = null, t = 0;

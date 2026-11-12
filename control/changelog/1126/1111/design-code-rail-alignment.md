@@ -3,8 +3,9 @@
 Two action games were made end to end from a sentence (a stylish action game and an anime action RPG), exported and
 played by a scripted player on the shipped pages. Every level built and loaded and every action piece ran, and no level
 could be won: the rails wrote what the runtime does not play, and the hero, its blows and its foes were numbered in three
-scales. The player gate is built, the page binds what its legend says, and the sentence door reads the action genres
-and lays their camera; the rest below is designed, not built yet.
+scales. The player gate is built, the page binds what its legend says, the sentence door reads the action genres and
+lays their camera, and a world with an arsenal numbers its foes in its kit's strings; the rest below is designed, not
+built yet.
 
 - **The playthrough: a made level played by a scripted player** (`gameworld/playthrough.js`). A level is resolved as its
   page resolves it and played headless on the runtime it ships, in about a second: the BASIC player fights the foe in
@@ -53,10 +54,19 @@ and lays their camera; the rest below is designed, not built yet.
   default chase: tank turning, no mouse look, no lock-on. A stylish action game or an action RPG composed from a
   sentence now writes `camera: 'orbit'`, and its levels' striking hero runs where the camera looks, turns it by the
   mouse and locks on (C). A genre whose hero takes the default chase writes none, as before.
+- **One scale: a world with an arsenal numbers its foes by its kit** (`gameworld/arsenal.js`). A foe's health came from
+  the foe shelf's frame, a hero blow of 20, while a blade deals about 2: an elite took some 120 cuts and a boss 300. A
+  world that writes an arsenal now gives each foe the strings its rank takes (`STRINGS_BY_RANK`: a grunt one, an elite
+  three and a half, a boss eleven) times what the kit's first light string deals on a normal blade (`stringDamage`):
+  with either template's kit a grunt carries 8, an elite 28, a boss 88 (were 40, 240, 600). The hero's own health is
+  as it was: it already takes ten hits. A world with no arsenal keeps every byte. On the Zelda-like game made from its
+  sentence and armed with Fable of Artesia's kit, the crossing is now won (46 s, 14 of 20 hp left); the other fight
+  levels fall to the archers and the boss's counter, the casting call's to fix.
+- **The playthrough plays as a person would, a little more**: arrows that do not tell (six loosed with the foe's health
+  unchanged) give way to closing in; a level where no foe stands is no fight (the walk audit's), said, never failed.
 - **What the gate found first, on the anime action RPG** (no level won): in the town square the basic player downs two
   of four foes and goes down at 87 s; on the crossing it shoots the archer down, downs the first charger, then needs
   about two minutes and 278 presses for the 240-hp elite and goes down at 168 s; on the boss's heights the boss's counter
   (the opportunist mind's tackle, which beats any swing it sees) answers every string and the sword never lands. The
   still player goes down at 22 to 45 s wherever foes reach it.
-- Designed, not built yet: one scale for a world that writes an arsenal (the kit's blows, the hero's health and each
-  foe's hit in the foe shelf's frame); a casting call that reads the kit and the place; rails that say what they wrote.
+- Designed, not built yet: a casting call that reads the kit and the place; rails that say what they wrote.

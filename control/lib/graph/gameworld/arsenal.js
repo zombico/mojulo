@@ -19,12 +19,33 @@
  *                            feel's template has a kit; else null. Never laid unasked: a kit changes every level's bytes
  *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS)
  *   armLevel(G, manifest)  → the level with the arsenal laid on each pilot that strikes (`rule.strikeContact`): the
- *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules. Without an
- *                            arsenal, or with no hero that strikes, the manifest itself (zero bytes added)
+ *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules and their HEALTH
+ *                            IN THE KIT'S STRINGS (below). Without an arsenal, or with no hero that strikes, the manifest
+ *                            itself (zero bytes added)
+ *
+ * ONE SCALE: a world that writes an arsenal numbers its foes by its own kit, not by the foe shelf's frame (a blow of 20,
+ * foes/vocab.js HERO; a blade deals a tenth of that). A foe's health is the strings its rank takes (STRINGS_BY_RANK: a
+ * grunt one, an elite three and a half, a boss eleven) times what the kit's first light string deals on a blade of the
+ * normal class (stringDamage: its moves' damage × the weapon's × HELD_STRIKE.normal's; a heavier blade fells sooner).
+ *   stringDamage(A) → a number   ·   foeHealth(rank, A) → the hp a foe of that rank carries in a world armed with A
  *
  * Pure.
  */
 import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
+import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
+
+/** The strings a foe of each rank takes to fall (mind/vocab.js RANKS), the action game's pace: a grunt to one, an elite to
+ * three or four, a boss to ten or twelve. */
+export const STRINGS_BY_RANK = Object.freeze({ minion: 1, elite: 3.5, miniboss: 6, boss: 11 });
+/** What the kit's first light string deals: its first drawn weapon's first ground combo that opens on the light, its
+ * moves' damage × the weapon's, on a blade of the normal class. */
+export function stringDamage(A) {
+  const W = A.weapons.find((x) => (x.figure ?? 'drawn') === 'drawn') ?? A.weapons[0];
+  const c = W.combos.find((x) => !x.air && x.beats[0] === 'L') ?? W.combos.find((x) => !x.air) ?? W.combos[0];
+  const per = c.moves.reduce((s, id) => s + (W.moves[id]?.damage ?? 1), 0);
+  return per * (W.damage ?? 1) * HELD_STRIKE.normal.damage;
+}
+export const foeHealth = (rank, A) => Math.max(1, Math.round((STRINGS_BY_RANK[rank] ?? STRINGS_BY_RANK.minion) * stringDamage(A)));
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (m) => { throw new Error(`gameworld: arsenal ${m}`); };
@@ -136,6 +157,12 @@ export function armLevel(G, manifest) {
   };
   // (the JUGGLE's rules on each foe's body: its hitstun, its air time, its recovery; a foe that writes its own keeps it)
   const combo = R.arsenal.juggle ? lowerJuggle(R.arsenal.juggle).combo : null;
-  const entities = ents.map((e) => (strikes(e) ? arm(e) : combo && e && e.team === 'foes' && e.body && e.body.combo === undefined ? { ...e, body: { ...e.body, combo } } : e));
+  // (each foe's health in the kit's strings, by its rank: one scale)
+  const foe = (e) => {
+    if (!(e && e.team === 'foes' && e.body && Number.isFinite(e.body.hp))) return e;
+    const body = { ...e.body, hp: foeHealth(e.rule?.mind?.rank ?? 'minion', R.arsenal), ...(combo && e.body.combo === undefined ? { combo } : {}) };
+    return { ...e, body };
+  };
+  const entities = ents.map((e) => (strikes(e) ? arm(e) : foe(e)));
   return { ...manifest, entities };
 }
