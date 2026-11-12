@@ -51,3 +51,14 @@ size it would be.
   and the room says what it could not (`condition.unanswered`); every room asked in a condition says it (`condition`:
   its step, the dials it set). A room kit's card lists the word among its options, and a kit that answers the debris
   question lists `skandart` too.
+- The cavern answers the debris question too (`era/skandart-land.js`), asked by the same keys (`skandart`, or a
+  `condition` word): talus heaped against each wall's foot, a heap a stretch of wall in the walls' rhythm, and
+  breakdown, the slabs a ceiling lets go, standing free on its floor off the walk and its rocks. A land's floor rises
+  and falls, so each heap is laid on the land where it lies (its body draped over the ground, each piece on the ground
+  under its own middle) and joins the cavern's boulders: its rock banded and tiled as every rock of it is. A ruined
+  cavern lays 32 heaps, about 18,000 triangles. The shelf gains the breakdown slab; the heaps a cone, standing free.
+  Asked nothing, or kept, a cavern is as it was; open ground asked for debris says it has none to give yet.
+- Every heap's face holds its fines' repose however tall it stands: a long heap's crest waves stretch with its height,
+  a round heap's slope varies only gentler than its repose, and where a bay's face meets its hip the two round into one
+  another (a soft minimum), never a crease steeper than either; and no heap stands taller than its reach lets its face
+  fall to the ground.

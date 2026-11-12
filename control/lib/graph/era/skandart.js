@@ -118,6 +118,9 @@ export function readSkandart(m) {
 // always the same heap with more on it.
 
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+// (a soft minimum: where a bay's face meets its hip the two round into one another, its slope a blend of theirs and so
+// never steeper than either, as a sharp crease cut by one face would be)
+const smin = (a, b, k = 0.08) => { const m = Math.min(a, b); return m - k * Math.log(Math.exp((m - a) / k) + Math.exp((m - b) / k)); };
 const tanD = (deg) => Math.tan((deg * Math.PI) / 180);
 
 /**
@@ -133,24 +136,27 @@ function groundOf(K) {
 
 /** A heap's body as a surface: z(x, y) over the frame (its top against the wall, falling at the fines' repose to the
  *  ground), and its toe (how far from the wall it runs, at most SKANDART.reach). */
-function heapBody(K, role, H, seed, len) {
+function heapBody(K, role, H, seed, len, reach = SKANDART.reach) {
   const ground = groundOf(K), start = (K.plinth?.out ?? 0) + 0.02, slope = tanD(REPOSE.grit), T = SKANDART.taper;
   // (lumped: a slow wave along the heap, two of them out of step, so the crest rises and falls)
-  const lump = (t) => 1 + 0.16 * Math.sin(t * 2.3 + hash3(seed, 1, 7601) * 6.28) + 0.09 * Math.sin(t * 5.1 + hash3(seed, 2, 7603) * 6.28);
-  const away = role === 'corner' ? (x, y) => Math.hypot(Math.max(0, x - start), Math.max(0, y - start)) : (x, y) => Math.max(0, y - start);
-  // (a corner's crest swells once across its quarter, growing in from its angle, where a turn of a few degrees is a few
-  // centimetres: no faster, or its flanks stand steeper than its fines can)
-  const crest = role === 'corner'
-    ? (x, y) => H * (1 + 0.06 * Math.sin(Math.atan2(y - start, x - start) * 2 + hash3(seed, 3, 7605) * 6.28) * smooth(0.05, 0.6, away(x, y)))
-    : (x) => H * lump(x);
-  const wallD = role === 'corner' ? (x, y) => Math.min(x, y) : (x, y) => y;
+  // (its waves stretched with its height, so a tall heap's crest climbs no steeper than a low one's: at most 0.3 along it)
+  const wave = Math.max(1, (H * (0.16 * 2.3 + 0.09 * 5.1)) / 0.3);
+  const lump = (t0) => { const t = t0 / wave; return 1 + 0.16 * Math.sin(t * 2.3 + hash3(seed, 1, 7601) * 6.28) + 0.09 * Math.sin(t * 5.1 + hash3(seed, 2, 7603) * 6.28); };
+  // (a CONE stands free, centred on its frame's origin: what a ceiling let go, out on the floor)
+  const cone = role === 'cone', round = role === 'corner' || cone, o = cone ? 0 : start;
+  const away = role === 'corner' ? (x, y) => Math.hypot(Math.max(0, x - start), Math.max(0, y - start)) : cone ? (x, y) => Math.hypot(x, y) : (x, y) => Math.max(0, y - start);
+  // (a round heap's face is gentler on some sides than others, never steeper than its fines can stand: its slope runs
+  // between nine tenths of their repose and all of it, swelling twice round it, so its tip stays one point)
+  const crest = (x) => H * lump(x);
+  const fall = round ? (x, y) => slope * (1 - 0.1 * (0.5 + 0.5 * Math.sin(Math.atan2(y - o, x - o) * 2 + hash3(seed, 3, 7605) * 6.28))) : () => slope;
+  const wallD = role === 'corner' ? (x, y) => Math.min(x, y) : cone ? () => Infinity : (x, y) => y;
   // (an edge heap's ends fall at the same repose as its face, a hip each end, down to the lowest ground under it)
   const low = K.gutter ? -K.gutter.depth : 0;
-  const top = role === 'corner' ? (x, y) => crest(x, y) - away(x, y) * slope
-    : (x, y) => Math.min(crest(x) - away(x, y) * slope, (len / 2 - Math.abs(x)) * slope + low);
+  const top = round ? (x, y) => H - away(x, y) * fall(x, y)
+    : (x, y) => smin(crest(x) - away(x, y) * slope, (len / 2 - Math.abs(x)) * slope + low);
   const z = (x, y) => Math.max(ground(wallD(x, y)), top(x, y));
-  const toe = Math.min(SKANDART.reach, (H * 1.25) / slope);
-  return { z, top, ground: (x, y) => ground(wallD(x, y)), toe, start, slope, lip: ground.lip };
+  const toe = Math.min(reach, (H * 1.25) / slope);
+  return { z, top, ground: (x, y) => ground(wallD(x, y)), toe, start: cone ? 0 : start, slope, lip: cone ? null : ground.lip };
 }
 
 /** The body as faces: a grid over its frame, a cell kept where the body stands over the ground; its grid takes the
@@ -158,8 +164,8 @@ function heapBody(K, role, H, seed, len) {
 function bodyFaces(B, role, len, matter) {
   const C = SKANDART.cell, lines = (a, b) => { const n = Math.max(1, Math.ceil((b - a) / C)); return Array.from({ length: n + 1 }, (_, i) => a + ((b - a) * i) / n); };
   const withLip = (vs) => (B.lip !== null && B.lip > vs[0] && B.lip < vs[vs.length - 1] ? [...vs.filter((v) => Math.abs(v - B.lip) > 0.02), B.lip].sort((p, q) => p - q) : vs);
-  const xs = role === 'corner' ? withLip(lines(B.start, B.start + B.toe)) : lines(-len / 2, len / 2);
-  const ys = withLip(lines(B.start, B.start + B.toe));
+  const xs = role === 'cone' ? lines(-B.toe, B.toe) : role === 'corner' ? withLip(lines(B.start, B.start + B.toe)) : lines(-len / 2, len / 2);
+  const ys = role === 'cone' ? lines(-B.toe, B.toe) : withLip(lines(B.start, B.start + B.toe));
   // (each cell clipped where the body meets the ground, so the toe runs as the contour it is and not as the grid's steps;
   // the lip is a grid line, so a cell lies wholly in the gutter or wholly on the floor)
   // (a cell takes one ground, the one at its middle: its corners on the lip read the side the cell lies on)
@@ -180,7 +186,7 @@ function bodyFaces(B, role, len, matter) {
     const n = [0, 0, 0];
     c.forEach((P, k) => { const Q = c[(k + 1) % c.length]; n[0] += (P[1] - Q[1]) * (P[2] + Q[2]); n[1] += (P[2] - Q[2]) * (P[0] + Q[0]); n[2] += (P[0] - Q[0]) * (P[1] + Q[1]); });
     const l = Math.hypot(...n) || 1, up = n[2] < 0 ? -1 : 1;
-    faces.push({ corners: c, normal: n.map((k) => r5((up * k) / l) + 0), matter });
+    faces.push({ corners: c, normal: n.map((k) => r5((up * k) / l) + 0), matter, of: -1 });
   }
   return faces;
 }
@@ -212,6 +218,7 @@ function dealPieces(seed, rows, B, role, len, blocked) {
       const down = R.how === 'rolls' ? mix(0.2, 1.05, 0.35 * h(7703) + 0.65 * s) : mix(0.05, 0.9, h(7703));
       let x, y;
       if (role === 'corner') { const a = mix(0.12, Math.PI / 2 - 0.12, h(7705)), r = down * B.toe; x = B.start + Math.cos(a) * r; y = B.start + Math.sin(a) * r; }
+      else if (role === 'cone') { const a = h(7705) * 2 * Math.PI, r = down * B.toe; x = Math.cos(a) * r; y = Math.sin(a) * r; }
       else { x = (h(7705) - 0.5) * (len - SKANDART.taper); y = B.start + down * B.toe * mix(0.75, 1, h(7707)); }
       if (blocked(x, y, w) || out.some((q) => R.how === 'rolls' && DEBRIS[q.id].how === 'rolls' && Math.hypot(q.x - x, q.y - y) < (q.w + w) * 0.42)) continue;
       out.push({ id, i: i++, x, y, w, yaw: h(7709) * 2 * Math.PI, seed: seed * 31 + ri * 101 + tries });
@@ -221,13 +228,16 @@ function dealPieces(seed, rows, B, role, len, blocked) {
 }
 
 /**
- * One heap built: its body at the amount's height, its pieces (the first `amount` of each row's, those big enough to be
+ * One heap built (exported for a land's debris, era/skandart-land.js: `role` foot | corner | cone, `spec` its own heights
+ * and reach): its body at the amount's height, its pieces (the first `amount` of each row's, those big enough to be
  * read where they are seen) on its face. → { faces, pieces: [{ id, x, y, z, w, h }], body: { toe, H } }
  */
-function buildHeap(K, role, rows, amount, least, seed, len, pools) {
+export function buildHeap(K, role, rows, amount, least, seed, len, pools, spec = {}) {
   // (the pieces are dealt on the heap at its fullest, so every amount deals the same pieces in the same places: a lower
   // heap's body only sets how high each lies, one past its toe lying on the floor where it rolled)
-  const H = mix(...SKANDART.height[role], amount), B = heapBody(K, role, H, seed, len), full = heapBody(K, role, SKANDART.height[role][1], seed, len);
+  // (a heap no taller than its reach lets its face fall to the ground: its toe never cut short)
+  const heights = spec.heights ?? SKANDART.height, reach = spec.reach ?? SKANDART.reach, most = (reach * tanD(REPOSE.grit)) / 1.3;
+  const H = Math.min(most, mix(...heights[role], amount)), B = heapBody(K, role, H, seed, len, reach), full = heapBody(K, role, Math.min(most, heights[role][1]), seed, len, reach);
   const pw = K.pilaster ? K.pilaster.w / 2 + (K.pilaster.bands?.base?.out ?? 0) + 0.04 : 0;
   // (a corner's pilasters stand in its angle: no piece is centred in their feet)
   const blocked = role === 'corner' && pw ? (x, y) => Math.min(x, y) < (K.pilaster.out + (K.pilaster.bands?.base?.out ?? 0) + 0.05) && Math.max(x, y) < pw + 0.05 : () => false;
@@ -236,8 +246,9 @@ function buildHeap(K, role, rows, amount, least, seed, len, pools) {
   for (const q of dealt) {
     if (q.i >= Math.round(rows[q.id] * amount) || q.w < least) continue;
     const P = debrisPiece(q.id, q.w, q.seed, pools), n = normalAt(B, q.x, q.y), z = B.z(q.x, q.y) - P.h * SKANDART.bury;
+    const of = pieces.length;
     pieces.push({ id: q.id, x: q.x, y: q.y, z, w: q.w, h: P.h });
-    for (const f of P.faces) faces.push({ corners: f.corners.map((p) => { const t = alignUp(yawP(p, q.yaw), n); return [r5(q.x + t[0]), r5(q.y + t[1]), r5(z + t[2])]; }), normal: alignUp(yawP(f.normal, q.yaw), n).map((v) => r5(v) + 0), matter: f.matter });
+    for (const f of P.faces) faces.push({ corners: f.corners.map((p) => { const t = alignUp(yawP(p, q.yaw), n); return [r5(q.x + t[0]), r5(q.y + t[1]), r5(z + t[2])]; }), normal: alignUp(yawP(f.normal, q.yaw), n).map((v) => r5(v) + 0), matter: f.matter, of });
   }
   return { faces, pieces, body: { toe: B.toe, H, z: B.z, top: B.top, ground: B.ground, start: B.start } };
 }
@@ -354,7 +365,7 @@ export function skandartStamps(plan, geom) {
 /** The laws on what was laid: every piece on the body's face (at it or sunk in it, never above it, never under it whole),
  *  the body at its fines' angle of repose, every piece big enough to be read where it is seen (`read`, skandartRead),
  *  none in a wall, every toe off the walk, a wall's heaps in its rhythm. → [{ law, ok, what }] */
-export function skandartLaws(plan, templates, stamps, read = skandartRead()) {
+export function skandartLaws(plan, templates, stamps, read = skandartRead(), reach = SKANDART.reach) {
   const K = plan.kit, rows = [], row = (law, what, ok) => rows.push({ law, what, ok: !!ok });
   for (const [id, T] of Object.entries(templates)) {
     if (!T.faces.length || !T.body) continue;
@@ -368,9 +379,12 @@ export function skandartLaws(plan, templates, stamps, read = skandartRead()) {
     row('repose', `${id}: its body's steepest face over ${SKANDART.sliver * 1e4} cm² ${Math.round(steep)}° (its fines stand at ${REPOSE.grit}°)`, steep <= REPOSE.grit + 4);
     const small = T.pieces.filter((q) => q.w < read.least);
     row('too-small-to-read', `${id}: ${small.length} pieces under the eye spot (${r5(read.least)} m at ${read.distance} m on ${read.screenPx} lines)`, !small.length);
-    const near = Math.min(...T.pieces.map((q) => (T.role === 'corner' ? Math.min(q.x, q.y) : q.y)));
-    row('not-in-the-wall', `${id}: the piece nearest a wall centred ${r5(near)} m from it (the body starts at ${r5(B.start)})`, !T.pieces.length || near >= B.start - 0.01);
-    row('off-the-walk', `${id}: its toe ${r5(B.toe)} m from the wall (at most ${SKANDART.reach})`, B.toe <= SKANDART.reach);
+    // (a cone stands free: it has no wall to be in)
+    if (T.role !== 'cone') {
+      const near = Math.min(...T.pieces.map((q) => (T.role === 'corner' ? Math.min(q.x, q.y) : q.y)));
+      row('not-in-the-wall', `${id}: the piece nearest a wall centred ${r5(near)} m from it (the body starts at ${r5(B.start)})`, !T.pieces.length || near >= B.start - 0.01);
+    }
+    row('off-the-walk', `${id}: its toe ${r5(B.toe)} m from its wall or its middle (at most ${reach})`, B.toe <= reach);
   }
   const byWall = new Map();
   for (const s of stamps) if (s.wall !== undefined) { if (!byWall.has(s.wall)) byWall.set(s.wall, []); byWall.get(s.wall).push(s.tpl.endsWith('a') ? 'A' : 'B'); }

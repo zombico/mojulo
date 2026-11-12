@@ -27,6 +27,7 @@ const mix = (a, b, t) => a + (b - a) * t;
 export const DEBRIS = Object.freeze({
   spall: Object.freeze({ words: ['spall', 'chips', 'rubble', 'broken stone'], shape: 'chip', matter: 'stone', size: [0.05, 0.2], how: 'rolls' }),
   'fallen-block': Object.freeze({ words: ['fallen block', 'ashlar block', 'masonry', 'a stone from the wall'], shape: 'block', matter: 'stone', size: [0.32, 0.6], how: 'rolls', prop: [1, 0.55, 0.5] }),
+  'breakdown-slab': Object.freeze({ words: ['breakdown', 'slab', 'fallen slab', 'rockfall', 'ceiling slab'], shape: 'block', matter: 'stone', size: [0.45, 1.1], how: 'rolls', prop: [1, 0.7, 0.28] }),
   brick: Object.freeze({ words: ['brick', 'bricks', 'brickbat', 'half brick'], shape: 'block', matter: 'brick', size: [0.11, 0.23], how: 'rolls', prop: [1, 0.47, 0.3] }),
   'render-flake': Object.freeze({ words: ['plaster', 'render', 'flakes of plaster', 'fallen coat'], shape: 'plate', matter: 'render', size: [0.05, 0.26], how: 'lies', thick: 0.016, sides: 6 }),
   slate: Object.freeze({ words: ['slate', 'slates', 'roof slate'], shape: 'plate', matter: 'slate', size: [0.15, 0.36], how: 'lies', thick: 0.01, sides: 4 }),

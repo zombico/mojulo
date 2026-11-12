@@ -80,6 +80,9 @@ import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { readGrade } from './grade.js';
 import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './cave.js';
+import { readSkandart } from './skandart.js';
+import { readCondition } from './condition.js';
+import { caveSkandart } from './skandart-land.js';
 import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, cavernSet, crackFaces, floorDress, wallRocks, CAVERN_EDGE } from './cavern.js';
 import { cavernKey, keyReadout } from './cavern-key.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
@@ -448,6 +451,25 @@ export function isekaiTileCasters(manifest = {}) {
   return { trees: cast.map((t) => ({ ...t, z0: r5(site.ground(t.x, t.y) - 0.15) })), rocks, seed };
 }
 
+/**
+ * A cavern's debris (era/skandart-land.js), when its recipe asks: `skandart` (true, 0…1 or { amount }) or a `condition`
+ * word (era/condition.js) whose step lays debris. Each heap joins the land's boulders: its body and its pieces the rock
+ * it fell from, banded and tiled as every rock of the cavern is (its faces cel 'rock', a tile laid on the plane each
+ * faces most). `rocks` what already stands on its floor. → { boulders, readout } | null
+ */
+function caveDebris(manifest, site, st, seed, rocks) {
+  const sk = readSkandart(manifest), cond = manifest.skandart === undefined ? readCondition(manifest) : null;
+  const amount = sk ? sk.amount : cond ? cond.dials.skandart : 0;
+  if (!(amount > 0)) return null;
+  const L = caveSkandart(site, { amount, seed, rocks }), sc = st.tiles.rock.scale;
+  const uvOf = (p, n) => (Math.abs(n[2]) > 0.5 ? [p[0], p[1]] : Math.abs(n[0]) > Math.abs(n[1]) ? [p[1], p[2]] : [p[0], p[2]]).map((v) => r5(v / sc));
+  const boulders = L.heaps.filter((h) => h.faces.length).map((h) => {
+    const sides = h.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, cel: 'rock', uv: f.corners.map((p) => uvOf(p, f.normal)), group: 'isekai:rock', size: 1 }));
+    return { it: { x: h.at[0], y: h.at[1], size: 1 }, sides, cap: [], rim: [], s: 1, cave: true, debris: true };
+  });
+  return { boulders, readout: { amount, ...(cond ? { condition: cond.id } : {}), heaps: L.heaps.length, laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
+}
+
 export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   // a `biocube` (era/biocube.js): the level's flora laid over the card's own trees and grass
@@ -489,6 +511,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     return cv.inside(m[0], m[1]).d > cv.width / 2 - CAVE.apron ? { ...f, group: 'isekai:rock', tint: st.tint.scree } : { ...f, group: 'isekai:trail', tint: st.tint.trail };
   });
   // (the CAVERN, era/cavern.js: its floor soil, no meadow; its pretend ceiling, a dome of the cliff's rock, down-facing)
+  // (debris is a cavern's on open ground: the open land answers no debris question yet, and says so)
+  if (!site.cavern && (manifest.skandart !== undefined || manifest.condition !== undefined)) throw new Error(`stage: ${manifest.skandart !== undefined ? 'skandart' : 'condition'}: open ground answers no debris question yet; a cavern does (trail: { ground: { cavern: true } }), and the room kits`);
   if (site.cavern) {
     // (its colour key, the colour theorist's from the world's palette and its register: its lamps, its shade, its
     // formations and its set painted in one key, era/cavern-key.js)
@@ -549,6 +573,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (site.cavern) for (const it of formations(site, site.cavern, seed)) boulders.push({ it, sides: formationFaces(it, seed, st.tiles.rock.scale).map((f) => ({ ...f, formation: true })), cap: [], rim: [], s: it.r, cave: true });
   // (and its WALL ROCKS: small rocks heaped along every wall's foot, the land's boulders, no hat: era/cavern.js wallRocks)
   if (site.cavern) for (const w of wallRocks(site, site.cavern, seed)) { const it = { x: w.x, y: w.y, z0: w.z0, size: w.s / st.rubble.unit, v: w.v }; boulders.push({ it, ...boulderFaces(st, it, seed, broken), cave: true }); }
+  // (and its DEBRIS, when asked for: talus at its walls' feet and breakdown on its floor, off what already stands there,
+  // each heap one of its boulders, era/skandart-land.js)
+  const SK = site.cavern ? caveDebris(manifest, site, st, seed, boulders.map((b) => ({ x: b.it.x, y: b.it.y, r: b.it.kind ? b.it.r : (b.it.size ?? 1) * st.rubble.unit * 0.5 }))) : null;
+  if (SK) boulders.push(...SK.boulders);
   if (site.caves) for (const it of site.caves.flatMap((c) => caveRocks(c, st.rubble.unit))) { const b0 = boulderFaces(st, it, seed, broken), b = it.flip ? flipBoulder(b0, it.z0) : b0; boulders.push({ it, ...b, cave: true }); }
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
@@ -989,6 +1017,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     const SET = cavernSet(site, site.cavern, { rocks: rocksAt, seed, open: hourDim(st) });
     const asCave = cavernAsCave(site, site.cavern), lampFs = [...lampFaces(asCave), ...crackFaces(site, site.cavern)].map((f) => ({ ...f, outNormal: f.normal, cornerFills: f.corners.map(() => f.fill) }));
     payload.faces = cavernLight([...payload.faces, ...lampFs, ...(SET ? SET.faces : [])], site, site.cavern, { open: hourDim(st) });
+    if (SK) payload.skandart = SK.readout;
     // (its key read out on its anchor, what the colour theorist offered and its laws; its set's, what the set designer laid
     // and its plot; a prop anchor each piece)
     if (payload.anchors) payload.anchors = [...payload.anchors.map((a) => (a.kind === 'cavern' ? { ...a, key: keyReadout(site.cavern.key), ...(SET ? { set: SET.readout } : {}) } : a)), ...(SET ? SET.anchors : [])];
