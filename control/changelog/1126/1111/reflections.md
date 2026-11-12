@@ -63,3 +63,10 @@
   its runs only the heavier part.
 - A floodlight's head is turned down (a cone under it, soft at its edge), and a yard's floods may stand down its
   middle (`yard.floodsAt: 'middle'`).
+- Splatter patterns (`rupa/splatter.js`): the shapes a liquid leaves on a flat, as primitives that join (a disc, a
+  capsule; where two meet they run into one). `blot`, `splash` (a body and the drops flung off it), `drips` (a trail),
+  `run`, `seam` (held in a line), and `puddles` (rain over a rect by the share that stands, none with its heart in a
+  box kept out); `join`, a field, and a raster for a page.
+- Puddles on a flat. A wet place whose degree stands pools lays `puddles` over every slab apron, rastered once, and
+  the form render stands water where the pattern's depth passes its edge: level with the slab, no thickness, a soaked
+  rim round it, struck with rings while it rains.

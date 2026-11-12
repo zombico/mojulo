@@ -59,6 +59,7 @@ import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete, yardSlab } from './style/bay-exterior.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { readWetness } from './wetness.js';
+import { puddles, join, rasterSplatter } from '../rupa/splatter.js';
 import { hash3 } from './dirt.js';
 import { containerRaw } from '../geocity/industry.js';
 import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
@@ -563,6 +564,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const formRooms = [];
   // (the yards' floodlights: their lamp faces, and their lights for the form render's record)
   const lampFaces = [], floods = [];
+  // (each slab apron laid: its rect and the boxes that stand on it)
+  const aprons = [];
   // (the hard standing a wet recipe films: every building's apron slab)
   const wetQuads = [];
   // (every footprint the land was cleared under: what the form render grows there, payload.plants, is cleared too)
@@ -861,6 +864,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       return all > 0 ? r5(hard / all) : 0; })() : 0;
     const apronKind = b.apron ?? ctx.apron ?? (hardShare >= APRON.hard ? 'ground' : 'slab');
     if (!['slab', 'ground'].includes(apronKind)) throw new Error(`stage: buildings[${i}].apron is 'slab' (poured concrete) or 'ground' (the land's own, levelled)`);
+    if (was && was.apron && apronKind === 'slab') aprons.push({ rect: was.apron, boxes: F.boxes });
     const apron0 = was && was.apron && apronKind === 'slab' ? (() => {
       const [ax0, ay0, ax1, ay1] = was.apron, zt = floor - APRON.under + APRON.over, T = yardSlab(), out = [];
       const lam = (nn) => (payload.sky?.sun?.dir ? Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]) : 0), day = Math.max(0, Math.min(1, payload.sky?.day ?? 1));
@@ -1084,13 +1088,22 @@ export function withBuildings(payload, manifest, ctx = {}) {
   // WHAT ITS BUILT THINGS GIVE BACK (the form render's, scene/channels/form.js `reflect`): the sky its land stands under,
   // each part's roughness (painted steel sheens, concrete barely), and where it has just rained the water on its slab
   const wetness = (() => { try { return readWetness(manifest.wet); } catch (e) { throw new Error(`stage: ${e.message}`); } })();
+  // THE PUDDLES ON ITS SLABS (a wet place whose degree stands pools): laid by a pattern, rupa/splatter.js: rain's blots
+  // and splashes over every apron, none with its heart inside a building, each apron's edges seamed where water gathers
+  // against the kerb; rastered once over the aprons' bounds for the page
+  const puddleMask = wetness && wetness.pools > 0 && aprons.length ? (() => {
+    const R = [Math.min(...aprons.map((a) => a.rect[0])), Math.min(...aprons.map((a) => a.rect[1])), Math.max(...aprons.map((a) => a.rect[2])), Math.max(...aprons.map((a) => a.rect[3]))].map(r5);
+    const prims = join(...aprons.map((a, k) => puddles(a.rect, { cover: wetness.pools, seed: (manifest.seed ?? 1) * 31 + k, keepOut: a.boxes })));
+    const size = 256, px = rasterSplatter(prims, R, size);
+    return { rect: R, size, data: Buffer.from(px).toString('base64') };
+  })() : null;
   const lin = (c) => c.map((v) => r5((v / 255) ** 2.2));
   const reflect = ctx.dayLight && formRooms.length && payload.sky?.zenith && payload.sky?.horizon ? {
     env: { zenith: lin(payload.sky.zenith.slice(0, 3)), horizon: lin(payload.sky.horizon.slice(0, 3)), ground: lin(payload.sky.horizon.slice(0, 3)).map((v) => r5(v * 0.35)) },
     surfaces: BUILT_SURFACES, ...(floods.length ? { floods } : {}),
     // (it has rained: every built thing out of doors is wet with no depth, era/laws.js 'wet-hugs-the-surface': the slab's
     // joints full, its faces dark, walls and containers run with it)
-    ...(wetness ? { wet: { ...wetness, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: Object.keys(BUILT_SURFACES), damp: true } } : {}) } : null;
+    ...(wetness ? { wet: { ...wetness, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: Object.keys(BUILT_SURFACES), damp: true, ...(puddleMask ? { mask: puddleMask } : {}) } } : {}) } : null;
 
   const wetRoad = wetQuads.length ? { quads: wetQuads, lamps: [], zenith: payload.sky?.zenith ?? [120, 150, 200], horizon: payload.sky?.horizon ?? [200, 215, 230] } : null;
   return { ...payload, ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
