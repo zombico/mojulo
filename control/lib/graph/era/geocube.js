@@ -1393,7 +1393,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'skandart'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
@@ -1450,6 +1450,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water || DN ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}), ...(DN ? { dunes: DN } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
+  // (`skandart` on a cube's path: its snow's drifts, era/skandart-snow.js; the path's alone, and only where snow lies)
+  if (manifest.skandart !== undefined && show !== 'path') no('skandart is the path\'s snow drifts (the wind\'s piles in its snow): show \'path\' under a cube\'s snow');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
   const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}), ...(DN !== undefined ? { dunes: DN } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
@@ -1458,7 +1460,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // the HALL: the cube's interior walked as rooms strung on a walk (era/in-hall.js), its kit dressed (the set piece in its
   // landmark's room), laid from the seed
   const hallLow = show === 'hall' ? (({ rooms, dress, ...rest }) => ({ ...rest, seed, hall: manifest.hall ?? {} }))(low0) : null;
-  const low = hallLow ?? (show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) });
+  const low = hallLow ?? (show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}), ...(manifest.skandart !== undefined ? { skandart: manifest.skandart } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) });
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   // (`buildings`: game buildings seated on the land it walks, era/stage-buildings.js, as a stage's are; on a land a
   // trail is laid over, so the form render draws their land, their outsides and their rooms under the cube's one sun)

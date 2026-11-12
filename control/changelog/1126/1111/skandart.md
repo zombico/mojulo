@@ -105,3 +105,11 @@ size it would be.
   walls, its floor band and hazard paint as the floor), asked by weathering only. A new cause, `use` (traffic), wears
   the floor and the walk. A hangar weathered and kept (`kit: "bay-military", weathering: 1, skandart: 0`) shows its
   roof rusted through, its floor stained and scuffed and nothing lying on it.
+- Snow answers the debris question on open ground: a stage's or a geocube path's `skandart` under its snow lays drifts
+  (`era/skandart-snow.js`), the wind's piles in the lee of each rock and trunk, the wind the recipe's (`wind.dir`) or the
+  default's. A drift leans on what slowed the wind, highest at it, its tail running out downwind to a tongue, its back
+  and sides no steeper than snow stands (rupa's `snow` repose) and easing out onto the ground; it rises with the amount
+  and with the snow's depth, never past what it leans on, is cut where the snow ends or the walk begins, and is not made
+  lower than the eye spot. It is the cover's snow: painted in its colour, and in the form render the ground the snow's
+  map covers, the map filling the hollows the cover's patches opened under it. Walked over, never a collider. The level
+  says what it laid (`skandart.drifts`) and any law it broke. Debris words on open ground without snow are still refused.

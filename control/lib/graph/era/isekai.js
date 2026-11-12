@@ -46,7 +46,7 @@ import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { cloudBand } from '../matte-paint/sky.js';
-import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
+import { resolveTerrainWind, windPageChannel, TERRAIN_WIND_DEFAULTS } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
 import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
 import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
@@ -83,6 +83,7 @@ import { lidFaces, caveLight, caveRocks, flipBoulder, lampFaces, CAVE } from './
 import { readSkandart } from './skandart.js';
 import { readCondition } from './condition.js';
 import { caveSkandart } from './skandart-land.js';
+import { snowDrifts } from './skandart-snow.js';
 import { domeFaces, formations, formationFaces, cavernLight, cavernAsCave, cavernSet, crackFaces, floorDress, wallRocks, CAVERN_EDGE } from './cavern.js';
 import { cavernKey, keyReadout } from './cavern-key.js';
 // the grit a land with caves wears its rock at: the meru's gen-7 rock's (local-meru/scene.js FORM_GRIT)
@@ -470,6 +471,28 @@ function caveDebris(manifest, site, st, seed, rocks) {
   return { boulders, readout: { amount, ...(cond ? { condition: cond.id } : {}), heaps: L.heaps.length, laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
 }
 
+/**
+ * The SNOW's drifts on open ground (era/skandart-snow.js), asked for by a recipe's `skandart` where snow lies: one in the
+ * lee of each rock and trunk the wind meets (its way the recipe's `wind`, else the default's), each joining the land's
+ * boulders. Drawn as the snow: on the painted land its own colour (`isekai:snow`); in the form render the ground the
+ * snow's map lays its snow over (`isekai:ground`), so a drift is the same snow as the cover it rises from. A drift is
+ * walked over, never a wall (`role: 'drift'`). → { boulders, readout } | null
+ */
+function snowDebris(manifest, site, st, SN, SF, seed, boulders, trees, form) {
+  const sk = readSkandart(manifest), amount = sk ? sk.amount : 0;
+  if (!(amount > 0)) return null;
+  const wind = manifest.wind && typeof manifest.wind === 'object' && Number.isFinite(manifest.wind.dir) ? manifest.wind.dir : TERRAIN_WIND_DEFAULTS.dir;
+  const rocks = boulders.filter((b) => b.it && b.sides?.length && b.it.role !== 'pebble' && b.it.role !== 'talus').map((b) => {
+    const cs = [...b.sides, ...(b.cap ?? [])].flatMap((f) => f.corners), top = Math.max(...cs.map((c) => c[2])), r = Math.max(...cs.map((c) => Math.hypot(c[0] - b.it.x, c[1] - b.it.y)));
+    return { of: 'rock', x: b.it.x, y: b.it.y, r: r * 0.85, h: top - site.ground(b.it.x, b.it.y) };
+  });
+  const trunks = trees.filter((t) => !t.hero || t.trunks).map((t) => ({ of: 'trunk', x: t.x, y: t.y, r: Math.max(0.15, t.trunks?.[0]?.radii?.[0] ?? 0.2), h: t.h ?? 3 }));
+  const L = snowDrifts(site, { field: SF, snow: SN, amount, wind, obstacles: [...rocks, ...trunks], seed });
+  const group = form ? 'isekai:ground' : 'isekai:snow';
+  const out = L.drifts.map((d) => ({ it: { x: d.at[0], y: d.at[1], size: 0, role: 'drift' }, sides: d.faces.map((f) => ({ corners: f.corners, normal: f.normal, outNormal: f.normal, group, size: 0 })), cap: [], rim: [], s: 0, drift: true }));
+  return { boulders: out, covers: L.covers, readout: { amount, wind, drifts: L.drifts.map(({ of, at, H, L: l }) => ({ of, at, H, L: l })), laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
+}
+
 export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   // a `biocube` (era/biocube.js): the level's flora laid over the card's own trees and grass
@@ -512,7 +535,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // (the CAVERN, era/cavern.js: its floor soil, no meadow; its pretend ceiling, a dome of the cliff's rock, down-facing)
   // (debris is a cavern's on open ground: the open land answers no debris question yet, and says so)
-  if (!site.cavern && (manifest.skandart !== undefined || manifest.condition !== undefined)) throw new Error(`stage: ${manifest.skandart !== undefined ? 'skandart' : 'condition'}: open ground answers no debris question yet; a cavern does (trail: { ground: { cavern: true } }), and the room kits`);
+  // (and on open ground the snow answers it, the wind's drifts: era/skandart-snow.js; a condition is a room's or a cave's)
+  if (!site.cavern && (manifest.condition !== undefined || (manifest.skandart !== undefined && !SN))) throw new Error(`stage: ${manifest.condition !== undefined ? 'condition' : 'skandart'}: open ground answers no debris question yet but its snow's drifts (snow, skandart); a cavern does (trail: { ground: { cavern: true } }), and the room kits`);
   if (site.cavern) {
     // (its colour key, the colour theorist's from the world's palette and its register: its lamps, its shade, its
     // formations and its set painted in one key, era/cavern-key.js)
@@ -622,6 +646,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const bushes = broken ? bushMasses(shrRaw0) : [], shrRaw = broken ? lumpBushes(shrRaw0, bushes, broken) : shrRaw0;
   // (and the bushes' footprints: no grass grows up through a bush, `clearR` its reach)
   const near = [...trees, ...(ike ? ike.avoid : []), ...shr.avoid, ...(TH ? TH.items.map((b) => ({ x: b.x, y: b.y, clearR: r5(readBush(st.thickets.kinds[b.bushIx]).spread * b.h * 0.75) })) : [])];
+  // (the SNOW's drifts, when asked for: the wind's piles in the lee of each rock and trunk, each one of the land's boulders
+  // drawn as its snow, era/skandart-snow.js)
+  const SNK = SF && !site.cavern ? snowDebris(manifest, site, st, SN, SF, seed, boulders, trees, !!ctx.form) : null;
+  if (SNK) boulders.push(...SNK.boulders);
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
@@ -1003,7 +1031,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
-    ...(ctx.form && SF ? { snowMap: snowMap(site, SF, SN, snowR) } : {}),
+    // (a drift's ground all snow: the wind fills the hollows it opened in the cover first, era/skandart-snow.js)
+    ...(ctx.form && SF ? { snowMap: snowMap(site, SNK ? (x, y, z, n) => (SNK.covers(x, y) ? Math.max(1, SF(x, y, z, n)) : SF(x, y, z, n)) : SF, SN, snowR) } : {}),
+    // (and what its snow's drifts laid, when asked for: era/skandart-snow.js)
+    ...(SNK ? { skandart: SNK.readout } : {}),
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // (a CAVERN: underground, so the page's sky is a room's, no clouds, no live grass; every face lit by what it sees)
@@ -1053,7 +1084,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     }
     for (const b of boulders) {
       // (a gritty land's strewn stones carry no item: pebbles the feet step over, as a pebble is)
-      if (!b.it || b.it.role === 'pebble' || b.it.role === 'talus') continue;
+      if (!b.it || b.it.role === 'pebble' || b.it.role === 'talus' || b.it.role === 'drift') continue;
       const cs = [...(b.sides ?? []), ...(b.cap ?? [])].flatMap((f) => f.corners ?? []);
       if (!cs.length) continue;
       const lo = [0, 1, 2].map((k) => Math.min(...cs.map((c) => c[k]))), hi = [0, 1, 2].map((k) => Math.max(...cs.map((c) => c[k])));

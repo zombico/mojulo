@@ -224,13 +224,19 @@ function bodyFaces(B, role, len, matter) {
   const withLip = (vs) => (B.lip !== null && B.lip > vs[0] && B.lip < vs[vs.length - 1] ? [...vs.filter((v) => Math.abs(v - B.lip) > 0.02), B.lip].sort((p, q) => p - q) : vs);
   const xs = role === 'cone' ? lines(-B.toe, B.toe) : role === 'corner' ? withLip(lines(B.start, B.start + B.toe)) : lines(-len / 2, len / 2);
   const ys = role === 'cone' ? lines(-B.toe, B.toe) : withLip(lines(B.start, B.start + B.toe));
+  return cellFaces(B.top, B.ground, xs, ys, matter);
+}
+
+/** A surface over the ground as faces (exported for the snow's drifts, era/skandart-snow.js): `top(x, y)` and
+ *  `ground(x, y)` over the grid `xs` × `ys`, a cell kept where the surface stands over the ground. */
+export function cellFaces(top, ground, xs, ys, matter) {
   // (each cell clipped where the body meets the ground, so the toe runs as the contour it is and not as the grid's steps;
   // the lip is a grid line, so a cell lies wholly in the gutter or wholly on the floor)
   // (a cell takes one ground, the one at its middle: its corners on the lip read the side the cell lies on)
   const faces = [];
   for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < ys.length; j++) {
-    const g = B.ground((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2);
-    const q = [[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, B.top(x, y) - g]);
+    const g = ground((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2);
+    const q = [[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, top(x, y) - g]);
     if (q.every((p) => p[2] <= 0.004)) continue;
     const poly = [];
     q.forEach((p, k) => {
@@ -239,7 +245,7 @@ function bodyFaces(B, role, len, matter) {
       if ((p[2] > 0) !== (n[2] > 0)) { const t = p[2] / (p[2] - n[2]); poly.push([p[0] + (n[0] - p[0]) * t, p[1] + (n[1] - p[1]) * t]); }
     });
     if (poly.length < 3) continue;
-    const c = poly.map(([x, y]) => [r5(x), r5(y), r5(Math.max(g, B.top(x, y)) + 0.003)]);
+    const c = poly.map(([x, y]) => [r5(x), r5(y), r5(Math.max(g, top(x, y)) + 0.003)]);
     // (its normal by Newell's sum over every edge: a clipped cell's slivers keep their true slope)
     const n = [0, 0, 0];
     c.forEach((P, k) => { const Q = c[(k + 1) % c.length]; n[0] += (P[1] - Q[1]) * (P[2] + Q[2]); n[1] += (P[2] - Q[2]) * (P[0] + Q[0]); n[2] += (P[0] - Q[0]) * (P[1] + Q[1]); });
