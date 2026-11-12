@@ -125,6 +125,10 @@ const ENV_BODY = `
 #endif
     float eFill = ( 1.0 - smoothstep( eAmt * 0.95 - 0.14, eAmt * 0.95 + 0.02, eHt ) ) * step( 0.02, eAmt );
     eFill = max( eFill, ePool );
+    // (WHILE IT RAINS the whole ground wears a film: a skin of water over every face that looks up, thin enough that
+    // the joints still show through it, smooth enough to hold the lamps)
+    float eFilm = uFWet.w * eUpF;
+    eFill = max( eFill, 0.72 * eFilm );
     float eDamp = smoothstep( 0.0, 0.35, eAmt );
     diffuseColor.rgb *= mix( 1.0, uFSurf.z > 0.0 ? uFSurf.z : 0.55, eDamp );
     diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.7, eFill );
@@ -132,12 +136,19 @@ const ENV_BODY = `
     // (a face running with rain is a film of water: smooth, whatever it is made of)
     eR = mix( eR, min( eR, 0.16 ), eAll * uFWet.x );
     eN = normalize( mix( eN, eG, eFill ) );
-    // (while it rains, standing water is struck: a ring in every cell of it, each on its own beat, bending what it holds)
-    if ( uFWet.w > 0.0 && ePool > 0.01 ) {
-      vec2 eCell = floor( eP.xy / 0.42 ), eIn = fract( eP.xy / 0.42 ) - 0.5; float eH = fH2( eCell + 3.7 );
-      vec2 eC2 = eIn - ( vec2( fH2( eCell + 1.3 ), fH2( eCell + 7.9 ) ) - 0.5 ) * 0.5; float eBeat = fract( uFNow * ( 0.7 + 0.5 * eH ) + eH * 7.0 ), eLr = length( eC2 ) + 1e-4;
-      float eRing = exp( - pow( ( eLr - eBeat * 0.42 ) / 0.035, 2.0 ) ) * ( 1.0 - eBeat );
-      vec3 eNw2 = normalize( inverseTransformDirection( eN, viewMatrix ) + vec3( eC2 / eLr * eRing * 0.35 * ePool * uFWet.w, 0.0 ) );
+    // (and the film is struck: small rings everywhere on it, each cell on its own beat, larger and slower where water
+    // stands deep; they bend what the ground holds, as a footfall's do)
+    if ( uFWet.w > 0.0 && eFilm + ePool > 0.01 ) {
+      vec2 eTilt2 = vec2( 0.0 );
+      for ( int q = 0; q < 2; q++ ) {
+        float eCs = q == 0 ? 0.16 : 0.44, eWt = q == 0 ? eFilm * 0.55 : ePool;
+        if ( eWt < 0.01 ) continue;
+        vec2 eCell = floor( eP.xy / eCs ), eIn = fract( eP.xy / eCs ) - 0.5; float eH = fH2( eCell + 3.7 + float( q ) * 11.0 );
+        vec2 eC2 = eIn - ( vec2( fH2( eCell + 1.3 ), fH2( eCell + 7.9 ) ) - 0.5 ) * 0.5; float eBeat = fract( uFNow * ( 0.9 + 0.8 * eH ) + eH * 7.0 ), eLr = length( eC2 ) + 1e-4;
+        float eRing = exp( - pow( ( eLr - eBeat * 0.42 ) / 0.05, 2.0 ) ) * ( 1.0 - eBeat ) * step( 0.35, eH + 0.3 * float( q ) );
+        eTilt2 += eC2 / eLr * eRing * 0.35 * eWt * uFWet.w;
+      }
+      vec3 eNw2 = normalize( inverseTransformDirection( eN, viewMatrix ) + vec3( eTilt2, 0.0 ) );
       eN = normalize( ( viewMatrix * vec4( eNw2, 0.0 ) ).xyz );
     }
   }

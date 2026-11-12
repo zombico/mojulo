@@ -70,3 +70,6 @@
 - Puddles on a flat. A wet place whose degree stands pools lays `puddles` over every slab apron, rastered once, and
   the form render stands water where the pattern's depth passes its edge: level with the slab, no thickness, a soaked
   rim round it, struck with rings while it rains.
+- While it rains the whole ground wears a film: a skin of water over every face that looks up, thin enough that the
+  joints show through, and struck everywhere with small rings (each cell on its own beat), larger and slower where
+  water stands deep.
