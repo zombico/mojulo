@@ -322,7 +322,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // INDOORS (a world that declares itself an interior, `sky.preset 'interior'`: its bake has no sun) the hour is dropped,
   // since there is no sun for it to move (a page asking only for it is the page without it), and the actors' shadow is a
   // contact blob from below (channels/cast-shadows.js), not a shadow off an outdoor sun under a roof
-  const liveAsked = readLiveShadows(shadows), liveIndoor = !!(liveAsked && sky && sky.preset === 'interior');
+  const liveAsked = readLiveShadows(shadows), liveIndoor = !!(liveAsked && sky && sky.preset === 'interior' && !(form && form.room && form.room.sun && form.room.sun.live));   // (a room under a live sun, era/stage.js `daylight`, has an hour as a land has)
   const liveShadows = liveIndoor ? (liveAsked.actors ? { actors: true, hour: false } : null) : liveAsked;
   // OCCLUSION (scene/live-light.js, on the creases' prepass: channels/creases.js): live contact occlusion. With creases
   // or alone, one prepass a frame. Absent ⇒ null ⇒ the creases' block as it was, or none
