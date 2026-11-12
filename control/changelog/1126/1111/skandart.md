@@ -159,3 +159,13 @@ size it would be.
   crate may carry another, no bigger than it, each its own thing: break the one under and the top comes down (the
   runtime drops what nothing holds). The crypt keeps a chest of grave goods with its urns, the lab crates and kegs, a
   store baskets with its pots, a workshop or warehouse crates, barrels, kegs and a chest.
+- Vessels take the look of the room they stand in. A card names ROLES (crate, barrel, keg, chest, basket, pot, urn,
+  jar) and the room's look gives each its form: `old` wood and clay (a room of stone, render or brick: a crypt's
+  barrels, crates, chests and urns), `industrial` painted steel (a room of metal or concrete: a military bay's steel
+  crates on skids, drums with their rolling hoops, footlockers with latches, in olive, grey, navy or red), `clean`
+  moulded plastic (a room of board: a lab's totes, plastic drums and hard cases). The look the card names
+  (`vessels.look`), else read off the room's walls. Every vessel a flat colour, no grain: it reads by its shape and its
+  colour, never by a texture that pulls the eye. Steel and plastic do not break where they stand (a gone room tips them
+  instead), and each breaks as what it is made of: sheet steel dents, and a new matter, moulded plastic (polycarbonate's
+  numbers, a shell round air, softening and burning), cracks into plates. The room says which look it took
+  (`skandart.vessels.look`).

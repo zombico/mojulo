@@ -2,7 +2,8 @@
 // and broken the further the room is gone; each standing or tipped one a thing a game that lets objects break breaks.
 // One small ashlar crypt holds the concept (its card keeps urns, pots and jars), worn and ruined.
 import { describe, it, expect } from 'vitest';
-import { readVessels, VESSELS, CLASS_OF } from './skandart-vessels.js';
+import { readVessels, VESSELS, CLASS_OF, vesselLook } from './skandart-vessels.js';
+import { STAGE_KITS } from './stage.js';
 import { assembleStageScene } from './stage.js';
 import { breakablesOf } from '../playscape/destruct/breakability.js';
 
@@ -32,7 +33,8 @@ describe('a room\'s vessels', () => {
     const none = assembleStageScene(ROOM({ skandart: { amount: 0.6, vessels: false } }), {});
     expect(mine(none)).toEqual([]);
     expect(none.skandart.vessels).toBeUndefined();
-    expect(() => readVessels({ kinds: { teapot: 1 } })).toThrow(new RegExp(Object.keys(VESSELS.kinds).join(', ')));
+    expect(() => readVessels({ kinds: { teapot: 1 } })).toThrow(new RegExp(VESSELS.roles.join(', ')));
+    expect(() => readVessels({ kinds: { crate: 1 }, look: 'baroque' })).toThrow(/old, industrial, clean/);
     expect(readVessels({ kinds: { crate: 2 } })).toEqual({ kinds: { crate: 2 }, every: VESSELS.every });
   }, 120_000);
 
@@ -51,5 +53,22 @@ describe('a room\'s vessels', () => {
     const B = breakablesOf(P, 'objects');
     expect(B.breakables.filter((b) => /-sk-/.test(b.id))).toHaveLength(V.length);
     expect(B.skipped.filter((q) => /-sk-/.test(q.id))).toEqual([]);
+  }, 120_000);
+
+  it('takes the look of the room it stands in: a crypt\'s wood and clay, a military bay\'s steel, a lab\'s plastic; flat colours, no grain', () => {
+    expect(vesselLook(STAGE_KITS['gothic-ashlar'])).toBe('old');
+    expect(vesselLook(STAGE_KITS['bay-military'])).toBe('industrial');
+    expect(vesselLook(STAGE_KITS['research-lab'])).toBe('clean');
+    expect(vesselLook(STAGE_KITS['gothic-ashlar'], { look: 'industrial' })).toBe('industrial');
+    const base = (P) => P.faces.filter((f) => /^stage:prop/.test(f.group) && f.node && /-sk-/.test(f.node));
+    const steel = assembleStageScene({ kind: 'stage', kit: 'bay-military', rooms: [{ id: 'a', x: 0, y: 0, w: 16, d: 20, h: 8 }], skandart: 0.3, _program: { use: 'warehouse' } }, {});
+    expect(steel.skandart.vessels.look).toBe('industrial');
+    const V = mine(steel);
+    expect(V.every((a) => ['steel-crate', 'drum', 'footlocker'].includes(a.shape) && a.matter === 'sheet-metal')).toBe(true);
+    const B = breakablesOf(steel, 'physical');
+    expect(B.breakables.filter((b) => /-sk-/.test(b.id)).every((b) => b.matter === 'sheet-metal')).toBe(true);
+    // (no texture on a vessel: its shape and its colour)
+    expect(base(steel).every((f) => !f.texture)).toBe(true);
+    expect(base(assembleStageScene(ROOM({ condition: 'worn' }), {})).every((f) => !f.texture)).toBe(true);
   }, 120_000);
 });

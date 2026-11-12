@@ -145,6 +145,45 @@ const ITEMS = {
     const sz = mix(0.9, 1.1, hash3(i, 5, 5169)), c = add(p, mul(N, 0.24 * sz)), wicker = { key: null, scale: 1, tint: [0.62, 0.5, 0.32] };
     lathe(out, c, [[0.15, 0], [0.19, 0.08], [0.23, 0.3], [0.25, 0.34], [0.22, 0.34], [0.2, 0.06], [0, 0.06]].map(([r, z]) => [r * sz, p[2] + z * sz]), 10, wicker, 'stage:prop');
   },
+  // (and their modern kin, era/skandart-vessels.js: steel and moulded plastic in the colours their look gives, `S.body`
+  // and `S.trim`)
+  'steel-crate'(out, p, N, U, s, i, S) {
+    // a painted steel box on its skids, its lid's flange proud all round
+    const w = S?.size ?? mix(0.6, 0.8, hash3(i, 6, 5171)), h = w * 0.72, c = add(add(p, mul(N, w / 2)), [0, 0, 0.04 + h / 2]), up = [0, 0, 1];
+    obox(out, c, N, U, up, [w / 2, w / 2, h / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, h / 2 - 0.02]), N, U, up, [w / 2 + 0.015, w / 2 + 0.015, 0.025], S.trim, 0.5);
+    for (const k of [-0.32, 0.32]) obox(out, add(add(p, mul(N, w / 2)), add(mul(U, k * w), [0, 0, 0.02])), N, U, up, [w / 2, 0.04, 0.02], S.trim, 0.5);
+  },
+  drum(out, p, N, U, s, i, S) {
+    // a steel drum: its two rolling hoops pressed out, its chime at the top
+    const r = 0.29, h = 0.88, c = add(p, mul(N, r + 0.03)), z = (v) => p[2] + v;
+    lathe(out, c, [[r, z(0)], [r, z(0.28)], [r + 0.015, z(0.29)], [r + 0.015, z(0.31)], [r, z(0.32)], [r, z(0.56)], [r + 0.015, z(0.57)], [r + 0.015, z(0.59)], [r, z(0.6)], [r, z(h - 0.02)], [r - 0.012, z(h)], [0, z(h)]], 14, S.body, 'stage:prop');
+  },
+  footlocker(out, p, N, U, s, i, S) {
+    // long along the wall, its lid's edge a band, two latches on its front
+    const L = mix(0.8, 0.95, hash3(i, 7, 5173)), D = 0.42, H = 0.38, c = add(add(p, mul(N, D / 2)), [0, 0, H / 2]), up = [0, 0, 1];
+    obox(out, c, U, N, up, [L / 2, D / 2, H / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, H / 2 - 0.04]), U, N, up, [L / 2 + 0.012, D / 2 + 0.012, 0.03], S.trim, 0.5);
+    for (const k of [-0.3, 0.3]) obox(out, add(add(c, mul(U, k * L)), add(mul(N, D / 2 + 0.012), [0, 0, H / 2 - 0.1])), U, N, up, [0.035, 0.012, 0.05], S.trim, 0.5);
+  },
+  tote(out, p, N, U, s, i, S) {
+    // a moulded crate with a lid: its rim a band round the top
+    const w = S?.size ?? mix(0.55, 0.7, hash3(i, 8, 5175)), d = w * 0.7, h = w * 0.55, c = add(add(p, mul(N, d / 2)), [0, 0, h / 2]), up = [0, 0, 1];
+    obox(out, c, U, N, up, [w / 2, d / 2, h / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, h / 2 - 0.03]), U, N, up, [w / 2 + 0.02, d / 2 + 0.02, 0.03], S.trim, 0.5);
+  },
+  'plastic-drum'(out, p, N, U, s, i, S) {
+    // rounded at its foot and shoulder, a bung on top
+    const c = add(p, mul(N, 0.3 + 0.03)), z = (v) => p[2] + v;
+    lathe(out, c, [[0.26, z(0)], [0.29, z(0.04)], [0.3, z(0.12)], [0.3, z(0.8)], [0.28, z(0.86)], [0.2, z(0.88)], [0.05, z(0.89)], [0.05, z(0.92)], [0, z(0.92)]], 14, S.body, 'stage:prop');
+  },
+  case(out, p, N, U, s, i, S) {
+    // a hard case lying along the wall: its seam a band, its handle on its front
+    const L = mix(0.75, 0.9, hash3(i, 9, 5177)), D = 0.36, H = 0.3, c = add(add(p, mul(N, D / 2)), [0, 0, H / 2]), up = [0, 0, 1];
+    obox(out, c, U, N, up, [L / 2, D / 2, H / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, 0.03]), U, N, up, [L / 2 + 0.01, D / 2 + 0.01, 0.02], S.trim, 0.5);
+    obox(out, add(c, add(mul(N, D / 2 + 0.03), [0, 0, 0.03])), U, N, up, [0.1, 0.02, 0.02], S.trim, 0.5);
+  },
   planks(out, p, N, U, s, i, S) {
     const n = 2 + Math.floor(hash3(i, 3, 5103) * 2), len = mix(1.6, 2.1, hash3(i, 4, 5105));
     for (let k = 0; k < n; k++) {
