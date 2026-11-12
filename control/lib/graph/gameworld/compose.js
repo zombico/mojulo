@@ -38,6 +38,7 @@ import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
+import { worldMapLevel } from './world-map.js';
 import { settingOfGame } from './cast-setting.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
@@ -400,7 +401,19 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // a stretch of the wilds; a building, a form or a single level is laid as before
   const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
   const hubId = `${wid}-1`.slice(0, 48);
-  for (let i = 0; i < n; i++) {
+  // a genre whose cube asks for a WORLD MAP (space.worldMap 'zones' on levelForm 'map': the action RPG) is laid as one: a
+  // planned map walked block by block and travelled zone to zone, its first zone laid in teaching order (world-map.js),
+  // never a run of trail walks. A building or a form is laid as before
+  const spaceOf = genre ? cubeOfWorld({ intent: { from: genre.id } }).cube.space ?? {} : {};
+  const mapped = !!genre && !form && !indoors && !hubbed && spaceOf.worldMap === 'zones' && spaceOf.levelForm === 'map';
+  if (mapped) {
+    const mid = `${wid}-map`.slice(0, 48), { level } = worldMapLevel({ n, landscape });
+    world.levels[mid] = { ...level, seed: seed * 100 + 1 };
+    Object.assign(world, { topology: 'interconnected', start: mid });
+    decided.push({ level: mid, seed: seed * 100 + 1, tries: 1, laws: [] });
+    world.brief.worldMap = { level: mid, blocks: level.glyphs.plan.route.length, ...(level.glyphs.zoned ? { firstZone: level.glyphs.zoned[0] } : {}) };
+  }
+  for (let i = 0; i < (mapped ? 0 : n); i++) {
     const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
     // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
     // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
@@ -436,7 +449,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // what the levels are played for, and which are buildings: said only when a word decided it
   // (a genre's form: what its levels were laid as, said in the brief)
   if (form) world.brief.levelForm = { genre: genre.id, form: form.form };
-  if (goals && !form) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  if (goals && !form && !mapped) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
   // what the composer filled of the genre's form: said only when it filled something
   if (Object.keys(fills).length) world.brief.form = fills;
   if (indoors && !form) {

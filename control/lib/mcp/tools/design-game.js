@@ -523,6 +523,12 @@ function readout(ref, world, context = {}) {
   // gate beside the feel's; a law lost is advised as a feel step
   const rangeM = door.rooms.includes('range') ? rangeMeasured(world) : null;
   if (rangeM?.lost) next.push({ step: 'feel', range: rangeM.worst, card: 'gameworld-feel' });
+  // THE FIRST SLICE: the combat room, then the first level. A hero that fights hand to hand plays its room before any
+  // level is made: said until one is (the creator's to play; its kit tuned on their notes)
+  if (door.rooms.includes('practice') && !Object.keys(world.made ?? {}).some((k) => k.startsWith('level-'))) next.push({ step: 'room', room: 'practice', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=practice`, card: 'gameworld-next' });
+  // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
+  // each block's sketch is its author's, then level design's play layer, block by block
+  for (const [id, L] of Object.entries(world.levels ?? {})) if (L?.glyphs?.plan && L.glyphs.sketch?.scenario && L.glyphs.play === undefined) next.push({ step: 'worldmap', level: id, blocks: L.glyphs.plan.route, req: { unit: `level:${id}`, segments: true }, card: 'gameworld-next' });
   if (mountsSuggest) next.push({ step: 'mounts', suggest: mountsSuggest.suggest, why: mountsSuggest.why, patch: [{ op: 'set', path: '/mounts', value: mountsSuggest.suggest }], card: 'gameworld-mounts' });
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);

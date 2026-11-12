@@ -126,7 +126,9 @@ export function castingCall(world) {
   if (G.foes !== undefined || world.quick) return null;
   // (where a foe can stand: a walk's trails, a building's rooms)
   const walks = G.ids.filter((id) => G.levels[id].walk !== undefined || (G.levels[id].building !== undefined && G.levels[id].building?.ref === undefined));
-  if (!walks.length) return null;
+  // (and a world map's scenario: its fights' beats, gameworld/world-map.js)
+  const mapped = G.ids.filter((id) => G.levels[id].glyphs?.plan && G.levels[id].glyphs?.sketch?.scenario);
+  if (!walks.length && !mapped.length) return null;
   const { cube, from: genre } = cubeOfWorld(world), mind = cube.mind ?? {}, combat = [].concat(cube.power?.combat ?? []);
   const named = [].concat(mind.foes ?? []);
   // (a genre that fights only turn by turn meets its foes as the party battles' packs, battles.js: none stand beside them)
@@ -242,6 +244,11 @@ export function castingCall(world) {
   // (one of it), won by clearing it
   const order = playOrder(G).filter((id) => walks.includes(id));
   const levels = {}, n = order.length, open = order.filter((id) => G.levels[id].foes === undefined);
+  // (a WORLD MAP, gameworld/world-map.js: one planned map whose scenario stands each fight's foes by role, every role
+  // fielded from it; its beats say where and how many)
+  for (const id of mapped.filter((x) => G.levels[x].foes === undefined)) {
+    levels[id] = { from: Object.keys(ROLES).filter((r) => foes[r]).flatMap((r) => [r, ...(r !== 'boss' ? variantsOf(r) : [])]) };
+  }
   order.forEach((id, k) => {
     if (!open.includes(id)) return;
     // (the variants from the second level on; where the boss's is the second, from the first)

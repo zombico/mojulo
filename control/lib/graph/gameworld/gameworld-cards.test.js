@@ -71,7 +71,9 @@ describe('the rail\'s cards', () => {
     // the guide too (2026-11-10, 1110-studio-routing: the book starts from a ticket, one line; 4492 bytes before)
     // the next card too (2026-11-11, 1111-design-code-rail-alignment: the playthrough step, two lines; 4309 bytes before,
     // 4543 with them)
-    const CEIL = { 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4608, 'gameworld-actions': 4608 };
+    // gameworld-next 4864 (2026-11-12, 1111-design-code-rail-alignment: the first slice's room and a world map's blocks,
+    // two steps the rails now say)
+    const CEIL = { 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

@@ -88,4 +88,18 @@ rest below is designed, not built yet.
   piloted hero runs that way out of combat too: the legs as the gait sets them, the right arm held relaxed by the hip
   (an empty hand is held, not solved: `CARRY.empty`), the other arm swinging; a hand holding a blade is carried as it
   was. The walk, foes and walkers are as they were. Every page with a piloted hero changes its bytes.
-- Designed, not built yet: rails that say what they wrote.
+- **The sentence door lays an action RPG as a world map** (`gameworld/world-map.js`, `gameworld/compose.js`). The action
+  RPG's cube asks for one map travelled zone to zone (`worldMap: 'zones'` on `levelForm: 'map'`), and the door laid a
+  run of trail walks joined by roads instead (and, tried by hand, a platformer's course of raised walkways: an action
+  RPG walks the land). It now lays one planned map: its first zone the first three blocks on one page (a village, a
+  road, old ruins), a zone a block after it, the last a castle's heights holding the goal; topology `interconnected`. Its
+  scenario stands each beat on a tile of the default ways in the first zone's teaching order (the first look, a lone
+  foe and the blow, the road and the sprint, a pack with the lock-on and the dodge, a breath, the zone's captain held as
+  its way out), each further zone a fight held as its way out and a breath after it, then the climb and the boss; its
+  laws hold for a first zone alone and for one with zones after it. The casting call fields the map's roles. Every other
+  genre is laid as before.
+- **The readout says the first slice and the map's work** (`design_game` `next`, the `gameworld-next` card): `room`, the
+  combat room to play before any level is made, for a hero that fights hand to hand; `worldmap`, a map whose blocks are
+  still the floor: the segments req (each block's ground, heights and marks), then its play layer from each block's
+  brief.
+- Designed, not built yet: a changed genre answered with what it left behind; the loop's encounter from the terminals.
