@@ -415,10 +415,12 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 /** The materials a recipe may set down to be looked at (`samples`): a liquid a pool on the floor, a metal a cube; `tint`
- *  its colour under no light, `thick` how far a liquid's face stands over the floor (m), `rough` 0 a mirror to 1 chalk, `metal` 1 a bare metal (the form render's, channels/form.js). */
+ *  its colour under no light, `thick` how far a liquid's face stands over the floor (m), `rough` 0 a mirror to 1 chalk, `metal` 1 a bare metal, `clear` a liquid seen through, `film` a thin film's colours on its face (how much of its own colour it keeps square on: the floor shows under it, and it mirrors more the lower it is looked along); the form render's, channels/form.js. */
 export const SAMPLES = Object.freeze({
   oil: Object.freeze({ pool: true, thick: 0.014, tint: [0.035, 0.032, 0.03], rough: 0.05, metal: 0 }),
-  water: Object.freeze({ pool: true, thick: 0.009, tint: [0.16, 0.18, 0.19], rough: 0.04, metal: 0 }),
+  water: Object.freeze({ pool: true, thick: 0.009, tint: [0.045, 0.055, 0.06], rough: 0.04, metal: 0, clear: 0.42 }),   // (dark under it: a wet floor drinks the light)
+  // (a fuel: thin, pale amber, seen through, and its face a film that colours what it gives back)
+  gasoline: Object.freeze({ pool: true, thick: 0.006, tint: [0.1, 0.085, 0.045], rough: 0.035, metal: 0, clear: 0.34, film: 0.8 }),
   chrome: Object.freeze({ tint: [0.9, 0.9, 0.92], rough: 0.1, metal: 1 }),
   steel: Object.freeze({ tint: [0.56, 0.57, 0.6], rough: 0.34, metal: 1 }),
 });
@@ -427,10 +429,12 @@ function sampleFaces(plan) {
   (plan.samples || []).forEach((q, i) => {
     const M = SAMPLES[q.of], [x, y] = q.at, group = `stage:sample-${q.of}`, node = `sample-${i + 1}`, n0 = out.length;
     if (M.pool) {
-      // (a pool: a ring of twenty-four, its edge wandering by the sample's own dice. A LIQUID STANDS PROUD of what it
+      // (a pool: a ring of many points, its edge wandering by the sample's own dice. A LIQUID STANDS PROUD of what it
       // lies on, as a coat does of its wall (era/laws.js 'layers-stand-proud'): its face `thick` over the floor, its
       // edge a rounded lip down to it in two steps, so the lip turns the light and the pool reads as lying ON the floor)
-      const R = (q.size ?? 3) / 2, N = 24, T = M.thick, ring = (k, inset, z) => { const a = (k / N) * 2 * Math.PI, r = R * (0.78 + 0.34 * hash3(i, k % N, 4441)) - inset; return P([x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r, z]); };
+      const R = (q.size ?? 3) / 2, N = 72, T = M.thick, ph = [1, 2, 3].map((j) => hash3(i, j, 4441) * 2 * Math.PI);
+      // (its outline a smooth one: a few slow waves round it by the sample's dice, never a corner)
+      const ring = (k, inset, z) => { const a = (k / N) * 2 * Math.PI, r = R * (0.9 + 0.1 * Math.sin(a * 2 + ph[0]) + 0.06 * Math.sin(a * 3 + ph[1]) + 0.03 * Math.sin(a * 5 + ph[2])) - inset; return P([x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r, z]); };
       const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((c) => r5(c / l)); };
       const lip = (k, i0, z0, i1, z1) => { const a = ring(k, i0, z0), b = ring(k + 1, i0, z0), c = ring(k + 1, i1, z1), d = ring(k, i1, z1), u = sub(b, a), v = sub(d, a);
         const n = unit([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]), up = n[2] < 0 ? n.map((c2) => -c2) : n;
@@ -1545,7 +1549,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...(formLit.light.sun && plan.samples ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, surfaces: Object.fromEntries([...new Set(plan.samples.map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal }])),
+    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...(formLit.light.sun && plan.samples ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, surfaces: Object.fromEntries([...new Set(plan.samples.map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal, ...(SAMPLES[of].clear ? { clear: SAMPLES[of].clear } : {}), ...(SAMPLES[of].film ? { film: SAMPLES[of].film } : {}) }])),
       // (the room's capture, the form render's: from the middle of the first room at a standing eye, corrected to that room's box)
       probe: (({ x0, y0, x1, y1, h }) => ({ at: [r5((x0 + x1) / 2), r5((y0 + y1) / 2), r5(Math.min(h * 0.45, 1.7))], box: [[x0, y0, 0], [x1, y1, h]].map((c) => c.map(r5)) }))(plan.rooms[0]) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],

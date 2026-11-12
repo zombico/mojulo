@@ -22,3 +22,7 @@
   a chrome cube the floor's markings; a rougher metal holds them blurred. A room with samples asks for it.
 - A liquid stands proud of what it lies on: a pool's face is its `thick` over the floor (oil 14 mm, water 9 mm), its
   edge a rounded lip down to it, so the lip turns the light and the pool reads as lying on the floor.
+- A pool's outline is a smooth one (slow waves round it by its dice, no corner). A liquid may be seen through
+  (`clear`): square on it keeps a share of its own colour and the floor shows under it, darker where it is wet; the
+  lower it is looked along the more it mirrors. Water is so. A fuel carries a thin film on its face (`film`): what it
+  gives back is coloured by the film's thickness and the eye's angle. `gasoline` joins the samples.

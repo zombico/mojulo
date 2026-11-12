@@ -34,7 +34,7 @@ import { safeJson } from '../emit-util.js';
 // `cfg`: { lights: [{ at, key, radius, live, beat?, rate? }], ambient: [r, g, b] (linear), fall, maps: { key: { normal?, orm?, read,
 //          depth?, mean } }, live, pom: { steps, near, far }, relief: { near, far }, keep: [group], panes: [group], f0,
 //          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
-//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal? } }, wet?: { amount, seed, groups },
+//          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal?, clear?, film? } }, wet?: { amount, seed, groups },
 //          probe?: { at: [x, y, z], box: [[x0, y0, z0], [x1, y1, z1]] } (a room's capture and the box it is corrected to), size? } }
 // WHAT A SURFACE GIVES BACK (`cfg.reflect`, a page whose built things stand under a sky): the sky by Fresnel, blurred by
 // the surface's roughness, and the sun's highlight where the bake says the sun reaches; a metal's base colours both and
@@ -42,7 +42,7 @@ import { safeJson } from '../emit-util.js';
 // recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
 // that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
 // sheens on damp ground. Only a page that carries `reflect` carries this code.
-const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec2 uFSurf;\nuniform vec2 uFWet;\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec2 uFWet;\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
   + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
   + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
 const ENV_BODY = `
@@ -93,7 +93,15 @@ const ENV_BODY = `
   float eC = clamp( dot( eN, eV ), 0.0, 1.0 );
   vec3 eF0 = mix( vec3( 0.04 ), diffuseColor.rgb, eM ), eF = eF0 + ( max( vec3( 1.0 - eR ), eF0 ) - eF0 ) * pow( 1.0 - eC, 5.0 );
   float eO = clamp( fLum( vFLit ) / max( fLum( uFAmb ), 1e-3 ), 0.25, 1.0 );
-  fDirect += eEnv * eF * eO;
+#ifdef FORM_FILM
+  // (a thin film, a fuel's: what it gives back is coloured by the film's thickness, which wanders over the pool by
+  // the world's place, and by how low it is looked along, so its bands of colour slide as the eye moves)
+  { vec3 eQ = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz;
+    float eTh = fVN( eQ.xy * 1.3 + 7.0 ) * 0.6 + fVN( eQ.xy * 4.1 + 2.0 ) * 0.4;
+    vec3 eIr = 0.5 + 0.5 * cos( 6.2832 * ( eTh * 2.4 + eC * 1.7 + vec3( 0.0, 0.33, 0.67 ) ) );
+    eF *= mix( vec3( 1.0 ), eIr * 1.7, uFSurf.w ); }
+#endif
+  vec3 eAdd = eEnv * eF * eO;
   float eShine = clamp( 2.0 / ( eB * eB ) - 2.0, 1.0, 4096.0 );
   vec3 eSkyOnly = mix( uFGround, uFAmb, 0.5 + 0.5 * inverseTransformDirection( eG, viewMatrix ).z );
   for ( int i = 0; i < __K__; i++ ) {
@@ -101,8 +109,14 @@ const ENV_BODY = `
     vec3 eL = normalize( uFLp[ i ] - vFPos );
     float eNg = max( dot( eG, eL ), 0.0 ), eNl = max( dot( eN, eL ), 0.0 );
     float eSun = clamp( ( fLum( vFLit ) - fLum( eSkyOnly ) ) / max( fLum( uFLk[ i ] ) * eNg, 1e-3 ), 0.0, 1.0 );
-    fDirect += uFLk[ i ] * eF * eNl * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eL + eV ) ), 0.0 ), eShine ) * eSun;
+    eAdd += uFLk[ i ] * eF * eNl * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eL + eV ) ), 0.0 ), eShine ) * eSun;
   }
+#ifdef FORM_CLEAR
+  // (seen through: square on it keeps a share of its own colour and lets the floor show; the lower it is looked
+  // along the more it mirrors and the less it shows. What it gives back is laid whole, whatever its cover)
+  { float eA = clamp( uFSurf.z + ( 1.0 - uFSurf.z ) * max( eF.r, max( eF.g, eF.b ) ), 0.0, 1.0 ); diffuseColor.a = eA; eAdd /= max( eA, 0.05 ); }
+#endif
+  fDirect += eAdd;
   diffuseColor.rgb *= 1.0 - eM;
 }
 #endif
@@ -195,15 +209,15 @@ fDirect += fBeat * diffuseColor.rgb;
   const lit = (params, M${cfg.reflect ? ', S, wet' : ''}) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {})' : ''} };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? { FORM_WET: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {})' : ''} };
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector2(S ? S.rough : 1, S ? S.metal || 0 : 0) }' : ''} });
+      Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector4(S ? S.rough : 1, S ? S.metal || 0 : 0, S ? S.clear || 0 : 0, S ? S.film || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
       sh.fragmentShader = FRAG + sh.fragmentShader.replace('#include <map_fragment>', MAP)
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '') + (S && PR ? 'c' : '')" : ''};${cfg.sun ? `
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? 'w' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '')" : ''};${cfg.sun ? `
     // (lit by the day: toned with the land, channels/form-land.js leaves it so)
     mat.userData.cast = true;` : ''}
     return mat;
@@ -228,7 +242,7 @@ ${cfg.sun ? `
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
     o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
-      ...(M && M.orm ? { aoMap: M.orm } : {}) }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g)' : ''});
+      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g)' : ''});
     if (M && M.normal) made.material++; else made.colour++;
     if (M && M.depth > 0 && F.pom.steps > 0) made.pom++;
   });
