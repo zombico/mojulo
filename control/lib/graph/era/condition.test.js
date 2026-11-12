@@ -1,4 +1,4 @@
-// A room's condition (era/condition.js): one word for its state of repair sets its debris, its grime and whether anyone
+// A room's condition (era/condition.js): one word for its state of repair sets its debris, its weathering and whether anyone
 // sweeps, together. One small ashlar crypt (a kit that answers the debris question) and the first crypt (one that does
 // not) are enough to hold the word to what it does.
 import { describe, it, expect } from 'vitest';
@@ -13,7 +13,7 @@ describe('a room\'s condition', () => {
     const steps = Object.values(CONDITIONS).map((C) => C.dials);
     for (let i = 1; i < steps.length; i++) {
       expect(steps[i].skandart).toBeGreaterThanOrEqual(steps[i - 1].skandart);
-      expect(steps[i].grime).toBeGreaterThan(steps[i - 1].grime);
+      expect(steps[i].weathering).toBeGreaterThan(steps[i - 1].weathering);
     }
     // (the words people say: derelict and ruined, and theirs)
     expect(readCondition({ condition: 'abandoned' }).id).toBe('derelict');
@@ -25,28 +25,28 @@ describe('a room\'s condition', () => {
     expect(() => readCondition({ condition: 'haunted' })).toThrow(/kept \| worn \| neglected \| derelict \| ruined/);
   });
 
-  it('fills the dials the recipe left unset, and the recipe\'s own stand over the word\'s; a kit with no debris question takes the grime and says what it could not', () => {
+  it('fills the dials the recipe left unset, and the recipe\'s own stand over the word\'s; a kit with no debris question takes the weathering and says what it could not', () => {
     const ash = STAGE_KITS['gothic-ashlar'], stone = STAGE_KITS['gothic-stone'];
     const D = withCondition({ condition: 'derelict' }, ash);
-    expect(D).toMatchObject({ grime: 0.85, skandart: { amount: 0.7, swept: false }, _condition: { id: 'derelict', applied: { grime: 0.85, skandart: 0.7 } } });
+    expect(D).toMatchObject({ weathering: 0.85, skandart: { amount: 0.7, swept: false }, _condition: { id: 'derelict', applied: { weathering: 0.85, skandart: 0.7 } } });
     expect(withCondition({ condition: 'derelict', grime: 0.2, skandart: 0.3 }, ash)).toMatchObject({ grime: 0.2, skandart: 0.3, _condition: { applied: {} } });
-    // (a kit with no card answers by what it is made of; one made of nothing that sheds takes the grime and says so)
-    expect(withCondition({ condition: 'ruined' }, stone)).toMatchObject({ grime: 1, skandart: { amount: 1 }, _condition: { applied: { skandart: 1 } } });
-    expect(withCondition({ condition: 'ruined' }, { tiles: { floor: { key: 'carpet' } } })).toMatchObject({ grime: 1, _condition: { unanswered: ['skandart'] } });
+    // (a kit with no card answers by what it is made of; one made of nothing that sheds takes the weathering and says so)
+    expect(withCondition({ condition: 'ruined' }, stone)).toMatchObject({ weathering: 1, skandart: { amount: 1 }, _condition: { applied: { skandart: 1 } } });
+    expect(withCondition({ condition: 'ruined' }, { tiles: { floor: { key: 'carpet' } } })).toMatchObject({ weathering: 1, _condition: { unanswered: ['skandart'] } });
     // (a kept room is one where nothing has come down: no heap, and none of the kit's fallen stone)
     expect(withCondition({ condition: 'kept' }, ash).skandart).toEqual({ amount: 0 });
   });
 
-  it('builds a derelict room: its heaps, its grime, its low webs left where nobody sweeps; a worn room has less and is swept; the room says what it was asked', () => {
+  it('builds a derelict room: its heaps, its weathering, its low webs left where nobody sweeps; a worn room has less and is swept; the room says what it was asked', () => {
     const derelict = assembleStageScene(ROOM({ condition: 'derelict' }), {}), worn = assembleStageScene(ROOM({ condition: 'worn' }), {});
-    expect(derelict.condition).toMatchObject({ id: 'derelict', applied: { grime: 0.85, skandart: 0.7 } });
+    expect(derelict.condition).toMatchObject({ id: 'derelict', applied: { weathering: 0.85, skandart: 0.7 } });
     const pieces = (P) => debris(P).reduce((a, r) => a + r.transforms.length * r.template.length, 0);
     expect(pieces(derelict)).toBeGreaterThan(pieces(worn));
     const low = (P) => P.faces.filter((f) => f.texture === 'card:cobweb' && Math.min(...f.corners.map((c) => c[2])) < 2).length;
     expect(low(derelict)).toBeGreaterThan(0);
     expect(low(worn)).toBe(0);
     // (the same as asking for the dials by hand)
-    expect(JSON.stringify(derelict.faces)).toBe(JSON.stringify(assembleStageScene(ROOM({ grime: 0.85, skandart: { amount: 0.7, swept: false } }), {}).faces));
+    expect(JSON.stringify(derelict.faces)).toBe(JSON.stringify(assembleStageScene(ROOM({ weathering: 0.85, skandart: { amount: 0.7, swept: false } }), {}).faces));
     const kept = assembleStageScene(ROOM({ condition: 'kept' }), {});
     expect(debris(kept)).toEqual([]);
     expect(kept.faces.some((f) => f.group === 'stage:rubble')).toBe(false);

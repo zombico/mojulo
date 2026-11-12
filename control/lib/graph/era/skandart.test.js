@@ -17,7 +17,7 @@ describe('skandart: a room\'s debris by its causes', () => {
   it('reads its key: true, a number or { amount, … }; nothing asked adds nothing; a kit with no card answers by what it is made of', () => {
     expect(readSkandart({})).toBe(null);
     expect(readSkandart({ skandart: false })).toBe(null);
-    expect(readSkandart({ skandart: 0 })).toBe(null);
+    expect(readSkandart({ skandart: 0 })).toEqual({ amount: 0 });
     expect(readSkandart({ skandart: true })).toEqual({ amount: 0.6 });
     expect(readSkandart({ skandart: { amount: 0.3 } })).toEqual({ amount: 0.3 });
     expect(() => readSkandart({ skandart: 2 })).toThrow(/0 \(none\) to 1/);

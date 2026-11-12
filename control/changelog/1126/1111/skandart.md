@@ -88,3 +88,14 @@ size it would be.
 - A room's bays are read the same way for every room: between the pilasters it lists, else between its own bays (a
   lab's columns, a bay kit's pilasters), else the wall cut in stretches a heap fits in; the bay kits' wall feet were
   getting none.
+- Weathering is one scale (`weathering`, `era/weathering.js`): how far the causes have worked on a room's surfaces, an
+  axis apart from its debris (`skandart`: how much of what came off still lies). A room can stand weathered and swept,
+  or fresh with a fall in it. The scale is 0 (fresh) to 1, the kit as drawn at its middle; each cause is a weight on it
+  (`{ amount, damp, water, fire, time }`) and acts where it acts: damp loses a render wall's coat low and brings the
+  damp band, moss and fungus; water from above loses its coat over the string course and streaks it; fire soots over
+  the lamps; time ages the dirt, wears the stone and cracks the floor. It fills the dials it tells (`grime`, `dirt`,
+  `cracks`, `growth`, the coat's loss on the kit) wherever the recipe set none; the room says what it set. A
+  `condition` sets weathering and debris together (its old grime dial is weathering now), and either turns on its own:
+  `condition: "derelict", skandart: 0` is a derelict room swept clean.
+- `skandart: 0` is a room where nothing lies, the kit's own fallen stone gone too; only an absent key or `false` leaves a
+  kit as it was drawn.

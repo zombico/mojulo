@@ -132,7 +132,7 @@ function kitOptions(kit) {
   if (kit.shell === 'plaza' || kit.shell === 'lab') out.push(`"water": true`);
   if (generatedSpecOf(`${kit.tiles?.wall?.family}-a`)?.cfg.cut === 'render') out.push(`"coat": false (the wall bare: no render over it)`);
   if (kit.dress?.niches?.rhythm) out.push(`"rhythm": "same" (every bay alike, on purpose)`);
-  if (isRooms(kit)) out.push(`"condition": ${Object.keys(CONDITIONS).join(' | ')} (or a word for one: its debris and grime together)`);
+  if (isRooms(kit)) out.push(`"condition": ${Object.keys(CONDITIONS).join(' | ')} (or a word for one: its weathering and debris together)`, `"weathering": 0–1 or { amount, damp, water, fire, time } (its surfaces, apart from its debris)`);
   if (isRooms(kit)) out.push(`"skandart": 0–1, or { amount, foot|corner|collapse: { pieces: { <debris row>: n } } } (its debris: ${kit.skandart ? 'its card\'s answer' : 'what it is made of sheds'}, or the recipe's own)`);
   if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
     `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);

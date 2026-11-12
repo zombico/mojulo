@@ -131,12 +131,13 @@ export function readSkandart(m) {
     return a;
   };
   if (v === true) return { amount: 0.6 };
-  if (typeof v === 'number') return amt(v) > 0 ? { amount: v } : null;
+  // (the debris axis at 0 is a room where nothing lies: no heap, and none of its kit's own fallen stone either)
+  if (typeof v === 'number') return { amount: amt(v) };
   if (v && typeof v === 'object' && !Array.isArray(v)) {
     for (const k of Object.keys(v)) if (k !== 'amount' && k !== 'swept' && !CARD_KEYS.includes(k)) throw new Error(`stage: skandart.${k} is not a dial of it (amount, swept, ${CARD_KEYS.join(', ')})`);
     if (v.swept !== undefined && typeof v.swept !== 'boolean') throw new Error('stage: skandart.swept is true (the webs within reach are swept) or false (nobody sweeps)');
-    // (asked as an object at 0, the room is one where nothing has come down: it lays no heap, and the kit's own fallen
-    // stone, which skandart stands in for, is not laid either; a bare 0 asks for nothing at all)
+    // (at 0, the room is one where nothing lies: it lays no heap, and the kit's own fallen stone, which skandart stands in
+    // for, is not laid either; only an absent key, or false, leaves the kit as it was drawn)
     const a = v.amount === undefined ? 0.6 : amt(v.amount), card = readCard(v);
     return { amount: a, ...(v.swept === false ? { swept: false } : {}), ...(card ? { card } : {}) };
   }

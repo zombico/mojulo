@@ -84,6 +84,7 @@ import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
 import { readSkandart, skandartLay, skandartRepeats, skandartRead, resolveSkandartCard, SKANDART, SKANDART_CAUSES } from './skandart.js';
 import { withCondition } from './condition.js';
+import { withWeathering, weatherKit } from './weathering.js';
 import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
@@ -457,6 +458,8 @@ export function planStage(m = {}) {
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // a room's CONDITION (`condition`: kept … ruined, or a word for one, condition.js): its debris and its grime from one word
   if (m.condition !== undefined && !m._condition) return planStage(withCondition(m, kit0));
+  // its WEATHERING (`weathering`, weathering.js): one scale told by its causes, each where it acts on the surfaces
+  if (m.weathering !== undefined && !m._weathering) return planStage(withWeathering(m, kit0));
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
   const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || [], tileFamilyOf) : null;
@@ -466,6 +469,8 @@ export function planStage(m = {}) {
   const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
   let kitG = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
+  // (weathered, weathering.js: its render walls' coat lost as far as its causes took it, damp low and water high)
+  if (m._weathering && m.coat !== false) kitG = weatherKit(kitG, m._weathering);
   // THE COAT IS OPTIONAL (`coat: false`): a kit whose wall wears a coat of render lays its bare wall, the same stone
   // with nothing over it, on every storey that wore it; a kit without a coat is as it was. Bare by intent answers the
   // coat's question (era/room-craft.js) as a wall all alike answers the rhythm's
@@ -609,7 +614,7 @@ export function planStage(m = {}) {
   const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
   if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
   const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -1386,6 +1391,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
   // (a room's condition, condition.js, filled into the recipe before anything reads it: the bake's grime reads the recipe)
   if (manifest.condition !== undefined && !manifest._condition) return assembleStageScene(withCondition(manifest, kit), ctx);
+  if (manifest.weathering !== undefined && !manifest._weathering) return assembleStageScene(withWeathering(manifest, kit), ctx);
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
   const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
@@ -1589,6 +1595,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(manifest._program ? { program: manifest._program } : {}),
     // the condition the room was asked in (condition.js): its step, the dials it set, what the kit could not answer
     ...(plan.condition ? { condition: plan.condition } : {}),
+    // how weathered it was asked to be (weathering.js): the scale, its causes, and the dials they set
+    ...(plan.weathering ? { weathering: plan.weathering } : {}),
     // its debris (skandart.js): how much, whose answer (the recipe's, the kit's card, or what its materials shed) and what
     ...(plan.skandart ? { skandart: { amount: plan.skandart.amount, from: plan.skandart.from, causes: SKANDART_CAUSES.filter((c) => plan.skandart.card[c]), ...(plan.skandart.card.derived ? { derived: plan.skandart.card.derived } : {}) } } : {}),
     ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),

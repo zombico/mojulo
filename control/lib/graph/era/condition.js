@@ -4,7 +4,8 @@
  * knobs turned apart:
  *
  *   skandart  how much has come down and lies where it rests (era/skandart.js: its heaps, by the kit's causes)
- *   grime     how long the place has stood (era/stage.js withGrime: the dirt, the moss, the wall's wear)
+ *   weathering  how far the causes have worked on its surfaces (era/weathering.js: dirt, moss, the coat lost, cracks,
+ *             growth), an axis apart from its debris
  *   swept     whether anyone still sweeps: a kept room's webs within reach are brushed away, a forsaken room's stay
  *   decay     on a kit that tells its own story of going derelict (its style card's `decay`, era/decay.js: a lab's
  *             abandonment, blackout, leak, broken set piece and fallen roof), how far each went: a ruined lab's roof
@@ -13,22 +14,22 @@
  *   CONDITIONS          the ladder, kept to ruined, each its dials and its words
  *   readCondition(m)    a recipe's `condition` (a step or any of its words) → { id, said, dials } | null
  *   withCondition(m, kit) → the recipe with the condition's dials filled where the recipe set none, and `_condition`, what
- *                       it applied and what the kit could not (a kit that answers no debris question takes the grime alone)
- * A recipe's own `skandart` or `grime` stands over the word's. Pure.
+ *                       it applied and what the kit could not (a kit that answers no debris question takes the weathering alone)
+ * A recipe's own `skandart`, `weathering` or `grime` stands over the word's. Pure.
  */
 
 import { deriveSkandart } from './skandart-derive.js';
 
 export const CONDITIONS = Object.freeze({
-  kept: Object.freeze({ dials: Object.freeze({ skandart: 0, grime: 0.1, swept: true }),
+  kept: Object.freeze({ dials: Object.freeze({ skandart: 0, weathering: 0.1, swept: true }),
     words: Object.freeze(['kept', 'tended', 'maintained', 'clean', 'pristine', 'new', 'in use']) }),
-  worn: Object.freeze({ dials: Object.freeze({ skandart: 0.2, grime: 0.4, swept: true }),
+  worn: Object.freeze({ dials: Object.freeze({ skandart: 0.2, weathering: 0.4, swept: true }),
     words: Object.freeze(['worn', 'used', 'lived-in', 'old', 'weathered', 'aged']) }),
-  neglected: Object.freeze({ dials: Object.freeze({ skandart: 0.45, grime: 0.6, swept: false, decay: Object.freeze({ abandon: 0.35 }) }),
+  neglected: Object.freeze({ dials: Object.freeze({ skandart: 0.45, weathering: 0.6, swept: false, decay: Object.freeze({ abandon: 0.35 }) }),
     words: Object.freeze(['neglected', 'dusty', 'disused', 'forgotten', 'unkempt', 'shabby']) }),
-  derelict: Object.freeze({ dials: Object.freeze({ skandart: 0.7, grime: 0.85, swept: false, decay: Object.freeze({ abandon: 0.8, blackout: 0.6, leak: 0.4 }) }),
+  derelict: Object.freeze({ dials: Object.freeze({ skandart: 0.7, weathering: 0.85, swept: false, decay: Object.freeze({ abandon: 0.8, blackout: 0.6, leak: 0.4 }) }),
     words: Object.freeze(['derelict', 'abandoned', 'deserted', 'decrepit', 'run-down', 'forsaken', 'dilapidated']) }),
-  ruined: Object.freeze({ dials: Object.freeze({ skandart: 1, grime: 1, swept: false, decay: Object.freeze({ abandon: 1, blackout: 0.9, leak: 0.6, breach: 1, collapse: 1 }) }),
+  ruined: Object.freeze({ dials: Object.freeze({ skandart: 1, weathering: 1, swept: false, decay: Object.freeze({ abandon: 1, blackout: 0.9, leak: 0.6, breach: 1, collapse: 1 }) }),
     words: Object.freeze(['ruined', 'ruins', 'ruin', 'crumbling', 'collapsing', 'falling apart', 'wrecked', 'caved in']) }),
 });
 
@@ -52,7 +53,8 @@ export function withCondition(m, kit) {
   if (!C) return m;
   const { condition: _c, ...rest } = m, applied = {}, unanswered = [];
   const out = { ...rest };
-  if (m.grime === undefined) { out.grime = C.dials.grime; applied.grime = C.dials.grime; }
+  // (how weathered: one scale, weathering.js, its causes telling the surfaces; a recipe's own weathering or grime stands over it)
+  if (m.weathering === undefined && m.grime === undefined) { out.weathering = C.dials.weathering; applied.weathering = C.dials.weathering; }
   // (a kit that tells its own story of decay, its style card's `decay`, takes the step's events where the recipe set none)
   if (m.decay === undefined && C.dials.decay && kit && kit.dress && kit.dress.decay) { out.decay = { ...C.dials.decay }; applied.decay = { ...C.dials.decay }; }
   if (m.skandart === undefined) {
