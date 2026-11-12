@@ -483,15 +483,18 @@ const windDir = (manifest) => (manifest.wind && typeof manifest.wind === 'object
 /**
  * The FALL's leaf piles (era/leaf-piles.js): a biocube's `flora.autumn` read by the form render (ctx.form), each tree's
  * leaves heaped by the wind against its trunk, against the rock downwind and loose past its crown. Handed to the page as
- * data (`_leafPiles`, each pile its tree's foot and its faces) for the form's flora to draw in that tree's own leaves
+ * data (`_leafPiles`, each pile its tree's foot and its faces, a corner x, y, z and its crease) for the form's flora to draw in that tree's own leaves
  * (worlds/world-scene.js packs them beside the trees, channels/form-flora.js); the readout says what was laid.
  */
 function fallPiles(manifest, site, autumn, trees, boulders, seed) {
   const T = trees.map((t) => ({ x: t.x, y: t.y, r: Math.max(0.15, t.trunks?.[0]?.radii?.[0] ?? 0.22), crown: t.crownR ?? Math.max(1, (t.h ?? 6) * 0.35) }));
   const L = leafPiles(site, { autumn, wind: windDir(manifest), trees: T, rocks: rockObstacles(boulders, site), seed });
-  return { piles: L.piles.map((p) => ({ tree: [r5(trees[p.tree].x), r5(trees[p.tree].y)], role: p.role, H: p.H, faces: p.faces.map((f) => f.corners) })),
-    readout: { autumn, piles: L.piles.length, roles: Object.fromEntries(['foot', 'bank', 'heap'].map((r) => [r, L.piles.filter((p) => p.role === r).length])), laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
+  return { piles: L.piles.map((p) => ({ tree: [r5(trees[p.tree].x), r5(trees[p.tree].y)], role: p.role, H: p.H, faces: p.faces.map((f) => f.corners.map((c, k) => [...c, f.crease[k]])) })), claims: L.piles.flatMap((p) => p.claim),
+    readout: { autumn, piles: L.piles.length, at: L.piles.map((p) => ({ role: p.role, at: p.at, H: p.H })), roles: Object.fromEntries(['foot', 'bank', 'heap'].map((r) => [r, L.piles.filter((p) => p.role === r).length])), laws: L.laws.filter((r) => !r.ok).map((r) => r.what) } };
 }
+
+/** The plants with more ground claimed (a leaf pile's, era/leaf-piles.js): no grass up through it. */
+const withClaims = (plants, claims) => (claims?.length ? { ...plants, clear: [...plants.clear, ...claims] } : plants);
 
 /**
  * The SNOW's drifts on open ground (era/skandart-snow.js), asked for by a recipe's `skandart` where snow lies: one in the
@@ -1047,7 +1050,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
-    ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }) } : {}),
+    ...(ctx.form ? { plants: withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), LP?.claims) } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)

@@ -20,16 +20,20 @@ describe('the fall\'s leaf piles', () => {
     expect(mid(role('bank'))[0]).toBeGreaterThan(TREE.x);
     // (turned with the wind: blowing north, the foot lies south of the trunk)
     expect(mid(lay({ wind: 90, rocks: [] }).piles.find((p) => p.role === 'foot'))[1]).toBeLessThan(TREE.y);
-    const heaps = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => lay({ seed }).piles.find((p) => p.role === 'heap')).filter(Boolean);
+    // (in open ground: where the rock's bank lies, a heap blown there is that bank)
+    const heaps = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => lay({ seed, rocks: [] }).piles.find((p) => p.role === 'heap')).filter(Boolean);
     expect(heaps.length).toBeGreaterThan(0);
     for (const h of heaps) expect(h.at[0]).toBeGreaterThan(TREE.x + TREE.crown);
   });
 
-  it('stands no steeper than dry leaves do, keeps off the walk and out of the rocks, and is read where it is seen', () => {
+  it('is laid in sheets, the pile no steeper than dry leaves stand and a sheet\'s edge than matted ones, keeps off the walk and out of the rocks, and is read where it is seen', () => {
     const L = lay();
     expect(L.laws.filter((r) => !r.ok)).toEqual([]);
     for (const p of L.piles) {
-      expect(Math.max(...p.faces.map((f) => (Math.acos(f.normal[2]) * 180) / Math.PI))).toBeLessThanOrEqual(LEAF_PILES.repose + 2);
+      expect(Math.max(...p.faces.map((f) => (Math.acos(f.normal[2]) * 180) / Math.PI))).toBeLessThanOrEqual(LEAF_PILES.edge + 2);
+      // (in sheets: more than one, and their creases marked)
+      expect(p.sheets).toBeGreaterThan(1);
+      expect(Math.max(...p.faces.flatMap((f) => f.crease))).toBeGreaterThan(0.5);
       expect(Math.min(...p.faces.flatMap((f) => f.corners).map((c) => Math.abs(c[0])))).toBeGreaterThan(1);
     }
     // (a tree by the walk with the wind blowing onto it: its foot pile would lie on the walk, so none is laid)
@@ -37,7 +41,7 @@ describe('the fall\'s leaf piles', () => {
     // (a bank leans only on its own rock; a heap never on one)
     const B = L.piles.find((p) => p.role === 'bank');
     expect(B.H).toBeLessThanOrEqual(ROCK.h * LEAF_PILES.lean + 1e-9);
-    expect(lay({ autumn: 0.05, read: { least: 0.3 } }).piles).toEqual([]);
+    expect(lay({ autumn: 0.05, read: { least: 0.6 } }).piles).toEqual([]);
   });
 
   it('rises the further into the fall, and is the same every time', () => {
@@ -53,21 +57,24 @@ describe('the leaf piles on the page', () => {
   const flora = { n: 2, templates: [{ kind: 'tree', name: 'maple', litter: 'lobed' }, { kind: 'tree', name: 'pine', litter: 'needle' }],
     trees: Buffer.from(Float32Array.from([...tree(8, 0), ...tree(20, 1)]).buffer).toString('base64'), autumn: 0.85 };
   const L = lay();
-  const piles = [...L.piles.map((p) => ({ tree: [8, 10], faces: p.faces.map((f) => f.corners) })), { tree: [20, 10], faces: L.piles[0].faces.map((f) => f.corners) }];
+  const corners = (p) => p.faces.map((f) => f.corners.map((c, k) => [...c, f.crease[k]]));
+  const piles = [...L.piles.map((p) => ({ tree: [8, 10], faces: corners(p) })), { tree: [20, 10], faces: corners(L.piles[0]) }];
 
   it('are packed beside the tree whose leaves they hold, a turning tree\'s alone, welded into one surface each', () => {
     const P = leafPilesRead(flora, piles);
     expect(P.n).toBe(L.piles.length);
     const V = new Float32Array(Buffer.from(P.verts, 'base64').buffer.slice(0));
-    for (let v = 3; v < V.length; v += 4) expect(V[v]).toBe(0);
+    for (let v = 3; v < V.length; v += 5) expect(V[v]).toBe(0);
     // (welded: fewer corners than the faces carry)
-    expect(V.length / 4).toBeLessThan(L.piles.reduce((a, p) => a + p.faces.reduce((b, f) => b + f.corners.length, 0), 0));
+    expect(V.length / 5).toBeLessThan(L.piles.reduce((a, p) => a + p.faces.reduce((b, f) => b + f.corners.length, 0), 0));
     expect(leafPilesRead(flora, [])).toBe(null);
   });
 
   it('are drawn only on a page whose fall laid them: a page without them carries none of their code', () => {
     const P = leafPilesRead(flora, piles);
     expect(formFloraScript({ ...flora, piles: P })).toContain('form-leaf-piles');
+    // (and the page's code parses: a shader string's lines are escaped, not broken)
+    expect(() => new Function(formFloraScript({ ...flora, piles: P }))).not.toThrow();
     expect(formFloraScript(flora)).not.toContain('form-leaf-piles');
   });
 });

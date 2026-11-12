@@ -114,10 +114,14 @@ size it would be.
   map covers, the map filling the hollows the cover's patches opened under it. Walked over, never a collider. The level
   says what it laid (`skandart.drifts`) and any law it broke. Debris words on open ground without snow are still refused.
 - The fall heaps its leaves (`era/leaf-piles.js`): a level whose biocube is in the fall (`flora.autumn`) gives each
-  tree that turns its own leaf piles, drawn by the form render (gen-7) in that tree's own leaf outline and turned colour,
-  the litter's leaves at full cover over a dark leaf mould. Blown along the ground, leaves bank against the windward
-  face of what stops them: one against the tree's own trunk, one against the nearest rock downwind within its reach,
-  and on some trees a loose heap blown out past the crown. Each is a low bell no steeper than dry leaves stand, rising
-  the further into the fall, a bank never past half what it leans on; none on the walk, in a rock or lower than the eye
-  spot. A needled or a far tree lays none, nor a level in snow, nor a painted (gen-6) page. The level says what it laid
-  (`leafPiles`); a page with none carries none of the code.
+  tree that turns its own leaf piles, drawn by the form render (gen-7) as heaps of that tree's turned colour, not as
+  single leaves. Blown along the ground, leaves bank against the windward face of what stops them: one against the
+  tree's own trunk, one against the nearest rock downwind within its reach, and on some trees a loose heap blown out past
+  the crown. A pile is laid in SHEETS, as wind lays leaves: each a little smaller than the one under it, sharing its
+  wobble, with a matted edge; the page draws the lower sheets browner, each edge a shade darker and the crease under it
+  darker still, so it reads in layers, with a leaf-sized grain near and a heap's colour far. The pile as a whole stands
+  no steeper than dry leaves (34°), a matted edge no steeper than 55°; it rises the further into the fall, a bank never
+  past three fifths of what it leans on; none on the walk, in a rock or lower than the eye spot, and the grass keeps off
+  it. A needled or a far tree lays none, nor a level in snow, nor a painted (gen-6) page. The level says what it laid
+  (`leafPiles`: each pile's role, place and height); a page with none carries none of the code. A dozen piles add about
+  a megabyte to a page, most of it the grid their edges need.

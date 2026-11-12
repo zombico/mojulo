@@ -322,7 +322,8 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
  * The fall's LEAF PILES (era/leaf-piles.js) packed beside the trees for the page (channels/form-flora.js): each pile
  * matched to the tree whose leaves it holds (its foot where that tree's stands), and kept only for a tree that turns
  * in the fall and lays its litter (a needled or a far tree none). Its faces welded into one surface a pile, so the page
- * shades it smooth. → { n, verts (Float32 b64: x, y, z, the tree's index), idx (Float32 b64: three a triangle) } | null
+ * shades it smooth. → { n, verts (Float32 b64: x, y, z, the tree's index, its crease 0…1), idx (Float32 b64: three a
+ * triangle) } | null
  */
 export function leafPilesRead(flora, piles) {
   if (!flora || !piles?.length) return null;
@@ -339,7 +340,7 @@ export function leafPilesRead(flora, piles) {
   for (const p of piles) {
     const ti = treeAt(p.tree[0], p.tree[1]);
     if (ti < 0) continue;
-    const at = new Map(), vi = (c) => { const k = `${c[0]},${c[1]}`; if (!at.has(k)) { at.set(k, verts.length / 4); verts.push(c[0], c[1], c[2], ti); } return at.get(k); };
+    const at = new Map(), vi = (c) => { const k = `${c[0]},${c[1]}`; if (!at.has(k)) { at.set(k, verts.length / 5); verts.push(c[0], c[1], c[2], ti, c[3] ?? 0); } return at.get(k); };
     for (const f of p.faces) { const q = f.map(vi); for (let k = 1; k + 1 < q.length; k++) idx.push(q[0], q[k], q[k + 1]); }
     n++;
   }
