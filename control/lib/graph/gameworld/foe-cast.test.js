@@ -17,7 +17,10 @@ import { readGameworld, MEADOWMARK_HERO, gameworldBibleHtml } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
-import { RANKS } from '../mind/vocab.js';
+import { RANKS, AGGRESSIVENESS } from '../mind/vocab.js';
+import { resolveFoe } from '../foes/resolve.js';
+import { FIXTURES } from '../cosmos/fixtures.js';
+import { TEMPLATE_ARSENALS } from './combos.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const SOLO = CLASSES.find((c) => !MOVES[c.move].group && c.attack.kind !== 'call');
@@ -117,6 +120,33 @@ describe('the casting call', () => {
     // (the boss alone on the last walk, won by clearing it)
     const walks = Object.keys(fighting.levels).filter((k) => fighting.levels[k].walk);
     expect(P.levels[walks[walks.length - 1]]).toEqual({ from: ['boss'], count: 1, win: 'clear' });
+  });
+
+  it('a hero that plays strings meets its foes blade to blade: on the ground, no counter, the boss the heaviest', () => {
+    // (the genre and the kits chosen from the tables: a cube that plays strings, a kit whose sidearm fires straight and
+    // one whose sidearm draws)
+    const genre = FIXTURES.find((f) => f.cube.power?.moveset === 'strings' && [].concat(f.cube.power.combat).includes('melee')).id;
+    const kitOf = (mode) => Object.keys(TEMPLATE_ARSENALS).find((k) => (TEMPLATE_ARSENALS[k].ranged ?? []).some((G) => G.mode === mode));
+    const W = (arsenal) => ({ ...MEADOWMARK_HERO, intent: { from: genre }, arsenal });
+    const near = (id) => !['shot', 'lob', 'spray', 'call'].includes(FOE_CLASSES[id].attack.kind);
+    const counters = (id) => !!AGGRESSIVENESS[resolveFoe({ class: id }).mind.mind.aggressiveness]?.knobs?.tackleGuard;
+    const flies = (id) => !!MOVES[FOE_CLASSES[id].move]?.rule?.flier;
+    const roles = (arsenal) => Object.fromEntries(castingCall(W(arsenal)).roles.map((r) => [r.id, r.class]));
+    for (const mode of ['auto', 'draw']) {
+      const by = roles(kitOf(mode));
+      for (const role of ['grunt', 'elite', 'boss']) { expect(near(by[role]), `${mode} ${role}`).toBe(true); expect(counters(by[role]), role).toBe(false); expect(flies(by[role]), role).toBe(false); }
+      expect(FOE_CLASSES[by.boss].threat).toBeGreaterThanOrEqual(FOE_CLASSES[by.elite].threat);
+    }
+    // (a sidearm that answers a shot straight, an automatic's: the harrier a shooter that stands; one that draws an
+    // arrow: a flanker on foot)
+    const auto = roles(kitOf('auto')), draw = roles(kitOf('draw'));
+    expect(near(auto.harrier)).toBe(false);
+    expect(FOE_CLASSES[auto.harrier].move).toBe('hold');
+    expect(near(draw.harrier)).toBe(true);
+    // (the roles said in their order of record, and the world reads the cast as written)
+    const P = castingCall(W(kitOf('draw')));
+    expect(P.roles.map((r) => r.id)).toEqual(Object.keys(ROLES));
+    expect(() => readGameworld({ ...W(kitOf('draw')), foes: P.foes })).not.toThrow();
   });
 
   it('dresses the crew on the body its game puts in its henchmen when the book names one, and as before when it does not', () => {

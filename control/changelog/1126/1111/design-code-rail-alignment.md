@@ -4,8 +4,8 @@ Two action games were made end to end from a sentence (a stylish action game and
 played by a scripted player on the shipped pages. Every level built and loaded and every action piece ran, and no level
 could be won: the rails wrote what the runtime does not play, and the hero, its blows and its foes were numbered in three
 scales. The player gate is built, the page binds what its legend says, the sentence door reads the action genres and
-lays their camera, and a world with an arsenal numbers its foes in its kit's strings; the rest below is designed, not
-built yet.
+lays their camera, a world with an arsenal numbers its foes in its kit's strings, and the casting call reads the kit; the
+rest below is designed, not built yet.
 
 - **The playthrough: a made level played by a scripted player** (`gameworld/playthrough.js`). A level is resolved as its
   page resolves it and played headless on the runtime it ships, in about a second: the BASIC player fights the foe in
@@ -64,9 +64,21 @@ built yet.
   levels fall to the archers and the boss's counter, the casting call's to fix.
 - **The playthrough plays as a person would, a little more**: arrows that do not tell (six loosed with the foe's health
   unchanged) give way to closing in; a level where no foe stands is no fight (the walk audit's), said, never failed.
+- **The casting call reads the hero's kit** (`gameworld/foe-casting.js`). A hero that plays strings (the cube's moveset,
+  or the kit its world or its feel's template carries) meets its foes blade to blade: the grunt, the elite and the boss
+  are cast from the classes that come within the blade's reach on the ground, never a flier and never a mind that
+  stuffs every swing it sees with a charge (the opportunist's counter, beaten only by a roll: the stalker the action
+  RPG's boss used to be), and the boss is cast before the elite, the heaviest such body its own. A foe that shoots is
+  cast only where the hero's sidearm answers a shot as a shot does, straight and at once (an automatic: Fallen Angel's
+  pistols), and stands where it is; with a bow (an arrow's flight and drop is no answer to a rifle at thirty metres) the
+  harrier is a flanker on foot. Every other game is cast as before, and the roles are said in their order of record. The
+  Zelda-like sentence now casts a charger, a guard, a patrol elite and a brute boss (was a charger, a rifle hunter, a
+  brute elite and a stalker boss), and its first two stages' fight levels are won, three of six in all.
 - **What the gate found first, on the anime action RPG** (no level won): in the town square the basic player downs two
   of four foes and goes down at 87 s; on the crossing it shoots the archer down, downs the first charger, then needs
   about two minutes and 278 presses for the 240-hp elite and goes down at 168 s; on the boss's heights the boss's counter
   (the opportunist mind's tackle, which beats any swing it sees) answers every string and the sword never lands. The
   still player goes down at 22 to 45 s wherever foes reach it.
-- Designed, not built yet: a casting call that reads the kit and the place; rails that say what they wrote.
+- Found and not fixed here: a foe climbs the forest's foliage (the ground probe stands a body on the `spray` faces, the
+  page's as the sim's), so the boss can end up on a canopy five metres over the hero, out of the blade's reach.
+- Designed, not built yet: rails that say what they wrote.

@@ -41,6 +41,8 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
 import { bookRail, gameBody } from './game-bodies.js';
+import { arsenalOfGame } from './arsenal.js';
+import { arsenalFor } from './combos.js';
 
 /** The dress words a crew takes from the body its game puts in its henchmen (`characters.direction.body`: a rail, 'game',
  * or { rail, style?, muscle? }): { rail, body?, muscle? }, `body` 'realistic' where the rail draws its henchman on the
@@ -85,6 +87,9 @@ const BEAST_FLAVORS = ['platformer', 'pinball'];
 /** What says a game fights: a combat of its own, or a mind that hunts, guards or holds ground. */
 const FIGHTS = { combat: ['melee', 'ranged'], motivation: ['hunt', 'guard', 'territorial', 'frag'] };
 
+/** A class whose mind stuffs a raw swing with a charge (mind/vocab.js AGGRESSIVENESS knobs.tackleGuard: beaten only by
+ * a roll, never by a string). */
+const counters = (c) => !!AGGRESSIVENESS[resolveFoe({ class: c.id }).mind.mind.aggressiveness]?.knobs?.tackleGuard;
 const reachOf = (c) => (c.attack.kind === 'call' ? 'calls' : ['shot', 'lob', 'spray'].includes(c.attack.kind) ? 'far' : 'near');
 const level = (a) => AGGRESSIVENESS[a]?.level;
 
@@ -159,20 +164,44 @@ export function castingCall(world) {
     return k;
   };
   const ctx = { mind: { ...mind, foes: named }, combat, flavor: style.flavor, people };
+  // (the hero's kit: the world's arsenal, else the kit its feel's template carries; strings where the cube plays them)
+  const kit = arsenalOfGame(world)?.arsenal ?? (world.feel ? arsenalFor(world.feel)?.arsenal ?? null : null);
+  const strings = cube.power?.moveset === 'strings' || !!kit;
   const scored = Object.values(FOE_CLASSES).map((c, k) => ({ c, k, ...scoreOf(c, ctx) }));
 
   // the roles, each its best class
   const cast = {}, taken = [];
-  const take = (role, ok) => { const x = pick(scored, ok, taken, named); if (x) { cast[role] = x; taken.push(x.c.id); } };
-  take('grunt', (c) => c.threat <= 3 && reachOf(c) !== 'calls');
-  take('harrier', (c) => c.threat <= 3 && reachOf(c) !== 'calls' && reachOf(c) !== reachOf(cast.grunt.c));
-  take('elite', (c) => c.threat >= 2);
-  take('boss', (c) => c.threat >= 3);
+  const take = (role, ok, ...fallback) => {
+    const x = pick(scored, ok, taken, named) ?? fallback.reduce((y, f) => y ?? pick(scored, f, taken, named), null);
+    if (x) { cast[role] = x; taken.push(x.c.id); }
+  };
+  if (strings) {
+    // A HERO THAT PLAYS STRINGS (the cube's moveset, or the kit its world or its feel's template carries) meets its foes
+    // blade to blade: the grunt, the elite and the boss come within the blade's reach on the ground (no flier: a blade
+    // never reaches one) and answer a string by being cut (no counter that stuffs every swing it sees: a mind with
+    // `tackleGuard`, beaten only by a roll). The harrier hurts from afar only where the hero's sidearm answers a shot as
+    // a shot does, straight and at once (an automatic's hitscan, combos.js SIDEARM_MODES `auto`: an arrow's flight and
+    // drop is no answer to a rifle at thirty metres), and then it stands where it is; else it is a flanker on foot. The
+    // boss is cast before the elite, the heaviest such body its own.
+    const meets = (c) => reachOf(c) === 'near' && !counters(c) && !MOVES[c.move]?.rule?.flier;
+    const answers = (kit?.ranged ?? []).some((G) => G.mode === 'auto');
+    take('grunt', (c) => c.threat <= 3 && meets(c), (c) => c.threat <= 3 && reachOf(c) !== 'calls');
+    take('harrier', answers ? (c) => c.threat <= 3 && reachOf(c) === 'far' && c.move === 'hold' : (c) => c.threat <= 3 && meets(c),
+      (c) => c.threat <= 3 && reachOf(c) !== 'calls' && reachOf(c) !== reachOf(cast.grunt.c));
+    take('boss', (c) => c.threat >= 3 && meets(c), (c) => c.threat >= 3);
+    take('elite', (c) => c.threat >= 2 && meets(c), (c) => c.threat >= 2);
+  } else {
+    take('grunt', (c) => c.threat <= 3 && reachOf(c) !== 'calls');
+    take('harrier', (c) => c.threat <= 3 && reachOf(c) !== 'calls' && reachOf(c) !== reachOf(cast.grunt.c));
+    take('elite', (c) => c.threat >= 2);
+    take('boss', (c) => c.threat >= 3);
+  }
 
   const bossRank = ['miniboss', 'boss'].includes(mind.rank) ? mind.rank : 'boss';
   const skill = mind.skill && mind.skill !== 'regular' ? mind.skill : null;
   const foes = {}, roles = [];
-  for (const [role, x] of Object.entries(cast)) {
+  // (said in the roles' order of record, whichever was cast first)
+  for (const [role, x] of Object.keys(ROLES).filter((r) => cast[r]).map((r) => [r, cast[r]])) {
     const rank = role === 'boss' ? bossRank : ROLES[role].rank;
     const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}) } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
