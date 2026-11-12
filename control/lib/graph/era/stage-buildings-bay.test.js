@@ -134,5 +134,21 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     expect(G.buildings[0].site.level).toBe(B.site.level);
     expect(() => assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, buildings: [{ ...OUTPOST, apron: 'lawn' }] })).toThrow(/apron is 'slab'/);
   }, 90000);
+
+  it('its apron\'s skirt goes down to the land: no stretch of its edge hangs over ground that has fallen away', () => {
+    // (a site on a slope, so one side is filled and the land falls from the slab's edge)
+    const P = assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [{ use: 'hangar-bay' }] });
+    const skirt = P.faces.filter((f) => f.group === 'building:apron' && Math.abs(f.normal[2]) < 0.1);
+    const land = P.faces.filter((f) => /:(ground|trail|top|scree|cliff|lip|ridge)$/.test(f.group || '')).flatMap((f) => f.corners);
+    expect(skirt.length).toBeGreaterThan(4);
+    let hanging = 0;
+    for (const f of skirt) { const zb = Math.min(...f.corners.map((c) => c[2])), mx = f.corners.reduce((a, c) => a + c[0], 0) / 4 + f.normal[0] * 0.6, my = f.corners.reduce((a, c) => a + c[1], 0) / 4 + f.normal[1] * 0.6;
+      const near = land.filter((c) => Math.hypot(c[0] - mx, c[1] - my) < 1.2).map((c) => c[2]);
+      if (near.length && zb > Math.min(...near) + 0.05) hanging++; }
+    expect(hanging).toBe(0);
+    // (and it is deeper where the land has fallen than where it has not)
+    const depths = skirt.map((f) => Math.max(...f.corners.map((c) => c[2])) - Math.min(...f.corners.map((c) => c[2])));
+    expect(Math.max(...depths)).toBeGreaterThan(Math.min(...depths) + 0.2);
+  }, 120000);
 });
 

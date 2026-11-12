@@ -207,7 +207,7 @@ ${cfg.clock ? `  // THE CLOCK (a level's clock mechanic): the bus's minute darke
     if (nt > 0) tint.lerp(shadeC, 0.75 * nt);   // the night air takes the shade` : ''}
     fog.color.copy(tint); if (scene.background && scene.background.isColor) scene.background.copy(tint);
     // light off the world, in the style's shade (never black); white for a flash
-    const off = Math.min(${cfg.clock ? '0.75 + 0.12 * nt' : '0.75'}, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth));
+    const off = Math.min(${cfg.clock ? '0.75 + 0.12 * nt' : '0.75'}, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth))${cfg.night ? ' * 0.35   /* (a night is dark already: its weather takes a third of what it takes from a day) */' : ''};
     // (multiplied, not laid over: a bright shade, an anime ambient, then darkens and tints instead of washing the world out)
     if (fl > 0.02) { ov.style.mixBlendMode = 'normal'; ov.style.background = '#fff'; ov.style.opacity = String(Math.min(0.6, fl * 0.55)); }
     else {

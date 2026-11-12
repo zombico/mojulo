@@ -83,9 +83,9 @@ const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0
 // how each built part gives the sky back (roughness 0 a mirror to 1 chalk; metal 1 a bare metal): painted steel
 // sheens, a container's enamel more, poured concrete barely
 // a yard's floodlight: its mast's height (m), its light where its falloff is whole (linear, the solve's units) and its reach
-const FLOOD = Object.freeze({ h: 9, key: Object.freeze([1.9, 1.55, 0.95]), radius: 26 });   // (a sodium lamp's amber)
+const FLOOD = Object.freeze({ h: 9, key: Object.freeze([2.9, 2.4, 1.5]), radius: 34 });   // (a sodium lamp's amber)
 const BUILT_SURFACES = Object.freeze({ 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
-const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55 });
+const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55, skirt: 0.25 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
 const EMBED = { side: 4, back: 6 };
 
@@ -881,8 +881,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const step = 3, nx = Math.max(1, Math.round((ax1 - ax0) / step)), ny = Math.max(1, Math.round((ay1 - ay0) / step));
       for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) { const u0 = ax0 + ((ax1 - ax0) * ix) / nx, u1 = ax0 + ((ax1 - ax0) * (ix + 1)) / nx, v0 = ay0 + ((ay1 - ay0) * iy) / ny, v1 = ay0 + ((ay1 - ay0) * (iy + 1)) / ny;
         out.push(...cutOutBoxes(face([[u0, v0, zt], [u1, v0, zt], [u1, v1, zt], [u0, v1, zt]].map(P3), [0, 0, 1]), F.boxes)); }
-      for (const [p, q, nn] of [[[ax0, ay0], [ax1, ay0], [0, -1, 0]], [[ax1, ay0], [ax1, ay1], [1, 0, 0]], [[ax1, ay1], [ax0, ay1], [0, 1, 0]], [[ax0, ay1], [ax0, ay0], [-1, 0, 0]]])
-        out.push(face([[p[0], p[1], zt - APRON.edge], [q[0], q[1], zt - APRON.edge], [q[0], q[1], zt], [p[0], p[1], zt]].map(P3), nn));
+      // ITS SKIRT: the kerb round its edge goes down to the land, wherever the land lies. Where the site was filled the
+      // land falls away from the slab's edge, and a kerb of one depth would hang over it with a gap under; each stretch
+      // of the edge is taken down to the lowest land beside it (at the edge, and a stride out), and a hand further
+      const landAt = (x, y, nn) => Math.min(...[0, 0.6, 1.2].map((d) => ground(x + nn[0] * d, y + nn[1] * d) ?? Infinity));
+      const foot = (x, y, nn) => { const g = landAt(x, y, nn); return Math.min(zt - APRON.edge, Number.isFinite(g) ? g - APRON.skirt : zt - APRON.edge); };
+      for (const [p, q, nn] of [[[ax0, ay0], [ax1, ay0], [0, -1, 0]], [[ax1, ay0], [ax1, ay1], [1, 0, 0]], [[ax1, ay1], [ax0, ay1], [0, 1, 0]], [[ax0, ay1], [ax0, ay0], [-1, 0, 0]]]) {
+        const L = Math.hypot(q[0] - p[0], q[1] - p[1]), n = Math.max(1, Math.round(L / 2));
+        for (let k = 0; k < n; k++) { const a = [p[0] + ((q[0] - p[0]) * k) / n, p[1] + ((q[1] - p[1]) * k) / n], b = [p[0] + ((q[0] - p[0]) * (k + 1)) / n, p[1] + ((q[1] - p[1]) * (k + 1)) / n];
+          out.push(face([[a[0], a[1], foot(a[0], a[1], nn)], [b[0], b[1], foot(b[0], b[1], nn)], [b[0], b[1], zt], [a[0], a[1], zt]].map(P3), nn)); }
+      }
       // (the land under it, in from its edge: cut away)
       const inner = [[ax0 + 0.3, ay0 + 0.3, ax1 - 0.3, ay1 - 0.3]];
       faces = faces.flatMap((f) => (GROUND.test(f.group || '') || ROUGH.test(f.group || '') ? cutOutBoxes(f, inner) : [f]));

@@ -93,3 +93,8 @@
   rains outside the door and not within.
 - A net under a building's ground: one unseen level face a hand under its apron and a stride past its edge, so a
   walker who finds a gap lands on it and never falls through.
+- An apron's skirt: the kerb round its edge goes down to the land wherever the land lies (the lowest land at the edge
+  and a stride out, and a hand further), stretch by stretch, so no part of it hangs over ground that fell away where
+  the site was filled. A test walks the skirt and finds none hanging.
+- A night's weather takes a third of the light a day's does (a night is dark already), on a page lit by the form
+  render; a yard's floodlights are brighter and reach further.
