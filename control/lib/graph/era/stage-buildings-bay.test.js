@@ -119,6 +119,11 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     const shell = F.faces.filter((f) => /^building:(wall|roof)/.test(f.group || ''));
     expect(shell.length).toBeGreaterThan(0);
     for (const f of shell) expect(f.cornerLight, f.group).toBeDefined();
+    // (indoors takes none of the sun's cast: every lit face of a room says the sun has no share of it, so the page's
+    // hour map lays no shadow inside, a tree's through a wall or any other)
+    const rooms = F.faces.filter((f) => /^stage:(wall|floor)$/.test(f.group || '') && f.cornerLight);
+    expect(rooms.length).toBeGreaterThan(0);
+    for (const f of rooms) expect(f.sunShare, f.group).toBe(0);
     // (and painted, the paint's page, nothing of it: no record, no baked light on the shell)
     expect(noon.form).toBeUndefined();
     expect(noon.faces.filter((f) => /^building:(wall|roof)/.test(f.group || '')).every((f) => f.cornerLight === undefined)).toBe(true);

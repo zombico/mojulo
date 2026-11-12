@@ -996,7 +996,11 @@ export function withBuildings(payload, manifest, ctx = {}) {
       }
     }
     const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, {}).faces : yardF;
-    faces = [...faces, ...moved, ...shell, ...apronF, ...yardLit, ...lampFaces.splice(0), ...trims, ...stoop, ...stairF, ...pathF];
+    // (INDOORS TAKES NONE OF THE SUN'S CAST: a room's faces are lit by its lamps, the sun no share of them, and say so
+    // (`sunShare: 0`), so the page's hour map darkens nothing inside: a tree outside lays no shadow on a wall it stands
+    // behind. A face with no share said would take the cast's own alpha wherever the map holds something nearer the sun)
+    const indoors = shellLight ? moved.map((f) => (f.cornerLight && f.sunShare === undefined ? { ...f, sunShare: 0 } : f)) : moved;
+    faces = [...faces, ...indoors, ...shell, ...apronF, ...yardLit, ...lampFaces.splice(0), ...trims, ...stoop, ...stairF, ...pathF];
     // WET (`wet: true` on the recipe: it has just rained): on a painted page the apron's slab films the sky,
     // channels/wet-road.js; the form render wets the slab itself (its record's `reflect.wet`, below)
     if (manifest.wet && apronF.length && !shellLight) wetQuads.push(...apronF.filter((f) => f.corners.length === 4 && f.normal && f.normal[2] > 0.9).map((f) => f.corners));

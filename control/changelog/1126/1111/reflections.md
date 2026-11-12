@@ -106,3 +106,5 @@
   walker), standing at its stance, fitted for a `role` where it names one, solid over what it takes up; a geocube's
   level carries parked vehicles as a stage's does. A building's `look` takes a `dressing`, and the `garage` dressing
   leaves a tall room's height and its middle clear for what is parked there: no crane, no great object.
+- Indoors takes none of the sun's cast: a building's room faces say the sun has no share of them, so the page's hour
+  map lays no shadow inside (a tree outside drew its shadow on the inner face of the wall it stood behind).
