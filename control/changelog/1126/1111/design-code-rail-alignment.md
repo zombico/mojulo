@@ -81,4 +81,11 @@ rest below is designed, not built yet.
   still player goes down at 22 to 45 s wherever foes reach it.
 - Found and not fixed here: a foe climbs the forest's foliage (the ground probe stands a body on the `spray` faces, the
   page's as the sim's), so the boss can end up on a canopy five metres over the hero, out of the blade's reach.
+- **The hero a player pilots runs the engagement run, sword sheathed** (`worlds/world-kinds.js` the pilot's run,
+  `polygonizer/hero-swing-body.js` `carryArm`). Out of combat the hero ran its gait with a layer setting its legs 6°
+  apart, which flicked the folded shank out sideways each stride, both forearms pumping high across the chest: it read as
+  a mincing run. In a fight it ran the same gait with no such layer and its sword arm carried low. Now every game's
+  piloted hero runs that way out of combat too: the legs as the gait sets them, the right arm held relaxed by the hip
+  (an empty hand is held, not solved: `CARRY.empty`), the other arm swinging; a hand holding a blade is carried as it
+  was. The walk, foes and walkers are as they were. Every page with a piloted hero changes its bytes.
 - Designed, not built yet: rails that say what they wrote.

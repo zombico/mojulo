@@ -65,6 +65,7 @@ import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layer
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
 const CARRY_GAITS = ['walk', 'jog', 'sprint', 'run', 'strafe'];   // (the gaits a drawn blade is carried through)
+const RUN_GAITS = ['jog', 'sprint', 'run', 'strafe'];   // (the gaits a pilot's empty hand is carried through: its run)
 import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
 import { heroStance, reachArm } from '@/lib/graph/polygonizer/hero-stance';
 import { elbowsDown } from '@/lib/graph/polygonizer/hero-elbow';
@@ -987,7 +988,7 @@ export const WORLD_KINDS = {
         // own verb at the item's class, fitted to the window (fitSwing: the strike as the window opens), at the world's game
         // type when it names one; each knows its blow (`move`). The strike's numbers ride the body (`held`) for the world to
         // arm the rule with. None asked, or nothing held ⇒ as before.
-        let held = null;
+        let held = null, carried = false;
         const hg = ctx.swings && gear ? gear.find((x) => x.slot === 'right' && (x.hold === 'blade' || x.hold === 'haft')) : null;
         if (hg) {
           const cls = swingClass({ item: hg.item, mass: hg.trace.dials?.mass ?? 1, share: hg.trace.length / 167.4 }), from = ctx.swings.contact[0];
@@ -1024,9 +1025,19 @@ export const WORLD_KINDS = {
           // its side, the blade aimed back, over its walk, jog, sprint and strafe; the other arm swings with the gait
           if (Array.isArray(ctx.swings.moves) && tip) {
             const arm = carryArm({ R, rigNodesAt, boneFrames, tip });
-            if (arm) for (const g of CARRY_GAITS) if (clipsIn[g]) clipsIn = { ...clipsIn, [g]: carryClip(clipsIn[g], arm, layeredClip, R) };
+            if (arm) { carried = true; for (const g of CARRY_GAITS) if (clipsIn[g]) clipsIn = { ...clipsIn, [g]: carryClip(clipsIn[g], arm, layeredClip, R) }; }
           }
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
+        }
+        // THE PILOT'S RUN (ctx.pilot: a hero a player pilots, in any game): its run plays the engagement run's body, the
+        // right arm carried low at its side as a drawn blade's is (carryArm: the hand's place alone, or with what it holds) and the other arm
+        // swinging with the stride, so the run reads as the fight's run with the sword sheathed (the run as minted pumps
+        // both forearms high across the chest). A run already carried (a blade in hand) keeps its carry; the walk is the
+        // walk. Not a pilot (a foe, a walker, the hero's own page) ⇒ the run as minted.
+        if (ctx.pilot && R && !carried && RUN_GAITS.some((g) => typeof clipsIn[g] === 'function' || Array.isArray(clipsIn[g]))) {
+          const hb = gear ? gear.find((x) => x.slot === 'right' && (x.hold === 'blade' || x.hold === 'haft')) : null, q = hb && (hb.sockets.tip?.origin ?? hb.sockets.focal?.origin);
+          const arm = carryArm({ R, rigNodesAt, boneFrames, tip: q ? gearRestPoint(hb, q) : null });
+          if (arm) for (const g of RUN_GAITS) if (clipsIn[g]) clipsIn = { ...clipsIn, [g]: carryClip(clipsIn[g], arm, layeredClip, R) };
         }
         // A MOVESET's body strikes (`swings.moves` with `strike`: the fist's, hero-swing-body.js strikeMoveClip): the punch
         // and boxing solvers' clips on this rig, its footwork over them, and the fist's fighting stance; whatever the hand
