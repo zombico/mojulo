@@ -829,7 +829,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const shadowsOut = payload && payload.form && payload.form.room && !(Array.isArray(payload.buildings) && payload.buildings.length) && !(payload.form.room.sun && payload.form.room.sun.live) ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
   // (a room under a live sun, era/stage.js `daylight`: its glass, its sky cards and its painted sun patches let the sun by)
   const liveRoomSun = payload && payload.form && payload.form.room && payload.form.room.sun && payload.form.room.sun.live;
-  if (payload && shadowsOut) payload.shadows = liveRoomSun && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
+  // (and a building's rooms on a land, under the land's sun: their glass lets it by too)
+  const builtSun = payload && payload.form && payload.form.room && Array.isArray(payload.buildings) && payload.buildings.length;
+  if (payload && shadowsOut) payload.shadows = (liveRoomSun || builtSun) && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;

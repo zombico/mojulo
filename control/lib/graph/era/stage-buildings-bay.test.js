@@ -119,11 +119,18 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     const shell = F.faces.filter((f) => /^building:(wall|roof)/.test(f.group || ''));
     expect(shell.length).toBeGreaterThan(0);
     for (const f of shell) expect(f.cornerLight, f.group).toBeDefined();
-    // (indoors takes none of the sun's cast: every lit face of a room says the sun has no share of it, so the page's
-    // hour map lays no shadow inside, a tree's through a wall or any other)
-    const rooms = F.faces.filter((f) => /^stage:(wall|floor)$/.test(f.group || '') && f.cornerLight);
+    // (the sun indoors is the land's, live: every lit face of a room says the sun's share of it, none where it is turned
+    // from the sun (so the page's hour map lays no shadow there, a tree's through a wall or any other) and some where
+    // it is turned to it, for the map to take away wherever no opening lets the sun in)
+    const rooms = F.faces.filter((f) => /^stage:(wall|floor)$/.test(f.group || '') && f.cornerLight && f.normal);
     expect(rooms.length).toBeGreaterThan(0);
-    for (const f of rooms) expect(f.sunShare, f.group).toBe(0);
+    const d0 = noon.sky.sun.dir, most = (f) => Math.max(...[f.sunShare].flat());
+    for (const f of rooms) {
+      const cos = f.normal[0] * d0[0] + f.normal[1] * d0[1] + f.normal[2] * d0[2];
+      if (cos <= 0) expect(f.sunShare, f.group).toBe(0); else { expect(most(f), f.group).toBeGreaterThan(0); expect(most(f)).toBeLessThanOrEqual(1); }
+    }
+    expect(rooms.some((f) => most(f) > 0)).toBe(true);
+    expect(F.faces.some((f) => f.group === 'stage:sunpatch')).toBe(false);
     // (and painted, the paint's page, nothing of it: no record, no baked light on the shell)
     expect(noon.form).toBeUndefined();
     expect(noon.faces.filter((f) => /^building:(wall|roof)/.test(f.group || '')).every((f) => f.cornerLight === undefined)).toBe(true);

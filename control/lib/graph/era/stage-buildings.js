@@ -99,6 +99,9 @@ function turnFor(facing) {
 
 /** The land's sun (its sky's `sun.dir`, toward it, world frame) as a bay's window sun in a plan turned `q` quarters: its
  * elevation in degrees and the way its light travels, in the plan's frame (era/bay-glass.js sunPatches), and its day. */
+// (how many times the land's sun a room's paint takes it: a room's bases are solved under its lamps, darker than a
+// shell's under the day, so the same sun on them reads as bright as it does outside)
+const INDOOR_SUN = 7, INDOOR_HUE = 0.8, INDOOR_DAY = 0.55;
 function sunIn(sky, q) {
   // (a sky with no sun, a night's or a dusk's under its moon, lays no patch; its day dims the daylight at the windows)
   const day = r5(Math.max(0, Math.min(1, sky?.day ?? 1)));
@@ -996,10 +999,30 @@ export function withBuildings(payload, manifest, ctx = {}) {
       }
     }
     const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, {}).faces : yardF;
-    // (INDOORS TAKES NONE OF THE SUN'S CAST: a room's faces are lit by its lamps, the sun no share of them, and say so
-    // (`sunShare: 0`), so the page's hour map darkens nothing inside: a tree outside lays no shadow on a wall it stands
-    // behind. A face with no share said would take the cast's own alpha wherever the map holds something nearer the sun)
-    const indoors = shellLight ? moved.map((f) => (f.cornerLight && f.sunShare === undefined ? { ...f, sunShare: 0 } : f)) : moved;
+    // (THE SUN INDOORS IS THE LAND'S, LIVE: every lit face of a room turned to the sun carries the sun's light at its
+    // cosine and its share of the corner's light (`sunShare`), no shadow baked; the page's hour map takes that share
+    // away wherever the sun is hidden, which indoors is everywhere but through an opening, so a window lays its patch
+    // on the floor and the far wall, a mullion its bar across it, and what stands in the patch its shadow. A face turned
+    // from the sun says the sun has no share of it (0), so the map darkens nothing there: a tree behind a wall lays no
+    // shadow on the wall's inner face. The painted patches a room laid at its windows give way to the real ones)
+    const sunUp = shellLight && shellLight.dir[2] > 0.02, lumOf = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    const indoors = !shellLight ? moved : moved.filter((f) => !(sunUp && f.group === 'stage:sunpatch')).map((f0) => {
+      if (!f0.cornerLight || f0.sunShare !== undefined) return f0;
+      // (by day the eye is set for the sun: the lamps' light stands lower beside it, so a patch of sun reads as one)
+      const dim = (c) => c.map((v) => r5(v * INDOOR_DAY)), f = sunUp ? { ...f0, cornerLight: typeof f0.cornerLight[0] === 'number' ? dim(f0.cornerLight) : f0.cornerLight.map(dim) } : f0;
+      const n = f.normal, cos = sunUp && Array.isArray(n) ? Math.max(0, n[0] * shellLight.dir[0] + n[1] * shellLight.dir[1] + n[2] * shellLight.dir[2]) : 0;
+      if (!(cos > 0)) return { ...f, sunShare: 0 };
+      const sun = shellLight.sun.map((v) => v * cos * INDOOR_SUN), one = typeof f.cornerLight[0] === 'number', sunY = lumOf(sun);
+      // (the sun laid mostly in the hue of the light the corner already stands in: the page takes the sun's share away
+      // by one number a corner, not one a channel, so a sun of another hue would leave its colour behind in the shade)
+      const add = (c) => { const y = Math.max(1e-9, lumOf(c)); return c.map((v, k) => r5(v + sun[k] * (1 - INDOOR_HUE) + (sunY * v / y) * INDOOR_HUE)); };
+      // (the share as the page takes it away: from the finished, encoded colour, so the shade it leaves is the room's
+      // own light and not darker than the wall beside it)
+      const share = (c) => Math.round((1 - Math.pow(Math.max(0, 1 - Math.min(1, lumOf(sun) / Math.max(1e-9, lumOf(c)))), 1 / 2.2)) * 1000) / 1000;
+      // (one light for the face, or one a corner: as the room's bake laid it)
+      const lit = one ? add(f.cornerLight) : f.cornerLight.map(add);
+      return { ...f, cornerLight: lit, sunShare: one ? share(lit) : lit.map(share) };
+    });
     faces = [...faces, ...indoors, ...shell, ...apronF, ...yardLit, ...lampFaces.splice(0), ...trims, ...stoop, ...stairF, ...pathF];
     // WET (`wet: true` on the recipe: it has just rained): on a painted page the apron's slab films the sky,
     // channels/wet-road.js; the form render wets the slab itself (its record's `reflect.wet`, below)
