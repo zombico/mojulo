@@ -247,3 +247,25 @@ describe('a site machine, parked', () => {
     expect(payload.colliders).toHaveLength(1);
   }, 60000);
 });
+
+// A WALKER (a mecha shelf frame, mecha-shelf/): a registry row with a `mecha` handle that can stand parked stands as its
+// frame at its stance, fitted for a role when it names one, solid over what it takes up
+describe('a walker stands parked', () => {
+  // (one frame, chosen from the roster: the first row with a mecha handle that parks)
+  const walker = Object.keys(VEHICLES).find((id) => VEHICLES[id].handles?.mecha && VEHICLES[id].uses.includes('parked'));
+  it('reads as its frame, with its role; a craft\'s or a site machine\'s words are refused', () => {
+    const frame = VEHICLES[walker].handles.mecha;
+    expect(parkable(walker)).toEqual({ vehicle: walker, mecha: frame });
+    expect(readParked([{ vehicle: walker, at: [0, 0, 0] }])[0]).toMatchObject({ vehicle: walker, mecha: frame, heading: 0 });
+    expect(() => readParked([{ vehicle: walker, at: [0, 0, 0], fold: 1 }])).toThrow(/is a walker/);
+    expect(() => readParked([{ vehicle: walker, at: [0, 0, 0], role: 'ballet' }])).toThrow();
+  });
+  it('lowers to a figure of its frame, a static body and a box as wide and tall as the frame', () => {
+    const { manifest, colliders } = withParked({ parked: [{ vehicle: walker, at: [5, 5, 0] }] });
+    expect(manifest.figures['parked-0'].mecha.archetype).toBe(VEHICLES[walker].handles.mecha);
+    expect(manifest.entities[0]).toMatchObject({ rule: { type: 'static' }, body: { type: 'figure-rig', figure: 'parked-0' } });
+    const [c] = colliders;
+    expect(c.max[2] - c.min[2]).toBeGreaterThan(1.5);
+    expect(c.min[0]).toBeLessThan(5); expect(c.max[0]).toBeGreaterThan(5);
+  });
+});

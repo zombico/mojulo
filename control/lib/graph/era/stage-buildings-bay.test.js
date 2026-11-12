@@ -77,7 +77,7 @@ describe('a look on any bay building', () => {
     const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, buildings: [{ use: 'armoury', bays: 1, look: { construction: 'bunker' } }] });
     expect(P.buildings[0].look).toEqual({ construction: 'bunker', palette: 'military' });
     expect(g(P, /^building:wall$/)[0].texture).toBe(exteriorOf({ construction: 'bunker', palette: 'military' }).wall.key);
-    expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, buildings: [{ use: 'armoury', look: { colour: 'red' } }] })).toThrow(/look is \{ construction\?, palette\? \}/);
+    expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, buildings: [{ use: 'armoury', look: { colour: 'red' } }] })).toThrow(/look is \{ construction\?, palette\?, dressing\? \}/);
   });
 
   it("a base building entered by its door is composed inside as a building level is", () => {

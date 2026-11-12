@@ -102,3 +102,7 @@
   sliding down the face by its length, of no thickness, as the floor's film is; and the land wears the film too
   (`form.land.rain`, from the recipe's wetness): darker, smooth, the sky held in it, running in streaks where it
   stands steep, so a cliff reads wet. A land it does not rain on is as it was.
+- A walker stands parked: a level's `parked` takes a vehicle word for a mecha shelf frame (a field walker, a siege
+  walker), standing at its stance, fitted for a `role` where it names one, solid over what it takes up; a geocube's
+  level carries parked vehicles as a stage's does. A building's `look` takes a `dressing`, and the `garage` dressing
+  leaves a tall room's height and its middle clear for what is parked there: no crane, no great object.

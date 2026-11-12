@@ -364,6 +364,8 @@ export const DRESSINGS = Object.freeze({
   military: {},
   utility: {},
   science: {},
+  // GARAGE: the shell as it stands, its height left clear for what is parked under it (a walker, a truck's load): no crane
+  garage: { craned: false },
   // turned down: no grating band, no pad, services on the fewer of a wall's bays, no crane
   everyday: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3, rhythm: 'sparse' } }, craned: false },
   // VERNACULAR: nothing a machine age lays: no grating band, no pad, no services, no high bays, no catwalk, no crane

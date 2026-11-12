@@ -160,13 +160,13 @@ function anchorOf(b, kitId) {
  */
 function composedOf(b) {
   if (!PROGRAMS[b.use]?.base && b.look === undefined) return null;
-  if (b.look !== undefined && (!b.look || typeof b.look !== 'object' || Array.isArray(b.look) || Object.keys(b.look).some((k) => !['construction', 'palette'].includes(k)))) throw new Error(`stage: building '${b.use}' look is { construction?, palette? }`);
+  if (b.look !== undefined && (!b.look || typeof b.look !== 'object' || Array.isArray(b.look) || Object.keys(b.look).some((k) => !['construction', 'palette', 'dressing'].includes(k)))) throw new Error(`stage: building '${b.use}' look is { construction?, palette?, dressing? }`);
   // (its plan's settings as a building level takes them: era/programs.js)
   const look = b.look ?? {}, plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
   return {
     kind: 'stage', kit: b.kit ?? PROGRAMS[b.use]?.kit ?? `bay-${look.construction ?? 'utility'}`,
     program: { use: b.use, seed: b.seed ?? 1, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}), ...plan },
-    compose: { ...(look.construction ? { construction: look.construction } : {}), ...(look.palette ? { palette: look.palette } : {}) },
+    compose: { ...(look.construction ? { construction: look.construction } : {}), ...(look.palette ? { palette: look.palette } : {}), ...(look.dressing ? { dressing: look.dressing } : {}) },
     ...(b.tone !== undefined ? { tone: b.tone } : {}),
   };
 }

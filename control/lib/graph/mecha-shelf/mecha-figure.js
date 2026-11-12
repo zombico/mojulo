@@ -17,14 +17,19 @@
  *                                 dressed frame's `livery` and `wear` (mecha-military.js: the field walker's)
  *   mechaInstanceFaces(spec)    → (async) { faces, spec, stats }: the frame assembled at its stance, lowered to the grid's
  *                                 faces, its rider with it
+ *   mechaFigure(spec)           → (async) the rig figure a level stands it as (vehicle-rig.js packVehicleFigure): the frame
+ *                                 the root, at its stance, centred on its spot, and its `mecha` readout with its footprint
+ *                                 ({ L, W, H }: +y its nose), what a parked walker writes (vehicle-registry/parked.js)
+ *   mechaFootprint(spec)        → { L, W, H }: what the standing frame takes up, from its parts' bounds
  *
  * The recipe is the frame's words, never its geometry: it regenerates on every read. Pure.
  */
-import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
+import { lowerAssemblerFaces, resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { MECHA_ARCHETYPES, MECHA_PALETTES, assembleFrame, composeFrame, frameRow, posedFrame } from './index.js';
 import { readRiderHero, riderOn } from '../cycle-shelf/cycle-rider.js';
 import { dressFaces, readMechaDress } from './mecha-military.js';
 import { resolveMechaPalette } from './mecha-common.js';
+import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 
 
 const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'cabin', 'slits', 'backpack', 'weapons', 'role', 'drones', 'drone', 'livery', 'wear']);
@@ -78,4 +83,27 @@ export async function mechaInstanceFaces(spec) {
       ...(rider ? { rider: { reached: rider.report.reached, hands: rider.report.hands } } : {}),
     },
   };
+}
+
+/** The frame as a level stands it: one rig figure, the frame its root, centred on what it stands on. */
+export async function mechaFigure(spec) {
+  const { faces, stats } = await mechaInstanceFaces(spec);
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], c[k]); hi[k] = Math.max(hi[k], c[k]); }
+  const r3 = (v) => Math.round(v * 1000) / 1000, cx = (lo[0] + hi[0]) / 2, cy = (lo[1] + hi[1]) / 2;
+  const root = faces.map((f) => ({ ...f, corners: f.corners.map((c) => [r3(c[0] - cx), r3(c[1] - cy), r3(c[2] - lo[2])]) }));
+  return {
+    ...packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', root]]), { keys: 2, rolls: [] }),
+    mecha: { archetype: spec.archetype, label: stats.label, footprint: { L: r3(hi[1] - lo[1]), W: r3(hi[0] - lo[0]), H: r3(hi[2] - lo[2]) } },
+  };
+}
+
+/** What a standing frame takes up: its parts' bounds at its stance ({ L, W, H }: +y its nose), no face lowered. */
+export function mechaFootprint(spec) {
+  readMechaSpec(spec);
+  const { manifest } = assembleFrame(spec.archetype, { pose: spec.pose, role: spec.role, palette: spec.palette });
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of resolveAssemblerPlacements(manifest)) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p.bounds.min[k]); hi[k] = Math.max(hi[k], p.bounds.max[k]); }
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  return { L: r3(hi[1] - lo[1]), W: r3(hi[0] - lo[0]), H: r3(hi[2] - lo[2]) };
 }

@@ -1336,6 +1336,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = await atRigFidelity(craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: 0 }, attitude: 'ground', made: K.made !== false, ...opts }));
           continue;
         }
+        // MECHA bodies (mecha-shelf/mecha-figure.js): a figures-map entry may be a mecha shelf frame standing at its stance
+        // (`mecha`: { archetype, role?, palette?, livery?, wear? }, what a parked walker writes), delivered as its rig (the
+        // frame the root). Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.mecha && typeof rawSpec.mecha === 'object') {
+          const { mechaFigure } = await import('@/lib/graph/mecha-shelf/mecha-figure.js');
+          payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha));
+          continue;
+        }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
         // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
         // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel
