@@ -13,6 +13,7 @@
  * No card names a game, a studio or a console: the reference cards keep that research record, and a card describes
  * what each look and kit offers so the agent can match an ask to it on its own.
  */
+import { CONDITIONS } from './condition.js';
 import { ART_KITS } from './art-direction.js';
 import { STAGE_KITS, STAGE_KIT_PROPORTIONS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
@@ -52,8 +53,9 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // register-ink law; it stands at 5602 with them
 // 5650 -> 5800 (2026-10-25): the two lines merged, the city stalker's city-night beside geocube styles' theatre-grey and
 // limestone-crags; it stands at 5729 with all three
-// (6000 since the craft laws joined the laws card: the laws of both eras and of craft, one line each)
-export const STAGE_CARD_BODY_CEILING = 6000;
+// (6300 since the craft laws, the wetness law and the builder's 'too-small-to-read' (era/skandart.js its first reader)
+// joined the laws card: the laws of both eras and of craft, one line each)
+export const STAGE_CARD_BODY_CEILING = 6300;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -130,6 +132,8 @@ function kitOptions(kit) {
   if (kit.shell === 'plaza' || kit.shell === 'lab') out.push(`"water": true`);
   if (generatedSpecOf(`${kit.tiles?.wall?.family}-a`)?.cfg.cut === 'render') out.push(`"coat": false (the wall bare: no render over it)`);
   if (kit.dress?.niches?.rhythm) out.push(`"rhythm": "same" (every bay alike, on purpose)`);
+  if (isRooms(kit)) out.push(`"condition": ${Object.keys(CONDITIONS).join(' | ')} (or a word for one: its weathering and debris together)`, `"weathering": 0–1 or { amount, damp, water, fire, time } (its surfaces, apart from its debris)`);
+  if (isRooms(kit)) out.push(`"skandart": 0–1, or { amount, foot|corner|collapse: { pieces: { <debris row>: n } } } (its debris: ${kit.skandart ? 'its card\'s answer' : 'what it is made of sheds'}, or the recipe's own)`);
   if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
     `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);
   return out;

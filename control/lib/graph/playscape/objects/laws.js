@@ -51,3 +51,7 @@ export const TONE_STEPS = Object.freeze([3, 4, 5]);
 
 /** The metres one frame pixel covers at a distance (vertical FOV over the frame height). */
 export const metresPerPixel = (distance) => (2 * distance * Math.tan((FRAME.fovDeg * Math.PI) / 360)) / FRAME.height;
+/** The least span, in metres, a thing must have to be read at `distance` on a screen `screenPx` tall (the eye spot at
+ *  that distance; the era's 640×448 frame by default, a gen-7 read its target's height: era/target.js). Smaller is
+ *  too small to read there, and is not made (era/laws.js 'too-small-to-read'). */
+export const eyeSpot = (distance, screenPx = FRAME.height) => (EYE_SPOT_PX * 2 * distance * Math.tan((FRAME.fovDeg * Math.PI) / 360)) / screenPx;

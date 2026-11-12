@@ -92,3 +92,16 @@ describe('a land read that asks for no far structures', () => {
   });
 });
 
+
+// RAIN ON THE LAND (`form.rain`, era/wetness.js): a film of no thickness over all of it, the sky held in it; a land
+// that is not rained on has none of it
+describe('a land it rains on', () => {
+  it('wears the film and holds the sky only when it rains, heavier in a downpour', () => {
+    const dry = formLandScript(land), rain = formLandScript({ ...land, rain: 1 }), pour = formLandScript({ ...land, rain: 2 });
+    expect(dry).not.toContain('RAIN on the land');
+    expect(dry).not.toContain('m.envMap = skyEnv; m.envMapIntensity = 0.6');
+    for (const page of [rain, pour]) { expect(page).toContain('RAIN on the land'); expect(page).toContain('m.envMap = skyEnv; m.envMapIntensity = 0.6'); }
+    expect(rain).toContain('float rw = 0.8 *');
+    expect(pour).toContain('float rw = 1.0 *');
+  });
+});

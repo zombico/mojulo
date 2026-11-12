@@ -68,6 +68,10 @@ export const LAWS = Object.freeze({
   'corner-things': { layer: 'composition', law: 'Things gather where floor meets wall: clusters in corners, singles at wall bases, off the way.' },
   'cast-over-world': { layer: 'composition', era: true, law: 'The cast reads denser on screen than the world behind it.' },
   'frame-readout': { layer: 'composition', era: true, law: 'Detail is read at the era\'s frame (640×448), not at today\'s.' },
+  // (the builder's, in both eras: a placer that strews small things measures each against the eye spot, 12 pixels of the
+  // frame its era reads at, at the distance the player meets it, playscape/objects/laws.js eyeSpot, and leaves out what
+  // is under it, neither built nor painted in; era/skandart.js is the first)
+  'too-small-to-read': { layer: 'composition', era: true, law: 'What is too small to be read where it is seen (under the eye spot) is not made.' },
   // dressing
   'kit-dressing': { layer: 'dressing', law: 'A kit\'s own set pieces.' },
   // THE SEVENTH GENERATION'S (`form: true`): what the form render affords that paint could not. Each answers a sixth-gen
@@ -90,6 +94,7 @@ export const LAWS = Object.freeze({
   'wall-has-storeys': { layer: 'composition', craft: true, law: 'A tall wall has storeys: a course divides it, and what is over the course is derived from what is under it, the same with less.' },
   'air-is-furnished': { layer: 'composition', craft: true, law: 'The air of a tall room is furnished and its height lit by a cause: what the height is for hangs in it or crosses it, and light reaches the upper room from a thing that gives it.' },
   'openings-have-depth': { layer: 'composition', craft: true, law: 'An opening has depth: what is cut into a wall and is bigger than a hand shows its back and its sides, as deep as what it holds, and what it holds stands inside it; smaller than a hand it is relief in the tile.' },
+  'wet-hugs-the-surface': { layer: 'surface', form: true, law: 'A wetness has no thickness and no edge: the surface keeps its relief, its low parts fill first and lie mirror-smooth, its faces only darken and sheen. Past brimming it is a pool, which stands proud.' },
   'pillars-are-worked': { layer: 'composition', craft: true, law: 'A support is worked the way its material is worked, never a flat strip: tapered, rounded, fluted or cut in parts, spread at its foot and gathered at its head.' },
 });
 
@@ -115,7 +120,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
   // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
   'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material'],
-    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'wall-rhythm'], ['layers-stand-proud', 'by-cause'], ['air-is-furnished', 'light-through', 'focus'], ['openings-have-depth'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
+    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'wall-rhythm'], ['layers-stand-proud', 'by-cause'], ['air-is-furnished', 'light-through', 'focus'], ['openings-have-depth'], ['wet-hugs-the-surface', 'blend-by-cause'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */

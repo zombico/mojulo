@@ -32,6 +32,20 @@ export const PROP_WOOD = Object.freeze({
 });
 const woodSurf = (spec, tint) => ({ key: `${tileFamilyOf(spec, 'props.wood')}-a`, scale: 0.7, tint, group: 'stage:prop' });
 const IRON = [0.22, 0.21, 0.2];
+// a turned profile cut off at `cut` of its height (a broken vessel's lower part, open where it broke); none: whole
+const cutProfile = (prof, cut) => {
+  if (!(cut > 0 && cut < 1)) return prof;
+  const top = prof[prof.length - 1][1], z = top * cut, out = [];
+  for (let i = 0; i < prof.length; i++) {
+    if (prof[i][1] <= z) { out.push(prof[i]); continue; }
+    const [ra, za] = prof[i - 1], [rb, zb] = prof[i], t = (z - za) / Math.max(1e-9, zb - za);
+    out.push([ra + (rb - ra) * t, z]);
+    break;
+  }
+  return out;
+};
+// fired clay: a pot's terracotta, an urn's darker body
+const CLAY = Object.freeze({ pot: Object.freeze({ key: null, scale: 1, tint: [0.62, 0.42, 0.3] }), urn: Object.freeze({ key: null, scale: 1, tint: [0.46, 0.34, 0.28] }) });
 
 /**
  * An oriented box: centre `c`, unit axes `A`, `B`, `C`, half sizes `h` — six panels. A face list that carries a
@@ -55,7 +69,8 @@ export const blockSink = () => Object.defineProperty([], 'boxes', { value: [], e
 
 const ITEMS = {
   crate(out, p, N, U, s, i, S) {
-    const w = mix(0.55, 0.85, hash3(i, 1, 5101)), c = add(p, [0, 0, w / 2]);
+    // (its size its own die's, or the one asked, `S.size`: a crate stacked on another no bigger than it)
+    const w = S?.size ?? mix(0.55, 0.85, hash3(i, 1, 5101)), c = add(p, [0, 0, w / 2]);
     obox(out, add(c, mul(N, w / 2)), N, U, [0, 0, 1], [w / 2, w / 2, w / 2], S.wood);
     if (s > 0.5) { const w2 = w * 0.7; obox(out, add(add(c, mul(N, w / 2)), [0, 0, w / 2 + w2 / 2]), N, U, [0, 0, 1], [w2 / 2, w2 / 2, w2 / 2], S.dark); }
   },
@@ -93,6 +108,82 @@ const ITEMS = {
     skull(out, add(c, [0.05, 0, 0.08]), N, 0.1, bone);
     if (s > 0.4) skull(out, add(add(c, mul(U, 0.25)), [0, 0, 0]), N, 0.09, bone);
   },
+  // (the vessels a room stores, era/skandart-vessels.js: each one thing, turned on the lathe, fired clay; `S.cut` a
+  // broken one's lower part, open at the break)
+  pot(out, p, N, U, s, i, S) {
+    // squat and wide-bellied, a rolled lip
+    const sz = mix(0.85, 1.15, hash3(i, 1, 5161)), c = add(p, mul(N, 0.22 * sz));
+    lathe(out, c, cutProfile([[0.09, 0], [0.17, 0.05], [0.21, 0.17], [0.19, 0.29], [0.12, 0.36], [0.13, 0.39], [0.11, 0.4], [0, 0.4]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 10, CLAY.pot, 'stage:prop');
+  },
+  urn(out, p, N, U, s, i, S) {
+    // tall on a foot, high-shouldered, a neck and a lid with its knob
+    const sz = mix(0.9, 1.12, hash3(i, 2, 5163)), c = add(p, mul(N, 0.24 * sz));
+    lathe(out, c, cutProfile([[0.12, 0], [0.12, 0.04], [0.09, 0.07], [0.19, 0.24], [0.24, 0.44], [0.19, 0.6], [0.11, 0.66], [0.13, 0.7], [0.12, 0.72], [0.06, 0.76], [0.03, 0.8], [0, 0.8]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 10, CLAY.urn, 'stage:prop');
+  },
+  jar(out, p, N, U, s, i, S) {
+    // one amphora standing: shoulders, a neck, a lip
+    const sz = mix(0.9, 1.15, hash3(i, 3, 5165)), c = add(p, mul(N, 0.21 * sz));
+    lathe(out, c, cutProfile([[0.05, 0], [0.15, 0.1], [0.2, 0.32], [0.15, 0.55], [0.06, 0.63], [0.07, 0.72], [0.045, 0.73], [0, 0.73]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 8, CLAY.pot, 'stage:prop');
+  },
+  // (and the wooden things a room stores, era/skandart-vessels.js: a chest, a keg, a basket)
+  chest(out, p, N, U, s, i, S) {
+    // long along the wall, its lid a board's thickness proud, two iron straps over the lid and down the front
+    const L = mix(0.72, 0.9, hash3(i, 4, 5167)), D = 0.44, H = 0.42, c = add(add(p, mul(N, D / 2)), [0, 0, H / 2]), up = [0, 0, 1], iron = { key: null, scale: 1, tint: IRON, group: 'stage:prop' };
+    obox(out, c, U, N, up, [L / 2, D / 2, H / 2], S.dark, 0.5);
+    obox(out, add(c, [0, 0, H / 2 + 0.03]), U, N, up, [L / 2 + 0.02, D / 2 + 0.02, 0.03], S.wood, 0.5);
+    // (from the floor up over the lid's top)
+    for (const k of [-0.3, 0.3]) obox(out, add(add(c, mul(U, k * L)), [0, 0, 0.03]), U, N, up, [0.025, D / 2 + 0.025, H / 2 + 0.03], iron, 0.5);
+  },
+  keg(out, p, N, U, s, i, S) {
+    // a small barrel: staves bulging, two hoops
+    const r = 0.17, h = 0.46, c = add(p, mul(N, r + 0.04)), bulge = (z) => r + 0.03 * Math.sin((z / h) * Math.PI);
+    lathe(out, c, [[r, p[2]], [bulge(0.12), p[2] + 0.12], [bulge(h / 2), p[2] + h / 2], [bulge(h - 0.12), p[2] + h - 0.12], [r, p[2] + h], [0, p[2] + h]], 9, S.dark, 'stage:prop');
+    for (const z of [0.08, h - 0.11]) lathe(out, c, [[bulge(z) + 0.01, p[2] + z], [bulge(z + 0.035) + 0.01, p[2] + z + 0.035]], 9, { key: null, scale: 1, tint: IRON }, 'stage:prop');
+  },
+  basket(out, p, N, U, s, i) {
+    // woven, flared, open: a rim and the dark of its inside
+    const sz = mix(0.9, 1.1, hash3(i, 5, 5169)), c = add(p, mul(N, 0.24 * sz)), wicker = { key: null, scale: 1, tint: [0.62, 0.5, 0.32] };
+    lathe(out, c, [[0.15, 0], [0.19, 0.08], [0.23, 0.3], [0.25, 0.34], [0.22, 0.34], [0.2, 0.06], [0, 0.06]].map(([r, z]) => [r * sz, p[2] + z * sz]), 10, wicker, 'stage:prop');
+  },
+  // (and their modern kin, era/skandart-vessels.js: steel and moulded plastic in the colours their look gives, `S.body`
+  // and `S.trim`)
+  'steel-crate'(out, p, N, U, s, i, S) {
+    // a painted steel box on its skids, its lid's flange proud all round
+    const w = S?.size ?? mix(0.6, 0.8, hash3(i, 6, 5171)), h = w * 0.72, c = add(add(p, mul(N, w / 2)), [0, 0, 0.04 + h / 2]), up = [0, 0, 1];
+    obox(out, c, N, U, up, [w / 2, w / 2, h / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, h / 2 - 0.02]), N, U, up, [w / 2 + 0.015, w / 2 + 0.015, 0.025], S.trim, 0.5);
+    for (const k of [-0.32, 0.32]) obox(out, add(add(p, mul(N, w / 2)), add(mul(U, k * w), [0, 0, 0.02])), N, U, up, [w / 2, 0.04, 0.02], S.trim, 0.5);
+  },
+  drum(out, p, N, U, s, i, S) {
+    // a steel drum: its two rolling hoops pressed out, its chime at the top
+    const r = 0.29, h = 0.88, c = add(p, mul(N, r + 0.03)), z = (v) => p[2] + v;
+    lathe(out, c, [[r, z(0)], [r, z(0.28)], [r + 0.015, z(0.29)], [r + 0.015, z(0.31)], [r, z(0.32)], [r, z(0.56)], [r + 0.015, z(0.57)], [r + 0.015, z(0.59)], [r, z(0.6)], [r, z(h - 0.02)], [r - 0.012, z(h)], [0, z(h)]], 14, S.body, 'stage:prop');
+  },
+  footlocker(out, p, N, U, s, i, S) {
+    // long along the wall, its lid's edge a band, two latches on its front
+    const L = mix(0.8, 0.95, hash3(i, 7, 5173)), D = 0.42, H = 0.38, c = add(add(p, mul(N, D / 2)), [0, 0, H / 2]), up = [0, 0, 1];
+    obox(out, c, U, N, up, [L / 2, D / 2, H / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, H / 2 - 0.04]), U, N, up, [L / 2 + 0.012, D / 2 + 0.012, 0.03], S.trim, 0.5);
+    for (const k of [-0.3, 0.3]) obox(out, add(add(c, mul(U, k * L)), add(mul(N, D / 2 + 0.012), [0, 0, H / 2 - 0.1])), U, N, up, [0.035, 0.012, 0.05], S.trim, 0.5);
+  },
+  tote(out, p, N, U, s, i, S) {
+    // a moulded crate with a lid: its rim a band round the top
+    const w = S?.size ?? mix(0.55, 0.7, hash3(i, 8, 5175)), d = w * 0.7, h = w * 0.55, c = add(add(p, mul(N, d / 2)), [0, 0, h / 2]), up = [0, 0, 1];
+    obox(out, c, U, N, up, [w / 2, d / 2, h / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, h / 2 - 0.03]), U, N, up, [w / 2 + 0.02, d / 2 + 0.02, 0.03], S.trim, 0.5);
+  },
+  'plastic-drum'(out, p, N, U, s, i, S) {
+    // rounded at its foot and shoulder, a bung on top
+    const c = add(p, mul(N, 0.3 + 0.03)), z = (v) => p[2] + v;
+    lathe(out, c, [[0.26, z(0)], [0.29, z(0.04)], [0.3, z(0.12)], [0.3, z(0.8)], [0.28, z(0.86)], [0.2, z(0.88)], [0.05, z(0.89)], [0.05, z(0.92)], [0, z(0.92)]], 14, S.body, 'stage:prop');
+  },
+  case(out, p, N, U, s, i, S) {
+    // a hard case lying along the wall: its seam a band, its handle on its front
+    const L = mix(0.75, 0.9, hash3(i, 9, 5177)), D = 0.36, H = 0.3, c = add(add(p, mul(N, D / 2)), [0, 0, H / 2]), up = [0, 0, 1];
+    obox(out, c, U, N, up, [L / 2, D / 2, H / 2], S.body, 0.5);
+    obox(out, add(c, [0, 0, 0.03]), U, N, up, [L / 2 + 0.01, D / 2 + 0.01, 0.02], S.trim, 0.5);
+    obox(out, add(c, add(mul(N, D / 2 + 0.03), [0, 0, 0.03])), U, N, up, [0.1, 0.02, 0.02], S.trim, 0.5);
+  },
   planks(out, p, N, U, s, i, S) {
     const n = 2 + Math.floor(hash3(i, 3, 5103) * 2), len = mix(1.6, 2.1, hash3(i, 4, 5105));
     for (let k = 0; k < n; k++) {
@@ -102,6 +193,18 @@ const ITEMS = {
     }
   },
 };
+
+/** The props' surfaces a thing is built in (a dressing's `wood` and `stone`, else the shelf's own). */
+export function propSurfaces(spec = {}) {
+  const W = spec.wood || PROP_WOOD;
+  return { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]), stone: { ...(spec.stone || { key: 'marble-carrara', scale: 1.2, tint: [0.6, 0.58, 0.55] }), group: 'stage:prop' } };
+}
+/** One prop of the shelf built on its own (era/skandart-vessels.js): its kind's builder at `p` against the wall whose
+ *  normal into the room is N (U along it), `s` its die for what it stacks (a crate's second), `seed` its own. */
+export function buildProp(kind, out, p, N, U, s, seed, S = propSurfaces()) {
+  if (!ITEMS[kind]) throw new Error(`props: '${kind}' is no prop the shelf builds (${Object.keys(ITEMS).join(', ')})`);
+  ITEMS[kind](out, p, N, U, s, seed, S);
+}
 
 /** A skull facing N: a lathed cranium and two dark sockets on its face. */
 export function skull(out, c, N, r, tint, group = 'stage:prop') {
@@ -170,7 +273,7 @@ export function placeThings(plan, pilasters, spec, keepClear = []) {
   return out;
 }
 
-/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room.
+/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone?, leave? }; `keepClear` [{ x, y, r }]. → faces, baked with the room.
  *  `anchors` (an array) takes one record per thing (anchors.js): a doodad's or a built prop's faces carry its id as
  *  their `node`; a heap of stones is pooled with every other, so it is addressed by its place and size alone. */
 export function cornerThings(plan, pilasters, spec, keepClear = [], anchors = null) {
@@ -178,6 +281,9 @@ export function cornerThings(plan, pilasters, spec, keepClear = [], anchors = nu
   const W = spec.wood || PROP_WOOD, S = { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]),
     stone: { ...(spec.stone || { key: 'marble-carrara', scale: 1.2, tint: [0.6, 0.58, 0.55] }), group: 'stage:prop' } };
   for (const t of placeThings(plan, pilasters, spec, keepClear)) {
+    // (a kind the room lays by its own causes, `leave`: era/skandart.js's fallen stone; its place is kept, so the dice of
+    // every other thing fall as they did)
+    if (spec.leave && spec.leave.includes(t.kind)) continue;
     const { kind, seed } = t, it = t, id = `${kind}-${(count[kind] = (count[kind] || 0) + 1)}`, big = DOODAD_KINDS.includes(kind);
     if (anchors) anchors.push({ id, kind: big ? 'doodad' : 'prop', form: kind, at: P(it.p), N: P(it.N), ...(t.cluster ? { cluster: t.cluster } : {}), ...(big ? { solid: true } : {}) });
     {

@@ -108,6 +108,8 @@ export const PIECES = Object.freeze({
 export const PIECE_SETS = Object.freeze({
   military: Object.freeze(['crate', 'ammo-can', 'drum', 'tool-chest']),
   utility: Object.freeze(['rack', 'drum', 'cart', 'crate']),
+  // (a garage's floor is a workshop's: what a vehicle is kept with)
+  garage: Object.freeze(['tool-chest', 'drum', 'cart', 'crate']),
   science: Object.freeze(['bench', 'instrument-rack', 'fume-hood', 'cart']),
   everyday: Object.freeze(['desk', 'filing', 'locker', 'cart']),
   vernacular: Object.freeze(['barrel', 'crate', 'sack', 'chest']),
@@ -247,7 +249,8 @@ export function layProps(plan) {
     const r = plan.rooms.find((x) => x.id === R.room), dice = mulberry32(hashOf(`props|${r.id}`));
     // the set piece its role names: at the focus a great object, a find, a prize; over the way on, a sign
     // (a base building's great object is its use's own, stocking.js GREAT, or none: an armoury's core is no generator hall)
-    const sp = R.setPiece && (R.setPiece === 'great-object' ? (plan.use ? (town ? TOWN_GREAT[plan.use] : GREAT[plan.use]) : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
+    // (a garage keeps no great object: what is parked on its floor is that)
+    const sp = R.setPiece && !(reg === 'garage' && R.setPiece === 'great-object') && (R.setPiece === 'great-object' ? (plan.use ? (town ? TOWN_GREAT[plan.use] : GREAT[plan.use]) : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
     // (a town's building keeps none of a game's set pieces: no prize on its pedestal, no find, no sign; its great object
     // its use's own)
     if (town && sp && sp !== TOWN_GREAT[plan.use]) { /* none */ } else if (sp && sp !== 'sign') {

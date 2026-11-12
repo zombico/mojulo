@@ -23,6 +23,7 @@ import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
+import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
 import { readPanels } from '@/lib/graph/rupa/panels.js';
@@ -64,7 +65,9 @@ import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
-import { floraRead, floraBox, viewHeld, FLORA_HIDES } from '@/lib/graph/form/flora-read';
+import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
+import { GLASS_GROUPS } from '@/lib/graph/era/bay-glass';
+import { floraRead, floraBox, viewHeld, FLORA_HIDES, leafPilesRead } from '@/lib/graph/form/flora-read';
 import { snowBase, readSnow } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
@@ -824,8 +827,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (a room in the form render, under no sun, bakes its lamps' shadows: of the live light it keeps what moves, the actors)
   // (a room's page has no hour map: its sun, where it has one, is in its bake. A building's rooms seated on a land,
   // era/stage-buildings.js (`payload.buildings`), stand outdoors: the hour's map is the land's, and the building casts into it)
-  const shadowsOut = payload && payload.form && payload.form.room && !(Array.isArray(payload.buildings) && payload.buildings.length) ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
-  if (payload && shadowsOut) payload.shadows = shadowsOut;
+  const shadowsOut = payload && payload.form && payload.form.room && !(Array.isArray(payload.buildings) && payload.buildings.length) && !(payload.form.room.sun && payload.form.room.sun.live) ? (liveL && liveL.shadows && liveL.shadows.actors ? { actors: true } : null) : liveL ? liveL.shadows : sketch.manifest.shadows;
+  // (a room under a live sun, era/stage.js `daylight`: its glass, its sky cards and its painted sun patches let the sun by)
+  const liveRoomSun = payload && payload.form && payload.form.room && payload.form.room.sun && payload.form.room.sun.live;
+  // (and a building's rooms on a land, under the land's sun: their glass lets it by too)
+  const builtSun = payload && payload.form && payload.form.room && Array.isArray(payload.buildings) && payload.buildings.length;
+  if (payload && shadowsOut) payload.shadows = (liveRoomSun || builtSun) && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
@@ -905,8 +912,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && formMap) payload.form.land.haze = MAP_HAZE;
     // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
     // what the stage painted)
+    // (buildings under a wet weather and no clouds named: the weather's own sky, era/geocube.js)
+    if (read && M.clouds === undefined && M.buildings !== undefined && CLOUDS_OF_WEATHER[M.weather] === 'storm' || read && M.clouds === undefined && M.buildings !== undefined && M.weather === 'drizzle') payload.form.land.clouds = { kind: CLOUDS_OF_WEATHER[M.weather], cover: 0.5, seed: 1 };
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
     // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
+    // (rain on the land: where it is raining, the land wears the film its buildings' walls and slabs do, era/wetness.js;
+    // by the recipe's `wet`, or its weather's where it has buildings, as the buildings read it)
+    { const rain = read ? readWetness(M.wet !== undefined ? M.wet : M.buildings !== undefined ? wetOfWeather(M.weather) : null) : null;
+      if (rain && rain.rain > 0) payload.form.land.rain = rain.rain; }
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
@@ -915,6 +928,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    // (the fall's leaf piles, era/leaf-piles.js: each in its tree's own leaves, packed beside the trees; the level says how
+    // many the page draws)
+    if (payload._leafPiles) { const LP = leafPilesRead(flora, payload._leafPiles); if (LP) flora.piles = LP; payload.leafPiles = { ...payload.leafPiles, drawn: LP ? LP.n : 0 }; delete payload._leafPiles; }
     // (a glyph map says what of the form it got: a gen-7 map is the form render's, never paint under the live light)
     if (formMap && payload.map) payload.map.form = read ? { read: true, plants: !!flora, far: 'range' } : { read: false, why: 'the map has no land the form reads' };
     // (and a metro says what of the form it got, geocity/scene.js: its lawns, its street trees and its towns' grown)
@@ -937,6 +953,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and its blade cards, never walked on: gone from the page, not only hidden)
     if (read) payload.faces = payload.faces.filter((f) => f.group !== GRASS_CARDS);
   }
+  // (leaf piles no form flora took: none on the page)
+  if (payload && payload._leafPiles) delete payload._leafPiles;
   // (a glyph map read in a form era that no geocube paints: drawn as paint under the live light, and says so, with how to
   // have the form's: the map's level names its geocube, level/grid-scene.js)
   if (payload && payload.map && !formMap && sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && ERAS[era]?.surface === 'form' && !unshaded && viewOpts.paint !== true) payload.map.form = { read: false, why: 'no geocube paints the map: name its level\'s geocube (level.geocube, or a gameworld style\'s) for the form render\'s land, plants and far range' };
@@ -1092,6 +1110,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
     // (a town's houses break as the settlement they were built from: its style's words, era/geocube.js settlementMatter)
     const townMatterOf = destruction === 'physical' ? geocubeTownMatterOf(sketch.manifest, payload) : null;
+    // (a room's debris heaps, era/skandart.js, as LOOSE things under any degree: each its own faces and a walk-through
+    // breakable, worlds/controllable/loose.js; struck, it is gone. No heaps, nothing changes)
+    const looseSk = destruction && destruction !== 'none' ? skandartLoose(payload.repeats || []) : null;
+    if (looseSk) { payload.faces = [...(payload.faces || []), ...looseSk.faces]; payload.repeats = looseSk.repeats; payload.loose = looseSk.loose; }
+    // (and a land's: a trail's rockfall, its trees' fallen wood, its drifts, a cave's heaps, each named on its faces)
+    const looseLand = destruction && destruction !== 'none' ? landLoose(payload.faces || []) : null;
+    if (looseLand) { payload.faces = looseLand.faces; payload.loose = [...(payload.loose || []), ...looseLand.loose]; }
     const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
     // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
     // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)
@@ -1110,6 +1135,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
       if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
     }
+    // (the loose things' pieces, pre-cut as a block's are, in their own colour: what the page scatters as one dissipates)
+    if (payload.loose) payload.breakPieces = { ...(payload.breakPieces || {}), ...piecesOf(payload.loose, payload.faces) };
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.
@@ -1324,6 +1351,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const K = rawSpec.craft;
           const opts = Object.fromEntries(['look', 'livery', 'wear', 'fold', 'pad'].filter((k) => K[k] !== undefined && K[k] !== false).map((k) => [k, K[k]]));
           payload.figures[name] = await atRigFidelity(craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: 0 }, attitude: 'ground', made: K.made !== false, ...opts }));
+          continue;
+        }
+        // MECHA bodies (mecha-shelf/mecha-figure.js): a figures-map entry may be a mecha shelf frame standing at its stance
+        // (`mecha`: { archetype, role?, palette?, livery?, wear? }, what a parked walker writes), delivered as its rig (the
+        // frame the root). Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.mecha && typeof rawSpec.mecha === 'object') {
+          const { mechaFigure } = await import('@/lib/graph/mecha-shelf/mecha-figure.js');
+          payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha));
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map

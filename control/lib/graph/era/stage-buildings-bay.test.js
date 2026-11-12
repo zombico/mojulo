@@ -77,7 +77,7 @@ describe('a look on any bay building', () => {
     const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, buildings: [{ use: 'armoury', bays: 1, look: { construction: 'bunker' } }] });
     expect(P.buildings[0].look).toEqual({ construction: 'bunker', palette: 'military' });
     expect(g(P, /^building:wall$/)[0].texture).toBe(exteriorOf({ construction: 'bunker', palette: 'military' }).wall.key);
-    expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, buildings: [{ use: 'armoury', look: { colour: 'red' } }] })).toThrow(/look is \{ construction\?, palette\? \}/);
+    expect(() => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: true, buildings: [{ use: 'armoury', look: { colour: 'red' } }] })).toThrow(/look is \{ construction\?, palette\?, dressing\? \}/);
   });
 
   it("a base building entered by its door is composed inside as a building level is", () => {
@@ -119,6 +119,18 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     const shell = F.faces.filter((f) => /^building:(wall|roof)/.test(f.group || ''));
     expect(shell.length).toBeGreaterThan(0);
     for (const f of shell) expect(f.cornerLight, f.group).toBeDefined();
+    // (the sun indoors is the land's, live: every lit face of a room says the sun's share of it, none where it is turned
+    // from the sun (so the page's hour map lays no shadow there, a tree's through a wall or any other) and some where
+    // it is turned to it, for the map to take away wherever no opening lets the sun in)
+    const rooms = F.faces.filter((f) => /^stage:(wall|floor)$/.test(f.group || '') && f.cornerLight && f.normal);
+    expect(rooms.length).toBeGreaterThan(0);
+    const d0 = noon.sky.sun.dir, most = (f) => Math.max(...[f.sunShare].flat());
+    for (const f of rooms) {
+      const cos = f.normal[0] * d0[0] + f.normal[1] * d0[1] + f.normal[2] * d0[2];
+      if (cos <= 0) expect(f.sunShare, f.group).toBe(0); else { expect(most(f), f.group).toBeGreaterThan(0); expect(most(f)).toBeLessThanOrEqual(1); }
+    }
+    expect(rooms.some((f) => most(f) > 0)).toBe(true);
+    expect(F.faces.some((f) => f.group === 'stage:sunpatch')).toBe(false);
     // (and painted, the paint's page, nothing of it: no record, no baked light on the shell)
     expect(noon.form).toBeUndefined();
     expect(noon.faces.filter((f) => /^building:(wall|roof)/.test(f.group || '')).every((f) => f.cornerLight === undefined)).toBe(true);
@@ -134,5 +146,21 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     expect(G.buildings[0].site.level).toBe(B.site.level);
     expect(() => assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, buildings: [{ ...OUTPOST, apron: 'lawn' }] })).toThrow(/apron is 'slab'/);
   }, 90000);
+
+  it('its apron\'s skirt goes down to the land: no stretch of its edge hangs over ground that has fallen away', () => {
+    // (a site on a slope, so one side is filled and the land falls from the slab's edge)
+    const P = assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [{ use: 'hangar-bay' }] });
+    const skirt = P.faces.filter((f) => f.group === 'building:apron' && Math.abs(f.normal[2]) < 0.1);
+    const land = P.faces.filter((f) => /:(ground|trail|top|scree|cliff|lip|ridge)$/.test(f.group || '')).flatMap((f) => f.corners);
+    expect(skirt.length).toBeGreaterThan(4);
+    let hanging = 0;
+    for (const f of skirt) { const zb = Math.min(...f.corners.map((c) => c[2])), mx = f.corners.reduce((a, c) => a + c[0], 0) / 4 + f.normal[0] * 0.6, my = f.corners.reduce((a, c) => a + c[1], 0) / 4 + f.normal[1] * 0.6;
+      const near = land.filter((c) => Math.hypot(c[0] - mx, c[1] - my) < 1.2).map((c) => c[2]);
+      if (near.length && zb > Math.min(...near) + 0.05) hanging++; }
+    expect(hanging).toBe(0);
+    // (and it is deeper where the land has fallen than where it has not)
+    const depths = skirt.map((f) => Math.max(...f.corners.map((c) => c[2])) - Math.min(...f.corners.map((c) => c[2])));
+    expect(Math.max(...depths)).toBeGreaterThan(Math.min(...depths) + 0.2);
+  }, 120000);
 });
 

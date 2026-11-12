@@ -21,6 +21,9 @@
  *                                   pose, tool, height and palette (construction-shelf/con-figure.js); a personal or family car
  *                                   its `car` (the car shelf's card or composition, car-shelf/car-library.js: a car row stands
  *                                   as its own card, but one the highway fleet lofts keeps its class's plain loft)
+ *                                   A walker (a mecha shelf frame: mecha-shelf/) stands at its stance, fitted for a `role`
+ *                                   when it names one (MECHA_ROLES: 'assault', 'recon', …), in its livery and wear where its
+ *                                   frame is a dressed one; its collider a box over what its frame takes up.
  *   parkIn(room, words, { seed?, livery?, wear? }) → `parked` entries side by side across a room, noses to its +x
  *                                   (a hangar's doors), as many as it holds; a craft folded, in the air's nearest camo
  *   parkable(word, at?)          → { vehicle, class, cycle?, construction? } or { vehicle, craft }, or throws naming why
@@ -43,6 +46,7 @@ import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { CRAFT_ARCHETYPES, CRAFT_ODM, craftFootprint } from '../craft-shelf/index.js';
 import { readAirLivery } from '../craft-shelf/air-surface.js';
 import { lookCard } from '../craft-shelf/drone-looks.js';
+import { readMechaSpec, mechaFootprint } from '../mecha-shelf/mecha-figure.js';
 import { lookFamily } from '../craft-shelf/heli-looks.js';
 import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
@@ -56,7 +60,7 @@ import { CAR_CARDS, readCarSpec } from '../car-shelf/car-library.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
-const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette', 'car'];
+const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette', 'car', 'role'];
 // (a craft's own words: a road car, a field vehicle and a cycle take none of them)
 const CRAFT_KEYS = ['fold', 'pad', 'crew'];
 // (the most a level stands with every craft's crew about it)
@@ -94,6 +98,9 @@ export function parkable(word, at = 'parked') {
     if (inline && !CYCLE_ARCHETYPES[cycle].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand')) throw new Error(`${at}: the ${hit.row.label} has no stand to stand on`);
     return { vehicle: hit.id, class: h.physics[0], cycle };
   }
+  // (a walker: its mecha shelf frame, standing at its stance)
+  const mecha = (h.mecha ?? [])[0];
+  if (mecha && hit.row.uses.includes('parked')) return { vehicle: hit.id, mecha };
   // (a site machine: its construction shelf machine, at its rest unless its words pose it)
   const site = (h.construction ?? [])[0];
   if (site && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: (h.physics ?? [])[0] ?? null, construction: site };
@@ -106,7 +113,7 @@ export function readParked(list, at = 'parked') {
     const w = `${at}[${k}]`;
     if (!isObj(p)) throw new Error(`${w} is { vehicle, at: [x, y, z], heading?, livery?, wear?, seed? }`);
     for (const key of Object.keys(p)) if (!KEYS.includes(key)) throw new Error(`${w}.${key} is not a parked vehicle's setting (${KEYS.join(', ')})`);
-    const { vehicle, class: cls0, craft, cycle, construction, car: card } = parkable(p.vehicle, `${w}.vehicle`);
+    const { vehicle, class: cls0, craft, cycle, construction, car: card, mecha } = parkable(p.vehicle, `${w}.vehicle`);
     // (a car's own card or composition, read as the car shelf reads it: any row the car shelf builds takes one)
     if (p.car !== undefined && !card && !(handlesOf(vehicle).car ?? []).length) throw new Error(`${w}.car: the ${vehicle} is no car the car shelf builds; a car is a sedan's, a hatchback's, an estate's …`);
     const car = p.car ?? card;
@@ -115,6 +122,13 @@ export function readParked(list, at = 'parked') {
     if (!Array.isArray(p.at) || p.at.length !== 3 || !p.at.every(Number.isFinite)) throw new Error(`${w}.at is [x, y, z], metres`);
     if (p.heading !== undefined && !Number.isFinite(p.heading)) throw new Error(`${w}.heading is radians (0: its nose along +x)`);
     if (p.seed !== undefined && !Number.isInteger(p.seed)) throw new Error(`${w}.seed is an integer`);
+    if (mecha) {
+      // (a walker: its role, its livery and wear read as its shelf reads them; nothing of a craft's, a car's or a site's)
+      for (const key of [...CRAFT_KEYS, ...SITE.filter((q) => q !== 'palette'), 'look', 'reach', 'car']) if (p[key] !== undefined) throw new Error(`${w}.${key}: the ${vehicle} is a walker; it takes a role, a palette, a livery and a wear`);
+      const words = Object.fromEntries(['role', 'palette', 'livery', 'wear'].filter((q) => p[q] !== undefined).map((q) => [q, p[q]]));
+      readMechaSpec({ archetype: mecha, ...words }, w);
+      return [{ vehicle, mecha, at: p.at.map(r3), heading: r3(p.heading ?? 0), ...words, seed: p.seed ?? k + 1 }];
+    }
     if (craft) {
       // (a craft: its look (a card of its family), its livery and wear the air's, its blades folded, a helipad under it)
       if (p.look !== undefined) lookCard(p.look, lookFamily(CRAFT_ARCHETYPES[craft], CRAFT_ODM));
@@ -210,6 +224,15 @@ export function withParked(manifest) {
   const P = readParked(manifest.parked);
   const figures = { ...(manifest.figures ?? {}) }, entities = [...(manifest.entities ?? [])], colliders = [];
   P.forEach((p, k) => {
+    if (p.mecha) {
+      // (a walker: its frame's figure at its stance, still; a box its frame's envelope, turned to the heading)
+      const id = `parked-${k}`, c = Math.cos(p.heading), s = Math.sin(p.heading), v = mechaFootprint({ archetype: p.mecha, ...(p.role !== undefined ? { role: p.role } : {}) });
+      figures[id] = { mecha: { archetype: p.mecha, ...Object.fromEntries(['role', 'palette', 'livery', 'wear'].filter((q) => p[q] !== undefined).map((q) => [q, p[q]])) } };
+      entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });
+      const hx = (Math.abs(c) * v.L + Math.abs(s) * v.W) / 2, hy = (Math.abs(s) * v.L + Math.abs(c) * v.W) / 2;
+      colliders.push({ min: [r3(p.at[0] - hx), r3(p.at[1] - hy), p.at[2]], max: [r3(p.at[0] + hx), r3(p.at[1] + hy), r3(p.at[2] + v.H)] });
+      return;
+    }
     if (p.craft) {
       // (a craft: its form figure standing on its gear (a helipad under it when asked), still; a box over its body, not
       // its rotor's disc, so a walker passes under the blades)
