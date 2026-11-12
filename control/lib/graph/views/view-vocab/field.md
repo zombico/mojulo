@@ -3,7 +3,7 @@
   "id": "field",
   "name": "Electromagnetic Field",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive ELECTROMAGNETISM depictor — electromagnetic wave activity and magnetic fields, where the field actually MOVES / is shown as a lattice of vectors.",
   "when": "Reach for this on framing like 'show me an electromagnetic wave / visualize a magnetic field / iron filings round a magnet / the field around a wire / how a solenoid works / E and B fields'.",
   "retired_tool": "create_field_view"
@@ -14,7 +14,7 @@ Mint an interactive ELECTROMAGNETISM depictor — electromagnetic wave activity 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which to depict (default 'em-wave'): 'em-wave' (travelling E⊥B wave), 'bar-magnet' (dipole + iron filings), 'wire' (current → circular B), 'solenoid' (coil).

@@ -67,7 +67,7 @@ Two shelves, merged into one catalog by [control/lib/mcp/catalysts/catalog.js](.
 - **Curated shelf** — `control/lib/mcp/catalysts/`, one `.md` file per catalyst, shipped with the repo. The loader ([control/lib/mcp/catalysts/loader.js](../control/lib/mcp/catalysts/loader.js)) scans this directory at process start. To add a built-in catalyst: write the `.md` file, restart the control plane, send a PR.
 - **Local shelf** — operator-minted rows in the control-plane DB (`local_catalysts` + `local_catalyst_revisions`, repository at [control/lib/db/repositories/local-catalysts.js](../control/lib/db/repositories/local-catalysts.js)), written via the `mint_catalyst` MCP tool. Live immediately — no restart, no PR — and served through the same tools as curated entries, annotated `origin: 'local'`. See [Local catalysts](#local-catalysts) below.
 
-One-off automations that aren't catalyst-shaped still belong on the agent's host side (a local skill), not on either shelf — the posture-check in `custom_catalyst` guards this.
+One-off automations that aren't catalyst-shaped still belong on the agent's host side (a local skill), not on either shelf — the posture-check in the author's guide (`mint_catalyst({ guide: true })`) guards this.
 
 ---
 
@@ -95,7 +95,7 @@ JSON frontmatter between two `---` fences, then a markdown body:
     }
   ],
   "mcpTools": {
-    "mojulo": ["get_stash", "list_stashes"],
+    "mojulo": ["get_stash"],
     "destination": {
       "description": "A channel- or doc-like MCP exposing a post or append call."
     }
@@ -209,10 +209,10 @@ Five tools, registered by [control/lib/mcp/tools/catalysts.js](../control/lib/mc
 | `list_catalysts`      | Returns `id`, `name`, `summary`, `valueHook`, `category`, `requires`, `origin` for each catalyst. Optional `category` filter. Local entries eclipsed by a later-shipped curated id are flagged `eclipsed: true`. |
 | `get_catalyst`        | Returns one catalyst's full composed body: core preamble + host adapter section + catalyst body. Accepts optional `host` to override the auto-resolved adapter, and `rev` to read a local catalyst's historical revision. Local reads include `fileText` (the shelf-file serialization) + the revision index. |
 | `recommend_catalysts` | Ranks the workflow shelf (curated + local), optionally narrowed to one `category`. Annotates each with its `valueHook`, destination category and examples, `origin` and `priorMaterializations`. Includes a `consultationPosture` block + a `materialization` block (available adapters + recommended-for-this-client). |
-| `custom_catalyst`     | Returns the author's guide for drafting a new catalyst. Self-contained — posture-check rules, batched context questions, body template, validation checklist, mint + graduation hand-off. Read before `mint_catalyst`. |
+| `mint_catalyst({ guide: true })` | Returns the author's guide for drafting a new catalyst. Self-contained — posture-check rules, batched context questions, body template, validation checklist, mint + graduation hand-off. Read before `mint_catalyst`. |
 | `mint_catalyst`       | Writes to the local shelf. Upsert keyed on `id`: new id → rev 1; existing local id → appends a revision (`note` required — the commit message) and revives if archived; `archive: true` shelves it (revisions kept, embedding row dropped). Refuses curated ids. Response includes `fileText` for graduation. |
 
-Adapter discovery is handled by `list_adapters` / `get_adapter` from the adapters ring (sibling to catalysts). Every `get_catalyst` response auto-composes the resolved adapter into the returned body, so most agents won't need to call `get_adapter` directly — but it's there for sessions that want to bind the adapter once and reuse it across multiple catalyst reads.
+Adapter discovery is handled by `get_adapter` (`list: true` for the set) from the adapters ring (sibling to catalysts). Every `get_catalyst` response auto-composes the resolved adapter into the returned body, so most agents won't need to call `get_adapter` directly — but it's there for sessions that want to bind the adapter once and reuse it across multiple catalyst reads.
 
 ---
 
@@ -240,4 +240,4 @@ The operator's own shelf, minted over MCP.
 6. Sanity-check the body against an existing adapter: read [control/lib/mcp/adapters/claude-code.md](../control/lib/mcp/adapters/claude-code.md) and [control/lib/mcp/adapters/codex.md](../control/lib/mcp/adapters/codex.md). If a sentence in your body would be phrased differently by those two, it belongs in the adapter, not the catalyst.
 7. PR the catalyst file. No code change to the loader, the MCP tools, or the test is needed.
 
-For a richer author's walkthrough with worked examples of when a request is *not* catalyst-shaped, call `custom_catalyst` from an MCP-connected agent session — that surface is maintained alongside the loader and stays in sync with the validation rules.
+For a richer author's walkthrough with worked examples of when a request is *not* catalyst-shaped, call `mint_catalyst({ guide: true })` from an MCP-connected agent session — that surface is maintained alongside the loader and stays in sync with the validation rules.

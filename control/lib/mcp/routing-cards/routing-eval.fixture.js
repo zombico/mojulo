@@ -60,14 +60,27 @@ export const FIXTURE = [
   ['let me stroll along a sandy beach by the sea, nothing to do there, just the place', 'create_sketch', 'path'],
   // game buildings: a building's rooms laid from its use, in a cube's look
   ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
-  ['help my kid understand black holes with something animated', 'create_view'],
-  // science worlds: a demo composed from laws, the kind carried as the mode
-  ['make a demo for my physics class of a weight on a spring bobbing in thick oil', 'create_view', 'classical'],
-  ['simulate two moons going around a planet so my students can watch the orbits', 'create_view', 'classical'],
-  ['show my biology class how a drop of dye spreads out through water, molecule by molecule', 'create_view', 'microscopic'],
-  ['show my chemistry students what the 2p and 3d orbitals of hydrogen actually look like', 'create_view', 'quantum'],
-  ['a demo of an electron getting through a wall it does not have the energy to climb', 'create_view', 'quantum'],
-  ['show my class why the clocks on GPS satellites tick faster than ours on the ground', 'create_view', 'relativistic'],
+  ['help my kid understand black holes with something animated', 'create_exhibit'],
+  // science worlds: a demo composed from laws, its hall id carried as the mode
+  ['make a demo for my physics class of a weight on a spring bobbing in thick oil', 'create_exhibit', 'science/classical'],
+  ['simulate two moons going around a planet so my students can watch the orbits', 'create_exhibit', 'science/classical'],
+  ['show my biology class how a drop of dye spreads out through water, molecule by molecule', 'create_exhibit', 'science/microscopic'],
+  ['show my chemistry students what the 2p and 3d orbitals of hydrogen actually look like', 'create_exhibit', 'science/quantum'],
+  ['a demo of an electron getting through a wall it does not have the energy to climb', 'create_exhibit', 'science/quantum'],
+  ['show my class why the clocks on GPS satellites tick faster than ours on the ground', 'create_exhibit', 'science/relativistic'],
+  // exhibits (1110): a curated interactive for a museum, a gallery or an encyclopedia, asked for by hall
+  ['our museum wants an interactive showing how a hydroelectric dam turns falling water into electricity', 'create_exhibit'],
+  ['an encyclopedia-style piece where visitors can look around a Roman town before Vesuvius erupted', 'create_exhibit'],
+  // the tour: an exhibit's stops, each a camera, a caption and the part it lights (create_exhibit's `tour`)
+  ['a step-by-step walkthrough of a plant cell for our kiosk, each step lighting up one part with a caption', 'create_exhibit'],
+  // a gallery: made exhibits joined as rooms, a kiosk that walks itself (create_exhibit's `rooms`)
+  ['put the cell and the dam pieces together as one gallery for the touchscreen in our lobby', 'create_exhibit'],
+  // the brief: the expert's aims, claims and sources, a caption for each audience, their sign-off (create_exhibit's `curation`)
+  ['our curator needs every fact on the dam exhibit listed with its source so she can sign off before it opens', 'create_exhibit'],
+  // prepared states: one exhibit at several settings, switched in one page (create_exhibit's `states`)
+  ['let visitors flip between the dam at a low, a middle and a high water level and see what changes', 'create_exhibit'],
+  // narration: a stop's caption spoken, a recording kept per stop (the tour's `narration`)
+  ['have each step of the cell tour read aloud for visitors who would rather listen than read', 'create_exhibit'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],
@@ -215,8 +228,8 @@ export const FIXTURE = [
   ['hand this level to our godot team so they can wire it up', 'export_model'],
   ['stamp my exported model so people can tell I made it', 'sign_asset'],
   ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
-  // (historic places left the routing eval in 1015: deemphasized, a historical view rather than an ask the surface
-  // offers directly, so "walk me through Thebes" is not a route to hold)
+  // (historic places left the routing eval in 1015, deemphasized; they came back in 1110 as the exhibit doors' history
+  // hall, its row above)
 ];
 
 // Rows the routing gets wrong today and that stay on purpose: the report lists them apart from new misses, and the
@@ -262,5 +275,5 @@ export const COLLISION_FIXTURE = [
   // ...while the audit itself must still win its own turf (the control)
   ['walk to the exit and check the level is beatable', 'forge_motion'],
   // an animated explainer vs a camera flythrough — margin was ~0.004
-  ['show my kid how a black hole bends light, animated', 'create_view'],
+  ['show my kid how a black hole bends light, animated', 'create_exhibit'],
 ];

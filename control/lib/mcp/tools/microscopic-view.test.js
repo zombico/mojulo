@@ -21,7 +21,7 @@ const MEMBRANE = {
   },
 };
 
-describe("create_view({ kind: 'microscopic' }): a science world, end to end", () => {
+describe("create_exhibit({ id: 'science/microscopic' }): a science world, end to end", () => {
   it('mints the recipe as given and returns the machine gate', async () => {
     const r = await createViewHandler({ kind: 'microscopic', params: MEMBRANE, title: 'a selective membrane' });
     expect(r.recipe).toEqual({ kind: 'microscopic-view', ...MEMBRANE, title: 'a selective membrane' });

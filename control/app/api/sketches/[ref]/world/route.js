@@ -53,7 +53,7 @@ const WORLD_CACHE_BUDGET = (Number(process.env.MOJULO_WORLD_CACHE_MB) > 0
 // release and browsers should drop the pages they hold; a release bump does it on its own.
 const WORLD_CACHE_VERSION = 'v1';
 // `stream` (world streaming, fractal-city): a streamed page and the whole page are different bakes.
-const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream', 'era'];
+const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream', 'era', 'sync'];
 
 function worldCacheKey(ref, manifest, search) {
   const deps = worldDeps(manifest);
@@ -388,8 +388,11 @@ export async function GET(request, { params }) {
     // headset's modes for an A/B without a re-mint (?xr=snap, ?xr=smooth,hand: channels/xr.js xrFromParam).
     // Off unless the manifest or the flag asks — the page stays byte-identical otherwise.
     const xr = xrFromParam(request.nextUrl.searchParams.get('xr'), payload.xr || null);
+    // ?sync=1: the page is one state of a prepared-states exhibit (exhibit/states.js), framed: it tells its camera to its
+    // frame and takes one from it (channels/sync.js). Absent, not a byte of it.
+    const sync = ['1', 'true'].includes(request.nextUrl.searchParams.get('sync'));
     // ?hud=1 also brings back the strip a clean page (a payload's `chrome: false`) leaves out
-    const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr, ...(hudParam != null && hud ? { chrome: true } : {}) });
+    const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr, ...(sync ? { sync: true } : {}), ...(hudParam != null && hud ? { chrome: true } : {}) });
     if (cacheKey) worldCacheSet(cacheKey, html);
     return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);
   } catch (err) {

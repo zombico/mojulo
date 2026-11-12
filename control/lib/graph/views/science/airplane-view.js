@@ -222,7 +222,7 @@ export function planAirplaneScene(recipe = {}) {
   };
 }
 
-// ── the physical read-back channel (measure_view): the flight in real SI, unscaled. ──
+// ── the physical read-back channel (get_exhibit({ ref })): the flight in real SI, unscaled. ──
 export function sampleAirplanePhysics(recipe = {}, { every = 1 } = {}) {
   const { mission, flight } = runFlight(recipe);
   const { samples, events, aircraft, summary } = flight;

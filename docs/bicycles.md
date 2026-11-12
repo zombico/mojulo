@@ -63,7 +63,7 @@ piece redoes, and the state names which gate it failed.
   promotion condition.
 - **Beats' listen → mark → revise → compare loop** — annotations +
   revisions as durable state a rider iterates against.
-- **Plan / research modes** — accretive drawers with their own re-readable
+- **Plan mode and the stash** — accretive drawers with their own re-readable
   state driving a deliberation loop.
 
 ## The render handoff bicycle (shipped)

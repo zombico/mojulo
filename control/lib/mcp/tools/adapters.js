@@ -24,6 +24,8 @@ export async function listAdaptersHandler(_input, _ctx) {
 
 export async function getAdapterHandler(input, ctx) {
   const { id, clientInfoHint } = input || {};
+  // `list: true`: the cards mojulo ships (what list_adapters answered, folded onto this door)
+  if (input?.list === true) return listAdaptersHandler(input, ctx);
   let resolvedId = id;
   if (!resolvedId) {
     // Resolution order: explicit clientInfoHint (agent self-identifying) >
@@ -46,7 +48,7 @@ export function registerAdapterTools() {
   registerTool({
     name: 'list_adapters',
     description:
-      "List host adapters mojulo ships. An adapter is the connecting agent's first-session card (how you ride this substrate) and the bridge from a portable catalyst recipe to a host-specific artifact — a skill file, a scheduled automation, or a workflow.md + runner. Returns id, name, summary, artifactTarget, schedulingMechanism, and secretsPosture. Pair with get_adapter when a task depends on how a host handles mojulo's output.",
+      "Folded into get_adapter({ list: true }): the host adapters mojulo ships (id, name, summary, artifact target). Callable by name.",
     inputSchema: { type: 'object', properties: {} },
     handler: listAdaptersHandler,
   });
@@ -61,8 +63,9 @@ export function registerAdapterTools() {
         id: {
           type: 'string',
           description:
-            "Adapter id from list_adapters (e.g. 'claude-code', 'codex', 'generic'). When set, wins over all other resolution.",
+            "Adapter id (e.g. 'claude-code', 'codex', 'generic'; `list: true` names them). When set, wins over all other resolution.",
         },
+        list: { type: 'boolean', description: 'true: list the adapters mojulo ships instead of reading one.' },
         clientInfoHint: {
           type: 'string',
           description:

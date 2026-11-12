@@ -3,7 +3,7 @@
   "id": "trig-circle",
   "name": "Unit Circle",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive TRIGONOMETRY explainer — the UNIT CIRCLE, the one machine all of trig comes from, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'unit circle / sine cosine wave / trigonometry / radians / SOH CAH TOA'.",
   "retired_tool": "create_trig_circle_view"
@@ -14,7 +14,7 @@ Mint an interactive TRIGONOMETRY explainer — the UNIT CIRCLE, the one machine 
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which function (default 'sine'): 'sine' (height → the sine wave), 'cosine' (width → the cosine wave), 'tangent' (radius extended to the tangent line, intercept = tan θ).

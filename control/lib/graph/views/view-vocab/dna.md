@@ -3,7 +3,7 @@
   "id": "dna",
   "name": "DNA Double Helix",
   "family": "bio",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive 3D DNA DOUBLE HELIX — a science/education viewer built from a single chiral TAIJI primitive lowered to lit solids.",
   "when": "Reach for this on framing like 'show DNA in 3D / visualize this gene sequence / a double helix for the science view'.",
   "retired_tool": "create_dna_view"
@@ -14,7 +14,7 @@ Mint an interactive 3D DNA DOUBLE HELIX — a science/education viewer built fro
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `sequence` (string) — Author by SEQUENCE: a string of bases A/T/G/C (case-insensitive; other characters render as a neutral 'unknown' base). Length sets the base-pair count; each rung is split-coloured by base with its complement on the far strand.

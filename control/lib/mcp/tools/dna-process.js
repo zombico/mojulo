@@ -42,7 +42,7 @@ export function mintDnaProcess({ title, process, scene, viewBox, ref, folderRef 
 }
 
 export async function createDnaProcessHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "dna-process" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "life/dna-process" }) requires a recipe object');
   const { title, process, scene, viewBox, ref, folder_ref: folderRef } = input;
   return mintDnaProcess({ title, process, scene, viewBox, ref, folderRef });
 }

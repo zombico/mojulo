@@ -1,5 +1,5 @@
 /**
- * create_view({ kind: 'relativistic' }) — a relativistic science world: the spacetime round one non-rotating mass,
+ * create_exhibit({ id: 'science/relativistic' }) — a relativistic science world: the spacetime round one non-rotating mass,
  * composed from the relativistic law table (lib/graph/science-worlds/relativistic/): light bent round it and a disk's
  * shifted glow (drawn by a shader held to JS), bodies on geodesics, clocks held still or let fall. The agent writes
  * the model; the solver checks units, runs it and its gates; the page says what is real and what is drawn.
@@ -45,7 +45,7 @@ export function mintRelativisticView({ model, dress, liberties, title, viewBox, 
 }
 
 export async function createRelativisticViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error("create_view({ kind: 'relativistic' }) wants params: { model, dress?, liberties? }");
+  if (!input || typeof input !== 'object') throw new Error("create_exhibit({ id: 'science/relativistic' }) wants params: { model, dress?, liberties? }");
   const { model, dress, liberties, title, viewBox, scene, ref, folder_ref: folderRef, ...rest } = input;
   const extra = Object.keys(rest);
   if (extra.length) throw new Error(`science-worlds: params: unknown field '${extra[0]}' (a relativistic world's params are { model, dress?, liberties? })`);

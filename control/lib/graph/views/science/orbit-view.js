@@ -195,7 +195,7 @@ export function planOrbitScene(recipe = {}) {
   return { faces, picks, movers, planets, bounds: { center, radius }, stats: { scenario, bodies: S.bodies.length, periods: movers.map((m) => +m.period.toFixed(2)) } };
 }
 
-// ── the physical read-back channel (measure_view). The rendered path is the orrery compromise —
+// ── the physical read-back channel (get_exhibit({ ref })). The rendered path is the orrery compromise —
 // radii compressed by ORBIT_GAMMA, artistic and honest only in shape — so this recomputes the
 // SAME Kepler sweep in real units instead: positions in km in the orbital plane (periapsis
 // rotated by omega, focus at the origin), r from the true semi-major axis, speed from vis-viva,

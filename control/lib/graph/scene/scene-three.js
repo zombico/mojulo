@@ -34,6 +34,8 @@
  */
 
 import { guideScript } from './channels/guide.js';
+import { tourScript } from './channels/tour.js';
+import { syncScript } from './channels/sync.js';
 import { carriesKnock } from '../rupa/knock.js';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -273,7 +275,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, footless = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   // THE PAGE'S LIGHT, one record (scene/page-light.js): every channel below that shades or casts reads its sun from it
@@ -812,6 +814,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const terrainBlock = terrain && typeof terrain.kernel === 'string' && terrain.K ? terrainChannelScript(terrain) : '';
   // Suppressed entirely on GAME LEVELS (payload carries `game`): a level teaches its controls
   // through the shell's pause menu, and the corner hint reads as dev chrome on a play screen.
+  // a TOUR (exhibit/tour.js) rides the page: its block, the window it fills, a canvas the exhibit's glow shows through
+  const hasTour = !!(tour && Array.isArray(tour.stops) && tour.stops.length);
   const hintText = (walkCfg
     ? 'drag to orbit · <b>walk</b> = gravity + walls · <b>fly</b> = free 6DOF'
     : 'drag to orbit · scroll to zoom · right-drag to pan') + (xrCfg ? ' · <b>vr</b> = headset' : '');
@@ -1167,6 +1171,11 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
      the host gives instead of holding the authored studio pixel size — a short pane would
      otherwise clip the canvas bottom (and skew the camera aspect the fit is computed at). */
   #wrap{width:100vw;height:100vh}
+` : ''}${sync === true && !hasTour ? `  /* a framed STATE (exhibit/states.js, channels/sync.js) fills its frame, as a toured page fills its window */
+  html,body{height:100%}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
+` : ''}${hasTour ? `  /* a TOUR (exhibit/tour.js) is an exhibit: it fills the window it is shown in, a phone's or a kiosk's, so its plate is
+     always on screen (an authored studio size taller than a phone would put the plate below the fold) */
+  html,body{height:100%}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
 ` : ''}${screen ? `  /* the SCREEN the game is made for (game/screen.js): the page fills its window and #wrap holds the frame inside
      it (screenFit below), bars past its reach; the safe area is the notch's and the home bar's */
   :root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
@@ -1239,7 +1248,7 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl || hasTour ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
 ${pixel ? `// THE PIXEL LOOK (cosmos reality.medium=pixel): drawn at a ${Math.round(Number(pixel.scale))}th of the page's size and blown up
 // without smoothing, so each drawn pixel is a block on screen
 renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : pixelBudget ? `// THE PIXEL BUDGET (a game page): the screen's density capped at 1.5, then held to the frame's time: a second of slow
@@ -1652,7 +1661,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

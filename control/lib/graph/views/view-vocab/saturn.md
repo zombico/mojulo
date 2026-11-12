@@ -3,7 +3,7 @@
   "id": "saturn",
   "name": "Planets of the Solar System",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a PLANET of the solar system — Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus or Neptune — OR a GALLERY stepper through all eight, rendered by a per-pixel ray-tracing fragment shader (the same shader path as the black hole).",
   "when": "Reach for this on framing like 'show me Saturn / the planets / a solar system gallery / Jupiter's Great Red Spot / Earth / Mars / Uranus on its side'.",
   "retired_tool": "create_saturn_view"
@@ -14,7 +14,7 @@ Mint a PLANET of the solar system — Mercury, Venus, Earth, Mars, Jupiter, Satu
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `gallery` (boolean) — If true, render a GALLERY stepper through all eight planets (◀ ▶ buttons + arrow keys), one per step. Ignores `planet`.

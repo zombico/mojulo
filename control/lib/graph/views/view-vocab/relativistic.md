@@ -3,7 +3,7 @@
   "id": "relativistic",
   "name": "Relativistic science world (spacetime round one mass, composed from laws)",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Compose a general-relativity demo from a table of laws (the spacetime round one non-rotating mass; light bent round it and a disk's shifted glow; bodies on geodesics; clocks held still or let fall) instead of picking a ready-made one: checked against the exact shadow, the bending of light, the perihelion advance and the fall to the horizon, the light drawn by a shader held to JS, every row sourced and dated.",
   "when": "Reach for this when a teacher or student wants relativity worked, not just shown: 'what a black hole really looks like and why', 'how much light bends passing the Sun', 'why Mercury's orbit turns 43 arcseconds a century', 'a star orbiting close to a black hole', 'what happens to a clock falling into a black hole', 'why GPS clocks run fast', 'gravitational time dilation', 'the photon sphere and the innermost stable orbit'. The curated `black-hole` kind is one fixed picture; compose here when the mass, the observer or the setup is the teacher's. Newton's orbits are the classical scale's; a spinning hole, gravitational waves and special relativity are not in this table yet."
 }

@@ -2,7 +2,7 @@
 {
   "id": "physics-demo-for-a-class",
   "name": "Physics demo for a class",
-  "summary": "Turn a teacher's ask into a classical science world composed from Newton's laws: the claim the lesson makes goes in the model and is checked, the picture goes in the dress, every exaggeration is declared; mint it with create_view (kind 'classical'), read its gates, measure the numbers the lesson cites, and film it (run, slowed replay, end card) to MP4.",
+  "summary": "Turn a teacher's ask into a classical science world composed from Newton's laws: the claim the lesson makes goes in the model and is checked, the picture goes in the dress, every exaggeration is declared; mint it with create_exhibit (science/classical), read its gates, measure the numbers the lesson cites, and film it (run, slowed replay, end card) to MP4.",
   "valueHook": "A teacher says what the class should see; they get an interactive demo and a short film whose physics is checked against conservation laws and the textbook answer, and which says on screen what is real and what is drawn.",
   "version": 1,
   "category": "explainer",
@@ -12,7 +12,7 @@
     { "name": "audience", "prompt": "Who is it for (age or course)? It sets the callouts' words, never the physics.", "default": "secondary school" },
     { "name": "output", "prompt": "page (the interactive demo) | film (an MP4 for a slide or a video) | both", "default": "both" }
   ],
-  "mcpTools": { "mojulo": ["semantic_search", "get_view_vocab", "create_view", "measure_view", "update_sketch", "forge_motion", "compose_world"] },
+  "mcpTools": { "mojulo": ["semantic_search", "get_exhibit", "create_exhibit", "update_sketch", "forge_motion", "compose_world"] },
   "outputContract": { "summary": "One classical-view sketch (the interactive demo) and, when output includes film, one forge_motion MP4 of its film; plus a report naming the gates that ran and what they saw, the liberties the demo takes, and the numbers it cites.", "fields": ["worldRef", "worldUrl", "motionRef", "gates", "liberties"] }
 }
 ---
@@ -36,9 +36,9 @@ ask for what the explanation needs to resolve:
 | The ask needs… | Scale | What to do |
 |---|---|---|
 | bodies moving under forces, contacts, springs, orbits, fields on charges | classical | compose it (this catalyst); `dress.field` draws a charge's field as lines, a glow or equipotential shells, checked against Gauss's law |
-| molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | compose it the same way: kind `microscopic`, card `get_view_vocab({ id: 'microscopic' })` |
-| energy levels, tunnelling, two slits building their fringes dot by dot, orbitals (as points or a volume), spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_view_vocab({ id: 'quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
-| a black hole's light, Mercury's turning orbit, clocks slowed by gravity, GPS | relativistic | compose it the same way: kind `relativistic`, card `get_view_vocab({ id: 'relativistic' })`; a spinning hole, gravitational waves and special relativity are not in its table (the `black-hole` kind, called by name, draws a spinning hole; `gravity-wave` shows the waves) |
+| molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | compose it the same way: kind `microscopic`, card `get_exhibit({ id: 'science/microscopic' })` |
+| energy levels, tunnelling, two slits building their fringes dot by dot, orbitals (as points or a volume), spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_exhibit({ id: 'science/quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
+| a black hole's light, Mercury's turning orbit, clocks slowed by gravity, GPS | relativistic | compose it the same way: kind `relativistic`, card `get_exhibit({ id: 'science/relativistic' })`; a spinning hole, gravitational waves and special relativity are not in its table (the `black-hole` kind, called by name, draws a spinning hole; `gravity-wave` shows the waves) |
 
 A ready-made kind is quicker when it already *is* the demo (the mechanics kind's simple machines and engines, the
 orbit kind's solar system, the rocket and airplane missions). Compose when the setup is the teacher's own, or
@@ -46,7 +46,7 @@ should change ("what if the pendulum were on the Moon", "three balls, not two").
 
 ## Steps
 
-1. **Read the card.** `get_view_vocab({ id: 'classical' })` holds the law table (each law's parameters, units,
+1. **Read the card.** `get_exhibit({ id: 'science/classical' })` holds the law table (each law's parameters, units,
    what it leaves out, a smallest example), the dress, the film dress and worked examples. Do not compose from
    memory: the table is the vocabulary, and a law it lacks comes back as a gap.
 
@@ -66,7 +66,7 @@ should change ("what if the pendulum were on the Moon", "three balls, not two").
    true` when the lesson is about velocity or force, a `camera` that shows the motion's plane, `playback` when the
    real run is too fast or too slow to watch. The interactive page is explored, not narrated: no captions there.
 
-5. **Mint and read the gates.** `create_view({ kind: 'classical', params: { model, dress, liberties }, title })`.
+5. **Mint and read the gates.** `create_exhibit({ id: 'science/classical', params: { model, dress, liberties }, title })`.
    The response carries every gate, `{ id, want, ok, value, detail }`:
    - `closed-form:*` (the textbook answer: a period, a range, a terminal speed, a collision's outcome) is the
      sharpest check that the demo shows what physics says. When the setup has one, it should hold.
@@ -77,7 +77,7 @@ should change ("what if the pendulum were on the Moon", "three balls, not two").
    A gate that advises is about the **model**: fix the model (a shorter duration, a smaller step, real units),
    never the dress. A gate is never hidden by a caption.
 
-6. **Measure what the lesson cites.** `measure_view({ ref })` returns every body's samples and the system's
+6. **Measure what the lesson cites.** `get_exhibit({ ref })` returns every body's samples and the system's
    energy and momentum in SI. Take the numbers the callouts and the teacher will quote from here (the mint's
    `observed` covers the common ones), never from the picture.
 
@@ -100,7 +100,7 @@ should change ("what if the pendulum were on the Moon", "three balls, not two").
 ## Worked example: "a heavier pendulum doesn't swing faster"
 
 ```
-create_view({ kind: 'classical', title: 'Heavy and light pendulums', params: {
+create_exhibit({ id: 'science/classical', title: 'Heavy and light pendulums', params: {
   model: {
     bodies: [{ id: 'light', mass: '200 g', radius: '3 cm', at: [0.5, 0, 0.134] },
              { id: 'heavy', mass: '2 kg',  radius: '5 cm', at: [0.5, 1, 0.134] }],

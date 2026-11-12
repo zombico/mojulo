@@ -3,7 +3,7 @@
   "id": "galaxy",
   "name": "Galaxy",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an artistic-but-structurally-honest MILKY WAY spiral galaxy rendered by a per-pixel VOLUME raymarcher — a full-screen fragment shader that integrates EMISSION and ABSORPTION through a 3-D stellar-density field along each view ray (the…",
   "when": "Reach for this on framing like 'show me a galaxy / the Milky Way / a spiral galaxy / a barred spiral'.",
   "retired_tool": "create_galaxy_view"
@@ -14,7 +14,7 @@ Mint an artistic-but-structurally-honest MILKY WAY spiral galaxy rendered by a p
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — The look (default 'oblique'): 'oblique' (3/4 Andromeda view), 'face-on' (full pinwheel), 'edge-on' (thin disk + dust-lane silhouette).

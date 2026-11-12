@@ -3,7 +3,7 @@
   "id": "waterfall",
   "name": "Waterfall",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a WATERFALL — a river running off a cliff, falling, and plunging into a pool — three kinds (veil / curtain / horsetail), rendered in the traversable three.js World.",
   "when": "Reach for this on framing like 'a waterfall / falls / a cascade off a cliff / a plunge pool / a thin ribbon falling / a wide curtain of water / water shooting out of a notch in the rock'."
 }
@@ -20,7 +20,7 @@ The page carries a flow slider (a trickle of the fall's own flow up to five time
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which kind (default 'veil'): 'veil', 'curtain', 'horsetail'.

@@ -9,7 +9,7 @@
  * cardinality, not taste: Claude Desktop is a wirable host with no adapter card
  * of its own (it resolves `claude-code`), and `generic` is an adapter with no
  * host to detect. Folding profiles into card frontmatter would have forced a
- * phantom desktop card into `list_adapters` and into `resolveAdapterId()`'s
+ * phantom desktop card into the adapters list (`get_adapter({ list: true })`) and into `resolveAdapterId()`'s
  * substring matching, where a new `"claude"` hint could silently re-resolve
  * live sessions. Two files per host, no blast radius.
  *

@@ -116,7 +116,7 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
       // built Door-1 routing for the other families; their builder lanes come
       // by demonstrated need). A builder entry declaring a non-view entry tool
       // must not be mis-registered as a view kind.
-      if (entry.entry && entry.entry !== 'create_view') {
+      if (entry.entry && entry.entry !== 'create_exhibit' && entry.entry !== 'create_view') {
         warn(`entry '${entry.id}' declares a builder for '${entry.entry}' — no Door-2 lane exists for that family yet (views only); skipped`);
         continue;
       }

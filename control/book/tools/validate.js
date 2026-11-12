@@ -38,7 +38,8 @@ export const BOOK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  *  a card whose `entry` has no row here is skipped by the book loader with
  *  "no catalog for it in this mojulo". */
 export const CARD_CATALOGS = {
-  create_view: 'view',
+  create_exhibit: 'view',
+  create_view: 'view',   // an exhibit card's old entry (folded into create_exhibit); still loads
   compose_world: 'view',
   create_beats: 'beats',
   mint_solid: 'solid',
@@ -72,6 +73,7 @@ export const CATALOG_FAMILIES = {
  *  through CARD_CATALOGS but have no entry yet, so nothing is invented for
  *  them — add the keys with the first entry that proves the shape. */
 export const RECIPE_KEYS = {
+  create_exhibit: ['kind'],
   create_view: ['kind'],
   compose_world: ['base'],
   create_beats: ['kind'],
@@ -367,11 +369,13 @@ export async function validateBook(root = BOOK_ROOT) {
     // ---- Door 2: builder.js ---------------------------------------------
     // Only the VIEW lane exists: loader.js skips a builder declaring any other
     // entry tool ("no Door-2 lane exists for that family yet").
-    if (entry.entry !== undefined && entry.entry !== 'create_view') {
-      err(at, `builders exist only for 'create_view' — '${entry.entry}' has no Door-2 lane`);
+    // create_exhibit is the exhibit door; create_view, the door it folded, still names the same lane
+    const VIEW_LANE = ['create_exhibit', 'create_view'];
+    if (entry.entry !== undefined && !VIEW_LANE.includes(entry.entry)) {
+      err(at, `builders exist only for 'create_exhibit' — '${entry.entry}' has no Door-2 lane`);
     }
-    if (card.entry !== 'create_view') {
-      err(`${rel}/card.md`, `a builder's card must route to 'create_view' (got '${card.entry}')`);
+    if (!VIEW_LANE.includes(card.entry)) {
+      err(`${rel}/card.md`, `a builder's card must route to 'create_exhibit' (got '${card.entry}')`);
     }
     const builderPath = join(dir, 'builder.js');
     if (!existsSync(builderPath)) { err(rel, "builder.js is missing — a 'builder' entry is card + code"); continue; }

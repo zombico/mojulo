@@ -259,7 +259,7 @@ describe('runCli', () => {
       listed: false,
       handler: () => new Promise((resolve) => setTimeout(() => resolve('late'), 300)),
     });
-  });
+  }, 120_000); // registering every tool takes about 30 s with nothing cached, at the hook's default limit
 
   it('tools lists the connect surface: spine then packs, then the orient footer', async () => {
     const { lines, io } = capture();
@@ -340,7 +340,7 @@ describe('runCli', () => {
     expect(await runCli(['tools', 'pack_plan'], io)).toBe(0);
     const names = lines.out.map((l) => l.split('\t')[0]);
     expect(names).toEqual(
-      expect.arrayContaining(['enter_plan_mode', 'forge_plan', 'list_plans'])
+      expect.arrayContaining(['enter_plan_mode', 'forge_plan', 'get_plan'])
     );
 
     const bad = capture();

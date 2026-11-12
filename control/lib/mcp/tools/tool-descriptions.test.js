@@ -42,11 +42,9 @@ const DESCRIPTION_ALLOWLIST = {
   // list_catalysts 833 -> 805, meta_context_brief 972 -> 963, meta_context_commit 2635 -> 2586,
   // meta_context_declare_inventory 1405 -> 1387, pull_agent_task 762 -> 718,
   // recommend_catalysts 1042 -> 1027.
-  bind_research_item: 1233,
   // capture_reference 1523 -> 1273 and reference_protocol 1708 -> 1426 (2026-11-04, 1103-dream-loop-death-rebirth): the
   // character target joined both and the target lines were re-cut to routing grade; the protocol teaches the rest.
   capture_reference: 1273,
-  compile_plan: 841,
   // compose_world / create_sketch / get_game_vocab re-pinned 2026-07-10 to
   // bless the visualization-layer branch growth (school base + game vocab
   // families + sketch kinds). compose_world re-pinned 2026-08-10 to bless
@@ -91,15 +89,12 @@ const DESCRIPTION_ALLOWLIST = {
   // ("hero — a human by cast word + proportion tune"), the one phrase a host needs to find the
   // tune from tools/list; the tune's vocabulary itself is taught in layered.md, off-payload.
   mint_solid: 915,
-  create_view: 723,
   // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
   // bless the local-catalyst shelf: mint_catalyst is
   // the new local-shelf write path, list_catalysts/custom_catalyst grew to
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
-  custom_catalyst: 764,
   diff_sketches: 875,
-  execute_plan: 1314,
   export_beats: 1124,
   // export_game re-pinned 2026-09-03 (1253 → 1378) to bless an engine-target
   // clause that rode the third-engine-leg commit (that target since retired —
@@ -119,8 +114,6 @@ const DESCRIPTION_ALLOWLIST = {
   // recipe.json a legal input, closing the last mint-once 3D family.
   // Shrink-only from here.
   forge_motion: 1560,
-  forge_plan: 1167,
-  forge_publications: 955,
   gather: 1181,
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
   // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
@@ -129,32 +122,16 @@ const DESCRIPTION_ALLOWLIST = {
   // the lead: the families became one clause of machinery, and the rail's guide, page cards and samples are off-payload.
   get_game_vocab: 858,
   get_image_render_packet: 708,
-  get_mcp_capabilities: 890,
-  get_register_kit: 731,
-  get_tool_ledger: 937,
-  get_worked_example: 903,
   list_catalysts: 805,
-  // measure_view re-pinned 2026-08-24: rocket-view landed as a measurable
-  // kind (full-mission SI telemetry) and the description gained its one-line
-  // column note. Shrink-only from here.
-  measure_view: 1423,
   mint_catalyst: 850,
-  meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
   recommend_catalysts: 1027,
-  recommend_kind: 922,
-  record_mcp_capabilities: 1301,
   reference_protocol: 1426,
   semantic_search: 2049,
-  sketch_plan: 774,
-  sketch_research: 712,
-  sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
-  synthesize_abstract: 1420,
   translate_modeler_lingo: 1178,
-  verify_machina: 2180,
 };
 
 // Whole-body pin: baseline 314,028 bytes at ratchet time. Deliberate growth
@@ -442,7 +419,49 @@ const DESCRIPTION_ALLOWLIST = {
 // name mangekyou, lib/graph/mangekyou/): run_experiment_sweep's `{ ref, concept, n }` form, folded into the variations
 // door rather than listed, ten schema properties (concept, n, at, principles, keep, reject, spread, roll, mint, by) held
 // to a clause each; design_game's `vary` (a department's variations, proposed) fits under the same pin. No new tool.
-const PAYLOAD_CEILING = 213_100;
+// Lowered 2026-11-10 on 1110-exhibit-mode (213_100 -> 211_400; measured 211,344, 213,094 before) for the exhibit
+// doors: create_view and measure_view folded into create_exhibit and get_exhibit (by hall: science, space, earth, life,
+// math, history; no kind enum on the door, the read-back a clause), get_view_vocab narrowed to compose_world's manuals.
+// Two tools off the list. No new tool beyond the fold.
+// Raised 2026-11-10 on 1110-exhibit-mode (211_400 -> 211_600; measured 211,503) for the tour: create_exhibit's `tour`
+// (an exhibit's stops, each a camera, a caption and the groups it lights), one schema property; its grammar on the
+// `tour` view-vocab card, off-payload. Still below the 213_100 the fold started from. No new tool.
+// Raised 2026-11-10 on 1110-exhibit-mode (211_600 -> 211_800; measured 211,759) for galleries and the exhibit check:
+// create_exhibit's `rooms` (made exhibits joined as one gallery, a kiosk too; `id` no longer required) and a clause for
+// it, get_exhibit's `audit` (the exhibit's machine gate: tour, claims, reading). Two schema properties; their grammar on
+// the `tour` view-vocab card. Still 1,300 below the 213_100 the fold started from. No new tool.
+// Raised 2026-11-10 on 1110-exhibit-mode (211_800 -> 212_000; measured 211,933) for the expert's brief:
+// create_exhibit's `brief` (the aims, the audiences, the claims with their sources, the expert; the sign-off recorded
+// through update_sketch), one schema property; its grammar and the accuracy gate on the `tour` card. Still 1,100 below
+// the 213_100 the fold started from. No new tool.
+// Raised 2026-11-10 on 1110-exhibit-mode (212_000 -> 212_200; measured 212,125) for prepared states:
+// create_exhibit's `states` (one exhibit at several settings, switched in one page keeping the camera), one schema
+// property; its grammar on the `tour` card. Still 975 below the 213_100 the fold started from. No new tool.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (212_200 -> 199_600; measured 199,558, 212,165 before) for two retirements:
+// the research book's seven tools (the stash is the gathering path, and the only one a cook reads) and the three stash
+// link tools (no build, cook or page read a link). Ten tools off the list; run_experiment_sweep stays, homed in
+// pack_plan, its mechanics form no longer asking for a research book. No new tool.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (199_600 -> 195_900; measured 195,837, 199,558 before) for verify_machina:
+// its 2,180-char description and per-parameter schema prose moved to the `machina` solid-vocab card
+// (get_solid_vocab({ id: 'machina' })); the description is routing grade, under the ceiling, off the allowlist.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (195_900 -> 194_000; measured 193,962) for three folded readers:
+// list_adapters is get_adapter({ list }), custom_catalyst is mint_catalyst({ guide }), list_world_themes is
+// get_view_vocab({ themes }). Three tools off the list, one argument each on the door that owned the intent.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (194_000 -> 191_100; measured 191,051) for the capability trio's diet:
+// record_mcp_capabilities, get_mcp_capabilities and meta_context_declare_inventory cut to routing grade (each under the
+// ceiling, off the allowlist), their schema prose trimmed. They stay listed: make-stuffy and catalyst matching use them.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (191_100 -> 189_200; measured 189,120) for the spine's diet: get_register_kit,
+// get_ui_map, get_worked_example, check_for_updates and get_tool_ledger cut to routing grade (the three allowlisted ones
+// now under the ceiling), and the register / disclosure argument notes said once, shortly. The names and what each
+// returns are unchanged: the connect-time preamble and forward_context name them.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (189_200 -> 185_100; measured 185,013) for the plan tools: list_plans folded
+// into get_plan (no plan_ref: the inbox), and enter / forge / revise / sketch / compile / execute cut to routing grade
+// (four leave the allowlist; forge_plan's schema prose said once). One tool off the list, no behaviour changed.
+// Lowered 2026-11-11 on 1111-mcp-cleanup (185_100 -> 179_900; measured 179,797) for the stash tools: list_stashes
+// and list_cooks folded into get_stash and get_cook (no ref: the list), and the housekeeping tools (mint / rename /
+// drawer / update / archive, recommend_kind, sketch_stash, forge_publications) cut to routing grade; three leave the
+// allowlist. Two tools off the list, no behaviour changed.
+const PAYLOAD_CEILING = 179_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

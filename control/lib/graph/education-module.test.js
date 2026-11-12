@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EDUCATION_VIEW_KINDS, sketchRenderMode, classifyBucket } from './sketch/sketch-manifest.js';
 import { resolveWorldScene } from './worlds/world-scene.js';
-import { listTools } from '@/lib/mcp/server';
+import { listTools, getRegisteredTool } from '@/lib/mcp/server';
 
 // The education module — math explainers, the sibling family to the science views. This test locks the
 // whole wiring end to end: routing → world-scene dispatch → MCP tool registration, for every kind.
@@ -50,7 +50,7 @@ describe('education module — world-scene dispatch', () => {
 });
 
 describe('education module — MCP tool registration', () => {
-  it('every education kind is a create_view kind (math family) with an unlisted deprecated alias', async () => {
+  it('every education kind is a create_view kind (math family) and a math-hall exhibit, its old names unlisted', async () => {
     // The per-kind create_*_view registrations retired into the consolidated
     // create_view entry (see lib/mcp/tools/tool-list-drawerization.plan.md).
     // What this locks now: each education kind has a VIEW_KINDS row in the
@@ -60,8 +60,10 @@ describe('education module — MCP tool registration', () => {
     // mint's own validation).
     const { VIEW_KINDS } = await import('@/lib/mcp/tools/create-view.js');
     const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view.js');
+    const { registerExhibitTools, exhibitCards } = await import('@/lib/mcp/tools/create-exhibit.js');
     const { getViewVocabCatalog } = await import('@/lib/graph/views/view-vocab/loader.js');
     registerCreateViewTools();
+    registerExhibitTools();
 
     // Force flat: this asserts BOTH that create_view is on the listed surface
     // and that retired aliases are absent from it — packs mode (now the default)
@@ -71,9 +73,12 @@ describe('education module — MCP tool registration', () => {
     const byName = new Map(listTools().map((t) => [t.name, t]));
     if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
     else process.env.MOJULO_TOOL_PACKS = prevPacks;
-    const createView = byName.get('create_view');
+    // create_view folded into create_exhibit (1110): registered and callable, never listed; its enum still names each kind
+    expect(byName.has('create_exhibit'), 'create_exhibit listed').toBe(true);
+    const createView = getRegisteredTool('create_view');
     expect(createView, 'create_view not registered').toBeTruthy();
     const kindEnum = createView.inputSchema?.properties?.kind?.enum || [];
+    const exhibits = new Set(exhibitCards().keys());
     const catalog = getViewVocabCatalog();
 
     for (const [kind, toolName] of Object.entries(TOOL_OF)) {
@@ -83,6 +88,7 @@ describe('education module — MCP tool registration', () => {
       expect(entry.family, `${shortKind} family`).toBe('math');
       expect(entry.retired).toBe(toolName);
       expect(kindEnum, `${shortKind} missing from create_view kind enum`).toContain(shortKind);
+      expect(exhibits.has(`math/${shortKind}`), `${shortKind} is no math-hall exhibit`).toBe(true);
       // The retired name resolves but is NOT listed.
       expect(byName.has(toolName), `${toolName} should be unlisted`).toBe(false);
       // The scenario documentation moved into the kind's vocab card.

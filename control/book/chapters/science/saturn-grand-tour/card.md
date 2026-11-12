@@ -3,7 +3,7 @@
   "id": "saturn-grand-tour",
   "name": "Grand tour — the ringed planets",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint preset: the saturn kind's gallery mode — every ringed planet lined up in one raytraced scene, rings casting and catching shadows.",
   "when": "show all the ringed planets together; a grand tour of the gas giants; compare Saturn's rings with Uranus and Neptune's"
 }

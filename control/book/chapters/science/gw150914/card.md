@@ -3,7 +3,7 @@
   "id": "gw150914",
   "name": "GW150914 — the first detection",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "A ready-to-mint preset: the gravity-wave kind tuned to the GW150914-like merger — the violent few-cycle chirp of two ~30-solar-mass black holes, amplitude raised so the merger flash reads.",
   "when": "show the first gravitational wave ever detected; the LIGO discovery; two black holes merging; what a chirp is"
 }

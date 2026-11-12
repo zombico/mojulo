@@ -2,7 +2,7 @@
  * View vocabulary loader.
  *
  * One card per visual KIND behind the two consolidated entry tools:
- *   - `create_view` kinds (science / math / bio study objects — the former
+ *   - exhibits (`create_exhibit`, by hall; science / math / bio study objects — the former
  *     43 `create_*_view` tools), and
  *   - `compose_world` bases (family `world` — the former per-type world
  *     creators: city, transport-hub, controllable, action, operator,
@@ -14,7 +14,7 @@
  * source_kind='view_vocab' (see lib/db/repositories/embeddings.js →
  * reindexAll); the agent discovers a kind via
  * `semantic_search({ kinds: ['view_vocab'] })` and reads the full card via
- * the `get_view_vocab` MCP tool before composing `params` / `overrides`.
+ * `get_exhibit` (an exhibit) or `get_view_vocab` (a world manual) before composing `params` / `overrides`.
  * Cards deliberately do NOT name entry tools in their bodies (the `entry`
  * frontmatter field carries that) — tool names live in tool descriptions,
  * not in curated card prose. See tool-list-drawerization.plan.md.
@@ -38,7 +38,8 @@ const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/views/view-vocab');
 // ("show my student nuclear fission") matches before the geometry prose does.
 const REQUIRED_FIELDS = ['id', 'name', 'family', 'entry', 'summary', 'when'];
 const VALID_FAMILIES = new Set(['science', 'math', 'bio', 'world']);
-const VALID_ENTRIES = new Set(['create_view', 'compose_world']);
+// create_exhibit: an exhibit's card (create_view, its old door, still loads); compose_world: a world base's manual.
+const VALID_ENTRIES = new Set(['create_exhibit', 'create_view', 'compose_world']);
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 let cache = null;
@@ -107,14 +108,14 @@ export function getViewVocabCatalog() {
     catalog.set(card.id, card);
   }
   // Attached recipe-book cards (recipe-book.plan.md) — merged AFTER core so
-  // discovery (semantic_search), the get_view_vocab reader, and the embeddings
+  // discovery (semantic_search), the get_exhibit / get_view_vocab readers, and the embeddings
   // reindex all see one catalog. Book cards are routed here by their `entry`
   // frontmatter (the Phase-4 multi-family rule — beats/solid/motion cards go
   // to THEIR catalogs); family rules are enforced at merge time, tolerantly —
   // the book is user-editable, so warn-and-skip, never throw. On an id
   // collision CORE WINS (a clone must not shadow a core manual). Absent a
   // book ⇒ readBookCards returns [].
-  for (const card of readBookCards({ entries: ['create_view', 'compose_world'] })) {
+  for (const card of readBookCards({ entries: ['create_exhibit', 'create_view', 'compose_world'] })) {
     if (!VALID_FAMILIES.has(card.family)) {
       console.warn(`view-vocab: book card '${card.id}' has family '${card.family}' — not a view family; skipped`);
       continue;

@@ -3,7 +3,7 @@
   "id": "derivative",
   "name": "Derivative",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive CALCULUS explainer — the DERIVATIVE as the slope of the tangent line, reached as a LIMIT, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'derivative / tangent line / slope / limit / secant / rate of change / differentiation'.",
   "retired_tool": "create_derivative_view"
@@ -14,7 +14,7 @@ Mint an interactive CALCULUS explainer — the DERIVATIVE as the slope of the ta
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which curve (default 'parabola'): 'parabola' (f = x²), 'cubic' (f = x³), 'sine' (f = sin x), 'exp' (f = eˣ, slope = height).

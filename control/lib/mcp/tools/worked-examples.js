@@ -32,6 +32,7 @@ Pass \`paradigm\` to read one annotated trace (real call sequence, gate moments 
 
 - \`game\` — mint a level world → watch the promotion gate refuse it → prove it completable → mint the game. The flagship verification-gate trace.
 - \`media\` — stash → gather typed items (one rejection shown) → cook a publication.
+- \`exhibit\` — a museum exhibit from an expert's brief: claims from the record, a tour, its refusal, the page check, a wing, the sign-off.
 
 Each trace is illustrative (your refs and values will differ) but the call sequence, gate order, and refusal shapes are real.`;
 
@@ -82,9 +83,28 @@ Add a visual: \`create_sketch({ title: 'Yield by plot', manifest: { marks: […]
 
 **5. Afterlife.** The cook is a first-class deliberation node: \`get_cook({ cook_ref })\` from any ring; if it later reads as tractable work, plan mode seeds from it (\`forge_plan({ source: { kind: 'cook', cook_ref } })\`) — a plan-side decision, not a cook outlet. Housekeeping: \`archive_cook({ cook_ref })\` clears the inbox without touching the folder.`;
 
+const TRACE_EXHIBIT = `# Worked example — Exhibit (a museum exhibit from an expert's brief)
+
+**The shape:** an expert brings what a visitor should leave understanding and the claims, with their sources; you stage them on a world as a tour of stops. Three gates, never conflated: the machine gate (the audit, the page check) is yours to run; the eyes gate is the operator's (they look); the accuracy gate is the expert's (they sign the claims). You never claim the last two.
+
+**1. Find the ground.** \`get_exhibit({ hall: 'history' })\` → the hall's rows; \`get_exhibit({ id: 'history/pompeii' })\` → its card: the record it is built from (each fact cited, how far checked), its assets, its starters. A science exhibit is the same move: \`get_exhibit({ id: 'earth/hydro' })\`.
+
+**2. Make it, told.** *(the brief and the tour ride the recipe as data)*
+\`create_exhibit({ id: 'history/pompeii', params: { parts: true, people: { year: 79 } }, curation: { aims: ['…'], audiences: ['general', 'child'], claims: [{ id: 'large-theatre', text: 'The large theatre seated about 5,000…', cite: ['Wikipedia (it), Teatro Grande (Pompei) (2026)'], grade: 'attested' }] }, tour: { title: 'A walk through Pompeii', stops: [{ id: 'theatre', caption: '…', captions: { child: '…' }, camera: { frame: 'asset:pp-theatre', from: 'top' }, highlight: ['asset:pp-theatre'], claims: ['large-theatre'] }] } })\`
+→ \`{ ref: 'sk_pompeii', audit: { findings, accuracy: { state: 'unsigned' } }, catalogue }\`. \`parts: true\` names the town's pieces as groups (\`monument:<id>\`, \`asset:<id>\`) so a stop can light one. Take claims from the record, never above it: a fact read in a source is \`attested\`, one only a secondary page or a standard account gives is \`reconstructed\`.
+
+**3. Walk into the gate.** A stop lighting \`asset:pp-amphitheatre\` (not in the frame) comes back **refused**: \`tour_refused: "… names no group … (its groups: monument:capitolium, asset:pp-theatre, …)"\`. The exhibit stays made; the tour is not set. Recovery: \`update_sketch({ ref: 'sk_pompeii', patch: [{ op: 'set', path: '/tour', value: { …the stop re-aimed at a group the refusal lists… } }] })\`.
+
+**4. Check what a visitor sees.** *(the machine gate, twice)* \`get_exhibit({ ref: 'sk_pompeii', audit: true })\` reads the tour and brief (an uncited claim, a stop with no words for an audience, a reading too long). Then \`export_model({ ref: 'sk_pompeii', format: 'html' })\` (its \`where\` says web or download: say its \`tell\` to the person before they open it) and \`node scripts/exhibit-audit.mjs <world.html>\` seats every stop in a browser: a lit part off screen or too small is named, and a world camera facing a wall shows up here. Then the operator looks: the eyes gate.
+
+**5. A wing.** Several made exhibits, joined: \`create_exhibit({ rooms: ['sk_dam', 'sk_penstock', 'sk_head'], title: 'Hydroelectric power', params: { intro: '…', kiosk: true } })\` → a gallery with a lobby and a kiosk's attract loop; a room may be prepared states (\`create_exhibit({ id: 'earth/hydro', states: { label: 'Head', of: [{ label: '30 m', params: { head: 30 } }, …] } })\`). Its catalogue (\`/api/sketches/<ref>/bible\`) prints every claim with its sources and the sign-off as it stands.
+
+**6. The expert signs.** Hand them the catalogue. When the operator says the expert has signed, record it in the brief (\`curation.signoff: { by, on: 'YYYY-MM-DD', claims: 'all' }\`) through \`update_sketch\`; a claim changed later reads "changed since it was signed". Never write it for them.`;
+
 const TRACES = {
   game: TRACE_GAME,
   media: TRACE_CREATIVE_MINT,
+  exhibit: TRACE_EXHIBIT,
 };
 
 export const WORKED_EXAMPLE_PARADIGMS = Object.keys(TRACES);
@@ -135,7 +155,7 @@ export function registerWorkedExampleTools() {
   registerTool({
     name: 'get_worked_example',
     description:
-      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs made, dry-run vs promoted, machine gate vs eyes gate), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
+      "One annotated end-to-end trace of a successful build: the real call sequence with realistic args, the gates named where they happen (proposed vs made, machine gate vs eyes gate) and one refusal with its recovery, so the first 'no' you meet is a shape you know. `game` (a level refused, proved completable, re-minted), `media` (stash → gather → cook), `exhibit` (a brief → a tour); omit `paradigm` for the index. Pull BEFORE your first build of a kind. Refs and values are illustrative; the sequence, gate order and refusals are real. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {

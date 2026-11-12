@@ -87,7 +87,7 @@ export function lineageCard() {
   for (const e of edges) lines.push(`- ${e.to} ← ${e.from} (${e.kind}: ${e.parts.join(', ')})${e.note ? ` — ${e.note}` : ''}`);
   const roots = Object.keys(C).filter((id) => !(C[id].draws || []).length);
   lines.push('', `Roots (draw on no culture here): ${roots.join(', ')}.`);
-  return { id: 'historic-lineage', name: 'The lineage of the historic cultures', family: 'entry', entry: 'create_sketch', generated: true,
+  return { id: 'historic-lineage', name: 'The lineage of the historic cultures', family: 'entry', entry: 'create_exhibit', generated: true,
     summary: 'How the historic cultures draw on each other: continues, inherits, contact, contemporary, variant.',
     when: '"lineage", "influence", "what came before", "built on", "successor", "descended from", "culture tree", "start a new civilization from"',
     body: lines.join('\n') };
@@ -139,13 +139,13 @@ export function entryCard(id) {
     ...(statueSlotText(id) ? [`STATUES    World opt-in: "statues": "carved" (each slot its period's statue) or [{ "ref"|"form"|"hero", "at", "figure"? }]: ${statueSlotText(id)}.`] : []),
     ...(soundtrackMood(id) ? [`SOUND      opt-in: "audio": { "soundtrack": "default" } plays "${historicSoundtrack(id).title}" (the seed varies it). Instruments ATTESTED, pitches CONJECTURAL.`] : []),
     '',
-    'STARTERS (manifests: copy one, change it, mint it)',
+    'STARTERS (create_exhibit params: copy one, change it, mint it)',
     ...starters(id).map(([label, m]) => `  ${label}: ${JSON.stringify(m)}`),
     '',
     `RIFF  A seed, a scene, a focus, a view or a form change (an unknown one is refused with the list) keeps it this entry. A level, a fantasy town or an ${K.region || 'era'}-inspired scene built in another kind after these parts is a derived work: caption it "inspired by ${d.subject}", never as the place itself.`,
   ];
   return {
-    id, name: d.subject, family: 'entry', entry: 'create_sketch', generated: true,
+    id, name: d.subject, family: 'entry', entry: 'create_exhibit', generated: true,
     summary: d.caption,
     when: whenOf(id, K),
     body: lines.join('\n'),
@@ -171,7 +171,7 @@ export function recordCard(id) {
   if (style) lines.push('', 'HOW IT IS DRAWN (style card principles, each machine-checked):', ...style.principles.map((p) => `- ${p}`));
   let body = lines.join('\n');
   if (body.length > RECORD_BODY_CEILING) body = `${body.slice(0, body.lastIndexOf('\n', RECORD_BODY_CEILING - 60))}\n… (the rest of the record is in its source file)`;
-  return { id: `${id}/record`, name: `${K.label}: the record`, family: 'entry', entry: 'create_sketch', generated: true, index: false,
+  return { id: `${id}/record`, name: `${K.label}: the record`, family: 'entry', entry: 'create_exhibit', generated: true, index: false,
     summary: `The sources and confidence behind the ${K.label} entry.`, when: `"how do we know", "sources for ${K.label.toLowerCase()}"`, body };
 }
 
@@ -185,7 +185,7 @@ export function hubCards() {
     const body = [`# ${Rg.label}`, '', `Entries in time order (${fmtSpan(span)}). Open the one the ask names; for a general "${region}" ask, offer the choice. Each is a general depiction of its period, with anachronisms to expect.`, '',
       ...sorted.map((i) => `- '${i}': ${describeHistoric({ culture: i }).caption}`), '',
       `An ${region}-inspired level or scene is built after an entry's parts (each entry lists them) and is captioned as inspired by it, not as the place.`].join('\n');
-    return { id: region, name: Rg.label, family: 'entry', entry: 'create_sketch', generated: true,
+    return { id: region, name: Rg.label, family: 'entry', entry: 'create_exhibit', generated: true,
       summary: `${Rg.label}: ${sorted.map((i) => HISTORIC_CULTURES[i].label).join(', ')}.`,
       when: dedupe([...Rg.aliases, ...ids.flatMap((i) => HISTORIC_CULTURES[i].aliases || [])]).map((w) => `"${w}"`).join(', '), body };
   });

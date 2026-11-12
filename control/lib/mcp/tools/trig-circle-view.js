@@ -38,7 +38,7 @@ export function mintTrigCircleView({ title, scenario, angle, scale, viewBox, sce
 }
 
 export async function createTrigCircleViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "trig-circle" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/trig-circle" }) requires a recipe object');
   const { title, scenario, angle, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintTrigCircleView({ title, scenario, angle, scale, viewBox, scene, ref, folderRef });
 }

@@ -55,4 +55,21 @@ describe('the historic world kind', () => {
     const named = await WORLD_KINDS.historic.resolve({ kind: 'historic', culture: 'polis' }, { title: 'my polis' });
     expect(named.title).toBe('my polis');
   });
+
+  it('names its parts as render groups only when asked (parts: true), so a tour can light one; absent adds nothing', () => {
+    expect(() => historicOptions({ culture: 'sumer', parts: 'yes' })).toThrow(/parts is true/);
+    expect(historicOptions({ culture: 'sumer', parts: false }).opts.parts).toBeUndefined();
+    const culture = Object.keys(HISTORIC_CULTURES)[0];
+    const plain = assembleHistoricKindScene({ kind: 'historic', culture, scene: 'city' });
+    const parted = assembleHistoricKindScene({ kind: 'historic', culture, scene: 'city', parts: true });
+    expect(JSON.stringify(assembleHistoricKindScene({ kind: 'historic', culture, scene: 'city', parts: false }))).toBe(JSON.stringify(plain));
+    const groups = (p) => [...new Set(p.faces.map((f) => f.group).filter(Boolean))];
+    expect(groups(plain)).toEqual([]);
+    const named = groups(parted);
+    expect(named.some((g) => g.startsWith('monument:'))).toBe(true);
+    expect(named.some((g) => g.startsWith('asset:'))).toBe(true);
+    // the same town, only named: as many faces, the same places
+    expect(parted.faces.length).toBe(plain.faces.length);
+    expect(parted.faces.map((f) => { const { group: _g, ...rest } = f; return rest; })).toEqual(plain.faces);
+  });
 });

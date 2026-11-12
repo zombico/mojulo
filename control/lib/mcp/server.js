@@ -78,7 +78,7 @@ export const SERVER_INSTRUCTIONS = `Mojulo is a **3D compiler for agents** on th
 What it makes, by what people do with it:
 - **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. It plays in the browser or as a desktop app; a team's engine gets its levels and assets.
 - **Print**: solids at true scale, \`mint_solid\` then \`export_model\` (STL or 3MF, mm, z-up); a house is \`mint_building\`.
-- **Read**: diagrams, illustrations, science views, covers and publications: \`create_sketch\`, \`create_view\`, \`cook\`.
+- **Read**: diagrams, illustrations, exhibits, covers and publications: \`create_sketch\`, \`create_exhibit\`, \`cook\`.
 - **Hear**: scores, sound effects and voices: \`create_beats\`, \`create_voice\`.
 - **Observe**: any of them watched: turntables, flythroughs, recorded runs: \`forge_motion\`.
 
@@ -595,9 +595,10 @@ async function registerAllTools() {
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
+  const { registerExhibitTools } = await import('@/lib/mcp/tools/create-exhibit');
   const { registerSaveRecipeTools } = await import('@/lib/mcp/tools/save-recipe');
   // Attached recipe books: load the operator's cookbook
-  // + cloned Door-2 builders BEFORE create_view registers, so its kind enum
+  // + cloned Door-2 builders BEFORE create_view (and create_exhibit) registers, so its kind enum
   // and dispatch include book kinds from the first tools/list. Absent any
   // book this resolves the empty snapshot instantly.
   const { ensureBookLoaded } = await import('@/lib/graph/views/recipe-book/loader');
@@ -687,12 +688,10 @@ async function registerAllTools() {
   // first. See lite-template/integration/app-system/0527/plan-feature/
   // PLAN_MODE.md.
   registerPlanModeTools();
-  // Ring 9 (research mode) — the ACCRETIVE / exploratory layer upstream of
-  // plans. A low-prominence OPTIONAL DRAWER (posture-sibling to sketches):
-  // deliberately NOT woven into forward_context, entered only when the user
-  // asks to research/gather. The legacy research-book path still ships
-  // (start_research / bind_research_item / synthesize_abstract) for existing
-  // books; new gatherings should prefer the typed-intake stash path below.
+  // Ring 9 (the research book) — the accretive layer upstream of plans, retired
+  // from the list (packs.js RETIRED_PACKS): start_research / bind_research_item /
+  // synthesize_abstract and their readers stay registered and callable by name
+  // for existing books; gatherings go through the typed-intake stash path below.
   // synthesize_abstract hands a distilled thesis from a legacy book to plan
   // mojulo via the research→plan bridge (lib/research/evaluate.js, surfaced
   // over HTTP at POST /api/plans/from-abstract); cook outcomes hand to plan
@@ -703,10 +702,9 @@ async function registerAllTools() {
   // lite-template/integration/app-system/0528/research-mode.md and
   // 0601/RESEARCH_PATH_CONVERGENCE.md for the cook-stays-at-cook framing.
   registerResearchModeTools();
-  // run_experiment_sweep — the parameter sweep as one deterministic call: N mechanics-view
-  // mints + N provenance-carrying experiment binds + an auto-plotted param-vs-outcome
-  // figure, all into one research book. Registers immediately after research-mode so the
-  // sweep verb reads beside the bind/synthesize verbs it composes.
+  // run_experiment_sweep — variations in one call (homed in pack_plan). Its mechanics form is
+  // the parameter sweep: N mechanics-view mints, their SI outcomes and an auto-plotted
+  // param-vs-outcome figure in one folder, or bound into a research book already made.
   registerResearchSweepTools();
   // Ring 9 (stash mode) — the sharper-edged successor to research_sessions.
   // Gather/Stash/Drawer with a typed intake contract (seven item types, each
@@ -782,27 +780,22 @@ async function registerAllTools() {
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png.
   registerCoverTools();
-  // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
+  // compose_world (its themes read by get_view_vocab({ themes })) — the generic world-composer: a BASE (geometry generator)
   // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
   // render path as create_fractal_city. One tool → many worlds; themes extensible across
   // earth/scifi/fantasy families. MVP base: 'city'.
   registerComposeWorldTools();
-  // create_view / get_view_vocab — the consolidated study-object entry point
-  // (science / math / bio explainers; the former 43 create_*_view tools) plus
-  // the vocab-card reader that also serves compose_world's base manuals. The
-  // per-kind prose lives in view-vocab cards behind semantic_search.
-  // Registers right after compose_world so
-  // the two consolidated visual entries read adjacently in tools/list. The
-  // retired per-kind names remain callable as unlisted aliases.
+  // create_view / get_view_vocab — the study-object kinds (science / math / bio; the former 43 create_*_view tools) and
+  // the view-vocab reader. create_view is a folded door now (create_exhibit's, below: callable, never listed); the
+  // reader stays listed as compose_world's manual reader (family 'world'). Registers right after compose_world.
   registerCreateViewTools();
-  // save_recipe — the cookbook write path:
-  // promote a minted study object into the operator's own recallable catalog
-  // entry. Registers beside create_view so mint and keep read adjacently.
+  // create_exhibit / get_exhibit (1110) — the exhibit doors: a study object, a science world or a historic culture by
+  // hall (lib/graph/exhibit/halls.js). They fold create_view and measure_view (RETIRED_PACKS' folded doors).
+  registerExhibitTools();
+  // save_recipe — the cookbook write path: promote a minted exhibit into the operator's own recallable catalog
+  // entry. Registers beside create_exhibit so mint and keep read adjacently.
   registerSaveRecipeTools();
-  // measure_view — the physical read-back channel for the SI-honest science views
-  // (mechanics-view dynamics, orbit-view): re-plan from the stored recipe, return the
-  // time-series in declared real units. Registers right after create_view so mint and
-  // measure read adjacently in tools/list. Also exports recomputeViewStats — the
+  // measure_view — folded into get_exhibit({ ref }): callable, never listed. Also exports recomputeViewStats — the
   // deterministic reviewer behind research mode's synthesize_abstract({ review:true }).
   registerMeasureViewTools();
   registerMachinaTools();

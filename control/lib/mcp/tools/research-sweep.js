@@ -4,26 +4,27 @@
  * Three forms. `{ ref, path, values }` varies any stored recipe at one JSON Pointer: a new sketch per value, all in one
  * new folder (variationSweep below). `{ ref, concept, n }` is a mangekyou order (lib/graph/mangekyou/): n visual
  * variants of the design in words, routed to the department that owns it, pass after pass (mangekyouSweep below).
- * `{ research_ref, base, param, values }` is the mechanics experiment, below.
+ * `{ base, param, values }` is the mechanics experiment, below.
  *
  * A parameter sweep is what every quantitative question actually is ("what happens to X as
- * I vary Y?"), and before this verb it lived as N manual mints + N manual binds with the
- * discipline documented only in the numerical-experiment-notebook catalyst. This tool
- * formalizes that loop in one deterministic call: per swept value it mints the science
- * view, derives SI outcomes from the measure channel, and binds one provenance-carrying
- * `experiment` item; then it auto-plots param-vs-outcome (experimentsToChartManifest — a
- * pure derive, sibling of the research hub-spoke) and binds the figure as a `sketch` item.
- * The book ends the call holding the whole experiment: hypothesis-ready inputs, N
- * reproducible runs, one comparative figure.
+ * I vary Y?"). The mechanics form runs that loop in one deterministic call: per swept value it
+ * mints the science view and derives SI outcomes from the measure channel, then auto-plots
+ * param-vs-outcome (experimentsToChartManifest, a pure derive). The runs and the plot land in
+ * one new folder, and the call answers the whole experiment: N reproducible runs, their
+ * outcomes, one comparative figure.
+ *
+ * `research_ref` is the form from before the research book retired (packs.js RETIRED_PACKS): with
+ * it, each run is bound into that book as a provenance-carrying `experiment` item and the plot as
+ * a `sketch` item, no folder made, exactly as a book already in use expects.
  *
  * v0 sweeps mechanics-view DYNAMICS recipes only — the SI-honest, single-body scenarios
  * the sampler accepts. Orbit scenarios are presets with nothing numeric to sweep; the
- * non-SI views are excluded by the same honesty boundary measure_view enforces. Gates run
- * up front (session, param allowlist, scenario measurable via a dry sample of the base
- * recipe) so a sweep never half-binds into the book on a bad recipe.
+ * non-SI views are excluded by the same honesty boundary get_exhibit's read-back enforces. Gates run
+ * up front (the book when one is named, param allowlist, scenario measurable via a dry sample of
+ * the base recipe) so a sweep never half-mints on a bad recipe.
  *
- * Coupling: imports research-mode's bind handler (same ring, same gate the agent would
- * hit), the mechanics mint, and the graph-side sampler/derive. Nothing here is imported
+ * Coupling: imports research-mode's bind handler (for a book already made), the mechanics mint,
+ * and the graph-side sampler/derive. Nothing here is imported
  * by plan mode or the views — the one-way discipline holds.
  */
 
@@ -254,20 +255,21 @@ const MANGEKYOU_KEYS = ['concept', 'n', 'at', 'principles', 'keep', 'reject', 's
 
 export async function runExperimentSweepHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
-    throw new Error('run_experiment_sweep requires { ref, concept, n } (variations in words), { ref, path, values } (one value swept) or { research_ref, base, param, values } (a mechanics experiment)');
+    throw new Error('run_experiment_sweep requires { ref, concept, n } (variations in words), { ref, path, values } (one value swept) or { base, param, values } (a mechanics experiment)');
   }
   if (input.ref !== undefined) {
     if (typeof input.ref !== 'string' || !input.ref) throw new Error('`ref` is a sketch ref');
-    if (input.research_ref !== undefined || input.base !== undefined) throw new Error('`ref` varies a stored recipe; `research_ref` + `base` run a mechanics experiment. Pass one form.');
+    if (input.research_ref !== undefined || input.base !== undefined) throw new Error('`ref` varies a stored recipe; `base` + `param` run a mechanics experiment. Pass one form.');
     if (input.path === undefined && input.values === undefined) return mangekyouSweep(input);
     const stray = MANGEKYOU_KEYS.filter((k) => input[k] !== undefined);
     if (stray.length) throw new Error(`{ ref, path, values } sweeps one value; ${stray.join(', ')} belong to { ref, concept, n } (variations in words). Pass one form.`);
     return variationSweep(input);
   }
   const { research_ref, base, param, values, outcome } = input;
-  if (!research_ref || typeof research_ref !== 'string') throw new Error('research_ref is required');
-  const session = ResearchRepository.getSession(research_ref);
-  if (!session) throw new Error(`Research session '${research_ref}' not found.`);
+  // a research book already made (the retired form): the runs bind into it. Without one they land in a folder.
+  if (research_ref !== undefined && (!research_ref || typeof research_ref !== 'string')) throw new Error('`research_ref` names a research book already made; omit it and the runs land in one new folder');
+  const session = research_ref ? ResearchRepository.getSession(research_ref) : null;
+  if (research_ref && !session) throw new Error(`Research session '${research_ref}' not found.`);
   if (!base || typeof base !== 'object') throw new Error('base is required — a mechanics-view recipe object ({ scenario, … })');
   if (base.kind !== undefined && base.kind !== 'mechanics-view') {
     throw new Error(`run_experiment_sweep v0 sweeps mechanics-view recipes only (got kind '${base.kind}').`);
@@ -286,17 +288,20 @@ export async function runExperimentSweepHandler(input, _ctx) {
 
   const { mintMechanicsView, sampleMechanicsPhysics, MEASURABLE_MECHANICS_SCENARIOS } = await loadMechanics();
 
-  // dry gate: the base recipe must be measurable BEFORE anything binds (rejects machines /
+  // dry gate: the base recipe must be measurable BEFORE anything is minted or bound (rejects machines /
   // engines / compare here, with the sampler's own message).
   sampleMechanicsPhysics({ ...base, [param]: vals[0] });
 
   const scenario = MEASURABLE_MECHANICS_SCENARIOS.includes(base.scenario) ? base.scenario : 'projectile';
+  const chartTitle = `${scenario}: ${plotOutcome} vs ${param}`;
+  const folder = session ? null : SketchFolderRepository.create({ name: (input.title ?? chartTitle).slice(0, 120) });
   const table = [];
   for (let index = 0; index < vals.length; index++) {
     const value = vals[index];
-    const minted = mintMechanicsView({ ...base, [param]: value, title: `${scenario} — ${param}=${value}` });
+    const minted = mintMechanicsView({ ...base, [param]: value, title: `${scenario} — ${param}=${value}`, ...(folder ? { folderRef: folder.ref } : {}) });
     const measured = sampleMechanicsPhysics(minted.recipe);
     const outcomes = Object.fromEntries(Object.entries(OUTCOMES).map(([k, fn]) => [k, fn(measured)]));
+    if (!session) { table.push({ value, ref: minted.ref, outcomes }); continue; }
     const bound = await bindResearchItemHandler({
       research_ref,
       kind: 'experiment',
@@ -308,7 +313,6 @@ export async function runExperimentSweepHandler(input, _ctx) {
   }
 
   // auto-plot: param vs the chosen outcome, minted and bound as the sweep's figure.
-  const chartTitle = `${scenario}: ${plotOutcome} vs ${param}`;
   const manifest = experimentsToChartManifest({
     title: chartTitle,
     param,
@@ -316,7 +320,20 @@ export async function runExperimentSweepHandler(input, _ctx) {
     unitY: OUTCOME_UNITS[plotOutcome],
     points: table.map((row) => ({ x: row.value, y: row.outcomes[plotOutcome] })),
   });
-  const { ref: chartRef } = mintSketch({ title: chartTitle, manifest });
+  const { ref: chartRef } = mintSketch({ title: chartTitle, manifest, ...(folder ? { folderRef: folder.ref } : {}) });
+  const chart = { sketch_ref: chartRef, sketch_url: `/sketches/${encodeURIComponent(chartRef)}` };
+  if (!session) {
+    return {
+      ok: true,
+      folder_ref: folder.ref,
+      scenario,
+      param,
+      outcome: plotOutcome,
+      table,
+      chart,
+      message: `Swept ${param} over ${vals.length} points: ${vals.length} runs and their plot in folder ${folder.ref}, each run reproducible from its recipe. Read a run's SI series with get_exhibit({ ref }); keep the finding by gathering the plot and your analysis into a stash.`,
+    };
+  }
   const chartBound = await bindResearchItemHandler({
     research_ref,
     kind: 'sketch',
@@ -332,8 +349,8 @@ export async function runExperimentSweepHandler(input, _ctx) {
     param,
     outcome: plotOutcome,
     table,
-    chart: { sketch_ref: chartRef, sketch_url: `/sketches/${encodeURIComponent(chartRef)}`, item_id: chartBound.item_id },
-    message: `Swept ${param} over ${vals.length} points — ${vals.length} experiment items + 1 figure bound to '${session.title}'. Bind your comparative analysis as a summary, then synthesize_abstract({ review: true }).`,
+    chart: { ...chart, item_id: chartBound.item_id },
+    message: `Swept ${param} over ${vals.length} points — ${vals.length} experiment items + 1 figure bound to '${session.title}'.`,
   };
 }
 
@@ -345,8 +362,8 @@ export function registerResearchSweepTools() {
       + "n visual takes on any design in words ('darker corrupted elites'): colour, size, silhouette, surface, detail; "
       + 'freshly rolled, dispersed, routed to its department; `at` narrows, `principles` lock or bound, `keep`/`reject` '
       + 'refs make the next pass, `mint: false` answers patches. `{ ref, path, values }`: one value at a JSON Pointer, '
-      + '2–12 values. `{ research_ref, base, param, values }`: a mechanics-view experiment, per value a world and its SI '
-      + 'outcomes bound into the research session, then a plot of param vs `outcome`.',
+      + '2–12 values. `{ base, param, values }`: a mechanics-view experiment, per value a world and its SI outcomes, '
+      + 'then a plot of param vs `outcome`, in one folder.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -363,7 +380,6 @@ export function registerResearchSweepTools() {
         by: { type: 'string', description: "'user' or a department." },
         path: { type: 'string', description: 'JSON Pointer to the value to vary; the recipe must already set it.' },
         title: { type: 'string', description: 'Folder name.' },
-        research_ref: { type: 'string', description: 'The research session to bind the experiment into.' },
         base: { type: 'object', description: "The mechanics-view recipe held constant, e.g. { scenario: 'projectile', v0: 18, angle: 45 }." },
         param: { type: 'string', enum: ['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius', 'curl', 'spin', 'diameter', 'density'], description: 'The mechanics knob to vary.' },
         values: { type: 'array', description: '2–12 values, one variant each.' },

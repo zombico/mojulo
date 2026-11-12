@@ -334,7 +334,7 @@ export function registerComposeWorldTools() {
       + "A house / apartment / cottage / one furnished room is NOT a base: mint_building. "
       + "Each base's parameter manual + routing phrases live in its view-vocab card — "
       + "semantic_search({kinds:['view_vocab']}) to find, get_view_vocab({id:'<base>'}) to read before passing "
-      + "overrides. Themes via list_world_themes (theme lowering ships for 'city'; other bases take theme's place "
+      + "overrides. Themes via get_view_vocab({themes:true}) (theme lowering ships for 'city'; other bases take theme's place "
       + "via overrides for now). Tiny deterministic recipe stored, regenerated on render; served at "
       + "`/api/sketches/<ref>/scene` and/or `/world` per base. Reach for 'make a city / an airport / a walkable "
       + "world / a game where… / a painted landscape / a Mars-colony city'.",
@@ -346,7 +346,7 @@ export function registerComposeWorldTools() {
           enum: ['city', 'transport-hub', 'controllable', 'action', 'planetary', 'painted-landscape', 'math', 'school', 'dungeon', 'terrain', 'stadium'],
           description: "Which geometry generator (the world's SHAPE). Read the base's view-vocab card for its overrides manual.",
         },
-        theme: { type: 'string', description: "A theme pack id (the world's FLAVOR). See list_world_themes. Defaults to 'earth-temperate' (identity)." },
+        theme: { type: 'string', description: "A theme pack id (the world's FLAVOR). See get_view_vocab({ themes: true }). Defaults to 'earth-temperate' (identity)." },
         seed: { type: 'integer', description: 'Deterministic seed — same base+theme+seed → same world.' },
         overrides: { type: 'object', description: "The base's own knobs, deep-merged over the theme pack's slots (for 'city': { context?, asset?, material?, style? }; for identity bases: the base's mint params per its view-vocab card, e.g. { mode: 'airport' } for transport-hub, { entities, idioms } for action)." },
         title: { type: 'string', description: 'Optional title for the resulting sketch artifact.' },
@@ -361,9 +361,7 @@ export function registerComposeWorldTools() {
   registerTool({
     name: 'list_world_themes',
     description:
-      "List the theme packs available to compose_world (and the composer bases). Optionally filter by family "
-      + "('earth' | 'scifi' | 'fantasy' | …). Each theme is { id, family, label, description }. Call this before "
-      + "compose_world to pick a theme.",
+      "Folded into get_view_vocab({ themes: true | '<family>' }): compose_world's theme packs and bases. Callable by name.",
     inputSchema: {
       type: 'object',
       properties: {

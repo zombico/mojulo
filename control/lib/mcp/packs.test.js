@@ -19,6 +19,7 @@ import {
   RETIRED_PACKS,
   RETIRED_OFFICE_TOOLS,
   RETIRED_TOOLS,
+  CAME_FROM,
   SPINE,
   FOLDED,
   PACK_DESCRIPTION_CEILING,
@@ -56,7 +57,13 @@ import {
 // sign_asset / verify_asset.
 // Re-pinned 2026-10-14 (32_500 -> 32_600; measured 32,557) for 1014-interior-designer: pack_building lists
 // design_interior beside mint_building and names it in its description.
-const PACKS_PAYLOAD_CEILING = 32_600;
+// Lowered 2026-11-10 (32_600 -> 32_500; measured 32,451) for the exhibit doors: pack_view became pack_exhibit, its
+// description shorter, two members fewer.
+// Lowered 2026-11-11 (32_500 -> 31_800; measured 31,771) for 1111-mcp-cleanup: pack_research left the list (the
+// research book retired), pack_plan's description names the sweep, pack_stash's drops the links.
+// Lowered 2026-11-11 (31_800 -> 29_900; measured 29,805) for the spine's diet (the spine lists with full schemas in
+// packs mode too): five orientation tools' descriptions and the register / disclosure argument notes cut.
+const PACKS_PAYLOAD_CEILING = 29_900;
 
 let server;
 let listTools;
@@ -125,9 +132,18 @@ describe('pack registry shape', () => {
   });
 
   it('the retired packs never list, and none of their members is homed in a live pack', () => {
-    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors']);
+    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors', 'pack_research', 'pack_stash_links', 'pack_folded_workflows']);
     expect(RETIRED_OFFICE_TOOLS).not.toContain('create_game_project');
-    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan']));
+    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan',
+      'start_research', 'synthesize_abstract', 'bind_stash', 'list_stash_bindings']));
+    // a folded name's old pack is a live one, so a key granted it still reaches the name
+    const liveIds = new Set(PACKS.map((p) => p.id));
+    for (const [name, from] of Object.entries(CAME_FROM)) {
+      expect(RETIRED_TOOLS, name).toContain(name);
+      expect(liveIds.has(from), `${name} came from ${from}`).toBe(true);
+    }
+    // the sweep outlived the research book: it is homed in a live pack
+    expect(RETIRED_TOOLS).not.toContain('run_experiment_sweep');
     const live = new Set(PACKS.flatMap((p) => [p.id, ...p.members]));
     for (const name of RETIRED_TOOLS) expect(live.has(name), name).toBe(false);
     for (const pack of RETIRED_PACKS) expect(live.has(pack.id), pack.id).toBe(false);
@@ -384,7 +400,7 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
   it('packs declaring NO install group are always present — plumbing is not gatable', () => {
     const ungrouped = PACKS.filter((p) => !p.installGroup);
     expect(ungrouped.map((p) => p.id).sort()).toEqual([
-      'pack_catalysts', 'pack_plan', 'pack_research', 'pack_stash',
+      'pack_catalysts', 'pack_plan', 'pack_stash',
     ]);
     for (const env of [{ MOJULO_PACKS: 'creative' }, { MOJULO_PACKS: 'recall' }]) {
       for (const pack of ungrouped) expect(isPackInstalled(pack, env)).toBe(true);
@@ -482,7 +498,7 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
       const names = listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name);
       expect(names).toContain('pack_catalysts');   // ungrouped → always present
       expect(names).toContain('forward_context');  // spine → kernel
-      for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_view']) {
+      for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_exhibit']) {
         expect(names).not.toContain(studio);
       }
     }));
@@ -673,10 +689,19 @@ describe('pack dispatcher', () => {
   });
 
   it('dispatches a member and returns its real result', async () => {
-    const direct = await callTool('list_world_themes', {});
-    const packed = await callTool('pack_world', { tool: 'list_world_themes', args: {} });
+    const direct = await callTool('get_view_vocab', { themes: true });
+    const packed = await callTool('pack_world', { tool: 'get_view_vocab', args: { themes: true } });
     expect(packed.result.isError).toBeFalsy();
     expect(packed.result.content[0].text).toBe(direct.result.content[0].text);
+    // the folded name answers the same rows (list_world_themes, callable by name), and through the pack it came from
+    const folded = await callTool('list_world_themes', {});
+    expect(folded.result.content[0].text).toBe(direct.result.content[0].text);
+    const viaOldPack = await callTool('pack_world', { tool: 'list_world_themes', args: {} });
+    expect(viaOldPack.result.isError).toBeFalsy();
+    expect(viaOldPack.result.content[0].text).toBe(direct.result.content[0].text);
+    // but not through a pack it never belonged to
+    const viaOther = await callTool('pack_audio', { tool: 'list_world_themes', args: {} });
+    expect(viaOther.result.isError).toBe(true);
   });
 
   it('a taken ref refuses with REF_EXISTS and the revision tool as next_action', async () => {

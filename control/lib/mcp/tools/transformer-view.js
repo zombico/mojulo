@@ -44,7 +44,7 @@ export function mintTransformerView({ title, scenario, sequence, pattern, focus,
 
 export async function createTransformerViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "transformer" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "math/transformer" }) requires a recipe object');
   }
   const { title, scenario, sequence, pattern, focus, layers, focus_layer: focusLayer, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintTransformerView({ title, scenario, sequence, pattern, focus, layers, focusLayer, scale, viewBox, scene, ref, folderRef });

@@ -312,7 +312,7 @@ export function planMechanicsScene(recipe = {}) {
   return { faces, picks, movers, planets, bounds: { center, radius }, stats: { scenario, g, bodyRadius: rB, samples: N_SAMPLES, period, loop: !!sim.loop, T: sim.T } };
 }
 
-// ── the physical read-back channel (measure_view). The renderer computes the full equal-dt
+// ── the physical read-back channel (get_exhibit({ ref })). The renderer computes the full equal-dt
 // trajectory on every mint/render and throws it away; this returns it as data instead. Sampled
 // from the UNSCALED rule output — positions in real metres, speed/accel in real m/s and m/s²
 // (the same kPhys numbers the readout shows), never the render-scaled world path. Restricted to

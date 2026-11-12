@@ -20,10 +20,11 @@ import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 
 let server;
 
+// registering every tool takes about 30 s with nothing cached, at the hook's default limit (as packs.test.js)
 beforeAll(async () => {
   server = await import('@/lib/mcp/server');
   await server.ensureToolsRegistered();
-});
+}, 120_000);
 
 afterEach(() => {
   delete process.env.MOJULO_ROLES;
@@ -186,8 +187,13 @@ function privilegedContext({ grants = [], flags = {} } = {}) {
 describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
   it('granted bay executes; ungranted bay gets a terminal advisory', async () => {
     await withRoles(async () => {
-      const ok = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_world'] }));
+      const ok = await callTool('get_view_vocab', { themes: true }, privilegedContext({ grants: ['pack_world'] }));
       expect(ok.isError).toBe(false);
+      // a folded name still runs for a key granted the pack it came from, and for no other key
+      const folded = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_world'] }));
+      expect(folded.isError).toBe(false);
+      const elsewhere = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_audio'] }));
+      expect(elsewhere.isError).toBe(true);
 
       const denied = await callTool('list_cooks', {}, privilegedContext({ grants: ['pack_world'] }));
       expect(denied.isError).toBe(true);
@@ -265,7 +271,7 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
     await withRoles(async () => {
       const denied = await callTool(
         'pack_stash',
-        { tool: 'list_cooks', args: {} },
+        { tool: 'get_cook', args: {} },
         privilegedContext({ grants: ['pack_world'] })
       );
       expect(denied.isError).toBe(true);
@@ -273,7 +279,7 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
 
       const granted = await callTool(
         'pack_world',
-        { tool: 'list_world_themes', args: {} },
+        { tool: 'get_view_vocab', args: { themes: true } },
         privilegedContext({ grants: ['pack_world'] })
       );
       expect(granted.isError).toBe(false);
@@ -326,7 +332,7 @@ describe('listTools filtering (privileged sees their bays; admin sees roles tool
   it('flat mode: granted members only, deny-list hidden', async () => {
     await withRoles(async () => {
       const list = names('off', privilegedContext({ grants: ['pack_stash'] }));
-      expect(list).toContain('list_cooks'); // granted member
+      expect(list).toContain('get_cook'); // granted member
       expect(list).not.toContain('set_env'); // deny-listed, granted pack or not
       expect(list).not.toContain('compose_world'); // ungranted bay
       expect(list).toContain('forward_context'); // spine

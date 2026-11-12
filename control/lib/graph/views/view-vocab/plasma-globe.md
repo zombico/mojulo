@@ -3,7 +3,7 @@
   "id": "plasma-globe",
   "name": "Plasma Globe",
   "family": "science",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint a PLASMA GLOBE — the Tesla-style novelty: a high-voltage electrode in low-pressure gas with discrete jagged ARCS leaping to a surrounding glass sphere, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view.",
   "when": "Mint a PLASMA GLOBE — the Tesla-style novelty: a high-voltage electrode in low-pressure gas with discrete jagged ARCS leaping to a surrounding glass sphere, rendered by the same per-pixel VOLUME raymarcher that powers star-birth-view.",
   "retired_tool": "create_plasma_globe_view"
@@ -14,7 +14,7 @@ Mint a PLASMA GLOBE — the Tesla-style novelty: a high-voltage electrode in low
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — The gas fill (default 'neon-argon'): 'neon-argon', 'argon', or 'xenon'.

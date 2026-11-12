@@ -3,7 +3,7 @@
   "id": "dna-process",
   "name": "DNA process (animated)",
   "family": "bio",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "An animated DNA-biology explainer — meiosis / conception / recombination / assortment — as a live orbit World; the time-based sibling of the static `dna` kind (structure).",
   "when": "Reach for this on framing like 'animate meiosis / show fertilization / how DNA recombines / independent assortment'."
 }

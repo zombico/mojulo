@@ -54,7 +54,6 @@ export const TOOL_TIERS = Object.freeze({
   verify_machina: 'design',
 
   // ── worlds ──
-  list_world_themes: 'ride',
   translate_modeler_lingo: 'ride',
   export_model: 'ride',
   bind_mesh_render: 'ride',
@@ -78,9 +77,9 @@ export const TOOL_TIERS = Object.freeze({
   get_view_vocab: 'ride',
   reference_protocol: 'ride',
   diff_sketches: 'ride',
-  measure_view: 'ride',
+  get_exhibit: 'ride',
   save_recipe: 'ride',
-  create_view: 'fill',
+  create_exhibit: 'fill',
   create_sketch: 'judge',
   update_sketch: 'judge',
   sketch_what_possible: 'judge',
@@ -105,10 +104,9 @@ export const TOOL_TIERS = Object.freeze({
   forge_motion: 'judge',
   stitch_motion: 'judge',
 
-  // ── workflows: plans ──
+  // ── workflows: plans and sweeps ──
   enter_plan_mode: 'ride',
   get_plan: 'ride',
-  list_plans: 'ride',
   sketch_plan: 'ride',
   compile_plan: 'ride',
   execute_plan: 'ride', // runs a compiled manifest with no model in the loop
@@ -117,15 +115,10 @@ export const TOOL_TIERS = Object.freeze({
   run_experiment_sweep: 'fill',
 
   // ── workflows: stash and cook ──
-  list_stashes: 'ride',
   get_stash: 'ride',
   rename_stash: 'ride',
   mint_drawer: 'ride',
-  bind_stash: 'ride',
-  unbind_stash: 'ride',
-  list_stash_bindings: 'ride',
   archive_item: 'ride',
-  list_cooks: 'ride',
   get_cook: 'ride',
   archive_cook: 'ride',
   recommend_kind: 'ride',
@@ -136,22 +129,11 @@ export const TOOL_TIERS = Object.freeze({
   cook: 'design',
   forge_publications: 'design',
 
-  // ── workflows: research ──
-  enter_research_mode: 'ride',
-  list_research: 'ride',
-  get_research: 'ride',
-  sketch_research: 'ride',
-  start_research: 'fill',
-  bind_research_item: 'fill',
-  synthesize_abstract: 'design',
-
   // ── workflows: catalysts and hosts ──
   get_adapter: 'ride',
-  list_adapters: 'ride',
   list_catalysts: 'ride',
   get_catalyst: 'ride',
   recommend_catalysts: 'ride',
-  custom_catalyst: 'ride',
   get_mcp_capabilities: 'ride',
   record_mcp_capabilities: 'judge',
   meta_context_declare_inventory: 'judge',
@@ -168,6 +150,17 @@ export const TOOL_TIERS = Object.freeze({
   verify_asset: 'ride',
 });
 
+// A folded name keeps the tier it had when it was listed, so a stored plan that names one still counts its steps
+// (tierCounts below). Not in TOOL_TIERS: that table is the listed tools'.
+const FOLDED_TOOL_TIERS = Object.freeze({
+  list_plans: 'ride',
+  list_stashes: 'ride',
+  list_cooks: 'ride',
+  list_adapters: 'ride',
+  custom_catalyst: 'ride',
+  list_world_themes: 'ride',
+});
+
 /** The heaviest of these tiers, or undefined when none is known: a door that leads to several tools is as heavy as its
  * heaviest. */
 export function ceilingTier(tiers) {
@@ -180,6 +173,7 @@ export function ceilingTier(tiers) {
  * or unknown tool has none. */
 export function toolTier(name) {
   if (TOOL_TIERS[name]) return TOOL_TIERS[name];
+  if (FOLDED_TOOL_TIERS[name]) return FOLDED_TOOL_TIERS[name];
   const pack = getPack(name);
   return pack ? ceilingTier(pack.members.map((m) => TOOL_TIERS[m])) : undefined;
 }

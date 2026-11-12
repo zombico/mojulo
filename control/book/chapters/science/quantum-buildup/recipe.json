@@ -1,5 +1,5 @@
 {
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "kind": "double-slit",
   "params": { "scenario": "particles" },
   "title": "Quantum buildup — one particle at a time"

@@ -24,7 +24,7 @@
 import { registerTool, getRegisteredTool, runToolSerialized } from '@/lib/mcp/server';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
-import { PACKS, RETIRED_PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
+import { PACKS, RETIRED_PACKS, SPINE, CAME_FROM, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
 import { authNotice } from '@/lib/roles/enforce';
 import { formToolset } from '@/lib/mcp/tools/context';
 import { TOOL_LINES } from '@/lib/mcp/tool-lines';
@@ -143,6 +143,9 @@ function routingProblem(pack, name, { reading = false } = {}) {
   if (profileNotice) return profileNotice;
   const targets = new Set(dispatchTargets(pack));
   if (targets.has(name)) return null;
+  // a folded or retired name still dispatches through the pack it came from (CAME_FROM, packs.js): a caller that
+  // remembers `pack_stash({ tool: 'list_cooks' })` is not turned away. The menu does not list it.
+  if (CAME_FROM[name] === pack.id) return null;
   const home = homePackForTool(name);
   if (home && home.id !== pack.id) {
     return reading

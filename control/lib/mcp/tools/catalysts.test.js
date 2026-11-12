@@ -422,6 +422,11 @@ describe('customCatalystHandler', () => {
     const b = await customCatalystHandler({ foo: 'bar' });
     expect(a).toEqual(b);
   });
+
+  it('is mint_catalyst({ guide: true }): the same guide, nothing written, no id asked for', async () => {
+    expect(await mintCatalystHandler({ guide: true })).toEqual(await customCatalystHandler({}));
+    await expect(mintCatalystHandler({})).rejects.toThrow(/id is required/);
+  });
 });
 
 // The local shelf (local-catalysts.plan.md) — mint_catalyst + merged catalog

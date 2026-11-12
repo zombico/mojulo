@@ -87,7 +87,7 @@ async function mintRoleKeyHandler(input, context) {
   // typo never mints a silently-inert grant.
   const grantList = grants === undefined ? [] : grants;
   if (!Array.isArray(grantList) || grantList.some((g) => typeof g !== 'string')) {
-    throw new Error('grants must be an array of pack ids (e.g. ["pack_research", "pack_diagram"]).');
+    throw new Error('grants must be an array of pack ids (e.g. ["pack_stash", "pack_diagram"]).');
   }
   const unknown = grantList.filter((g) => !isPackId(g));
   if (unknown.length) {
@@ -188,7 +188,7 @@ export function registerRolesTools() {
           type: 'array',
           items: { type: 'string' },
           description:
-            "Pack ids the key may execute (e.g. ['pack_research'] for an analyst, ['pack_diagram','pack_world'] for a builder). Validated against the capability-bay manifest. Default: none — spine orientation only.",
+            "Pack ids the key may execute (e.g. ['pack_stash'] for an analyst, ['pack_diagram','pack_world'] for a builder). Validated against the capability-bay manifest. Default: none — spine orientation only.",
         },
         propose_only: {
           type: 'boolean',

@@ -59,9 +59,9 @@ describe('finding an entry by the words people type (lexical, no model)', () => 
     }
   });
 
-  it('a cold ask finds the historic routing card', async () => {
+  it('a cold ask finds the history hall\'s routing card', async () => {
     const r = await EmbeddingsRepository.search('show me ancient egypt', { kinds: ['routing'], limit: 3 });
-    expect(r.map((x) => x.source_ref)).toContain('historic');
+    expect(r.map((x) => x.source_ref)).toContain('exhibit-history');
   });
 
   it('a query not in English finds nothing and says why: the index reads English terms', async () => {

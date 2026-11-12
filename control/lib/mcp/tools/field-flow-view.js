@@ -39,7 +39,7 @@ export function mintFieldFlowView({ title, scenario, matrix, scale, viewBox, sce
 }
 
 export async function createFieldFlowViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "field-flow" }) requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_exhibit({ id: "math/field-flow" }) requires a recipe object');
   const { title, scenario, matrix, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintFieldFlowView({ title, scenario, matrix, scale, viewBox, scene, ref, folderRef });
 }

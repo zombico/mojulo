@@ -49,7 +49,7 @@ export function mintAtomView({ title, element, Z, mode, style, orbital, viewBox,
 
 export async function createAtomViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "atom" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "science/atom" }) requires a recipe object');
   }
   const { title, element, Z, mode, style, orbital, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintAtomView({ title, element, Z, mode, style, orbital, viewBox, scene, ref, folderRef });

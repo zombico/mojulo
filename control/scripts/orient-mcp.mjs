@@ -17,7 +17,7 @@
  *   add_work    → the gallery grows from real sessions (operator-blessed).
  *   list_works  → the whole gallery + toured state.
  *
- * Two kinds of work. An EXHIBIT carries `recipe` (a finished thing, minted on
+ * Two kinds of work. A SHOWPIECE carries `recipe` (a finished thing, minted on
  * consent). A BRIEF carries `brief` instead (2026-09-08): an
  * exercise the host agent drives cold — intent, phases with a machine exit
  * and an eyes exit each, the rules, and a filing convention. What a brief
@@ -36,7 +36,7 @@
  * exist; watching one get minted proves the distance from ask to artifact.
  *
  * Posture: parallel to forward_context (which orients *recognition* by
- * index), this orients *possibility* by exhibit. Never pushed — reach for
+ * index), this orients *possibility* by showpiece. Never pushed — reach for
  * it when the operator wants to know what mojulo can do.
  *
  * Zero dependencies: newline-delimited JSON-RPC 2.0 over stdio.
@@ -46,6 +46,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { EXHIBIT_STARTERS } from '../lib/graph/exhibit/starters.js';
 
 const DATA_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const STATE_PATH = join(DATA_DIR, 'orientation.json');
@@ -230,9 +231,26 @@ const WORKS = [
       },
     },
   },
+  {
+    // The exhibit: the studio as a museum's contractor. Its recipe is the starter's own (lib/graph/exhibit/starters.js),
+    // so the showpiece and the worked example never drift apart.
+    id: 'the-exhibit',
+    title: 'An Exhibit (Pompeii, 79 CE)',
+    ref: 'sk_pm79xhbtour',
+    urls: { page: '/sketches/sk_pm79xhbtour', world: '/api/sketches/sk_pm79xhbtour/world', catalogue: '/api/sketches/sk_pm79xhbtour/bible?book=exhibit' },
+    shows: 'The studio as a museum’s contractor: a real place drawn from its cited record, a tour that lights each part as its caption explains it, words for young visitors, and a catalogue of every claim and its sources, waiting on the expert’s sign-off.',
+    madeWith: ['create_exhibit (history/pompeii: parts, people, a brief of claims from the record, a tour)', 'get_exhibit (its audit)', 'export_model (one self-contained page)'],
+    story: 'Encarta had curated exhibits written by its editors; this is one, drawn by the studio. Every claim is the town’s record’s, citing only what was read; the machine gate checks the tour, the operator looks, and only the expert signs.',
+    sampleAsks: [
+      'make a museum exhibit about Pompeii before the eruption',
+      'turn my notes and sources on hydroelectric power into an exhibit with a tour',
+      'make it a kiosk for a gallery, with words for children',
+    ],
+    recipe: { tool: 'create_exhibit', input: { ref: 'sk_pm79xhbtour', ...EXHIBIT_STARTERS.pompeii.steps[0].input } },
+  },
 ];
 
-// Briefs: exercises, not exhibits. The first is the assembler's own doctrine sentence made
+// Briefs: exercises, not showpieces. The first is the assembler's own doctrine sentence made
 // literal — "assembler makes a chariot; workbench makes chariot parts". The brief withholds the
 // vocabulary on purpose: the agent pulls the cards and reads mint errors as the manual, which is
 // the retrieval loop being practised. Nothing here is a solution.
@@ -428,7 +446,7 @@ function briefSteps(work, signatures) {
   return [
     `Run this brief for the operator — consent, then build, deconstruct, hand on, file:`,
     ``,
-    `1. CONSENT FIRST — be explicit: "This is an exercise, not an exhibit. It mints SEVERAL real rows into YOUR sketches DB — ` +
+    `1. CONSENT FIRST — be explicit: "This is an exercise, not a showpiece. It mints SEVERAL real rows into YOUR sketches DB — ` +
       `each part, the chariot, an exploded variant — yours to keep or delete. The recipes are the point; every render is disposable. OK to begin?" ` +
       `Respect the answer; do not re-ask. IF DECLINED — mint nothing; hand over the asks (step 5) and stop. It is the operator's workshop from there.`,
     `2. THE BRIEF — intent only, never a solution:`,
@@ -450,7 +468,7 @@ function tourSteps(work) {
   const mintLine = work.recipe
     ? `mint it NOW: call ${work.recipe.tool} with the carried recipe.input exactly as given (the ref is pinned — ` +
       `an "already exists" error means a previous session minted it; that is success, just fetch it). Narrate the ` +
-      `one call as it happens — the operator watching ask become artifact is the exhibit.`
+      `one call as it happens — the operator watching ask become artifact is the showpiece.`
     : `this work carries no recipe (session-added) — fetch ${work.urls.page} and show it.`;
   return [
     `Tour this work for the operator — consent, then create, then teach:`,
@@ -482,7 +500,7 @@ const TOOLS = [
   {
     name: 'get_work',
     description:
-      'Get the next untoured work from the orientation gallery (or a specific one by id). An EXHIBIT is carried as the ' +
+      'Get the next untoured work from the orientation gallery (or a specific one by id). A SHOWPIECE is carried as the ' +
       'RECIPE that mints it (pinned stable ref, deterministic on any mojulo host) plus what it shows is possible and the ' +
       'one-line asks that make that kind of thing. A BRIEF (e.g. "the-chariot") is an exercise instead: intent, phases with ' +
       'machine and eyes exits, rules, and how to file the resulting SIGNATURE. Both are consent-first: orientation CREATES ' +
@@ -597,7 +615,7 @@ function callTool(name, args = {}) {
       JSON.stringify(
         {
           works: works.map((w) => ({
-            id: w.id, title: w.title, kind: isBrief(w) ? 'brief' : 'exhibit', ...(w.ref ? { ref: w.ref } : {}), shows: w.shows,
+            id: w.id, title: w.title, kind: isBrief(w) ? 'brief' : 'showpiece', ...(w.ref ? { ref: w.ref } : {}), shows: w.shows,
             remintable: !!w.recipe, ...(w.answersBrief ? { answersBrief: w.answersBrief } : {}), toured: touredIds.has(w.id),
           })),
           signatures: Object.fromEntries(BRIEFS.map((b) => [b.id, signaturesOf(works, b.id).map((s) => s.id)])),
@@ -648,7 +666,7 @@ function handle(msg) {
       capabilities: { tools: {} },
       serverInfo: { name: 'mojulo-orient', version: '0.4.0' },
       instructions:
-        'The mojulo orientation gallery — practical orientation by exhibit, the doing-sibling of forward_context. ' +
+        'The mojulo orientation gallery — practical orientation by showpiece, the doing-sibling of forward_context. ' +
         'A curated catalog of founding works, each carried as the RECIPE that mints it deterministically on any host. ' +
         'Touring a work is consent-first: tell the operator plainly that orientation will CREATE a real artifact in ' +
         'their sketches DB to show the loop, and let them accept or reject. Accepted: mint it live through the real ' +

@@ -88,7 +88,7 @@ describe('tools/list', () => {
   it('a Claude host sees each tool tier as _meta', () => {
     const tools = listTools({ clientInfo: { name: 'claude-code', version: 'x' } });
     expect(tierOf(tools, 'get_tool_index')).toBe('ride');
-    expect(tierOf(tools, 'create_view')).toBe('fill');
+    expect(tierOf(tools, 'create_exhibit')).toBe('fill');
     expect(tierOf(tools, 'compose_world')).toBe('judge');
     expect(tierOf(tools, 'create_sketch')).toBe('judge');
     expect(tierOf(tools, 'design_game')).toBe('design');

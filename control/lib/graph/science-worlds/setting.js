@@ -53,7 +53,7 @@ export function readScienceSetting(spec, where = 'science') {
   const extra = Object.keys(spec).filter((k) => !KEYS.includes(k));
   if (extra.length) fail(where, `unknown field '${extra[0]}' (it takes ${KEYS.join(', ')})`);
   if (!SCALES[spec.kind]) fail(`${where}.kind`, `is one of ${Object.keys(SCALES).join(', ')}`);
-  if (!isObj(spec.model)) fail(`${where}.model`, `wants the ${spec.kind} model (get_view_vocab({ id: '${spec.kind}' }))`);
+  if (!isObj(spec.model)) fail(`${where}.model`, `wants the ${spec.kind} model (get_exhibit({ id: 'science/${spec.kind}' }))`);
   const shaderOnly = unplaceable(spec.kind, spec.model, spec.dress);
   if (shaderOnly) fail(`${where}.${shaderOnly.at}`, shaderOnly.why);
   if (!Array.isArray(spec.at) || spec.at.length !== 3) fail(`${where}.at`, 'wants [x, y, z] in the world (metres)');

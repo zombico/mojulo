@@ -146,36 +146,15 @@ export function registerCapabilitiesTools() {
   registerTool({
     name: 'record_mcp_capabilities',
     description:
-      "Write a vendor knowledge body for one MCP (e.g. `gmail`, `notion`, `linear`) into the capabilities table — the agent-authored substitute for curated vendor docs. **Call after** running the `research-mcp-vendor` catalyst, which teaches the source discipline (primary sources only) and the canonical body shape; this is the persistence tool the catalyst drives. **Append-with-supersession** — if a current row already exists for this `provider_ref`, the new row becomes current and the old one is marked superseded in one transaction (full history preserved; query past states with `get_mcp_capabilities`'s `asOf`). Re-running is safe by design. The `provider_ref` is the canonical lowercase vendor key (NOT the install alias like `claude_ai_Gmail` — use `gmail`); shared with the inventory facet so the composer reads both as one provider. Pass `source_urls` so future readers can trace what was consulted; first URL starting with `mojulo://` marks the row as a build-time seed (vs. agent research). Returns `{ ok, id, providerId, providerRef, versionTag, discoveredAt, supersededId, provenance }` — `supersededId` is the id of the row just superseded (null on first write for this provider); `provenance` is `'research'` or `'seed'`; `warnings: ['no_operator_anchor']` means no KYC has been committed.",
+      "Write what you researched about one of the operator's other MCPs (`gmail`, `notion`, `linear`) as its capability body. Call after the `research-mcp-vendor` catalyst, which teaches the sources to use and the body's shape; this is the write it drives. A new write becomes current and the old one is kept (read it back with `get_mcp_capabilities`'s `asOf`), so re-running is safe. `provider_ref` is the lowercase vendor key (`gmail`, not the install alias `claude_ai_Gmail`), shared with the declared inventory. Returns the row's id, `supersededId` and `provenance` ('research' or 'seed').",
     inputSchema: {
       type: 'object',
       properties: {
-        provider_ref: {
-          type: 'string',
-          description:
-            'Canonical lowercase vendor key — `gmail`, `notion`, `linear`, `google_drive`. Single token, underscores for multi-word. Shared with `meta_mcp_inventory.provider_id` and with the seed table — `notion` reaches the same row whether populated by inventory canonicalization, this catalyst, or the build-time seed.',
-        },
-        display_name: {
-          type: 'string',
-          description:
-            'Human-readable vendor name (`Gmail`, `Notion`). First-writer-wins — subsequent calls do not overwrite. Optional.',
-        },
-        version_tag: {
-          type: 'string',
-          description:
-            "Vendor's declared API version verbatim from the docs (e.g. `API 2025-09-03`). Null/omit when the vendor publishes nothing — `discovered_at` provides temporal ordering on its own. Don't fabricate a date.",
-        },
-        body_md: {
-          type: 'string',
-          description:
-            'The full vendor knowledge body (markdown with JSON frontmatter). Match the shape the `research-mcp-vendor` catalyst defines — affordances, capabilities, intentKeywords, exposesKnobs in frontmatter; surface bodies per role + pitfalls + `<!-- sources -->` HTML comment in prose. Opaque to mojulo; returned as-is on read.',
-        },
-        source_urls: {
-          type: 'array',
-          items: { type: 'string' },
-          description:
-            'Every URL consulted during research, in priority order. Stored as a JSON column and queryable separately from the body. Convention: a leading `mojulo://CHANGELOG#vX.Y.Z` URL marks the row as a build-time seed; vendor URLs (`https://developers.notion.com/...`) mark it as agent research.',
-        },
+        provider_ref: { type: 'string', description: 'Lowercase vendor key: `gmail`, `notion`, `google_drive`. One token, underscores between words.' },
+        display_name: { type: 'string', description: 'Readable vendor name (`Gmail`). The first write keeps it.' },
+        version_tag: { type: 'string', description: "The vendor's declared API version, verbatim (`API 2025-09-03`). Omit when none is published; never invent one." },
+        body_md: { type: 'string', description: 'The capability body: markdown with JSON frontmatter, in the shape the `research-mcp-vendor` catalyst defines. Returned as written.' },
+        source_urls: { type: 'array', items: { type: 'string' }, description: 'Every URL consulted, in priority order. A leading `mojulo://` URL marks a build-time seed.' },
       },
       required: ['provider_ref', 'body_md'],
     },
@@ -185,20 +164,12 @@ export function registerCapabilitiesTools() {
   registerTool({
     name: 'get_mcp_capabilities',
     description:
-      "Read the current vendor knowledge body for one MCP, keyed by canonical `provider_ref` (`gmail`, `notion`, `linear`). **Call before** binding primitives or composing an mcp-orbit workflow against an MCP — the body teaches the surfaces, the pitfalls, and the intent mapping that introspection alone can't surface. Optional `asOf` (ISO 8601 string) walks the supersession chain to retrieve the row that was current at that point in time — useful for auditing why a past composition was assembled the way it was. Returns `{ ok, found, providerRef, ... }` — when `found: false`, the response includes a `hint` pointing at the `research-mcp-vendor` catalyst (the composer can fall back to inventory introspection in the meantime). When `found: true`, returns `{ id, providerId, versionTag, bodyMd, sourceUrls, discoveredAt, supersededBy }` — `supersededBy: null` confirms this is the current row.",
+      "Read the capability body recorded for one of the operator's other MCPs, by its lowercase `provider_ref` (`gmail`, `notion`, `linear`): its surfaces, pitfalls and how intents map onto it, which reading its tool list alone does not tell you. Call before a catalyst works against that MCP. `asOf` (ISO 8601) returns the body that was current at that time. `found: false` comes with a `hint` to the `research-mcp-vendor` catalyst; `found: true` returns `{ id, versionTag, bodyMd, sourceUrls, discoveredAt, supersededBy }` (`supersededBy: null` is the current row).",
     inputSchema: {
       type: 'object',
       properties: {
-        provider_ref: {
-          type: 'string',
-          description:
-            'Canonical lowercase vendor key. Use the same form as you would pass to `record_mcp_capabilities` — `gmail`, NOT `claude_ai_Gmail`.',
-        },
-        asOf: {
-          type: 'string',
-          description:
-            'Optional ISO 8601 timestamp. When provided, walks the supersession chain to return the row that was current at that time. Omit for the current row.',
-        },
+        provider_ref: { type: 'string', description: 'Lowercase vendor key, as written by `record_mcp_capabilities`: `gmail`, not `claude_ai_Gmail`.' },
+        asOf: { type: 'string', description: 'ISO 8601 time: the body current then. Omit for the current one.' },
       },
       required: ['provider_ref'],
     },

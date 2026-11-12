@@ -1,5 +1,5 @@
 {
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "kind": "saturn",
   "params": { "gallery": true },
   "title": "Grand tour — the ringed planets"

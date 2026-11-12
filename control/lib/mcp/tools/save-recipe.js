@@ -11,7 +11,7 @@
  * months later. Saves are ledgered with a local git commit in the cookbook
  * (no remote, ever — sharing is the operator's act).
  *
- * Lanes (recipe-book.plan.md, Phase 4): study-object recipes (create_view
+ * Lanes (recipe-book.plan.md, Phase 4): exhibit recipes (create_exhibit
  * kinds — core AND attached-book ones), beats recipes (create_beats kinds),
  * and workbench solids (expressiveness.plan.md E4 — `mint_solid` kind
  * 'workbench': the spec is self-contained params over a regenerating kernel,
@@ -29,6 +29,7 @@ import { bookViewKinds } from '@/lib/graph/views/recipe-book/registry';
 import { saveRecipeEntry } from '@/lib/graph/views/recipe-book/cookbook';
 import { ensureBookLoaded, _resetBookLoader } from '@/lib/graph/views/recipe-book/loader';
 import { getViewVocabCatalog, _resetViewVocabCache } from '@/lib/graph/views/view-vocab/loader';
+import { exhibitId } from '@/lib/graph/exhibit/halls';
 import { getBeatsVocabCatalog, _resetBeatsVocabCache } from '@/lib/graph/beats/beats-vocab/loader';
 import { getSolidVocabCatalog, _resetSolidVocabCache } from '@/lib/graph/solid-vocab/loader';
 
@@ -73,9 +74,11 @@ export function deriveRecipeLane(manifestKind) {
   const v = deriveViewKind(manifestKind);
   if (v) {
     return {
-      entry: 'create_view', kind: v.kind, chapter: v.family, family: v.family,
-      vocabKind: 'view_vocab', reader: 'get_view_vocab',
-      catalog: getViewVocabCatalog, mint: 'study-object mint',
+      entry: 'create_exhibit', kind: v.kind, chapter: v.family, family: v.family,
+      vocabKind: 'view_vocab', reader: 'get_exhibit',
+      catalog: getViewVocabCatalog, mint: 'exhibit mint',
+      // a kept setting stands in its kind's hall (lib/graph/exhibit/halls.js), read back by its hall id
+      recallId: (id) => exhibitId({ id, family: v.family, recipe: { kind: v.kind } }),
     };
   }
   const s = SOLID_LANES[manifestKind];
@@ -127,7 +130,7 @@ export async function saveRecipeHandler(input) {
   const lane = deriveRecipeLane(manifest.kind);
   if (!lane) {
     throw new Error(`save_recipe: '${manifest.kind}' is not a keepable recipe kind — save_recipe covers `
-      + 'create_view, create_beats and mint_solid workbench artifacts today (assembler / motion join by the same lane pattern)');
+      + 'create_exhibit, create_beats and mint_solid workbench artifacts today (assembler / motion join by the same lane pattern)');
   }
 
   if (lane.catalog().has(id)) {
@@ -171,7 +174,7 @@ export async function saveRecipeHandler(input) {
     cookbook: saved.dir,
     committed: saved.committed,
     indexed,
-    recall: { [lane.reader]: { id }, semantic_search: { kinds: [lane.vocabKind], query: when.trim() } },
+    recall: { [lane.reader]: { id: lane.recallId ? lane.recallId(id) : id }, semantic_search: { kinds: [lane.vocabKind], query: when.trim() } },
   };
 }
 
@@ -182,9 +185,9 @@ export function registerSaveRecipeTools() {
       "KEEP a recipe: promote a minted-and-tuned artifact into the operator's own COOKBOOK — a named, "
       + 'intent-recallable catalog entry (card + params) beside the instance data, ledgered with a local git commit. '
       + "It joins the same catalog as shipped kinds: recall via semantic_search over the family's vocab kind or its "
-      + "get_*_vocab reader; re-mint via the family's entry tool. Write `when` from the CONVERSATION'S intent — it is "
+      + "reader; re-mint via the family's entry tool. Write `when` from the CONVERSATION'S intent — it is "
       + 'what makes the recipe findable by meaning later. Reach for "save this / keep this setup / remember this view". '
-      + 'Saves create_view recipes (core + book kinds), create_beats recipes, and mint_solid workbench recipes '
+      + 'Saves create_exhibit recipes (core + book kinds), create_beats recipes, and mint_solid workbench recipes '
       + '(field / expr / code included); assembler / motion join later.',
     inputSchema: {
       type: 'object',

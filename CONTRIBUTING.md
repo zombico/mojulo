@@ -28,13 +28,13 @@ It lives at [control/book/](control/book/) and ships in the npm package, so it l
 
 | `entry` | goes to | book chapters today |
 |---|---|---|
-| `create_view`, `compose_world` | view vocab | `science/`, `math/`, `worlds/` |
+| `create_exhibit`, `compose_world` | view vocab | `science/`, `math/`, `worlds/` |
 | `create_beats` | beats vocab | `beats/` |
 | `mint_solid`, `edit_solid` | solid vocab | `solids/` |
 | `forge_motion`, `stitch_motion` | motion vocab | `motion/` |
 | `create_figure` | wardrobe (`garment.json` / `outfit.json`) | `wardrobe/` |
 
-**Door 2 — `builder` (code).** `card.md` + `builder.js` (+ `builder.test.js`): a **new view kind that lands without touching core**. The loader imports the builder at boot and registers it into the `create_view` enum and the world render dispatch. `create_view` is the only Door-2 *kind* lane today; other families' lanes get built when someone actually wants to author a kind outside core.
+**Door 2 — `builder` (code).** `card.md` + `builder.js` (+ `builder.test.js`): a **new view kind that lands without touching core**. The loader imports the builder at boot and registers it as an exhibit (`create_exhibit`, in its card family's hall) and into the world render dispatch. The exhibit lane is the only Door-2 *kind* lane today; other families' lanes get built when someone actually wants to author a kind outside core.
 
 **The part lane (solids).** `card.md` + `builder.js` (+ `builder.test.js`), manifest `type: "part"`: a printable part by name (a wall hook, a phone stand, a box with a lid) over the `scad` kind core already ships. The builder exports `part = { id, title, params }` and `source(params)`, which writes an OpenSCAD program, a string or `{ source, parts }`, using the `mj_*` library. Every param names a `default`, plus `min` / `max` / `unit` or a `one_of` list, so `mint_solid({ kind: 'scad', spec: { part: '<id>' } })` alone is a finished part and `params` fit it. The program is stamped on the row beside `part` and `params`, rewritten when `/params` change, so refining a builder never moves a part already minted. The purity rules are the view builders' rules; the card lists the params and says how to print it. `wall-hook`, `phone-stand` and `lidded-box` are the worked examples.
 
@@ -63,7 +63,7 @@ A builder module is **pure**: no imports, no I/O, no `Math.random`, no `Date.now
 
 ```js
 export const kind = {
-  id: 'my-kind',                 // the create_view enum id
+  id: 'my-kind',                 // the exhibit's id (create_exhibit, in its family's hall)
   manifestKind: 'my-kind-view',  // the stored manifest kind
   family: 'science',             // science | math | bio
   title: 'mojulo my kind',
@@ -110,10 +110,10 @@ The **cookbook** is your own book, structurally identical to the bundled one —
 The loop it closes is *mint → tweak → **keep** → recall by intent*:
 
 ```
-create_view / create_beats  →  (tune it until it's right)  →  save_recipe({ ref, id, when })
+create_exhibit / create_beats  →  (tune it until it's right)  →  save_recipe({ ref, id, when })
 ```
 
-`save_recipe` reads the stored sketch, extracts its manifest into `recipe.json`, drafts `card.md`, appends the manifest row, commits the save, and reindexes — so the entry is recallable through `get_view_vocab` / `get_beats_vocab` immediately and `semantic_search` right after. The agent writes `when` from the conversation ("the pendulum setup for my Tuesday class"), which is exactly why *paraphrased* recall still finds it months later. It covers `create_view` recipes today (core **and** book kinds) plus `create_beats`; solids and motion join by the same lane pattern.
+`save_recipe` reads the stored sketch, extracts its manifest into `recipe.json`, drafts `card.md`, appends the manifest row, commits the save, and reindexes — so the entry is recallable through `get_exhibit` / `get_beats_vocab` immediately and `semantic_search` right after. The agent writes `when` from the conversation ("the pendulum setup for my Tuesday class"), which is exactly why *paraphrased* recall still finds it months later. It covers `create_exhibit` recipes today (core **and** book kinds) plus `create_beats`; solids and motion join by the same lane pattern.
 
 Precedence is first-wins: **core kinds > your cookbook > the bundled book.** "Forking" a book entry means saving it under your own id. There is no merge machinery and there won't be.
 

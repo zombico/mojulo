@@ -3,7 +3,7 @@
   "id": "conics",
   "name": "Conic Sections",
   "family": "math",
-  "entry": "create_view",
+  "entry": "create_exhibit",
   "summary": "Mint an interactive GEOMETRY explainer — where the CONIC SECTIONS come from, rendered as a live traversable three.js World.",
   "when": "Reach for this on framing like 'conic sections / circle ellipse parabola hyperbola / slicing a cone / where conics come from'.",
   "retired_tool": "create_conics_view"
@@ -14,7 +14,7 @@ Mint an interactive GEOMETRY explainer — where the CONIC SECTIONS come from, r
 
 ## Parameters
 
-Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.
+Pass these in `create_exhibit`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_exhibit` params and may be omitted from `params`.
 
 - `title` (string) — Title for the resulting sketch artifact.
 - `scenario` (string) — Which slice (default 'ellipse'): 'circle' (plane ⟂ axis), 'ellipse' (gentle tilt, still closed), 'parabola' (plane parallel to a side, opens with one arm to infinity), 'hyperbola' (steep tilt, catches both nappes, two branches).

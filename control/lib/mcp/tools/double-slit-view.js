@@ -42,7 +42,7 @@ export function mintDoubleSlitView({ title, scenario, separation, slitWidth, sca
 
 export async function createDoubleSlitViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "double-slit" }) requires a recipe object');
+    throw new Error('the double-slit recipe requires a recipe object');
   }
   const { title, scenario, separation, slit_width: slitWidth, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintDoubleSlitView({ title, scenario, separation, slitWidth, scale, viewBox, scene, ref, folderRef });

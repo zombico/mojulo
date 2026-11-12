@@ -1,5 +1,5 @@
 /**
- * create_view kind 'hydro' — mint one arc of the MULTI-ARC hydroelectric-power explainer in the
+ * create_exhibit earth/hydro — mint one arc of the MULTI-ARC hydroelectric-power explainer in the
  * traversable three.js World: the dam (stored head, P = ρgh, the Torricelli outlet), the penstock
  * (PE → KE, Bernoulli), the Pelton turbine (momentum → torque → spin), the generator (Faraday's
  * ε = −dΦ/dt), or the whole plant chain in one world. All arcs quote the SAME numbers from one pure
@@ -50,7 +50,7 @@ export function mintHydroView({ title, scenario, head, flow, scale, viewBox, sce
 
 export async function createHydroViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view kind hydro requires a recipe object');
+    throw new Error('create_exhibit earth/hydro requires a recipe object');
   }
   const { title, scenario, head, flow, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintHydroView({ title, scenario, head, flow, scale, viewBox, scene, ref, folderRef });

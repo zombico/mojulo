@@ -97,7 +97,7 @@ The mint tools are re-cut by FORM behind one reader rather than listed flat: cal
 | image-render | `request_image_render` | a composition-locked scaffold an external model paints, bound back with provenance |
 | object | `mint_solid` / `edit_solid`, `edifice` | `.glb`, print-ready `.stl` at true scale |
 | world | `compose_world` | CSS-3D scene, traversable WebGL, `.glb`, an engine's handoff project |
-| view | `create_view` | animated science / math / bio study objects |
+| exhibit | `create_exhibit` | exhibits by hall: animated science / space / earth / life / math study objects, historic cities |
 | motion | `forge_motion` / `stitch_motion` | GIF, MP4 |
 | audio | `create_beats` | WAV, MIDI |
 | voice | `create_voice` | WAV narration |
@@ -202,7 +202,7 @@ The point of MCP exposure isn't a second way to drive the dashboard. It's that m
 
 **Prompt:** *"Recall my Tuesday pendulum setup and mint it at 15°, 35°, 45°, 60° and 75° north, turntable each one, and drop the GIFs in the class Drive folder."*
 
-**Flow:** `semantic_search({ kinds: ['view_vocab'], query: 'the pendulum setup for my Tuesday class' })` recalls the saved card by *meaning*, not by filename → read its `recipe.json` → `create_view` once per latitude → `forge_motion` per ref → the destination MCP files the outputs.
+**Flow:** `semantic_search({ kinds: ['view_vocab'], query: 'the pendulum setup for my Tuesday class' })` recalls the saved card by *meaning*, not by filename → read its `recipe.json` → `create_exhibit` once per latitude → `forge_motion` per ref → the destination MCP files the outputs.
 
 **Why the `when` line is the whole trick.** Paraphrased recall works because the agent wrote that line from the original conversation. This is the loop the cookbook exists for: mint → tweak → keep → recall. See [CONTRIBUTING.md](../CONTRIBUTING.md) for keeping and publishing your own book.
 

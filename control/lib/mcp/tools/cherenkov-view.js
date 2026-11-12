@@ -41,7 +41,7 @@ export function mintCherenkovView({ title, scenario, density, viewBox, scene, re
 
 export async function createCherenkovViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_view({ kind: "cherenkov" }) requires a recipe object');
+    throw new Error('create_exhibit({ id: "science/cherenkov" }) requires a recipe object');
   }
   const { title, scenario, density, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCherenkovView({ title, scenario, density, viewBox, scene, ref, folderRef });

@@ -21,7 +21,7 @@ const PENDULUM = {
   liberties: [{ what: 'the rod is drawn thick', why: 'to read from the back of the room' }],
 };
 
-describe("create_view({ kind: 'classical' }): a science world, end to end", () => {
+describe("create_exhibit({ id: 'science/classical' }): a science world, end to end", () => {
   it('mints the recipe as given, returns the machine gate, and says nobody has looked', async () => {
     const r = await createViewHandler({ kind: 'classical', params: PENDULUM, title: 'wide pendulum' });
     expect(r.ok).toBe(true);
