@@ -304,7 +304,7 @@ export function labDress(plan, geom) {
     if (!Dz) continue;
     const roomBays = (geom.bays || []).filter((b) => b.F.o[0] >= r.x0 - 1e-6 && b.F.o[0] <= r.x1 + 1e-6 && b.F.o[1] >= r.y0 - 1e-6 && b.F.o[1] <= r.y1 + 1e-6);
     if (Dz.k.blackout > 0) { const E = emergencyLamps(roomBays, D, Dz, plan.kit.lab); faces.push(...E.faces); lights.push(...E.lights); }
-    if (L.hole) faces.push(...debrisPile(L.hole, D, Dz, plan.kit, { key: plan.kit.tiles.ceiling.key, scale: plan.kit.tiles.ceiling.scale, tint: plan.kit.tint.ceiling }).faces);
+    if (L.hole) faces.push(...debrisPile(L.hole, D, Dz, plan.kit, { key: plan.kit.tiles.ceiling.key, scale: plan.kit.tiles.ceiling.scale, tint: plan.kit.tint.ceiling }, { fallenOnly: !!(plan.skandart && plan.kit.skandart?.collapse) }).faces);
     if (Dz.k.breach > 0) { const sp = spillAt(c, D, Dz, pick.breach, live); after.push(...sp.faces); faces.push(...sp.shards); }
     if (Dz.k.leak > 0) {
       const lk = leakAt(r, roomBays, D, Dz, plan.kit.lab, pick.leak, live);

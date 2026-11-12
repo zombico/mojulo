@@ -275,6 +275,21 @@ STAGE_KITS['island-plaza'] = Object.freeze({
 STAGE_KITS['research-lab'] = Object.freeze({
   shell: 'lab', grid: 1, bay: 4.8, wall: 0.5,
   door: { width: 2, height: 3, frame: 0.3, out: 0.1 },
+  // (its debris, asked for by a recipe's `skandart` or its `condition`, era/skandart.js: a lab sheds no stone; what lies
+  // in it is what the draughts carried and the walls let go, and where its roof came down (decay's collapse), the deck)
+  skandart: Object.freeze({
+    foot: Object.freeze({ why: 'the upper boards come loose and fall, and the draughts carry papers and broken glass to the kick band: a drift a bay, over a skin of dust',
+      pieces: Object.freeze({ board: 3, paper: 10, 'glass-shard': 8, 'concrete-chunk': 2 }) }),
+    corner: Object.freeze({ why: 'what drifts is pushed into the corners: boards, papers and glass deeper in the angle',
+      pieces: Object.freeze({ board: 3, paper: 9, 'glass-shard': 6, 'concrete-chunk': 3 }) }),
+    collapse: Object.freeze({ why: 'where the roof came down the deck lies under its hole: concrete broken off the slab, the deck\'s sheets across it',
+      pieces: Object.freeze({ 'slab-chunk': 26, 'concrete-chunk': 34, 'deck-sheet': 6 }), spread: 2.6 }),
+    // (a drift is a skin of dust, not a talus; a collapse a heap of the slab; what lies is carried past the body)
+    // (a roof's slab breaks into pieces, not into fines: its heap a low bed of dust under many chunks)
+    heights: Object.freeze({ foot: Object.freeze([0.03, 0.12]), corner: Object.freeze([0.06, 0.24]), cone: Object.freeze([0.3, 0.7]) }),
+    spread: 1.2, reach: 2.2,
+    matters: Object.freeze({ concrete: '#8c8a85', steel: '#9ea4aa', board: '#8f918e', paper: '#dcd7ca', glass: '#5c7477', grit: '#7c7a75' }),
+  }),
   torch: { color: '#e8f0ff', intensity: 1.2, radius: 8 },
   rubble: null,
   cells: { wall: 0.6, trim: 0.6, floor: 0.6, ceiling: 1.2, kick: 0.6, upper: 0.8, column: 0.6, skirt: 1, duct: 1.2, cable: 2, housing: 1 },

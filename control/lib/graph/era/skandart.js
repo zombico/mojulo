@@ -55,7 +55,7 @@ export const SKANDART = Object.freeze({
   // debris is read as filler (playscape/objects/laws.js INTEREST: the distance the player meets it at)
   read: 'filler',
   // a heap's body against its wall at amount 0 and at 1 (its crest's height, metres): a bay's foot, a corner
-  height: Object.freeze({ foot: Object.freeze([0.16, 0.48]), corner: Object.freeze([0.3, 0.85]) }),
+  height: Object.freeze({ foot: Object.freeze([0.16, 0.48]), corner: Object.freeze([0.3, 0.85]), cone: Object.freeze([0.35, 1]) }),
   // the farthest a heap's toe runs from its wall (it keeps off the walk), how long an edge heap's ends taper over, and
   // the body's grid
   reach: 1.4, taper: 0.55, cell: 0.16,
@@ -67,6 +67,8 @@ export const SKANDART = Object.freeze({
   lesser: 0.55,
   // an edge heap's length when no bay says it, the least bay that takes one, and how near a doorway a heap may lie
   strip: 2.4, bay: 1.6, door: 1.2,
+  // how far a heap keeps from the end of a kit's own bay, where its column stands out
+  column: 0.25,
   // how much the heaps' faces turn their shade by: a face turned down takes `down`, up 1, a wall-ward face between
   shade: Object.freeze({ down: 0.55, side: 0.78 }),
   // the share of the ground's grime a fresh fall takes: it has not lain there as long as the floor under it
@@ -127,8 +129,11 @@ const tanD = (deg) => Math.tan((deg * Math.PI) / 180);
  * The ground under a heap's frame, by the distance `d` from the nearest wall: the gutter's floor where the kit has a
  * gutter at its walls' feet (era/stage.js: from the plinth's face, `width` wide, `depth` deep), the floor past its lip.
  */
+/** How far a kit's wall stands out at its foot: its plinth, or a lab's kick band. */
+const footOut = (K) => Math.max(K.plinth?.out ?? 0, K.lab?.kick?.out ?? 0);
+
 function groundOf(K) {
-  const g = K.gutter, lip = (K.plinth?.out ?? 0) + (g ? g.width : 0);
+  const g = K.gutter, lip = footOut(K) + (g ? g.width : 0);
   // (the lip itself counts with the gutter: the body never climbs its wall, and the face that crosses back to the floor lies
   // under the floor's edge)
   return Object.assign((d) => (g && d <= lip + 1e-9 ? -g.depth : 0), { lip: g ? lip : null });
@@ -137,7 +142,7 @@ function groundOf(K) {
 /** A heap's body as a surface: z(x, y) over the frame (its top against the wall, falling at the fines' repose to the
  *  ground), and its toe (how far from the wall it runs, at most SKANDART.reach). */
 function heapBody(K, role, H, seed, len, reach = SKANDART.reach) {
-  const ground = groundOf(K), start = (K.plinth?.out ?? 0) + 0.02, slope = tanD(REPOSE.grit), T = SKANDART.taper;
+  const ground = groundOf(K), start = footOut(K) + 0.02, slope = tanD(REPOSE.grit), T = SKANDART.taper;
   // (lumped: a slow wave along the heap, two of them out of step, so the crest rises and falls)
   // (its waves stretched with its height, so a tall heap's crest climbs no steeper than a low one's: at most 0.3 along it)
   const wave = Math.max(1, (H * (0.16 * 2.3 + 0.09 * 5.1)) / 0.3);
@@ -207,7 +212,7 @@ const yawP = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0] * 
  * piece its size off the row's range (more small than large), its place by fall sorting: the bigger, the nearer the
  * toe. A piece whose centre would lie in a pilaster's foot (`blocked`) or off the heap's ground is not dealt.
  */
-function dealPieces(seed, rows, B, role, len, blocked) {
+function dealPieces(seed, rows, B, role, len, blocked, spread = 0) {
   // (sorted by size across the whole heap: a block rolls past every chip, whatever row each came from)
   const out = [], all = Object.keys(rows).map((id) => DEBRIS[id].size), lo = Math.min(...all.map((z) => z[0])), hi = Math.max(...all.map((z) => z[1]));
   Object.entries(rows).forEach(([id, n], ri) => {
@@ -217,9 +222,12 @@ function dealPieces(seed, rows, B, role, len, blocked) {
       // (fall sorting: a piece that rolls comes to rest by its size, a flake that lies anywhere on the face)
       const down = R.how === 'rolls' ? mix(0.2, 1.05, 0.35 * h(7703) + 0.65 * s) : mix(0.05, 0.9, h(7703));
       let x, y;
-      if (role === 'corner') { const a = mix(0.12, Math.PI / 2 - 0.12, h(7705)), r = down * B.toe; x = B.start + Math.cos(a) * r; y = B.start + Math.sin(a) * r; }
-      else if (role === 'cone') { const a = h(7705) * 2 * Math.PI, r = down * B.toe; x = Math.cos(a) * r; y = Math.sin(a) * r; }
-      else { x = (h(7705) - 0.5) * (len - SKANDART.taper); y = B.start + down * B.toe * mix(0.75, 1, h(7707)); }
+      // (a piece that lies, a sheet of paper or a board, is carried past the body as far as the card's `spread` says)
+      // (and anything off a free-standing heap: what comes through a roof rolls off its bed across the floor)
+      const far = R.how === 'lies' || role === 'cone' ? Math.max(B.toe, spread) : B.toe;
+      if (role === 'corner') { const a = mix(0.12, Math.PI / 2 - 0.12, h(7705)), r = down * far; x = B.start + Math.cos(a) * r; y = B.start + Math.sin(a) * r; }
+      else if (role === 'cone') { const a = h(7705) * 2 * Math.PI, r = down * far; x = Math.cos(a) * r; y = Math.sin(a) * r; }
+      else { x = (h(7705) - 0.5) * (len - SKANDART.taper); y = B.start + down * far * mix(0.75, 1, h(7707)); }
       if (blocked(x, y, w) || out.some((q) => R.how === 'rolls' && DEBRIS[q.id].how === 'rolls' && Math.hypot(q.x - x, q.y - y) < (q.w + w) * 0.42)) continue;
       out.push({ id, i: i++, x, y, w, yaw: h(7709) * 2 * Math.PI, seed: seed * 31 + ri * 101 + tries });
     }
@@ -241,7 +249,7 @@ export function buildHeap(K, role, rows, amount, least, seed, len, pools, spec =
   const pw = K.pilaster ? K.pilaster.w / 2 + (K.pilaster.bands?.base?.out ?? 0) + 0.04 : 0;
   // (a corner's pilasters stand in its angle: no piece is centred in their feet)
   const blocked = role === 'corner' && pw ? (x, y) => Math.min(x, y) < (K.pilaster.out + (K.pilaster.bands?.base?.out ?? 0) + 0.05) && Math.max(x, y) < pw + 0.05 : () => false;
-  const dealt = dealPieces(seed, rows, full, role, len, blocked);
+  const dealt = dealPieces(seed, rows, full, role, len, blocked, spec.spread ?? 0);
   const pieces = [], faces = bodyFaces(B, role, len, 'grit');
   for (const q of dealt) {
     if (q.i >= Math.round(rows[q.id] * amount) || q.w < least) continue;
@@ -276,12 +284,16 @@ function wax(seed, at, r, drops, matter, least = 0) {
  */
 export function skandartTemplates(plan, amount, read = skandartRead(), len = SKANDART.strip) {
   const K = plan.kit, card = K.skandart, out = {}, least = read.least, pools = {};
+  // (a card may size its own heaps: a lab's drift is a skin of dust, not a talus; and carry what lies past the body)
+  const spec = { heights: { ...SKANDART.height, ...(card.heights || {}) }, reach: card.reach ?? SKANDART.reach, spread: card.spread ?? 0 };
   if (card.foot) for (let fam = 0; fam < 2; fam++) {
     const seed = 911 + fam * 37;
-    out[`foot-${fam}a`] = { role: 'foot', ...buildHeap(K, 'foot', card.foot.pieces, amount, least, seed, len, pools) };
-    out[`foot-${fam}b`] = { role: 'foot', ...buildHeap(K, 'foot', card.foot.pieces, amount * SKANDART.lesser, least, seed, len, pools) };
+    out[`foot-${fam}a`] = { role: 'foot', ...buildHeap(K, 'foot', card.foot.pieces, amount, least, seed, len, pools, spec) };
+    out[`foot-${fam}b`] = { role: 'foot', ...buildHeap(K, 'foot', card.foot.pieces, amount * SKANDART.lesser, least, seed, len, pools, spec) };
   }
-  if (card.corner) for (let fam = 0; fam < 2; fam++) out[`corner-${fam}`] = { role: 'corner', ...buildHeap(K, 'corner', card.corner.pieces, amount, least, 1301 + fam * 41, len, pools) };
+  if (card.corner) for (let fam = 0; fam < 2; fam++) out[`corner-${fam}`] = { role: 'corner', ...buildHeap(K, 'corner', card.corner.pieces, amount, least, 1301 + fam * 41, len, pools, spec) };
+  // (where the roof came down, a cone under the hole: its size the cause's, not the amount's; laid only where a hole is)
+  if (card.collapse) out.collapse = { role: 'cone', ...buildHeap(K, 'cone', card.collapse.pieces, 1, least, 1401, len, pools, { ...spec, spread: card.collapse.spread ?? spec.spread }) };
   if (card.apron) {
     out['apron-pour'] = { role: 'apron', faces: wax(1501, [0.02, 0.02, 0], 0.07, 4, 'wax', least) };
     out['apron-pool'] = { role: 'apron', faces: wax(1503, [0.05, 0.05, 0], 0.11, 5, 'wax', least) };
@@ -301,7 +313,9 @@ function wallsOf(plan, geom) {
     const F = wallFrame(r, side), same = (G) => G.N[0] === F.N[0] && G.N[1] === F.N[1] && Math.abs(G.o[0] - F.o[0]) + Math.abs(G.o[1] - F.o[1]) < 1e-6;
     const us = (geom.pilasters || []).filter((p) => p.room === r.id && same(p.F)).map((p) => p.u).sort((a, b) => a - b);
     const cuts = r.openings[side].map((op) => openingU(F, op));
-    out.push({ r, side, F, us, cuts });
+    // (a kit that lays its own bays, a lab's between its columns, era/lab.js: those whose wall is whole, not a door's)
+    const own = (geom.bays || []).filter((b) => b.a !== undefined && !b.portal && same(b.F)).map((b) => [b.a, b.b]).sort((p, q) => p[0] - q[0]);
+    out.push({ r, side, F, us, cuts, own });
   }));
   return out;
 }
@@ -321,13 +335,15 @@ export function skandartStamps(plan, geom) {
   const nearCut = (W, u) => W.cuts.some(([a, b]) => u > a - SKANDART.door && u < b + SKANDART.door);
   const walls = wallsOf(plan, geom);
   // (a stamp's light is read where its clump's mass is: in the gutter, if the kit has one, a third of a metre out)
-  const mid = (K.plinth?.out ?? 0) + 0.25, gMid = K.gutter && mid < (K.plinth?.out ?? 0) + K.gutter.width ? -K.gutter.depth : 0;
+  const mid = footOut(K) + 0.25, gMid = K.gutter && mid < footOut(K) + K.gutter.width ? -K.gutter.depth : 0;
   if (card.foot) walls.forEach((W, wi) => {
     // the bays between the pilasters (a wall without them, cut in strips' lengths)
-    const edges = W.us.length ? W.us : Array.from({ length: Math.max(1, Math.floor(W.F.len / SKANDART.bay)) + 1 }, (_, i, a) => (i * W.F.len) / (a.length - 1));
+    const nb = Math.max(1, Math.floor(W.F.len / SKANDART.bay)), edges = W.us.length ? W.us : Array.from({ length: nb + 1 }, (_, i) => (i * W.F.len) / nb);
+    // (its own bays where the kit lays them, clear of the columns that stand out between them)
+    const spans = W.own.length ? W.own.map(([a, b]) => [a + SKANDART.column, b - SKANDART.column]) : edges.slice(0, -1).map((e, i) => [e + (W.us.length ? pw : 0.3), edges[i + 1] - (W.us.length ? pw : 0.3)]);
     const bays = [];
-    for (let i = 0; i + 1 < edges.length; i++) {
-      const u0 = edges[i] + (W.us.length ? pw : 0.3), u1 = edges[i + 1] - (W.us.length ? pw : 0.3), mid = (u0 + u1) / 2;
+    for (const [u0, u1] of spans) {
+      const mid = (u0 + u1) / 2;
       if (u1 - u0 < SKANDART.bay || W.cuts.some(([a, b]) => u1 > a - 0.4 && u0 < b + 0.4)) continue;
       const x = W.F.o[0] + W.F.U[0] * mid, y = W.F.o[1] + W.F.U[1] * mid;
       if (offSet(x, y, SKANDART.reach)) bays.push({ x, y, len: r5(u1 - u0) });
@@ -351,6 +367,11 @@ export function skandartStamps(plan, geom) {
       out.push({ tpl: `corner-${Math.floor(hash3(ri, ci, 7511) * 2)}`, at: [r5(x), r5(y), 0], rotZ: r5(a) + 0, look: [r5(d[0] * 0.5), r5(d[1] * 0.5), 0.85], mid: [r5(x + d[0] * 0.6), r5(y + d[1] * 0.6), r5(gMid)] });
     });
   });
+  // COLLAPSE: under each hole in the roof (a lab's, era/lab.js: decay's collapse), the cone of what came down through it
+  if (card.collapse) for (const L of geom.labs || []) if (L.hole) {
+    const [x0, y0, x1, y1] = L.hole.rect, x = (x0 + x1) / 2, y = (y0 + y1) / 2;
+    out.push({ tpl: 'collapse', at: [r5(x), r5(y), 0], rotZ: 0, look: [0, 0, 1], mid: [r5(x), r5(y), 0.3] });
+  }
   if (card.apron && site) {
     const tomb = cryptTomb(plan), [tx, ty] = site.at;
     tomb.corners.forEach((c, i) => {
@@ -365,7 +386,7 @@ export function skandartStamps(plan, geom) {
 /** The laws on what was laid: every piece on the body's face (at it or sunk in it, never above it, never under it whole),
  *  the body at its fines' angle of repose, every piece big enough to be read where it is seen (`read`, skandartRead),
  *  none in a wall, every toe off the walk, a wall's heaps in its rhythm. → [{ law, ok, what }] */
-export function skandartLaws(plan, templates, stamps, read = skandartRead(), reach = SKANDART.reach) {
+export function skandartLaws(plan, templates, stamps, read = skandartRead(), reach = plan.kit?.skandart?.reach ?? SKANDART.reach) {
   const K = plan.kit, rows = [], row = (law, what, ok) => rows.push({ law, what, ok: !!ok });
   for (const [id, T] of Object.entries(templates)) {
     if (!T.faces.length || !T.body) continue;
@@ -408,7 +429,12 @@ export function skandartMatters(kit) {
     // (the shelf's other matters, as they are fired, split or cut; a kit that drops them may say its own)
     brick: { colour: [0.55, 0.3, 0.22], tint: [1, 1, 1] }, terracotta: { colour: [0.66, 0.38, 0.25], tint: [1, 1, 1] },
     slate: { colour: [0.29, 0.31, 0.34], tint: [1, 1, 1] }, wood: { colour: [0.44, 0.36, 0.27], tint: [1, 1, 1] },
+    concrete: { colour: [0.55, 0.54, 0.52], tint: [1, 1, 1] }, steel: { colour: [0.6, 0.62, 0.65], tint: [1, 1, 1] },
+    board: { colour: [0.56, 0.57, 0.56], tint: [1, 1, 1] }, paper: { colour: [0.86, 0.84, 0.79], tint: [1, 1, 1] },
+    glass: { colour: [0.36, 0.45, 0.47], tint: [1, 1, 1] },
     wax: { colour: kit.dress?.candles?.wax ? hexRgb(kit.dress.candles.wax) : [0.9, 0.86, 0.75], tint: [1, 1, 1] },
+    // (and what the kit's card paints its own matters, its fines among them)
+    ...Object.fromEntries(Object.entries(kit.skandart?.matters || {}).map(([k, hex]) => [k, { colour: hexRgb(hex), tint: [1, 1, 1] }])),
   };
 }
 

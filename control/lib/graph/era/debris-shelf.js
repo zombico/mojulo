@@ -25,6 +25,12 @@ const mix = (a, b, t) => a + (b - a) * t;
 
 /** The things that pile up. */
 export const DEBRIS = Object.freeze({
+  'slab-chunk': Object.freeze({ words: ['broken slab', 'slab chunk', 'a piece of the roof', 'chunk of the deck'], shape: 'chip', matter: 'concrete', size: [0.3, 0.85], how: 'rolls' }),
+  'concrete-chunk': Object.freeze({ words: ['concrete', 'broken concrete', 'chunks of the slab', 'rubble of the roof'], shape: 'chip', matter: 'concrete', size: [0.08, 0.5], how: 'rolls' }),
+  'deck-sheet': Object.freeze({ words: ['deck sheet', 'roof sheet', 'sheet metal', 'decking'], shape: 'plate', matter: 'steel', size: [0.7, 1.5], how: 'lies', thick: 0.006, sides: 4 }),
+  board: Object.freeze({ words: ['board', 'panel', 'wall board', 'fallen panel', 'plasterboard'], shape: 'plate', matter: 'board', size: [0.3, 0.9], how: 'lies', thick: 0.012, sides: 4 }),
+  paper: Object.freeze({ words: ['paper', 'papers', 'sheets of paper', 'documents'], shape: 'plate', matter: 'paper', size: [0.2, 0.32], how: 'lies', thick: 0.002, sides: 4 }),
+  'glass-shard': Object.freeze({ words: ['glass', 'broken glass', 'shards', 'glass shard'], shape: 'plate', matter: 'glass', size: [0.04, 0.22], how: 'lies', thick: 0.006, sides: 3 }),
   spall: Object.freeze({ words: ['spall', 'chips', 'rubble', 'broken stone'], shape: 'chip', matter: 'stone', size: [0.05, 0.2], how: 'rolls' }),
   'fallen-block': Object.freeze({ words: ['fallen block', 'ashlar block', 'masonry', 'a stone from the wall'], shape: 'block', matter: 'stone', size: [0.32, 0.6], how: 'rolls', prop: [1, 0.55, 0.5] }),
   'breakdown-slab': Object.freeze({ words: ['breakdown', 'slab', 'fallen slab', 'rockfall', 'ceiling slab'], shape: 'block', matter: 'stone', size: [0.45, 1.1], how: 'rolls', prop: [1, 0.7, 0.28] }),
@@ -33,7 +39,7 @@ export const DEBRIS = Object.freeze({
   slate: Object.freeze({ words: ['slate', 'slates', 'roof slate'], shape: 'plate', matter: 'slate', size: [0.15, 0.36], how: 'lies', thick: 0.01, sides: 4 }),
   'roof-tile': Object.freeze({ words: ['roof tile', 'tiles', 'pantile'], shape: 'plate', matter: 'terracotta', size: [0.18, 0.34], how: 'lies', thick: 0.014, sides: 4, bend: 0.35 }),
   sherd: Object.freeze({ words: ['sherd', 'potsherd', 'broken pot', 'pottery'], shape: 'plate', matter: 'terracotta', size: [0.06, 0.2], how: 'lies', thick: 0.01, sides: 5, bend: 0.5 }),
-  plank: Object.freeze({ words: ['plank', 'board', 'boards'], shape: 'stick', matter: 'wood', size: [0.6, 1.4], how: 'lies', section: [0.18, 0.025] }),
+  plank: Object.freeze({ words: ['plank', 'planks', 'floorboard'], shape: 'stick', matter: 'wood', size: [0.6, 1.4], how: 'lies', section: [0.18, 0.025] }),
   beam: Object.freeze({ words: ['beam', 'joist', 'timber', 'rafter'], shape: 'stick', matter: 'wood', size: [1.2, 2.4], how: 'lies', section: [0.16, 0.16] }),
   splinter: Object.freeze({ words: ['splinter', 'splinters', 'kindling'], shape: 'stick', matter: 'wood', size: [0.15, 0.4], how: 'lies', section: [0.03, 0.02] }),
 });

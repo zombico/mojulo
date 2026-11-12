@@ -62,3 +62,15 @@ size it would be.
   a round heap's slope varies only gentler than its repose, and where a bay's face meets its hip the two round into one
   another (a soft minimum), never a crease steeper than either; and no heap stands taller than its reach lets its face
   fall to the ground.
+- The research lab answers the debris question in its own things: a lab sheds no stone, so at each wall's foot, in the
+  bays it lays between its columns, its upper boards lie fallen and the draughts' papers and broken glass are carried
+  past a skin of dust; deeper in its corners; and where its roof came down (its `decay`'s collapse), the slab in pieces
+  heaped under the hole on a low bed of dust, the deck's sheets across it, chunks rolled out over the floor. The old
+  pile there keeps only the bay's fallen troffers. A card may size its own heaps (`heights`), carry what lies past the
+  body (`spread`) and paint its own matters (`matters`). The shelf gains what a lab drops: slab chunk, concrete chunk,
+  deck sheet, board, paper, glass shard (the word "board" is the lab's wall board now; a plank is "plank").
+- A room's condition reaches a kit's own story of decay: on a kit whose style card tells one (the lab's abandonment,
+  blackout, leak, broken set piece and fallen roof), neglected abandons it, derelict abandons it in the dark with a
+  leak, and ruined brings its roof down too, so its debris has a hole to lie under. A recipe's own `decay` stands over
+  the word's.
+- Fixed: a wall without pilasters split into strips read a length `Array.from` never passes (it threw).
