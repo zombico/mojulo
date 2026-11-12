@@ -82,7 +82,8 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
-import { readSkandart, skandartLay, skandartRepeats, skandartRead, resolveSkandartCard, SKANDART, SKANDART_CAUSES } from './skandart.js';
+import { readSkandart, skandartLay, skandartRepeats, skandartRead, resolveSkandartCard, SKANDART, SKANDART_CAUSES, skandartStamps } from './skandart.js';
+import { skandartVessels } from './skandart-vessels.js';
 import { withCondition } from './condition.js';
 import { withWeathering, weatherKit } from './weathering.js';
 import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
@@ -214,6 +215,9 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
     corner: Object.freeze({ why: 'what falls is pushed into the corners: a deeper heap against the pilasters\' feet where two walls meet, a block or two at its toe',
       pieces: Object.freeze({ 'fallen-block': 2, spall: 14, 'render-flake': 8 }) }),
     apron: 'the candles at the tomb\'s corners pour their wax on the dais and down onto the floor at its foot',
+    // (and what the tomb's keepers stored here, era/skandart-vessels.js: urns and pots in the bays, tipped and broken
+    // the further the room is gone)
+    vessels: Object.freeze({ kinds: Object.freeze({ urn: 2, pot: 2, jar: 1 }), every: 3 }),
     webs: 'within reach the webs are swept; over the string course nothing disturbs them',
   }),
   arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
@@ -285,6 +289,8 @@ STAGE_KITS['research-lab'] = Object.freeze({
       pieces: Object.freeze({ board: 3, paper: 9, 'glass-shard': 6, 'concrete-chunk': 3 }) }),
     collapse: Object.freeze({ why: 'where the roof came down the deck lies under its hole: concrete broken off the slab, the deck\'s sheets across it',
       pieces: Object.freeze({ 'slab-chunk': 26, 'concrete-chunk': 34, 'deck-sheet': 6 }), spread: 2.6 }),
+    // (its stores: crates in the bays, era/skandart-vessels.js)
+    vessels: Object.freeze({ kinds: Object.freeze({ crate: 3, barrel: 1 }), every: 4 }),
     // (a drift is a skin of dust, not a talus; a collapse a heap of the slab; what lies is carried past the body)
     // (a roof's slab breaks into pieces, not into fines: its heap a low bed of dust under many chunks)
     heights: Object.freeze({ foot: Object.freeze([0.03, 0.12]), corner: Object.freeze([0.06, 0.24]), cone: Object.freeze([0.3, 0.7]) }),
@@ -1421,7 +1427,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return new Set(dress.anchors.filter((a) => a.kind !== 'part' && (boxInStairs(plan.cuts, b[a.id] || a.box) || (plan.cuts.bare && a.kind === 'set-piece'))).map((a) => a.id)); })();
   const goneAnchor = (a) => !!plan.cuts && (gone.has(a.id) || gone.has(a.of) || (a.at && inStairs(plan.cuts, [a.at[0], a.at[1], 1])));
   const dressFaces = !dress ? [] : plan.cuts ? dress.faces.filter((f) => !(f.node && gone.has(f.node)) && !inStairs(plan.cuts, mid3(f))) : dress.faces;
-  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  // (and the VESSELS its debris answer keeps, era/skandart-vessels.js: groups in a share of its bays, standing, tipped or
+  // broken by the amount; each standing or tipped one a solid thing of its own, so a game that breaks objects breaks it)
+  const skV = plan.skandart && plan.skandart.amount > 0 && plan.skandart.card.vessels
+    ? skandartVessels(plan, skandartStamps(plan, geom).vessels, { amount: plan.skandart.amount, seed: Number.isFinite(manifest.seed) ? manifest.seed : 1, card: plan.skandart.card.vessels, read: ctx.formLit ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead() })
+    : null;
+  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : []), ...(skV ? skV.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
@@ -1529,6 +1540,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
     ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
     ...(geom.propAnchors || []),
+    ...(skV ? skV.anchors : []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky
@@ -1598,7 +1610,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // how weathered it was asked to be (weathering.js): the scale, its causes, and the dials they set
     ...(plan.weathering ? { weathering: plan.weathering } : {}),
     // its debris (skandart.js): how much, whose answer (the recipe's, the kit's card, or what its materials shed) and what
-    ...(plan.skandart ? { skandart: { amount: plan.skandart.amount, from: plan.skandart.from, causes: SKANDART_CAUSES.filter((c) => plan.skandart.card[c]), ...(plan.skandart.card.derived ? { derived: plan.skandart.card.derived } : {}) } } : {}),
+    ...(plan.skandart ? { skandart: { amount: plan.skandart.amount, from: plan.skandart.from, causes: SKANDART_CAUSES.filter((c) => plan.skandart.card[c]), ...(plan.skandart.card.derived ? { derived: plan.skandart.card.derived } : {}), ...(skV ? { vessels: { ...skV.readout, laws: skV.laws.filter((r) => !r.ok).map((r) => r.what) } } : {}) } } : {}),
     ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

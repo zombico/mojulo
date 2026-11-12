@@ -143,3 +143,14 @@ size it would be.
   trail is sunk in its banks and the water stays in it, a lobe of sand across its tread run on down it; centimetres deep,
   so drawn by its colour (the land cut as sand, as a shore's is, no grass on it), and it never climbs. Both with the
   trail's rockfall under the same `skandart`; the level says what each laid (`skandart.deadfall`, `skandart.wash`).
+- A room's debris answer keeps its VESSELS (`era/skandart-vessels.js`): what it stored and left, pots, urns, jars,
+  crates and barrels standing in groups against its walls, a share of its bays holding a group in a heap's place (taken
+  out before the wall's heap rhythm, so the heaps keep theirs). The room's amount says how they were left: the further
+  gone, the more lie tipped on their sides, fallen away from the wall, and the more are already broken where they stood
+  (a clay one's lower part still standing, open at the break, its sherds about its foot; a crate's planks). Each standing
+  or tipped vessel is a solid thing of its own, so a game that lets objects break (`destruction`: objects and up) slashes,
+  shoots and blows it apart like any crate or pot, and under `physical` it breaks as fired clay or pine. The crypt's card
+  keeps urns, pots and jars, the lab's crates and barrels; a room's use keeps its own (a store, cellar or kitchen pots
+  and jars; a workshop, warehouse or hangar crates and barrels); a recipe names its own (`skandart.vessels: { kinds,
+  every }`) or none (`vessels: false`). New prop forms on the shelf (`pot`, `urn`, `jar`, each one turned vessel) and a
+  breakable class, `urn` (fired clay, one blow). The room says how its vessels were left (`skandart.vessels`).

@@ -8,7 +8,7 @@
  *
  *   MATERIALS        each matter: the words that name it in a tile, what it sheds from a wall and from a ceiling, and
  *                    whether what it sheds is heavy (heaps at its repose) or light (drifts: a skin of dust, carried)
- *   USES             what people leave behind, by the words of a room's use
+ *   USES             what people leave behind, by the words of a room's use, and the vessels it kept (`vessels`)
  *   matterOfTile(tile)            → a matter id, or null (a floor's carpet, epoxy: nothing a wall sheds)
  *   deriveSkandart(kit, { use })  → a card { foot, corner, collapse?, heights?, spread?, derived: { wall, ceiling, use } }
  *                                   or null when nothing it is made of sheds
@@ -42,8 +42,8 @@ const ORDER = F(['glass', 'slate', 'brick', 'render', 'wood', 'board', 'metal', 
 /** What people leave behind, by the words of a room's use. */
 export const USES = F([
   F({ words: F(['lab', 'office', 'library', 'archive', 'school', 'clinic', 'hospital', 'study', 'records', 'control']), leave: F({ paper: 8 }) }),
-  F({ words: F(['store', 'shop', 'kitchen', 'tavern', 'market', 'pantry', 'cellar', 'granary']), leave: F({ sherd: 6 }) }),
-  F({ words: F(['workshop', 'forge', 'mill', 'warehouse', 'hangar', 'depot', 'barn', 'stable', 'shed']), leave: F({ splinter: 6 }) }),
+  F({ words: F(['store', 'shop', 'kitchen', 'tavern', 'market', 'pantry', 'cellar', 'granary']), leave: F({ sherd: 6 }), vessels: F({ kinds: F({ pot: 3, jar: 2, barrel: 1 }), every: 2 }) }),
+  F({ words: F(['workshop', 'forge', 'mill', 'warehouse', 'hangar', 'depot', 'barn', 'stable', 'shed']), leave: F({ splinter: 6 }), vessels: F({ kinds: F({ crate: 3, barrel: 2 }), every: 3 }) }),
 ]);
 
 /** A tile's matter: its generator's settings read first (gen, cut, style, face), then its key; null if nothing sheds. */
@@ -81,6 +81,8 @@ export function deriveSkandart(kit, { use = null } = {}) {
     ...(ceiling ? { collapse: { why: `where its roof comes down, its ${ceiling} lies under the hole`, pieces: { ...MATERIALS[ceiling].ceiling }, spread: 2.4 } } : {}),
     // (light things drift: a skin of dust, carried past it; heavy things heap at their repose)
     ...(light ? { heights: { foot: [0.03, 0.12], corner: [0.06, 0.24], cone: [0.3, 0.7] }, spread: 1.2 } : { heights: { cone: [0.3, 0.8] } }),
+    // (what its use stored, era/skandart-vessels.js: a store's pots and jars, a workshop's crates)
+    ...(usedBy?.vessels ? { vessels: usedBy.vessels } : {}),
     derived: { wall: wallMs, ceiling, ...(usedBy ? { use } : {}) },
   };
 }

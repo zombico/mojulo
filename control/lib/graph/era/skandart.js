@@ -88,7 +88,7 @@ export function skandartRead(screenPx = FRAME.height) {
 
 /** The causes a room's answer may name, and the dials a recipe's own answer may set over a kit's or the derived one. */
 export const SKANDART_CAUSES = Object.freeze(['foot', 'corner', 'collapse']);
-const CARD_KEYS = Object.freeze([...SKANDART_CAUSES, 'heights', 'spread', 'reach', 'matters']);
+const CARD_KEYS = Object.freeze([...SKANDART_CAUSES, 'heights', 'spread', 'reach', 'matters', 'vessels']);
 
 /** A recipe's own answer (its causes, `heights`, `spread`, `reach`, `matters`), each piece a shelf row: checked. */
 function readCard(v) {
@@ -111,6 +111,12 @@ function readCard(v) {
   }
   if (v.spread !== undefined) { if (!(typeof v.spread === 'number' && v.spread >= 0 && v.spread <= 4)) bad('spread is metres from 0 to 4'); card.spread = v.spread; }
   if (v.reach !== undefined) { if (!(typeof v.reach === 'number' && v.reach >= 0.4 && v.reach <= 4)) bad('reach is metres from 0.4 to 4'); card.reach = v.reach; }
+  // (its vessels, era/skandart-vessels.js: false none, else { kinds: { pot | urn | jar | crate | barrel: share }, every? },
+  // checked where they are laid)
+  if (v.vessels !== undefined) {
+    if (v.vessels !== false && (!v.vessels || typeof v.vessels !== 'object' || !v.vessels.kinds)) bad('vessels is false (none), or { kinds: { pot | urn | jar | crate | barrel: how many of each, by share }, every? }');
+    card.vessels = v.vessels;
+  }
   if (v.matters !== undefined) {
     if (!v.matters || typeof v.matters !== 'object') bad('matters is { <matter>: "#rrggbb" }');
     for (const [k, h] of Object.entries(v.matters)) if (!/^#[0-9a-f]{6}$/i.test(String(h))) bad(`matters.${k} is a colour, "#rrggbb"`);
@@ -389,7 +395,9 @@ function wallsOf(plan, geom) {
  * in faces, for its light)
  */
 export function skandartStamps(plan, geom) {
-  const K = plan.kit, card = cardOf(plan), out = [];
+  const K = plan.kit, card = cardOf(plan), out = [], vessels = [];
+  // (the bays that hold vessels ride on the list, not in it: its readers see the heaps as before)
+  Object.defineProperty(out, 'vessels', { value: vessels, enumerable: false });
   const pw = K.pilaster ? K.pilaster.w / 2 + (K.pilaster.bands?.base?.out ?? 0) + 0.06 : 0.1;
   const site = card.apron && K.dress?.tomb ? tombSite(plan) : null;
   const clear = site ? { x: site.at[0], y: site.at[1], r: Math.hypot(site.w, site.d) / 2 + 0.9 } : null;
@@ -411,6 +419,16 @@ export function skandartStamps(plan, geom) {
       if (offSet(x, y, SKANDART.reach)) bays.push({ x, y, len: r5(u1 - u0) });
     }
     if (!bays.length) return;
+    // (a card that keeps VESSELS, era/skandart-vessels.js: one bay in `every` holds a group of them in a heap's place,
+    // taken out before the heaps' rhythm is worked; the wall's last bay kept for a heap)
+    // (each wall its share, about one bay in `every`, its count rolled so walls differ, and which bays by their dice;
+    // never its every bay)
+    if (card.vessels) {
+      const every = card.vessels.every ?? 3, q = Math.min(bays.length - 1, Math.floor((bays.length + hash3(wi + 1, 17, 7531) * every) / every));
+      const take = new Set(bays.map((_, i) => i).sort((a, b) => hash3(wi + 1, a + 1, 7533) - hash3(wi + 1, b + 1, 7533)).slice(0, Math.max(0, q)));
+      for (const [i, b] of bays.entries()) if (take.has(i)) vessels.push({ x: b.x, y: b.y, len: b.len, N: [W.F.N[0], W.F.N[1], 0], U: [W.F.U[0], W.F.U[1], 0], out: r5(footOut(K) + 0.02), wall: wi });
+      for (let i = bays.length - 1; i >= 0; i--) if (take.has(i)) bays.splice(i, 1);
+    }
     // (the heaps a wall takes keep its rhythm: the full heap and the lesser, never three alike, no pair repeated)
     const order = wallRhythm(bays.length, { pick: hash3(wi, bays.length, 7501) }), fam = Math.floor(hash3(wi, 3, 7503) * 2);
     bays.forEach((b, i) => {

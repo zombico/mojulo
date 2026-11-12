@@ -32,6 +32,20 @@ export const PROP_WOOD = Object.freeze({
 });
 const woodSurf = (spec, tint) => ({ key: `${tileFamilyOf(spec, 'props.wood')}-a`, scale: 0.7, tint, group: 'stage:prop' });
 const IRON = [0.22, 0.21, 0.2];
+// a turned profile cut off at `cut` of its height (a broken vessel's lower part, open where it broke); none: whole
+const cutProfile = (prof, cut) => {
+  if (!(cut > 0 && cut < 1)) return prof;
+  const top = prof[prof.length - 1][1], z = top * cut, out = [];
+  for (let i = 0; i < prof.length; i++) {
+    if (prof[i][1] <= z) { out.push(prof[i]); continue; }
+    const [ra, za] = prof[i - 1], [rb, zb] = prof[i], t = (z - za) / Math.max(1e-9, zb - za);
+    out.push([ra + (rb - ra) * t, z]);
+    break;
+  }
+  return out;
+};
+// fired clay: a pot's terracotta, an urn's darker body
+const CLAY = Object.freeze({ pot: Object.freeze({ key: null, scale: 1, tint: [0.62, 0.42, 0.3] }), urn: Object.freeze({ key: null, scale: 1, tint: [0.46, 0.34, 0.28] }) });
 
 /**
  * An oriented box: centre `c`, unit axes `A`, `B`, `C`, half sizes `h` — six panels. A face list that carries a
@@ -93,6 +107,23 @@ const ITEMS = {
     skull(out, add(c, [0.05, 0, 0.08]), N, 0.1, bone);
     if (s > 0.4) skull(out, add(add(c, mul(U, 0.25)), [0, 0, 0]), N, 0.09, bone);
   },
+  // (the vessels a room stores, era/skandart-vessels.js: each one thing, turned on the lathe, fired clay; `S.cut` a
+  // broken one's lower part, open at the break)
+  pot(out, p, N, U, s, i, S) {
+    // squat and wide-bellied, a rolled lip
+    const sz = mix(0.85, 1.15, hash3(i, 1, 5161)), c = add(p, mul(N, 0.22 * sz));
+    lathe(out, c, cutProfile([[0.09, 0], [0.17, 0.05], [0.21, 0.17], [0.19, 0.29], [0.12, 0.36], [0.13, 0.39], [0.11, 0.4], [0, 0.4]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 10, CLAY.pot, 'stage:prop');
+  },
+  urn(out, p, N, U, s, i, S) {
+    // tall on a foot, high-shouldered, a neck and a lid with its knob
+    const sz = mix(0.9, 1.12, hash3(i, 2, 5163)), c = add(p, mul(N, 0.24 * sz));
+    lathe(out, c, cutProfile([[0.12, 0], [0.12, 0.04], [0.09, 0.07], [0.19, 0.24], [0.24, 0.44], [0.19, 0.6], [0.11, 0.66], [0.13, 0.7], [0.12, 0.72], [0.06, 0.76], [0.03, 0.8], [0, 0.8]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 10, CLAY.urn, 'stage:prop');
+  },
+  jar(out, p, N, U, s, i, S) {
+    // one amphora standing: shoulders, a neck, a lip
+    const sz = mix(0.9, 1.15, hash3(i, 3, 5165)), c = add(p, mul(N, 0.21 * sz));
+    lathe(out, c, cutProfile([[0.05, 0], [0.15, 0.1], [0.2, 0.32], [0.15, 0.55], [0.06, 0.63], [0.07, 0.72], [0.045, 0.73], [0, 0.73]], S?.cut).map(([r, z]) => [r * sz, p[2] + z * sz]), 8, CLAY.pot, 'stage:prop');
+  },
   planks(out, p, N, U, s, i, S) {
     const n = 2 + Math.floor(hash3(i, 3, 5103) * 2), len = mix(1.6, 2.1, hash3(i, 4, 5105));
     for (let k = 0; k < n; k++) {
@@ -102,6 +133,18 @@ const ITEMS = {
     }
   },
 };
+
+/** The props' surfaces a thing is built in (a dressing's `wood` and `stone`, else the shelf's own). */
+export function propSurfaces(spec = {}) {
+  const W = spec.wood || PROP_WOOD;
+  return { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]), stone: { ...(spec.stone || { key: 'marble-carrara', scale: 1.2, tint: [0.6, 0.58, 0.55] }), group: 'stage:prop' } };
+}
+/** One prop of the shelf built on its own (era/skandart-vessels.js): its kind's builder at `p` against the wall whose
+ *  normal into the room is N (U along it), `s` its die for what it stacks (a crate's second), `seed` its own. */
+export function buildProp(kind, out, p, N, U, s, seed, S = propSurfaces()) {
+  if (!ITEMS[kind]) throw new Error(`props: '${kind}' is no prop the shelf builds (${Object.keys(ITEMS).join(', ')})`);
+  ITEMS[kind](out, p, N, U, s, seed, S);
+}
 
 /** A skull facing N: a lathed cranium and two dark sockets on its face. */
 export function skull(out, c, N, r, tint, group = 'stage:prop') {
