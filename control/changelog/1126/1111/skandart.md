@@ -74,3 +74,17 @@ size it would be.
   leak, and ruined brings its roof down too, so its debris has a hole to lie under. A recipe's own `decay` stands over
   the word's.
 - Fixed: a wall without pilasters split into strips read a length `Array.from` never passes (it threw).
+- Any room answers the debris question, not only the kits with a card: what it sheds is read from what it is made of
+  (`era/skandart-derive.js`). Each wall, upper wall and ceiling tile names its matter by its generator's settings, its
+  key or its family's name (a recipe's own tiles included); each matter sheds its own (stone its spall and a block,
+  render its flakes, brick its bricks, concrete its chunks, boards their boards, timber its planks and splinters, metal
+  its sheets, glass its shards; a ceiling's under a hole in it), heavy things heaped at their repose and light ones
+  drifted; a room's use leaves its own (an office its papers, a store its sherds, a workshop its splinters). A kit's card
+  is the art direction over that answer, and a recipe may give its own over both (`skandart: { foot | corner |
+  collapse: { pieces: { <shelf row>: n } } | false, heights, spread, reach, matters }`, each piece checked against the
+  shelf). The room says whose answer it laid (`skandart.from`: recipe, card or derived) and what it read. Only a room
+  made of nothing that sheds, asked for debris with no answer of its own, is refused, and is told how to give one; a
+  `condition` on it sets the grime and says the debris was unanswered.
+- A room's bays are read the same way for every room: between the pilasters it lists, else between its own bays (a
+  lab's columns, a bay kit's pilasters), else the wall cut in stretches a heap fits in; the bay kits' wall feet were
+  getting none.

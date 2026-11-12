@@ -82,7 +82,7 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
-import { readSkandart, skandartLay, skandartRepeats, skandartRead, SKANDART } from './skandart.js';
+import { readSkandart, skandartLay, skandartRepeats, skandartRead, resolveSkandartCard, SKANDART, SKANDART_CAUSES } from './skandart.js';
 import { withCondition } from './condition.js';
 import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
@@ -604,8 +604,11 @@ export function planStage(m = {}) {
   // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
   if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
   // DEBRIS (`skandart`, era/skandart.js): the kit's answer to what falls and where it rests, asked for by the recipe
-  const sk = readSkandart(m);
-  if (sk && !nightKit.skandart) throw new Error(`stage: skandart: kit '${kitId}' answers no debris question yet (kits that do: ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].skandart).join(', ')})`);
+  // (the answer: the recipe's own over the kit's card, or over what the room's materials shed when it has none,
+  // skandart-derive.js; a room whose materials shed nothing and that names no answer of its own says so)
+  const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
+  if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
+  const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
   const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
@@ -1586,6 +1589,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(manifest._program ? { program: manifest._program } : {}),
     // the condition the room was asked in (condition.js): its step, the dials it set, what the kit could not answer
     ...(plan.condition ? { condition: plan.condition } : {}),
+    // its debris (skandart.js): how much, whose answer (the recipe's, the kit's card, or what its materials shed) and what
+    ...(plan.skandart ? { skandart: { amount: plan.skandart.amount, from: plan.skandart.from, causes: SKANDART_CAUSES.filter((c) => plan.skandart.card[c]), ...(plan.skandart.card.derived ? { derived: plan.skandart.card.derived } : {}) } } : {}),
     ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

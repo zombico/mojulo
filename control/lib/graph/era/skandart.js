@@ -45,6 +45,7 @@ import { decodeSrgb, encodeSrgb } from '../color-theorist/light.js';
 import { wallRhythm, rhythmFaults } from './wall-rhythm.js';
 import { cryptTomb, tombSite } from './crypt.js';
 import { DEBRIS, REPOSE, debrisPiece } from './debris-shelf.js';
+import { deriveSkandart } from './skandart-derive.js';
 import { INTEREST, FRAME, eyeSpot } from '../playscape/objects/laws.js';
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -85,27 +86,78 @@ export function skandartRead(screenPx = FRAME.height) {
   return { distance, screenPx, least: r5(eyeSpot(distance, screenPx)) };
 }
 
-/** A recipe's `skandart`: true (the kit's answer at its middle amount), a number 0…1, or { amount?, swept? } (`swept`:
- *  false, nobody sweeps: the webs within reach stay; a room's `condition` sets it, era/condition.js). → null | { amount, swept? } */
+/** The causes a room's answer may name, and the dials a recipe's own answer may set over a kit's or the derived one. */
+export const SKANDART_CAUSES = Object.freeze(['foot', 'corner', 'collapse']);
+const CARD_KEYS = Object.freeze([...SKANDART_CAUSES, 'heights', 'spread', 'reach', 'matters']);
+
+/** A recipe's own answer (its causes, `heights`, `spread`, `reach`, `matters`), each piece a shelf row: checked. */
+function readCard(v) {
+  const bad = (what) => { throw new Error(`stage: skandart.${what}`); };
+  const card = {};
+  for (const c of SKANDART_CAUSES) if (v[c] !== undefined) {
+    if (v[c] === false) { card[c] = false; continue; }
+    if (!v[c] || typeof v[c] !== 'object' || !v[c].pieces || typeof v[c].pieces !== 'object') bad(`${c} is { pieces: { <a debris shelf row>: how many at the most }, spread? }, or false (none)`);
+    for (const [id, n] of Object.entries(v[c].pieces)) {
+      if (!DEBRIS[id]) bad(`${c}.pieces.${id} is not on the debris shelf (${Object.keys(DEBRIS).join(', ')})`);
+      if (!(Number.isInteger(n) && n >= 0 && n <= 60)) bad(`${c}.pieces.${id} is a count from 0 to 60`);
+    }
+    if (v[c].spread !== undefined && !(typeof v[c].spread === 'number' && v[c].spread >= 0 && v[c].spread <= 4)) bad(`${c}.spread is metres from 0 to 4`);
+    card[c] = { why: 'the recipe\'s own answer', pieces: { ...v[c].pieces }, ...(v[c].spread !== undefined ? { spread: v[c].spread } : {}) };
+  }
+  if (v.heights !== undefined) {
+    if (!v.heights || typeof v.heights !== 'object') bad('heights is { foot?, corner?, cone?: [lowest, highest] } in metres');
+    for (const [k, h] of Object.entries(v.heights)) if (!['foot', 'corner', 'cone'].includes(k) || !Array.isArray(h) || h.length !== 2 || !h.every((x) => typeof x === 'number' && x >= 0 && x <= 2) || h[0] > h[1]) bad(`heights.${k} is [lowest, highest], metres from 0 to 2 (foot, corner or cone)`);
+    card.heights = { ...v.heights };
+  }
+  if (v.spread !== undefined) { if (!(typeof v.spread === 'number' && v.spread >= 0 && v.spread <= 4)) bad('spread is metres from 0 to 4'); card.spread = v.spread; }
+  if (v.reach !== undefined) { if (!(typeof v.reach === 'number' && v.reach >= 0.4 && v.reach <= 4)) bad('reach is metres from 0.4 to 4'); card.reach = v.reach; }
+  if (v.matters !== undefined) {
+    if (!v.matters || typeof v.matters !== 'object') bad('matters is { <matter>: "#rrggbb" }');
+    for (const [k, h] of Object.entries(v.matters)) if (!/^#[0-9a-f]{6}$/i.test(String(h))) bad(`matters.${k} is a colour, "#rrggbb"`);
+    card.matters = { ...v.matters };
+  }
+  return Object.keys(card).length ? card : null;
+}
+
+/** A recipe's `skandart`: true (the room's answer at its middle amount), a number 0…1, or { amount?, swept?, … } (`swept`:
+ *  false, nobody sweeps: the webs within reach stay; a room's `condition` sets it, era/condition.js; and the recipe's own
+ *  answer: `foot`, `corner`, `collapse` as { pieces: { <shelf row>: n } }, `heights`, `spread`, `reach`, `matters`, over
+ *  the kit's card or what its materials shed, era/skandart-derive.js). → null | { amount, swept?, card? } */
 export function readSkandart(m) {
   const v = m.skandart;
   if (v === undefined || v === false) return null;
   const amt = (a) => {
-    if (!(typeof a === 'number' && a >= 0 && a <= 1)) throw new Error('stage: skandart is true, a number from 0 (none) to 1 (the place has given way), or { amount, swept }');
+    if (!(typeof a === 'number' && a >= 0 && a <= 1)) throw new Error('stage: skandart is true, a number from 0 (none) to 1 (the place has given way), or { amount, swept, foot, corner, collapse, heights, spread, reach, matters }');
     return a;
   };
   if (v === true) return { amount: 0.6 };
   if (typeof v === 'number') return amt(v) > 0 ? { amount: v } : null;
   if (v && typeof v === 'object' && !Array.isArray(v)) {
-    for (const k of Object.keys(v)) if (k !== 'amount' && k !== 'swept') throw new Error(`stage: skandart.${k} is not a dial of it (amount, swept)`);
+    for (const k of Object.keys(v)) if (k !== 'amount' && k !== 'swept' && !CARD_KEYS.includes(k)) throw new Error(`stage: skandart.${k} is not a dial of it (amount, swept, ${CARD_KEYS.join(', ')})`);
     if (v.swept !== undefined && typeof v.swept !== 'boolean') throw new Error('stage: skandart.swept is true (the webs within reach are swept) or false (nobody sweeps)');
     // (asked as an object at 0, the room is one where nothing has come down: it lays no heap, and the kit's own fallen
     // stone, which skandart stands in for, is not laid either; a bare 0 asks for nothing at all)
-    const a = v.amount === undefined ? 0.6 : amt(v.amount);
-    return { amount: a, ...(v.swept === false ? { swept: false } : {}) };
+    const a = v.amount === undefined ? 0.6 : amt(v.amount), card = readCard(v);
+    return { amount: a, ...(v.swept === false ? { swept: false } : {}), ...(card ? { card } : {}) };
   }
   return amt(v);
 }
+
+/**
+ * The answer a room gives: the recipe's own over the kit's card, or over what its materials shed when it has none
+ * (era/skandart-derive.js; `use` its program's use). A cause the recipe sets false is none. → { card, from } | null
+ */
+export function resolveSkandartCard(kit, recipe = null, { use = null } = {}) {
+  const base = kit.skandart || deriveSkandart(kit, { use }), from = recipe ? 'recipe' : kit.skandart ? 'card' : 'derived';
+  if (!base && !recipe) return null;
+  const card = { ...(base || {}) };
+  if (recipe) for (const [k, v] of Object.entries(recipe)) card[k] = k === 'heights' || k === 'matters' ? { ...(card[k] || {}), ...v } : v;
+  for (const c of SKANDART_CAUSES) if (card[c] === false) delete card[c];
+  return SKANDART_CAUSES.some((c) => card[c]) ? { card, from } : null;
+}
+
+/** The answer a plan carries (the recipe's, the card's or the derived one: era/stage.js resolves it). */
+const cardOf = (plan) => plan.skandart?.card ?? plan.kit.skandart;
 
 // ── the heaps, each in its own frame ──────────────────────────────────────────────────────
 // An EDGE heap: x along the wall (its bay's clear length, centred), y out of the wall's face into the room, z up; the
@@ -283,7 +335,7 @@ function wax(seed, at, r, drops, matter, least = 0) {
  * length (its bays' clear length). → { [id]: { faces, pieces, body, role } }
  */
 export function skandartTemplates(plan, amount, read = skandartRead(), len = SKANDART.strip) {
-  const K = plan.kit, card = K.skandart, out = {}, least = read.least, pools = {};
+  const K = plan.kit, card = cardOf(plan), out = {}, least = read.least, pools = {};
   // (a card may size its own heaps: a lab's drift is a skin of dust, not a talus; and carry what lies past the body)
   const spec = { heights: { ...SKANDART.height, ...(card.heights || {}) }, reach: card.reach ?? SKANDART.reach, spread: card.spread ?? 0 };
   if (card.foot) for (let fam = 0; fam < 2; fam++) {
@@ -307,14 +359,17 @@ const turnTo = (N) => r5(Math.atan2(-N[0], N[1])) + 0;
 
 /** Each room's walls with their pilasters (era/stage.js pilasters: { F, u, room }) and their doorway cuts. */
 function wallsOf(plan, geom) {
+  // (`plan` for its kit's own pilasters, drawn by its shell)
   const out = [];
   plan.rooms.forEach((r) => SIDES.forEach((side) => {
     if (r.open.includes(side)) return;
     const F = wallFrame(r, side), same = (G) => G.N[0] === F.N[0] && G.N[1] === F.N[1] && Math.abs(G.o[0] - F.o[0]) + Math.abs(G.o[1] - F.o[1]) < 1e-6;
     const us = (geom.pilasters || []).filter((p) => p.room === r.id && same(p.F)).map((p) => p.u).sort((a, b) => a - b);
     const cuts = r.openings[side].map((op) => openingU(F, op));
-    // (a kit that lays its own bays, a lab's between its columns, era/lab.js: those whose wall is whole, not a door's)
-    const own = (geom.bays || []).filter((b) => b.a !== undefined && !b.portal && same(b.F)).map((b) => [b.a, b.b]).sort((p, q) => p[0] - q[0]);
+    // (a kit that lays its own bays: a lab's between its columns, era/lab.js, its `a…b` already clear of them; a bay
+    // kit's between the pilasters it draws itself, era/bay.js, cleared here by their half breadth; never a portal's)
+    const clr = (plan.kit.B?.pilaster ? plan.kit.B.pilaster.w / 2 : 0) + SKANDART.column;
+    const own = (geom.bays || []).filter((b) => !b.portal && same(b.F)).map((b) => (b.a !== undefined ? [b.a + SKANDART.column, b.b - SKANDART.column] : [b.u0 + clr, b.u1 - clr])).sort((p, q) => p[0] - q[0]);
     out.push({ r, side, F, us, cuts, own });
   }));
   return out;
@@ -327,7 +382,7 @@ function wallsOf(plan, geom) {
  * in faces, for its light)
  */
 export function skandartStamps(plan, geom) {
-  const K = plan.kit, card = K.skandart, out = [];
+  const K = plan.kit, card = cardOf(plan), out = [];
   const pw = K.pilaster ? K.pilaster.w / 2 + (K.pilaster.bands?.base?.out ?? 0) + 0.06 : 0.1;
   const site = card.apron && K.dress?.tomb ? tombSite(plan) : null;
   const clear = site ? { x: site.at[0], y: site.at[1], r: Math.hypot(site.w, site.d) / 2 + 0.9 } : null;
@@ -338,9 +393,9 @@ export function skandartStamps(plan, geom) {
   const mid = footOut(K) + 0.25, gMid = K.gutter && mid < footOut(K) + K.gutter.width ? -K.gutter.depth : 0;
   if (card.foot) walls.forEach((W, wi) => {
     // the bays between the pilasters (a wall without them, cut in strips' lengths)
-    const nb = Math.max(1, Math.floor(W.F.len / SKANDART.bay)), edges = W.us.length ? W.us : Array.from({ length: nb + 1 }, (_, i) => (i * W.F.len) / nb);
-    // (its own bays where the kit lays them, clear of the columns that stand out between them)
-    const spans = W.own.length ? W.own.map(([a, b]) => [a + SKANDART.column, b - SKANDART.column]) : edges.slice(0, -1).map((e, i) => [e + (W.us.length ? pw : 0.3), edges[i + 1] - (W.us.length ? pw : 0.3)]);
+    // (between its pilasters where it lists them; else its own bays; else the wall cut in stretches a heap fits in)
+    const nb = Math.max(1, Math.floor(W.F.len / (SKANDART.strip + 0.6))), edges = W.us.length ? W.us : Array.from({ length: nb + 1 }, (_, i) => (i * W.F.len) / nb);
+    const spans = !W.us.length && W.own.length ? W.own : edges.slice(0, -1).map((e, i) => [e + (W.us.length ? pw : 0.3), edges[i + 1] - (W.us.length ? pw : 0.3)]);
     const bays = [];
     for (const [u0, u1] of spans) {
       const mid = (u0 + u1) / 2;
@@ -386,7 +441,7 @@ export function skandartStamps(plan, geom) {
 /** The laws on what was laid: every piece on the body's face (at it or sunk in it, never above it, never under it whole),
  *  the body at its fines' angle of repose, every piece big enough to be read where it is seen (`read`, skandartRead),
  *  none in a wall, every toe off the walk, a wall's heaps in its rhythm. → [{ law, ok, what }] */
-export function skandartLaws(plan, templates, stamps, read = skandartRead(), reach = plan.kit?.skandart?.reach ?? SKANDART.reach) {
+export function skandartLaws(plan, templates, stamps, read = skandartRead(), reach = (plan.skandart?.card ?? plan.kit?.skandart)?.reach ?? SKANDART.reach) {
   const K = plan.kit, rows = [], row = (law, what, ok) => rows.push({ law, what, ok: !!ok });
   for (const [id, T] of Object.entries(templates)) {
     if (!T.faces.length || !T.body) continue;
@@ -417,7 +472,7 @@ export function skandartLaws(plan, templates, stamps, read = skandartRead(), rea
 // ── to the page ──────────────────────────────────────────────────────────────────────────
 /** What each matter is painted: the wall's render and its stone (the colours its dressed tile is generated from) under
  *  the wall's tint, the candles' wax as it is drawn. → { [matter]: { colour (sRGB 0…1), tint } } */
-export function skandartMatters(kit) {
+export function skandartMatters(kit, card = kit.skandart) {
   const fam = kit.tiles?.wall?.family, S = fam ? generatedSpecOf(`${fam}-a`) : null, tint = kit.tint?.wall ?? [1, 1, 1];
   const of = (c, fallback) => (Array.isArray(c) ? c.map((v) => v / 255) : fallback);
   const stone = of(S?.cfg?.stone, [0.45, 0.45, 0.45]), render = of(S?.cfg?.render ?? S?.cfg?.stone, [0.55, 0.54, 0.52]);
@@ -434,7 +489,7 @@ export function skandartMatters(kit) {
     glass: { colour: [0.36, 0.45, 0.47], tint: [1, 1, 1] },
     wax: { colour: kit.dress?.candles?.wax ? hexRgb(kit.dress.candles.wax) : [0.9, 0.86, 0.75], tint: [1, 1, 1] },
     // (and what the kit's card paints its own matters, its fines among them)
-    ...Object.fromEntries(Object.entries(kit.skandart?.matters || {}).map(([k, hex]) => [k, { colour: hexRgb(hex), tint: [1, 1, 1] }])),
+    ...Object.fromEntries(Object.entries(card?.matters || {}).map(([k, hex]) => [k, { colour: hexRgb(hex), tint: [1, 1, 1] }])),
   };
 }
 
@@ -446,7 +501,7 @@ export function skandartLay(plan, geom, read = skandartRead()) {
   const all = skandartStamps(plan, geom), lens = all.filter((s) => s.len).map((s) => s.len);
   const len = lens.length ? r5(Math.max(SKANDART.bay - 0.2, Math.min(...lens) - 0.2)) : SKANDART.strip;
   const templates = skandartTemplates(plan, plan.skandart.amount, read, len), stamps = all.filter((s) => templates[s.tpl] && templates[s.tpl].faces.length);
-  const matters = skandartMatters(plan.kit), names = Object.keys(matters);
+  const matters = skandartMatters(plan.kit, cardOf(plan)), names = Object.keys(matters);
   const probes = stamps.map((s) => { const l = Math.hypot(...s.look) || 1, m = s.mid ?? s.at; return { at: [m[0], m[1], r5(m[2] + 0.15)], normal: s.look.map((v) => r5(v / l)), group: m[2] < 0 ? 'stage:gutter' : 'stage:floor' }; });
   return { templates, stamps, matters, names, probes, paints: names.map((n) => matters[n]) };
 }

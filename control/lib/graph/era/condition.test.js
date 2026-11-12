@@ -30,8 +30,9 @@ describe('a room\'s condition', () => {
     const D = withCondition({ condition: 'derelict' }, ash);
     expect(D).toMatchObject({ grime: 0.85, skandart: { amount: 0.7, swept: false }, _condition: { id: 'derelict', applied: { grime: 0.85, skandart: 0.7 } } });
     expect(withCondition({ condition: 'derelict', grime: 0.2, skandart: 0.3 }, ash)).toMatchObject({ grime: 0.2, skandart: 0.3, _condition: { applied: {} } });
-    expect(withCondition({ condition: 'ruined' }, stone)).toMatchObject({ grime: 1, _condition: { unanswered: ['skandart'] } });
-    expect(withCondition({ condition: 'ruined' }, stone).skandart).toBeUndefined();
+    // (a kit with no card answers by what it is made of; one made of nothing that sheds takes the grime and says so)
+    expect(withCondition({ condition: 'ruined' }, stone)).toMatchObject({ grime: 1, skandart: { amount: 1 }, _condition: { applied: { skandart: 1 } } });
+    expect(withCondition({ condition: 'ruined' }, { tiles: { floor: { key: 'carpet' } } })).toMatchObject({ grime: 1, _condition: { unanswered: ['skandart'] } });
     // (a kept room is one where nothing has come down: no heap, and none of the kit's fallen stone)
     expect(withCondition({ condition: 'kept' }, ash).skandart).toEqual({ amount: 0 });
   });
@@ -52,6 +53,6 @@ describe('a room\'s condition', () => {
     expect(kept.anchors.filter((a) => ['stones', 'boulder', 'debris'].includes(a.form))).toEqual([]);
     // (asked nothing, a room carries no condition)
     expect(assembleStageScene(ROOM(), {}).condition).toBeUndefined();
-    expect(planStage(ROOM({ condition: 'ruined', kit: 'gothic-stone' })).condition).toMatchObject({ id: 'ruined', unanswered: ['skandart'] });
+    expect(planStage(ROOM({ condition: 'ruined', kit: 'gothic-stone' })).condition).toMatchObject({ id: 'ruined', applied: { skandart: 1 } });
   }, 120_000);
 });

@@ -133,7 +133,7 @@ function kitOptions(kit) {
   if (generatedSpecOf(`${kit.tiles?.wall?.family}-a`)?.cfg.cut === 'render') out.push(`"coat": false (the wall bare: no render over it)`);
   if (kit.dress?.niches?.rhythm) out.push(`"rhythm": "same" (every bay alike, on purpose)`);
   if (isRooms(kit)) out.push(`"condition": ${Object.keys(CONDITIONS).join(' | ')} (or a word for one: its debris and grime together)`);
-  if (kit.skandart) out.push(`"skandart": 0–1 (its debris, heaped by cause)`);
+  if (isRooms(kit)) out.push(`"skandart": 0–1, or { amount, foot|corner|collapse: { pieces: { <debris row>: n } } } (its debris: ${kit.skandart ? 'its card\'s answer' : 'what it is made of sheds'}, or the recipe's own)`);
   if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
     `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);
   return out;

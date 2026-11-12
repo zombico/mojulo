@@ -17,6 +17,8 @@
  * A recipe's own `skandart` or `grime` stands over the word's. Pure.
  */
 
+import { deriveSkandart } from './skandart-derive.js';
+
 export const CONDITIONS = Object.freeze({
   kept: Object.freeze({ dials: Object.freeze({ skandart: 0, grime: 0.1, swept: true }),
     words: Object.freeze(['kept', 'tended', 'maintained', 'clean', 'pristine', 'new', 'in use']) }),
@@ -55,7 +57,8 @@ export function withCondition(m, kit) {
   if (m.decay === undefined && C.dials.decay && kit && kit.dress && kit.dress.decay) { out.decay = { ...C.dials.decay }; applied.decay = { ...C.dials.decay }; }
   if (m.skandart === undefined) {
     // (a kept room is one where nothing has come down: it lays no heap and keeps none of its kit's fallen stone either)
-    if (kit && kit.skandart) { out.skandart = { amount: C.dials.skandart, ...(C.dials.swept ? {} : { swept: false }) }; applied.skandart = C.dials.skandart; }
+    // (a kit answers by its card, or by what it is made of, era/skandart-derive.js)
+    if (kit && (kit.skandart || deriveSkandart(kit))) { out.skandart = { amount: C.dials.skandart, ...(C.dials.swept ? {} : { swept: false }) }; applied.skandart = C.dials.skandart; }
     else if (C.dials.skandart > 0) unanswered.push('skandart');
   }
   return { ...out, _condition: { id: C.id, said: C.said, applied, ...(unanswered.length ? { unanswered } : {}) } };

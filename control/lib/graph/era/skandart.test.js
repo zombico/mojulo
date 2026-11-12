@@ -14,7 +14,7 @@ const debris = (P) => (P.repeats || []).filter((r) => r.group.startsWith('skanda
 describe('skandart: a room\'s debris by its causes', () => {
   const plain = assembleStageScene(ROOM(), {}), asked = assembleStageScene(ROOM({ skandart: true }), {});
 
-  it('reads its key: true, a number or { amount }; nothing asked adds nothing; a kit that answers no debris question says so', () => {
+  it('reads its key: true, a number or { amount, … }; nothing asked adds nothing; a kit with no card answers by what it is made of', () => {
     expect(readSkandart({})).toBe(null);
     expect(readSkandart({ skandart: false })).toBe(null);
     expect(readSkandart({ skandart: 0 })).toBe(null);
@@ -24,7 +24,7 @@ describe('skandart: a room\'s debris by its causes', () => {
     expect(() => readSkandart({ skandart: { much: 1 } })).toThrow(/not a dial/);
     expect(JSON.stringify(assembleStageScene(ROOM({ skandart: false }), {}))).toBe(JSON.stringify(plain));
     expect(debris(plain)).toEqual([]);
-    expect(() => planStage({ ...ROOM({ skandart: true }), kit: 'gothic-stone' })).toThrow(/answers no debris question/);
+    expect(planStage({ ...ROOM({ skandart: true }), kit: 'gothic-stone' }).skandart).toMatchObject({ from: 'derived', card: { derived: { wall: ['stone'] } } });
   }, 120_000);
 
   it('lays each clump where its cause puts it, keeping its laws: on its ground, out of the wall, on the border course, big enough to read, a wall\'s strips in its rhythm', () => {
