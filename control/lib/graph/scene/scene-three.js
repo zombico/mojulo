@@ -966,6 +966,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     span: shadows.span || Math.round((16 / liveUnit) * 1e4) / 1e4,
     ...(liveShadows.actors ? { lead: Number.isFinite(shadows.lead) && shadows.lead >= 0 ? shadows.lead : Math.round((8 / liveUnit) * 1e4) / 1e4 } : {}),
     ...(liveIndoor ? { indoor: true } : {}),
+    ...(form && form.room && form.room.reflect && form.room.reflect.floods ? { floods: true } : {}),
     ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
     ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),
