@@ -202,6 +202,8 @@ const ENV_BODY = `
     if ( uFFlood[ i ].w <= 0.0 ) continue;
     vec3 eFd = uFFlood[ i ].xyz - vFPos; float eFr = length( eFd ); vec3 eFl = eFd / max( eFr, 1e-3 );
     float eFt = clamp( 1.0 - max( eFr, 1.1 ) / uFFlood[ i ].w, 0.0, 1.0 ); vec3 eFc = uFFloodK[ i ] * eFt * eFt;
+    // (its head is turned down: a cone under it, soft at its edge)
+    eFc *= smoothstep( 0.2, 0.62, dot( - eFl, normalize( ( viewMatrix * vec4( 0.0, 0.0, -1.0, 0.0 ) ).xyz ) ) );
     eFloodSum += eFc * max( dot( eN, eFl ), 0.0 ) * ( diffuseColor.rgb * ( 1.0 - eM ) + eF * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eFl + eV ) ), 0.0 ), eShine ) );
   }
   // (what a flood lays is no part of the sun's or the moon's light: the hour's shadow leaves it standing)

@@ -934,8 +934,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // clear. Lit as the shell is; each stack a collider
     const yardF = [];
     if (b.yard !== undefined) {
-      if (!b.yard || typeof b.yard !== 'object' || Object.keys(b.yard).some((k) => !['containers', 'floods'].includes(k)) || (b.yard.containers !== undefined && !(Number.isInteger(b.yard.containers) && b.yard.containers >= 1 && b.yard.containers <= 40))
-        || (b.yard.floods !== undefined && !(Number.isInteger(b.yard.floods) && b.yard.floods >= 1 && b.yard.floods <= 8))) throw new Error(`stage: buildings[${i}].yard is { containers?: 1 to 40, floods?: 1 to 8 (floodlights on masts along its yard's edge) }`);
+      if (!b.yard || typeof b.yard !== 'object' || Object.keys(b.yard).some((k) => !['containers', 'floods', 'floodsAt'].includes(k)) || (b.yard.floodsAt !== undefined && !['edge', 'middle'].includes(b.yard.floodsAt)) || (b.yard.containers !== undefined && !(Number.isInteger(b.yard.containers) && b.yard.containers >= 1 && b.yard.containers <= 40))
+        || (b.yard.floods !== undefined && !(Number.isInteger(b.yard.floods) && b.yard.floods >= 1 && b.yard.floods <= 8))) throw new Error(`stage: buildings[${i}].yard is { containers?: 1 to 40, floods?: 1 to 8 (floodlights on masts), floodsAt?: 'edge' (along its yard's outer edge) | 'middle' (down the middle of its yard) }`);
       if (!(was && was.apron)) throw new Error(`stage: buildings[${i}] (${id}) has no apron to stack a yard on (a composed building's, not one set into a slope)`);
       const raw = containerRaw(), CL = 12.19, CW = 2.44, CH = 2.59, x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1]));
       const zt = -APRON.under + APRON.over, dice = (k) => hash3(i, k, 4431), slots = [];
@@ -959,16 +959,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
     if (b.yard && b.yard.floods) {
       const x0f = Math.min(...rects.map((R0) => R0[0])), x1f = Math.max(...rects.map((R0) => R0[2])), y0f = Math.min(...rects.map((R0) => R0[1])), n = b.yard.floods, H = FLOOD.h, zt = -APRON.under + APRON.over;
       for (let q = 0; q < n; q++) {
-        const px = n === 1 ? (x0f + x1f) / 2 : x0f - APRON.side + 0.7 + ((x1f - x0f + 2 * APRON.side - 1.4) * q) / (n - 1), py = y0f - APRON.front + 0.5;
+        const px = n === 1 ? (x0f + x1f) / 2 : x0f - APRON.side + 0.7 + ((x1f - x0f + 2 * APRON.side - 1.4) * q) / (n - 1), py = b.yard.floodsAt === 'middle' ? y0f - APRON.front / 2 : y0f - APRON.front + 0.5, mid = b.yard.floodsAt === 'middle';
         // (the mast: six sides, tapering; never a box)
         for (let sd = 0; sd < 6; sd++) { const a0 = (sd / 6) * 2 * Math.PI, a1 = ((sd + 1) / 6) * 2 * Math.PI, am = (a0 + a1) / 2, at = (a, r, z) => W([px + Math.cos(a) * r, py + Math.sin(a) * r, zt + z]);
           const nn = turnN([Math.cos(am), Math.sin(am), 0]);
           yardF.push({ ...quad([at(a0, 0.11, 0), at(a1, 0.11, 0), at(a1, 0.06, H), at(a0, 0.06, H)], 'yard:mast', '#5a5e62'), normal: P3(nn), outNormal: P3(nn), node: `${id}:flood-${q + 1}` }); }
         // (its head: a lamp face a hand under the mast's top, turned down and in toward the building)
-        const hx = px, hy = py + 0.5, hz = zt + H - 0.1, down = turnN([0, 0, -1]);
+        const hx = px, hy = py + (mid ? 0 : 0.5), hz = zt + H - 0.1, down = turnN([0, 0, -1]);
         const lampC = [[hx - 0.3, hy - 0.2, hz], [hx + 0.3, hy - 0.2, hz], [hx + 0.3, hy + 0.2, hz], [hx - 0.3, hy + 0.2, hz]].map(W);
         lampFaces.push({ corners: lampC.map(P3), group: 'yard:flood', fill: '#fff6dc', normal: P3(down), outNormal: P3(down), emissive: [1, 0.95, 0.82], emissiveStrength: 4, glow: '0 0 14px 6px #ffe9b8', doubleSided: true, node: `${id}:flood-${q + 1}` });
-        const L = W([hx, hy + 0.6, hz - 0.2]);
+        const L = W([hx, hy + (mid ? 0.35 : 0.6), hz - 0.2]);
         floods.push({ at: P3(L), key: FLOOD.key, radius: FLOOD.radius });
       }
     }

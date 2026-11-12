@@ -61,3 +61,5 @@
   slab is plainer than a room's worked floor.
 - While it rains every face out of doors that is not a floor is wet all over (darkened and smooth as a film of water),
   its runs only the heavier part.
+- A floodlight's head is turned down (a cone under it, soft at its edge), and a yard's floods may stand down its
+  middle (`yard.floodsAt: 'middle'`).
