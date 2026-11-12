@@ -33,17 +33,38 @@ describe('skandart: a room\'s debris by its causes', () => {
     for (const read of [fine, skandartRead()]) {
       const laws = skandartLaws(plan, skandartTemplates(plan, plan.skandart.amount, read), S, read);
       expect(laws.filter((r) => !r.ok)).toEqual([]);
-      for (const law of ['no-floating', 'too-small-to-read', 'not-in-the-wall', 'on-the-border', 'wall-rhythm', 'placed']) expect(laws.some((r) => r.law === law)).toBe(true);
+      for (const law of ['no-floating', 'repose', 'too-small-to-read', 'not-in-the-wall', 'off-the-walk', 'wall-rhythm', 'placed']) expect(laws.some((r) => r.law === law)).toBe(true);
     }
     // (the foot, the corners and the apron each laid; the lesser strip is the full one with less on it)
     for (const role of ['foot', 'corner', 'apron']) expect(S.some((s) => T[s.tpl].role === role)).toBe(true);
+    // (the lesser heap is the full one lower, with fewer of the same pieces on it)
+    const key = (q) => `${q.id}@${q.x},${q.y},${q.w}`;
+    expect(T['foot-0b'].body.H).toBeLessThan(T['foot-0a'].body.H);
     expect(T['foot-0b'].pieces.length).toBeLessThan(T['foot-0a'].pieces.length);
-    expect(T['foot-0b'].pieces.filter((q) => q.kind === 'anchor')).toEqual(T['foot-0a'].pieces.filter((q) => q.kind === 'anchor'));
+    expect(T['foot-0b'].pieces.map(key).every((k) => T['foot-0a'].pieces.map(key).includes(k))).toBe(true);
     const walls = new Map();
     for (const s of S) if (s.wall !== undefined) walls.set(s.wall, [...(walls.get(s.wall) || []), s.tpl.endsWith('a') ? 'A' : 'B']);
     for (const seq of walls.values()) expect(rhythmFaults(seq)).toEqual([]);
-    // (in the kit's gutter what falls lies on the gutter's floor)
-    expect(T['foot-0a'].pieces.some((q) => q.z === -plan.kit.gutter.depth)).toBe(true);
+    // (a heap fills the kit's gutter and spills over its lip onto the floor; its toe keeps off the walk)
+    const zs = T['foot-0a'].faces.filter((f) => f.matter === 'grit').flatMap((f) => f.corners);
+    expect(Math.min(...zs.map((c) => c[2]))).toBeLessThan(-plan.kit.gutter.depth + 0.01);
+    expect(Math.max(...zs.map((c) => c[1]))).toBeGreaterThan(plan.kit.plinth.out + plan.kit.gutter.width);
+    // (a heap is what its card names off the shelf: a block at its toe, spall up its face, the coat's flakes over it)
+    expect(new Set(T['corner-0'].pieces.map((q) => q.id))).toEqual(new Set(Object.keys(plan.kit.skandart.corner.pieces)));
+    const block = T['corner-0'].pieces.filter((q) => q.id === 'fallen-block'), spall = T['corner-0'].pieces.filter((q) => q.id === 'spall');
+    const dist = (q) => Math.hypot(q.x, q.y), mean = (qs) => qs.reduce((a, q) => a + dist(q), 0) / qs.length;
+    expect(mean(block)).toBeGreaterThan(mean(spall));
+  });
+
+  it('more is the same heap with more on it: the amount raises the body and deals the next of the same pieces', () => {
+    const plan = planStage(ROOM({ skandart: true })), read = skandartRead(1080), key = (q) => `${q.id}@${q.x},${q.y},${q.w}`;
+    const [lo, mid, hi] = [0.3, 0.6, 1].map((a) => skandartTemplates(plan, a, read)['foot-1a']);
+    expect(lo.body.H).toBeLessThan(mid.body.H);
+    expect(mid.body.H).toBeLessThan(hi.body.H);
+    expect(lo.pieces.length).toBeLessThan(mid.pieces.length);
+    expect(mid.pieces.length).toBeLessThan(hi.pieces.length);
+    expect(lo.pieces.map(key).every((k) => mid.pieces.map(key).includes(k))).toBe(true);
+    expect(mid.pieces.map(key).every((k) => hi.pieces.map(key).includes(k))).toBe(true);
   });
 
   it('leaves out what is too small to be read where it is seen: the eye spot at filler\'s distance, in the frame the render reads at; a coarser frame keeps the same heap with fewer of its small pieces', () => {
@@ -57,7 +78,7 @@ describe('skandart: a room\'s debris by its causes', () => {
     expect(all(F).every((q) => q.w >= fine.least)).toBe(true);
     expect(all(C).length).toBeLessThan(all(F).length);
     // (the same dice: every piece the coarse frame keeps stands where the fine one has it)
-    const at = (q) => `${q.kind}@${q.x},${q.y},${q.w}`, fineAt = new Set(all(F).map(at));
+    const at = (q) => `${q.id}@${q.x},${q.y},${q.w}`, fineAt = new Set(all(F).map(at));
     for (const q of all(C)) expect(fineAt.has(at(q))).toBe(true);
     // (a drop of wax too small to read goes as well: the pour's whole pool in the coarse frame)
     expect(C['apron-pour'].faces.length).toBeLessThan(F['apron-pour'].faces.length);

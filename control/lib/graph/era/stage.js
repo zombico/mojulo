@@ -82,7 +82,7 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
-import { readSkandart, skandartLay, skandartRepeats, skandartRead } from './skandart.js';
+import { readSkandart, skandartLay, skandartRepeats, skandartRead, SKANDART } from './skandart.js';
 import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
@@ -205,10 +205,12 @@ STAGE_KITS['gothic-ashlar'] = Object.freeze({
   floorPlan: { border: { w: 0.8, shade: 'unwalked' }, walk: { w: 2.6, scale: 1.5, shade: 'worn' }, threshold: { depth: 1.5, margin: 0.3, scale: 1.5, shade: 'worn' },
     apron: { margin: 0.9, shade: 'soot' }, fields: { relaid: 0.15, damp: 0.2 } },
   // (its debris, asked for by a recipe's `skandart`, era/skandart.js: what falls here and where it comes to rest, each
-  // by its cause; nothing smaller than a hand is built)
+  // by its cause, its pieces named off the debris shelf, era/debris-shelf.js, as many as a heap holds at the most)
   skandart: Object.freeze({
-    foot: 'the coat fails low where damp rises: flakes of its render and spall of the ashlar behind it lie along the border course, a strip a bay in the wall\'s rhythm',
-    corner: 'what falls is pushed into the corners: spall heaped against the pilasters\' feet where two walls meet',
+    foot: Object.freeze({ why: 'the coat fails low where damp rises: its render flakes, the ashlar behind it spalls and a block comes away; they heap at the wall\'s foot, filling the gutter and spilling onto the border course, a heap a bay in the wall\'s rhythm',
+      pieces: Object.freeze({ 'fallen-block': 1, spall: 16, 'render-flake': 12 }) }),
+    corner: Object.freeze({ why: 'what falls is pushed into the corners: a deeper heap against the pilasters\' feet where two walls meet, a block or two at its toe',
+      pieces: Object.freeze({ 'fallen-block': 2, spall: 14, 'render-flake': 8 }) }),
     apron: 'the candles at the tomb\'s corners pour their wax on the dais and down onto the floor at its foot',
     webs: 'within reach the webs are swept; over the string course nothing disturbs them',
   }),
@@ -1455,7 +1457,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const skRepeats = skLaid ? (() => {
     const grime = dirt(), probe = (q) => ({ corners: [[q.at[0] - 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0] + 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0], q.at[1] + 0.05, q.at[2]]], normal: q.normal, group: q.group, tint: [1, 1, 1] });
     return skandartRepeats(skLaid, formLit ? { form: formLit, grime: skLaid.probes.map((q) => grime(probe(q), q.at)) }
-      : paintLs ? { paintFills: bakeStageLight(skLaid.probes.map(probe), paintLs, ambient, grime, sun) } : {});
+      : paintLs ? { paintFills: bakeStageLight(skLaid.probes.map(probe), paintLs, ambient, (f, c) => grime(f, c).map((v) => 1 + (v - 1) * SKANDART.age), sun) } : {});
   })() : [];
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
