@@ -159,3 +159,5 @@
   realistic hero brings its normal map (its skin's relief, its clothes' creases, seams and grain) and its roughness
   (each cloth's own, a leather's satin, wool's dullness: `epidermis/cloth-relief.js`), and the page's cast material
   reads both on the paint's atlas. The tangents, the parallax's depth and the correctives stay the engine export's.
+- A geocube's level takes `fxStyle` (its effects' style and the cast's register: `register: 'anime'` draws its cast in
+  cel), as a stage's does.
