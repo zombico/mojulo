@@ -296,6 +296,8 @@ export function obstacleStage(G, v) {
     obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, coins: C.coins.map((c) => ({ id: c.id, at: c.at })), dress: C.dress.theme, scenery: { left: C.scenery.left, right: C.scenery.right, walls: [C.dress.walls.a.id, C.dress.walls.b.id], backdrop: C.dress.backdrop.id }, reactAt: C.reactAt, camera: C.camera },
     // (what moves in its scenery: a train on the viaduct, course-scenery.js; the page's mover slides it)
     ...(C.scenery.movers.length ? { sceneryMovers: C.scenery.movers } : {}),
+    // (how it is played in the hand: its tracks and its hero's sideways push, for the touch layer's swipes)
+    courseTouch: { lanes: LANES.slice(), accel: C.rule.accel || 7 },
     // (its HUD, course-hud.js: on mana-ui, in the dress's own theme, laid for the game's screen)
     manaHud: courseHud(C, { screen: G?.screen ?? null }),
     worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };

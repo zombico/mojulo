@@ -38,3 +38,12 @@ phone, and a theme that comes from the dress's premise.
   they were dropped at the mint, so a world's `ui` never reached its made game; a remake keeps them, its `front` and
   its `run` too.
 - The image component's placeholder marks are not shown on a game's screens (a backdrop keeps its ground).
+- A course in the hand (`scene/channels/controllable/touch.js`, a level's `courseTouch`). On a touch screen the hero
+  runs by itself; a swipe left or right takes the next track over (the layer steers to that track's middle and brakes
+  into it, so a flick is a whole lane, where the hero is otherwise steered freely); a tap or a swipe up jumps, held
+  through the leap so it is the full jump. Nothing is drawn: no stick, no button. The pause's controls say so, and the
+  HUD's first-map hint shows "tap" and "swipe". Only a level made for a screen carries it; a page told `?touch=1` plays
+  so on a desk.
+- Played by touch alone in headless Chrome (`scripts/spikes/roll/touch.mjs`): a bot whose hands are the touch
+  layer's own pointer events (swipes and taps, never a key) clears three maps with no hit, in about the seconds the
+  keyboard bot takes, taking the same coins.

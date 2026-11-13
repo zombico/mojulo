@@ -43,7 +43,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'breakPieces', 'loose', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'flow', 'beacons', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
-  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'roll', 'manaHud', 'tempo', 'grade',
+  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'roll', 'manaHud', 'courseTouch', 'tempo', 'grade',
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'cone', 'formSky', 'air', 'soften',
   'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
 ]);

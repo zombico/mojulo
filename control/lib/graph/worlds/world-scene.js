@@ -1083,6 +1083,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (rolls) payload.roll = { ...(rolls.cover ? { cover: rolls.cover } : {}), ...(rolls.pattern ? { pattern: rolls.pattern } : {}), ...(rolls.cover || rolls.pattern ? { things: rolledThings } : {}), ...(rolls.items || rolls.with ? { items: rolls.items ?? [], ...(rolls.with ? { with: rolls.with } : {}), at: Object.fromEntries(pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics).map((p) => [p.zone, p.at])) } : {}), ...(rolls.start ? { start: rolls.start } : {}) };
     // what moves in a level's scenery (gameworld/course-scenery.js: a train along its viaduct): the mover channel's own rows. Absent ⇒ nothing
     if (Array.isArray(sketch.manifest.sceneryMovers) && sketch.manifest.sceneryMovers.length) payload.movers = [...(payload.movers || []), ...sketch.manifest.sceneryMovers];
+    // a course's touch (scene/channels/controllable/touch.js): its lanes and its hero's sideways push, for a screen's swipes
+    if (sketch.manifest.courseTouch) payload.courseTouch = sketch.manifest.courseTouch;
     // the level's in-play HUD on mana-ui (scene/channels/mana-hud.js): its spec, its theme, what it reads. Absent ⇒ not a byte
     if (sketch.manifest.manaHud) payload.manaHud = sketch.manifest.manaHud;
     // hangar: the non-combat suit-stepper menu — an ordered list of

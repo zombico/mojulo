@@ -37,8 +37,10 @@ export function manaHudScript(hud, { game = false } = {}) {
   const st = { course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [] };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: function () {}, now: function () { return clock; } });
-  rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'stick' } });
-  rt.input(window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'touch' : 'keys');
+  rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
+  // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
+  const __tq = new URLSearchParams(location.search).get('touch');
+  rt.input(__tq === '1' || (__tq !== '0' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'touch' : 'keys');
   const view = manaUi.mount(root, rt, { auto: true });
   window.__mojHud = { rt: rt, state: st };
   // the level has started (the shell's params are in): its place in the run, and the start cue

@@ -14,8 +14,12 @@
 import { swipeOf } from '../../../controls/swipe.js';
 
 /** The touch layout for a level's pilot and camera: { look, lane, jump, fire, lift } (and `swipe` for a runner: the
- * whole screen a swipe, no stick: left and right a lane, up a jump, down a slide). Pure. */
-export function touchLayout(entities, camera, { runner = false } = {}) {
+ * whole screen a swipe, no stick: left and right a lane, up a jump, down a slide; and `course` for an obstacle course:
+ * swipes that steer a free-running hero a whole track over, the hero running by itself). Pure. */
+export function touchLayout(entities, camera, { runner = false, course = null } = {}) {
+  // (an obstacle course, gameworld/roll-course.js: the hero runs by itself, a swipe takes the next track over, a tap or
+  // a swipe up jumps. Its lanes and how hard its hero pushes sideways are the course's own)
+  if (course) return { look: false, lane: false, jump: false, fire: false, lift: false, swipe: true, course: { lanes: course.lanes.slice(), accel: course.accel } };
   if (runner) return { look: false, lane: false, jump: false, fire: false, lift: false, swipe: true };
   const pilot = (entities || []).find((e) => e && e.pilotable) || null;
   const r = (pilot && pilot.rule) || {};
@@ -62,7 +66,41 @@ __tRest();
 if (__TL.swipe) __tRing.style.display = 'none';
 const __T_R = 56;   // the stick's travel, px: full deflection at its edge
 let __tStick = null, __tLook = null;
-${L.swipe ? `// a RUNNER's swipe (controls/swipe.js): it fires as the finger passes the travel, not on release; each a short
+${L.course ? `// a COURSE's touch (gameworld/roll-course.js): the hero runs by itself (the stick held forward), a swipe left or right
+// takes the next track over (the stick steered to that track's middle, braked as a hand learns to, so a flick is a
+// whole lane), a tap or a swipe up jumps (held through the leap, so it is the full jump). No stick, no button drawn.
+${swipeOf.toString()}
+const __tC = __TL.course;
+let __tSw = null, __tLane = -1, __tJump = null, __tPX = null, __tPT = 0;
+const __tStep = (d) => { __tLane = Math.max(0, Math.min(__tC.lanes.length - 1, __tLane + d)); };
+const __tLeap = () => { if (!__tJump) __tJump = { t: performance.now(), flown: false }; };
+__tZone.addEventListener('pointerdown', (e) => { e.preventDefault(); __tZone.setPointerCapture(e.pointerId); __tSw = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; });
+__tZone.addEventListener('pointermove', (e) => {
+  if (!__tSw || e.pointerId !== __tSw.id || __tSw.fired) return;
+  const g = swipeOf(e.clientX - __tSw.x, e.clientY - __tSw.y, performance.now() - __tSw.t, { travel: 28, ms: 450 });
+  if (g && g !== 'tap') { __tSw.fired = true; if (g === 'left') __tStep(-1); else if (g === 'right') __tStep(1); else if (g === 'up') __tLeap(); }
+});
+__tZone.addEventListener('pointerup', (e) => {
+  if (!__tSw || e.pointerId !== __tSw.id) return;
+  if (!__tSw.fired && swipeOf(e.clientX - __tSw.x, e.clientY - __tSw.y, performance.now() - __tSw.t) === 'tap') __tLeap();
+  __tSw = null;
+});
+__tZone.addEventListener('pointercancel', (e) => { if (__tSw && e.pointerId === __tSw.id) __tSw = null; });
+(function __tRun() {
+  requestAnimationFrame(__tRun);
+  const me = typeof __world !== 'undefined' && __world.pilotId ? __world.byId[__world.pilotId] : null;
+  if (!__tOn || !me || window.__mojMenuOpen) { __tAxes[0] = 0; __tAxes[1] = 0; __tBtn[0].pressed = false; __tBtn[0].value = 0; __tPX = null; return; }
+  const now = performance.now(), x = me.transform.pos[0], dt = Math.max(0.004, (now - __tPT) / 1000), vx = __tPX === null ? 0 : (x - __tPX) / dt;
+  __tPX = x; __tPT = now;
+  // (the track it is on, till a swipe says another: the nearest when the layer comes up)
+  if (__tLane < 0) { let b = 0; for (let i = 1; i < __tC.lanes.length; i++) if (Math.abs(__tC.lanes[i] - x) < Math.abs(__tC.lanes[b] - x)) b = i; __tLane = b; }
+  const slide = (vx * Math.abs(vx)) / (2 * (__tC.accel || 7)), err = __tC.lanes[__tLane] - (x + slide);
+  __tAxes[0] = Math.abs(err) > 0.12 ? (err > 0 ? 1 : -1) : 0;
+  __tAxes[1] = -1;
+  if (__tJump) { if (me.grounded === false) __tJump.flown = true; if ((__tJump.flown && me.grounded !== false) || now - __tJump.t > 1400) __tJump = null; }
+  __tBtn[0].pressed = !!__tJump; __tBtn[0].value = __tJump ? 1 : 0;
+})();
+` : L.swipe ? `// a RUNNER's swipe (controls/swipe.js): it fires as the finger passes the travel, not on release; each a short
 // pulse on the pad (the stick to a side, down, or the jump button), read by the runner as one press
 ${swipeOf.toString()}
 let __tSw = null;
@@ -130,7 +168,7 @@ __tUse.style.display = 'none';
 (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__tEl);
 const __touchOn = () => __tOn;
 // what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
-const __tRowsOf = () => __TL.swipe ? [['swipe ← →', 'change lane'], ['swipe ↑', 'jump'], ['swipe ↓', 'slide']] : [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
+const __tRowsOf = () => __TL.course ? [['swipe ← →', 'change track'], ['tap, or swipe ↑', 'jump'], ['it runs', 'by itself']] : __TL.swipe ? [['swipe ← →', 'change lane'], ['swipe ↑', 'jump'], ['swipe ↓', 'slide']] : [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
   ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
 const __touchRows = () => __tRowsOf();
 const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
@@ -165,6 +203,6 @@ function __touchPad() {
   if (!reach) { __tBtn[2].pressed = false; __tBtn[2].value = 0; }
   return __tPad;
 }
-window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL, hint: __tHint };
+window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL, hint: __tHint${L.course ? ', lane: () => __tLane' : ''} };
 `;
 }

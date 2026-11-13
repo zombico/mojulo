@@ -53,4 +53,26 @@ describe('touch: a virtual pad laid out for the pilot and its camera, never for 
     expect(controllableChannelScript(ents, cam, {}, { touch: true })).toContain('if (__touchOn()) return __touchRows();');
     expect(controllableChannelScript(ents, cam, {})).not.toContain('__touchRows');
   });
+
+  it('an obstacle course in the hand: the hero runs by itself, a swipe is a whole track over, a tap jumps; no stick, no button', () => {
+    const course = { lanes: [-2, 0, 2], accel: 7 };
+    const L = touchLayout(hero({ type: 'platform', jumpSpeed: 8 }), { rule: 'follow' }, { course });
+    expect(L).toEqual({ look: false, lane: false, jump: false, fire: false, lift: false, swipe: true, course });
+    const s = touchScript(L);
+    expect(() => new Function('__world', 'wrap', `let __lookDX = 0, __lookDY = 0, __MOUSELOOK = false; ${s.replace(/requestAnimationFrame\(/g, '(() => 0)(').replace(/document\./g, 'DOC.').replace(/location\.search/g, "''").replace(/window\./g, 'WIN.')}`)).not.toThrow();
+    // it runs by itself (the stick forward), steers to the track a swipe named, and holds the jump through the leap
+    expect(s).toContain('__tAxes[1] = -1;');
+    expect(s).toContain("if (g === 'left') __tStep(-1); else if (g === 'right') __tStep(1); else if (g === 'up') __tLeap();");
+    expect(s).toContain("=== 'tap') __tLeap();");
+    expect(s).toContain('const slide = (vx * Math.abs(vx)) / (2 * (__tC.accel || 7))');
+    expect(s).toContain("[['swipe ← →', 'change track'], ['tap, or swipe ↑', 'jump'], ['it runs', 'by itself']]");
+    expect(s).toContain("if (__TL.swipe) __tRing.style.display = 'none';");
+    // (a runner's swipes, and a stick, carry none of the course's code; the channel hands the course on only with a screen)
+    expect(touchScript({ swipe: true })).not.toContain('__tLane');
+    expect(touchScript({ look: false, jump: true })).not.toContain('__tLane');
+    const ents = hero({ type: 'platform', jumpSpeed: 8 }), cam = { rule: 'follow', target: 'hero' };
+    expect(controllableChannelScript(ents, cam, {}, { touch: true, courseTouch: course })).toContain('const __tC = __TL.course;');
+    expect(controllableChannelScript(ents, cam, {}, { courseTouch: course })).toBe(controllableChannelScript(ents, cam, {}));
+  });
 });
+

@@ -94,3 +94,6 @@ second.
 With the runner's HUD (mana-ui, the toybox look), the world's juice and its grade asked for, the same run: three maps
 clean in about 19 s each; the frame rate here falls to about 10 a second (software GL pays for the grade's pass over
 every frame; a GPU does not).
+
+`touch.mjs` plays the exported level by touch alone (`--game /abs/dir/dash-run`): swipes and taps on the touch
+layer, never a key. Three maps clean, no hit, the same coins as the keyboard bot.

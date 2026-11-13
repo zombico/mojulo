@@ -69,6 +69,9 @@ describe('the host: a level page that carries one', () => {
   it('a made course level carries its HUD; the page hosts it, and a page without one carries not a byte', () => {
     const M = obstacleStage({ feel: MOMENTUM }, { slots: 6 });
     expect(M.manaHud).toEqual(courseHud(courseOf({ feel: MOMENTUM }, { slots: 6 })));
+    // (and how it is played in the hand: its tracks and its hero's sideways push, for the touch layer's swipes)
+    expect(M.courseTouch).toEqual({ lanes: [-2, 0, 2], accel: C.rule.accel || 7 });
+    expect(manaHudScript(H)).toContain("touch: { jump: 'tap', steer: 'swipe' }");
     const js = manaHudScript(H, { game: true });
     expect(js).toContain('window.__mojHud');
     expect(js).toContain('GAME = true');
