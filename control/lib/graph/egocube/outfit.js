@@ -5,7 +5,8 @@
  * colours: each is a reading here, and each piece names its reason. The result is a plan's `outfit`
  * (polygonizer/outfit-plan.js), which compiles onto the body in layer order; a reference fills the same fields.
  *
- *   outfitFromSheet(sheet, { coat? })   { outfit, laws }: the outfit, and the visual-interest laws run over it (advisory)
+ *   outfitFromSheet(sheet, { coat?, garment? })   { outfit, laws }: the outfit, and the visual-interest laws run over it (advisory);
+ *                                 `garment` a hex the garment's colour is given as (outfitPalette), in place of the archetype's
  *
  * The readings, each a table below:
  *   SHAPE      the archetype's silhouette: a ruler's bell, a hero's wedge, an outlaw's needle (the sheet's own
@@ -185,12 +186,15 @@ const deriveOf = (sheet, prefix) => { for (const list of Object.values(sheet.der
 
 /** the palette's roles: base (the garment), secondary, trim (a metal), accent (the trim brightened); each a clear value
  * step from the others and from the coat it is worn over */
-export function outfitPalette(sheet, coat = '#8a5a38') {
-  const f = sheet.facets, [L0, H] = HUES[f.archetype] ?? [44, 230], shadow = sheet.reading?.reads !== 'light', pp = peopleOf(sheet)?.palette ?? {};
-  let L = L0 - (shadow ? 6 : 0) - (hasDerive(sheet, 'palette.Top -') ? 5 : 0) + (hasDerive(sheet, 'palette.Top +') ? 5 : 0) + (pp.dL ?? 0);
+export function outfitPalette(sheet, coat = '#8a5a38', garment = null) {
+  // (the garment's colour the archetype's, turned by the sheet; or the one GIVEN it, `garment` a hex taken as it is: a
+  // game's protagonist in its world's accent, gameworld/hero-design.js. Every other role still follows from it)
+  const given = garment ? hexLch(garment) : null;
+  const f = sheet.facets, [L0, H] = given ? [given[0], given[2]] : HUES[f.archetype] ?? [44, 230], shadow = sheet.reading?.reads !== 'light', pp = peopleOf(sheet)?.palette ?? {};
+  let L = given ? L0 : L0 - (shadow ? 6 : 0) - (hasDerive(sheet, 'palette.Top -') ? 5 : 0) + (hasDerive(sheet, 'palette.Top +') ? 5 : 0) + (pp.dL ?? 0);
   const Lc = hexLch(coat)[0];
   if (Math.abs(L - Lc) < 18) L = Lc > 50 ? Lc - 22 : Math.min(85, Lc + 22);   // the garment a step from the coat
-  const C = Math.max(6, (shadow ? 26 : 34) + (pp.dC ?? 0));   // a people's cloth richer or faded
+  const C = given ? Math.max(6, given[1]) : Math.max(6, (shadow ? 26 : 34) + (pp.dC ?? 0));   // a people's cloth richer or faded
   // the secondary: 22 L* the other way, its hue turned 40° (an analogous neighbour), a little brighter
   // the trim: a metal by motivation (gold above the middle, silver below), the next metal when the garment sits too
   // close to it in value
@@ -324,7 +328,7 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
   return { language, dials, colours, notes };
 }
 
-export function outfitFromSheet(sheet, { coat } = {}) {
+export function outfitFromSheet(sheet, { coat, garment = null } = {}) {
   const f = sheet.facets, a = f.archetype, free = f.order >= 0.5, side = 'R';
   const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
   // the sheet's own silhouette word when the archetype reads that way; the archetype's otherwise
@@ -376,7 +380,7 @@ export function outfitFromSheet(sheet, { coat } = {}) {
     else if (pieces.length < room) pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' });
     // no room for one more: a piece already worn takes the trim
     else for (const r of pieces.filter((p) => p.role !== 'focal' && ['collar', 'baldric', 'sash', 'belt', 'bracers'].includes(p.kind))) { if (trims() >= 2) break; r.colour = 'trim'; } }
-  const palette = outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin);
+  const palette = outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin, garment);
   const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: look ? { ...palette, leather: look.gear } : palette, ...(concept ? { concept: concept.word } : {}) },
     cut: { language: cut.language, dials: cut.dials, colours: cut.colours, notes: cut.notes }, pieces, ...(look ? { look: { id: look.id, tones: lookTones(look) } } : {}) };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [] });

@@ -12,6 +12,20 @@ const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...
 const LINEAGES = ['ursine', 'lupine', 'feline', 'avian', 'draconic', 'insectoid'];
 
 describe('the outfit, designed from the sheet', () => {
+  it('takes a garment colour given it: its hue the base, every other role still by the palette\'s rules; absent, as it was', () => {
+    const sheet = rollEgocube({ seed: 3, facets: { archetype: 'hero', role: 'frontline' } }), given = '#3a80d0';
+    const own = outfitFromSheet(sheet), G = outfitFromSheet(sheet, { garment: given });
+    expect(outfitFromSheet(sheet, { garment: null })).toEqual(own);
+    const P = G.outfit.intent.palette, hue = (h) => hexLch(h)[2];
+    expect(Math.abs(hue(P.base) - hue(given))).toBeLessThan(8);
+    expect(Math.abs(hue(own.outfit.intent.palette.base) - hue(given))).toBeGreaterThan(30);
+    // (the same cut and pieces: only the colour was given; the laws hold on it)
+    expect(G.outfit.pieces).toEqual(own.outfit.pieces);
+    expect(G.outfit.cut).toEqual(own.outfit.cut);
+    expect(G.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(outfitPalette(sheet, sheet.ancestry.colours.Skin, given)).toEqual(P);
+  });
+
   it('every rolled character\'s outfit passes the visual-interest laws, and the outfits vary', () => {
     const sets = new Set();
     for (const a of LINEAGES) for (let seed = 1; seed <= 8; seed++) {

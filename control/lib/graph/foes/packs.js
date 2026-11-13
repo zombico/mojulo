@@ -101,15 +101,18 @@ export const WILD_SIZE_IDS = Object.freeze(Object.keys(WILD_SIZES));
 export const isKin = (people) => !!BEAST_KINS[people];
 
 export function readPack(p, people, at = 'foe: .skin.pack') {
-  if (!isObj(p)) throw new Error(`${at} is { style, colourway?, motif? } (the pack styles: ${PACK_STYLE_IDS.join(', ')})`);
-  for (const k of Object.keys(p)) if (!['style', 'colourway', 'motif'].includes(k)) throw new Error(`${at} has no key '${k}' (style, colourway, motif)`);
+  if (!isObj(p)) throw new Error(`${at} is { style, colourway?, motif?, accent? } (the pack styles: ${PACK_STYLE_IDS.join(', ')})`);
+  for (const k of Object.keys(p)) if (!['style', 'colourway', 'motif', 'accent'].includes(k)) throw new Error(`${at} has no key '${k}' (style, colourway, motif, accent)`);
   const S = PACK_STYLES[p.style];
   if (!S) throw new Error(`${at}.style: no pack style '${p.style}' (${PACK_STYLE_IDS.join(', ')})`);
   if (!S.peoples.includes(people)) throw new Error(`${at}: the ${S.name.toLowerCase()} are cut for ${S.peoples.join(', ')} (not ${people}); a people of another body wears its own roll`);
   if (p.colourway !== undefined && !S.colourways[p.colourway]) throw new Error(`${at}.colourway: the ${S.name.toLowerCase()}' colours are ${Object.keys(S.colourways).join(', ')}`);
   if (p.motif !== undefined && !S.motifs.includes(p.motif)) throw new Error(`${at}.motif: the ${S.name.toLowerCase()}' marks are ${S.motifs.join(', ')}`);
-  return { style: p.style, colourway: p.colourway ?? Object.keys(S.colourways)[0], motif: p.motif ?? S.motifs[0] };
+  if (p.accent !== undefined && !(typeof p.accent === 'string' && HEX.test(p.accent))) throw new Error(`${at}.accent: the colour its mark is worn in, a #rrggbb (the world's, where the cast is painted against its ground)`);
+  return { style: p.style, colourway: p.colourway ?? Object.keys(S.colourways)[0], motif: p.motif ?? S.motifs[0], ...(p.accent !== undefined ? { accent: p.accent.toLowerCase() } : {}) };
 }
+/** A pack's colours as worn: its colourway's roles, its ACCENT (the hung cloth, the mark) the one given it where it is. */
+const packRoles = (P) => ({ ...PACK_STYLES[P.style].colourways[P.colourway].roles, ...(P.accent ? { accent: P.accent } : {}) });
 
 export function readKinBody(b, people, at = 'foe: .skin.body') {
   if (!isObj(b)) throw new Error(`${at} is { coat?, size? }`);
@@ -141,7 +144,7 @@ export function packAdornment(skin, { rank = 'minion', sheet } = {}) {
   const coat = skin.body?.coat !== undefined ? coatOf(skin.people, skin.body.coat) : kinCoat(skin.people);
   const A = adornFromSheet(packSheet(skin, sheet), { coat, station: R.station, room: R.room });
   // (the pack's colours in place of the sheet's own roll; its mark on its plates)
-  A.outfit.intent = { ...A.outfit.intent, palette: { ...S.colourways[P.colourway].roles } };
+  A.outfit.intent = { ...A.outfit.intent, palette: packRoles(P) };
   for (const p of A.outfit.pieces) if (MARKED.includes(p.kind)) p.motif = P.motif;
   // (the laws read again on what is worn: the pack's colours, not the sheet's roll)
   return { ...A, laws: outfitLaws(A.outfit, { order: S.order, archetype: S.archetype, mustSee: [], frame: true }) };
@@ -159,7 +162,7 @@ export function kinWords(skin, { rank = 'minion', sheet } = {}) {
   // (a pack's members share one coat, the lineage's first where the body names none; any other keeps its sheet's roll)
   const coat = B.coat !== undefined ? coatOf(people, B.coat) : P ? kinCoat(people) : null;
   if (P) {
-    const S = PACK_STYLES[P.style], C = S.colourways[P.colourway].roles;
+    const S = PACK_STYLES[P.style], C = packRoles(P);
     // (its cloth in the pack's colours: the breeches the secondary, the hung cloth the accent, its fittings the trim)
     const tones = { Bottom: C.secondary, Panel: C.accent, Trim: C.trim, Buckle: C.trim, Leather: C.leather };
     out.outfit = heroAdornOf(packAdornment(skin, { rank, sheet }).outfit, { cut: { ...structuredClone(S.cut), tones } });
@@ -179,7 +182,7 @@ export const kinBare = (skin, sheet) => !!skin && isKin(skin.people) && !skin.ad
 export function packSays(skin) {
   if (skin?.pack === undefined) return null;
   const P = readPack(skin.pack, skin.people), S = PACK_STYLES[P.style];
-  return `of the ${S.name.toLowerCase()}, ${S.colourways[P.colourway].reads}, its mark a ${P.motif}`;
+  return `of the ${S.name.toLowerCase()}, ${S.colourways[P.colourway].reads}, its mark a ${P.motif}${P.accent ? ` in ${P.accent}` : ''}`;
 }
 /** A body's own words in a line: its size, its coat. */
 export function bodySays(skin) {

@@ -35,11 +35,13 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
-import { GEOCUBE_PRESETS, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
+import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
 import { worldMapLevel } from './world-map.js';
 import { settingOfGame } from './cast-setting.js';
+import { heroDesign } from './hero-design.js';
+import { genrePaletteWords } from './world-palette.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
@@ -521,6 +523,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const thing = after !== undefined && after !== null && [techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].some((d) => readIntent(d, after).traits.length > 0);
   const open = openWord !== null && !cliffWord && !thing;
   const wet = Object.keys(water).length ? water : null;
+  // (the colour DIRECTION its genre is laid in (world-palette.js GENRE_COLOUR: a choice made at the eyes gate, a row): the
+  // axes it moves on the cube's own palette, written as the cube's palette words under any the sentence's own name)
+  const direction = genre && cubeId ? genrePaletteWords(genre.id, GEOCUBE_PALETTES[cubeId] ?? {}) : null;
+  if (direction) { palette = { ...direction.words, ...(palette ?? {}) }; world.brief.colour = { direction: direction.direction }; }
   if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || dunes !== null || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, dunes, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
@@ -538,7 +544,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     // the inn where the world's battles have them)
     world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: true } : {}) };
     if (frame.moves) world.moves = true;
-    world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
+    // (and DESIGNED, where nothing else designs it (hero-design.js: a game that reads no body rail): rolled as a person of
+    // this world, its protagonist, its sheet's plan laid as the looks pages in the pages' own words, its garment the
+    // world's accent; each page is the creator's to rewrite)
+    const design = heroDesign(readGameworld(world));
+    if (design) { world.characters.hero = { ...world.characters.hero, looks: design.looks }; readGameworld(world); }
+    world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition,
+      ...(design ? { design: { roll: design.sheet, ...(design.garment ? { garment: design.garment } : {}), pieces: design.pieces.map((p) => p.kind), read: design.read } } : {}) };
   }
   return world;
 }

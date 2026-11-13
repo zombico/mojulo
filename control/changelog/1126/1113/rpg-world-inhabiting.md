@@ -105,7 +105,56 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   Worn by the hero door's `headgear` word, which on a kin (a new body the word knows, `kin`) lowers to its head's word;
   a person's card is refused on a kin and a kin's on a person, by name. The raiders' leaders wear them by rank (an elite
   the cap, a boss the horned helm).
-- Not here yet: the party battles' own "goblin" and "shaman" (`gameworld/battles.js`) are still orcish people, and the
+- **The hero is designed, as everyone else in its game is** (`gameworld/hero-design.js`, new; `gameworld/compose.js`,
+  `egocube/outfit.js`, `gameworld/hero-looks.js`, `gameworld/cast-setting.js`). A game laid from a sentence rolled and
+  dressed its cast, its folk and its foes by principle and left its hero the door's stock body in plain clothes: the
+  one figure nobody designed. Where no body rail designs it (the action RPG, the stylish action game, the party RPG),
+  the sentence door now rolls the protagonist as a person of its world (the Egocube, in the game's own setting; a game
+  with a casting page takes its cast's anchor, so the hero is the person the party was rolled against) and writes the
+  looks pages from its sheet, each in the page's own words: its build, its face, its hair, its colours, and as its
+  underlayer the cut and the pieces the outfit principles design (the role's gear, the one focal, the trim repeated).
+  - **The protagonist reads against its ground.** The outfit designer takes a garment colour given it
+    (`outfitFromSheet({ garment })`); the hero's is the world's accent, the colour its palette keeps apart from the
+    land, and every other role of the outfit's palette still follows from the garment by the palette's own rules. A
+    world with no palette keeps the archetype's colour. Before, the hero's shirt was a stop of the grass ramp.
+  - The base wears its cloth at ornament 0, which took the belt a cut closes on: the belt is worn as a piece.
+  - The brief keeps what was decided (`brief.hero.design`: the roll, the garment, the pieces, the reasons) and the
+    character bible's base page says it ("How it was designed"); the agent's looks card says the pages come written
+    and are rewritten like any other. A hero with pages of its own, an adopted hero and a railed one are untouched.
+  - **A painted world keeps its setting's clothes** (`hero-looks.js` `underlayerFor`, `cast-setting.js`
+    `quickFigure`). A palette or a look repaints a kit under an id of its own, and the underlayer rail was looked up
+    by that id: a painted world's hero, and a quick game's rolled figures, fell back to plain casual clothes. The rail
+    is the stock kit's the world was painted from.
+- **The game's colour, chosen with the colour theorist** (`color-theorist/figures.js`, `color-theorist/directions.js`,
+  `gameworld/colour.js`, `gameworld/colour-book.js`, `gameworld/world-palette.js`, all new; `docs/colour.md`). The
+  theorist solved a palette for a world and nothing coloured the people in it against that world: the goblin, the orc
+  and the old hero each sat within a hair of the grass they stood on. Colour had been decided spike by spike (a coat
+  taken to the kit's ramps here, a hand-picked colourway there); this is one bridge and one aid, the same for any game.
+  - **Figures on a ground.** A figure is measured by its distance from the ground it stands on and the foliage behind
+    it, and solved clear of them and of the figures before it, for every eye. A creature keeps its hue family: its
+    value and chroma move, its hue turns last and never past its family (a goblin stays green, an orc olive). A mark
+    wears the world's second accent, or the protagonist's complement where the two accents are neighbours. Laws
+    advise: figures clear, figures apart, colour vision, families kept, the protagonist the loudest.
+  - **Colour directions**, rows the same for every game: a quiet land (three bands of value, low in chroma, colour
+    spent on who matters) and a colour script across the levels. A direction never picks a hue.
+  - **The options, and the colour book** (`/bible?book=colour`). For any gameworld: what its colour is now, measured,
+    and each way it could go (the same land with the cast painted clear of it; each direction the world can take with
+    the cast solved against the land that makes), every one a patch and every one painted into the same small landscape
+    with the cast on its ground. The machine names its pick; the choice is the eyes gate's. `design_game`'s readout says
+    when a figure sinks (a `colour` step), the agent's card is `gameworld-colour`, and `pick_palette` points at both.
+  - **Who is read**: the hero's garment, a kin foe's skin, a pack's mark. A crew's dress and a beast's coat are said
+    unread; a new kind of figure is a reader.
+  - **A pack's mark takes a colour given it** (`foes/packs.js` `pack.accent`), and a kin's coat was already a colour
+    (`body.coat`): the two words the options write.
+  - **The sentence door colours a game once, when it is stored** (`mcp/tools/design-game.js`, `gameworld/compose.js`):
+    the cast painted against the ground the world is stored with, what moved kept in `brief.colour`; and a genre with a
+    direction chosen for it laid in it (`GENRE_COLOUR`, a row per decision: the action RPG in a quiet land). An existing
+    world is untouched until an option is taken.
+- Not here yet: a crew's dress, a beast's coat and a quick game's rolled people are not read as figures; the colour
+  book paints the theorist's small landscape, not the game's own level; the options are not yet a `pick_palette`
+  argument (the readout and the book carry them); a hero on a body rail (a comic hero, a fighter, a mascot) is still dressed plain; the hero's dress
+  rides in its underlayer, though the book calls dress a later page (the adornment page holds equipment only); the
+  party battles' own "goblin" and "shaman" (`gameworld/battles.js`) are still orcish people, and the
   word "orc" in a brief still rolls the near-human; a kin's headgear has helmets only (no hood, no mask, no cloth) and no row in the
   agent's foes card yet; the brow ridge is a round bar (no arch, no thinning to its tail); the foes book does not yet list a pack member's pieces and their reasons (the principles give them);
   a row for the action RPG in the pose rails, so its hero stands as its game shows it; the goblin's hips, boxed where

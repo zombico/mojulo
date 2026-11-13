@@ -74,6 +74,20 @@ describe('a pack: the frame-adorned principles with what a band shares pinned', 
     expect(W.palette.Panel).toBe(S.colourways[b].roles.accent);
     expect(packSays({ people: KIN, pack: { style: STYLE, colourway: b, motif: m } })).toContain(S.colourways[b].reads);
   });
+  it('its mark takes a colour given it (the world\'s, where the cast is painted against its ground); absent, the colourway\'s own', () => {
+    const sheet = sheetOf(PACK, FIGHTER, 'c'), [a] = Object.keys(S.colourways), given = '#EBA651';
+    const skin = (accent) => ({ people: KIN, pack: { style: STYLE, colourway: a, ...(accent ? { accent } : {}) } });
+    expect(readPack(skin(given).pack, KIN).accent).toBe('#eba651');
+    expect(readPack(skin().pack, KIN).accent).toBeUndefined();
+    const own = packAdornment(skin(), { rank: LOW, sheet }), G = packAdornment(skin(given), { rank: LOW, sheet });
+    // (the accent alone: every other role, and every piece, as the colourway has them)
+    expect(G.outfit.intent.palette).toEqual({ ...S.colourways[a].roles, accent: '#eba651' });
+    expect(kinds(G)).toEqual(kinds(own));
+    expect(kinWords(skin(given), { rank: LOW, sheet }).palette.Panel).toBe('#eba651');
+    expect(kinWords(skin(), { rank: LOW, sheet })).toEqual(kinWords({ people: KIN, pack: { style: STYLE, colourway: a } }, { rank: LOW, sheet }));
+    expect(packSays(skin(given))).toContain('#eba651');
+    expect(() => readPack({ style: STYLE, accent: 'amber' }, KIN)).toThrow(/\.accent: the colour its mark is worn in/);
+  });
   it('keeps the principles\' laws in every colourway: a clear step of value between its roles, one focal, the frame shown', () => {
     const sheet = sheetOf(PACK, FIGHTER, 'l');
     for (const colourway of Object.keys(S.colourways)) {

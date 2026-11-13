@@ -134,13 +134,15 @@ dress, which is the cube's default). On the foe shelf it is three words on a kin
   stands over its card (`WILD_SIZES`: the stature and the frame's words multiplied, so the foe shelf measures it and the
   lineup draws it at that size) and its own colour, a lineage swatch by word or a `#rrggbb`.
 - **`adorned: true`**: each geared by its own sheet, its own role and standing, as any kin character is.
-- **`pack: { style, colourway?, motif? }`**: the same principles with what a band SHARES pinned. A pack style
+- **`pack: { style, colourway?, motif?, accent? }`**: the same principles with what a band SHARES pinned. A pack style
   (`PACK_STYLES`) names no piece and no geometry. It pins the character every member is read as (its archetype, so its
   one focal and its concept's found things; its order, so its symmetry), its cloth, its colourways and its marks. A
   member's CLASS still gives its role's gear and its RANK its station and how many pieces it keeps (`PACK_RANKS`). So
   two members of one class and rank wear the same whoever they are, a fighter is told from a caster by its gear, and a
   leader wears everything the rank and file does and more. The pack's adornment is read by the outfit's laws again in
-  the pack's colours, and its colourways keep them. A new pack is a row: a character, a cloth, colours, marks.
+  the pack's colours, and its colourways keep them. A new pack is a row: a character, a cloth, colours, marks. Its mark takes a colour given it
+  (`accent`), and a body's coat is a colour too (`body.coat`): the two words the game's colour writes when a cast is
+  painted against its ground ([colour.md](colour.md)), so a pack reads against the land it raids and against the hero.
 
 A kin whose card is one body (the goblin, the orc) is rolled at its lineage's one build: the roll takes a lineage's
 builds as advice, and a goblin rolled a brute stood as tall as a person.

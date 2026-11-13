@@ -70,6 +70,7 @@ import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit,
 import { segmentUnits, checkSegment, segmentRemit } from '@/lib/graph/gameworld/segments.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
+import { paintedCast, colourOfGame } from '@/lib/graph/gameworld/colour.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 import { gauntletLaws } from '@/lib/graph/gameworld/gauntlet.js';
@@ -538,6 +539,10 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // ITS COLOUR (gameworld/colour.js): a figure that sinks into the land it stands on is said, with the colour book that
+  // lays out what it is now and the ways it could be oriented, each one a patch (the theorist's aid, the same for any game)
+  const colour = (() => { try { const { kind: _k, ...W } = world; return colourOfGame(readGameworld(W)); } catch { return null; } })();
+  if (colour?.sinks.length) next.push({ step: 'colour', sinks: colour.sinks, book: `/api/sketches/${encodeURIComponent(ref)}/bible?book=colour`, card: 'gameworld-colour' });
   // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
   // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
   const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
@@ -704,7 +709,11 @@ export async function designGameHandler(input, context = {}) {
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
   // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
   const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
-  const world = withNamedHero(compose !== undefined ? composedWorld(compose) : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
+  // (a composed world's cast is PAINTED against its ground (gameworld/colour.js paintedCast): its palette stamped here,
+  // as the write would stamp it, so the cast is solved against the colours the world is stored with)
+  const painted = compose !== undefined ? paintedCast(stampWorldPalette(stampGeocubes(composedWorld(compose)))) : null;
+  const composed = painted ? (painted.painted.length ? { ...painted.world, brief: { ...painted.world.brief, colour: { ...(painted.world.brief.colour ?? {}), cast: painted.painted } } } : painted.world) : undefined;
+  const world = withNamedHero(compose !== undefined ? composed : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
   const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {

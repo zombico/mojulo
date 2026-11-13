@@ -337,6 +337,10 @@ Pointers only; each target carries its own design notes.
   own shader, so they light nothing else; one key a page). Its clients: a fight's and a brawl's bodies under a register,
   the hero a player pilots on a form page, a vehicle's form body. It is light only: a body moves as its client moves it.
   [docs/hero-form-light.md](docs/hero-form-light.md).
+- The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
+  theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
+  could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of
+  figure, direction or genre decision is a row): [docs/colour.md](docs/colour.md).
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).

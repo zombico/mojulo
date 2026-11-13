@@ -8,6 +8,8 @@ export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEME
 export { resolveBook, characterParts, characterState, approveCharacter, characterReady, keepApproval } from './character-review.js';
 export { readActions, resolveActions, IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
 export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT } from './hero-looks.js';
+export { heroDesign, PROTAGONIST, ROLE_OF_VERB } from './hero-design.js';
+export { paletteSpecOf, accentOf, groundOf } from './world-palette.js';
 export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
 export { suggestKit, RAILS, ELEMENT_GEM } from './adornment-kit.js';
 export { readEquipment, resolveEquipment, equipmentOrders, equippedHero, HOLD_STAND, CLASS_SLOTS } from './equipment.js';
