@@ -35,8 +35,8 @@ import { WIND_AT_GLSL } from './terrain-wind.js';
  *  one even pile, a toothbrush, not tufts; `dark`, each bristle a darker twin just behind it), its grid's spacing (m),
  *  and the sward it grows in, alone (SWARD_LENGTH: its length on the map). */
 export const GRASS_TIERS = Object.freeze([
-  Object.freeze({ id: 'tall', clump: { blades: 5, segs: 3, height: [0.65, 1], width: [0.02, 0.029], lean: [0.12, 0.3], spread: [0.03, 0.12], cross: false }, spacing: 0.31, scale: 1, sward: 'tall' }),
-  Object.freeze({ id: 'medium', clump: { blades: 5, segs: 3, height: [0.65, 1], width: [0.018, 0.025], lean: [0.1, 0.24], spread: [0.03, 0.1], cross: false }, spacing: 0.183, scale: 0.55, sward: 'medium' }),
+  Object.freeze({ id: 'tall', clump: { blades: 5, segs: 3, height: [0.52, 0.8], width: [0.02, 0.029], lean: [0.12, 0.3], spread: [0.03, 0.12], cross: false }, spacing: 0.28, scale: 1, sward: 'tall' }),
+  Object.freeze({ id: 'medium', clump: { blades: 5, segs: 3, height: [0.52, 0.8], width: [0.018, 0.025], lean: [0.1, 0.24], spread: [0.03, 0.1], cross: false }, spacing: 0.165, scale: 0.55, sward: 'medium' }),
   Object.freeze({ id: 'short', clump: { blades: 10, segs: 1, height: [0.8, 1], width: [0.008, 0.012], lean: [0.02, 0.06], spread: [0, 0], cross: true, bed: true, dark: true }, spacing: 0.137, scale: 0.24, sward: 'short' }),
 ]);
 /** THE FIELD: the grass and the drifts placed once over the whole map, the same at every distance, as the gen-6 cards
@@ -53,7 +53,7 @@ export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medi
  *  MAP: each cell's strand height, colour slot and dice). No geometry. In either
  *  mode a tile the cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a walkable
  *  page. */
-export const POV_GRASS = Object.freeze({ thin: 0.5, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
+export const POV_GRASS = Object.freeze({ thin: 0.42, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });

@@ -190,3 +190,7 @@
   × its cover (so it comes down to the ground where the grass ends), in the far field's colour, rising from nothing at
   the reach. Rendered on the island trail with it on and off: the far grass stands over the bare ground behind it and
   hides the feet of far trunks. It replaces a first attempt drawn as a wireframe box.
+- The grass's economy, in progress: the tall and medium swards a fifth shorter (their width kept, so the cone's reach
+  is unchanged) and about a fifth denser, thinning sooner (from 0.42 of the reach), so the density is spent near the
+  eye; the far lift stands over the blades' tips (× 1.3). A change to every gen-7 page's grass; the change-reach tests
+  have not yet been run on it.

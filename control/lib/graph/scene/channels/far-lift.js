@@ -15,9 +15,10 @@
 import { GRASS_TIERS, BLADE_RISE, SWARD_LENGTH } from './form-grass.js';
 import { FAR_BLANKET_GLSL, FAR_FIELD } from './far-field.js';
 
-/** The lift's numbers: how much of a sward's tallest tip it stands to; the cover it starts and is full at; how far
+/** The lift's numbers: how far over a sward's tallest tip it stands (over it: far off, the sheet is all that hides the
+ *  ground and what stands in it); the cover it starts and is full at; how far
  *  past the reach (× the reach) it takes to stand to its full height; the least cover it is drawn at. */
-export const FAR_LIFT = Object.freeze({ stand: 0.8, cover: Object.freeze([0.1, 0.6]), rise: 0.35, least: 0.12 });
+export const FAR_LIFT = Object.freeze({ stand: 1.3, cover: Object.freeze([0.1, 0.6]), rise: 0.35, least: 0.12 });
 
 /** Each sward's height (m): its tier's tallest tip × FAR_LIFT.stand, in SWARD order (tall, medium, short). */
 export const FAR_LIFT_HEIGHTS = Object.freeze(['tall', 'medium', 'short'].map((s) => {

@@ -11,10 +11,10 @@ import { formLandScript } from './form-land.js';
 const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
 
 describe('the far lift', () => {
-  it('stands a longer sward taller, each below its blades\' tips', () => {
+  it('stands a longer sward taller', () => {
     const [tall, medium, short] = FAR_LIFT_HEIGHTS;
     expect(tall).toBeGreaterThan(medium); expect(medium).toBeGreaterThan(short); expect(short).toBeGreaterThan(0);
-    expect(FAR_LIFT.stand).toBeLessThanOrEqual(1);
+    expect(FAR_LIFT.stand).toBeGreaterThan(0);
   });
   it('is absent unless asked', () => {
     expect(farLiftScript(null)).toBe('');
