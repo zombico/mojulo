@@ -214,3 +214,7 @@
   cell where a clump stands, its height its own) as the mean of the strands within a metre, the empty cells counted as
   nothing, × 1.5: high where the grass is tall and thick, low where it is short or sparse, none on the trail, in a
   claim or on bare ground. It no longer reads the cover and a height per sward. Not yet seen drawn.
+- The far lift on a gen-6 stage, in progress (`STAGE_LIFT`, `stage-grass.js`, a live grass's `farLift`, opt-in): past
+  the field, a sheet over the stage's landform raised where its mask sets grass, to the grass's mean height × the
+  share of grass within a metre, in the ramp's upper stops, lit or shade; it fills in among the thinning tufts. With
+  it the far clumps are not built and the blade cards are not drawn. Not yet seen drawn; its tests not yet run.

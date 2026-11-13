@@ -64,6 +64,14 @@ const REAL_FRAG = 'float mojC = clamp(mojW.x + vRamp * (mojW.y - mojW.x) + vShif
 
 // how far the field widens a thinned tuft (at most), so its coverage is its kept share × WIDEN² up to whole
 const WIDEN = 1.8;
+/** THE FAR LIFT on a stage (opt-in: liveGrass.farLift; the gen-7 one is channels/far-lift.js): past the field, the
+ *  grass as the ground raised, not as far clumps and blade cards. A sheet on a grid of `step` m over the stage's
+ *  landform, raised by the share of the ground under grass within `mean` m (the stage's mask) × the grass's mean
+ *  height × `stand`: where grass is set and nowhere else, coming down to the ground as a side where the share falls
+ *  to `least` (whole by `wall`, clear of the ground by `foot`). It begins `from` × the field's near and is whole at
+ *  `full` × its radius, filling in as a stipple of `cell` m among the thinning tufts. In the grass ramp's upper
+ *  stops, lit or shade by the mask. With it the far clumps are not built and the cards are not drawn. */
+export const STAGE_LIFT = Object.freeze({ step: 1, mean: 1, stand: 1.5, least: 0.25, wall: 0.4, foot: 0.45, from: 1.3, full: 0.8, cell: 0.09 });
 /** The share of the meadow the FAR grass stands for at a distance `d` from the eye: what the field's coverage has lost
  *  there (it keeps (near/d)² of its tufts past `near`, at least 5%, each widened up to WIDEN, and fades over the last
  *  fifth of its radius). The page works the same in each far clump's vertex shader. */
@@ -272,7 +280,44 @@ ${o.far ? `
     };
     mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat; o.userData.blades = true; o.raycast = __noFoot;
   });
-${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while its feet are in the grass: an eye up in the air presses
+${o.lift ? `
+  // THE FAR LIFT (STAGE_LIFT): the grass past the field as the ground raised where the mask sets grass
+  (function () {
+    const FLg = ${JSON.stringify(STAGE_LIFT)}, c = G.cell, st = Math.max(1, Math.round(FLg.step / c)), r = Math.max(1, Math.round(FLg.mean / c)), Zs = TW.stageHeights;
+    const NX = Math.floor((G.nx - 1) / st) + 1, NY = Math.floor((G.ny - 1) / st) + 1, Hm = (LG.height[0] + LG.height[1]) / 2 * FLg.stand;
+    const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const pos = new Float32Array(NX * NY * 3), lift = new Float32Array(NX * NY * 3), idx = [];
+    for (let J = 0; J < NY; J++) for (let I = 0; I < NX; I++) {
+      const i = I * st, j = J * st, k = J * NX + I; let n = 0, g = 0, lit = 0;
+      for (let b = j - r; b < j + r; b++) for (let a = i - r; a < i + r; a++) { n++; if (a < 0 || b < 0 || a >= CX || b >= G.ny - 1) continue; const m = M[b * CX + a]; if (m & 1) { g++; if (m & 2) lit++; } }
+      const share = g / n;
+      pos[k * 3] = G.x0 + i * c; pos[k * 3 + 1] = G.y0 + j * c; pos[k * 3 + 2] = Zs[j * G.nx + i];
+      lift[k * 3] = Hm * share * sm(FLg.least, FLg.foot, share); lift[k * 3 + 1] = share; lift[k * 3 + 2] = g ? lit / g : 0;
+    }
+    for (let J = 0; J < NY - 1; J++) for (let I = 0; I < NX - 1; I++) {
+      const a = J * NX + I, b = a + 1, d = a + NX, e = d + 1;
+      if (Math.max(lift[a * 3 + 1], lift[b * 3 + 1], lift[d * 3 + 1], lift[e * 3 + 1]) < FLg.least) continue;
+      idx.push(a, b, e, a, e, d);
+    }
+    const lin = (q) => new THREE.Color().setRGB(q[0] / 255, q[1] / 255, q[2] / 255, THREE.SRGBColorSpace);
+    const W = LG.win, LU = { uOff: OFF, uLiftR: { value: new THREE.Vector2(FLg.from * NEAR, FLg.full * RAD) },
+      uLiftC: { value: [lin(LG.ramp[W.lit[1]]), lin(LG.ramp[Math.max(W.lit[0], W.lit[1] - 1)]), lin(LG.ramp[W.shade[1]]), lin(LG.ramp[Math.max(W.shade[0], W.shade[1] - 1)])] } };
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aLift', new THREE.BufferAttribute(lift, 3)); g.setIndex(idx);
+    const f3 = (v) => v.toFixed(4), mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, LU);
+      sh.vertexShader = 'attribute vec3 aLift; uniform vec2 uLiftR; uniform float uOff; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  { float kL = smoothstep( uLiftR.x, uLiftR.y, max( 0.0, distance( position.xy, cameraPosition.xy ) - uOff ) ); transformed.z += aLift.x * kL; vLiftS = vec3( aLift.y, kL, aLift.z ); vLiftP = position.xy; }');
+      sh.fragmentShader = 'uniform vec3 uLiftC[ 4 ]; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { vec2 cL = floor( vLiftP / ' + f3(FLg.cell) + ' ); float hs = fract( sin( dot( cL, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ), h2 = fract( sin( dot( cL, vec2( 39.346, 11.135 ) ) ) * 24634.6345 );\\n  if ( vLiftS.x < ' + f3(FLg.least) + ' || hs > vLiftS.y * 1.1 || hs > smoothstep( ' + f3(FLg.least) + ', ' + f3(FLg.wall) + ', vLiftS.x ) * 1.2 ) discard;\\n  diffuseColor.rgb = uLiftC[ ( vLiftS.z > 0.5 ? 0 : 2 ) + ( h2 > 0.5 ? 1 : 0 ) ]; }');
+    };
+    mat.customProgramCacheKey = () => 'mojulo-stage-lift';
+    const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.userData.g = 'far-lift'; mesh.userData.blades = true; mesh.raycast = __noFoot; scene.add(mesh);
+    // (the cards stand for nothing past the field now: not drawn)
+    const cards = []; scene.traverse((o) => { if (o.isMesh && LG.cards.includes(o.userData.g)) cards.push(o); }); cards.forEach((o) => { o.visible = false; });
+    let on = true;
+    window.__mojStageLift = { triangles: idx.length / 3, get on() { return on; }, set: (v) => { on = !!v; mesh.visible = on; cards.forEach((o) => { o.visible = !on; }); return on; } };
+    window.addEventListener('keydown', (e) => { if (e.key === 'b' || e.key === 'B') console.log('far lift', window.__mojStageLift.set(!on)); });
+  })();
+` : ''}${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while its feet are in the grass: an eye up in the air presses
   // nothing), the page's walkers and its physics spheres, and what the page presses itself; each stamps the bed where
   // it stands, and one that lands from a fall makes an impact
   const clockS = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000, TALL = LG.height[1] + 0.1, seen = new Map(), extra = [];
@@ -529,5 +574,5 @@ var __noFoot = function () {};
   window.__mojTerrain = window.__mojTerrain || { kernel: { groundAt }, cfg: {}, stat: {} };
   window.__mojTerrain.stageHeights = Z; window.__mojTerrain.stageMask = dec(G.m); window.__mojStageLG = LG;
 })();
-${terrainWindScript(wind)}${cfg.field === false ? '' : FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
+${terrainWindScript(wind)}${cfg.field === false ? '' : FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far && !cfg.farLift, lift: !!cfg.farLift }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
 }
