@@ -243,14 +243,20 @@ const __mojHourPass = () => {
     __hrArmed = null;${A ? `
     __csL.shadow.autoUpdate = true;` : ''}
   }
-  if (!__hrDirty) return;
+${cfg.landSun ? `  // (and whenever the land asks for its sun's map again, its trees grown or its hour set, the static world is in it)
+  if (window.__formSun && window.__formSun.shadow && window.__formSun.shadow.needsUpdate) __hrDirty = true;
+` : ''}  if (!__hrDirty) return;
   __hrDirty = false; __hrArmed = [];
   scene.traverse((o) => {
     if (!(o.isMesh || o.isLine || o.isPoints)) return;
     const want = __csStatic.has(o)${noCast ? ' && !__csNoCast(o)' : ''};
     if (o.castShadow !== want) { __hrArmed.push([o, o.castShadow]); o.castShadow = want; }
   });
-  __hrL.shadow.needsUpdate = true;${A ? `
+  __hrL.shadow.needsUpdate = true;${cfg.landSun ? `
+  // (the land's own sun, channels/form-land.js: the light a body under the cast rig is lit by. Its map is drawn on this
+  // frame too, the static world in it, so a body indoors stands in its building's shade and takes the sun only through
+  // an opening, as the room's own faces do)
+  if (window.__formSun && window.__formSun.shadow) window.__formSun.shadow.needsUpdate = true;` : ''}${A ? `
   __csL.shadow.autoUpdate = false; __csL.shadow.needsUpdate = false;   // (this frame its map would hold the static world)` : ''}
   __mojLight.hourMaps++;
 };` : `
@@ -343,7 +349,10 @@ window.__mojCast = {   // the channel's public seam: dynamic channels hand their
   // the recipe's hour (toward its sun, z-up): the static map drawn for it on the next frame. THE SUN DOES NOT MOVE,
   // live or within a level: this redraws the map once at load for the hour a recipe names; it is not a clock, and is
   // never driven per frame or on a timer
-  hour(toLight) { if (toLight) __csDir.set(toLight[0], toLight[1], toLight[2]).normalize(); __hrSeat();${A ? ` if (!__csFollowing) ${seatA('__csR, __csC.x, __csC.y, __csC.z')};` : ''} __hrDirty = true; },` : cfg.indoor ? `
+  hour(toLight) { if (toLight) __csDir.set(toLight[0], toLight[1], toLight[2]).normalize(); __hrSeat();${A ? ` if (!__csFollowing) ${seatA('__csR, __csC.x, __csC.y, __csC.z')};` : ''} __hrDirty = true; },${cfg.stills ? `
+  // a body that stands still for the whole level (a parked vehicle, a static figure): part of the static world, so it
+  // casts into the hour's map wherever it stands and never into the actors' (whose box follows the player)
+  still(root) { root.traverse((o) => { if (o.isMesh && o.material && !o.material.transparent) { __csStatic.add(o); o.castShadow = false; if (o.material.shadowSide == null) o.material.shadowSide = THREE.DoubleSide; } }); __hrDirty = true; },` : ''}` : cfg.indoor ? `
   hour() {},   // indoors: no sun to move` : ''}
 };
 for (const m of solids) {

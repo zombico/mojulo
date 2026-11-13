@@ -113,3 +113,9 @@
   none of its cast (a tree outside drew its shadow on the inner face of the wall it stood behind).
 - What lies loose in a wet room is wet with it: the debris's heaps and the vessels join the room's wet surfaces, each
   by its own group, in the form render (its instanced repeats take a surface as its faces do).
+- A parked walker under its world's light: read in the form render, a dressed frame carries its faces' materials and
+  is lit as a field vehicle is, by its world's sky and sun, wet when its weather is. A body that stands still for the
+  whole level is the static world's: it casts into the hour's map wherever it stands, not only near the player.
+- A body under the land's sun stands in its building's shade: the land's sun's map is drawn with the static world in
+  it (at the hour's pass and whenever the land asks for it again), so a hero or a vehicle indoors takes the sun only
+  through an opening (it took it through the roof).

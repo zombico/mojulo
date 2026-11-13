@@ -1358,7 +1358,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // frame the root). Absent ⇒ none is resolved, byte-identical.
         if (rawSpec.mecha && typeof rawSpec.mecha === 'object') {
           const { mechaFigure } = await import('@/lib/graph/mecha-shelf/mecha-figure.js');
-          payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha));
+          // (read in the form render, its faces carry their materials and it is lit as its world is: its sky, and wet
+          // when its weather is the wet family's, as a field vehicle is)
+          const { STATES } = await import('@/lib/graph/weather/weather.js');
+          const W = sketch.manifest.weather, wet = typeof W === 'string' && STATES[W]?.family === 'wet';
+          payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map

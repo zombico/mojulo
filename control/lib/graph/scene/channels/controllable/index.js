@@ -691,7 +691,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, stills = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -4129,7 +4129,9 @@ function __updateThrusters(dt) {
   }
 }
 for (const e of __world.entities) { const m = __makeBody(e); if (m) __bodies[e.id] = m; }
-for (const e of __world.entities) __syncEntity(e);${shadowBlock}${smokeBlock}${hangarBlock}${gearBlock}
+${stills ? `// (a body that never moves is the static world's: it casts into the hour's map, channels/cast-shadows.js still)
+if (window.__mojCast && window.__mojCast.still) for (const e of __world.entities) if (e.rule && e.rule.type === 'static' && __bodies[e.id]) window.__mojCast.still(__bodies[e.id]);
+` : ''}for (const e of __world.entities) __syncEntity(e);${shadowBlock}${smokeBlock}${hangarBlock}${gearBlock}
 // ---- MATCH layer (mobile-suit-arena.plan.md M1b/M3): scoreboard + kill feed + result + game seam ----
 // Built only when the world runs a match; matchless worlds emit the same bytes they always did
 // (the block below is inert without __world.match). The scoreboard is the top-left kill tally per
