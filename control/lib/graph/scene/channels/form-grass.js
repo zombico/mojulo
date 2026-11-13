@@ -56,13 +56,12 @@ export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medi
 export const POV_GRASS = Object.freeze({ thin: 0.42, keep: 0.5, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
 /** THE GRASS LINES (POV): past the reach, where no blade is drawn, a `share` of the clumps stand again where the eye
  *  reads the land's layers: on a CREST (the ground behind a clump, `look` m further from the eye, falls below the line
- *  of sight to it by `crest` radians: the horizon's line and every ridge's before it) and at a patch's near EDGE (no
- *  grass `edge` m toward the eye: the side of the far lift, channels/far-lift.js). Out to `reach` × the cone's reach,
+ *  of sight to it by `crest` radians: the horizon's line and every ridge's before it). Out to `reach` × the cone's reach,
  *  from `from` of it; each LOW (`low` × its height: a line hugging the crest, never a plant standing off it) and spread
  *  sideways (`widen` per reach of distance) so neighbours run together as one edge, and
  *  standing on the far lift where there is one, `sink` m into it. Solved from the camera each frame, whatever camera
  *  that is. Between `thin` of the reach and the reach itself POV_GRASS.keep of the clumps stand. */
-export const GRASS_LINE = Object.freeze({ share: 0.35, reach: 3, from: 0.8, widen: 1.5, low: 0.65, crest: Object.freeze([0.0003, 0.003]), look: Object.freeze([1, 2.5, 5]), edge: 1.5, sink: 0.1 });
+export const GRASS_LINE = Object.freeze({ share: 0.35, reach: 3, from: 0.8, widen: 1.5, low: 0.65, crest: Object.freeze([0.0003, 0.003]), look: Object.freeze([1, 2.5, 5]), sink: 0.1 });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });
@@ -201,8 +200,7 @@ export function formGrassScript() {
       // (a plant's height as the mode has it: in POV gone past its own distance, short of R, the further the more gone)
       const ROOT = 'uniform float uPovR;\\nattribute vec4 aRoot;\\nattribute vec2 aTurn;\\n';
       const POVH = 'float dP = length( aRoot.xy - cameraPosition.xy ), rP = fract( aTurn.y * 7.31 + aTurn.x * 1.37 ), kP = aTurn.y >= ' + PG.keep.toFixed(3) + ' ? uPovR * ' + PG.thin.toFixed(2) + ' * mix( 0.85, 1.0, rP ) : mix( uPovR * ' + PG.thin.toFixed(2) + ', uPovR, sqrt( rP ) ), hP = aRoot.w * ( 1.0 - smoothstep( kP - 0.6, kP, dP ) );';
-      // (the grass lines, GRASS_LINE: a share of the clumps standing again past the reach, on a crest or at a patch's near
-      // edge as this camera sees them; uLine: the far lift's height for this sward, and where it rises)
+      // (the grass lines, GRASS_LINE: a share of the clumps standing again past the reach, on a crest as this camera sees it; uLine: the far lift's height for this sward, and where it rises)
       const LU = GTIERS.map(() => ({ value: new THREE.Vector3(0, 0.9, 0.35) })), f3 = (v) => v.toFixed(4);
       const LINE_HEAD = 'uniform vec3 uLine;\\nfloat lnCov( vec2 p ) { return texture2D( tGrass, ( p - uGO ) / uGM ).b; }\\n'
         + 'float lnZ( vec2 p, float ramp ) { vec4 g = texture2D( tGrass, ( p - uGO ) / uGM ); return uGZ.x + ( ( g.r * 65280.0 + g.g * 255.0 ) / 65535.0 ) * uGZ.y + uLine.x * ramp * smoothstep( 0.1, 0.6, g.b ); }\\n';
@@ -211,7 +209,7 @@ export function formGrassScript() {
         'if ( aTurn.y < ' + f3(LN.share) + ' && uPovR < 1e5 ) { float dn = dP / uPovR; if ( dn > ' + f3(LN.from) + ' && dn < ' + f3(LN.reach) + ' ) {',
         '  vec2 dir = ( aRoot.xy - cameraPosition.xy ) / max( dP, 1e-3 ); float r0 = uPovR * uLine.y, ramp = smoothstep( r0, r0 + uPovR * uLine.z, dP );',
         '  float e0 = ( lnZ( aRoot.xy, ramp ) - cameraPosition.z ) / dP, eb = max( max( ' + lnE(LN.look[0]) + ', ' + lnE(LN.look[1]) + ' ), ' + lnE(LN.look[2]) + ' );',
-        '  float w = max( smoothstep( ' + f3(LN.crest[0]) + ', ' + f3(LN.crest[1]) + ', e0 - eb ), 1.0 - smoothstep( 0.15, 0.4, lnCov( aRoot.xy - dir * ' + f3(LN.edge) + ' ) ) ) * smoothstep( ' + f3(LN.from) + ', 1.0, dn ) * ( 1.0 - smoothstep( ' + f3(LN.reach * 0.85) + ', ' + f3(LN.reach) + ', dn ) );',
+        '  float w = smoothstep( ' + f3(LN.crest[0]) + ', ' + f3(LN.crest[1]) + ', e0 - eb ) * smoothstep( ' + f3(LN.from) + ', 1.0, dn ) * ( 1.0 - smoothstep( ' + f3(LN.reach * 0.85) + ', ' + f3(LN.reach) + ', dn ) );',
         '  hP = max( hP, aRoot.w * w * ' + f3(LN.low) + ' ); lnS = 1.0 + ' + f3(LN.widen) + ' * max( 0.0, dn - 1.0 ) * w;',
         '  lnUp = max( 0.0, uLine.x * ramp * smoothstep( 0.1, 0.6, lnCov( aRoot.xy ) ) - ' + f3(LN.sink) + ' ) * w; } }'].join('\\n');
       const PLACE = 'vec3 transformed = vec3( aRoot.xy + rotG * position.xy * lnS * step( 0.001, hP ), aRoot.z + lnUp + position.z * hP ) + fgBend( aRoot.xy, hP, clamp( position.z, 0.0, 1.0 ), aTurn.x * 2.1 + aTurn.y );';
@@ -348,7 +346,7 @@ export function formGrassScript() {
         const pov = view === 'pov', RP = CONE.reach, cx = CONE.eye.x, cy = CONE.eye.y;
         PV.uPovR.value = pov ? RP : 1e6;
         // (the far lift under the lines, when the page has one and it is on)
-        const FL = window.__formFarLift; LU.forEach((u, i) => u.value.set(FL && FL.on ? FL.heights[i] : 0, FL ? FL.blend : 0.9, FL ? FL.rise : 0.35));
+        const FL = window.__formFarLift; LU.forEach((u, i) => u.value.set(FL && FL.on ? FL.heights[i] : 0, FL ? FL.from : 0.9, FL ? FL.full - FL.from : 0.35));
         // (a tile draws all its rows inside the thinning, those kept out to the reach, the lines' share past it)
         for (const T of TILES) { const near = Math.hypot(T.s.center.x - cx, T.s.center.y - cy) - T.s.radius;
           const c = !pov || near < RP * PG.thin ? T.n : near < RP ? T.half : near < RP * LN.reach ? T.line : 0;
