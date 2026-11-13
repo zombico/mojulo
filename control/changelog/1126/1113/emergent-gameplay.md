@@ -14,5 +14,12 @@ capture and the level played in Node show).
 - A rolled level says `game-shown` only once it has started, so the shell's veil never lifts on the level as it was
   before its roll.
 - A level played in Node rolls too: `simLevel` / `levelSim` take the session's `seed`.
-- Not yet: the foes, the items and the start a seed picks, the audit over seeds, the level's book, and the room layout
-  itself rolled in the page from a kit of rooms.
+- The seeds audit (`game/roll-audit.js`), a machine gate: a level with a roll is many maps, so a sample of its seeds
+  (24, from 1) is walked in Node, each rolled by the same dice and held to four laws: the pilot has a body, the way is
+  open (through the contract's own walk, and to every pickup), the sample is not one map, and the seeds played through
+  (led corner to corner on the nav grid) reach the level's success. It says how many seeds it walked and which failed,
+  by seed; it never refuses. `create_game` answers with it (`rolls`) for each level that rolls, and a `design_game`
+  run's level audit carries it.
+- The browser's walk of a rolled level proves its reference roll: its one-leg plan is led round what seed 1 stands.
+- Not yet: the foes, the items and the start a seed picks, the level's book, and the room layout itself rolled in the
+  page from a kit of rooms.

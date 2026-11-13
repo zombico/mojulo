@@ -38,4 +38,9 @@ for (let seed = 1; seed <= seeds; seed++) {
   console.log(`seed ${seed}: stands ${R.stand.map((s) => s.slice(5)).join('') || '-'} · sight ${sightOk ? 'right' : 'WRONG'} · nav ${path ? path.length + ' corners' : 'NO WAY'} · straight ${win(P, seed, 'straight')} · by nav ${win(P, seed, 'nav')}`);
 }
 console.log(`${distinct.size} different rolls in ${seeds} seeds`);
+// the product's own audit over the same seeds (game/roll-audit.js)
+const { rollAudit } = await import('../../../lib/graph/game/roll-audit.js');
+const A = rollAudit(P, { seeds, plays: seeds });
+for (const l of A.laws) console.log(`audit · ${l.law}: ${l.holds ? 'holds' : 'DOES NOT HOLD'} · ${l.says}`);
+for (const f of A.failed) console.log(`audit · seed ${f.seed} ${f.law}: ${f.says}`);
 process.exit(0);

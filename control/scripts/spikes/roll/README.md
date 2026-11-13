@@ -42,3 +42,11 @@ added.
 - A win steered by the nav grid passes 7 of 8 seeds; steered straight, 1 of 8. The one nav failure (seed 6) is on
   this level's sloped land: the nav grid is cut for one floor at the feet's height, so a wall further up the slope is
   read as walked under. A flat level does not meet it; the audit over seeds has to settle it for land that climbs.
+
+## With the seeds audit, 2026-11-13
+
+- `node.mjs` ends with the product's audit over the same seeds. On this level, 8 seeds, all played: every law holds,
+  8 of 8 played through to success.
+- Two things the led walk needed, both now in `game/roll-audit.js`: every standing rolled thing blocks at any height
+  (the slope: seed 6 above), and a berth at corners (the nav grid's cells are coarser than the body, so a walk steered
+  at the next corner the moment its cell cleared the last caught its shoulder on a wall's end: seed 4).
