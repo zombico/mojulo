@@ -60,6 +60,10 @@ export const DRESS_THEMES = Object.freeze({
       posts: 'wagons stabled on two tracks; the clear track is the open lane', 'tell-jump': 'hazard hatching before the barrier: jump while on it', 'tell-steer': 'the lit indicator and the arrows: which track is set clear',
       overhead: 'the overhead line: a portal a segment, a wire over the outer tracks', a: 'a station passing by', b: 'the cutting between stations', backdrop: 'the city, and the terminus where the tracks meet the horizon', end: 'the signals showing clear, and the train with its doors open' }),
     asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'hatching', steer: 'indicator' }), end: 'terminus', overhead: 'line',
+    // (its interface: the theme the game's HUD and screens wear, a mana-ui preset or a card of playscape/ui/theme-cards.
+    // A look is chosen by the game's STYLE (a mascot's light, round, bright game), never by an object of its setting:
+    // the library's friendly look until the casual family is drawn)
+    ui: 'idol',
     // (a wagon is as long as it is drawn: the posts' box is this deep, and met all along it)
     lens: Object.freeze({ 'posts-left': 3.2, 'posts-right': 3.2 }),
     lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'platform', b: 'cutting' }), backdrop: 'terminus',
@@ -153,5 +157,5 @@ export function dressOf(dress = DEFAULT_DRESS, seed = 1) {
     const ask = ASKS.includes(role) || role.startsWith('tell-');
     palette[role] = seed === 1 || C < 0.02 ? T.palette[role] : rgbToHex(oklch(ask ? L : L + lift, C, ask ? h + turn : h));
   }
-  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, overhead: T.overhead ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
+  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, overhead: T.overhead ?? null, ui: T.ui ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
 }

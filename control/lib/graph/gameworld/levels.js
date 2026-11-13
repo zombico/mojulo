@@ -960,7 +960,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a walker's follow, with no hero to watch, stays the eye)
   if (stage.section === 'obstacles' && pilotPart.camera?.rule === 'follow' && (pilotPart.camera.dist ?? 6) >= 1) pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...stage.manifest.obstacles.camera } };
   // (and its legend is said at the top: the bottom of a course's screen is the character's, course-view.js)
-  if (stage.section === 'obstacles' && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: pilotPart.events.hud.map((h) => (h.slot === 'bottom' && h.ttl ? { ...h, slot: 'top' } : h)) } };
+  // (the course's HUD says what to do in the device's own glyphs, course-hud.js: the text legend is not laid)
+  if (stage.section === 'obstacles' && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: stage.manifest.manaHud ? pilotPart.events.hud.filter((h) => !(h.slot === 'bottom' && h.ttl)) : pilotPart.events.hud.map((h) => (h.slot === 'bottom' && h.ttl ? { ...h, slot: 'top' } : h)) } };
   // ROLL (the world's `roll`, roll-lower.js): the level's cover and its pickups named, and a roll over them on its
   // recipe (game/roll.js): the seed its game sends picks which stand and which lie. A pilot with no body is given one
   let roll = null;

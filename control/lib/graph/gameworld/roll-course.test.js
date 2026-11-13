@@ -188,7 +188,10 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
       expect(M.camera.steer).toBe('orbit');
       // (nothing is said over the bottom band: the character's)
       expect(M.events.hud.filter((h) => h.slot === 'bottom' && h.ttl)).toEqual([]);
-      expect(M.events.hud.some((h) => h.slot === 'top')).toBe(true);
+      // (and no text legend: the course's HUD says what to do, on mana-ui, in the dress's theme, laid for the screen)
+      expect(M.events.hud.filter((h) => h.ttl)).toEqual([]);
+      expect(M.manaHud.spec.hud.use).toBe('hud');
+      expect(M.manaHud.theme.distance === 'hand').toBe(screen === 'phone');
       expect(M.entities[0].rule.move).toBe('camera');
       const B = viewBands(cameraAt(M.camera, P.v0 ?? undefined), { react: M.obstacles.reactAt, aspect: P.aspect });
       expect(B.laws.filter((l) => !l.holds)).toEqual([]);

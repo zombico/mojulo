@@ -510,6 +510,8 @@ export function playShellRuntime(cfg, K) {
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
     if (stage) params.__stage = stage;
+    // (a run: the level is told its place in it, for a HUD that says which map this is)
+    if (run) params.__run = { at: run.at + 1, of: run.order.length, n: run.n };
     // (a level that rolls, played again: the same seed, so the same map; anything else, the next seed)
     const fresh = run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1, seed = lv.rolls && againSeed != null ? againSeed : fresh;
     againSeed = null; lastSeed = seed;

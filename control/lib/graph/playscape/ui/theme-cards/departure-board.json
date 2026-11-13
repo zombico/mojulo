@@ -1,0 +1,18 @@
+{
+  "id": "departure-board",
+  "name": "Departure board",
+  "about": "A station's departure board at dusk: iron plates, lamplight letters, amber for what matters, mono numerals in capitals that clack as they change. A look for a sober game set on a railway; not a mascot runner's.",
+  "family": "machine",
+  "tags": ["runner", "railway", "station", "last-train"],
+  "author": "mojulo",
+  "from": "console",
+  "tokens": { "ink": "#f0e6cd", "panel": "#17191e", "line": "#4a4f58", "accent": "#f2a31b", "accent2": "#5fd08a", "stamina": "#5fd08a", "harm": "#ff7a5c" },
+  "type": { "body": "mono", "display": "mono", "mono": "mono" },
+  "frame": "hairline",
+  "corner": "square",
+  "plate": "solid",
+  "case": "upper",
+  "motion": "stepped",
+  "halo": "plate",
+  "sounds": "clack"
+}

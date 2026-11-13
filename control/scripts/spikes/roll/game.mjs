@@ -116,7 +116,11 @@ for (let k = 0; k < maps; k++) {
   lastSeed = seed;
   const obs = courseObstacles(course, seed), f = level();
   const same = await f.evaluate(() => window.__mojRoll.stand.slice().sort().join(' '));
-  await wait(600);
+  // (the start cue holds the hero: a shot of it, then the bot waits for GO as a player does)
+  await wait(700);
+  const cueUp = await f.evaluate(() => !!(window.__mojHud && window.__mojHud.rt.state().screen));
+  if (cueUp) await page.screenshot({ path: path.join(out, `map-${seed}-cue.png`) });
+  for (let i = 0; i < 60 && await f.evaluate(() => !!window.__mojMenuOpen); i++) await wait(100);
   await f.evaluate(bot, { obs, exit: course.exit[1], sight: course.sight, react: course.react, top: P.top, accel: course.rule.accel || 7, lead: Object.fromEntries(Object.entries(P.lead).map(([id, l]) => [id, l.mid])) });
   let S = null, shot = false;
   for (let i = 0; i < 1500; i++) {
@@ -126,7 +130,8 @@ for (let k = 0; k < maps; k++) {
     if (!shot && S.y > obs[1].y0 - 12) { shot = true; await page.screenshot({ path: path.join(out, `map-${seed}.png`) }); }
     if (shot && !S.endShot && S.y > course.exit[1] - 26) { await page.screenshot({ path: path.join(out, `map-${seed}-end.png`) }); await level()?.evaluate(() => { window.__bot.endShot = true; }); }
   }
-  plays.push({ map: k + 1, seed, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
+  const hud = await (async () => { try { return await level()?.evaluate(() => (window.__mojHud ? { run: window.__mojHud.state.run, course: window.__mojHud.state.course, stamina: +window.__mojHud.state.hero.stamina.toFixed(1), hint: window.__mojHud.state.hint.show, moments: window.__mojHud.state.moments.map((m) => m.text) } : null)); } catch { return null; } })();
+  plays.push({ map: k + 1, seed, cue: cueUp, hud, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
   await wait(2500);
   plays[plays.length - 1].after = await text(); plays[plays.length - 1].said = await page.evaluate(() => window.__msgs.splice(0).join(' '));
   if (k < maps - 1) plays[plays.length - 1].clicked = await click('next|continue|on');

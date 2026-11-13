@@ -56,6 +56,7 @@ import { sceneryOf, sceneryLaws } from './course-scenery.js';
 import { askDrawing, jumpTell, steerTell, endDrawing } from './course-things.js';
 import { hexToRgb } from '../color-theorist/oklab.js';
 import { courseCamera } from './course-view.js';
+import { courseHud } from './course-hud.js';
 import { rhythmFaults } from '../era/wall-rhythm.js';
 
 export const LANES = Object.freeze([-2, 0, 2]);
@@ -286,6 +287,8 @@ export function obstacleStage(G, v) {
   const C = courseOf(G, readObstacles(v));
   return { kind: 'controllable', title: 'course', bg: C.bg, faces: C.faces, colliders: C.colliders, blocks: C.blocks, roll: structuredClone(C.roll),
     obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, dress: C.dress.theme, scenery: { left: C.scenery.left, right: C.scenery.right, walls: [C.dress.walls.a.id, C.dress.walls.b.id], backdrop: C.dress.backdrop.id }, reactAt: C.reactAt, camera: C.camera },
+    // (its HUD, course-hud.js: on mana-ui, in the dress's own theme, laid for the game's screen)
+    manaHud: courseHud(C, { screen: G?.screen ?? null }),
     worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };
 }
 /** A course stage's anchors: the start facing up the lane, the exit at its end, flat ground. */
