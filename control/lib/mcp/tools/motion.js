@@ -444,6 +444,13 @@ function renderEffectShot(resolved, motion, shot) {
 // is a motion to the user, so its plan is this door's. With `shot: { motion: 'plan' }` beside it, the same call writes
 // the plan and renders it.
 export async function forgeMotionHandler(input) {
+  // A FILM (the animation studio: scenes, one cast, sets, an edit) is written, approved and run here (lib/mcp/tools/film.js)
+  if (input && typeof input === 'object' && input.film !== undefined) {
+    const others = Object.keys(input).filter((k) => k !== 'film');
+    if (others.length) throw new Error(`\`film\` is a call of its own (not with ${others.join(', ')}): get_motion_vocab({ id: 'film-studio' })`);
+    const { filmHandler } = await import('@/lib/mcp/tools/film');
+    return filmHandler(input.film);
+  }
   if (input && typeof input === 'object' && input.shoot !== undefined) {
     const { shoot, ...rest } = input;
     if (!shoot || typeof shoot !== 'object' || Array.isArray(shoot)) throw new Error("`shoot` is { plan } (write the world's cameras), { ops } (edit them) or {} (list what a key can follow): get_motion_vocab({ id: 'shoot' })");
@@ -897,7 +904,7 @@ export function registerMotionTools() {
     // May fetch Chrome for Testing or ffmpeg first, then bake frames: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      `Put a mojulo subject in MOTION and render it: a self-contained flipbook SVG plus a GIF, an MP4 opt-in. A deterministic recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it / set up a camera / plan the shots", and "play these charts / a slideshow / a deck / an explainer / a report in motion". Subject families behind one door — read yours via get_motion_vocab({ id }) (by intent: semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4); 'scene-film' (a SCREENPLAY acted by its cast, shot by its coverage: boarded, filmed in Blender); its cameras as a SHOOT PLAN (After Effects terms): shoot: { plan } writes, { ops } edits, shot.motion 'plan' renders. Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref | screenplay) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
+      `Put a mojulo subject in MOTION and render it: a self-contained flipbook SVG plus a GIF, an MP4 opt-in. A deterministic recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it / set up a camera / plan the shots", and "play these charts / a slideshow / a deck / an explainer / a report in motion". Subject families behind one door — read yours via get_motion_vocab({ id }) (by intent: semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over charts/sketches, reveals, themes); 'effect' (materialize/transfigure over a carved solid); 'world' (camera moves or a 'traversal' input script over a three.js world, to gif/mp4); 'scene-film' (a SCREENPLAY acted by its cast, shot by its coverage: boarded, filmed in Blender); 'film-studio' (a FILM of scenes: film: { write | ref, run }); its cameras as a SHOOT PLAN (After Effects terms): shoot: { plan } writes, { ops } edits, shot.motion 'plan' renders. Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref | screenplay) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
     inputSchema: {
       type: 'object',
       required: [],
@@ -912,6 +919,7 @@ export function registerMotionTools() {
             note: { type: 'string', description: 'Revision note.' },
           },
         },
+        film: { type: 'object', additionalProperties: true, description: "A FILM of scenes (the animation studio): { write } | { ref, patch | approve | run: storyboard|animatic|blender }; get_motion_vocab({ id: 'film-studio' })." },
         title: { type: 'string', description: 'Title for the motion project + artifact (defaults from the recipe when re-forging).' },
         recipe: { type: 'object', description: 'RE-FORGE: a stored recipe.json, optionally edited — replaces subject+shot. Both ticks and waypoints present replays the ticks; delete shot.ticks to recompile edited waypoints.' },
         recipe_ref: { type: 'string', description: 'RE-FORGE: an existing motion ref (mo_…) — re-renders its recipe.json as a NEW shot.' },

@@ -337,6 +337,11 @@ Pointers only; each target carries its own design notes.
   own shader, so they light nothing else; one key a page). Its clients: a fight's and a brawl's bodies under a register,
   the hero a player pilots on a form page, a vehicle's form body. It is light only: a body moves as its client moves it.
   [docs/hero-form-light.md](docs/hero-form-light.md).
+- The animation studio (a FILM of scenes: one cast, sets, a look, an edit; a sketch of kind `film`, its page its book):
+  [film/](control/lib/graph/film/) (the recipe, its departments and their waves, the readout, the book), the door
+  `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
+  [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
+  its Blender film pack); craft in [docs/cinematics.md](docs/cinematics.md).
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).

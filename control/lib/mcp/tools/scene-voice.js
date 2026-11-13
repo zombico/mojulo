@@ -149,9 +149,10 @@ const ISO639_2 = Object.freeze({ en: 'eng', fr: 'fra', es: 'spa', de: 'deu', it:
 /**
  * An MP4 given its sound: the scene's voice the first audio track, each dub's another, each tagged with its language
  * and named; each's captions a subtitle track (mov_text) beside it. Written over the MP4 in place.
- *   muxSound(mp4, { audio?, captions?, dubs?: { <locale>: { audio, captions } }, original? }, { dir })
+ *   muxSound(mp4, { audio?, captions?, dubs?: { <locale>: { audio, captions } } }, { dir, original?, seconds? }): `seconds`
+ *   the picture's length, where the sound is cut
  */
-export async function muxSound(mp4, sound, { dir, original = 'en' } = {}) {
+export async function muxSound(mp4, sound, { dir, original = 'en', seconds = null } = {}) {
   const { resolveFfmpeg, runFfmpeg } = await import('@/lib/motion/ffmpeg');
   const { renameSync } = await import('node:fs');
   const path = (await import('node:path')).default;
@@ -170,8 +171,10 @@ export async function muxSound(mp4, sound, { dir, original = 'en' } = {}) {
   const tag = (kind, i, T) => { const lang = ISO639_2[T.locale.split('-')[0]]; return [...(lang ? [`-metadata:s:${kind}:${i}`, `language=${lang}`] : []), `-metadata:s:${kind}:${i}`, `title=${T.title}`]; };
   tracks.forEach((T, i) => args.push(...tag('a', i, T)));
   subs.forEach((T, i) => args.push(...tag('s', i, T)));
-  // (the picture's length is the film's: a last word that runs on is cut where the picture ends)
-  args.push('-shortest', tmp);
+  // (the picture's length is the film's: a last word that runs on is cut where the picture ends; never -shortest, which
+  // would cut the picture where the last caption ends)
+  if (Number.isFinite(seconds) && seconds > 0) args.push('-t', String(seconds));
+  args.push(tmp);
   await runFfmpeg(bin, args);
   renameSync(tmp, mp4);
   return { audio: tracks.map((T) => T.locale), subtitles: subs.map((T) => T.locale) };

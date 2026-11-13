@@ -98,6 +98,9 @@ export const FIXTURE = [
   ['I wrote a short dialogue scene, can my personas act it out and you shoot it like a director would', 'forge_motion'],
   ['before we render anything, sketch out the shots of my scene panel by panel so I can approve them', 'forge_motion'],
   ['I recorded both actors reading their lines, put my wav files into the scene so their mouths match', 'forge_motion'],
+  // a film of scenes: the studio's departments, approved boards, the cut, Blender (forge_motion's `film`)
+  ['I want a three scene animated short with my two characters, from the boards to the final render', 'forge_motion', 'film'],
+  ['put the kitchen scene before the station scene and cut the whole short together', 'forge_motion', 'film'],
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],

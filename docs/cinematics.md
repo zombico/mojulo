@@ -220,6 +220,26 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
 - The animatic carries each language as its own audio and subtitle track. In Blender, `dub.py` switches the faces and
   `film_render.py -- --locale` the sound.
 
+## The film
+
+Several scenes make a FILM (`control/lib/graph/film/`), the animation studio's recipe: one cast, its sets, one look
+and an edit, stored as a sketch of kind `film` whose page is its book. Each scene is a screenplay played by the same
+core as one forged alone (`film.js` `sceneScreenplay`).
+
+- **Departments** (`departments.js`), in the game studio's chapters' shape: script, casting, set, performance, camera,
+  voice, look, edit and render. Each owns paths in the recipe and the advice it answers; every director's note has
+  exactly one home. The waves are read from what each department reads.
+- **The readout** (`readout.js`) gives each scene, each department's state, all advice and what to do next. A scene
+  that does not play is said by name, and the film reads on.
+- **The eyes gate is the person's, per scene.** An approval of a scene's board is stamped with what the board was
+  drawn from, so a later edit reads as stale.
+- **The door is `forge_motion`'s `film`** (`lib/mcp/tools/film.js`): write, patch, approve, run.
+  - `storyboard` boards every scene.
+  - `animatic` cuts them into one MP4 with the film's voice and dub tracks laid end to end.
+  - `blender` writes each scene's pack and `cut.py`, which joins their renders. It is resumable: a run works until its
+    budget and leaves the rest `pending`.
+- **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+
 ## The scene in a game
 
 In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's

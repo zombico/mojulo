@@ -465,7 +465,11 @@ const DESCRIPTION_ALLOWLIST = {
 // forge_motion's `subject.screenplay` (a scene acted by its cast, shot by its coverage, filmed in Blender) and its shot
 // motion 'coverage'. An argument on the door that owns the film intent rather than a new tool; the manual is the
 // `scene-film` motion-vocab card, its description fit inside forge_motion's own pin by a trim.
-const PAYLOAD_CEILING = 180_100;
+// Raised 2026-11-13 on 1113-animation-studio-infra (180_100 -> 180_400; measured 180,306) for the film studio:
+// forge_motion's `film` argument (a film of scenes written, approved and run: storyboard, animatic, blender) and the
+// screenplay's world_ref / voice / dub named in its subject. Arguments on the door that owns the film intent, not a new
+// tool (a direct_film door waits on gate 2b); the manuals are the `scene-film` and `film-studio` motion-vocab cards.
+const PAYLOAD_CEILING = 180_400;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

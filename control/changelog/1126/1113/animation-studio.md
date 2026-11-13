@@ -39,3 +39,15 @@ game.
   - Anyone not placed stands in the biggest room.
   - The world comes into the Blender film under the actors.
   - A shot whose camera would be behind a wall is pointed out.
+- **A whole short film: the animation studio.** Write a film as a set of scenes that share one cast, with the places
+  they are set, one look and the order they play in. It is kept as one piece of work, and its page is the film's book.
+  - **Departments.** It is made the way a studio makes one, in departments: the script, casting, the sets,
+    performance, the camera, voice and dubbing, the look, the edit and the render. Each says how its part stands and
+    gives its own advice, such as a part nobody plays, a wall in a shot, or a scene where nobody looks at whom they
+    talk to. The film also says what to do next.
+  - **Boards and approval.** Board every scene in seconds, then look at the boards and approve them one scene at a
+    time. Change a scene afterwards and its approval is marked as out of date.
+  - **The animatic.** Cut every scene into one animatic, with the voices and each dubbed language as their own tracks
+    and subtitles.
+  - **Blender.** Send the whole film to Blender, scene by scene. A long film is made over several calls, each picking
+    up where the last stopped, and a single script joins the rendered scenes into one cut with their sound.

@@ -20,7 +20,8 @@
  * `?style=<preset>`, the whole book or `?parts=party` (its characters' sheets alone; parts a comma list), its party's
  * characters photographed into it when a browser is at hand. An exhibit's catalogue (lib/graph/exhibit/catalogue.js: its
  * aims, its stops in every audience's words, its claims with their sources and the expert's sign-off) is a gallery's book,
- * and any toured or briefed exhibit's with `book=exhibit` (or when it has no other book).
+ * and any toured or briefed exhibit's with `book=exhibit` (or when it has no other book). A film (kind 'film') is served as
+ * its book (lib/graph/film/book.js: its departments, its scenes and their boards, its advice), read live.
  */
 
 import { NextResponse } from 'next/server';
@@ -62,7 +63,12 @@ export async function GET(request, { params }) {
     const download = ['1', 'true'].includes(request.nextUrl.searchParams.get('download'));
     let html, base;
     const askedExhibit = request.nextUrl.searchParams.get('book') === 'exhibit';
-    if (sketch.manifest?.kind === 'gallery' || (askedExhibit && (sketch.manifest?.tour || sketch.manifest?.curation))) {
+    if (sketch.manifest?.kind === 'film') {
+      // a film's book (lib/graph/film/book.js): its departments, its scenes with their boards, its advice, read live
+      const { filmBook } = await import('@/lib/mcp/tools/film');
+      html = await filmBook(sketch);
+      base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'film'}-book`;
+    } else if (sketch.manifest?.kind === 'gallery' || (askedExhibit && (sketch.manifest?.tour || sketch.manifest?.curation))) {
       html = await catalogueOf(sketch);
       base = `${(sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'exhibit'}-catalogue`;
     } else if (occupancyOf(sketch.manifest)) {

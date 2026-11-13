@@ -202,7 +202,7 @@ async function heroSource(src, { who, getRow, fallback }) {
  * summary the door and the script report: the files, the actors (bytes, seconds to mint, where each part came from),
  * the scene's seconds, its shots and the director's notes.
  */
-export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scene', style = null, grain = null, grade = null, fps = 24, hero = null, log = () => {}, prepared = null }) {
+export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scene', style = null, grain = null, grade = null, fps = 24, hero = null, log = () => {}, prepared = null, cache = null }) {
   if (style !== null) { const e = styleErrors(style, 'style'); if (e.length) throw new Error(e.join('; ')); }
   const graded = readGrade(grade, 'grade');
   if (!Number.isFinite(fps) || fps < 1 || fps > 120) throw new Error('fps: a frame rate, 1 to 120');
@@ -220,7 +220,8 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   const { dubbedRead, dubTake } = await import('@/lib/graph/actor/dub.js');
   const dubs = P.screenplay.dub ?? null;
   mkdirSync(path.join(outDir, 'actors'), { recursive: true });
-  const expanded = new Map(), actors = {}, minted = {};
+  // (a hero expanded once a call: `cache` shares it across a film's scenes)
+  const expanded = cache ?? new Map(), actors = {}, minted = {};
   for (const w of Object.keys(S.actors)) {
     const src = srcs[w], t0 = Date.now();
     const named = `${title} · ${w}`;
@@ -276,26 +277,34 @@ export const SCREENPLAY_EXPORTS = Object.freeze(['storyboard', 'mp4', 'blender']
 
 /** The storyboard of a planned scene, written into dir: index.html (the board) and storyboard.json; with `animatic`, the
  * board's panels held on the scene's screen clock as motion.mp4 (actor/storyboard.js) */
-export async function writeStoryboard({ dir, plan, title, fps = 24, animatic = false, screenplay = null, set = null }) {
+export async function writeStoryboard({ dir, plan, title, fps = 24, animatic = false, screenplay = null, set = null, panels = false }) {
   const { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg } = await import('@/lib/graph/actor/storyboard.js');
   const heights = Object.fromEntries(Object.entries(plan.cast).filter(([, C]) => Number.isFinite(C.height)).map(([w, C]) => [w, C.height]));
   const board = storyboardOf(plan.S, plan.coverage, { notes: plan.notes, title, fps, heights, ...(set ? { rooms: set.rooms, set: { ref: set.ref, title: set.title } } : {}) });
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, 'index.html'), storyboardHtml(board));
   writeFileSync(path.join(dir, 'storyboard.json'), `${JSON.stringify(storyboardJson(board), null, 2)}\n`);
+  // (each panel's frame as its own file: a film's book strings them along its scenes)
+  if (panels) { mkdirSync(path.join(dir, 'panels'), { recursive: true }); for (const p of board.panels) writeFileSync(path.join(dir, 'panels', `${String(p.n).padStart(2, '0')}.svg`), p.frame); }
   // (the sound: the voice track, each dub's, the captions, beside the board; under the animatic)
   const sound = screenplay ? await writeSceneSound({ dir, plan, screenplay, fps }) : null;
   let mp4 = null;
   if (animatic) {
     const { encodeStitchMp4 } = await import('@/lib/motion/encode-mp4');
-    const segs = animaticSegments(board);
+    const segs = frameAligned(animaticSegments(board), fps);
     mp4 = await encodeStitchMp4(segs.map((g) => ({ frameSvgs: [animaticFrameSvg(board, g, { width: 640, height: 360 })], fps: 1 / g.seconds, title })), path.join(dir, 'motion.mp4'), { fps, width: 960, bg: '#000000' });
     if (sound) {
       const { muxSound } = await import('@/lib/mcp/tools/scene-voice.js');
-      mp4 = { ...mp4, tracks: await muxSound(path.join(dir, 'motion.mp4'), sound, { dir }) };
+      mp4 = { ...mp4, tracks: await muxSound(path.join(dir, 'motion.mp4'), sound, { dir, seconds: mp4.durationSec }) };
     }
   }
   return { board, mp4, sound };
+}
+
+/** segments whose ends fall on frames, so a long cut never drifts from its sound (each rounded at its running end) */
+export function frameAligned(segs, fps) {
+  let at = 0;
+  return segs.map((g) => { const a = Math.round(at * fps), b = Math.round((at + g.seconds) * fps); at += g.seconds; return { ...g, seconds: Math.max(1, b - a) / fps }; });
 }
 
 /**
