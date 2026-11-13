@@ -5,7 +5,8 @@
  *
  *   THE ROLES
  *     the way      ground, ground2 (its two tones by turns), sleeper, rail (a lane's lines), kerb, wall, sky (behind all)
- *     the walls    flank, flank2 (a slice's two tones), trim (its detail): course-scenery.js
+ *     the walls    flank, flank2 (a slice's two tones), trim (its detail), iron (what stands on the ground), lamp
+ *                  (the one light): course-scenery.js
  *     the backdrop land (beyond the way), far (the skyline), horizon (the sky's foot; `sky` is its zenith)
  *     the asks     jump (a hurdle), jump2 (a block): one hue family, "go over"; steer (posts): another, "go round"
  *     the tells    tell-jump, tell-steer: paint on the way that says an ask is coming and what it wants (below)
@@ -18,7 +19,10 @@
  *     posts'       arrows in the lanes the posts stand in, pointing at the open one, from where a two-lane change
  *                  must begin
  *
- *   THEMES        a theme is a card: a palette by role, and what its lanes are drawn as (a new look is a row)
+ *   THEMES        a theme is a card: a PREMISE (one sentence every thing on the screen answers to) and what each
+ *                 thing is in it, a palette by role, what its lanes, asks, tells and end are drawn as, its walls and
+ *                 its backdrop (a new look is a row)
+ *     last-train  a kid late for the last train runs down the tracks into the terminus at dusk (the default)
  *     rail-yard   ballast, sleepers and steel rails; amber barriers and orange crates to jump, blue wagons to go round
  *     greybox     the course before any look: greys only (it loses the laws below, and says so)
  *
@@ -29,6 +33,7 @@
  *     distinct   "go over" and "go round" are different hues, far enough apart to tell at a glance
  *     quiet      nothing that is not an ask or a tell is as vivid as an ask: the way, the walls and the sky never shout
  *     told       a tell is in its ask's hue, and is itself seen on the way
+ *     premise    one sentence says who runs here and toward what, and every thing has a name in it
  *   readDress(v)            a dress as written (a theme's name, or every layer written out) → resolved; it teaches
  *   DRESS_THEMES, DRESS_ROLES, ASK_ROLE (a primitive's role)
  *
@@ -41,23 +46,39 @@
 import { hexToRgb, rgbToHex, lchOf, oklch, deltaE, hueGap } from '../color-theorist/oklab.js';
 import { readWalls, readBackdrop } from './course-scenery.js';
 
-export const DRESS_ROLES = Object.freeze(['ground', 'ground2', 'sleeper', 'rail', 'kerb', 'wall', 'sky', 'flank', 'flank2', 'trim', 'land', 'far', 'horizon', 'jump', 'jump2', 'steer', 'tell-jump', 'tell-steer', 'exit']);
+export const DRESS_ROLES = Object.freeze(['ground', 'ground2', 'sleeper', 'rail', 'kerb', 'wall', 'sky', 'flank', 'flank2', 'trim', 'iron', 'lamp', 'land', 'far', 'horizon', 'jump', 'jump2', 'steer', 'tell-jump', 'tell-steer', 'exit']);
 export const ASK_ROLE = Object.freeze({ hurdle: 'jump', block: 'jump2', 'posts-left': 'steer', 'posts-right': 'steer' });
-const WAY = ['ground', 'ground2', 'sleeper', 'rail', 'kerb', 'wall', 'sky', 'flank', 'flank2', 'trim', 'land', 'far', 'horizon'], ASKS = ['jump', 'jump2', 'steer'];
+// (a lamp is a point of light, not a ground an ask is seen against: it is held to `quiet` and not to `readable`)
+const WAY = ['ground', 'ground2', 'sleeper', 'rail', 'kerb', 'wall', 'sky', 'flank', 'flank2', 'trim', 'iron', 'land', 'far', 'horizon'], LIGHTS = ['lamp'], ASKS = ['jump', 'jump2', 'steer'];
 
 export const DRESS_THEMES = Object.freeze({
+  'last-train': Object.freeze({
+    name: 'Last train', says: 'the tracks into the terminus at dusk: barriers and crates left on the line, wagons stabled on two tracks of three, platforms and the cutting beside, the train waiting at the end',
+    // THE PREMISE: one sentence every thing on the screen answers to, and what each is in it
+    premise: 'A kid is late for the last train home. It leaves from the terminus at the end of the line, and the only way to make it is down the tracks.',
+    things: Object.freeze({ lanes: 'three running tracks: why there are three places to be', hurdle: 'a crossing barrier left down across the line', block: 'crates being loaded across the tracks',
+      posts: 'wagons stabled on two tracks; the clear track is the open lane', 'tell-jump': 'hazard hatching before the barrier: jump while on it', 'tell-steer': 'the lit indicator and the arrows: which track is set clear',
+      a: 'a station passing by', b: 'the cutting between stations', backdrop: 'the city, and the terminus where the tracks meet the horizon', end: 'the signals showing clear, and the train with its doors open' }),
+    asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'hatching', steer: 'indicator' }), end: 'terminus',
+    // (a wagon is as long as it is drawn: the posts' box is this deep, and met all along it)
+    lens: Object.freeze({ 'posts-left': 3.2, 'posts-right': 3.2 }),
+    lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'platform', b: 'cutting' }), backdrop: 'terminus',
+    palette: Object.freeze({ ground: '#3e3b3a', ground2: '#444140', sleeper: '#2c2521', rail: '#54565b', kerb: '#59544f', wall: '#392e29', sky: '#151a29',
+      flank: '#46342c', flank2: '#30241e', trim: '#565249', iron: '#22252a', lamp: '#e6dcc6', land: '#25262c', far: '#463e49', horizon: '#5d5159',
+      jump: '#f2a31b', jump2: '#d9681a', steer: '#3b8fe6', 'tell-jump': '#f6d08a', 'tell-steer': '#9fd0ff', exit: '#5fd08a' }),
+  }),
   'rail-yard': Object.freeze({
     name: 'Rail yard', says: 'ballast, sleepers and steel rails; amber barriers and orange crates to jump, blue wagons to go round',
     lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'shed', b: 'fence' }), backdrop: 'yard',
     palette: Object.freeze({ ground: '#4d4a46', ground2: '#56524c', sleeper: '#3a3029', rail: '#52565c', kerb: '#5a5854', wall: '#3a3e45', sky: '#1c2430',
-      flank: '#44372f', flank2: '#2d2622', trim: '#5f5b53', land: '#2c2f35', far: '#4c464f', horizon: '#5c545b',
+      flank: '#44372f', flank2: '#2d2622', trim: '#5f5b53', iron: '#2a2d32', lamp: '#d8d2c2', land: '#2c2f35', far: '#4c464f', horizon: '#5c545b',
       jump: '#f2a31b', jump2: '#e2701c', steer: '#3b8fe6', 'tell-jump': '#f6d08a', 'tell-steer': '#9fd0ff', exit: '#5fd08a' }),
   }),
   greybox: Object.freeze({
     name: 'Greybox', says: 'the course before any look: greys only',
     lanes: Object.freeze({ rails: false, sleepers: false }), walls: Object.freeze({ a: 'shed', b: 'bank' }), backdrop: 'open',
     palette: Object.freeze({ ground: '#6a6c72', ground2: '#74767c', sleeper: '#6a6c72', rail: '#8a8c92', kerb: '#7c7e84', wall: '#5c5e64', sky: '#1b1d22',
-      flank: '#63656b', flank2: '#525459', trim: '#7b7d83', land: '#3a3c42', far: '#2c2e34', horizon: '#33353c',
+      flank: '#63656b', flank2: '#525459', trim: '#7b7d83', iron: '#44464c', lamp: '#b4b6bc', land: '#3a3c42', far: '#2c2e34', horizon: '#33353c',
       jump: '#9a9a9a', jump2: '#9a9a9a', steer: '#6b6b6b', 'tell-jump': '#8a8a8a', 'tell-steer': '#8a8a8a', exit: '#b0b0b0' }),
   }),
 });
@@ -73,7 +94,7 @@ export function dressLaws(palette) {
   const gap = Math.min(hueGap(L.jump[2], L.steer[2]), hueGap(L.jump2[2], L.steer[2])), apart = Math.min(deltaE(P.jump, P.steer), deltaE(P.jump2, P.steer));
   const grey = Math.min(L.jump[1], L.jump2[1], L.steer[1]) < 0.04;
   // quiet: the way's chroma against the dullest ask's
-  const askC = Math.min(...ASKS.map((a) => L[a][1])), loud = WAY.filter((w) => L[w][1] > 0.5 * askC);
+  const askC = Math.min(...ASKS.map((a) => L[a][1])), loud = [...WAY, ...LIGHTS].filter((w) => L[w] && L[w][1] > 0.5 * askC);
   // told: a tell in its ask's hue, seen on the way
   const tells = [['tell-jump', 'jump'], ['tell-steer', 'steer']].map(([t, a]) => ({ t, a, hue: hueGap(L[t][2], L[a][2]), on: Math.min(deltaE(P[t], P.ground), deltaE(P[t], P.ground2)), grey: L[t][1] < 0.03 }));
   const untold = tells.filter((x) => x.grey || x.hue > 35 || x.on < 0.2);
@@ -94,11 +115,12 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
  *   { theme?, palette?: { <role>: '#rrggbb' }, walls?: { a?, b?, order? }, backdrop?: '<name>' | { bands?, skyline? } }
  * Each part left out is the theme's (the rail yard unsaid). → { theme, palette (overrides), walls, backdrop, own }
  */
-export function readDress(v = 'rail-yard') {
+export const DEFAULT_DRESS = 'last-train';
+export function readDress(v = DEFAULT_DRESS) {
   const teach = `course: dress is one of ${Object.keys(DRESS_THEMES).join(', ')}, or { theme?, palette?, walls?, backdrop? } (course-dress.js)`;
   if (typeof v === 'string') v = { theme: v }; else if (!isObj(v)) throw new Error(teach);
   for (const k of Object.keys(v)) if (!['theme', 'palette', 'walls', 'backdrop'].includes(k)) throw new Error(`course: dress.${k} is not a dress's word (theme, palette, walls, backdrop)`);
-  const theme = v.theme ?? 'rail-yard', T = DRESS_THEMES[theme];
+  const theme = v.theme ?? DEFAULT_DRESS, T = DRESS_THEMES[theme];
   if (!T) throw new Error(teach);
   if (v.palette !== undefined) {
     if (!isObj(v.palette)) throw new Error('course: dress.palette is { <role>: \'#rrggbb\' }');
@@ -110,7 +132,17 @@ export function readDress(v = 'rail-yard') {
   return { theme, palette: { ...(v.palette ?? {}) }, walls: readWalls(v.walls, T.walls), backdrop: readBackdrop(v.backdrop, T.backdrop), own: Object.keys(v).some((k) => k !== 'theme') };
 }
 
-export function dressOf(dress = 'rail-yard', seed = 1) {
+/** THE PREMISE's law: a dress coheres when one sentence says who runs here and toward what, and every thing on the
+ * screen has a name in it. A theme of parts with no premise does not hold it, and says so. */
+export function premiseLaw(T, R) {
+  if (!T.premise) return { law: 'premise', holds: false, says: `${T.name} is parts with no premise: nothing says who runs here or toward what, so its asks, its walls and its backdrop answer to nothing in common` };
+  const unnamed = [...['lanes', 'hurdle', 'block', 'posts', 'tell-jump', 'tell-steer', 'end'].filter((k) => !T.things?.[k]),
+    ...(R.walls.a.id === 'own' && R.walls.a.name === 'Its own' ? ['walls.a (name what it is in the premise)'] : []), ...(R.walls.b.id === 'own' && R.walls.b.name === 'Its own' ? ['walls.b (name what it is in the premise)'] : []),
+    ...(R.backdrop.id === 'own' && R.backdrop.name === 'Its own' ? ['backdrop (name what it is in the premise)'] : [])];
+  return { law: 'premise', holds: !unnamed.length, says: unnamed.length ? `the premise names no ${unnamed.join(', ')}` : `every thing on the screen is the line, something left on it, something beside it or where it goes: ${T.premise}` };
+}
+
+export function dressOf(dress = DEFAULT_DRESS, seed = 1) {
   const R = readDress(dress), T = DRESS_THEMES[R.theme];
   const below = dice(seed), turn = below(17) - 8, lift = (below(7) - 3) / 100, palette = {};
   for (const role of DRESS_ROLES) {
@@ -121,5 +153,5 @@ export function dressOf(dress = 'rail-yard', seed = 1) {
     const ask = ASKS.includes(role) || role.startsWith('tell-');
     palette[role] = seed === 1 || C < 0.02 ? T.palette[role] : rgbToHex(oklch(ask ? L : L + lift, C, ask ? h + turn : h));
   }
-  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: dressLaws(palette) };
+  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
 }

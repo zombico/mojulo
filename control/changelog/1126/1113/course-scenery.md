@@ -25,3 +25,23 @@ one design: the way and its asks (as before), the WALLS beside it, and the BACKD
 - The design loop: `design_game`'s readout carries the dress's laws for each course level; the roll room wears the
   first course level's dress; the agent's card (`gameworld-course-dress`) says the layers, the words, the laws and
   who works which, read by the world's and the levels' chapters.
+- A dress has a PREMISE: one sentence every thing on the screen answers to, and what each thing is in it. A dress of
+  parts chosen role by role (a brick wall across a track, a shed whose door opens onto the rails, a skyline that
+  could be anywhere) does not cohere, however well each part reads. New law `premise`: the theme states one and names
+  its lanes, its asks, their tells, its walls, its backdrop and its end; a slice or a backdrop written in place
+  carries its own name. The rail yard, which has none, now loses that law and says so.
+- Last train (`last-train`, now the dress unsaid): a kid late for the last train home runs down the tracks into the
+  terminus at dusk. The three lanes are three running tracks. A hurdle is a striped crossing barrier, a block a row of
+  crates, posts two wagons stabled on two of the three tracks (the open lane is the clear track). A jump's window is
+  hazard hatching between two lines; posts' arrows gain a lit indicator on each kerb where the change must begin. The
+  walls are a station platform under an iron canopy (A) and the brick cutting between stations (B). The backdrop is
+  the city, the terminus's roof and its lit clock where the tracks meet the horizon. The end is a signal gantry
+  showing clear over every track, buffer stops, and the train with its doors open. Brick for what is built into the
+  ground, iron for what stands on it, lamplight the one accent (new roles `iron`, `lamp`).
+- What a thing is drawn as (`gameworld/course-things.js`) is drawing over the box the course was measured with: one
+  box a thing, one collider, its tell where it was sized. A themed ask is a single box (the plain themes' asks stay
+  walls laid in courses). A thing the theme draws longer than the ask was measured with (a wagon, 3.2 m) is met all
+  along it, and each segment grows by as much, so the rest after it is still the rest: found by the reaction bot,
+  which a slow hero's 7 m segments failed on 10 seeds of 12 before it.
+- A skyline silhouette may be a light (`role: 'lamp'`): set near the top of the silhouette it stands on.
+- The course sheet opens with the premise and what each thing is in it.

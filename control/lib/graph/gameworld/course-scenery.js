@@ -10,7 +10,7 @@
  *                       long: the size a designed piece is seen at in the middle third)
  *                   d   metres off the kerb's outer edge, outward (0 or more: a slice never stands on the way)
  *                   z   metres up from the ground
- *                   role  one of the dress's wall roles: flank, flank2, trim
+ *                   role  one of the dress's wall roles: flank, flank2, trim, iron, lamp
  *                 Two kinds a course: A, the complex slice, and B, the plain one that lets A be seen.
  *   THE ORDER     along each side, by the walls' rule (era/wall-rhythm.js: never three alike, never a pair repeated);
  *                 the two sides are ordered differently, so the frame is never a mirror. `order` writes one side's
@@ -31,7 +31,7 @@ import { hexToRgb, rgbToHex, lchOf, oklch, mixHue, deltaE } from '../color-theor
 import { wallOrder, wallRhythms, rhythmFaults } from '../era/wall-rhythm.js';
 import { project, cameraAt, VFOV } from './course-view.js';
 
-export const WALL_ROLES = Object.freeze(['flank', 'flank2', 'trim']);
+export const WALL_ROLES = Object.freeze(['flank', 'flank2', 'trim', 'iron', 'lamp']);
 export const BACKDROP_ROLES = Object.freeze(['land', 'far', 'horizon']);
 /** How far past the course's end the backdrop stands, and how far to each side it and the land reach (metres). */
 export const FAR = 400, REACH = 700;
@@ -52,15 +52,28 @@ export const SLICES = Object.freeze({
       B(0.49, 0.8, 0, 0.51, 1, 9, 'trim'), B(0.47, 0.6, 8.2, 0.53, 1.2, 8.5, 'trim')] }),
   fence: Object.freeze({ name: 'Fence and embankment', says: 'a low fence on posts before a long embankment (a plain slice)',
     parts: [B(0, 3.5, 0, 1, 10, 1.4, 'flank'), B(0, 0.8, 0.5, 1, 0.9, 1.7, 'flank2'), B(0, 0.75, 0, 0.03, 0.95, 2.3, 'trim'), B(0.5, 0.75, 0, 0.53, 0.95, 2.3, 'trim')] }),
+  platform: Object.freeze({ name: 'Station platform', says: 'a platform under an iron canopy: its brick face and stone edge, columns, a back wall, a name board, a bench, hanging lamps (a complex slice)',
+    parts: [B(0, 0.5, 0, 1, 6.4, 1.1, 'flank2'), B(0, 0.42, 0.98, 1, 0.9, 1.14, 'trim'), B(0, 5.8, 1.1, 1, 6.4, 4.6, 'flank'),
+      B(0, 0.7, 4.3, 1, 6.2, 4.6, 'iron'), B(0, 0.55, 4.02, 1, 0.75, 4.3, 'iron'),
+      B(0.1, 1.5, 1.1, 0.118, 1.7, 4.3, 'iron'), B(0.49, 1.5, 1.1, 0.508, 1.7, 4.3, 'iron'), B(0.88, 1.5, 1.1, 0.898, 1.7, 4.3, 'iron'),
+      B(0.36, 5.7, 2.5, 0.64, 5.8, 3.1, 'trim'), B(0.2, 4.6, 1.1, 0.34, 5.2, 1.6, 'iron'), B(0.68, 5.7, 1.3, 0.8, 5.8, 3.3, 'flank2'),
+      B(0.29, 1.4, 3.7, 0.31, 1.8, 4.0, 'lamp'), B(0.69, 1.4, 3.7, 0.71, 1.8, 4.0, 'lamp')] }),
+  cutting: Object.freeze({ name: 'The cutting', says: 'the brick retaining wall between stations: piers, a stone coping, one lamp on its bracket (a plain slice)',
+    parts: [B(0, 1.4, 0, 1, 2.4, 3.8, 'flank'), B(0, 1.25, 0, 0.06, 1.4, 3.8, 'flank2'), B(0.5, 1.25, 0, 0.56, 1.4, 3.8, 'flank2'),
+      B(0, 1.2, 3.8, 1, 2.5, 4.05, 'trim'), B(0.27, 0.9, 3.0, 0.285, 1.4, 3.1, 'iron'), B(0.265, 0.85, 2.72, 0.29, 1.05, 3.0, 'lamp')] }),
   bank: Object.freeze({ name: 'Open bank', says: 'a low bank and nothing on it (the plainest slice)',
     parts: [B(0, 1.5, 0, 1, 10, 0.9, 'flank'), B(0, 1.2, 0, 1, 1.5, 0.35, 'flank2')] }),
 });
 
-const S = (at, wide, tall) => ({ at, wide, tall });
+const S = (at, wide, tall, role) => ({ at, wide, tall, ...(role ? { role } : {}) });
 export const BACKDROPS = Object.freeze({
   yard: Object.freeze({ name: 'The yard at dusk', says: 'sheds, a water tower, chimneys and a gantry crane against the last light', bands: 7,
     skyline: [S(-0.92, 150, 21), S(-0.7, 60, 32), S(-0.62, 14, 60), S(-0.45, 120, 25), S(-0.28, 26, 43), S(-0.24, 70, 19), S(0.2, 90, 22), S(0.3, 12, 55), S(0.34, 12, 64),
       S(0.5, 130, 27), S(0.72, 40, 38), S(0.74, 110, 14), S(0.92, 120, 30)] }),
+  terminus: Object.freeze({ name: 'The terminus', says: 'the city the line runs into: the terminus\'s great roof and its clock tower where the tracks meet the horizon, the clock lit', bands: 8,
+    skyline: [S(-0.95, 140, 30), S(-0.78, 70, 46), S(-0.6, 110, 26), S(-0.5, 16, 58), S(-0.36, 90, 38), S(-0.2, 60, 24),
+      S(0, 150, 20), S(0, 96, 28), S(0, 44, 34), S(0.085, 15, 62), S(0.085, 7, 5, 'lamp'),
+      S(0.26, 80, 30), S(0.4, 22, 54), S(0.47, 100, 36), S(0.66, 60, 22), S(0.8, 90, 44), S(0.95, 130, 28)] }),
   open: Object.freeze({ name: 'Open sky', says: 'the sky and the land, nothing on the horizon', bands: 7, skyline: [] }),
 });
 
@@ -83,7 +96,7 @@ function readSlice(v, at) {
 }
 
 /** A dress's `walls` as written → { a, b, order }. Absent parts are the theme's. */
-export function readWalls(v, theme = { a: 'shed', b: 'fence' }) {
+export function readWalls(v, theme = { a: 'platform', b: 'cutting' }) {
   if (v === undefined || v === null) v = {};
   if (!isObj(v)) throw new Error('course: dress.walls is { a?, b?, order? }: the complex slice, the plain one, and their order along a side');
   for (const k of Object.keys(v)) if (!['a', 'b', 'order'].includes(k)) throw new Error(`course: dress.walls.${k} is not a wall's word (a, b, order)`);
@@ -92,7 +105,7 @@ export function readWalls(v, theme = { a: 'shed', b: 'fence' }) {
 }
 
 /** A dress's `backdrop` as written → { id, name, bands, skyline }. */
-export function readBackdrop(v, theme = 'yard') {
+export function readBackdrop(v, theme = 'terminus') {
   if (v === undefined || v === null) v = theme;
   const teach = `course: dress.backdrop is a backdrop's name (${names(BACKDROPS)}) or { bands?: 3…12, skyline?: [{ at: −1…1, wide, tall }] }`;
   if (typeof v === 'string') { if (!BACKDROPS[v]) throw new Error(teach); return { id: v, ...BACKDROPS[v] }; }
@@ -101,8 +114,8 @@ export function readBackdrop(v, theme = 'yard') {
   if (v.bands !== undefined && !(Number.isInteger(v.bands) && v.bands >= 3 && v.bands <= 12)) throw new Error('course: dress.backdrop.bands is the sky\'s steps from horizon to zenith, 3 to 12');
   const sky = v.skyline ?? BACKDROPS[theme].skyline;
   if (!Array.isArray(sky) || sky.length > 40) throw new Error('course: dress.backdrop.skyline is a list of silhouettes, 40 at most');
-  sky.forEach((s, i) => { if (!isObj(s) || !(num(s.at) && s.at >= -1 && s.at <= 1) || !(num(s.wide) && s.wide > 0 && s.wide <= 400) || !(num(s.tall) && s.tall > 0 && s.tall <= 200)) throw new Error(`course: dress.backdrop.skyline[${i}] is { at: −1…1 across the view, wide: metres to 400, tall: metres to 200 }`); });
-  return { id: 'own', name: typeof v.name === 'string' ? v.name : 'Its own', says: 'a backdrop written for this course', bands: v.bands ?? BACKDROPS[theme].bands, skyline: sky.map((s) => ({ at: s.at, wide: s.wide, tall: s.tall })) };
+  sky.forEach((s, i) => { if (!isObj(s) || !(num(s.at) && s.at >= -1 && s.at <= 1) || !(num(s.wide) && s.wide > 0 && s.wide <= 400) || !(num(s.tall) && s.tall > 0 && s.tall <= 200) || (s.role !== undefined && s.role !== 'far' && s.role !== 'lamp')) throw new Error(`course: dress.backdrop.skyline[${i}] is { at: −1…1 across the view, wide: metres to 400, tall: metres to 200, role?: 'lamp' (a light on it: a clock, a window, set at the top of the silhouette under it) }`); });
+  return { id: 'own', name: typeof v.name === 'string' ? v.name : 'Its own', says: 'a backdrop written for this course', bands: v.bands ?? BACKDROPS[theme].bands, skyline: sky.map((s) => ({ at: s.at, wide: s.wide, tall: s.tall, ...(s.role === 'lamp' ? { role: 'lamp' } : {}) })) };
 }
 
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -145,14 +158,18 @@ export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
     add([[-REACH, far + 2, z], [REACH, far + 2, z], [REACH, far + 2, top], [-REACH, far + 2, top]], skyAt(col, Bk.bands === 1 ? 0 : i / (Bk.bands - 1)), 'scenery:backdrop');
     z = top;
   }
-  for (const s of Bk.skyline) { const x = s.at * REACH * 0.62; add([[x - s.wide / 2, far, 0], [x + s.wide / 2, far, 0], [x + s.wide / 2, far, s.tall], [x - s.wide / 2, far, s.tall]], 'far', 'scenery:backdrop'); }
+  // (a light is set near the top of the silhouette it is on, a little before it: a clock's face, a lit window)
+  for (const s of Bk.skyline) {
+    const x = s.at * REACH * 0.62, lit = s.role === 'lamp', host = lit ? Math.max(0, ...Bk.skyline.filter((q) => q.role !== 'lamp' && Math.abs(q.at - s.at) < 1e-6).map((q) => q.tall)) : 0, z0 = lit ? Math.max(0, host - s.tall - 6) : 0;
+    add([[x - s.wide / 2, far - (lit ? 0.5 : 0), z0], [x + s.wide / 2, far - (lit ? 0.5 : 0), z0], [x + s.wide / 2, far - (lit ? 0.5 : 0), z0 + s.tall], [x - s.wide / 2, far - (lit ? 0.5 : 0), z0 + s.tall]], lit ? 'lamp' : 'far', 'scenery:backdrop');
+  }
   return { left, right, n, from, gap, cells, faces, far };
 }
 
 export function sceneryLaws(dress, scenery, { camera = null, length = null } = {}) {
   const col = dress.palette, c = (role) => hexToRgb(col[role]), W = dress.walls, laws = [];
   // receding: the further a layer, the nearer the sky's colour
-  const near = Math.min(deltaE(c('flank'), c('horizon')), deltaE(c('flank2'), c('horizon'))), off = deltaE(c('far'), c('horizon')), skyline = dress.backdrop.skyline.length > 0;
+  const near = Math.min(deltaE(c('flank'), c('horizon')), deltaE(c('flank2'), c('horizon'))), off = deltaE(c('far'), c('horizon')), skyline = dress.backdrop.skyline.some((s) => s.role !== 'lamp');
   const recedes = off < near && (!skyline || off >= 0.03);
   laws.push({ law: 'receding', holds: recedes, says: recedes ? `the skyline is nearer the horizon's colour (${r2(off)}) than the walls are (${r2(near)}): the far end is the quietest thing on the screen${skyline ? '' : ' (no skyline stands on it)'}`
     : off >= near ? `the skyline stands out from the horizon (${r2(off)}) as much as the walls do (${r2(near)}): the far end, where what is coming is read, is as busy as the sides` : `the skyline is lost in the horizon (${r2(off)}, wants 0.03): it is not seen` });
@@ -164,7 +181,7 @@ export function sceneryLaws(dress, scenery, { camera = null, length = null } = {
   laws.push({ law: 'rhythm', holds: !fl.length && !fr.length && !same, says: fl.length || fr.length ? `${fl.length ? `the left (${scenery.left})` : `the right (${scenery.right})`} runs three alike or repeats a pair` : same ? `both sides are ${scenery.left}: the frame is a mirror` : `left ${scenery.left}, right ${scenery.right}: neither runs three alike nor repeats a pair, and they differ` });
   // banded: the skyline in the top third from the first step to the last
   if (camera && length != null && skyline) {
-    const cam = cameraAt(camera, camera.vfov ?? VFOV), tall = Math.max(...dress.backdrop.skyline.map((s) => s.tall));
+    const cam = cameraAt(camera, camera.vfov ?? VFOV), tall = Math.max(...dress.backdrop.skyline.filter((s) => s.role !== 'lamp').map((s) => s.tall));
     const vAt = (heroY) => project(cam, [0, scenery.far - heroY, tall])?.[1] ?? 0, horizon = project(cam, [0, 1e7, 0])[1];
     const first = vAt(0), last = vAt(length), seen = horizon - first >= 0.02, inside = last >= 0.02;
     laws.push({ law: 'banded', holds: seen && inside, says: !seen ? `the skyline rises ${Math.round((horizon - first) * 100)} % of the screen at the start: it is not seen` : !inside ? `at the course's end the skyline's top is ${Math.round(last * 100)} % down the screen: it has left the top of the frame` : `the skyline's top is ${Math.round(first * 100)} % down the screen at the start and ${Math.round(last * 100)} % at the end (the upper line is at ${Math.round(horizon * 100)} %): in the top third throughout` });

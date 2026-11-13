@@ -47,7 +47,10 @@ describe('the course, laid', () => {
   const C = courseOf({ feel: MOMENTUM });
   it('a slot every (the neediest ask + a rest) of its top speed; the sight it asks, the need and a reaction', () => {
     expect(C.need).toBeCloseTo(Math.max(C.pace.laneTime[2], C.pace.lead.hurdle.early, C.pace.lead.block.early), 2);
-    expect(C.gap).toBeCloseTo(C.pace.top * (C.need + REST), 1);
+    // (and what the theme's things add to an ask's length: a wagon is met all along it, and the rest is still the rest)
+    expect(C.gap).toBeCloseTo(C.pace.top * (C.need + REST) + (C.lens['posts-left'] - PRIMITIVES['posts-left'].len), 1);
+    const plain = courseOf({ feel: MOMENTUM }, { dress: 'rail-yard' });
+    expect(plain.gap).toBeCloseTo(plain.pace.top * (plain.need + REST), 1);
     expect(C.sight).toBe(Math.ceil(C.pace.top * (C.need + REACT)));
     for (let k = 1; k < C.slots.length; k++) expect(C.slots[k].y - C.slots[k - 1].y).toBeCloseTo(C.gap, 1);
     expect(C.exit[1]).toBeGreaterThan(C.slots.at(-1).y);
@@ -65,7 +68,7 @@ describe('the course, laid', () => {
     expect(R.stand).toHaveLength(C.slots.length);
     // a set of posts leaves an outer lane open: its wall lies over the other two
     const posts = C.blocks.find((b) => b.id === 's1-posts-left');
-    expect(posts.at[0] - posts.length / 2).toBeGreaterThan(LANES[0] + 0.5);
+    expect(posts.at[0] - posts.size[0] / 2).toBeGreaterThan(LANES[0] + 0.5);
   });
 
   it('the line is paced: never three asks of a kind running, never a pair repeated, never the same posts twice', () => {
@@ -158,7 +161,7 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
     expect(() => readObstacles({ rest: 9 })).toThrow(/0\.2 to 3/);
     expect(() => readObstacles({ lanes: 5 })).toThrow(/not a course's setting \(slots, rest, dress\)/);
     expect(readObstacles({ dress: 'greybox' })).toEqual({ slots: 10, rest: REST, dress: 'greybox' });
-    expect(() => readObstacles({ dress: 'neon' })).toThrow(/dress is one of rail-yard, greybox/);
+    expect(() => readObstacles({ dress: 'neon' })).toThrow(/dress is one of last-train, rail-yard, greybox/);
     expect(() => readGameworld(world(true, { walk: { nodes: { path: { trail: {} } } } }))).toThrow(/an obstacle course is the lane alone/);
     expect(() => readGameworld(world('fast'))).toThrow(/obstacles is true or \{ slots\?, rest\?, dress\? \}/);
   });

@@ -43,7 +43,7 @@ export function courseMap(course, { seed = 1, perRow = 5, flank = 6, scale = 9, 
   // the sides' pattern: the course's own (course-scenery.js), a slice a segment's length, each side in its own order
   const left = [...course.scenery.left], right = [...course.scenery.right];
   // a segment: from the end of the ask before it (the start, for the first) to the end of its own
-  const ends = course.slots.map((s, k) => s.y + PRIMITIVES[asks[k]].len), seg = course.slots.map((s, k) => ({ k, from: k ? ends[k - 1] : 0, to: k === n - 1 ? course.exit[1] : ends[k], y: s.y, id: asks[k] }));
+  const ends = course.slots.map((s, k) => s.y + (course.lens?.[asks[k]] ?? PRIMITIVES[asks[k]].len)), seg = course.slots.map((s, k) => ({ k, from: k ? ends[k - 1] : 0, to: k === n - 1 ? course.exit[1] : ends[k], y: s.y, id: asks[k] }));
   const rows = []; for (let i = 0; i < n; i += perRow) rows.push(seg.slice(i, i + perRow));
   const across = 2 * (HALF + flank), rowH = across * scale + 84, padX = 34, head = 80;
   const width = Math.round(Math.max(...rows.map((R) => R[R.length - 1].to - R[0].from)) * scale + 2 * padX), height = Math.round(head + rows.length * rowH + 76);
@@ -87,7 +87,7 @@ export function courseMap(course, { seed = 1, perRow = 5, flank = 6, scale = 9, 
       }
       // the ask itself
       const xa0 = P.ask === 'steer' ? P.x - 2 : -HALF, xa1 = P.ask === 'steer' ? P.x + 2 : HALF;
-      out.push(`<rect x="${r1(X(s.y))}" y="${r1(Y(xa0))}" width="${r1(Math.max(3, P.len * scale))}" height="${r1((xa1 - xa0) * scale)}" fill="${col[role]}" stroke="${INK}" stroke-width="0.8"/>`);
+      out.push(`<rect x="${r1(X(s.y))}" y="${r1(Y(xa0))}" width="${r1(Math.max(3, (course.lens?.[s.id] ?? P.len) * scale))}" height="${r1((xa1 - xa0) * scale)}" fill="${col[role]}" stroke="${INK}" stroke-width="0.8"/>`);
     }
     // the start, the exit
     if (ri === 0) out.push(`<path d="M${r1(X(0) - 2)} ${r1(Y(-0.7))} L${r1(X(0) + 10)} ${r1(Y(0))} L${r1(X(0) - 2)} ${r1(Y(0.7))} Z" fill="${INK}"/><text x="${r1(X(0) + 13)}" y="${r1(Y(0) + 4)}" font-size="10">start</text>`);

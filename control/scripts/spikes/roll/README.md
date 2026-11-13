@@ -86,3 +86,7 @@ What it found, each fixed since:
 After those: three maps of a run, three different courses, each run clean by the bot in 16.8 to 17.7 s (Node's audit
 of the same level: 16.67 s a run), the shell saying `cleared 1 of 3`, `cleared 2 of 3`, `RUN COMPLETE`, no page error,
 at 17 to 19 frames a second (software GL, a 270 x 480 frame). Machine gate only.
+
+Since the course's dress gained its premise (Last train, the dress unsaid) the same run plays the dressed game: three
+maps clean in 19.0 to 19.3 s each (Node's audit: 18.6 s; a segment is longer by a wagon's length), 19 to 20 frames a
+second.

@@ -40,7 +40,7 @@
  *                           sized for the world's hero; obstacleEnds(manifest) → its anchors (start, exit, flat ground)
  *   PRIMITIVES, LANES, REACT, REST
  *
- * THE DRESS (course-dress.js): the way and its asks are coloured by role from a theme (`dress`: 'rail-yard' unsaid),
+ * THE DRESS (course-dress.js): the way and its asks are coloured by role from a theme (`dress`: 'last-train' unsaid),
  * and each ask carries its tell: a jump's window painted as a strip, posts' arrows toward the open lane. A tell is
  * part of its ask's rolled thing, so it is on the way only when the ask is.
  *
@@ -51,8 +51,9 @@ import { composeLive } from '../worlds/controllable/compose.js';
 import { feelRule } from './feel/lower.js';
 import { readRoll, rolledIds, rollWays } from '../game/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
-import { dressOf, readDress, ASK_ROLE } from './course-dress.js';
+import { dressOf, readDress, ASK_ROLE, DEFAULT_DRESS } from './course-dress.js';
 import { sceneryOf, sceneryLaws } from './course-scenery.js';
+import { askDrawing, jumpTell, steerTell, endDrawing } from './course-things.js';
 import { hexToRgb } from '../color-theorist/oklab.js';
 import { courseCamera } from './course-view.js';
 import { rhythmFaults } from '../era/wall-rhythm.js';
@@ -135,36 +136,34 @@ export function paceOfRule(rule) {
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
-export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'rail-yard' } = {}) {
+export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = DEFAULT_DRESS } = {}) {
   // THE DRESS (course-dress.js): the way and its asks coloured by role, and each ask's tell painted before it
   const D = dressOf(dress, Number.isFinite(G?.seed) ? G.seed : 1), col = D.palette, tint = (role) => hexToRgb(col[role]).map((v) => Math.round((v / 255) * 1e4) / 1e4);
   const quad = (x0, y0, x1, y1, z, fill) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill });
-  const feel = G?.feel ?? null, rule = ruleOf(feel), pace = paceOfRule(rule);
+  const feel = G?.feel ?? null, rule = ruleOf(feel), pace = paceOfRule(rule), lenOf = (id) => D.lens[id] ?? PRIMITIVES[id].len;
   // the primitives this hero can be asked: a jump it cannot make is left out of the course
   const prims = Object.keys(PRIMITIVES).filter((id) => PRIMITIVES[id].ask !== 'jump' || pace.lead[id]);
   // the neediest ask: a two-lane change, or a jump's earliest lead
   const need = Math.max(pace.laneTime[2], ...prims.filter((id) => PRIMITIVES[id].ask === 'jump').map((id) => pace.lead[id].early));
-  const gap = r2(pace.top * (need + rest)), runup = Math.max(16, Math.ceil(gap)), blocks = [], lineSlots = [], kinds = {}, forms = {}, list = [];
+  // (a thing the theme draws longer than the ask was measured with is met all along it: the segment grows by as much,
+  // so the rest after it is still the rest)
+  const longer = Math.max(0, ...prims.map((id) => lenOf(id) - PRIMITIVES[id].len));
+  const gap = r2(pace.top * (need + rest) + longer), runup = Math.max(16, Math.ceil(gap)), blocks = [], lineSlots = [], kinds = {}, forms = {}, list = [];
   for (let k = 0; k < slots; k++) {
     const y = r2(runup + k * gap), of = {};
     for (const id of prims) {
       const P = PRIMITIVES[id], bid = `s${k + 1}-${id}`;
       of[bid] = id; kinds[bid] = P.ask === 'jump' ? 'over' : 'round'; forms[bid] = id;
-      // (a wall form, playscape/terrain.js: across the way, `thick` along it; its `at` the middle of its foot)
-      // its TELL, painted on the way and rolled with it: a jump's window as a strip (from the earliest place a jump
-      // still clears it to the latest), posts' arrows in the lanes they stand in, from where a two-lane change begins
-      const marks = [];
-      if (P.ask === 'jump') marks.push(quad(-HALF, r2(y - pace.lead[id].early * pace.top), HALF, r2(y - pace.lead[id].late * pace.top), 0.02, col['tell-jump']));
-      else {
-        const to = Math.sign(LANES[P.open]), from = r2(y - pace.top * pace.laneTime[2]);
-        for (const lane of LANES.filter((_, i) => i !== P.open)) for (const ay of [from, r2((from + y) / 2)]) {
-          // (an arrow: a shaft and a head, pointing across the way at the open lane)
-          marks.push(quad(lane - 0.55, ay - 0.16, lane + 0.25, ay + 0.16, 0.02, col['tell-steer']));
-          marks.push({ corners: [[lane + to * 0.25, ay - 0.5, 0.02], [lane + to * 0.85, ay, 0.02], [lane + to * 0.25, ay + 0.5, 0.02]], fill: col['tell-steer'] });
-          if (to < 0) { const q = marks[marks.length - 2]; q.corners = quad(lane - 0.25, ay - 0.16, lane + 0.55, ay + 0.16, 0.02).corners; }
-        }
-      }
-      blocks.push({ id: bid, form: 'wall', at: [P.ask === 'steer' ? P.x : 0, r2(y + P.len / 2), 0], N: [0, -1], length: P.ask === 'steer' ? 4 : 2 * HALF, height: P.h, thick: P.len, value: 0.62, tint: tint(ASK_ROLE[id]), marks });
+      // its TELL, painted on the way and rolled with it (course-things.js): a jump's window (from the earliest place a
+      // jump still clears it to the latest), posts' arrows in the lanes they close, from where a two-lane change begins
+      const len = lenOf(id), wide = P.ask === 'steer' ? 4 : 2 * HALF, cx = P.ask === 'steer' ? P.x : 0, thing = D.asks[id] ?? null;
+      const marks = P.ask === 'jump' ? jumpTell(D.tells.jump ?? null, { ya: r2(y - pace.lead[id].early * pace.top), yb: r2(y - pace.lead[id].late * pace.top), half: HALF }, col)
+        : (() => { const from = r2(y - pace.top * pace.laneTime[2]); return steerTell(D.tells.steer ?? null, { ys: [from, r2((from + y) / 2)], to: Math.sign(LANES[P.open]), lanes: LANES.filter((_, i) => i !== P.open), half: HALF }, col); })();
+      // THE THING it is in the theme's premise, drawn over the box that is met (one box, whatever it is drawn as); a theme
+      // with no premise stands a plain wall (playscape/terrain.js: across the way, `thick` along it, laid in courses)
+      if (thing) marks.push(...askDrawing(thing, { x0: cx - wide / 2, x1: cx + wide / 2, y0: y, y1: r2(y + len), h: P.h }, col));
+      blocks.push(thing ? { id: bid, form: 'crate', at: [cx, r2(y + len / 2), 0], size: [wide, len, P.h], value: 0.62, tint: tint(ASK_ROLE[id]), marks }
+        : { id: bid, form: 'wall', at: [cx, r2(y + len / 2), 0], N: [0, -1], length: wide, height: P.h, thick: len, value: 0.62, tint: tint(ASK_ROLE[id]), marks });
     }
     lineSlots.push(Object.keys(of));
     list.push({ k, y, of });
@@ -182,6 +181,8 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   if (D.lanes.sleepers) for (const lane of LANES) for (let j = 0; j < length; j += 1.2) add(quad(lane - 0.8, j, lane + 0.8, j + 0.26, 0.008, col.sleeper), 'room:lanes');
   if (D.lanes.rails) for (const lane of LANES) for (const off of [-0.55, 0.55]) for (let j = -4; j < length + 4; j += 20) add(quad(lane + off - 0.05, j, lane + off + 0.05, Math.min(length + 4, j + 20), 0.016, col.rail), 'room:lanes');
   add(quad(-HALF, exit[1] - 0.4, HALF, exit[1] + 0.4, 0.02, col.exit), 'room:lanes');
+  // THE END, as the theme's premise has it (course-things.js): seen, never met
+  for (const f of endDrawing(D.end, { exit, length, half: HALF, lanes: LANES }, col)) add(f, 'scenery:end');
   // THE SCENERY (course-scenery.js): the walls beside the way, a slice a segment, and the backdrop past its end; held
   // with the way and the asks to one gate
   const scenery = sceneryOf(D, { length, gap, seed: D.seed });
@@ -195,7 +196,7 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   const jumps = prims.filter((id) => PRIMITIVES[id].ask === 'jump'), reactAt = r2(pace.top * (jumps.length ? Math.max(...jumps.map((id) => pace.lead[id].early)) : pace.laneTime[1]));
   const camera = courseCamera({ react: reactAt });
   D.laws = [...D.laws, ...sceneryLaws(D, scenery, { camera, length })];
-  return { feel, rule, pace, prims, dress: D, scenery: { left: scenery.left, right: scenery.right, cells: scenery.cells, far: scenery.far }, bg: col.sky, reactAt, camera, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
+  return { feel, rule, pace, prims, dress: D, lens: Object.fromEntries(prims.map((id) => [id, lenOf(id)])), scenery: { left: scenery.left, right: scenery.right, cells: scenery.cells, far: scenery.far }, bg: col.sky, reactAt, camera, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
 }
 
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
@@ -204,7 +205,7 @@ function worldOf(course, seed) {
   const w = N.createWorld({ entities: [heroOf(course.rule)], colliders: [...course.colliders, ...B.colliders], roll: { pattern: read.pattern, things: B.things } });
   const R = N.applyRoll(w, seed), stands = new Set(R.stand);
   // what stands in each slot, as the bot's eyes meet it
-  const obs = course.slots.map((s) => { const bid = Object.keys(s.of).find((id) => stands.has(id)), P = PRIMITIVES[s.of[bid]]; return { k: s.k, id: s.of[bid], ask: P.ask, y0: s.y, y1: s.y + P.len, ...(P.ask === 'steer' ? { open: LANES[P.open] } : {}) }; });
+  const obs = course.slots.map((s) => { const bid = Object.keys(s.of).find((id) => stands.has(id)), P = PRIMITIVES[s.of[bid]]; return { k: s.k, id: s.of[bid], ask: P.ask, y0: s.y, y1: s.y + (course.lens?.[s.of[bid]] ?? P.len), ...(P.ask === 'steer' ? { open: LANES[P.open] } : {}) }; });
   return { w, me: w.byId.hero, obs, rolled: R };
 }
 
@@ -294,6 +295,8 @@ export function obstacleEnds(manifest) {
   return out;
 }
 
+/** How deep along the way a course's block is, whichever form it was laid as. */
+export const blockLen = (b) => (b.form === 'crate' ? b.size[1] : b.thick);
 /** A made level that is a course, read back as one (see the header); null for a level that is not. */
 export function courseOfLevel(manifest) {
   const O = manifest?.obstacles, pilot = (manifest?.entities ?? []).find((e) => e?.pilotable) ?? manifest?.entities?.[0];
@@ -303,7 +306,8 @@ export function courseOfLevel(manifest) {
   const pace = paceOfRule(rule), byId = new Map(manifest.blocks.map((b) => [b.id, b]));
   const slots = manifest.roll.pattern[0].slots.map((ids, k) => {
     const of = Object.fromEntries(ids.map((id) => [id, id.replace(/^s\d+-/, '')])), first = byId.get(ids[0]);
-    return { k, y: r2(first.at[1] - PRIMITIVES[of[ids[0]]].len / 2), of };
+    return { k, y: r2(first.at[1] - blockLen(first) / 2), of };
   });
-  return { feel: null, rule, pace, prims: O.asks, need: O.need, rest: O.rest, react: O.react, gap: O.gap, sight: O.sight, length: O.exit[1] + 3, slots, blocks: manifest.blocks, roll: manifest.roll, ways: rollWays(readRoll(manifest.roll, { blocks: manifest.blocks })), exit: O.exit, start: O.start, colliders: manifest.colliders, faces: manifest.faces };
+  const lens = Object.fromEntries(manifest.blocks.map((b) => [b.id.replace(/^s\d+-/, ''), blockLen(b)]));
+  return { feel: null, rule, pace, lens, prims: O.asks, need: O.need, rest: O.rest, react: O.react, gap: O.gap, sight: O.sight, length: O.exit[1] + 3, slots, blocks: manifest.blocks, roll: manifest.roll, ways: rollWays(readRoll(manifest.roll, { blocks: manifest.blocks })), exit: O.exit, start: O.start, colliders: manifest.colliders, faces: manifest.faces };
 }

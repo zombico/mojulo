@@ -14,15 +14,18 @@ describe('a dress, by role', () => {
   it('every theme names every role; a primitive has its ask\'s role', () => {
     for (const T of Object.values(DRESS_THEMES)) expect(Object.keys(T.palette).sort()).toEqual([...DRESS_ROLES].sort());
     expect(Object.keys(ASK_ROLE).sort()).toEqual(Object.keys(PRIMITIVES).sort());
-    expect(() => dressOf('neon')).toThrow(/dress is one of rail-yard, greybox/);
+    expect(() => dressOf('neon')).toThrow(/dress is one of last-train, rail-yard, greybox/);
   });
 
-  it('the rail yard holds every law, as written and in each game\'s own shade of it', () => {
+  it('the last train holds every law, as written and in each game\'s own shade of it; the rail yard, parts with no premise, loses that one', () => {
+    for (const seed of [1, 2, 9, 40, 177]) expect(dressOf('last-train', seed).laws.filter((l) => !l.holds), `seed ${seed}`).toEqual([]);
+    expect(dressOf().theme).toBe('last-train');
+    expect(dressOf('rail-yard').laws.find((l) => l.law === 'premise').says).toMatch(/Rail yard is parts with no premise/);
     expect(dressOf('rail-yard').palette).toEqual(DRESS_THEMES['rail-yard'].palette);
     for (const seed of [1, 2, 9, 40, 177]) {
       const D = dressOf('rail-yard', seed);
-      expect(D.laws.map((l) => l.law)).toEqual(['readable', 'distinct', 'quiet', 'told']);
-      expect(D.laws.filter((l) => !l.holds), `seed ${seed}`).toEqual([]);
+      expect(D.laws.map((l) => l.law)).toEqual(['readable', 'distinct', 'quiet', 'told', 'premise']);
+      expect(D.laws.filter((l) => !l.holds).map((l) => l.law), `seed ${seed}`).toEqual(['premise']);
       expect(dressOf('rail-yard', seed)).toEqual(D);
     }
     // a seed turns the asks' hues a little, never the way's
@@ -34,7 +37,7 @@ describe('a dress, by role', () => {
 
   it('the laws bite: a course with no look loses them, and each fault is said', () => {
     const G = dressOf('greybox');
-    expect(G.laws.filter((l) => !l.holds).map((l) => l.law)).toEqual(['readable', 'distinct', 'quiet', 'told']);
+    expect(G.laws.filter((l) => !l.holds).map((l) => l.law)).toEqual(['readable', 'distinct', 'quiet', 'told', 'premise']);
     const P = { ...DRESS_THEMES['rail-yard'].palette };
     // an ask the colour of the ground; the two kinds of ask one hue; a vivid kerb; a tell in the other kind's hue
     expect(dressLaws({ ...P, jump: P.ground }).find((l) => l.law === 'readable')).toMatchObject({ holds: false, says: expect.stringMatching(/jump is too like the ground/) });
@@ -45,7 +48,8 @@ describe('a dress, by role', () => {
 });
 
 describe('the course, dressed', () => {
-  const C = courseOf({ feel: MOMENTUM }), col = C.dress.palette;
+  // (the rail yard: a theme with no premise stands plain things and paints plain tells)
+  const C = courseOf({ feel: MOMENTUM }, { dress: 'rail-yard' }), col = C.dress.palette;
   it('the way is coloured by role and its lanes drawn flat; the asks wear their role\'s colour', () => {
     expect(C.bg).toBe(col.sky);
     expect(new Set(C.faces.filter((f) => f.group === 'room:floor').map((f) => f.fill))).toEqual(new Set([col.ground, col.ground2]));
@@ -102,6 +106,6 @@ describe('the course, dressed', () => {
   });
 
   it('the roll room\'s readout carries the dress\'s gate', () => {
-    expect(rollRoomMeasured({ id: 'g', feel: MOMENTUM, roll: true }).dress).toMatchObject({ theme: 'rail-yard', name: 'Rail yard', lost: [] });
+    expect(rollRoomMeasured({ id: 'g', feel: MOMENTUM, roll: true }).dress).toMatchObject({ theme: 'last-train', name: 'Last train', lost: [] });
   });
 });

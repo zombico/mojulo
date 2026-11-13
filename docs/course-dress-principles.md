@@ -117,6 +117,46 @@ On a flat way nothing that stands lower than the camera rises above the vanishin
 the sky and the way's far end. Things that tell what is coming from up there (a signal over each lane, a gantry, a
 skyline) have to be taller than the camera stands, 3.55 m here.
 
+## A premise first
+
+Parts that each read well do not make a place. A brick wall across a track, a shed whose door opens onto the rails
+and a skyline that could be anywhere are three answers to three questions (what do I jump, what is beside me, what is
+far off), and none of them answers the one that comes before: what is this place, and why is someone running through
+it. A dress coheres when one sentence says who runs here and toward what, and every thing on the screen is named in it.
+
+The first premise is **Last train** (the dress unsaid): *a kid is late for the last train home; it leaves from the
+terminus at the end of the line, and the only way to make it is down the tracks.* Every thing is then the line,
+something left on the line, something beside the line, or where the line goes.
+
+| On the screen | In the premise |
+|---|---|
+| The three lanes | three running tracks, which is why there are three places to be |
+| Go over, low | a crossing barrier left down across the line |
+| Go over, tall | crates being loaded across the tracks |
+| Go round | wagons stabled on two tracks; the clear track is the open lane |
+| A jump's tell | hazard hatching before the barrier |
+| A steer's tell | a lit indicator on the kerb, and arrows on the sleepers: which track is set clear |
+| Walls, A and B | a station passing by, and the cutting between stations |
+| The backdrop | the city, and the terminus where the tracks meet the horizon |
+| The end | the signals showing clear, and the train with its doors open |
+
+What a premise buys, beyond a look:
+
+- The goal stands where the eye already is. The top third is where what is coming is read, and the terminus and its
+  lit clock are on the vanishing point.
+- The role colours are the place's own. A railway paints its barriers amber and its wagons in a livery, so the palette
+  that keeps an ask readable is one the place would have.
+- The walls' order means something: stations, and the stretches between.
+- One family of materials: brick for what is built into the ground, iron for what stands on it, lamplight the one
+  accent, the lamps running down both sides to the vanishing point.
+- The roll has a reason: the yard is still being worked, so the wagons and barriers are somewhere else each time.
+
+A thing's shape is drawing over the box the course was measured with (`course-things.js`): the ask is still one box
+and one collider, and its tell still lies where the course was sized. Where a theme draws a thing longer than it was
+measured (a wagon), the box is that long and each segment grows by as much.
+
+The gate's law for this is `premise`. A theme with none (the rail yard, the greybox) loses it, and says so.
+
 ## The walls and the backdrop: one dress with the way
 
 The way and its asks, the walls beside it and the backdrop behind it are one design, because they share one screen.

@@ -17,8 +17,7 @@ const law = (laws, id) => laws.find((l) => l.law === id);
 describe('the walls: a slice a segment, each side in its own order', () => {
   it('every card is slices of boxes off the kerb in the walls\' roles; a theme names an A more complex than its B', () => {
     for (const s of Object.values(SLICES)) for (const p of s.parts) { expect(p.box[1]).toBeGreaterThanOrEqual(0); expect(WALL_ROLES).toContain(p.role); }
-    const T = DRESS_THEMES['rail-yard'];
-    expect(SLICES[T.walls.a].parts.length).toBeGreaterThan(SLICES[T.walls.b].parts.length);
+    for (const T of Object.values(DRESS_THEMES)) expect(SLICES[T.walls.a].parts.length, T.name).toBeGreaterThan(SLICES[T.walls.b].parts.length);
     expect(DRESS_ROLES).toEqual(expect.arrayContaining(['flank', 'flank2', 'trim', 'land', 'far', 'horizon']));
   });
 
@@ -53,7 +52,11 @@ describe('the backdrop: the sky in steps, a skyline, the land, far past the end'
   it('stands FAR past the course\'s end in the far, land and sky roles; the sky runs from the horizon\'s colour to the zenith\'s', () => {
     const back = C.faces.filter((f) => f.group === 'scenery:backdrop'), D = C.dress;
     expect(C.scenery.far).toBeCloseTo(C.length + FAR, 1);
-    expect(back.filter((f) => f.fill === D.palette.far)).toHaveLength(D.backdrop.skyline.length);
+    expect(back.filter((f) => f.fill === D.palette.far)).toHaveLength(D.backdrop.skyline.filter((s) => s.role !== 'lamp').length);
+    // (a light on the skyline: the terminus's clock, near the top of its tower and a little before it)
+    const clock = back.filter((f) => f.fill === D.palette.lamp);
+    expect(clock).toHaveLength(1);
+    expect(Math.max(...clock[0].corners.map((p) => p[2]))).toBeLessThan(Math.max(...D.backdrop.skyline.map((s) => s.tall)));
     expect(back.filter((f) => f.fill === D.palette.land)).toHaveLength(3);
     const sky = back.filter((f) => f.corners.every((p) => p[1] > C.scenery.far + 1));
     expect(sky).toHaveLength(D.backdrop.bands);
@@ -64,8 +67,8 @@ describe('the backdrop: the sky in steps, a skyline, the land, far past the end'
 });
 
 describe('one gate over every layer', () => {
-  it('the rail yard holds every law, on any seed\'s shade of it; the greybox loses the far read\'s and says so', () => {
-    expect(C.dress.laws.map((l) => l.law)).toEqual(['readable', 'distinct', 'quiet', 'told', 'receding', 'interest', 'rhythm', 'banded']);
+  it('the last train holds every law, on any seed\'s shade of it; the greybox loses the far read\'s and says so', () => {
+    expect(C.dress.laws.map((l) => l.law)).toEqual(['readable', 'distinct', 'quiet', 'told', 'premise', 'receding', 'interest', 'rhythm', 'banded']);
     for (const seed of [1, 7, 23, 64]) expect(courseOf({ feel: MOMENTUM, seed }, { slots: 6 }).dress.laws.filter((l) => !l.holds)).toEqual([]);
     expect(courseOf({ feel: MOMENTUM }, { slots: 6, dress: 'greybox' }).dress.laws.filter((l) => !l.holds).map((l) => l.law)).toEqual(expect.arrayContaining(['readable', 'distinct']));
   });
@@ -76,7 +79,10 @@ describe('one gate over every layer', () => {
     expect(lost({ palette: { flank: '#f2a31b' } })).toEqual(expect.arrayContaining(['readable']));
     expect(lost({ palette: { far: '#101010' } })).toEqual(['receding']);
     expect(lost({ walls: { a: 'bank', b: 'fence' } })).toEqual(['interest']);
-    expect(lost({ backdrop: { skyline: [{ at: 0, wide: 60, tall: 190 }] } })).toEqual(['banded']);
+    // (a slice or a backdrop written in place is named in the premise, or the premise says it is not)
+    expect(lost({ walls: { b: { parts: [{ box: [0, 1, 0, 1, 2, 1], role: 'flank' }] } } })).toEqual(['premise']);
+    expect(lost({ walls: { b: { name: 'A siding', parts: [{ box: [0, 1, 0, 1, 2, 1], role: 'flank' }] } } })).toEqual([]);
+    expect(lost({ backdrop: { name: 'One tower', skyline: [{ at: 0, wide: 60, tall: 190 }] } })).toEqual(['banded']);
     expect(lost({ walls: { order: 'AAAB' } })).toEqual(['rhythm']);
     const said = law(courseOf({ feel: MOMENTUM }, { slots: 6, dress: { palette: { far: '#101010' } } }).dress.laws, 'receding').says;
     expect(said).toMatch(/the far end, where what is coming is read, is as busy as the sides/);
@@ -86,24 +92,25 @@ describe('one gate over every layer', () => {
 describe('a dress as written: a theme\'s name, or every layer in one place', () => {
   it('each part left out is the theme\'s; a colour written is kept as written on any seed', () => {
     expect(readDress('rail-yard')).toMatchObject({ theme: 'rail-yard', own: false, walls: { a: { id: 'shed' }, b: { id: 'fence' } }, backdrop: { id: 'yard' } });
+    expect(readDress()).toMatchObject({ theme: 'last-train', walls: { a: { id: 'platform' }, b: { id: 'cutting' } }, backdrop: { id: 'terminus' } });
     const own = { walls: { a: 'stacks', b: { name: 'Kerb stones', parts: [{ box: [0, 0.5, 0, 1, 1, 0.6], role: 'flank2' }] } }, backdrop: { bands: 4 }, palette: { flank: '#3b4a3f' } };
     const D = dressOf(own, 9);
-    expect(D).toMatchObject({ theme: 'rail-yard', own: true, walls: { a: { id: 'stacks' }, b: { id: 'own', name: 'Kerb stones' } }, backdrop: { bands: 4 } });
+    expect(D).toMatchObject({ theme: 'last-train', own: true, walls: { a: { id: 'stacks' }, b: { id: 'own', name: 'Kerb stones' } }, backdrop: { bands: 4 } });
     expect(D.palette.flank).toBe('#3b4a3f');
-    expect(D.backdrop.skyline).toEqual(BACKDROPS.yard.skyline);
+    expect(D.backdrop.skyline).toEqual(BACKDROPS.terminus.skyline);
     expect(readObstacles({ dress: own }).dress).toEqual(own);
   });
 
   it('the malformed teach', () => {
-    expect(() => readDress('neon')).toThrow(/dress is one of rail-yard, greybox, or \{ theme\?, palette\?, walls\?, backdrop\? \}/);
+    expect(() => readDress('neon')).toThrow(/dress is one of last-train, rail-yard, greybox, or \{ theme\?, palette\?, walls\?, backdrop\? \}/);
     expect(() => readDress({ sky: '#000000' })).toThrow(/dress\.sky is not a dress's word/);
     expect(() => readDress({ palette: { roof: '#000000' } })).toThrow(/palette\.roof is not a role/);
     expect(() => readDress({ palette: { flank: 'brown' } })).toThrow(/'#rrggbb'/);
-    expect(() => readWalls({ a: 'castle' })).toThrow(/a slice's name \(shed, stacks, fence, bank\)/);
+    expect(() => readWalls({ a: 'castle' })).toThrow(/a slice's name \(shed, stacks, fence, platform, cutting, bank\)/);
     expect(() => readWalls({ a: { parts: [{ box: [0, -1, 0, 1, 2, 3], role: 'flank' }] } })).toThrow(/a slice never stands on the way/);
-    expect(() => readWalls({ a: { parts: [{ box: [0, 1, 0, 1, 2, 3], role: 'jump' }] } })).toThrow(/role is one of flank, flank2, trim/);
+    expect(() => readWalls({ a: { parts: [{ box: [0, 1, 0, 1, 2, 3], role: 'jump' }] } })).toThrow(/role is one of flank, flank2, trim, iron, lamp/);
     expect(() => readWalls({ order: 'ABC' })).toThrow(/order in A and B/);
-    expect(() => readBackdrop('city')).toThrow(/a backdrop's name \(yard, open\)/);
+    expect(() => readBackdrop('city')).toThrow(/a backdrop's name \(yard, terminus, open\)/);
     expect(() => readBackdrop({ skyline: [{ at: 2, wide: 10, tall: 10 }] })).toThrow(/at: −1…1/);
     expect(() => readObstacles({ dress: { walls: { c: 'shed' } } })).toThrow(/walls\.c is not a wall's word/);
   });
@@ -147,10 +154,10 @@ describe('in the design loop: the room, its map and its sheet wear the level\'s 
     expect(courseDressOf(world(), 'two')).toBeUndefined();
     expect(() => courseDressOf(world(), 'nine')).toThrow(/level 'nine' is not an obstacle course of this world \(one, two\)/);
     expect(rollRoom(world()).course.dress.walls.a.id).toBe('stacks');
-    expect(rollRoom(world(), { level: 'two' }).course.dress.walls.a.id).toBe('shed');
+    expect(rollRoom(world(), { level: 'two' }).course.dress.walls.a.id).toBe('platform');
     const M = rollRoomMeasured(world());
-    expect(M.dress).toMatchObject({ theme: 'rail-yard', own: true, walls: { a: 'Container stacks', b: 'Fence and embankment' }, backdrop: 'The yard at dusk', sheet: 'bible?book=practice&room=roll&view=sheet', lost: [] });
-    expect(M.dress.says).toHaveLength(8);
+    expect(M.dress).toMatchObject({ theme: 'last-train', own: true, walls: { a: 'Container stacks', b: 'The cutting' }, backdrop: 'The terminus', sheet: 'bible?book=practice&room=roll&view=sheet', lost: [] });
+    expect(M.dress.says).toHaveLength(9);
     // (kept by the dress as well as the feel: a world with another dress is measured anew)
     expect(rollRoomMeasured({ ...world(), levels: { one: { obstacles: { dress: { palette: { far: '#101010' } } } } } }).dress.lost).toEqual(['receding']);
   });
