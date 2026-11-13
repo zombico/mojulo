@@ -49,6 +49,12 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   - **Pips show the work:** they fill over a station as it is worked, fill again as it runs alone, and go out toward
     the burn. A shelf shows a pip a unit (the mechanic's `show: true`; absent, nothing of it is laid).
   - **The worker is a mascot** of a form chosen on the page (orb, sprout, toon), piloted by its own body.
+- **The quick shift looks like the room.** A quick work game is seen from overhead and worked by a mascot (unless the
+  creator names a camera, a hero, or `hero: false`), its line laid facing north so the work flows up the screen. It
+  stands a counter under each place, each place's marker a dome on top (`counters: true`), and shows the work: the pips,
+  and what is in hand on the HUD, a counter an item that stands only while one is held. Made through `design_game` and
+  exported, the level played in headless Chromium: the mascot at the crates, the chopping board's pips filling, the
+  fish and lettuce in hand on the HUD.
 - **An inline character.** A figure may carry its layered recipe inline (`layered`) instead of a stored ref, a
   mascot's plan or a hero, regenerated on read and held to the same pilot check. Absent, nothing changes.
 - **A site, a real climb.** A card may stand its line on a deck: `site: { up, climb? }`, a roof `up` metres high with
@@ -64,5 +70,4 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   played by hand and served. The proof walks a route when one is given (a room's climb), each leg at its own speed.
 - **Starter cards** (`scenarios.js`): a sushi counter, a wheat farm, a building site (a spade or an excavator) and
   leaves off a roof (4 m up a lean ladder). The board `scripts/spikes/worksim/solve.mjs` solves each at each preset.
-- The gates are machine gates only: whether a shift is fun is for someone playing it to judge. On a level the
-  stations are still markers; the work room draws them as counters.
+- The gates are machine gates only: whether a shift is fun is for someone playing it to judge.

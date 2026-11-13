@@ -96,6 +96,17 @@ describe('the work mechanic', () => {
     expect(L.said('work:burned')).toBe(true);
     // absent, none of it is laid
     expect(level().s.entities.some((e) => e.type === 'work-pip')).toBe(false);
+    expect(level().c.events.hud.some((h) => h.id)).toBe(false);
+  });
+  it('shown, what is in hand stands on the HUD only while it is held', () => {
+    const L = level({ show: true });
+    const row = L.c.events.hud.find((h) => h.id === 'w0-held-fish');
+    expect(row).toMatchObject({ var: 'held:bag:fish', as: 'counter' });
+    expect(L.V['ui-w0-held-fish']).toBe(0);
+    L.press('crate-fish');
+    expect(L.V['ui-w0-held-fish']).toBe(1);
+    L.press('chop-0');
+    expect(L.V['ui-w0-held-fish']).toBe(0);
   });
   it('one hand-in press serves one order, and the bell decides', () => {
     const L = level({ goal: 1, hands: 4 });

@@ -106,11 +106,18 @@ The goal defaults to four fifths of what one player who knows the card serves in
 (of the goal), lost, time and hands. Stations are markers coloured by their verb, with markers for busy and ready.
 Tickets show at the hand-in, coloured by order.
 
-The quick door (`goal: 'work'`) does three things:
+The quick door (`goal: 'work'`) does these things:
 
 1. tunes the card (a starter or the creator's) for one player at the challenge (beginner by default);
-2. lays the line on flat ground beside the trail, turned along it;
-3. writes the tuned card into the level's recipe.
+2. lays the line on flat ground beside the trail, facing north, so under the overhead camera the work flows up the
+   screen;
+3. stands a counter under each place (a level's blocks), each place's marker a dome in its colour on top
+   (`counters: true`), with E reached from a counter's side;
+4. shows the work (`show: true`): the pips over the stations and shelves, and what is in hand on the HUD, a counter for
+   each item that appears only while one is held;
+5. sees it from overhead and works it with a mascot, unless the creator names a camera, a hero, or no hero
+   (`hero: false`, first person);
+6. writes the tuned card into the level's recipe.
 
 ### The work room
 

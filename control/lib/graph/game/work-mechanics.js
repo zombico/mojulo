@@ -23,7 +23,9 @@
  *     to serve by the bell (four fifths of what the simulator's one player serves), seed? (1): the roll of its orders,
  *     tickets?: ticket slots at the hand-in, reach? (1.1): how far from a place its E works, bases? (true): the places'
  *     own markers (false: a room that draws them as blocks), show? (false): the work drawn where it happens, in pips (a
- *     station's work filling, its wait filling, its hold going out toward the burn; a pip a unit on a shelf) }
+ *     station's work filling, its wait filling, its hold going out toward the burn; a pip a unit on a shelf), and what
+ *     is in hand on the HUD, a counter an item that stands only while one is held, counters? (false): a counter stands
+ *     under each place (a level's, quick.js workCast), each place's marker a small cap on its top }
  *
  * Said on the bus: work:took, work:made, work:ready, work:burned, work:served, work:walked, work:full, work:won,
  * work:lost (the rest `__w<i>:` and the use zones `use-w<i>-…`). Vars: `w<i>:served`, `w<i>:missed`, `w<i>:burned`,
@@ -148,7 +150,15 @@ export function lowerWork(p, ctx) {
   if (p.show !== undefined && typeof p.show !== 'boolean') fail('show is true (the work drawn where it happens, in pips) or false');
   if (!(Number.isFinite(reach) && reach >= 0.5 && reach <= 3)) fail('reach is how far from a place its E works, 0.5 to 3 m');
   const zone = (id, at, prompt, radius = reach) => F.sources.push({ type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt });
-  const mark = (id, at, color, dz = 0, on = true, radius = 0.45) => { if (dz === 0 && !bases) return; F.entities.push({ id, type: 'work', on, position: [at[0], at[1], r3(at[2] + 0.5 + dz + lift)], radius, color }); };
+  // `counters: true`: the level stands a counter under each place (quick.js workCast), so a place's own marker sits on
+  // its top as a dome in its colour, never wider than the counter
+  const counters = p.counters === true;
+  if (p.counters !== undefined && typeof p.counters !== 'boolean') fail('counters is true (a counter stands under each place: its marker a cap on top) or false');
+  const mark = (id, at, color, dz = 0, on = true, radius = 0.45) => {
+    if (dz === 0 && !bases) return;
+    const cap = dz === 0 && counters;
+    F.entities.push({ id, type: 'work', on, position: [at[0], at[1], r3(at[2] + (cap ? 0.85 : 0.5 + dz + lift))], radius: cap ? Math.min(radius, 0.28) : radius, color });
+  };
   const pieces = (m) => Object.entries(m).map(([i, n]) => `${n > 1 ? `${n} ` : ''}${words(i)}`).join(', ');
 
   // the clock: a quarter-second tick while the session runs, the seconds left, the bell
@@ -235,6 +245,20 @@ export function lowerWork(p, ctx) {
       return pid;
     });
     return ids;
+  }
+
+  // IN HAND (shown): what the bag holds, a readout an item that stands only while one is held (its ui-<id> gate)
+  if (show) {
+    const carried = [...new Set([...Object.values(C.stations).flatMap((st) => Object.keys(st.takes)), ...Object.values(C.stations).map((st) => st.item)])];
+    for (const item of carried) {
+      const key = itemKey(item), hid = `${W}-held-${key}`, gate = `ui-${hid}`, mine = heldVar(BAG, key);
+      F.vars[mine] ??= 0;
+      F.vars[gate] = 0;
+      F.hud.push({ id: hid, var: mine, label: words(key), as: 'counter', slot: 'bottom-left' });
+      F.watches.push({ type: `${I}:holds:${key}`, when: { var: mine, gte: 1 } }, { type: `${I}:empty:${key}`, when: { var: mine, lt: 1 } });
+      R({ on: `${I}:holds:${key}`, do: 'set', var: gate, to: 1 });
+      R({ on: `${I}:empty:${key}`, do: 'set', var: gate, to: 0 });
+    }
   }
 
   // shelves (bucket work: storage): two pads side by side, one that puts one down (while the shelf has room), one that

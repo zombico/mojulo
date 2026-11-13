@@ -897,7 +897,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // (and the screen it is made for, beside it: game/screen.js)
   const { camera: named, moves, screen, xr: xrNamed, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
-  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
+  // a work shift is high concept: the work is what is shown, so it is seen from overhead and worked by a mascot (unless
+  // the creator names a camera, a hero, or no hero)
+  const shift = quick.goal === 'work' && quick.hero !== false;
+  if (quick.goal === 'work' && quick.hero === undefined) quick.hero = { mascot: true };
+  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : shift ? 'top-down' : undefined);
   // played in a headset: the world's own setting (each level carries it)
   const xr = xrNamed === false ? undefined : xrNamed;
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -1020,7 +1024,7 @@ export function goalMechanics(quick, ends) {
     }
     case 'work': {
       const W = workShift(quick, ends);
-      return [{ kind: 'work', card: W.card, at: W.at, heading: W.heading, ...(quick.serve ? { goal: quick.serve } : {}) }];
+      return [{ kind: 'work', card: W.card, at: W.at, heading: W.heading, show: true, reach: WORK_REACH, counters: true, ...(quick.serve ? { goal: quick.serve } : {}) }];
     }
     case 'shoot': {
       // a dogfight (a craft: skyscape/dogfight.js): every fighter down, each hit on the craft costs hp, a crash costs
@@ -1254,26 +1258,54 @@ export function farmPlots(quick, ends) {
 /**
  * A work shift's card and its place: the card (a starter or the creator's) tuned by the solver to the challenge
  * (beginner by default) for the one player a quick game has, and a flat stretch beside the way for its line (the farm's
- * sites: off each beat, or ahead of the start), the line turned along the way. → { card, at, heading, solved }
+ * sites: off each beat, or ahead of the start), laid facing north, so under the overhead camera the work flows up the
+ * screen (crates at the bottom, the hand-in at the top). The same quick and stage give the same shift, kept, since the
+ * goal and the cast both read it. → { card, at, heading, solved, layout }
  */
+const SHIFTS = new Map(), SHIFTS_KEEP = 8;
 export function workShift(quick, ends) {
+  const key = JSON.stringify({ card: quick.card ?? null, challenge: quick.challenge ?? null, spawn: ends.spawn, beats: (ends.beats ?? []).map((b) => b.at), field: ends.field ?? null });
+  if (SHIFTS.has(key)) return SHIFTS.get(key);
   const raw = quick.card === undefined ? SCENARIOS.kitchen : isObj(quick.card) ? quick.card : SCENARIOS[quick.card];
   const solved = solveWork({ ...raw, crew: { ...(raw.crew ?? {}), workers: 1 } }, quick.challenge ?? 'beginner');
-  const s = ends.spawn, h = ends.heading ?? 0;
-  const fit = (c, hh) => {
-    const z0 = ends.ground ? ends.ground(c[0], c[1]) : s[2];
+  const s = ends.spawn, hh = 0;
+  const groundAt = (p) => (ends.ground ? ends.ground(p[0], p[1]) : s[2]);
+  const fit = (c) => {
+    const z0 = groundAt(c);
     if (z0 == null) return null;
     const L = layWork(solved.card, [c[0], c[1], z0], hh);
     const pts = [...Object.values(L.stations).flat(), ...Object.values(L.crates), ...Object.values(L.shelves), L.serve];
-    const zs = pts.map((p) => (ends.ground ? ends.ground(p[0], p[1]) : s[2]));
+    const zs = pts.map(groundAt);
     if (zs.some((z) => z == null) || Math.max(...zs, z0) - Math.min(...zs, z0) > 1.5) return null;
-    return { at: [r3(c[0]), r3(c[1]), r3(Math.max(...zs, z0))], heading: r3(hh) };
+    const at = [r3(c[0]), r3(c[1]), r3(Math.max(...zs, z0))];
+    return { at, heading: hh, layout: layWork(solved.card, at, hh) };
   };
   const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead').map((b) => b.at);
-  const sites = along.flatMap((a, k) => { const prev = k ? along[k - 1] : s, hh = Math.atan2(a[1] - prev[1], a[0] - prev[0]); return [1, -1].map((side) => ({ c: [a[0] - Math.sin(hh) * 12 * side, a[1] + Math.cos(hh) * 12 * side], hh })); });
-  const ahead = { c: [s[0] + Math.cos(h) * 12, s[1] + Math.sin(h) * 12], hh: h };
-  for (const { c, hh } of [...(ends.field ? [{ c: ends.field, hh: h }] : []), ...sites, ahead]) { const got = fit(c, hh); if (got) return { card: solved.card, ...got, solved }; }
-  return { card: solved.card, at: [r3(ahead.c[0]), r3(ahead.c[1]), s[2]], heading: r3(h), solved };
+  const sites = along.flatMap((a, k) => { const prev = k ? along[k - 1] : s, h = Math.atan2(a[1] - prev[1], a[0] - prev[0]); return [1, -1].map((side) => [a[0] - Math.sin(h) * 12 * side, a[1] + Math.cos(h) * 12 * side]); });
+  const h0 = ends.heading ?? 0, ahead = [s[0] + Math.cos(h0) * 12, s[1] + Math.sin(h0) * 12];
+  let out = null;
+  for (const c of [...(ends.field ? [ends.field] : []), ...sites, ahead]) { const got = fit(c); if (got) { out = { card: solved.card, ...got, solved }; break; } }
+  if (!out) { const at = [r3(ahead[0]), r3(ahead[1]), s[2]]; out = { card: solved.card, at, heading: hh, layout: layWork(solved.card, at, hh), solved }; }
+  SHIFTS.set(key, out);
+  if (SHIFTS.size > SHIFTS_KEEP) SHIFTS.delete(SHIFTS.keys().next().value);
+  return out;
+}
+/** How far from a counter's middle a work place's E reaches: from its side (the counters stand solid). */
+export const WORK_REACH = 1.6;
+/**
+ * A work shift's counters (stageLevelOrder's `extra`): a solid block under each place of the line, its top a
+ * counter's height over the place, its foot sunk into the ground under it (the line is laid level over ground that
+ * varies), each place's own marker standing on it as a cap in its colour. → { blocks }
+ */
+export function workCast(quick, ends) {
+  const W = workShift(quick, ends), L = W.layout, boxes = [];
+  const groundAt = (p) => (ends.ground ? ends.ground(p[0], p[1]) ?? p[2] : p[2]);
+  const box = (at, w, d, h) => boxes.push({ min: [r3(at[0] - w / 2), r3(at[1] - d / 2), r3(groundAt(at) - 0.3)], max: [r3(at[0] + w / 2), r3(at[1] + d / 2), r3(at[2] + h)] });
+  for (const list of Object.values(L.stations)) for (const at of list) box(at, 1, 1, 0.9);
+  for (const at of Object.values(L.crates)) box(at, 0.8, 0.8, 0.7);
+  for (const at of Object.values(L.shelves)) box(at, 0.6, 0.6, 1.1);
+  box(L.serve, 1.6, 0.8, 1);
+  return { blocks: [{ id: 'work-line', blocks: boxes, course: false, value: 0.8 }] };
 }
 
 /** A farm's farmhands: `folk` (2) standing by the start, each keeping a day (play.routines): out to the plots at seven,
