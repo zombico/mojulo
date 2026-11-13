@@ -136,3 +136,11 @@
 - The whole cast under the land's one sun: on a page whose land is drawn as form, every body an entity wears (a foe, a
   walker, one that stands still) is read lit and carries the rig solved from the land's cube, as the piloted hero did
   alone.
+- Fixed: a person's shadow was lost on a land with buildings. The hour's map was fitted to the built place only on a
+  page with no entities (the fit was asked before the land was read), so with a cast it stretched over the whole land
+  again and its bias swallowed anything a person's size; the fit is asked once the land is read. A whole level's test
+  holds it (`worlds/built-light.e2e.test.js`).
+- A yard's floods are dark by day: lit when the sun is down or low, so what stands under a mast by day wears the
+  sun's shadow.
+- The land's own casters (its ground, its trees) stay in the maps drawn with the static world, so its trees shade
+  what is built.

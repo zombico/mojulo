@@ -835,16 +835,6 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (and a building's rooms on a land, under the land's sun: their glass lets it by too)
   const builtSun = payload && payload.form && payload.form.room && Array.isArray(payload.buildings) && payload.buildings.length;
   if (payload && shadowsOut) payload.shadows = (liveRoomSun || builtSun) && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
-  // (a land's buildings under its hour's map: the map fitted to the built place (its aprons and a margin for what
-  // stands by them and shades them), not to the whole land, which its own sun's map shades: channels/cast-shadows.js)
-  if (payload && builtSun && payload.shadows && typeof payload.shadows === 'object' && payload.shadows.hour && payload.form.land) {
-    const A = payload.buildings.map((b) => b.site && b.site.apron).filter(Array.isArray);
-    if (A.length) {
-      const x0 = Math.min(...A.map((a) => a[0])), y0 = Math.min(...A.map((a) => a[1])), x1 = Math.max(...A.map((a) => a[2])), y1 = Math.max(...A.map((a) => a[3]));
-      const z = payload.buildings.reduce((t, b) => t + (b.floor ?? 0), 0) / payload.buildings.length;
-      payload.shadows = { ...payload.shadows, fit: { at: [(x0 + x1) / 2, (y0 + y1) / 2, z + 6].map((v) => Math.round(v * 100) / 100), half: Math.round((Math.hypot(x1 - x0, y1 - y0) / 2 + BUILT_SHADE) * 100) / 100 } };
-    }
-  }
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
@@ -933,6 +923,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     { const rain = read ? readWetness(M.wet !== undefined ? M.wet : M.buildings !== undefined ? wetOfWeather(M.weather) : null) : null;
       if (rain && rain.rain > 0) payload.form.land.rain = rain.rain; }
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
+    // (a land's buildings under its hour's map: the map fitted to the built place (its aprons and a margin for what
+    // stands by them and shades them), not to the whole land, which its own sun's map shades: channels/cast-shadows.js)
+    if (payload && builtSun && payload.shadows && typeof payload.shadows === 'object' && payload.shadows.hour && payload.form.land) {
+      const A = payload.buildings.map((b) => b.site && b.site.apron).filter(Array.isArray);
+      if (A.length) {
+        const x0 = Math.min(...A.map((a) => a[0])), y0 = Math.min(...A.map((a) => a[1])), x1 = Math.max(...A.map((a) => a[2])), y1 = Math.max(...A.map((a) => a[3]));
+        const z = payload.buildings.reduce((t, b) => t + (b.floor ?? 0), 0) / payload.buildings.length;
+        payload.shadows = { ...payload.shadows, fit: { at: [(x0 + x1) / 2, (y0 + y1) / 2, z + 6].map((v) => Math.round(v * 100) / 100), half: Math.round((Math.hypot(x1 - x0, y1 - y0) / 2 + BUILT_SHADE) * 100) / 100 } };
+      }
+    }
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
     // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)

@@ -251,7 +251,10 @@ ${cfg.landSun ? `  // (and whenever the land asks for its sun's map again, its t
 ` : ''}  if (!__hrDirty) return;
   __hrDirty = false; __hrArmed = [];
   scene.traverse((o) => {
-    if (!(o.isMesh || o.isLine || o.isPoints)) return;
+    if (!(o.isMesh || o.isLine || o.isPoints)) return;${cfg.landSun ? `
+    // (the land's own casters, channels/form-land.js and form-flora.js: its ground, its trees, standing in the scene and
+    // of no group: they stay in the maps drawn on this frame, so a tree still shades the grass and the yard)
+    if (!__csStatic.has(o) && o.castShadow && o.parent === scene && !(o.userData && o.userData.g)) return;` : ''}
     const want = __csStatic.has(o)${noCast ? ' && !__csNoCast(o)' : ''};
     if (o.castShadow !== want) { __hrArmed.push([o, o.castShadow]); o.castShadow = want; }
   });

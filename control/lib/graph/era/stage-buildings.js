@@ -83,7 +83,7 @@ const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0
 // how each built part gives the sky back (roughness 0 a mirror to 1 chalk; metal 1 a bare metal): painted steel
 // sheens, a container's enamel more, poured concrete barely
 // a yard's floodlight: its mast's height (m), its light where its falloff is whole (linear, the solve's units) and its reach
-const FLOOD = Object.freeze({ h: 9, key: Object.freeze([2.9, 2.4, 1.5]), radius: 34 });   // (a sodium lamp's amber)
+const FLOOD = Object.freeze({ h: 9, key: Object.freeze([2.9, 2.4, 1.5]), radius: 34, dusk: 0.12 });   // (a sodium lamp's amber)
 const BUILT_SURFACES = Object.freeze({ 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
 const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55, skirt: 0.25 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
@@ -995,7 +995,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
         const lampC = [[hx - 0.3, hy - 0.2, hz], [hx + 0.3, hy - 0.2, hz], [hx + 0.3, hy + 0.2, hz], [hx - 0.3, hy + 0.2, hz]].map(W);
         lampFaces.push({ corners: lampC.map(P3), group: 'yard:flood', fill: '#fff6dc', normal: P3(down), outNormal: P3(down), emissive: [1, 0.95, 0.82], emissiveStrength: 4, glow: '0 0 14px 6px #ffe9b8', doubleSided: true, node: `${id}:flood-${q + 1}` });
         const L = W([hx, hy + (mid ? 0.35 : 0.6), hz - 0.2]);
-        floods.push({ at: P3(L), key: FLOOD.key, radius: FLOOD.radius });
+        // (a flood is lit when the sun is down or low: by day its mast stands dark, and what stands under it wears the
+        // sun's shadow, not a lamp's)
+        if (!(ctx.dayLight && ctx.dayLight.dir[2] > FLOOD.dusk)) floods.push({ at: P3(L), key: FLOOD.key, radius: FLOOD.radius });
       }
     }
     const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, {}).faces : yardF;

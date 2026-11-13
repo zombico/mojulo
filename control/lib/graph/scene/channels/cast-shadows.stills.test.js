@@ -23,6 +23,9 @@ describe('the live shadows\' static bodies', () => {
     const plain = liveShadowScript(BASE), land = liveShadowScript({ ...BASE, landSun: true });
     expect(plain).not.toContain('__formSun');
     expect(land.match(/window\.__formSun\.shadow\.needsUpdate/g).length).toBeGreaterThanOrEqual(2);
+    // (and the land's own casters, its ground and its trees, stay in the maps drawn on that frame)
+    expect(land).toContain('o.castShadow && o.parent === scene && !(o.userData && o.userData.g)) return;');
+    expect(plain).not.toContain('o.parent === scene');
   });
 });
 
