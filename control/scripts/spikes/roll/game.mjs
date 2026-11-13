@@ -124,6 +124,7 @@ for (let k = 0; k < maps; k++) {
     try { S = await level()?.evaluate(() => ({ ...window.__bot })); } catch { break; }
     if (!S || S.done) break;
     if (!shot && S.y > obs[1].y0 - 12) { shot = true; await page.screenshot({ path: path.join(out, `map-${seed}.png`) }); }
+    if (shot && !S.endShot && S.y > course.exit[1] - 26) { await page.screenshot({ path: path.join(out, `map-${seed}-end.png`) }); await level()?.evaluate(() => { window.__bot.endShot = true; }); }
   }
   plays.push({ map: k + 1, seed, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
   await wait(2500);

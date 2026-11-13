@@ -48,6 +48,19 @@ describe('the walls: a slice a segment, each side in its own order', () => {
   });
 });
 
+describe('the overhead: what stands in the top third near at hand', () => {
+  it('the last train\'s line: a portal at every slice\'s end, over any jump, and a wire over each outer track from end to end', () => {
+    const over = C.faces.filter((f) => f.group === 'scenery:overhead');
+    expect(over.length).toBeGreaterThan(4 * C.scenery.cells.length / 2);
+    expect(over.every((f) => f.fill === C.dress.palette.iron)).toBe(true);
+    // (nothing of it over the way lower than 6 m: a hero's jump never meets it; its posts stand off the way)
+    for (const f of over) if (f.corners.some((c) => Math.abs(c[0]) < 3.3)) expect(Math.min(...f.corners.map((c) => c[2]))).toBeGreaterThan(6);
+    const wires = over.filter((f) => Math.max(...f.corners.map((c) => c[1])) - Math.min(...f.corners.map((c) => c[1])) > C.length);
+    expect(wires.map((f) => Math.round((f.corners[0][0] + f.corners[1][0]) / 2)).sort()).toEqual([-2, 2]);
+    expect(courseOf({ feel: MOMENTUM }, { slots: 6, dress: 'rail-yard' }).faces.filter((f) => f.group === 'scenery:overhead')).toEqual([]);
+  });
+});
+
 describe('the backdrop: the sky in steps, a skyline, the land, far past the end', () => {
   it('stands FAR past the course\'s end in the far, land and sky roles; the sky runs from the horizon\'s colour to the zenith\'s', () => {
     const back = C.faces.filter((f) => f.group === 'scenery:backdrop'), D = C.dress;

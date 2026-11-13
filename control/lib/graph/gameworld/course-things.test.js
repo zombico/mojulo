@@ -51,7 +51,11 @@ describe('an ask is drawn as the thing it is, over the box that is met', () => {
   it('a barrier is striped, crates are five, wagons are two with a gap, a lamp and a roof each', () => {
     const box = { x0: -3.3, x1: 3.3, y0: 10, y1: 10.7, h: 0.75 };
     expect(askDrawing('barrier', box, col).filter((m) => m.fill === col['tell-jump'] && m.corners.every((c) => Math.abs(c[1] - (10 - 0.012)) < 1e-6))).toHaveLength(5);
-    expect(askDrawing('crates', { ...box, y1: 11.4, h: 1 }, col).filter((m) => m.fill === col['tell-jump'])).toHaveLength(5);
+    // (five crates: a stencil and a brace each, every other one a shade deeper, six gaps)
+    const K = askDrawing('crates', { ...box, y1: 11.4, h: 1 }, col);
+    expect(K.filter((m) => m.fill === col['tell-jump'])).toHaveLength(5);
+    expect(K.filter((m) => new Set(m.corners.map((c) => c[0].toFixed(3))).size === 4)).toHaveLength(5);
+    expect(K.filter((m) => m.fill === col.iron && m.corners.every((c) => c[2] <= 1 && c[1] < 10))).toHaveLength(6);
     const W = askDrawing('wagon', { x0: -1, x1: 3, y0: 10, y1: 13.2, h: 3 }, col);
     expect(W.filter((m) => m.fill === col.lamp)).toHaveLength(2);
     expect(W.some((m) => m.fill === col.iron && m.corners.every((c) => Math.abs(c[0] - 1) < 0.12))).toBe(true);
@@ -103,6 +107,11 @@ describe('the end: where the line goes', () => {
     expect(end.length).toBeGreaterThan(20);
     expect(end.filter((f) => f.fill === col.exit && f.corners.every((c) => Math.abs(c[1] - C.exit[1]) < 0.1))).toHaveLength(LANES.length);
     expect(end.some((f) => f.fill === col.lamp && f.corners.every((c) => c[1] > C.length + 4))).toBe(true);
+    // (the train shed over the end of the line: taller than anything on the way, its board lit, so it is seen from the start)
+    const top = Math.max(...end.flatMap((f) => f.corners.map((c) => c[2])));
+    expect(top).toBeGreaterThan(10);
+    expect(top).toBeGreaterThan(2 * Math.max(...C.faces.filter((f) => f.group === 'scenery:walls').flatMap((f) => f.corners.map((c) => c[2]))));
+    expect(end.some((f) => f.fill === col.lamp && Math.min(...f.corners.map((c) => c[2])) > 7 && Math.abs(f.corners[0][0] - f.corners[1][0]) > 4)).toBe(true);
     // (the gantry's beam is over the camera: it stands in the top third as the course ends)
     expect(Math.max(...end.flatMap((f) => f.corners.map((c) => c[2])))).toBeGreaterThan(C.camera.height);
     for (const f of end) expect(colours.has(f.fill) || /^#[0-9a-f]{6}$/.test(f.fill)).toBe(true);

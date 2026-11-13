@@ -20,6 +20,9 @@
  *                 `tall` in metres); the land beyond the way in the `land` role. It stands FAR metres past the
  *                 course's end, so it is in the top third from the first step to the last.
  *
+ *   THE OVERHEAD  a theme's `overhead: 'line'`: a portal over the way at every slice's end and a wire over each outer lane,
+ *                 running to the vanishing point. It is what stands in the top third near at hand.
+ *
  *   SLICES, BACKDROPS            the cards (a new look is a row)
  *   readWalls(v, theme), readBackdrop(v, theme)   a dress's `walls` / `backdrop` as written → resolved (they teach)
  *   sceneryOf(dress, { length, gap, seed? }) → { left, right, cells: [{ side, k, y0, y1, kind }], faces, far, laws }
@@ -35,6 +38,8 @@ export const WALL_ROLES = Object.freeze(['flank', 'flank2', 'trim', 'iron', 'lam
 export const BACKDROP_ROLES = Object.freeze(['land', 'far', 'horizon']);
 /** How far past the course's end the backdrop stands, and how far to each side it and the land reach (metres). */
 export const FAR = 400, REACH = 700;
+// (the wires run over the outer tracks: one over the middle track would pass a hand over the camera and fill the frame)
+const WIRES = [-2, 2];
 const KERB = 4.8;   // the kerb's outer edge off the centre line (roll-course.js: HALF + 1 + 0.5)
 
 const B = (u0, d0, z0, u1, d1, z1, role) => ({ box: [u0, d0, z0, u1, d1, z1], role });
@@ -146,6 +151,20 @@ export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
       add([[xa, yb, z0], [xb, yb, z0], [xb, yb, z1], [xa, yb, z1]], p.role, 'scenery:walls');
       add([[xa, ya, z1], [xa, yb, z1], [xb, yb, z1], [xb, ya, z1]], p.role, 'scenery:walls');
     }
+  }
+  // THE OVERHEAD (a theme's `overhead`): what crosses the top of the screen near at hand, so the top third is not the
+  // far sky alone on a tall frame. `line`: a portal at every slice's end and a wire over each outer track, running to the
+  // vanishing point (seen, never met: its beam is over any jump)
+  if (dress.overhead === 'line') {
+    const px = KERB + 0.45;
+    for (let k = 0; k <= n; k++) {
+      const y = from + k * gap;
+      for (const side of [-1, 1]) { const x = side * px; add([[x - 0.13, y, 1], [x + 0.13, y, 1], [x + 0.13, y, 7.3], [x - 0.13, y, 7.3]], 'iron', 'scenery:overhead'); add([[x - side * 0.13, y, 1], [x - side * 0.13, y + 0.26, 1], [x - side * 0.13, y + 0.26, 7.3], [x - side * 0.13, y, 7.3]], 'iron', 'scenery:overhead'); }
+      add([[-px, y, 7], [px, y, 7], [px, y, 7.3], [-px, y, 7.3]], 'iron', 'scenery:overhead');
+      add([[-px, y, 7], [px, y, 7], [px, y + 0.26, 7], [-px, y + 0.26, 7]], 'iron', 'scenery:overhead');
+      for (const lane of WIRES) add([[lane - 0.04, y, 6.5], [lane + 0.04, y, 6.5], [lane + 0.04, y, 7], [lane - 0.04, y, 7]], 'iron', 'scenery:overhead');
+    }
+    for (const lane of WIRES) add([[lane - 0.04, from, 6.5], [lane + 0.04, from, 6.5], [lane + 0.04, from + n * gap, 6.5], [lane - 0.04, from + n * gap, 6.5]], 'iron', 'scenery:overhead');
   }
   // THE BACKDROP: the land beyond the way, the sky in bands from the horizon up, the skyline before it
   const Bk = dress.backdrop, far = r2(length + FAR);

@@ -58,8 +58,8 @@ export const DRESS_THEMES = Object.freeze({
     premise: 'A kid is late for the last train home. It leaves from the terminus at the end of the line, and the only way to make it is down the tracks.',
     things: Object.freeze({ lanes: 'three running tracks: why there are three places to be', hurdle: 'a crossing barrier left down across the line', block: 'crates being loaded across the tracks',
       posts: 'wagons stabled on two tracks; the clear track is the open lane', 'tell-jump': 'hazard hatching before the barrier: jump while on it', 'tell-steer': 'the lit indicator and the arrows: which track is set clear',
-      a: 'a station passing by', b: 'the cutting between stations', backdrop: 'the city, and the terminus where the tracks meet the horizon', end: 'the signals showing clear, and the train with its doors open' }),
-    asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'hatching', steer: 'indicator' }), end: 'terminus',
+      overhead: 'the overhead line: a portal a segment, a wire over the outer tracks', a: 'a station passing by', b: 'the cutting between stations', backdrop: 'the city, and the terminus where the tracks meet the horizon', end: 'the signals showing clear, and the train with its doors open' }),
+    asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'hatching', steer: 'indicator' }), end: 'terminus', overhead: 'line',
     // (a wagon is as long as it is drawn: the posts' box is this deep, and met all along it)
     lens: Object.freeze({ 'posts-left': 3.2, 'posts-right': 3.2 }),
     lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'platform', b: 'cutting' }), backdrop: 'terminus',
@@ -136,7 +136,7 @@ export function readDress(v = DEFAULT_DRESS) {
  * screen has a name in it. A theme of parts with no premise does not hold it, and says so. */
 export function premiseLaw(T, R) {
   if (!T.premise) return { law: 'premise', holds: false, says: `${T.name} is parts with no premise: nothing says who runs here or toward what, so its asks, its walls and its backdrop answer to nothing in common` };
-  const unnamed = [...['lanes', 'hurdle', 'block', 'posts', 'tell-jump', 'tell-steer', 'end'].filter((k) => !T.things?.[k]),
+  const unnamed = [...['lanes', 'hurdle', 'block', 'posts', 'tell-jump', 'tell-steer', 'end', ...(T.overhead ? ['overhead'] : [])].filter((k) => !T.things?.[k]),
     ...(R.walls.a.id === 'own' && R.walls.a.name === 'Its own' ? ['walls.a (name what it is in the premise)'] : []), ...(R.walls.b.id === 'own' && R.walls.b.name === 'Its own' ? ['walls.b (name what it is in the premise)'] : []),
     ...(R.backdrop.id === 'own' && R.backdrop.name === 'Its own' ? ['backdrop (name what it is in the premise)'] : [])];
   return { law: 'premise', holds: !unnamed.length, says: unnamed.length ? `the premise names no ${unnamed.join(', ')}` : `every thing on the screen is the line, something left on it, something beside it or where it goes: ${T.premise}` };
@@ -153,5 +153,5 @@ export function dressOf(dress = DEFAULT_DRESS, seed = 1) {
     const ask = ASKS.includes(role) || role.startsWith('tell-');
     palette[role] = seed === 1 || C < 0.02 ? T.palette[role] : rgbToHex(oklch(ask ? L : L + lift, C, ask ? h + turn : h));
   }
-  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
+  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, overhead: T.overhead ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
 }

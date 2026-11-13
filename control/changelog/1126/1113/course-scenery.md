@@ -45,3 +45,8 @@ one design: the way and its asks (as before), the WALLS beside it, and the BACKD
   which a slow hero's 7 m segments failed on 10 seeds of 12 before it.
 - A skyline silhouette may be a light (`role: 'lamp'`): set near the top of the silhouette it stands on.
 - The course sheet opens with the premise and what each thing is in it.
+- Last train, three things seen on the game's page and put right. The crates read as crates: each a framed panel
+  with a brace, every other one a shade deeper, wide gaps between. The end is seen from the start: a train shed over
+  the end of the line, its ribs taller than anything on the way and a lit departure board under the first. The top
+  of a tall frame is not the far sky alone: the overhead line (a theme's `overhead: 'line'`), a portal at every
+  slice's end and a wire over each outer track, running to the vanishing point, all of it over any jump.

@@ -9,7 +9,8 @@
  *           wagon     two stabled wagons end-on, one on each of the tracks the posts close; the open lane the clear track
  *   TELLS   hatching  a jump's window as hazard hatching between two lines (the window itself, as before)
  *           indicator posts' arrows on the sleepers, and a lit indicator on each kerb pointing at the clear track
- *   END     terminus  a signal gantry over the exit showing clear on every track, buffer stops, and the train waiting
+ *   END     terminus  a signal gantry over the exit showing clear on every track, the train shed over the end of the
+ *                     line (seen from the start: its ribs, its lit board), buffer stops, and the train waiting
  *
  *   askDrawing(thing, box, palette)                  → [{ corners, fill }]   drawn with the ask (its roll group)
  *   jumpTell(tell, { ya, yb, half }, palette)        → [{ corners, fill }]
@@ -41,9 +42,19 @@ export function askDrawing(thing, { x0, x1, y0, y1, h }, col) {
     out.push(face(x0, x1, f - E, 0, 0.18, col.iron));
   } else if (thing === 'crates') {
     // five crates side by side: the gaps between them, a batten round each, a stencilled mark
-    const n = 5, w = (x1 - x0) / n, dark = shade(col.jump2, 0.55);
-    for (let i = 0; i <= n; i++) { const x = Math.min(x1 - 0.05, Math.max(x0, x0 + i * w - 0.025)); out.push(face(x, x + 0.05, f, 0, h, col.iron)); out.push(flat(x, y0, x + 0.05, y1, h + E, col.iron)); }
-    for (let i = 0; i < n; i++) { const a = x0 + i * w + 0.12, b = x0 + (i + 1) * w - 0.12; out.push(face(a, b, f, 0.1, 0.18, dark), face(a, b, f, h - 0.18, h - 0.1, dark), face(a + (b - a) * 0.38, a + (b - a) * 0.62, f, h * 0.4, h * 0.62, col['tell-jump'])); }
+    // (each a framed panel with a brace across it, every other one a shade deeper, wide gaps between: read as boxes
+    // from far off, where a row of seams reads as a wall)
+    const n = 5, w = (x1 - x0) / n, dark = shade(col.jump2, 0.5), deep = shade(col.jump2, 0.8), g = 0.07, t = 0.11;
+    for (let i = 0; i <= n; i++) { const x = Math.min(x1 - g, Math.max(x0, x0 + i * w - g / 2)); out.push(face(x, x + g, f - E, 0, h, col.iron)); out.push(flat(x, y0, x + g, y1, h + 2 * E, col.iron)); }
+    for (let i = 0; i < n; i++) {
+      const a = x0 + i * w + g / 2, b = x0 + (i + 1) * w - g / 2, lean = i % 2 ? -1 : 1;
+      if (i % 2) out.push(face(a, b, f + E / 2, 0, h, deep), flat(a, y0, b, y1, h + E, deep));
+      out.push(face(a, b, f, 0, t, dark), face(a, b, f, h - t, h, dark), face(a, a + t, f, 0, h, dark), face(b - t, b, f, 0, h, dark));
+      // the brace, corner to corner
+      const [p, q] = lean > 0 ? [a + t, b - t] : [b - t, a + t], s = lean * t * 1.2;
+      out.push({ corners: [[p, f, t], [p + s, f, t], [q, f, h - t], [q - s, f, h - t]], fill: dark });
+      out.push(face((a + b) / 2 - 0.2, (a + b) / 2 + 0.2, f - E, h * 0.4, h * 0.6, col['tell-jump']));
+    }
   } else if (thing === 'wagon') {
     // two wagons end-on, one a track: the gap between them, underframes and buffers, an end door, a roof, lamps
     const mid = (x0 + x1) / 2, deep = shade(col.steer, 0.62), roof = shade(col.steer, 0.5);
@@ -95,6 +106,17 @@ export function endDrawing(end, { exit, length, half, lanes }, col) {
   for (const lane of lanes) out.push(face(lane - 0.34, lane + 0.34, y - E, 4.7, 5.7, col.iron), face(lane - 0.17, lane + 0.17, y - 2 * E, 4.86, 5.2, col.exit));
   // the buffer stops at the end of each outer track, and the train on the middle one, its doors open and lit
   for (const lane of lanes.filter((l) => l !== 0)) out.push(...solid(lane - 0.8, lane + 0.8, length + 2.6, length + 3, 0, 1.1, col.iron), face(lane - 0.8, lane + 0.8, length + 2.6 - E, 0.62, 0.92, col.trim));
+  // the train shed over the end of the line: ribs on tall columns, a lit departure board under the first, lamps under
+  // each: taller than anything on the way, so where the line goes is seen from the first step
+  const sx = half + 2.4;
+  for (const [i, ry] of [y + 1.2, length + 7, length + 13].entries()) {
+    for (const k of [-1, 1]) out.push(...solid(k * sx - 0.22, k * sx + 0.22, ry, ry + 0.4, 0, 9.4, col.iron));
+    out.push(...solid(-sx, sx, ry, ry + 0.4, 9.4, 10, col.iron), flat(-sx, ry, sx, ry + 0.4, 9.4 - E, col.iron));
+    // (the gable over the rib, stepped)
+    for (const [wd, z] of [[0.72, 10], [0.46, 10.7], [0.2, 11.4]]) out.push(face(-sx * wd, sx * wd, ry - E, z, z + 0.7, col.iron));
+    for (const lane of lanes) out.push(face(lane - 0.22, lane + 0.22, ry - E, 8.7, 9.1, col.lamp));
+    if (i === 0) out.push(face(-2.6, 2.6, ry - 2 * E, 7.2, 8.4, col.iron), face(-2.4, 2.4, ry - 3 * E, 7.36, 8.24, col.lamp));
+  }
   const t0 = length + 5.2, body = shade(col.flank2, 1.25);
   out.push(...solid(-1.45, 1.45, t0, t0 + 14, 0.55, 3.7, body), face(-1.45, 1.45, t0 - E, 0, 0.55, col.iron));
   out.push(face(-0.5, 0.5, t0 - E, 0.75, 2.9, col.lamp), face(-1.2, -0.75, t0 - E, 1.9, 2.9, col.lamp), face(0.75, 1.2, t0 - E, 1.9, 2.9, col.lamp));
