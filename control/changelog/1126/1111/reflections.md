@@ -155,3 +155,7 @@
   metal), and under the cast rig each corner takes its class off its own colour: cloth is matte, skin takes a soft
   highlight, an eye a wet one, leather a worn sheen, a metal the rig's sky in its own colour. No map, no new geometry;
   a body with a painted texture, and the cel register, are as they were.
+- A realistic hero's relief under the cast rig: the lit read asks for the body as the skinned export gets it, so a
+  realistic hero brings its normal map (its skin's relief, its clothes' creases, seams and grain) and its roughness
+  (each cloth's own, a leather's satin, wool's dullness: `epidermis/cloth-relief.js`), and the page's cast material
+  reads both on the paint's atlas. The tangents, the parallax's depth and the correctives stay the engine export's.

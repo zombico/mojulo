@@ -101,4 +101,17 @@ describe('a vehicle\'s form body under the cast rig', () => {
     expect(resp).toContain("geo.setAttribute('aMR'");
     expect(resp).toContain('response: Array.isArray(fig.response)');
   });
+
+  // ITS RELIEF (a realistic hero's, on its paint's atlas): the cast material reads its normal map and its roughness; a
+  // figure with none brings no reader
+  it('a figure that carries its relief brings the maps\' reader; without, none of it', () => {
+    const T = { url: 'data:image/png;base64,AA==', w: 2, h: 2 };
+    const plain = controllableChannelScript(ent, null, { p: fig({ cast: CAST, paintTex: T }, part({ uv: f32(Array(12).fill(0)) })) });
+    const relief = controllableChannelScript(ent, null, { p: fig({ cast: CAST, paintTex: T, normalTex: T, ormTex: T }, part({ uv: f32(Array(12).fill(0)) })) });
+    expect(plain).not.toContain('__castRelief');
+    expect(relief).toContain('function __castRelief(fig)');
+    expect(relief).toContain('o.normalMap = tex(fig.normalTex)');
+    expect(relief).toContain('o.roughnessMap = tex(fig.ormTex)');
+    expect(relief).toContain('...(map ? __castRelief(fig) : {})');
+  });
 });

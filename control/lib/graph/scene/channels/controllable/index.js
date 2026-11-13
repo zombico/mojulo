@@ -851,6 +851,9 @@ function __updateGearLines() {
   // parts carry their normals where its form writes them, else its mesh's own) and carrying a rig is drawn with the cast
   // material, lit by the page's one sun, its sky and its rim its own; no baked rim over it. Absent, the page carries none
   const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
+  // (a body that carries its relief, a realistic hero's: its normal map and its occlusion, roughness and metal, on its
+  // paint's own atlas; the cast material reads them. None carries one: nothing emitted)
+  const figHasRelief = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && f.paintTex && (f.normalTex || f.ormTex));
   const figHasResp = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && Array.isArray(f.response) && f.response.length);
   const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)${figHasCast ? ' && !fig.cast' : ''}) __rimPatch(mesh, fig.rim);` : '';
   // toon ink (toon-shading Phase 4b): outline every rig PART when the world's toon dial asks for
@@ -1331,7 +1334,18 @@ function __makeSkinGroup(fig, b, group) {
 ` : ''}${figHasCast ? `// the cast rig's material for a figure's parts: one set of the rig's uniforms a figure (../cast-rig.js)
 ${figHasForm ? '' : `const castKit = ${castKitSource()};
 `}const __castU = new Map();
-${figHasResp ? `// how each of a body's materials answers the light (color-theorist/cast-response.js, a figure's \`response\`): a corner's
+${figHasRelief ? `// a body's relief on its paint's atlas (epidermis/dermal-relief.js, cloth-relief.js): the normal map, and its roughness
+// (the green of its occlusion-roughness-metal texture, as glTF reads it); once a figure
+function __castRelief(fig) {
+  if (fig.__relief) return fig.__relief;
+  const tex = (t) => { const x = new THREE.TextureLoader().load(t.url); x.colorSpace = THREE.NoColorSpace; return x; }, o = {};
+  if (fig.normalTex) o.normalMap = tex(fig.normalTex);
+  // (its roughness alone of the three: a body under the land's sun already holds the page's shadow maps, and a material
+  // has only so many textures; a hero's cloth and skin are no metal, and its hollows are in its albedo's cavity)
+  if (fig.ormTex) { o.roughnessMap = tex(fig.ormTex); o.roughness = 1; }
+  return (fig.__relief = o);
+}
+` : ''}${figHasResp ? `// how each of a body's materials answers the light (color-theorist/cast-response.js, a figure's \`response\`): a corner's
 // class read off its own colour, the nearest of the figure's palette, as two bytes a corner (its roughness, its metal)
 function __castMR(fig, c, n) {
   // (a corner's colour is linear light and may stand a shade under its group's, in a fold or a hollow: so the class is
@@ -1388,7 +1402,7 @@ function __castMR(fig, c, n) {
     if (fig.cast) { if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
+    const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;

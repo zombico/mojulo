@@ -224,14 +224,19 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
     // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
+    // (and the lit read asks for the body as the skinned export gets it, `face`: a realistic hero's relief with it, its
+    // normal map, its cloth's occlusion, roughness and metal, epidermis/cloth-relief.js: what the page's cast material reads)
     // (`lit`: a body the cast rig lights, color-theorist/cast-rig.js: its colour under no light and each corner's normal, as
     // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
     // holds are the same read's. Absent: the body as it always was, its light baked)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true } : {}) });
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
-  const { preview, embodies, held, ...pack } = body;
+  // (of what the lit read brings for a skinned export, the page keeps the maps its cast material reads, the normal map
+  // and the roughness; each corner's tangent, the parallax's depth and the correctives are an engine's, left off)
+  const { preview, embodies, held, ...pack0 } = body;
+  const pack = lit && (pack0.normalTex || pack0.ormTex) ? (({ correctives: _c, depthTex: _d, ...rest }) => ({ ...rest, parts: rest.parts.map((q) => (q && q.tan ? (({ tan: _t, ...r }) => r)(q) : q)) }))(pack0) : pack0;
   const clips = { ...pack.clips };
   // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
   // a state's clip the hero lacks is taken from it, once per clip, under the library's own name
