@@ -137,6 +137,9 @@ function resolveSubject(subject) {
     throw new Error('forge_motion requires subject: { sketch_ref } | { manji_tree } | { deck } | { stash_ref }');
   }
 
+  if (subject.screenplay !== undefined) {
+    throw new Error("a screenplay is filmed in Blender (forge_motion export: 'blender'); it has no frames to render or stitch yet: get_motion_vocab({ id: 'scene-film' })");
+  }
   // ── deck subjects (charts / infographics / slides as a slideshow) ──
   if (Array.isArray(subject.deck)) {
     const deckSlides = [];
@@ -499,6 +502,12 @@ async function forgeMotionCore(input) {
       ...(loop !== undefined ? { loop } : {}),
       ...(Array.isArray(ticks) && ticks.length ? { ticks } : Array.isArray(waypoints) && waypoints.length ? { waypoints } : {}),
     };
+  }
+  // The SCREENPLAY family: a scene acted by its cast and shot by its coverage, filmed as a Blender film pack (no frames
+  // here: scene-film.js, the core scripts/export-scene-blender.mjs writes through too).
+  if (subject?.screenplay !== undefined) {
+    const { forgeScreenplay } = await import('@/lib/mcp/tools/scene-film');
+    return forgeScreenplay({ title, subject, shot, exportFormat: input.export, tagRef: existingTag });
   }
   // The raster/character families are not in the Claude plugin profile: say so before any other check.
   if ((subject?.scene_ref || subject?.cel_set) && pluginProfileActive()) {
@@ -887,7 +896,7 @@ export function registerMotionTools() {
     // May fetch Chrome for Testing or ffmpeg first, then bake frames: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      `Put a mojulo subject in MOTION and render it: a self-contained flipbook SVG plus a GIF, an MP4 opt-in. It adds TIME to a static subject, filed as a deterministic recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it / set up a camera / plan the shots", AND info-transfer framing "play these charts / a slideshow / a deck / an explainer / a report in motion". FOUR subject families behind one door — read the one you need via get_motion_vocab({ id }) (find it by intent via semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4); its cameras as a SHOOT PLAN (After Effects terms): shoot: { plan } writes, { ops } edits, shot.motion 'plan' renders. Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
+      `Put a mojulo subject in MOTION and render it: a self-contained flipbook SVG plus a GIF, an MP4 opt-in. A deterministic recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it / set up a camera / plan the shots", and "play these charts / a slideshow / a deck / an explainer / a report in motion". Subject families behind one door — read yours via get_motion_vocab({ id }) (by intent: semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4); 'scene-film' (a SCREENPLAY acted by its cast, shot by its coverage, filmed in Blender); its cameras as a SHOOT PLAN (After Effects terms): shoot: { plan } writes, { ops } edits, shot.motion 'plan' renders. Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref | screenplay) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
     inputSchema: {
       type: 'object',
       required: [],
@@ -923,13 +932,14 @@ export function registerMotionTools() {
               items: { type: ['string', 'object'] },
             },
             stash_ref: { type: 'string', description: 'DECK: a stash (st_…) whose sketch-typed items, in gather order, are the slides (≥2).' },
+            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script }, filmed in Blender (get_motion_vocab({ id: 'scene-film' }))" },
           },
         },
         shot: {
           type: 'object',
           description: 'The shot. CAMERA: a named camera motion + params. DECK: motion \'deck\' (or omit — implied for deck subjects).',
           properties: {
-            motion: { type: 'string', enum: [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES, 'plan', 'traversal'], description: "Which motion. Camera: turntable/orbit/push_in/dolly_zoom/flythrough. Deck: 'deck'. Effect: materialize/transfigure. World only: 'plan' renders the world's shoot plan (written with `shoot`); 'traversal' — an input script (shot.ticks) drives the world's live entities/physics/events instead of a camera path. See the catalogue in the description." },
+            motion: { type: 'string', enum: [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES, 'plan', 'traversal', 'coverage'], description: "Which motion. Camera: turntable/orbit/push_in/dolly_zoom/flythrough. Deck: 'deck'. Effect: materialize/transfigure. World only: 'plan' renders the world's shoot plan (written with `shoot`); 'traversal' — an input script (shot.ticks) drives the world's live entities/physics/events instead of a camera path. See the catalogue in the description." },
             ticks: {
               type: 'array',
               description: "TRAVERSAL only: the input script — one normalized input snapshot per tick at shot.fps ({forward,strafe,turn,lift,jump,jumpHeld,lookDX,lookDY}, each -1..1; {} = idle tick). The world's controllable entities, physics, and events advance one fixed dt per tick, so the same ticks reproduce the identical run. Stored into the recipe. The run's per-tick probe stream (entity positions, HUD vars) files as probes.json beside the video, and the final probe returns in the result.",

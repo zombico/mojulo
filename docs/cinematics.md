@@ -181,6 +181,13 @@ in Blender, never baked:
 The export is the lit one: the realistic body's smooth normals and no light baked into its colours, so either look
 shades it.
 
+The agent asks for it at `forge_motion`: a `screenplay` subject (a cast, marks and a script), shot by its `coverage`,
+with `export: 'blender'`. Each part plays from a persona (its hero, register, style and role; the part's own words win),
+from a minted hero, or from a hero spec. The door and the script write through one core
+(`control/lib/mcp/tools/scene-film.js`), so the same scene makes the same pack byte for byte. The tool never launches
+Blender: its answer names the command that builds the pack (`export-scene-blender.mjs --build <dir>`). The manual is
+the `scene-film` motion-vocab card.
+
 ## The scene in a game
 
 In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's

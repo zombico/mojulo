@@ -461,7 +461,11 @@ const DESCRIPTION_ALLOWLIST = {
 // and list_cooks folded into get_stash and get_cook (no ref: the list), and the housekeeping tools (mint / rename /
 // drawer / update / archive, recommend_kind, sketch_stash, forge_publications) cut to routing grade; three leave the
 // allowlist. Two tools off the list, no behaviour changed.
-const PAYLOAD_CEILING = 179_900;
+// Raised 2026-11-13 on 1113-animation-studio-infra (179_900 -> 180_100; measured 179,992) for the scene film:
+// forge_motion's `subject.screenplay` (a scene acted by its cast, shot by its coverage, filmed in Blender) and its shot
+// motion 'coverage'. An argument on the door that owns the film intent rather than a new tool; the manual is the
+// `scene-film` motion-vocab card, its description fit inside forge_motion's own pin by a trim.
+const PAYLOAD_CEILING = 180_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
