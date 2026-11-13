@@ -75,8 +75,9 @@ export function farShare(d, { near, radius }) {
   return 1 - Math.min(1, WIDEN * WIDEN * keep) * fade;
 }
 
-/** How a stage's lift speckles its two stops: the cell (m) and the share that takes the lower stop. */
-export const STAGE_LIFT = Object.freeze({ step: 1, fleck: 0.3, lower: 0.25 });
+/** A stage's lift: its grid's step (m); how it flecks its two stops (the cell, m, and the share that takes the lower
+ *  stop); the fall across a cell past which it is a cliff's face and carries no lift (m). */
+export const STAGE_LIFT = Object.freeze({ step: 1, fleck: 0.3, lower: 0.25, drop: 1.2 });
 
 // THE FORM GRASS ON A STAGE (opt-in: liveGrass.form; in the field's place): the form render's grass (channels/
 // form-grass.js: clumps placed once over the land, all of them near the eye, half from the thinning to the view cone's
@@ -128,6 +129,9 @@ ${viewConeScript(null)}${formGrassScript({ ramp: true })}
   for (let J = 0; J < NY - 1; J++) for (let I = 0; I < NX - 1; I++) {
     const a = J * NX + I, b = a + 1, d = a + NX, e = d + 1;
     if (Math.max(lift[a * 3 + 1], lift[b * 3 + 1], lift[d * 3 + 1], lift[e * 3 + 1]) < FLg.least) continue;
+    // (not down a cliff: a cell whose corners stand more than SL.drop apart is a face, not a meadow)
+    const za = pos[a * 3 + 2], zb = pos[b * 3 + 2], zd = pos[d * 3 + 2], ze = pos[e * 3 + 2];
+    if (Math.max(za, zb, zd, ze) - Math.min(za, zb, zd, ze) > SL.drop) continue;
     idx.push(a, b, e, a, e, d);
   }
   const LD = { value: new THREE.Vector2(1e6, 2e6) }, lower = (w) => Math.max(w[0], w[1] - 1);
