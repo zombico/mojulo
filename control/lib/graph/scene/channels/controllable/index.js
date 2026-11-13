@@ -73,9 +73,68 @@ function poolFigureBuffers(figures) {
 // all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
 // again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+// A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
+// the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
+// its normal and its face's row all the same), the places on a uint16 grid over the part's own box as a unit rig's are
+// (`q`, `o`, `s`, `idx`, `n`), the paint's places on one over their own range (`uq`, `uo`, `us`), the normals as signed
+// bytes (`nq`), and the face's rows (figures/morph-sparse.js) named by the welded corners. Read by __makeRigGroup's q
+// branch. What cannot be welded so (a face's rows not sparse, a count that does not agree) is returned as it came.
+const FULL_KEYS = ['uv', 'nrm', 'morph'], FULL_ONLY = ['corrective', 'tan', 'metal', 'q', 'spec', 'spec8'];
+function pageFullPart(rest) {
+  const raw = (str) => { const b = Buffer.from(str, 'base64'); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); };
+  const pos = new Float32Array(raw(rest.pos)), col = new Uint8Array(raw(rest.col)), nV = (pos.length / 3) | 0;
+  const uv = rest.uv ? new Float32Array(raw(rest.uv)) : null, nrm = rest.nrm ? new Float32Array(raw(rest.nrm)) : null, M = rest.morph || null;
+  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z)) return rest;
+  // each corner's face row (its unique row's number), or -1: two corners with different rows are never one
+  const rowOf = new Int32Array(nV).fill(-1);
+  let mI = null, mU = null;
+  if (M) {
+    mI = new Uint32Array(raw(M.i)); mU = M.z.wide ? new Uint32Array(raw(M.z.u)) : new Uint16Array(raw(M.z.u));
+    if (mI.length !== M.z.r || mU.length !== M.z.r) return rest;
+    for (let r = 0; r < mI.length; r++) { if (mI[r] >= nV) return rest; rowOf[mI[r]] = mU[r]; }
+  }
+  const box = (a, n, k) => { let lo = Infinity, hi = -Infinity; for (let i = k; i < a.length; i += n) { if (a[i] < lo) lo = a[i]; if (a[i] > hi) hi = a[i]; } return [lo, hi]; };
+  const grid = (lo, hi) => Number((((hi - lo) / 65535) || 0).toPrecision(8)), r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const pb = [0, 1, 2].map((k) => box(pos, 3, k)), o = pb.map((b) => r6(b[0])), sp = pb.map((b) => grid(b[0], b[1]));
+  const ub = uv ? [0, 1].map((k) => box(uv, 2, k)) : null, uo = ub ? ub.map((b) => r6(b[0])) : null, us = ub ? ub.map((b) => grid(b[0], b[1])) : null;
+  const qz = (v, lo, st) => { if (!st) return 0; const q = Math.round((v - lo) / st); return q <= 0 ? 0 : q >= 65535 ? 65535 : q; };
+  const n8 = (v) => { const q = Math.round(v * 127); return q < -127 ? -127 : q > 127 ? 127 : q; };
+  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [];
+  for (let i = 0; i < nV; i++) {
+    const a = [qz(pos[3 * i], o[0], sp[0]), qz(pos[3 * i + 1], o[1], sp[1]), qz(pos[3 * i + 2], o[2], sp[2]), col[3 * i], col[3 * i + 1], col[3 * i + 2]];
+    if (uv) a.push(qz(uv[2 * i], uo[0], us[0]), qz(uv[2 * i + 1], uo[1], us[1]));
+    if (nrm) a.push(n8(nrm[3 * i]), n8(nrm[3 * i + 1]), n8(nrm[3 * i + 2]));
+    a.push(rowOf[i]);
+    const key = a.join(',');
+    let u = seen.get(key);
+    if (u === undefined) {
+      u = seen.size; seen.set(key, u);
+      Q.push(a[0], a[1], a[2]); C.push(a[3], a[4], a[5]);
+      let k = 6; if (uv) { UQ.push(a[k], a[k + 1]); k += 2; } if (nrm) NQ.push(a[k], a[k + 1], a[k + 2]);
+      rows.push(rowOf[i]);
+    }
+    idx[i] = u;
+  }
+  const n = seen.size;
+  if (n > 65535 && !(idx instanceof Uint32Array)) return rest;
+  const b64 = (t) => Buffer.from(t.buffer, t.byteOffset, t.byteLength).toString('base64');
+  const { pos: _p, col: _c, uv: _u, nrm: _n, morph: _m, ...keep } = rest;
+  const out = { ...keep, full: 1, q: b64(Uint16Array.from(Q)), o, s: sp, n, idx: b64(n > 65535 ? Uint32Array.from(idx) : (idx instanceof Uint16Array ? idx : Uint16Array.from(idx))), col: b64(Uint8Array.from(C)) };
+  if (uv) Object.assign(out, { uq: b64(Uint16Array.from(UQ)), uo, us });
+  if (nrm) out.nq = b64(Int8Array.from(NQ));
+  if (M) {
+    const at = [], ur = [];
+    for (let u = 0; u < n; u++) if (rows[u] >= 0) { at.push(u); ur.push(rows[u]); }
+    out.morph = { i: b64(Uint32Array.from(at)), s: M.s, z: { ...M.z, r: at.length, u: b64(M.z.wide ? Uint32Array.from(ur) : Uint16Array.from(ur)) } };
+  }
+  return out;
+}
 function pagePart(p) {
   if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
   const { jnt: _j, wgt: _w, ...rest } = p;
+  // (a part that carries its paint's place, its normals or a face's rows and nothing else laid per corner: welded and
+  // on a grid as well, pageFullPart below; one with a corrective, a tangent, a metal or a specular stays as it came)
+  if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest);
   if (typeof rest.pos !== 'string' || typeof rest.col !== 'string' || PER_CORNER.some((k) => rest[k] !== undefined)) return rest;
   const buf = (s) => Buffer.from(s, 'base64');
   const P = buf(rest.pos), C = buf(rest.col);
@@ -796,7 +855,7 @@ function __updateGearLines() {
   // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
-  const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && (p.uv || p.uq)));
   // a SKINNED body (the mount, lib/graph/mount/game.js: one welded skin, `skin` and its parts' joints and weights): its bones
   // drive ONE skinned mesh (a rigid part a bone would tear the skin at every joint). None ⇒ not a byte of it
   const figHasSkin = Object.values(figures || {}).some((f) => f && f.rig && f.skin === true && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt));
@@ -1397,11 +1456,11 @@ function __castMR(fig, c, n) {
     // rig-part colour is packed as normalized uint8 (rig-bake b64u8, 4× smaller than float32) →
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasPaint ? `
-    const map = fig.paintTex && part.uv && !part.q ? __rigTex(fig) : null;
-    if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}${figHasFace ? `
-    if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `
+    const map = fig.paintTex && ((part.uv && !part.q) || part.uq) ? __rigTex(fig) : null;
+    if (map) { if (part.uq) { const u = __decodeU16(part.uq), f = new Float32Array(u.length); for (let i = 0; i < u.length; i += 2) { f[i] = part.uo[0] + u[i] * part.us[0]; f[i + 1] = part.uo[1] + u[i + 1] * part.us[1]; } geo.setAttribute('uv', new THREE.BufferAttribute(f, 2)); } else geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2)); }` : ''}${figHasFace ? `
+    if (fig.face && part.morph && (!part.q || part.full)) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
-    if (fig.cast) { if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
+    if (fig.cast) { if (part.nq) geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(decodeU8(part.nq).buffer), 3, true)); else if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
     geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `

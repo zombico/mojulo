@@ -174,3 +174,9 @@
   realistic hero's face goes from 36 MB to 2.5 MB. The page's two players read it (`__mz`); an export keeps its floats.
   The lit read's face rows, which came as an export's floats, are written the page's way too: the facility's page with
   a realistic hero goes from 129 MB to 59 MB, 25 MB packed in parts.
+- A realistic hero's geometry as the page reads it (`pageFigures`, `full: 1`): a part that carries its paint's place,
+  its normals or a face's rows was a corner a triangle, every number a float32; it is now welded (the corners that are
+  the same corner are one), its places and its paint's places on 16-bit grids over their own range, its normals signed
+  bytes, and its face's rows named by the welded corners. A part with an engine's tangent, corrective or metal stays as
+  it came. The facility's page with a realistic hero goes from 59 MB to 48 MB, 22.7 MB packed in parts; the hero itself
+  from about 21 MB to about 10 MB.
