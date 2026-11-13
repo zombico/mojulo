@@ -54,14 +54,6 @@ export const STILL_FIELD = Object.freeze({ spread: Object.freeze({ tall: 1, medi
  *  mode a tile the cone's frustum does not see is not drawn. `window.__formGrassView('aerial' | 'pov')` sets it; V toggles it on a walkable
  *  page. */
 export const POV_GRASS = Object.freeze({ thin: 0.42, keep: 0.5, strands: Object.freeze({ height: Object.freeze([0.55, 1]) }) });
-/** THE GRASS LINES (POV): past the reach, where no blade is drawn, a `share` of the clumps stand again where the eye
- *  reads the land's layers: on a CREST (the ground behind a clump, `look` m further from the eye, falls below the line
- *  of sight to it by `crest` radians: the horizon's line and every ridge's before it). Out to `reach` × the cone's reach,
- *  from `from` of it; each LOW (`low` × its height: a line hugging the crest, never a plant standing off it) and spread
- *  sideways (`widen` per reach of distance) so neighbours run together as one edge, and
- *  standing on the far lift where there is one, `sink` m into it. Solved from the camera each frame, whatever camera
- *  that is. Between `thin` of the reach and the reach itself POV_GRASS.keep of the clumps stand. */
-export const GRASS_LINE = Object.freeze({ share: 0.35, reach: 3, from: 0.8, widen: 1.5, low: 0.65, crest: Object.freeze([0.0003, 0.003]), look: Object.freeze([1, 2.5, 5]), sink: 0.1 });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });
@@ -148,7 +140,7 @@ export function formGrassScript() {
     // (the FIELD: every tuft and every drift plant placed once, over the whole map: the sward's lengths and seams, the
     // cover, the claims, the trail; nothing that follows the eye)
     (function () {
-      const SF = ${JSON.stringify(STILL_FIELD)}, PG = ${JSON.stringify(POV_GRASS)}, LN = ${JSON.stringify(GRASS_LINE)}, GH = ${JSON.stringify(GRASS_HEIGHT)}, [nx, ny] = Gm.size, cAt = (i, j) => (Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))) * 4;
+      const SF = ${JSON.stringify(STILL_FIELD)}, PG = ${JSON.stringify(POV_GRASS)}, GH = ${JSON.stringify(GRASS_HEIGHT)}, [nx, ny] = Gm.size, cAt = (i, j) => (Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))) * 4;
       const zT = (q) => Gm.z[0] + ((gpx[q] * 256 + gpx[q + 1]) / 65535) * Gm.z[1], dpx = Dr ? bytes(Dr.px) : null;
       const zAt = (x, y) => { const u = (x - Gm.origin[0]) / Gm.cell, v = (y - Gm.origin[1]) / Gm.cell, i = Math.floor(u), j = Math.floor(v), f = u - i, g = v - j;
         return (zT(cAt(i, j)) * (1 - f) + zT(cAt(i + 1, j)) * f) * (1 - g) + (zT(cAt(i, j + 1)) * (1 - f) + zT(cAt(i + 1, j + 1)) * f) * g; };
@@ -179,40 +171,27 @@ export function formGrassScript() {
         fn(x, y, { cov: covAt(x, y), sw: gpx[q + 3] / 255, dr: dpx ? [dpx[q], dpx[q + 1], dpx[q + 2], dpx[q + 3]].map((v) => v / 255) : [0, 0, 0, 0] }, (a, b) => hb(i * a + salt, j * b)); } };
       // (a stand: a shape instanced at its rows, each row its root and height, its turn and its tone; in tiles of SF.tile m,
       // each its own mesh round its rows, so what is behind the eye is not drawn: the same field, only culled)
-      const KEEP = Math.fround(PG.keep), SHARE = Math.fround(LN.share);
-      const stand = (tg, R, mat, kind = 'grass', lines = false) => {
+      const KEEP = Math.fround(PG.keep);
+      const stand = (tg, R, mat, kind = 'grass') => {
         const by = new Map(); for (let r = 0; r < R.length; r += 6) { const k = Math.floor(R[r] / SF.tile) + ',' + Math.floor(R[r + 1] / SF.tile); let L = by.get(k); if (!L) by.set(k, (L = [])); for (let c = 0; c < 6; c++) L.push(R[r + c]); }
         tg.computeBoundingBox(); const top = tg.boundingBox.max.z;
         by.forEach((L0) => {
-          // (a tile's rows in the order of their dice, so a tile past the thinning draws its first rows only: those kept,
-          // or the lines' share)
+          // (a tile's rows in the order of their dice, so a tile past the thinning draws its first rows only: those kept)
           const nR = L0.length / 6, ord = Array.from({ length: nR }, (_, i) => i).sort((a, b) => L0[a * 6 + 5] - L0[b * 6 + 5]), L = new Float32Array(L0.length);
           ord.forEach((o, i) => { for (let c = 0; c < 6; c++) L[i * 6 + c] = L0[o * 6 + c]; });
-          let half = 0, line = 0; for (let i = 0; i < nR; i++) { if (L[i * 6 + 5] < KEEP) half++; if (L[i * 6 + 5] < SHARE) line++; }
+          let half = 0; for (let i = 0; i < nR; i++) if (L[i * 6 + 5] < KEEP) half++;
           const g = new THREE.InstancedBufferGeometry(); g.setIndex(tg.index); for (const nm in tg.attributes) g.setAttribute(nm, tg.attributes[nm]);
           const IB = new THREE.InstancedInterleavedBuffer(L, 6, 1);
           g.setAttribute('aRoot', new THREE.InterleavedBufferAttribute(IB, 4, 0)); g.setAttribute('aTurn', new THREE.InterleavedBufferAttribute(IB, 2, 4)); g.instanceCount = L.length / 6;
           const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9]; for (let r = 0; r < L.length; r += 6) for (let c = 0; c < 3; c++) { lo[c] = Math.min(lo[c], L[r + c]); hi[c] = Math.max(hi[c], L[r + c] + (c === 2 ? top * L[r + 3] + 1 : 1)); }
           g.boundingSphere = new THREE.Box3(new THREE.Vector3(lo[0] - 1, lo[1] - 1, lo[2] - 1), new THREE.Vector3(...hi)).getBoundingSphere(new THREE.Sphere());
-          const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); __formMeshes.push(m); TILES.push({ m, s: g.boundingSphere, kind, g, n: nR, half, line: lines ? line : 0 });
+          const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); __formMeshes.push(m); TILES.push({ m, s: g.boundingSphere, kind, g, n: nR, half });
         });
         return R.length / 6; };
       // (a plant's height as the mode has it: in POV gone past its own distance, short of R, the further the more gone)
       const ROOT = 'uniform float uPovR;\\nattribute vec4 aRoot;\\nattribute vec2 aTurn;\\n';
       const POVH = 'float dP = length( aRoot.xy - cameraPosition.xy ), rP = fract( aTurn.y * 7.31 + aTurn.x * 1.37 ), kP = aTurn.y >= ' + PG.keep.toFixed(3) + ' ? uPovR * ' + PG.thin.toFixed(2) + ' * mix( 0.85, 1.0, rP ) : mix( uPovR * ' + PG.thin.toFixed(2) + ', uPovR, sqrt( rP ) ), hP = aRoot.w * ( 1.0 - smoothstep( kP - 0.6, kP, dP ) );';
-      // (the grass lines, GRASS_LINE: a share of the clumps standing again past the reach, on a crest as this camera sees it; uLine: the far lift's height for this sward, and where it rises)
-      const LU = GTIERS.map(() => ({ value: new THREE.Vector3(0, 0.9, 0.35) })), f3 = (v) => v.toFixed(4);
-      const LINE_HEAD = 'uniform vec3 uLine;\\nfloat lnCov( vec2 p ) { return texture2D( tGrass, ( p - uGO ) / uGM ).b; }\\n'
-        + 'float lnZ( vec2 p, float ramp ) { vec4 g = texture2D( tGrass, ( p - uGO ) / uGM ); return uGZ.x + ( ( g.r * 65280.0 + g.g * 255.0 ) / 65535.0 ) * uGZ.y + uLine.x * ramp * smoothstep( 0.3, 0.5, g.b ); }\\n';
-      const lnE = (m) => '( lnZ( aRoot.xy + dir * ' + f3(m) + ', ramp ) - cameraPosition.z ) / ( dP + ' + f3(m) + ' )';
-      const LINEH = ['float lnS = 1.0, lnUp = 0.0;',
-        'if ( aTurn.y < ' + f3(LN.share) + ' && uPovR < 1e5 ) { float dn = dP / uPovR; if ( dn > ' + f3(LN.from) + ' && dn < ' + f3(LN.reach) + ' ) {',
-        '  vec2 dir = ( aRoot.xy - cameraPosition.xy ) / max( dP, 1e-3 ); float r0 = uPovR * uLine.y, ramp = smoothstep( r0, r0 + uPovR * uLine.z, dP );',
-        '  float e0 = ( lnZ( aRoot.xy, ramp ) - cameraPosition.z ) / dP, eb = max( max( ' + lnE(LN.look[0]) + ', ' + lnE(LN.look[1]) + ' ), ' + lnE(LN.look[2]) + ' );',
-        '  float w = smoothstep( ' + f3(LN.crest[0]) + ', ' + f3(LN.crest[1]) + ', e0 - eb ) * smoothstep( ' + f3(LN.from) + ', 1.0, dn ) * ( 1.0 - smoothstep( ' + f3(LN.reach * 0.85) + ', ' + f3(LN.reach) + ', dn ) );',
-        '  hP = max( hP, aRoot.w * w * ' + f3(LN.low) + ' ); lnS = 1.0 + ' + f3(LN.widen) + ' * max( 0.0, dn - 1.0 ) * w;',
-        '  lnUp = max( 0.0, uLine.x * ramp * smoothstep( 0.3, 0.5, lnCov( aRoot.xy ) ) - ' + f3(LN.sink) + ' ) * w; } }'].join('\\n');
-      const PLACE = 'vec3 transformed = vec3( aRoot.xy + rotG * position.xy * lnS * step( 0.001, hP ), aRoot.z + lnUp + position.z * hP ) + fgBend( aRoot.xy, hP, clamp( position.z, 0.0, 1.0 ), aTurn.x * 2.1 + aTurn.y );';
+      const PLACE = 'vec3 transformed = vec3( aRoot.xy + rotG * position.xy * step( 0.001, hP ), aRoot.z + position.z * hP ) + fgBend( aRoot.xy, hP, clamp( position.z, 0.0, 1.0 ), aTurn.x * 2.1 + aTurn.y );';
       // the grass: each length's clump where the sward is that length, fewer and lower where the cover thins, shrinking
       // toward a seam with another length, none where a standing drift has the ground
       GTIERS.forEach((T, ti) => {
@@ -226,10 +205,10 @@ export function formGrassScript() {
         });
         const bm = new THREE.MeshStandardMaterial({ color: grassCol, roughness: 0.75, metalness: 0, side: THREE.DoubleSide });
         bm.onBeforeCompile = (sh) => {
-          Object.assign(sh.uniforms, GU, PV, { uShort: { value: T.sward === 'short' ? 1 : 0 }, uLine: LU[ti] });
-          sh.vertexShader = GHEAD + windHead(sh) + ROOT + LINE_HEAD + 'attribute float bt;\\nvarying float vBt;\\nvarying float vTone;\\n' + sh.vertexShader
+          Object.assign(sh.uniforms, GU, PV, { uShort: { value: T.sward === 'short' ? 1 : 0 } });
+          sh.vertexShader = GHEAD + windHead(sh) + ROOT + 'attribute float bt;\\nvarying float vBt;\\nvarying float vTone;\\n' + sh.vertexShader
             .replace('#include <beginnormal_vertex>', [
-              POVH, LINEH,
+              POVH,
               // (a short clump turned away from the trail, by the mask's slope, a little off, so the eye on the trail meets
               // its faces; a tall one any way)
               'float pd = pdAt( aRoot.xy );',
@@ -244,7 +223,7 @@ export function formGrassScript() {
             .replace('#include <color_fragment>', '#include <color_fragment>\\n  float dk = step( 1.5, vBt );\\n  diffuseColor.rgb *= mix( 0.45, 1.1, vBt - 2.0 * dk ) * vTone * mix( 1.0, ' + TWIN.shade.toFixed(3) + ', dk );');
         };
         bm.customProgramCacheKey = () => 'form-grass-' + T.id + (windU() ? '-wind' : '');
-        window.__formGrass = (window.__formGrass || 0) + stand(tg, R, bm, 'grass', true) * tg.index.count / 3;
+        window.__formGrass = (window.__formGrass || 0) + stand(tg, R, bm) * tg.index.count / 3;
       });
       // (a plant's material: a drift's or a weed's, its own colours, lit as one, bending in the wind)
       const plantMat = () => {
@@ -345,11 +324,9 @@ export function formGrassScript() {
         if (!cam.isPerspectiveCamera) return;
         const pov = view === 'pov', RP = CONE.reach, cx = CONE.eye.x, cy = CONE.eye.y;
         PV.uPovR.value = pov ? RP : 1e6;
-        // (the far lift under the lines, when the page has one and it is on)
-        const FL = window.__formFarLift; LU.forEach((u, i) => u.value.set(FL && FL.on ? FL.heights[i] : 0, FL ? FL.from : 0.9, FL ? FL.full - FL.from : 0.35));
-        // (a tile draws all its rows inside the thinning, those kept out to the reach, the lines' share past it)
+        // (a tile draws all its rows inside the thinning, those kept out to the reach, none past it)
         for (const T of TILES) { const near = Math.hypot(T.s.center.x - cx, T.s.center.y - cy) - T.s.radius;
-          const c = !pov || near < RP * PG.thin ? T.n : near < RP ? T.half : near < RP * LN.reach ? T.line : 0;
+          const c = !pov || near < RP * PG.thin ? T.n : near < RP ? T.half : 0;
           T.g.instanceCount = c; T.m.visible = c > 0 && CONE.sees(T.s); }
       };
     })();

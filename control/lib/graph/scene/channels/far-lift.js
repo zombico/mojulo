@@ -79,7 +79,7 @@ export function farLiftScript(lift) {
       const C = window.__mojCone; if (!C || !cam.isPerspectiveCamera) return;
       const live = C.reach < 1e5; LR.value = live ? C.reach * FLT.from / FLT.blend : 1e6; LD.value.set(live ? C.reach * FLT.from : 1e6, live ? C.reach * FLT.full : 2e6);
     };
-    window.__formFarLift = { meshes: meshes.length, heights: ${JSON.stringify(FAR_LIFT_HEIGHTS)}, from: ${FAR_LIFT.from}, full: ${FAR_LIFT.full}, get on() { return on; }, set: (v) => { on = !!v; meshes.forEach((l) => { l.visible = on; }); return on; } };
+    window.__formFarLift = { meshes: meshes.length, get on() { return on; }, set: (v) => { on = !!v; meshes.forEach((l) => { l.visible = on; }); return on; } };
     window.addEventListener('keydown', (e) => { if (e.key === 'b' || e.key === 'B') console.log('far lift', window.__formFarLift.set(!on)); });
   })();
 `;

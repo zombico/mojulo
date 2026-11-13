@@ -207,3 +207,6 @@
   the ground there as a steep side of the same triangles and material, drawn where no grass is mapped too (the
   grass's own colour), so it is closed all round; the side's lower part fills in with the seam's stipple. Not yet seen
   drawn.
+- The grass lines are removed: past the reach the far lift alone stands for the grass, one switch between real blades
+  and the lift. The halved clumps between the thinning and the reach, and a tile drawing only the rows that can stand,
+  stay.
