@@ -50,7 +50,8 @@ import { mascotPilot } from '../egocube/mascot-pilot.js';
 import { practiceLegend } from './practice-mana.js';
 
 // (each action named by the key the pilot scheme binds it to: controls/schemes.js, through practice-mana.js)
-export const WORK_LEGEND = practiceLegend([[['moveForward', 'turnLeft', 'moveBack', 'turnRight'], 'move (up the screen)'], ['interact', 'take, work, put down, hand in (stand at a station to work it; walk off and it waits)'], ['boost', 'sprint'], ['pause', 'the room']]);
+// (the screen says only where the menu is; the keys and the work are its How to play: practice-mana.js)
+export const WORK_LEGEND = practiceLegend([['pause', 'menu']]);
 // the space: a pale plane, its rules, the room's low wall; the line in the mechanic's verb colours, the rest neutral
 const FILL = { ...WORK_COLORS, plane: '#ece6db', rule: '#d9d0c1', wall: '#ddd5c8', deck: '#d3c9b9', ladder: '#9b7b56', joint: '#6f5638', bg: '#f4f0e8' };
 export const WORK_CASTS = Object.freeze(Object.keys(FORM_MEASURES));

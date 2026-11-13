@@ -817,7 +817,10 @@ mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by 
   clocks frozen), and it answers with its live control rows, which the controls screen lists. The foes are woken on the
   shell's AI switch (`MSG_AI`), the path the pilot's own `aiToggle` takes. It opens as the page loads, as the room's
   briefing, over the held room.
-- **The screens:** `pause-menu` (resume, the room, set up, controls); the room, its readout in tabs; set up, the
+- **The screen keeps to the game.** What the page once explained on the screen (the keys, how the work runs, how to
+  read the floor) is the menu's How to play, a tutorial in tabs, each key a `prompt` in the glyph of the device in hand.
+  In play, the screen shows the counters, the use prompt and one chip in the corner that names the menu's key.
+- **The screens:** `pause-menu` (resume, how to play, the room, set up, controls); the room, its readout in tabs; set up, the
   movement, the worker, the dress and the area as cyclers and the foes as a switch, the room reopened with them (the
   studio's query, so a page saved to disk says it cannot); controls.
 - **The hint line** at the page's foot names each action by the key the scheme binds it to (`practiceLegend`).

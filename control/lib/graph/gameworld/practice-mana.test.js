@@ -18,7 +18,7 @@ describe('the practice menu', () => {
   it('is a spec mana-ui reads, its screens the pause, the room, set up and controls', () => {
     const S = practiceManaSpec();
     expect(() => manaUi.readSpec(S)).not.toThrow();
-    expect(Object.keys(S.screens).sort()).toEqual(['about', 'controls', 'pause', 'setup']);
+    expect(Object.keys(S.screens).sort()).toEqual(['about', 'controls', 'how', 'pause', 'setup']);
   });
   it('opens on the pilot scheme\'s pause, on the keys and the pad, never a key of its own', () => {
     const { open } = practiceMana({ title: 't' }), K = buildControlsKernel();
@@ -27,15 +27,20 @@ describe('the practice menu', () => {
     for (const c of open.keys) expect(K.codeMap(B, 'keyboard')[c]).toBe('pause');
     expect(open.pad).toEqual(B.bind.gamepad.pause.map((b) => DEVICES.gamepad.buttons[b]));
   });
-  it('names each action by the key the scheme binds it to, on the rooms\' hint lines too', () => {
+  it('names each action by the key the scheme binds it to; the rooms\' hint line is only the menu\'s key', () => {
     const g = manaGlyphs().keys;
     expect(practiceLegend([['pause', 'the room']])).toBe(`${g.pause}  the room`);
-    for (const line of [WORK_LEGEND, ROOM_LEGEND]) { expect(line).toContain(`${g.pause}  the room`); expect(line).not.toMatch(/HUD|Shift\+F/); }
-    expect(ROOM_LEGEND).toContain(`${g.aiToggle}  foes`);
+    // the screen says only where the menu is: the keys and the work are its How to play
+    for (const line of [WORK_LEGEND, ROOM_LEGEND]) expect(line).toBe(`${g.pause}  menu`);
   });
   it('holds the choices as names and sends them back as ids; without the studio\'s query, set up says it cannot', () => {
     const C = practiceMana({ title: 't', choices: [choice], foes: true, query: { book: 'practice', room: 'work' } });
     expect(C.state.pr.pick.feel).toBe('B');
+    expect(C.state.pr.menu.some((m) => m.then.open === 'how')).toBe(false);
+    const H = practiceMana({ title: 't', how: [{ label: 'Moving', lines: [{ action: 'interact', text: 'use' }, 'words alone'] }] }).state.pr;
+    expect(H.menu[1].then).toEqual({ open: 'how' });
+    // a key's line is drawn as a prompt (the glyph of the device in hand), words alone as words
+    expect(H.how[0].lines).toEqual([{ action: 'interact', text: 'use', key: true }, { text: 'words alone' }]);
     expect(C.ids.feel).toEqual({ A: 'a', B: 'b' });
     expect(C.state.pr.fields.map((f) => f.kind)).toEqual(['cycler', 'toggle']);
     expect(C.state.pr.fixed).toBe(false);

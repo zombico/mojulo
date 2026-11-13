@@ -48,7 +48,8 @@ import { readArea, buildArea, raiseWalls, planeFaces, AREAS } from '../gameroom/
 import { practiceLegend } from './practice-mana.js';
 import { workMascot, workOf, everydayFeel, flowchart, flat, areaOut, OVERHEAD, WORK_CASTS, WORK_CAST } from './work-room.js';
 
-export const ROOM_LEGEND = practiceLegend([[['moveForward', 'turnLeft', 'moveBack', 'turnRight'], 'move'], ['mouse', 'look'], ['jump', 'jump'], ['interact', 'use'], ['boost', 'sprint'], ['aiToggle', 'foes'], ['pause', 'the room']]);
+// (the screen says only where the menu is; the keys are its How to play: practice-mana.js)
+export const ROOM_LEGEND = practiceLegend([['pause', 'menu']]);
 const PLANE = { plane: '#ece6db', rule: '#d9d0c1', wall: '#ddd5c8', bg: '#f4f0e8' };
 // the chase in the room: farther and higher than a body's own, the room being what is looked at (the player turns it)
 const ORBIT = Object.freeze({ steer: 'orbit', mouseLook: true, dist: 9, height: 4.5, lookH: 0.8 });

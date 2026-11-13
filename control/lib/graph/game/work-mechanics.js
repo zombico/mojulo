@@ -8,7 +8,7 @@
  *              and E resumes it, the degree of done the worker left it at); a station with a wait then runs alone, and
  *              what it made keeps its hold on the station before it burns; E takes it off. A station with no wait puts
  *              what it made in the hands, or leaves it on the station when they are full. A shovel and a bucket lower the
- *              same: the verb is what the work is, said in its prompt and its colour
+ *              same: the verb is what the work is, said in its colour
  *   orders     the card's demand, rolled once (worksim/sim.js arrivalsOf: the orders the solver measured), each into its
  *              ticket slot at the hand-in (given when rolled; turned away if that slot still holds one), waiting its
  *              patience before it walks out; E at the hand-in serves one ticket whose wants are all in the bag
@@ -268,7 +268,7 @@ export function lowerWork(p, ctx) {
     const id = `${W}-shelf-${item}`, at = shelfAt(item), cap = C.items[item].store === Infinity ? SHELF : C.items[item].store, here = heldVar(id, item), mine = heldVar(BAG, item);
     const [pin, pout] = shelfPads(at, heading);
     F.vars[mine] ??= 0;
-    zone(`${id}-put`, pin, `put down ${words(item)} (holds ${cap})`, Math.min(0.6, reach));
+    zone(`${id}-put`, pin, `put down ${words(item)}`, Math.min(0.6, reach));   // (how many it holds its pips show)
     zone(`${id}-take`, pout, `take ${words(item)}`, Math.min(0.6, reach));
     mark(`${id}-board`, at, COLOR.shelf, 0, true, 0.5);
     if (show) showShelf(id, at, item, cap);
@@ -294,7 +294,8 @@ export function lowerWork(p, ctx) {
       const id = `${W}-${sid}-${k}`, use = `use-${id}`, P = `${I}:${sid}:${k}`, Pp = `${P}:p`, Pw = `${P}:w`, Ph = `${P}:h`;
       const busy = `${id}-busy`, ready = `${id}-ready`;
       Object.assign(F.vars, { [P]: 0, [Pp]: 0, [Pw]: 0, [Ph]: 0 });
-      zone(id, at, `${words(sid)}: ${Object.keys(st.takes).length ? `${pieces(st.takes)} → ` : ''}${st.batch > 1 ? `${st.batch} ` : ''}${words(st.item)} (${st.verb})`);
+      // (the verb is said by the station's colour, not its prompt)
+      zone(id, at, `${words(sid)}: ${Object.keys(st.takes).length ? `${pieces(st.takes)} → ` : ''}${st.batch > 1 ? `${st.batch} ` : ''}${words(st.item)}`);
       mark(`${id}-base`, at, COLOR[st.verb], 0, true, 0.6);
       // (with the work shown, the pips say busy and ready: the two markers are not laid)
       if (!show) { mark(busy, at, COLOR.busy, 0.8, false, 0.25); mark(ready, at, COLOR.ready, 0.8, false, 0.3); }

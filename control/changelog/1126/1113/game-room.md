@@ -70,6 +70,10 @@ roguelike's rooms: one seeded, editable composition. Design notes: [docs/game-ro
     and each trade's own tint (the kitchen's tomato and the awning's stripes, the farm's stitched feed-sack, the site's
     hazard yellow and stripe). The HUD's counters, its hint line and the use prompt wear it too. Every card's words read
     on its focus and its tabs (the contrast advice measured).
+  - **The screen keeps to the game.** The explaining moved off it into the menu's How to play, a tutorial in tabs
+    (the goal, moving, the work, the floor; for a fight, moving, the foes, the room). Each key is drawn as a cap in the
+    glyph of the device in hand. In play, the screen shows the counters, the use prompt and one "Esc menu" chip in the
+    corner. The prompts lose their tags: the station's verb is said by its colour, and a shelf's count by its pips.
   In headless Chromium, the shift's clock held at 240 through the briefing and ran once resumed. Esc reopened the menu,
   and set up reopened the room with the movement and the area picked.
 - Played in headless Chromium: a sword fighter's hall (28 m, two decks, pillars, low cover, three foes) and a shift's

@@ -7,14 +7,17 @@
  * its clocks frozen, the live control rows answered), and the foes are woken on the shell's AI switch (MSG_AI, the
  * path the pilot's own `aiToggle` takes).
  *
- *   the screens  pause (resume, the room, set up, controls: mana-ui's pause-menu), the room (its readout in tabs: the
- *                shift or the brief, how to read it, what was measured, the laws), set up (the movement, the worker,
+ *   the screens  pause (resume, how to play, the room, set up, controls: mana-ui's pause-menu), how to play (the
+ *                tutorial in tabs: the goal, the keys, the work, the floor: what the page no longer says on the screen),
+ *                the room (its readout in tabs: the shift or the brief, what was measured, the laws, the place), set up (the movement, the worker,
  *                the dress and the area as cyclers, the foes as a switch; the room reopened with them), controls (the
  *                live rows the scene answers with: only the controls this world answers to)
  *   the brief    open as the page loads, over the held room: the danger room's briefing; resume plays
  *
  *   practiceManaSpec({ foes? }) → the spec (validated by mana-ui's readSpec)
- *   practiceMana({ title, about, choices, foes?, query? }) → cfg: { spec, glyphs, controls, open, state, query }
+ *   practiceMana({ title, how?, about, choices, foes?, query? }) → cfg: { spec, glyphs, controls, open, state, query }
+ *     how      [{ label, lines: [text | { action | glyph, text }] }]   the tutorial's tabs (a key line a prompt: the
+ *              glyph of the device in hand)
  *     about    [{ label, lines: [text] }]   the readout's tabs
  *     choices  [{ id: 'feel' | 'cast' | 'dress' | 'area', label, options: [{ id, name }], now: id }]
  *     foes     true where the room has foes to wake (a switch, still at first)
@@ -25,6 +28,7 @@
  *            (playscape/ui/theme-cards/shift-*.json), drawn on the menu and on the play around it (playCss)
  *   playCss(theme) → the HUD's counters, its hint line, the use prompt and the page's margin in the theme's look
  *   practiceLegend(words) → the hint bar's line, each action named by its key as the pilot scheme binds it
+ *   keyOf(action | [actions]) → an action's key as the pilot scheme binds it
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme, FACE_STACKS } from '../../mana-ui/index.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
@@ -39,23 +43,35 @@ const I = (f) => ({ item: f });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
 
-/** The hint bar's line: [action, what it does] pairs, each action named by the key the pilot scheme binds it to. */
-export function practiceLegend(words) {
+/** An action's key as the pilot scheme binds it (a list: the keys joined, W A S D); a word no action owns as itself. */
+export function keyOf(a) {
   const g = manaGlyphs().keys;
-  return words.map(([a, what]) => `${Array.isArray(a) ? a.map((x) => g[x] ?? x).join(' ') : g[a] ?? a}  ${what}`).join(' · ');
+  return Array.isArray(a) ? a.map((x) => g[x] ?? x).join(' ') : g[a] ?? a;
+}
+/** The hint bar's line: [action, what it does] pairs, each action named by its key. */
+export function practiceLegend(words) {
+  return words.map(([a, what]) => `${keyOf(a)}  ${what}`).join(' · ');
 }
 
 /** The menu's screens (see the header). */
 export function practiceManaSpec({ foes = false } = {}) {
   const screens = {
     pause: { use: 'pause-menu', props: { title: B('title'), items: B('menu') } },
+    // how to play: the tutorial, the keys and the work in a few lines a tab (what the page used to say on the screen)
+    how: { use: 'screen', props: { title: 'How to play', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
+      // (a line with a key is a prompt: the key of the device in hand, a cap, beside what it does)
+      { use: 'tabs', props: { pages: B('how'), page: { use: 'each', props: { rows: I('lines'), row: { use: 'stack', children: [
+        { use: 'prompt', props: { action: I('action'), glyph: I('glyph'), label: I('text') }, when: I('key') },
+        { use: 'text', props: { value: I('text') }, unless: I('key') },
+      ] } } } } },
+      back,
+    ] }] }] },
     about: { use: 'screen', props: { title: 'The room', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'tabs', props: { pages: B('about'), page: { use: 'each', props: { rows: I('lines'), row: txt(I('text')) } } } },
       back,
     ] }] }] },
     setup: { use: 'screen', props: { title: 'Set up', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'each', props: { rows: B('fields'), row: { use: 'field', props: { kind: I('kind'), label: I('label'), value: { bind: I('var') }, options: I('options') } } } },
-      txt(B('note'), 'caption'),
       { use: 'stack', props: { dir: 'row' }, children: [
         { use: 'button', props: { label: 'Reopen the room', disabled: B('fixed'), why: B('why') }, on: { accept: { emit: 'practice:apply' } } },
         back,
@@ -81,15 +97,18 @@ function openControls() {
   return { keys, pad };
 }
 
+// a tab's lines: words, or { action | glyph, text } (a key and what it does, drawn as a prompt)
+const tabs = (list) => list.map((t) => ({ label: t.label, lines: t.lines.map((l) => (typeof l === 'string' ? { text: l } : { ...l, key: true })) }));
+
 /** The menu's config for the page (see the header). */
-export function practiceMana({ title, about = [], choices = [], foes = false, query = null, theme = 'greybox' } = {}) {
+export function practiceMana({ title, how = [], about = [], choices = [], foes = false, query = null, theme = 'greybox' } = {}) {
   const fields = choices.map((c) => ({ kind: 'cycler', label: c.label, var: `pr.pick.${c.id}`, options: c.options.map((o) => o.name) }));
   if (foes) fields.push({ kind: 'toggle', label: 'Foes awake', var: 'pr.foes' });
   const state = { pr: {
-    title, about: about.map((t) => ({ label: t.label, lines: t.lines.map((text) => ({ text })) })),
-    menu: [{ label: 'Resume', then: { close: true } }, { label: 'The room', then: { open: 'about' } }, { label: 'Set up', then: { open: 'setup' } }, { label: 'Controls', then: { open: 'controls' } }],
+    title, how: tabs(how), about: tabs(about),
+    menu: [{ label: 'Resume', then: { close: true } }, ...(how.length ? [{ label: 'How to play', then: { open: 'how' } }] : []), { label: 'The room', then: { open: 'about' } }, { label: 'Set up', then: { open: 'setup' } }, { label: 'Controls', then: { open: 'controls' } }],
     fields, pick: Object.fromEntries(choices.map((c) => [c.id, (c.options.find((o) => o.id === c.now) ?? c.options[0])?.name ?? ''])), foes: 0, controls: [],
-    note: query ? 'the room is made again with what is chosen' : '', fixed: !query, why: query ? '' : 'this page was saved from the studio: open it there to choose again',
+    fixed: !query, why: query ? '' : 'this page was saved from the studio: open it there to choose again',
   } };
   const C = manaControls();
   const ids = Object.fromEntries(choices.map((c) => [c.id, Object.fromEntries(c.options.map((o) => [o.name, o.id]))]));
@@ -115,6 +134,8 @@ export function playCss(theme) {
     `.moj-w-counter .moj-val{font-family:${disp};color:${k.ink}}.moj-w-counter .moj-lbl{opacity:.75;letter-spacing:1.5px}`,
     `.moj-w-bar .moj-track{background:rgba(0,0,0,.08);border:2px solid ${k.line};height:10px}.moj-w-bar .moj-fill{background:${k.accent2}}`,
     `.moj-w-text{font-size:13px;font-weight:600;box-shadow:none;border-width:2px}`,
+    // (the hint, now only the menu's key, in the corner: the bottom's middle is the hero's gauge and the use prompt)
+    '.moj-hud-bottom{left:auto;right:16px;transform:none;align-items:flex-end}',
     `.moj-reach{background:${k.panel};color:${k.ink};border:${w}px solid ${k.line};border-radius:${r}px;box-shadow:${slab};font:700 15px ${face};padding:7px 14px;${cut}}`,
     `.moj-reach b{background:${k.ink};color:${k.panel};border:0;border-radius:${Math.min(r, 6)}px;padding:1px 7px}`,
   ].join('\n');
