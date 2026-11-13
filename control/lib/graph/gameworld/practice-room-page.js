@@ -296,13 +296,21 @@ export async function rollRoomHtml(G, { refs = {}, cast = 'male', sound = 'reali
   const payload = await resolved(room.manifest, `${G.id ?? 'game'}-roll-room`);
   const measured = rollRoomMeasured(G);
   let html = await emitted(payload, cdn);
-  const M = { seeds: measured.seeds, ways: measured.ways, distinct: measured.distinct, lost: measured.lost, worst: measured.worst ?? [], stops: measured.forms.stops, passed: measured.forms.passed, forms: FORMS.map((f) => [f.form, f.height]) };
-  const HUD = `<style>#rl{position:fixed;top:52px;left:10px;width:360px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#rl b{color:#fff}#rl .k{color:#9aa0a8}#rl h4{margin:6px 0 2px;font-size:11px;color:#9aa0a8;font-weight:400;text-transform:uppercase;letter-spacing:.06em}#rl .ok{color:#8fd694}#rl .bad{color:#f08a7c}</style>
-<div id="rl"><b>Roll room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><h4>this roll</h4><div id="rl-r" class="k">rolling…</div><h4>measured before any level (a machine gate)</h4><div id="rl-m"></div><h4>what stops this hero</h4><div id="rl-f"></div><h4>the yard</h4><div class="k">${room.yard.map(([n, ids]) => `${n}: ${ids.length}`).join('<br>')}</div><div class="k" style="margin-top:6px">R the next roll · Shift+R the one before · H this panel</div></div>
+  // the panel: this roll (said live), the measures (a machine gate), and what the room is; a yard's and a course's
+  const C = measured.course ?? null;
+  const gate = measured.lost.length ? `<span class="bad">lost: ${measured.lost.join(', ')}</span><br><span class="k">${(measured.worst ?? []).join('<br>')}</span>` : '<span class="ok">every law holds</span>';
+  const sections = C
+    ? [['measured before any level (a machine gate)', `<b>${measured.seeds}</b> seeds played by the reaction bot, of <b>${measured.ways}</b> courses<br>${gate}<br><span class="k">${measured.says.join('<br>')}</span>`],
+      ['what the course is sized by', `top speed <b>${C.top} m/s</b> · the neediest ask <b>${C.need} s</b> + a rest of <b>${C.rest} s</b><br>a slot every <b>${C.gap} m</b> · sight for a ${C.react} s reaction <b>${C.sight} m</b><br>${Object.entries(C.windows).map(([id, f]) => `${id}: a window of <b>${f}</b> frames`).join(' · ')}<br>a lane change <b>${C.lane[0]} s</b>, two lanes <b>${C.lane[1]} s</b>`]]
+    : [['measured before any level (a machine gate)', `<b>${measured.seeds}</b> seeds walked: <b>${measured.distinct}</b> different yards, of <b>${measured.ways}</b> there are<br>${gate}`],
+      ['what stops this hero', FORMS.map((f) => `${f.form} (${f.height} m): ${measured.forms.stops.includes(f.form) ? '<b class="ok">stops it</b>' : '<b class="bad">gone over</b>'}`).join('<br>')]];
+  const LIVE = { course: !!C, slots: C ? room.course.slots.map((s) => s.of) : null };
+  const HUD = `<style>#rl{position:fixed;top:52px;left:10px;width:380px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#rl b{color:#fff}#rl .k{color:#9aa0a8}#rl h4{margin:6px 0 2px;font-size:11px;color:#9aa0a8;font-weight:400;text-transform:uppercase;letter-spacing:.06em}#rl .ok{color:#8fd694}#rl .bad{color:#f08a7c}</style>
+<div id="rl"><b>Roll room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')} · ${C ? 'the course' : 'the yard'}</span><h4>this roll</h4><div id="rl-r" class="k">rolling…</div>${sections.map(([h, body]) => `<h4>${h}</h4><div>${body}</div>`).join('')}<h4>${C ? 'the course' : 'the yard'}</h4><div class="k">${room.yard.map(([n, ids]) => (C ? n : `${n}: ${ids.length}`)).join('<br>')}</div><div class="k" style="margin-top:6px">R the next roll · Shift+R the one before · H this panel</div></div>
 <script>
 (() => {
-  const M = ${JSON.stringify(M)};
-  const $ = (id) => document.getElementById(id), names = (ids, cut) => ids.map((s) => s.replace(cut, '')).join(', ') || 'none';
+  const LIVE = ${JSON.stringify(LIVE)};
+  const $ = (id) => document.getElementById(id);
   let show = true, said = false;
   const seedNow = () => { const n = Number(new URLSearchParams(location.search).get('seed')); return Number.isInteger(n) && n > 0 ? n : 1; };
   const go = (n) => { const q = new URLSearchParams(location.search); q.set('seed', String(Math.max(1, n))); location.search = '?' + q.toString(); };
@@ -310,14 +318,14 @@ export async function rollRoomHtml(G, { refs = {}, cast = 'male', sound = 'reali
     if (e.code === 'KeyR') go(seedNow() + (e.shiftKey ? -1 : 1));
     if (e.code === 'KeyH') { show = !show; $('rl').style.display = show ? '' : 'none'; }
   });
-  $('rl-m').innerHTML = '<b>' + M.seeds + '</b> seeds walked: <b>' + M.distinct + '</b> different yards, of <b>' + M.ways + '</b> there are<br>'
-    + (M.lost.length ? '<span class="bad">lost: ' + M.lost.join(', ') + '</span>' + (M.worst.length ? '<br><span class="k">' + M.worst.join('<br>') + '</span>' : '') : '<span class="ok">every law holds: a body, a way through, apart, won</span>');
-  $('rl-f').innerHTML = M.forms.map((f) => f[0] + ' (' + f[1] + ' m): ' + (M.stops.indexOf(f[0]) >= 0 ? '<b class="ok">stops it</b>' : '<b class="bad">gone over</b>')).join('<br>');
   function tick() {
     const R = window.__mojRoll;
     if (R && !said) {
       said = true;
-      $('rl-r').innerHTML = 'seed <b>' + R.seed + '</b><br>stands: <b>' + names(R.stand, /^$/) + '</b><br>gems laid: <b>' + R.lay.length + '</b> of ' + (R.lay.length + R.unlaid.length) + '<br>start: <b>' + (R.start == null ? 'its own' : R.start + 1) + '</b>';
+      // (a course: what stands in each slot, in order; a yard: what stands, the gems laid, the start)
+      $('rl-r').innerHTML = LIVE.course
+        ? 'seed <b>' + R.seed + '</b><br><b>' + LIVE.slots.map((of) => { const id = R.stand.find((s) => of[s]); return id ? of[id] : '—'; }).join(' · ') + '</b>'
+        : 'seed <b>' + R.seed + '</b><br>stands: <b>' + (R.stand.join(', ') || 'none') + '</b><br>gems laid: <b>' + R.lay.length + '</b> of ' + (R.lay.length + R.unlaid.length) + '<br>start: <b>' + (R.start == null ? 'its own' : R.start + 1) + '</b>';
     }
     requestAnimationFrame(tick);
   }

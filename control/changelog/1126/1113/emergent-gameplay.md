@@ -34,6 +34,14 @@ capture and the level played in Node show).
   the next seed. Its measures are read by `design_game` (`practice.measured.roll`): the seeds audit of the yard, and
   which forms of cover stop this hero, each form laid across a lane and the hero run at it jumping. A hero on its feet
   is stopped by a crate; one with an air jump goes over a 2 m wall. Served at `bible?book=practice&room=roll`.
+- The rolled course (`gameworld/roll-course.js`): a hero that runs on momentum (a feel on the pinball base) has an
+  obstacle course for its roll room, seen from behind on three lanes. Three asks: a hurdle and a block to jump, posts
+  that leave an outer lane open. It is sized by time, measured on the rule the game ships (`paceOf`): each jump's
+  window in seconds, a lane change steered as a player learns to. A slot stands every (the neediest ask + a rest) of
+  the hero's top speed, and each slot is one group of the level's roll, of which exactly one thing stands, so every
+  roll is fair by how it is laid. Its audit is the reaction bot: it sees only so far ahead and acts a reaction time
+  after; the laws are fair (a 0.4 s reaction with the sight the course asks runs every sampled seed clean), finishes
+  (a 0.8 s one still does) and apart. The sight a course asks is (its need + the reaction) x the hero's speed.
 - A world's `roll` reaches its levels (`gameworld/roll-lower.js`): `roll: true | { cover?, items? }` on a gameworld, and
   each walking level a run lays on a trail takes a roll on its recipe over what it already holds: its cover (the cover
   concern's own walls and crates by the trail's beats, laid for the roll when the level's concerns laid none), of which

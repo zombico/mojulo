@@ -18,6 +18,10 @@
  *   rollRoomMeasured(G)  → { seeds, ways, distinct, lost: [law], forms: { stops: [form], passed: [form] } }: the seeds
  *                          audit (game/roll-audit.js) of the yard and the forms above, before any level; kept by the
  *                          feel it was measured on. A machine gate: advice, never a refusal.
+ *   layoutOf(G)          → 'yard' | 'course': a hero that runs on momentum (a feel on the pinball base) has no use for
+ *                          a yard to walk; its roll room is THE ROLLED COURSE (roll-course.js): a lane of obstacles a
+ *                          seed picks, spaced by what each asks in seconds, played and audited by the reaction bot.
+ *                          `rollRoom` and `rollRoomMeasured` answer for whichever the world has (`layout` says).
  *   ROLL_LEGEND, YARD, FORMS
  *
  * Pure. Its page (practice-room-page.js rollRoomHtml) says the roll being played beside the measures, and rolls again.
@@ -31,6 +35,9 @@ import { readRoll, rolledIds, rollWays, pickupsOf } from '../game/roll.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { rollAudit } from '../game/roll-audit.js';
 import { simLevel } from '../game/level-sim.js';
+import { readFeel } from './feel/lower.js';
+import { POLES } from './feel/cards.js';
+import { courseOf, courseAudit, PRIMITIVES } from './roll-course.js';
 
 const HALF = 14;
 // THE YARD's cover, in three lines across the way from the start (south) to the exit (north). No line can shut the yard:
@@ -58,6 +65,11 @@ export const ROLL_LEGEND = 'W A S D  run · mouse  look · Space  jump · F  spr
 // the forms of cover a level's blocks stand, by what the hero must clear
 export const FORMS = Object.freeze([{ form: 'a crate', height: 1 }, { form: 'a low wall', height: 1.2 }, { form: 'a wall', height: 2 }, { form: 'a high wall', height: 3 }]);
 
+export function layoutOf(G) {
+  if (G?.feel == null) return 'yard';
+  try { return POLES[readFeel(G.feel).pole]?.base === 'pinball' ? 'course' : 'yard'; } catch { return 'yard'; }
+}
+
 const mechanicsOf = () => [{ kind: 'collect', into: 'bag', pickups: YARD.pickups.map((p) => ({ ...p, at: p.at.slice(), radius: 1.5 })) }, { kind: 'bag', slice: 'bag' }, { kind: 'reach-exit', at: YARD.exit.slice(), radius: 2 }];
 const ruleOf = (G) => (G && G.feel != null ? feelRule(G.feel) : {});
 
@@ -68,10 +80,21 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   const { heroRef: _r, ...lib } = P.figures.hero;
   const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, hero: { cast } } };
   const heroE = { ...P.entities[0], transform: { pos: YARD.roll.start[0].pos.slice(), heading: Math.PI / 2 } };
-  const { faces, colliders } = floorOf({ half: HALF });
+  const course = layoutOf(G) === 'course' ? courseOf(G) : null;
+  const { faces, colliders } = course ? { faces: course.faces, colliders: course.colliders } : floorOf({ half: HALF });
   const soundOf = (word) => { const v = sound === 'none' ? null : sfxSound(word, { style: sound }); return v && v.gestures ? v.gestures : null; };
   const step = soundOf('step-concrete'), jump = soundOf('jump'), land = soundOf('land');
   const audio = step ? { footsteps: Object.fromEntries(Object.entries({ step, jump, land }).filter(([, v]) => v)) } : null;
+  // THE COURSE (a momentum hero's): the lane, its slots' things and the roll over them, the exit at its end
+  if (course) {
+    const manifest = {
+      kind: 'controllable', title: `Roll room · ${G?.name ?? G?.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures, entities: [{ ...heroE, transform: { pos: course.start.slice(), heading: Math.PI / 2 } }],
+      camera: { ...P.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
+      blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), radius: 3 }] }, roll: structuredClone(course.roll),
+    };
+    const yard = [[`${course.slots.length} slots, one every ${course.gap} m: a hurdle, a block or posts in each`, course.slots.map((s) => s.k + 1)]];
+    return { manifest, layout: 'course', course, yard, hero: own ? 'own' : 'stand-in', ways: course.ways };
+  }
   const manifest = {
     kind: 'controllable', title: `Roll room · ${G?.name ?? G?.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures, entities: [heroE],
     camera: { ...P.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
@@ -79,7 +102,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   };
   const read = readRoll(YARD.roll, { blocks: YARD.blocks, pickups: pickupsOf(manifest.game.mechanics) });
   const yard = [['the walls (2 m), a line across the way', YARD.roll.cover[0].of], ['the low walls (1 m)', YARD.roll.cover[1].of], ['the crates and the pillar', YARD.roll.cover[2].of], ['the gems', YARD.roll.items[0].of], ['the starts', YARD.roll.start.map((s) => `[${s.pos[0]}, ${s.pos[1]}]`)]];
-  return { manifest, yard, hero: own ? 'own' : 'stand-in', ways: rollWays(read) };
+  return { manifest, layout: 'yard', yard, hero: own ? 'own' : 'stand-in', ways: rollWays(read) };
 }
 
 // the hero as Node plays it: a plain body on the world's feel rule (its figure is the page's)
@@ -124,8 +147,17 @@ const KEPT = new Map(), KEEP = 16;
 export function rollRoomMeasured(G) {
   const key = JSON.stringify(G?.feel ?? null);
   if (KEPT.has(key)) return KEPT.get(key);
+  if (layoutOf(G) === 'course') {
+    // the course: the reaction bot's audit over a sample of seeds, and what the course was sized by
+    const C = courseOf(G), A = courseAudit(C, { seeds: 12 }), jumps = C.prims.filter((id) => PRIMITIVES[id].ask === 'jump');
+    const out = { layout: 'course', seeds: A.seeds, ways: C.ways, lost: A.laws.filter((l) => !l.holds).map((l) => l.law), ...(A.ok ? {} : { worst: A.laws.filter((l) => !l.holds).map((l) => l.says) }), says: A.laws.map((l) => l.says),
+      course: { top: Math.round(C.pace.top * 10) / 10, need: C.need, rest: C.rest, gap: C.gap, react: C.react, sight: C.sight, asks: C.prims, windows: Object.fromEntries(jumps.map((id) => [id, C.pace.lead[id].frames])), lane: C.pace.laneTime.slice(1).map((t) => Math.round(t * 100) / 100) } };
+    KEPT.set(key, out);
+    if (KEPT.size > KEEP) KEPT.delete(KEPT.keys().next().value);
+    return out;
+  }
   const A = rollAudit(rollRoomLevel(G), { seeds: 24, plays: 2, seconds: 60 }), forms = coverForms(G);
-  const out = { seeds: A.seeds, ways: A.ways, distinct: A.distinct, lost: A.laws.filter((l) => !l.holds).map((l) => l.law), ...(A.failed.length ? { worst: A.failed.slice(0, 3).map((f) => `seed ${f.seed}: ${f.says}`) } : {}), forms: { stops: forms.filter((f) => f.stops).map((f) => f.form), passed: forms.filter((f) => !f.stops).map((f) => f.form) } };
+  const out = { layout: 'yard', seeds: A.seeds, ways: A.ways, distinct: A.distinct, lost: A.laws.filter((l) => !l.holds).map((l) => l.law), ...(A.failed.length ? { worst: A.failed.slice(0, 3).map((f) => `seed ${f.seed}: ${f.says}`) } : {}), forms: { stops: forms.filter((f) => f.stops).map((f) => f.form), passed: forms.filter((f) => !f.stops).map((f) => f.form) } };
   KEPT.set(key, out);
   if (KEPT.size > KEEP) KEPT.delete(KEPT.keys().next().value);
   return out;

@@ -65,6 +65,21 @@ page says the roll being played (its seed, what stands, how many gems lie, the s
 next seed and Shift+R the one before (the page's own `?seed=`). Its CLI is `scripts/spikes/roll-room/room.mjs`, which
 needs no database: `--feel <template>` builds the page on a stand-in, `--measure` reads every template.
 
+### The course, for a hero that runs on momentum
+
+A feel on the pinball base has no use for a yard to walk. Its roll room is the rolled course (`roll-course.js`): a lane
+seen from behind the hero, three lanes wide, with a slot every so many metres in which a seed stands a hurdle, a block
+or a wall of posts that leaves an outer lane open. The course is sized by time, not by reach. `paceOf` measures the
+hero on the shipped rule: its top speed, the window in which a jump clears each thing, and how long a lane change
+takes when steered as a player learns to (the sideways speed builds and keeps, so the push must be taken back in
+time). A slot stands every (the neediest ask + a rest) of the top speed. The sight a course asks of its level is
+(its need + the player's reaction) × the hero's speed.
+
+Its machine gate is the reaction bot, which knows how to play and lacks what a player lacks: it sees a thing only
+inside a sight distance, and acts on it only a reaction time after. The room's readout says whether a 0.4 s reaction
+with the course's own sight runs a sample of seeds clean, and whether a 0.8 s one still finishes. The bot is the same
+on every run: it finds what is possible, not what is comfortable.
+
 ## Not here yet
 
 The brawler's yard and the run & gun's range (`brawl/brawl-practice.js`) join the door once a world can be a brawler.
