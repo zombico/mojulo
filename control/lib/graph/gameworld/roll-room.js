@@ -7,6 +7,7 @@
  *
  *   rollRoom(G, { refs?, cast?, sound? }) → { manifest, yard, hero: 'own' | 'stand-in', ways }
  *     refs    { hero? } as practice-room.js takes them
+ *     body    the rail a stand-in wears (game-bodies.js: the one the game's feel, genre or goal reads), when it reads one
  *     yard    [[what it is, the ids it rolls]] the room's roll, said on the page
  *     ways    how many different yards there are (game/roll.js rollWays)
  *   rollRoomLevel(G)     → the yard as a level played in Node plays it: { entities, events, game, colliders, faces, roll }
@@ -38,6 +39,7 @@ import { simLevel } from '../game/level-sim.js';
 import { readFeel } from './feel/lower.js';
 import { POLES } from './feel/cards.js';
 import { courseOf, courseAudit, PRIMITIVES } from './roll-course.js';
+import { railOfGame, gameBody, lowerBody } from './game-bodies.js';
 
 const HALF = 14;
 // THE YARD's cover, in three lines across the way from the start (south) to the exit (north). No line can shut the yard:
@@ -65,10 +67,8 @@ export const ROLL_LEGEND = 'W A S D  run · mouse  look · Space  jump · F  spr
 // the forms of cover a level's blocks stand, by what the hero must clear
 export const FORMS = Object.freeze([{ form: 'a crate', height: 1 }, { form: 'a low wall', height: 1.2 }, { form: 'a wall', height: 2 }, { form: 'a high wall', height: 3 }]);
 
-export function layoutOf(G) {
-  if (G?.feel == null) return 'yard';
-  try { return POLES[readFeel(G.feel).pole]?.base === 'pinball' ? 'course' : 'yard'; } catch { return 'yard'; }
-}
+const poleOf = (G) => { if (G?.feel == null) return null; try { return readFeel(G.feel).pole; } catch { return null; } };
+export function layoutOf(G) { const pole = poleOf(G); return pole && POLES[pole]?.base === 'pinball' ? 'course' : 'yard'; }
 
 const mechanicsOf = () => [{ kind: 'collect', into: 'bag', pickups: YARD.pickups.map((p) => ({ ...p, at: p.at.slice(), radius: 1.5 })) }, { kind: 'bag', slice: 'bag' }, { kind: 'reach-exit', at: YARD.exit.slice(), radius: 2 }];
 const ruleOf = (G) => (G && G.feel != null ? feelRule(G.feel) : {});
@@ -78,7 +78,11 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   const own = typeof refs.hero === 'string';
   const P = playerWorld({ heroRef: own ? refs.hero : 'stand-in', id: 'hero', title: 'roll room', controls: ROLL_LEGEND, rule: { ...ruleOf(G), move: 'camera' } });
   const { heroRef: _r, ...lib } = P.figures.hero;
-  const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, hero: { cast } } };
+  // (the stand-in wears the body its game reads, game-bodies.js: a mascot's big head on a small round body for a
+  // runner, a platformer or a game to collect; the door's own person where the game reads none)
+  const rail = railOfGame({ feel: poleOf(G), goal: G?.quick?.goal ?? null, genre: G?.intent?.from ?? null });
+  const standIn = lowerBody({ cast }, rail ? gameBody(rail.rail, 'hero', { pole: cast }) : null);
+  const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, hero: standIn } };
   const heroE = { ...P.entities[0], transform: { pos: YARD.roll.start[0].pos.slice(), heading: Math.PI / 2 } };
   const course = layoutOf(G) === 'course' ? courseOf(G) : null;
   const { faces, colliders } = course ? { faces: course.faces, colliders: course.colliders } : floorOf({ half: HALF });
@@ -93,7 +97,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
       blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), radius: 3 }] }, roll: structuredClone(course.roll),
     };
     const yard = [[`${course.slots.length} slots, one every ${course.gap} m: a hurdle, a block or posts in each`, course.slots.map((s) => s.k + 1)]];
-    return { manifest, layout: 'course', course, yard, hero: own ? 'own' : 'stand-in', ways: course.ways };
+    return { manifest, layout: 'course', course, yard, hero: own ? 'own' : 'stand-in', ...(!own && rail ? { body: rail.rail } : {}), ways: course.ways };
   }
   const manifest = {
     kind: 'controllable', title: `Roll room · ${G?.name ?? G?.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures, entities: [heroE],
@@ -102,7 +106,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   };
   const read = readRoll(YARD.roll, { blocks: YARD.blocks, pickups: pickupsOf(manifest.game.mechanics) });
   const yard = [['the walls (2 m), a line across the way', YARD.roll.cover[0].of], ['the low walls (1 m)', YARD.roll.cover[1].of], ['the crates and the pillar', YARD.roll.cover[2].of], ['the gems', YARD.roll.items[0].of], ['the starts', YARD.roll.start.map((s) => `[${s.pos[0]}, ${s.pos[1]}]`)]];
-  return { manifest, layout: 'yard', yard, hero: own ? 'own' : 'stand-in', ways: rollWays(read) };
+  return { manifest, layout: 'yard', yard, hero: own ? 'own' : 'stand-in', ...(!own && rail ? { body: rail.rail } : {}), ways: rollWays(read) };
 }
 
 // the hero as Node plays it: a plain body on the world's feel rule (its figure is the page's)

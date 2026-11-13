@@ -42,6 +42,9 @@ capture and the level played in Node show).
   roll is fair by how it is laid. Its audit is the reaction bot: it sees only so far ahead and acts a reaction time
   after; the laws are fair (a 0.4 s reaction with the sight the course asks runs every sampled seed clean), finishes
   (a 0.8 s one still does) and apart. The sight a course asks is (its need + the reaction) x the hero's speed.
+- The roll room's stand-in hero wears the body its game reads (`game-bodies.js`): a mascot's big head on a small body
+  for a runner, a platformer or a game to collect. The rail runner's feel (the one on the pinball base) joins the mascot
+  rail, so its hero reads as a mascot wherever a game's body is read from its feel.
 - A world's `roll` reaches its levels (`gameworld/roll-lower.js`): `roll: true | { cover?, items? }` on a gameworld, and
   each walking level a run lays on a trail takes a roll on its recipe over what it already holds: its cover (the cover
   concern's own walls and crates by the trail's beats, laid for the roll when the level's concerns laid none), of which
