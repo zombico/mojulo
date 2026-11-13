@@ -60,9 +60,14 @@ Three things, in this order, each in its own place:
    runs out, so nobody is held there. The arrival beat that teaches several verbs is that explanation
    (`level/guide.js` `lessons`; the page watches the pilot, `scene/channels/guide.js`). The camera is the hero's from
    the first frame.
-3. **The enemy trail.** Then fights that stand ON the way, in the walk's order, each where a fight's own controls are
-   taught: one foe and the blow, then two with the lock-on and the dodge. The way out is HELD until they are won
-   (a beat that `opens`: `gameworld/levels.js`), so the trail is fought, never walked round.
+3. **The enemy trail.** Then fights ON the way, in the walk's order, each where a fight's own controls are taught: one
+   foe and the blow, then two with the lock-on and the dodge. The way out is HELD until they are won (a beat that
+   `opens`: `gameworld/levels.js`), so the trail is fought, never walked round. Its foes COME to the hero (a hunting
+   band's rank and file are pursuers: `docs/foes.md`), one fight at a time: the first is posted at the far end of the
+   way, beyond its sight of the start, so the controls have their room and it comes down the trail once the hero
+   heads up it; the next comes only when it has fallen (a beat's `after`: its foes are minted asleep and woken by the
+   falls before it). The guide follows a fight by its falls, so its keys show where it is fought, not where its mark
+   is; and the controls lessons give way the moment a foe is within a few strides.
 
 The sentence door lays this as a world map's OPENING: its first block alone, a page of its own and no bigger than
 those tasks (`gameworld/world-map.js`). The first zone after it tests what was taught and teaches nothing new.

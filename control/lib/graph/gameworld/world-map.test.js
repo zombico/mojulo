@@ -9,6 +9,8 @@ import { castingCall } from './foe-casting.js';
 import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch, sketchLaws } from '../level/map-sketch.js';
+import { FOE_CLASSES } from '../foes/index.js';
+import { SIGHTS } from '../mind/vocab.js';
 
 const lawsOf = (level) => {
   const g = level.glyphs, G = readGrid({ tile: g.tile, plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) }, 'grid');
@@ -32,7 +34,19 @@ describe('the world map', () => {
     expect(opening.slice(1).map((b) => [Object.values(b.foes), [].concat(b.teach)])).toEqual([[[1], ['strike']], [[2], ['lock', 'dodge']]]);
     const way = level.glyphs.segments[A].rows.map((r) => r.replace(/\s+/g, ''));
     for (const b of opening.slice(1)) expect(way[b.tile[0]][b.tile[1]], b.id).toBe('#');
-    expect(opening[1].tile[1]).toBeLessThan(opening[2].tile[1]);
+    // (its foes come: the lone one posted at the far end of the way, the start out of its sight so the controls have
+    // their room; the pair from the same way out, only once it has fallen)
+    const far = Math.max(...way.flatMap((r, i) => [...r].map((g, j) => (g === '#' ? j : -1))));
+    expect(opening[1].tile[1]).toBe(far);
+    expect(opening[2]).toMatchObject({ tile: opening[1].tile, after: 'lone' });
+    expect(opening[1].after).toBeUndefined();
+    const spawnTo = (far + 0.5 - 0.5) * WORLD_MAP.tile, sees = SIGHTS[FOE_CLASSES.pursuer.mind.sight].knobs.sightRange;
+    expect(spawnTo).toBeGreaterThan(sees + 10);
+    // (a fight comes after an earlier fight of its own segment, or the sketch says so)
+    const bad = (after) => () => readSketch({ ...level.glyphs.sketch, scenario: { beats: beats.map((x) => (x.id === 'pair' ? { ...x, after } : x)) } }, readGrid({ tile: level.glyphs.tile, plan: P, segments: level.glyphs.segments }, 'grid').plan);
+    expect(bad('nobody')).toThrow(/after is an earlier fight of its segment/);
+    expect(bad('controls')).toThrow(/after is an earlier fight of its segment/);
+    expect(bad('lone')).not.toThrow();
     // (forced: the last fight of the trail holds the opening's way out)
     expect(opening.at(-1).opens).toBe(true);
     // (the first zone tests what the opening taught and teaches nothing new; no bigger than its tasks: the opening holds

@@ -7,10 +7,12 @@
  * intro's. The page draws it (scene/channels/guide.js): the beat in words, a bearing and the metres to it, a pillar of
  * light where it stands. Drafts guide as well as approved segments: directions are not a build.
  *
- *   guideOf(level, G, Z, { seed }) → { intro?, steps: [{ id, say, kind, at: [x, y, z], radius, fight?, keys? }], held? } | null
+ *   guideOf(level, G, Z, { seed }) → { intro?, steps: [{ id, say, kind, at: [x, y, z], radius, fight?, downs?, keys? }], held? } | null
  *     G levelGrid's read, Z zoneOf's (null: the whole map); null where the level has no concept or no beat on the page
  *     says   what is said on reaching it: a meet's or a rest's line, a find's 'Found: <item>'
  *     keys   a beat that teaches (its `teach`, map-sketch.js TEACH): the keys of what it teaches, shown while it is the way on
+ *     downs  a scenario's fight: the falls on the page that win it (its own foes and every fight's before it), so it is
+ *            won where it is fought: its foes may come to the hero (a pursuer) or come later (a beat's `after`)
  *     introKeys  the arrival's keys (its `teach`), shown under the intro as the page opens
  *     lessons    an arrival that teaches SEVERAL (how a game starts: the controls explained with the hero in hand):
  *                [{ keys, fact? }] in place of introKeys, each shown alone until the pilot does it (`fact`: move, look,
@@ -39,6 +41,7 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
   const onward = (S) => { const i = P.route.indexOf(S), next = i >= 0 ? P.route[i + 1] : null, g = next ? P.gates.find((x) => (x.from === S && x.to === next) || (x.to === S && x.from === next)) : null; if (!g) return null; const [tr, tc] = g.from === S ? g.tiles[0] : g.tiles[1], side = g.from === S ? g.side : { n: 's', s: 'n', e: 'w', w: 'e' }[g.side]; return on(...{ n: [(tc + 0.5) * T, -tr * T], s: [(tc + 0.5) * T, -(tr + 1) * T], w: [tc * T, -(tr + 0.5) * T], e: [(tc + 1) * T, -(tr + 0.5) * T] }[side]); };
   const middle = (S) => { const [r0, c0] = P.segments[S].at; return centre(r0 + (n - 1) / 2, c0 + (n - 1) / 2); };
   const steps = [];
+  let fallen = 0;
   for (const b of C.journey) {
     if (!segs.includes(b.at) || b.kind === 'arrival') continue;
     const own = b.tile ? centre(P.segments[b.at].at[0] + b.tile[0], P.segments[b.at].at[1] + b.tile[1]) : null;
@@ -51,7 +54,11 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
     const says = b.kind === 'meet' || b.kind === 'rest' ? b.say : item ? `Found: ${item}` : null;
     // (a meet's way on names who is met, its words before a colon; what they say is said on reaching them)
     const way = b.kind === 'meet' && b.say.indexOf(':') > 0 ? b.say.slice(0, b.say.indexOf(':')).trim() : b.say;
-    steps.push({ id: b.id, say: way, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}), ...(says ? { says } : {}) });
+    // (a scenario's fight says how many it stands: the page counts its falls, so a fight whose foes come to the hero,
+    // or come later, is won where it is fought and not where its mark is. `downs` the falls on the page that win it)
+    const n = fight ? (K.segments[b.at]?.marks ?? []).filter((m) => m.beat === b.id && m.foes).reduce((t, m) => t + (m.foes.count ?? 1), 0) : 0;
+    if (n) fallen += n;
+    steps.push({ id: b.id, say: way, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(n ? { downs: fallen } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}), ...(says ? { says } : {}) });
   }
   const first = segs.includes(P.route[0]);
   if (!steps.length && !(first && (C.pitch || C.journey.some((x) => x.kind === 'arrival' && segs.includes(x.at) && x.teach?.length)))) return null;

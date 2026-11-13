@@ -43,7 +43,8 @@ const PRESS_EVERY = 8, STRING = 3, GUARD_FOR = 18, LOCK_EVERY = 12;
 // the reach a string is pressed at (the blade's reach and a step), the range a lock is asked for
 const STRIKE_AT = 2.2, LOCK_AT = 14, SHOOT_AT = 30, SHOOT_LOCK_AT = 45, LOCK_WAIT = 30, MISS_AFTER = 6;
 
-const alive = (e) => !!(e && e.body && Number.isFinite(e.body.hp) && e.body.hp > 0 && !e.downed && e.deadAt == null);
+// (a foe asleep or sent away is not there to be seen: a fight that comes later is fought when it comes)
+const alive = (e) => !!(e && e.body && Number.isFinite(e.body.hp) && e.body.hp > 0 && !e.downed && e.deadAt == null && !e.dormant && !e.gone);
 const shoots = (e) => !!(e && (e.weapon?.fireClass || e.rule?.weapon?.fireClass));
 const flat = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 

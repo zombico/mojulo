@@ -8,7 +8,7 @@ import { safeJson } from '../emit-util.js';
 //     time, its place in the run beside it, kept until the pilot does it (moves a few metres, turns the camera, leaves
 //     the ground, runs at its sprint) and has had a moment to read it, or its patience runs out; then the way on
 //   at a held way (`held`) while a foe stands on the page: that it is held
-//   near a beat that teaches (`keys`), or in its fight: its keys, each key a cap
+//   near a beat that teaches (`keys`), or in its fight (wherever its foes have come to the hero): its keys, each a cap
 //   else the way on: an arrow turned the way the beat lies from where the camera looks, its words, the metres to it
 // Never two at once. A pillar of light stands where the beat is (the world's own marker, not the screen's). A beat is
 // reached within its radius (a fight once its foes about it are down); the last one reached, the way is the page's.
@@ -65,7 +65,9 @@ export function guideScript(guide) {
     const done = L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
     if ((done && age >= LESSON.read) || age >= LESSON.patience) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
   }
-  const standing = (e) => e.team === 'foes' && !e.gone && !e.downed && !(e.hp <= 0);
+  const standing = (e) => e.team === 'foes' && !e.gone && !e.dormant && !e.downed && !(e.hp <= 0);
+  // (a foe fallen: what a fight that counts its falls is won by; one asleep or sent away has not fallen)
+  const fell = (e) => e.team === 'foes' && !e.dormant && (e.downed || e.hp <= 0 || (e.body && e.body.hp <= 0));
   const view = T3 ? new T3.Vector3() : null;
   function tick() {
     const W = window.__mojCtrl && window.__mojCtrl.world;
@@ -76,9 +78,13 @@ export function guideScript(guide) {
       if (p && s) {
         dx = s.at[0] - p.transform.pos[0]; dy = s.at[1] - p.transform.pos[1]; d = Math.hypot(dx, dy);
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
-        if (d < s.radius && !near) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++; plant(); }
+        // (a fight that counts its falls is won by them, wherever it was fought; any other beat by reaching it)
+        const won = s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
+        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++; plant(); }
       }
       const now = performance.now(), cur = GD.steps[k];
+      // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
+      if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
       if (phase === 'lessons' && p) lesson(p, now);
       const atHeld = p && GD.held && GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5) && W.entities.some(standing);
       // ONE THING: the line just said, the opening, a held way, a lesson at hand, else the way on
@@ -87,7 +93,8 @@ export function guideScript(guide) {
       else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys));
       else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''));
       else if (atHeld) put('held', 'The way on is held while foes stand here');
-      else if (cur && cur.keys && cur.keys.length && p && d < Math.max(cur.radius * 2, 18)) put('keys', cur.keys.map(capped).join(''));
+      // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)
+      else if (cur && cur.keys && cur.keys.length && p && (d < Math.max(cur.radius * 2, 18) || (cur.fight && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 14)))) put('keys', cur.keys.map(capped).join(''));
       else if (!cur) put('way', 'The way on lies past this place');
       else if (p) {
         let yaw = p.transform.heading;

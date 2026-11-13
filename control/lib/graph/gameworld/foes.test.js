@@ -12,6 +12,7 @@ import { LEVEL_GOAL } from './quick.js';
 import { castingCall } from './foe-casting.js';
 import { composeGameworld } from './compose.js';
 import { composeMechanics } from '../game/mechanics.js';
+import { readCues } from '../playscape/ui/cues.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
@@ -346,5 +347,30 @@ describe('the run', () => {
     const step = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'foe');
     expect(step.order.animal).toMatchObject({ species: 'wolf', ooze: 'dire' });
     expect(() => readGameworld({ ...MEADOWMARK_HERO, battles: { foe: { species: 'wolf', ooze: 'plaid' } } })).toThrow(/unknown ooze "plaid"/);
+  });
+  it('a fight that comes after another: its foes minted asleep, woken when every foe of the one before is down; absent, nothing', () => {
+    const cls = Object.values(FOE_CLASSES).find((c) => c.attack.kind === 'strike' && !MOVES[c.move].group && !MOVES[c.move].own).id;
+    const mark = (beat, count, more = {}) => ({ at: [20, 0, 0], tile: [1, 2], count, kind: 'a', say: beat, segment: 'A', beat, ...more });
+    const cast = (encounters) => hostileCast(world({ a: { class: cls } }, true), 'one', { spawn: [0, 0, 0], exit: [30, 0, 0], beats: [], encounters }, { refs: { a: 'w-foes-a' } });
+    const X = cast([mark('lone', 1), mark('pair', 2, { after: 'lone' })]);
+    expect(X.entities.map((e) => [e.id, !!e.dormant])).toEqual([['foe-a-1', false], ['foe-a-2', true], ['foe-a-3', true]]);
+    // (each fall of the fight before counted, the wave woken at the count, said on a banner)
+    const [fell, come] = X.play.cues;
+    expect(fell).toMatchObject({ when: { down: 'foe-a-1' }, once: true, then: { add: come.when.var, by: 1 } });
+    expect(come).toMatchObject({ when: { gte: 1 }, once: true });
+    expect(come.then.filter((t) => t.spawn).map((t) => t.spawn)).toEqual(['foe-a-2', 'foe-a-3']);
+    expect(come.then.some((t) => typeof t.say === 'string')).toBe(true);
+    expect(() => readCues({ cues: X.play.cues })).not.toThrow();
+    // a fight of several before it: the wave waits on all of them
+    const Y = cast([mark('pack', 3), mark('more', 1, { after: 'pack' })]);
+    expect(Y.play.cues.filter((c) => c.when.down).length).toBe(3);
+    expect(Y.play.cues.at(-1).when.gte).toBe(3);
+    // no fight comes after another: every foe stands, no cue is laid; one that waits on a fight not on the stage stands too
+    const plain = cast([mark('lone', 1), mark('pair', 2)]);
+    expect(plain.play).toBeUndefined();
+    expect(plain.entities.some((e) => e.dormant)).toBe(false);
+    const lost = cast([mark('pair', 2, { after: 'elsewhere' })]);
+    expect(lost.play).toBeUndefined();
+    expect(lost.entities.some((e) => e.dormant)).toBe(false);
   });
 });

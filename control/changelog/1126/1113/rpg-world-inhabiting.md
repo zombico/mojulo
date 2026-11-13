@@ -164,9 +164,25 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   - **No bigger than its tasks**: one block and three foes. The first zone is the next two blocks on one page and
     teaches nothing new: it tests what the opening taught.
   - The brief says it (`brief.worldMap.opening`); the hand-laid first zone (`level/first-zone.js`) is as it was.
+- **Foes that come at the hero** (`foes/classes/pursuer.js`, new; `level/map-sketch.js`, `gameworld/foes.js`,
+  `level/guide.js`, `scene/channels/guide.js`, `gameworld/playthrough.js`). Every blade on the shelf either held a
+  post (a guard, a patrol) or was a boss's body, so a game whose minds hunt still fielded a rank and file that waited
+  to be walked up to, and could be walked round.
+  - **The pursuer**: a class that hunts by what it sees, from a fair way off, at an even pace, and holds no post. The
+    casting call takes it for the grunt of a game whose minds hunt by its own score (its motivation is the game's);
+    a game whose minds guard their ground is cast as before.
+  - **A fight that comes after another** (a scenario beat's `after`): its foes are minted asleep and woken when every
+    foe of the fight before it is down, a banner saying so. The stage's cues do it (the play layer's own `down`,
+    `add`, `spawn`); a stage with no such fight lays none.
+  - **The opening's trail comes to the hero, one fight at a time**: the lone foe is posted at the far end of the way,
+    beyond its sight of the start, so the controls have their room and it comes down the trail once the hero heads up
+    it; the pair come from the same way out only when it has fallen.
+  - **The guide follows the fight**: a scenario's fight is won by its falls, wherever it was fought, and its keys show
+    when its foes have come within a few strides, not only near its mark; the controls lessons give way to a foe at
+    hand. The scripted player no longer walks at a foe that is not there yet.
 - Not here yet: the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
-  opens on a win is not in the level kit), and its foes wait at their posts rather than come down the trail; a flow
-  step that plays a video; the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick
+  opens on a win is not in the level kit); a pursuer gives up a hero it can no longer see (it hunts by sight, not by
+  memory); a flow step that plays a video; the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick
   game's rolled people are not read as figures; the colour
   book paints the theorist's small landscape, not the game's own level; the options are not yet a `pick_palette`
   argument (the readout and the book carry them); a hero on a body rail (a comic hero, a fighter, a mascot) is still dressed plain; the hero's dress

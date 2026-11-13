@@ -19,6 +19,8 @@ import { readGameworld, MEADOWMARK_HERO, gameworldBibleHtml } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
+import { composeGameworld } from './compose.js';
+import { MOVES } from '../foes/vocab.js';
 import { RANKS, AGGRESSIVENESS } from '../mind/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
@@ -383,5 +385,16 @@ describe('the sheet', () => {
     expect(html).toContain('proposed, not written');
     for (const r of Object.keys(ROLES)) expect(html).toContain(`id="role-${r}"`);
     expect(() => foeCastHtml(world())).toThrow(/fields no foe/);
+  });
+  it('a game whose minds hunt fields a rank and file that comes at the hero; one whose minds hold their ground does not', () => {
+    const comes = (id) => { const c = FOE_CLASSES[id]; return (c.mind.motivation ?? MOVES[c.move].mind?.motivation) === 'hunt' && c.mind.perception === 'sight'; };
+    const hunting = castingCall(composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 }));
+    expect(hunting.from.mind.motivation).toBe('hunt');
+    expect(comes(hunting.foes.grunt.class)).toBe(true);
+    expect(hunting.roles.find((r) => r.id === 'grunt').why.join(' ')).toMatch(/its motivation is the game's \(hunt\)/);
+    // (the same people under a game whose minds guard their ground: the grunt holds a post)
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 });
+    const guarding = castingCall({ ...W, intent: { ...W.intent, cube: { mind: { motivation: 'guard' } } } });
+    expect(comes(guarding.foes.grunt.class)).toBe(false);
   });
 });

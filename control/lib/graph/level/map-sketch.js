@@ -90,7 +90,7 @@ const fail = (m) => new Error(`level: ${m}`);
 
 // THE SCENARIO (`scenario`, in place of a concept): the level beat by beat, each beat whole in one place: where it stands
 // (its segment, and its tile there), what it is, its one line, its foes or its find, what it teaches, how it feels (its
-// `pace`) and whether winning it opens the page's ways out (`opens`). Read into the concept (the journey) and a mark per
+// `pace`), whether winning it opens the page's ways out (`opens`) and whether it comes only once another is won (`after`). Read into the concept (the journey) and a mark per
 // beat on its tile (its `beat` the id), so what reads a concept and its marks reads it unchanged, and nothing pairs a
 // beat with a mark by its kind or its order.
 export const SCENARIO_KINDS = Object.freeze(['arrival', 'vista', 'meet', 'fight', 'traverse', 'find', 'rest', 'secret', 'climb', 'climax']);
@@ -101,8 +101,8 @@ function readScenario(sc, segs, n, segments, at) {
   if (!isObj(sc)) throw fail(`${at} is { pitch?, beats }: the level beat by beat`);
   for (const k of Object.keys(sc)) if (!['pitch', 'beats'].includes(k)) throw fail(`${at}.${k} is not a scenario's word (pitch, beats)`);
   if (sc.pitch !== undefined && typeof sc.pitch !== 'string') throw fail(`${at}.pitch is the level in a sentence`);
-  if (!Array.isArray(sc.beats) || !sc.beats.length) throw fail(`${at}.beats is the level's beats in order: [{ id, at, tile?, kind, say, foes?, item?, teach?, faces?, pace?, opens? }]`);
-  const KEYS = ['id', 'at', 'tile', 'kind', 'say', 'foes', 'item', 'teach', 'faces', 'pace', 'opens'];
+  if (!Array.isArray(sc.beats) || !sc.beats.length) throw fail(`${at}.beats is the level's beats in order: [{ id, at, tile?, kind, say, foes?, item?, teach?, faces?, pace?, opens?, after? }]`);
+  const KEYS = ['id', 'at', 'tile', 'kind', 'say', 'foes', 'item', 'teach', 'faces', 'pace', 'opens', 'after'];
   sc.beats.forEach((b, i) => {
     const w = `${at}.beats[${i}]`;
     if (!isObj(b)) throw fail(`${w} is { id, at, tile?, kind, say, … }`);
@@ -115,6 +115,11 @@ function readScenario(sc, segs, n, segments, at) {
     if (b.item !== undefined && (typeof b.item !== 'string' || !['find', 'secret'].includes(b.kind))) throw fail(`${w}.item is a find's (or a secret's): what is picked up, in words`);
     if (b.pace !== undefined && !PACES.includes(b.pace)) throw fail(`${w}.pace is ${PACES.join(', ')}: how the beat feels`);
     if (b.opens !== undefined && (b.opens !== true || !b.foes)) throw fail(`${w}.opens is true on a beat with foes: winning it opens its page's ways out`);
+    // (a fight that COMES when another is won: its foes are not there until then, gameworld/foes.js hostileCast)
+    if (b.after !== undefined) {
+      const first = sc.beats.slice(0, i).find((x) => isObj(x) && x.id === b.after);
+      if (!b.foes || typeof b.after !== 'string' || !first || !first.foes || first.at !== b.at) throw fail(`${w}.after is an earlier fight of its segment (its id): this beat's foes come once that one is won`);
+    }
     if ((b.foes || b.item || ['meet', 'find', 'rest', 'secret'].includes(b.kind)) && !b.tile) throw fail(`${w}.tile: a ${b.kind} stands on a tile of its segment ([row, col])`);
   });
   // (the journey: its checks are the concept's, read by the concept's reader)
@@ -125,7 +130,7 @@ function readScenario(sc, segs, n, segments, at) {
   const out = { ...segments };
   for (const b of sc.beats) {
     if (!b.tile) continue;
-    const S = b.at, base = { at: [...b.tile], kind: b.foes ? 'encounter' : BEAT_MARK[b.kind], say: b.say, beat: b.id, ...(b.item ? { item: b.item } : {}) };
+    const S = b.at, base = { at: [...b.tile], kind: b.foes ? 'encounter' : BEAT_MARK[b.kind], say: b.say, beat: b.id, ...(b.item ? { item: b.item } : {}), ...(b.after ? { after: b.after } : {}) };
     const marks = b.foes ? Object.entries(b.foes).map(([kind, count]) => ({ ...base, foes: { kind, count } })) : [base];
     out[S] = out[S] ? { ...out[S], marks: [...out[S].marks, ...marks] } : { status: 'draft', ground: null, height: null, marks, notes: null };
   }

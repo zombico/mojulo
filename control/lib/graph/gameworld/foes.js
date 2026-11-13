@@ -36,7 +36,8 @@
  *                                         sketch its model is bound onto), made by no step, on the library as a person
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage (its trail
  *                                         node, `ends.node`, picks its density: DENSITY_WORDS)
- *   hostileCast(G, level, ends, { refs, hero, hurt? })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
+ *   hostileCast(G, level, ends, { refs, hero, hurt? })   → the stage's extra (levels.js stageLevelOrder): a fight that comes
+ *                                         after another (a scenario beat's `after`) minted asleep, its cues waking it; the foes' figures and
  *                                         entities, and a hittable pilot (`hurt`: what a foe's touch takes off its body's
  *                                         own hp, onBody's); null when nothing stands
  *   stompOf(G)                          → the hero's stomp where foes stand: { low, high, blow, mercy }
@@ -249,7 +250,7 @@ export function foePlacements(G, level, ends) {
       const eid = E.kind && B[E.kind] && read.from.includes(E.kind) ? E.kind : null;
       if (!eid) continue;
       const entry = B[eid];
-      for (let j = 0; j < E.count; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(E.at, j, E.count, 2.5), heading: facing(E.at, ends.spawn), encounter: E.segment });
+      for (let j = 0; j < E.count; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(E.at, j, E.count, 2.5), heading: facing(E.at, ends.spawn), encounter: E.segment, ...(E.beat ? { beat: E.beat } : {}), ...(E.after ? { after: E.after } : {}) });
     }
     return out;
   }
@@ -392,6 +393,10 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
   const ctx = { rim: targetRimOf(G), sheets: {} };
   const standOne = (p, more = {}) => standFoe(G, part, p, { ref: refs[p.eid], more: { ...more, modeRefs: refs }, ctx });
   const B = bestiaryOf(G);
+  // A FIGHT THAT COMES (a scenario beat's `after`, level/map-sketch.js): its foes are minted asleep and woken when every
+  // foe of the fight before it is down, a banner saying so: the trail's fights come one at a time, in their order
+  const came = [...new Set(P.filter((p) => p.after && P.some((q) => q.beat === p.after)).map((p) => p.beat))];
+  const waits = (p) => !!p.after && came.includes(p.beat);
   for (const p of P) {
     const S = p.entry.summons, Q = p.entry.pair;
     if (Q) {
@@ -402,7 +407,7 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
       standOne({ id: pid, eid: Q.foe, entry: B[Q.foe], at: [r3(p.at[0] + side[0]), r3(p.at[1] + side[1]), p.at[2]], heading: p.heading }, { rule: { pair: { with: p.id, ...rows } } });
       continue;
     }
-    if (!S) { standOne(p); continue; }
+    if (!S) { standOne(p, waits(p) ? { dormant: true } : {}); continue; }
     // a SUMMONER (foes/classes/summoner.js): its summons minted with it, asleep where it stands, called a few at a time
     // (worlds/controllable/summon.js); bound, they fall with it
     const n = S.count ?? SUMMON.count, bound = S.bound ?? true, ids = Array.from({ length: n }, (_, k) => `${p.id}-s${k + 1}`);
@@ -419,7 +424,13 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)
   const pilot = { ...(hero ? { rule: { stomp: { ...stompOf(G), ...(hurt > 0 ? { hurt } : {}) } } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
-  return { figures, entities, pilot };
+  // (the cues that bring a waiting fight: each fall of the fight before it counted, the wave woken at the count)
+  const cues = came.flatMap((beat) => {
+    const mine = P.filter((p) => p.beat === beat), before = P.filter((p) => p.beat === mine[0].after), v = `__came_${beat.replace(/[^a-z0-9]+/gi, '_')}`;
+    return [...before.map((q) => ({ id: `fell-${q.id}`, when: { down: q.id }, once: true, then: { add: v, by: 1 } })),
+      { id: `come-${beat}`, when: { var: v, gte: before.length }, once: true, then: [...mine.map((p) => ({ spawn: p.id })), { say: mine.length > 1 ? `${mine.length} more are coming` : 'Another is coming', as: 'banner', ttl: 3 }] }];
+  });
+  return { figures, entities, pilot, ...(cues.length ? { play: { cues } } : {}) };
 }
 
 /** The hero's stomp (worlds/controllable/foe.js `rule.stomp`): the world's feel card's bounce when it stomps (its

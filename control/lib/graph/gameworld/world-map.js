@@ -6,9 +6,11 @@
  *
  *   THE OPENING   its first block alone, a page of its own and no bigger than its tasks. The CONTROLS first, explained
  *                 with the hero in hand (the arrival teaches moving, looking, the jump and the sprint: the guide's
- *                 lessons, each until it is done); then THE ENEMY TRAIL, its fights standing ON the way and the way out
- *                 HELD until they are won, each where a fight's controls are taught: a lone foe and the blow, then a
- *                 pair with the lock-on and the dodge
+ *                 lessons, each until it is done); then THE ENEMY TRAIL, its fights ON the way and the way out HELD
+ *                 until they are won, each where a fight's controls are taught: a lone foe and the blow, then a pair
+ *                 with the lock-on and the dodge. Its foes COME (a band's rank and file are pursuers: foes/classes): the
+ *                 lone one is posted at the far end, beyond its sight of the start, and comes down the way once the
+ *                 hero heads up it; the pair come from the same way out only when it has fallen (`after`)
  *   THE FIRST ZONE  the next two blocks on one page: what was taught is tested (the road run, a pack, a find), its
  *                 captain held as its way out
  *
@@ -85,8 +87,10 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
     // THE OPENING (its own page): the controls with the hero in hand, then the enemy trail, each fight on the way and
     // the way out held until both are won
     { id: 'controls', at: A, kind: 'arrival', say: `Find your feet in ${key[A].name}`, teach: ['move', 'look', 'jump', 'sprint'], pace: 'calm' },
-    { id: 'lone', at: A, tile: mid, kind: 'fight', say: `A lone foe stands in the way through ${key[A].name}`, foes: { [grunt]: 1 }, teach: 'strike', pace: 'tension' },
-    { id: 'pair', at: A, tile: outOf(A), kind: 'fight', say: `Two more hold the way out of ${key[A].name}`, foes: { [grunt]: 2 }, teach: ['lock', 'dodge'], pace: 'peak', opens: true },
+    // (the lone foe is posted at the far end of the way, out of its sight of the start: the controls have their room,
+    // and it comes down the trail once the hero heads up it; the pair come from the same way out when it falls)
+    { id: 'lone', at: A, tile: outOf(A), kind: 'fight', say: `A lone foe comes down the way through ${key[A].name}`, foes: { [grunt]: 1 }, teach: 'strike', pace: 'tension' },
+    { id: 'pair', at: A, tile: outOf(A), kind: 'fight', say: `Two more come from the way out of ${key[A].name}`, foes: { [grunt]: 2 }, teach: ['lock', 'dodge'], pace: 'peak', opens: true, after: 'lone' },
     // THE FIRST ZONE: what the opening taught, tested
     { id: 'road', at: B, tile: inOf(B), kind: 'traverse', say: `Run ${key[B].name}`, pace: 'calm' },
     { id: 'pack', at: B, tile: mid, kind: 'fight', say: `Foes hold ${key[B].name}`, foes: harrier === grunt ? { [grunt]: 3 } : { [grunt]: 2, [harrier]: 1 }, pace: 'peak' },

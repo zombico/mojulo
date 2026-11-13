@@ -46,6 +46,11 @@ the death in the game's register, the base states, the target rim and bar); a ga
 over the class's (a `tune`: a shooter's gun and health, a sneak's unhittable watchers), never a mind of its own. How a
 mind sees is said in words on the class (`mind/vocab.js`): `sight` narrow | wide | keen, `gaze` still | sweep, `cover`.
 
+A foe is met one of two ways, and the class says which. One that HOLDS (a guard at its post, a patrol on its round)
+is met by walking up to it, and can be walked round. One that COMES (`foes/classes/pursuer.js`: it hunts by what it
+sees, from as far as its sight reaches, and holds no post) meets the hero on the way. A game whose minds hunt fields a
+rank and file that comes, by the casting call's own score; one whose minds guard their ground fields one that holds.
+
 An entry reads as a recipe:
 
 ```js
