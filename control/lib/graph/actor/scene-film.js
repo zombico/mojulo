@@ -38,7 +38,7 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
 /** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
  * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
  * 3: a set lit as its world declares (atmosphere.json, film_light.py). */
-export const SCENE_PACK_REV = 3;
+export const SCENE_PACK_REV = 4;
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -450,6 +450,24 @@ def stage(S):
     log('a bare stage: its floor, its sky%s' % ('' if S.get('lights') else ', its key'))
 
 
+def house(S):
+    """A walled set with no light of its own (a room of a house: no sky reaches it, no lamp is declared) is lit as a
+    studio lights a room: one soft panel under each ceiling, the HOUSE LIGHTS (scene.json set.house). Made once."""
+    for i, H in enumerate((S.get('set') or {}).get('house') or []):
+        name = 'house:%d' % (i + 1)
+        if bpy.data.objects.get(name) is not None:
+            continue
+        lamp = bpy.data.lights.new(name, 'AREA')
+        lamp.shape = 'RECTANGLE'
+        lamp.size, lamp.size_y = float(H['size'][0]), float(H['size'][1])
+        lamp.energy = float(H['watts'])
+        lamp.color = tuple(H.get('color') or (1.0, 0.94, 0.86))
+        ob = bpy.data.objects.new(name, lamp)
+        ob.location = tuple(float(v) for v in H['at'])
+        bpy.context.scene.collection.objects.link(ob)
+        log('%s: %d W under the ceiling' % (name, round(lamp.energy)))
+
+
 def build(S):
     sc = bpy.context.scene
     sc.render.fps = int(S['fps'])
@@ -509,6 +527,7 @@ def build(S):
                     remap(owner, b, S['clock'], fps)
         log('%s: %d objects, bound %s%s' % (name, len(new), [b for _, b in bound if b], ' on the time map' if S.get('clock') else ''))
     stage(S)
+    house(S)
     sc.frame_set(1)
 
 

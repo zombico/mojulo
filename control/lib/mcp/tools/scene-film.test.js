@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { closeDb } from '@/lib/db/index';
 import { BASELINE } from '@/lib/graph/actor/baseline.js';
-import { resolveSceneCast, planSceneFilm, screenplayErrors, writeSceneFilm, readGrain, packTitle } from './scene-film.js';
+import { resolveSceneCast, planSceneFilm, screenplayErrors, writeSceneFilm, readGrain, packTitle, houseLights } from './scene-film.js';
 import { forgeMotionHandler } from './motion.js';
 
 // the scene film's core (scene-film.js): the cast resolved from personas and heroes, the scene planned without a mint,
@@ -110,5 +110,21 @@ describe("forge_motion's screenplay family", () => {
   });
   it('refuses a cast ref the store does not have, before writing', async () => {
     await expect(forge({ subject: { screenplay: scene({ mara: { persona: 'sk_nobody' } }) } })).rejects.toThrow(/'sk_nobody' is no sketch, not a persona/);
+  });
+});
+
+describe('a walled set with no light of its own', () => {
+  it('takes house lights: a panel under each walled room’s ceiling, sized and powered by its floor', () => {
+    const [L, ...rest] = houseLights([{ id: 'lounge', min: [0, 0], max: [5, 4], walled: true, h: 3 }, { id: 'hall', min: [5, 0], max: [9, 4] }]);
+    expect(rest).toEqual([]);
+    expect(L).toEqual({ room: 'lounge', at: [2.5, 2, 2.85], size: [3, 2.4], watts: 600 });
+    expect(houseLights(null)).toEqual([]);
+  });
+  it('is shot from inside its rooms', () => {
+    const sp = { cast: { ada: { mark: 'a' }, jon: { mark: 'b' } }, marks: { a: [1.8, 3], b: [3.2, 3] }, script: 'ADA: You kept the key.\nJON: I kept everything.' };
+    const set = { rooms: [{ id: 'lounge', min: [0, 0], max: [5, 4], walled: true, h: 3 }] };
+    const inside = planSceneFilm(sp, { getRow: () => null, set }).coverage.cameras.flatMap((c) => c.keys.map((k) => k.pos));
+    for (const p of inside) { expect(p[1]).toBeGreaterThanOrEqual(0); expect(p[1]).toBeLessThanOrEqual(4); }
+    expect(planSceneFilm(sp, { getRow: () => null }).coverage.cameras[0].keys[0].pos[1]).toBeLessThan(0);
   });
 });

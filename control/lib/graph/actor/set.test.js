@@ -39,4 +39,15 @@ describe('a set', () => {
     expect(floor).toBe(0);
     expect(castOnSet({ cast: { ben: { mark: 'pocket-1' } }, script: 'BEN: Hi.' }, P).floor).toBe(1.25);
   });
+  it('reads a walled room: where its cast stands, its ceiling and what stands tall in it, in metres', () => {
+    const P = setPlaces({ metersPerUnit: 0.5, rooms: [{ id: 'lounge', box: { min: [0, 0, 0], max: [10, 8, 6] }, h: 6, walled: true, stand: [4, 6, 0], solids: [{ min: [0, 2], max: [1, 4] }] }], anchors: [{ id: 'sofa', kind: 'spot', at: [5, 3, 0] }] });
+    expect(P.rooms).toEqual([{ id: 'lounge', min: [0, 0], max: [5, 4], walled: true, h: 3, solids: [{ min: [0, 1], max: [0.5, 2] }] }]);
+    expect(P.marks['room-lounge']).toEqual([2, 3]);
+    expect(P.marks.sofa).toEqual([2.5, 1.5]);
+    // (a cast with no marks stands about the room's `stand`, not its middle)
+    const { screenplay } = castOnSet({ cast: { ada: {}, jon: {} }, script: 'ADA: Hi.' }, P);
+    expect(screenplay.marks['ada-mark'][1]).toBe(3);
+    // (a room that is not walled keeps the shape it had)
+    expect(setPlaces({ rooms: [{ id: 'hall', box: { min: [0, 0, 0], max: [4, 4, 3] }, h: 3 }] }).rooms).toEqual([{ id: 'hall', min: [0, 0], max: [4, 4] }]);
+  });
 });

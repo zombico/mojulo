@@ -23,7 +23,7 @@
  *     keeps (the screenplay as written, its recordings bound)
  *   resolveSceneCast(screenplay, { getRow, style? }) → { cast, heroes, sources }   the words actScene reads, each
  *     actor's hero ({ ref } | { spec }) and where each part came from (refs looked up through getRow)
- *   planSceneFilm(screenplay, { getRow, style?, grain? }) → { S, coverage, notes, cast, heroes, sources }   no mint
+ *   planSceneFilm(screenplay, { getRow, style?, grain?, set? }) → { S, coverage, notes, cast, heroes, sources }   no mint
  *   writeSceneFilm({ outDir, screenplay, getRow, title?, style?, grain?, grade?, fps?, hero?, log? }) → the summary
  *     (the actors minted and written as actors/<who>.glb, the pack's files beside them)
  */
@@ -108,10 +108,13 @@ export function resolveSceneCast(sp, { getRow, style = null } = {}) {
 }
 
 /** The scene as played and shot, before any actor is minted: the blocking, the coverage and the director's notes */
-export function planSceneFilm(sp, { getRow, style = null, grain = null } = {}) {
+export function planSceneFilm(sp, { getRow, style = null, grain = null, set = null } = {}) {
   const { cast, heroes, sources } = resolveSceneCast(sp, { getRow, style });
-  const S = actScene({ ...sp, cast });
-  const coverage = coverScene(S, { grain: readGrain(grain) });
+  // (a set that says what stands on its floor: the crosses go round it, actor/route.js)
+  const S = actScene({ ...sp, cast, ...(set?.floor_plan ? { floor_plan: set.floor_plan } : {}) });
+  // (on a set with walled rooms the cameras stand inside them: actor/coverage.js fitRoom)
+  const walled = set?.rooms?.some((r) => r.walled) ? set.rooms : null;
+  const coverage = coverScene(S, { grain: readGrain(grain), ...(walled ? { rooms: walled } : {}) });
   return { S, coverage, notes: directorsNotes(S, coverage), cast, heroes, sources };
 }
 
@@ -135,7 +138,7 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
     if (!Object.keys(places.marks).length) throw new Error(`world_ref: '${sp.world_ref}' (${row.manifest.kind}) names no place to stand (no rooms, no anchors): give the screenplay its own marks, or set the scene on a room, a hall, a stage or a trail`);
     const on = castOnSet(sp, places);
     play = on.screenplay;
-    set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, places: Object.keys(places.marks).length, faces: setFaces(payload, on.floor) };
+    set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, ...(on.floor_plan ? { floor_plan: on.floor_plan } : {}), places: Object.keys(places.marks).length, faces: setFaces(payload, on.floor) };
   }
   const { bindScreenplayVoice } = await import('@/lib/mcp/tools/scene-voice.js');
   const bound = bindScreenplayVoice(play);
@@ -147,6 +150,18 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
 function setFaces(payload, floor) {
   const k = Number.isFinite(payload?.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1;
   return (payload?.faces ?? []).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3).map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k - floor]) }));
+}
+
+/** how bright a room's house lights are (W of a Blender area light per m² of floor), and how far under the ceiling */
+const HOUSE_W_PER_M2 = 30, HOUSE_DROP = 0.15;
+/** The house lights of a set's walled rooms: one soft panel under each ceiling, over the middle of the floor, in the
+ * scene's frame (metres, the set's floor at z 0): [{ room, at, size, watts }] */
+export function houseLights(rooms) {
+  const r2 = (v) => Math.round(v * 100) / 100;
+  return (rooms ?? []).filter((R) => R.walled && Number.isFinite(R.h)).map((R) => {
+    const w = R.max[0] - R.min[0], d = R.max[1] - R.min[1];
+    return { room: R.id, at: [r2((R.min[0] + R.max[0]) / 2), r2((R.min[1] + R.max[1]) / 2), r2(R.h - HOUSE_DROP)], size: [r2(w * 0.6), r2(d * 0.6)], watts: Math.round(w * d * HOUSE_W_PER_M2) };
+  });
 }
 
 /** Advice on a scene shot on a set: a shot whose camera has the set between it and the actors (shoot/clearance.js) */
@@ -211,7 +226,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   if (!Number.isFinite(fps) || fps < 1 || fps > 120) throw new Error('fps: a frame rate, 1 to 120');
   { const { renderErrors } = await import('@/lib/graph/film/render-plan.js'); const e = renderErrors(render); if (e.length) throw new Error(e.join('; ')); }
   const P = prepared ?? await prepareScreenplay(screenplay, { getRow });
-  const plan = planSceneFilm(P.screenplay, { getRow, style, grain });
+  const plan = planSceneFilm(P.screenplay, { getRow, style, grain, set: P.set });
   const { S, coverage, notes, heroes, sources } = plan;
   // (heroes resolved, and refused, before the first slow mint)
   const srcs = {};
@@ -258,6 +273,9 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     const { filmAtmosphere } = await import('@/lib/motion/blender-film.js');
     const world = getRow(P.set.ref);
     atmosphere = filmAtmosphere({ payload: (await resolveWorldScene(world, { unshaded: true })).payload, manifest: world.manifest ?? {} });
+    // (a walled set with no light of its own would render black: its house lights, actor/scene-film.js actors.py house)
+    const house = !atmosphere.sky && !atmosphere.lamps.length ? houseLights(P.set.rooms) : [];
+    if (house.length) setPack.house = house;
   }
   const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
   for (const f of files) { mkdirSync(path.dirname(path.join(outDir, f.file)), { recursive: true }); writeFileSync(path.join(outDir, f.file), f.text); }
@@ -349,7 +367,7 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
   const getRow = (r) => SketchRepository.getByRef(r);
   // (refused before anything is written: the script, the cast and its refs, the set, the recordings)
   const prep = await prepareScreenplay(subject.screenplay, { getRow });
-  const plan = planSceneFilm(prep.screenplay, { getRow, style: P.style ?? null, grain: P.grain ?? null });
+  const plan = planSceneFilm(prep.screenplay, { getRow, style: P.style ?? null, grain: P.grain ?? null, set: prep.set });
   prep.advice.push(...await setAdvice(plan, prep.set));
 
   const ref = `mo_${randomUUID().replace(/-/g, '').slice(0, 12)}`, dir = outcomeDirFor(ref), filmDir = path.join(dir, 'blender');

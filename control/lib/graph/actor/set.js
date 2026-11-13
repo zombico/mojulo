@@ -5,10 +5,11 @@
  * `room-<id>`, every name in the letters a screenplay writes a mark in (`placeName`). What hangs on
  * a wall (a torch, a niche) is no place to stand and is left out. Feet worlds are read in metres (payload.metersPerUnit).
  *
- *   setPlaces(payload) → { marks: { <id>: [x, y] }, floors: { <id>: z }, rooms: [{ id, min: [x, y], max: [x, y] }] }
+ *   setPlaces(payload) → { marks: { <id>: [x, y] }, floors: { <id>: z }, rooms: [{ id, min: [x, y], max: [x, y], walled?, h?, solids?, blocks? }] }
  *   castOnSet(sp, set) → the screenplay with the set's places among its marks (its own marks win) and, for a part with
  *     no mark, a mark of its own about the largest room's middle (or the first place), the cast in a line PAIR apart;
- *     `floor` the place's height under the first part's mark
+ *     `floor` the place's height under the first part's mark; on a set that says what stands on its floor,
+ *     `floor_plan` beside them (what the scene's crosses go round: scene.js)
  *
  * Pure and deterministic.
  */
@@ -29,8 +30,14 @@ export function setPlaces(payload) {
   for (const R of Array.isArray(payload?.rooms) ? payload.rooms : []) {
     const b = R?.box, lo = b?.min ?? (Array.isArray(b) ? b.slice(0, 2) : null), hi = b?.max ?? (Array.isArray(b) ? b.slice(2, 4) : null);
     if (!R?.id || !lo || !hi) continue;
-    rooms.push({ id: R.id, min: [r3(lo[0] * k), r3(lo[1] * k)], max: [r3(hi[0] * k), r3(hi[1] * k)] });
-    put(`room-${R.id}`, [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2] ?? 0]);
+    // (`walled`: a room closed on every side, which a camera must stand inside, actor/coverage.js fitRoom; `h` its ceiling, `solids` what
+    // stands in it taller than a camera, `blocks` everything that stands on its floor)
+    const rects = (v) => (R.walled && Array.isArray(v) ? v.filter((B) => B?.min && B?.max).map((B) => ({ min: [r3(B.min[0] * k), r3(B.min[1] * k)], max: [r3(B.max[0] * k), r3(B.max[1] * k)] })) : []);
+    const solids = rects(R.solids), blocks = rects(R.blocks);
+    rooms.push({ id: R.id, min: [r3(lo[0] * k), r3(lo[1] * k)], max: [r3(hi[0] * k), r3(hi[1] * k)], ...(R.walled ? { walled: true, ...(Number.isFinite(R.h) ? { h: r3(R.h * k) } : {}), ...(solids.length ? { solids } : {}), ...(blocks.length ? { blocks } : {}) } : {}) });
+    // (a furnished room says where its open floor is, `stand`; a bare one is stood in its middle)
+    const stand = Array.isArray(R.stand) && R.stand.slice(0, 2).every(Number.isFinite) ? R.stand : [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2];
+    put(`room-${R.id}`, [stand[0], stand[1], lo[2] ?? 0]);
   }
   const anchors = (Array.isArray(payload?.anchors) ? payload.anchors : []).filter((a) => a && !WALL_KINDS.includes(a.kind));
   for (const a of anchors) put(a.id, a.at);
@@ -44,7 +51,7 @@ export function castOnSet(sp, set) {
   const names = Object.keys(cast), free = names.filter((w) => cast[w].mark === undefined);
   // (the set's largest room: where a coverage has the most room to stand its cameras)
   const area = (R) => (R.max[0] - R.min[0]) * (R.max[1] - R.min[1]);
-  const first = [...set.rooms].sort((x, y) => area(y) - area(x))[0], mid = first ? [(first.min[0] + first.max[0]) / 2, (first.min[1] + first.max[1]) / 2] : Object.values(set.marks)[0] ?? [0, 0];
+  const first = [...set.rooms].sort((x, y) => area(y) - area(x))[0], mid = first ? set.marks[placeName(`room-${first.id}`)] ?? [(first.min[0] + first.max[0]) / 2, (first.min[1] + first.max[1]) / 2] : Object.values(set.marks)[0] ?? [0, 0];
   const midFloor = first ? set.floors[placeName(`room-${first.id}`)] ?? 0 : set.floors[Object.keys(set.marks)[0]] ?? 0;
   const floors = { ...set.floors };
   free.forEach((w, i) => {
@@ -54,5 +61,8 @@ export function castOnSet(sp, set) {
   });
   const lead = cast[names[0]]?.mark;
   // (a mark the screenplay gives itself stands on that room's floor)
-  return { screenplay: { ...sp, marks, cast }, floor: Object.hasOwn(own, lead) ? midFloor : floors[lead] ?? midFloor };
+  // (what stands on the set's floor, for the crosses to go round: scene.js `floor_plan`, route.js)
+  const blocks = set.rooms.flatMap((R) => R.blocks ?? []);
+  const plan = blocks.length ? { floor_plan: { blocks, rooms: set.rooms.filter((R) => R.walled).map((R) => ({ min: R.min, max: R.max })) } } : {};
+  return { screenplay: { ...sp, marks, cast }, ...plan, floor: Object.hasOwn(own, lead) ? midFloor : floors[lead] ?? midFloor };
 }

@@ -31,6 +31,8 @@ describe('the scene film pack', () => {
     expect(byName['SCENE.md']).toContain('read_factory_settings(use_empty=True)');
     // (a dub's face takes outlive the save: Blender keeps no action that nothing uses)
     expect(py).toContain('a.use_fake_user = True');
+    // (a walled set with no light of its own: its house lights, made by actors.py from scene.json set.house)
+    expect(py).toContain("'house:%d' % (i + 1)");
   });
 
   it('scene.json: each actor\'s GLB, its takes and its place over time; the coverage; the lines', () => {

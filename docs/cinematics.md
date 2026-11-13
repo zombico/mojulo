@@ -204,6 +204,15 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
 - A part with no mark stands in the largest room.
 - The coverage is still framed from the marks, so a wall between a camera and the actors is advised by
   `shoot/clearance.js` `shootSightlines`.
+- A decorated room (`interior/places.js`) is a set: its payload carries the room (`walled`, its ceiling `h`, the tall
+  pieces as `solids`, and `stand`, the open floor a cast with no marks is put on) and an anchor by each piece, feature,
+  door and window, named by the piece's word (`sofa`, `fireplace`, `door`).
+  - In a `walled` room every camera is kept inside (`actor/coverage.js` `fitRoom`): brought back along its line of
+    sight to the wall or to the first tall piece, its lens opened to hold the framing.
+  - A cross is routed (`actor/route.js` `routeWalk`): the room's `blocks` (every standing piece) and the other actors
+    are walked round over their corners, the shortest clear way inside the room. The walk's `via` holds the corners;
+    its root keys turn onto each leg in its first steps. A set with no `blocks`, or a cross with no way round, is
+    the straight line.
 - The world's own Blender pack goes under the actors, lowered so its floor is the scene's.
 
 **The voice** (`voice`): recorded lines set the scene's clock.
@@ -255,6 +264,8 @@ core as one forged alone (`film.js` `sceneScreenplay`).
 - **A set's light** is its world's: the pack carries the world's `atmosphere.json` and `film_light.py` performs it
   after `set.py` (the sky, a sun or none indoors, the lamps at their power). `render.light: 'setups'` adds each setup's
   key, fill and rim over it.
+- **House lights:** a walled set whose world declares no sky and no lamp gets one area light under each ceiling
+  (`scene.json` `set.house`, made by `actors.py`), so a room of a house does not render black.
 - **A dub's frames** are its own (`film/frames-<preset>-<locale>`): the worker gives the faces the locale's mouths, or
   the scene's own back, before it draws. A scene with no dub in the locale keeps its own frames and voice.
 - **The stage:** a scene with no set plays on a bare stage (`actors.py`): a matte floor, a soft sky and, where the

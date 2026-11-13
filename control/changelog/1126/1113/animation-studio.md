@@ -68,6 +68,20 @@ game.
   another, or back to the original, always shows the right mouths. Before, a dubbed render kept the original's mouths
   under the new voice, and the frames of whichever language was rendered first were used again for the next. A scene
   with no dub in a language plays its own voice in that language's cut.
+- **Film a scene in a room you decorated.** A room fitted out by the interior designer can now be a film's set.
+  Before, a scene set in one was refused: the room named nowhere to stand.
+  - **Places a script can name.** Each piece of furniture, the fireplace, the door and each window is a place:
+    "Ada crosses to the fireplace.", "Jon crosses to the door.", "to the sofa". The place is the clear floor nearest
+    the piece's front, so nobody is stood inside a table.
+  - **Where the cast stands.** With no marks of their own, the cast stands on the room's open floor with the most room
+    left for a camera, not in the room's middle where the coffee table is.
+  - **The camera stays in the room.** A real room has four walls, so each camera stands inside them on a wider lens,
+    and stops in front of a bookcase or a chimney breast rather than in or behind it. Before, a wide shot stood
+    outside the wall and saw only its back.
+  - **Walking round the furniture.** A cross goes round the sofa, the table and the other actors by the shortest
+    clear way, turning at each corner. Before, it was a straight line through whatever stood between.
+  - **House lights.** A room with no lamps of its own is lit by a soft light under its ceiling. Before, it rendered
+    black.
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
   place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that

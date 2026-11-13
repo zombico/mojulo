@@ -1,7 +1,7 @@
 // a scene's coverage: the scenes card's framings, the cuts a director makes, one side of the line, a shoot plan's shape
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { FRAMES, frameShot, coverScene } from './coverage.js';
+import { FRAMES, frameShot, coverScene, fitRoom, focalOf, WALL_OFF, SOLID_OFF, WIDEST } from './coverage.js';
 import { actScene } from './scene.js';
 import { BASELINE } from './baseline.js';
 import { normalizeShoot } from '../shoot/plan.js';
@@ -56,5 +56,43 @@ describe('a scene\'s coverage', () => {
   it('a camera a setup: the wide, an over and a close an actor at most', () => {
     expect(C.cameras.length).toBeLessThanOrEqual(1 + 2 * Object.keys(S.actors).length);
     expect(new Set(C.cameras.map((c) => c.id)).size).toBe(C.cameras.length);
+  });
+});
+
+describe('a camera in a walled room', () => {
+  const room = { min: [0, 0], max: [5, 4], walled: true };
+  const wide = { pos: [2.5, -9, 3.6], poi: [2.5, 3, 1.4], fov: 50 };
+  it('is brought inside the wall along its own line of sight, its lens opened to hold the framing', () => {
+    const f = fitRoom(wide, [room]);
+    expect(f.pos[0]).toBe(2.5);
+    expect(f.pos[1]).toBeCloseTo(WALL_OFF, 3);
+    expect(f.pos[2]).toBeLessThan(wide.pos[2]);
+    expect(f.poi).toEqual(wide.poi);
+    expect(f.fov).toBeGreaterThan(50);
+    expect(f.fov).toBeLessThanOrEqual(WIDEST);
+    expect(focalOf(f.fov)).toBeLessThan(focalOf(50));
+  });
+  it('stops before a tall piece on its line of sight', () => {
+    const f = fitRoom(wide, [{ ...room, solids: [{ min: [2, 0], max: [3, 0.4] }] }]);
+    expect(f.pos[1]).toBeCloseTo(0.4 + SOLID_OFF, 3);
+    // (a piece off the line is no matter)
+    expect(fitRoom(wide, [{ ...room, solids: [{ min: [4, 0], max: [5, 0.4] }] }]).pos[1]).toBeCloseTo(WALL_OFF, 3);
+  });
+  it('leaves a camera already inside, a room with no walls and a subject in no room as they were', () => {
+    const inside = { pos: [2.5, 1, 1.6], poi: [2.5, 3, 1.4], fov: 50 };
+    expect(fitRoom(inside, [room])).toBe(inside);
+    expect(fitRoom(wide, [{ min: [0, 0], max: [5, 4] }])).toBe(wide);
+    expect(fitRoom({ ...wide, poi: [9, 9, 1.4] }, [room])).toEqual({ ...wide, poi: [9, 9, 1.4] });
+    expect(fitRoom(wide, null)).toBe(wide);
+  });
+  it('covers a scene from inside its room, and as it was with no rooms', () => {
+    const S = actScene({ cast: { ada: { mark: 'a' }, jon: { mark: 'b' } }, marks: { a: [1.8, 3], b: [3.2, 3] }, script: 'ADA: You kept the key.\nJON (worried): I kept everything.' });
+    const C = coverScene(S, { rooms: [room] });
+    for (const cam of C.cameras) for (const k of cam.keys) {
+      expect(k.pos[0]).toBeGreaterThanOrEqual(-1e-6); expect(k.pos[0]).toBeLessThanOrEqual(5 + 1e-6);
+      expect(k.pos[1]).toBeGreaterThanOrEqual(-1e-6); expect(k.pos[1]).toBeLessThanOrEqual(4 + 1e-6);
+    }
+    expect(coverScene(S, { rooms: null })).toEqual(coverScene(S));
+    expect(coverScene(S).cameras[0].keys[0].pos[1]).toBeLessThan(0);
   });
 });

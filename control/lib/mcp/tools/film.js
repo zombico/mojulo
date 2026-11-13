@@ -64,7 +64,7 @@ export async function playFilm(F, { getRow }) {
   for (const id of sceneOrder(F)) {
     try {
       const prep = await prepareScreenplay(sceneScreenplay(F, id), { getRow });
-      const plan = planSceneFilm(prep.screenplay, { getRow, style: F.style ?? null, grain: F.grain ?? null });
+      const plan = planSceneFilm(prep.screenplay, { getRow, style: F.style ?? null, grain: F.grain ?? null, set: prep.set });
       played[id] = { prep, plan, set: prep.set, advice: [...prep.advice, ...await setAdvice(plan, prep.set)] };
     } catch (e) {
       played[id] = { error: e.message.replace(/\n\(manual:[^)]*\)$/, '') };

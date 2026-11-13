@@ -61,6 +61,13 @@ forge_motion({ title: 'The key', export: 'storyboard',
     pick a larger room.
   - **In Blender,** the world's own pack is put under the actors (`set/`, `set.py`). The storyboard draws the set's
     rooms in its overhead plan.
+  - **A decorated room** (an `interior`, from `design_interior`) is a set too.
+    - Its marks are the room's open floor (`room-<name>`) and a place by each thing in it, named by its word:
+      `sofa`, `coffee-table`, `chair-2`, `bookcase`, `fireplace`, `door`, `window`. "Ada crosses to the fireplace."
+    - The cameras stay inside its walls, on a wider lens, and stop in front of tall furniture.
+    - With no lamps of its own it is lit by a soft light under the ceiling.
+    - A cross goes round the furniture and round the others, a body's width off each, by the shortest way. With no
+      way round, it is walked straight, as on any other set.
 - **`voice`: recorded lines.** Write `{ <line number>: '<path>.wav' | { audio, text? } }`. The number counts spoken
   lines, 1 the first, in script order.
   - **They set the clock.** A recorded line lasts its recording. The read is fitted to it, so the face, the gestures on

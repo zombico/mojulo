@@ -12,7 +12,8 @@
  *             silence; its face's beats as the scene plays them (below), its body's cues with its listening nods
  *     speaks / listens  [[at, end]] its own lines, and every other speaker's
  *     root    [{ t, x, y, yaw }] where it stands and which way it faces (yaw degrees: 0 faces +y, 90 faces +x), eased
- *     walks   [{ start, end, from, to, distance }] its crosses (body.js plays the walk cycle over them)
+ *     walks   [{ start, end, from, to, distance, via? }] its crosses (body.js plays the walk cycle over them); `via`
+ *             the corners of a cross walked round what stands on the set's floor (route.js; `floor_plan`)
  *     time    the screenplay's slow motion and freezes as a time map's moments on the scene's clock (shoot/time.js:
  *             `{ span, speed }`, `{ at, hold }`), which the coverage carries onto its shots; they take no scene time.
  *             Absent when the script says none.
@@ -40,6 +41,7 @@
  *
  * Seeded, pure and deterministic.
  */
+import { routeWalk } from './route.js';
 import { actRead } from './interpret.js';
 import { parseScreenplay } from './screenplay.js';
 const TIME_KINDS = ['slow', 'real', 'hold'];
@@ -51,6 +53,8 @@ import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 /** the clock's times (s) and speeds: a turn on the spot, a look, the walk's metres a second (the hero's walk, about
  * hero-gaits.js's), the default apart of two actors with no marks (m), an actor's eye height (m) */
 export const TURN = 0.6, LOOK = 0.3, WALK = 1.05, PAIR = 1.4, EYES = 1.55;
+/** how long a walker takes to turn onto the next leg of a bent walk (s, at most) */
+export const BEND = 0.35;
 /** a listener's nod: how long after the stressed word it starts, and the share of the style's stress gestures it nods */
 export const NOD = Object.freeze({ after: 0.15, share: 0.5, plain: 0.3 });
 /** while anyone crosses, the watchers' gaze is set again every so often (s) */
@@ -131,6 +135,10 @@ export function actScene(scene) {
   const root = Object.fromEntries(names.map((w) => [w, [{ t: 0, x: at[w][0], y: at[w][1], yaw: yaw[w] }]])), walks = Object.fromEntries(names.map((w) => [w, []]));
   const turnTo = (w, t, y, dur) => { root[w].push({ t: r3(t), x: at[w][0], y: at[w][1], yaw: yaw[w] }); yaw[w] = r3(yaw[w] + wrap(y - yaw[w])); root[w].push({ t: r3(t + dur), x: at[w][0], y: at[w][1], yaw: yaw[w] }); };
 
+  // (what stands on the set's floor, where the set says: { blocks, rooms } in metres, actor/set.js castOnSet)
+  const floor = scene.floor_plan && typeof scene.floor_plan === 'object' ? scene.floor_plan : null;
+  const roomOf = (F, p) => (F.rooms ?? []).find((R) => p[0] >= R.min[0] && p[0] <= R.max[0] && p[1] >= R.min[1] && p[1] <= R.max[1]) ?? null;
+
   // ─── the clock: each beat after the last ───────────────────────────────────────────────────────────────────────────
   const turns = [], moves = [], looks = [], time = [];
   let t = READ_PAD.lead, slow = null, ln = 0;
@@ -146,13 +154,27 @@ export function actScene(scene) {
       // (to a mark; or up to another actor, stopping PAIR short of where they stand, and not at all from nearer)
       const from = [...at[b.who]], them = b.to.actor ? at[b.to.actor] : null, gap = them ? Math.hypot(them[0] - from[0], them[1] - from[1]) : 0;
       const to = !them ? marks[b.to.mark] : gap > PAIR + 1e-3 ? [r3(them[0] + ((from[0] - them[0]) * PAIR) / gap), r3(them[1] + ((from[1] - them[1]) * PAIR) / gap), ...from.slice(2)] : from;
-      const d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      // (on a set that says what stands on its floor the cross goes round it and round the others: route.js; else,
+      // and with nothing in the way, it is the straight line it always was)
+      const way = floor && Math.hypot(to[0] - from[0], to[1] - from[1]) > 1e-3
+        ? routeWalk(from, to, { blocks: floor.blocks ?? [], room: roomOf(floor, from), people: names.filter((o) => o !== b.who).map((o) => at[o]) }) : [from, to];
+      const legs = way.slice(1).map((p, k) => Math.hypot(p[0] - way[k][0], p[1] - way[k][1]));
+      const d = legs.reduce((s, l) => s + l, 0);
       if (d > 1e-3) {
-        turnTo(b.who, t, headingTo(from, to), TURN);
+        turnTo(b.who, t, headingTo(way[0], way[1]), TURN);
         const start = t + TURN, end = start + d / WALK;
+        // (a bent walk: a key at each corner still facing the way it came, the turn onto the next leg in its first steps)
+        let s = start;
+        for (let k = 1; k < way.length - 1; k++) {
+          s += legs[k - 1] / WALK;
+          const p = way[k], q = way[k + 1], lead = Math.min(BEND, legs[k] / WALK / 2), u = (lead * WALK) / legs[k];
+          root[b.who].push({ t: r3(s), x: p[0], y: p[1], yaw: yaw[b.who] });
+          yaw[b.who] = r3(yaw[b.who] + wrap(headingTo(p, q) - yaw[b.who]));
+          root[b.who].push({ t: r3(s + lead), x: r3(p[0] + (q[0] - p[0]) * u), y: r3(p[1] + (q[1] - p[1]) * u), yaw: yaw[b.who] });
+        }
         at[b.who] = [...to];
         root[b.who].push({ t: r3(end), x: to[0], y: to[1], yaw: yaw[b.who] });
-        walks[b.who].push({ start: r3(start), end: r3(end), from, to: [...to], distance: r3(d), ...(b.to.actor ? { toward: b.to.actor } : {}) });
+        walks[b.who].push({ start: r3(start), end: r3(end), from, to: [...to], distance: r3(d), ...(way.length > 2 ? { via: way.slice(1, -1) } : {}), ...(b.to.actor ? { toward: b.to.actor } : {}) });
         moves.push({ who: b.who, start: r3(t), end: r3(end) });
         t = end;
       }
