@@ -20,7 +20,7 @@
 
 import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
-import { readRoll, rolledIds } from '@/lib/graph/game/roll';
+import { readRoll, rolledIds, pickupsOf } from '@/lib/graph/game/roll';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
@@ -1069,14 +1069,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (parkedColliders.length) payload.colliders = [...(payload.colliders || []), ...parkedColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
+    const rolls = sketch.manifest.roll != null ? readRoll(sketch.manifest.roll, { blocks: sketch.manifest.blocks, pickups: pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics) }) : null;
+    let rolledThings = {};
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
-      // a ROLL (game/roll.js): the blocks its seed may leave out are things of their own, stood by the runtime
-      const rolls = sketch.manifest.roll != null ? readRoll(sketch.manifest.roll, { blocks: sketch.manifest.blocks }) : null;
-      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1, ...(rolls ? { rolled: rolledIds(rolls) } : {}) });
+      // a ROLL (below): the blocks its seed may leave out are things of their own, stood by the runtime
+      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1, ...(rolls && rolls.cover ? { rolled: rolledIds(rolls) } : {}) });
       payload.faces = [...(payload.faces || []), ...B.faces];
       payload.colliders = [...(payload.colliders || []), ...B.colliders];
-      if (rolls) payload.roll = { cover: rolls.cover, things: B.things };
-    } else if (sketch.manifest.roll != null) readRoll(sketch.manifest.roll, { blocks: [] });   // (a roll with no blocks: refused, teaching)
+      if (rolls && rolls.cover) rolledThings = B.things;
+    }
+    // the level's ROLL (game/roll.js): what its seed picks on it (its cover, its items, its start), in the runtime's
+    // shape; the page carries the roll's engine only then. Absent ⇒ byte-identical.
+    if (rolls) payload.roll = { ...(rolls.cover ? { cover: rolls.cover, things: rolledThings } : {}), ...(rolls.items ? { items: rolls.items, at: Object.fromEntries(pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics).map((p) => [p.zone, p.at])) } : {}), ...(rolls.start ? { start: rolls.start } : {}) };
     // hangar: the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).

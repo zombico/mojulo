@@ -6,8 +6,8 @@
  *
  *   ROLL_LAWS, each { law, holds, says }:
  *     body          the pilot has a body (a collide radius): without one no cover stops it, and a roll changes nothing
- *     way-through   on every sampled seed the walk's way is open: from the start through the contract's own walk
- *                   (its audits' via points and targets, in order), and from the start to every pickup
+ *     way-through   on every sampled seed the walk's way is open: from the start the seed picked, through the
+ *                   contract's own walk (its audits' via points and targets, in order), and to every pickup it laid
  *     apart         the sample is not one map: how many different rolls it met, of how many there are
  *     won           the seeds played through reach the level's success, led corner to corner on the nav grid
  *
@@ -45,18 +45,24 @@ const feet = (e) => e.transform.pos[2] - ((e.rule && e.rule.eye) || 0);
 // the world the walk is led on: its colliders, every standing rolled thing blocking at any height (kept, so its grid is)
 const led = (world) => ({ colliders: (world.colliders || []).map((c) => (c.roll != null ? { min: [c.min[0], c.min[1], -1e6], max: [c.max[0], c.max[1], 1e6] } : c)) });
 // where the level's walk goes: the contract's own (its audits), and what lies to be picked up
-function walkOf(payload) {
-  const { points } = auditPath(payload.game || {});
-  const pickups = ((payload.game && payload.game.mechanics) || []).filter((m) => m && m.kind === 'collect').flatMap((m) => (m.pickups || []).map((p) => p.at)).filter(Array.isArray);
+// (`unlaid`: the zones of the pickups a roll left out, game/mechanics.js collect's pk_<i>_<j>: no way is asked to those)
+function walkOf(payload, unlaid = []) {
+  const { points } = auditPath(payload.game || {}), out = new Set(unlaid), pickups = [];
+  ((payload.game && payload.game.mechanics) || []).forEach((m, i) => {
+    if (!m || m.kind !== 'collect') return;
+    (m.pickups || []).forEach((p, j) => { if (Array.isArray(p.at) && !out.has(`pk_${i}_${j}`)) pickups.push(p.at); });
+  });
   return { points, pickups };
 }
+// the rolled world's pilot: where the roll stood it (its start), not where the level wrote it
+const pilotIn = (W, payload) => (W.pilotId && W.byId[W.pilotId]) || pilotOf(payload);
 const r1 = (v) => Math.round(v * 10) / 10;
 const at2 = (p) => `[${r1(p[0])}, ${r1(p[1])}]`;
 
 // one seed's world with no ground and no bus: the roll applied, its laws' walk asked of the nav grid
 function waysOf(payload, seed) {
   const N = live(), W = N.createWorld({ entities: payload.entities || [], ...(payload.colliders ? { colliders: payload.colliders } : {}), roll: payload.roll });
-  const R = N.applyRoll(W, seed), L = led(W), p = pilotOf(payload), { points, pickups } = walkOf(payload);
+  const R = N.applyRoll(W, seed), L = led(W), p = pilotIn(W, payload), { points, pickups } = walkOf(payload, R.unlaid);
   if (!p) return { roll: R, shut: [] };
   const from = [p.transform.pos[0], p.transform.pos[1]], body = bodyOf(p, feet(p)), shut = [];
   let a = from;
@@ -93,7 +99,7 @@ export function referenceRoute(payload) {
   if (!payload || !payload.roll) return null;
   const N = live(), W = N.createWorld({ entities: payload.entities || [], ...(payload.colliders ? { colliders: payload.colliders } : {}), roll: payload.roll });
   N.applyRoll(W, 1);
-  const L = led(W), p = pilotOf(payload), { points } = walkOf(payload);
+  const L = led(W), p = pilotIn(W, payload), { points } = walkOf(payload);
   if (!p || !points.length) return null;
   const body = bodyOf(p, feet(p), BERTH), out = [];
   let a = [p.transform.pos[0], p.transform.pos[1]];
@@ -113,7 +119,7 @@ export function rollAudit(payload, { seeds = 24, plays = 3, seconds = 120 } = {}
   const hasBody = !!(p && p.rule && p.rule.collideRadius > 0);
   for (let seed = 1; seed <= seeds; seed++) {
     const w = waysOf(payload, seed);
-    met.add(w.roll.stand.join('+'));
+    met.add(`${w.roll.stand.join('+')}|${w.roll.lay.join('+')}|${w.roll.start}`);
     for (const says of w.shut) failed.push({ seed, law: 'way-through', says });
   }
   // the seeds played: the first, then spread over the sample

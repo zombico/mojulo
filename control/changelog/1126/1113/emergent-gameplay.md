@@ -8,6 +8,14 @@ capture and the level played in Node show).
   number or any number in a band: `roll: { cover: [{ of: ['wall-a', 'wall-b', 'crate'], stand: [1, 2] }] }`. A rolled
   block is one thing: one render group and one box. Left out, it is gone whole, as if never built: out of the
   colliders, the sight, the nav grid and the scene, with nothing broken and nothing said on the bus.
+- `roll.items`: groups of the level's pickups, named by each pickup's `id` in its `collect`, of which the seed lays a
+  number or a band: `items: [{ of: ['gem-a', 'gem-b', 'gem-c'], lay: [1, 2] }]`. One left out is not there to be
+  found: its zone is no source on the bus, and its glyph and its sparkle are not drawn.
+- `roll.start`: the places the pilot may set out from, each written as the pilot's own transform is
+  (`start: [{ pos: [x, y, z], heading? }, …]`); the seed picks one. A fall's respawn and a level's doors stay where
+  the level wrote them.
+- The dice keep their order (the cover, then the items, then the start), so a roll that gains a kind keeps every pick
+  of the kinds it had.
 - The runtime's roll (`worlds/controllable/roll.js`): whole-number dice, so every runtime rolls the same from the same
   seed (the page's against Node's: 305 seeds, none unequal). Emitted only into a page whose level has a roll; a level
   without one keeps every byte.
@@ -16,10 +24,10 @@ capture and the level played in Node show).
 - A level played in Node rolls too: `simLevel` / `levelSim` take the session's `seed`.
 - The seeds audit (`game/roll-audit.js`), a machine gate: a level with a roll is many maps, so a sample of its seeds
   (24, from 1) is walked in Node, each rolled by the same dice and held to four laws: the pilot has a body, the way is
-  open (through the contract's own walk, and to every pickup), the sample is not one map, and the seeds played through
+  open (from the start the seed picked, through the contract's own walk, and to every pickup it laid), the sample is not one map, and the seeds played through
   (led corner to corner on the nav grid) reach the level's success. It says how many seeds it walked and which failed,
   by seed; it never refuses. `create_game` answers with it (`rolls`) for each level that rolls, and a `design_game`
   run's level audit carries it.
 - The browser's walk of a rolled level proves its reference roll: its one-leg plan is led round what seed 1 stands.
-- Not yet: the foes, the items and the start a seed picks, the level's book, and the room layout itself rolled in the
+- Not yet: the foes a seed picks, the level's book, and the room layout itself rolled in the
   page from a kit of rooms.

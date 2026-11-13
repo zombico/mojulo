@@ -34,8 +34,8 @@ for (let seed = 1; seed <= seeds; seed++) {
   const W = levelSim(P, { seed }).world, R = W.rolled;
   distinct.add(R.stand.join(','));
   const sightOk = L.blocks.every((b) => E.sightBlocked([b.at[0], b.at[1] - 2, b.at[2] + 1], [b.at[0], b.at[1] + 2, b.at[2] + 1], W.colliders) === R.stand.includes(b.id));
-  const path = E.navPath(W, [L.spawn[0], L.spawn[1]], [L.exit[0], L.exit[1]], body(L.spawn[2] - 1.7));
-  console.log(`seed ${seed}: stands ${R.stand.map((s) => s.slice(5)).join('') || '-'} · sight ${sightOk ? 'right' : 'WRONG'} · nav ${path ? path.length + ' corners' : 'NO WAY'} · straight ${win(P, seed, 'straight')} · by nav ${win(P, seed, 'nav')}`);
+  const me = W.byId[W.pilotId].transform.pos, path = E.navPath(W, [me[0], me[1]], [L.exit[0], L.exit[1]], body(me[2] - 1.7));
+  console.log(`seed ${seed}: stands ${R.stand.map((s) => s.slice(5)).join('') || '-'} · lays ${R.lay.map((z) => z.slice(5)).join('')} · start ${R.start} · sight ${sightOk ? 'right' : 'WRONG'} · nav ${path ? path.length + ' corners' : 'NO WAY'} · straight ${win(P, seed, 'straight')} · by nav ${win(P, seed, 'nav')}`);
 }
 console.log(`${distinct.size} different rolls in ${seeds} seeds`);
 // the product's own audit over the same seeds (game/roll-audit.js)

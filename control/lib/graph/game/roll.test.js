@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { readRoll, rolledIds, rollWays } from './roll.js';
+import { readRoll, rolledIds, rollWays, pickupsOf } from './roll.js';
 import { simLevel, rollOf } from './level-sim.js';
 import { composeLive, emissionSource } from '../worlds/controllable/compose.js';
 import { buildRoll } from '../worlds/controllable/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
 import { gameChannelScript } from '../scene/channels/game.js';
+import { eventsChannelScript } from '../scene/channels/events.js';
+import { spriteSfxChannelScript } from '../scene/channels/sprite-sfx.js';
+import { synthesizeLevel } from './level-synth.js';
 import { controllableChannelScript } from '../scene/channels/controllable/index.js';
 
 // A LEVEL'S ROLL: what its seed picks on it. One small level: a corridor shut by either of two walls, a crate beside.
@@ -39,7 +42,8 @@ describe('the roll, read', () => {
   it('refuses the malformed, teaching', () => {
     const bad = (roll, blocks = BLOCKS) => () => readRoll(roll, { blocks });
     expect(bad('often')).toThrow(/what the level's seed picks/);
-    expect(bad({ cover: [], foes: [] })).toThrow(/no 'foes' \(a roll has: cover\)/);
+    expect(bad({ cover: [], foes: [] })).toThrow(/no 'foes' \(a roll has: cover, items, start\)/);
+    expect(bad({})).toThrow(/it picks nothing/);
     expect(bad({ cover: [] })).toThrow(/a list of groups/);
     expect(bad({ cover: [{ of: [], stand: 1 }] })).toThrow(/at least one/);
     expect(bad({ cover: [{ of: ['gate'], stand: 1 }] })).toThrow(/no block 'gate'.*give the block an id.*wall-a, wall-b, crate/);
@@ -172,5 +176,104 @@ describe('the page', () => {
     const js = gameChannelScript(game, { shownOnStart: true });
     expect(js).toContain("st.onStart.push(() => requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: 'game-shown' }");
     expect(gameChannelScript(game)).not.toContain('st.onStart.push(() => requestAnimationFrame');
+  });
+});
+
+// ITEMS and the START: the pickups a seed lays, the place the pilot sets out from
+const MECHANICS = [
+  { kind: 'collect', into: 'bag', pickups: [{ id: 'gem-a', item: 'gem', at: [5, 0, 0], radius: 1.5 }, { id: 'gem-b', item: 'gem', at: [5, 3, 0], radius: 1.5 }, { item: 'gem', at: [33, 0, 0] }] },
+  { kind: 'bag', slice: 'bag' },
+  { kind: 'reach-exit', at: [38, 0, 0], radius: 1 },
+];
+const STARTS = [{ pos: [0, 0, 1.7] }, { pos: [25, 2, 1.7], heading: Math.PI }];
+
+describe('items and the start, read', () => {
+  it('a pickup is named by its id and rolled by its zone on the bus; a start is a place written as the pilot\'s own', () => {
+    expect(pickupsOf(MECHANICS)).toEqual([{ id: 'gem-a', zone: 'pk_0_0', at: [5, 0, 0] }, { id: 'gem-b', zone: 'pk_0_1', at: [5, 3, 0] }]);
+    const read = readRoll({ items: [{ of: ['gem-a', 'gem-b'], lay: 1 }], start: STARTS }, { pickups: pickupsOf(MECHANICS) });
+    expect(read).toEqual({ items: [{ of: ['pk_0_0', 'pk_0_1'], lay: [1, 1] }], start: [{ pos: [0, 0, 1.7] }, { pos: [25, 2, 1.7], heading: Math.PI }] });
+    expect(rollWays(read)).toBe(2 * 2);
+    expect(rollWays(readRoll({ ...ROLL, items: [{ of: ['gem-a', 'gem-b'], lay: [0, 2] }], start: STARTS }, { blocks: BLOCKS, pickups: pickupsOf(MECHANICS) }))).toBe(6 * 4 * 2);
+  });
+
+  it('refuses the malformed, teaching', () => {
+    const bad = (roll) => () => readRoll(roll, { blocks: BLOCKS, pickups: pickupsOf(MECHANICS) });
+    expect(bad({ items: [{ of: ['gem-c'], lay: 1 }] })).toThrow(/no pickup 'gem-c'.*give the pickup an id in the level's collect.*gem-a, gem-b/);
+    expect(bad({ items: [{ of: ['gem-a'], stand: 1 }] })).toThrow(/no 'stand' \(a group has: of, lay\)/);
+    expect(bad({ items: [{ of: ['gem-a', 'gem-b'], lay: 3 }] })).toThrow(/from 0 to 2/);
+    expect(bad({ start: [] })).toThrow(/the places the pilot may set out from/);
+    expect(bad({ start: [{ at: [0, 0, 0] }] })).toThrow(/a place is \{ pos: \[x, y, z\], heading\? \}/);
+    expect(bad({ start: [{ pos: [0, 0, 0], face: 90 }] })).toThrow(/no 'face'/);
+    expect(bad({ start: [{ pos: [0, 0, 0], heading: 'north' }] })).toThrow(/radians/);
+  });
+});
+
+describe('items and the start, rolled', () => {
+  const read = readRoll({ ...ROLL, items: [{ of: ['gem-a', 'gem-b'], lay: 1 }], start: STARTS }, { blocks: BLOCKS, pickups: pickupsOf(MECHANICS) });
+  const seeds = Array.from({ length: 40 }, (_, k) => k + 1);
+
+  it('the dice keep their order: a roll that gains items and a start keeps every pick of its cover', () => {
+    const cover = readRoll(ROLL, { blocks: BLOCKS });
+    for (const seed of seeds) expect(rollOf(read, seed).stand).toEqual(rollOf(cover, seed).stand);
+    // and each kind is met in every way inside a short run of seeds
+    expect(new Set(seeds.map((s) => rollOf(read, s).lay.join()))).toEqual(new Set(['pk_0_0', 'pk_0_1']));
+    expect(new Set(seeds.map((s) => rollOf(read, s).start))).toEqual(new Set([0, 1]));
+    expect(rollOf(cover, 1)).toMatchObject({ lay: [], unlaid: [], start: null });
+  });
+
+  it('the pilot stands where the seed says, still, facing as the place says', () => {
+    const L = level(), roll = { ...L.roll, start: read.start };
+    const far = seeds.find((s) => rollOf(roll, s).start === 1), near = seeds.find((s) => rollOf(roll, s).start === 0);
+    const at = (seed) => { const W = E.createWorld({ entities: [hero], colliders: L.colliders, roll }); E.applyRoll(W, seed); return W.byId.hero.transform; };
+    expect(at(far)).toMatchObject({ pos: [25, 2, 1.7], heading: Math.PI });
+    expect(at(near)).toMatchObject({ pos: [0, 0, 1.7], heading: 0 });
+    // a pickup left out: the glyph the level drew for it is sent away; a laid one's stays
+    const glyph = (z) => ({ id: `dec_${z}`, transform: { pos: [5, 0, 0], heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'gem' } });
+    const W = E.createWorld({ entities: [hero, glyph('pk_0_0'), glyph('pk_0_1')], colliders: L.colliders, roll: { items: read.items } });
+    const R = E.applyRoll(W, 1);
+    expect(W.byId[`dec_${R.unlaid[0]}`]).toMatchObject({ gone: true, dormant: true });
+    expect(W.byId[`dec_${R.lay[0]}`].gone).toBeFalsy();
+    // the level's own entity is not written over
+    expect(hero.transform.pos).toEqual([0, 0, 1.7]);
+  });
+
+  it('a pickup the seed left out is not there to be found; the one it laid is', () => {
+    const manifest = { entities: [hero], game: { levelRef: 'l', mechanics: MECHANICS } };
+    const { mechEvents } = synthesizeLevel(manifest);
+    const roll = { items: read.items };
+    const found = (seed) => {
+      // the hero stands on gem-a's spot, then on gem-b's
+      const sim = simLevel({ entities: [hero], events: mechEvents, colliders: SIDES, roll }, { seed });
+      const me = sim.world.byId.hero;
+      me.transform.pos = [5, 0, 1.7]; sim.run(0.2);
+      me.transform.pos = [5, 3, 1.7]; sim.run(0.2);
+      return { picked: sim.bus.log.filter((e) => e.type === 'pickup:gem').length, on: Object.fromEntries(sim.bus.entities.filter((e) => /^pk_0_[01]$/.test(e.id)).map((e) => [e.id, e.on !== false])), laid: sim.world.rolled.lay };
+    };
+    for (const seed of [seeds.find((s) => rollOf(roll, s).lay[0] === 'pk_0_0'), seeds.find((s) => rollOf(roll, s).lay[0] === 'pk_0_1')]) {
+      const f = found(seed), other = f.laid[0] === 'pk_0_0' ? 'pk_0_1' : 'pk_0_0';
+      expect(f.picked).toBe(1);                 // two spots stood on, one pickup there
+      expect(f.on[other]).toBe(false);          // the unlaid one's marker is off from the start
+    }
+    // the level's own sources are not written over
+    expect(mechEvents.sources.filter((s) => /^pk_0_/.test(s.zone))).toHaveLength(3);
+  });
+
+  it('the page: the bus takes the unlaid items away, whichever of the two is up first; no items, the bus as it was', () => {
+    const { mechEvents } = synthesizeLevel({ entities: [hero], game: { levelRef: 'l', mechanics: MECHANICS } });
+    const plain = eventsChannelScript(mechEvents);
+    expect(plain).not.toContain('__mojUnlay');
+    expect(eventsChannelScript(mechEvents, {})).toBe(plain);
+    const rolled = eventsChannelScript(mechEvents, { rollItems: true });
+    expect(rolled).toContain('window.__mojUnlay = function (zones)');
+    expect(rolled).toContain('if (window.__mojUnlaid) window.__mojUnlay(window.__mojUnlaid);');
+    // and the sparkle over a place where nothing was laid is put out, the same way; no items, the channel as it was
+    const layers = [{ verb: 'sparkle', cc: [5, 0, 0], color: [1, 1, 1], rate: 1, size: 0.6, params: {} }];
+    expect(spriteSfxChannelScript(layers, {})).toBe(spriteSfxChannelScript(layers));
+    expect(spriteSfxChannelScript(layers)).not.toContain('__mojSfxOff');
+    expect(spriteSfxChannelScript(layers, { rollItems: true })).toContain('if (window.__mojUnlaidAt) window.__mojSfxOff(window.__mojUnlaidAt);');
+    const page = controllableChannelScript([hero], null, null, { colliders: SIDES, roll: { items: read.items }, rollWaits: true });
+    expect(page).toContain('window.__mojUnlaid = R.unlaid;');
+    expect(page).toContain('if (window.__mojUnlay) window.__mojUnlay(R.unlaid);');
+    expect(page).toContain('if (window.__mojSfxOff) window.__mojSfxOff(window.__mojUnlaidAt);');
   });
 });

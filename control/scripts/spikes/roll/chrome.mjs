@@ -41,16 +41,17 @@ for (const [seed, delay] of [[1, 0], [1, 1000], ...Array.from({ length: nSeeds -
   await page.waitForFunction(() => window.__t && window.__t.shown !== undefined, { timeout: 120000 });
   const fr = page.frames().find((f) => f.url().endsWith('level.html'));
   // (turned to face the exit, so the shot looks down the line the walls stand across)
-  const st = await fr.evaluate((exit) => { const w = window.__mojCtrl.world, p = w.byId[w.pilotId]; p.transform.heading = Math.atan2(exit[1] - p.transform.pos[1], exit[0] - p.transform.pos[0]); return { seed: window.__mojRoll.seed, stand: window.__mojRoll.stand, standing: w.colliders.filter((c) => c.roll != null).length }; }, L.exit);
+  const st = await fr.evaluate((exit) => { const w = window.__mojCtrl.world, p = w.byId[w.pilotId]; p.transform.heading = Math.atan2(exit[1] - p.transform.pos[1], exit[0] - p.transform.pos[0]); return { seed: window.__mojRoll.seed, stand: window.__mojRoll.stand, lay: window.__mojRoll.lay, start: window.__mojRoll.start, at: p.transform.pos.map((v) => Math.round(v * 10) / 10), standing: w.colliders.filter((c) => c.roll != null).length }; }, L.exit);
   await new Promise((r) => setTimeout(r, 1200));
   await page.screenshot({ path: path.join(out, `seed${seed}-delay${delay}.png`) });
   const T = await page.evaluate(() => window.__t), node = rollOf(ROLL, seed);
-  report.runs.push({ seed, delay, t: Object.fromEntries(['ready', 'init', 'shown'].map((k) => [k, Math.round(T[k])])), rolledSeed: st.seed, seedLost: st.seed !== seed, rolledWhenShown: T.rolledAtShown, stand: st.stand, standing: st.standing, sameAsNode: JSON.stringify(st.stand) === JSON.stringify(node.stand), errors });
+  report.runs.push({ seed, delay, t: Object.fromEntries(['ready', 'init', 'shown'].map((k) => [k, Math.round(T[k])])), rolledSeed: st.seed, seedLost: st.seed !== seed, rolledWhenShown: T.rolledAtShown, stand: st.stand, standing: st.standing, lay: st.lay, start: st.start, at: st.at, sameAsNode: JSON.stringify([st.stand, st.lay, st.start]) === JSON.stringify([node.stand, node.lay, node.start]), errors });
   if (seed === 1 && !delay) {
     // exactness: the page's own dice against Node's over many seeds, small and large
     const seeds = [...Array.from({ length: 300 }, (_, k) => k + 1), 65535, 65536, 2147483647, 4294967295, 12345678901];
-    const got = await fr.evaluate((ss) => ss.map((s) => window.__mojRoll.of(s).stand.join(',')), seeds);
-    report.exact = { seeds: seeds.length, unequal: seeds.filter((s, k) => rollOf(ROLL, s).stand.join(',') !== got[k]).length };
+    const key = (r) => [r.stand.join(','), r.lay.join(','), r.start].join('|');
+    const got = await fr.evaluate((ss) => ss.map((s) => { const r = window.__mojRoll.of(s); return [r.stand.join(','), r.lay.join(','), r.start].join('|'); }), seeds);
+    report.exact = { seeds: seeds.length, unequal: seeds.filter((s, k) => key(rollOf(ROLL, s)) !== got[k]).length };
   }
   await browser.close();
 }

@@ -42,8 +42,12 @@ export function simLevel({ entities = [], events = {}, colliders, camera, roll }
   // the page's camera (payload.camera: { rule, target, … }), stepped last as the page steps it; a key never carries it
   const world = E.createWorld({ entities, ...(colliders ? { colliders } : {}), ...(camera && typeof camera.rule === 'string' ? { camera } : {}), ...(roll ? { roll } : {}) });
   // a level's ROLL (worlds/controllable/roll.js), as the page applies it at its start: `seed` the session's (1: the reference roll)
-  if (roll) E.applyRoll(world, seed);
+  const rolled = roll ? E.applyRoll(world, seed) : null;
   const bus = B.createBusState(events, events.entities);
+  // the items the roll left out (the page's __mojUnlay): their zones are no source and their markers are off
+  const unlaid = rolled && rolled.unlaid.length ? new Set(rolled.unlaid) : null;
+  const sources = unlaid ? (events.sources || []).filter((s) => !(s && s.type === 'zone' && unlaid.has(s.zone))) : events.sources;
+  if (unlaid) for (const e of bus.entities) if (unlaid.has(e.id)) e.on = false;
   const hooks = { ground, ...(surface ? { surface } : {}) };
   let zonePrev, castPrev, t = 0;
   const pulse = beat && beat.every > 0 ? { n: 0 } : null;
@@ -76,7 +80,7 @@ export function simLevel({ entities = [], events = {}, colliders, camera, roll }
     // the beat reads the music, which plays on under a menu: its own clock, never frozen
     const incoming = [...extra, ...(pulse ? beatsDue(pulse, mt + (beat.lead || 0), beat.every) : [])];
     mt += dt;
-    const z = B.deriveZoneEvents(world.entities, zonePrev, events.sources); zonePrev = z.prev; incoming.push(...z.events);
+    const z = B.deriveZoneEvents(world.entities, zonePrev, sources); zonePrev = z.prev; incoming.push(...z.events);
     const c = E.castFacts(world, castPrev); castPrev = c.prev; incoming.push(...c.events);
     pump(incoming);
     const live = frozen ? 0 : dt;

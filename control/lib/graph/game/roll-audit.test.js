@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rollAudit, navWin, referenceRoute, ROLL_LAWS } from './roll-audit.js';
-import { readRoll, rolledIds } from './roll.js';
+import { readRoll, rolledIds, pickupsOf } from './roll.js';
 import { rollOf } from './level-sim.js';
 import { synthesizeLevel } from './level-synth.js';
 import { standBlocks } from '../playscape/terrain.js';
@@ -63,6 +63,36 @@ describe('the seeds audit', () => {
     // a shut seed: played, it ends nowhere
     const S = level(HALVES, SHUT), shut = Array.from({ length: 20 }, (_, k) => k + 1).find((s) => rollOf(S.roll, s).stand.length === 2);
     expect(navWin(S, { seed: shut, seconds: 20 }).outcome).toBeNull();
+  });
+});
+
+describe('the audit follows the items and the start', () => {
+  // the yard shut by both halves standing (never rolled away), two pickups beyond them, two starts: one each side
+  const WALLS = [{ ...HALVES[0], id: 'n' }, { ...HALVES[1], id: 's' }, { id: 'loose', form: 'crate', at: [30, 6, 0] }];
+  const beyond = (roll, mechanics) => {
+    const blocks = WALLS, read = readRoll(roll, { blocks, pickups: pickupsOf(mechanics) }), B = standBlocks(blocks, { rolled: rolledIds(read) });
+    const manifest = { entities: [hero()], game: { levelRef: 'yard', mechanics } };
+    const { game, mechEvents } = synthesizeLevel(manifest);
+    return { entities: manifest.entities, events: mechEvents, game, colliders: [...YARD, ...B.colliders], faces: [], roll: { ...(read.cover ? { cover: read.cover, things: B.things } : {}), ...(read.items ? { items: read.items } : {}), ...(read.start ? { start: read.start } : {}) } };
+  };
+  const EXIT = { kind: 'reach-exit', at: [35, 0, 0], radius: 2 };
+
+  it('a start the far side of a shut wall: only the seeds that start the near side are shut', () => {
+    const P = beyond({ start: [{ pos: [0, 0, 1.7] }, { pos: [25, 0, 1.7] }] }, [EXIT]);
+    const A = rollAudit(P, { seeds: 10, plays: 0 }), near = Array.from({ length: 10 }, (_, k) => k + 1).filter((s) => rollOf(P.roll, s).start === 0);
+    expect(near.length).toBeGreaterThan(0);
+    expect(near.length).toBeLessThan(10);
+    expect([...new Set(A.failed.map((f) => f.seed))]).toEqual(near);
+    expect(A.distinct).toBe(2);
+  });
+
+  it('a pickup the seed left out is not asked a way to', () => {
+    // one pickup this side of the wall, one beyond it: of the two, one lies
+    const mechanics = [{ kind: 'collect', into: 'bag', pickups: [{ id: 'near', item: 'gem', at: [5, 0, 0] }, { id: 'far', item: 'gem', at: [30, 0, 0] }] }, { kind: 'bag', slice: 'bag' }, { kind: 'reach-exit', at: [8, 0, 0], radius: 1 }];
+    const P = beyond({ items: [{ of: ['near', 'far'], lay: 1 }] }, mechanics);
+    const A = rollAudit(P, { seeds: 10, plays: 0 }), far = Array.from({ length: 10 }, (_, k) => k + 1).filter((s) => rollOf(P.roll, s).lay[0] === 'pk_0_1');
+    expect([...new Set(A.failed.map((f) => f.seed))]).toEqual(far);
+    expect(A.failed.every((f) => /no way to the pickup at \[30, 0\]/.test(f.says))).toBe(true);
   });
 });
 

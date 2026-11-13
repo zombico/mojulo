@@ -4625,8 +4625,15 @@ function __applyRoll(seed) {
     for (const tm of (m.userData.tex || [])) if (tm.parent) tm.parent.remove(tm);
     if (m.parent) m.parent.remove(m);
   }
+  // the items it left out are the bus's to take away (channels/events.js __mojUnlay): handed over now if the bus is
+  // up, else left for it to find when it is
+  window.__mojUnlaid = R.unlaid;
+  if (window.__mojUnlay) window.__mojUnlay(R.unlaid);
+  // and the sparkle over each such place is put out (channels/sprite-sfx.js __mojSfxOff), the same way
+  window.__mojUnlaidAt = R.unlaid.map((z) => (__world.roll.at || {})[z]).filter(Boolean);
+  if (window.__mojSfxOff) window.__mojSfxOff(window.__mojUnlaidAt);
   // (what it rolled, and the page's own dice for any seed: a probe holds them to Node's)
-  window.__mojRoll = { seed: R.seed, stand: R.stand, gone: R.gone, of: (s) => __CW.rollOf(__world.roll, s) };
+  window.__mojRoll = { seed: R.seed, stand: R.stand, gone: R.gone, lay: R.lay, unlaid: R.unlaid, start: R.start, of: (s) => __CW.rollOf(__world.roll, s) };
 }
 ${rollWaits ? `(function hook() { if (window.__mojGame) window.__mojGame.onStart(function (p, seed) { __applyRoll(seed); }); else setTimeout(hook, 0); })();` : '__applyRoll(1);'}
 ` : ''}`;

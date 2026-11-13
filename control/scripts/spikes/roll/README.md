@@ -50,3 +50,12 @@ added.
 - Two things the led walk needed, both now in `game/roll-audit.js`: every standing rolled thing blocks at any height
   (the slope: seed 6 above), and a berth at corners (the nav grid's cells are coarser than the body, so a walk steered
   at the next corner the moment its cell cleared the last caught its shoulder on a wall's end: seed 4).
+
+## With items and the start, 2026-11-13
+
+- The level now rolls its four gems (two or three laid) and its start (its own, or beside its first gem): 600 ways.
+- Chrome, 4 loads: the seed, the walls, the gems laid and the start all as Node rolls them; the pilot stands at the
+  rolled start; 305 seeds of the page's dice against Node's, none unequal.
+- Seen in two shots of the same spot: a gem the seed laid is drawn with its sparkle; one it left out leaves nothing
+  (its glyph and its sparkle both: the first run left the glyph, the second the sparkle, each fixed).
+- The audit, 6 seeds all played: every law holds.
