@@ -7,6 +7,7 @@ import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { manaHudScript } from '../scene/channels/mana-hud.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { POLES } from './feel/cards.js';
+import { runSteps } from './index.js';
 
 // THE RUNNER'S HUD: a course's in-play HUD as one composition on mana-ui, hosted by the level page.
 const MOMENTUM = Object.keys(POLES).find((p) => POLES[p].base === 'pinball');
@@ -82,5 +83,20 @@ describe('the host: a level page that carries one', () => {
 
   it('the page\'s script is whole: it parses', () => {
     expect(() => new Function(manaHudScript(H, { game: false }))).not.toThrow();
+  });
+});
+
+describe('the shell: a course game\'s screens are the game UI runtime\'s, in its dress\'s look', () => {
+  const world = (extra = {}) => ({ id: 'dash', name: 'Dash', feel: MOMENTUM, levels: { one: { name: 'The Lane', obstacles: { slots: 6 } } }, start: 'one', ...extra });
+  const game = (w) => runSteps(w, { ref: 'gw' }).find((s) => s.key === 'game').order;
+
+  it('a world of courses that says no ui still gets one: its first course\'s look; its own word wins; a course with no look gives none', () => {
+    expect(game(world())).toMatchObject({ shell: 'play', ui: { theme: cardTheme('toybox') } });
+    expect(game(world({ ui: { theme: 'grim' } })).ui.theme).not.toEqual(cardTheme('toybox'));
+    expect(game(world({ levels: { one: { name: 'The Lane', obstacles: { slots: 6, dress: 'greybox' } } } })).ui).toBeUndefined();
+    // (the level keeps its coins for the result: a platformer's coins, scored high)
+    const lv = runSteps(world(), { ref: 'gw' }).find((s) => s.key.startsWith('level-')).order.manifest;
+    expect(lv.game.mechanics.map((m) => m.kind)).toEqual(['coins', 'score', 'reach-exit']);
+    expect(lv.game.mechanics[1]).toMatchObject({ var: 'coins', label: 'Coins', best: 'high' });
   });
 });

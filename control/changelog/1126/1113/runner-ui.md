@@ -23,3 +23,18 @@ phone, and a theme that comes from the dress's premise.
   shell's params, the run among them, are in hand by then.
 - The HUD counts the coins taken (the level's own, off its bus) and the page's old widget rows stand down beside it.
   On a tall frame the metres and the coins sit under the progress, so the plate stays clear of the menu button.
+- The shell's screens on mana-ui for a course game. A world of obstacle courses that says no `ui` still has its
+  game's screens drawn by the game UI runtime, in its first course's look (the dress's `ui`); a world's own `ui`
+  wins; a course whose dress names no look keeps the shell's own screens.
+- A run's title says its rules under the name, how deep the best went in the corner, and "start a run" / "new run".
+- The pause is mana-ui's pause menu over the held level (resume, restart, controls, sound, quit; back resumes), with
+  the level's own controls on a screen of their own. The shell's panel stays down for such a game.
+- A map cleared in a run is a moment over the play, with its seconds, and the loading screen on the way to the next
+  says what was cleared and which map is next.
+- A run's result says the map it ended on, the seconds played (the shell's own clock: from a level's first frame
+  shown, its pauses taken out), and what its maps kept that adds up (coins), and stamps a rank on a run cleared.
+- A course level keeps its coins (`score`, counted high) so a result can say them.
+- `create_game` carries a game's `ui`, `screen` and `hud` into its manifest. A gameworld's run handed them over and
+  they were dropped at the mint, so a world's `ui` never reached its made game; a remake keeps them, its `front` and
+  its `run` too.
+- The image component's placeholder marks are not shown on a game's screens (a backdrop keeps its ground).

@@ -29,6 +29,9 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { DRESS_THEMES, readDress } from './course-dress.js';
+import { THEMES } from '../../mana-ui/theme.js';
+import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { atlasOf, coreOf } from './megaworld.js';
 import { ARMS_LEGEND } from './arms-kit.js';
 import { railOfWord, gameBody, lowerBody, bookRail, bodyWords } from './game-bodies.js';
@@ -180,8 +183,17 @@ const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? aud
 // the game's ui as the play shell takes it (game/play-shell-mana.js): the world's look resolved by the interface department
 // (playscape/ui/interface-look.js), its languages; a world without `ui` gives none, its game's screens the shell's own
 function shellUi(G) {
-  if (G.ui === undefined) return {};
+  // (a game of obstacle courses says no `ui` and still gets its screens from the game UI runtime, in its course's own
+  // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
+  if (G.ui === undefined) { const look = courseLook(G); return look ? { ui: { theme: look } } : {}; }
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
+}
+/** The look a world's first obstacle course is dressed for (its dress's `ui`: a preset's name, or a card's theme), or null. */
+function courseLook(G) {
+  const id = (G.ids ?? []).find((k) => G.levels[k]?.obstacles);
+  if (!id) return null;
+  const named = DRESS_THEMES[readDress(G.levels[id].obstacles.dress).theme].ui;
+  return !named ? null : THEMES[named] ? named : cardTheme(named);
 }
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;

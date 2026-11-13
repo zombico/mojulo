@@ -520,7 +520,8 @@ export function playShellRuntime(cfg, K) {
     ctlRows = null;
     show('level');
     // the veil while it loads: mana-ui's loading screen when the game draws its screens with it
-    if (MANA) MANA.loading(lv.title);
+    // (in a run the place it is going is the map's number in the run: what was cleared, and what is next)
+    if (MANA) MANA.loading(run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
@@ -544,7 +545,7 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
     if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && cs.kind === 'cinematic' && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
@@ -597,10 +598,14 @@ export function playShellRuntime(cfg, K) {
       // a RUN: a clear goes on to its next level, else the run's end (how deep it went, kept)
       if (run) {
         if (env.result === 'success') run.at += 1;
+        // (what the run adds up: its seconds of play, and what its maps kept that is counted high: coins)
+        const secs = playedSecs();
+        if (secs !== null) run.secs = (run.secs || 0) + secs;
+        for (const k of (env.stats && Array.isArray(env.stats.kept) ? env.stats.kept : [])) if (k.best === 'high' && Number.isFinite(Number(k.value))) { run.kept = run.kept || {}; run.kept[k.label] = (run.kept[k.label] || 0) + Number(k.value); }
         const deep = num(DEEP_KEY);
         if (run.at > deep) keep(DEEP_KEY, run.at);
         lastOutcome = { lv: session.level, env, ok: r.ok, deep };
-        if (env.result === 'success' && run.at < run.order.length) toast('cleared ' + run.at + ' of ' + run.order.length);
+        if (env.result === 'success' && run.at < run.order.length) { if (MANA) MANA.moment('cleared ' + run.at + ' of ' + run.order.length, secs !== null ? secs.toFixed(1) + ' s' : ''); else toast('cleared ' + run.at + ' of ' + run.order.length); }
         const sess = session;
         setTimeout(() => { if (session === sess) go(event); }, 1400);
         return;
@@ -626,13 +631,18 @@ export function playShellRuntime(cfg, K) {
   // ---- pause ----
   // OWNED (docs/local-multiplayer-principles.md): the controller whose start opened the pause owns it; another's start
   // does nothing until it closes. With seats (the level's game-seats) the panel names the owner's seat in its colour.
-  let paused = false, pauseBy = null, seatList = [];
+  let paused = false, pauseBy = null, seatList = [], pausedAt = 0;
+  // (the seconds a level was played: from its first frame shown to now, the time it stood paused taken out)
+  function playedSecs() { return session && session.t0 ? Math.max(0, Math.round((performance.now() - session.t0 - (session.held || 0)) / 100) / 10) : null; }
   function setPaused(on, by) {
+    if (on !== paused && session) { if (on) pausedAt = performance.now(); else session.held = (session.held || 0) + (performance.now() - pausedAt); }
     paused = on;
     pauseBy = on ? by || null : null;
-    pauseEl.style.display = on ? 'flex' : 'none';
+    // (a game whose screens are mana-ui's pauses on its pause menu; else the shell's own panel)
+    pauseEl.style.display = on && !(MANA && screen === 'level') ? 'flex' : 'none';
     if (screen === 'level') post({ moj: W.pause, on });
-    if (on) renderPause();
+    if (MANA && screen === 'level') { if (on) MANA.pause(); else MANA.unpause(); }
+    else if (on) renderPause();
   }
   function renderPause(view) {
     pauseEl.textContent = '';
@@ -800,7 +810,10 @@ export function playShellRuntime(cfg, K) {
     const r = run, deep = lastOutcome.deep, won = r.at >= r.order.length, gains = lastOutcome.ok ? gainsOf(lastOutcome.env.events || []) : [];
     run = null; session = null;
     const items = [{ label: 'new run', then: { emit: 'again' } }, { label: 'title', then: { emit: 'home' } }].concat(onOf('credits') ? [{ label: 'credits', then: { emit: 'credits' } }] : []);
-    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(gains.map((g) => ({ label: g, value: '' }))), rank: '', items };
+    const last = r.order[Math.min(r.at, r.order.length - 1)], env = lastOutcome.env;
+    // (which map it ended on, the seconds it was played, what its maps kept that adds up)
+    const more = [].concat(last && last.rolls && Number.isFinite(env.seed) ? [{ label: 'map', value: String(env.seed) }] : [], r.secs ? [{ label: 'time', value: r.secs.toFixed(1) + ' s' }] : [], Object.keys(r.kept || {}).map((k) => ({ label: k.toLowerCase(), value: String(r.kept[k]) })));
+    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(more, gains.map((g) => ({ label: g, value: '' }))), rank: won ? 'clear' : '', items };
   }
   const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
     go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
@@ -809,6 +822,15 @@ export function playShellRuntime(cfg, K) {
     reset: () => { resetStore(); persist(); },
     levels: () => LEVELS.map((lv) => ({ ref: lv.ref, title: lv.title, open: isOpen(lv), cleared: cleared(lv.ref), lock: isOpen(lv) ? null : lv.gate && !K.evalGate(SCHEMA, state, lv.gate) ? needs(lv.gate) : 'not found yet' })),
     result: resultInfo, run: runInfo,
+    // a run's title: its rules in words, how deep the best went
+    runTitle: () => { if (!RUN) return null; const deep = num(DEEP_KEY), runs = num(RUNS_KEY); return { rules: RUN.repeat ? RUN.length + ' maps, rolled anew each run. Fall, and it ends.' : RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each run. Fall, and it ends.', best: runs ? 'best ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') : '', runs }; },
+    // the pause, as mana-ui's pause menu drives it
+    pause: {
+      resume: () => setPaused(false), restart: () => { setPaused(false); if (session) launch(session.level); }, quit: () => { setPaused(false); session = null; home(); },
+      sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
+      rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],
+      owner: () => { const o = pauseBy && seatList.find((x) => x.controller === pauseBy); return o ? o.label : ''; },
+    },
   }) : null;
 
   // ---- the flow runner ----

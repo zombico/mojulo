@@ -876,6 +876,14 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
   laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
   the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
 
+### A running game's shell and HUD
+
+A game of obstacle courses (`docs/course-dress-principles.md`) has its screens drawn here without asking: its
+title with the run's rules and best, its pause (the pause menu, the level's controls), a moment as a map is cleared,
+a loading screen that says which map is next, and a result with the map, the seconds, the coins and a rank. In play
+its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
+look the course's dress names (`toybox`, the toy family's first card).
+
 ## What is next
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to

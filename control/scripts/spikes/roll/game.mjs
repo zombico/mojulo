@@ -43,7 +43,7 @@ const levelRef = SketchRepository.list({ limit: 80 }).map((x) => x.ref).find((r)
 const M = SketchRepository.getByRef(levelRef).manifest, G = SketchRepository.getByRef('dash-game')?.manifest;
 
 // 2. THE GAME: a run that draws the one level `maps` times
-const made = body(await createGameHandler({ title: 'Dash', ref: 'dash-run', shell: 'play', ...(G?.store ? { store: G.store } : {}), ...(M.screen ? { screen: M.screen } : {}), levels: [{ ref: levelRef, title: 'The Lane' }], run: { length: maps, repeat: true }, allow_unaudited: true }));
+const made = body(await createGameHandler({ title: 'Dash', ref: 'dash-run', shell: 'play', ...(G?.store ? { store: G.store } : {}), ...(G?.ui ? { ui: G.ui } : {}), ...(M.screen ? { screen: M.screen } : {}), levels: [{ ref: levelRef, title: 'The Lane' }], run: { length: maps, repeat: true }, allow_unaudited: true }));
 step('create_game', { ok: made.ok, error: made.error, run_note: made.run_note, rolls: (made.rolls ?? []).map((r) => ({ ref: r.ref, seeds: r.seeds, ok: r.ok, laws: r.laws.map((l) => `${l.law}: ${l.holds ? 'holds' : 'LOST'}: ${l.says}`) })) });
 const ex = body(await exportGameHandler({ ref: 'dash-run' }));
 const dir = path.join(out, 'dash-run');
@@ -110,7 +110,10 @@ const bot = (C) => {
 
 await wait(1500);
 report.title = await text();
-report.started = await click('run|start|play');
+await page.screenshot({ path: path.join(out, 'title.png') });
+// (a game whose screens are mana-ui's is driven as a pad would: accept on the title's first row; else the shell's button)
+report.mana = await page.evaluate(() => !!window.__mojManaUi);
+report.started = report.mana ? await page.evaluate(() => { window.__mojManaUi.press('accept'); return 'accept'; }) : await click('run|start|play');
 const plays = []; let lastSeed = null;
 for (let k = 0; k < maps; k++) {
   let seed = null;
@@ -124,6 +127,15 @@ for (let k = 0; k < maps; k++) {
   const cueUp = await f.evaluate(() => !!(window.__mojHud && window.__mojHud.rt.state().screen));
   if (cueUp) await page.screenshot({ path: path.join(out, `map-${seed}-cue.png`) });
   for (let i = 0; i < 60 && await f.evaluate(() => !!window.__mojMenuOpen); i++) await wait(100);
+  // (on the first map: the pause, shot, and resumed by its first row)
+  if (k === 0) {
+    await page.evaluate(() => document.getElementById('pauseBtn').click());
+    await wait(900);
+    await page.screenshot({ path: path.join(out, 'pause.png') });
+    report.pause = await text();
+    if (report.mana) await page.evaluate(() => window.__mojManaUi.press('accept')); else await click('resume');
+    await wait(500);
+  }
   await f.evaluate(bot, { obs, exit: course.exit[1], sight: course.sight, react: course.react, top: P.top, accel: course.rule.accel || 7, lead: Object.fromEntries(Object.entries(P.lead).map(([id, l]) => [id, l.mid])) });
   let S = null, shot = false;
   for (let i = 0; i < 1500; i++) {
@@ -137,11 +149,13 @@ for (let k = 0; k < maps; k++) {
   const train = await (async () => { try { const at = () => level()?.evaluate(() => { const st = window.__mojMoverState && window.__mojMoverState(); const m = typeof meshes !== 'undefined' && meshes['scenery:train']; return m ? +m.position.y.toFixed(1) : null; }); const a = await at(); await wait(400); return [a, await at()]; } catch { return null; } })();
   const hud = await (async () => { try { return await level()?.evaluate(() => (window.__mojHud ? { coins: window.__mojHud.state.coins.count, run: window.__mojHud.state.run, course: window.__mojHud.state.course, stamina: +window.__mojHud.state.hero.stamina.toFixed(1), hint: window.__mojHud.state.hint.show, moments: window.__mojHud.state.moments.map((m) => m.text) } : null)); } catch { return null; } })();
   plays.push({ map: k + 1, seed, cue: cueUp, train, hud, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
-  await wait(2500);
+  await wait(1200);
+  if (k === 0) await page.screenshot({ path: path.join(out, 'cleared.png') });
+  await wait(1300);
   plays[plays.length - 1].after = await text(); plays[plays.length - 1].said = await page.evaluate(() => window.__msgs.splice(0).join(' '));
   if (k < maps - 1) plays[plays.length - 1].clicked = await click('next|continue|on');
 }
-await wait(1500);
+await wait(3000);
 await page.screenshot({ path: path.join(out, 'result.png') });
 report.plays = plays; report.result = await text(); report.errors = errors;
 report.different = `${new Set(plays.map((p) => p.asks)).size} of ${plays.length}`;
