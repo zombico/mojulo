@@ -173,33 +173,24 @@ export function fromColliders(colliders, pick, { course: c, hp, value, seed, id 
   return { terrain: breakableTerrain({ id, blocks: boxes, course: c }, { hp, value, seed }), colliders: rest };
 }
 
-/** Forms that stand and never break: each ask cut and drawn as breakableTerrain does, its blocks plain colliders. */
-export function standBlocks(asks, { seed = 1 } = {}) {
+/**
+ * Forms that stand and never break: each ask cut and drawn as breakableTerrain does, its blocks plain colliders.
+ * `rolled` (a Set of ask ids: a level's roll, game/roll.js): an ask in it is one THING the level's seed may leave out:
+ * its faces their own render group (`roll:<id>`, so the page hides the whole of it) and its box in `things` in place
+ * of the colliders (the runtime stands it, worlds/controllable/roll.js). None rolled: as it was.
+ */
+export function standBlocks(asks, { seed = 1, rolled = null } = {}) {
   if (!Array.isArray(asks)) throw new Error('terrain: blocks is a list of asks ({ form, at, … })');
-  const faces = [], colliders = [];
+  const faces = [], colliders = [], things = {};
   asks.forEach((ask, i) => {
     const T = breakableTerrain({ id: `block-${i}`, ...ask }, { seed: seed + i, value: Number.isFinite(ask.value) ? ask.value : 0.62 });
-    for (const f of T.faces) faces.push(f);
+    const roll = rolled && typeof ask.id === 'string' && rolled.has(ask.id) ? ask.id : null;
+    for (const f of T.faces) faces.push(roll ? { ...f, group: `roll:${roll}` } : f);
     // `whole`: the form is one collider (an arena's wall: it never breaks, so its courses need not each be a box)
-    if (ask.whole === true && T.blocks.length) {
+    if ((roll || ask.whole === true) && T.blocks.length) {
       const min = [0, 1, 2].map((k) => Math.min(...T.blocks.map((b) => b.min[k]))), max = [0, 1, 2].map((k) => Math.max(...T.blocks.map((b) => b.max[k])));
-      colliders.push({ min, max, of: `block:block-${i}` });
+      if (roll) things[roll] = { min, max }; else colliders.push({ min, max, of: `block:block-${i}` });
     } else for (const b of T.blocks) colliders.push({ min: b.min, max: b.max, of: `block:${b.of}` });
   });
-  return { faces, colliders };
-}
-
-/** The ground under a walker from the colliders as they stand NOW (a broken slab drops it): the highest top at or below its feet. */
-export function groundOf(colliders, floor = 0) {
-  return (pos) => {
-    let g = floor;
-    for (const c of colliders || []) if (pos[0] >= c.min[0] && pos[0] <= c.max[0] && pos[1] >= c.min[1] && pos[1] <= c.max[1] && c.max[2] <= pos[2] + 1e-6) g = Math.max(g, c.max[2]);
-    return g;
-  };
-}
-
-/** A broken block's pieces, from the destruct primitives (cleave): a shatter by default. */
-export function blockPieces(block, { pattern = 'voronoi', count = 4, seed = 1, value = 0.62 } = {}) {
-  const rec = boxRecord(block, value);
-  return cleave({ blocks: [rec], frame: { at: rec.c, N: [0, -1, 0], U: [1, 0, 0] } }, { pattern, count, seed });
+  return { faces, colliders, ...(rolled ? { things } : {}) };
 }

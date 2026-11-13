@@ -58,6 +58,7 @@ import { buildSteer } from './steer.js';
 import { buildRulesHover } from './rules-hover.js';
 import { buildRulesBoat } from './rules-boat.js';
 import { buildWorldClock } from './world-clock.js';
+import { buildRoll } from './roll.js';
 
 export function composeControllable(builders) {
   const E = {};
@@ -77,11 +78,11 @@ export const EMISSION = [...EMISSION_ENGINE];
 // own moves and its touch: foe.js; a downed body's disposal: vanish.js; a summoner's summons: summon.js; a pair's shared fate: pair.js;
 // a hit from a swing in a headset: sweep.js; a shooter's hands on its carried arms: gunplay.js; a horse to get on and ride: mount.js;
 // blocks that break by their matter and fall by what holds them: rupa.js; what lies loose, struck and gone, walked through: loose.js;
-// a world's triggered breaks: trigger.js; a big gun
+// a world's triggered breaks: trigger.js; what a level's seed picks on it: roll.js; a big gun
 // aimed by hand on any base: turret.js; a body steered on its wheels: steer.js; a rotorcraft: rules-hover.js; a boat: rules-boat.js), so a page
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec).
 // The world clock (a world's `tempo`: world-clock.js) comes last, so it wraps every other step, a hitstop's among them.
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, clock: buildWorldClock });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, clock: buildWorldClock });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

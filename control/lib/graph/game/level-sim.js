@@ -4,7 +4,8 @@
  * timers and sagas run, the character intents it queued reach the world, then the world steps. For laws that play a
  * level through (a defence held, a race run) where the page would take minutes and a hidden tab barely ticks.
  *
- *   simLevel({ entities, events, colliders?, camera? }, { ground?, surface?, beat?, powers? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
+ *   simLevel({ entities, events, colliders?, camera?, roll? }, { ground?, surface?, beat?, powers?, seed? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
+ *     `roll`, `seed`: a level's roll (payload.roll) applied as the page applies it at its start, by the session's seed
  *     `beat`: { every, lead } (audio.beat): the music's pulse on the bus from the level's own clock, as the page says it
  *     from its music's (beats/beat-clock.js); absent, no beat
  *     `at`: { <second>: [events] } pushed into the frame that reaches that time (an interact press: { type: 'use-<id>' })
@@ -33,10 +34,15 @@ import { buildSceneRunner } from '../playscape/ui/scene-runner.js';
 let E = null;
 const B = buildBus();
 
-export function simLevel({ entities = [], events = {}, colliders, camera } = {}, { ground = () => 0, surface = null, beat = null, powers = null } = {}) {
+/** A roll's picks for a seed (worlds/controllable/roll.js rollOf), for a reader that needs them before a world is made. */
+export function rollOf(roll, seed = 1) { E ??= composeLive(); return E.rollOf(roll, seed); }
+
+export function simLevel({ entities = [], events = {}, colliders, camera, roll } = {}, { ground = () => 0, surface = null, beat = null, powers = null, seed = 1 } = {}) {
   E ??= composeLive();
   // the page's camera (payload.camera: { rule, target, … }), stepped last as the page steps it; a key never carries it
-  const world = E.createWorld({ entities, ...(colliders ? { colliders } : {}), ...(camera && typeof camera.rule === 'string' ? { camera } : {}) });
+  const world = E.createWorld({ entities, ...(colliders ? { colliders } : {}), ...(camera && typeof camera.rule === 'string' ? { camera } : {}), ...(roll ? { roll } : {}) });
+  // a level's ROLL (worlds/controllable/roll.js), as the page applies it at its start: `seed` the session's (1: the reference roll)
+  if (roll) E.applyRoll(world, seed);
   const bus = B.createBusState(events, events.entities);
   const hooks = { ground, ...(surface ? { surface } : {}) };
   let zonePrev, castPrev, t = 0;

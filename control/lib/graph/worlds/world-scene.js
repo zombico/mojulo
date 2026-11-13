@@ -20,6 +20,7 @@
 
 import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
+import { readRoll, rolledIds } from '@/lib/graph/game/roll';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
@@ -1069,10 +1070,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
-      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1 });
+      // a ROLL (game/roll.js): the blocks its seed may leave out are things of their own, stood by the runtime
+      const rolls = sketch.manifest.roll != null ? readRoll(sketch.manifest.roll, { blocks: sketch.manifest.blocks }) : null;
+      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1, ...(rolls ? { rolled: rolledIds(rolls) } : {}) });
       payload.faces = [...(payload.faces || []), ...B.faces];
       payload.colliders = [...(payload.colliders || []), ...B.colliders];
-    }
+      if (rolls) payload.roll = { cover: rolls.cover, things: B.things };
+    } else if (sketch.manifest.roll != null) readRoll(sketch.manifest.roll, { blocks: [] });   // (a roll with no blocks: refused, teaching)
     // hangar: the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).

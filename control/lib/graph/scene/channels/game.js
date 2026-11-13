@@ -33,7 +33,7 @@ export function awaitShell({ started, fallback, wait = 1500, tick = 100, slack =
   })(now() + tick);
 }
 
-export function gameChannelScript(game) {
+export function gameChannelScript(game, { shownOnStart = false } = {}) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
   const exits = !!(game && game.on && Object.values(game.on).some((a) => a && typeof a.exit === 'string'));
@@ -292,8 +292,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
     // shown: the first frame drawn (two frames on: the world's loop draws in the first), so the shell's veil lifts on a
-    // picture, never on a page still building
-    requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }));
+    // picture, never on a page still building${shownOnStart ? `. A level whose seed changes what is there (its roll) says so only
+    // once it has started: two frames after its start, so the veil never lifts on the level as it was before its roll` : ''}
+    ${shownOnStart ? 'st.onStart.push(() => ' : ''}requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }))${shownOnStart ? ')' : ''};
     // (the grace is 1.5 s the shell could have answered in, not 1.5 s on the clock: awaitShell below)
     (${awaitShell.toString()})({ started: () => st.started, fallback });
   } else {
