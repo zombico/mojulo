@@ -62,7 +62,7 @@ export const POV_GRASS = Object.freeze({ thin: 0.42, keep: 0.5, strands: Object.
  *  sideways (`widen` per reach of distance) so neighbours run together as one edge, and
  *  standing on the far lift where there is one, `sink` m into it. Solved from the camera each frame, whatever camera
  *  that is. Between `thin` of the reach and the reach itself POV_GRASS.keep of the clumps stand. */
-export const GRASS_LINE = Object.freeze({ share: 0.35, reach: 3, from: 0.8, widen: 1.5, low: 0.65, crest: Object.freeze([0.002, 0.012]), look: Object.freeze([1, 2.5, 5]), edge: 1.5, sink: 0.1 });
+export const GRASS_LINE = Object.freeze({ share: 0.35, reach: 3, from: 0.8, widen: 1.5, low: 0.65, crest: Object.freeze([0.0003, 0.003]), look: Object.freeze([1, 2.5, 5]), edge: 1.5, sink: 0.1 });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });
