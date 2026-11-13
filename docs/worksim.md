@@ -1,6 +1,7 @@
 # Shovels & Buckets: the work-sim primitive
 
-Status: spike, now playable. The card, the closed form, the simulator and the solver live in
+Status: wrapped up on its branch: the primitive, its solver, its runtime, its proof, the quick door, the work room
+dressed in each starter's trade, and the game room it grew into ([game-room.md](game-room.md)). The card, the closed form, the simulator and the solver live in
 `control/lib/graph/worksim/`. The runtime is the `work` mechanic (`control/lib/graph/game/work-mechanics.js`), and the
 quick door is `design_game({ quick: { goal: 'work', card?, challenge?, serve? } })`. The machine gate is the work proof
 (`worksim/work-proof.js`). Nobody has played a shift yet, so the eyes gate has not run.
@@ -137,8 +138,10 @@ it is a conceptual space:
 - **The work shows where it happens** (the mechanic's `show`). Over each station slot, five pips fill as it is worked
   (in its verb's colour), fill again as it runs alone (violet), then stand full in red and go out one by one toward the
   burn. Over each shelf, a gold pip for every unit it holds.
-- **The line:** counters coloured by verb, with crates, shelves and the hand-in in neutrals. E is reached from a
-  counter's side.
+- **The line, dressed in its trade:** each place drawn as the thing of the shift's trade, fitted to its box, its
+  collider kept (`gameroom/dress.js`): a kitchen's range, workbenches, counters and shelving; a farm's field plots and
+  carts; a site's mixer drum and sandbags; a chore's leaf piles, sacks and bin. `&dress=none` keeps the greybox
+  counters, coloured by verb. E is reached from a counter's side.
 - **The worker is a mascot**, rolled from a form chosen from the presets (`orb`, `sprout`, `toon`: the mascot forms)
   and piloted by its own body. It is carried inline: a figure may hold its layered recipe (`layered`) instead of a
   stored ref, regenerated on read as a stored one is, so nothing is minted. The world's own hero is used where one is

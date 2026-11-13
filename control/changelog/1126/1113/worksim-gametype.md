@@ -55,6 +55,10 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   and what is in hand on the HUD, a counter an item that stands only while one is held. Made through `design_game` and
   exported, the level played in headless Chromium: the mascot at the crates, the chopping board's pips filling, the
   fish and lettuce in hand on the HUD.
+- **The work room wears its trade.** Each starter's line is drawn as its trade's things, fitted to its counters, with
+  the colliders kept (the game room's dress): a kitchen's range, workbenches, counters and shelving; a farm's field
+  plots and carts; a site's mixer drum and sandbags; a chore's leaf piles, sacks and bin. `&dress=none` keeps the
+  greybox.
 - **An inline character.** A figure may carry its layered recipe inline (`layered`) instead of a stored ref, a
   mascot's plan or a hero, regenerated on read and held to the same pilot check. Absent, nothing changes.
 - **A site, a real climb.** A card may stand its line on a deck: `site: { up, climb? }`, a roof `up` metres high with

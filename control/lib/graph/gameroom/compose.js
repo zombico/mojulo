@@ -54,9 +54,9 @@ export function composeRoom(needs, { seed = 1 } = {}) {
   };
   if (work) {
     const L = work.layout;
-    for (const [sid, list] of Object.entries(L.stations)) list.forEach((at, k) => { const p = { kind: 'counter', id: `station-${sid}-${k}`, at, rot: 0, verb: work.card.stations[sid].verb }; prims.push(p); taken.push(footprint(p)); });
-    for (const [item, at] of Object.entries(L.crates)) { const p = { kind: 'bin', id: `bin-${item}`, at, rot: 0 }; prims.push(p); taken.push(footprint(p)); }
-    for (const [item, at] of Object.entries(L.shelves)) { const p = { kind: 'shelf', id: `shelf-${item}`, at, rot: 0 }; prims.push(p); taken.push(footprint(p)); }
+    for (const [sid, list] of Object.entries(L.stations)) list.forEach((at, k) => { const p = { kind: 'counter', id: `station-${sid}-${k}`, at, rot: 0, verb: work.card.stations[sid].verb, sid }; prims.push(p); taken.push(footprint(p)); });
+    for (const [item, at] of Object.entries(L.crates)) { const p = { kind: 'bin', id: `bin-${item}`, at, rot: 0, item }; prims.push(p); taken.push(footprint(p)); }
+    for (const [item, at] of Object.entries(L.shelves)) { const p = { kind: 'shelf', id: `shelf-${item}`, at, rot: 0, item }; prims.push(p); taken.push(footprint(p)); }
     const p = { kind: 'pass', id: 'pass', at: L.serve, rot: 0 }; prims.push(p); taken.push(footprint(p));
   }
   // the lattice of the field (east half only: the west is its mirror), seeded in its order

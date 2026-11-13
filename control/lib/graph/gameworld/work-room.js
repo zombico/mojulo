@@ -39,6 +39,7 @@ import { proveWork } from '../worksim/work-proof.js';
 import { readCard } from '../worksim/card.js';
 import { resolveObject } from '../playscape/objects/index.js';
 import { WORK_COLORS } from '../game/work-mechanics.js';
+import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet, FORM_MEASURES } from '../egocube/mascot-form.js';
 import { mascotPilot } from '../egocube/mascot-pilot.js';
@@ -87,7 +88,7 @@ export function everydayFeel() {
 }
 
 /** The work room (see the header). */
-export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = null, challenge = null, sound = 'realistic' } = {}) {
+export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = null, challenge = null, dress = null, sound = 'realistic' } = {}) {
   const asked = workOf(G) ?? { card: 'kitchen', challenge: 'beginner' };
 
   const F = feel ?? G?.feel ?? everydayFeel();
@@ -133,13 +134,21 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
   const heroE = { ...P.entities[0], transform: { pos: spawn, heading: -Math.PI / 2 } };
 
   // THE LINE: a counter a place, coloured by what is done there (on a deck, standing on it)
+  // THE DRESS (gameroom/dress.js): each place drawn as the thing of the shift's trade, fitted to its box (its collider
+  // kept): a kitchen's range and workbenches, a farm's fields and carts, a site's drum and sandbags, a chore's leaf piles
+  // and bin; `dress: false` the greybox
+  const places = [
+    ...Object.entries(L.stations).flatMap(([sid, list]) => list.map((at, k) => ({ id: `${sid}-${k}`, kind: 'counter', at, size: [1, 1, 0.9], sid, verb: C.stations[sid].verb }))),
+    ...Object.entries(L.crates).map(([item, at]) => ({ id: `crate-${item}`, kind: 'bin', at, size: [0.8, 0.8, 0.7], item })),
+    ...Object.entries(L.shelves).map(([item, at]) => ({ id: `shelf-${item}`, kind: 'shelf', at, size: [0.6, 0.6, 1.1], item })),
+    { id: 'serve', kind: 'pass', at: serveAt, size: [1.6, 0.8, 1] },
+  ];
+  const trade = dress === false ? null : dressOf(C, dress);
+  const D = trade ? dressPlaces(places, trade, { card: C }) : { faces: [], dressed: new Set(), laid: [] };
   const blocks = [];
-  const block = (id, at, w, d, h, fill) => blocks.push({ id, x: [r3(at[0] - w / 2), r3(at[0] + w / 2)], y: [r3(at[1] - d / 2), r3(at[1] + d / 2)], h: r3(at[2] + h), fill, group: 'room:work' });
+  const block = (id, at, w, d, h, fill) => blocks.push({ id, x: [r3(at[0] - w / 2), r3(at[0] + w / 2)], y: [r3(at[1] - d / 2), r3(at[1] + d / 2)], h: r3(at[2] + h), fill, group: D.dressed.has(id) ? `room:dressed:${id}` : 'room:work' });
   if (deck) blocks.push({ id: 'deck', x: deck.x.map(r3), y: deck.y.map(r3), h: up, fill: FILL.deck, group: 'room:deck' });
-  for (const [sid, list] of Object.entries(L.stations)) list.forEach((at, k) => block(`${sid}-${k}`, at, 1, 1, 0.9, FILL[C.stations[sid].verb]));
-  for (const [item, at] of Object.entries(L.crates)) block(`crate-${item}`, at, 0.8, 0.8, 0.7, FILL.crate);
-  for (const [item, at] of Object.entries(L.shelves)) block(`shelf-${item}`, at, 0.6, 0.6, 1.1, FILL.shelf);
-  block('serve', serveAt, 1.6, 0.8, 1, FILL.serve);
+  for (const p of places) block(p.id, p.at, p.size[0], p.size[1], p.size[2], p.kind === 'counter' ? FILL[p.verb] : FILL[{ bin: 'crate', shelf: 'shelf', pass: 'serve' }[p.kind]]);
   const xs = [...blocks.flatMap((b) => b.x), spawn[0]], ys = [...blocks.flatMap((b) => b.y), spawn[1]];
   const half = Math.ceil(Math.max(...xs.map(Math.abs), ...ys.map(Math.abs)) + 3);
   const room = floorOf({ half, blocks }), colliders = room.colliders;
@@ -153,8 +162,8 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
     plane.push(flat([k - 0.015, -half], [k + 0.015, -half], [k + 0.015, half], [k - 0.015, half], 0.003, FILL.rule, 'room:rule'));
     plane.push(flat([-half, k - 0.015], [half, k - 0.015], [half, k + 0.015], [-half, k + 0.015], 0.003, FILL.rule, 'room:rule'));
   }
-  const kept = room.faces.filter((f) => f.group !== 'room:floor').map((f) => (f.group === 'room:wall' ? { ...f, fill: FILL.wall } : f));
-  const faces = [...plane, ...kept, ...flowchart(RC, L, serveAt, climb, up), ...extra.faces];
+  const kept = room.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:')).map((f) => (f.group === 'room:wall' ? { ...f, fill: FILL.wall } : f));
+  const faces = [...plane, ...kept, ...flowchart(RC, L, serveAt, climb, up), ...extra.faces, ...D.faces];
 
   // THE SHIFT: the work mechanic on the line, its markers over the counters, its E reached from a counter's side
   const params = { card: C, at: { origin: [0, 0, up], stations: L.stations, crates: L.crates, shelves: L.shelves, serve: serveAt }, heading: 0, reach: REACH, bases: false, show: true };
@@ -174,7 +183,7 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
   const feels = POLE_IDS.map((id) => ({ id, name: POLES[id].name, base: POLES[id].base, run: feelRule(id).speed }));
   return {
     manifest, card: C, solved: { target: tuned.target.name, verdict: tuned.verdict, metrics: tuned.metrics }, feel: readFeel(F).pole,
-    hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}), layout: { ...L, serve: serveAt }, ...(site ? { site: { up, climb: climb.form, seconds: climb.seconds, top: climb.top, bottom: climb.bottom } } : {}), measured, choices: { feels, casts: WORK_CASTS },
+    hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}), layout: { ...L, serve: serveAt }, ...(site ? { site: { up, climb: climb.form, seconds: climb.seconds, top: climb.top, bottom: climb.bottom } } : {}), measured, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES) },
   };
 }
 

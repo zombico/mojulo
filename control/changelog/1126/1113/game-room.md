@@ -30,6 +30,15 @@ roguelike's rooms: one seeded, editable composition. Design notes: [docs/game-ro
   - a chase pulled back to read the room, or overhead for a shift.
 
   Its page says the brief, what was laid, the laws and the shift's proof. It has its own rail icon.
+- **The dress** (`gameroom/dress.js`): the second pass, which never moves what stands. Each place keeps its box and
+  collider, and its thing is drawn into that box, fitted to it. The things are the stage dressing's pieces, the
+  furniture door's builds, and a few of the room's own (a range, a field plot, a leaf pile, a wheelie bin). A trade
+  maps places to things:
+  - kitchen, farm, site and chores for the shifts;
+  - the hall for a fight.
+
+  A shift wears its card's trade (its own `dress`, else its starter's) and a fight the hall. `dress: false`, or
+  `&dress=none` on the practice pages, keeps the greybox, and the pages offer every trade.
 - Played in headless Chromium: a sword fighter's hall (28 m, two decks, pillars, low cover, three foes) and a shift's
   room (its line on counters, the proof won). Machine gates only: whether the room plays well is for someone in it to
   judge.

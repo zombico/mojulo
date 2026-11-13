@@ -4,9 +4,9 @@ One good room for a game that needs a single setting, composed from what the gam
 door. This is not a geocube and not a roguelike's rooms rolled for each run: it is one seeded, editable composition.
 The practice room reconfigures itself into the game's room, a training room that becomes the game.
 
-Status: the brief, the primitives, the composition, the laws and the practice room are built
-(`control/lib/graph/gameroom/`, `gameworld/game-room.js`). The dress (a room kit or the interior designer's style)
-and a room as a level (`levels.<id>.room`) are next.
+Status: the brief, the primitives, the composition, the laws, the dress and the practice room are built
+(`control/lib/graph/gameroom/`, `gameworld/game-room.js`). A room as a level (`levels.<id>.room`) and the interior
+designer's style cards as dresses are next.
 
 ## Composable primitives
 
@@ -62,13 +62,36 @@ and the game room serves the games that have no room of their own.
 - **room-to-move:** at least 55% of the floor is free.
 - **camera:** under an overhead camera, nothing stands taller than 2.5 m.
 
+## The dress
+
+The second pass, after the room is solved (`gameroom/dress.js`). A dress never moves what stands: each place keeps its
+box and its collider, and its thing is drawn into that box, fitted to it, so what is seen is what is walked round.
+
+The things are the ones Mojulo already draws:
+
+- the stage dressing's pieces (`era/compose-dress.js`: a crate, a barrel, a sack, a workbench, a cart, a drum,
+  sandbags, a barrier), each a set of parts painted from the trade's palette;
+- the furniture door's builds (`furnishings/forms.js`: the counter, the shop shelves, the tables), fitted to the box;
+- a few of the room's own, in the same part form: a range, a field plot, a leaf pile, a wheelie bin.
+
+| trade | what it draws |
+|---|---|
+| `kitchen` | a range where it cooks alone, workbenches where it is worked, counters for plating and the pass, shelving, barrels, sacks and crates for the raw things |
+| `farm` | field plots where it grows alone, workbenches, carts, sacks and barrels |
+| `site` | a mixer's drum, sandbags where it is dug, barriers, workbenches, sacks and crates |
+| `chores` | leaf piles where it is raked, sacks where it is bagged, the bin it all goes to |
+| `hall` | a fight's room: long tables and shelves for its cover, crates; its pillars and decks as built |
+
+A shift is dressed in its card's trade (a card's own `dress`, else its starter's), a fight in the hall. `dress: false`
+keeps the greybox. The practice pages offer every trade and the greybox as links (`&dress=<trade>|none`).
+
 ## The practice room
 
 The practice door's `room` (`gameworld/game-room.js`, served at `bible?book=practice&room=room`) is offered to a world
 that fights hand to hand, works a shift or has foes:
 
-- **The space:** the conceptual plane, each primitive a block in its tone (a counter in its verb's colour), the spawn
-  and the goal ringed on the floor, a shift's recipe drawn as arrows.
+- **The space:** the conceptual plane, each primitive drawn by its dress (or a block in its tone in the greybox), the
+  spawn and the goal ringed on the floor, a shift's recipe drawn as arrows.
 - **The hero:** the world's own, or a mascot of a form chosen on the page, on the world's feel or one chosen.
 - **The foes:** on their spots, still until Shift+F wakes them.
 - **The camera:** a chase pulled back to read the room, or overhead for a shift.

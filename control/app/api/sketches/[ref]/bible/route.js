@@ -115,10 +115,14 @@ export async function GET(request, { params }) {
         // (the work room's movement: a feel template from the presets, the world's own by default)
         const feel = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('feel') : null;
         if (feel !== null) { const { POLES } = await import('@/lib/graph/gameworld/feel/cards'); if (!POLES[feel]) return NextResponse.json({ error: `feel is one of ${Object.keys(POLES).join(', ')}` }, { status: 400 }); }
+        // (and their dress: a trade, gameroom/dress.js DRESSES, or 'none' for the greybox)
+        const dressAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('dress') : null;
+        if (dressAsked !== null && dressAsked !== 'none') { const { DRESSES } = await import('@/lib/graph/gameroom/dress'); if (!DRESSES[dressAsked]) return NextResponse.json({ error: `dress is one of ${Object.keys(DRESSES).join(', ')}, or none` }, { status: 400 }); }
+        const dress = dressAsked === null ? null : dressAsked === 'none' ? false : dressAsked;
         const link = (q) => `?${new URLSearchParams({ book: 'practice', room, ...Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) })}`;
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${feel ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(room === 'work' || room === 'room' ? { feel, link } : {}) })).html);
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${feel ?? ''}:${dressAsked ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(room === 'work' || room === 'room' ? { feel, link, dress } : {}) })).html);
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one

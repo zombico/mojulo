@@ -13,10 +13,14 @@
  *   the foes     on the composition's foe spots: the bestiary's first (the world's own, else the stand-in bestiary's), its
  *                made sketch or a person of its class standing in, still until the page's foe AI is turned on
  *   the shift    the work mechanic on the line (counters, bins, shelves, the pass), the work shown
+ *   the dress    each place drawn as the thing of its trade (gameroom/dress.js), fitted to its box, its collider kept:
+ *                a kitchen's range and workbenches, a farm's fields and carts, a site's drum and sandbags, a chore's
+ *                leaf piles and bin, a hall's tables and shelves; the shift's own trade, else the hall
  *   the camera   overhead where the world is seen from above or works a shift, else a chase the player turns
  *   measured     the room laws (gameroom/laws.js), and the work proof where a shift is laid
  *
- *   gameRoom(G, { refs?, cast?, feel?, seed?, sound? }) → { manifest, needs, room, laws, measured?, hero, feel, choices }
+ *   gameRoom(G, { refs?, cast?, feel?, seed?, dress?, sound? }) → { manifest, needs, room, laws, measured?, hero, feel, dress,
+ *     choices }   `dress`: a trade (gameroom/dress.js DRESSES), false for the greybox, absent the room's own
  *   gameRoomOf(G)  → true when the world gives the room something to compose (a fight hand to hand, a shift or foes);
  *                    a shooter and a platformer are left to the firing range and the platform room
  *   ROOM_LEGEND
@@ -35,7 +39,8 @@ import { readCard } from '../worksim/card.js';
 import { roomNeeds } from '../gameroom/needs.js';
 import { composeRoom } from '../gameroom/compose.js';
 import { roomLaws } from '../gameroom/laws.js';
-import { blocksOf } from '../gameroom/primitives.js';
+import { blocksOf, footprint, PRIMITIVES } from '../gameroom/primitives.js';
+import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
 import { workMascot, workOf, everydayFeel, flowchart, flat, OVERHEAD, WORK_CASTS, WORK_CAST } from './work-room.js';
 
 export const ROOM_LEGEND = 'W A S D  move · mouse  look · Space  jump · E  use · F  sprint · Shift+F  foe AI · H  HUD';
@@ -52,7 +57,7 @@ export function gameRoomOf(G) {
 }
 
 /** The game room (see the header). */
-export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = null, sound = 'realistic' } = {}) {
+export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = null, dress = null, sound = 'realistic' } = {}) {
   const needs = roomNeeds(G), room = composeRoom(needs, { seed: seed ?? (Number.isInteger(G?.seed) ? G.seed : 1) });
   const laws = roomLaws(room, needs), A = room.anchors, half = room.half;
   const overhead = needs.camera === 'top-down' || !!needs.work;
@@ -78,8 +83,14 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
     });
   }
 
-  // THE SPACE: the plane, its rules, the wall in its tone; each primitive a block (a counter in its verb's colour)
-  const blocks = room.primitives.flatMap((p) => blocksOf(p).map((b) => (p.kind === 'counter' && p.verb ? { ...b, fill: WORK_COLORS[p.verb] } : b)));
+  // THE DRESS (gameroom/dress.js): each place drawn as the thing of its trade, fitted to its box (its collider kept);
+  // `dress: false` the greybox
+  const trade = dress === false ? null : dressOf(room.work ? room.work.card : null, dress);
+  const places = room.primitives.map((p) => { const f = footprint(p); return { id: p.id, kind: p.kind, at: p.at, size: [r3(f.x[1] - f.x[0]), r3(f.y[1] - f.y[0]), p.h ?? PRIMITIVES[p.kind].h], ...(p.sid ? { sid: p.sid, verb: p.verb } : {}), ...(p.item ? { item: p.item } : {}) }; });
+  const D = trade ? dressPlaces(places.filter((p) => p.kind !== 'platform'), trade, { card: room.work ? room.work.card : null }) : { faces: [], dressed: new Set(), laid: [] };
+  // THE SPACE: the plane, its rules, the wall in its tone; each primitive a block (a counter in its verb's colour), a
+  // dressed one drawn by its thing instead
+  const blocks = room.primitives.flatMap((p) => blocksOf(p).map((b) => ({ ...b, ...(p.kind === 'counter' && p.verb ? { fill: WORK_COLORS[p.verb] } : {}), ...(D.dressed.has(p.id) ? { group: `room:dressed:${p.id}` } : {}) })));
   const shell = floorOf({ half, blocks });
   const plane = [];
   for (let i = -half; i < half; i += 4) for (let j = -half; j < half; j += 4) {
@@ -90,14 +101,14 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
     plane.push(flat([k - 0.015, -half], [k + 0.015, -half], [k + 0.015, half], [k - 0.015, half], 0.003, PLANE.rule, 'room:rule'));
     plane.push(flat([-half, k - 0.015], [half, k - 0.015], [half, k + 0.015], [-half, k + 0.015], 0.003, PLANE.rule, 'room:rule'));
   }
-  const kept = shell.faces.filter((f) => f.group !== 'room:floor').map((f) => (f.group === 'room:wall' ? { ...f, fill: PLANE.wall } : f));
+  const kept = shell.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:')).map((f) => (f.group === 'room:wall' ? { ...f, fill: PLANE.wall } : f));
   // the anchors marked on the floor: the spawn and the goal, a ring each
   const ring = (at, r, fill, group) => [0, 1, 2, 3].map((q) => { const a = (q * Math.PI) / 2, b = a + Math.PI / 2, c = (t) => [at[0] + r * Math.cos(t), at[1] + r * Math.sin(t)], ci = (t) => [at[0] + (r - 0.12) * Math.cos(t), at[1] + (r - 0.12) * Math.sin(t)]; return flat(c(a), c(b), ci(b), ci(a), 0.006, fill, group); });
   const marks = [...ring(A.spawn, 0.9, '#7fa8c9', 'room:spawn'), ...(room.work ? [] : ring(A.goal, 0.9, '#7fc98f', 'room:goal'))];
   // a shift's recipe on the floor
   const RC = room.work ? readCard(room.work.card) : null;
   const flow = RC ? flowchart(RC, room.work.layout, room.work.layout.serve, null, 0) : [];
-  const faces = [...plane, ...marks, ...flow, ...kept];
+  const faces = [...plane, ...marks, ...flow, ...kept, ...D.faces];
 
   // THE SHIFT on the line
   let events = { ...(P.events ?? {}) }, measured = null;
@@ -118,6 +129,6 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
   const feels = POLE_IDS.map((id) => ({ id, name: POLES[id].name, base: POLES[id].base, run: feelRule(id).speed }));
   return {
     manifest, needs, room, laws, ...(measured ? { measured } : {}), hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}),
-    feel: readFeel(F).pole, choices: { feels, casts: WORK_CASTS },
+    feel: readFeel(F).pole, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES) },
   };
 }
