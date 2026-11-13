@@ -11,8 +11,10 @@
  * has no ending of its own.
  *
  *   storyCinematics(G)       → { opening?, prologue?, ending?: { scene, level } }   (level: the moment's level id)
- *   worldFlow(G)             → { flow, source: 'own' | 'default' } in the world's level ids, or null (nothing to say:
- *                              no flow of its own and no cinematics)
+ *   worldFlow(G)             → { flow, source: 'own' | 'default' | 'play' } in the world's level ids, or null (nothing
+ *                              to say: no flow of its own and no cinematics). `flow: 'play'` (flow.js FLOW_IN_PLAY) is
+ *                              the default STARTED IN PLAY: an opening cutscene (the story's opening moment where it has
+ *                              one, else the empty slot), then straight into the game
  *   flowToRefs(flow, refOf)  → { flow, missing: [level id] }: its levels as a game's refs (refOf(id) → ref | null)
  *   flowStoryboard(flow, { scripted? }) → [{ step, kind, what, department, waits, goes }]: the steps in the order the start reaches
  *                              them, each with the department its content comes from and what it waits on; a cinematic
@@ -20,7 +22,7 @@
  *
  * Pure.
  */
-import { defaultFlow } from '../game/flow.js';
+import { defaultFlow, startInPlay, FLOW_IN_PLAY } from '../game/flow.js';
 import { GAME_SLOTS } from './story.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -42,22 +44,26 @@ export function storyCinematics(G) {
 /** The game's flow in the world's own level ids: its own, else the default with the story's cinematics; null: none to say. */
 export function worldFlow(G) {
   if (isObj(G.flow)) return { flow: G.flow, source: 'own' };
-  const C = storyCinematics(G);
-  if (!Object.keys(C).length) return null;
+  const C = storyCinematics(G), play = G.flow === FLOW_IN_PLAY;
+  if (!play && !Object.keys(C).length) return null;
   const ids = G.ids ?? Object.keys(G.levels ?? {});
   const cinematics = Object.fromEntries(Object.entries(C).map(([k, c]) => [k, { scene: c.scene, stage: c.level }]));
-  return { flow: defaultFlow({ levels: ids, ...(G.front !== undefined ? { front: G.front } : {}), ...(isObj(G.quick) && G.quick.run ? { run: { length: G.quick.run } } : {}), cinematics }), source: 'default' };
+  const game = { levels: ids, ...(G.front !== undefined ? { front: G.front } : {}), ...(isObj(G.quick) && G.quick.run ? { run: { length: G.quick.run } } : {}) };
+  // (STARTED IN PLAY, `flow: 'play'`: the story's opening moment, where it has one, is what the opening cutscene plays;
+  // its ending stays where a game plays it)
+  if (play) { const { opening, ...rest } = cinematics; return { flow: startInPlay(defaultFlow({ ...game, cinematics: rest }), opening ?? {}), source: 'play' }; }
+  return { flow: defaultFlow({ ...game, cinematics }), source: 'default' };
 }
 
 /** A flow's levels as a game's refs: a level step's `level`, a cinematic's `stage`. Missing: the ids no ref was found for. */
 export function flowToRefs(flow, refOf) {
   const missing = [], to = (id) => { const r = refOf(id); if (!r && !missing.includes(id)) missing.push(id); return r || id; };
   const steps = Object.fromEntries(Object.entries(flow.steps).map(([id, s]) => [id,
-    s.kind === 'level' && s.level !== '$any' ? { ...s, level: to(s.level) } : s.kind === 'cinematic' ? { ...s, stage: to(s.stage) } : s]));
+    s.kind === 'level' && s.level !== '$any' ? { ...s, level: to(s.level) } : s.kind === 'cinematic' || (s.kind === 'cutscene' && s.stage !== undefined) ? { ...s, stage: to(s.stage) } : s]));
   return { flow: { ...flow, steps }, missing };
 }
 
-const DEPARTMENT = { screen: 'interface', cinematic: 'cinematics', level: 'worlds', hold: 'production' };
+const DEPARTMENT = { screen: 'interface', cinematic: 'cinematics', level: 'worlds', hold: 'production', cutscene: 'cinematics' };
 const targets = (t) => (Array.isArray(t) ? t : [t]).map((a) => (isObj(a) ? `${a.go} (when ${a.when})` : a));
 
 /** The storyboard: the steps in the order the start reaches them, each what it is, whose, what it waits on, where it goes. */
@@ -73,8 +79,8 @@ export function flowStoryboard(flow, { scripted = [] } = {}) {
   for (const id of Object.keys(flow.steps)) if (!order.includes(id)) order.push(id);
   return order.map((id) => {
     const s = flow.steps[id];
-    const what = s.kind === 'screen' ? `the ${s.screen} screen` : s.kind === 'cinematic' ? `the scene ${s.scene}${scripted.includes(s.scene) ? ' (a script, blocked and shot by the director)' : ''}, on ${s.stage}${s.keep ? ', kept into play' : ''}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'level' ? (s.level === '$any' ? 'any level it is given' : `the level ${s.level}`) : `a hold${s.for ? ` of ${s.for} s` : ''}${s.until ? ` until ${s.until}` : ''}`;
-    const waits = s.kind === 'screen' ? `the player (${Object.keys(s.on ?? {}).join(', ') || 'next'})${s.idle ? `, or ${s.idle.after} s left alone` : ''}` : s.kind === 'cinematic' ? 'its scene to end' : s.kind === 'level' ? `its end (${Object.keys(s.on ?? {}).join(', ')})` : s.until ? `the event ${s.until}` : 'its time';
+    const what = s.kind === 'screen' ? `the ${s.screen} screen` : s.kind === 'cinematic' ? `the scene ${s.scene}${scripted.includes(s.scene) ? ' (a script, blocked and shot by the director)' : ''}, on ${s.stage}${s.keep ? ', kept into play' : ''}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'cutscene' ? `a cutscene: ${s.video ? `the video ${s.video}` : s.scene ? `the scene ${s.scene}, on ${s.stage}` : 'its slot, empty (passed at once until it is given a video or a scene)'}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'level' ? (s.level === '$any' ? 'any level it is given' : `the level ${s.level}`) : `a hold${s.for ? ` of ${s.for} s` : ''}${s.until ? ` until ${s.until}` : ''}`;
+    const waits = s.kind === 'screen' ? `the player (${Object.keys(s.on ?? {}).join(', ') || 'next'})${s.idle ? `, or ${s.idle.after} s left alone` : ''}` : s.kind === 'cinematic' ? 'its scene to end' : s.kind === 'cutscene' ? (s.video || s.scene ? 'it to end, or a skip' : 'nothing') : s.kind === 'level' ? `its end (${Object.keys(s.on ?? {}).join(', ')})` : s.until ? `the event ${s.until}` : 'its time';
     const goes = Object.fromEntries([...Object.entries(s.on ?? {}), ...(s.next !== undefined ? [['next', s.next]] : []), ...(s.idle ? [['idle', s.idle.go]] : [])].map(([e, t]) => [e, targets(t).join(' | ')]));
     return { step: id, kind: s.kind, what, department: DEPARTMENT[s.kind], waits, goes };
   });

@@ -180,7 +180,7 @@ import { readVenue } from '../stadium/venue.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
-import { readFlow } from '../game/flow.js';
+import { readFlow, FLOW_IN_PLAY } from '../game/flow.js';
 import { readUi } from '../playscape/ui/interface-look.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { readMounts } from '../worlds/mount-units.js';
@@ -825,7 +825,8 @@ export function readGameworld(W) {
   if (W.ui !== undefined) { const e = readUi(W.ui, 'gameworld: ui'); if (e.length) throw new Error(e.join('\n')); }
   // the game's flow (game/flow.js), the game director's: its levels by the world's level ids, its cinematics' scenes the
   // story's moments or the levels' own scenes
-  if (W.flow !== undefined) {
+  // (or the one word 'play': the flow its front, levels and run make, started in play, flow.js FLOW_IN_PLAY)
+  if (W.flow !== undefined && W.flow !== FLOW_IN_PLAY) {
     const scenes = [...(Array.isArray(W.story) ? W.story.map((m) => m && m.id) : []), ...Object.values(sceneSets).flat().map((sc) => sc.id)].filter(Boolean);
     const e = readFlow(W.flow, { levels: ids, scenes, where: 'gameworld: flow' });
     if (e.length) throw new Error(e.join('\n'));

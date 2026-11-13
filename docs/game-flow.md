@@ -39,22 +39,28 @@ flow: {
 
 - **Steps.** A `screen` is left by what the player picks there (each screen's events are `SCREEN_EVENTS`), or by its
   `idle` when it is left alone. A `cinematic` plays a scene on a level's page with control held and is left as the
-  scene ends. A `level` is left by its outcome (`won`, `lost`, `left`) or a door. A `hold` waits some seconds or for an
-  event.
+  scene ends. A `cutscene` is a sequence made elsewhere and played whole, the affordance an opening is handed to: a
+  `video` the shell plays over itself, or a directed `scene` on its `stage`, and with neither yet an empty slot the
+  game passes at once; it is left as it ends, or at a skip (`skip: false`, unskippable). A `level` is left by its
+  outcome (`won`, `lost`, `left`) or a door. A `hold` waits some seconds or for an event.
 - **Targets.** A step, a special that resolves to a level (`$first`, `$next`, `$again`, `$continue`, `$picked`,
   `$travel`, `$door`, `$run`, `$run-next`), or a list of alternatives tried in order, one of which may carry a guard
   (`complete`: this win first completed the game; `unseen`: that step has never played in this save).
 - **The reader** (`readFlow`) teaches each fault: an event a screen does not have, a step nothing reaches, a step with
   no way out, a special where it cannot stand, a cinematic staged on a level the game lacks, a kept cinematic not
-  followed by its level, and a loop of cinematics and holds with nothing for the player to press.
+  followed by its level, a cutscene that says both a video and a scene, and a loop of cinematics, cutscenes and holds
+  with nothing for the player to press.
 
 ## How a game starts
 
 Three things, in this order, each in its own place:
 
-1. **The opening sequence** is the flow's, never the level's: a step of its own before play (the `opening` and
-   `prologue` slots below, directed scenes today). A level does not open on a look at the world or a line of story; it
-   assumes the opening has said what it had to.
+1. **The opening sequence** is the flow's, never the level's: ONE step before play, a `cutscene`, whatever it is made
+   of (a video, a directed scene, nothing yet). A level does not open on a look at the world or a line of story; it
+   assumes the cutscene has said what it had to. A game laid from a sentence starts IN PLAY (`flow: 'play'`,
+   `startInPlay`): that cutscene, then straight into the game with no attract, title or prologue between, the save's
+   level on a later boot. While the slot is empty the game boots into its first page; the title is still there, where
+   quitting goes.
 2. **The controls, with the hero in hand.** The first page a player walks starts by explaining the body's controls
    (moving, looking, the jump, the sprint), one at a time, each staying up until the player does it or its patience
    runs out, so nobody is held there. The arrival beat that teaches several verbs is that explanation
@@ -85,6 +91,10 @@ The main quest's ending, when its beat is played as a story moment (`as: { scene
 story has one of its own. A gameworld's own `flow` names its levels by the world's level ids; the game made of it plays
 each as the ref of that level's first stage, and a cinematic whose scene is a bound story moment plays on the stage the
 moment is bound to. The review shows either flow as a storyboard (`flow:sequence`).
+
+A gameworld's `flow: 'play'` is the default started in play (above): its `opening` step a cutscene that plays the
+story's opening moment where the story has one, and is an empty slot where it has none; the prologue and the attract
+are left out (the opening is the one sequence before play), and the ending stays where a game plays it.
 
 A cinematic's scene may be written as a screenplay: the cinematics department blocks it on its stage, shoots it by
 the director's rules, has its cast act it and plays its slow motion on the world clock (docs/cinematics.md, "The scene

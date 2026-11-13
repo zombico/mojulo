@@ -11,6 +11,8 @@ import { readGrid } from '../level/grid.js';
 import { readSketch, sketchLaws } from '../level/map-sketch.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { SIGHTS } from '../mind/vocab.js';
+import { FLOW_IN_PLAY, readFlow, walkFlow } from '../game/flow.js';
+import { runSteps } from './runner.js';
 
 const lawsOf = (level) => {
   const g = level.glyphs, G = readGrid({ tile: g.tile, plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) }, 'grid');
@@ -78,6 +80,9 @@ describe('the world map', () => {
     expect(W.levels[ids[0]].walk).toBeUndefined();
     expect(W.levels[ids[0]].glyphs.plan.route.length).toBe(WORLD_MAP.first + 2);
     expect(W.brief.worldMap.level).toBe(ids[0]);
+    // (it starts in play: its opening a cutscene's slot, then straight into the game; the brief says so)
+    expect(W.flow).toBe(FLOW_IN_PLAY);
+    expect(W.brief.start).toMatch(/cutscene.*straight into play/);
     // (its brief says how it starts: the opening block, then the first zone)
     const route = W.levels[ids[0]].glyphs.plan.route;
     expect(W.brief.worldMap).toMatchObject({ opening: route.slice(0, WORLD_MAP.opening), firstZone: route.slice(WORLD_MAP.opening, WORLD_MAP.first) });
@@ -87,6 +92,18 @@ describe('the world map', () => {
     const D = composeGameworld({ prompt: 'a stylish action game like devil may cry in a gothic castle', seed: 1 });
     expect(D.topology).toBeUndefined();
     expect(Object.values(D.levels).every((l) => l.walk || l.building)).toBe(true);
+  });
+  it('the game made of it starts in play: its flow an opening cutscene\'s empty slot, then its first page, no screen before', () => {
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
+    const game = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'game').order, refs = game.levels.map((l) => l.ref);
+    expect(readFlow(game.flow, { levels: refs })).toEqual([]);
+    expect(game.flow.start).toBe('opening');
+    expect(game.flow.steps.opening).toEqual({ kind: 'cutscene', next: ['$continue', '$first'] });
+    // walked from a first boot: the slot is passed at once and the player is on the opening page
+    expect(walkFlow(game.flow, ['next'], { resolve: (sp) => (sp === '$first' ? refs[0] : null) })).toEqual([{ step: 'opening', level: null }, { step: 'play', level: refs[0] }]);
+    // a world that says no such word is made as it was: no flow of its own
+    const { flow: _f, ...plain } = W;
+    expect(runSteps(plain, { ref: 'gw' }).find((s) => s.key === 'game').order.flow).toBeUndefined();
   });
   it('the world\'s bible draws it: its blocks in their places by name, the walk through them, who each block\'s fights stand', () => {
     const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });

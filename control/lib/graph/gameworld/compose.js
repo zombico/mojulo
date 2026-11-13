@@ -42,6 +42,7 @@ import { worldMapLevel, WORLD_MAP } from './world-map.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
+import { FLOW_IN_PLAY } from '../game/flow.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
@@ -553,5 +554,11 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition,
       ...(design ? { design: { roll: design.sheet, ...(design.garment ? { garment: design.garment } : {}), pieces: design.pieces.map((p) => p.kind), read: design.read } } : {}) };
   }
+  // HOW IT STARTS (`flow: 'play'`, game/flow.js startInPlay): its opening is a CUTSCENE, the slot the game's opening
+  // sequence is handed to (the story's opening moment where it has one; empty until then, and passed at once), and from
+  // it straight into play; the title only where quitting goes back to. The flow page is the game director's to rewrite.
+  world.flow = FLOW_IN_PLAY;
+  world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
+  readGameworld(world);
   return world;
 }

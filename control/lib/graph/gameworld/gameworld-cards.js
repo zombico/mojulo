@@ -89,7 +89,7 @@ import { BOOK_SKINS } from './book-skin.js';
 import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
-import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS } from '../game/flow.js';
+import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -507,10 +507,15 @@ function flowCard() {
     ...Object.entries(SCREEN_EVENTS).map(([k, evs]) => `               ${k}: ${evs.join(', ')}`),
     '  cinematic  { scene, stage: <level id>, next, keep?, skip? }   a story moment (or a level\'s scene) played on its',
     '             level\'s page; keep: the prologue\'s, play goes on from it; skip: false, unskippable',
+    '  cutscene   { video? | scene?, stage?, next, skip? }   a sequence made elsewhere, played whole: a video file, or a',
+    '             directed scene on its stage; neither yet, an empty slot passed at once',
     `  level      { level: <level id> | $any, on: { ${LEVEL_EVENTS.join(', ')} } }`,
     '  hold       { for?: s, until?: event, next }',
     `  target: a step id, a special (${FLOW_SPECIALS.join(' ')}), or [alts], an alt { when: ${FLOW_GUARDS.join(' | ')}, go }`,
     '  start: a step, or alts: [{ when: \'unseen\', go: \'opening\' }, \'title\'] (an opening on a first boot)',
+    `flow: '${FLOW_IN_PLAY}'   the default STARTED IN PLAY: an opening cutscene (the story\'s opening moment, else the empty`,
+    '  slot), then straight into the game, no attract, title or prologue first; the title is where quitting goes. A',
+    '  game laid from a sentence says it.',
     'Every step reached from the start, every one with a way out, no loop of cinematics and holds alone: the read says',
     'which, and how. A cinematic waits for its scene to end; a level for its end; a screen for the player.',
   );

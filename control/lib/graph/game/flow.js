@@ -22,6 +22,11 @@
  *     level      { level: '<level ref>' | '$any', on: { won?, lost?, left?, door? } }
  *                a level, left by its outcome (won, lost, left) or a door; `$any` is the step any level plays in
  *     hold       { for?: seconds, until?: '<event>', next }   a beat, or a wait for an event
+ *     cutscene   { video?, scene?, stage?, next, skip? }
+ *                THE CUTSCENE AFFORDANCE: an encapsulated sequence the game hands to (its opening), whatever it is made
+ *                of: a `video` (a url or a path, played over the shell) or a directed `scene` on a level's page (`stage`,
+ *                run as a cinematic is); skipped by a key or a tap (`skip: false`: not). With neither yet, the slot
+ *                holds the place and is passed at once, so a game is laid to start through it before it is made
  *
  *   target: a step id | a special | [alt, …] (the first alt that resolves) where an alt is a target or
  *           { when: <guard>, go: target }
@@ -40,6 +45,12 @@
  *                                                  its run, its map, its final level), so a game that says none
  *                                                  plays as it did; with game.cinematics ({ opening?, prologue?,
  *                                                  ending?: { scene, stage } }) the story's placed in it
+ *   FLOW_IN_PLAY                                 'play': a gameworld's `flow` said in one word (gameworld/game-flow.js)
+ *   startInPlay(flow, cutscene?)                 → that flow STARTING IN PLAY: an `opening` cutscene (the slot, or
+ *                                                  the `{ video } | { scene, stage }` given it), then straight into
+ *                                                  the game (the save's level, else the first), its title only where
+ *                                                  quitting goes back to; no prologue: the opening is the one
+ *                                                  sequence before play
  *   buildFlowKernel()                            → { stepFlow, levelStep, homeOf, walkFlow }: self-contained, inlined
  *                                                  in the play shell by toString(); node uses the same
  *   stepFlow(flow, at, event, ctx)               → { step, level } the event leads to (null: nowhere)
@@ -50,7 +61,7 @@
  */
 import { frontConfig } from './play-front.js';
 
-export const FLOW_KINDS = Object.freeze(['screen', 'cinematic', 'level', 'hold']);
+export const FLOW_KINDS = Object.freeze(['screen', 'cinematic', 'level', 'hold', 'cutscene']);
 // the screens a play shell draws, and what the player can do on each
 export const SCREEN_EVENTS = Object.freeze({
   attract: Object.freeze(['press']),
@@ -75,7 +86,10 @@ const KEYS = {
   cinematic: ['kind', 'scene', 'stage', 'next', 'keep', 'skip'],
   level: ['kind', 'level', 'on'],
   hold: ['kind', 'for', 'until', 'next'],
+  cutscene: ['kind', 'video', 'scene', 'stage', 'next', 'skip'],
 };
+// (a step that plays a scene on a level's page: a cinematic, or a cutscene made of a directed scene)
+const staged = (s) => !!s && (s.kind === 'cinematic' || (s.kind === 'cutscene' && s.scene !== undefined));
 const ID = /^[a-z][a-z0-9-]{0,40}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isStr = (v) => typeof v === 'string' && v.length > 0;
@@ -117,7 +131,7 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
         else if (to === '$door' && event !== 'door') errors.push(`${at}: $door is where a level's door leads, so it stands under on.door`);
         else if (to === '$picked' && event !== 'pick') errors.push(`${at}: $picked is the level picked on the levels screen, so it stands under its on.pick`);
       } else if (!steps[to]) errors.push(`${at}: no step '${to}' (${ids.join(', ')})`);
-      else if (steps[to].kind === 'level' && steps[to].level === '$any' && !(from && from.kind === 'cinematic')) errors.push(`${at}: '${to}' plays whichever level it is given, so say which: a special (${FLOW_SPECIALS.filter((x) => x !== '$door' && x !== '$picked').join(', ')})`);
+      else if (steps[to].kind === 'level' && steps[to].level === '$any' && !staged(from)) errors.push(`${at}: '${to}' plays whichever level it is given, so say which: a special (${FLOW_SPECIALS.filter((x) => x !== '$door' && x !== '$picked').join(', ')})`);
     }
   };
 
@@ -149,6 +163,16 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
       if (!(s.level === '$any' || (isStr(s.level) && refs.has(s.level)))) errors.push(`${at}.level is a level (${levels.join(', ') || 'none'}) or $any (the step any level plays in)`);
       if (!isObj(s.on) || !Object.keys(s.on).length) errors.push(`${at}.on: where its outcomes go (${LEVEL_EVENTS.join(', ')})`);
       else for (const e of Object.keys(s.on)) if (!LEVEL_EVENTS.includes(e)) errors.push(`${at}.on.${e}: a level is left by ${LEVEL_EVENTS.join(', ')}`);
+    } else if (s.kind === 'cutscene') {
+      if (s.video !== undefined && !isStr(s.video)) errors.push(`${at}.video is the video it plays (a url or a path)`);
+      if (s.video !== undefined && s.scene !== undefined) errors.push(`${at}: a cutscene is a video or a directed scene, one or the other`);
+      if (s.scene !== undefined) {
+        if (!isStr(s.scene)) errors.push(`${at}.scene names the scene it plays (a story moment's id)`);
+        else if (scenes && !scenes.includes(s.scene)) errors.push(`${at}.scene: no scene '${s.scene}' (${scenes.join(', ') || 'none'})`);
+        if (!isStr(s.stage) || !refs.has(s.stage)) errors.push(`${at}.stage is the level whose page its scene plays on (${levels.join(', ') || 'no levels'})`);
+      } else if (s.stage !== undefined) errors.push(`${at}.stage is a directed scene's (scene): a video plays over the shell`);
+      if (s.next === undefined) errors.push(`${at}.next: where it goes as it ends`);
+      if (s.skip !== undefined && typeof s.skip !== 'boolean') errors.push(`${at}.skip is true or false`);
     } else if (s.kind === 'hold') {
       if (s.for === undefined && s.until === undefined) errors.push(`${at}: a hold waits for some seconds (for) or an event (until)`);
       if (s.for !== undefined && !num(s.for, 0.1, 60)) errors.push(`${at}.for is 0.1 to 60 seconds`);
@@ -179,7 +203,7 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
   }
   for (const id of ids) if (!seen.has(id)) errors.push(`${where}.steps.${id}: nothing reaches it from ${startAlts.map((a) => a.to).join(' or ')}`);
   // no loop of cinematics and holds alone: something in every loop is the player's to press or play
-  const auto = (id) => ['cinematic', 'hold'].includes(steps[id].kind);
+  const auto = (id) => ['cinematic', 'hold', 'cutscene'].includes(steps[id].kind);
   const state = {};
   const loop = (id, path) => {
     if (state[id] === 'done') return null;
@@ -263,6 +287,28 @@ export function defaultFlow(game) {
 }
 
 /**
+ * A flow that STARTS IN PLAY: how a game laid from a sentence begins (gameworld/compose.js). Its start is an `opening`
+ * CUTSCENE, the affordance the game's opening sequence is handed to (a video, a directed scene, or nothing yet: the
+ * slot is passed at once), and from it straight into the game: the save's level, else the first. The title and the
+ * screens after a level stay as they were, the title only where quitting goes back to. A prologue is taken out (the
+ * opening is the one sequence before play), and the attract with the opening it looped: nothing is pressed before play.
+ */
+export function startInPlay(flow, cutscene = {}) {
+  const steps = { ...flow.steps };
+  if (steps.prologue) { delete steps.prologue; if (steps.title?.on?.play === 'prologue') steps.title = { ...steps.title, on: { ...steps.title.on, play: '$first' } }; }
+  for (const id of Object.keys(steps)) {
+    if (steps[id].kind === 'screen' && steps[id].screen === 'attract') delete steps[id];
+    else if (steps[id].idle?.go === 'opening') { const { idle: _i, ...rest } = steps[id]; steps[id] = rest; }
+  }
+  // (a run begins a run; any other game the save's level, else its first)
+  const run = Object.values(steps).some((s) => s.kind === 'screen' && s.screen === 'run-result');
+  steps.opening = { kind: 'cutscene', ...cutscene, next: run ? '$run' : ['$continue', '$first'] };
+  return { ...flow, start: 'opening', steps };
+}
+/** A world's `flow` said in one word: the flow its front, levels and run make, STARTED IN PLAY (gameworld/game-flow.js). */
+export const FLOW_IN_PLAY = 'play';
+
+/**
  * THE FLOW KERNEL: stepping a flow, self-contained so the play shell inlines it with toString() (the store kernel's
  * emit discipline: real, parseable JavaScript, references nothing outside itself). Node uses the same instance.
  */
@@ -275,7 +321,7 @@ export function buildFlowKernel() {
     const last = ctx.level || null;
     // (a cinematic plays its stage: the level step it hands on to by id plays that level)
     // ($any named by id plays the level it is handed: a kept cinematic's stage)
-    if (to.charAt(0) !== '$') { const s = flow.steps[to]; return s ? { step: to, level: s.kind === 'level' ? (s.level === '$any' ? last : s.level) : s.kind === 'cinematic' ? s.stage : last } : null; }
+    if (to.charAt(0) !== '$') { const s = flow.steps[to]; return s ? { step: to, level: s.kind === 'level' ? (s.level === '$any' ? last : s.level) : s.kind === 'cinematic' || (s.kind === 'cutscene' && s.scene && s.stage) ? s.stage : last } : null; }
     const ref = ctx.resolve ? ctx.resolve(to, ctx) : null;
     if (!ref) return null;
     const ids = Object.keys(flow.steps);

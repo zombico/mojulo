@@ -180,9 +180,27 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   - **The guide follows the fight**: a scenario's fight is won by its falls, wherever it was fought, and its keys show
     when its foes have come within a few strides, not only near its mark; the controls lessons give way to a foe at
     hand. The scripted player no longer walks at a foe that is not there yet.
-- Not here yet: the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
+- **A game starts in play, its opening a cutscene** (`game/flow.js`, `game/play-shell.js`, `gameworld/game-flow.js`,
+  `gameworld/runner.js`, `gameworld/compose.js`). The opening sequence was a cinematic before the title on a first
+  boot, a prologue after New Game and an attract loop, so a made game stood behind a press and a menu before anyone
+  moved.
+  - **The `cutscene` step**: a sequence made elsewhere and played whole. A `video` plays over the shell and the game
+    goes on as it ends (or cannot play); a directed `scene` is staged as a cinematic is; with neither, the slot is
+    empty and is passed at once. Skipped by a key or a click once it has been up a moment, unless `skip: false`.
+  - **`flow: 'play'`** on a gameworld: the default flow started in play (`startInPlay`): that cutscene, then the
+    save's level, else the first, with no attract, title or prologue before it. The story's opening moment fills the
+    slot where there is one; the title stays, where quitting goes. The storyboard says the slot and that an empty one
+    waits on nothing.
+  - **A game laid from a sentence says it**, and its brief says how it starts. A game that says no flow plays as it
+    did.
+  - **A gameworld's flow reaches the game made of it** (`lib/mcp/tools/design-game.js`, `create-game.js`). The run
+    ordered a game with its flow (its own, the story's cinematics placed in the default, now the start in play) and the
+    door made the game without it, so a made game always played the default. The flow and the front go with the
+    game, made or remade; `create_game` carries a `flow` it is handed (unlisted: the flow is the gameworld's page).
+- Not here yet: a cutscene's video has no file carried into the export by the game's own door (it names a path the
+  page can reach); the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
   opens on a win is not in the level kit); a pursuer gives up a hero it can no longer see (it hunts by sight, not by
-  memory); a flow step that plays a video; the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick
+  memory); the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick
   game's rolled people are not read as figures; the colour
   book paints the theorist's small landscape, not the game's own level; the options are not yet a `pick_palette`
   argument (the readout and the book carry them); a hero on a body rail (a comic hero, a fighter, a mascot) is still dressed plain; the hero's dress

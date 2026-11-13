@@ -223,15 +223,16 @@ async function realize(step, action) {
   }
   if (key === 'game') {
     // the game over the levels: create_game (its levels dry-run and recorded unaudited: the run's audit steps walk them
-    // after, one a step, runner.js auditSteps), its manifest whole in place
-    const { title, store, levels, links, theme, shell, final, hud } = order;
+    // after, one a step, runner.js auditSteps), its manifest whole in place; its flow (what plays when: game/flow.js)
+    // and its front go with it, made or remade
+    const { title, store, levels, links, theme, shell, final, hud, front, flow } = order;
     if (action === 'make') {
       await createGameHandler({ ...order, ref });
       return {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(front ? { front } : {}), ...(flow ? { flow } : {}) } });
     }
     return {};
   }

@@ -51,7 +51,7 @@ import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan,
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
-import { defaultFlow } from '../game/flow.js';
+import { defaultFlow, startInPlay, FLOW_IN_PLAY } from '../game/flow.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
 import { resolveSport } from '../contest/sports.js';
@@ -470,9 +470,16 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const firstRef = (level) => { const k = S0.findIndex((st) => st.level === level); return k >= 0 ? R0[k] : null; };
     const cinematics = Object.fromEntries(Object.entries(storyCinematics(G)).map(([slot, c]) => [slot, { scene: c.scene, stage: boundRef(c.scene) }]).filter(([, c]) => c.stage));
     let flow = null;
-    if (G.flow) {
+    if (G.flow === FLOW_IN_PLAY) {
+      // STARTED IN PLAY (flow.js startInPlay): the flow this game's own front, levels, links and map make, begun at an
+      // opening cutscene (the story's opening moment where it has one, else the empty slot) and straight into the game
+      const { opening, ...rest } = cinematics;
+      flow = startInPlay(defaultFlow({ ...game0, cinematics: rest }), opening ?? {});
+    } else if (G.flow) {
       const m = flowToRefs(G.flow, firstRef);
-      if (!m.missing.length) flow = { ...m.flow, steps: Object.fromEntries(Object.entries(m.flow.steps).map(([id, st]) => [id, st.kind === 'cinematic' && boundRef(st.scene) ? { ...st, stage: boundRef(st.scene) } : st])) };
+      // (a cutscene made of a directed scene is staged as a cinematic is: on the stage its moment is bound to)
+      const staged = (st) => ((st.kind === 'cinematic' || st.kind === 'cutscene') && st.scene && boundRef(st.scene) ? { ...st, stage: boundRef(st.scene) } : st);
+      if (!m.missing.length) flow = { ...m.flow, steps: Object.fromEntries(Object.entries(m.flow.steps).map(([id, st]) => [id, staged(st)])) };
     }
     if (!flow && Object.keys(cinematics).length) flow = defaultFlow({ ...game0, cinematics });
     const game = flow ? { ...game0, flow } : game0;
@@ -663,7 +670,10 @@ function worldSteps(world, G, ref, composite) {
   const C = composedStages(stages, levelRefs, map, composite);
   if (C.stages.length) {
     const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    const game0 = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    // (a world that STARTS IN PLAY, as one laid from a sentence does: flow.js startInPlay over the flow its levels and
+    // front make; it has no story yet, so its opening cutscene is the empty slot, passed at once)
+    const game = G.flow === FLOW_IN_PLAY ? { ...game0, flow: startInPlay(defaultFlow(game0)) } : game0;
     // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, composite));
