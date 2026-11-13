@@ -142,6 +142,11 @@ it is a conceptual space:
   collider kept (`gameroom/dress.js`): a kitchen's range, workbenches, counters and shelving; a farm's field plots and
   carts; a site's mixer drum and sandbags; a chore's leaf piles, sacks and bin. `&dress=none` keeps the greybox
   counters, coloured by verb. E is reached from a counter's side.
+- **The area it stands in** (`gameroom/area.js`, [game-room.md](game-room.md#the-area)): the trade's floor, its walls cut
+  away on the camera's side, and what stands outside. A kitchen has tiles, a dining room past the far wall and the
+  street; a farm has a fenced yard, fields and a barn; a site has slabs inside hoarding, a frame going up and a crane; a
+  roof card stands in a garden, its deck drawn as the house. A world designs it with `room: { area }`, and `&area=none`
+  keeps the conceptual plane.
 - **The worker is a mascot**, rolled from a form chosen from the presets (`orb`, `sprout`, `toon`: the mascot forms)
   and piloted by its own body. It is carried inline: a figure may hold its layered recipe (`layered`) instead of a
   stored ref, regenerated on read as a stored one is, so nothing is minted. The world's own hero is used where one is
@@ -208,8 +213,8 @@ What the proof does not cover: walls (the walk is straight), the hero's own spee
 
 - **Seats.** Two to four players on one kitchen: `crew.workers` as seats, a handoff as a bucket between seats. This is
   what the co-op kitchen probe is blocked on (`soul.dependence=handoff`).
-- **The look.** The work room stands the line as greybox counters; a level still draws markers. A station's dress (a hob, a board, a field, a mixer) belongs on the
-  prop and furniture shelves, read by the verb and the item.
+- **The look on a level.** The work room is dressed and stands in its area; a quick shift's level still draws counters
+  and markers. The dress and the area belong on the level too, read by the verb and the item.
 - **The book.** A gameworld's `work` page in the game design and production chapter: the card, its target and the
   solver's readout. Fixtures for chores and construction would join the farming fixture in the cosmos.
 - **The management ladder.** The card stays the same, but the player becomes the dispatcher and the investor. The

@@ -39,6 +39,21 @@ roguelike's rooms: one seeded, editable composition. Design notes: [docs/game-ro
 
   A shift wears its card's trade (its own `dress`, else its starter's) and a fight the hall. `dress: false`, or
   `&dress=none` on the practice pages, keeps the greybox, and the pages offer every trade.
+- **The area** (`gameroom/area.js`): what the room stands in, designable. The dress draws the places and the area
+  draws everything else, moving nothing:
+  - **the floor:** a pattern in its colours (plane, tiles, boards, concrete, earth, lawn, flags);
+  - **the walls:** a style with its height and colours (plain, tiled with windows, a fence, hoarding, stone between
+    pilasters, a hedge, none), cut to a dark section on the south, where either camera starts. The wall colliders take
+    the height drawn, so a chase pulls in off a full wall;
+  - **the surround:** static things outside (a dining room, a street, fields, a barn, trees, a frame going up, a tower
+    crane, a materials yard, the neighbours' houses, a colonnade);
+  - **the ground and the sky.**
+
+  Each trade has its own area. On a roof card, the deck is drawn as the house in a garden. A world designs its own with
+  the new gameworld key `room: { dress?, area? }`, where the area is a name or an object over one (`like`, `floor`,
+  `walls`, `surround`, `ground`, `sky`, `cut`); a malformed one is taught. `area: false`, or `&area=none` on the
+  practice pages, keeps the conceptual plane, and the pages offer every trade's area. Seen in headless Chromium for
+  each trade and the hall; the work proofs are unchanged.
 - Played in headless Chromium: a sword fighter's hall (28 m, two decks, pillars, low cover, three foes) and a shift's
   room (its line on counters, the proof won). Machine gates only: whether the room plays well is for someone in it to
   judge.

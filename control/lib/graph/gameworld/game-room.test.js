@@ -5,6 +5,7 @@ import { gameRoom, gameRoomOf } from './game-room.js';
 import { practiceFor } from './practice.js';
 import { POLES, POLE_IDS } from './feel/cards.js';
 import { feelRule } from './feel/lower.js';
+import { readGameworld } from './world.js';
 
 const FIGHTER = POLE_IDS.find((id) => POLES[id].demo.includes('attack') && POLES[id].base === 'action');
 
@@ -35,5 +36,31 @@ describe('the game room', () => {
     expect(r.manifest.events.entities.some((e) => e.type === 'work-pip')).toBe(true);
     expect(r.manifest.faces.some((f) => f.group === 'room:flow')).toBe(true);
     expect(r.measured.won).toBe(true);
+  });
+});
+
+describe('the game room\'s area', () => {
+  it('stands in its trade\'s area, the world\'s own written over it, or on the plane', () => {
+    const own = gameRoom({ id: 'w', quick: { goal: 'work' } });
+    expect(own.area.name).toBe(own.dress.trade);
+    expect(own.area.cut).toEqual(['s']);
+    expect(own.manifest.faces.some((f) => f.group === 'room:area:wall')).toBe(true);
+    expect(own.manifest.faces.some((f) => f.group === 'room:plane')).toBe(false);
+    const H = own.room.half, south = own.manifest.colliders.find((c) => c.max[1] <= -H);
+    expect(south.max[2]).toBeLessThan(own.manifest.colliders.find((c) => c.min[1] >= H).max[2] + 1e-9);
+    const G = { id: 'w', quick: { goal: 'work' }, room: { area: { like: 'farm', walls: 'stone', surround: false } } };
+    const w = gameRoom(G);
+    expect(w.area).toMatchObject({ name: 'farm', walls: 'stone', surround: [] });
+    const plane = gameRoom(G, { area: false });
+    expect(plane.area).toBeNull();
+    expect(plane.manifest.faces.some((f) => f.group === 'room:plane')).toBe(true);
+    expect(plane.manifest.faces.some((f) => String(f.group).startsWith('room:area'))).toBe(false);
+  });
+  it('is the world\'s to design: `room: { dress?, area? }`, read and taught', () => {
+    const W = (room) => ({ id: 'r', levels: { a: { walk: { nodes: { t: { trail: true } } } } }, room });
+    expect(readGameworld(W({ dress: 'farm', area: { like: 'farm', sky: '#dde8ef' } })).room.dress).toBe('farm');
+    expect(() => readGameworld(W({ area: 'moon' }))).toThrow(/area is/);
+    expect(() => readGameworld(W({ dress: 'moon' }))).toThrow(/room.dress/);
+    expect(() => readGameworld(W({ walls: 'stone' }))).toThrow(/room has no 'walls'/);
   });
 });

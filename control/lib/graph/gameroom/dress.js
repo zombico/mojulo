@@ -14,6 +14,7 @@
  *   dressOf(card | null, asked?) → a trade's name: the asked one, the card's own `dress`, its starter's, else kitchen for
  *                 a shift and the hall for a fight
  *   dressPlaces(places, trade, { card? }) → { faces, dressed: Set(place ids), laid: [{ id, piece }] }
+ *   drawPiece(out, place, kind, palette, group), face, box, prism   the drawing, shared with the area (area.js)
  *     place: { id, kind (a primitive's: counter, bin, shelf, pass, cover-low, …), at: [x, y, z], size: [w, d, h],
  *              sid?, verb?, item? }   (a counter's station id and verb, a bin's or a shelf's item)
  *
@@ -85,23 +86,23 @@ export function dressOf(card, asked = null) {
   return 'hall';
 }
 
-// a flat face (a quad or a triangle as a quad with a doubled corner), double-sided, in a hex
-const face = (corners, fill, group) => ({ corners: corners.map((c) => c.map(r3)), fill, group, doubleSided: true });
-function box(out, mn, mx, fill, group) {
+// a flat face (a quad or a triangle as a quad with a doubled corner), double-sided, in a hex (the area's too: area.js)
+export const face = (corners, fill, group) => ({ corners: corners.map((c) => c.map(r3)), fill, group, doubleSided: true });
+export function box(out, mn, mx, fill, group) {
   const [x0, y0, z0] = mn, [x1, y1, z1] = mx;
   out.push(face([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], fill, group), face([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], fill, group),
     face([[x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1]], fill, group), face([[x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]], fill, group),
     face([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], fill, group));
 }
-function prism(out, c, rx, ry, z0, z1, sides, fill, group) {
+export function prism(out, c, rx, ry, z0, z1, sides, fill, group) {
   const pts = Array.from({ length: sides }, (_, k) => { const a = (k / sides) * 2 * Math.PI; return [c[0] + rx * Math.cos(a), c[1] + ry * Math.sin(a)]; });
   for (let k = 0; k < sides; k++) { const p = pts[k], q = pts[(k + 1) % sides]; out.push(face([[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], z1], [p[0], p[1], z1]], fill, group)); }
   out.push(face(pts.map((p) => [p[0], p[1], z1]), fill, group));
 }
 
 /** A place's thing, drawn into its box: a piece's parts stretched to it (its front, +v, toward the screen's bottom), or a
- * furniture build fitted to it. */
-function drawPiece(out, place, kind, palette, group) {
+ * furniture build fitted to it. (The area's surround lays its things with it: area.js.) */
+export function drawPiece(out, place, kind, palette, group) {
   const P = pieceOf(kind), [w, d, h] = place.size, [x, y, z = 0] = place.at;
   if (P.furniture) {
     const L = resolveFurniture({ like: P.furniture, size: [w, d, h].map((v) => Math.round(v * 1000)) }).locked;

@@ -286,24 +286,33 @@ export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given =
   return { html, room, card: CARD };
 }
 
+// the area's picks (gameroom/area.js): each trade's, the conceptual plane; what is drawn, its walls, what stands outside
+function areaPicks(room, pick, esc) {
+  const A = room.area;
+  const areas = [...room.choices.areas.map((a) => pick(a, A?.name === a, { area: a })), pick('plane', !A, { area: 'none' })].join(' · ');
+  const areaNote = A ? `<br><span class="k">${esc(A.about)}<br>floor ${esc(A.floor)} · walls ${esc(A.walls)}${A.cut?.length ? ` (cut away on the ${A.cut.map((c) => ({ n: 'north', s: 'south', e: 'east', w: 'west' })[c]).join(', ')}, the camera's side)` : ''} · outside: ${esc(A.surround.join(', ') || 'nothing')}</span>` : '<br><span class="k">the conceptual plane: pale, ruled every two metres</span>';
+  return { areas, areaNote };
+}
+
 /**
  * The work room's page: the room on the runtime, and a panel beside it: the shift as tuned (pace, patience, the goal),
  * the work proof at the template's run, and the presets to choose from (a feel template, a body), each a link that
  * reopens the room with it.
  */
-export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, sound = 'realistic', cdn = false, link = null } = {}) {
+export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
   const { workRoom, WORK_CAST } = await import('./work-room.js');
   cast = cast ?? WORK_CAST;
-  const room = workRoom(G, { refs, cast, feel, dress, sound });
+  const room = workRoom(G, { refs, cast, feel, dress, area, sound });
   const payload = await resolved(room.manifest, `${G.id ?? 'game'}-work-room`);
   let html = await emitted(payload, cdn);
   const D = room.card.demand, M = room.measured, esc = (t) => String(t).replace(/[<&"]/g, (c) => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' })[c]);
-  const href = (q) => (link ? esc(link({ cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...q })) : null);
+  const href = (q) => (link ? esc(link({ cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}), ...q })) : null);
   const pick = (label, on, q) => (on ? `<b>${esc(label)}</b>` : href(q) ? `<a href="${href(q)}">${esc(label)}</a>` : esc(label));
   const feels = room.choices.feels.map((f) => `${pick(f.name, f.id === room.feel, { feel: f.id })} <span class="k">${f.base} · run ${f.run}</span>`).join('<br>');
   const casts = room.choices.casts.map((c) => pick(c, c === cast && room.hero === 'mascot', { cast: c })).join(' · ');
   const dresses = [...room.choices.dresses.map((d) => pick(d, room.dress?.trade === d, { dress: d })), pick('greybox', !room.dress, { dress: 'none' })].join(' · ');
   const dressNote = room.dress ? `<br><span class="k">${esc(room.dress.about)}</span>` : '<br><span class="k">the blocks as solved, undressed</span>';
+  const { areas, areaNote } = areaPicks(room, pick, esc);
   const { WORK_COLORS: K } = await import('../game/work-mechanics.js');
   const dot = (c) => `<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};margin:0 3px 0 0;vertical-align:-1px"></i>`;
   const HUD = `<style>#wk{position:fixed;top:10px;right:10px;width:330px;max-height:calc(100vh - 20px);overflow:auto;font:12px/1.5 ui-sans-serif,system-ui,sans-serif;color:#3a352e;background:rgba(250,247,241,.92);border:1px solid #d9d0c1;border-radius:10px;padding:10px 12px;z-index:50;box-shadow:0 2px 10px rgba(60,50,30,.08)}#wk b{color:#1f1b16}#wk a{color:#b0603a}#wk .k{color:#8a8173}#wk h4{margin:8px 0 2px;font-size:10.5px;color:#9a6b3f;text-transform:uppercase;letter-spacing:.07em}</style>
@@ -313,6 +322,7 @@ export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dre
 <h4>measured</h4><div class="k">a walker who knows the card, at this template's run: ${esc(M.says)}</div>
 <h4>the worker</h4><div>${room.hero === 'own' ? '<b>the world\'s own hero</b>' : `a mascot: ${casts}<br><span class="k">${esc(room.mascot.thesis)}</span>`}</div>
 <h4>the dress</h4><div>${dresses}${dressNote}</div>
+<h4>the area</h4><div>${areas}${areaNote}</div>
 <h4>the movement</h4><div>${feels}</div></div>
 <script>addEventListener('keydown', (e) => { if (e.code === 'KeyH') { const w = document.getElementById('wk'); w.style.display = w.style.display === 'none' ? '' : 'none'; } });</script>`;
   html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
@@ -324,15 +334,15 @@ export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dre
  * the primitives laid, the room laws, the shift's proof where there is one, and the presets to choose from (a mascot's
  * form, a feel template), each a link that reopens the room with it. Shift+F wakes the foes (still by default).
  */
-export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, sound = 'realistic', cdn = false, link = null } = {}) {
+export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
   const { gameRoom } = await import('./game-room.js');
   const { WORK_CAST } = await import('./work-room.js');
   cast = cast ?? WORK_CAST;
-  const room = gameRoom(G, { refs, cast, feel, dress, sound });
+  const room = gameRoom(G, { refs, cast, feel, dress, area, sound });
   const payload = await resolved(room.manifest, `${G.id ?? 'game'}-game-room`);
   let html = await emitted(payload, cdn);
   const N = room.needs, esc = (t) => String(t).replace(/[<&"]/g, (c) => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' })[c]);
-  const href = (q) => (link ? esc(link({ cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...q })) : null);
+  const href = (q) => (link ? esc(link({ cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}), ...q })) : null);
   const pick = (label, on, q) => (on ? `<b>${esc(label)}</b>` : href(q) ? `<a href="${href(q)}">${esc(label)}</a>` : esc(label));
   const counts = {};
   for (const p of room.room.primitives) counts[p.kind] = (counts[p.kind] ?? 0) + 1;
@@ -343,6 +353,7 @@ export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dre
   const casts = room.choices.casts.map((c) => pick(c, c === cast && room.hero === 'mascot', { cast: c })).join(' · ');
   const dresses = [...room.choices.dresses.map((d) => pick(d, room.dress?.trade === d, { dress: d })), pick('greybox', !room.dress, { dress: 'none' })].join(' · ');
   const dressNote = room.dress ? `<br><span class="k">${esc(room.dress.about)}</span>` : '<br><span class="k">the blocks as solved, undressed</span>';
+  const { areas, areaNote } = areaPicks(room, pick, esc);
   const HUD = `<style>#gr{position:fixed;top:10px;right:10px;width:340px;max-height:calc(100vh - 20px);overflow:auto;font:12px/1.5 ui-sans-serif,system-ui,sans-serif;color:#3a352e;background:rgba(250,247,241,.92);border:1px solid #d9d0c1;border-radius:10px;padding:10px 12px;z-index:50;box-shadow:0 2px 10px rgba(60,50,30,.08)}#gr b{color:#1f1b16}#gr a{color:#b0603a}#gr .k{color:#8a8173}#gr .ok{color:#3f8f52}#gr .bad{color:#b0603a}#gr h4{margin:8px 0 2px;font-size:10.5px;color:#9a6b3f;text-transform:uppercase;letter-spacing:.07em}</style>
 <div id="gr"><b>Game room</b> <span class="k">${esc(G.name ?? G.id ?? 'game')} · ${room.room.size} m square</span> <span id="gr-ai" class="k"></span>
 <h4>the brief</h4><div>${brief}</div>
@@ -350,6 +361,7 @@ export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dre
 <h4>the room laws</h4><div>${laws}</div>${room.measured ? `<h4>the shift, measured</h4><div class="k">${esc(room.measured.says)}</div>` : ''}
 <h4>the worker</h4><div>${room.hero === 'own' ? '<b>the world\'s own hero</b>' : `a mascot: ${casts}<br><span class="k">${esc(room.mascot.thesis)}</span>`}</div>
 <h4>the dress</h4><div>${dresses}${dressNote}</div>
+<h4>the area</h4><div>${areas}${areaNote}</div>
 <h4>the movement</h4><div>${feels}</div></div>
 <script>
 (() => {

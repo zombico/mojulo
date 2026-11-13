@@ -5,7 +5,8 @@
  * forms) and carried inline (world-scene.js `layered`: nothing minted), piloted by its own body (egocube/mascot-pilot.js);
  * the world's own hero where made. Movement is a feel template (feel/cards.js POLES): the world's own feel, or the one
  * asked for, else the everyday walker (the realistic template that runs slowest).
- * The space is a plain plane ruled every two metres. The line stands as counters coloured by their verb (shovel work
+ * The space is the trade's AREA (gameroom/area.js: its floor, its walls cut away on the camera's side, what stands
+ * outside), or a plain plane ruled every two metres (`area: false`). The line stands as counters coloured by their verb (shovel work
  * warm, bucket work cool), and THE FLOOR IS THE FLOWCHART: the card's recipe drawn as arrows from each crate, shelf and
  * station to where its thing goes next, coloured by the work it feeds. The work shows where it happens (the mechanic's
  * `show`): pips over a station fill as it is worked, fill again as it runs alone and go out toward the burn; a shelf
@@ -16,8 +17,10 @@
  * The card is tuned by the solver for one player at the world's challenge, and the shift is measured by the work proof
  * at the template's own run (worksim/work-proof.js).
  *
- *   workRoom(G, { refs?, cast?, feel?, card?, challenge?, sound? }) → { manifest, card, feel, hero: 'own' | 'mascot',
- *     layout, measured, choices: { feels: [{ id, name, base, run }], casts } }
+ *   workRoom(G, { refs?, cast?, feel?, card?, challenge?, dress?, area?, sound? }) → { manifest, card, feel, hero: 'own' | 'mascot',
+ *     layout, measured, dress, area, choices: { feels: [{ id, name, base, run }], casts, dresses, areas } }
+ *     `dress` and `area` (gameroom/dress.js, gameroom/area.js): the page's, else the world's `room`, else the trade's own;
+ *     false the greybox and the conceptual plane
  *   workOf(G)       → { card, challenge } the shift a world asks for (its quick work goal), or null
  *   tunedShift(card?, challenge?) → the solver's result: the card tuned for one player at the challenge
  *   WORK_LEGEND     the keys
@@ -40,6 +43,7 @@ import { readCard } from '../worksim/card.js';
 import { resolveObject } from '../playscape/objects/index.js';
 import { WORK_COLORS } from '../game/work-mechanics.js';
 import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
+import { readArea, buildArea, raiseWalls, planeFaces, houseFaces, AREAS } from '../gameroom/area.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet, FORM_MEASURES } from '../egocube/mascot-form.js';
 import { mascotPilot } from '../egocube/mascot-pilot.js';
@@ -88,7 +92,7 @@ export function everydayFeel() {
 }
 
 /** The work room (see the header). */
-export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = null, challenge = null, dress = null, sound = 'realistic' } = {}) {
+export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = null, challenge = null, dress = null, area = undefined, sound = 'realistic' } = {}) {
   const asked = workOf(G) ?? { card: 'kitchen', challenge: 'beginner' };
 
   const F = feel ?? G?.feel ?? everydayFeel();
@@ -143,7 +147,9 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
     ...Object.entries(L.shelves).map(([item, at]) => ({ id: `shelf-${item}`, kind: 'shelf', at, size: [0.6, 0.6, 1.1], item })),
     { id: 'serve', kind: 'pass', at: serveAt, size: [1.6, 0.8, 1] },
   ];
-  const trade = dress === false ? null : dressOf(C, dress);
+  // (the world's room look, `room: { dress?, area? }`, where the page asks for none)
+  const dressAsk = dress ?? G?.room?.dress ?? null;
+  const trade = dressAsk === false ? null : dressOf(C, dressAsk);
   const D = trade ? dressPlaces(places, trade, { card: C }) : { faces: [], dressed: new Set(), laid: [] };
   const blocks = [];
   const block = (id, at, w, d, h, fill) => blocks.push({ id, x: [r3(at[0] - w / 2), r3(at[0] + w / 2)], y: [r3(at[1] - d / 2), r3(at[1] + d / 2)], h: r3(at[2] + h), fill, group: D.dressed.has(id) ? `room:dressed:${id}` : 'room:work' });
@@ -151,19 +157,18 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
   for (const p of places) block(p.id, p.at, p.size[0], p.size[1], p.size[2], p.kind === 'counter' ? FILL[p.verb] : FILL[{ bin: 'crate', shelf: 'shelf', pass: 'serve' }[p.kind]]);
   const xs = [...blocks.flatMap((b) => b.x), spawn[0]], ys = [...blocks.flatMap((b) => b.y), spawn[1]];
   const half = Math.ceil(Math.max(...xs.map(Math.abs), ...ys.map(Math.abs)) + 3);
-  const room = floorOf({ half, blocks }), colliders = room.colliders;
-  // THE SPACE: the checkered floor given up for a pale plane ruled every two metres, the wall in the plane's tone
-  const plane = [];
-  for (let i = -half; i < half; i += 4) for (let j = -half; j < half; j += 4) {
-    const a = Math.min(i + 4, half), b = Math.min(j + 4, half);
-    plane.push({ corners: [[i, j, 0], [a, j, 0], [a, b, 0], [i, b, 0]], fill: FILL.plane, group: 'room:plane', doubleSided: true });
-  }
-  for (let k = -half + 2; k < half; k += 2) {
-    plane.push(flat([k - 0.015, -half], [k + 0.015, -half], [k + 0.015, half], [k - 0.015, half], 0.003, FILL.rule, 'room:rule'));
-    plane.push(flat([-half, k - 0.015], [half, k - 0.015], [half, k + 0.015], [-half, k + 0.015], 0.003, FILL.rule, 'room:rule'));
-  }
-  const kept = room.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:')).map((f) => (f.group === 'room:wall' ? { ...f, fill: FILL.wall } : f));
-  const faces = [...plane, ...kept, ...flowchart(RC, L, serveAt, climb, up), ...extra.faces, ...D.faces];
+  const room = floorOf({ half, blocks });
+  // THE AREA (gameroom/area.js): the floor, the walls (cut away on the camera's side, the south) and what stands
+  // outside, the trade's own or the world's; `area: false` the conceptual plane: pale, ruled every two metres, a low wall
+  const A = readArea(area !== undefined ? area : G?.room?.area, dressOf(C, typeof dressAsk === 'string' ? dressAsk : null));
+  const AR = A ? buildArea(A, { half, cut: ['s'], seed: 1 }) : null;
+  const colliders = raiseWalls(room.colliders, half, AR?.heights);
+  const kept = room.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:') && !(AR && (f.group === 'room:wall' || f.group === 'room:deck')))
+    .map((f) => (f.group === 'room:wall' ? { ...f, fill: FILL.wall } : f));
+  // on a site in an area, the deck is a house: its walls, its windows and its door, the line on its flat roof
+  const house = [];
+  if (AR && deck) houseFaces(house, { x: deck.x, y: deck.y, h: up }, { wall: A.palette.wall ?? '#ede5d6', roof: A.palette.flat ?? '#8a817a', trim: '#f6f2ea' }, { gable: false, group: 'room:deck' });
+  const faces = [...(AR ? AR.faces : planeFaces(half, [FILL.plane, FILL.rule])), ...kept, ...house, ...flowchart(RC, L, serveAt, climb, up), ...extra.faces, ...D.faces];
 
   // THE SHIFT: the work mechanic on the line, its markers over the counters, its E reached from a counter's side
   const params = { card: C, at: { origin: [0, 0, up], stations: L.stations, crates: L.crates, shelves: L.shelves, serve: serveAt }, heading: 0, reach: REACH, bases: false, show: true };
@@ -175,7 +180,7 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
   const soundOf = (word) => { const v = sound === 'none' ? null : sfxSound(word, { style: sound }); return v && v.gestures ? v.gestures : null; };
   const step = soundOf('step-concrete');
   const manifest = {
-    kind: 'controllable', title: `Work room · ${G?.name ?? G?.id ?? 'game'}`, bg: FILL.bg, faces, colliders, figures, entities: [heroE, ...extra.entities],
+    kind: 'controllable', title: `Work room · ${G?.name ?? G?.id ?? 'game'}`, bg: AR ? AR.bg : FILL.bg, faces, colliders, figures, entities: [heroE, ...extra.entities],
     camera: { ...OVERHEAD }, ...(step ? { audio: { footsteps: { step } } } : {}), events,
   };
   // MEASURED: the shift played on the bus by a walker who knows the card, at the template's run
@@ -183,8 +188,13 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
   const feels = POLE_IDS.map((id) => ({ id, name: POLES[id].name, base: POLES[id].base, run: feelRule(id).speed }));
   return {
     manifest, card: C, solved: { target: tuned.target.name, verdict: tuned.verdict, metrics: tuned.metrics }, feel: readFeel(F).pole,
-    hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}), layout: { ...L, serve: serveAt }, ...(site ? { site: { up, climb: climb.form, seconds: climb.seconds, top: climb.top, bottom: climb.bottom } } : {}), measured, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES) },
+    hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}), layout: { ...L, serve: serveAt }, ...(site ? { site: { up, climb: climb.form, seconds: climb.seconds, top: climb.top, bottom: climb.bottom } } : {}), measured, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, area: areaOut(A, AR), choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES), areas: Object.keys(AREAS) },
   };
+}
+
+/** What the page says of the area: its name, its floor, its walls and what stands outside (null: the plane). */
+export function areaOut(A, AR) {
+  return A ? { name: A.name, about: A.about, floor: A.floor.pattern, walls: A.walls.style, height: A.walls.height, surround: AR.laid, ...(AR.heights ? { cut: Object.keys(AR.heights).filter((k) => AR.heights[k] < A.walls.height) } : {}) } : null;
 }
 
 // a flat quad a hair over its level (a rule, a strip of the flowchart)

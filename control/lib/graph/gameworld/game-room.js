@@ -6,7 +6,9 @@
  *
  *   for whom     the games with no practice room of their own: a fight hand to hand, a shift, a cast of foes (a shooter
  *                and a platformer have the firing range and the platform room)
- *   the space    the conceptual plane (work-room.js): pale, ruled every two metres, a low wall; each primitive a block
+ *   the area     the trade's floor, walls and what stands outside (gameroom/area.js), or the world's own (`room.area`);
+ *                `area: false` the conceptual plane (work-room.js): pale, ruled every two metres, a low wall
+ *   the space    each primitive a block
  *                in its own tone (a counter in its verb's colour); a shift's recipe drawn on the floor as arrows
  *   the hero     the world's own where made, else a mascot of the form chosen (work-room.js workMascot), on the world's
  *                feel (else the everyday walker, or the one chosen)
@@ -19,8 +21,9 @@
  *   the camera   overhead where the world is seen from above or works a shift, else a chase the player turns
  *   measured     the room laws (gameroom/laws.js), and the work proof where a shift is laid
  *
- *   gameRoom(G, { refs?, cast?, feel?, seed?, dress?, sound? }) → { manifest, needs, room, laws, measured?, hero, feel, dress,
- *     choices }   `dress`: a trade (gameroom/dress.js DRESSES), false for the greybox, absent the room's own
+ *   gameRoom(G, { refs?, cast?, feel?, seed?, dress?, area?, sound? }) → { manifest, needs, room, laws, measured?, hero, feel,
+ *     dress, area, choices }   `dress`: a trade (gameroom/dress.js DRESSES), false for the greybox; `area` (gameroom/area.js):
+ *     a name, an object over one, false for the plane; each absent, the world's `room`, else the trade's own
  *   gameRoomOf(G)  → true when the world gives the room something to compose (a fight hand to hand, a shift or foes);
  *                    a shooter and a platformer are left to the firing range and the platform room
  *   ROOM_LEGEND
@@ -41,7 +44,8 @@ import { composeRoom } from '../gameroom/compose.js';
 import { roomLaws } from '../gameroom/laws.js';
 import { blocksOf, footprint, PRIMITIVES } from '../gameroom/primitives.js';
 import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
-import { workMascot, workOf, everydayFeel, flowchart, flat, OVERHEAD, WORK_CASTS, WORK_CAST } from './work-room.js';
+import { readArea, buildArea, raiseWalls, planeFaces, AREAS } from '../gameroom/area.js';
+import { workMascot, workOf, everydayFeel, flowchart, flat, areaOut, OVERHEAD, WORK_CASTS, WORK_CAST } from './work-room.js';
 
 export const ROOM_LEGEND = 'W A S D  move · mouse  look · Space  jump · E  use · F  sprint · Shift+F  foe AI · H  HUD';
 const PLANE = { plane: '#ece6db', rule: '#d9d0c1', wall: '#ddd5c8', bg: '#f4f0e8' };
@@ -57,7 +61,7 @@ export function gameRoomOf(G) {
 }
 
 /** The game room (see the header). */
-export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = null, dress = null, sound = 'realistic' } = {}) {
+export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = null, dress = null, area = undefined, sound = 'realistic' } = {}) {
   const needs = roomNeeds(G), room = composeRoom(needs, { seed: seed ?? (Number.isInteger(G?.seed) ? G.seed : 1) });
   const laws = roomLaws(room, needs), A = room.anchors, half = room.half;
   const overhead = needs.camera === 'top-down' || !!needs.work;
@@ -85,23 +89,21 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
 
   // THE DRESS (gameroom/dress.js): each place drawn as the thing of its trade, fitted to its box (its collider kept);
   // `dress: false` the greybox
-  const trade = dress === false ? null : dressOf(room.work ? room.work.card : null, dress);
+  const dressAsk = dress ?? G?.room?.dress ?? null, card = room.work ? room.work.card : null;
+  const trade = dressAsk === false ? null : dressOf(card, dressAsk);
   const places = room.primitives.map((p) => { const f = footprint(p); return { id: p.id, kind: p.kind, at: p.at, size: [r3(f.x[1] - f.x[0]), r3(f.y[1] - f.y[0]), p.h ?? PRIMITIVES[p.kind].h], ...(p.sid ? { sid: p.sid, verb: p.verb } : {}), ...(p.item ? { item: p.item } : {}) }; });
   const D = trade ? dressPlaces(places.filter((p) => p.kind !== 'platform'), trade, { card: room.work ? room.work.card : null }) : { faces: [], dressed: new Set(), laid: [] };
   // THE SPACE: the plane, its rules, the wall in its tone; each primitive a block (a counter in its verb's colour), a
   // dressed one drawn by its thing instead
   const blocks = room.primitives.flatMap((p) => blocksOf(p).map((b) => ({ ...b, ...(p.kind === 'counter' && p.verb ? { fill: WORK_COLORS[p.verb] } : {}), ...(D.dressed.has(p.id) ? { group: `room:dressed:${p.id}` } : {}) })));
   const shell = floorOf({ half, blocks });
-  const plane = [];
-  for (let i = -half; i < half; i += 4) for (let j = -half; j < half; j += 4) {
-    const a = Math.min(i + 4, half), b = Math.min(j + 4, half);
-    plane.push({ corners: [[i, j, 0], [a, j, 0], [a, b, 0], [i, b, 0]], fill: PLANE.plane, group: 'room:plane', doubleSided: true });
-  }
-  for (let k = -half + 2; k < half; k += 2) {
-    plane.push(flat([k - 0.015, -half], [k + 0.015, -half], [k + 0.015, half], [k - 0.015, half], 0.003, PLANE.rule, 'room:rule'));
-    plane.push(flat([-half, k - 0.015], [half, k - 0.015], [half, k + 0.015], [-half, k + 0.015], 0.003, PLANE.rule, 'room:rule'));
-  }
-  const kept = shell.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:')).map((f) => (f.group === 'room:wall' ? { ...f, fill: PLANE.wall } : f));
+  // THE AREA (gameroom/area.js): the floor, the walls and what stands outside, the trade's own or the world's; cut away
+  // on the south, where either camera starts (the chase behind the spawn would pull in off a full wall there, the
+  // overhead looks over it); `area: false` the plane
+  const AA = readArea(area !== undefined ? area : G?.room?.area, dressOf(card, typeof dressAsk === 'string' ? dressAsk : null));
+  const AR = AA ? buildArea(AA, { half, cut: ['s'], seed: room.seed }) : null;
+  const plane = AR ? AR.faces : planeFaces(half, [PLANE.plane, PLANE.rule]);
+  const kept = shell.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:') && !(AR && f.group === 'room:wall')).map((f) => (f.group === 'room:wall' ? { ...f, fill: PLANE.wall } : f));
   // the anchors marked on the floor: the spawn and the goal, a ring each
   const ring = (at, r, fill, group) => [0, 1, 2, 3].map((q) => { const a = (q * Math.PI) / 2, b = a + Math.PI / 2, c = (t) => [at[0] + r * Math.cos(t), at[1] + r * Math.sin(t)], ci = (t) => [at[0] + (r - 0.12) * Math.cos(t), at[1] + (r - 0.12) * Math.sin(t)]; return flat(c(a), c(b), ci(b), ci(a), 0.006, fill, group); });
   const marks = [...ring(A.spawn, 0.9, '#7fa8c9', 'room:spawn'), ...(room.work ? [] : ring(A.goal, 0.9, '#7fc98f', 'room:goal'))];
@@ -123,12 +125,12 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
     measured = proveWork(params, { player: 'hero', spawn: A.spawn, speed: rule.speed });
   }
   const manifest = {
-    kind: 'controllable', title: `Game room · ${G?.name ?? G?.id ?? 'game'}`, bg: PLANE.bg, faces, colliders: shell.colliders, figures: part.figures, entities: part.entities,
+    kind: 'controllable', title: `Game room · ${G?.name ?? G?.id ?? 'game'}`, bg: AR ? AR.bg : PLANE.bg, faces, colliders: raiseWalls(shell.colliders, half, AR?.heights), figures: part.figures, entities: part.entities,
     camera: overhead ? { ...OVERHEAD } : { ...P.camera, ...ORBIT }, events,
   };
   const feels = POLE_IDS.map((id) => ({ id, name: POLES[id].name, base: POLES[id].base, run: feelRule(id).speed }));
   return {
     manifest, needs, room, laws, ...(measured ? { measured } : {}), hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}),
-    feel: readFeel(F).pole, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES) },
+    feel: readFeel(F).pole, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, area: areaOut(AA, AR), choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES), areas: Object.keys(AREAS) },
   };
 }

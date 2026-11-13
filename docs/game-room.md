@@ -4,7 +4,7 @@ One good room for a game that needs a single setting, composed from what the gam
 door. This is not a geocube and not a roguelike's rooms rolled for each run: it is one seeded, editable composition.
 The practice room reconfigures itself into the game's room, a training room that becomes the game.
 
-Status: the brief, the primitives, the composition, the laws, the dress and the practice room are built
+Status: the brief, the primitives, the composition, the laws, the dress, the area and the practice room are built
 (`control/lib/graph/gameroom/`, `gameworld/game-room.js`). A room as a level (`levels.<id>.room`) and the interior
 designer's style cards as dresses are next.
 
@@ -85,12 +85,37 @@ The things are the ones Mojulo already draws:
 A shift is dressed in its card's trade (a card's own `dress`, else its starter's), a fight in the hall. `dress: false`
 keeps the greybox. The practice pages offer every trade and the greybox as links (`&dress=<trade>|none`).
 
+## The area
+
+What the room stands in, drawn round it (`gameroom/area.js`): the floor, the walls and what is seen beyond them. The
+dress draws the places; the area draws everything else and moves nothing. The walls' colliders take the height drawn,
+and the surround is static and outside the room, never walked.
+
+- **The floor:** a pattern in its colours (`FLOORS`): the conceptual plane, tiles, boards, concrete, earth, a lawn,
+  flagstones.
+- **The walls:** a style (`WALLS`), each with its height and its colours: plain, tiled above a dado with windows, a
+  post-and-rail fence, site hoarding, stone between pilasters with high windows, a hedge, or none. They are cut away to
+  a section (its cap dark, as an architect's cut) on the south, where either camera starts: the overhead camera looks
+  over it, and the chase would otherwise pull in off a full wall behind the spawn.
+- **The surround** (`SURROUNDS`): the things laid outside, north, east and west, the camera's side left open. A dining
+  room past a kitchen's far wall, a street, fields and a barn, trees, a frame going up and a tower crane, a materials
+  yard, the neighbours' houses, a colonnade.
+- **The ground and the sky:** the plane beyond, and the page's background.
+
+Each trade has its own area: a kitchen's tiles and dining room, a farm's yard and fields, a site's slabs and crane, a
+garden's lawn, hedge and houses (on a roof card, the deck is drawn as the house), a hall's flagstones and colonnade.
+A world designs its own with `room: { dress?, area? }`. The area is a name, or an object over one:
+`{ like?, floor?, walls?, surround?, ground?, sky?, cut? }`, where a floor or walls is a name or
+`{ pattern | style, height?, colors? }`. A malformed area is taught, never guessed. `area: false` keeps the conceptual
+plane. The practice pages offer every trade's area and the plane as links (`&area=<trade>|none`); the page's choice
+comes first, then the world's, then the trade's own.
+
 ## The practice room
 
 The practice door's `room` (`gameworld/game-room.js`, served at `bible?book=practice&room=room`) is offered to a world
 that fights hand to hand, works a shift or has foes:
 
-- **The space:** the conceptual plane, each primitive drawn by its dress (or a block in its tone in the greybox), the
+- **The space:** the area (or the conceptual plane), each primitive drawn by its dress (or a block in its tone in the greybox), the
   spawn and the goal ringed on the floor, a shift's recipe drawn as arrows.
 - **The hero:** the world's own, or a mascot of a form chosen on the page, on the world's feel or one chosen.
 - **The foes:** on their spots, still until Shift+F wakes them.
