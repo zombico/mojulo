@@ -34,6 +34,12 @@ capture and the level played in Node show).
   the next seed. Its measures are read by `design_game` (`practice.measured.roll`): the seeds audit of the yard, and
   which forms of cover stop this hero, each form laid across a lane and the hero run at it jumping. A hero on its feet
   is stopped by a crate; one with an air jump goes over a 2 m wall. Served at `bible?book=practice&room=roll`.
+- A world's `roll` reaches its levels (`gameworld/roll-lower.js`): `roll: true | { cover?, items? }` on a gameworld, and
+  each walking level a run lays on a trail takes a roll on its recipe over what it already holds: its cover (the cover
+  concern's own walls and crates by the trail's beats, laid for the roll when the level's concerns laid none), of which
+  half or more stand and never all, and its pickups, of which half or more lie and never all. A pilot with no body (a
+  first-person walker's) is given one, since no cover stops it without. A level that is no trail walked on foot, and a
+  world that does not roll, are as they were.
 - A rolled level opened with no shell takes its seed from the page's own `?seed=` (1 unsaid: the reference roll).
 - Not yet: the foes a seed picks, the level's book, and the room layout itself rolled in the
   page from a kit of rooms.

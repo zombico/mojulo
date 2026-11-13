@@ -50,6 +50,7 @@ import { HOLDER } from './mechanics.js';
 import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
+import { rollOfLevel } from './roll-lower.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests, storyActors } from './story.js';
@@ -877,11 +878,15 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the trail's posts take none
   if (ends.arena) blocks = [...(blocks ?? []), ...ends.arena.blocks];
   // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats
-  if (concerns.includes('cover') && stage.section === 'trail' && !ends.arena) {
+  // (a world that ROLLS, roll-lower.js: the same cover laid for its roll when the concerns laid none, by the trail's beats)
+  const rolls = G.roll && stage.section === 'trail' && !ends.arena ? G.roll : null;
+  let cover = [];
+  if ((concerns.includes('cover') || (rolls && rolls.cover)) && stage.section === 'trail' && !ends.arena) {
     posts ??= beatPosts(ends);
-    const cover = coverBlocks(posts, ends);
-    if (cover.length) blocks = [...(blocks ?? []), ...cover];
+    cover = coverBlocks(posts, ends);
   }
+  const coverFrom = (blocks ?? []).length;
+  if (cover.length) blocks = [...(blocks ?? []), ...cover];
   // REACHABLE (the intent's `reachable` concern): with a pilot that jumps, every other pickup on steps a jump climbs
   const jump = concerns.includes('reachable') && stage.section === 'trail' ? jumpHeight(pilotPart.entities[0].rule) : 0;
   let raised = [];
@@ -937,13 +942,24 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   // (a bare HUD look, the world's `hud` (mana-ui's adventure): no level badge on the play; the level stays the status page's
   // and its level-up banner's)
+  // ROLL (the world's `roll`, roll-lower.js): the level's cover and its pickups named, and a roll over them on its
+  // recipe (game/roll.js): the seed its game sends picks which stand and which lie. A pilot with no body is given one
+  let roll = null;
+  if (rolls) {
+    const p0 = pilotPart.entities[0], L = rollOfLevel(rolls, { cover, mechanics: game.mechanics, rule: p0.rule });
+    if (L?.roll) {
+      roll = L.roll; game.mechanics = L.mechanics;
+      if (blocks) blocks = blocks.map((b, i) => (i >= coverFrom && i < coverFrom + cover.length ? L.cover[i - coverFrom] : b));
+      if (L.rule !== p0.rule) pilotPart = { ...pilotPart, entities: [{ ...p0, rule: L.rule }, ...pilotPart.entities.slice(1)] };
+    }
+  }
   const bare = G.hud && readTheme(G.hud).hud === 'bare';
   if (bare && Array.isArray(play?.parts)) play = { ...play, parts: play.parts.filter((p) => !(p.part === 'readout' && p.id === 'level')) };
   play = withBookUi(G, play);
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
-  const manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  const manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
