@@ -161,3 +161,10 @@
   reads both on the paint's atlas. The tangents, the parallax's depth and the correctives stay the engine export's.
 - A geocube's level takes `fxStyle` (its effects' style and the cast's register: `register: 'anime'` draws its cast in
   cel), as a stage's does.
+- Page pack (`scene/page-pack.js`, `scripts/pack-page.mjs`): a World page made smaller with nothing cut. Its module
+  script is gzipped and the page carries a few lines that inflate it (the browser's own `DecompressionStream`) and run
+  it as the module it was. One file (the script as base64 in the document) for a page a person opens, or parts (a
+  small `index.html` and the script in binary files beside it, each under a size) for a host that limits a file. The
+  day facility's page goes from 38 MB to 25 MB as one file and 19 MB in parts; with a realistic hero, 129 MB to 40 MB
+  and 30 MB. The packed page was run in a browser both ways and draws as the page it was.
+- Said once: two parked vehicles that are the same vehicle in the same dress are one figure stood twice.

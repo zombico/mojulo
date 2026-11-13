@@ -44,6 +44,11 @@ is not declared, the step names the box as a possibility and the agent asks wher
    a new download.
 3. **Small**. Keep each level under the limit (fewer tiles, open land instead of dressed tiles, a lighter biocube) and
    play it as a page.
+4. **Packed**. Nothing is cut: the page's script is gzipped and the browser inflates it (`node scripts/pack-page.mjs
+   <page.html>`, `control/lib/graph/scene/page-pack.js`). One file for a page a person opens or is sent; `--parts` for a
+   host that limits a file, a small `index.html` and the script in binary parts beside it, each under the limit, which
+   an artifact takes as the page and its supporting files. A packed page is the same page: what it saves is its size,
+   not the browser's work once it is open.
 
 Whatever the path, pack the data before a long session in a box ends.
 
