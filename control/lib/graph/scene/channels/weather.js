@@ -134,7 +134,8 @@ let stepWeather = () => {};   // __mojStep(t) drives it
     o.frustumCulled = false; o.visible = false; o.raycast = function () {}; scene.add(o);
     pools[n] = { F, count, streak, o, pos, col, rgb, geo };
   }
-  const camV = new THREE.Vector3();
+${cfg.roofs && cfg.roofs.length ? `  const ROOFS = ${JSON.stringify(cfg.roofs)};
+` : ''}  const camV = new THREE.Vector3();
   function fall(name, k, t) {
     const P = pools[name]; if (!P) return;
     const n = Math.min(P.count, Math.round(P.count * k));
@@ -142,8 +143,10 @@ let stepWeather = () => {};   // __mojStep(t) drives it
     const pts = fallPoints(P.F, camP, t, n, heading), op = P.streak ? 0.5 : 0.85;
     let i = 0;
     for (const q of pts) {
-      const w = q.w * op;
-      if (P.streak) {
+${cfg.roofs && cfg.roofs.length ? `      // (nothing falls under a roof: a drop inside a building's own box is not drawn, so it rains outside the door and not within)
+      const w = ROOFS.some((B) => q.p[0] > B[0] && q.p[0] < B[2] && q.p[1] > B[1] && q.p[1] < B[3] && q.p[2] < B[4]) ? 0 : q.w * op;
+` : `      const w = q.w * op;
+`}      if (P.streak) {
         const sp = Math.hypot(q.v[0], q.v[1], q.v[2]) || 1, l = q.len;
         P.pos[i * 6] = q.p[0]; P.pos[i * 6 + 1] = q.p[1]; P.pos[i * 6 + 2] = q.p[2];
         P.pos[i * 6 + 3] = q.p[0] - q.v[0] / sp * l; P.pos[i * 6 + 4] = q.p[1] - q.v[1] / sp * l; P.pos[i * 6 + 5] = q.p[2] - q.v[2] / sp * l;
@@ -165,7 +168,10 @@ let stepWeather = () => {};   // __mojStep(t) drives it
   const ground = (x, y) => (window.__mojGround ? window.__mojGround(x, y) : CFG.ground != null ? CFG.ground : camP[2] - 1.6);
   function land(name, k, t, used) {
     const P = pools[name]; if (!P || P.F.impact === 'none') return;
-    const n = Math.round(impactCount(P.F) * k), pts = impactPoints(P.F, camP, t, n), im = P.F.impact, ring = im === 'rings' || im === 'crowns';
+${cfg.surfaceRings ? `    // (a page whose wet surfaces are struck in their own material, channels/form.js: the rain's rings are theirs, lying
+    // on the surface they strike; none are stood in the air here)
+    if (P.F.impact === 'rings' || P.F.impact === 'crowns') return;
+` : ''}    const n = Math.round(impactCount(P.F) * k), pts = impactPoints(P.F, camP, t, n), im = P.F.impact, ring = im === 'rings' || im === 'crowns';
     const M = ring ? rings : discs, U = ring ? used.r : used.d;
     for (const q of pts) {
       if (U.n >= CAP) break;
@@ -201,7 +207,7 @@ ${cfg.clock ? `  // THE CLOCK (a level's clock mechanic): the bus's minute darke
     if (nt > 0) tint.lerp(shadeC, 0.75 * nt);   // the night air takes the shade` : ''}
     fog.color.copy(tint); if (scene.background && scene.background.isColor) scene.background.copy(tint);
     // light off the world, in the style's shade (never black); white for a flash
-    const off = Math.min(${cfg.clock ? '0.75 + 0.12 * nt' : '0.75'}, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth));
+    const off = Math.min(${cfg.clock ? '0.75 + 0.12 * nt' : '0.75'}, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth))${cfg.night ? ' * 0.35   /* (a night is dark already: its weather takes a third of what it takes from a day) */' : ''};
     // (multiplied, not laid over: a bright shade, an anime ambient, then darkens and tints instead of washing the world out)
     if (fl > 0.02) { ov.style.mixBlendMode = 'normal'; ov.style.background = '#fff'; ov.style.opacity = String(Math.min(0.6, fl * 0.55)); }
     else {

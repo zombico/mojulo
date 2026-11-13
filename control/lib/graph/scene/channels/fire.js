@@ -18,6 +18,9 @@ import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COL
 //   · `unit` (metres per scene unit; a world built in its own units, its air still): the fires are given and burn in
 //     metres — the kernel's buoyancy, smoke and sparks are physical — and what they hand the page is scaled into the
 //     world's units, their light by 1/unit² so it falls off over the same metres. Absent ⇒ none of this is emitted.
+/** Under the bloom (`cfg.hot`, a world's finish: channels/frame-pass.js) a fire's halo is drawn this much past its
+ *  paint (linear light), so the bloom draws the fire's glow from its core. */
+export const FIRE_HOT = 5;
 export function fireChannelScript(cfg) {
   const u = Number.isFinite(cfg.unit) && cfg.unit > 0 && cfg.unit !== 1 ? cfg.unit : 0, k = u ? 1 / u : 1;
   // a body's fire (follow) stands on no prop: the body is its fuel
@@ -205,7 +208,7 @@ __fireAll.forEach((s, i) => {
 
 // halos (the page has no bloom), embers and smoke
 const __fireHaloTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,190,120,0.9)'); gr.addColorStop(0.25, 'rgba(255,140,60,0.35)'); gr.addColorStop(1, 'rgba(255,100,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const __fireHalos = __fireAll.map((s, i) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: __fireHaloTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); if (s.line) { const c = __fireCols[i], m = Math.max(...c); sp.material.color.setRGB(c[0] / m, (c[1] / m) * 1.6, (c[2] / m) * 2.5); } sp.renderOrder = 8; scene.add(sp); return sp; });
+const __fireHalos = __fireAll.map((s, i) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: __fireHaloTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); if (s.line) { const c = __fireCols[i], m = Math.max(...c); sp.material.color.setRGB(c[0] / m, (c[1] / m) * 1.6, (c[2] / m) * 2.5); }${cfg.hot ? ` sp.material.color.multiplyScalar(${FIRE_HOT});` : ''} sp.renderOrder = 8; scene.add(sp); return sp; });
 const __fireSmokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const __fireQuads = (cap, mat) => {
   const g = new THREE.BufferGeometry(), idx = new Uint32Array(cap * 6);

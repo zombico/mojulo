@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { SKY_ENV } from '../page-light.js';
 
 // In-page script: the specular channel (material-response.plan.md P2) — the view-dependent
 // half of the material response. Groups whose geometry carries a per-vertex `aSpec`
@@ -8,7 +9,11 @@ import { safeJson } from '../emit-util.js';
 // derived in-fragment (dFdx × dFdy of the world position), so the triangle-soup geometry
 // needs no normal attribute. A one-shot setup block like glow/shadow/pick: scenes with no
 // spec faces emit ZERO bytes of this and stay byte-identical.
-export function specularChannelScript(toLight) {
+// With an environment (`env`, scene/page-light.js skyEnv: a page whose `light.finish` asks to reflect, under a painted
+// sky) a spec face also reflects the sky: the dome along its reflected view, weighted by Schlick's Fresnel from a
+// dielectric's 4% and by the face's own strength (page-light.js envAt is this law in JS). Absent ⇒ none of its bytes.
+export function specularChannelScript(toLight, env = null) {
+  const E = env ? { z: env.zenith, h: env.horizon, g: env.ground, k: SKY_ENV } : null, f = (v) => (+v).toFixed(4), v3 = (c) => `vec3(${c.map(f).join(', ')})`;
   return `
 // --- specular channel (material response): baked light dir + live camera highlight ---
 const SPEC_L = ${safeJson(toLight.map((v) => +v.toFixed(6)))};
@@ -25,7 +30,10 @@ const __specPatch = (m) => {
       'if (dot(sN, sV) < 0.0) sN = -sN;\\n' +
       'float sNdH = max(0.0, dot(sN, normalize(uSpecL + sV)));\\n' +
       'gl_FragColor.rgb += vSpec.x * pow(sNdH, max(vSpec.y, 1.0));\\n' +
-      '#include <dithering_fragment>');
+${E ? `      'vec3 sR = reflect(-sV, sN); float sF = 0.04 + 0.96 * pow(1.0 - max(dot(sN, sV), 0.0), 5.0);\\n' +
+      'vec3 sE = sR.z > 0.0 ? mix(${v3(E.h)}, ${v3(E.z)}, pow(sR.z, ${f(E.k.rise)})) : mix(${v3(E.g)}, ${v3(E.h)} * ${f(E.k.under)}, exp(${f(E.k.fall)} * sR.z));\\n' +
+      'gl_FragColor.rgb += vSpec.x * sF * sE;\\n' +
+` : ''}      '#include <dithering_fragment>');
   };
   m.material.needsUpdate = true;
 };

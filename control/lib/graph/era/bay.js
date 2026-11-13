@@ -54,6 +54,7 @@
  */
 import { P, r5, panel, box, wallBox, quad, onWall, solidSpans, openingU } from './geom.js';
 import { hash3 } from './dirt.js';
+import { wallOrder } from './wall-rhythm.js';
 import { tube, tubeAB, lit, wallFrameOf } from './lab.js';
 import { ductRun, rod, drum, squareDiffuser, louvred } from './bay-air.js';
 import { outsideSpans, glazeOpening, sunPatches, booth, reveal } from './bay-glass.js';
@@ -254,7 +255,15 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     const indicator = (u, z, off) => out.push(lit([onWall(F, u - 0.03, off + 0.002, z), onWall(F, u + 0.03, off + 0.002, z), onWall(F, u + 0.03, off + 0.002, z + 0.03), onWall(F, u - 0.03, off + 0.002, z + 0.03)], F.N, Sv.indicator, 'stage:lamp', null, 2));
     // (rationed in a building's small rooms: boxes on a wall two bays long, breaker panels in a room the services run
     // along, a corridor's, a hall's, a bay's)
-    if (isLong(s) && n >= 2) for (let k = 0; k < n; k += Sv.every) {
+    // WHICH bays: by the wall's rhythm (era/wall-rhythm.js: no run of three, no pair repeated, the odd one in the middle
+    // of three; a wall of two both alike), the full bay the one with its box, the lesser the bare field. `rhythm`
+    // 'sparse' boxes the kind the wall has fewer of. A card without `rhythm` steps by `every`, as it did.
+    const boxed = (() => { if (!Sv.rhythm) return (k) => k % Sv.every === 0;
+      const O = wallOrder(n, { pick: dice(61 + sides.indexOf(s)) }).order, nA = [...O].filter((c) => c === 'A').length;
+      const kind = Sv.rhythm === 'sparse' && nA * 2 > n && nA < n ? 'B' : 'A';
+      return (k) => O[k] === kind; })();
+    if (isLong(s) && n >= 2 && Sv.every < 1e8) for (let k = 0; k < n; k++) {
+      if (!boxed(k)) continue;
       const X = Sv.box, u = lines[k] + Pl.w / 2 + X.inset;
       if (!clear(u, u + X.w) || X.z + X.h > zc0 - 0.3) continue;
       wallBox(out, F, u, u + X.w, X.z, X.z + X.h, X.d, cab, 1);

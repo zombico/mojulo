@@ -90,6 +90,31 @@ describe('run_experiment_sweep — the sweep as one call', () => {
   });
 });
 
+describe('run_experiment_sweep — a mechanics experiment without a research book', () => {
+  it('lands the runs and their plot in one new folder, each run with its outcomes, and binds nothing', async () => {
+    const r = await runExperimentSweepHandler({ base: BASE, param: 'g', values: GRAVITIES, outcome: 'range' });
+    expect(r.ok).toBe(true);
+    expect(r.research_ref).toBeUndefined();
+    expect(r.folder_ref).toMatch(/^fld_/);
+    expect(r.table).toHaveLength(GRAVITIES.length);
+    for (const row of r.table) {
+      expect(row.item_id).toBeUndefined();
+      expect(SketchRepository.getByRef(row.ref).folderRef).toBe(r.folder_ref);
+      expect(row.outcomes.range * row.value).toBeCloseTo(18 * 18, 0); // range·g = v0²·sin(2θ)
+    }
+    expect(SketchRepository.getByRef(r.chart.sketch_ref).folderRef).toBe(r.folder_ref);
+    expect(r.chart.item_id).toBeUndefined();
+  });
+
+  it('gates before it makes a folder, and still refuses a book that does not exist', async () => {
+    await expect(runExperimentSweepHandler({ base: BASE, param: 'flywheelR', values: [1, 2] })).rejects.toThrow(/not sweepable/);
+    await expect(runExperimentSweepHandler({ base: { scenario: 'lever' }, param: 'g', values: [1, 2] })).rejects.toThrow(/no single-body dynamics rule/);
+    await expect(runExperimentSweepHandler({ research_ref: 'rs_nope', base: BASE, param: 'g', values: [1, 2] })).rejects.toThrow(/not found/);
+    const { SketchFolderRepository } = await import('@/lib/db/repositories/sketch-folders');
+    expect(SketchFolderRepository.list()).toHaveLength(0);
+  });
+});
+
 describe('run_experiment_sweep — experimental mathematics, zero new machinery', () => {
   // The pendulum's amplitude-dependence is a real result in classical analysis: the exact
   // period is an elliptic integral, T(θ₀) = 2π√(L/g)·(1 + θ₀²/16 + 11θ₀⁴/3072 + …). The

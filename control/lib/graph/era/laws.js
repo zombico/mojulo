@@ -11,6 +11,9 @@
  * The era card and the builder carry laws no style card states (vertex density, texel density, baked light, the
  * readout frame, the cast reading denser than the world); they are listed with `era: true`.
  *
+ * The seventh generation's laws (`form: true`) are listed after them: what the form render affords that paint could
+ * not, each beside the sixth-gen law it answers. A kit is measured against them by era/form-laws.js.
+ *
  * A style card that gains a principle without a mapping here fails laws.test.js: nothing a template was built on is
  * left uncounted when a look is applied somewhere new. Data only; nothing here draws.
  */
@@ -25,7 +28,7 @@ import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 import { ALIEN_NIGHT } from './style/alien-night.js';
 import { AIRLESS_PLAIN } from './style/airless-plain.js';
 import { ISEKAI_GARDEN } from './style/isekai-garden.js';
-import { CRYPT } from './style/crypt.js';
+import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
 
 export const LAYERS = Object.freeze(['look', 'surface', 'composition', 'dressing']);
@@ -65,8 +68,34 @@ export const LAWS = Object.freeze({
   'corner-things': { layer: 'composition', law: 'Things gather where floor meets wall: clusters in corners, singles at wall bases, off the way.' },
   'cast-over-world': { layer: 'composition', era: true, law: 'The cast reads denser on screen than the world behind it.' },
   'frame-readout': { layer: 'composition', era: true, law: 'Detail is read at the era\'s frame (640×448), not at today\'s.' },
+  // (the builder's, in both eras: a placer that strews small things measures each against the eye spot, 12 pixels of the
+  // frame its era reads at, at the distance the player meets it, playscape/objects/laws.js eyeSpot, and leaves out what
+  // is under it, neither built nor painted in; era/skandart.js is the first)
+  'too-small-to-read': { layer: 'composition', era: true, law: 'What is too small to be read where it is seen (under the eye spot) is not made.' },
   // dressing
   'kit-dressing': { layer: 'dressing', law: 'A kit\'s own set pieces.' },
+  // THE SEVENTH GENERATION'S (`form: true`): what the form render affords that paint could not. Each answers a sixth-gen
+  // law that was a limit of its frame and its light, not a taste: detail sized to be read at 640×448 ('texel-density',
+  // 'frame-readout'), contrast drawn into the tile because the light could not make it ('value-order' as baked colour ×
+  // tile mean), shapes faceted because a curve cost vertices ('big-shapes'), shade lifted because black was a hole
+  // ('shade-is-colour'). The composition laws (focus, repeat, accent, corners, causes, height) hold in both eras.
+  'built-scale': { layer: 'surface', form: true, law: 'An element is the size it is built at (a course, a slab, a board), read at today\'s frame; nothing is enlarged to be read small.' },
+  'relief-is-material': { layer: 'surface', form: true, law: 'A joint, a chip and a tool mark are relief the light finds (a normal, a height); no line is drawn.' },
+  'value-by-light': { layer: 'look', form: true, law: 'A surface\'s elements stay close in tone; a place\'s contrast is its light\'s: lit against dark, not block against block.' },
+  'true-curves': { layer: 'composition', form: true, law: 'A curve is cut fine enough to read as a curve at arm\'s length.' },
+  'dark-is-a-place': { layer: 'look', form: true, law: 'The dark is part of a room: light falls off to it, and where no lamp reaches shade may be black.' },
+  'live-emitters': { layer: 'look', form: true, law: 'What burns moves, and what emits is brighter than white: a flame is live, a lamp blooms.' },
+  'layers-stand-proud': { layer: 'surface', form: true, law: 'A layer over a surface (a coat of render, a patch, a plate) stands proud of what it covers, and its broken edge casts its shadow.' },
+  // CRAFT, in both eras (`craft: true`): what a first pass may not be. A thing made of boxes reads as voxels in any light
+  // (each one's reason, as the question a room is asked, is in era/room-craft.js: a kit answers the question, never copies another kit's answer)
+  'no-voxel-first': { layer: 'composition', craft: true, law: 'Nothing is a box on its first pass: a fixture shows how it was made (turned, cast, forged, pressed) and what holds it to the room, before it is placed.' },
+  'wall-rhythm': { layer: 'composition', craft: true, law: 'Along one wall at most two neighbouring segments look alike and a pair is never followed by the same pair (ABBA, never AAAA or ABAB), a wall of three the odd one in the middle (ABA, BAB); the second kind of segment is the first with less on it; a wall all alike is a stated choice, drawn clean and repeatable.' },
+  'floor-is-laid': { layer: 'composition', craft: true, law: 'A floor is laid, not tiled: a border course along the walls, the way down the room in its own slabs, the fields between laid bay by bay on the structure\'s lines, keeping a rhythm.' },
+  'wall-has-storeys': { layer: 'composition', craft: true, law: 'A tall wall has storeys: a course divides it, and what is over the course is derived from what is under it, the same with less.' },
+  'air-is-furnished': { layer: 'composition', craft: true, law: 'The air of a tall room is furnished and its height lit by a cause: what the height is for hangs in it or crosses it, and light reaches the upper room from a thing that gives it.' },
+  'openings-have-depth': { layer: 'composition', craft: true, law: 'An opening has depth: what is cut into a wall and is bigger than a hand shows its back and its sides, as deep as what it holds, and what it holds stands inside it; smaller than a hand it is relief in the tile.' },
+  'wet-hugs-the-surface': { layer: 'surface', form: true, law: 'A wetness has no thickness and no edge: the surface keeps its relief, its low parts fill first and lie mirror-smooth, its faces only darken and sheen. Past brimming it is a pool, which stands proud.' },
+  'pillars-are-worked': { layer: 'composition', craft: true, law: 'A support is worked the way its material is worked, never a flat strip: tapered, rounded, fluted or cut in parts, spread at its foot and gathered at its head.' },
 });
 
 /** Each style card's principles, in order, as the laws they are instances of. */
@@ -74,7 +103,8 @@ export const PRINCIPLE_LAWS = Object.freeze({
   crypt: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['distinct-radius'],
     ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['arches-and-rounds', 'big-shapes'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters']],
   catacomb: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['arches-and-rounds', 'big-shapes'], ['repeat-adjacent'],
-    ['accent-wall', 'focus', 'kit-dressing'], ['blend-by-cause'], ['cutout-cards', 'by-cause', 'distinct-radius'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters']],
+    ['accent-wall', 'focus', 'kit-dressing'], ['blend-by-cause'], ['cutout-cards', 'by-cause', 'distinct-radius'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters'],
+    ['no-voxel-first'], ['pillars-are-worked'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'by-cause'], ['layers-stand-proud', 'blend-by-cause'], ['floor-is-laid', 'subject-line'], ['openings-have-depth'], ['air-is-furnished', 'light-through']],
   'delfino-plaza': [['value-order', 'shade-is-colour'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards'], ['depth-by-air'], ['distinct-radius'], ['kit-dressing'], ['kit-dressing'], ['focus', 'kit-dressing'], ['kit-dressing'], ['sky-is-a-place']],
   'delfino-plaza/night': [['baked-light', 'shade-is-colour'], ['value-order', 'baked-light'], ['focus'], ['distinct-radius', 'by-cause'], ['sky-is-a-place']],
   'gothic-nave': [['value-order'], ['light-through'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['focus'], ['distinct-radius'], ['materials-by-layer'], ['materials-by-layer']],
@@ -88,6 +118,9 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'alien-night': [['locked-palette', 'shade-is-colour'], ['baked-light', 'focus'], ['big-shapes'], ['depth-by-air', 'value-order'], ['sky-is-a-place'], ['value-order', 'focus']],
   'airless-plain': [['depth-by-air'], ['sky-is-a-place', 'value-order'], ['baked-light', 'shade-is-colour'], ['big-shapes'], ['locked-palette', 'value-order']],
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
+  // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
+  'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material'],
+    ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'wall-rhythm'], ['layers-stand-proud', 'by-cause'], ['air-is-furnished', 'light-through', 'focus'], ['openings-have-depth'], ['wet-hugs-the-surface', 'blend-by-cause'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */
@@ -98,6 +131,8 @@ export function statedPrinciples() {
     if (S.night?.principles) out[`${S.id}/night`] = S.night.principles;
     if (S.decay?.principles) out[`${S.id}/decay`] = S.decay.principles;
   }
+  // (a card's form register, the seventh generation's: the crypt's is its sober card's)
+  for (const S of [CRYPT_SOBER]) if (S.form?.principles) out[`${S.id}/form`] = S.form.principles;
   return out;
 }
 

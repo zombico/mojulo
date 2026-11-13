@@ -40,12 +40,12 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'cameras', 'viewBox', 'title', 'bg', 'inline', 'cdn', 'sky', 'wireframe', 'walk', 'spin', 'hud', 'chrome', 'picks', 'tracers', 'planets',
   'movers', 'comets', 'fields', 'heatSpheres', 'starSurfaces', 'buildups', 'transports', 'deforms', 'raymarch', 'decollide',
   'capture', 'captureSize', 'signs', 'physics', 'actions', 'entities', 'camera', 'pilot', 'spectate', 'seats', 'ai', 'colliders', 'breakables',
-  'breakPieces', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
+  'breakPieces', 'loose', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'flow', 'beacons', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'tempo', 'grade',
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'cone', 'formSky', 'air', 'soften',
-  'knock', 'guide', 'tour', 'sync', 'footless',
+  'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

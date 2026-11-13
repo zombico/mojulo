@@ -144,6 +144,8 @@ import { cubeColours } from '../color-theorist/adapters.js';
 import { grittyOf } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
+import { cubeLight } from './cube-light.js';
+import { wetOfWeather } from './wetness.js';
 import { townDressOf } from './town-dress.js';
 import { readStyle, styleTownDress, styleReadout } from './arch-style.js';
 import { readClouds, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
@@ -1392,7 +1394,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
@@ -1423,7 +1425,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const hour = manifest.hour ?? D?.hour;
   const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : SHOWN[show]}`;
   const low0 = lowerGeocube(cube, inside ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour),
-    !inside ? cloudsOf(manifest.clouds, manifest.weather) : undefined);
+    // (a place with buildings under a wet weather and no clouds named: the weather's own sky, and its dimmer light)
+    !inside ? cloudsOf(manifest.clouds ?? (manifest.buildings !== undefined && wetOfWeather(manifest.weather) ? 'weather' : undefined), manifest.weather) : undefined);
   // a domain with a town shows its street, on a trail in the land's look; the trail: every way up the island drawn, the
   // island laid from the seed and its way up rolled from it (local-meru/roll.js); an island-less cube's ways are all drawn
   // the micro-town: the domain's street, else the cube's first, else a hamlet's, on a short trail laid from the seed
@@ -1449,6 +1452,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water || DN ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}), ...(DN ? { dunes: DN } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
+  // (`skandart` on a cube's path: its snow's drifts, era/skandart-snow.js; the path's alone, and only where snow lies)
+  if (manifest.skandart !== undefined && show !== 'path') no('skandart is the path\'s snow drifts (the wind\'s piles in its snow): show \'path\' under a cube\'s snow');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
   const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}), ...(DN !== undefined ? { dunes: DN } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
@@ -1457,9 +1462,19 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // the HALL: the cube's interior walked as rooms strung on a walk (era/in-hall.js), its kit dressed (the set piece in its
   // landmark's room), laid from the seed
   const hallLow = show === 'hall' ? (({ rooms, dress, ...rest }) => ({ ...rest, seed, hall: manifest.hall ?? {} }))(low0) : null;
-  const low = hallLow ?? (show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) });
+  const low = hallLow ?? (show === 'path' ? { kind: 'stage', kit: low0.kit, seed, trail: pathTrail, ...land, ...(cube.snow !== undefined ? { snow: cube.snow } : {}), ...(manifest.skandart !== undefined ? { skandart: manifest.skandart } : {}) } : show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) });
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
-  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
+  // (`buildings`: game buildings seated on the land it walks, era/stage-buildings.js, as a stage's are; on a land a
+  // trail is laid over, so the form render draws their land, their outsides and their rooms under the cube's one sun)
+  if (manifest.buildings !== undefined && !(low.kind === 'stage' && low.trail !== undefined)) no('buildings stand on a land a trail is laid over: show \'path\' or \'town\'');
+  if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
+  // (`wet`: it has just rained, a stage's word: the hard standing films the sky)
+  if (manifest.wet !== undefined) low.wet = manifest.wet;
+  // (and where it names a weather and no wetness, the weather's own: rain is raining, era/wetness.js)
+  else if (manifest.buildings !== undefined && wetOfWeather(manifest.weather)) low.wet = wetOfWeather(manifest.weather);
+  // (the day its buildings' shells are baked under, read by the form render: the cube's light at the hour, era/cube-light.js)
+  const dayLight = ctx.formLit && manifest.buildings !== undefined ? (({ sun, ambient }) => ({ sun: sun.linear, ambient: ambient.linear, dir: sun.dir }))(cubeLight(cube, manifest.hour !== undefined ? { hour: readHour(manifest.hour) } : {})) : null;
+  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, ...(dayLight ? { dayLight } : {}), title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }
   if (show === 'path') payload.route = townRoute(low, payload);
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);

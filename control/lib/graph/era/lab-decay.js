@@ -95,10 +95,11 @@ export function emergencyLamps(geomBays, D, Dz, L) {
 
 /** The collapse's debris pile under the hole: pooled concrete heaped toward the middle, deck sheets lying in it, the
  *  bay's fallen troffers on it upside down. */
-export function debrisPile(hole, D, Dz, kit, surfDeck) {
+export function debrisPile(hole, D, Dz, kit, surfDeck, { fallenOnly = false } = {}) {
   const Db = D.decay.debris, k = Dz.k.collapse, [x0, y0, x1, y1] = hole.rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = (x1 - x0) / 2 + 0.6, ry = (y1 - y0) / 2 + 0.6;
   const S = Dz.seed * 131, h = (i, s) => hash3(S, i, s), items = [];
-  const n = Math.round(Db.rocks * (x1 - x0) * (y1 - y0) * k);
+  // (a room whose debris is asked for lays the deck's heap itself, era/skandart.js: only the fallen troffers are drawn here)
+  const n = fallenOnly ? 0 : Math.round(Db.rocks * (x1 - x0) * (y1 - y0) * k);
   const mound = (x, y) => Math.max(0, 1 - ((x - cx) / rx) ** 2 - ((y - cy) / ry) ** 2);
   for (let i = 0; i < n; i++) {
     const x = cx + (h(i, 9101) - 0.5) * 2 * rx, y = cy + (h(i, 9103) - 0.5) * 2 * ry, m = mound(x, y); if (m <= 0) continue;
@@ -109,7 +110,7 @@ export function debrisPile(hole, D, Dz, kit, surfDeck) {
   const faces = expandRepeats(rockRepeats(pool, items, { sink: 0.2, group: 'stage:debris' }))
     .map((f) => ({ corners: f.corners.map(P), normal: f.outNormal, outNormal: f.outNormal, tint, group: 'stage:debris', doubleSided: true }));
   // deck sheets lying on the heap, tilted
-  for (let i = 0; i < Math.round(Db.sheets * k); i++) {
+  for (let i = 0; i < (fallenOnly ? 0 : Math.round(Db.sheets * k)); i++) {
     const x = cx + (h(i, 9111) - 0.5) * 1.6 * rx, y = cy + (h(i, 9113) - 0.5) * 1.6 * ry, z = 0.05 + Db.heap * mound(x, y) * k, a = 2 * Math.PI * h(i, 9115), t = 0.15 + 0.4 * h(i, 9117);
     const w = 0.8 + 0.6 * h(i, 9119), l = 1 + 0.8 * h(i, 9121), ca = Math.cos(a), sa = Math.sin(a);
     const pt = (u, v) => [x + u * ca - v * sa, y + u * sa + v * ca, z + v * Math.sin(t)];

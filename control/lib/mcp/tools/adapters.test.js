@@ -22,6 +22,13 @@ describe('listAdaptersHandler', () => {
   });
 });
 
+describe('getAdapterHandler — list: true', () => {
+  it('is the adapters list (what list_adapters answered), whatever id is passed', async () => {
+    expect(await getAdapterHandler({ list: true })).toEqual(await listAdaptersHandler());
+    expect(await getAdapterHandler({ list: true, id: 'generic' })).toEqual(await listAdaptersHandler());
+  });
+});
+
 describe('getAdapterHandler — resolution order', () => {
   it('explicit id wins', async () => {
     _resetClientBindingsForTests();

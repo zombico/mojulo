@@ -25,17 +25,24 @@
 import { lookOf } from './style/looks.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
+import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
+import { LIQUID_IDS } from '../rupa/matter.js';
+import { liquidLook } from '../rupa/liquid-look.js';
+import { readWetness } from './wetness.js';
+import { wallOrder } from './wall-rhythm.js';
+import { shadeTint } from './floor-shades.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
-import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
+import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall, lathe } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
 import { roundArch, archInfill, archRing, archSoffit } from './arches.js';
 // a round-headed doorway's jamb is laid in courses about this tall (metres), a mortar joint between each
 const JAMB_COURSE = 0.6, JAMB_JOINT = 0.02;
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
-import { cryptDress } from './crypt.js';
-import { CRYPT } from './style/crypt.js';
+import { cryptDress, tombSite } from './crypt.js';
+import { carveFaces } from './carve.js';
+import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
 import { kitWithArt, artForBuild } from './art-direction.js';
 import { plazaDress } from './plaza-dress.js';
@@ -78,6 +85,11 @@ import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
+import { readSkandart, skandartLay, skandartRepeats, skandartRead, resolveSkandartCard, SKANDART, SKANDART_CAUSES, skandartStamps } from './skandart.js';
+import { skandartVessels } from './skandart-vessels.js';
+import { withCondition } from './condition.js';
+import { withWeathering, weatherKit } from './weathering.js';
+import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
@@ -157,6 +169,67 @@ STAGE_KITS['gothic-stone'] = Object.freeze({
   motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'meander', ground: [88, 92, 100], figure: [150, 154, 162], relief: 0.6 }), on: 'plinth', tint: [1, 1, 1] },
   dress: CRYPT,
 });
+// The crypt in ASHLAR (`gothic-ashlar`): the same vault in a graver register, drawn to read as built stone at the scale
+// of the room and not as a pattern of blocks. Where gothic-stone outlines every stone (a deep black joint round a
+// pillowed, bright face, each block its own value), this lays dressed ashlar (matte-paint/dressed.js: long low
+// courses, a third of a metre high and over a metre long, thin joints, a tooled face, each block's tone close to its
+// neighbour's), which the form render reads as its true relief; a floor of large worn slabs; slimmer pilasters, a
+// lower plinth and cornice; arches and a vault cut in twice the segments, so a curve is a curve; its motif a low band
+// of dentils under the cornice in the wall's own tone; and
+// torches set higher with a longer reach, so a tall wall is lit up its height and the vault is lost above them. Its dressing is the crypt's, sober
+// (style/crypt.js CRYPT_SOBER). Made for tall rooms: give it height.
+STAGE_KITS['gothic-ashlar'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  plinth: { h: 0.42, out: 0.1 },
+  cornice: { h: 0.3, out: 0.18 },
+  // (worked, not a flat strip: a fluted shaft, tiles.pillar below, on a base, a ring and a capital over it)
+  pilaster: { w: 0.56, out: 0.15, bands: { base: { h: 0.24, out: 0.04 }, cap: { h: 0.2, out: 0.05 }, ring: { h: 0.06, out: 0.025, below: 0.12 } } },
+  rib: { w: 0.36, drop: 0.3 },
+  door: { width: 2, height: 3.6, frame: 0.26, out: 0.08 },
+  tiles: {
+    // (a wall in LAYERS: a coat of lime render over the ashlar, fallen away in patches to the courses behind; the coat
+    // stands proud, and in the form render its broken edge casts its shadow on the stone, matte-paint/dressed.js)
+    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [146, 142, 134], loss: 0.72, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.5, scale: 2.4 }), scale: 2.4, perBay: true },
+    // (over the string course the same coat, less lost: the upper wall the paler and the calmer)
+    wallUpper: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [112, 113, 114], mortar: [74, 73, 72], render: [150, 146, 138], loss: 0.22, rows: 7, cols: 2, joint: 0.012, recess: 0.006, tool: 'tooled', chamfer: 0.004, pillow: 0.003, spall: 0.3, pit: 0.25, vary: 8, grit: 0.4, scale: 2.4 }), scale: 2.4 },
+    // (its pilasters' shafts fluted: channels between narrow fillets, lit across)
+    pillar: { family: tileFamilyOf({ gen: 'dressed', cut: 'fluted', stone: [108, 107, 106], mortar: [70, 70, 70], flutes: 5, vary: 6, grit: 0.4, scale: 0.56 }), scale: 0.56 },
+    floor: { family: tileFamilyOf({ gen: 'dressed', face: 'floor', stone: [96, 92, 86], mortar: [58, 56, 52], rows: 3, cols: 2, joint: 0.014, recess: 0.008, tool: 'none', chamfer: 0.006, pillow: 0.004, spall: 0.35, pit: 0.3, vary: 10, grit: 0.6, scale: 2.4 }), scale: 2.4 },
+    ceiling: { key: 'stucco', scale: 2 },
+    // (its trim one plain monolith's stone, its grain running up it: a pilaster is never coursed like its wall)
+    trim: { family: tileFamilyOf({ gen: 'dressed', cut: 'shaft', stone: [104, 103, 102], mortar: [70, 70, 70], vary: 6, grit: 0.4, scale: 2 }), scale: 2 },
+    gutter: { key: 'soil-mud', scale: 1.2 },
+  },
+  tint: { wall: [0.8, 0.8, 0.83], floor: [0.62, 0.6, 0.58], ceiling: [0.2, 0.2, 0.22], trim: [0.72, 0.71, 0.7], gutter: [0.6, 0.6, 0.58], pillar: [0.76, 0.75, 0.74], wallUpper: [0.82, 0.82, 0.84] },
+  cells: { ...GOTHIC_STONE_BASE.cells, pillar: 0.5, wallUpper: 0.5 },
+  // (a wall in storeys: a string course at this share of its height, a blind arch a bay over it, era/crypt.js)
+  storeys: { at: 0.6, string: { h: 0.14, out: 0.06 }, arch: { share: 0.62, rise: 0.5, under: 0.45, frame: 0.1, out: 0.035, seg: 18 } },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.25, tone: '#4e5058' },
+  // (its floor laid by a plan: a darker border course along the walls, a worn walk of larger slabs down the room,
+  // fields bay by bay that keep a rhythm, the second kind the same slabs turned a quarter; a threshold inside each
+  // doorway and an apron round the tomb; each part's shade by its cause, era/floor-shades.js)
+  floorPlan: { border: { w: 0.8, shade: 'unwalked' }, walk: { w: 2.6, scale: 1.5, shade: 'worn' }, threshold: { depth: 1.5, margin: 0.3, scale: 1.5, shade: 'worn' },
+    apron: { margin: 0.9, shade: 'soot' }, fields: { relaid: 0.15, damp: 0.2 } },
+  // (its debris, asked for by a recipe's `skandart`, era/skandart.js: what falls here and where it comes to rest, each
+  // by its cause, its pieces named off the debris shelf, era/debris-shelf.js, as many as a heap holds at the most)
+  skandart: Object.freeze({
+    foot: Object.freeze({ why: 'the coat fails low where damp rises: its render flakes, the ashlar behind it spalls and a block comes away; they heap at the wall\'s foot, filling the gutter and spilling onto the border course, a heap a bay in the wall\'s rhythm',
+      pieces: Object.freeze({ 'fallen-block': 1, spall: 16, 'render-flake': 12 }) }),
+    corner: Object.freeze({ why: 'what falls is pushed into the corners: a deeper heap against the pilasters\' feet where two walls meet, a block or two at its toe',
+      pieces: Object.freeze({ 'fallen-block': 2, spall: 14, 'render-flake': 8 }) }),
+    apron: 'the candles at the tomb\'s corners pour their wax on the dais and down onto the floor at its foot',
+    // (and what the tomb's keepers stored here, era/skandart-vessels.js: urns, pots and a chest in the bays, tipped and broken
+    // the further the room is gone)
+    vessels: Object.freeze({ kinds: Object.freeze({ urn: 2, pot: 2, jar: 1, chest: 0.6 }), every: 3 }),
+    webs: 'within reach the webs are swept; over the string course nothing disturbs them',
+  }),
+  arch: Object.freeze({ door: { seg: 16 }, vault: { rise: 0.5, maxRise: 3, seg: 20 } }),
+  torch: { every: 2, z: 3.2, out: 0.34, color: '#ff9c48', intensity: 1.85, radius: 9.5, form: 'cone' },
+  // its motif, cut and not painted: dentils under the cornice in the wall's own tone, low relief (the crypt's principle
+  // holds: a motif is small, in a band; the form register's: the light finds it)
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'dentil', ground: [98, 98, 98], figure: [118, 118, 118], relief: 0.35 }), on: 'cornice', tint: [0.78, 0.77, 0.76] },
+  dress: CRYPT_SOBER,
+});
 // The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course
 // and a lancet window above; engaged columns stand at the bay lines; the ceiling is a tall pointed barrel vault with
 // transverse ribs that continue the columns, a ridge rib, and lunettes filling the end walls.
@@ -210,6 +283,23 @@ STAGE_KITS['island-plaza'] = Object.freeze({
 STAGE_KITS['research-lab'] = Object.freeze({
   shell: 'lab', grid: 1, bay: 4.8, wall: 0.5,
   door: { width: 2, height: 3, frame: 0.3, out: 0.1 },
+  // (its debris, asked for by a recipe's `skandart` or its `condition`, era/skandart.js: a lab sheds no stone; what lies
+  // in it is what the draughts carried and the walls let go, and where its roof came down (decay's collapse), the deck)
+  skandart: Object.freeze({
+    foot: Object.freeze({ why: 'the upper boards come loose and fall, and the draughts carry papers and broken glass to the kick band: a drift a bay, over a skin of dust',
+      pieces: Object.freeze({ board: 3, paper: 10, 'glass-shard': 8, 'concrete-chunk': 2 }) }),
+    corner: Object.freeze({ why: 'what drifts is pushed into the corners: boards, papers and glass deeper in the angle',
+      pieces: Object.freeze({ board: 3, paper: 9, 'glass-shard': 6, 'concrete-chunk': 3 }) }),
+    collapse: Object.freeze({ why: 'where the roof came down the deck lies under its hole: concrete broken off the slab, the deck\'s sheets across it',
+      pieces: Object.freeze({ 'slab-chunk': 26, 'concrete-chunk': 34, 'deck-sheet': 6 }), spread: 2.6 }),
+    // (its stores: crates, some stacked, and kegs in the bays, era/skandart-vessels.js)
+    vessels: Object.freeze({ kinds: Object.freeze({ crate: 3, keg: 1 }), every: 4 }),
+    // (a drift is a skin of dust, not a talus; a collapse a heap of the slab; what lies is carried past the body)
+    // (a roof's slab breaks into pieces, not into fines: its heap a low bed of dust under many chunks)
+    heights: Object.freeze({ foot: Object.freeze([0.03, 0.12]), corner: Object.freeze([0.06, 0.24]), cone: Object.freeze([0.3, 0.7]) }),
+    spread: 1.2, reach: 2.2,
+    matters: Object.freeze({ concrete: '#8c8a85', steel: '#9ea4aa', board: '#8f918e', paper: '#dcd7ca', glass: '#5c7477', grit: '#7c7a75' }),
+  }),
   torch: { color: '#e8f0ff', intensity: 1.2, radius: 8 },
   rubble: null,
   cells: { wall: 0.6, trim: 0.6, floor: 0.6, ceiling: 1.2, kick: 0.6, upper: 0.8, column: 0.6, skirt: 1, duct: 1.2, cable: 2, housing: 1 },
@@ -234,7 +324,9 @@ STAGE_KITS['research-lab'] = Object.freeze({
     truss: { depth: 0.75, w: 0.3, web: 0.05, flange: 0.05 },
     duct: { at: [0.3, 0.7], r: 0.32, sides: 10, gap: 0.12 },
     tray: { at: 0.5, w: 0.45, side: 0.1, drop: 0.35, cables: [0.03, 0.025, 0.035] },
-    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5, deadTint: [0.42, 0.44, 0.46] },
+    // (THE CEILING LIGHT REACHES THE FLOOR: in a tall lab the troffers hang on longer chains, no higher than `hang` over
+    // the floor, and a lamp's reach is at least `reach` times its height, so the work floor is lit whatever the roof's height)
+    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, hang: 4.6, reach: 2, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5, deadTint: [0.42, 0.44, 0.46] },
   },
   dress: RESEARCH_LAB,
 });
@@ -250,19 +342,31 @@ STAGE_KITS.catacomb = Object.freeze({
   ...GOTHIC_STONE_BASE,
   plinth: { h: 0.35, out: 0.1 },
   cornice: { h: 0.25, out: 0.14 },
-  pilaster: { w: 0.6, out: 0.18 },
+  // (a pier is the rock left standing: splayed at its foot, an impost cut at its head; no ring, nothing was turned)
+  pilaster: { w: 0.6, out: 0.18, bands: { base: { h: 0.32, out: 0.06 }, cap: { h: 0.16, out: 0.05 } } },
   rib: { w: 0.5, drop: 0.22 },
   door: { width: 2, height: 3.1, frame: 0.3, out: 0.1 },
   tiles: {
-    wall: { family: TUFA([158, 136, 106], 31), scale: 2.2 },
+    // (THE COAT, by its cause: within reach the rock was plastered round the tombs, and hands and damp have had it off
+    // in patches down to the picked rock; over the old floor's ledge nobody plastered, and the lamps have sooted it)
+    wall: { family: tileFamilyOf({ gen: 'dressed', cut: 'render', stone: [166, 146, 116], mortar: [136, 118, 94], render: [184, 168, 140], loss: 0.42, rows: 1, cols: 1, joint: 0.004, recess: 0.002, tool: 'pitched', chamfer: 0, pillow: 0.004, spall: 0.4, pit: 0.5, vary: 6, grit: 0.7, scale: 2.2 }), scale: 2.2, perBay: true },
+    wallUpper: { family: TUFA([126, 108, 86], 31), scale: 2.2 },
     floor: { family: tileFamilyOf({ gen: 'flagstone', stone: [138, 120, 98], mortar: [74, 60, 46], gravel: [96, 80, 62], cells: 4, mortarThick: 0.06, wobble: 2.5, vary: 26, grain: 14, lost: 0.16, cracked: 0.4, seed: 37 }), perBay: true },
     ceiling: { family: TUFA([96, 84, 72], 43, 30), scale: 2.4 },
     trim: { family: TUFA([176, 156, 126], 53, 28), scale: 1.6 },
     gutter: { key: 'soil-mud', scale: 1.2 },
   },
-  tint: { wall: [0.92, 0.88, 0.82], floor: [0.7, 0.64, 0.58], ceiling: [0.36, 0.33, 0.31], trim: [0.94, 0.9, 0.84], gutter: [0.78, 0.74, 0.7] },
+  tint: { wall: [0.92, 0.88, 0.82], floor: [0.7, 0.64, 0.58], ceiling: [0.36, 0.33, 0.31], trim: [0.94, 0.9, 0.84], gutter: [0.78, 0.74, 0.7], wallUpper: [0.7, 0.66, 0.62] },
+  cells: { ...GOTHIC_STONE_BASE.cells, wallUpper: 0.5 },
+  // (STOREYS, by their cause: a gallery is dug DOWN as it fills, so a ledge marks the floor the first diggers stood on,
+  // and over it are the oldest tombs, every one long sealed and out of reach: the same slot, with nothing open)
+  storeys: { at: 0.56, string: { h: 0.1, out: 0.09 }, loculi: { tiers: 2, lesser: 1, rise: 0.4 } },
+  // (the floor: an unwalked margin of earth at the walls, the way worn down the middle, a threshold at each passage,
+  // the ground round the sarcophagus sooted by its candles)
+  floorPlan: { border: { w: 0.7, shade: 'unwalked' }, walk: { w: 2.2, shade: 'worn' }, threshold: { depth: 1.2, margin: 0.2, shade: 'worn' }, apron: { margin: 0.8, shade: 'soot' }, fields: { relaid: 0.08, damp: 0.3 } },
   rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#7a6e60' },
-  torch: { ...GOTHIC_STONE_BASE.torch, z: 2.3 },
+  // (its light a clay lamp on a corbel of the rock, close to the wall: no iron was forged down here)
+  torch: { ...GOTHIC_STONE_BASE.torch, z: 2.3, out: 0.02, form: 'lamp', color: '#ffb060', intensity: 1.5 },
   arch: ARCHED,
   motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'scallop', ground: [118, 100, 80], figure: [178, 158, 128], relief: 0.55 }), on: 'cornice', tint: [1, 1, 1] },
   dress: CATACOMB,
@@ -348,6 +452,40 @@ function withRecipeTiles(kit, kitId, tiles) {
 const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
+/** The materials a recipe may set down to be looked at (`samples`). A LIQUID is any of the matter table's (rupa/matter.js),
+ *  drawn as every liquid is, from its own look (rupa/liquid-look.js: its thickness and smoothness from its physics, its
+ *  colour, clearness and film beside); a METAL a cube: `tint` its colour under no light, `rough` 0 a mirror to 1 chalk,
+ *  `metal` 1 a bare metal (the form render's, channels/form.js). */
+const METAL_SAMPLES = Object.freeze({
+  chrome: Object.freeze({ tint: [0.9, 0.9, 0.92], rough: 0.1, metal: 1 }),
+  steel: Object.freeze({ tint: [0.56, 0.57, 0.6], rough: 0.34, metal: 1 }),
+});
+export const SAMPLES = Object.freeze({ ...Object.fromEntries(LIQUID_IDS.map((id) => [id, Object.freeze({ pool: true, metal: 0, ...liquidLook(id) })])), ...METAL_SAMPLES });
+function sampleFaces(plan) {
+  const out = [];
+  (plan.samples || []).forEach((q, i) => {
+    const M = SAMPLES[q.of], [x, y] = q.at, group = `stage:sample-${q.of}`, node = `sample-${i + 1}`, n0 = out.length;
+    if (M.pool) {
+      // (a pool: a ring of many points, its edge wandering by the sample's own dice. A LIQUID STANDS PROUD of what it
+      // lies on, as a coat does of its wall (era/laws.js 'layers-stand-proud'): its face `thick` over the floor, its
+      // edge a rounded lip down to it in two steps, so the lip turns the light and the pool reads as lying ON the floor)
+      const R = (q.size ?? 3) / 2, N = 72, T = M.thick, ph = [1, 2, 3].map((j) => hash3(i, j, 4441) * 2 * Math.PI);
+      // (its outline a smooth one: a few slow waves round it by the sample's dice, never a corner)
+      const ring = (k, inset, z) => { const a = (k / N) * 2 * Math.PI, r = R * (0.9 + 0.1 * Math.sin(a * 2 + ph[0]) + 0.06 * Math.sin(a * 3 + ph[1]) + 0.03 * Math.sin(a * 5 + ph[2])) - inset; return P([x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r, z]); };
+      const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((c) => r5(c / l)); };
+      const lip = (k, i0, z0, i1, z1) => { const a = ring(k, i0, z0), b = ring(k + 1, i0, z0), c = ring(k + 1, i1, z1), d = ring(k, i1, z1), u = sub(b, a), v = sub(d, a);
+        const n = unit([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]), up = n[2] < 0 ? n.map((c2) => -c2) : n;
+        out.push({ corners: [a, b, c, d], normal: up, outNormal: up, tint: M.tint, group }); };
+      for (let k = 0; k < N; k++) {
+        out.push({ corners: [P([x, y, T]), ring(k, T * 3, T), ring(k + 1, T * 3, T)], normal: [0, 0, 1], outNormal: [0, 0, 1], tint: M.tint, group });
+        lip(k, T * 3, T, T * 1.2, T * 0.7); lip(k, T * 1.2, T * 0.7, 0, 0.002);
+      }
+    } else { const h = q.size ?? 1; box(out, [x - h / 2, y - h / 2, 0], [x + h / 2, y + h / 2, h], { key: null, scale: 1, tint: M.tint, group }, h, ['-z']); }
+    for (let k = n0; k < out.length; k++) out[k].node = node;
+  });
+  return out;
+}
+
 export function planStage(m = {}) {
   // a composed interior (era/compose.js): its kit composed from a value on each bay axis, its id the bay kit it names
   const composed = m.compose !== undefined ? composeForBuild(m) : null;
@@ -361,6 +499,10 @@ export function planStage(m = {}) {
     ...(kit00.B.light?.daylight ? { light: { ...kit00.B.light, daylight: { ...kit00.B.light.daylight, intensity: r5(kit00.B.light.daylight.intensity * day) } } } : {}) } }))(m._sun) : kit00;
   const kit0 = m._ground && kitS?.B ? { ...kitS, B: { ...kitS.B, ground: m._ground } } : kitS;
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
+  // a room's CONDITION (`condition`: kept … ruined, or a word for one, condition.js): its debris and its grime from one word
+  if (m.condition !== undefined && !m._condition) return planStage(withCondition(m, kit0));
+  // its WEATHERING (`weathering`, weathering.js): one scale told by its causes, each where it acts on the surfaces
+  if (m.weathering !== undefined && !m._weathering) return planStage(withWeathering(m, kit0));
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
   const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || [], tileFamilyOf) : null;
@@ -370,6 +512,20 @@ export function planStage(m = {}) {
   const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
   let kitG = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
+  // (weathered, weathering.js: its render walls' coat lost as far as its causes took it, damp low and water high)
+  if (m._weathering && m.coat !== false) kitG = weatherKit(kitG, m._weathering);
+  // THE COAT IS OPTIONAL (`coat: false`): a kit whose wall wears a coat of render lays its bare wall, the same stone
+  // with nothing over it, on every storey that wore it; a kit without a coat is as it was. Bare by intent answers the
+  // coat's question (era/room-craft.js) as a wall all alike answers the rhythm's
+  if (m.coat !== undefined && m.coat !== false) throw new Error(`stage: coat is false (the wall bare, on purpose), or left out (the kit's own), got ${JSON.stringify(m.coat)}`);
+  if (m.coat === false) {
+    const bare = (t) => { const S = t && t.family ? generatedSpecOf(`${t.family}-a`) : null;
+      if (!S || S.cfg.cut !== 'render') return t;
+      const { cut, render, loss, metres, ...cfg } = S.cfg;
+      return { ...t, family: tileFamilyOf({ gen: S.gen, ...cfg }) }; };
+    const up = kitG.tiles.wallUpper, upSpec = up && up.family ? generatedSpecOf(`${up.family}-a`) : null, { wallUpper, ...rest } = kitG.tiles;
+    kitG = { ...kitG, tiles: { ...rest, wall: bare(kitG.tiles.wall), ...(up && !(upSpec && upSpec.cfg.cut === 'render') ? { wallUpper: up } : {}) } };
+  }
   // EARTH (`earth: 0…1`): how far the floor has given way to packed dirt (era/nave.js blendsByCause); the recipe's
   // own over the art direction's; a kit without blends takes none
   if (m.earth !== undefined && !(typeof m.earth === 'number' && m.earth >= 0 && m.earth <= 1)) throw new Error('stage: earth is a number from 0 (a laid floor) to 1 (mostly packed dirt)');
@@ -493,7 +649,38 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
+  // SAMPLES (`samples: [{ of, at: [x, y], size? }]`): a material set down in a room to be looked at under its light. A
+  // liquid (any of rupa's: water, crude, gasoline, honey, mud, …) lies on the floor as a pool `size` metres across; a
+  // metal (`chrome`, `steel`) stands as a cube `size` metres on a side. Each is its own material to the form render: how rough, how much a metal
+  if (m.samples !== undefined) {
+    if (!Array.isArray(m.samples) || m.samples.length > 24 || m.samples.some((q) => !q || !SAMPLES[q.of] || !Array.isArray(q.at) || q.at.length !== 2 || !q.at.every(Number.isFinite) || (q.size !== undefined && !(q.size > 0.1 && q.size <= 20))))
+      throw new Error(`stage: samples are [{ of: ${Object.keys(SAMPLES).join(' | ')}, at: [x, y], size?: metres }] (at most 24)`);
+  }
+  // WET (`wet`, era/wetness.js: true, a degree, 0 to 1, or { degree?, amount?, spots? }): the place wet with no depth. A wetness is a state of the surface it lies
+  // on (era/laws.js 'wet-hugs-the-surface'): no thickness and no edge of its own, the relief kept, the water lying by
+  // the tile's own height (its joints fill first and lie mirror-smooth, its faces darken and sheen). The dial: damp,
+  // wet, brimming; past that it is a pool, which has a thickness (a sample). The form render's; a painted page none
+  const wetness = (() => { try { return readWetness(m.wet); } catch (e) { throw new Error(`stage: ${e.message}`); } })();
+  // DAYLIGHT (`daylight: { elevation, azimuth?, color?, gain?, alone? }`, a room kit's): a sun over rooms that stand indoors.
+  // The form render takes it LIVE: every corner turned to it carries its share, and the page's hour map takes that
+  // share away where a roof or a wall hides it, so it comes in at a window, a roof light or an open door as its own
+  // shape on the floor, at this elevation and bearing (degrees: 0 along +x, 90 along +y). A painted page lays none.
+  if (m.daylight !== undefined) {
+    const D = m.daylight;
+    if (!D || typeof D !== 'object' || Array.isArray(D) || Object.keys(D).some((k) => !['elevation', 'azimuth', 'color', 'gain', 'alone'].includes(k)) || (D.alone !== undefined && typeof D.alone !== 'boolean') || !(D.elevation >= 2 && D.elevation <= 88)
+      || (D.azimuth !== undefined && !(D.azimuth >= 0 && D.azimuth < 360)) || (D.color !== undefined && !/^#[0-9a-fA-F]{6}$/.test(D.color)) || (D.gain !== undefined && !(D.gain > 0 && D.gain <= 3)))
+      throw new Error('stage: daylight is { elevation: 2 to 88 degrees, azimuth?: 0 up to 360, color?: \'#rrggbb\', gain?: over 0 up to 3, alone?: true (the lamps off: the room lit by the day alone) }');
+    if (kit0.sun) throw new Error(`stage: kit '${kitId}' stands under its look's own sun; daylight is for rooms indoors`);
+  }
+  // (`rhythm: 'same'`: every wall's bays alike, meant, era/wall-rhythm.js; else the kit's own rhythm where it has one)
+  if (m.rhythm !== undefined && m.rhythm !== 'same') throw new Error(`stage: rhythm is 'same' (every wall's bays alike, on purpose), or left out (the kit's own), got ${JSON.stringify(m.rhythm)}`);
+  // DEBRIS (`skandart`, era/skandart.js): the kit's answer to what falls and where it rests, asked for by the recipe
+  // (the answer: the recipe's own over the kit's card, or over what the room's materials shed when it has none,
+  // skandart-derive.js; a room whose materials shed nothing and that names no answer of its own says so)
+  const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
+  if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
+  const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -557,7 +744,62 @@ export function buildStageGeometry(plan) {
       panel(out, o, alongY ? A : B, alongY ? la : lb, alongY ? B : A, alongY ? lb : la, [0, 0, 1], { ...sf, uvOf: (p) => [p[0] / sf.scale, p[1] / sf.scale] }, base.cell);
     }
   };
+  // A FLOOR LAID BY A PLAN (a kit's `floorPlan`, era/laws.js 'floor-is-laid'): a room's floor is not one field of tile
+  // but parts, each laid for what it is. A BORDER course runs round the room along its walls (its slabs' long side
+  // along the wall, a tone darker: nobody walks there); the WALK runs down the room's long axis (larger slabs laid
+  // along the way, a tone lighter: worn); the FIELDS either side are laid bay by bay, their joints on the pilasters'
+  // lines, and along the room they keep a wall's rhythm (era/wall-rhythm.js): the second kind of bay is the first
+  // with its slabs turned a quarter, the same stone laid the other way. A recipe's `rhythm: 'same'` lays every bay
+  // alike. Every part's shade has a cause (era/floor-shades.js)
+  const planRect = (r, ri, X0, Y0, X1, Y1) => {
+    const FP = kit.floorPlan, base = surf('floor'), sc = ft.scale ?? 2, alongY = r.y1 - r.y0 >= r.x1 - r.x0;
+    const shaded = (cause, v) => ({ ...base, key: `${ft.family}-${VARIANTS[((v % 4) + 4) % 4]}`, tint: shadeTint(base.tint, cause) });
+    // (the floor's own edge is the junction band's, off the wall: the border is measured from there)
+    const fx0 = r.x0 + B, fx1 = r.x1 - B, fy0 = r.y0 + B, fy1 = r.y1 - B;
+    // THE PARTS LAID OVER THE REST, each a rectangle the rest is cut round: a THRESHOLD inside each doorway (the feet
+    // of everyone who comes in: its slabs across the way in, larger, worn), and an APRON round the set piece (a tomb's
+    // dais and a walk round it: under its candles, sooted)
+    const over = [];
+    if (FP.threshold) for (const sd of Object.keys(r.openings)) for (const op of r.openings[sd]) {
+      const T = FP.threshold, lo = op.lo - T.margin, hi = op.hi + T.margin, S = shaded(T.shade ?? 'worn', ri + 3), ts = sc * (T.scale ?? 1);
+      if (sd === '-y') over.push({ x0: lo, y0: r.y0, x1: hi, y1: fy0 + T.depth, S, scale: ts, turn: false });
+      else if (sd === '+y') over.push({ x0: lo, y0: fy1 - T.depth, x1: hi, y1: r.y1, S, scale: ts, turn: false });
+      else if (sd === '-x') over.push({ x0: r.x0, y0: lo, x1: fx0 + T.depth, y1: hi, S, scale: ts, turn: true });
+      else over.push({ x0: fx1 - T.depth, y0: lo, x1: r.x1, y1: hi, S, scale: ts, turn: true });
+    }
+    const site = FP.apron && kit.dress && kit.dress.tomb ? tombSite(plan) : null;
+    if (site && site.room === r.id) { const m = FP.apron.margin; over.push({ x0: Math.max(fx0, site.at[0] - site.w / 2 - m), y0: Math.max(fy0, site.at[1] - site.d / 2 - m), x1: Math.min(fx1, site.at[0] + site.w / 2 + m), y1: Math.min(fy1, site.at[1] + site.d / 2 + m), S: shaded(FP.apron.shade ?? 'soot', ri + 1), scale: sc, turn: alongY ? false : true }); }
+    // (a rectangle less the parts laid over it: up to four pieces a part)
+    const less = (R, H) => (H.x1 <= R.x0 || H.x0 >= R.x1 || H.y1 <= R.y0 || H.y0 >= R.y1 ? [R]
+      : [{ ...R, y1: Math.max(R.y0, H.y0) }, { ...R, y0: Math.min(R.y1, H.y1) }, { ...R, x1: Math.max(R.x0, H.x0), y0: Math.max(R.y0, H.y0), y1: Math.min(R.y1, H.y1) }, { ...R, x0: Math.min(R.x1, H.x1), y0: Math.max(R.y0, H.y0), y1: Math.min(R.y1, H.y1) }]
+        .filter((q) => q.x1 - q.x0 > 1e-6 && q.y1 - q.y0 > 1e-6));
+    const lay = (x0, y0, x1, y1, S, scale, turn) => {
+      const a0 = Math.max(X0, x0), a1 = Math.min(X1, x1), b0 = Math.max(Y0, y0), b1 = Math.min(Y1, y1);
+      if (a1 - a0 < 1e-6 || b1 - b0 < 1e-6) return;
+      panel(out, [a0, b0, 0], [1, 0, 0], a1 - a0, [0, 1, 0], b1 - b0, [0, 0, 1], { ...S, uvOf: turn ? (p) => [p[1] / scale, p[0] / scale] : (p) => [p[0] / scale, p[1] / scale] }, base.cell);
+    };
+    const put = (x0, y0, x1, y1, S, scale, turn) => { for (const q of over.reduce((Rs, H) => Rs.flatMap((R) => less(R, H)), [{ x0, y0, x1, y1 }])) lay(q.x0, q.y0, q.x1, q.y1, S, scale, turn); };
+    // (the parts laid over: each whole, a later one cut round an earlier where they meet)
+    over.forEach((H, i) => { for (const q of over.slice(0, i).reduce((Rs, G) => Rs.flatMap((R) => less(R, G)), [H])) lay(q.x0, q.y0, q.x1, q.y1, H.S, H.scale, H.turn); });
+    const bw = Math.min(FP.border.w, (fx1 - fx0) / 4, (fy1 - fy0) / 4), ix0 = fx0 + bw, ix1 = fx1 - bw, iy0 = fy0 + bw, iy1 = fy1 - bw;
+    const edge = shaded(FP.border.shade ?? 'unwalked', ri);
+    put(r.x0, r.y0, r.x1, iy0, edge, sc, false); put(r.x0, iy1, r.x1, r.y1, edge, sc, false); put(r.x0, iy0, ix0, iy1, edge, sc, true); put(ix1, iy0, r.x1, iy1, edge, sc, true);
+    // (across the room: a field, the walk, a field; along it: the bays)
+    const c = alongY ? (ix0 + ix1) / 2 : (iy0 + iy1) / 2, ww = Math.min(FP.walk.w, (alongY ? ix1 - ix0 : iy1 - iy0) * 0.5) / 2;
+    const walk = shaded(FP.walk.shade ?? 'worn', ri + 2), ws = sc * FP.walk.scale;
+    if (alongY) put(c - ww, iy0, c + ww, iy1, walk, ws, true); else put(ix0, c - ww, ix1, c + ww, walk, ws, false);
+    const L0 = alongY ? iy0 : ix0, L1 = alongY ? iy1 : ix1, n = Math.max(1, Math.round((alongY ? r.y1 - r.y0 : r.x1 - r.x0) / kit.bay)), step = (L1 - L0) / n;
+    const O = wallOrder(n, { order: plan.rhythm ?? null, pick: hash3(ri, n, 4411) }), order = O.order, Fs = FP.fields || {};
+    for (let k = 0; k < n; k++) for (const side of [0, 1]) {
+      // (a field's shade by its cause, a bay now and then: relaid, a repair; damp, where water stands. A floor meant all
+      // alike is laid clean: every bay the floor as laid)
+      const d = hash3(ri * 31 + k, side, 4413), cause = O.clean ? 'plain' : d < (Fs.relaid ?? 0) ? 'relaid' : d < (Fs.relaid ?? 0) + (Fs.damp ?? 0) ? 'damp' : 'plain';
+      const S = shaded(cause, ri + k + side * 2 + 1), turned = (order[k] !== 'A') !== !alongY, l0 = L0 + k * step, l1 = l0 + step;
+      if (alongY) put(side ? c + ww : ix0, l0, side ? ix1 : c - ww, l1, S, sc, turned); else put(l0, side ? c + ww : iy0, l1, side ? iy1 : c - ww, S, sc, turned);
+    }
+  };
   const floorRect = (r, ri, X0, Y0, X1, Y1) => {
+    if (kit.floorPlan && !Fd?.runner) return planRect(r, ri, X0, Y0, X1, Y1);
     if (Fd && Fd.runner) return zonedRect(r, X0, Y0, X1, Y1);
     if (Fd) { const base = surf('floor'), sf = { ...base, key: Fd.field.key, scale: Fd.field.scale }; return panel(out, [X0, Y0, 0], [1, 0, 0], X1 - X0, [0, 1, 0], Y1 - Y0, [0, 0, 1], { ...sf, uvOf: (p) => [p[0] / sf.scale, p[1] / sf.scale] }, base.cell); }
     const { nx, ny, bx, by } = bays(r), base = surf('floor');
@@ -673,12 +915,21 @@ export function buildStageGeometry(plan) {
       // (the pillars, a recipe's own surface when it names one: pilasters and engaged columns, else the trim as ever)
       const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell, pillar = kit.tiles.pillar ? surf('pillar', ri * 4 + si) : trim;
       // the wall: full-height solid spans + the lintel over each opening (a nave composes it per bay instead)
-      const flatWall = (u0, u1) => {
+      // (a wall in storeys, a kit's `storeys` and `tiles.wallUpper`: over its string course the wall wears its upper
+      // tile, the same coat less lost: damp rises from the floor)
+      const zSplit = kit.storeys && kit.tiles.wallUpper ? kit.plinth.h + (h - kit.cornice.h - kit.plinth.h) * kit.storeys.at : null;
+      const flatWall = (u0, u1, S = wallS, S2 = null) => {
         const inBay = cuts.map(([a, b, top]) => [Math.max(a, u0), Math.min(b, u1), top]).filter(([a, b]) => b > a);
-        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, wallS, cell);
-        for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, wallS, cell);
+        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) {
+          if (zSplit && S2) { panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], zSplit, F.N, S, cell); panel(out, add(add(F.o, mul(F.U, u0 + a)), [0, 0, zSplit]), F.U, b - a, [0, 0, 1], h - zSplit, F.N, S2, cell); }
+          else panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, S, cell);
+        }
+        for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, S, cell);
       };
-      if (!nave) flatWall(0, F.len);
+      // (a wall whose tile says `perBay`, as a floor's may: each bay its own variant of the tile, so a coat's patches
+      // or a course's wear are not the same stamp in every bay; else the wall one run, as ever)
+      if (!nave && kit.tiles.wall.perBay) { const nb = Math.max(1, Math.round(F.len / kit.bay)); for (let k = 0; k < nb; k++) flatWall((F.len * k) / nb, (F.len * (k + 1)) / nb, surf('wall', ri * 4 + si + k), kit.tiles.wallUpper ? { ...surf('wallUpper', ri * 4 + si + k + 2), group: 'stage:wall' } : null); }
+      else if (!nave) flatWall(0, F.len);
       else naveWall(F, cuts, flatWall, { wall: wallS, trim, pillar }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
       for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, kit.tiles.plinth ? surf('plinth', ri * 4 + si) : trim, cell);
@@ -748,6 +999,14 @@ export function buildStageGeometry(plan) {
         panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, pillar, cell);
         panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), pillar, 1);
         panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, pillar, 1);
+        // (a pilaster WORKED, a kit's `pilaster.bands`, era/laws.js 'pillars-are-worked': cut in parts as a column is,
+        // a base under its shaft, a ring and a capital over it, each a little proud of the shaft)
+        if (kit.pilaster.bands) {
+          const Bd = kit.pilaster.bands, top = z0p + hp, band = (z0b, hb, ob) => wallBox(out, F, Math.max(0, a - ob), Math.min(F.len, b + ob), z0b, z0b + hb, po + ob, pillar, 0.5);
+          if (Bd.base) band(z0p, Bd.base.h, Bd.base.out);
+          if (Bd.cap) band(top - Bd.cap.h, Bd.cap.h, Bd.cap.out);
+          if (Bd.ring) band(top - (Bd.cap ? Bd.cap.h : 0) - Bd.ring.below - Bd.ring.h, Bd.ring.h, Bd.ring.out);
+        }
         pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
         if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
@@ -791,7 +1050,8 @@ export function buildStageGeometry(plan) {
  *  face carries `tint` + `normal` so the stage bake lights it like the shell. */
 export function stageRubble(plan, drains) {
   const rb = plan.kit.rubble, g = plan.kit.gutter;
-  if (!rb || !drains.length) return [];
+  // (a room whose debris is asked for lays its own, by its causes: era/skandart.js)
+  if (!rb || !drains.length || plan.skandart) return [];
   const pool = rockPool({ rock: rb.rock, variants: rb.variants, detail: 0, tone: rb.tone, seed: 'stage-rubble', group: 'stage:rubble' });
   const items = [];
   drains.forEach(({ F, a, b }, di) => {
@@ -895,6 +1155,16 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
+/** A stage's `water` as a circuit: `'works'`, or `{ works: true | { head?, nozzle?, mist?, impact? } }` (materials/hydraulics.js);
+ *  any other `water` is the live water it was. → the works' dials, or null. */
+export function waterWorks(w) {
+  if (w === 'works') return {};
+  if (!w || typeof w !== 'object' || !w.works) return null;
+  if (w.works === true) return {};
+  if (typeof w.works !== 'object' || Array.isArray(w.works)) throw new Error('stage: water.works is true or { head?, nozzle?, mist?, impact? }');
+  for (const k of Object.keys(w.works)) if (!['head', 'nozzle', 'mist', 'impact'].includes(k)) throw new Error(`stage: water.works.${k} is not a dial of it (head, nozzle, mist, impact)`);
+  return w.works;
+}
 /** THE FORM RENDER'S BAKE (gen-7 under no sun: form/room-light.js). The room's look is its paint read at arm's length from
  *  its median lamp: each surface's colour there (the sixth generation's bake of its tint over its tile; a toned room, its
  *  ramp's colour at that light: tone.js) is a TARGET, and the bases and one lamp's light are solved for them
@@ -909,7 +1179,7 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
  *  the sun by its cosine where its shadow test reaches the corner, what the ground throws back onto a face turned down,
  *  and the lamps in the sun's share; with `sun.share` each corner carries the share of its light the sun gives.
  *  → { faces, light: the solve (under a sun, `sun`: { key, dir, ground: the light a face turned down takes with no sun }) } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -960,7 +1230,10 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   };
   for (const f of raw) if (f.tint) roleOf(f);
   const ramp0 = tone ? ramps[tone.default] : null;
-  const S = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  const S0 = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  // (a sun that stands over its paint, `sun.over`: the solve lays the sunlit colour as painted, and the sun is then this
+  // many times that, so a sunlit floor is brighter than its paint: a daylight's `gain`)
+  const S = sun && sun.over && sun.over !== 1 ? { ...S0, sun: S0.sun.map((v) => v * sun.over) } : S0;
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
   // (a tuner's scale on each lamp's key, solved on these very shares: the scene composer's plot, compose-plot.js keyTuner)
   const scale = tune ? tune({ raw, shares, keys: S.keys, ambient: S.ambient, lights }) : null;
@@ -989,13 +1262,76 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), cornerLight: shares[i].map((sh, j) => light(sh, sw ? sw[j] : null)), ...(shared ? { sunShare: shares[i].map((sh, j) => shareOf(sh, sw[j])) } : {}) };
   });
   const L = scale ? { ...S, keys } : S;
-  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L };
+  // (asked for, era/skandart.js: the light the room lays at points that are no face of it, `probes` [{ at, normal }],
+  // as a corner's; and the base a paint takes in this room, `paints` [{ colour, tint }] (a tile's colour, sRGB 0…1, and
+  // its tint): its target at the reference over the solve's level, as a surface of that paint is solved. Neither
+  // touches the solve: a room asked for none is as it was)
+  const extra = {
+    ...(probes ? { probes: probes.map((p) => light(sharesAt(p, p.at), sun ? sunAt(p, p.at) : null)) } : {}),
+    ...(paints ? { paints: paints.map(({ colour, tint }) => colour.map((c, k) => r4(Math.min(1, (lin(c) * lin(Math.min(1, L6 * tint[k]))) / S.level)))) } : {}),
+  };
+  return { faces, light: sun ? { ...L, sun: { key: S.sun.map(r4), dir: sun.dir, ground: S.ambient.map((v, k) => r4(v + S.bounce[k])) } } : L, ...extra };
 }
+/** A torch's live flame (metres): as wide and as tall as the two polygons it stands for. */
+export const TORCH_FLAME = Object.freeze({ w: 0.3, h: 0.56 });
+/** An oil lamp's live flame (a kit's `torch.form: 'lamp'`): a wick's, a hand high. */
+export const LAMP_FLAME = Object.freeze({ w: 0.11, h: 0.22 });
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
-export function torchFaces(l, live = false) {
+export function torchFaces(l, live = false, flame = false, form = null) {
   const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
+  // A TURNED TORCH (a kit's `torch.form: 'cone'`; era/laws.js 'no-voxel-first'): nothing of it is a box. A cone of iron,
+  // its point down, holds the fire; a ring holds the cone; an arm, a rod, holds the ring off the wall
+  // AN OIL LAMP ON A CORBEL (a kit's `torch.form: 'lamp'`): where the rock is cut and no iron is forged, the light is a
+  // clay lamp on a knob of the rock left standing for it. A corbel turned out of the wall, a low bowl of fired clay, a
+  // small flame at its lip
+  if (form === 'lamp' && !live) {
+    const turned = (c, prof, fill, sides = 10) => { const raw = []; lathe(raw, c, prof.map(([r, dz]) => [r, z + dz]), sides, plain, 'stage:fixture'); for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill }); };
+    const [nx, ny] = l.n, cw = [x - nx * 0.05, y - ny * 0.05];
+    turned(cw, [[0.07, -0.36], [0.1, -0.33], [0.135, -0.26], [0.15, -0.21], [0.15, -0.17], [0.0, -0.17]], '#a08a68');     // the corbel, the wall's rock
+    turned([x, y], [[0.0, -0.17], [0.06, -0.17], [0.095, -0.135], [0.09, -0.105], [0.05, -0.095], [0.03, -0.1]], '#9a5c3c');   // the lamp, fired clay
+    if (flame) {
+      out.push({ corners: [P([x - 0.03, y - 0.03, z - 0.094]), P([x + 0.03, y - 0.03, z - 0.094]), P([x + 0.03, y + 0.03, z - 0.094]), P([x - 0.03, y + 0.03, z - 0.094])], normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'stage:fixture',
+        fill: '#fff0c0', emissive: hexRgb(l.color), emissiveStrength: 4, glow: `0 0 6px 2px ${l.color}` });
+      return out;
+    }
+    const zb = z - 0.095, zm = z - 0.02, zt = z + 0.12;
+    for (const [ax, ay] of [[1, 0], [0, 1]]) {
+      const at = (u, zz) => P([x + ax * u, y + ay * u, zz]), n = [ay, -ax, 0];
+      const common = { normal: n, outNormal: n, group: 'stage:fixture', emissive: hexRgb(l.color), emissiveStrength: 4 };
+      out.push({ corners: [at(-0.02, zb), at(0.02, zb), at(0.045, zm), at(-0.045, zm)], fill: '#fff0c0', ...common, glow: `0 0 6px 2px ${l.color}` });
+      out.push({ corners: [at(-0.045, zm), at(0.045, zm), at(0.005, zt), at(-0.005, zt)], fill: '#ff9a3c', ...common });
+    }
+    return out;
+  }
+  if (form === 'cone' && !live) {
+    const turned = (prof, fill, sides = 10) => { const raw = []; lathe(raw, [x, y], prof.map(([r, dz]) => [r, z + dz]), sides, plain, 'stage:fixture'); for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill }); };
+    turned([[0.012, -0.54], [0.05, -0.32], [0.105, -0.1], [0.118, -0.06]], '#2a2420');                 // the cone
+    turned([[0.118, -0.06], [0.128, -0.05], [0.118, -0.04], [0.1, -0.045]], '#3a3028');                // its lip, rolled
+    turned([[0.09, -0.21], [0.108, -0.2], [0.108, -0.165], [0.09, -0.155]], '#3a3028');                // the ring that holds it
+    // (the arm: a six-sided rod from the wall to the ring, along the wall's normal)
+    const [nx, ny] = l.n, len = 0.36, zr = z - 0.182, rr = 0.016, side = [-ny, nx];
+    for (let k = 0; k < 6; k++) {
+      const a0 = (Math.PI * k) / 3, a1 = (Math.PI * (k + 1)) / 3, at = (a, d) => P([x - nx * d + side[0] * Math.cos(a) * rr, y - ny * d + side[1] * Math.cos(a) * rr, zr + Math.sin(a) * rr]);
+      const am = (a0 + a1) / 2, n = [r5(side[0] * Math.cos(am)), r5(side[1] * Math.cos(am)), r5(Math.sin(am))];
+      out.push({ corners: [at(a0, 0.1), at(a1, 0.1), at(a1, len), at(a0, len)], normal: n, outNormal: n, fill: '#2a2420', group: 'stage:fixture' });
+    }
+    if (flame) {
+      out.push({ corners: [P([x - 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y + 0.07, z - 0.055]), P([x - 0.07, y + 0.07, z - 0.055])], normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'stage:fixture',
+        fill: '#fff0c0', emissive: hexRgb(l.color), emissiveStrength: 4, glow: `0 0 8px 3px ${l.color}` });
+      return out;
+    }
+    // (the sixth generation's flame, its two crossed cards, stands in the cone as it stood in the bowl)
+    const fl = l.color, b0 = 0.06, b1 = 0.14, zb = z - 0.06, zm = z + 0.12, zt = z + 0.46;
+    for (const [ax, ay] of [[1, 0], [0, 1]]) {
+      const at = (u, zz) => P([x + ax * u, y + ay * u, zz]), n = [ay, -ax, 0];
+      const common = { normal: n, outNormal: n, group: 'stage:fixture', emissive: hexRgb(fl), emissiveStrength: 4 };
+      out.push({ corners: [at(-b0, zb), at(b0, zb), at(b1, zm), at(-b1, zm)], fill: '#fff0c0', ...common, glow: `0 0 8px 3px ${fl}` });
+      out.push({ corners: [at(-b1, zm), at(b1, zm), at(0.01, zt), at(-0.01, zt)], fill: '#ff9a3c', ...common });
+    }
+    return out;
+  }
   const iron = (mn, mx, fill) => {
     const raw = [];
     box(raw, mn, mx, plain, 1);
@@ -1009,6 +1345,13 @@ export function torchFaces(l, live = false) {
   }
   iron([x - 0.07, y - 0.07, z - 0.5], [x + 0.07, y + 0.07, z - 0.14], '#2a2420');   // the bracket
   iron([x - 0.12, y - 0.12, z - 0.14], [x + 0.12, y + 0.12, z - 0.06], '#3a3028');  // the bowl
+  // (a live flame, scene/channels/flames.js, stands where the polygons did: the bowl keeps its bed of coals, which
+  // carries the fixture's glow and what an engine reads as its light)
+  if (flame) {
+    out.push({ corners: [P([x - 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y - 0.07, z - 0.055]), P([x + 0.07, y + 0.07, z - 0.055]), P([x - 0.07, y + 0.07, z - 0.055])], normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'stage:fixture',
+      fill: '#fff0c0', emissive: hexRgb(l.color), emissiveStrength: 4, glow: `0 0 8px 3px ${l.color}` });
+    return out;
+  }
   // the flame: per card, a tapered lower quad (bowl → belly) and a pointed upper quad (belly → tip)
   const fl = l.color, b0 = 0.06, b1 = 0.14, zb = z - 0.06, zm = z + 0.12, zt = z + 0.46;
   for (const [ax, ay] of [[1, 0], [0, 1]]) {
@@ -1115,6 +1458,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (kit && kit.shell === 'isekai') return seat((m) => assembleIsekaiScene({ style: kit.style, ...m }, ctx));
   if (manifest.buildings !== undefined || manifest.town !== undefined) throw new Error(`stage: buildings and a town's street stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
   // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
+  // (a room's condition, condition.js, filled into the recipe before anything reads it: the bake's grime reads the recipe)
+  if (manifest.condition !== undefined && !manifest._condition) return assembleStageScene(withCondition(manifest, kit), ctx);
+  if (manifest.weathering !== undefined && !manifest._weathering) return assembleStageScene(withWeathering(manifest, kit), ctx);
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
   const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
@@ -1126,7 +1472,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water, works: waterWorks(manifest.water) }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;
@@ -1144,7 +1490,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return new Set(dress.anchors.filter((a) => a.kind !== 'part' && (boxInStairs(plan.cuts, b[a.id] || a.box) || (plan.cuts.bare && a.kind === 'set-piece'))).map((a) => a.id)); })();
   const goneAnchor = (a) => !!plan.cuts && (gone.has(a.id) || gone.has(a.of) || (a.at && inStairs(plan.cuts, [a.at[0], a.at[1], 1])));
   const dressFaces = !dress ? [] : plan.cuts ? dress.faces.filter((f) => !(f.node && gone.has(f.node)) && !inStairs(plan.cuts, mid3(f))) : dress.faces;
-  const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  // (and the VESSELS its debris answer keeps, era/skandart-vessels.js: groups in a share of its bays, standing, tipped or
+  // broken by the amount; each standing or tipped one a solid thing of its own, so a game that breaks objects breaks it)
+  const skV = plan.skandart && plan.skandart.amount > 0 && plan.skandart.card.vessels
+    ? skandartVessels(plan, skandartStamps(plan, geom).vessels, { amount: plan.skandart.amount, seed: Number.isFinite(manifest.seed) ? manifest.seed : 1, card: plan.skandart.card.vessels, read: ctx.formLit ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead() })
+    : null;
+  const base0 = [...(dress ? carveFaces(shell.filter((f) => !dress.cut(f)), dress.carve) : shell), ...sampleFaces(plan), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : []), ...(skV ? skV.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
@@ -1164,8 +1515,15 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain, ...(ctx.liveSun ? { share: true } : {}),
       shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => !GLASS.has(f.group) && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
+  // (a room's wet floor, the form render's: a kit of rooms indoors, not a plaza under its own sun)
+  const isRoomWet = !plan.kit.sun && !!ctx.formLit && !ctx.unshaded, WET_GROUPS = ['stage:floor', 'stage:gutter', 'stage:path', 'stage:wall', 'stage:plinth', 'stage:trim'];
+  // (a room's daylight, the form render's: no shadow baked, every corner turned to it its share; the page's hour map)
+  const liveDay = !daylight && plan.daylight && !!ctx.formLit && !ctx.unshaded ? { dir: sunDir(plan.daylight.elevation, plan.daylight.azimuth ?? 225), rgb: hexRgb(plan.daylight.color ?? '#fff1dc'),
+    gain: 1, over: plan.daylight.gain ?? 1, bounce: [0.9, 0.86, 0.8], bounceGain: 0.15, share: true, live: true, shadow: () => 1 } : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them
-  const raw0 = dress ? [...base, ...dress.blends(base)] : base;
+  // (under a live sun the painted patches under the windows give way: the sun lays its own)
+  const baseD = liveDay ? base.filter((f) => f.group !== 'stage:sunpatch') : base;
+  const raw0 = dress ? [...baseD, ...dress.blends(baseD)] : baseD;
   // a tone drains the colour before the bake: the light lands on greys, and the page colours the lit value
   const raw = plan.tone ? drainFaces(raw0, plan.tone) : raw0;
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
@@ -1183,24 +1541,48 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the same way with the sun beside its lamps, its shadow the paint bake's own test (an engine's handoff of one is
   // paint, as it was)
   const form = !!ctx.formLit && (ctx.unshaded ? ctx.handoff === true && !daylight : true);
-  const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
+  // (`daylight.alone`: the lamps off, the room lit by the day alone)
+  const formLamps = form ? (liveDay && plan.daylight.alone ? [] : [...lights, ...braziers, ...(dress ? dress.pools : [])]) : null;
   const formTest = (ls) => {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
     return ls.map((l) => (l.fixture === 'pool' ? l : { ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows && plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
   };
   const tuner = form && plan.compose ? keyTuner(plan) : null;
+  // DEBRIS (`skandart`, era/skandart.js): its clumps built once and the places they lie; a stamp is lit where it lies, so
+  // the bake is asked for the light at the middle of each one's mass (and, in the form render, the base each matter takes)
+  // (what is too small to be read is left out, era/laws.js 'too-small-to-read': read in the frame the render reads at,
+  // the sixth generation's 640×448, or the form render's target's lines)
+  const skLaid = plan.skandart && plan.skandart.amount > 0 ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun ? { sun } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
+  // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
+  const paintLs = ctx.unshaded || formLit ? null
+    : (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights);
   // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
   const lit = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
-      : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);
+      : bakeStageLight(raw, paintLs, ambient, dirt(), sun);
+  // (the debris's stamps, each lit where it lies: in the paint, the bake's own light at each probe, on a face of no colour)
+  // (and the grime of the ground each lies on, the room's own: the gutter's wet, the unwalked floor's dark)
+  // (what lies loose in a wet room is wet with it: the debris's heaps and the vessels join the room's wet surfaces,
+  // each by its own group, so a fall on a wet floor is not dry on it)
+  const looseGroups = () => (plan.wet && isRoomWet ? [...new Set([...(Array.isArray(skRepeats) ? skRepeats : []).map((c) => c.group), ...(skV ? skV.faces.map((f) => f.group) : [])].filter((g) => typeof g === 'string' && /^(skandart|break):/.test(g)))] : []);
+  const skRepeats = skLaid ? (() => {
+    const grime = dirt(), probe = (q) => ({ corners: [[q.at[0] - 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0] + 0.05, q.at[1] - 0.05, q.at[2]], [q.at[0], q.at[1] + 0.05, q.at[2]]], normal: q.normal, group: q.group, tint: [1, 1, 1] });
+    return skandartRepeats(skLaid, formLit ? { form: formLit, grime: skLaid.probes.map((q) => grime(probe(q), q.at)) }
+      : paintLs ? { paintFills: bakeStageLight(skLaid.probes.map(probe), paintLs, ambient, (f, c) => grime(f, c).map((v) => 1 + (v - 1) * SKANDART.age), sun) } : {});
+  })() : [];
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
   // each torch its own node (anchors.js): an engine can snuff one by name
-  const fixtures = torches.flatMap((l, i) => torchFaces(l, live).map((f) => ({ ...f, node: `torch-${i + 1}` })));
+  // (in the form render a torch's flame is live, the cheap kind, scene/channels/flames.js: its two polygons give way to
+  // it; under live fire the fire channel's own; for an engine, and in the sixth generation, the polygons as they were)
+  const flamed = !live && form && !ctx.unshaded;
+  const fixtures = torches.flatMap((l, i) => torchFaces(l, live, flamed, plan.kit.torch && plan.kit.torch.form ? plan.kit.torch.form : null).map((f) => ({ ...f, node: `torch-${i + 1}` })));
+  const lampForm = plan.kit.torch && plan.kit.torch.form === 'lamp';
+  const flames = flamed ? torches.map((l) => ({ at: [r5(l.at[0]), r5(l.at[1]), r5(l.at[2] - (lampForm ? 0.1 : 0.07))], w: lampForm ? LAMP_FLAME.w : TORCH_FLAME.w, h: lampForm ? LAMP_FLAME.h : TORCH_FLAME.h, color: hexRgb(l.color).map(r5) })) : [];
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
   const setCam = r0.open.length ? (() => {
@@ -1232,6 +1614,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
     ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
     ...(geom.propAnchors || []),
+    ...(skV ? skV.anchors : []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky
@@ -1241,7 +1624,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
-    ...(stands && stands.repeats.length ? { repeats: stands.repeats } : {}),
+    ...((stands && stands.repeats.length) || skRepeats.length ? { repeats: [...(stands ? stands.repeats : []), ...skRepeats] } : {}),
     // the page sends its textured geometry welded, its baked colour in 8 bits (scene-three.js `pack`): half the bytes
     pack: true,
     // the ends by which this map links to others, and its items (doors.js): only when the recipe names them
@@ -1258,7 +1641,13 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
+    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...((formLit.light.sun && plan.samples) || (plan.wet && isRoomWet) ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, ...(plan.wet && isRoomWet ? { wet: { ...plan.wet, pools: 0, rain: 0, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: [...WET_GROUPS, ...looseGroups()], damp: true } } : {}),   // (under a roof: no rain falls and no hollow fills; a spot may pool)
+      surfaces: Object.fromEntries([...(plan.wet && isRoomWet ? [...WET_GROUPS, ...looseGroups()].map((g) => [g, { rough: 0.82 }]) : []), ...[...new Set((plan.samples || []).map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal, ...(SAMPLES[of].clear ? { clear: SAMPLES[of].clear } : {}), ...(SAMPLES[of].film ? { film: SAMPLES[of].film } : {}) }])]),
+      // (its pools, for what a footfall does in one: where each lies, its outline's own waves, how its liquid answers)
+      pools: (plan.samples || []).map((q, i) => ({ q, i })).filter(({ q }) => SAMPLES[q.of].pool).map(({ q, i }) => ({ group: `stage:sample-${q.of}`, at: q.at, r: r5((q.size ?? 3) / 2), ph: [1, 2, 3].map((j) => r5(hash3(i, j, 4441) * 2 * Math.PI)),
+        z: SAMPLES[q.of].thick, tint: SAMPLES[q.of].tint, ripple: SAMPLES[q.of].ripple, print: SAMPLES[q.of].print })),
+      // (the room's capture, the form render's: from the middle of the first room at a standing eye, corrected to that room's box)
+      probe: (({ x0, y0, x1, y1, h }) => ({ at: [r5((x0 + x1) / 2), r5((y0 + y1) / 2), r5(Math.min(h * 0.45, 1.7))], box: [[x0, y0, 0], [x1, y1, h]].map((c) => c.map(r5)) }))(plan.rooms[0]) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
@@ -1280,6 +1669,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // the dressing's weather: the cloud deck over the square, lit by the same sun (an overlay: exports carry none)
     // live water's falling streams (materials/jet.js), drawn on the page; exports carry the painted floor instead
     ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
+    // (a fountain run as a circuit, materials/hydraulics.js: the mist where its water lands, the air solved round it)
+    ...(dress && dress.hydraulics ? { hydraulics: dress.hydraulics } : {}),
+    ...(flames.length ? { flames } : {}),
     // at night the falling water is seen in the basin's glow and the moon, not the sun (scene/channels/jet.js `lit`)
     ...(plan.night && plan.night.jets && dress && dress.jets && dress.jets.length ? { jetLight: plan.night.jets } : {}),
     ...(dress && dress.jetLight && dress.jets && dress.jets.length ? { jetLight: dress.jetLight } : {}),
@@ -1293,6 +1685,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     rooms: stageRooms(plan), anchors, colliders,
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
+    // the condition the room was asked in (condition.js): its step, the dials it set, what the kit could not answer
+    ...(plan.condition ? { condition: plan.condition } : {}),
+    // how weathered it was asked to be (weathering.js): the scale, its causes, and the dials they set
+    ...(plan.weathering ? { weathering: plan.weathering } : {}),
+    // its debris (skandart.js): how much, whose answer (the recipe's, the kit's card, or what its materials shed) and what
+    ...(plan.skandart ? { skandart: { amount: plan.skandart.amount, from: plan.skandart.from, causes: SKANDART_CAUSES.filter((c) => plan.skandart.card[c]), ...(plan.skandart.card.derived ? { derived: plan.skandart.card.derived } : {}), ...(skV ? { vessels: { ...skV.readout, laws: skV.laws.filter((r) => !r.ok).map((r) => r.what) } } : {}) } } : {}),
     ...(plan.tone && !form ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

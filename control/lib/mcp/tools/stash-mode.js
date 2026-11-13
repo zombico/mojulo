@@ -8,8 +8,9 @@
  * validated at intake. The contract is what lets the UI dispatch on type and
  * Cook (slice 2) treat items as ingredients.
  *
- * Coexists with the legacy research_* tools (start_research / bind_research_item
- * / get_research / list_research / synthesize_abstract / sketch_research) —
+ * Coexists with the research book's tools (start_research / bind_research_item
+ * / get_research / list_research / synthesize_abstract / sketch_research), retired
+ * from the list and callable by name (packs.js RETIRED_PACKS) —
  * migration option 3 in app-system/0531/GATHER_STASH_COOK.md. Legacy data is
  * untouched; new gatherings land here.
  *
@@ -18,8 +19,8 @@
  *   - gather          — bind a typed item (the gate)
  *   - mint_drawer     — sub-grouping within a stash (idempotent on name)
  *   - rename_stash    — stashes are user-facing surfaces
- *   - list_stashes    — the inbox
- *   - get_stash       — full stash (drawers + items)
+ *   - get_stash       — full stash (drawers + items); with no stash_ref, the list of stashes
+ *     (what list_stashes answered, its folded name)
  *   - update_item     — mutate an item in place (gate re-runs on merged state)
  *   - archive_item    — soft-delete an item; downstream citations still resolve
  *   - bind_stash      — link a stash to a bot/app/plan/cook/contextmap_node
@@ -164,12 +165,14 @@ export async function listStashesHandler(input, _ctx) {
 }
 
 export async function getStashHandler(input, _ctx) {
-  if (!input || typeof input !== 'object') {
+  // no stash_ref: the list of stashes (what list_stashes answered, folded onto this door)
+  if (input === undefined || input === null || (typeof input === 'object' && input.stash_ref === undefined)) return listStashesHandler(input, _ctx);
+  if (typeof input !== 'object') {
     throw new Error('get_stash requires an object with stash_ref');
   }
   const { stash_ref } = input;
   if (!stash_ref || typeof stash_ref !== 'string') {
-    throw new Error('stash_ref is required');
+    throw new Error('stash_ref is a stash ref; omit it for the list of stashes');
   }
   const full = StashRepository.getFull(stash_ref);
   if (!full) {
@@ -351,12 +354,10 @@ export function registerStashModeTools() {
   registerTool({
     name: 'mint_stash',
     description:
-      "Ring 9 — mint a Stash, the renameable user-facing bucket Gathering binds into. Returns { stash_ref, title, status:'open' }. The successor to start_research with a typed item contract on intake; legacy research_sessions remain accessible via list_research / get_research (option-3 coexistence, see app-system/0531/GATHER_STASH_COOK.md). Use rename_stash to relabel; mint_drawer to sub-organize.",
+      "Mint a stash: the renameable bucket you `gather` typed items into, and the corpus a `cook` reads. Returns { stash_ref, title, status: 'open' }. Relabel with rename_stash; sub-organize with mint_drawer.",
     inputSchema: {
       type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Short title for the stash (renameable later via rename_stash).' },
-      },
+      properties: { title: { type: 'string' } },
       required: ['title'],
     },
     handler: mintStashHandler,
@@ -395,12 +396,12 @@ export function registerStashModeTools() {
   registerTool({
     name: 'mint_drawer',
     description:
-      'Ring 9 — mint (or surface, idempotent on name) a drawer inside a stash. Drawers are optional sub-grouping; an item gathered without a drawer lives at the stash root. Returns { stash_ref, drawer, created_at }.',
+      'A drawer inside a stash (idempotent on its name): optional sub-grouping, such as a chapter. An item gathered without one lives at the stash root. Returns { stash_ref, drawer, created_at }.',
     inputSchema: {
       type: 'object',
       properties: {
-        stash_ref: { type: 'string', description: 'The stash to mint a drawer in.' },
-        name: { type: 'string', description: 'Drawer name (unique within the stash; idempotent if it already exists).' },
+        stash_ref: { type: 'string' },
+        name: { type: 'string', description: 'Unique within the stash.' },
       },
       required: ['stash_ref', 'name'],
     },
@@ -410,13 +411,10 @@ export function registerStashModeTools() {
   registerTool({
     name: 'rename_stash',
     description:
-      'Ring 9 — rename a stash. The stash_ref is stable; the title is the user-facing label and can change at any time. Returns { stash_ref, title }.',
+      'Rename a stash: its ref stays, its title (the label the user sees) changes. Returns { stash_ref, title }.',
     inputSchema: {
       type: 'object',
-      properties: {
-        stash_ref: { type: 'string', description: 'The stash to rename.' },
-        title: { type: 'string', description: 'New title.' },
-      },
+      properties: { stash_ref: { type: 'string' }, title: { type: 'string' } },
       required: ['stash_ref', 'title'],
     },
     handler: renameStashHandler,
@@ -425,12 +423,10 @@ export function registerStashModeTools() {
   registerTool({
     name: 'list_stashes',
     description:
-      "Ring 9 — list stashes (optional `status` filter: open | archived), most-recently-active first. Returns { total, stashes: [{ stash_ref, title, status, created_at, updated_at }] }. Read-only.",
+      'Folded into get_stash with no `stash_ref` (the stashes, most recently active first; `status` filters). Callable by name.',
     inputSchema: {
       type: 'object',
-      properties: {
-        status: { type: 'string', enum: ['open', 'archived'], description: 'Filter by status.' },
-      },
+      properties: { status: { type: 'string', enum: ['open', 'archived'] } },
     },
     handler: listStashesHandler,
   });
@@ -438,13 +434,13 @@ export function registerStashModeTools() {
   registerTool({
     name: 'get_stash',
     description:
-      'Ring 9 — fetch a stash in full: the stash row, its drawers, and every gathered item grouped by drawer. Items carry their typed contract fields (body / body_md / media_ref / metadata) — the UI dispatches on `type` to render. Returns the whole stash object.',
+      'A stash in full: its row, its drawers and every gathered item by drawer, each with its typed fields (body / body_md / media_ref / metadata). Omit `stash_ref` for the list of stashes, most recently active first, optionally by `status`.',
     inputSchema: {
       type: 'object',
       properties: {
-        stash_ref: { type: 'string', description: 'The stash to read.' },
+        stash_ref: { type: 'string', description: 'Omit to list the stashes.' },
+        status: { type: 'string', enum: ['open', 'archived'], description: 'List filter.' },
       },
-      required: ['stash_ref'],
     },
     handler: getStashHandler,
   });
@@ -452,21 +448,18 @@ export function registerStashModeTools() {
   registerTool({
     name: 'update_item',
     description:
-      "Ring 9 — mutate a stash item in place. Items are citable atoms (the substrate's relational tissue), so edits propagate live wherever the id is cited (cook slices, future plan refs). The intake gate RE-RUNS on the merged state, so a partial update can never corrupt the type contract — e.g. you can't empty out an image's content_hash. Touches the parent stash's updated_at. Type is NOT mutable; archive + re-gather if you need a different type. Pass only the fields you want to change; omitted fields are left as-is. Returns the updated item.",
+      "Change a stash item in place; pass only the fields to change. An item is cited by its id, so the edit shows wherever it is cited (a cook's slices). The intake check re-runs on the merged item, so a partial update cannot break its type's contract. The type itself cannot change: archive and gather again. Returns the updated item.",
     inputSchema: {
       type: 'object',
       properties: {
-        item_id: { type: 'integer', description: 'The item id (stable integer PK).' },
-        title: { type: 'string', description: 'Optional new title.' },
-        source_url: { type: 'string', description: 'Optional new source URL.' },
-        body: { type: 'string', description: 'New body for text / script items.' },
-        body_md: { type: 'string', description: 'New markdown body for markdown items.' },
-        body_svg: { type: 'string', description: 'New SVG body for svg items.' },
-        media_ref: { type: 'string', description: 'New media_ref for image items.' },
-        metadata: {
-          type: 'object',
-          description: 'Replaces the item metadata; per-type required fields must still be present (image needs mime/width/height/content_hash, script needs language, pointer needs node_ref + label).',
-        },
+        item_id: { type: 'integer' },
+        title: { type: 'string' },
+        source_url: { type: 'string' },
+        body: { type: 'string', description: 'Text / script items.' },
+        body_md: { type: 'string', description: 'Markdown items.' },
+        body_svg: { type: 'string', description: 'Svg items.' },
+        media_ref: { type: 'string', description: 'Image items.' },
+        metadata: { type: 'object', description: "Replaces the metadata; the type's required fields must still be there." },
       },
       required: ['item_id'],
     },
@@ -476,15 +469,12 @@ export function registerStashModeTools() {
   registerTool({
     name: 'archive_item',
     description:
-      "Ring 9 — soft-delete a stash item. The row stays so downstream citations (cook slices, future plan refs) continue to resolve to the archived content; the item disappears from list/detail views by default. Two-step gate: if the item is referenced by any cook, the first call returns { pending_confirm: true, references } as a dry-run so the agent can warn the operator. Re-call with confirm: true to proceed. No references → archive straight through. Idempotent: already-archived items return { archived: false, already_archived: true }.",
+      "Soft-delete a stash item: it leaves the list and detail views, and a cook that cites it still resolves. If a cook cites it, the first call archives nothing and returns { pending_confirm: true, references } so you can warn the operator; call again with `confirm: true`. An item already archived returns { archived: false, already_archived: true }.",
     inputSchema: {
       type: 'object',
       properties: {
-        item_id: { type: 'integer', description: 'The item id to archive.' },
-        confirm: {
-          type: 'boolean',
-          description: 'Set to true to confirm archive when references exist. Without it, a referenced item returns a dry-run shape and is NOT archived.',
-        },
+        item_id: { type: 'integer' },
+        confirm: { type: 'boolean', description: 'true: archive an item a cook cites.' },
       },
       required: ['item_id'],
     },

@@ -12,6 +12,8 @@ import { P, r5, box, card as cardRaw, hexRgb, lathe } from './geom.js';
 import { blendsByCause } from './nave.js';
 import { cornerThings, skull, obox } from './props.js';
 import { tileFamilyOf } from './tile-specs.js';
+import { wallOrder } from './wall-rhythm.js';
+import { tubeAB } from './lab.js';
 import { panel, wallBox } from './geom.js';
 import { roundArch, archUnder, archRing } from './arches.js';
 import './leaf-cards.js';
@@ -20,6 +22,9 @@ const mix = (a, b, t) => a + (b - a) * t;
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const at = (F, u, off, z) => [F.o[0] + F.U[0] * u + F.N[0] * off, F.o[1] + F.U[1] * u + F.N[1] * off, z];
 
+// the corner things a room's debris lays itself when it is asked for (era/skandart.js): the stone that fell
+const SKANDART_LAYS = Object.freeze(['stones', 'boulder', 'debris']);
+
 /** The last room of the walk, and where the way comes into it. */
 function lastRoom(plan) {
   const walk = walkLine(plan), byId = new Map(plan.rooms.map((r) => [r.id, r]));
@@ -27,6 +32,15 @@ function lastRoom(plan) {
   return { r: last, entry: walk.length > 2 ? walk[walk.length - 2] : walk[0] };
 }
 
+/** Where the tomb stands, before it is built (the floor is laid round it, era/stage.js): the room, the dais's middle
+ *  and its footprint across x and y. The same reckoning cryptTomb places it by. */
+export function tombSite(plan) {
+  const T = plan.kit.dress.tomb, { r, entry } = lastRoom(plan);
+  const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, alongX = r.x1 - r.x0 >= r.y1 - r.y0;
+  const half = alongX ? (r.x1 - r.x0) / 2 : (r.y1 - r.y0) / 2, dl = (alongX ? T.dais.w : T.dais.d) / 2 + 1.2;
+  const away = Math.sign(alongX ? cx - entry[0] : cy - entry[1]) || 1, shift = Math.max(0, Math.min(half * 0.45, half - dl));
+  return { room: r.id, at: alongX ? [cx + away * shift, cy] : [cx, cy + away * shift], w: alongX ? T.dais.w : T.dais.d, d: alongX ? T.dais.d : T.dais.w };
+}
 /** The tomb: dais, chest and lid, set back from the way in along the room's long axis. → { faces, corners }. */
 export function cryptTomb(plan) {
   const T = plan.kit.dress.tomb, { r, entry } = lastRoom(plan), out = [];
@@ -132,7 +146,10 @@ export function cryptCobwebs(plan, pilasters) {
   const W = plan.kit.dress.cobwebs, pw = plan.kit.pilaster.w, out = [], dressed = cobwebPilasters(plan, pilasters);
   pilasters.forEach((p, i) => {
     if (!dressed[i]) return;
+    // (a room whose debris is asked for, era/skandart.js: within reach the webs are swept, over it left; where nobody
+    // sweeps, `swept: false` (a derelict room's, era/condition.js), they stay)
     for (const [lvl, z, up] of [[0, plan.kit.plinth.h + 0.04, 1], [1, p.top - 0.04, -1]]) {
+      if (lvl === 0 && plan.skandart && plan.skandart.swept !== false) continue;
       const sg = hash3(i, lvl, 4303) < 0.5 ? -1 : 1;
       if (p.u + sg * pw < 0 || p.u + sg * pw > p.F.len) continue;
       const s = mix(W.size[0], W.size[1], hash3(i, lvl, 4305));
@@ -175,37 +192,87 @@ export function accentWall(plan, pilasters, tombAt) {
 
 /** The repeating element: a burial niche (a loculus) centred in every bare bay, the same on every wall, in tiers where
  *  the wall is tall; a niche holds an urn now and then. The accent wall carries none: it breaks the repeat. */
-export function cryptNiches(plan, pilasters, accent, anchors = null) {
+export function cryptNiches(plan, pilasters, accent, anchors = null, holes = null) {
   const N = plan.kit.dress.niches, pw = plan.kit.pilaster.w, out = [];
   const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
   const back = { key: null, scale: 1, tint: N.dark, group: 'stage:niche' };
-  let n = 0;
+  // (CUT IN, a card's `niches.depth`, era/carve.js: the wall is cut round each niche and the niche built behind it, a
+  // back, a floor, a head and two sides, so it is hollow and what it holds stands inside it)
+  const D = holes && N.depth ? N.depth : 0, side = { ...trim, tint: trim.tint.map((v) => r5(v * 0.62)), group: 'stage:niche-side' };
+  let n = 0, wi = 0;
   for (const w of wallsOf(pilasters)) {
     if (accent && w.room === accent.room && w.F === accent.F) continue;
+    // A WALL'S RHYTHM (a card's `niches.rhythm`, era/wall-rhythm.js): along a wall never three bays alike and never a
+    // pair followed by the same pair. Its second kind of bay is DERIVED: the same bay with less on it (`less` tiers of
+    // niches fewer, and nothing in them). A recipe's `rhythm: 'same'` means a wall all alike, and then each bay is
+    // drawn clean and repeatable (no urn, no sealed niche: nothing that marks one bay from the next)
+    const bare = (i) => { const a = w.ps[i], b = w.ps[i + 1]; return b.k === a.k + 1 && !doorIn(plan, w.F, a.u + pw / 2, b.u - pw / 2); };
+    const bays = N.rhythm ? Array.from({ length: Math.max(0, w.ps.length - 1) }, (_, i) => i).filter(bare) : null;
+    const order = bays && bays.length ? wallOrder(bays.length, { order: plan.rhythm ?? N.rhythm.order ?? null, pick: hash3(wi, bays.length, 4409) }) : null;
+    wi++;
     for (let i = 0; i + 1 < w.ps.length; i++) {
       const a = w.ps[i], b = w.ps[i + 1];
       if (b.k !== a.k + 1) continue;   // a doorway lies between: not a bare run
       const u0 = a.u + pw / 2, u1 = b.u - pw / 2, wd = Math.min(N.w, (u1 - u0) * 0.6), um = (u0 + u1) / 2;
       if (doorIn(plan, w.F, u0, u1)) continue;   // a doorway inside the bay: not bare either
+      const kind = order ? order.order[bays.indexOf(i)] : 'A', lesser = kind !== 'A', clean = !!(order && order.clean);
       // a round head (an arcosolium) rises half the niche's width over its jambs; a flat one is a loculus's slot
       const round = N.head === 'round', nh = N.h + (round ? wd / 2 : 0), z0 = plan.kit.plinth.h + N.sill;
-      const tiers = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((a.top - z0 - 0.3 + N.gap) / (nh + N.gap))));
+      // A WALL HAS STOREYS (a kit's `storeys`, era/laws.js 'wall-has-storeys'): a string course divides it, and over the
+      // course an upper register derived from the lower: one large blind arch a bay, shallow, where the niches below
+      // are deep; a full bay's springs from an impost, a lesser bay's is the arch alone
+      const St = plan.kit.storeys, zs = St ? plan.kit.plinth.h + (a.top - plan.kit.plinth.h) * St.at : Infinity;
+      if (St) {
+        const bu0 = a.u + pw / 2, bu1 = b.u - pw / 2, Sc = St.string, Ar = St.arch;
+        wallBox(out, w.F, bu0, bu1, zs, zs + Sc.h, Sc.out, trim, 0.5, true);
+        const aw = Ar ? (bu1 - bu0) * Ar.share : 0, au0 = um - aw / 2, au1 = um + aw / 2, zj = Ar ? zs + Sc.h + Ar.rise : 0, zt = Ar ? a.top - Ar.under - aw / 2 : 0;
+        if (Ar && zt - zj > 0.25) {
+          archRing(out, w.F, au0, au1, zt, aw / 2, Ar.seg, Ar.frame, Ar.out, trim);
+          wallBox(out, w.F, au0 - Ar.frame, au0, zj, zt, Ar.out, trim, 0.5, true);
+          wallBox(out, w.F, au1, au1 + Ar.frame, zj, zt, Ar.out, trim, 0.5, true);
+          if (!lesser) wallBox(out, w.F, au0 - Ar.frame - 0.06, au1 + Ar.frame + 0.06, zj - 0.1, zj, Ar.out + 0.03, trim, 0.5, true);   // the impost it springs from
+        }
+      }
+      // (an upper register of SEALED slots, a kit's `storeys.loculi`: the lower wall's own slot, closed with a slab and
+      // out of reach; a lesser bay has fewer)
+      if (St && St.loculi) { const Lc = St.loculi, rows = lesser ? Lc.lesser ?? 1 : Lc.tiers ?? 2, f = N.frame;
+        for (let t = 0; t < rows; t++) { const zb = zs + St.string.h + Lc.rise + t * (N.h + N.gap);
+          if (zb + N.h > a.top - 0.3) break;
+          wallBox(out, w.F, um - wd / 2 - f, um + wd / 2 + f, zb - f, zb + N.h + f, N.out * 0.6, trim, 0.5);
+          panel(out, at(w.F, um - wd / 2, N.out * 0.6 + 0.012, zb), w.F.U, wd, [0, 0, 1], N.h, w.F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5); } }
+      const tiers0 = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((Math.min(a.top, zs) - z0 - 0.3 + N.gap) / (nh + N.gap))));
+      const tiers = lesser ? Math.max(0, tiers0 - (N.rhythm.less ?? 1)) : tiers0;
       for (let t = 0; t < tiers; t++) {
         const zb = z0 + t * (nh + N.gap), zt = zb + N.h, F = w.F, f = N.frame, u0 = um - wd / 2, u1 = um + wd / 2;
         // the recess reads by its dark back; the frame stands proud of the wall around it
-        panel(out, at(F, u0, 0.012, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
+        const two = (i0) => { for (let q = i0; q < out.length; q++) out[q].doubleSided = true; };
+        if (D) {
+          const i0 = out.length, arch = round ? roundArch(u0, u1, zt, wd / 2, N.seg ?? 6) : null;
+          holes.push({ F, poly: [[u0, zb], [u1, zb], [u1, zt], ...(arch ? arch.slice(1, -1).reverse().map((q) => [q.u, q.z]) : []), [u0, zt]] });
+          panel(out, at(F, u0, -D, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
+          panel(out, at(F, u0, -D, zb), F.U, wd, F.N, D, [0, 0, 1], side, 0.5);                                  // its floor
+          panel(out, at(F, u0, -D, zb), F.N, D, [0, 0, 1], N.h, F.U, side, 0.5);                                 // its sides
+          panel(out, at(F, u1, -D, zb), F.N, D, [0, 0, 1], N.h, F.U.map((v) => -v), side, 0.5);
+          if (!arch) panel(out, at(F, u0, -D, zt), F.U, wd, F.N, D, [0, 0, -1], side, 0.5);                      // its head, flat
+          else for (let q = 0; q + 1 < arch.length; q++) { const A = arch[q], B = arch[q + 1], du = B.u - A.u, dz = B.z - A.z, L = Math.hypot(du, dz) || 1, nu = dz / L, nz = -du / L;
+            const n3 = [r5(F.U[0] * nu), r5(F.U[1] * nu), r5(nz)];
+            out.push({ corners: [at(F, A.u, -D, A.z), at(F, B.u, -D, B.z), at(F, B.u, 0, B.z), at(F, A.u, 0, A.z)].map(P), normal: n3, outNormal: n3, texture: side.key, textureLit: true,
+              uv: [[0, 0], [r5(L / side.scale), 0], [r5(L / side.scale), r5(D / side.scale)], [0, r5(D / side.scale)]], tint: side.tint, group: side.group }); }
+          two(i0);
+        } else panel(out, at(F, u0, 0.012, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
         wallBox(out, F, u0 - f, u1 + f, zb - f, zb, N.out, trim, 0.5);        // sill
         if (round) {
-          archUnder(out, F, roundArch(u0, u1, zt, wd / 2, 6), zt, back, 0.012);
-          archRing(out, F, u0, u1, zt, wd / 2, 6, f, N.out, trim);             // the archivolt
+          // (its head cut in `seg` pieces, six where the card names none)
+          archUnder(out, F, roundArch(u0, u1, zt, wd / 2, N.seg ?? 6), zt, back, D ? -D : 0.012);
+          archRing(out, F, u0, u1, zt, wd / 2, N.seg ?? 6, f, N.out, trim);             // the archivolt
         } else wallBox(out, F, u0 - f, u1 + f, zt, zt + f, N.out, trim, 0.5);   // lintel
         wallBox(out, F, u0 - f, u0, zb, zt, N.out, trim, 0.5, true);          // jambs
         wallBox(out, F, u1, u1 + f, zb, zt, N.out, trim, 0.5, true);
-        const sealed = !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = hash3(n, t, 4401) < N.urns;
-        if (anchors) anchors.push({ id: `niche-${anchors.filter((q) => q.kind === 'niche').length + 1}`, kind: 'niche', room: w.room, at: P(at(F, um, 0, zb)), N: P(F.N), width: r5(wd), height: r5(nh), tier: t, ...(sealed ? { sealed } : {}), ...(urn ? { urn } : {}) });
-        if (sealed) panel(out, at(F, u0 + 0.04, 0.03, zb + 0.03), F.U, wd - 0.08, [0, 0, 1], N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
+        const sealed = !lesser && !clean && !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = !lesser && !clean && !(D && sealed) && hash3(n, t, 4401) < N.urns;
+        if (anchors) anchors.push({ id: `niche-${anchors.filter((q) => q.kind === 'niche').length + 1}`, kind: 'niche', room: w.room, at: P(at(F, um, 0, zb)), N: P(F.N), width: r5(wd), height: r5(nh), tier: t, ...(order ? { bay: kind } : {}), ...(sealed ? { sealed } : {}), ...(urn ? { urn } : {}) });
+        if (sealed) panel(out, at(F, D ? u0 : u0 + 0.04, D ? -0.04 : 0.03, D ? zb : zb + 0.03), F.U, D ? wd : wd - 0.08, [0, 0, 1], D ? N.h : N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
         if ((n++, urn)) {
-          const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, 0.18, zb);
+          const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, D ? -D * 0.45 : 0.18, zb);   // (in a cut niche it stands inside, on the niche's floor)
           for (let k = 0; k < 8; k++) {
             const a0 = (k / 8) * 2 * Math.PI, a1 = ((k + 1) / 8) * 2 * Math.PI, nrm = [Math.cos((a0 + a1) / 2), Math.sin((a0 + a1) / 2), 0].map(r5);
             const pt = (a, rr, z) => P([c[0] + rr * Math.cos(a), c[1] + rr * Math.sin(a), z]);
@@ -270,8 +337,80 @@ export function ivyGrowth(plan, pilasters, accent, amount, tint) {
   return out;
 }
 
+/** THE AIR ABOVE, FURNISHED (a card's `above`, era/laws.js 'air-is-furnished'): what hangs in a tall room and what
+ *  lights its height. A RING of candles on chains over the walk of every room tall enough for one (iron, turned; its
+ *  candles lit, one baked light a ring, so the upper wall and the vault's ribs are lit from below); and one OPENING
+ *  high in the wall behind the tomb, a slit of cold sky, its light falling as a pool on the tomb.
+ *  → { faces, lights, pools } */
+export function cryptAbove(plan, accent, site) {
+  const A = plan.kit.dress.above, faces = [], lights = [], pools = [];
+  if (!A) return { faces, lights, pools };
+  const iron = (raw, fill) => { for (const { texture, textureLit, uv, tint, ...f } of raw) faces.push({ ...f, fill, group: 'stage:fixture' }); };
+  const plain = { key: null, scale: 1, tint: [1, 1, 1] };
+  if (A.ring) plan.rooms.forEach((r, ri) => {
+    const R = A.ring, h = r.h, alongY = r.y1 - r.y0 >= r.x1 - r.x0, len = alongY ? r.y1 - r.y0 : r.x1 - r.x0;
+    if (h < R.tall) return;
+    const n = Math.max(1, Math.round(len / R.every)), z = Math.min(h - R.drop, R.z);
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n, c = alongY ? [(r.x0 + r.x1) / 2, r.y0 + len * t] : [r.x0 + len * t, (r.y0 + r.y1) / 2];
+      // (never over the set piece: its own candles and its opening light it)
+      if (site && site.room === r.id && Math.hypot(c[0] - site.at[0], c[1] - site.at[1]) < R.clear) continue;
+      const band = []; lathe(band, c, [[R.r - 0.03, z], [R.r + 0.035, z], [R.r + 0.035, z + 0.06], [R.r - 0.03, z + 0.06], [R.r - 0.03, z]], 18, plain, 'stage:fixture'); iron(band, '#2a2420');
+      const hub = []; lathe(hub, c, [[0.02, z + 0.5], [0.07, z + 0.56], [0.07, z + 0.64], [0.02, z + 0.7]], 8, plain, 'stage:fixture'); iron(hub, '#3a3028');
+      for (let j = 0; j < R.candles; j++) {
+        const a = (2 * Math.PI * (j + 0.5 * (ri % 2))) / R.candles, x = c[0] + Math.cos(a) * R.r, y = c[1] + Math.sin(a) * R.r, zc = z + 0.06, ch = 0.12 + 0.05 * hash3(ri * 7 + k, j, 4415);
+        const cup = []; lathe(cup, [x, y], [[0.012, zc - 0.03], [0.05, zc], [0.05, zc + 0.012], [0.02, zc + 0.012]], 6, plain, 'stage:fixture'); iron(cup, '#3a3028');
+        const wax = []; lathe(wax, [x, y], [[0.018, zc + 0.012], [0.018, zc + ch]], 6, plain, 'stage:candle'); for (const { texture, textureLit, uv, tint, ...f } of wax) faces.push({ ...f, fill: plan.kit.dress.candles.wax, group: 'stage:candle' });
+        for (const [ax, ay] of [[1, 0], [0, 1]]) { const zb = zc + ch, nn = [ay, -ax, 0], q = (u, zz) => P([x + ax * u, y + ay * u, zz]);
+          faces.push({ corners: [q(-0.02, zb), q(0.02, zb), q(0.005, zb + 0.08), q(-0.005, zb + 0.08)], fill: '#fff2c8', normal: nn, outNormal: nn, group: 'stage:candle', emissive: hexRgb(R.color), emissiveStrength: 3, glow: `0 0 5px 2px ${R.color}` }); }
+        // (a spoke to the hub, and every other one a chain up into the dark: thin rods)
+        const rod = (p0, p1, th) => { const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(...d) || 1, u = Math.abs(d[2]) / L > 0.9 ? [1, 0, 0] : [0, 0, 1];
+          const s1 = unit([d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]]), s2 = unit([d[1] * s1[2] - d[2] * s1[1], d[2] * s1[0] - d[0] * s1[2], d[0] * s1[1] - d[1] * s1[0]]);
+          for (const sd of [s1, s2]) faces.push({ corners: [[p0[0] - sd[0] * th, p0[1] - sd[1] * th, p0[2] - sd[2] * th], [p0[0] + sd[0] * th, p0[1] + sd[1] * th, p0[2] + sd[2] * th], [p1[0] + sd[0] * th, p1[1] + sd[1] * th, p1[2] + sd[2] * th], [p1[0] - sd[0] * th, p1[1] - sd[1] * th, p1[2] - sd[2] * th]].map(P), normal: sd.map(r5), outNormal: sd.map(r5), fill: '#2a2420', group: 'stage:fixture', doubleSided: true }); };
+        rod([x, y, z + 0.03], [c[0], c[1], z + 0.6], 0.008);
+        if (j % 2 === 0) rod([c[0], c[1], z + 0.68], [c[0], c[1], h - 0.3], 0.008);
+      }
+      lights.push({ at: P([c[0], c[1], z + 0.3]), n: [0, 0, 1], color: R.color, intensity: R.intensity, radius: R.radius, fixture: 'candle' });
+    }
+  });
+  // SHORING ACROSS THE GALLERY (a card's `above.span`): where the rock is soft and the walls stand tall, logs are wedged
+  // from wall to wall on the ledge, one every `every` metres of a room at least `tall`; a clay lamp hangs from each
+  // on a cord, so the upper wall is lit from the thing that crosses it
+  if (A.span) plan.rooms.forEach((r, ri) => {
+    const Sp = A.span, K = plan.kit, h = r.h, alongY = r.y1 - r.y0 >= r.x1 - r.x0, len = alongY ? r.y1 - r.y0 : r.x1 - r.x0;
+    if (h < Sp.tall) return;
+    const z = K.storeys ? K.plinth.h + (h - K.cornice.h - K.plinth.h) * K.storeys.at + K.storeys.string.h + Sp.r : Math.min(h - 1.5, Sp.z ?? 4.5);
+    const n = Math.max(1, Math.round(len / Sp.every)), wood = { key: null, scale: 1, tint: [1, 1, 1], group: 'stage:fixture' };
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n + (hash3(ri, k, 4421) - 0.5) * 0.06, c = alongY ? [(r.x0 + r.x1) / 2, r.y0 + len * t] : [r.x0 + len * t, (r.y0 + r.y1) / 2];
+      if (site && site.room === r.id && Math.hypot(c[0] - site.at[0], c[1] - site.at[1]) < Sp.clear) continue;
+      const tilt = (hash3(ri, k, 4423) - 0.5) * 0.12, a = alongY ? [r.x0, c[1], z - tilt] : [c[0], r.y0, z - tilt], b = alongY ? [r.x1, c[1], z + tilt] : [c[0], r.y1, z + tilt];
+      const log = []; tubeAB(log, a, b, Sp.r, 8, wood); iron(log, k % 2 ? '#4a3a2a' : '#54432f');
+      const zl = z - Sp.r - Sp.drop;
+      const cord = []; tubeAB(cord, [c[0], c[1], z - Sp.r], [c[0], c[1], zl + 0.08], 0.006, 4, wood); iron(cord, '#2c241c');
+      const bowl = []; lathe(bowl, c, [[0.0, zl], [0.07, zl], [0.11, zl + 0.04], [0.1, zl + 0.075], [0.05, zl + 0.085]], 8, plain, 'stage:fixture'); iron(bowl, '#9a5c3c');
+      for (const [ax, ay] of [[1, 0], [0, 1]]) { const zb = zl + 0.085, nn = [ay, -ax, 0], q = (u, zz) => P([c[0] + ax * u, c[1] + ay * u, zz]);
+        faces.push({ corners: [q(-0.03, zb), q(0.03, zb), q(0.006, zb + 0.12), q(-0.006, zb + 0.12)], fill: '#fff2c8', normal: nn, outNormal: nn, group: 'stage:candle', emissive: hexRgb(Sp.color), emissiveStrength: 3, glow: `0 0 5px 2px ${Sp.color}` }); }
+      lights.push({ at: P([c[0], c[1], zl + 0.25]), n: [0, 0, 1], color: Sp.color, intensity: Sp.intensity, radius: Sp.radius, fixture: 'candle' });
+    }
+  });
+  if (A.opening && accent && site && !(A.opening.tall && plan.rooms.find((q) => q.id === accent.room).h < A.opening.tall)) {
+    const O = A.opening, F = accent.F, r = plan.rooms.find((q) => q.id === accent.room), top = r.h - plan.kit.cornice.h, um = F.len / 2, z0 = top - O.below - O.h;
+    const q = (u, z) => P(at(F, u, 0.03, z)), n = P(F.N);
+    faces.push({ corners: [q(um - O.w / 2, z0), q(um + O.w / 2, z0), q(um + O.w / 2, z0 + O.h), q(um - O.w / 2, z0 + O.h)], normal: n, outNormal: n, fill: O.sky, group: 'stage:glass', emissive: hexRgb(O.sky), emissiveStrength: 2.5, glow: `0 0 12px 5px ${O.sky}` });
+    const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
+    wallBox(faces, F, um - O.w / 2 - 0.1, um + O.w / 2 + 0.1, z0 - 0.1, z0, 0.06, trim, 0.5);
+    wallBox(faces, F, um - O.w / 2 - 0.1, um - O.w / 2, z0, z0 + O.h, 0.06, trim, 0.5, true);
+    wallBox(faces, F, um + O.w / 2, um + O.w / 2 + 0.1, z0, z0 + O.h, 0.06, trim, 0.5, true);
+    wallBox(faces, F, um - O.w / 2 - 0.1, um + O.w / 2 + 0.1, z0 + O.h, z0 + O.h + 0.1, 0.06, trim, 0.5);
+    pools.push({ at: P([site.at[0], site.at[1], O.lift]), n: [0, 0, 1], color: O.color, intensity: O.intensity, radius: O.radius, fixture: 'pool' });
+  }
+  return { faces, lights, pools };
+}
+
 /** The accent's stone: larger, darker ashlar than the courses round it, named from its own numbers. */
-const accentFamily = (A) => tileFamilyOf({ gen: 'stone-brick', ...A.stone });
+// (bonded stone-brick where the card names no generator; a card may name its own, dressed ashlar)
+const accentFamily = (A) => tileFamilyOf(A.stone.gen ? A.stone : { gen: 'stone-brick', ...A.stone });
 
 /** The view the walk leads to: from the way into the last room, eye height, on the tomb. */
 export function tombCamera(plan, corners) {
@@ -301,11 +440,13 @@ export function cryptDress(plan, geom) {
     { id: 'set-piece-lid', kind: 'part', of: 'set-piece', name: 'lid', room: tomb.room, at: tomb.at, solid: true },
     ...(accent ? [{ id: 'accent-wall', kind: 'accent-wall', room: accent.room, at: P(at(accent.F, accent.F.len / 2, 0, 0)), N: P(accent.F.N), length: r5(accent.F.len), ...(D.accent.skulls ? { form: 'ossuary' } : {}) }] : []),
   ];
-  const faces = [...tomb.faces, ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
+  const holes = [];
+  const above = cryptAbove(plan, accent, D.above ? tombSite(plan) : null);
+  const faces = [...tomb.faces, ...above.faces.filter((f) => f.tint), ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors, holes), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props, ...(plan.skandart ? { leave: SKANDART_LAYS } : {}) }, keepClear, anchors)];
   return {
     cameras: [tombCamera(plan, tomb.corners)],
     faces, anchors,
     blends: (faces) => blendsByCause(plan, faces, D.moss, D.grime, D.earth),
-    after: candles.faces, pools: [], lights: candles.lights, cut: onAccent, shadowSkip: () => false,
+    after: [...candles.faces, ...above.faces.filter((f) => !f.tint)], pools: above.pools, lights: [...candles.lights, ...above.lights], cut: onAccent, carve: holes, shadowSkip: () => false,
   };
 }

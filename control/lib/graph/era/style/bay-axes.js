@@ -360,12 +360,14 @@ export const PLOTS = Object.freeze({
 });
 
 export const DRESSINGS = Object.freeze({
-  // the shell as it stands: the grating band and a pad on a wide floor, services every other bay, a crane in a tall room
+  // the shell as it stands: the grating band and a pad on a wide floor, services by the wall's rhythm (era/wall-rhythm.js), a crane in a tall room
   military: {},
   utility: {},
   science: {},
-  // turned down: no grating band, no pad, services every third bay, no crane
-  everyday: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3 } }, craned: false },
+  // GARAGE: the shell as it stands, its height left clear for what is parked under it (a walker, a truck's load): no crane
+  garage: { craned: false },
+  // turned down: no grating band, no pad, services on the fewer of a wall's bays, no crane
+  everyday: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3, rhythm: 'sparse' } }, craned: false },
   // VERNACULAR: nothing a machine age lays: no grating band, no pad, no services, no high bays, no catwalk, no crane
   vernacular: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 1e9, long: 1e9, open: 0 }, highbay: { min: 1e9 }, catwalk: { min: 1e9 }, cove: { every: 1e9 } }, craned: false },
 });

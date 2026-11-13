@@ -121,7 +121,7 @@ Returns `{ nodes, edges, principles, meta }`. The `meta` block carries hints:
 **When NOT to call:**
 - Routine orientation (use `forward_context`).
 - Operational state (use `list_running` / `status_app` for apps, `list_triggers` for triggers).
-- Looking up an adapter's shape (use Ring 0 `list_adapters` / `get_adapter`).
+- Looking up an adapter's shape (use Ring 0 `get_adapter`; `list: true` for the set).
 
 ### `meta_context_commit`
 

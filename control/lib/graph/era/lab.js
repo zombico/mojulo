@@ -168,7 +168,7 @@ export function labRoom(out, r, ri, kit, surf, decay = null) {
   for (const sg of [-1, 1]) box(out, at(st + sg * Tr.w / 2 - 0.01, l0, zT), at(st + sg * Tr.w / 2 + 0.01, l1, zT + Tr.side), steel, 1, alongY ? ['-y', '+y'] : ['-x', '+x']);
   Tr.cables.forEach((cr, i) => { const cs = st - Tr.w / 2 + (Tr.w * (i + 1)) / (Tr.cables.length + 1); box(out, at(cs - cr, l0, zT + 0.03), at(cs + cr, l1, zT + 0.03 + 2 * cr), surf('cable'), 2, alongY ? ['-y', '+y'] : ['-x', '+x']); });
   // ── the light: troffers hung between the trusses, in rows down the long span ──
-  const Tf = L.troffer, rows = Tf.rows.map((f) => s0 + span * f), zL = h - T.depth - Tf.drop, mids = [l0, ...trusses, l1], fallen = [], sparks = [];
+  const Tf = L.troffer, rows = Tf.rows.map((f) => s0 + span * f), zL = Math.min(h - T.depth - Tf.drop, Tf.hang ?? Infinity), reachL = Math.max(Tf.radius, r5(zL * (Tf.reach ?? 0))), mids = [l0, ...trusses, l1], fallen = [], sparks = [];
   for (let k = 0; k + 1 < mids.length; k++) {
     const lm = (mids[k] + mids[k + 1]) / 2;
     for (const [j, sr] of rows.entries()) {
@@ -177,7 +177,7 @@ export function labRoom(out, r, ri, kit, surf, decay = null) {
       // a survivor of the blackout may be dying: baked on, it stutters on the page (stage-flicker.js), no halo
       const dying = state === 'lit' && dark > 0 && hash3(decay.seed, k * 7 + j, 8203) < Dc.flicker.share;
       if (state === 'lit' || state === 'dead') troffer(out, c, ax, Tf, h - T.depth, ts, state === 'dead', !dying);
-      if (state === 'lit') seats.push({ at: P([c[0], c[1], c[2] - 0.15]), n: [0, 0, -1], color: Tf.color, intensity: Tf.intensity, radius: Tf.radius, fixture: 'troffer', ...(dying ? { flicker: { mode: 'stutter', seed: k * 7 + j + 1 } } : {}) });
+      if (state === 'lit') seats.push({ at: P([c[0], c[1], c[2] - 0.15]), n: [0, 0, -1], color: Tf.color, intensity: Tf.intensity, radius: reachL, fixture: 'troffer', ...(dying ? { flicker: { mode: 'stutter', seed: k * 7 + j + 1 } } : {}) });
       if (state === 'hanging') {
         // one chain let go: it swings down from the other, nearly on end
         const fx = []; troffer(fx, c, ax, { ...Tf, deadTint: Tf.deadTint }, null, ts, true);

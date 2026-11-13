@@ -31,7 +31,7 @@
  */
 import { cubeLight } from '../era/cube-light.js';
 import { solveMirror, seen, decodeSrgb, encodeSrgb } from '../color-theorist/light.js';
-import { landForm, LAND_CLASSES, DEEP_FADE, DEEP_TONE, UNDER_TONE, WET_BAND, WET_TONE, WET_ROUGH } from './land-form.js';
+import { landForm, LAND_CLASSES, OPT_CLASSES, DEEP_FADE, DEEP_TONE, UNDER_TONE, WET_BAND, WET_TONE, WET_ROUGH } from './land-form.js';
 import { b64 } from '../scene/emit-util.js';
 import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
@@ -360,7 +360,8 @@ export function formPayload(R) {
     // (an underground page, a cavern, has no sky: null, and the page draws none)
     sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon, ...hazeUnder(light) } : null, box, waterZ: L.waterZ, deep: L.deep,
     seabed: hasSea ? { x: [seaX.reduce((a, v) => Math.min(a, v), Infinity), seaX.reduce((a, v) => Math.max(a, v), -Infinity)], y: [seaY.reduce((a, v) => Math.min(a, v), Infinity), seaY.reduce((a, v) => Math.max(a, v), -Infinity)], z: L.waterZ - DEEP_FADE - 1 } : null,
-    classes: Object.fromEntries(Object.entries(LAND_CLASSES).map(([k, K]) => [k, K.rough])),
+    // (a class only some lands draw, OPT_CLASSES, listed only where one of its faces stands: none of it on a land without)
+    classes: Object.fromEntries(Object.entries(LAND_CLASSES).filter(([k]) => !OPT_CLASSES.has(k) || L.faces.some((F) => F.cls === k)).map(([k, K]) => [k, K.rough])),
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),
     wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH },
     light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { base: bases.water } },

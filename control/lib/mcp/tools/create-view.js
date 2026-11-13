@@ -221,6 +221,11 @@ export async function createViewHandler(input) {
 
 export async function getViewVocabHandler(input) {
   const { id, family } = input && typeof input === 'object' ? input : {};
+  // `themes`: compose_world's theme packs and bases (what list_world_themes answered, folded onto this door)
+  if (input?.themes !== undefined && input.themes !== false) {
+    const { listWorldThemesHandler } = await import('@/lib/mcp/tools/compose-world');
+    return listWorldThemesHandler(typeof input.themes === 'string' ? { family: input.themes } : {});
+  }
   const catalog = getViewVocabCatalog();
   if (id) {
     const card = catalog.get(id);
@@ -279,7 +284,7 @@ export function registerCreateViewTools() {
     description:
       "Read a compose_world manual in full (family 'world'): a base's depiction, routing phrases and parameters, an "
       + 'override (structures, science-setting, weather, terrain), a stage kit or look, the city plan. Pass `id`; omit '
-      + "for the index rows (`family` filters). An exhibit's card is get_exhibit's. Find by intent via "
+      + "for the index rows (`family` filters); `themes` lists the theme packs. An exhibit's card is get_exhibit's. Find by intent via "
       + "semantic_search({ kinds: ['view_vocab'] }). Read-only.",
     inputSchema: {
       type: 'object',
@@ -287,6 +292,7 @@ export function registerCreateViewTools() {
         detail: DETAIL_PROPERTY,
         id: { type: 'string', description: 'Card id (= the create_view kind, compose_world base, or entry id).' },
         family: { type: 'string', enum: ['science', 'math', 'bio', 'world', 'entry'], description: 'Optional list filter.' },
+        themes: { type: ['boolean', 'string'], description: "true: compose_world's theme packs and bases; or a theme family ('earth', 'scifi', 'fantasy')." },
       },
       required: [],
     },

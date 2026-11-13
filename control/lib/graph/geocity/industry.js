@@ -104,7 +104,7 @@ const both = (build, L) => { const u = build(); return { x: lit(u, L), y: lit(tu
 
 // the colours: steel painted and galvanized, concrete, porcelain, a gasholder's green
 const C = Object.freeze({ tank: '#e7e3d8', tankRoof: '#c9c5ba', girder: '#b9b5aa', stair: '#55595d', galv: '#9aa1a6', conc: '#c9c4b9', plinth: '#a9a59c',
-  sphere: '#eeece5', holder: '#5d6e62', bell: '#7f8c82', silo: '#d3cec3', gallery: '#a8aaa6', box: '#f2f2f2', rib: '#d6d6d6', door: '#c4c4c4',
+  sphere: '#eeece5', holder: '#5d6e62', bell: '#7f8c82', silo: '#d3cec3', gallery: '#a8aaa6', box: '#f2f2f2', rib: '#d6d6d6', door: '#c4c4c4', frame: '#dedede',
   tx: '#7d8a85', fin: '#6b7672', bushing: '#7a4b2e', red: '#c4362c', white: '#ece9e2', brick: '#9c5440', pipe: '#8f6f4a', pipe2: '#6f7f8c', rail: '#7b8085' });
 
 /** A storage tank: r 10, h 12 (an instance's scale sizes it). */
@@ -153,6 +153,14 @@ function container() {
   const l = 6.095, w = 1.22, h = 2.59, out = [...boxU(-l, -w, 0, l, w, h, C.box)];
   for (let i = 1; i < 16; i++) { const x = -l + (i * 2 * l) / 16; for (const s of [-1, 1]) out.push(F([[x - 0.12, s * (w + 0.02), 0.15], [x + 0.12, s * (w + 0.02), 0.15], [x + 0.12, s * (w + 0.02), h - 0.15], [x - 0.12, s * (w + 0.02), h - 0.15]], [0, s, 0], C.rib)); }
   for (const y of [-0.62, 0.62]) out.push(F([[l + 0.02, y - 0.04, 0.1], [l + 0.02, y + 0.04, 0.1], [l + 0.02, y + 0.04, h - 0.1], [l + 0.02, y - 0.04, h - 0.1]], [1, 0, 0], C.door));
+  // ITS FRAME: a square rail round its foot and round its head, and a post up each corner, a hand proud of the
+  // sheet: what the corrugated panels sit in, and what closes the box out
+  const e = 0.035, r = 0.16;
+  for (const [z0, z1] of [[0, r], [h - r, h + 0.012]]) out.push(
+    ...boxU(-l - e, -w - e, z0, l + e, -w, z1, C.frame), ...boxU(-l - e, w, z0, l + e, w + e, z1, C.frame),
+    ...boxU(-l - e, -w, z0, -l, w, z1, C.frame), ...boxU(l, -w, z0, l + e, w, z1, C.frame));
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const x0 = sx > 0 ? l - r : -l - e, x1 = sx > 0 ? l + e : -l + r, y0 = sy > 0 ? w - r : -w - e, y1 = sy > 0 ? w + e : -w + r;
+    out.push(...boxU(x0, sy > 0 ? w : y0, r, x1, sy > 0 ? y1 : -w, h - r, C.frame), ...boxU(sx > 0 ? l : x0, y0, r, sx > 0 ? x1 : -l, y1, h - r, C.frame)); }
   return out;
 }
 /** An outdoor transformer along x on its plinth: its tank, radiator fins down its long sides, three bushings, its
@@ -235,6 +243,9 @@ export function industryTemplates(L) {
   MEMO.set(L, T);
   return T;
 }
+/** A shipping container as it is built, unlit, along x about its foot: [{ corners, normal, hex }] (a stage stacks them on a
+ *  building's apron and lights them as it lights the building, era/stage-buildings.js). Its body pale for an instance's tint. */
+export function containerRaw() { return container(); }
 /** How far each piece is seen (m): the tall ones across their district, the rest near the camera like the street's kit. */
 export const INDUSTRY_FAR = Object.freeze(['tank', 'sphere', 'holder', 'silos', 'stack', 'pylon']);
 

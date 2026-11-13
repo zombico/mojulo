@@ -1,0 +1,39 @@
+### Sun in buildings: a building on open ground seated clean and lit by the land's one sun
+
+A composed building standing on an outdoor map (the hangar, a barracks) is read by the form render as its land is.
+
+- The land is cut at a building's footprint. It was dropped by each face's middle, so a face straddling a wall stayed
+  and stood inside the room over its floor; a face is now cut to what of it lies outside, its corners' heights and
+  colours carried along its edges. What the form render grows from a seat (trees, bushes) is cleared there too.
+- The geocube kind takes `buildings` on a land a trail is laid over (`show: 'path'` or `'town'`), so a building's map is
+  read with the cube's land, light and flora.
+- A building's rooms keep their light when it is seated: the form render's record of its lamps comes with it, moved
+  into the world's frame. It was dropped, and the rooms drew as their colour under no light.
+- A building's shell is baked as a town's is (`form/sun-light.js`), its colour and the day's light apart, under the
+  cube's light at the hour; the sun joins the page's record as its live light.
+- A painted page is as it was: no record, no baked light on a shell.
+- A composed building lays its own ground: it levels a place on the land a margin wider than itself (deeper before its
+  front), lays an apron of poured concrete there with a kerb at its edge, and the land eases back to its own height
+  round it; the land under the apron is cut away and nothing grows through it. First pass: not yet seen rendered.
+- The building asks the land for its site: its level is the land's own mean across its ground (cut on the high side,
+  filled on the low), the bank round it three metres out for each metre cut or filled (5 to 18 m), and the building's
+  record says the level, the cut, the fill and the bank; a cut or a fill past 1.5 m is a finding. The floor is never below the land at its door.
+- The apron is a slab or the ground: a building's `apron: 'ground'` levels its site and lays nothing on it, so a
+  building on rock or sand stands on rock or sand. Left out, the land decides: the ground where a sixth of its site is
+  already sand, bare rock or scree (read off the land's own faces), else a slab. Its record says which, and the share.
+- The shell is baked with the sun's shadow of the building on itself (`era/sun.js`), and the page's record says it
+  stands under a sun, so the page draws it as it draws a town's buildings. The building's shadow on its apron and on
+  the land is the page's live one: a page of rooms seated on a land keeps the hour's shadow map, which a room's page
+  on its own does not have.
+- A dock's first parts. A building's `yard: { containers }` stacks shipping containers on its apron before its front
+  (the city's container, `geocity/industry.js`), one to three high, each in a line's colour, lit as the shell is, each
+  stack a collider. A recipe's `wet: true` (it has just rained) darkens the apron's slab and lays the wet film over it
+  that gives the sky back (`channels/wet-road.js`). The geocube kind passes both.
+- Built surfaces give the sky back. The form render's material takes a page's `reflect` (`scene/channels/form.js`): the
+  sky by Fresnel, blurred by each surface's roughness, and the sun's highlight where the bake says the sun reaches; a
+  metal's base colours both. A building on a land asks for it: painted steel and a container's enamel sheen, poured
+  concrete barely. A page that asks for none carries none of its code.
+- Wet is a state of the material. Where a recipe is `wet`, the form render lays one field of water over the apron by
+  the world's own place and the recipe's seed: standing water, a soaked band at its edge, damp past that; each darkens
+  the slab, smooths it and flattens its relief, so the sky lies in a puddle and only sheens on damp concrete. The
+  painted page keeps its film.

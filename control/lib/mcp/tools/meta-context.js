@@ -489,7 +489,7 @@ export async function commitPrimitiveArtifactMaterialization(input, _ctx) {
   }
   const adapter = getAdapter(adapter_id);
   if (!adapter) {
-    throw new Error(`Unknown adapter '${adapter_id}'. Call list_adapters to see what's available.`);
+    throw new Error(`Unknown adapter '${adapter_id}'. get_adapter({ list: true }) names them.`);
   }
 
   if (!artifact || typeof artifact !== 'object') {
@@ -791,7 +791,7 @@ export async function commitAppMaterialization(input, _ctx) {
   }
   const adapter = getAdapter(adapter_id);
   if (!adapter) {
-    throw new Error(`Unknown adapter '${adapter_id}'. Call list_adapters to see what's available.`);
+    throw new Error(`Unknown adapter '${adapter_id}'. get_adapter({ list: true }) names them.`);
   }
 
   if (!artifact || typeof artifact !== 'object') {

@@ -19,6 +19,15 @@ export const CATACOMB = Object.freeze({
     'Don\'t be afraid to make it tall: the great rooms rise well over the walker, their vaults lost in the dark above the torches.',
     'Motifs are small: a pattern carved in a band along the plinth or the cornice (a key, a rope, teeth), never an object.',
     'Doodads are the large things (the set piece, a coffin, a barrel, a boulder): never two together unless a corner gathers them on purpose.',
+    // (its craft, era/room-craft.js: each the catacomb's own answer, by its own cause)
+    'Its light is a clay lamp on a knob of rock left standing for it: no iron was forged down here, and nothing is a box.',
+    'A pier is the rock left standing, splayed at its foot and cut to an impost at its head.',
+    'Along a wall the bays keep a rhythm: the lesser bay has a tier of slots fewer and nothing in them; the slot is the same on every wall.',
+    'A gallery is dug down as it fills: a ledge marks the first floor, and over it are the oldest tombs, all sealed and out of reach.',
+    'Within reach the rock was plastered round the tombs and hands and damp have had it off in patches; over the ledge the bare rock is sooted by the lamps.',
+    'The floor is laid by its use: an unwalked margin at the walls, the way worn down the middle, a threshold at each passage, the ground round the sarcophagus sooted.',
+    'A slot is cut into the rock: it has a back, a floor and sides a forearm deep, and what lies in it lies inside it.',
+    'A tall gallery is shored: logs wedged wall to wall on the ledge, a lamp hung from each, and a light shaft cut to the surface over the ossuary lays cold daylight on the sarcophagus.',
   ]),
   values: Object.freeze(['candle', 'torchlit', 'floor', 'vault']),
   // the torches' live flicker, against a real torch's: slower reads as still air underground, not a gale
@@ -29,13 +38,17 @@ export const CATACOMB = Object.freeze({
   tomb: { dais: { w: 3.2, d: 2.2, step: 0.2, steps: 1, inset: 0.3 }, chest: { w: 2.1, d: 0.95, h: 0.8 }, lid: { over: 0.08, h: 0.14, round: 0.16 },
     stone: { key: 'marble-carrara', scale: 1.2, tint: [0.8, 0.74, 0.66] } },
   // the loculi: long low slots in tiers up the bay, flat-headed (the arches are the passages' and the vault's)
-  niches: { head: 'flat', tiers: 4, w: 1.7, h: 0.42, sill: 0.25, gap: 0.3, frame: 0.08, out: 0.05, dark: [0.1, 0.09, 0.08], urns: 0.12, urn: [0.6, 0.44, 0.32],
+  niches: { rhythm: { less: 1 }, depth: 0.22, head: 'flat', tiers: 4, w: 1.7, h: 0.42, sill: 0.25, gap: 0.3, frame: 0.08, out: 0.05, dark: [0.1, 0.09, 0.08], urns: 0.12, urn: [0.6, 0.44, 0.32],
     sealed: 0.4, slab: [0.92, 0.88, 0.8] },
   // the ossuary wall: courses of bone ends (pale, small, rounded) and skulls on ledges
   // (`radius: 1` rounds each course stone to a disc, a bone seen end-on; `repeat` lays the tile that many times denser
   // than the wall's, so the bone ends are hand-sized)
   accent: { stone: { stone: [150, 136, 112], mortar: [40, 33, 27], rows: 10, cols: 10, radius: 1, shadow: 0.85, mortarThick: 0.18, bevel: 0.4, vary: 40, grain: 6, jointDepth: 0.9, grime: 0.5, chips: 0.3 },
     repeat: 2.6, tint: [0.86, 0.84, 0.8], skulls: { rows: [0.95, 1.8, 2.65, 3.5], r: 0.15, gap: 0.4, tone: [1, 0.95, 0.84], ledge: [0.34, 0.3, 0.27] } },
+  // THE AIR ABOVE (era/crypt.js cryptAbove): shoring logs across a gallery at least `tall`, a lamp hung from each; and
+  // the mouth of a light shaft high over the ossuary, its daylight a pool on the sarcophagus
+  above: { span: { tall: 6, every: 6, r: 0.11, drop: 0.9, clear: 3, color: '#ffb060', intensity: 1.1, radius: 8 },
+    opening: { tall: 6, w: 0.9, h: 0.9, below: 0.5, sky: '#c4d4ee', color: '#a8bce8', intensity: 0.9, radius: 6, lift: 1.3 } },
   props: { kinds: ['amphora', 'bones', 'stones', 'debris', 'planks'], share: 0.5, rock: 'basalt', tone: '#7a6e60' },
   // the view the walk leads to: from the way into the last chamber, a little high, on the sarcophagus and the wall behind
   camera: { z: 2.1, at: 1.3 },

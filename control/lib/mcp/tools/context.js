@@ -192,7 +192,7 @@ function buildWorkshopPulseLine(pulse) {
   if (sketches) parts.push(`${sketches} sketch${sketches === 1 ? '' : 'es'}`);
   if (stashes) parts.push(`${stashes} open stash${stashes === 1 ? '' : 'es'}`);
   if (cooks) parts.push(`${cooks} open cook${cooks === 1 ? '' : 's'}`);
-  if (unseenPlans) parts.push(`${unseenPlans} unseen plan${unseenPlans === 1 ? '' : 's'} (\`list_plans\`)`);
+  if (unseenPlans) parts.push(`${unseenPlans} unseen plan${unseenPlans === 1 ? '' : 's'} (\`get_plan\`)`);
   const age = fmtPulseAge(lastActivityMs);
   if (age) parts.push(`last activity ${age}`);
   return `*Workshop pulse: ${parts.join(' · ')}.*`;
@@ -323,7 +323,7 @@ const GLOSSARY_MIXED = `## Concepts
 - **Stash / Gather / Cook** — \`mint_stash\` makes a typed bucket, \`gather\` binds typed items (validated at intake, rejected when malformed), \`cook\` nucleates ONE outcome per singular aim into a self-contained folder at \`/outcomes/<cook_ref>/\` (14 publication kinds, essay → comic → site): a Read outcome. The agent authors the prose — no server-side LLM.
 - **Catalyst** — a host-neutral workflow recipe shipped with mojulo: a loop run in the session, or one that reaches past mojulo (another MCP, an outside worker) and lands as a Skill on the host. Read one with \`get_catalyst\`; it is a starting point — adapt freely, or skip it and synthesize from scratch.
 - **Skill** — a catalyst materialized into the user's host, in whatever form that host uses (a skill file, a scheduled automation, a workflow file). It runs in the host, beside the operator's other MCPs. \`get_adapter\` names YOUR host's form; don't assume another host's.
-- **Host adapter** — the bridge between a host-neutral catalyst and the host's runnable form. One card per host mojulo knows, plus \`generic\` as the fallback — \`list_adapters\` for the current set. Auto-resolved from your client's \`clientInfo.name\`; pass \`host\` (or \`clientInfoHint\`) when the resolver guessed wrong. Read your adapter once via \`get_adapter\` before making. The card is guidance, not a constraint: if your runtime has a better native form, use it and say what you chose.
+- **Host adapter** — the bridge between a host-neutral catalyst and the host's runnable form. One card per host mojulo knows, plus \`generic\` as the fallback — \`get_adapter({ list: true })\` for the current set. Auto-resolved from your client's \`clientInfo.name\`; pass \`host\` (or \`clientInfoHint\`) when the resolver guessed wrong. Read your adapter once via \`get_adapter\` before making. The card is guidance, not a constraint: if your runtime has a better native form, use it and say what you chose.
 - **Agent-task queue** — where work parked for an outside fulfiller waits (\`pull_agent_task\` → \`submit_envelope_inference\`, or \`cancel_agent_task\`): single-claim, in memory, lost on restart. The render handoffs are its durable sibling for image and mesh workers.`;
 
 const GLOSSARY_PLAIN = `## Concepts
@@ -337,7 +337,7 @@ const GLOSSARY_PLAIN = `## Concepts
 - **Stash / Gather / Cook** *(to the user: "collect material, then turn it into a finished piece")* — collect notes, images, and links into a bucket (the stash), then cook them into one finished thing — an essay, a slide deck, a picture book, a small website — saved as a folder the user can open, share, or host.
 - **Catalyst** *(to the user: "a workflow recipe")* — a recipe shipped with mojulo, run in the session or saved into the user's own agent so it can reach their other connected tools. Adapt freely; the recipe is a starting point.
 - **Skill** *(to the user: "a workflow you can run again")* — a recipe saved into the user's own agent, in whatever form that agent uses.
-- **Host adapter** *(to the user: "how the workflow gets built for your setup" — then name the form YOUR host uses)* — \`list_adapters\` for the current set; auto-resolved from your client. Read your adapter once via \`get_adapter\` before making.
+- **Host adapter** *(to the user: "how the workflow gets built for your setup" — then name the form YOUR host uses)* — \`get_adapter({ list: true })\` for the current set; auto-resolved from your client. Read your adapter once via \`get_adapter\` before making.
 - **Agent-task queue** *(to the user: don't surface; say "a waiting job")* — work parked for an outside helper to pick up and answer.`;
 
 const GLOSSARY_MOJULO = `## Concepts
@@ -349,7 +349,7 @@ const GLOSSARY_MOJULO = `## Concepts
 - **Stash / Gather / Cook** — \`mint_stash\` → \`gather\` (8 item types, intake-validated) → \`cook\` (ONE aim, ≥1 stash slice, 14 kinds; \`site\` is whole-stash) → \`/outcomes/<cook_ref>/\`. Multi-kind preview via \`forge_publications\`; \`recommend_kind\` is rules-based.
 - **Catalyst** — host-neutral workflow recipe in \`control/lib/mcp/catalysts/\`; run in the session or materialized through the host adapter into a Skill that runs beside the host's other MCPs.
 - **Skill** — host-adapter-materialized runnable artifact. Form is per-host (skill file / automation / workflow file) — \`get_adapter\` for yours.
-- **Host adapter** — catalyst → runnable bridge, one card per known host + \`generic\` fallback (\`list_adapters\`). Auto-resolved from \`clientInfo.name\`; \`clientInfoHint\` to self-identify.
+- **Host adapter** — catalyst → runnable bridge, one card per known host + \`generic\` fallback (\`get_adapter({ list: true })\`). Auto-resolved from \`clientInfo.name\`; \`clientInfoHint\` to self-identify.
 - **Agent-task queue** — in-memory FIFO single-claim; parked requests reject on restart with \`INFERENCE_PARKED_LOST\`. Kind: \`envelope_inference\`. Tools: \`pull_agent_task\` / \`submit_envelope_inference\` / \`cancel_agent_task\`.`;
 
 const CONCEPT_GLOSSARY_VARIANTS = {
@@ -479,7 +479,7 @@ const FORM_DEFS = {
   'world': {
     title: 'Worlds (traversable)',
     makes: 'walkable/drivable/flyable three.js environments + glTF export',
-    tools: ['compose_world', 'get_view_vocab', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    tools: ['compose_world', 'get_view_vocab', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
     notes: ["- A house / apartment / cottage / one furnished room is NOT a base: it is `mint_building` (the building form)."],
   },
   'building': {
@@ -1237,13 +1237,13 @@ export function registerContextTools() {
           type: 'string',
           enum: VOCABULARY_REGISTERS,
           description:
-            "Override the operator's `vocabulary_register` for this one call. 'plain' (everyday tool names, no mojulo jargon to the user), 'mixed' (default), 'mojulo' (full idiom). Omit to use the operator anchor's setting or the system default.",
+            "This call's vocabulary: 'plain' (everyday words to the user), 'mixed' (default), 'mojulo' (full idiom). Omit for the operator's setting.",
         },
         disclosure: {
           type: 'string',
           enum: PROCEDURAL_DISCLOSURES,
           description:
-            "Override the operator's `procedural_disclosure` for this one call. 'terse' (act and report), 'reflective' (default — name each gate), 'pedagogical' (explain what each gate means). Omit to use the operator anchor's setting or the system default.",
+            "This call's narration of gates: 'terse' (act and report), 'reflective' (default, name each gate), 'pedagogical' (explain each). Omit for the operator's setting.",
         },
       },
     },
@@ -1297,7 +1297,7 @@ export function registerContextTools() {
   registerTool({
     name: 'get_register_kit',
     description:
-      "Return just the register-tuning surface — the active communication-settings notice (which `vocabulary_register` / `procedural_disclosure` cell is active and where it came from), the active-cell concept glossary, the refusal legend (one row per family of refusal: what it protects · the next move — pull this when a tool said no and you're unsure what the no means), the active-cell disclosure directive, and the invariant commitment-level floor (the four gates). Resolves the operator anchor the same way `forward_context` does; optional per-call `register` / `disclosure` override it for this one read. Read it to define a term for the operator, after they revise their KYC anchor, or to decode a refusal. Read-only, idempotent.",
+      "The glossary and the refusal legend, in the operator's register: the active communication settings and where they came from, the concept glossary, the refusal legend (one row per family of refusal: what it protects and the next move), the disclosure directive and the four commitment gates. Pull it to define a term for the operator, or when a tool said no and you are unsure what the no means. `register` / `disclosure` override the operator's setting for this read. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1305,13 +1305,13 @@ export function registerContextTools() {
           type: 'string',
           enum: VOCABULARY_REGISTERS,
           description:
-            "Override the operator's `vocabulary_register` for this one call. 'plain', 'mixed' (default), 'mojulo'. Omit to use the operator anchor's setting or the system default.",
+            "This call's vocabulary. Omit for the operator's setting.",
         },
         disclosure: {
           type: 'string',
           enum: PROCEDURAL_DISCLOSURES,
           description:
-            "Override the operator's `procedural_disclosure` for this one call. 'terse', 'reflective' (default), 'pedagogical'. Omit to use the operator anchor's setting or the system default.",
+            "This call's narration of gates. Omit for the operator's setting.",
         },
       },
     },
@@ -1329,7 +1329,7 @@ export function registerContextTools() {
   registerTool({
     name: 'get_ui_map',
     description:
-      "Return the page-by-page map of the `mojulo-ui` dashboard (the human-shaped face of the same `~/.mojulo/` state this MCP drives): one line per page describing what it's for and when to point the user at it (`/apps`, `/map`, `/graph`, `/plan`, `/research`, `/sketches`, `/maker`, `/settings`, …). You don't drive these pages — call this when the user wants to *look*, *browse*, or *click*, or when a visual scan would beat several rounds of tool output, so you can name the right page. Read-only, no inputs, idempotent.",
+      "The page-by-page map of the dashboard (`mojulo-ui`, the human face of the same state this MCP drives): one line per page, what it is for and when to point the user at it. You do not drive these pages: call this when the user wants to look, browse or click, or when a visual scan would beat several rounds of tool output. Read-only.",
     inputSchema: { type: 'object', properties: {} },
     handler: uiMapHandler,
   });
@@ -1353,7 +1353,7 @@ export function registerContextTools() {
   registerTool({
     name: 'check_for_updates',
     description:
-      "Compare the running control-plane package (`mojulo` on npm) against its latest published version. Returns `{ controlPlane, warnings }` — `current`, `latest`, `updateAvailable`, and a one-line install/update hint when an upgrade exists. Read-only: never installs or restarts anything; surface the hint and let the user run it. Best-effort upstream calls — a registry timeout produces `latest: null` plus a warning, not a tool failure. Call this when the user asks 'am I up to date?', after a long gap between sessions, or before recommending a feature that depends on a recent version.",
+      "Compare the running `mojulo` against the latest version published on npm: `current`, `latest`, `updateAvailable` and a one-line update hint. Never installs or restarts anything; surface the hint and let the user run it. A registry timeout gives `latest: null` and a warning, not a failure. Call when the user asks 'am I up to date?' or before recommending a feature that needs a recent version.",
     inputSchema: { type: 'object', properties: {} },
     handler: checkForUpdatesHandler,
   });
@@ -1361,25 +1361,25 @@ export function registerContextTools() {
   registerTool({
     name: 'get_tool_ledger',
     description:
-      "Read the ledger the substrate keeps of its own MCP tool calls — shapes and timings, one row per handler invocation across both call paths (rpc + plan-executor); nothing leaves the machine. Three modes: no args → a per-tool aggregate table (calls, error rate, p50/p95 latency, last-called) over the last `sinceDays` (default 7) plus the most recent errors and timeouts; `{ tool }` → that tool's recent calls newest-first with status + duration; `{ orientation: true }` → the orientation-gap cut (weak semantic searches, vocab-drawer misses, sessions that oriented then made no non-orientation call) — the measurement of whether the ask-and-discover loop is rewarding the question. This is the in-session answer to \"which tool broke?\" / \"what's slow?\" / \"is the lexicon working?\" without leaving the chat. Records SHAPES only — never input values or conversation content. Read-only, idempotent. Mirrors the `/observability` dashboard page.",
+      "The ledger mojulo keeps of its own tool calls: shapes and timings, never input values or conversation content; nothing leaves the machine. No args: per-tool calls, error rate, p50/p95 latency and last-called over `sinceDays`, plus recent errors and timeouts. `{ tool }`: that tool's recent calls. `{ orientation: true }`: weak searches, vocab-drawer misses and sessions that oriented then made nothing. The in-session answer to 'which tool broke?', 'what is slow?'. Read-only; mirrors `/observability`.",
     inputSchema: {
       type: 'object',
       properties: {
         tool: {
           type: 'string',
-          description: 'Filter to one tool by registration name → its recent calls. Omit for the aggregate summary.',
+          description: 'One tool by name: its recent calls.',
         },
         sinceDays: {
           type: 'number',
-          description: 'Aggregate window in days (no-args and orientation modes). Default 7.',
+          description: 'Window in days (7).',
         },
         limit: {
           type: 'number',
-          description: 'Max recent calls to return in `{ tool }` mode. Default 25.',
+          description: 'Most calls returned for `{ tool }` (25).',
         },
         orientation: {
           type: 'boolean',
-          description: 'true → the orientation-gap cut: weak searches, drawer misses, oriented-then-abandoned sessions.',
+          description: 'true: the orientation-gap cut.',
         },
       },
     },
