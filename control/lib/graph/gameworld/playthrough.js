@@ -7,8 +7,9 @@
  * THE PLAYERS (input only, never outcome: what a person at the keys and the mouse could do, read from what they see):
  *   basic   locks on to the foe it fights (the level's lock, when it has one), closes on it and plays the light string
  *           (presses at a person's pace, the moveset's buffer taking them), raises the guard between strings, and turns
- *           the sidearm on a foe that shoots from out of reach (a draw held and let go; an automatic held); the foe in its
- *           face first. It heads straight for its goal, hopping when no ground is gained, and leaves a foe it cannot
+ *           the sidearm on a foe that shoots from out of reach (a draw held and let go; an automatic held), down a clear
+ *           line only: a shooter behind a wall is closed on until the line opens; the foe in its face first. A charge
+ *           telegraphed (a rushing foe braced or on its line) is met with the guard up, facing it. It heads straight for its goal, hopping when no ground is gained, and leaves a foe it cannot
  *           reach for another (`stuck`: it has no pathfinding). Once no foe stands, it walks to the level's way on. No
  *           specials, no air strings, no dodge: the floor of play, not its ceiling
  *   still   holds no input at all: a level a player who does nothing wins is a level with no fight in it
@@ -45,6 +46,30 @@ const STRIKE_AT = 2.2, LOCK_AT = 14, SHOOT_AT = 30, SHOOT_LOCK_AT = 45, LOCK_WAI
 const alive = (e) => !!(e && e.body && Number.isFinite(e.body.hp) && e.body.hp > 0 && !e.downed && e.deadAt == null);
 const shoots = (e) => !!(e && (e.weapon?.fireClass || e.rule?.weapon?.fireClass));
 const flat = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+/** Whether a wall stands between the hero's sidearm and a foe's chest: what a person sees before they shoot (the round's
+ * own line, worlds/controllable/combat-melee.js `mvAim`, against the level's solid boxes as core.js `sightBlocked` reads
+ * them). */
+function walled(colliders, hero, foe) {
+  if (!Array.isArray(colliders) || !colliders.length) return false;
+  const t = hero.transform.pos, f = foe.transform.pos, egg = foe.body?.egg;
+  const a = [t[0], t[1], t[2] + (hero.weapon?.eye ?? hero.rule?.weapon?.eye ?? 1.25)];
+  const b = [f[0], f[1], f[2] + (egg ? egg.cz + 0.4 * egg.c : foe.body?.radius || 0.5)];
+  for (const c of colliders) {
+    if (!c || !c.min || !c.max) continue;
+    let t0 = 0, t1 = 1, hit = true;
+    for (let i = 0; i < 3 && hit; i++) {
+      const d = b[i] - a[i];
+      if (Math.abs(d) < 1e-9) { if (a[i] < c.min[i] || a[i] > c.max[i]) hit = false; continue; }
+      let lo = (c.min[i] - a[i]) / d, hi = (c.max[i] - a[i]) / d;
+      if (lo > hi) [lo, hi] = [hi, lo];
+      t0 = Math.max(t0, lo); t1 = Math.min(t1, hi);
+      if (t0 > t1) hit = false;
+    }
+    if (hit && t0 > 1e-3 && t0 < 1 - 1e-3) return true;
+  }
+  return false;
+}
 
 /** The hero's health as the level counts it: the level's own hp var, else the hero's body (the stats bind it there). */
 function hpOf(sim, hero) {
@@ -98,6 +123,16 @@ function basicInput(sim, hero, M, contract) {
   // the foe it fights, as a person picks: the one in its face first (within a step of the blade's reach), then a shooter
   // its sidearm reaches, then the nearest
   foes.sort((a, b) => d(a) - d(b));
+  // A CHARGE TELEGRAPHED (a rushing foe braced, or charging down its line, within its run: worlds/controllable/foe.js
+  // `rush`): a person raises the guard and turns to it, and the charge spends itself on the guard (foe.js `guarded`); in
+  // the blade's reach a braced foe is cut down instead
+  const charger = hero.rule?.guard ? all.filter((e) => (e.foeRush === 'charge' || (e.foeRush === 'brace' && d(e) > STRIKE_AT)) && d(e) <= (e.rule?.foe?.rush?.run ?? 16) + 2).sort((a, b) => d(a) - d(b))[0] : null;
+  if (charger) {
+    if (W.lock && W.lock.target !== charger.id && M.k >= M.lockAt) { inp.lock = 1; M.lockAt = M.k + LOCK_EVERY; }
+    Object.assign(inp, steerTo(W, hero, charger.transform.pos)); inp.guard = 1;
+    M.beat = 0; M.next = M.k; M.guardFrom = Infinity; M.draw = 0;
+    return inp;
+  }
   const T = all.find((e) => d(e) <= STRIKE_AT + 1) ?? (sidearm && foes.find((e) => shoots(e) && d(e) < SHOOT_LOCK_AT)) ?? foes[0] ?? null;
   if (!T) {
     const exit = wayOn(contract);
@@ -107,7 +142,11 @@ function basicInput(sim, hero, M, contract) {
   const dist = d(T), locked = W.lock ? W.lock.target : null;
   // (the sidearm is turned on a shooter out of the blade's reach; beyond SHOOT_AT the player closes first, as a person
   // would: an arrow drops over a long flight)
-  const shooting = !!(sidearm && shoots(T) && dist > STRIKE_AT * 2 && dist <= SHOOT_AT);
+  // (and only down a clear line: a shooter behind a wall is closed on until the line opens, as a person steps out of
+  // cover to shoot; rounds loosed into a wall say nothing of whether the sidearm tells)
+  const inRange = !!(sidearm && shoots(T) && dist > STRIKE_AT * 2 && dist <= SHOOT_AT);
+  if (inRange && walled(M.colliders, hero, T)) { Object.assign(inp, approach(W, hero, M, T.transform.pos, T.id)); M.draw = 0; M.lockWait = 0; return inp; }
+  const shooting = inRange;
   // the lock: asked for (or cycled on) while it holds another, at most every LOCK_EVERY frames; out to the sidearm's
   // range when it shoots, else a fight's
   if (W.lock && locked !== T.id && dist < (shooting ? SHOOT_LOCK_AT : LOCK_AT) && M.k >= M.lockAt) { inp.lock = 1; M.lockAt = M.k + LOCK_EVERY; }
@@ -151,7 +190,7 @@ export function playLevel(payload, { player = 'basic', seconds = 180 } = {}) {
   // (a level with no foe on it is no fight: the walk audit proves it can be crossed, not this)
   if (!foes0.length) return { player, outcome: null, won: false, t: 0, fight: false, foes: [], downs: 0, reason: 'no foe stands here: no fight to play' };
   const start = Object.fromEntries(foes0.map((e) => [e.id, e.body.hp]));
-  const M = { k: 0, lockAt: 0, next: 0, beat: 0, guardFrom: Infinity, draw: 0, presses: 0, shots: 0, goal: null, best: Infinity, still: 0, since: 0, hop: 0, stuck: new Set(), lockWait: 0, aimAt: null, aimHp: 0, aimShots: 0, closing: new Set() };
+  const M = { k: 0, lockAt: 0, next: 0, beat: 0, guardFrom: Infinity, draw: 0, presses: 0, shots: 0, goal: null, best: Infinity, still: 0, since: 0, hop: 0, stuck: new Set(), lockWait: 0, aimAt: null, aimHp: 0, aimShots: 0, closing: new Set(), colliders: payload.colliders };
   const hitsBy = {};
   // (the hp is read once the first frame has run: the stats bind the body's hp on it)
   let hp0 = null, outcome = null, t = 0;

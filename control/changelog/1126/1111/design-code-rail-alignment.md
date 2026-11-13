@@ -102,4 +102,41 @@ rest below is designed, not built yet.
   combat room to play before any level is made, for a hero that fights hand to hand; `worldmap`, a map whose blocks are
   still the floor: the segments req (each block's ground, heights and marks), then its play layer from each block's
   brief.
+- **The playthrough reads what a person sees.** Two things the basic player did that no person does, found on the two
+  games made from their sentences on the merged tree:
+  - It shoots only down a clear line. On the stylish action game's first level it loosed a burst into the hero's own
+    cover (a wall five metres ahead), judged the pistols told nothing, never drew them on that shooter again and walked
+    down its lane to it: down at 16.5 s. A shooter behind a wall is now closed on until the line opens, then shot; rounds
+    loosed into a wall say nothing of whether the sidearm tells.
+  - It raises the guard to a charge it sees coming. A rushing foe braces before it charges (its telegraph) and the
+    runtime stops a charge on a guard up in front of it (`worlds/controllable/foe.js` `guarded`); the player walked into
+    each one. It now turns to a foe braced or on its line and holds the guard until the charge is spent; in the blade's
+    reach a braced foe is cut down instead.
+  Still the floor of play: no dodge, no specials, no air strings.
+- **A boss's phases never step into the counter a string cannot answer** (`gameworld/arsenal.js` `bossPhases`). A boss
+  steps its temper up as its health falls, and one step up from bold is the opportunist, whose counter stuffs every swing
+  it sees: the mind the casting call keeps away from a hero that plays strings came back at two thirds of the boss's
+  health, a 4.5 s shove answering each press. In a world armed with a kit the boss's phases are written out, each to the
+  next temper that answers a string by being cut. A boss that writes its own phases, one that never meets the counter,
+  and every world with no arsenal are as they were.
+- **Measured on the merged tree, each game made afresh from its sentence and armed with its feel's kit** (machine gate
+  only; nobody has looked): the stylish action game, six of six fight levels won by the basic player and none by the
+  still one (was one of three); the action RPG's world map, three of three fight zones (was one of three). On the
+  action RPG the basic player ends every zone at full health: its foes can be won against, and do not yet press.
+- **The verdict is kept and the bible says it** (`gameworld/made.js` `play`, `gameworld/bible-html.js`). A check's
+  playthrough is kept in the run's record beside each level it judged, as its opening frame's verdict is, and the
+  world's bible says under each level how its stages played: won by a player who fights and not by one who stands
+  still, or not yet, with what each player did. A level remade drops it with its record.
+- **Fixed: a world laid as a map had no bible.** The world's bible drew a walk, a building, a city, a town, an airspace
+  and a roadway, and threw on a map level: every action RPG made from a sentence since the map was laid had none. A map
+  level is drawn in plan: its blocks in their places by name, the walk through them, the blocks one page shows together,
+  the goal, and who each block's fights stand.
+- Found and not fixed here:
+  - a mind's ground snap is cast from its head (`worlds/controllable/mind.js` `standOnGround`), so a body stands on
+    whatever is lower than its head: a boss of 3.4 m steps onto a tomb's lid and then the storey above it, out of the
+    blade's reach. The forest's canopy, said above, is the same seam. The fix is the runtime's (every page that carries a mind
+    changes its bytes), so it is left for its own step;
+  - the brute's blow is written as one that cannot be blocked (the lab's red zone) and the runtime blocks it: the boss
+    is won with the guard alone;
+  - the stylish action game's shooters open fire at fourteen metres and the hero's pistols reach thirty.
 - Designed, not built yet: a changed genre answered with what it left behind; the loop's encounter from the terminals.

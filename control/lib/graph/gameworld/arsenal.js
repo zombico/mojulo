@@ -28,11 +28,13 @@
  * grunt one, an elite three and a half, a boss eleven) times what the kit's first light string deals on a blade of the
  * normal class (stringDamage: its moves' damage × the weapon's × HELD_STRIKE.normal's; a heavier blade fells sooner).
  *   stringDamage(A) → a number   ·   foeHealth(rank, A) → the hp a foe of that rank carries in a world armed with A
+ *   bossPhases(mind) → the phases a boss's mind is given in such a world, or null (its own, below)
  *
  * Pure.
  */
 import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
 import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
+import { AGGRESSIVENESS } from '../mind/vocab.js';
 
 /** The strings a foe of each rank takes to fall (mind/vocab.js RANKS), the action game's pace: a grunt to one, an elite to
  * three or four, a boss to ten or twelve. */
@@ -46,6 +48,25 @@ export function stringDamage(A) {
   return per * (W.damage ?? 1) * HELD_STRIKE.normal.damage;
 }
 export const foeHealth = (rank, A) => Math.max(1, Math.round((STRINGS_BY_RANK[rank] ?? STRINGS_BY_RANK.minion) * stringDamage(A)));
+
+// the tempers in their order (mind/vocab.js AGGRESSIVENESS levels), and the one that stuffs a raw swing with a charge
+const TEMPERS = Object.keys(AGGRESSIVENESS).sort((a, b) => AGGRESSIVENESS[a].level - AGGRESSIVENESS[b].level);
+const stuffs = (a) => !!AGGRESSIVENESS[a]?.knobs?.tackleGuard;
+/** A BOSS'S PHASES IN A WORLD THAT PLAYS STRINGS. A boss steps its temper up as its health falls (worlds/controllable/
+ * mind.js `phasesOf`: one temper up under two thirds, relentless under a third), and one temper up from `bold` is the
+ * opportunist, whose counter stuffs every swing it sees and is beaten only by a roll: the mind the casting call keeps
+ * away from a hero that plays strings (foe-casting.js `counters`), come back at two thirds of the boss's health. So in a
+ * world armed with a kit the boss's phases are written out, each stepping to the next temper that answers a string by
+ * being cut. Null where the mind writes its own phases, is no boss, or never steps into the counter (its default kept).
+ *   bossPhases(mind) → [{ below, aggressiveness, rule?, shift }] | null */
+export function bossPhases(mind) {
+  if (!isObj(mind) || mind.rank !== 'boss' || Array.isArray(mind.phases)) return null;
+  const at = Math.max(TEMPERS.indexOf(mind.aggressiveness ?? 'bold'), 1), last = TEMPERS.length - 1;
+  const next = TEMPERS[Math.min(at + 1, last)];
+  if (!stuffs(next)) return null;
+  const up = TEMPERS.slice(at + 1).find((a) => !stuffs(a)) ?? TEMPERS[at];
+  return [{ below: 2 / 3, aggressiveness: up, shift: 1 }, { below: 1 / 3, aggressiveness: TEMPERS[last], rule: { meleeSeek: true }, shift: 1.2 }];
+}
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (m) => { throw new Error(`gameworld: arsenal ${m}`); };
@@ -161,7 +182,9 @@ export function armLevel(G, manifest) {
   const foe = (e) => {
     if (!(e && e.team === 'foes' && e.body && Number.isFinite(e.body.hp))) return e;
     const body = { ...e.body, hp: foeHealth(e.rule?.mind?.rank ?? 'minion', R.arsenal), ...(combo && e.body.combo === undefined ? { combo } : {}) };
-    return { ...e, body };
+    // (a boss's phases never step into the counter a string cannot answer: bossPhases)
+    const phases = bossPhases(e.rule?.mind);
+    return { ...e, body, ...(phases ? { rule: { ...e.rule, mind: { ...e.rule.mind, phases } } } : {}) };
   };
   const entities = ents.map((e) => (strikes(e) ? arm(e) : foe(e)));
   return { ...manifest, entities };

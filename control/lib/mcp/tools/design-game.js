@@ -1312,6 +1312,15 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
       const playthrough = await playReadout(W);
       if (playthrough) {
         full.playthrough = playthrough;
+        // (each level's verdict kept in the run's record beside the row it judged, as its opening frame's is: the
+        // world's bible says how each fight level played; a level remade drops it with its record)
+        const kept = playthrough.levels.filter((l) => !l.error && W.made?.[l.level]);
+        if (kept.length) {
+          const made = { ...W.made }, base = W;
+          for (const l of kept) made[l.level] = { ...made[l.level], play: { stored: made[l.level].stored, pass: l.pass, says: [l.basic, l.still] } };
+          W = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), base, { ...W, made });
+          await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+        }
         const lost = playthrough.levels.filter((l) => !l.pass).map((l) => l.level);
         if (lost.length) full.next = [...full.next, { step: 'playthrough', lost, card: 'gameworld-next' }];
       }

@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { worldMapLevel, WORLD_MAP } from './world-map.js';
 import { composeGameworld } from './compose.js';
 import { castingCall } from './foe-casting.js';
+import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch, sketchLaws } from '../level/map-sketch.js';
 
@@ -54,5 +55,28 @@ describe('the world map', () => {
     const D = composeGameworld({ prompt: 'a stylish action game like devil may cry in a gothic castle', seed: 1 });
     expect(D.topology).toBeUndefined();
     expect(Object.values(D.levels).every((l) => l.walk || l.building)).toBe(true);
+  });
+  it('the world\'s bible draws it: its blocks in their places by name, the walk through them, who each block\'s fights stand', () => {
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
+    const id = Object.keys(W.levels)[0], P = W.levels[id].glyphs.plan;
+    const html = gameworldBibleHtml(W);
+    expect(html).toContain('<h4>The map</h4>');
+    for (const S of P.route) expect(html, S).toContain(`>${P.key[S].name}</text>`);
+    // (a block's fights, from its scenario's beats; the goal's block marked)
+    const fought = W.levels[id].glyphs.sketch.scenario.beats.find((b) => b.foes), role = Object.keys(fought.foes)[0];
+    expect(html).toMatch(new RegExp(`font-size="8">[^<]*${role}`));
+    expect(html).toContain(' ★</text>');
+    // (how its fights played, once a check has played them: a line a stage, kept in the run's record; none before)
+    expect(html).not.toContain('Played · machine gate');
+    const print = 'abcd1234', rec = { ref: 'gw-level', order: print, stored: print };
+    const made = { [`level-${id}-0`]: { ...rec, play: { stored: print, pass: true, says: ['basic: won at 78 s', 'still: not ended in 180 s'] } }, [`level-${id}-1`]: { ...rec, play: { stored: print, pass: false, says: ['basic: the hero went down at 12 s', 'still: not ended'] } } };
+    expect(readMade(made)).toBeTruthy();
+    const played = gameworldBibleHtml({ ...W, made });
+    expect(played).toContain('Played · machine gate');
+    expect(played).toMatch(/<b>stage 1<\/b> won by a player who fights, not by one who stands still<span>basic: won at 78 s · still: not ended in 180 s<\/span>/);
+    expect(played).toMatch(/<b>stage 2<\/b> not yet won by a player who fights/);
+    // (the record refuses a verdict it cannot read, and one on a record that is no level's)
+    expect(() => readMade({ [`level-${id}-0`]: { ...rec, play: { stored: print, pass: 'yes', says: [] } } })).toThrow(/play is \{ stored, pass/);
+    expect(() => readMade({ hero: { ...rec, play: { stored: print, pass: true, says: [] } } })).toThrow(/play is not part/);
   });
 });
