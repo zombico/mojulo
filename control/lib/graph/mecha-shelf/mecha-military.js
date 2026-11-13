@@ -51,7 +51,7 @@ export function readMechaDress(archetype, { livery, wear } = {}) {
 
 /** A posed frame's faces in its dress: `manifest` assembled unlit-ready (finish: false), `anchors` its kit's in the
  *  world (assembleFrame's readout), `colors` its palette's. */
-export function dressFaces({ manifest, anchors = [], colors: C, archetype }, { livery, wear, seed = 1 } = {}) {
+export function dressFaces({ manifest, anchors = [], colors: C, archetype }, { livery, wear, seed = 1, form = false } = {}) {
   const { L: asked, W } = readMechaDress(archetype, { livery, wear });
   // (no livery asked: the palette's paint is its base, a mono of it, so its stencils have a colour to read against)
   const L = asked ?? readLivery({ pattern: 'mono', colours: [C.paint] });
@@ -75,6 +75,9 @@ export function dressFaces({ manifest, anchors = [], colors: C, archetype }, { l
   }
   const marks = flatNormals(stencilMarks(anchors.filter((a) => a.kind === 'mark'), L, { seed }));
   const worn = weather([...all, ...marks], W, { hubs: [], r: 0.4, seed, soil: W.soil ?? soilFor(asked), scale: 1.2 });
+  // (asked for its form, `form: true`: the faces as dressed, their material and colour and no light, for a page that
+  // lights them as its world is lit: mecha-figure.js mechaFigure)
+  if (form) return worn;
   // (baked under the studio's light, each corner its own; the face's fill their mean, for a grid that reads one)
   return bakeForm(worn).map((f) => {
     const c = f.cornerFills.map(rgb), mean = hex([0, 1, 2].map((k) => c.reduce((s, x) => s + x[k], 0) / c.length));
