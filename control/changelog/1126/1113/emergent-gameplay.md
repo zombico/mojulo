@@ -42,6 +42,15 @@ capture and the level played in Node show).
   roll is fair by how it is laid. Its audit is the reaction bot: it sees only so far ahead and acts a reaction time
   after; the laws are fair (a 0.4 s reaction with the sight the course asks runs every sampled seed clean), finishes
   (a 0.8 s one still does) and apart. The sight a course asks is (its need + the reaction) x the hero's speed.
+- The course's dress (`gameworld/course-dress.js`): a rolled course is coloured by ROLE (the way: ground, sleeper,
+  rail, kerb, wall, sky; the asks: go over, go round; the tells; the exit) from a theme card, the rail yard first
+  (ballast, sleepers and steel rails; amber barriers and orange crates to jump, blue wagons to go round). Its own
+  machine gate, measured in OKLab: every ask is read against the way, the two kinds of ask are told apart by hue,
+  nothing on the way is as vivid as an ask, and each tell is in its ask's hue. A game's seed gives it its own shade of
+  the theme. `obstacles: { dress }` names one; the greybox loses every law, and says so.
+- The tells: paint on the way that carries what the course was measured by, rolled with its ask. A jump's window is
+  painted as a strip (jump while on it); posts' arrows point at the open lane from where a two-lane change must begin.
+- A level's `blocks` may carry their own colour (`tint`) and flat paint that goes with them (`marks`).
 - A level that is an obstacle course: a gameworld level's `obstacles: true | { slots?, rest? }`, in place of `walk`. A
   run lays the lane for the world's hero (sized by its measured pace), its things as the level's blocks and a roll
   over them, the exit at its end; every play is another course. `create_game` answers with the reaction bot's audit

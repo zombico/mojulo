@@ -130,9 +130,11 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
     expect(readObstacles({ slots: 6 })).toEqual({ slots: 6, rest: REST });
     expect(() => readObstacles({ slots: 2 })).toThrow(/4 to 40/);
     expect(() => readObstacles({ rest: 9 })).toThrow(/0\.2 to 3/);
-    expect(() => readObstacles({ lanes: 5 })).toThrow(/not a course's setting \(slots, rest\)/);
+    expect(() => readObstacles({ lanes: 5 })).toThrow(/not a course's setting \(slots, rest, dress\)/);
+    expect(readObstacles({ dress: 'greybox' })).toEqual({ slots: 10, rest: REST, dress: 'greybox' });
+    expect(() => readObstacles({ dress: 'neon' })).toThrow(/dress is one of rail-yard, greybox/);
     expect(() => readGameworld(world(true, { walk: { nodes: { path: { trail: {} } } } }))).toThrow(/an obstacle course is the lane alone/);
-    expect(() => readGameworld(world('fast'))).toThrow(/obstacles is true or \{ slots\?, rest\? \}/);
+    expect(() => readGameworld(world('fast'))).toThrow(/obstacles is true or \{ slots\?, rest\?, dress\? \}/);
   });
 
   it('a run lays it: the lane for the world\'s hero, its things as the level\'s blocks, a roll over them, the exit at its end', () => {

@@ -92,7 +92,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   // THE COURSE (a momentum hero's): the lane, its slots' things and the roll over them, the exit at its end
   if (course) {
     const manifest = {
-      kind: 'controllable', title: `Roll room · ${G?.name ?? G?.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures, entities: [{ ...heroE, transform: { pos: course.start.slice(), heading: Math.PI / 2 } }],
+      kind: 'controllable', title: `Roll room · ${G?.name ?? G?.id ?? 'game'}`, bg: course.bg, faces, colliders, figures, entities: [{ ...heroE, transform: { pos: course.start.slice(), heading: Math.PI / 2 } }],
       camera: { ...P.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
       blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), radius: 3 }] }, roll: structuredClone(course.roll),
     };
@@ -155,6 +155,8 @@ export function rollRoomMeasured(G) {
     // the course: the reaction bot's audit over a sample of seeds, and what the course was sized by
     const C = courseOf(G), A = courseAudit(C, { seeds: 12 }), jumps = C.prims.filter((id) => PRIMITIVES[id].ask === 'jump');
     const out = { layout: 'course', seeds: A.seeds, ways: C.ways, lost: A.laws.filter((l) => !l.holds).map((l) => l.law), ...(A.ok ? {} : { worst: A.laws.filter((l) => !l.holds).map((l) => l.says) }), says: A.laws.map((l) => l.says),
+      // (its dress's own gate, course-dress.js: are the asks read against the way, told apart, and told ahead)
+      dress: { theme: C.dress.theme, name: C.dress.name, lost: C.dress.laws.filter((l) => !l.holds).map((l) => l.law), says: C.dress.laws.map((l) => l.says) },
       course: { top: Math.round(C.pace.top * 10) / 10, need: C.need, rest: C.rest, gap: C.gap, react: C.react, sight: C.sight, asks: C.prims, windows: Object.fromEntries(jumps.map((id) => [id, C.pace.lead[id].frames])), lane: C.pace.laneTime.slice(1).map((t) => Math.round(t * 100) / 100) } };
     KEPT.set(key, out);
     if (KEPT.size > KEEP) KEPT.delete(KEPT.keys().next().value);

@@ -35,6 +35,10 @@
  *                           sized for the world's hero; obstacleEnds(manifest) → its anchors (start, exit, flat ground)
  *   PRIMITIVES, LANES, REACT, REST
  *
+ * THE DRESS (course-dress.js): the way and its asks are coloured by role from a theme (`dress`: 'rail-yard' unsaid),
+ * and each ask carries its tell: a jump's window painted as a strip, posts' arrows toward the open lane. A tell is
+ * part of its ask's rolled thing, so it is on the way only when the ask is.
+ *
  * The bot is the same on every run: it finds what is possible for a reaction and a sight, not what is comfortable.
  * Flat ground, three primitives; no gap, ramp or crest yet. Pure and deterministic.
  */
@@ -42,6 +46,8 @@ import { composeLive } from '../worlds/controllable/compose.js';
 import { feelRule } from './feel/lower.js';
 import { readRoll, rolledIds, rollWays } from '../game/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
+import { dressOf, ASK_ROLE } from './course-dress.js';
+import { hexToRgb } from '../color-theorist/oklab.js';
 
 export const LANES = Object.freeze([-2, 0, 2]);
 const HALF = 3.3, DT = 1 / 60;
@@ -116,7 +122,10 @@ export function paceOfRule(rule) {
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
-export function courseOf(G, { slots = 10, rest = REST, react = REACT } = {}) {
+export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'rail-yard' } = {}) {
+  // THE DRESS (course-dress.js): the way and its asks coloured by role, and each ask's tell painted before it
+  const D = dressOf(dress, Number.isFinite(G?.seed) ? G.seed : 1), col = D.palette, tint = (role) => hexToRgb(col[role]).map((v) => Math.round((v / 255) * 1e4) / 1e4);
+  const quad = (x0, y0, x1, y1, z, fill) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill });
   const feel = G?.feel ?? null, rule = ruleOf(feel), pace = paceOfRule(rule);
   // the primitives this hero can be asked: a jump it cannot make is left out of the course
   const prims = Object.keys(PRIMITIVES).filter((id) => PRIMITIVES[id].ask !== 'jump' || pace.lead[id]);
@@ -129,18 +138,40 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT } = {}) {
       const P = PRIMITIVES[id], bid = `s${k + 1}-${id}`;
       of[bid] = id;
       // (a wall form, playscape/terrain.js: across the way, `thick` along it; its `at` the middle of its foot)
-      blocks.push({ id: bid, form: 'wall', at: [P.ask === 'steer' ? P.x : 0, r2(y + P.len / 2), 0], N: [0, -1], length: P.ask === 'steer' ? 4 : 2 * HALF, height: P.h, thick: P.len, value: P.ask === 'steer' ? 0.42 : 0.6 });
+      // its TELL, painted on the way and rolled with it: a jump's window as a strip (from the earliest place a jump
+      // still clears it to the latest), posts' arrows in the lanes they stand in, from where a two-lane change begins
+      const marks = [];
+      if (P.ask === 'jump') marks.push(quad(-HALF, r2(y - pace.lead[id].early * pace.top), HALF, r2(y - pace.lead[id].late * pace.top), 0.02, col['tell-jump']));
+      else {
+        const to = Math.sign(LANES[P.open]), from = r2(y - pace.top * pace.laneTime[2]);
+        for (const lane of LANES.filter((_, i) => i !== P.open)) for (const ay of [from, r2((from + y) / 2)]) {
+          // (an arrow: a shaft and a head, pointing across the way at the open lane)
+          marks.push(quad(lane - 0.55, ay - 0.16, lane + 0.25, ay + 0.16, 0.02, col['tell-steer']));
+          marks.push({ corners: [[lane + to * 0.25, ay - 0.5, 0.02], [lane + to * 0.85, ay, 0.02], [lane + to * 0.25, ay + 0.5, 0.02]], fill: col['tell-steer'] });
+          if (to < 0) { const q = marks[marks.length - 2]; q.corners = quad(lane - 0.25, ay - 0.16, lane + 0.55, ay + 0.16, 0.02).corners; }
+        }
+      }
+      blocks.push({ id: bid, form: 'wall', at: [P.ask === 'steer' ? P.x : 0, r2(y + P.len / 2), 0], N: [0, -1], length: P.ask === 'steer' ? 4 : 2 * HALF, height: P.h, thick: P.len, value: 0.62, tint: tint(ASK_ROLE[id]), marks });
     }
     cover.push({ of: Object.keys(of), stand: 1 });
     list.push({ k, y, of });
   }
   const length = r2(runup + slots * gap + 6), exit = [0, length - 3, 0];
-  // the lane: its floor in 2 m tiles (two greys by turns, a stripe a slot so the speed is read), a wall either side
-  const faces = [], tile = 2, W = HALF + 1;
-  for (let j = -4; j < length + 4; j += tile) for (let i = -W; i < W; i += tile) faces.push({ corners: [[i, j, 0], [Math.min(W, i + tile), j, 0], [Math.min(W, i + tile), j + tile, 0], [i, j + tile, 0]], fill: (Math.round(i / tile) + Math.round(j / tile)) % 2 ? '#74767c' : '#6a6c72', group: 'room:floor', doubleSided: true });
+  // the lane, by role: its floor in 2 m tiles (two tones by turns), its kerbs and low walls drawn where they stand, and
+  // what the theme's lanes are (a rail yard's sleepers and rails: flat paint, never a thing in the way), the exit's line
+  const faces = [], tile = 2, W = HALF + 1, add = (q, group) => faces.push({ ...q, group, doubleSided: true });
+  for (let j = -4; j < length + 4; j += tile) for (let i = -W; i < W; i += tile) add(quad(i, j, Math.min(W, i + tile), j + tile, 0, (Math.round(i / tile) + Math.round(j / tile)) % 2 ? col.ground2 : col.ground), 'room:floor');
+  for (const side of [-1, 1]) {
+    const x0 = side * HALF, x1 = side * (W + 0.5), lo = Math.min(x0, x1), hi = Math.max(x0, x1);
+    add(quad(lo, -4, hi, length + 4, 1, col.kerb), 'room:wall');
+    add({ corners: [[x0, -4, 0], [x0, length + 4, 0], [x0, length + 4, 1], [x0, -4, 1]], fill: col.wall }, 'room:wall');
+  }
+  if (D.lanes.sleepers) for (const lane of LANES) for (let j = 0; j < length; j += 1.2) add(quad(lane - 0.8, j, lane + 0.8, j + 0.26, 0.008, col.sleeper), 'room:lanes');
+  if (D.lanes.rails) for (const lane of LANES) for (const off of [-0.55, 0.55]) for (let j = -4; j < length + 4; j += 20) add(quad(lane + off - 0.05, j, lane + off + 0.05, Math.min(length + 4, j + 20), 0.016, col.rail), 'room:lanes');
+  add(quad(-HALF, exit[1] - 0.4, HALF, exit[1] + 0.4, 0.02, col.exit), 'room:lanes');
   const colliders = [{ min: [-W - 0.5, -4, 0], max: [-HALF, length + 4, 4], hold: false }, { min: [HALF, -4, 0], max: [W + 0.5, length + 4, 4], hold: false }, { min: [-W, -4.5, 0], max: [W, -4, 4], hold: false }, { min: [-W, length + 4, 0], max: [W, length + 4.5, 4], hold: false }];
   const roll = { cover };
-  return { feel, rule, pace, prims, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
+  return { feel, rule, pace, prims, dress: D, bg: col.sky, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
 }
 
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
@@ -209,17 +240,18 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A level's `obstacles`, read: true | { slots?: 4 … 40, rest?: 0.2 … 3 seconds }. */
 export function readObstacles(v) {
   if (v === true) return { slots: 10, rest: REST };
-  if (!isObj(v)) throw new Error('obstacles is true or { slots?, rest? } (an obstacle course run at speed: a lane of slots a seed fills, gameworld/roll-course.js)');
-  for (const k of Object.keys(v)) if (k !== 'slots' && k !== 'rest') throw new Error(`obstacles.${k} is not a course's setting (slots, rest)`);
+  if (!isObj(v)) throw new Error('obstacles is true or { slots?, rest?, dress? } (an obstacle course run at speed: a lane of slots a seed fills, gameworld/roll-course.js)');
+  for (const k of Object.keys(v)) if (k !== 'slots' && k !== 'rest' && k !== 'dress') throw new Error(`obstacles.${k} is not a course's setting (slots, rest, dress)`);
+  if (v.dress !== undefined) dressOf(v.dress);   // (a theme there is, said by name)
   if (v.slots !== undefined && !(Number.isInteger(v.slots) && v.slots >= 4 && v.slots <= 40)) throw new Error('obstacles.slots is how many places the course has, 4 to 40');
   if (v.rest !== undefined && !(Number.isFinite(v.rest) && v.rest >= 0.2 && v.rest <= 3)) throw new Error('obstacles.rest is the seconds of rest after each ask is met, 0.2 to 3 (0.6 unsaid)');
-  return { slots: v.slots ?? 10, rest: v.rest ?? REST };
+  return { slots: v.slots ?? 10, rest: v.rest ?? REST, ...(v.dress !== undefined ? { dress: v.dress } : {}) };
 }
 /** A course level's stage: the lane as a world of its own, its things as `blocks`, its `roll` over them. */
 export function obstacleStage(G, v) {
   const C = courseOf(G, readObstacles(v));
-  return { kind: 'controllable', title: 'course', bg: '#1b1d22', faces: C.faces, colliders: C.colliders, blocks: C.blocks, roll: structuredClone(C.roll),
-    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims },
+  return { kind: 'controllable', title: 'course', bg: C.bg, faces: C.faces, colliders: C.colliders, blocks: C.blocks, roll: structuredClone(C.roll),
+    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, dress: C.dress.theme },
     worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };
 }
 /** A course stage's anchors: the start facing up the lane, the exit at its end, flat ground. */

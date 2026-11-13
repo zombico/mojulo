@@ -75,6 +75,13 @@ takes when steered as a player learns to (the sideways speed builds and keeps, s
 time). A slot stands every (the neediest ask + a rest) of the top speed. The sight a course asks of its level is
 (its need + the player's reaction) × the hero's speed.
 
+The course is dressed by role, not thing by thing (`course-dress.js`): the way, the two kinds of ask (go over, go
+round), their tells and the exit each have a colour from a theme card, the rail yard first. A tell is paint that
+carries a measure: a jump's window is painted on the way as a strip, and arrows before a set of posts point at the
+open lane from where the lane change must begin; each is part of its ask's rolled thing. The dress has a gate of its
+own, measured in OKLab: the asks are read against the way, told apart by hue, louder than anything that is not an
+ask, and told ahead in their own hue.
+
 Its machine gate is the reaction bot, which knows how to play and lacks what a player lacks: it sees a thing only
 inside a sight distance, and acts on it only a reaction time after. The room's readout says whether a 0.4 s reaction
 with the course's own sight runs a sample of seeds clean, and whether a 0.8 s one still finishes. The bot is the same

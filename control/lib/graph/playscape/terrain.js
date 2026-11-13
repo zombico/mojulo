@@ -173,11 +173,13 @@ export function fromColliders(colliders, pick, { course: c, hp, value, seed, id 
   return { terrain: breakableTerrain({ id, blocks: boxes, course: c }, { hp, value, seed }), colliders: rest };
 }
 
+const TINT_SUN = (() => { const v = [-0.35, -0.55, 0.76], L = Math.hypot(...v); return v.map((x) => x / L); })();
 /**
  * Forms that stand and never break: each ask cut and drawn as breakableTerrain does, its blocks plain colliders.
  * `rolled` (a Set of ask ids: a level's roll, game/roll.js): an ask in it is one THING the level's seed may leave out:
  * its faces their own render group (`roll:<id>`, so the page hides the whole of it) and its box in `things` in place
- * of the colliders (the runtime stands it, worlds/controllable/roll.js). None rolled: as it was.
+ * of the colliders (the runtime stands it, worlds/controllable/roll.js). None rolled: as it was. An ask may carry its
+ * own colour (`tint`) and flat paint that goes with it (`marks`); one with neither is as it was.
  */
 export function standBlocks(asks, { seed = 1, rolled = null } = {}) {
   if (!Array.isArray(asks)) throw new Error('terrain: blocks is a list of asks ({ form, at, … })');
@@ -185,7 +187,19 @@ export function standBlocks(asks, { seed = 1, rolled = null } = {}) {
   asks.forEach((ask, i) => {
     const T = breakableTerrain({ id: `block-${i}`, ...ask }, { seed: seed + i, value: Number.isFinite(ask.value) ? ask.value : 0.62 });
     const roll = rolled && typeof ask.id === 'string' && rolled.has(ask.id) ? ask.id : null;
-    for (const f of T.faces) faces.push(roll ? { ...f, group: `roll:${roll}` } : f);
+    // `tint` ([r, g, b] 0 to 1): the ask's own colour, its blocks' values kept as shade over it; `marks`: flat paint
+    // that goes with it ([{ corners, fill }]: a tell on the ground), in its group so a rolled ask's goes when it does
+    // (a tinted face carries its colour as its fill too, shaded by its facing under the greybox's one sun, so a page
+    // that lights no blocks still draws the colour and the box still reads as a box)
+    const base = Number.isFinite(ask.value) ? ask.value : 0.62;
+    const shade = (f) => {
+      if (!Array.isArray(ask.tint) || !Array.isArray(f.tint)) return f;
+      const tint = ask.tint.map((c) => Math.round(Math.min(1, c * (f.tint[0] / base)) * 1e4) / 1e4), n = f.outNormal || f.normal || [0, 0, 1];
+      const lit = 0.58 + 0.42 * Math.max(0, n[0] * TINT_SUN[0] + n[1] * TINT_SUN[1] + n[2] * TINT_SUN[2]);
+      return { ...f, tint, fill: `#${tint.map((c) => Math.max(0, Math.min(255, Math.round(c * lit * 255))).toString(16).padStart(2, '0')).join('')}` };
+    };
+    for (const f of T.faces) faces.push(roll ? { ...shade(f), group: `roll:${roll}` } : shade(f));
+    for (const m of Array.isArray(ask.marks) ? ask.marks : []) faces.push({ corners: m.corners, fill: m.fill, group: roll ? `roll:${roll}` : 'obj:marks', doubleSided: true });
     // `whole`: the form is one collider (an arena's wall: it never breaks, so its courses need not each be a box)
     if ((roll || ask.whole === true) && T.blocks.length) {
       const min = [0, 1, 2].map((k) => Math.min(...T.blocks.map((b) => b.min[k]))), max = [0, 1, 2].map((k) => Math.max(...T.blocks.map((b) => b.max[k])));
