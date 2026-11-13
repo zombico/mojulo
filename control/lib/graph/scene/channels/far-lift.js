@@ -26,7 +26,7 @@ import { FAR_BLANKET_GLSL, FAR_FIELD } from './far-field.js';
  *  stipple starts at and is whole at (`wall`); where it begins and where it is whole (× the
  *  reach: `from` the blades' thinning, POV_GRASS.thin, `full` the reach); the stipple's cell (m); its colour over the
  *  far field's (`gain`); the least cover it is drawn at. */
-export const FAR_LIFT = Object.freeze({ stand: 1.3, cover: Object.freeze([0.08, 0.3]), wall: Object.freeze([0.08, 0.2]), from: POV_GRASS.thin, full: 1, cell: 0.09, gain: 1, least: 0.08 });
+export const FAR_LIFT = Object.freeze({ stand: 1.3, cover: Object.freeze([0.3, 0.5]), wall: Object.freeze([0.3, 0.42]), from: POV_GRASS.thin, full: 1, cell: 0.09, gain: 1, least: 0.3 });
 
 /** Each sward's height (m): its tier's tallest tip × FAR_LIFT.stand, in SWARD order (tall, medium, short). */
 export const FAR_LIFT_HEIGHTS = Object.freeze(['tall', 'medium', 'short'].map((s) => {
