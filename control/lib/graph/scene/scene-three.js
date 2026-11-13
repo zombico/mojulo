@@ -972,6 +972,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(liveIndoor ? { indoor: true } : {}),
     ...(form && form.room && form.room.reflect && form.room.reflect.floods ? { floods: true } : {}),
     ...(stillBodies ? { stills: true } : {}),
+    ...(shadows.fit && Array.isArray(shadows.fit.at) && shadows.fit.half > 0 ? { fit: { at: shadows.fit.at, half: shadows.fit.half } } : {}),
     ...(form && form.land && form.room && liveShadows.hour ? { landSun: true } : {}),
     ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),

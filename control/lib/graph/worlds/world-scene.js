@@ -66,6 +66,8 @@ import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
+// (the margin round a land's buildings their shadow map reaches: what stands by them and shades them, metres)
+const BUILT_SHADE = 12;
 import { GLASS_GROUPS } from '@/lib/graph/era/bay-glass';
 import { floraRead, floraBox, viewHeld, FLORA_HIDES, leafPilesRead } from '@/lib/graph/form/flora-read';
 import { snowBase, readSnow } from '@/lib/graph/era/snow';
@@ -833,6 +835,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (and a building's rooms on a land, under the land's sun: their glass lets it by too)
   const builtSun = payload && payload.form && payload.form.room && Array.isArray(payload.buildings) && payload.buildings.length;
   if (payload && shadowsOut) payload.shadows = (liveRoomSun || builtSun) && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
+  // (a land's buildings under its hour's map: the map fitted to the built place (its aprons and a margin for what
+  // stands by them and shades them), not to the whole land, which its own sun's map shades: channels/cast-shadows.js)
+  if (payload && builtSun && payload.shadows && typeof payload.shadows === 'object' && payload.shadows.hour && payload.form.land) {
+    const A = payload.buildings.map((b) => b.site && b.site.apron).filter(Array.isArray);
+    if (A.length) {
+      const x0 = Math.min(...A.map((a) => a[0])), y0 = Math.min(...A.map((a) => a[1])), x1 = Math.max(...A.map((a) => a[2])), y1 = Math.max(...A.map((a) => a[3]));
+      const z = payload.buildings.reduce((t, b) => t + (b.floor ?? 0), 0) / payload.buildings.length;
+      payload.shadows = { ...payload.shadows, fit: { at: [(x0 + x1) / 2, (y0 + y1) / 2, z + 6].map((v) => Math.round(v * 100) / 100), half: Math.round((Math.hypot(x1 - x0, y1 - y0) / 2 + BUILT_SHADE) * 100) / 100 } };
+    }
+  }
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;

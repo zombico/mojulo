@@ -25,3 +25,11 @@ describe('the live shadows\' static bodies', () => {
     expect(land.match(/window\.__formSun\.shadow\.needsUpdate/g).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('the live shadows fitted to a built place', () => {
+  it('fits its maps to the box it is given, and to the whole static stage without one', () => {
+    const plain = liveShadowScript(BASE), fit = liveShadowScript({ ...BASE, fit: { at: [10, 20, 6], half: 40 } });
+    expect(plain).not.toContain('__CS.fit');
+    expect(fit).toContain('__csC.set(__CS.fit.at[0], __CS.fit.at[1], __CS.fit.at[2]); __csR = __CS.fit.half;');
+  });
+});

@@ -119,3 +119,6 @@
 - A body under the land's sun stands in its building's shade: the land's sun's map is drawn with the static world in
   it (at the hour's pass and whenever the land asks for it again), so a hero or a vehicle indoors takes the sun only
   through an opening (it took it through the roof).
+- The hour's map fitted to the built place: on a land whose own sun shades it, the map covers its buildings' aprons
+  and a margin for what stands by them, not the whole land, so its texels are centimetres: a tree's leaves read in its
+  shadow on a wall, a window's patch has an edge.

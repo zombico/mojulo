@@ -200,7 +200,10 @@ const __csC = new THREE.Vector3(); let __csR = 0;
   }
   __csR = Math.min(Math.max(__csR, ${fitMinLit}), 1600);
 }
-// a box round (x, y, z), \`half\` across, aimed along the sun; its constant-depth bias in DEPTH units (ortho depth is linear)
+${cfg.fit ? `// (the built place's own box, cfg.fit: where the page's static world is a few buildings on a land the land's own sun
+// shades, the maps are fitted to them and not to the whole land, so a texel is centimetres and a shadow's edge is one)
+__csC.set(__CS.fit.at[0], __CS.fit.at[1], __CS.fit.at[2]); __csR = __CS.fit.half;
+` : ''}// a box round (x, y, z), \`half\` across, aimed along the sun; its constant-depth bias in DEPTH units (ortho depth is linear)
 function __csSeat(L, biasU, half, x, y, z, bias) {
   const c = L.shadow.camera;
   c.left = -half; c.right = half; c.top = half; c.bottom = -half;
