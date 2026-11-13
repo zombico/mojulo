@@ -25,8 +25,9 @@ forge_motion({ title: 'The key', export: 'storyboard',
 ```
 
 - **The script**: `NAME: the line` (the persona's markup: `*stress*`, `[pause]`, `[pause 1.5]`, `(aside)`),
-  `NAME (worried): the line` for that line's face, and directions: "Mara crosses to the table.", "Jon turns to Mara.",
-  "Mara looks at the door.", "Jon waits 2 seconds.", "Slow motion.", "Real time.", "Freeze.". Anything else is a note.
+  `NAME (worried): the line` for that line's face, and directions: "Mara crosses to the table." (or "to Jon": up to
+  him, a conversation's distance short), "Jon turns to Mara.", "Mara looks at the door.", "Jon waits 2 seconds.",
+  "Slow motion.", "Real time.", "Freeze.". Anything else is a note.
   `who` in the cast is the name the script writes, lower case.
 - **The cast**: each part plays from
   - `persona: <ref>`: the persona is the actor (`create_character({ as: 'persona' })`). Its hero is the body, and its

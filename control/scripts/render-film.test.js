@@ -63,4 +63,26 @@ describe('the render worker', () => {
     render(film, '--chunk', '10');
     expect(calls().length).toBe(before);
   });
+
+  it('builds and renders a pack made again since its render (the scene edited), and cuts the film again; the other scene is kept', () => {
+    const one = path.join(film, 'scenes', 'one', 'blender');
+    const was = JSON.parse(readFileSync(path.join(one, 'render.json'), 'utf8')).pack;
+    pack(one, [12]);
+    writeFileSync(path.join(one, 'shots', 's-02.json'), JSON.stringify({ source: 'mojulo', frame_count: 0 }));
+    const plan = render(film, '--plan', '--chunk', '10');
+    expect(plan.scenes.one).toMatchObject({ frames: 12, done: 0 });
+    expect(plan.scenes.one.stale).toBeTruthy();
+    expect(plan.scenes.two).toMatchObject({ build: 'built', done: 25 });
+    const before = calls().length;
+    const r = render(film, '--chunk', '10');
+    expect(r.scenes.one).toMatchObject({ frames: 12, done: 12, encoded: 'film/film-draft.mp4' });
+    expect(readdirSync(path.join(one, 'film', 'frames-draft'))).toHaveLength(12);
+    const rec = JSON.parse(readFileSync(path.join(one, 'render.json'), 'utf8'));
+    expect(rec.pack).not.toBe(was);
+    expect(rec.calls.some((c) => c.step === 'made again')).toBe(true);
+    const mine = calls().slice(before);
+    expect(mine.filter((c) => c.cwd.endsWith(path.join('two', 'blender')))).toEqual([]);
+    expect(mine.at(-1).py).toBe('cut.py');
+    expect(r.cut.file).toBe('cut-draft.mp4');
+  });
 });

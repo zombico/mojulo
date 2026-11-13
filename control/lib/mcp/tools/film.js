@@ -28,6 +28,7 @@ import { randomUUID } from 'node:crypto';
 import { readFilm, sceneScreenplay, sceneOrder, sceneStamp, FILM_KIND, isFilmKind, FILM_MANUAL } from '@/lib/graph/film/film.js';
 import { filmReadout } from '@/lib/graph/film/readout.js';
 import { filmBookHtml } from '@/lib/graph/film/book.js';
+import { packStamp } from '@/lib/graph/film/pack-stamp.js';
 
 export const FILM_RUNS = Object.freeze(['storyboard', 'animatic', 'blender']);
 export const FILM_BUDGET_MS = 300_000;
@@ -87,12 +88,18 @@ export async function renderProgressOf(made) {
   if (!B?.motion_ref) return null;
   const { outcomeDirFor } = await store();
   const dir = outcomeDirFor(B.motion_ref), scenes = {};
+  let remade = false;
   for (const id of Object.keys(B.scenes ?? {})) {
     const f = path.join(dir, 'scenes', id, 'blender', 'render.json');
     if (!existsSync(f)) continue;
-    try { const R = JSON.parse(readFileSync(f, 'utf8')); scenes[id] = { preset: R.preset, frames: R.frames, done: R.done, encoded: R.encoded ?? null }; } catch { /* a record being written: read next time */ }
+    // (a pack made again since its render is another pack: the record is the old scene's, and so is a cut of it)
+    try {
+      const R = JSON.parse(readFileSync(f, 'utf8'));
+      if (R.pack !== packStamp(path.dirname(f))) { remade = true; continue; }
+      scenes[id] = { preset: R.preset, frames: R.frames, done: R.done, encoded: R.encoded ?? null };
+    } catch { /* a record being written: read next time */ }
   }
-  const cut = ['final', 'draft'].map((p) => `cut-${p}.mp4`).find((c) => existsSync(path.join(dir, c))) ?? null;
+  const cut = remade ? null : ['final', 'draft'].map((p) => `cut-${p}.mp4`).find((c) => existsSync(path.join(dir, c))) ?? null;
   return { dir, scenes, cut };
 }
 
@@ -262,6 +269,7 @@ main()
 /** The Blender run: each scene's pack, within a budget, resumable (see the header) */
 async function runBlender(row, F, played, ids) {
   const { writeSceneFilm, packTitle } = await import('@/lib/mcp/tools/scene-film.js');
+  const { SCENE_PACK_REV } = await import('@/lib/graph/actor/scene-film.js');
   const { getRow } = await store();
   const prev = row.manifest.made?.blender ?? null;
   const run = await runFolder(row, 'blender', prev?.motion_ref ?? null), title = F.title ?? row.title ?? 'film', fps = 24;
@@ -270,10 +278,11 @@ async function runBlender(row, F, played, ids) {
   for (const id of ids) {
     const P = played[id], stamp = sceneStamp(F, id), dir = path.join(run.dir, 'scenes', id, 'blender');
     if (P.error) { out[id] = { error: P.error }; continue; }
-    if (scenes[id]?.stamp === stamp && existsSync(path.join(dir, 'scene.json'))) { out[id] = { kept: true }; continue; }
+    // (kept: the same scene, made by this pack's scripts; a pack of an older revision is made again)
+    if (scenes[id]?.stamp === stamp && scenes[id]?.pack === SCENE_PACK_REV && existsSync(path.join(dir, 'scene.json'))) { out[id] = { kept: true }; continue; }
     if (Date.now() - t0 > budget) { pending.push(id); continue; }
     const film = await writeSceneFilm({ outDir: dir, screenplay: sceneScreenplay(F, id), getRow, title: packTitle(`${title} ${id}`), style: F.style ?? null, grain: F.grain ?? null, grade: F.grade ?? null, fps, prepared: P.prep, cache, render: F.render ?? null });
-    scenes[id] = { stamp, at: new Date().toISOString() };
+    scenes[id] = { stamp, pack: SCENE_PACK_REV, at: new Date().toISOString() };
     out[id] = { actors: Object.fromEntries(Object.entries(film.actors).map(([w, A]) => [w, { seconds: A.seconds, plays: A.plays }])), files: film.files.length };
   }
   const order = sceneOrder(F);

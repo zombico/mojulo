@@ -127,7 +127,7 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
       n: k + 1, name: s.name, camera: cam.id, span: [r3(s0), r3(s1)], screen: [r3(P.start), r3(P.length)], at,
       lens_mm: Math.round(a.focal_mm ?? 35), move: moveOf(a, b),
       lines: S.turns.filter((T) => T.at < s1 && T.end > s0).map((T) => ({ who: T.who, text: T.text, at: T.at, end: T.end, ...(T.face ? { face: T.face } : {}), ...(T.recording ? { recording: T.recording } : {}) })),
-      crosses: names.flatMap((w) => (S.actors[w].walks ?? []).filter((W) => W.start < s1 && W.end > s0).map((W) => ({ who: w, to: markAt(S.marks, W.to), start: W.start, end: W.end }))),
+      crosses: names.flatMap((w) => (S.actors[w].walks ?? []).filter((W) => W.start < s1 && W.end > s0).map((W) => ({ who: w, to: W.toward ?? markAt(S.marks, W.to), start: W.start, end: W.end }))),
       notes: notes.filter((N) => N.at !== undefined && N.at >= s0 && (N.at < s1 || k === coverage.shots.length - 1)),
       frame: svg,
     };

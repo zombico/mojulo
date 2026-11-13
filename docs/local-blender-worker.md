@@ -332,3 +332,4 @@ renders with `node scripts/render-film.mjs <its folder> --preset draft | final`.
   again to go on: a frame on disk is never rendered again.
 - It encodes each scene with its voice, or a dub's with `--locale`, then joins a film's scenes with `cut.py`.
 - What it did is in each pack's `render.json`, which the film's readout and book read back.
+- A scene edited and made again since its render is built and rendered again; the film's other scenes are kept.

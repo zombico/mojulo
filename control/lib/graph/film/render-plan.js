@@ -20,12 +20,15 @@
 export const RENDER_PRESETS = Object.freeze({ draft: { engine: 'EEVEE', samples: 0, res: 100 }, final: { engine: 'CYCLES', samples: 128, res: 200 } });
 export const RENDER_CHUNK = 24;
 
+/** An EMPTY film.blend: Blender's startup file brings a cube, a camera and a light, which would stand in the film */
+export const EMPTY_BLEND = "import bpy; bpy.ops.wm.read_factory_settings(use_empty=True); bpy.ops.wm.save_as_mainfile(filepath='film.blend')";
+
 /** The build: blender's arguments (after -b) a step at a time, run in the pack's folder */
 export function buildSteps({ shotFiles, look = 'film', set = false, lights = false }) {
   return [
     ...(set
       ? [{ step: 'set', args: ['--python', 'set/import_mojulo.py', '--', '--mode', 'run', '--blend', 'film.blend'] }, { step: 'set.py', args: ['film.blend', '--python', 'set.py'] }]
-      : [{ step: 'film.blend', args: ['--python-expr', "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"] }]),
+      : [{ step: 'film.blend', args: ['--python-expr', EMPTY_BLEND] }]),
     { step: 'actors', args: ['film.blend', '--python', 'actors.py', '--python-expr', 'import bpy; bpy.ops.wm.save_mainfile()'] },
     { step: 'shots', args: ['film.blend', '--python', 'film_shots.py', '--', '--root', 'none', ...shotFiles.flatMap((f) => ['--shot', f]), '--verify', 'film-gate.json'] },
     ...(lights ? [{ step: 'light.py', args: ['film.blend', '--python', 'light.py'] }] : []),

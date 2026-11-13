@@ -27,7 +27,7 @@
  *   writeSceneFilm({ outDir, screenplay, getRow, title?, style?, grain?, grade?, fps?, hero?, log? }) → the summary
  *     (the actors minted and written as actors/<who>.glb, the pack's files beside them)
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { actScene } from '@/lib/graph/actor/scene.js';
 import { coverScene } from '@/lib/graph/actor/coverage.js';
@@ -197,6 +197,9 @@ async function heroSource(src, { who, getRow, fallback }) {
   return { key: `spec:${JSON.stringify(spec)}`, manifest: { kind: 'layered', hero: record }, record };
 }
 
+/** what a pack writes that depends on its scene: cleared before a pack is made again in the same folder */
+const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'shot.json', 'light.py', 'set.py', 'dub.py']);
+
 /**
  * Write the scene film pack into outDir: actors/<who>.glb, then the pack's files (actor/scene-film.js). Returns the
  * summary the door and the script report: the files, the actors (bytes, seconds to mint, where each part came from),
@@ -220,6 +223,10 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   const { attachRecordings } = await import('@/lib/graph/face-acting/recordings.js');
   const { dubbedRead, dubTake } = await import('@/lib/graph/actor/dub.js');
   const dubs = P.screenplay.dub ?? null;
+  // (a pack made again in its folder: what the last one wrote that this one may not (a shot the scene no longer has,
+  //  an actor cut from it, a dub, the lights) would be built and rendered with it, so the pack's own sources go first;
+  //  what a build and a render made stays for the render worker, which sees the pack is another: film/pack-stamp.js)
+  for (const f of PACK_SOURCES) rmSync(path.join(outDir, f), { recursive: true, force: true });
   mkdirSync(path.join(outDir, 'actors'), { recursive: true });
   // (a hero expanded once a call: `cache` shares it across a film's scenes)
   const expanded = cache ?? new Map(), actors = {}, minted = {};

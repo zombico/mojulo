@@ -143,13 +143,16 @@ export function actScene(scene) {
       turns.push({ who: b.who, text: b.text, at: r3(t), end: r3(t + S.speak), hold: S.hold, ...(b.face ? { face: b.face } : {}), ...(rec ? { recording: rec.recording, line: ln } : {}), i });
       t += S.hold;
     } else if (b.kind === 'cross') {
-      const to = marks[b.to.mark], from = [...at[b.who]], d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      // (to a mark; or up to another actor, stopping PAIR short of where they stand, and not at all from nearer)
+      const from = [...at[b.who]], them = b.to.actor ? at[b.to.actor] : null, gap = them ? Math.hypot(them[0] - from[0], them[1] - from[1]) : 0;
+      const to = !them ? marks[b.to.mark] : gap > PAIR + 1e-3 ? [r3(them[0] + ((from[0] - them[0]) * PAIR) / gap), r3(them[1] + ((from[1] - them[1]) * PAIR) / gap), ...from.slice(2)] : from;
+      const d = Math.hypot(to[0] - from[0], to[1] - from[1]);
       if (d > 1e-3) {
         turnTo(b.who, t, headingTo(from, to), TURN);
         const start = t + TURN, end = start + d / WALK;
         at[b.who] = [...to];
         root[b.who].push({ t: r3(end), x: to[0], y: to[1], yaw: yaw[b.who] });
-        walks[b.who].push({ start: r3(start), end: r3(end), from, to: [...to], distance: r3(d) });
+        walks[b.who].push({ start: r3(start), end: r3(end), from, to: [...to], distance: r3(d), ...(b.to.actor ? { toward: b.to.actor } : {}) });
         moves.push({ who: b.who, start: r3(t), end: r3(end) });
         t = end;
       }

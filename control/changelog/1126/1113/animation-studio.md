@@ -56,6 +56,14 @@ game.
     and it carries on from where it stopped, never redrawing a frame it already has.
   - **The finished film.** It finishes each scene with its voice, then joins the scenes into the finished film.
   - **Progress.** The film's book shows how far each scene has got.
+  - **Change a scene and only that scene is rendered again.** Edit a scene after it was rendered and the next run
+    renders that scene afresh, keeps the others and joins the film again. Before, the old render was taken for the
+    new scene.
+- **A bare stage for a scene with no set.** A scene that is not set in one of your worlds now plays on a plain stage:
+  a floor, a soft sky and a light. Before, the film opened on Blender's own starting cube, with the actors standing
+  inside it, and each actor brought a second floor and spare cameras of its own.
+- **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
+  place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that
   shot's camera stands and which way the actor faces: the main light on the far side of the face, a softer fill
   across from it, and a rim light from behind that lifts the figure off the background. The lights change on each cut,

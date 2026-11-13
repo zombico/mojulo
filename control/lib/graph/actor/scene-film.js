@@ -33,6 +33,11 @@ import { programOf, shotAt } from '../shoot/sample.js';
 import { warped } from '../shoot/time.js';
 import { placeOn } from './scene.js';
 import { setupLights } from '../film/setup-light.js';
+import { EMPTY_BLEND } from '../film/render-plan.js';
+
+/** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
+ * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set. */
+export const SCENE_PACK_REV = 2;
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -388,6 +393,58 @@ def remap(owner, name, clock, fps):
             kp.interpolation = 'LINEAR'
 
 
+def carried(o):
+    """Whether an armature carries an object: skinned to one, or hung under one (a thing held on a bone)."""
+    if any(m.type == 'ARMATURE' for m in o.modifiers):
+        return True
+    p = o.parent
+    while p is not None:
+        if p.type == 'ARMATURE':
+            return True
+        p = p.parent
+    return False
+
+
+def principled(idb, colour, strength=None):
+    """A material's or a world's first shader given a colour (a world's a strength too), its nodes on."""
+    try:
+        idb.use_nodes = True
+    except Exception:
+        pass
+    for n in idb.node_tree.nodes:
+        if n.type == 'BSDF_PRINCIPLED':
+            n.inputs['Base Color'].default_value = colour
+            n.inputs['Roughness'].default_value = 0.9
+        if n.type == 'BACKGROUND':
+            n.inputs['Color'].default_value = colour
+            n.inputs['Strength'].default_value = strength
+
+
+def stage(S):
+    """A scene with no set plays on a BARE STAGE: a matte floor out past the widest shot, a soft even sky and, unless
+    each setup is lit (light.py), one key from the camera's side. Made once; a set brings its own floor and light."""
+    if S.get('set') or bpy.data.objects.get('stage:floor') is not None:
+        return
+    sc = bpy.context.scene
+    r = 200.0
+    me = bpy.data.meshes.new('stage:floor')
+    me.from_pydata([(-r, -r, 0.0), (r, -r, 0.0), (r, r, 0.0), (-r, r, 0.0)], [], [(0, 1, 2, 3)])
+    mat = bpy.data.materials.new('stage:floor')
+    principled(mat, (0.30, 0.31, 0.33, 1.0))
+    me.materials.append(mat)
+    sc.collection.objects.link(bpy.data.objects.new('stage:floor', me))
+    if sc.world is None:
+        sc.world = bpy.data.worlds.new('stage:sky')
+        principled(sc.world, (0.62, 0.66, 0.72, 1.0), 0.7)
+    if not S.get('lights'):
+        key = bpy.data.objects.new('stage:key', bpy.data.lights.new('stage:key', 'SUN'))
+        key.data.energy = 3.0
+        key.data.angle = math.radians(6.0)
+        key.rotation_euler = (math.radians(52.0), 0.0, math.radians(-38.0))
+        sc.collection.objects.link(key)
+    log('a bare stage: its floor, its sky%s' % ('' if S.get('lights') else ', its key'))
+
+
 def build(S):
     sc = bpy.context.scene
     sc.render.fps = int(S['fps'])
@@ -404,6 +461,13 @@ def build(S):
         before, had = set(bpy.data.objects), set(bpy.data.actions)
         bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, A['glb']))
         new = [o for o in bpy.data.objects if o not in before]
+        # (a hero's GLB brings its page with it: the page's view cameras and the ground it stands on. The film has its
+        #  own cameras and its own floor, the set's or the stage's, so they go. A mesh no armature carries is the page's;
+        #  a thing the hero holds hangs under a bone and stays.)
+        if any(o.type == 'ARMATURE' for o in new):
+            for o in [o for o in new if o.type == 'CAMERA' or (o.type == 'MESH' and not carried(o))]:
+                new.remove(o)
+                bpy.data.objects.remove(o, do_unlink=True)
         mine = sorted([a for a in bpy.data.actions if a not in had], key=lambda a: a.name)
         holder = bpy.data.objects.new(name, None)
         bpy.context.scene.collection.objects.link(holder)
@@ -435,6 +499,7 @@ def build(S):
                 if b:
                     remap(owner, b, S['clock'], fps)
         log('%s: %d objects, bound %s%s' % (name, len(new), [b for _, b in bound if b], ' on the time map' if S.get('clock') else ''))
+    stage(S)
     sc.frame_set(1)
 
 
@@ -761,7 +826,7 @@ The scene plays on a time map (its slow motion, its freezes${coverage.shots.some
 ## Build it (once, in an empty film.blend beside these files)
 
 ${set ? `    <blender> -b --python set/import_mojulo.py -- --mode run --blend film.blend
-    <blender> -b film.blend --python set.py` : `    <blender> -b --python-expr "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"`}
+    <blender> -b film.blend --python set.py` : `    <blender> -b --python-expr "${EMPTY_BLEND}"`}
     <blender> -b film.blend --python actors.py -- && <blender> -b film.blend --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
     <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}${render?.light === 'setups' ? `
     <blender> -b film.blend --python light.py` : ''}

@@ -23,6 +23,12 @@ describe('the render plan', () => {
     expect(lit.at(-1).args.at(-1)).toBe('anime');
   });
 
+  it('starts a scene with no set from an EMPTY file: Blender\'s startup cube, camera and light never stand in the film', () => {
+    const first = buildSteps({ shotFiles: ['shots/a.json'] })[0];
+    expect(first.args.at(-1)).toContain('read_factory_settings(use_empty=True)');
+    expect(first.args.at(-1)).toContain("save_as_mainfile(filepath='film.blend')");
+  });
+
   it('cuts the render into chunks that cover every frame once and never cross a cut', () => {
     const counts = shots.map((s) => s.frame_count), ch = renderChunks(counts, { chunk: 24 });
     expect(ch[0].from).toBe(1);

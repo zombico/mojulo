@@ -20,7 +20,11 @@
 // lights, the look), render its chunks (film_render.py --frames a-b --no-encode), then encode it (film_render.py: the
 // frames on disk, its voice under them). A film: every scene so, then cut.py joins the scenes' films. Blender is found
 // as lib/workers/find.js finds it (MOJULO_BLENDER).
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+//
+// A pack made again since its render (the scene edited, the pack's scripts a newer mojulo's) is another pack
+// (lib/graph/film/pack-stamp.js): its film.blend, its frames and its films are of the old scene, so they are removed and
+// it is built and rendered again; a film's cut of other packs or another order is cut again.
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -45,6 +49,7 @@ dir = path.resolve(dir);
 const preset = opt.preset ?? 'draft', chunk = Number(opt.chunk ?? 24), budgetMs = Number(opt['budget-min'] ?? 600) * 60_000, locale = opt.locale ?? null;
 const { RENDER_PRESETS, buildSteps, renderChunks, frameFile, renderProgress } = await lib('graph/film/render-plan.js');
 if (!RENDER_PRESETS[preset]) throw new Error(`render-film: --preset ${Object.keys(RENDER_PRESETS).join(' | ')}`);
+const { packStamp } = await lib('graph/film/pack-stamp.js');
 const { findBlender } = await lib('workers/find.js');
 const blender = findBlender() ?? null;
 const t0 = Date.now();
@@ -76,6 +81,7 @@ function framesDone(p) {
 
 const encodedName = `film-${preset}${locale ? `-${locale}` : ''}.mp4`;
 const report = { preset, chunk, locale, blender, scenes: {}, started: new Date(t0).toISOString() };
+const stamps = {};
 
 for (const P of packs) {
   if (!existsSync(path.join(P.dir, 'scene.json'))) { report.scenes[P.id] = { state: 'not made', note: 'no pack yet: forge_motion film run blender makes it' }; continue; }
@@ -84,12 +90,18 @@ for (const P of packs) {
   const chunks = renderChunks(counts, { chunk });
   // (the record keeps every call across runs, the newest last: what was built, each chunk, the encode)
   const before = existsSync(path.join(P.dir, 'render.json')) ? readJson(path.join(P.dir, 'render.json')) : null;
-  const rec = { preset, frames: counts.reduce((a, n) => a + n, 0), calls: (before?.calls ?? []).slice(-200) };
+  const stamp = packStamp(P.dir), stale = Boolean(before && before.pack !== stamp);
+  const rec = { preset, pack: stamp, frames: counts.reduce((a, n) => a + n, 0), calls: (before?.calls ?? []).slice(-200) };
+  stamps[P.id] = stamp;
   const write = () => writeFileSync(path.join(P.dir, 'render.json'), `${JSON.stringify({ ...rec, ...renderProgress(chunks, framesDone(P.dir)), updated: new Date().toISOString() }, null, 2)}\n`);
   const steps = buildSteps({ shotFiles, look, set: Boolean(scene.set), lights: Boolean(scene.lights) });
   if (flags.has('plan') || !blender) {
-    report.scenes[P.id] = { build: existsSync(path.join(P.dir, 'film.blend')) && !flags.has('rebuild') ? 'built' : steps.map((s) => s.step), ...renderProgress(chunks, framesDone(P.dir)), chunks: chunks.length };
+    report.scenes[P.id] = { build: existsSync(path.join(P.dir, 'film.blend')) && !flags.has('rebuild') && !stale ? 'built' : steps.map((s) => s.step), ...renderProgress(chunks, stale ? new Set() : framesDone(P.dir)), chunks: chunks.length, ...(stale ? { stale: 'the pack was made again since its render: it is built and rendered again' } : {}) };
     continue;
+  }
+  if (stale) {
+    for (const f of ['film.blend', 'film.blend1', 'film', 'film-gate.json']) rmSync(path.join(P.dir, f), { recursive: true, force: true });
+    rec.calls.push({ step: 'made again', was: before.pack, pack: stamp });
   }
   // ─── build film.blend once ──────────────────────────────────────────────────────────────────────────────────────────
   if (!existsSync(path.join(P.dir, 'film.blend')) || flags.has('rebuild')) {
@@ -126,10 +138,14 @@ for (const P of packs) {
 if (film && blender && !flags.has('plan')) {
   const all = packs.every((P) => report.scenes[P.id]?.encoded);
   const cutName = `cut-${preset}${locale ? `-${locale}` : ''}.mp4`;
+  // (a cut is of the packs and the order it joined: of others, it is cut again)
+  const of = { order: film.order, packs: stamps }, was = existsSync(path.join(dir, 'render.json')) ? readJson(path.join(dir, 'render.json')).cut?.of : null;
+  if (JSON.stringify(was ?? null) !== JSON.stringify(of)) for (const f of readdirSync(dir)) if (/^cut-.*\.mp4$/.test(f)) rmSync(path.join(dir, f), { force: true });
   if (all && !existsSync(path.join(dir, cutName))) { const r = run(dir, ['--python', 'cut.py', '--', '--preset', preset, ...(locale ? ['--locale', locale] : [])]); report.cut = { status: r.status, ...(r.status ? { tail: r.tail } : {}) }; }
-  report.cut = { ...(report.cut ?? {}), file: existsSync(path.join(dir, cutName)) ? cutName : null, ...(all ? {} : { waiting: packs.filter((P) => !report.scenes[P.id]?.encoded).map((P) => P.id) }) };
+  report.cut = { ...(report.cut ?? {}), file: existsSync(path.join(dir, cutName)) ? cutName : null, ...(existsSync(path.join(dir, cutName)) ? { of } : was ? { of: was } : {}), ...(all ? {} : { waiting: packs.filter((P) => !report.scenes[P.id]?.encoded).map((P) => P.id) }) };
 }
 report.seconds = Math.round((Date.now() - t0) / 1000);
 if (!blender && !flags.has('plan')) report.blender = 'none found (MOJULO_BLENDER, lib/workers/find.js): the plan above is what a render would do';
-if (film) writeFileSync(path.join(dir, 'render.json'), `${JSON.stringify(report, null, 2)}\n`);
+// (a plan, or a machine with no Blender, ran nothing: the record of what did run stays)
+if (film && blender && !flags.has('plan')) writeFileSync(path.join(dir, 'render.json'), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));

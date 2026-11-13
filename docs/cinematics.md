@@ -249,7 +249,12 @@ core as one forged alone (`film.js` `sceneScreenplay`).
 - **The render worker** (`scripts/render-film.mjs`, `film/render-plan.js`) renders a pack, or a whole film:
   - it builds once and renders chunks that never cross a cut, under a budget, resumable from the frames on disk;
   - it encodes each scene with its voice, then `cut.py` joins the scenes;
-  - it writes `render.json`, which the film's readout reads back. The tools never launch Blender.
+  - it writes `render.json`, which the film's readout reads back. The tools never launch Blender;
+  - a pack made again since its render (the scene edited) is another pack (`film/pack-stamp.js`): it is built and
+    rendered again, the other scenes are kept, and the film is cut again.
+- **The stage:** a scene with no set plays on a bare stage (`actors.py`): a matte floor, a soft sky and, where the
+  setups are not lit, one key. `film.blend` starts empty, and a hero's page (its view cameras, its ground) stays out
+  of the film.
 
 ## The scene in a game
 

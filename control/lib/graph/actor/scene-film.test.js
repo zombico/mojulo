@@ -20,6 +20,17 @@ describe('the scene film pack', () => {
     expect(files.filter((f) => f.file.startsWith('shots/'))).toHaveLength(C.shots.length);
   });
 
+  it('actors.py leaves a hero\'s page out of the film (its view cameras, its ground) and stands a scene with no set on a bare stage', () => {
+    const py = byName['actors.py'];
+    // (the page's cameras and the meshes no armature carries go; a thing held on a bone stays)
+    expect(py).toContain("o.type == 'CAMERA' or (o.type == 'MESH' and not carried(o))");
+    expect(py).toContain('bpy.data.objects.remove(o, do_unlink=True)');
+    // (the stage: made once, only where there is no set; its key only where the setups are not lit)
+    expect(py).toContain("if S.get('set') or bpy.data.objects.get('stage:floor') is not None:");
+    expect(py).toContain("if not S.get('lights'):");
+    expect(byName['SCENE.md']).toContain('read_factory_settings(use_empty=True)');
+  });
+
   it('scene.json: each actor\'s GLB, its takes and its place over time; the coverage; the lines', () => {
     const J = JSON.parse(byName['scene.json']);
     expect(J.frames).toBe(Math.round(S.seconds * FPS));
