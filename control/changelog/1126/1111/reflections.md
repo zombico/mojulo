@@ -188,4 +188,5 @@
 - The far lift, in progress (`scene/channels/far-lift.js`, a land's `farLift`, opt-in): the grass past the view
   cone's reach given its height. The ground is drawn a second time where grass grows, pushed up to the sward's height
   × its cover (so it comes down to the ground where the grass ends), in the far field's colour, rising from nothing at
-  the reach. Not yet seen drawn on a page. It replaces a first attempt drawn as a wireframe box.
+  the reach. Rendered on the island trail with it on and off: the far grass stands over the bare ground behind it and
+  hides the feet of far trunks. It replaces a first attempt drawn as a wireframe box.
