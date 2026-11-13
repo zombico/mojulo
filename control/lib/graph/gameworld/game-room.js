@@ -1,0 +1,123 @@
+/**
+ * THE GAME ROOM — the practice door's room that reconfigures itself into the game's own: one room composed for the
+ * world (gameroom/: its needs read from the world, laid from the room primitives, held to the room laws), played on the
+ * runtime the game ships, before any level. A training room that becomes the game: the hero on its feel, its foes on
+ * their spots, its shift's line on the counters, the cover, pillars and decks its fights and its jump ask for.
+ *
+ *   for whom     the games with no practice room of their own: a fight hand to hand, a shift, a cast of foes (a shooter
+ *                and a platformer have the firing range and the platform room)
+ *   the space    the conceptual plane (work-room.js): pale, ruled every two metres, a low wall; each primitive a block
+ *                in its own tone (a counter in its verb's colour); a shift's recipe drawn on the floor as arrows
+ *   the hero     the world's own where made, else a mascot of the form chosen (work-room.js workMascot), on the world's
+ *                feel (else the everyday walker, or the one chosen)
+ *   the foes     on the composition's foe spots: the bestiary's first (the world's own, else the stand-in bestiary's), its
+ *                made sketch or a person of its class standing in, still until the page's foe AI is turned on
+ *   the shift    the work mechanic on the line (counters, bins, shelves, the pass), the work shown
+ *   the camera   overhead where the world is seen from above or works a shift, else a chase the player turns
+ *   measured     the room laws (gameroom/laws.js), and the work proof where a shift is laid
+ *
+ *   gameRoom(G, { refs?, cast?, feel?, seed?, sound? }) → { manifest, needs, room, laws, measured?, hero, feel, choices }
+ *   gameRoomOf(G)  → true when the world gives the room something to compose (a fight hand to hand, a shift or foes);
+ *                    a shooter and a platformer are left to the firing range and the platform room
+ *   ROOM_LEGEND
+ *
+ * Pure (the composition and the proof are seeded). Its page: practice-room-page.js gameRoomHtml.
+ */
+import { POLES, POLE_IDS } from './feel/cards.js';
+import { feelRule, readFeel } from './feel/lower.js';
+import { floorOf, dummyFigure } from './practice-room.js';
+import { bestiaryOf, standFoe } from './foes.js';
+import { playerWorld } from '../playscape/player.js';
+import { composeMechanics } from '../game/mechanics.js';
+import { WORK_COLORS } from '../game/work-mechanics.js';
+import { proveWork } from '../worksim/work-proof.js';
+import { readCard } from '../worksim/card.js';
+import { roomNeeds } from '../gameroom/needs.js';
+import { composeRoom } from '../gameroom/compose.js';
+import { roomLaws } from '../gameroom/laws.js';
+import { blocksOf } from '../gameroom/primitives.js';
+import { workMascot, workOf, everydayFeel, flowchart, flat, OVERHEAD, WORK_CASTS, WORK_CAST } from './work-room.js';
+
+export const ROOM_LEGEND = 'W A S D  move · mouse  look · Space  jump · E  use · F  sprint · Shift+F  foe AI · H  HUD';
+const PLANE = { plane: '#ece6db', rule: '#d9d0c1', wall: '#ddd5c8', bg: '#f4f0e8' };
+// the chase in the room: farther and higher than a body's own, the room being what is looked at (the player turns it)
+const ORBIT = Object.freeze({ steer: 'orbit', mouseLook: true, dist: 9, height: 4.5, lookH: 0.8 });
+const r3 = (v) => Math.round(v * 1000) / 1000;
+
+/** Whether the world gives the game room something to compose: a fight hand to hand, a shift or foes. A shooter and a
+ * platformer are left to their own rooms (the firing range, the platform room). */
+export function gameRoomOf(G) {
+  if (!G) return false;
+  return !!(workOf(G) || (G.foes && Object.keys(G.foes).length) || roomNeeds({ ...G, quick: undefined }).fights);
+}
+
+/** The game room (see the header). */
+export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = null, sound = 'realistic' } = {}) {
+  const needs = roomNeeds(G), room = composeRoom(needs, { seed: seed ?? (Number.isInteger(G?.seed) ? G.seed : 1) });
+  const laws = roomLaws(room, needs), A = room.anchors, half = room.half;
+  const overhead = needs.camera === 'top-down' || !!needs.work;
+
+  // THE HERO: the world's own, else a mascot; on the feel (the world's, the one chosen, else the everyday walker)
+  const F = feel ?? G?.feel ?? everydayFeel();
+  readFeel(F);
+  const own = typeof refs.hero === 'string';
+  const rule = { ...feelRule(F), ...(overhead ? { move: 'world', moveYaw: OVERHEAD.yaw } : { move: 'camera' }) };
+  const M = own ? null : workMascot(cast, { speed: rule.speed });
+  const P = playerWorld({ heroRef: own ? refs.hero : 'mascot', id: 'hero', title: 'game room', controls: ROOM_LEGEND, rule, ...(M ? { pilot: M.pilot } : {}) });
+  const { heroRef: _r, ...lib } = P.figures.hero;
+  const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, layered: M.layered } };
+  const heroE = { ...P.entities[0], transform: { pos: A.spawn.slice(), heading: Math.PI / 2 } };
+
+  // THE FOES on their spots, facing the spawn
+  const part = { figures, entities: [heroE] };
+  if (A.foes.length) {
+    const B = bestiaryOf(G ?? {}), eid = Object.keys(B)[0], entry = B[eid], made = typeof refs.foes?.[eid] === 'string', dummy = dummyFigure('male');
+    A.foes.forEach((at, k) => {
+      const heading = r3(Math.atan2(A.spawn[1] - at[1], A.spawn[0] - at[0]));
+      standFoe(G?.foes ? G : null, part, { id: `foe-${k + 1}`, eid: made ? eid : undefined, entry, at: at.slice(), heading }, made ? { ref: refs.foes[eid] } : { figure: dummy });
+    });
+  }
+
+  // THE SPACE: the plane, its rules, the wall in its tone; each primitive a block (a counter in its verb's colour)
+  const blocks = room.primitives.flatMap((p) => blocksOf(p).map((b) => (p.kind === 'counter' && p.verb ? { ...b, fill: WORK_COLORS[p.verb] } : b)));
+  const shell = floorOf({ half, blocks });
+  const plane = [];
+  for (let i = -half; i < half; i += 4) for (let j = -half; j < half; j += 4) {
+    const a = Math.min(i + 4, half), b = Math.min(j + 4, half);
+    plane.push({ corners: [[i, j, 0], [a, j, 0], [a, b, 0], [i, b, 0]], fill: PLANE.plane, group: 'room:plane', doubleSided: true });
+  }
+  for (let k = -half + 2; k < half; k += 2) {
+    plane.push(flat([k - 0.015, -half], [k + 0.015, -half], [k + 0.015, half], [k - 0.015, half], 0.003, PLANE.rule, 'room:rule'));
+    plane.push(flat([-half, k - 0.015], [half, k - 0.015], [half, k + 0.015], [-half, k + 0.015], 0.003, PLANE.rule, 'room:rule'));
+  }
+  const kept = shell.faces.filter((f) => f.group !== 'room:floor').map((f) => (f.group === 'room:wall' ? { ...f, fill: PLANE.wall } : f));
+  // the anchors marked on the floor: the spawn and the goal, a ring each
+  const ring = (at, r, fill, group) => [0, 1, 2, 3].map((q) => { const a = (q * Math.PI) / 2, b = a + Math.PI / 2, c = (t) => [at[0] + r * Math.cos(t), at[1] + r * Math.sin(t)], ci = (t) => [at[0] + (r - 0.12) * Math.cos(t), at[1] + (r - 0.12) * Math.sin(t)]; return flat(c(a), c(b), ci(b), ci(a), 0.006, fill, group); });
+  const marks = [...ring(A.spawn, 0.9, '#7fa8c9', 'room:spawn'), ...(room.work ? [] : ring(A.goal, 0.9, '#7fc98f', 'room:goal'))];
+  // a shift's recipe on the floor
+  const RC = room.work ? readCard(room.work.card) : null;
+  const flow = RC ? flowchart(RC, room.work.layout, room.work.layout.serve, null, 0) : [];
+  const faces = [...plane, ...marks, ...flow, ...kept];
+
+  // THE SHIFT on the line
+  let events = { ...(P.events ?? {}) }, measured = null;
+  if (room.work) {
+    const L = room.work.layout;
+    const params = { card: room.work.card, at: { origin: [0, -0.4, 0], stations: L.stations, crates: L.crates, shelves: L.shelves, serve: L.serve }, heading: 0, reach: 1.6, bases: false, show: true };
+    const composed = composeMechanics([{ kind: 'work', ...params }], { player: 'hero', spawn: A.spawn, fall: 'none' });
+    if (composed.errors?.length) throw new Error(`game room: ${composed.errors.join('; ')}`);
+    const ev = composed.events, pe = events;
+    events = { ...pe, vars: { ...(pe.vars ?? {}), ...ev.vars } };
+    for (const [k, v] of Object.entries(ev)) if (Array.isArray(v) && v.length) events[k] = [...(pe[k] ?? []), ...v];
+    measured = proveWork(params, { player: 'hero', spawn: A.spawn, speed: rule.speed });
+  }
+  const manifest = {
+    kind: 'controllable', title: `Game room · ${G?.name ?? G?.id ?? 'game'}`, bg: PLANE.bg, faces, colliders: shell.colliders, figures: part.figures, entities: part.entities,
+    camera: overhead ? { ...OVERHEAD } : { ...P.camera, ...ORBIT }, events,
+  };
+  const feels = POLE_IDS.map((id) => ({ id, name: POLES[id].name, base: POLES[id].base, run: feelRule(id).speed }));
+  return {
+    manifest, needs, room, laws, ...(measured ? { measured } : {}), hero: own ? 'own' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}),
+    feel: readFeel(F).pole, choices: { feels, casts: WORK_CASTS },
+  };
+}

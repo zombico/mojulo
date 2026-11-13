@@ -316,6 +316,50 @@ export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, sou
   return { html, room };
 }
 
+/**
+ * The game room's page: the room on the runtime, and a panel: the brief (what the game asked of the room, and why),
+ * the primitives laid, the room laws, the shift's proof where there is one, and the presets to choose from (a mascot's
+ * form, a feel template), each a link that reopens the room with it. Shift+F wakes the foes (still by default).
+ */
+export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { gameRoom } = await import('./game-room.js');
+  const { WORK_CAST } = await import('./work-room.js');
+  cast = cast ?? WORK_CAST;
+  const room = gameRoom(G, { refs, cast, feel, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-game-room`);
+  let html = await emitted(payload, cdn);
+  const N = room.needs, esc = (t) => String(t).replace(/[<&"]/g, (c) => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' })[c]);
+  const href = (q) => (link ? esc(link({ cast, feel: room.feel, ...q })) : null);
+  const pick = (label, on, q) => (on ? `<b>${esc(label)}</b>` : href(q) ? `<a href="${href(q)}">${esc(label)}</a>` : esc(label));
+  const counts = {};
+  for (const p of room.room.primitives) counts[p.kind] = (counts[p.kind] ?? 0) + 1;
+  const laid = Object.entries(counts).map(([k, n]) => `${n} ${esc(k)}`).join(' · ') || 'nothing: an open floor';
+  const brief = Object.entries(N.why).map(([k, v]) => `<b>${esc(k)}</b> ${esc(v)}`).join('<br>');
+  const laws = room.laws.map((l) => `<span class="${l.holds ? 'ok' : 'bad'}">${l.holds ? 'holds' : 'advise'}</span> <b>${esc(l.law)}</b> <span class="k">${esc(l.says)}</span>`).join('<br>');
+  const feels = room.choices.feels.map((f) => `${pick(f.name, f.id === room.feel, { feel: f.id })} <span class="k">${f.base} · run ${f.run}</span>`).join('<br>');
+  const casts = room.choices.casts.map((c) => pick(c, c === cast && room.hero === 'mascot', { cast: c })).join(' · ');
+  const HUD = `<style>#gr{position:fixed;top:10px;right:10px;width:340px;max-height:calc(100vh - 20px);overflow:auto;font:12px/1.5 ui-sans-serif,system-ui,sans-serif;color:#3a352e;background:rgba(250,247,241,.92);border:1px solid #d9d0c1;border-radius:10px;padding:10px 12px;z-index:50;box-shadow:0 2px 10px rgba(60,50,30,.08)}#gr b{color:#1f1b16}#gr a{color:#b0603a}#gr .k{color:#8a8173}#gr .ok{color:#3f8f52}#gr .bad{color:#b0603a}#gr h4{margin:8px 0 2px;font-size:10.5px;color:#9a6b3f;text-transform:uppercase;letter-spacing:.07em}</style>
+<div id="gr"><b>Game room</b> <span class="k">${esc(G.name ?? G.id ?? 'game')} · ${room.room.size} m square</span> <span id="gr-ai" class="k"></span>
+<h4>the brief</h4><div>${brief}</div>
+<h4>laid</h4><div>${laid}<br><span class="k">${room.room.anchors.foes.length} foe spot${room.room.anchors.foes.length === 1 ? '' : 's'}; the spawn's ring blue, the goal's green</span></div>
+<h4>the room laws</h4><div>${laws}</div>${room.measured ? `<h4>the shift, measured</h4><div class="k">${esc(room.measured.says)}</div>` : ''}
+<h4>the worker</h4><div>${room.hero === 'own' ? '<b>the world\'s own hero</b>' : `a mascot: ${casts}<br><span class="k">${esc(room.mascot.thesis)}</span>`}</div>
+<h4>the movement</h4><div>${feels}</div></div>
+<script>
+(() => {
+  let W = null, show = true;
+  const say = () => { document.getElementById('gr-ai').textContent = W ? '· foes ' + (W.aiEnabled ? 'awake' : 'still') + ' (Shift+F)' : ''; };
+  addEventListener('keydown', (e) => {
+    if (e.code === 'KeyH') { show = !show; document.getElementById('gr').style.display = show ? '' : 'none'; }
+    if (e.code === 'KeyF' && e.shiftKey && W) { W.aiEnabled = !W.aiEnabled; say(); }
+  });
+  (function wait() { if (window.__mojCtrl && window.__mojCtrl.world) { W = window.__mojCtrl.world; W.aiEnabled = false; say(); } else requestAnimationFrame(wait); })();
+})();
+</script>`;
+  html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
+  return { html, room };
+}
+
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
   const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
@@ -329,5 +373,5 @@ export async function practiceHtml(G, id, opts = {}) {
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
   }
-  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : mountLaneHtml(G, opts);
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : id === 'room' ? gameRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

@@ -19,6 +19,7 @@
  *   workRoom(G, { refs?, cast?, feel?, card?, challenge?, sound? }) → { manifest, card, feel, hero: 'own' | 'mascot',
  *     layout, measured, choices: { feels: [{ id, name, base, run }], casts } }
  *   workOf(G)       → { card, challenge } the shift a world asks for (its quick work goal), or null
+ *   tunedShift(card?, challenge?) → the solver's result: the card tuned for one player at the challenge
  *   WORK_LEGEND     the keys
  *   WORK_CASTS, WORK_CAST   the mascot forms a worker is chosen from, and the default
  *   everydayFeel()  the default template: of the realistic ones, the slowest run
@@ -58,9 +59,16 @@ export function workMascot(form = WORK_CAST, { speed = 4 } = {}) {
 const REACH = 1.6;
 // THE VIEW: the ¾ overhead camera (rules-basic.js overhead), north up the screen, so the work flows up it: the crates
 // at the bottom, the line, the shelves, the hand-in at the top; W walks up the screen
-const OVERHEAD = Object.freeze({ rule: 'overhead', target: 'hero', yaw: Math.PI / 2, tilt: 0.95, dist: 15, lookH: 0.4 });
+export const OVERHEAD = Object.freeze({ rule: 'overhead', target: 'hero', yaw: Math.PI / 2, tilt: 0.95, dist: 15, lookH: 0.4 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
+
+/** A shift's card (a starter's name or a card) tuned by the solver for one player at a challenge: { card, solved }. */
+export function tunedShift(card = 'kitchen', challenge = 'beginner') {
+  const raw = isObj(card) ? card : SCENARIOS[card];
+  if (!raw) throw new Error(`work room: card is a starter (${Object.keys(SCENARIOS).join(', ')}) or a Shovels & Buckets card`);
+  return solve({ ...raw, crew: { ...(raw.crew ?? {}), workers: 1 } }, challenge);
+}
 
 /** The shift a world asks for: its quick game's work goal (card, challenge), or null. */
 export function workOf(G) {
@@ -81,12 +89,11 @@ export function everydayFeel() {
 /** The work room (see the header). */
 export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = null, challenge = null, sound = 'realistic' } = {}) {
   const asked = workOf(G) ?? { card: 'kitchen', challenge: 'beginner' };
-  const raw0 = card ?? asked.card, raw = isObj(raw0) ? raw0 : SCENARIOS[raw0];
-  if (!raw) throw new Error(`work room: card is a starter (${Object.keys(SCENARIOS).join(', ')}) or a Shovels & Buckets card`);
+
   const F = feel ?? G?.feel ?? everydayFeel();
   readFeel(F);
   // the card tuned for the room's one player at the world's challenge
-  const tuned = solve({ ...raw, crew: { ...(raw.crew ?? {}), workers: 1 } }, challenge ?? asked.challenge);
+  const tuned = tunedShift(card ?? asked.card, challenge ?? asked.challenge);
   const C = tuned.card;
 
   // THE HERO: on the template's rule, moving where the camera looks; facing the line from in front of the hand-in
@@ -172,7 +179,7 @@ export function workRoom(G, { refs = {}, cast = WORK_CAST, feel = null, card = n
 }
 
 // a flat quad a hair over its level (a rule, a strip of the flowchart)
-function flat(a, b, c, d, z, fill, group) {
+export function flat(a, b, c, d, z, fill, group) {
   return { corners: [[r3(a[0]), r3(a[1]), z], [r3(b[0]), r3(b[1]), z], [r3(c[0]), r3(c[1]), z], [r3(d[0]), r3(d[1]), z]], fill, group, doubleSided: true };
 }
 
@@ -183,7 +190,7 @@ function flat(a, b, c, d, z, fill, group) {
  * arrow keeps off the counters at both ends; on a site, a product's arrow runs to the climb on the deck and on from its
  * foot on the ground.
  */
-function flowchart(C, L, serveAt, climb, up) {
+export function flowchart(C, L, serveAt, climb, up) {
   const out = [], seen = new Set(), W = 0.07, Z = 0.012;
   const arrow = (a, b, color) => {
     const key = `${a}|${b}`; if (seen.has(key)) return; seen.add(key);

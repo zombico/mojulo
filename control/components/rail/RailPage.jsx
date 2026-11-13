@@ -44,6 +44,8 @@ const EXIT_PATHS = {
   mount: 'M7 19.5V11a5 5 0 0 1 10 0v8.5M5.5 19.5h3M15.5 19.5h3M9 9.5h.01M15 9.5h.01M8.5 13h.01M15.5 13h.01',
   range: 'M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0zM12 3v4M12 17v4M3 12h4M17 12h4M12 12h.01',
   artillery: 'M9.5 20.5h5M10 20.5V9.5a2 2 0 0 1 4 0v11M10 9.5C10 6 12 3.5 12 3.5S14 6 14 9.5M10 14h4',
+  // (the game room: a room in plan, a block and a deck in it)
+  room: 'M4 4h16v16H4zM8 13h3v3H8zM14 7h3v4h-3z',
   // (the work room: a bucket, its handle up)
   work: 'M5 9h14l-1.6 10.2a1 1 0 0 1-1 .8H7.6a1 1 0 0 1-1-.8zM5 9a7 7 0 0 1 14 0M9 13h6',
   characters: 'M9 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM20 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM2.5 19v-2.5a4 4 0 0 1 8 0V19M13.5 19v-2.5a4 4 0 0 1 8 0V19',
