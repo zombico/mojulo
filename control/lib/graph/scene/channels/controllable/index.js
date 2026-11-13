@@ -23,6 +23,7 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { castKitSource } from '../cast-rig.js';
+import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -1281,9 +1282,10 @@ function __formBone(fig, P) {
 }` : ''}
 ${figHasFace ? `function __rigU32(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Uint32Array(u.buffer); }
 // the face's targets on one bone mesh: its corners at the neutral face, each target's offsets (as the GLB writes them)
+${MORPH_DECODE}
 function __mq(m) { const b = atob(m.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Int16Array(u.buffer), f = new Float32Array(q.length); for (let i = 0; i < q.length; i++) f[i] = q[i] * m.s; return f; }   // the page's 16-bit rows
 function __rigMorph(fig, part, geo) {
-  const T = fig.face.targets.length, W = (1 + T) * 3, I = __rigU32(part.morph.i), D = part.morph.q ? __mq(part.morph) : decodeF32(part.morph.d);
+  const T = fig.face.targets.length, W = (1 + T) * 3, I = __rigU32(part.morph.i), D = part.morph.z ? __mz(part.morph) : part.morph.q ? __mq(part.morph) : decodeF32(part.morph.d);
   const pos = geo.getAttribute('position').array, tg = Array.from({ length: T }, () => new Float32Array(pos.length));
   for (let k = 0; k < I.length; k++) {
     const v = I[k] * 3, o = k * W;

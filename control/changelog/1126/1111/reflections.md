@@ -168,3 +168,9 @@
   day facility's page goes from 38 MB to 25 MB as one file and 19 MB in parts; with a realistic hero, 129 MB to 40 MB
   and 30 MB. The packed page was run in a browser both ways and draws as the page it was.
 - Said once: two parked vehicles that are the same vehicle in the same dress are one figure stood twice.
+- A face's blend shapes said once and only where they move (`figures/morph-sparse.js`): a faced part carried a row a
+  corner, every target at every corner; now the corners that share a row share it, and each target's column holds only
+  the rows it moves, in the same 16-bit steps, exactly (sparse then dense is the input byte for byte). A dressed
+  realistic hero's face goes from 36 MB to 2.5 MB. The page's two players read it (`__mz`); an export keeps its floats.
+  The lit read's face rows, which came as an export's floats, are written the page's way too: the facility's page with
+  a realistic hero goes from 129 MB to 59 MB, 25 MB packed in parts.

@@ -236,7 +236,11 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // (of what the lit read brings for a skinned export, the page keeps the maps its cast material reads, the normal map
   // and the roughness; each corner's tangent, the parallax's depth and the correctives are an engine's, left off)
   const { preview, embodies, held, ...pack0 } = body;
-  const pack = lit && (pack0.normalTex || pack0.ormTex) ? (({ correctives: _c, depthTex: _d, ...rest }) => ({ ...rest, parts: rest.parts.map((q) => (q && q.tan ? (({ tan: _t, ...r }) => r)(q) : q)) }))(pack0) : pack0;
+  const pack1 = lit && (pack0.normalTex || pack0.ormTex) ? (({ correctives: _c, depthTex: _d, ...rest }) => ({ ...rest, parts: rest.parts.map((q) => (q && q.tan ? (({ tan: _t, ...r }) => r)(q) : q)) }))(pack0) : pack0;
+  // (and its face's rows as the page reads them: in 16-bit steps, said once and only where they move, exactly;
+  // figures/morph-sparse.js. The lit read brings them as an export's floats)
+  const { quantMorph, sparseMorph } = lit && pack1.parts.some((q) => q && q.morph && q.morph.d) ? await import('@/lib/graph/figures/morph-sparse.js') : {};
+  const pack = quantMorph ? { ...pack1, parts: pack1.parts.map((q) => (q && q.morph ? { ...q, morph: sparseMorph(quantMorph(q.morph)) } : q)) } : pack1;
   const clips = { ...pack.clips };
   // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
   // a state's clip the hero lacks is taken from it, once per clip, under the library's own name
