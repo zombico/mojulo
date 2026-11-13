@@ -81,6 +81,11 @@ describe('a decorated room’s places', () => {
     const set = setPlaces(assembleInteriorWorldScene(lounge(hearth), HOUSE));
     const [room] = set.rooms;
     expect(room.blocks.length).toBeGreaterThan(2);
+    // (each says how high it stands, for a storyboard to draw it)
+    for (const B of room.blocks) expect(B.h).toBeGreaterThan(0.2);
+    // (and its doors and windows lie on its walls, the door from the floor up)
+    expect(room.openings.some((O) => O.kind === 'door' && O.sill === 0 && O.head > 1.8)).toBe(true);
+    for (const O of room.openings) expect([O.min[0] - room.min[0], room.max[0] - O.max[0], O.min[1] - room.min[1], room.max[1] - O.max[1]].some((d) => Math.abs(d) < 0.02)).toBe(true);
     const places = Object.keys(set.marks).filter((id) => !id.startsWith('room-'));
     const script = ['ADA: I will look round.', ...places.map((id) => `Ada crosses to the ${id}.`)].join('\n');
     const on = castOnSet({ cast: { ada: {}, jon: {} }, script }, set);

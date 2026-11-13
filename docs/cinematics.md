@@ -192,8 +192,13 @@ Before the film there is the storyboard, the default form, which mints no actor 
 panel for each coverage shot. Each panel has:
 
 - its frame: stand-in mannequins drawn by the book press (`book/drawn-plate.js`, a wash), seen from the shot's
-  camera. The plate's eye is level, so a pitched camera is drawn by moving the horizon;
-- the blocking from above, with the camera;
+  camera. The plate's eye is level, so a pitched camera is drawn by moving the horizon. On a set with a walled room
+  (a decorated room), `roomForms` stands the room round them: its four walls, each door and window cut through its wall
+  (the room's `openings`: a span along a wall, a sill and a head), and each piece that stands on its floor, as upright
+  blocks at their heights, lit from above. Any other set is drawn as open ground, as before;
+- the blocking from above, with the camera. A set's rooms are drawn in it, and in a furnished room each standing
+  piece too, a door as a gap in the wall and a window as a thin line across one, with only the places a cross goes
+  to named;
 - its span, its lens, its move, its lines and crosses, and its notes.
 
 `export: 'mp4'` adds the animatic: the panels held on the screen's clock, with the line spoken under each. A panel

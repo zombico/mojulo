@@ -80,6 +80,11 @@ game.
     outside the wall and saw only its back.
   - **Walking round the furniture.** A cross goes round the sofa, the table and the other actors by the shortest
     clear way, turning at each corner. Before, it was a straight line through whatever stood between.
+  - **The storyboard shows the room.** Each panel now draws the room's walls and furniture as plain blocks round the
+    stand-in figures, seen from that shot's camera, with each door and window as an opening in its wall. The plan
+    from above shows each piece of furniture, the doors and windows, and the way a walk goes round the furniture.
+    Before, the panels showed the figures on empty ground, so a shot blocked by a sofa could only be seen by
+    rendering it in Blender.
   - **House lights.** A room with no lamps of its own is lit by a soft light under its ceiling. Before, it rendered
     black.
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a

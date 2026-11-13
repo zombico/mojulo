@@ -40,8 +40,8 @@ describe('a set', () => {
     expect(castOnSet({ cast: { ben: { mark: 'pocket-1' } }, script: 'BEN: Hi.' }, P).floor).toBe(1.25);
   });
   it('reads a walled room: where its cast stands, its ceiling and what stands tall in it, in metres', () => {
-    const P = setPlaces({ metersPerUnit: 0.5, rooms: [{ id: 'lounge', box: { min: [0, 0, 0], max: [10, 8, 6] }, h: 6, walled: true, stand: [4, 6, 0], solids: [{ min: [0, 2], max: [1, 4] }] }], anchors: [{ id: 'sofa', kind: 'spot', at: [5, 3, 0] }] });
-    expect(P.rooms).toEqual([{ id: 'lounge', min: [0, 0], max: [5, 4], walled: true, h: 3, solids: [{ min: [0, 1], max: [0.5, 2] }] }]);
+    const P = setPlaces({ metersPerUnit: 0.5, rooms: [{ id: 'lounge', box: { min: [0, 0, 0], max: [10, 8, 6] }, h: 6, walled: true, stand: [4, 6, 0], solids: [{ min: [0, 2], max: [1, 4] }], blocks: [{ min: [0, 2], max: [1, 4], h: 6 }, { min: [6, 2], max: [8, 3] }], openings: [{ kind: 'door', min: [2, 8], max: [5, 8], sill: 0, head: 4 }, { kind: 'window', min: [0, 1], max: [0, 3], sill: 2, head: 5 }] }], anchors: [{ id: 'sofa', kind: 'spot', at: [5, 3, 0] }] });
+    expect(P.rooms).toEqual([{ id: 'lounge', min: [0, 0], max: [5, 4], walled: true, h: 3, solids: [{ min: [0, 1], max: [0.5, 2] }], blocks: [{ min: [0, 1], max: [0.5, 2], h: 3 }, { min: [3, 1], max: [4, 1.5] }], openings: [{ kind: 'door', min: [1, 4], max: [2.5, 4], sill: 0, head: 2 }, { kind: 'window', min: [0, 0.5], max: [0, 1.5], sill: 1, head: 2.5 }] }]);
     expect(P.marks['room-lounge']).toEqual([2, 3]);
     expect(P.marks.sofa).toEqual([2.5, 1.5]);
     // (a cast with no marks stands about the room's `stand`, not its middle)

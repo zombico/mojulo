@@ -4,7 +4,7 @@ import { actScene } from './scene.js';
 import { coverScene } from './coverage.js';
 import { directorsNotes } from './notes.js';
 import { coverageCameraAt } from './scene-film.js';
-import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, panelStation, spoken, shotTitle } from './storyboard.js';
+import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, panelStation, spoken, shotTitle } from './storyboard.js';
 import { readPlate, stationRig } from '../book/drawn-plate.js';
 
 // the storyboard: a panel a coverage shot, drawn from the scene, never stored. Tested on the baseline's blocked
@@ -67,5 +67,45 @@ describe('the storyboard', () => {
     expect(html.match(/<article class="panel">/g)).toHaveLength(C.shots.length);
     expect(storyboardHtml(storyboardOf(S, C, { notes, title: 'The key', ...small }))).toBe(html);
     expect(JSON.stringify(storyboardJson(board))).not.toContain('<svg');
+  });
+
+  // a set with a walled room (a decorated room: interior/places.js) is drawn round the cast
+  const ROOM = { id: 'lounge', min: [-3, -2.5], max: [3, 2.5], walled: true, h: 2.6, blocks: [{ min: [1.5, 1], max: [2.6, 1.8], h: 0.8 }, { min: [-2.8, 1], max: [-2, 2], h: 2 }, { min: [0, -2], max: [1, -1.5] }] };
+
+  it('draws a walled room round the cast: its four walls and each piece at its height, a plate the press accepts', () => {
+    const forms = roomForms([ROOM]);
+    // (a piece that says no height is not drawn; a room with no walls gives nothing)
+    expect(forms.map((f) => f.id)).toEqual(['lounge-wall-s', 'lounge-wall-n', 'lounge-wall-w', 'lounge-wall-e', 'lounge-piece-1', 'lounge-piece-2']);
+    expect(forms[4].terms[0].shape.axisTo[2]).toBe(0.8);
+    expect(forms[0].terms[0].shape.axisTo[2]).toBe(2.6);
+    expect(() => readPlate({ forms })).not.toThrow();
+    expect(roomForms([{ id: 'yard', min: [0, 0], max: [4, 4] }])).toEqual([]);
+    // a door and a window are cut through the wall they lie on, between sill and head; one off every wall is left out
+    const cut = roomForms([{ ...ROOM, openings: [{ kind: 'door', min: [-1, 2.5], max: [-0.1, 2.5], sill: 0, head: 2 }, { kind: 'window', min: [-3, -1], max: [-3, 0.5], sill: 0.9, head: 2.1 }, { kind: 'window', min: [0, 0], max: [1, 0], sill: 1, head: 2 }] }]);
+    const holes = (id) => cut.find((f) => f.id === id).terms.filter((t) => t.op === 'subtract');
+    expect(holes('lounge-wall-n')).toHaveLength(1);
+    expect(holes('lounge-wall-w')[0].shape.axisFrom[2]).toBe(0.9);
+    expect(holes('lounge-wall-w')[0].shape.axisTo[2]).toBe(2.1);
+    expect(holes('lounge-wall-s').length + holes('lounge-wall-e').length).toBe(0);
+    expect(() => readPlate({ forms: cut })).not.toThrow();
+    // turned with the world, as the mannequins are: a quarter turn swaps the piece's sides
+    const q = roomForms([ROOM], { turn: 90 })[4].terms[0].shape.profile.points;
+    expect(Math.max(...q.map((p) => p[0])) - Math.min(...q.map((p) => p[0]))).toBeCloseTo(0.8, 3);
+  });
+
+  it('boards the room: the panels change, the plan shows what stands on the floor, and an open set keeps its bytes', () => {
+    const inRoom = storyboardOf(S, C, { notes, title: 'The key', ...small, rooms: [ROOM], set: { ref: 'sk_x', title: 'Lounge' } });
+    expect(inRoom.set.drawn).toBe(true);
+    expect(inRoom.panels[0].frame).not.toBe(board.panels[0].frame);
+    expect(inRoom.panels[0].blocking.match(/class="piece"/g).length).toBeGreaterThan(0);
+    expect(storyboardHtml(inRoom)).toContain('doors, windows and furniture');
+    const doored = storyboardOf(S, C, { notes, title: 'The key', ...small, rooms: [{ ...ROOM, openings: [{ kind: 'door', min: [-1, 2.5], max: [-0.1, 2.5], sill: 0, head: 2 }, { kind: 'window', min: [-3, -1], max: [-3, 0.5], sill: 0.9, head: 2.1 }] }] });
+    expect(doored.panels[0].blocking).toMatch(/class="door"/);
+    expect(doored.panels[0].blocking).toMatch(/class="window".*class="pane"/);
+    // a set whose rooms have no walls is boarded as before: the same panels, no pieces
+    const open = storyboardOf(S, C, { notes, title: 'The key', ...small, rooms: [{ id: 'hall', min: [-3, -2.5], max: [3, 2.5] }], set: { ref: 'sk_y' } });
+    expect(open.set.drawn).toBeUndefined();
+    expect(open.panels.map((p) => p.frame)).toEqual(board.panels.map((p) => p.frame));
+    expect(open.panels[0].blocking).not.toContain('class="piece"');
   });
 });

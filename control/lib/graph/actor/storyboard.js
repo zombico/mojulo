@@ -8,8 +8,10 @@
  *   drawn by the book press's drawn plate (book/drawn-plate.js, a wash). The plate's station turns 1 to 89 degrees off
  *   the y axis, so the WORLD is turned about the vertical until the camera stands at 45 (the picture is the same); its
  *   eye is level, so a pitched camera is drawn as a rising or falling front (the horizon moves): exact for a level camera,
- *   near for a high or a low one.
- *   THE BLOCKING: the scene from above at one scale for every panel, the room the actors use: a set's rooms (set.js), the
+ *   near for a high or a low one. On a set with a WALLED room (a decorated room: interior/places.js) the room is drawn
+ *   round them: its walls with their doors and windows cut through, and each piece that stands on its floor, as plain
+ *   blocks at their heights.
+ *   THE BLOCKING: the scene from above at one scale for every panel, the room the actors use: a set's rooms (set.js) and what stands on their floors, the
  *   marks inside it, each actor at the moment and its way through the shot, the camera and its field of view.
  *   THE WORDS: the shot's number, name, span (the scene's seconds and the screen's), lens and move; the lines (a recorded
  *   one marked) and the crosses inside it; the director's notes whose moment falls in it (notes.js), the rest the board's own.
@@ -24,6 +26,7 @@
  *   animaticFrameSvg(board, segment, { width?, height? }) → one frame of the animatic: the panel, its number and name,
  *     the caption
  *   mannequinForms(S, t, { tints?, turn? }) → the plate's forms; panelStation(framing) → { turn, station }
+ *   roomForms(rooms, { turn?, about? }) → a walled room's walls and standing pieces as the plate's forms
  *
  * Pure and deterministic: the same scene and coverage give the same bytes.
  */
@@ -86,6 +89,41 @@ export function mannequinForms(S, t, { tints = BOARD_TINTS, turn = 0, about = [0
   }));
 }
 
+/** the board's tints for a room's walls and for what stands in it */
+export const ROOM_TINTS = Object.freeze({ wall: '#d8d2c4', piece: '#a8a091' });
+const WALL_THICK = 0.1;
+/** the light's height inside a walled room, degrees */
+const INDOOR_LIGHT = 75;
+
+/**
+ * A walled room as the plate's forms (a set's room: set.js `walled`, `h`, `blocks`): its four walls, a door or a window cut through the wall it lies on, and every piece that
+ * stands on its floor at its height, each an upright prism, the world turned as the mannequins are. A room with no
+ * walls, or a piece with no height, is not drawn.
+ */
+export function roomForms(rooms = [], { turn = 0, about = [0, 0] } = {}) {
+  const T = turner(turn, about), out = [];
+  const prism = (id, tint, min, max, z0, z1) => ({
+    id, tint, tintOpacity: 0.35,
+    terms: [{ op: 'add', shape: { kind: 'extrude', profile: { points: [T(min[0], min[1]), T(max[0], min[1]), T(max[0], max[1]), T(min[0], max[1])] }, axisFrom: [0, 0, r3(z0)], axisTo: [0, 0, r3(z1)] } }],
+  });
+  for (const R of rooms) {
+    if (!R.walled || !(R.h > 0)) continue;
+    const z = R.z ?? 0, [x0, y0] = R.min, [x1, y1] = R.max, w = WALL_THICK;
+    const walls = { s: [[x0 - w, y0 - w], [x1 + w, y0]], n: [[x0 - w, y1], [x1 + w, y1 + w]], w: [[x0 - w, y0], [x0, y1]], e: [[x1, y0], [x1 + w, y1]] };
+    // (a door or a window is cut through the wall it lies on)
+    const holes = { s: [], n: [], w: [], e: [] }, near = (a, b) => Math.abs(a - b) < 0.02, cut = w + 0.05;
+    for (const O of R.openings ?? []) {
+      const flat = near(O.min[1], O.max[1]), side = flat ? (near(O.min[1], y0) ? 's' : near(O.min[1], y1) ? 'n' : null) : near(O.min[0], O.max[0]) ? (near(O.min[0], x0) ? 'w' : near(O.min[0], x1) ? 'e' : null) : null;
+      if (!side || !(O.head > O.sill)) continue;
+      const lo = flat ? [O.min[0], O.min[1] - cut] : [O.min[0] - cut, O.min[1]], hi = flat ? [O.max[0], O.max[1] + cut] : [O.max[0] + cut, O.max[1]];
+      holes[side].push({ ...prism('', '', lo, hi, z + O.sill, z + O.head).terms[0], op: 'subtract' });
+    }
+    for (const [side, [lo, hi]] of Object.entries(walls)) { const W = prism(`${R.id}-wall-${side}`, ROOM_TINTS.wall, lo, hi, z, z + R.h); W.terms.push(...holes[side]); out.push(W); }
+    for (const [i, B] of (R.blocks ?? []).entries()) if (B.h > 0) out.push(prism(`${R.id}-piece-${i + 1}`, ROOM_TINTS.piece, B.min, B.max, z, z + B.h));
+  }
+  return out;
+}
+
 /** the camera keys a shot holds: the first and the last */
 function shotKeys(coverage, s) {
   const cam = coverage.cameras.find((c) => c.id === s.camera);
@@ -114,13 +152,17 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
   const names = Object.keys(S.actors);
   const tintOf = Object.fromEntries(names.map((w, i) => [w, BOARD_TINTS[i % BOARD_TINTS.length]]));
   const placed = [];
+  // (inside walls the light comes from above, as a ceiling's does: a low sun would lay the walls' shadow over the cast)
+  const indoors = rooms.some((R) => R.walled && R.h > 0);
   const panels = coverage.shots.map((s, k) => {
     const [s0, s1] = s.span, at = r3(Math.min(S.seconds - 1e-3, (s0 + s1) / 2));
     const { framing } = coverageCameraAt(coverage, at, s);
     const { a, b, cam } = shotKeys(coverage, s);
     const { turn, station } = panelStation(framing);
-    const forms = mannequinForms(S, at, { turn, about: framing.lookAt.slice(0, 2), heights });
-    const { svg } = renderPlate({ forms, station, finish: 'wash', frame: 'full', width, height, light: { azimuth: -50, elevation: 40 } }, { prefix: `sb${k + 1}-`, ...(res ? { res } : {}) });
+    const about = framing.lookAt.slice(0, 2);
+    // (a walled room is drawn round them: its walls and what stands in it; any other set stays open ground)
+    const forms = [...roomForms(rooms, { turn, about }), ...mannequinForms(S, at, { turn, about, heights })];
+    const { svg } = renderPlate({ forms, station, finish: 'wash', frame: 'full', width, height, light: { azimuth: -50, elevation: indoors ? INDOOR_LIGHT : 40 } }, { prefix: `sb${k + 1}-`, ...(res ? { res } : {}) });
     const P = program.shots[k];
     placed.push({ framing, a, b });
     return {
@@ -144,7 +186,8 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
   const box = { x0: mid[0] - half[0], x1: mid[0] + half[0], y0: mid[1] - half[1], y1: mid[1] + half[1] };
   panels.forEach((pn, k) => { pn.blocking = blockingSvg(S, pn, placed[k], box, tintOf, rooms); });
   return {
-    version: STORYBOARD_VERSION, title, seconds: S.seconds, screen: r3(program.total), cast: names, tints: tintOf, ...(set ? { set } : {}),
+    version: STORYBOARD_VERSION, title, seconds: S.seconds, screen: r3(program.total), cast: names, tints: tintOf,
+    ...(set ? { set: { ...set, ...(indoors ? { drawn: true } : {}) } } : {}),
     panels, notes: notes.filter((N) => N.at === undefined),
   };
 }
@@ -156,8 +199,15 @@ export function blockingSvg(S, panel, { framing }, box, tintOf, rooms = []) {
   const out = [];
   // (the set's rooms from above, as far as the panel's room shows them)
   for (const R of rooms) if (R.max[0] > box.x0 && R.min[0] < box.x1 && R.max[1] > box.y0 && R.min[1] < box.y1) out.push(`<rect class="room" x="${X(R.min[0])}" y="${Y(R.max[1])}" width="${r2((R.max[0] - R.min[0]) * sc)}" height="${r2((R.max[1] - R.min[1]) * sc)}"/>`);
+  // (a door is a gap in the wall, a window a thin line across one)
+  for (const R of rooms) for (const O of R.openings ?? []) out.push(`<path class="${O.kind === 'door' ? 'door' : 'window'}" d="M${X(O.min[0])} ${Y(O.min[1])}L${X(O.max[0])} ${Y(O.max[1])}"/>`, ...(O.kind === 'door' ? [] : [`<path class="pane" d="M${X(O.min[0])} ${Y(O.min[1])}L${X(O.max[0])} ${Y(O.max[1])}"/>`]));
+  // (and what stands on their floors)
+  for (const R of rooms) for (const B of R.blocks ?? []) if (B.max[0] > box.x0 && B.min[0] < box.x1 && B.max[1] > box.y0 && B.min[1] < box.y1) out.push(`<rect class="piece" x="${X(B.min[0])}" y="${Y(B.max[1])}" width="${r2((B.max[0] - B.min[0]) * sc)}" height="${r2((B.max[1] - B.min[1]) * sc)}"/>`);
   const inBox = (p) => p[0] >= box.x0 && p[0] <= box.x1 && p[1] >= box.y0 && p[1] <= box.y1;
-  for (const [m, p] of Object.entries(S.marks ?? {}).filter(([, p]) => inBox(p))) out.push(`<g class="mark"><path d="M${X(p[0]) - 4} ${Y(p[1]) - 4}l8 8m0-8l-8 8"/><text x="${X(p[0]) + 6}" y="${Y(p[1]) + 3}">${esc(m)}</text></g>`);
+  // (a furnished room names a place by every piece: only the places a cross goes to are written, the pieces are drawn)
+  const furnished = rooms.some((R) => R.blocks?.length);
+  const gone = new Set(Object.values(S.actors).flatMap((A) => (A.walks ?? []).map((W) => W.toward ?? markAt(S.marks, W.to))));
+  for (const [m, p] of Object.entries(S.marks ?? {}).filter(([m, p]) => inBox(p) && (!furnished || gone.has(m)))) out.push(`<g class="mark"><path d="M${X(p[0]) - 4} ${Y(p[1]) - 4}l8 8m0-8l-8 8"/><text x="${X(p[0]) + 6}" y="${Y(p[1]) + 3}">${esc(m)}</text></g>`);
   // the camera: where it stands, where it looks, its field of view
   const [lx, ly] = framing.lookAt, aim = Math.atan2(lx - framing.cameraPosition[0], ly - framing.cameraPosition[1]), half = rad(framing.horizontalFov / 2), L = 1.2;
   // (a camera outside the room stands on its edge, on the line from what it looks at; the room's edge less a margin)
@@ -217,7 +267,7 @@ main{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(au
 .no{position:absolute;top:6px;left:6px;background:var(--ink);color:var(--card);font-weight:700;border-radius:3px;padding:0 6px}
 .side svg{display:block;width:100%;max-width:240px;height:auto;max-height:240px;margin:0 auto}
 .blocking text{font:9px system-ui,sans-serif;fill:var(--dim);text-anchor:middle}.blocking .mark text{text-anchor:start}
-.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .room{fill:none;stroke:var(--rule);stroke-width:3}.blocking .who path{stroke:var(--ink);stroke-width:2}
+.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .room{fill:none;stroke:var(--rule);stroke-width:3}.blocking .door,.blocking .window{stroke:var(--card);stroke-width:4.5}.blocking .pane{stroke:var(--dim);stroke-width:1}.blocking .piece{fill:var(--rule);fill-opacity:.55;stroke:var(--dim);stroke-width:.6}.blocking .who path{stroke:var(--ink);stroke-width:2}
 .blocking .way{fill:none;stroke-width:2;stroke-dasharray:4 3}.blocking .cam circle{fill:var(--accent)}.blocking .cam.off circle{fill:none;stroke:var(--accent);stroke-width:1.5}.blocking .fov{stroke:var(--accent);stroke-width:1.2;fill:none}
 h2{font-size:15px;margin:0}.meta{margin:2px 0 6px;color:var(--dim);font-size:12px}.words p{margin:3px 0}
 .dir{font-style:italic;color:var(--dim)}.rec{font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;margin-left:4px}.note{border-left:3px solid var(--accent);padding-left:8px;font-size:13px}
@@ -226,7 +276,7 @@ h2{font-size:15px;margin:0}.meta{margin:2px 0 6px;color:var(--dim);font-size:12p
 @media print{body{background:#fff;padding:0}.panel{border-color:#999}}
 </style></head><body>
 <header><h1>${esc(board.title)}</h1>
-${board.set ? `<p>On the set <b>${esc(board.set.title ?? board.set.ref)}</b> (${esc(board.set.ref)}): the panels draw the actors as stand-ins on open ground; the blocking shows its rooms.</p>\n` : ''}<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
+${board.set ? `<p>On the set <b>${esc(board.set.title ?? board.set.ref)}</b> (${esc(board.set.ref)}): ${board.set.drawn ? 'the panels draw its walls, doors, windows and furniture as plain blocks round the stand-ins; the blocking shows the room and what stands in it' : 'the panels draw the actors as stand-ins on open ground; the blocking shows its rooms'}.</p>\n` : ''}<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
 <p class="cast">${board.cast.map((w) => `<span><i style="background:${board.tints[w]}"></i>${esc(UPPER(w))}</span>`).join('')}</p></header>
 ${board.notes.length ? `<section class="board-notes">${board.notes.map((N) => `<p class="note"><b>Note · ${esc(N.id)}</b> ${esc(N.says)} <i>Try:</i> ${esc(N.try)}</p>`).join('\n')}</section>` : ''}
 <main>

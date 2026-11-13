@@ -4,9 +4,10 @@
  * the stage's own shape (era/anchors.js), so a scene can be set in the room (actor/set.js) and a script can send someone
  * "to the sofa", "to the fireplace", "to the door":
  *
- *   rooms:   [{ id, box: { min, max }, h, walled, solids, blocks, stand }]
+ *   rooms:   [{ id, box: { min, max }, h, walled, solids, blocks, openings, stand }]
  *       the room's floor; `walled`: it is closed on every side; `solids`: the tall pieces a camera keeps clear of;
- *       `blocks`: every piece that stands on the floor, which a walk goes round;
+ *       `blocks`: every piece that stands on the floor, which a walk goes round (each with its height `h`);
+ *       `openings`: each door and window, its span along its wall and its sill and head above the floor;
  *       `stand`: the middle of its most open floor, where a cast with no marks of its own is put
  *   anchors: [{ id, kind: 'spot', of, at }]
  *       a place to stand by each thing: a piece (the clear floor nearest its front), a wall piece, a fixed feature,
@@ -132,8 +133,17 @@ export function interiorPlaces(c) {
   const tall = [...R.placed.filter((p) => p.mount !== 'skin' && p.h >= TALL).map((p) => p.rect), ...R.features.map((f) => f.rect)];
   const rectOf = (r) => { const a = world([r.x0, r.y0]), b = world([r.x1, r.y1]); return { min: [Math.min(a[0], b[0]), Math.min(a[1], b[1])], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1])] }; };
   // everything that stands on the floor: what a walk goes round (actor/route.js)
-  const blocks = [...R.placed.filter((p) => p.mount !== 'skin').map((p) => p.rect), ...R.features.map((f) => f.rect)].map(rectOf);
+  // (each with how high it stands, `h`: a storyboard draws it, actor/storyboard.js; a fixed feature rises to the ceiling)
+  const blocks = [
+    ...R.placed.filter((p) => p.mount !== 'skin').map((p) => ({ ...rectOf(p.rect), ...(p.h > 0 ? { h: r4(p.h / MM_PER_FT) } : {}) })),
+    ...R.features.map((f) => ({ ...rectOf(f.rect), h: r4(shell.heightFt) })),
+  ];
   const solids = tall.map((r) => { const a = world([r.x0, r.y0]), b = world([r.x1, r.y1]); return { min: [Math.min(a[0], b[0]), Math.min(a[1], b[1])], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1])] }; });
+  // each door and window, where it is in its wall: a storyboard draws it (actor/storyboard.js)
+  const openings = shell.openings.map((o) => {
+    const F = wallFrame(R, o.wall), [u0, u1] = F.span(o.a, o.b), a = world(F.at(u0, 0)), b = world(F.at(u1, 0));
+    return { kind: o.kind, min: [Math.min(a[0], b[0]), Math.min(a[1], b[1])], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1])], sill: r4(o.sill / MM_PER_FT), head: r4(o.head / MM_PER_FT) };
+  });
   const room = {
     id: slug(shell.card.name) || slug(shell.card.tag),
     box: { min: [Math.min(x0, x1), Math.min(y0, y1), r4(z)], max: [Math.max(x0, x1), Math.max(y0, y1), r4(z + shell.heightFt)] },
@@ -141,6 +151,7 @@ export function interiorPlaces(c) {
     walled: true,
     ...(solids.length ? { solids } : {}),
     ...(blocks.length ? { blocks } : {}),
+    ...(openings.length ? { openings } : {}),
     stand: world(openSpot(R)),
   };
   return { rooms: [room], anchors };

@@ -107,8 +107,10 @@ launches Blender.
 - `storyboard` (the default): no mint, no Blender, seconds. `storyboard.page` is one page with a panel for each shot
   of the coverage. Each panel has:
   - its frame, drawn by the book press with stand-in mannequins where the actors stand at that moment, seen from the
-    shot's camera;
-  - the blocking from above, with the camera and its field of view;
+    shot's camera. In a decorated room the room is drawn round them: its walls, with each door and window as an opening
+    in its wall, and each piece of furniture, as plain blocks at their heights;
+  - the blocking from above, with the camera and its field of view, and in a decorated room the furniture, the doors and
+    windows, and the way each cross goes round the furniture;
   - its span, its time on screen, its lens and its move;
   - the lines and crosses inside it;
   - the director's notes that fall in it.
@@ -146,6 +148,7 @@ again from the recipe.
 - The storyboard's stand-ins are mannequins, not the cast's own bodies. Its panels cannot be edited and written back
   to the scene yet.
 - A dub is to picture only: a locale whose lines need more time cannot re-time the scene yet.
-- The storyboard's frames draw the actors on open ground; only its overhead plan shows the set.
+- The storyboard's frames draw a decorated room as plain blocks: its walls, furniture and bare openings for the doors and
+  windows, with no door leaf, glass or finishes. On any other set they draw the actors on open ground, and only the overhead plan shows the set.
 - Marks are on the floor at the set's height under the lead's mark. A set of many levels is stood on that one floor.
 - One scene per forge; cut several together in Blender's sequencer.
