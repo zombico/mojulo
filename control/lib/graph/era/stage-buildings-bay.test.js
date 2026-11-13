@@ -141,6 +141,10 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     }
     expect(rooms.some((f) => most(f) > 0)).toBe(true);
     expect(F.faces.some((f) => f.group === 'stage:sunpatch')).toBe(false);
+    // (and the light of where a body stands: each room's own, for the page to light a body in it by; none without a day)
+    const places = R.place.rooms;
+    expect(places.length).toBeGreaterThan(0);
+    for (const q of places) { expect(q.max[2]).toBeGreaterThan(q.min[2]); expect(Math.max(...q.sky)).toBeGreaterThan(Math.max(...q.ground) * 0.999); expect(Math.min(...q.ground)).toBeGreaterThan(0); }
     // (and painted, the paint's page, nothing of it: no record, no baked light on the shell)
     expect(noon.form).toBeUndefined();
     expect(noon.faces.filter((f) => /^building:(wall|roof)/.test(f.group || '')).every((f) => f.cornerLight === undefined)).toBe(true);

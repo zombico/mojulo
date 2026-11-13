@@ -129,3 +129,10 @@
   the widest strip of slab beside them, is what its wet slab, walls and containers hold (the buildings, the containers,
   the land), corrected to that strip's box and read along the ray past it. Standing water out of doors gives back more
   than a film does, so what stands by a puddle reads in it.
+- The light of where a body stands: on a land with buildings, a body under the cast rig (the hero, a parked walker, a
+  foe) carries its own light and takes the light of its place, eased as it walks: a room's lamps overhead and its
+  floor's bounce indoors (lower by day, as the room is), the sky out of doors, a flood it stands under. A form body
+  gives back less of the sky indoors.
+- The whole cast under the land's one sun: on a page whose land is drawn as form, every body an entity wears (a foe, a
+  walker, one that stands still) is read lit and carries the rig solved from the land's cube, as the piloted hero did
+  alone.

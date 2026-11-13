@@ -822,7 +822,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // the inside, moved
     const moved = P.faces.map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}), node: f.node ? `${id}:${f.node}` : undefined }))
       .map(({ node, ...f }) => (node ? { ...f, node } : f));
-    if (bay && P0.form?.room) formRooms.push({ ...P0.form.room, lights: P0.form.room.lights.map((l) => ({ ...l, at: l.radius >= 1e8 ? P3(turnN(l.at)) : P3(W(l.at)) })) });
+    if (bay && P0.form?.room) formRooms.push({ _of: `building-${id}`, ...P0.form.room, lights: P0.form.room.lights.map((l) => ({ ...l, at: l.radius >= 1e8 ? P3(turnN(l.at)) : P3(W(l.at)) })) });
     // (its shell baked as its rooms are, its colour and the day's light apart, under the day the land stands in:
     // form/sun-light.js, under the land's day, `ctx.dayLight`; the sun's cast shadow is the page's live one)
     const shellLight = bay && P0.form?.room && ctx.dayLight ? ctx.dayLight : null;
@@ -1126,7 +1126,23 @@ export function withBuildings(payload, manifest, ctx = {}) {
   // (no grass through the paths of slabs to a building set into its slope)
   if (pathFaces.length && (liveGrass ?? payload.liveGrass)) liveGrass = offPaving(liveGrass ?? payload.liveGrass, pavedBy(pathFaces, /^building:path$/));
   // (one record for every building's rooms: the lamps of each, the one sun, the first's ambient)
-  const formRoom = formRooms.length ? { ...formRooms[0], lights: [...formRooms.flatMap((R) => R.lights.filter((l) => l.radius < 1e8)), ...(ctx.dayLight ? [{ at: P3(ctx.dayLight.dir.map((v) => v * 1e6)), key: ctx.dayLight.sun, radius: 1e9, live: true }] : formRooms[0].lights.filter((l) => l.radius >= 1e8))] } : null;
+  // (THE LIGHT OF WHERE A BODY STANDS, `form.room.place`: each room's own light as a body in it takes it (what its lamps
+  // lay at a person's chest in its middle, over its ambient: overhead, so the sky's part of a body's light, and a share
+  // of it thrown back up off the floor), lower by day as the room's faces are; and the yard's floods. The page lights a
+  // body under the cast rig by the room it stands in, or by the sky out of doors: scene/channels/controllable)
+  const place = ctx.dayLight && formRooms.length ? (() => {
+    const day = ctx.dayLight.dir[2] > 0.02 ? INDOOR_DAY : 1, rooms = [];
+    for (const R of formRooms) {
+      const A = anchors.find((a) => a.id === R._of), lamps = R.lights.filter((l) => l.radius < 1e8 && !l.beat), fall = R.fall ?? 1;
+      for (const r of (A && A.rooms) || []) {
+        const c = [(r.box.min[0] + r.box.max[0]) / 2, (r.box.min[1] + r.box.max[1]) / 2, r.box.min[2] + 1.5], E = [0, 0, 0];
+        for (const l of lamps) { const t = Math.max(0, 1 - Math.hypot(l.at[0] - c[0], l.at[1] - c[1], l.at[2] - c[2]) / l.radius), w = Math.pow(t * t, fall); for (let k = 0; k < 3; k++) E[k] += l.key[k] * w; }
+        rooms.push({ min: r.box.min.map(r5), max: r.box.max.map(r5), sky: R.ambient.map((v, k) => r5((v + E[k]) * day)), ground: R.ambient.map((v, k) => r5((v + E[k] * 0.35) * day)) });
+      }
+    }
+    return rooms.length ? { rooms, ...(floods.length ? { floods } : {}) } : null;
+  })() : null;
+  const formRoom = formRooms.length ? { ...(({ _of, ...R0 }) => R0)(formRooms[0]), lights: [...formRooms.flatMap((R) => R.lights.filter((l) => l.radius < 1e8)), ...(ctx.dayLight ? [{ at: P3(ctx.dayLight.dir.map((v) => v * 1e6)), key: ctx.dayLight.sun, radius: 1e9, live: true }] : formRooms[0].lights.filter((l) => l.radius >= 1e8))] } : null;
   // (a plant the form grows from its seat, form/flora-read.js: none inside a building, none whose crown would stand through its wall)
   const PLANT_CLEAR = { trees: 3, bushes: 1, shrubs: 1, skirt: 3 };
   const plants = payload.plants && clearedBoxes.length ? { ...payload.plants, ...Object.fromEntries(Object.entries(PLANT_CLEAR).filter(([k]) => Array.isArray(payload.plants[k])).map(([k, pad]) => [k,
@@ -1170,5 +1186,5 @@ export function withBuildings(payload, manifest, ctx = {}) {
 
   const wetRoad = wetQuads.length ? { quads: wetQuads, lamps: [], zenith: payload.sky?.zenith ?? [120, 150, 200], horizon: payload.sky?.horizon ?? [200, 215, 230] } : null;
   faces = [...faces, ...netFaces];
-  return { ...payload, ...(roofs.length ? { roofs } : {}), ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  return { ...payload, ...(roofs.length ? { roofs } : {}), ...(wetRoad ? { wetRoad } : {}), ...(formRoom ? { form: { ...(payload.form || {}), room: { ...formRoom, ...(ctx.dayLight ? { sun: { ground: skyAt([0, 0, -1], ctx.dayLight).map(r5) }, ...(reflect ? { reflect } : {}), ...(place ? { place } : {}) } : {}) } } } : {}), ...(plants ? { plants } : {}), faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

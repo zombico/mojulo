@@ -77,5 +77,17 @@ describe('a vehicle\'s form body under the cast rig', () => {
     expect(both.match(/const castKit = /g).length).toBe(1);
     expect(both).toContain('function __castMat(fig, o)');
   });
-});
 
+  // THE LIGHT OF WHERE A BODY STANDS (`place`: a land's buildings' rooms and floods): each body its own set of the
+  // rig's uniforms, eased each frame toward its place's light; a page with no place carries none of it
+  it('a page with places lights each body by where it stands; without, the figure\'s one rig as it was', () => {
+    const PLACE = { rooms: [{ min: [0, 0, 0], max: [4, 4, 3], sky: [1, 1, 1], ground: [0.4, 0.4, 0.4] }] };
+    const lit = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) }), placed = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) }, { place: PLACE });
+    expect(lit).not.toContain('__placeStep');
+    expect(lit).not.toContain('__castNow');
+    expect(placed).toContain('function __placeStep(dt)');
+    expect(placed).toContain('__placeStep(dt);');
+    expect(placed).toContain(JSON.stringify(PLACE));
+    expect(() => new Function(placed.replace(/\bimport\b/g, '__imp'))).not.toThrow();
+  });
+});

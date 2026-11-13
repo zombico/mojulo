@@ -691,7 +691,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, stills = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, stills = false, place = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -1230,9 +1230,10 @@ function __formEnv(F) {
 // in the body's own shader, where it lights nothing else. The rig is read off the body's own setting (its sky, its
 // ground, its ambient: what its hemisphere light was), its key's gain 1 and no rim (a body's rim is its sky, reflected).
 function __formRig(F) {
-  if (F.__rig) return F.__rig;
+  ${place ? 'if (__castNow && __castNow.U) return __castNow.U;\n  if (!__castNow && F.__rig) return F.__rig;' : 'if (F.__rig) return F.__rig;'}
   const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }, a = (F.ambient * 1.6) / Math.PI;
-  return (F.__rig = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: { sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: { linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } }));
+  const U = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: { sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: { linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } });
+  ${place ? 'if (__castNow) return (__castNow.U = U);\n  ' : ''}return (F.__rig = U);
 }
 // the key: ${formLand ? "the land's own sun (channels/form-land.js): a body on a form page asks for no light of its own" : "the shadow lights the page already casts with take the key's colour and strength (they were white and seen by\n// nothing lit: the world is painted); with none, a key of its own along the sun"}
 function __formLights(F) {
@@ -1257,7 +1258,8 @@ function __formMat(F, name) {
   // (a filmic curve on the lit colour, before it is encoded: the world's paint is drawn as it is)
   m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <tonemapping_fragment>', '{ vec3 x = gl_FragColor.rgb * ' + ex.toFixed(3) + '; gl_FragColor.rgb = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }\\n#include <tonemapping_fragment>'); };`}
   // (the rig: its sky over its ground in the body's own shader; the kit adds no tone of its own here)
-  return castKit.patch(m, __formRig(F), { register: 'western', surface: 'form' });
+${place ? `  if (__castNow) { m.userData.env0 = m.envMapIntensity; (__castNow.mats || (__castNow.mats = [])).push(m); }
+` : ''}  return castKit.patch(m, __formRig(F), { register: 'western', surface: 'form' });
 }
 function __formBone(fig, P) {
   const F = fig.form, geo = new THREE.BufferGeometry(), q = __formBytes(P.q, Uint16Array), p = new Float32Array(P.n * 3);
@@ -1329,7 +1331,7 @@ function __makeSkinGroup(fig, b, group) {
 ${figHasForm ? '' : `const castKit = ${castKitSource()};
 `}const __castU = new Map();
 function __castMat(fig, o) {
-  let U = __castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }
+  let U = ${place ? '__castNow ? (__castNow.U || (__castNow.U = castKit.uniforms(fig.cast))) : ' : ''}__castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }
   const m = castKit.material(fig.cast, Object.assign({ surface: fig.cast.surface || 'paint', uniforms: U }, o));
   m.userData.cast = true;
   return m;
@@ -1452,7 +1454,7 @@ function __castMat(fig, o) {
   if (fig.juice) __rjBuild(fig, group, boneMeshes);` : ''}
   return group;
 }
-function __makeBody(e) {
+${place ? 'let __castNow = null;   // (the body being made: its own set of the rig\'s uniforms, below)\n' : ''}function __makeBody(e) {
   const b = e.body || {};
   // LOADOUT body (weapon cycling): the platform rule's loadout lists one baked figure per weapon
   // config — build a rig group for EACH up front, show only the active one; a switch (R / 1-N)
@@ -4128,8 +4130,32 @@ function __updateThrusters(dt) {
     }
   }
 }
-for (const e of __world.entities) { const m = __makeBody(e); if (m) __bodies[e.id] = m; }
-${stills ? `// (a body that never moves is the static world's: it casts into the hour's map, channels/cast-shadows.js still)
+${place ? `// THE LIGHT OF WHERE A BODY STANDS (a land's buildings, era/stage-buildings.js \`form.room.place\`): each body under the
+// cast rig carries its own set of the rig's uniforms, and each frame they ease toward the light of its place: the room
+// it stands in (its lamps overhead, its floor's bounce), else the sky it was made under; a flood it stands under adds
+// to what falls on it from above; a form body gives back less of the sky indoors
+const __PLACE = ${safeJson(place)}, __placed = [];
+for (const e of __world.entities) { __castNow = {}; const m = __makeBody(e); if (m) { __bodies[e.id] = m; if (__castNow.U) __placed.push({ e, U: __castNow.U, mats: __castNow.mats || [], sky0: __castNow.U.uCastSky.value.clone(), ground0: __castNow.U.uCastGround.value.clone(), fill0: __castNow.U.uCastFill.value, in: -1 }); } }
+__castNow = null;
+const __plS = new THREE.Vector3(), __plG = new THREE.Vector3();
+function __placeStep(dt) {
+  for (const q of __placed) {
+    const p = q.e.transform && q.e.transform.pos; if (!p) continue;
+    const x = p[0], y = p[1], z = p[2] + 1;
+    let r = null; for (const R of __PLACE.rooms) if (x > R.min[0] && x < R.max[0] && y > R.min[1] && y < R.max[1] && z > R.min[2] && z < R.max[2]) { r = R; break; }
+    const want = r ? 1 : 0, k = q.in < 0 ? 1 : Math.min(1, dt * 5); q.in = q.in < 0 ? want : q.in + (want - q.in) * k;
+    if (r) q.room = r;
+    const R = q.room, a = q.in;
+    __plS.copy(q.sky0).multiplyScalar(q.fill0 * (1 - a)); __plG.copy(q.ground0).multiplyScalar(q.fill0 * (1 - a));
+    if (R && a > 0) { __plS.x += R.sky[0] * a; __plS.y += R.sky[1] * a; __plS.z += R.sky[2] * a; __plG.x += R.ground[0] * a; __plG.y += R.ground[1] * a; __plG.z += R.ground[2] * a; }
+    for (const f of __PLACE.floods || []) { const dz = f.at[2] - z; if (dz <= 0) continue; const d = Math.hypot(f.at[0] - x, f.at[1] - y, dz), t = Math.max(0, 1 - d / f.radius), w = t * t * Math.min(1, Math.max(0, (dz / Math.max(d, 1e-3) - 0.2) / 0.42)) * (1 - a) * 0.6; __plS.x += f.key[0] * w; __plS.y += f.key[1] * w; __plS.z += f.key[2] * w; }
+    q.U.uCastSky.value.copy(__plS); q.U.uCastGround.value.copy(__plG); q.U.uCastFill.value = 1;
+    for (const m of q.mats) m.envMapIntensity = m.userData.env0 * (1 - 0.85 * a);
+  }
+}
+__placeStep(1);
+` : `for (const e of __world.entities) { const m = __makeBody(e); if (m) __bodies[e.id] = m; }
+`}${stills ? `// (a body that never moves is the static world's: it casts into the hour's map, channels/cast-shadows.js still)
 if (window.__mojCast && window.__mojCast.still) for (const e of __world.entities) if (e.rule && e.rule.type === 'static' && __bodies[e.id]) window.__mojCast.still(__bodies[e.id]);
 ` : ''}for (const e of __world.entities) __syncEntity(e);${shadowBlock}${smokeBlock}${hangarBlock}${gearBlock}
 // ---- MATCH layer (mobile-suit-arena.plan.md M1b/M3): scoreboard + kill feed + result + game seam ----
@@ -4553,7 +4579,7 @@ ${hangarHook}  __msHookParams();
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${seats ? `
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}

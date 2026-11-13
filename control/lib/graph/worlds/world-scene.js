@@ -1278,11 +1278,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
           const takes = takesOf?.[name] ?? null;
           // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on a page whose
-          // land is drawn as form, the body a player pilots is read lit (its colour under no light, its normals) and carries
-          // the rig solved from the land's own cube at its hour, so the page lights it by the land's one sun; its clips and
-          // its playback are as they were. Every other figure (a walker, a foe, a crowd), and every page without a form
-          // land, as it was: nothing added
-          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
+          // land is drawn as form, every body an entity wears (the hero a player pilots, a foe, a walker, one that stands
+          // still) is read lit (its colour under no light, its normals) and carries the rig solved from the land's own cube
+          // at its hour, so the page lights the whole cast by the land's one sun; its clips and its playback are as they
+          // were. A figure no entity wears, and every page without a form land, as it was: nothing added
+          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
