@@ -6,6 +6,7 @@ import { workRoom, workOf, everydayFeel } from './work-room.js';
 import { practiceFor, practiceRoomOf } from './practice.js';
 import { POLES, POLE_IDS } from './feel/cards.js';
 import { feelRule } from './feel/lower.js';
+import { SCENARIOS } from '../worksim/scenarios.js';
 
 const G = { id: 'shift', name: 'Shift', quick: { goal: 'work' } };
 
@@ -31,6 +32,20 @@ describe('the work room', () => {
     const places = Object.values(r.layout.stations).flat().length + Object.keys(r.layout.crates).length + Object.keys(r.layout.shelves).length + 1;
     expect(M.colliders.length).toBe(places + 4);
     expect(M.events.sources.filter((z) => z.use).length).toBeGreaterThan(places);
+    expect(r.measured.won).toBe(true);
+  });
+  it('a card with a site stands its line on a deck, the hand-in on the ground below a real ladder, walked by the proof', () => {
+    const [id, card] = Object.entries(SCENARIOS).find(([, c]) => c.site);
+    const r = workRoom({ id: 'up', quick: { goal: 'work', card: id } }), up = card.site.up, M = r.manifest;
+    const climbable = M.entities.filter((e) => e.rule?.type === 'climbable');
+    expect(climbable.length).toBe(1);
+    expect(r.site.top[2]).toBe(up);
+    expect(r.site.bottom[2]).toBe(0);
+    expect(r.layout.serve[2]).toBe(0);
+    for (const at of Object.values(r.layout.stations).flat()) expect(at[2]).toBe(up);
+    expect(M.entities[0].transform.pos[2]).toBe(up);
+    // the deck: a block as high as the site, under every place on it
+    expect(M.colliders.some((c) => c.max[2] === up && c.min[2] === 0 && c.max[0] - c.min[0] > 4)).toBe(true);
     expect(r.measured.won).toBe(true);
   });
   it('a template chosen from the presets moves the hero, and the presets are every template and both bodies', () => {

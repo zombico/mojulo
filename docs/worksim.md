@@ -133,9 +133,31 @@ Movement is a lever, and it shows where travel is what is short. The kitchen mea
 | advanced     | 13 of 25 (goal 13)| 17 of 25         | 19 of 25         |
 
 At beginner the order pace rules, so movement does not decide the shift. At advanced the slowest walker barely makes
-the goal. The roof barely moves (10, 10, 11 of 12): its ladder trip is fixed in the card as `far`, not walked. The goal
-comes from the simulator, which does not know the template, so a chosen movement makes the same shift easier or
-harder: a capacity lever the presets now expose.
+the goal. The goal comes from the simulator, which does not know the template, so a chosen movement makes the same
+shift easier or harder: a capacity lever the presets now expose.
+
+### A site: the roof and its ladder
+
+A card may stand its line on a deck: `site: { up, climb? }`, the line `up` metres over the ground (a roof, a scaffold),
+the hand-in on the ground below, joined by a real climb from the playscape's ladder object (a lean `ladder` by
+default, or `rungs`, `rope`, `net`). The card reads the climb's seconds from the object itself (its length at its speed,
+and the step off at the lip) and adds them both ways to the hand-in's reach, so the simulator and the solver walk it too.
+
+In the work room the climb is built:
+
+- **The deck:** a block as high as the site under the line.
+- **The ladder:** its rails and rungs, standing at the deck's far corner, and its climbable surface, climbed by the
+  hero's own rule. Walk into its face to take hold, W climbs, and the lip steps you off.
+- **The bin:** on the ground, a few steps out from the ladder's foot.
+
+The hero starts on the roof. The proof walks the route: to the ladder at the template's run, down it in the ladder's own
+seconds, on to the bin, and back up.
+
+The starter roof is 4 m up on a lean ladder: 4.12 m of climb at 2.2 m/s and the step off, 2.37 s each way. On the page
+in headless Chromium the stand-in, holding W at the ladder's foot, climbed from 0.6 m to 3.8 m in about two seconds and
+stepped off onto the roof at 4 m. Measured at three templates' runs, the advanced roof serves 9, 10 and 11 of 12 bags.
+The climb runs at the same speed for every template, so on a roof the ladder, not the run, is most of the cost. A faster
+climb (a better ladder) or a lower roof is the lever there.
 
 ### What the proof found
 

@@ -11,7 +11,9 @@
  * What it does not: the walls on a stage (the walk is straight), the hero's own speed and turning, a player who does not
  * know the card (the newcomer the simulator's foresight 0 stands for), the fun.
  *
- *   proveWork(params, { player?, spawn?, speed? (4 m/s) }) → { won, served, missed, burned, score, goal, seconds, sim, says }
+ *   proveWork(params, { player?, spawn?, speed? (4 m/s), path? }) → { won, served, missed, burned, score, goal, seconds, sim, says }
+ *     path(from, to) → [{ at, speed? }]: the way between two places when it is not straight (a room's climb: to the
+ *     ladder, down it at its own speed, on to the place); absent, straight there at `speed`
  *
  * Pure: the bus is the same code the page runs; the orders are the card's roll.
  */
@@ -24,7 +26,7 @@ import { SCENARIOS } from './scenarios.js';
 
 const B = buildBus();
 
-export function proveWork(params = {}, { player = 'hero', spawn = [0, 0, 0], speed = 4 } = {}) {
+export function proveWork(params = {}, { player = 'hero', spawn = [0, 0, 0], speed = 4, path = null } = {}) {
   const raw = params.card === undefined ? SCENARIOS.kitchen : typeof params.card === 'string' ? SCENARIOS[params.card] : params.card;
   const C = readCard(raw), meta = lowerWork(params, { i: 0, player, spawn }).work;
   const c = composeMechanics([{ kind: 'work', ...params }], { player, spawn, fall: 'none' });
@@ -46,7 +48,9 @@ export function proveWork(params = {}, { player = 'hero', spawn = [0, 0, 0], spe
   const tickets = Array.from({ length: meta.tickets }, (_, j) => j);
   const open = () => tickets.map((j) => V[`${I}:o:${j}`]).filter((k) => k >= 1).map((k) => C.demand.orders[k - 1]);
   let pos = spawn.slice(), prev, task = null;
-  const far = (at) => Math.hypot(at[0] - pos[0], at[1] - pos[1]) / speed;
+  // the way from here to a place: legs [{ at, speed? }] (a route through a climb, the room's), else straight there
+  const legsTo = (at) => (path ? path(pos, at) : [{ at }]);
+  const far = (at) => { let p0 = pos, t = 0; for (const g of legsTo(at)) { t += Math.hypot(g.at[0] - p0[0], g.at[1] - p0[1], g.at[2] - p0[2]) / (g.speed ?? speed); p0 = g.at; } return t; };
 
   const shelfOf = (i) => (L.shelves[i] ? V[`held:${W}-shelf-${i}:${i}`] ?? 0 : 0);
   const stock = (i) => bag(i) + shelfOf(i);
@@ -116,13 +120,23 @@ export function proveWork(params = {}, { player = 'hero', spawn = [0, 0, 0], spe
   for (; f < end; f++) {
     pump(B.tickTimers(s, dt));
     if (s.log.some((r) => r.type === 'work:won' || r.type === 'work:lost')) break;
-    if (!task) task = choose();
+    if (!task) { task = choose(); if (task) task.legs = legsTo(task.at); }
     if (task) {
-      const d = Math.hypot(task.at[0] - pos[0], task.at[1] - pos[1]), m = Math.min(d, speed * dt);
-      if (d > 0.3) pos = [pos[0] + ((task.at[0] - pos[0]) / d) * m, pos[1] + ((task.at[1] - pos[1]) / d) * m, task.at[2]];
+      // along the legs, each at its own speed (a climb's, else the walker's), the last stopping short at the place
+      let budget = dt, d = 0;
+      while (budget > 0 && task.legs.length) {
+        const g = task.legs[0], last = task.legs.length === 1, v = g.speed ?? speed;
+        const gap = Math.hypot(g.at[0] - pos[0], g.at[1] - pos[1], g.at[2] - pos[2]), stop = last ? 0.3 : 0;
+        if (gap <= stop + 1e-9) { if (last) break; task.legs.shift(); continue; }
+        const m = Math.min(gap - stop, v * budget);
+        pos = pos.map((x, k) => x + ((g.at[k] - x) / gap) * m);
+        budget -= m / v;
+        if (!last && m >= gap - 1e-9) task.legs.shift();
+      }
+      d = Math.hypot(task.at[0] - pos[0], task.at[1] - pos[1], task.at[2] - pos[2]);
       const z = B.deriveZoneEvents([{ id: player, position: pos }], prev, ev.sources);
       prev = z.prev; pump(z.events);
-      if (d <= 0.3) {
+      if (d <= 0.3 + 1e-6) {
         if (!task.pressed) { pump([{ type: `use-${task.use}` }]); task.pressed = true; if (!task.stay || phase(task.stay) !== 2) task = null; }
         else if (phase(task.stay) !== 2) task = null;
       }

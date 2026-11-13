@@ -42,11 +42,18 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   room. The shift is measured by the work proof at the template's run, and the movement shows: the kitchen at advanced
   serves 13 of 25 at the slowest template's run (its goal 13) and 19 at the fastest; at beginner every template serves
   10 of 11. The room has its own rail icon.
+- **A site, a real climb.** A card may stand its line on a deck: `site: { up, climb? }`, a roof `up` metres high with
+  the hand-in on the ground below, joined by the playscape's ladder (a lean ladder, rungs, a rope or a net). The card
+  reads the climb's seconds from the ladder object and walks them both ways on every hand-in. The work room builds the
+  deck, the ladder (its rails, rungs and climbable surface, climbed by the hero's own rule) and the bin below. The hero
+  starts on the roof, and the proof walks the route through the ladder at the climb's own speed. The roof starter is
+  4 m up on a lean ladder in place of a fixed 8 s trip. On the page, the hero climbed from the foot to the roof in
+  about two seconds, and the advanced roof serves 9, 10 and 11 of 12 bags at three templates' runs.
 - **The work proof** (`worksim/work-proof.js`, a machine gate) plays a level on the page's bus as a player who knows
   the card would. The kitchen, the farm and the roof are won near what the simulator serves. The site, a crew's job
   played alone, falls short, and the proof says so. On the exported page in headless Chromium, one whole order was
-  played by hand and served.
+  played by hand and served. The proof walks a route when one is given (a room's climb), each leg at its own speed.
 - **Starter cards** (`scenarios.js`): a sushi counter, a wheat farm, a building site (a spade or an excavator) and
-  leaves off a roof. The board `scripts/spikes/worksim/solve.mjs` solves each at each preset.
+  leaves off a roof (4 m up a lean ladder). The board `scripts/spikes/worksim/solve.mjs` solves each at each preset.
 - The gates are machine gates only: whether a shift is fun is for someone playing it to judge. The stations are
   greybox markers.

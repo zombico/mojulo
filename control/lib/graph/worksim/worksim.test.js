@@ -2,7 +2,8 @@
 // unattended shovel freeing the hands, the solver's targets. One card per procedure, chosen from the starters in code:
 // an orders card with a station that runs alone, and a backlog card.
 import { describe, it, expect } from 'vitest';
-import { readCard, LEVERS } from './card.js';
+import { readCard, LEVERS, climbOf } from './card.js';
+import { resolveObject } from '../playscape/objects/index.js';
 import { analyze } from './analyze.js';
 import { simulate } from './sim.js';
 import { solve, targetOf, PRESETS } from './solve.js';
@@ -28,6 +29,20 @@ describe('the card', () => {
     expect(() => readCard(tiny({ stations: { cook: { verb: 'bucket', gives: { dish: 1 }, work: 1, wait: 3 } } }))).toThrow(/a bucket does not run alone/);
     expect(() => readCard(tiny({ stations: { a: { verb: 'shovel', takes: { y: 1 }, gives: { dish: 1 }, work: 1 }, b: { verb: 'shovel', takes: { dish: 1 }, gives: { y: 1 }, work: 1 } } }))).toThrow(/recipes loop/);
     expect(() => readCard(tiny({ demand: { mode: 'backlog', orders: [{ wants: { dish: 1 } }] } }))).toThrow(/standing job/);
+  });
+});
+
+describe('a site', () => {
+  // the line up on a deck, the hand-in below a real climb: its seconds the ladder's own, both ways on every hand-in
+  it('reads its climb from the ladder object and walks it to every hand-in', () => {
+    const C = readCard(tiny({ site: { up: 4 } })), base = readCard(tiny());
+    const o = resolveObject({ entry: 'ladder', variant: 'ladder', to: [0, 0, 4], rise: 4, facing: [0, 1] });
+    expect(C.site).toMatchObject({ up: 4, climb: 'ladder' });
+    expect(C.site.seconds).toBeCloseTo(o.climb.seconds, 2);
+    expect(C.demand.far).toBeCloseTo(base.demand.far + 2 * o.climb.seconds, 2);
+    expect(climbOf({ up: 4, climb: 'rope' }).seconds).toBeGreaterThan(C.site.seconds);
+    expect(() => readCard(tiny({ site: { up: 40 } }))).toThrow(/site is/);
+    expect(() => readCard(tiny({ site: { up: 4, climb: 'escalator' } }))).toThrow(/site.climb/);
   });
 });
 

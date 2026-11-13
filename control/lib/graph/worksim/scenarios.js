@@ -6,7 +6,8 @@
  *   farm           a shovel-heavy cycle (the tractor) with a long unattended grow and a harvest that is bucket work
  *   site           contracts on a long clock, a mixer that sets if left, a two-person crew, a trench dug by spade or by
  *                  excavator: the scheduling sim
- *   roof           a standing job (a backlog) the wind adds to, a ladder that makes travel the cost: the chores sim
+ *   roof           a standing job (a backlog) the wind adds to, the line up on a roof and the bin below a ladder: the
+ *                  chores sim, travel its cost
  *
  * Their numbers are seconds of play, not of life (a crop grows in a minute).
  */
@@ -74,9 +75,11 @@ export const SCENARIOS = Object.freeze({
       bag: { verb: 'bucket', takes: { pile: 2 }, gives: { 'full-bag': 1 }, work: 3 },
     },
     demand: {
-      mode: 'backlog', backlog: 10, every: 90, serve: 1, far: 8,
+      mode: 'backlog', backlog: 10, every: 90, serve: 1, far: 2,
       orders: [{ name: 'a bag in the bin', wants: { 'full-bag': 1 } }],
     },
+    // the roof 4 m up, the bin on the ground: a lean ladder down and up again with every bag
+    site: { up: 4, climb: 'ladder' },
     session: 300,
   },
 });

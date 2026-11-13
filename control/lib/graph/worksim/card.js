@@ -34,6 +34,9 @@
  *                 far?: seconds more to reach the hand-in, cadence?: 'random' | 'steady', first? (2),
  *                 rush?: { period, length, factor }: for `length` seconds in every `period`, orders come `factor` times as often },
  *     session?: seconds (240),
+ *     site?:    { up: metres, climb?: 'ladder' | 'rungs' | 'rope' | 'net' }: the line on a deck `up` metres high (a
+ *               roof, a scaffold), the hand-in on the ground below, joined by a real climb (climbOf): its seconds both
+ *               ways join demand.far, and a room lays the deck, the climb and the walk to it
  *   }
  *
  * An item no station gives is raw (taken from its crate as bucket work, never short). Every other item is given by one
@@ -55,6 +58,18 @@ const pos = (v) => Number.isFinite(v) && v > 0;
 const nonneg = (v) => Number.isFinite(v) && v >= 0;
 const posInt = (v) => Number.isInteger(v) && v >= 1;
 const WORD = /^[a-z][a-z0-9-]{0,31}$/;
+import { ladderParams, climbSurface, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
+
+/**
+ * A site's climb (`site: { up, climb? }`): the line stands `up` metres over the ground on a deck (a roof, a scaffold),
+ * the hand-in below it, the two joined by a climb (playscape/objects/ladder.js: a lean ladder by default, fixed rungs,
+ * a rope or a net). One way's seconds: up its length at its speed, and the step off at the lip. → { up, climb, length,
+ * speed, seconds }
+ */
+export function climbOf(site) {
+  const p = ladderParams({ variant: site.climb, to: [0, 0, site.up], rise: site.up, facing: [0, 1] }), S = climbSurface(p);
+  return { up: site.up, climb: site.climb, length: S.length, speed: p.speed, seconds: Math.round((S.length / p.speed + (p.mount ? 0.5 : 0)) * 1000) / 1000 };
+}
 
 export const VERBS = Object.freeze({
   shovel: 'active processing: the hands are on it for its work, then it may run alone (wait) and must be taken off before it burns (hold)',
@@ -162,7 +177,16 @@ export function readCard(card) {
   });
   const session = card.session ?? 240;
   if (!pos(session)) fail('session is the seconds one sitting runs');
-  const demand = { mode, orders, serve: D.serve ?? 1, far: D.far ?? 0, cadence: D.cadence ?? 'random', first: D.first ?? 2,
+  let site = null;
+  if (card.site !== undefined) {
+    const S = card.site;
+    if (!isObj(S) || !(Number.isFinite(S.up) && S.up >= 0.6 && S.up <= 12)) fail('site is { up, climb? }: the line on a deck `up` metres over the ground (0.6 to 12), the hand-in below it');
+    const climb = S.climb ?? 'ladder';
+    if (!LADDER_VARIANTS[climb]) fail(`site.climb is ${Object.keys(LADDER_VARIANTS).join(', ')}`);
+    site = climbOf({ up: S.up, climb });
+  }
+  // a site's climb is walked to every hand-in and back: its seconds both ways join the hand-in's reach
+  const demand = { mode, orders, serve: D.serve ?? 1, far: (D.far ?? 0) + (site ? 2 * site.seconds : 0), cadence: D.cadence ?? 'random', first: D.first ?? 2,
     every: D.every ?? null, patience: D.patience ?? (mode === 'backlog' ? session : null), backlog: D.backlog ?? 0, rush: D.rush ?? null };
   if (!nonneg(demand.serve) || !nonneg(demand.far) || !nonneg(demand.first)) fail('demand.serve, .far and .first are seconds');
   if (!['random', 'steady'].includes(demand.cadence)) fail('demand.cadence is random (seeded arrivals) or steady (an even beat, a little jitter)');
@@ -180,7 +204,7 @@ export function readCard(card) {
     }
   }
   const routes = Object.fromEntries(Object.entries(producers).filter(([, l]) => l.length > 1).map(([item, l]) => [item, l.map((sid) => ({ station: sid, perUnit: Math.round(unitCost(sid) * 1000) / 1000 }))]));
-  return { id, name: card.name ?? id, why: card.why ?? null, crew, collect, stations, items, demand, session, producer, producers, routes };
+  return { id, name: card.name ?? id, why: card.why ?? null, crew, collect, stations, items, demand, session, site, producer, producers, routes };
 }
 
 export const producerOf = (C) => C.producer;
