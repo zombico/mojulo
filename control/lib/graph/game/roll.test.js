@@ -42,7 +42,7 @@ describe('the roll, read', () => {
   it('refuses the malformed, teaching', () => {
     const bad = (roll, blocks = BLOCKS) => () => readRoll(roll, { blocks });
     expect(bad('often')).toThrow(/what the level's seed picks/);
-    expect(bad({ cover: [], foes: [] })).toThrow(/no 'foes' \(a roll has: cover, items, start, pattern\)/);
+    expect(bad({ cover: [], foes: [] })).toThrow(/no 'foes' \(a roll has: cover, items, start, pattern, with\)/);
     expect(bad({})).toThrow(/it picks nothing/);
     expect(bad({ cover: [] })).toThrow(/a list of groups/);
     expect(bad({ cover: [{ of: [], stand: 1 }] })).toThrow(/at least one/);
@@ -372,5 +372,30 @@ describe('a pattern: a line that is paced', () => {
     expect(bad([{ slots: [['o0']], ramp: { o0: [1, -2] } }])).toThrow(/whole numbers from 0/);
     expect(bad([{ slots: [['o0']], speed: 3 }])).toThrow(/no 'speed'/);
     expect(() => readRoll({ cover: [{ of: ['o0'], stand: 1 }], pattern: [{ slots: [['o0']] }] }, { blocks: LBLOCKS })).toThrow(/'o0' is rolled already/);
+  });
+});
+
+describe('with: a pickup that lies only where a rolled block stands', () => {
+  const blocks = [{ id: 'a', form: 'crate', at: [0, 4, 0] }, { id: 'b', form: 'crate', at: [0, 8, 0] }];
+  const mechanics = [{ kind: 'coins', pickups: [{ id: 'ca', at: [0, 3, 1] }, { id: 'cb', at: [0, 7, 1] }, { at: [0, 9, 1] }] }];
+  const roll = { cover: [{ of: ['a', 'b'], stand: 1 }], with: { ca: 'a', cb: 'b' } };
+
+  it('reads to the pickup\'s zone and its block; a coin is a pickup the roll may name', () => {
+    expect(pickupsOf(mechanics)).toEqual([{ id: 'ca', zone: 'cn_0_0', at: [0, 3, 1] }, { id: 'cb', zone: 'cn_0_1', at: [0, 7, 1] }]);
+    expect(readRoll(roll, { blocks, pickups: pickupsOf(mechanics) }).with).toEqual([['cn_0_0', 'a'], ['cn_0_1', 'b']]);
+    const bad = (w) => () => readRoll({ ...roll, with: w }, { blocks, pickups: pickupsOf(mechanics) });
+    expect(bad({ zz: 'a' })).toThrow(/no pickup 'zz' in the level/);
+    expect(bad({ ca: 'q' })).toThrow(/'q' is not a block this roll stands or leaves out/);
+    expect(bad({})).toThrow(/with is \{ '<pickup id>': '<block id>' \}/);
+  });
+
+  it('follows the picks, with no dice of its own: laid where its block stands, on every seed, and the picks are as they were', () => {
+    const read = readRoll(roll, { blocks, pickups: pickupsOf(mechanics) }), { with: _w, ...bare } = read;
+    for (let seed = 1; seed <= 12; seed++) {
+      const R = rollOf(read, seed), B = rollOf(bare, seed);
+      expect(R.stand).toEqual(B.stand);
+      expect(R.lay).toEqual(R.stand.map((id) => (id === 'a' ? 'cn_0_0' : 'cn_0_1')));
+      expect(R.unlaid).toEqual(R.gone.map((id) => (id === 'a' ? 'cn_0_0' : 'cn_0_1')));
+    }
   });
 });

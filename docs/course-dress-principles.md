@@ -157,6 +157,27 @@ measured (a wagon), the box is that long and each segment grows by as much.
 
 The gate's law for this is `premise`. A theme with none (the rail yard, the greybox) loses it, and says so.
 
+## What makes it a game and not a diagram
+
+A course can keep every law above and still look like a design drawing of a runner. What the games of this kind do,
+and what a dress here is held against by eye:
+
+| | What works | What reads as a diagram |
+|---|---|---|
+| Light | daytime or a low sun, a light way, a pale sky the world fades into | a dark scene with the way darker than what stands on it |
+| Surface | three tones a thing (lit top, mid side, shaded front) and its shadow on the ground | one flat fill a thing |
+| Teaching | coins that trace the way: an arc over a jump, a line into the clear lane | paint on the floor that explains |
+| Hero | large (about a fifth of the frame's height), a colour nothing else wears | small and muted |
+| Shape | chunky, specific things with a face | boxes with marks |
+
+In code: a theme's `sun: 'ahead'` gives the tones and the shadows (`course-things.js castShadow`, the walls' tones
+in `course-scenery.js`); the coins are laid with each ask (the roll's `with`); the camera stands near
+(`course-view.js COURSE_NEAR`, a tall frame's `COURSE_TALL_FOV`). A light way does not break the gate: an ask is
+read by its colour and by being darker than the ground, where on a dark way it was read by being lighter.
+
+A frame grade that adds contrast and saturation (`grade: 'vivid'`) burns a pale way white. A daylight dress wants
+none, or a gentle one.
+
 ## The walls and the backdrop: one dress with the way
 
 The way and its asks, the walls beside it and the backdrop behind it are one design, because they share one screen.

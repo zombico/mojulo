@@ -88,6 +88,8 @@ export function buildRoll(E) {
         for (let i = 0; i < ids.length; i++) (ids[i] === pickd ? stand : gone).push(ids[i]);
       }
     }
+    // what lies WITH a thing: there where it stands, not there where it does not (no dice: it follows the picks above)
+    for (const w of (roll && roll.with) || []) (stand.indexOf(w[1]) >= 0 ? lay : unlaid).push(w[0]);
     return { stand: stand.sort(), gone: gone.sort(), lay: lay.sort(), unlaid: unlaid.sort(), start };
   };
 

@@ -52,7 +52,10 @@ describe('the overhead: what stands in the top third near at hand', () => {
   it('the last train\'s line: a portal at every slice\'s end, over any jump, and a wire over each outer track from end to end', () => {
     const over = C.faces.filter((f) => f.group === 'scenery:overhead');
     expect(over.length).toBeGreaterThan(4 * C.scenery.cells.length / 2);
-    expect(over.every((f) => f.fill === C.dress.palette.iron)).toBe(true);
+    // (iron, and under a sun ahead each beam's shadow across the way, a bar on the ground)
+    const bars = over.filter((f) => f.fill !== C.dress.palette.iron);
+    expect(bars.length).toBeGreaterThan(0);
+    expect(bars.every((f) => f.corners.every((c) => c[2] < 0.05 && Math.abs(c[0]) <= 3.3 + 1e-9))).toBe(true);
     // (nothing of it over the way lower than 6 m: a hero's jump never meets it; its posts stand off the way)
     for (const f of over) if (f.corners.some((c) => Math.abs(c[0]) < 3.3)) expect(Math.min(...f.corners.map((c) => c[2]))).toBeGreaterThan(6);
     const wires = over.filter((f) => Math.max(...f.corners.map((c) => c[1])) - Math.min(...f.corners.map((c) => c[1])) > C.length);
@@ -134,7 +137,7 @@ describe('the course sheet: the layers seen together', () => {
     const F = courseFrame(C, { seed: 1 });
     expect(F.width / F.height).toBeCloseTo(1120 / 780, 1);
     expect(F.drawn).toBeGreaterThan(200);
-    for (const role of ['flank', 'far', 'horizon', 'ground']) expect(F.svg).toContain(`fill="${C.dress.palette[role]}"`);
+    for (const role of ['far', 'horizon', 'ground', 'kerb']) expect(F.svg).toContain(`fill="${C.dress.palette[role]}"`);
     expect(F.svg).toMatch(/where stuff comes from · the backdrop/);
     expect(F.svg).toMatch(/where it comes to view · the walls, the asks/);
     expect(F.svg).toMatch(/where you react · the character/);

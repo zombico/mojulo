@@ -21,3 +21,5 @@ phone, and a theme that comes from the dress's premise.
   falls every frame is not marked as news every frame.
 - The HUD begins when the game's channel has started, which on a game's level is some frames after the page: the
   shell's params, the run among them, are in hand by then.
+- The HUD counts the coins taken (the level's own, off its bus) and the page's old widget rows stand down beside it.
+  On a tall frame the metres and the coins sit under the progress, so the plate stays clear of the menu button.

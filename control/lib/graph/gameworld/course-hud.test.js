@@ -24,6 +24,8 @@ describe('the composition: laid by the course\'s thirds', () => {
       expect(H.spec.screens.ready.props).toMatchObject({ layer: 'overlay', legend: 'none' });
     }
     expect(regions(courseHud(C).spec.hud)).toEqual(['top-left', 'top', 'top-right', 'right', 'center']);
+    // (the coins taken, read off the level's bus)
+    expect(draw(courseHud(C), { ...COURSE_HUD_STATE, moments: [], coins: { count: 37 } })).toContain('37');
     // (a tall frame: one plate in the top's middle, clear of the shell's menu button in the corner)
     expect(regions(courseHud(C, { screen: 'phone' }).spec.hud)).toEqual(['top', 'right', 'center']);
   });
@@ -69,7 +71,7 @@ describe('the host: a level page that carries one', () => {
     const js = manaHudScript(H, { game: true });
     expect(js).toContain('window.__mojHud');
     expect(js).toContain('GAME = true');
-    expect(js).toContain('.moj-c-gauge{display:none!important}');   // the runtime's own gauge stands down
+    expect(js).toContain('.moj-c-gauge,.moj-hud-col{display:none!important}');   // the runtime's own gauge stands down
     expect(manaHudScript(null)).toBe('');
     expect(manaHudScript({})).toBe('');
     const page = (extra) => emitThreeWorld({ faces: [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0]], fill: '#888888' }], inline: false, cdn: true, ...extra });

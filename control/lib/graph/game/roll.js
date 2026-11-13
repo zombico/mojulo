@@ -5,6 +5,7 @@
  *   roll: {
  *     cover?: [{ of: ['<block id>', …], stand: n | [min, max] }, …],
  *     items?: [{ of: ['<pickup id>', …], lay: n | [min, max] }, …],
+ *     with?:  { '<pickup id>': '<block id>' },   a pickup that lies only where that rolled block stands
  *     start?: [{ pos: [x, y, z], heading? }, …],
  *     pattern?: [{ slots: [['<block id>', …], …], kinds?, forms?, never?, ramp?, run?, beat? }, …],
  *   }
@@ -41,7 +42,7 @@
  *
  * Pure.
  */
-export const ROLL_KEYS = Object.freeze(['cover', 'items', 'start', 'pattern']);
+export const ROLL_KEYS = Object.freeze(['cover', 'items', 'start', 'pattern', 'with']);
 const PATTERN_KEYS = ['slots', 'kinds', 'forms', 'never', 'ramp', 'run', 'beat'];
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -52,8 +53,9 @@ const SHAPE = "{ cover?: [{ of: ['<block id>', …], stand }], items?: [{ of: ['
 export function pickupsOf(mechanics) {
   const out = [];
   (Array.isArray(mechanics) ? mechanics : []).forEach((m, i) => {
-    if (!m || m.kind !== 'collect' || !Array.isArray(m.pickups)) return;
-    m.pickups.forEach((pk, j) => { if (pk && typeof pk.id === 'string' && pk.id) out.push({ id: pk.id, zone: `pk_${i}_${j}`, at: pk.at || [0, 0, 0] }); });
+    // (a collect's pickups and a platformer's coins, each by the bus zone its mechanic lowers it to: game/mechanics.js)
+    if (!m || (m.kind !== 'collect' && m.kind !== 'coins') || !Array.isArray(m.pickups)) return;
+    m.pickups.forEach((pk, j) => { if (pk && typeof pk.id === 'string' && pk.id) out.push({ id: pk.id, zone: `${m.kind === 'coins' ? 'cn' : 'pk'}_${i}_${j}`, at: pk.at || [0, 0, 0] }); });
   });
   return out;
 }
@@ -149,6 +151,19 @@ export function readRoll(roll, { blocks = [], pickups = [] } = {}) {
         }
       }
       return { slots: P.slots.map((S) => S.slice()), kinds, forms, never: (P.never || []).map((q) => q.slice()), ramp, run: P.run ?? 2, beat: P.beat !== false };
+    });
+  }
+  // `with`: a pickup that lies only where a rolled block stands ({ '<pickup id>': '<block id>' }: a coin line laid
+  // with the thing it leads over). No dice of its own: it follows what the cover and the patterns stood.
+  if (roll.with !== undefined) {
+    if (!isObj(roll.with) || !Object.keys(roll.with).length) throw new Error("roll: with is { '<pickup id>': '<block id>' }: a pickup that lies only where that block stands");
+    const P = Array.isArray(pickups) ? pickups : [], zone = new Map(P.map((p) => [p.id, p.zone])), rolled = new Set([...(out.cover || []).flatMap((g) => g.of), ...(out.pattern || []).flatMap((p) => p.slots.flat())]);
+    const grouped = new Set((out.items || []).flatMap((g) => g.of));
+    out.with = Object.entries(roll.with).map(([id, of]) => {
+      if (!zone.has(id)) throw new Error(`roll.with: no pickup '${id}' in the level (give the pickup an id in its collect or its coins: { id: '${id}', at })`);
+      if (!rolled.has(of)) throw new Error(`roll.with.${id}: '${of}' is not a block this roll stands or leaves out (name one from its cover or its pattern)`);
+      if (grouped.has(zone.get(id))) throw new Error(`roll.with.${id}: it is in a group of items already (a pickup is rolled once)`);
+      return [zone.get(id), of];
     });
   }
   return out;

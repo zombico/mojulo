@@ -8,6 +8,7 @@
  *           crates    a row of crates left across the line (a block)
  *           wagon     two stabled wagons end-on, one on each of the tracks the posts close; the open lane the clear track
  *   TELLS   hatching  a jump's window as hazard hatching between two lines (the window itself, as before)
+ *           edges     a jump's window as its two lines alone
  *           indicator posts' arrows on the sleepers, and a lit indicator on each kerb pointing at the clear track
  *   END     terminus  a signal gantry over the exit showing clear on every track, the train shed over the end of the
  *                     line (seen from the start: its ribs, its lit board), buffer stops, and the train waiting
@@ -33,8 +34,17 @@ export const solid = (x0, x1, y0, y1, z0, z1, fill) => [face(x0, x1, y0, z0, z1,
 
 export const ASK_THINGS = Object.freeze({ barrier: 'jump', crates: 'jump', wagon: 'steer' });
 
-export function askDrawing(thing, { x0, x1, y0, y1, h }, col) {
+/** A thing's SHADOW on the way under a low sun ahead: its foot's shape thrown toward the runner, as long as it is tall.
+ * It says how tall a thing is and where it stands before its colour is read. */
+export const castShadow = ({ x0, x1, y0, h }, col, z = 0.012) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1 + 0.18 * h, y0 - 1.15 * h, z], [x0 + 0.18 * h, y0 - 1.15 * h, z]], fill: shade(col.ground, 0.66) });
+
+export function askDrawing(thing, { x0, x1, y0, y1, h }, col, { sun = null } = {}) {
   const out = [], f = y0 - E;
+  // THREE TONES under a sun ahead: the top lit, the face toward the runner in shade, the shadow thrown before it
+  if (sun === 'ahead' && ASK_THINGS[thing]) {
+    const base = thing === 'wagon' ? col.steer : thing === 'crates' ? col.jump2 : col.jump;
+    out.push(castShadow({ x0, x1, y0, h }, col), face(x0, x1, y0 - E / 3, 0, h, shade(base, 0.74)), flat(x0, y0, x1, y1, h + E / 3, shade(base, 1.16)));
+  }
   if (thing === 'barrier') {
     // stripes down its face and across its top, and a foot at each end and between the tracks
     const n = 11, w = (x1 - x0) / n;
@@ -73,6 +83,8 @@ export function askDrawing(thing, { x0, x1, y0, y1, h }, col) {
 }
 
 export function jumpTell(tell, { ya, yb, half }, col) {
+  // (edges: the window's first and last lines alone; coins say the rest)
+  if (tell === 'edges') return [flat(-half, ya, half, ya + 0.16, 0.02, col['tell-jump']), flat(-half, yb - 0.16, half, yb, 0.02, col['tell-jump'])];
   if (tell !== 'hatching') return [flat(-half, ya, half, yb, 0.02, col['tell-jump'])];
   // the window's two edges as lines, and slanted bars between them
   const out = [flat(-half, ya, half, ya + 0.14, 0.02, col['tell-jump']), flat(-half, yb - 0.14, half, yb, 0.02, col['tell-jump'])], lean = Math.min(1.2, (yb - ya) * 0.5), cl = (x) => Math.max(-half, Math.min(half, x));

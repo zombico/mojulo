@@ -30,7 +30,7 @@
  *
  * Faces only: scenery is seen, never met (no collider, no nav, no sight). Pure and deterministic.
  */
-import { hexToRgb, rgbToHex, lchOf, oklch, mixHue, deltaE } from '../color-theorist/oklab.js';
+import { hexToRgb, rgbToHex, rgbToOklab, oklabToRgb, deltaE } from '../color-theorist/oklab.js';
 import { wallOrder, wallRhythms, rhythmFaults } from '../era/wall-rhythm.js';
 import { project, cameraAt, VFOV } from './course-view.js';
 
@@ -125,14 +125,17 @@ export function readBackdrop(v, theme = 'terminus') {
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const dice = (seed) => { let a = (Math.imul(seed | 0, 0x9e3779b1) ^ 0xc2b2ae35) >>> 0; return (n) => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) % n; }; };
-/** The sky's colour a share of the way from the horizon (0) to the zenith (1), mixed in OKLCH. */
+/** The sky's colour a share of the way from the horizon (0) to the zenith (1). */
 export function skyAt(palette, t) {
-  const a = lchOf(hexToRgb(palette.horizon)), b = lchOf(hexToRgb(palette.sky));
-  return rgbToHex(oklch(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[1] < 0.01 ? b[2] : b[1] < 0.01 ? a[2] : mixHue(a[2], b[2], t)));
+  // (through OKLab, straight: a gold horizon under a blue sky passes through cream, never through the green between
+  // their hues)
+  const a = rgbToOklab(hexToRgb(palette.horizon)), b = rgbToOklab(hexToRgb(palette.sky));
+  return rgbToHex(oklabToRgb(a.map((v, i) => v + (b[i] - v) * t)));
 }
 
 export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
-  const col = dress.palette, W = dress.walls, faces = [], cells = [];
+  const col = dress.palette, W = dress.walls, faces = [], cells = [], lit = dress.sun === 'ahead';
+  const shadeHex = (hex, k) => rgbToHex(hexToRgb(hex).map((v) => v * k));
   const add = (corners, role, group) => faces.push({ corners: corners.map((c) => c.map(r2)), fill: role.startsWith('#') ? role : col[role], group, doubleSided: true });
   // THE WALLS: a slice a segment, from behind the start to past the exit, each side in its own order
   const from = -4, n = Math.max(2, Math.ceil((length + 8) / gap)), all = wallRhythms(n, 2), below = dice(seed);
@@ -146,10 +149,13 @@ export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
     for (const p of slice.parts) {
       const [u0, d0, z0, u1, d1, z1] = p.box, ya = y0 + u0 * gap, yb = y0 + u1 * gap, xa = side * (KERB + d0), xb = side * (KERB + d1);
       // the face toward the way, the two ends, the top (its back is never seen)
-      add([[xa, ya, z0], [xa, yb, z0], [xa, yb, z1], [xa, ya, z1]], p.role, 'scenery:walls');
-      add([[xa, ya, z0], [xb, ya, z0], [xb, ya, z1], [xa, ya, z1]], p.role, 'scenery:walls');
-      add([[xa, yb, z0], [xb, yb, z0], [xb, yb, z1], [xa, yb, z1]], p.role, 'scenery:walls');
-      add([[xa, ya, z1], [xa, yb, z1], [xb, yb, z1], [xb, ya, z1]], p.role, 'scenery:walls');
+      // (under a sun ahead a box is three tones: its top lit, the face toward the way as it is, the end toward the runner
+      // in shade and the far end in the light; a lamp is a light and takes no shade)
+      const tone = (k) => (lit && p.role !== 'lamp' ? shadeHex(col[p.role], k) : p.role);
+      add([[xa, ya, z0], [xa, yb, z0], [xa, yb, z1], [xa, ya, z1]], tone(0.94), 'scenery:walls');
+      add([[xa, ya, z0], [xb, ya, z0], [xb, ya, z1], [xa, ya, z1]], tone(0.72), 'scenery:walls');
+      add([[xa, yb, z0], [xb, yb, z0], [xb, yb, z1], [xa, yb, z1]], tone(1.08), 'scenery:walls');
+      add([[xa, ya, z1], [xa, yb, z1], [xb, yb, z1], [xb, ya, z1]], tone(1.16), 'scenery:walls');
     }
   }
   // THE OVERHEAD (a theme's `overhead`): what crosses the top of the screen near at hand, so the top third is not the
@@ -162,6 +168,8 @@ export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
       for (const side of [-1, 1]) { const x = side * px; add([[x - 0.13, y, 1], [x + 0.13, y, 1], [x + 0.13, y, 7.3], [x - 0.13, y, 7.3]], 'iron', 'scenery:overhead'); add([[x - side * 0.13, y, 1], [x - side * 0.13, y + 0.26, 1], [x - side * 0.13, y + 0.26, 7.3], [x - side * 0.13, y, 7.3]], 'iron', 'scenery:overhead'); }
       add([[-px, y, 7], [px, y, 7], [px, y, 7.3], [-px, y, 7.3]], 'iron', 'scenery:overhead');
       add([[-px, y, 7], [px, y, 7], [px, y + 0.26, 7], [-px, y + 0.26, 7]], 'iron', 'scenery:overhead');
+      // (and the beam's shadow across the way, thrown toward the runner: a bar a segment, the speed read off the ground)
+      if (lit && y - 8 > from) add([[-3.3, y - 8.05, 0.011], [3.3, y - 8.05, 0.011], [3.3, y - 7.75, 0.011], [-3.3, y - 7.75, 0.011]], shadeHex(col.ground, 0.8), 'scenery:overhead');
       for (const lane of WIRES) add([[lane - 0.04, y, 6.5], [lane + 0.04, y, 6.5], [lane + 0.04, y, 7], [lane - 0.04, y, 7]], 'iron', 'scenery:overhead');
     }
     for (const lane of WIRES) add([[lane - 0.04, from, 6.5], [lane + 0.04, from, 6.5], [lane + 0.04, from + n * gap, 6.5], [lane - 0.04, from + n * gap, 6.5]], 'iron', 'scenery:overhead');

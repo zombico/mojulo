@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { courseOf, courseAudit, courseOfLevel, blockLen, PRIMITIVES, LANES } from './roll-course.js';
 import { DRESS_THEMES, dressOf } from './course-dress.js';
-import { askDrawing, jumpTell, steerTell, endDrawing, ASK_THINGS } from './course-things.js';
+import { askDrawing, jumpTell, steerTell, endDrawing, castShadow, ASK_THINGS } from './course-things.js';
 import { courseSheetHtml } from './course-sheet.js';
 import { readRoll, rolledIds } from '../game/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
@@ -60,6 +60,13 @@ describe('an ask is drawn as the thing it is, over the box that is met', () => {
     expect(W.filter((m) => m.fill === col.lamp)).toHaveLength(2);
     expect(W.some((m) => m.fill === col.iron && m.corners.every((c) => Math.abs(c[0] - 1) < 0.12))).toBe(true);
     expect(askDrawing('nothing', box, col)).toEqual([]);
+    // (under a sun ahead: a shadow thrown toward the runner as long as the thing is tall, its face in shade, its top lit)
+    const lit = askDrawing('barrier', box, col, { sun: 'ahead' }), sh = lit[0];
+    expect(sh).toEqual(castShadow({ x0: box.x0, x1: box.x1, y0: box.y0, h: box.h }, col));
+    expect(Math.min(...sh.corners.map((c) => c[1]))).toBeCloseTo(box.y0 - 1.15 * box.h, 5);
+    expect(sh.corners.every((c) => c[2] < 0.05)).toBe(true);
+    expect(lit.length).toBe(askDrawing('barrier', box, col).length + 3);
+    expect(block('hurdle').marks).toContainEqual(castShadow({ x0: -3.3, x1: 3.3, y0: C.slots[0].y, h: 0.75 }, col));
     for (const m of [...askDrawing('barrier', box, col), ...W]) expect(m.fill).toMatch(/^#[0-9a-f]{6}$/);
   });
 
@@ -74,9 +81,10 @@ describe('an ask is drawn as the thing it is, over the box that is met', () => {
 });
 
 describe('the tells, as the premise has them, lie where the course was measured', () => {
-  it('a jump\'s window is hatching between two lines: its first edge the earliest jump, its last the latest', () => {
-    const L = C.pace.lead.hurdle, y = C.slots[0].y, ground = block('hurdle').marks.filter((m) => m.corners.every((c) => c[2] < 0.05));
-    expect(ground.length).toBeGreaterThan(4);
+  it('a jump\'s window is its two lines: the first the earliest jump, the last the latest (hatching between them, where a theme asks)', () => {
+    const L = C.pace.lead.hurdle, y = C.slots[0].y, ground = block('hurdle').marks.filter((m) => m.corners.every((c) => c[2] < 0.05) && m.fill === col['tell-jump']);
+    expect(ground).toHaveLength(2);
+    expect(jumpTell('hatching', { ya: 1, yb: 5, half: 3.3 }, col).length).toBeGreaterThan(4);
     const ys = ground.flatMap((m) => m.corners.map((c) => c[1]));
     expect(Math.min(...ys)).toBeCloseTo(y - L.early * C.pace.top, 1);
     expect(Math.max(...ys)).toBeCloseTo(y - L.late * C.pace.top, 1);
@@ -126,5 +134,28 @@ describe('a made level reads back as the course it was laid as', () => {
     const back = courseOfLevel({ entities: [{ id: 'hero', pilotable: true, rule: C.rule }], blocks: C.blocks, roll: C.roll, colliders: C.colliders, obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims } });
     expect(back.slots).toEqual(C.slots);
     expect(back.lens).toEqual(C.lens);
+  });
+});
+
+describe('the coins: the way through, laid with each ask', () => {
+  it('five an ask: an arc over a jump in the middle track, a line down the clear track beside wagons', () => {
+    expect(C.coins).toHaveLength(C.blocks.length * 5);
+    for (const b of C.blocks) {
+      const mine = C.coins.filter((c) => c.of === b.id), P = PRIMITIVES[b.id.replace(/^s\d+-/, '')], y0 = b.at[1] - b.size[1] / 2;
+      expect(mine).toHaveLength(5);
+      if (P.ask === 'jump') {
+        expect(mine.every((c) => c.at[0] === 0)).toBe(true);
+        // (the arc tops over the thing, higher than it stands, and begins and ends near the ground)
+        expect(Math.max(...mine.map((c) => c.at[2]))).toBeGreaterThan(P.h);
+        expect(mine[0].at[2]).toBeCloseTo(0.7, 5);
+        expect(mine[0].at[1]).toBeLessThan(y0);
+        expect(mine[4].at[1]).toBeGreaterThan(y0 + b.size[1]);
+      } else {
+        expect(mine.every((c) => c.at[0] === LANES[P.open])).toBe(true);
+        expect(mine[4].at[1]).toBeCloseTo(y0 + b.size[1], 1);
+        // (none of them inside the wagons: the line is in the lane they leave)
+        expect(mine.every((c) => Math.abs(c.at[0] - b.at[0]) > b.size[0] / 2)).toBe(true);
+      }
+    }
   });
 });

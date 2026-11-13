@@ -57,9 +57,11 @@ export const DRESS_THEMES = Object.freeze({
     // THE PREMISE: one sentence every thing on the screen answers to, and what each is in it
     premise: 'A kid is late for the last train home. It leaves from the terminus at the end of the line, and the only way to make it is down the tracks.',
     things: Object.freeze({ lanes: 'three running tracks: why there are three places to be', hurdle: 'a crossing barrier left down across the line', block: 'crates being loaded across the tracks',
-      posts: 'wagons stabled on two tracks; the clear track is the open lane', 'tell-jump': 'hazard hatching before the barrier: jump while on it', 'tell-steer': 'the lit indicator and the arrows: which track is set clear',
+      posts: 'wagons stabled on two tracks; the clear track is the open lane', 'tell-jump': 'two painted lines across the track: jump between them', 'tell-steer': 'the lit indicator and the arrows: which track is set clear',
       overhead: 'the overhead line: a portal a segment, a wire over the outer tracks', a: 'a station passing by', b: 'the cutting between stations', backdrop: 'the city, and the terminus where the tracks meet the horizon', end: 'the signals showing clear, and the train with its doors open' }),
-    asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'hatching', steer: 'indicator' }), end: 'terminus', overhead: 'line',
+    asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'edges', steer: 'indicator' }), end: 'terminus', overhead: 'line',
+    // (the sun is ahead: every thing on the way throws its shadow toward the runner, and is lit on top, shaded in front)
+    sun: 'ahead',
     // (its interface: the theme the game's HUD and screens wear, a mana-ui preset or a card of playscape/ui/theme-cards.
     // A look is chosen by the game's STYLE (a mascot's light, round, bright game), never by an object of its setting:
     // the toy family's toybox)
@@ -67,12 +69,12 @@ export const DRESS_THEMES = Object.freeze({
     // (a wagon is as long as it is drawn: the posts' box is this deep, and met all along it)
     lens: Object.freeze({ 'posts-left': 3.2, 'posts-right': 3.2 }),
     lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'platform', b: 'cutting' }), backdrop: 'terminus',
-    // (dusk, vivid: an indigo sky over a rose horizon, violet ballast, red brick; every colour of the way is as rich as
-    // the gate's `quiet` lets it be beside asks this bright, and the values are spread: light rails and kerbs on a dark
-    // bed, dark iron on a light sky's foot)
-    palette: Object.freeze({ ground: '#423f5a', ground2: '#4a4764', sleeper: '#241d2d', rail: '#4d4b60', kerb: '#514b5f', wall: '#372a3b', sky: '#1c1f44',
-      flank: '#6a3d37', flank2: '#41262e', trim: '#5c5754', iron: '#191a29', lamp: '#fff0c4', land: '#252342', far: '#62455f', horizon: '#744a67',
-      jump: '#ffae0a', jump2: '#ff5c1f', steer: '#2a7cff', 'tell-jump': '#ffe28f', 'tell-steer': '#a9d3ff', exit: '#35e58b' }),
+    // (late afternoon, the sun low ahead over the terminus: pale ballast, cream stations with green ironwork, a gold
+    // horizon under a soft blue sky. The way is LIGHT and the asks are read on it by their colour and their shadow:
+    // an orange-red to go over, a blue to go round, each darker than the ground it stands on)
+    palette: Object.freeze({ ground: '#d8cbb2', ground2: '#d0c3a9', sleeper: '#4c382c', rail: '#383b41', kerb: '#ece3d0', wall: '#d6c9b1', sky: '#a9cde6',
+      flank: '#4d3c34', flank2: '#362a24', trim: '#fff7e0', iron: '#284039', lamp: '#fffbe8', land: '#bccda0', far: '#ecd4a8', horizon: '#fbe4b6',
+      jump: '#df4d16', jump2: '#c93a28', steer: '#1f6fe0', 'tell-jump': '#c9501a', 'tell-steer': '#3f86e6', exit: '#1fa85a' }),
   }),
   'rail-yard': Object.freeze({
     name: 'Rail yard', says: 'ballast, sleepers and steel rails; amber barriers and orange crates to jump, blue wagons to go round',
@@ -160,5 +162,5 @@ export function dressOf(dress = DEFAULT_DRESS, seed = 1) {
     const ask = ASKS.includes(role) || role.startsWith('tell-');
     palette[role] = seed === 1 || C < 0.02 ? T.palette[role] : rgbToHex(oklch(ask ? L : L + lift, C, ask ? h + turn : h));
   }
-  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, overhead: T.overhead ?? null, ui: T.ui ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
+  return { theme: R.theme, name: T.name, seed, palette, lanes: T.lanes, ...(T.premise ? { premise: T.premise, things: T.things } : {}), asks: T.asks ?? {}, tells: T.tells ?? {}, end: T.end ?? null, overhead: T.overhead ?? null, sun: T.sun ?? null, ui: T.ui ?? null, lens: T.lens ?? {}, walls: R.walls, backdrop: R.backdrop, own: R.own, laws: [...dressLaws(palette), premiseLaw(T, R)] };
 }

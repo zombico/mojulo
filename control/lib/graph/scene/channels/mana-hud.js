@@ -13,8 +13,8 @@
  *             hint?: { seconds }, stamina? } (the pilot's place along +y from `from` to `to`)
  *
  * The state it writes (a spec binds these): course { metres, of, left, says } · run { show, at, of } (the shell's
- * `params.__run`) · hero { stamina, staminaMax, sprints } · start { count, sub } · hint { show } · moments [].
- * It takes no input and reads no device: a HUD is seen. The page's own gauge is hidden while this stands (by a rule
+ * `params.__run`) · hero { stamina, staminaMax, sprints } · coins { count } (the bus's `coins`) · start { count, sub } · hint { show } · moments [].
+ * It takes no input and reads no device: a HUD is seen. The page's own gauge and its widget rows are hidden while this stands (by a rule
  * on its class: the runtime that draws it is untouched). `window.__mojHud = { rt, state }` for a headless driver.
  */
 import { manaUiSource } from '../../../mana-ui/kernel.js';
@@ -25,7 +25,7 @@ const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 export function manaHudScript(hud, { game = false } = {}) {
   if (!hud || !hud.spec) return '';
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:fixed;inset:0;pointer-events:none;z-index:30}.moj-c-gauge{display:none!important}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:fixed;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col{display:none!important}`;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -34,7 +34,7 @@ export function manaHudScript(hud, { game = false } = {}) {
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; document.body.appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina }, start: { count: '', sub: '' }, hint: { show: false }, moments: [] };
+  const st = { course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [] };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: function () {}, now: function () { return clock; } });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'stick' } });
@@ -61,6 +61,8 @@ export function manaHudScript(hud, { game = false } = {}) {
       st.course.metres = Math.round(m); st.course.left = of - Math.round(m); st.course.says = st.course.left + ' ' + (F.left || 'm');
       if (F.stamina && me.rule) { const max = me.rule.boostMax || 1; st.hero.staminaMax = max; st.hero.stamina = Math.max(0, Math.min(max, me.boost == null ? max : me.boost)); }
     }
+    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
+    if (V && V.coins != null) st.coins.count = V.coins;
     if (cue) {
       const k = Math.floor((clock - cue.t0) / F.cue.every);
       if (k < F.cue.beats.length) st.start.count = F.cue.beats[k];

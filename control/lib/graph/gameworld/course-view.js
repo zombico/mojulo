@@ -48,14 +48,19 @@ export function project(camera, p, aspect = ASPECT) {
 
 export const cameraAt = (follow, vfov = VFOV) => ({ pos: [0, -follow.dist, follow.height], look: [0, follow.lead, follow.lookH], vfov });
 
-export function courseCamera({ react, vfov = VFOV, dist = null, lead = 1.5 } = {}) {
+/** How near a course's camera stands (the hero is seen large: about a fifth of a tall frame, a quarter of a wide one),
+ * and the field of view across a tall frame's width (a longer lens than the cameras table's: the hero is followed
+ * across the lanes, so the frame need not hold all three beside it). */
+export const COURSE_NEAR = Object.freeze({ wide: 6.2, tall: 5.8 }), COURSE_TALL_FOV = 32;
+
+export function courseCamera({ react, vfov = VFOV, dist = null, lead = 1.5, near = COURSE_NEAR.wide } = {}) {
   // a line a sixth of the screen off its middle is seen at this slope off the camera's axis
   const k = Math.tan((vfov * Math.PI) / 360) / 3, pitch = Math.atan(k);
-  // how far behind the hero: 7 m, and further for a reaction that begins far off (the camera stands higher to see it
+  // how far behind the hero: `near`, and further for a reaction that begins far off (the camera stands higher to see it
   // at the lower line, and from too near the hero's feet would fall off the bottom of the frame: they are kept
   // inside it, 45 % of the screen under its middle at most)
   const slope = Math.tan(2 * pitch), under = Math.tan(pitch + Math.atan(0.9 * Math.tan((vfov * Math.PI) / 360)));
-  if (dist == null) dist = Math.max(7, (react * slope) / (under - slope));
+  if (dist == null) dist = Math.max(near, (react * slope) / (under - slope));
   // the upper line the horizon: the camera pitched down by `pitch`. The lower line the ground `react` ahead of the
   // hero: seen at twice that angle under the horizon, which sets the camera's height over it
   const height = (dist + react) * Math.tan(2 * pitch);

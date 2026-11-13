@@ -58,3 +58,22 @@ one design: the way and its asks (as before), the WALLS beside it, and the BACKD
 - The test game asks for its juice and its grade (`juice: 'auto'`, `grade: 'auto'`, the world's own words): the
   effects' floor in its register (anime) and its game type's movement juice (pinball: a trail at the feet past
   running pace, the air streaking by near top speed, speed lines on a surge), and the frame graded vivid.
+- Last train in daylight. The look was too much a diagram of a runner: flat boxes, paint that explains, a dark
+  scene, a small hero. Against what works in this kind of game it is now late afternoon with the sun low ahead: pale
+  ballast, dark soot-brick stations with cream stone and green ironwork, a gold horizon under a soft blue sky, and
+  the asks read ON a light way by their colour and their shadow (an orange-red to go over, a blue to go round), where
+  before the way was kept darker than the asks. The gate is unchanged and holds on 200 seeds' shades.
+- Three tones and a shadow (a theme's `sun: 'ahead'`): every box of the walls is lit on top, as it is toward the way
+  and in shade toward the runner; an ask's top is lit and its face shaded, and it throws its shadow toward the runner
+  as long as it is tall; each overhead beam lays a bar of shadow across the way, a segment apart.
+- A jump's tell may be its window's two lines alone (`edges`): the coins say the rest.
+- THE COINS (`gameworld/roll-course.js`, a platformer's `coins`): five with each ask, laid only where that ask
+  stands. Over a jump an arc in the middle track from where the jump is pressed to where it lands; beside wagons a
+  line down the clear track. They trace the way through and are what a map is scored by.
+- A roll's `with` (`game/roll.js`, the runtime's roll): `{ '<pickup id>': '<block id>' }`, a pickup that lies only
+  where that rolled block stands. No dice of its own, so every pick a roll made before is the pick it makes now. A
+  roll may name a coin as it names a collect's pickup.
+- A course's camera stands nearer (`course-view.js` `COURSE_NEAR`) and a tall frame uses a longer lens
+  (`COURSE_TALL_FOV`, 32 degrees across): the hero is about a fifth of a phone's height, where it was a ninth, with
+  the three bands where they were.
+- The sky is mixed straight through OKLab: a gold horizon under a blue sky passes through cream, not green.

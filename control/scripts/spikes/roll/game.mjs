@@ -27,10 +27,11 @@ const clock = () => Number(process.hrtime.bigint() / 1000000n), t0 = clock(), re
 const step = (name, more) => { report.steps.push({ step: name, at: `${((clock() - t0) / 1000).toFixed(1)} s`, ...more }); console.error(name, JSON.stringify(more ?? {}).slice(0, 300)); };
 
 // 1. THE DESIGN: a world, a hero in the body its game reads, one level that is a course
-// (its juice and its grade asked for: the effects' floor and the hero's movement juice for its game type, the frame graded
-// as its register is)
-const world = { id: 'dash', name: 'Dash', feel: 'commuter-rail-runner', roll: true, juice: 'auto', grade: 'auto', ...(screen ? { screen } : {}),
-  characters: { direction: { tradition: 'anime', primary: 'speed', secondary: 'steel', body: 'game' }, hero: {} },
+// (its juice asked for: the effects' floor and the hero's movement juice for its game type. No grade: the daylight
+// dress is as vivid as its gate lets it be, and a vivid grade over a pale way burns it white)
+const world = { id: 'dash', name: 'Dash', feel: 'commuter-rail-runner', roll: true, juice: 'auto', ...(screen ? { screen } : {}),
+  // (the hero's back is the first thing seen: a colour none of the asks wear, dark enough to stand on a pale way)
+  characters: { direction: { tradition: 'anime', primary: 'speed', secondary: 'steel', body: 'game' }, hero: { looks: { colour: { palette: { Top: '#7b3fe4', Bottom: '#23283b', Shoes: '#ffffff', Trim: '#ffd23f' } } } } },
   levels: { one: { name: 'The Lane', obstacles: { slots } } }, start: 'one' };
 const D = body(await designGameHandler({ world, ref: 'dash' }));
 step('design_game', { ok: D.ok, error: D.error, next: (D.next ?? []).map((n) => n.step), roll: D.practice?.measured?.roll && { layout: D.practice.measured.roll.layout, says: D.practice.measured.roll.says } });
@@ -132,7 +133,7 @@ for (let k = 0; k < maps; k++) {
     if (!shot && S.y > obs[1].y0 - 12) { shot = true; await page.screenshot({ path: path.join(out, `map-${seed}.png`) }); }
     if (shot && !S.endShot && S.y > course.exit[1] - 26) { await page.screenshot({ path: path.join(out, `map-${seed}-end.png`) }); await level()?.evaluate(() => { window.__bot.endShot = true; }); }
   }
-  const hud = await (async () => { try { return await level()?.evaluate(() => (window.__mojHud ? { run: window.__mojHud.state.run, course: window.__mojHud.state.course, stamina: +window.__mojHud.state.hero.stamina.toFixed(1), hint: window.__mojHud.state.hint.show, moments: window.__mojHud.state.moments.map((m) => m.text) } : null)); } catch { return null; } })();
+  const hud = await (async () => { try { return await level()?.evaluate(() => (window.__mojHud ? { coins: window.__mojHud.state.coins.count, run: window.__mojHud.state.run, course: window.__mojHud.state.course, stamina: +window.__mojHud.state.hero.stamina.toFixed(1), hint: window.__mojHud.state.hint.show, moments: window.__mojHud.state.moments.map((m) => m.text) } : null)); } catch { return null; } })();
   plays.push({ map: k + 1, seed, cue: cueUp, hud, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
   await wait(2500);
   plays[plays.length - 1].after = await text(); plays[plays.length - 1].said = await page.evaluate(() => window.__msgs.splice(0).join(' '));

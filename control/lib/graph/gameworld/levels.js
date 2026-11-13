@@ -52,7 +52,7 @@ import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { rollOfLevel } from './roll-lower.js';
 import { obstacleStage, obstacleEnds } from './roll-course.js';
-import { courseCamera } from './course-view.js';
+import { courseCamera, COURSE_NEAR, COURSE_TALL_FOV } from './course-view.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests, storyActors } from './story.js';
@@ -661,7 +661,7 @@ function screenLevel(written, L) {
   // (an obstacle course's chase is solved for the frame, never pulled back by the table: its thirds are the frame's
   // own, course-view.js, so the camera is found again at the upright frame's vertical fov)
   if (m.obstacles?.camera && m.camera?.rule === 'follow' && (m.camera.dist ?? 6) >= 1) {
-    const fov = S.fov ?? UPRIGHT.follow.fov, cam = courseCamera({ react: m.obstacles.reactAt, vfov: screenPayload({ ...S, fov }).v0 });
+    const fov = S.fov ?? COURSE_TALL_FOV, cam = courseCamera({ react: m.obstacles.reactAt, vfov: screenPayload({ ...S, fov }).v0, near: COURSE_NEAR.tall });
     const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov };
     return { ...L, args: { ...L.args, manifest: { ...m, camera: { ...m.camera, ...cam }, obstacles: { ...m.obstacles, camera: cam }, screen } } };
   }
@@ -736,7 +736,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${actionOrbit ? ' · mouse  look' : steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look || shoulder ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${look && X0?.pilot?.rule?.knife ? ' · V  knife' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
-  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
+  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [...(ends.coins ? [{ kind: 'coins', pickups: ends.coins.map((c) => ({ id: c.id, at: c.at, radius: 1.1 })) }] : []), { kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot

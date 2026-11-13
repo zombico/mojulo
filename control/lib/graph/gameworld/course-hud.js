@@ -4,7 +4,8 @@
  * screen (course-view.js): the top third is where stuff comes from, so the HUD keeps to its corners and its edge; the
  * middle is the way's; the bottom is the character's, and nothing is drawn there.
  *
- *   top-left    which map of the run this is, as pips (only in a run: the shell hands the level its place)
+ *   top-left    which map of the run this is, as pips (only in a run: the shell hands the level its place), and the
+ *               coins taken
  *   top         how far along the course: a bar, and the metres left
  *   top-right   stamina, for a hero that sprints on it
  *               (a tall frame: one plate in the top's middle, the run over the stamina, the progress beside them)
@@ -20,7 +21,7 @@
  * The state the spec binds (the host writes it; the spec never copies it):
  *   course { metres, of, left, says } (says: the metres left in words, written by the host: a number that falls every
  *   frame would be marked as news every frame)   run { show, at, of }   hero { stamina, staminaMax, sprints }
- *   start { count, sub }          hint { show }          moments [{ id, text, sub?, weight? }]
+ *   coins { count } (the level's own coins, counted on its bus)   start { count, sub }          hint { show }          moments [{ id, text, sub?, weight? }]
  * Pure: a spec is data.
  */
 import { THEMES } from '../../mana-ui/theme.js';
@@ -28,23 +29,26 @@ import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 
 const B = (path) => ({ bind: path });
 
-export const COURSE_HUD_STATE = Object.freeze({ course: { metres: 62, of: 190, left: 128, says: '128 m' }, run: { show: true, at: 2, of: 3 }, hero: { stamina: 4, staminaMax: 6, sprints: true }, start: { count: '2', sub: '' }, hint: { show: true }, moments: [] });
+export const COURSE_HUD_STATE = Object.freeze({ course: { metres: 62, of: 190, left: 128, says: '128 m' }, run: { show: true, at: 2, of: 3 }, hero: { stamina: 4, staminaMax: 6, sprints: true }, coins: { count: 12 }, start: { count: '2', sub: '' }, hint: { show: true }, moments: [] });
 
 export function courseHud(course, { theme = null, screen = null, words = {} } = {}) {
   const D = course.dress ?? {}, T = D.things ?? {}, sprints = !!course.rule?.stamina;
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  const w = { map: 'map', left: portrait ? 'm' : 'm to go', stamina: 'stamina', over: T.hurdle ? 'over' : 'jump', round: portrait ? 'clear' : T.posts ? 'clear track' : 'open lane', go: 'go', ...words };
+  const w = { coins: portrait ? '' : 'coins', map: 'map', left: portrait ? 'm' : 'm to go', stamina: 'stamina', over: T.hurdle ? 'over' : 'jump', round: portrait ? 'clear' : T.posts ? 'clear track' : 'open lane', go: 'go', ...words };
   const pips = { use: 'pips', props: { value: B('run.at'), max: B('run.of'), shape: 'square', ...(portrait ? {} : { label: w.map }) }, when: B('run.show') };
-  const progress = { use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [{ use: 'bar', props: { value: B('course.metres'), max: B('course.of'), figures: false, size: 'thin' } }, { use: 'text', props: { value: B('course.says'), role: 'label' } }] };
+  const bar = { use: 'bar', props: { value: B('course.metres'), max: B('course.of'), figures: false, size: 'thin' } }, left = { use: 'text', props: { value: B('course.says'), role: 'label' } };
+  const progress = { use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [bar, left] };
+  const coins = { use: 'counter', props: { label: w.coins, value: B('coins.count'), icon: '●' } };
   const stamina = { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false, ...(portrait ? {} : { label: w.stamina }) } };
   const hint = { use: 'region', props: { at: 'right' }, when: B('hint.show'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'end' }, children: [
     { use: 'prompt', props: { action: 'jump', label: w.over } }, { use: 'prompt', props: { action: 'steer', label: w.round } }] }] };
   const moments = { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 0.9, read: 0.4 } }] };
   // a wide frame keeps to the top's corners and edge; a tall one has no width for three across and its corner is the
   // shell's menu button's, so all of it is one plate in the top's middle: the run over the stamina, the progress beside
+  // with the metres and the coins under it
   const hud = { use: 'hud', children: portrait
-    ? [{ use: 'region', props: { at: 'top' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, children: [pips, ...(sprints ? [stamina] : [])] }, progress] }] }, hint, moments]
-    : [{ use: 'region', props: { at: 'top-left' }, when: B('run.show'), children: [pips] }, { use: 'region', props: { at: 'top' }, children: [progress] }, ...(sprints ? [{ use: 'region', props: { at: 'top-right' }, children: [stamina] }] : []), hint, moments] };
+    ? [{ use: 'region', props: { at: 'top' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, children: [pips, ...(sprints ? [stamina] : [])] }, { use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [bar, { use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [left, coins] }] }] }] }, hint, moments]
+    : [{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, children: [pips, coins] }] }, { use: 'region', props: { at: 'top' }, children: [progress] }, ...(sprints ? [{ use: 'region', props: { at: 'top-right' }, children: [stamina] }] : []), hint, moments] };
   // the start cue is a SCREEN: while one is up the pilot's input is held, so the hero stands until GO
   const ready = { use: 'screen', props: { layer: 'overlay', place: 'center', legend: 'none' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [{ use: 'text', props: { value: B('start.count'), role: 'display' } }, { use: 'text', props: { value: B('start.sub'), role: 'label' } }] }] };
   // (a card's name is resolved here to the theme it is: the page's channel reads a theme, never a shelf)

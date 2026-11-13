@@ -365,10 +365,10 @@ export async function practiceHtml(G, id, opts = {}) {
   if (id === 'roll' && opts.view === 'sheet') {
     const room = rollRoom(G, opts);
     if (room.layout !== 'course') throw new Error('practice: the course sheet is a running game\'s (a hero that runs on momentum has a course; this world\'s roll room is the yard)');
-    const [{ courseSheetHtml }, { readScreen, screenPayload }, { UPRIGHT }, { courseCamera }] = await Promise.all([import('./course-sheet.js'), import('../game/screen.js'), import('./cameras.js'), import('./course-view.js')]);
-    const S = G.screen ? readScreen(G.screen) : null, P = S ? screenPayload(S.orientation === 'portrait' ? { ...S, fov: S.fov ?? UPRIGHT.follow.fov } : S) : null;
+    const [{ courseSheetHtml }, { readScreen, screenPayload }, { courseCamera, COURSE_NEAR, COURSE_TALL_FOV }] = await Promise.all([import('./course-sheet.js'), import('../game/screen.js'), import('./course-view.js')]);
+    const S = G.screen ? readScreen(G.screen) : null, P = S ? screenPayload(S.orientation === 'portrait' ? { ...S, fov: S.fov ?? COURSE_TALL_FOV } : S) : null;
     // (an upright screen's course is followed by the camera solved for it, as its level's is: levels.js screenLevel)
-    const course = P?.v0 ? { ...room.course, camera: courseCamera({ react: room.course.reactAt, vfov: P.v0 }) } : room.course;
+    const course = P?.v0 ? { ...room.course, camera: courseCamera({ react: room.course.reactAt, vfov: P.v0, near: COURSE_NEAR.tall }) } : room.course;
     return { html: courseSheetHtml(course, { title: G.name ?? G.id ?? 'Course', ...(P ? { aspect: P.aspect } : {}), ...(P?.v0 ? { vfov: P.v0 } : {}) }), room };
   }
   return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : mountLaneHtml(G, opts);

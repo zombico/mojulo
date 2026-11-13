@@ -5,7 +5,7 @@ import { rollReports } from '@/lib/mcp/tools/create-game';
 import { rollRoom, rollRoomMeasured, layoutOf } from './roll-room.js';
 import { feelRule } from './feel/lower.js';
 import { POLES } from './feel/cards.js';
-import { readRoll, rollWays } from '../game/roll.js';
+import { readRoll, rollWays, pickupsOf } from '../game/roll.js';
 import { rollOf } from '../game/level-sim.js';
 import { rhythmFaults } from '../era/wall-rhythm.js';
 import { viewBands, cameraAt } from './course-view.js';
@@ -169,7 +169,12 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
   it('a run lays it: the lane for the world\'s hero, its things as the level\'s blocks, a roll over them, the exit at its end', () => {
     const M = made({ slots: 6 }), C = courseOf({ feel: MOMENTUM }, { slots: 6 });
     expect(M.blocks.map((b) => b.id)).toEqual(C.blocks.map((b) => b.id));
-    expect(M.roll).toEqual(C.roll);
+    expect(M.roll.pattern).toEqual(C.roll.pattern);
+    // (each ask's coins are laid with it: the level's roll `with`, its coins a platformer's, taken in the air)
+    expect(Object.keys(M.roll.with)).toEqual(C.coins.map((c) => c.id));
+    const coins = M.game.mechanics.find((m) => m.kind === 'coins');
+    expect(coins.pickups.map((p) => p.id)).toEqual(C.coins.map((c) => c.id));
+    expect(() => readRoll(M.roll, { blocks: M.blocks, pickups: pickupsOf(M.game.mechanics) })).not.toThrow();
     expect(M.obstacles).toMatchObject({ gap: C.gap, sight: C.sight, react: REACT });
     expect(M.game.mechanics.find((m) => m.kind === 'reach-exit').at).toEqual(C.exit);
     // (the exit catches the whole lane, kerb to kerb: a run ends in whichever lane its last ask left the hero)
