@@ -5,8 +5,12 @@
 //
 //   where    from where the real blades begin to thin (FAR_LIFT.from of the reach), under them, to past the reach;
 //            none where no grass grows
-//   how high the sward's height (tall, medium, short: GRASS_TIERS) × the cover, read smoothly from the grass map, so
-//            the sheet comes down to the ground where the grass thins and ends: no wall, no floating edge
+//   how high the sward's height (tall, medium, short: GRASS_TIERS), full wherever grass grows
+//   walls    at a patch's edge the sheet comes down to the ground over the cover's last stretch (FAR_LIFT.cover): a
+//            steep side of the same triangles and the same material, drawn to the ground, where no grass is mapped
+//            too (the grass's own colour there), so a raised plain is closed all round and never seen under. The
+//            side's lower part fills in as the seam does (FAR_LIFT.wall): the stipple's cells, stretched down the
+//            side, read as blades standing at the edge
 //   the seam the blades thin out from `from` of the reach to the reach; over the same stretch the lift rises from
 //            nothing to its full height among them and FILLS IN, a stipple of blade-sized cells whose share grows
 //            with the distance, so the blades are never seen to stop and the sheet is never seen to start
@@ -18,10 +22,11 @@ import { GRASS_TIERS, BLADE_RISE, SWARD_LENGTH, POV_GRASS } from './form-grass.j
 import { FAR_BLANKET_GLSL, FAR_FIELD } from './far-field.js';
 
 /** The lift's numbers: how far over a sward's tallest tip it stands (over it: far off, the sheet is all that hides the
- *  ground and what stands in it); the cover it starts and is full at; where it begins and where it is whole (× the
+ *  ground and what stands in it); the cover its side starts at and is full height at, and the cover the side's
+ *  stipple starts at and is whole at (`wall`); where it begins and where it is whole (× the
  *  reach: `from` the blades' thinning, POV_GRASS.thin, `full` the reach); the stipple's cell (m); its colour over the
  *  far field's (`gain`); the least cover it is drawn at. */
-export const FAR_LIFT = Object.freeze({ stand: 1.3, cover: Object.freeze([0.1, 0.6]), from: POV_GRASS.thin, full: 1, cell: 0.09, gain: 1, least: 0.12 });
+export const FAR_LIFT = Object.freeze({ stand: 1.3, cover: Object.freeze([0.08, 0.3]), wall: Object.freeze([0.08, 0.2]), from: POV_GRASS.thin, full: 1, cell: 0.09, gain: 1, least: 0.08 });
 
 /** Each sward's height (m): its tier's tallest tip × FAR_LIFT.stand, in SWARD order (tall, medium, short). */
 export const FAR_LIFT_HEIGHTS = Object.freeze(['tall', 'medium', 'short'].map((s) => {
@@ -62,7 +67,7 @@ export function farLiftScript(lift) {
       // (the ground's uniforms, with a reach of the lift's own for the blanket's colour: it begins where the lift does)
       Object.assign(sh.uniforms, LAYER_U, { uFarR: LR, uLiftR: LD });
       sh.vertexShader = ${JSON.stringify(LIFT_GLSL)} + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vLiftP = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz; transformed.z += liftAt( vLiftP.xy, vLiftC );');
-      sh.fragmentShader = 'varying vec3 vLiftP; varying vec2 vLiftC;\\n' + ${JSON.stringify(FAR_BLANKET_GLSL)} + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { vec4 fb = farBlanket( vLiftP, vec3( 0.0, 0.0, 1.0 ) ); if ( fb.a <= 0.0 || vLiftC.x < ${f(FAR_LIFT.least)} || farHash( floor( vLiftP.xy / ${f(FAR_LIFT.cell)} ) + 3.7 ) > vLiftC.y * 1.1 ) discard; diffuseColor.rgb = fb.rgb * ${f(FAR_LIFT.gain)}; }');
+      sh.fragmentShader = 'varying vec3 vLiftP; varying vec2 vLiftC;\\n' + ${JSON.stringify(FAR_BLANKET_GLSL)} + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { vec4 fb = farBlanket( vLiftP, vec3( 0.0, 0.0, 1.0 ) ); float hs = farHash( floor( vLiftP.xy / ${f(FAR_LIFT.cell)} ) + 3.7 ); if ( uFarOn < 0.5 || vLiftC.x < ${f(FAR_LIFT.least)} || hs > vLiftC.y * 1.1 || hs > smoothstep( ${f(FAR_LIFT.wall[0])}, ${f(FAR_LIFT.wall[1])}, vLiftC.x ) * 1.2 ) discard; if ( fb.a <= 0.0 ) fb.rgb = uFGcol[ 0 ]; diffuseColor.rgb = fb.rgb * ${f(FAR_LIFT.gain)}; }');
     };
     // (the ground's meshes: the land's parts that carry its layers)
     const meshes = __formMeshes.filter((q) => q.geometry && q.geometry.attributes.splat).map((q) => { const l = new THREE.Mesh(q.geometry, m); l.receiveShadow = true; l.frustumCulled = false; scene.add(l); return l; });

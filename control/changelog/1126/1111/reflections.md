@@ -203,3 +203,7 @@
 - The far lift's seam, in progress: the lift begins where the blades begin to thin and is whole at the reach, rising
   among them and filling in as a stipple of blade-sized cells, so there is no stretch where the blades have gone and
   the lift has not come. The grass lines' patch-edge clumps are removed; the crest lines stay. Not yet seen drawn.
+- The far lift's walls, in progress: a raised plain stands at its full height to a patch's edge and comes down to
+  the ground there as a steep side of the same triangles and material, drawn where no grass is mapped too (the
+  grass's own colour), so it is closed all round; the side's lower part fills in with the seam's stipple. Not yet seen
+  drawn.
