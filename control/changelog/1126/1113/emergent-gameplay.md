@@ -14,8 +14,16 @@ capture and the level played in Node show).
 - `roll.start`: the places the pilot may set out from, each written as the pilot's own transform is
   (`start: [{ pos: [x, y, z], heading? }, …]`); the seed picks one. A fall's respawn and a level's doors stay where
   the level wrote them.
-- The dice keep their order (the cover, then the items, then the start), so a roll that gains a kind keeps every pick
-  of the kinds it had.
+- `roll.pattern`: a LINE of slots, one of each slot's blocks standing, picked one after another so the line is paced,
+  where a group's picks know nothing of each other. `kinds` says what each block asks of the player; never more than
+  `run` (2) of one kind stand running and a pair of kinds is never repeated (ABAB), the rule the dungeons' walls keep;
+  `never` names two forms that may not stand one after the other; `ramp` weighs a form by its place in the line
+  (`{ hurdle: [4, 2], block: [1, 4] }`: it opens easy and tightens). A slot the rules leave nothing is filled all the
+  same. `rollWays` counts the lines that keep the rules.
+- The rolled course is one such line. Rolled slot by slot with no memory, 83 % of its courses ran three or more asks of
+  one kind and 96 % broke the walls' rule (2,000 rolls); as a pattern, none does. Its audit gains `paced`.
+- The dice keep their order (the cover, then the items, then the start, then the patterns), so a roll that gains a kind
+  keeps every pick of the kinds it had.
 - The runtime's roll (`worlds/controllable/roll.js`): whole-number dice, so every runtime rolls the same from the same
   seed (the page's against Node's: 305 seeds, none unequal). Emitted only into a page whose level has a roll; a level
   without one keeps every byte.

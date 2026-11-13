@@ -91,6 +91,9 @@ The course is drawn for the design book as a course map (`course-map.js`: the co
 left to right, with its asks, its tells, a run through it and its flanks as lettered cells), at
 `bible?book=practice&room=roll&view=map`.
 
+The course's slots are rolled as one line (`roll.pattern`), not slot by slot: never three asks of one kind running,
+never a pair of kinds repeated, never the same posts twice, hurdles weighed most at its start and blocks at its end.
+
 Its machine gate is the reaction bot, which knows how to play and lacks what a player lacks: it sees a thing only
 inside a sight distance, and acts on it only a reaction time after. The room's readout says whether a 0.4 s reaction
 with the course's own sight runs a sample of seeds clean, and whether a 0.8 s one still finishes. The bot is the same

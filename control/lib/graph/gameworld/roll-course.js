@@ -12,8 +12,11 @@
  *   posts    a wall across two lanes, too tall to jump, an outer lane left open: be in that lane
  *
  * A course is SLOTS along a lane, one every `gap` metres: the hero's top speed × (the neediest ask's need + a rest), so
- * whatever a seed stands in a slot, the player has had time for it. Each slot is one group of a roll (game/roll.js):
- * of its hurdle, its block and its two walls of posts, exactly one stands. Every roll of it is fair by how it is laid.
+ * whatever a seed stands in a slot, the player has had time for it. Its slots are one LINE of a roll's pattern
+ * (game/roll.js): of each slot's hurdle, block and two walls of posts exactly one stands, and the line is PACED: never
+ * more than two asks of one kind running (go over, go round), never a pair of kinds repeated, never the same posts
+ * twice running (the second would ask nothing), and it opens on the wide windows and tightens (hurdles weigh most at
+ * its start, blocks at its end). Every roll of it is fair by how it is laid, and paced by how it is rolled.
  *
  *   paceOf(feel)          → { top, steerSign, lead: { hurdle, block: { late, early, mid, frames } }, laneTime: [0, s, s] }
  *                           the hero measured, kept by its feel: its top speed, each jump's lead in seconds (the
@@ -28,6 +31,7 @@
  *   courseAudit(course, { seeds? }) → { seeds, laws: [{ law, holds, says }], ok }: the machine gate over a sample of seeds
  *     fair       a player who reacts in `react` s and sees `sight` m runs every sampled seed clean (no hit)
  *     finishes   a slow player (0.8 s) who sees the same still finishes every sampled seed
+ *     paced      no sampled course runs three asks of one kind, repeats a pair of kinds, or asks the same posts twice
  *     apart      the sample is not one course
  *   courseOfLevel(manifest) → the course read back off a level that is one (its `obstacles`, its blocks, its roll, its
  *                           pilot's own rule), so a made level is audited by the bot as the room's is
@@ -50,10 +54,13 @@ import { standBlocks } from '../playscape/terrain.js';
 import { dressOf, ASK_ROLE } from './course-dress.js';
 import { hexToRgb } from '../color-theorist/oklab.js';
 import { courseCamera } from './course-view.js';
+import { rhythmFaults } from '../era/wall-rhythm.js';
 
 export const LANES = Object.freeze([-2, 0, 2]);
 const HALF = 3.3, DT = 1 / 60;
 export const REACT = 0.4, REST = 0.6;
+// how each ask is weighed along the line, first slot to last: it opens on the wide windows and tightens
+export const RAMP = Object.freeze({ hurdle: [4, 2], block: [1, 4], 'posts-left': [2, 2], 'posts-right': [2, 2] });
 // (posts: a wall over two lanes, the open lane's index beside it)
 export const PRIMITIVES = Object.freeze({
   hurdle: { ask: 'jump', len: 0.7, h: 0.75 },
@@ -133,12 +140,12 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   const prims = Object.keys(PRIMITIVES).filter((id) => PRIMITIVES[id].ask !== 'jump' || pace.lead[id]);
   // the neediest ask: a two-lane change, or a jump's earliest lead
   const need = Math.max(pace.laneTime[2], ...prims.filter((id) => PRIMITIVES[id].ask === 'jump').map((id) => pace.lead[id].early));
-  const gap = r2(pace.top * (need + rest)), runup = Math.max(16, Math.ceil(gap)), blocks = [], cover = [], list = [];
+  const gap = r2(pace.top * (need + rest)), runup = Math.max(16, Math.ceil(gap)), blocks = [], lineSlots = [], kinds = {}, forms = {}, list = [];
   for (let k = 0; k < slots; k++) {
     const y = r2(runup + k * gap), of = {};
     for (const id of prims) {
       const P = PRIMITIVES[id], bid = `s${k + 1}-${id}`;
-      of[bid] = id;
+      of[bid] = id; kinds[bid] = P.ask === 'jump' ? 'over' : 'round'; forms[bid] = id;
       // (a wall form, playscape/terrain.js: across the way, `thick` along it; its `at` the middle of its foot)
       // its TELL, painted on the way and rolled with it: a jump's window as a strip (from the earliest place a jump
       // still clears it to the latest), posts' arrows in the lanes they stand in, from where a two-lane change begins
@@ -155,7 +162,7 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
       }
       blocks.push({ id: bid, form: 'wall', at: [P.ask === 'steer' ? P.x : 0, r2(y + P.len / 2), 0], N: [0, -1], length: P.ask === 'steer' ? 4 : 2 * HALF, height: P.h, thick: P.len, value: 0.62, tint: tint(ASK_ROLE[id]), marks });
     }
-    cover.push({ of: Object.keys(of), stand: 1 });
+    lineSlots.push(Object.keys(of));
     list.push({ k, y, of });
   }
   const length = r2(runup + slots * gap + 6), exit = [0, length - 3, 0];
@@ -172,7 +179,9 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   if (D.lanes.rails) for (const lane of LANES) for (const off of [-0.55, 0.55]) for (let j = -4; j < length + 4; j += 20) add(quad(lane + off - 0.05, j, lane + off + 0.05, Math.min(length + 4, j + 20), 0.016, col.rail), 'room:lanes');
   add(quad(-HALF, exit[1] - 0.4, HALF, exit[1] + 0.4, 0.02, col.exit), 'room:lanes');
   const colliders = [{ min: [-W - 0.5, -4, 0], max: [-HALF, length + 4, 4], hold: false }, { min: [HALF, -4, 0], max: [W + 0.5, length + 4, 4], hold: false }, { min: [-W, -4.5, 0], max: [W, -4, 4], hold: false }, { min: [-W, length + 4, 0], max: [W, length + 4.5, 4], hold: false }];
-  const roll = { cover };
+  // the line's pacing (game/roll.js pattern): see the header
+  const ramp = Object.fromEntries(Object.entries(RAMP).filter(([f]) => prims.includes(f)));
+  const roll = { pattern: [{ slots: lineSlots, kinds, forms, never: [['posts-left', 'posts-left'], ['posts-right', 'posts-right']].filter((q) => prims.includes(q[0])), ramp }] };
   // THE FRAME (course-view.js): where the reaction begins, the earliest a jump is pressed, and the follow camera that
   // puts the vanishing point on the screen's upper line and that place on its lower one
   const jumps = prims.filter((id) => PRIMITIVES[id].ask === 'jump'), reactAt = r2(pace.top * (jumps.length ? Math.max(...jumps.map((id) => pace.lead[id].early)) : pace.laneTime[1]));
@@ -182,7 +191,7 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
 function worldOf(course, seed) {
   const N = live(), read = readRoll(course.roll, { blocks: course.blocks }), B = standBlocks(course.blocks, { rolled: rolledIds(read) });
-  const w = N.createWorld({ entities: [heroOf(course.rule)], colliders: [...course.colliders, ...B.colliders], roll: { cover: read.cover, things: B.things } });
+  const w = N.createWorld({ entities: [heroOf(course.rule)], colliders: [...course.colliders, ...B.colliders], roll: { pattern: read.pattern, things: B.things } });
   const R = N.applyRoll(w, seed), stands = new Set(R.stand);
   // what stands in each slot, as the bot's eyes meet it
   const obs = course.slots.map((s) => { const bid = Object.keys(s.of).find((id) => stands.has(id)), P = PRIMITIVES[s.of[bid]]; return { k: s.k, id: s.of[bid], ask: P.ask, y0: s.y, y1: s.y + P.len, ...(P.ask === 'steer' ? { open: LANES[P.open] } : {}) }; });
@@ -226,11 +235,13 @@ export function playCourse(course, { seed = 1, react = REACT, sight = course.sig
 }
 
 export function courseAudit(course, { seeds = 12 } = {}) {
-  const met = new Set(), unfair = [], unfinished = [];
+  const met = new Set(), unfair = [], unfinished = [], unpaced = [];
   let time = 0;
   for (let seed = 1; seed <= seeds; seed++) {
     const A = playCourse(course, { seed });
     met.add(A.asks.join(' '));
+    const kinds = A.asks.map((a) => (PRIMITIVES[a].ask === 'jump' ? 'J' : 'S')).join('');
+    if (rhythmFaults(kinds).length || A.asks.some((a, k) => k > 0 && PRIMITIVES[a].ask === 'steer' && a === A.asks[k - 1])) unpaced.push(seed);
     if (!A.clean) unfair.push(seed); else time += A.seconds;
     if (!playCourse(course, { seed, react: 0.8 }).finished) unfinished.push(seed);
   }
@@ -238,6 +249,7 @@ export function courseAudit(course, { seeds = 12 } = {}) {
   const laws = [
     { law: 'fair', holds: !unfair.length, says: unfair.length ? `a player who reacts in ${course.react} s and sees ${course.sight} m hits something on ${unfair.length} of ${seeds} seeds (${some(unfair)})` : `a player who reacts in ${course.react} s and sees ${course.sight} m runs all ${seeds} seeds clean, in ${r2(time / seeds)} s a run` },
     { law: 'finishes', holds: !unfinished.length, says: unfinished.length ? `a slow player (0.8 s) does not finish ${unfinished.length} of ${seeds} seeds (${some(unfinished)})` : `a slow player (0.8 s) still finishes all ${seeds}` },
+    { law: 'paced', holds: !unpaced.length, says: unpaced.length ? `${unpaced.length} of ${seeds} seeds run three of a kind, repeat a pair, or ask the same posts twice (${some(unpaced)})` : `no sampled course runs three asks of a kind, repeats a pair of kinds, or asks the same posts twice` },
     { law: 'apart', holds: met.size > 1, says: `${met.size} different courses in ${seeds} seeds, of ${course.ways} there are` },
   ];
   return { seeds, laws, ok: laws.every((l) => l.holds) };
@@ -271,13 +283,13 @@ export function obstacleEnds(manifest) {
 /** A made level that is a course, read back as one (see the header); null for a level that is not. */
 export function courseOfLevel(manifest) {
   const O = manifest?.obstacles, pilot = (manifest?.entities ?? []).find((e) => e?.pilotable) ?? manifest?.entities?.[0];
-  if (!isObj(O) || !pilot?.rule || !Array.isArray(manifest.blocks) || !manifest.roll?.cover) return null;
+  if (!isObj(O) || !pilot?.rule || !Array.isArray(manifest.blocks) || !manifest.roll?.pattern?.[0]) return null;
   // (the pilot as the bot plays it: its own rule on its feet, steered in its own frame, never the camera's)
   const { move: _m, ...own } = pilot.rule, rule = { ...own, type: 'platform', eye: 0, collideRadius: own.collideRadius || 0.3, collideHeight: own.collideHeight || 1.7, step: own.step ?? 0.3 };
   const pace = paceOfRule(rule), byId = new Map(manifest.blocks.map((b) => [b.id, b]));
-  const slots = manifest.roll.cover.map((g, k) => {
-    const of = Object.fromEntries(g.of.map((id) => [id, id.replace(/^s\d+-/, '')])), first = byId.get(g.of[0]);
-    return { k, y: r2(first.at[1] - PRIMITIVES[of[g.of[0]]].len / 2), of };
+  const slots = manifest.roll.pattern[0].slots.map((ids, k) => {
+    const of = Object.fromEntries(ids.map((id) => [id, id.replace(/^s\d+-/, '')])), first = byId.get(ids[0]);
+    return { k, y: r2(first.at[1] - PRIMITIVES[of[ids[0]]].len / 2), of };
   });
   return { feel: null, rule, pace, prims: O.asks, need: O.need, rest: O.rest, react: O.react, gap: O.gap, sight: O.sight, length: O.exit[1] + 3, slots, blocks: manifest.blocks, roll: manifest.roll, ways: rollWays(readRoll(manifest.roll, { blocks: manifest.blocks })), exit: O.exit, start: O.start, colliders: manifest.colliders, faces: manifest.faces };
 }

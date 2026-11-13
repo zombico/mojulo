@@ -7,6 +7,7 @@ import { feelRule } from './feel/lower.js';
 import { POLES } from './feel/cards.js';
 import { readRoll, rollWays } from '../game/roll.js';
 import { rollOf } from '../game/level-sim.js';
+import { rhythmFaults } from '../era/wall-rhythm.js';
 
 // THE ROLLED COURSE: a momentum hero's obstacle course, sized by time and rolled by a seed, played by the reaction bot.
 // Two heroes, chosen from the shelf by what they are: the first on the pinball base, the first on its feet that cannot
@@ -49,17 +50,39 @@ describe('the course, laid', () => {
     expect(C.exit[1]).toBeGreaterThan(C.slots.at(-1).y);
   });
 
-  it('each slot is one group of a roll: of its things, exactly one stands; the level\'s roll reads it', () => {
-    const read = readRoll(C.roll, { blocks: C.blocks });
-    expect(read.cover).toHaveLength(C.slots.length);
-    for (const g of read.cover) { expect(g.stand).toEqual([1, 1]); expect(g.of).toHaveLength(C.prims.length); }
+  it('its slots are one line of a pattern: of each slot\'s things exactly one stands; the level\'s roll reads it', () => {
+    const read = readRoll(C.roll, { blocks: C.blocks }), [line] = read.pattern;
+    expect(read.pattern).toHaveLength(1);
+    expect(line.slots).toHaveLength(C.slots.length);
+    for (const ids of line.slots) expect(ids).toHaveLength(C.prims.length);
+    expect(new Set(Object.values(line.kinds))).toEqual(new Set(['over', 'round']));
     expect(C.ways).toBe(rollWays(read));
-    expect(C.ways).toBe(C.prims.length ** C.slots.length);
-    const R = rollOf({ cover: read.cover }, 5);
+    expect(C.ways).toBeLessThan(C.prims.length ** C.slots.length);   // pacing takes most of the unpaced lines away
+    const R = rollOf(read, 5);
     expect(R.stand).toHaveLength(C.slots.length);
     // a set of posts leaves an outer lane open: its wall lies over the other two
     const posts = C.blocks.find((b) => b.id === 's1-posts-left');
     expect(posts.at[0] - posts.length / 2).toBeGreaterThan(LANES[0] + 0.5);
+  });
+
+  it('the line is paced: never three asks of a kind running, never a pair repeated, never the same posts twice', () => {
+    const read = readRoll(C.roll, { blocks: C.blocks });
+    for (let seed = 1; seed <= 120; seed++) {
+      const stands = new Set(rollOf(read, seed).stand), asks = C.slots.map((s) => s.of[Object.keys(s.of).find((id) => stands.has(id))]);
+      const kinds = asks.map((a) => (PRIMITIVES[a].ask === 'jump' ? 'J' : 'S')).join('');
+      expect(rhythmFaults(kinds), `seed ${seed}: ${kinds}`).toEqual([]);
+      expect(asks.some((a, k) => k > 0 && PRIMITIVES[a].ask === 'steer' && a === asks[k - 1]), `seed ${seed}`).toBe(false);
+    }
+  });
+
+  it('it opens on the wide windows and tightens: hurdles weigh most at its start, blocks at its end', () => {
+    const read = readRoll(C.roll, { blocks: C.blocks }), n = C.slots.length, count = { first: { hurdle: 0, block: 0 }, last: { hurdle: 0, block: 0 } };
+    for (let seed = 1; seed <= 400; seed++) {
+      const stands = new Set(rollOf(read, seed).stand), at = (k) => C.slots[k].of[Object.keys(C.slots[k].of).find((id) => stands.has(id))];
+      for (const [where, k] of [['first', 0], ['last', n - 1]]) if (count[where][at(k)] !== undefined) count[where][at(k)]++;
+    }
+    expect(count.first.hurdle).toBeGreaterThan(2 * count.first.block);
+    expect(count.last.block).toBeGreaterThan(count.last.hurdle);
   });
 });
 
@@ -85,7 +108,7 @@ describe('the audit', () => {
   it('a course laid by its hero\'s own pace is fair on every sampled seed, for a hero of momentum and one on its feet', () => {
     for (const feel of [MOMENTUM, FOOT]) {
       const A = courseAudit(courseOf({ feel }), { seeds: 6 });
-      expect(A.laws.map((l) => l.law)).toEqual(['fair', 'finishes', 'apart']);
+      expect(A.laws.map((l) => l.law)).toEqual(['fair', 'finishes', 'paced', 'apart']);
       expect(A.laws.filter((l) => !l.holds), feel).toEqual([]);
     }
   });
@@ -156,7 +179,7 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
     const R = await rollReports(['lane'], { payloadOf: async () => null, courseOf: async () => back, seeds: 6 });
     expect(R).toHaveLength(1);
     expect(R[0]).toMatchObject({ ref: 'lane', seeds: 6, ok: true, course: { gap: laid.gap, sight: laid.sight, react: REACT } });
-    expect(R[0].laws.map((l) => l.law)).toEqual(['fair', 'finishes', 'apart']);
+    expect(R[0].laws.map((l) => l.law)).toEqual(['fair', 'finishes', 'paced', 'apart']);
     expect(R[0].gate).toMatch(/^machine: .*reaction bot.*eyes gate$/);
   });
 });

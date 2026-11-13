@@ -1073,14 +1073,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     let rolledThings = {};
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
       // a ROLL (below): the blocks its seed may leave out are things of their own, stood by the runtime
-      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1, ...(rolls && rolls.cover ? { rolled: rolledIds(rolls) } : {}) });
+      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1, ...(rolls && (rolls.cover || rolls.pattern) ? { rolled: rolledIds(rolls) } : {}) });
       payload.faces = [...(payload.faces || []), ...B.faces];
       payload.colliders = [...(payload.colliders || []), ...B.colliders];
-      if (rolls && rolls.cover) rolledThings = B.things;
+      if (rolls && (rolls.cover || rolls.pattern)) rolledThings = B.things;
     }
     // the level's ROLL (game/roll.js): what its seed picks on it (its cover, its items, its start), in the runtime's
     // shape; the page carries the roll's engine only then. Absent ⇒ byte-identical.
-    if (rolls) payload.roll = { ...(rolls.cover ? { cover: rolls.cover, things: rolledThings } : {}), ...(rolls.items ? { items: rolls.items, at: Object.fromEntries(pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics).map((p) => [p.zone, p.at])) } : {}), ...(rolls.start ? { start: rolls.start } : {}) };
+    if (rolls) payload.roll = { ...(rolls.cover ? { cover: rolls.cover } : {}), ...(rolls.pattern ? { pattern: rolls.pattern } : {}), ...(rolls.cover || rolls.pattern ? { things: rolledThings } : {}), ...(rolls.items ? { items: rolls.items, at: Object.fromEntries(pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics).map((p) => [p.zone, p.at])) } : {}), ...(rolls.start ? { start: rolls.start } : {}) };
     // hangar: the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).

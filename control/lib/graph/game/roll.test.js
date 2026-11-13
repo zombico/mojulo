@@ -42,7 +42,7 @@ describe('the roll, read', () => {
   it('refuses the malformed, teaching', () => {
     const bad = (roll, blocks = BLOCKS) => () => readRoll(roll, { blocks });
     expect(bad('often')).toThrow(/what the level's seed picks/);
-    expect(bad({ cover: [], foes: [] })).toThrow(/no 'foes' \(a roll has: cover, items, start\)/);
+    expect(bad({ cover: [], foes: [] })).toThrow(/no 'foes' \(a roll has: cover, items, start, pattern\)/);
     expect(bad({})).toThrow(/it picks nothing/);
     expect(bad({ cover: [] })).toThrow(/a list of groups/);
     expect(bad({ cover: [{ of: [], stand: 1 }] })).toThrow(/at least one/);
@@ -275,5 +275,102 @@ describe('items and the start, rolled', () => {
     expect(page).toContain('window.__mojUnlaid = R.unlaid;');
     expect(page).toContain('if (window.__mojUnlay) window.__mojUnlay(R.unlaid);');
     expect(page).toContain('if (window.__mojSfxOff) window.__mojSfxOff(window.__mojUnlaidAt);');
+  });
+});
+
+// A PATTERN: a line of slots filled one after another, so its picks are paced where a group's are not
+describe('a pattern: a line that is paced', () => {
+  // six slots, each a thing to go over and a thing to go round (two forms of it), on a line
+  const N = 6, LINE = Array.from({ length: N }, (_, k) => [`o${k}`, `l${k}`, `r${k}`]);
+  const LBLOCKS = LINE.flat().map((id, i) => ({ id, form: 'crate', at: [i * 3, 20, 0] }));
+  const kinds = Object.fromEntries(LINE.flat().map((id) => [id, id[0] === 'o' ? 'over' : 'round']));
+  const forms = Object.fromEntries(LINE.flat().map((id) => [id, id[0] === 'o' ? 'hurdle' : id[0] === 'l' ? 'left' : 'right']));
+  const spec = (more = {}) => ({ pattern: [{ slots: LINE, kinds, forms, ...more }] });
+  const line = (read, seed) => { const st = new Set(rollOf(read, seed).stand); return LINE.map((ids) => ids.find((id) => st.has(id))); };
+  const seeds = Array.from({ length: 300 }, (_, k) => k + 1);
+
+  it('read: a block unnamed is its own kind and form; two of a kind running at most, a pair never repeated, unsaid', () => {
+    const read = readRoll(spec(), { blocks: LBLOCKS }), [P] = read.pattern;
+    expect(P).toMatchObject({ run: 2, beat: true, never: [], ramp: {} });
+    expect(P.kinds.o0).toBe('over');
+    expect([...rolledIds(read)].sort()).toEqual(LINE.flat().sort());
+    const bare = readRoll({ pattern: [{ slots: [['o0', 'l0'], ['o1', 'l1']] }] }, { blocks: LBLOCKS }).pattern[0];
+    expect(bare.kinds).toEqual({ o0: 'o0', l0: 'l0', o1: 'o1', l1: 'l1' });
+    expect(bare.forms).toEqual(bare.kinds);
+  });
+
+  it('one thing stands in every slot, and the line keeps its rules on every seed', () => {
+    const read = readRoll(spec({ never: [['left', 'left'], ['right', 'right']] }), { blocks: LBLOCKS });
+    for (const seed of seeds) {
+      const L = line(read, seed), K = L.map((id) => kinds[id][0]).join('');
+      expect(L.every(Boolean)).toBe(true);
+      expect(rollOf(read, seed).stand).toHaveLength(N);
+      expect(K).not.toMatch(/ooo|rrr/);                                       // never three of a kind running
+      expect(K).not.toMatch(/orOR|roro|oror/);                                // never a pair repeated
+      expect(L.some((id, k) => k > 0 && forms[id] !== 'hurdle' && forms[id] === forms[L[k - 1]])).toBe(false);
+    }
+    // many lines are met, and every one that keeps the rules can be
+    expect(new Set(seeds.map((s) => line(read, s).join())).size).toBeGreaterThan(20);
+  });
+
+  it('its ways are the lines that keep its rules, counted as a search of every line counts them', () => {
+    const read = readRoll(spec({ never: [['left', 'left']] }), { blocks: LBLOCKS }), [P] = read.pattern;
+    let brute = 0;
+    const walk = (k, picked) => {
+      if (k === N) { brute++; return; }
+      for (const id of LINE[k]) {
+        const f = kinds[id], fam = picked.map((x) => kinds[x]);
+        let r = 0; for (let i = k - 1; i >= 0 && fam[i] === f; i--) r++;
+        if (r >= P.run) continue;
+        if (k >= 3 && fam[k - 3] !== fam[k - 2] && fam[k - 3] === fam[k - 1] && fam[k - 2] === f) continue;
+        if (k >= 1 && forms[picked[k - 1]] === 'left' && forms[id] === 'left') continue;
+        walk(k + 1, [...picked, id]);
+      }
+    };
+    walk(0, []);
+    expect(rollWays(read)).toBe(brute);
+    expect(brute).toBeLessThan(3 ** N);
+    // unruled (any run, pairs may repeat), every line is a way
+    expect(rollWays(readRoll(spec({ run: N, beat: false }), { blocks: LBLOCKS }))).toBe(3 ** N);
+  });
+
+  it('a ramp weighs a form by its place: out at 0, and from rare to common along the line', () => {
+    const none = readRoll(spec({ ramp: { hurdle: 0 }, run: N, beat: false }), { blocks: LBLOCKS });
+    for (const seed of seeds.slice(0, 40)) expect(line(none, seed).some((id) => forms[id] === 'hurdle')).toBe(false);
+    const up = readRoll(spec({ ramp: { hurdle: [0, 9] }, run: N, beat: false }), { blocks: LBLOCKS });
+    const share = (k) => seeds.filter((s) => forms[line(up, s)[k]] === 'hurdle').length / seeds.length;
+    expect(share(0)).toBe(0);
+    expect(share(N - 1)).toBeGreaterThan(0.6);
+    expect(share(N - 1)).toBeGreaterThan(share(2));
+  });
+
+  it('a slot the rules leave nothing is filled all the same: a line is always whole', () => {
+    // one kind only, and never two running: after the first slot nothing keeps the rule
+    const one = readRoll({ pattern: [{ slots: [['o0'], ['o1'], ['o2']], kinds: { o0: 'over', o1: 'over', o2: 'over' }, run: 1 }] }, { blocks: LBLOCKS });
+    expect(rollOf(one, 3).stand).toEqual(['o0', 'o1', 'o2']);
+  });
+
+  it('a roll that gains a pattern keeps every pick of what it had; on a world its unpicked things are gone', () => {
+    const both = readRoll({ ...ROLL, ...spec() }, { blocks: [...BLOCKS, ...LBLOCKS] }), cover = readRoll(ROLL, { blocks: BLOCKS });
+    for (const seed of seeds.slice(0, 40)) expect(rollOf(both, seed).stand.filter((id) => !kinds[id])).toEqual(rollOf(cover, seed).stand);
+    const read = readRoll(spec(), { blocks: LBLOCKS }), B = standBlocks(LBLOCKS, { rolled: rolledIds(read) });
+    const W = E.createWorld({ entities: [hero], colliders: SIDES, roll: { pattern: read.pattern, things: B.things } });
+    const R = E.applyRoll(W, 11);
+    expect(W.colliders.filter((c) => c.roll != null).map((c) => c.roll).sort()).toEqual(R.stand);
+    expect(R.stand).toHaveLength(N);
+  });
+
+  it('refuses the malformed, teaching', () => {
+    const bad = (pattern) => () => readRoll({ pattern }, { blocks: LBLOCKS });
+    expect(bad([])).toThrow(/pattern is a list of lines/);
+    expect(bad([{ slots: [] }])).toThrow(/slots is the line's places in order/);
+    expect(bad([{ slots: [['nope']] }])).toThrow(/no block 'nope'/);
+    expect(bad([{ slots: [['o0'], ['o0']] }])).toThrow(/'o0' is rolled already/);
+    expect(bad([{ slots: [['o0']], kinds: { l0: 'round' } }])).toThrow(/'l0' is no block of this line/);
+    expect(bad([{ slots: [['o0']], run: 0 }])).toThrow(/run: the most of one kind that may stand running/);
+    expect(bad([{ slots: [['o0', 'l0']], never: [['o0', 'wall']] }])).toThrow(/never: pairs of forms.*the line's forms: o0, l0/);
+    expect(bad([{ slots: [['o0']], ramp: { o0: [1, -2] } }])).toThrow(/whole numbers from 0/);
+    expect(bad([{ slots: [['o0']], speed: 3 }])).toThrow(/no 'speed'/);
+    expect(() => readRoll({ cover: [{ of: ['o0'], stand: 1 }], pattern: [{ slots: [['o0']] }] }, { blocks: LBLOCKS })).toThrow(/'o0' is rolled already/);
   });
 });

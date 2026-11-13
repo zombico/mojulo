@@ -99,7 +99,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
       camera: { ...P.camera, ...course.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
       blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), radius: 3 }] }, roll: structuredClone(course.roll),
     };
-    const yard = [[`${course.slots.length} slots, one every ${course.gap} m: a hurdle, a block or posts in each`, course.slots.map((s) => s.k + 1)]];
+    const yard = [[`${course.slots.length} slots, one every ${course.gap} m: a hurdle, a block or posts in each, paced along the line`, course.slots.map((s) => s.k + 1)]];
     return { manifest, layout: 'course', course, yard, hero: own ? 'own' : 'stand-in', ...(!own && rail ? { body: rail.rail } : {}), ways: course.ways };
   }
   const manifest = {
