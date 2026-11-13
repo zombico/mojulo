@@ -39,6 +39,29 @@ about that size and judged at that size.
   never a run of three alike, never a pair repeated (ABBA, not AAAA or ABAB), the odd one in the middle of three. A
   course's pieces start from it.
 
+## The sides
+
+Interest is not only in what is coming down the way. It extends to the sides.
+
+Measured on the course's camera, the way itself takes 22 % of the middle band's area and its two sides take the other
+78 %. In the band where a thing is made interesting, most of the room is beside the way. (In the bottom band the way
+takes 64 %.)
+
+The sides are also where speed is seen. The way's own centre line does not move across the screen at all. A thing
+standing 5 m to one side crosses the screen at 1 % of its width a second when it is 60 m off, 10 % at 15 m, and 29 %
+at 6 m, where it leaves by the screen's edge. So the sides carry the sense of going fast, and they carry it most just
+as a thing leaves.
+
+What that asks:
+
+- A slice is the way's piece AND its two flanks: A and B are made as whole slices, side to side.
+- The sides follow the same pattern of A and B, slot by slot. The two sides need not match each other.
+- The sides stay quiet beside the asks: never an ask's hue, never as vivid, never in the way.
+- A side thing lower than the camera stays in the middle band. One taller rises over the vanishing point into the top
+  band, which is where stuff comes from: keep that height for what tells, and for the skyline.
+- Near the hero the sides leave by the edges of the bottom band. That band is the character's: nothing beside it
+  there should pull the eye off the figure.
+
 ## The camera that frames it
 
 A camera frames a course when the bands fall where they are meant to: the way's far end on the upper line, the place
