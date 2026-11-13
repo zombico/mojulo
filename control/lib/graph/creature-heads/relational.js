@@ -34,6 +34,10 @@
  *   a chin        chinPoint (0 … 1: the chin drawn out to a point forward and down of the jaw's front; 0: the jaw's own)
  *   a heavy jaw   jawSquare (0 … 1: the jaw's front drawn out sideways toward the muzzle's breadth, a square chin; 0:
  *                 the jaw's own, narrowing to its chin); a `chin` below 0 sets the chin AHEAD of the nose's tip, an underbite
+ *   a brow        browRidge (0 … 1: a ridge of its own over each eye, a bar from beside the nose out past the eye's
+ *                 corner, seated on the skin and standing proud of it so it hoods the eye's top; 0: none, the brow the
+ *                 vault's own mass; painted `brow`, a darker tone of the coat), browSlant (degrees its inner end falls
+ *                 toward the nose: a scowl; below 0 it rises)
  *   tusks         tusk (the lower canines drawn out as tusks: their length in the dentition's canine's, standing up out
  *                 of the lower lip outside the upper, on the jaw; 0: none: ./dentition.js)
  *
@@ -60,6 +64,7 @@ export const CREATURE_RELATIONS = Object.freeze({
   earSize: 0.5, earWidth: 0.55, earSet: 0.75, earTilt: 18, earPoint: 0.8, earSweep: 0,
   noseLength: 0, noseWidth: 0.16, noseDrop: 0.1, chinPoint: 0,
   jawSquare: 0, tusk: 0,
+  browRidge: 0, browSlant: 0,
 });
 export const CREATURE_RELATION_NAMES = Object.freeze(Object.keys(CREATURE_RELATIONS));
 
@@ -81,6 +86,7 @@ export const CREATURE_HEADS = Object.freeze({
     mouthLine: 0.3, gape: 1.15, jawDepth: 0.18, chin: 0.05, chinPoint: 1, cheekWidth: 1.0, cheekFull: 0.09,
     noseLength: 0.68, noseWidth: 0.2, noseDrop: 0.12,
     eyeSize: 0.12, eyeSet: 0.8, eyeHeight: 0.58, pupil: 'slit', iris: 0.2, fang: 0.5,
+    browRidge: 0.7, browSlant: 16,
     earSize: 1.2, earWidth: 0.2, earSet: 0.05, earTilt: 78, earPoint: 1, earSweep: 60 }),
   // the orc: a low broad vault behind a brow ridge that shades small deep eyes, a short flat muzzle as broad as the
   // face with a flat nose on it, and under it the jaw that is the head: deep, square at its front and set ahead of the
@@ -89,6 +95,7 @@ export const CREATURE_HEADS = Object.freeze({
     muzzle: 0.22, muzzleWidth: 0.56, muzzleDepth: 0.34, taper: 0.92, muzzleDrop: 0.03, nosePad: 0.075, whisker: 0,
     mouthLine: 0.27, gape: 1.0, jawDepth: 0.34, chin: -0.08, jawSquare: 1, cheekWidth: 1.12, cheekFull: 0.13,
     eyeSize: 0.056, eyeSet: 0.86, eyeHeight: 0.57, pupil: 'round', iris: 0.6, fang: 0.6, tusk: 2.4,
+    browRidge: 1, browSlant: 12,
     earSize: 0.5, earWidth: 0.5, earSet: 0, earTilt: 100, earPoint: 1, earSweep: 25 }),
 });
 
@@ -128,6 +135,13 @@ function creatureVajras(R, P) {
   add('vault', v3(0, op.y + 0.2, 0.58), v3(0, -0.1, 0.72 + R.crown * 0.5), v3(0, g.y - 0.12, 0.66), [0.24, rV, 0.24]);
   add('temple', v3(Math.max(0, halfW - 0.2), -0.32, 0.6), v3(Math.max(0, halfW - 0.22), -0.08, 0.66), v3(Math.max(0, halfW - 0.25), g.y - 0.14, 0.62), [0.18, 0.2, 0.15], true);
   add('brow', v3(0.02, g.y - 0.04, g.z - 0.04), v3(eye.x * 0.6, g.y - 0.05, g.z - 0.02), v3(eye.x + 0.06, g.y - 0.1, g.z - 0.06), [R.brow, R.brow * 1.1, R.brow * 0.7], true);
+  // A BROW RIDGE OF ITS OWN (`browRidge` > 0): a bar over each eye from beside the nose out past the eye's corner, its
+  // underside on the eye's top, its inner end fallen by `browSlant`; SEATED on the skin by the head (its beads marched
+  // out to the surface and left standing proud), a feature at a narrow blend so the vault's fillet does not swallow it
+  if (R.browRidge > 0) { const r = 0.06 + 0.06 * R.browRidge, zR = eye.z + R.eyeSize * 0.6 + r, fall = Math.tan(deg(R.browSlant));
+    const xi = Math.max(0.03, eye.x - R.eyeSize * 1.2), xo = Math.min(eye.x + R.eyeSize * 1.7, halfW * 0.88);
+    add('browRidge', v3(xi, eye.y, zR - fall * (eye.x - xi)), v3(eye.x, eye.y, zR), v3(xo, eye.y - 0.03, zR + fall * (xo - eye.x) * 0.35), [r * 0.85, r, r * 0.6], true);
+    W.at(-1).blend = W.at(-2).blend = 0.02; W.at(-1).seat = W.at(-2).seat = -0.1; }
   // THE CHEEKS: the zygomatic arch from under the eye back to the ear
   add('arch', v3(zyX * 0.62, eye.y - 0.05, eye.z - 0.16), v3(zyX * 0.82, -0.04, eye.z - 0.2), v3(zyX * 0.7, -0.24, eye.z - 0.16), [R.cheekFull * 1.1, R.cheekFull * 1.4, R.cheekFull * 1.1], true);
   // THE UPPER MUZZLE: the maxilla and the upper lip, its underside the mouth's line, its top the muzzle's line from the
@@ -219,6 +233,13 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {}, globes
     for (let i = 0; i < 400 && under(c) < 0; i++) c = { ...c, y: c.y + 0.002 * sc };
     const dy = (c.y / sc - N.r[1] * 0.5) - N.c.y, mv = (q) => v3(q.x, q.y + dy, q.z);
     W[ni] = { ...N, a: mv(N.a), c: mv(N.c), b: mv(N.b) }; bonds[ni] = bondOf(W[ni]); }
+  // THE BROW RIDGES SEATED: each bead marched forward from inside the head (without the ridges) to the skin's face over
+  // the eye, its centre left that share of its radius inside, so the ridge stands proud of the brow wherever the vault
+  // and the muzzle put it
+  const seated = W.map((w, i) => (w.seat !== undefined ? i : -1)).filter((i) => i >= 0);
+  if (seated.length) { const under = skinOf(all.filter((i) => !seated.includes(i)));
+    const out = (q, r, inside) => { let c = S(v3(q.x, q.y - 0.3, q.z)); if (under(c) >= 0) return q; for (let i = 0; i < 600 && under(c) < 0; i++) c = { ...c, y: c.y + 0.002 * sc }; return v3(q.x, c.y / sc - r * inside, q.z); };
+    for (const i of seated) { const w = W[i]; W[i] = { ...w, a: out(w.a, w.r[0], w.seat), c: out(w.c, w.r[1], w.seat), b: out(w.b, w.r[2], w.seat) }; bonds[i] = bondOf(W[i]); } }
   const skin = skinOf(all);
   // the eyes: each globe SEATED on the skin (marched out along its gaze from the orbit to where the skin crosses, set in
   // by most of its radius), in a socket carved a little larger, its gaze turned out from the face by its set
@@ -261,6 +282,8 @@ export function relationalCreatureHead({ preset = 'wolf', relations = {}, globes
       if (R.pupil === 'slit' ? up < 0.62 && across < 0.1 * (1 - (up / 0.62) ** 2) : cos > 0.9) return 'pupil';
       return 'iris';
     }
+    // (a brow ridge: where its own bar is the skin, within the fillet's swell of it)
+    for (let i = 0; i < W.length; i++) if (W[i].seat !== undefined && bonds[i](p) < 0.012 * sc) return 'brow';
     // (the nose's pad: where its own bead is the skin, its front half)
     const nb = W.find((w) => w.name === 'nose'), nc = S(nb.c);
     if (p.y > nc.y - nb.r[1] * 0.1 * sc && Math.hypot(p.x - nc.x, p.y - nc.y, p.z - nc.z) < nb.r[1] * 1.1 * sc) return 'nose';

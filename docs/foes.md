@@ -128,6 +128,17 @@ A kin is one body. What tells one of its foes from another is what it wears and 
   names; a people's own cut of it leaves off what its body does not take (the orc wears the raiders bare-chested). A new
   pack is a row; a new colourway or mark a word in it.
 
+A pack's leaders wear a helmet too (`PACK_STYLES.<style>.head`, by rank; its rank and file bare-headed). A kin's
+helmets are their own (`creature-heads/headgear.js`): a person's headgear is drawn on a person's cranium, which a kin
+does not have, so a kin's helmet names no geometry. It is the skull's own surface set out by a pad and a plate's
+thickness, kept above a rim from over the eyes back to the nape, with a hole round each ear's foot and the card's own
+masses joined on (a nasal, horns, a spike). One card therefore fits any skull. It is worn by the hero door's `headgear`
+word, which on a kin lowers to its head's word (`headgear/wear.js`: the `kin` body); a new helmet is a card.
+
+A kin's face is read by its brow: a skull can carry a ridge of its own over each eye (`browRidge`, `browSlant`), a bar
+seated on the skin and standing proud of it, so the light steps on it and the ink finds its edge. And a kin whose arms
+are heavy carries hands to match: a card's `hands` sizes the hand whole, where `mass.hand` only thickens it.
+
 The run lays both over the kin's rolled sheet when its figure is made, as it lays its `gear` (`gameworld/runner.js`), and
 a skin changed remakes the figure. The casting call proposes a kin's cast WILD, sized by role where its lineage has one
 build (`KIN_SIZES`), and as a PACK in one rolled colourway where the game's minds hunt as one (the cube's `squad: 'pack'`).

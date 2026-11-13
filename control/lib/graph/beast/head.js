@@ -34,6 +34,8 @@ import { CREATURE_HEADS, CREATURE_RELATIONS } from '../creature-heads/relational
 import { BEAST_KINS } from './cards.js';
 import { wornHead, CREATURE_WEAR } from '../creature-heads/worn.js';
 import { DENTITIONS } from '../creature-heads/dentition.js';
+import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
+import { KIN_HEADGEAR, KIN_HEADGEAR_IDS } from '../creature-heads/headgear.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;
 const sub = (a, b) => a.map((x, i) => x - b[i]);
@@ -56,7 +58,7 @@ export const BEAST_HEADS = Object.freeze(['person', ...Object.keys(HEAD_LIBRARY)
 export const DESIGNED_HEAD_KEYS = Object.freeze(['from', 'name', 'moves', 'eye', 'regions', 'ornaments', 'palette']);
 export const isDesigned = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.from === 'string';
 /** a RELATIONAL head's words (creature-heads/relational.js): its skull, and its relations over the skull's */
-export const RELATIONAL_HEAD_KEYS = Object.freeze(['relational', 'relations', 'scale']);
+export const RELATIONAL_HEAD_KEYS = Object.freeze(['relational', 'relations', 'scale', 'gear']);
 /** a relational head's size on its body, a ratio of the size its figure's height gives it (a small body under a big head) */
 export const HEAD_SCALE = Object.freeze([0.5, 2.5]);
 export const isRelationalHead = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.relational === 'string';
@@ -68,6 +70,8 @@ export function relationalHeadErrors(w) {
   for (const k of Object.keys(w)) if (!RELATIONAL_HEAD_KEYS.includes(k)) errs.push(`beast.head.${k}: not a word of a relational head (${RELATIONAL_HEAD_KEYS.join(', ')})`);
   if (!CREATURE_HEADS[w.relational]) errs.push(`beast.head.relational: the skull (${Object.keys(CREATURE_HEADS).join(' | ')})`);
   if (w.scale !== undefined && !(Number.isFinite(w.scale) && w.scale >= HEAD_SCALE[0] && w.scale <= HEAD_SCALE[1])) errs.push(`beast.head.scale: ${HEAD_SCALE[0]} … ${HEAD_SCALE[1]}, the head's size against the one its figure's height gives it`);
+  // (a helmet cut from the head's own field, creature-heads/headgear.js; the hero door's `headgear` word lowers to it)
+  if (w.gear !== undefined && !KIN_HEADGEAR[w.gear]) errs.push(`beast.head.gear: a kin's headgear (${KIN_HEADGEAR_IDS.join(' | ')})`);
   if (w.relations !== undefined) {
     if (!w.relations || typeof w.relations !== 'object' || Array.isArray(w.relations)) errs.push('beast.head.relations: an object of relations');
     else for (const [k, v] of Object.entries(w.relations)) {
@@ -96,7 +100,7 @@ export function beastHeadOf(hero) {
   const H = (() => {
     if (word && HEAD_LIBRARY[word]) return { id: word };
     // (the relational head: its skull and relations, an ooze's growth on it)
-    if (isRelationalHead(word)) return { relational: word.relational, ...(word.relations ? { relations: word.relations } : {}), ...(word.scale || card.ooze?.headScale ? { scale: (word.scale ?? 1) * (card.ooze?.headScale ?? 1) } : {}) };
+    if (isRelationalHead(word)) return { relational: word.relational, ...(word.relations ? { relations: word.relations } : {}), ...(word.gear ? { gear: word.gear } : {}), ...(word.scale || card.ooze?.headScale ? { scale: (word.scale ?? 1) * (card.ooze?.headScale ?? 1) } : {}) };
     // (a head DESIGNED from a library skull, the creature-from-sheet catalyst's way: its derivation, creature-heads/derive.js)
     if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
     // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)
@@ -175,6 +179,10 @@ export function beastHead(plan, hero) {
 const FACE_GROUPS = Object.freeze(['Sclera', 'Iris', 'Limbus', 'Pupil', 'Catchlight', 'Mouth', 'Palate', 'Tongue', 'Teeth', 'NosePad', 'Nostrils', 'EarInner']);
 /** the gums' tone where the kin's head names no palate */
 const GUMS = '#8a4c4a';
+/** a brow ridge's tone: its coat's lightness times this */
+const BROW_SHADE = 0.85;
+/** a kin's headgear's plate where no dress names its metal */
+const HELM_TONE = '#6a6a66';
 export const CREATURE_FIT = Object.freeze({ lean: 24, scale: 1, into: -0.3 });
 
 /** The plan wearing the RELATIONAL head (see the head of the file): the head segment off, the neck leaned, the fit read off
@@ -187,7 +195,7 @@ export function creatureHeadPlan(plan, hero, H) {
   const segments = plan.segments.filter((s) => s.name !== 'head'), neck = segments.find((s) => s.name === 'neck' && s.kind === 'segment');
   // THE FIT: the head's STAND units times the figure's height and its scale; the nape's foot on the neck's top ring's middle,
   // run into the skull along the neck's axis
-  const worn = { preset: H.relational, ...(H.relations ? { relations: H.relations } : {}) }, head = wornHead(worn), k = r6(height * CREATURE_FIT.scale * (H.scale ?? 1));
+  const worn = { preset: H.relational, ...(H.relations ? { relations: H.relations } : {}), ...(H.gear ? { gear: H.gear } : {}) }, head = wornHead(worn), k = r6(height * CREATURE_FIT.scale * (H.scale ?? 1));
   const R = neck ? partRings(plan, neck).stations : null, top = R?.at(-1), low = R?.at(-2);
   const ct = top ? centre(top.points) : headBase, axis = low ? unit(sub(ct, centre(low.points))) : [0, 0, 1];
   const V = (0.23 / 1.8) * k, foot = head.vajras.find((w) => w.name === 'nape').b, sc = 0.23 / 1.8;
@@ -212,6 +220,11 @@ export function creatureHeadPlan(plan, hero, H) {
   const face = Object.fromEntries(FACE_GROUPS.filter((g) => tones[g]).map((g) => [g, tones[g]]));
   // (the gums the palate's tone, a library head having none of their own)
   face.Gums = tones.Gums ?? tones.Palate ?? GUMS;
+  // (a brow ridge of its own, the skull's `browRidge`: its form is what reads, lit and inked; a shade under the coat's tone
+  // tells it from the forehead at a distance)
+  if ((head.relations.browRidge ?? 0) > 0) { const [L, C, h] = hexLch(skin); face.BrowRidge = lchHex(L * BROW_SHADE, C, h); }
+  // (its headgear's plate: the outfit's metal where a dress names one, else iron)
+  if (H.gear) face.Helm = plan.palette?.OutfitMetal ?? HELM_TONE;
   const palette = { ...face, ...(plan.palette ?? {}), ...(card.ooze?.eyes?.color ? { Iris: card.ooze.eyes.color } : {}) };
   return { ...plan, palette, segments, dials, rig: { ...plan.rig, joints: rigJoints, bones, chains }, creatureHead: { ...worn, fit, group } };
 }

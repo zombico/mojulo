@@ -19,13 +19,15 @@
  * (`cuts`: the orc wears the raiders bare-chested).
  * A pack style names no geometry. Its garments are an outfit build in the outfit kernel's own grammar (outfit/styles.js:
  * a cut), its pieces and their detail the stylism solver's (stylism/index.js: a genre, a silhouette, a register and a
- * budget by rank, the pack's motif), its colours a palette over the kin's one coat (beast/tiered.js beastWords: a hero's
+ * budget by rank, the pack's motif), its leaders' helmets a kin's own (creature-heads/headgear.js: the skull's surface
+ * set out, so one fits any kin), its colours a palette over the kin's one coat (beast/tiered.js beastWords: a hero's
  * own palette words stand over it). So a new pack is a row, and what it looks like on a body is solved, not modelled.
  *
  *   PACK_STYLES, PACK_STYLE_IDS, packStylesOf(people), WILD_SIZES, WILD_SIZE_IDS
  *   readPack(p, people, at) / readKinBody(b, people, at)   → the words read (throw teaching the words)
  *   kinWords(skin, { rank })   → the hero-door words a kin's figure takes over its sheet's person: `outfit`, `stylism`,
- *                                `palette`, `tune`; null when the skin names neither a pack nor a body
+ *                                `palette`, `tune`, and a leader's `headgear`; null when the skin names neither a pack
+ *                                nor a body
  *   packSays(skin) / bodySays(skin)   → the words in a line, for a book
  *
  * Pure and deterministic.
@@ -61,6 +63,9 @@ export const PACK_STYLES = Object.freeze({
       language: Object.freeze({ bottom: Object.freeze({ family: 'woven', leg: 'short' }), outer: Object.freeze({ family: 'woven', sleeve: 'none', hem: 'waist', open: true, fit: 'fitted' }),
         panels: Object.freeze([Object.freeze({ at: 'front', length: 'knee', width: 0.3, rigidity: 'soft' }), Object.freeze({ at: 'back', length: 'knee', width: 0.36, rigidity: 'soft' })]), feet: 'none', focal: 'belt' }) }) }),
     stylism: Object.freeze({ genre: 'fantasy', silhouette: 'brawler' }),
+    // (what its leaders wear on the head, by rank: a kin's helmets, cut from its own skull, creature-heads/headgear.js; its
+    // rank and file bare-headed)
+    head: Object.freeze({ elite: 'kin-cap', miniboss: 'kin-nasal-helm', boss: 'kin-horned-helm' }),
     motifs: Object.freeze(['knot', 'key', 'wave', 'vine']),
     colourways: Object.freeze({
       rust: Object.freeze({ reads: 'rust hide and a red cloth, bone fittings',
@@ -132,6 +137,7 @@ export function kinWords(skin, { rank = 'minion' } = {}) {
     for (const part of S.cuts?.[people]?.without ?? []) delete out.outfit.style.language[part];
     out.stylism = { ...S.stylism, register: R.register, detail: R.detail, motif: P.motif };
     out.palette = { Skin: coat, ...S.colourways[P.colourway].tones };
+    if (S.head?.[rank]) out.headgear = S.head[rank];
   } else if (coat) out.palette = { Skin: coat };
   if (B.size !== undefined) {
     const Z = WILD_SIZES[B.size], frame = BEAST_KINS[people].frame ?? {};

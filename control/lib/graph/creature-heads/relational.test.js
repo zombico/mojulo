@@ -93,6 +93,31 @@ describe('the relational creature head', () => {
     expect(relationalCreatureHead({ preset: 'wolf' }).vajras.some((w) => w.name === 'chinBar')).toBe(false);
   });
 
+  it('a brow ridge of its own stands proud of the skin over each eye, slanted, and paints; a skull without is as it was', () => {
+    // (the skull that carries one, chosen from the presets; the same skull without it)
+    const preset = Object.keys(CREATURE_HEADS).find((k) => CREATURE_HEADS[k].browRidge > 0);
+    const H = relationalCreatureHead({ preset }), bare = relationalCreatureHead({ preset, relations: { browRidge: 0 } });
+    const ridge = H.vajras.find((w) => w.name === 'browRidge'), left = H.vajras.find((w) => w.name === 'browRidgeL');
+    expect(bare.vajras.some((w) => w.name === 'browRidge')).toBe(false);
+    expect(left.c.x).toBeCloseTo(-ridge.c.x, 9);
+    // (a volume: the face's front at the ridge's middle well ahead of the same skull's without it)
+    const gain = frontAt(H, ridge.c.z, ridge.c.x) - frontAt(bare, ridge.c.z, ridge.c.x);
+    expect(gain).toBeGreaterThan(ridge.r[1] * 0.8);
+    // (over the eye: its underside no lower than the eye's middle, so the globe sits under it and is not buried in it)
+    const eyeZ = H.points.eye.z / V;
+    expect(ridge.c.z - ridge.r[1]).toBeGreaterThan(eyeZ);
+    // (a scowl: its inner end lower than its middle, on a skull that slants it)
+    expect(CREATURE_HEADS[preset].browSlant).toBeGreaterThan(0);
+    expect(ridge.a.z).toBeLessThan(ridge.c.z);
+    // (painted the brow on its front, the bare skull's skin there unpainted)
+    const y = frontAt(H, ridge.c.z, ridge.c.x);
+    expect(H.paint({ x: ridge.c.x * V, y: (y - 0.004) * V, z: ridge.c.z * V })).toBe('brow');
+    expect(bare.paint({ x: ridge.c.x * V, y: frontAt(bare, ridge.c.z, ridge.c.x) * V, z: ridge.c.z * V })).toBeNull();
+    // (the canon carries none)
+    expect(CREATURE_RELATIONS.browRidge).toBe(0);
+    expect(relationalCreatureHead({ preset: 'wolf' }).vajras.some((w) => w.seat !== undefined)).toBe(false);
+  });
+
   it('tells its skulls apart by their relations, and is deterministic', () => {
     const W = relationalCreatureHead({ preset: 'wolf' }), C = relationalCreatureHead({ preset: 'felid' });
     expect(frontAt(W, 0.45) - frontAt(C, 0.45)).toBeGreaterThan(0.4);   // (the wolf's muzzle the long one)

@@ -67,7 +67,7 @@ import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered'
 import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
 import { undeadLayers, undeadRecipe } from '@/lib/graph/undead/tiered-layers';
 import { UNDEAD_FORMS, UNDEAD_LAYERS } from '@/lib/graph/undead/cards';
-import { beastWords, beastFlesh, beastHands, beastErrors } from '@/lib/graph/beast/tiered';
+import { beastWords, beastFlesh, beastHands, beastErrors, beastHandsSize } from '@/lib/graph/beast/tiered';
 import { beastLegs, beastJoints } from '@/lib/graph/beast/legs';
 import { beastTopology, beastSockets } from '@/lib/graph/beast/topology';
 import { beastHead, beastHeadOf } from '@/lib/graph/beast/head';
@@ -1633,7 +1633,9 @@ function heroFormPlanOf(hero) {
   // (the cast as the hero's laws read it: hero-form.js lawCast, the chibi's head and arms under laws 6)
   const L = lawCast(hero.cast, hero.laws ?? 1, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero')), cast = L.cast;
   const body = { ...(L.body ?? {}), ...(hero.body ?? {}), ...(childCoding(hero) ? { bust: 0 } : {}) };
-  const common = { ...feet, register: hero.register, ...(hero.grade === 'play' ? { grade: 'play' } : {}), tune: hero.form === 'realistic' ? realisticTune(hero) : codenameTune(hero), body, girth: hero.girth ?? 1, headScale: hero.headScale ?? codenameHeadScale(hero) ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}), ...(hero.form === 'realistic' ? { seat: false } : {}) };
+  const common = { ...feet, register: hero.register, ...(hero.grade === 'play' ? { grade: 'play' } : {}), tune: hero.form === 'realistic' ? realisticTune(hero) : codenameTune(hero), body, girth: hero.girth ?? 1, headScale: hero.headScale ?? codenameHeadScale(hero) ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}), ...(hero.form === 'realistic' ? { seat: false } : {}),
+    // (a beast-kin's hands at its card's size: beast/cards.js `hands`)
+    ...(beastHandsSize(hero) !== 1 ? { hands: beastHandsSize(hero) } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
   // (on the lofted body, fighter wiring: the landmark head's chest and proportions too)

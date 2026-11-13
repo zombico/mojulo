@@ -5,7 +5,7 @@
 // Cards are chosen in code by the procedure they run.
 import { describe, it, expect } from 'vitest';
 import { BEAST_KINS, kinCoat } from './cards.js';
-import { beastCard, beastFlesh, KEPT_FINGERS } from './tiered.js';
+import { beastCard, beastFlesh, KEPT_FINGERS, beastHandsSize } from './tiered.js';
 import { KEPT_TOES } from './legs.js';
 import { heroRecord, heroPlanOf, validateHeroSpec, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm, withDefaultWalk } from '../polygonizer/motion-stamp.js';
@@ -85,6 +85,16 @@ describe('the beast-kin on the tiered body', () => {
     expect(torso(plain)).toEqual(P);
   });
 
+  it('its hands\' size: a card that names it carries hands that much bigger, the knuckles further from the wrist; one that names none, a person\'s', () => {
+    // (a kin whose card sizes its hands, and one whose card says nothing, chosen from the cards)
+    const big = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].hands > 1), plain = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].hands === undefined);
+    expect(beastHandsSize(kin(big))).toBe(BEAST_KINS[big].hands); expect(beastHandsSize(kin(plain))).toBe(1); expect(beastHandsSize(mint({ cast: 'male' }))).toBe(1);
+    const reach = (hero) => { const J = heroPlanOf(hero).joints; return Math.hypot(...J.knuckles.map((x, i) => x - J.wrist[i])); };
+    // (the same kin, its card's hands against a person's: the same body but for the hands)
+    const sized = reach(kin(big)), same = reach({ ...kin(big), beast: { ...kin(big).beast, kin: undefined, ...(({ hands: _h, head: _hd, stands: _s, reads: _r, frame: _f, rest: _re, ...words }) => words)(BEAST_KINS[big]) } });
+    expect(sized / reach(kin(plain))).toBeGreaterThan(1.2);
+    expect(sized).toBeGreaterThan(same);
+  });
   it('its hands keep the card\'s fingers, the thumb among them, the rig whole; a hooked claw out of every digit', () => {
     const H = kin(THREE), plan = heroPlanOf(H), kept = KEPT_FINGERS[beastCard(H).fingers];
     for (const f of ['thumb', 'index', 'middle', 'ring', 'little']) expect(!!seg(plan, `${f}R`), f).toBe(kept.includes(f));

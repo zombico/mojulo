@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { PACK_STYLES, PACK_STYLE_IDS, PACK_RANKS, WILD_SIZES, WILD_SIZE_IDS, packStylesOf, readPack, readKinBody, kinWords, packSays, bodySays } from './packs.js';
 import { readPeopleSkin, peopleBody, peopleStands } from './people.js';
 import { BEAST_KINS, kinCoat } from '../beast/cards.js';
+import { KIN_HEADGEAR } from '../creature-heads/headgear.js';
 import { LINEAGES } from '../egocube/ancestry.js';
 import { validateHeroSpec } from '../../mcp/tools/layered.js';
 import { withDefaultForm, withDefaultWalk } from '../polygonizer/motion-stamp.js';
@@ -29,6 +30,10 @@ describe('a kin dressed as its pack', () => {
     expect(high.stylism.motif).toBe(low.stylism.motif);
     expect({ ...high.stylism, register: 0, detail: 0 }).toEqual({ ...low.stylism, register: 0, detail: 0 });
     expect([high.stylism.register, high.stylism.detail]).not.toEqual([low.stylism.register, low.stylism.detail]);
+    // (and on the head: its rank and file bare-headed, a leader in a kin's helmet where the style names one for its rank)
+    expect(low.headgear).toBeUndefined();
+    const helmed = Object.keys(S.head ?? {})[0];
+    if (helmed) { const w = kinWords({ people: KIN, pack: { style: STYLE } }, { rank: helmed }); expect(w.headgear).toBe(S.head[helmed]); expect(KIN_HEADGEAR[w.headgear]).toBeTruthy(); }
     // (a rank the table does not name wears the rank and file's)
     expect(kinWords({ people: KIN, pack: { style: STYLE } }, {}).stylism).toEqual(low.stylism);
   });

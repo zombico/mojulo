@@ -15,6 +15,8 @@
  *             trunk at the waist on top of it (over 1 a barrel, under 1 a wasp's waist), `neck`, `upperArm`, `foreArm`,
  *             `hand` (the palm and the digits), `thigh`, `shank`, `foot`, and `hips` (the pelvis and the belly over it, an insect's
  *             abdomen, fading out up to the waist)
+ *   hands     the hands' SIZE against the cast's (1 a person's): the palm and the digits whole, their joints with them,
+ *             where `mass.hand` only thickens them; a kin whose arms are heavy carries hands to match
  *   frame     its proportions, as the hero's tune words (shoulders, depth, legs, neck, waist, hips …: tune ratios of the
  *             cast), recorded under the operator's own (./tiered.js beastWords) and multiplied over the rolled build's
  *   keel      the chest's front swelling forward under the shoulders, 0 … 1 (its back held): a bird's keel, a deep-chested
@@ -131,7 +133,7 @@ export const BEAST_KINS = Object.freeze({
     fingers: 4, toes: 4, tail: 'none', claws: 'blunt', claw: MAMMAL_CLAW, cover: 'none',
     head: { relational: 'orc', scale: 1.6 }, stands: 0.79,
     frame: { shoulders: 1.25, depth: 1.2, legs: 0.9, neck: 0.85, armLength: 1.12, hips: 1.2, waist: 1.12 },
-    mass: { trunk: 1.24, waist: 1.3, hips: 1.3, neck: 1.4, upperArm: 1.45, foreArm: 1.5, hand: 1.45, thigh: 1.7, shank: 1.5, foot: 1.35 }, hump: 0.6,
+    mass: { trunk: 1.24, waist: 1.3, hips: 1.3, neck: 1.4, upperArm: 1.45, foreArm: 1.5, hand: 1.12, thigh: 1.7, shank: 1.5, foot: 1.35 }, hump: 0.6, hands: 1.55,
     rest: { hunch: 20, crouch: 0.1, arm: { x: 0.28, y: 0.3, z: -0.91 } },
   },
 });

@@ -73,8 +73,24 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   the near-human on the hero door, is as it was and still what the word "orc" in a character's brief rolls.
 - **The books say it**: a foe's card in the foes book has `body` and `pack` rows and its line says wild or which pack;
   the agent's foes card names both words (its ceiling re-pinned, with the reason); the foes doc has the section.
+- **Brows, as form** (`creature-heads/relational.js`, `creature-heads/worn.js`, `beast/head.js`). The relational head
+  gains `browRidge` and `browSlant`: a bar over each eye from beside the nose out past the eye's corner, its beads
+  marched out to the skin and left standing proud of it, its inner end fallen for a scowl. It is a volume, so the
+  character light steps on it and the ink finds its edge; its faces are painted a shade under the coat so it tells from
+  the forehead at a distance. The goblin and the orc both carry one; nothing at the canon value, so every other head is
+  as it was.
+- **A kin's hands sized to its arms** (`beast/cards.js` `hands`, `polygonizer/hero-form.js` `heroPlan({ hands })`). A
+  card's `mass.hand` only thickened the hand; `hands` sizes it whole, the palm and the digits with their joints. The
+  orc's are half again a person's, under arms half again as thick. One at 1, the default, is exact.
+- **A kin's headgear, a first shelf** (`creature-heads/headgear.js`, new; `headgear/wear.js`). A person's headgear is
+  drawn on a person's cranium; a kin's head is one skin netted from a field, any shape. So a kin's helmet is that
+  field set out by a pad and a plate, kept above a rim from over the eyes to the nape, the ears' feet left clear, a
+  card's own masses joined on: a skull cap, a helm with a nasal, a horned helm, a spiked cap. One card fits any skull.
+  Worn by the hero door's `headgear` word, which on a kin (a new body the word knows, `kin`) lowers to its head's word;
+  a person's card is refused on a kin and a kin's on a person, by name. The raiders' leaders wear them by rank (an elite
+  the cap, a boss the horned helm); the plate takes the pack's metal.
 - Not here yet: the party battles' own "goblin" and "shaman" (`gameworld/battles.js`) are still orcish people, and the
-  word "orc" in a brief still rolls the near-human; the orc's brow does not yet hood its eyes (the eye is seated on the
-  skin wherever the brow is); the raiders' vest breaks up across a goblin's chest where it is open;
+  word "orc" in a brief still rolls the near-human; a kin's headgear has helmets only (no hood, no mask, no cloth) and no row in the
+  agent's foes card yet; the brow ridge is a round bar (no arch, no thinning to its tail); the raiders' vest breaks up across a goblin's chest where it is open;
   a row for the action RPG in the pose rails, so its hero stands as its game shows it; the goblin's hips, boxed where
   its thighs thicken; ink on what a hand holds.
