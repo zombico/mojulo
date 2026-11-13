@@ -58,9 +58,10 @@ export function courseFrame(course, { seed = 1, at = 0, aspect = ASPECT, vfov = 
   for (const b of course.blocks) {
     if (!stands.has(b.id)) continue;
     const P = PRIMITIVES[b.id.replace(/^s\d+-/, '')], hx = (b.form === 'crate' ? b.size[0] : b.length) / 2, hy = blockLen(b) / 2;
-    faces.push(...boxFaces([b.at[0] - hx, b.at[1] - hy, 0], [b.at[0] + hx, b.at[1] + hy, P.h], hexOf(b.tint)));
-    // (its tell on the ground goes down first; what is drawn on the thing itself goes over it)
-    for (const m of b.marks ?? []) { const ground = m.corners.every((c) => c[2] < 0.05); faces.push({ corners: m.corners, fill: hexOf(m.fill), ...(ground ? { flat: true } : { over: true }) }); }
+    // (a bare block is its marks alone, a thing drawn whole; else its box, with what is drawn on it over it. Its tell on
+    // the ground goes down first)
+    if (b.bare !== true) faces.push(...boxFaces([b.at[0] - hx, b.at[1] - hy, 0], [b.at[0] + hx, b.at[1] + hy, P.h], hexOf(b.tint)));
+    for (const m of b.marks ?? []) { const ground = m.corners.every((c) => c[2] < 0.05); faces.push({ corners: m.corners, fill: hexOf(m.fill), ...(ground ? { flat: true } : b.bare === true ? {} : { over: true }) }); }
   }
   faces.push(...boxFaces([-0.28, at - 0.2, 0], [0.28, at + 0.2, 1.05], '#e9e4d8'), ...boxFaces([-0.34, at - 0.3, 1.05], [0.34, at + 0.3, 1.7], '#f4efe4'));
   const drawn = [];
@@ -106,7 +107,7 @@ export function sliceElevation(slice, { gap, palette, scale = 14 } = {}) {
   return { svg, width, height };
 }
 
-const LAYERS = [['The backdrop', ['sky', 'horizon', 'far', 'land']], ['The walls', ['flank', 'flank2', 'trim', 'iron', 'lamp']], ['The way', ['ground', 'ground2', 'sleeper', 'rail', 'kerb', 'wall']], ['The asks', ['jump', 'jump2', 'steer']], ['The tells and the end', ['tell-jump', 'tell-steer', 'exit']]];
+const LAYERS = [['The backdrop', ['sky', 'horizon', 'far', 'mid', 'land']], ['The walls', ['flank', 'flank2', 'trim', 'iron', 'lamp']], ['The way', ['ground', 'ground2', 'sleeper', 'rail', 'kerb', 'wall']], ['The asks', ['jump', 'jump2', 'steer']], ['The tells and the end', ['tell-jump', 'tell-steer', 'exit']]];
 
 export function courseSheetHtml(course, { title = 'Course', seed = 1, aspect = ASPECT, vfov = VFOV } = {}) {
   const D = course.dress, col = D.palette, mid = course.slots[Math.min(2, course.slots.length - 1)].y - course.reactAt - 4, fw = aspect < 1 ? 300 : 560;
@@ -117,7 +118,7 @@ export function courseSheetHtml(course, { title = 'Course', seed = 1, aspect = A
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)} · course sheet</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;background:#ebe7dd;color:#2b2a27;font:14px/1.5 ui-sans-serif,system-ui,sans-serif}main{max-width:1180px;margin:0 auto;padding:24px 16px}h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 8px}h3{font-size:12px;margin:0 0 6px;color:#6b675e;font-weight:600}p{margin:0 0 12px;color:#6b675e;max-width:80ch}.row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}figure{margin:0;max-width:100%}figure svg{max-width:100%;height:auto;display:block}figcaption{font-size:12px;color:#6b675e;margin-top:4px;max-width:60ch}.layer{min-width:150px}.sw{display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0}.sw i{width:26px;height:18px;border:1px solid #2b2a2733;display:inline-block}.sw small{color:#8a857a}ul{list-style:none;padding:0;margin:0}li{padding:5px 0 5px 12px;border-left:3px solid #7a9a6a;margin:4px 0;font-size:13px}li.lost{border-left-color:#c2553a}table{border-collapse:collapse;font-size:13px}th{text-align:left;font-weight:600;padding:3px 18px 3px 0;color:#6b675e;white-space:nowrap;vertical-align:top}td{padding:3px 0}</style></head><body><main>
 <h1>${esc(title)} · course sheet</h1>
 <p>${esc(D.name)}${D.own ? ', written for this course' : ''}. The way, the asks, the walls and the backdrop on one sheet: they share the screen, so they are designed as one. The frames are the course's own geometry through its own camera, one roll standing; the eyes gate is the game's page.</p>
-${D.premise ? `<h2>The premise</h2><p><b>${esc(D.premise)}</b></p><table>${[['The lanes', 'lanes'], ['Go over, low', 'hurdle'], ['Go over, tall', 'block'], ['Go round', 'posts'], ['The jump\'s tell', 'tell-jump'], ['The steer\'s tell', 'tell-steer'], ['Overhead', 'overhead'], ['Walls, A', 'a'], ['Walls, B', 'b'], ['The backdrop', 'backdrop'], ['The end', 'end']].map(([n, k]) => `<tr><th>${n}</th><td>${esc(D.things[k] ?? 'not named')}</td></tr>`).join('')}</table>` : ''}
+${D.premise ? `<h2>The premise</h2><p><b>${esc(D.premise)}</b></p><table>${[['The lanes', 'lanes'], ['Go over, low', 'hurdle'], ['Go over, tall', 'block'], ['Go round', 'posts'], ['The jump\'s tell', 'tell-jump'], ['The steer\'s tell', 'tell-steer'], ['Overhead', 'overhead'], ['Beyond the walls', 'beyond'], ['Walls, A', 'a'], ['Walls, B', 'b'], ['The backdrop', 'backdrop'], ['The end', 'end']].map(([n, k]) => `<tr><th>${n}</th><td>${esc(D.things[k] ?? 'not named')}</td></tr>`).join('')}</table>` : ''}
 <h2>The frame</h2><div class="row">${frames}</div>
 <h2>The walls · left ${esc(course.scenery.left)} · right ${esc(course.scenery.right)}</h2><p>A slice is one segment long (${course.gap} m, ${r1(course.gap / course.pace.top)} s at the hero's top speed). A is the slice the eye is given; B lets it be seen. Neither side runs three alike or repeats a pair.</p><div class="row">${slices}</div>
 <h2>The backdrop · ${esc(D.backdrop.name)}</h2><p>${esc(D.backdrop.says)}. ${D.backdrop.skyline.length} silhouettes, the sky in ${D.backdrop.bands} steps, ${Math.round(course.scenery.far - course.length)} m past the course's end.</p>

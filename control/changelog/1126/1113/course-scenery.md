@@ -77,3 +77,16 @@ one design: the way and its asks (as before), the WALLS beside it, and the BACKD
   (`COURSE_TALL_FOV`, 32 degrees across): the hero is about a fifth of a phone's height, where it was a ninth, with
   the three bands where they were.
 - The sky is mixed straight through OKLab: a gold horizon under a blue sky passes through cream, not green.
+- Chunky, specific things (`course-things.js`). An ask is drawn WHOLE as the thing it is, inside the box that is met
+  (a block may be `bare`: met, and not drawn as its box, `playscape/terrain.js`). Things are built of bevelled chunks
+  in three tones. A barrier is a striped board on three feet with a rail under it. Crates are five, with daylight
+  between them, every other one lower and set back. Wagons are two, round-shouldered on an underframe and wheels,
+  each with a face toward the runner: a windscreen with the sky in it, two headlamps, a number board, a buffer beam.
+- Denser sides. The platform gains stout columns with feet, a deep canopy, a name board hung over the edge, a clock,
+  a kiosk, a door and lit windows, a bench, a luggage trolley; the cutting gains piers, dark arches, a relay cabinet
+  and a signal on its post. Behind the walls (a theme's `beyond`, the new `mid` role): two houses a slice a side, of
+  the seed's heights, their windows toward the way, so the sides are three layers (the wall, the town, the far
+  skyline) and not one row.
+- Movement. A viaduct runs along the left behind the wall, and a train of four cars crosses it the other way to the
+  runner, round and round: the page's mover slides its group (a level's `sceneryMovers`). Seen in Chrome at two
+  places six seconds apart with the hero held still.

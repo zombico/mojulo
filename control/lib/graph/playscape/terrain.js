@@ -179,7 +179,8 @@ const TINT_SUN = (() => { const v = [-0.35, -0.55, 0.76], L = Math.hypot(...v); 
  * `rolled` (a Set of ask ids: a level's roll, game/roll.js): an ask in it is one THING the level's seed may leave out:
  * its faces their own render group (`roll:<id>`, so the page hides the whole of it) and its box in `things` in place
  * of the colliders (the runtime stands it, worlds/controllable/roll.js). None rolled: as it was. An ask may carry its
- * own colour (`tint`) and flat paint that goes with it (`marks`); one with neither is as it was.
+ * own colour (`tint`) and flat paint that goes with it (`marks`); one with neither is as it was. A `bare` ask is met
+ * and not drawn as its box (its marks are what is seen).
  */
 export function standBlocks(asks, { seed = 1, rolled = null } = {}) {
   if (!Array.isArray(asks)) throw new Error('terrain: blocks is a list of asks ({ form, at, … })');
@@ -198,7 +199,8 @@ export function standBlocks(asks, { seed = 1, rolled = null } = {}) {
       const lit = 0.58 + 0.42 * Math.max(0, n[0] * TINT_SUN[0] + n[1] * TINT_SUN[1] + n[2] * TINT_SUN[2]);
       return { ...f, tint, fill: `#${tint.map((c) => Math.max(0, Math.min(255, Math.round(c * lit * 255))).toString(16).padStart(2, '0')).join('')}` };
     };
-    for (const f of T.faces) faces.push(roll ? { ...shade(f), group: `roll:${roll}` } : shade(f));
+    // (`bare`: the ask is met and not drawn as its box: its `marks` are the whole of what is seen, a thing with a shape)
+    if (ask.bare !== true) for (const f of T.faces) faces.push(roll ? { ...shade(f), group: `roll:${roll}` } : shade(f));
     for (const m of Array.isArray(ask.marks) ? ask.marks : []) faces.push({ corners: m.corners, fill: m.fill, group: roll ? `roll:${roll}` : 'obj:marks', doubleSided: true });
     // `whole`: the form is one collider (an arena's wall: it never breaks, so its courses need not each be a box)
     if ((roll || ask.whole === true) && T.blocks.length) {

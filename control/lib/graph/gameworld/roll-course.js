@@ -168,7 +168,7 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = DE
       // trace the way through as the tells say it, and are what the run is scored by
       if (P.ask === 'jump') { const d = pace.lead[id].mid * pace.top, H = P.h + 0.75; for (let i = 0; i < COINS; i++) { const u = i / (COINS - 1); coins.push({ id: `${bid}-c${i + 1}`, of: bid, at: [0, r2(y - d + u * (2 * d + len)), r2(0.7 + 4 * (H - 0.7) * u * (1 - u))] }); } }
       else { const from = y - pace.top * pace.laneTime[2] * 0.5; for (let i = 0; i < COINS; i++) coins.push({ id: `${bid}-c${i + 1}`, of: bid, at: [LANES[P.open], r2(from + (i / (COINS - 1)) * (y + len - from)), 0.7] }); }
-      blocks.push(thing ? { id: bid, form: 'crate', at: [cx, r2(y + len / 2), 0], size: [wide, len, P.h], value: 0.62, tint: tint(ASK_ROLE[id]), marks }
+      blocks.push(thing ? { id: bid, form: 'crate', at: [cx, r2(y + len / 2), 0], size: [wide, len, P.h], value: 0.62, tint: tint(ASK_ROLE[id]), bare: true, marks }
         : { id: bid, form: 'wall', at: [cx, r2(y + len / 2), 0], N: [0, -1], length: wide, height: P.h, thick: len, value: 0.62, tint: tint(ASK_ROLE[id]), marks });
     }
     lineSlots.push(Object.keys(of));
@@ -202,7 +202,7 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = DE
   const jumps = prims.filter((id) => PRIMITIVES[id].ask === 'jump'), reactAt = r2(pace.top * (jumps.length ? Math.max(...jumps.map((id) => pace.lead[id].early)) : pace.laneTime[1]));
   const camera = courseCamera({ react: reactAt });
   D.laws = [...D.laws, ...sceneryLaws(D, scenery, { camera, length })];
-  return { feel, rule, pace, prims, dress: D, coins, lens: Object.fromEntries(prims.map((id) => [id, lenOf(id)])), scenery: { left: scenery.left, right: scenery.right, cells: scenery.cells, far: scenery.far }, bg: col.sky, reactAt, camera, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
+  return { feel, rule, pace, prims, dress: D, coins, lens: Object.fromEntries(prims.map((id) => [id, lenOf(id)])), scenery: { left: scenery.left, right: scenery.right, cells: scenery.cells, far: scenery.far, movers: scenery.movers }, bg: col.sky, reactAt, camera, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
 }
 
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
@@ -294,6 +294,8 @@ export function obstacleStage(G, v) {
     // (the roll: the line of asks, and each ask's coins laid with it)
     roll: { ...structuredClone(C.roll), with: Object.fromEntries(C.coins.map((c) => [c.id, c.of])) },
     obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, coins: C.coins.map((c) => ({ id: c.id, at: c.at })), dress: C.dress.theme, scenery: { left: C.scenery.left, right: C.scenery.right, walls: [C.dress.walls.a.id, C.dress.walls.b.id], backdrop: C.dress.backdrop.id }, reactAt: C.reactAt, camera: C.camera },
+    // (what moves in its scenery: a train on the viaduct, course-scenery.js; the page's mover slides it)
+    ...(C.scenery.movers.length ? { sceneryMovers: C.scenery.movers } : {}),
     // (its HUD, course-hud.js: on mana-ui, in the dress's own theme, laid for the game's screen)
     manaHud: courseHud(C, { screen: G?.screen ?? null }),
     worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };

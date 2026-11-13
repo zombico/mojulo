@@ -25,7 +25,10 @@
  *
  *   SLICES, BACKDROPS            the cards (a new look is a row)
  *   readWalls(v, theme), readBackdrop(v, theme)   a dress's `walls` / `backdrop` as written → resolved (they teach)
- *   sceneryOf(dress, { length, gap, seed? }) → { left, right, cells: [{ side, k, y0, y1, kind }], faces, far, laws }
+ *   BEYOND        a theme's `beyond: { houses?, viaduct?: 'left' | 'right', train? }`: a row of houses behind the walls
+ *                 (the `mid` role), a viaduct along one side, and on it a train that MOVES (a mover the page slides
+ *                 along it, the other way to the runner)
+ *   sceneryOf(dress, { length, gap, seed? }) → { left, right, cells: [{ side, k, y0, y1, kind }], faces, far, movers }
  *   sceneryLaws(dress, scenery, { camera?, reactAt? }) → [{ law, holds, says }]: receding, interest, rhythm, banded
  *
  * Faces only: scenery is seen, never met (no collider, no nav, no sight). Pure and deterministic.
@@ -35,7 +38,7 @@ import { wallOrder, wallRhythms, rhythmFaults } from '../era/wall-rhythm.js';
 import { project, cameraAt, VFOV } from './course-view.js';
 
 export const WALL_ROLES = Object.freeze(['flank', 'flank2', 'trim', 'iron', 'lamp']);
-export const BACKDROP_ROLES = Object.freeze(['land', 'far', 'horizon']);
+export const BACKDROP_ROLES = Object.freeze(['land', 'mid', 'far', 'horizon']);
 /** How far past the course's end the backdrop stands, and how far to each side it and the land reach (metres). */
 export const FAR = 400, REACH = 700;
 // (the wires run over the outer tracks: one over the middle track would pass a hand over the camera and fill the frame)
@@ -57,15 +60,23 @@ export const SLICES = Object.freeze({
       B(0.49, 0.8, 0, 0.51, 1, 9, 'trim'), B(0.47, 0.6, 8.2, 0.53, 1.2, 8.5, 'trim')] }),
   fence: Object.freeze({ name: 'Fence and embankment', says: 'a low fence on posts before a long embankment (a plain slice)',
     parts: [B(0, 3.5, 0, 1, 10, 1.4, 'flank'), B(0, 0.8, 0.5, 1, 0.9, 1.7, 'flank2'), B(0, 0.75, 0, 0.03, 0.95, 2.3, 'trim'), B(0.5, 0.75, 0, 0.53, 0.95, 2.3, 'trim')] }),
-  platform: Object.freeze({ name: 'Station platform', says: 'a platform under an iron canopy: its brick face and stone edge, columns, a back wall, a name board, a bench, hanging lamps (a complex slice)',
-    parts: [B(0, 0.5, 0, 1, 6.4, 1.1, 'flank2'), B(0, 0.42, 0.98, 1, 0.9, 1.14, 'trim'), B(0, 5.8, 1.1, 1, 6.4, 4.6, 'flank'),
-      B(0, 0.7, 4.3, 1, 6.2, 4.6, 'iron'), B(0, 0.55, 4.02, 1, 0.75, 4.3, 'iron'),
-      B(0.1, 1.5, 1.1, 0.118, 1.7, 4.3, 'iron'), B(0.49, 1.5, 1.1, 0.508, 1.7, 4.3, 'iron'), B(0.88, 1.5, 1.1, 0.898, 1.7, 4.3, 'iron'),
-      B(0.36, 5.7, 2.5, 0.64, 5.8, 3.1, 'trim'), B(0.2, 4.6, 1.1, 0.34, 5.2, 1.6, 'iron'), B(0.68, 5.7, 1.3, 0.8, 5.8, 3.3, 'flank2'),
-      B(0.29, 1.4, 3.7, 0.31, 1.8, 4.0, 'lamp'), B(0.69, 1.4, 3.7, 0.71, 1.8, 4.0, 'lamp')] }),
-  cutting: Object.freeze({ name: 'The cutting', says: 'the brick retaining wall between stations: piers, a stone coping, one lamp on its bracket (a plain slice)',
-    parts: [B(0, 1.4, 0, 1, 2.4, 3.8, 'flank'), B(0, 1.25, 0, 0.06, 1.4, 3.8, 'flank2'), B(0.5, 1.25, 0, 0.56, 1.4, 3.8, 'flank2'),
-      B(0, 1.2, 3.8, 1, 2.5, 4.05, 'trim'), B(0.27, 0.9, 3.0, 0.285, 1.4, 3.1, 'iron'), B(0.265, 0.85, 2.72, 0.29, 1.05, 3.0, 'lamp')] }),
+  platform: Object.freeze({ name: 'Station platform', says: 'a platform under a deep iron canopy on stout columns: a brick face and a stone edge, a back wall with a door and windows, a name board hung over the edge, a clock, a kiosk, a bench, a luggage trolley, lamps (a complex slice)',
+    parts: [B(0, 0.5, 0, 1, 6.6, 1.1, 'flank2'), B(0, 0.38, 0.94, 1, 1.0, 1.18, 'trim'), B(0, 5.9, 1.1, 1, 6.6, 4.7, 'flank'),
+      B(0, 0.6, 4.25, 1, 6.4, 4.7, 'iron'), B(0, 0.42, 3.8, 1, 0.72, 4.25, 'iron'),
+      B(0.09, 1.45, 1.1, 0.108, 1.85, 4.25, 'iron'), B(0.085, 1.38, 1.1, 0.113, 1.92, 1.5, 'iron'), B(0.49, 1.45, 1.1, 0.508, 1.85, 4.25, 'iron'), B(0.485, 1.38, 1.1, 0.513, 1.92, 1.5, 'iron'),
+      B(0.89, 1.45, 1.1, 0.908, 1.85, 4.25, 'iron'), B(0.885, 1.38, 1.1, 0.913, 1.92, 1.5, 'iron'),
+      B(0.3, 0.7, 2.9, 0.312, 2.3, 3.6, 'trim'), B(0.303, 0.9, 3.05, 0.315, 2.1, 3.45, 'iron'),
+      B(0.7, 1.2, 3.0, 0.712, 1.9, 3.7, 'iron'), B(0.697, 1.3, 3.1, 0.7, 1.8, 3.6, 'lamp'),
+      B(0.56, 4.4, 1.1, 0.68, 5.9, 3.3, 'flank2'), B(0.55, 4.2, 3.3, 0.69, 5.9, 3.5, 'trim'), B(0.58, 4.36, 2.0, 0.66, 4.4, 2.9, 'lamp'),
+      B(0.16, 5.82, 1.1, 0.24, 5.9, 3.4, 'flank2'), B(0.36, 5.82, 2.2, 0.46, 5.9, 3.4, 'lamp'), B(0.8, 5.82, 2.2, 0.9, 5.9, 3.4, 'lamp'),
+      B(0.2, 4.7, 1.1, 0.34, 5.3, 1.62, 'iron'), B(0.2, 5.2, 1.62, 0.34, 5.3, 2.1, 'iron'),
+      B(0.4, 2.6, 1.1, 0.45, 3.4, 1.9, 'trim'), B(0.405, 2.7, 1.9, 0.445, 3.3, 2.3, 'flank2'),
+      B(0.285, 1.3, 3.5, 0.315, 1.9, 3.95, 'lamp'), B(0.685, 1.3, 3.5, 0.715, 1.9, 3.95, 'lamp')] }),
+  cutting: Object.freeze({ name: 'The cutting', says: 'the brick retaining wall between stations: stout piers, dark arches, a stone coping, a relay cabinet, a signal on its post, one lamp on a bracket (a plain slice)',
+    parts: [B(0, 1.5, 0, 1, 2.8, 3.9, 'flank'), B(0, 1.15, 0, 0.07, 1.5, 3.9, 'flank2'), B(0.5, 1.15, 0, 0.57, 1.5, 3.9, 'flank2'),
+      B(0.14, 1.44, 0, 0.42, 1.5, 2.9, 'flank2'), B(0.64, 1.44, 0, 0.92, 1.5, 2.9, 'flank2'),
+      B(0, 1.05, 3.9, 1, 2.9, 4.25, 'trim'), B(0.76, 0.7, 0, 0.8, 1.2, 1.5, 'iron'), B(0.3, 0.6, 0, 0.312, 0.85, 4.4, 'iron'),
+      B(0.292, 0.5, 3.6, 0.32, 0.95, 4.4, 'iron'), B(0.298, 0.47, 3.75, 0.314, 0.5, 4.25, 'lamp')] }),
   bank: Object.freeze({ name: 'Open bank', says: 'a low bank and nothing on it (the plainest slice)',
     parts: [B(0, 1.5, 0, 1, 10, 0.9, 'flank'), B(0, 1.2, 0, 1, 1.5, 0.35, 'flank2')] }),
 });
@@ -174,6 +185,43 @@ export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
     }
     for (const lane of WIRES) add([[lane - 0.04, from, 6.5], [lane + 0.04, from, 6.5], [lane + 0.04, from + n * gap, 6.5], [lane - 0.04, from + n * gap, 6.5]], 'iron', 'scenery:overhead');
   }
+  // BEYOND THE WALLS (a theme's `beyond`): what stands between the walls and the far skyline, so the sides are layers
+  // and not one row. Houses: two a slice a side, of the seed's heights, their windows toward the way. A viaduct along
+  // one side, a pier a slice, and on it a TRAIN that moves: the mover the page slides along it, coming the other way
+  const movers = [];
+  if (dress.beyond) {
+    const Bn = dress.beyond, T = (hex, k) => (lit ? shadeHex(hex, k) : hex), box = (x0, x1, y0, y1, z0, z1, hex, group) => {
+      const [xa, xb] = Math.abs(x0) < Math.abs(x1) ? [x0, x1] : [x1, x0];
+      add([[xa, y0, z0], [xa, y1, z0], [xa, y1, z1], [xa, y0, z1]], T(hex, 0.94), group);
+      add([[xa, y0, z0], [xb, y0, z0], [xb, y0, z1], [xa, y0, z1]], T(hex, 0.74), group);
+      add([[xa, y0, z1], [xa, y1, z1], [xb, y1, z1], [xb, y0, z1]], T(hex, 1.14), group);
+    };
+    if (Bn.houses) for (const side of [-1, 1]) for (let k = 0; k < n; k++) for (let h = 0; h < 2; h++) {
+      const y0 = from + (k + h / 2) * gap + 0.4, y1 = y0 + gap / 2 - 0.8, d0 = 12 + below(4), tall = 8 + below(9), xa = side * (KERB + d0), xb = side * (KERB + d0 + 9);
+      box(xa, xb, y0, y1, 0, tall, col.mid, 'scenery:beyond');
+      // (its windows, toward the way: two rows of three, a shade into the wall)
+      for (let r = 0; r < 2; r++) for (let w = 0; w < 3; w++) { const wy = y0 + (y1 - y0) * (0.14 + 0.29 * w), wz = tall - 2.6 - r * 2.8; if (wz > 4.6) add([[xa - side * 0.02, wy, wz], [xa - side * 0.02, wy + (y1 - y0) * 0.16, wz], [xa - side * 0.02, wy + (y1 - y0) * 0.16, wz + 1.5], [xa - side * 0.02, wy, wz + 1.5]], T(col.mid, 0.7), 'scenery:beyond'); }
+    }
+    if (Bn.viaduct) {
+      const side = Bn.viaduct === 'right' ? 1 : -1, xa = side * (KERB + 7.6), xb = side * (KERB + 10.6), deck = 5.6;
+      for (let k = 0; k <= n; k++) box(xa, xb, from + k * gap - 0.9, from + k * gap + 0.9, 0, deck - 0.5, col.mid, 'scenery:beyond');
+      box(xa, xb, from, from + n * gap, deck - 0.5, deck, col.mid, 'scenery:beyond');
+      box(xa, xa + side * 0.25, from, from + n * gap, deck, deck + 0.55, col.trim, 'scenery:beyond');
+      if (Bn.train) {
+        // four cars, authored at the far end; the page slides the group to the near end and round again
+        const y0 = from + n * gap + 30, cx0 = xa + side * 0.45, cx1 = xb - side * 0.3, car = 11, travel = n * gap + 110;
+        for (let c = 0; c < 4; c++) {
+          const a = y0 + c * (car + 0.8), b = a + car;
+          box(cx0, cx1, a + 0.3, b - 0.3, deck + 0.1, deck + 0.7, col.iron, 'scenery:train');
+          box(cx0, cx1, a, b, deck + 0.7, deck + 3.5, col.iron, 'scenery:train');
+          add([[cx0 - side * 0.02, a + 0.6, deck + 1.9], [cx0 - side * 0.02, b - 0.6, deck + 1.9], [cx0 - side * 0.02, b - 0.6, deck + 2.8], [cx0 - side * 0.02, a + 0.6, deck + 2.8]], 'lamp', 'scenery:train');
+          add([[cx0 - side * 0.02, a, deck + 1.2], [cx0 - side * 0.02, b, deck + 1.2], [cx0 - side * 0.02, b, deck + 1.5], [cx0 - side * 0.02, a, deck + 1.5]], 'trim', 'scenery:train');
+          if (c === 0) add([[Math.min(cx0, cx1) + 0.5, a - 0.02, deck + 2.0], [Math.max(cx0, cx1) - 0.5, a - 0.02, deck + 2.0], [Math.max(cx0, cx1) - 0.5, a - 0.02, deck + 3.0], [Math.min(cx0, cx1) + 0.5, a - 0.02, deck + 3.0]], 'lamp', 'scenery:train');
+        }
+        movers.push({ group: 'scenery:train', basePos: [0, 0, 0], path: [[0, 0, 0], [0, -travel, 0]], period: Math.round(travel / 2.2) / 10, loop: true });
+      }
+    }
+  }
   // THE BACKDROP: the land beyond the way, the sky in bands from the horizon up, the skyline before it
   const Bk = dress.backdrop, far = r2(length + FAR);
   for (const side of [-1, 1]) add([[side * KERB, from, -0.02], [side * REACH, from, -0.02], [side * REACH, far, -0.02], [side * KERB, far, -0.02]], 'land', 'scenery:backdrop');
@@ -190,7 +238,7 @@ export function sceneryOf(dress, { length, gap, seed = 1 } = {}) {
     const x = s.at * REACH * 0.62, lit = s.role === 'lamp', host = lit ? Math.max(0, ...Bk.skyline.filter((q) => q.role !== 'lamp' && Math.abs(q.at - s.at) < 1e-6).map((q) => q.tall)) : 0, z0 = lit ? Math.max(0, host - s.tall - 6) : 0;
     add([[x - s.wide / 2, far - (lit ? 0.5 : 0), z0], [x + s.wide / 2, far - (lit ? 0.5 : 0), z0], [x + s.wide / 2, far - (lit ? 0.5 : 0), z0 + s.tall], [x - s.wide / 2, far - (lit ? 0.5 : 0), z0 + s.tall]], lit ? 'lamp' : 'far', 'scenery:backdrop');
   }
-  return { left, right, n, from, gap, cells, faces, far };
+  return { left, right, n, from, gap, cells, faces, far, movers };
 }
 
 export function sceneryLaws(dress, scenery, { camera = null, length = null } = {}) {

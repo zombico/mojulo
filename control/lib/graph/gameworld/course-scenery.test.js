@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { courseOf, readObstacles } from './roll-course.js';
+import { courseOf, readObstacles, obstacleStage } from './roll-course.js';
 import { dressOf, readDress, DRESS_THEMES, DRESS_ROLES } from './course-dress.js';
 import { sceneryOf, sceneryLaws, readWalls, readBackdrop, SLICES, BACKDROPS, WALL_ROLES, FAR } from './course-scenery.js';
 import { courseFrame, sliceElevation, courseSheetHtml } from './course-sheet.js';
@@ -61,6 +61,27 @@ describe('the overhead: what stands in the top third near at hand', () => {
     const wires = over.filter((f) => Math.max(...f.corners.map((c) => c[1])) - Math.min(...f.corners.map((c) => c[1])) > C.length);
     expect(wires.map((f) => Math.round((f.corners[0][0] + f.corners[1][0]) / 2)).sort()).toEqual([-2, 2]);
     expect(courseOf({ feel: MOMENTUM }, { slots: 6, dress: 'rail-yard' }).faces.filter((f) => f.group === 'scenery:overhead')).toEqual([]);
+  });
+});
+
+describe('beyond the walls: layers behind, and a train that moves', () => {
+  it('two houses a slice a side in the mid role, a viaduct along the left, a train on it the page slides the other way', () => {
+    const beyond = C.faces.filter((f) => f.group === 'scenery:beyond'), train = C.faces.filter((f) => f.group === 'scenery:train');
+    expect(beyond.length).toBeGreaterThan(C.scenery.cells.length * 2 * 3);
+    // (all of it behind the walls: further off the way than any slice reaches)
+    expect(beyond.every((f) => f.corners.every((p) => Math.abs(p[0]) >= 4.8 + 7.5))).toBe(true);
+    expect(train.length).toBeGreaterThan(20);
+    expect(train.every((f) => f.corners.every((p) => p[0] < 0 && p[2] > 5))).toBe(true);
+    const [mv] = C.scenery.movers;
+    expect(mv).toMatchObject({ group: 'scenery:train', loop: true, basePos: [0, 0, 0] });
+    expect(mv.path[1][1]).toBeLessThan(-C.length);   // toward the start: against the runner
+    expect(mv.period).toBeGreaterThan(8);
+    // (a made level carries it for the page's mover; a theme with nothing beyond has neither)
+    expect(obstacleStage({ feel: MOMENTUM }, { slots: 6 }).sceneryMovers).toEqual(C.scenery.movers);
+    const plain = courseOf({ feel: MOMENTUM }, { slots: 6, dress: 'rail-yard' });
+    expect(plain.faces.filter((f) => /beyond|train/.test(f.group))).toEqual([]);
+    expect(plain.scenery.movers).toEqual([]);
+    expect(obstacleStage({ feel: MOMENTUM }, { slots: 6, dress: 'rail-yard' }).sceneryMovers).toBeUndefined();
   });
 });
 
@@ -162,7 +183,7 @@ describe('the course sheet: the layers seen together', () => {
 });
 
 describe('in the design loop: the room, its map and its sheet wear the level\'s dress', () => {
-  const dress = { walls: { a: 'stacks' }, palette: { flank: '#3b4a3f' } };
+  const dress = { walls: { a: 'stacks', b: 'fence' }, palette: { flank: '#3b4a3f' } };
   const world = (extra = {}) => ({ id: 'dash', name: 'Dash', feel: MOMENTUM, roll: true, levels: { one: { name: 'A', obstacles: { slots: 6, dress } }, two: { name: 'B', obstacles: true } }, start: 'one', ...extra });
 
   it('the first course level\'s, or the one named; the readout says its layers and where its sheet is', () => {
@@ -172,7 +193,7 @@ describe('in the design loop: the room, its map and its sheet wear the level\'s 
     expect(rollRoom(world()).course.dress.walls.a.id).toBe('stacks');
     expect(rollRoom(world(), { level: 'two' }).course.dress.walls.a.id).toBe('platform');
     const M = rollRoomMeasured(world());
-    expect(M.dress).toMatchObject({ theme: 'last-train', own: true, walls: { a: 'Container stacks', b: 'The cutting' }, backdrop: 'The terminus', sheet: 'bible?book=practice&room=roll&view=sheet', lost: [] });
+    expect(M.dress).toMatchObject({ theme: 'last-train', own: true, walls: { a: 'Container stacks', b: 'Fence and embankment' }, backdrop: 'The terminus', sheet: 'bible?book=practice&room=roll&view=sheet', lost: [] });
     expect(M.dress.says).toHaveLength(9);
     // (kept by the dress as well as the feel: a world with another dress is measured anew)
     expect(rollRoomMeasured({ ...world(), levels: { one: { obstacles: { dress: { palette: { far: '#101010' } } } } } }).dress.lost).toEqual(['receding']);

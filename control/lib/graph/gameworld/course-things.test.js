@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { courseOf, courseAudit, courseOfLevel, blockLen, PRIMITIVES, LANES } from './roll-course.js';
 import { DRESS_THEMES, dressOf } from './course-dress.js';
-import { askDrawing, jumpTell, steerTell, endDrawing, castShadow, ASK_THINGS } from './course-things.js';
+import { askDrawing, jumpTell, steerTell, endDrawing, castShadow, chunk, ASK_THINGS } from './course-things.js';
 import { courseSheetHtml } from './course-sheet.js';
 import { readRoll, rolledIds } from '../game/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
@@ -32,6 +32,7 @@ describe('an ask is drawn as the thing it is, over the box that is met', () => {
     for (const id of C.prims) {
       const b = block(id), P = PRIMITIVES[id];
       expect(b.form).toBe('crate');
+      expect(b.bare).toBe(true);   // met as its box, drawn as the thing
       expect(b.size).toEqual([P.ask === 'steer' ? 4 : 6.6, C.lens[id], P.h]);
       const drawn = b.marks.filter((m) => m.corners.some((c) => c[2] > 0.05) && m.corners.every((c) => c[1] >= b.at[1] - b.size[1] / 2 - 0.05));
       expect(drawn.length, id).toBeGreaterThan(4);
@@ -45,27 +46,38 @@ describe('an ask is drawn as the thing it is, over the box that is met', () => {
     const read = readRoll(C.roll, { blocks: C.blocks }), B = standBlocks(C.blocks, { rolled: rolledIds(read) });
     expect(Object.keys(B.things)).toHaveLength(C.blocks.length);
     expect(B.faces.every((f) => /^roll:s\d+-/.test(f.group))).toBe(true);
+    // (a bare block draws no box of its own: every face of it is one of its marks)
+    expect(B.faces).toHaveLength(C.blocks.reduce((n, b) => n + b.marks.length, 0));
     expect(B.things['s1-posts-left'].max[1] - B.things['s1-posts-left'].min[1]).toBeCloseTo(C.lens['posts-left'], 2);
   });
 
-  it('a barrier is striped, crates are five, wagons are two with a gap, a lamp and a roof each', () => {
-    const box = { x0: -3.3, x1: 3.3, y0: 10, y1: 10.7, h: 0.75 };
-    expect(askDrawing('barrier', box, col).filter((m) => m.fill === col['tell-jump'] && m.corners.every((c) => Math.abs(c[1] - (10 - 0.012)) < 1e-6))).toHaveLength(5);
-    // (five crates: a stencil and a brace each, every other one a shade deeper, six gaps)
-    const K = askDrawing('crates', { ...box, y1: 11.4, h: 1 }, col);
+  it('chunky and specific: a striped board on feet, five crates with daylight between, two wagons with a face each', () => {
+    const box = { x0: -3.3, x1: 3.3, y0: 10, y1: 10.7, h: 0.75 }, front = (m) => m.corners.every((c) => Math.abs(c[1] - m.corners[0][1]) < 1e-6);
+    const Bz = askDrawing('barrier', box, col);
+    expect(Bz.filter((m) => m.fill === col['tell-jump'] && front(m))).toHaveLength(5);                 // the board's stripes
+    expect(new Set(Bz.filter((m) => m.corners.every((c) => c[2] <= 0.4 + 1e-9) && front(m) && m.corners.some((c) => c[2] === 0)).map((m) => m.corners[0][0].toFixed(2))).size).toBe(3);   // three feet
+    // (five crates: a stencil and a brace each; nothing is drawn in the gaps between them)
+    const K = askDrawing('crates', { ...box, y1: 11.4, h: 1 }, col), w = 6.6 / 5;
     expect(K.filter((m) => m.fill === col['tell-jump'])).toHaveLength(5);
-    expect(K.filter((m) => new Set(m.corners.map((c) => c[0].toFixed(3))).size === 4)).toHaveLength(5);
-    expect(K.filter((m) => m.fill === col.iron && m.corners.every((c) => c[2] <= 1 && c[1] < 10))).toHaveLength(6);
+    expect(K.filter((m) => new Set(m.corners.map((c) => c[0].toFixed(3))).size === 4 && front(m))).toHaveLength(5);
+    for (let i = 1; i < 5; i++) expect(K.some((m) => m.corners.some((c) => Math.abs(c[0] - (-3.3 + i * w)) < 0.05))).toBe(false);
     const W = askDrawing('wagon', { x0: -1, x1: 3, y0: 10, y1: 13.2, h: 3 }, col);
-    expect(W.filter((m) => m.fill === col.lamp)).toHaveLength(2);
-    expect(W.some((m) => m.fill === col.iron && m.corners.every((c) => Math.abs(c[0] - 1) < 0.12))).toBe(true);
+    expect(W.filter((m) => m.fill === col.lamp)).toHaveLength(4);                                          // two headlamps a wagon
+    expect(W.filter((m) => m.corners.length === 4 && front(m) && m.corners.every((c) => c[2] > 1.6 && c[2] < 2.5) && m.fill !== col['tell-steer'])).toHaveLength(2);   // a windscreen each
+    expect(W.some((m) => m.corners.some((c) => Math.abs(c[0] - 1) < 0.1))).toBe(false);                    // daylight between them
     expect(askDrawing('nothing', box, col)).toEqual([]);
+    // (a chunk: a bevelled box in three tones, the top lit, the face toward the runner in shade)
+    const Cq = chunk(0, 2, 0, 1, 0, 1, '#808080', 0.2), tone = (m) => parseInt(m.fill.slice(1, 3), 16);
+    expect(Cq).toHaveLength(7);
+    expect(tone(Cq[3])).toBeGreaterThan(tone(Cq[1]));
+    expect(tone(Cq[1])).toBeGreaterThan(tone(Cq[0]));
+    expect(chunk(0, 2, 0, 1, 0, 1, '#808080')).toHaveLength(4);
     // (under a sun ahead: a shadow thrown toward the runner as long as the thing is tall, its face in shade, its top lit)
     const lit = askDrawing('barrier', box, col, { sun: 'ahead' }), sh = lit[0];
     expect(sh).toEqual(castShadow({ x0: box.x0, x1: box.x1, y0: box.y0, h: box.h }, col));
     expect(Math.min(...sh.corners.map((c) => c[1]))).toBeCloseTo(box.y0 - 1.15 * box.h, 5);
     expect(sh.corners.every((c) => c[2] < 0.05)).toBe(true);
-    expect(lit.length).toBe(askDrawing('barrier', box, col).length + 3);
+    expect(lit.length).toBe(askDrawing('barrier', box, col).length + 1);
     expect(block('hurdle').marks).toContainEqual(castShadow({ x0: -3.3, x1: 3.3, y0: C.slots[0].y, h: 0.75 }, col));
     for (const m of [...askDrawing('barrier', box, col), ...W]) expect(m.fill).toMatch(/^#[0-9a-f]{6}$/);
   });

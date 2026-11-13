@@ -1081,6 +1081,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // the level's ROLL (game/roll.js): what its seed picks on it (its cover, its items, its start), in the runtime's
     // shape; the page carries the roll's engine only then. Absent ⇒ byte-identical.
     if (rolls) payload.roll = { ...(rolls.cover ? { cover: rolls.cover } : {}), ...(rolls.pattern ? { pattern: rolls.pattern } : {}), ...(rolls.cover || rolls.pattern ? { things: rolledThings } : {}), ...(rolls.items || rolls.with ? { items: rolls.items ?? [], ...(rolls.with ? { with: rolls.with } : {}), at: Object.fromEntries(pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics).map((p) => [p.zone, p.at])) } : {}), ...(rolls.start ? { start: rolls.start } : {}) };
+    // what moves in a level's scenery (gameworld/course-scenery.js: a train along its viaduct): the mover channel's own rows. Absent ⇒ nothing
+    if (Array.isArray(sketch.manifest.sceneryMovers) && sketch.manifest.sceneryMovers.length) payload.movers = [...(payload.movers || []), ...sketch.manifest.sceneryMovers];
     // the level's in-play HUD on mana-ui (scene/channels/mana-hud.js): its spec, its theme, what it reads. Absent ⇒ not a byte
     if (sketch.manifest.manaHud) payload.manaHud = sketch.manifest.manaHud;
     // hangar: the non-combat suit-stepper menu — an ordered list of

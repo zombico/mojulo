@@ -175,6 +175,16 @@ in `course-scenery.js`); the coins are laid with each ask (the roll's `with`); t
 (`course-view.js COURSE_NEAR`, a tall frame's `COURSE_TALL_FOV`). A light way does not break the gate: an ask is
 read by its colour and by being darker than the ground, where on a dark way it was read by being lighter.
 
+Three more, built on Last train:
+
+- **Chunky and specific.** A thing is drawn whole inside the box that is met, built of bevelled chunks, and has a
+  face: the wagons a windscreen, headlamps and a number board; the barrier a board on feet; the crates daylight
+  between them. One collider a thing, as before.
+- **Layers at the sides.** The wall (with things on it and hung over its edge), then the town behind it (the `mid`
+  role), then the far skyline. One row of slices reads as a set; three depths read as a place.
+- **Something moves.** A train crosses the viaduct the other way. Motion beside the way that is not the way's own
+  says the world goes on without the runner.
+
 A frame grade that adds contrast and saturation (`grade: 'vivid'`) burns a pale way white. A daylight dress wants
 none, or a gentle one.
 

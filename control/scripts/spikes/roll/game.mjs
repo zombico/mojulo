@@ -133,8 +133,10 @@ for (let k = 0; k < maps; k++) {
     if (!shot && S.y > obs[1].y0 - 12) { shot = true; await page.screenshot({ path: path.join(out, `map-${seed}.png`) }); }
     if (shot && !S.endShot && S.y > course.exit[1] - 26) { await page.screenshot({ path: path.join(out, `map-${seed}-end.png`) }); await level()?.evaluate(() => { window.__bot.endShot = true; }); }
   }
+  // (what moves beside the way: where the train's group stands now, read twice)
+  const train = await (async () => { try { const at = () => level()?.evaluate(() => { const st = window.__mojMoverState && window.__mojMoverState(); const m = typeof meshes !== 'undefined' && meshes['scenery:train']; return m ? +m.position.y.toFixed(1) : null; }); const a = await at(); await wait(400); return [a, await at()]; } catch { return null; } })();
   const hud = await (async () => { try { return await level()?.evaluate(() => (window.__mojHud ? { coins: window.__mojHud.state.coins.count, run: window.__mojHud.state.run, course: window.__mojHud.state.course, stamina: +window.__mojHud.state.hero.stamina.toFixed(1), hint: window.__mojHud.state.hint.show, moments: window.__mojHud.state.moments.map((m) => m.text) } : null)); } catch { return null; } })();
-  plays.push({ map: k + 1, seed, cue: cueUp, hud, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
+  plays.push({ map: k + 1, seed, cue: cueUp, train, hud, asks: obs.map((o) => o.id).join(' '), stands: same.split(' ').length, finished: !!S?.done, reached: S?.y && +S.y.toFixed(1), x: S?.x !== undefined ? +S.x.toFixed(2) : null, of: course.exit[1], seconds: S?.seconds && +S.seconds.toFixed(1), hits: S?.hits, retries: S?.retries ?? 0, wall: S?.wall && +S.wall.toFixed(1), fps: S?.wall ? Math.round(S.frames / S.wall) : null });
   await wait(2500);
   plays[plays.length - 1].after = await text(); plays[plays.length - 1].said = await page.evaluate(() => window.__msgs.splice(0).join(' '));
   if (k < maps - 1) plays[plays.length - 1].clicked = await click('next|continue|on');

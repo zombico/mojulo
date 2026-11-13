@@ -1,8 +1,8 @@
 /**
  * WHAT A COURSE'S THINGS ARE — the shapes a theme's premise gives a rolled course's asks, their tells and its end
  * (course-dress.js DRESS_THEMES: a theme with a premise names a thing for each; one with none stands plain boxes and
- * paints plain marks). A shape here is DRAWING over the thing the course was measured with: the ask's box is still
- * the box that is met, the tell still lies exactly where the course was sized, and every colour is a role's.
+ * paints plain marks). A shape here is the thing DRAWN WHOLE inside the box the course was measured with (the box
+ * itself is met and not drawn): the ask's box is still the box that is met, the tell still lies exactly where the course was sized, and every colour is a role's.
  *
  *   ASKS    barrier   a striped crossing barrier across the whole way (a hurdle)
  *           crates    a row of crates left across the line (a block)
@@ -13,7 +13,8 @@
  *   END     terminus  a signal gantry over the exit showing clear on every track, the train shed over the end of the
  *                     line (seen from the start: its ribs, its lit board), buffer stops, and the train waiting
  *
- *   askDrawing(thing, box, palette)                  → [{ corners, fill }]   drawn with the ask (its roll group)
+ *   chunk(x0, x1, y0, y1, z0, z1, fill, bevel?)      → faces: a bevelled box in three tones, what things are built of
+ *   askDrawing(thing, box, palette, { sun? })        → [{ corners, fill }]   the ask drawn whole (its roll group)
  *   jumpTell(tell, { ya, yb, half }, palette)        → [{ corners, fill }]
  *   steerTell(tell, { ys, to, lanes, half }, palette) → [{ corners, fill }]  (ys: where a two-lane change begins, and half way)
  *   endDrawing(end, { exit, length, half, lanes }, palette) → [{ corners, fill }]
@@ -38,46 +39,62 @@ export const ASK_THINGS = Object.freeze({ barrier: 'jump', crates: 'jump', wagon
  * It says how tall a thing is and where it stands before its colour is read. */
 export const castShadow = ({ x0, x1, y0, h }, col, z = 0.012) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1 + 0.18 * h, y0 - 1.15 * h, z], [x0 + 0.18 * h, y0 - 1.15 * h, z]], fill: shade(col.ground, 0.66) });
 
+// A CHUNK: a box with its top's edges bevelled by `c`, drawn in the tones a low sun ahead gives it (the top lit, the
+// bevels catching the light, the face toward the runner in shade, the sides between). What a thing is built of.
+export function chunk(x0, x1, y0, y1, z0, z1, fill, c = 0) {
+  c = Math.max(0, Math.min(c, (x1 - x0) / 2 - 0.01, (y1 - y0) / 2 - 0.01, z1 - z0 - 0.01));
+  const T = (k) => shade(fill, k), zc = z1 - c, out = [];
+  out.push(face(x0, x1, y0, z0, zc, T(0.74)), side(x0, y0, y1, z0, zc, T(0.9)), side(x1, y0, y1, z0, zc, T(0.9)), flat(x0 + c, y0 + c, x1 - c, y1 - c, z1, T(1.16)));
+  if (c > 0) {
+    out.push({ corners: [[x0, y0, zc], [x1, y0, zc], [x1 - c, y0 + c, z1], [x0 + c, y0 + c, z1]], fill: T(0.98) });
+    out.push({ corners: [[x0, y0, zc], [x0, y1, zc], [x0 + c, y1 - c, z1], [x0 + c, y0 + c, z1]], fill: T(1.06) });
+    out.push({ corners: [[x1, y0, zc], [x1, y1, zc], [x1 - c, y1 - c, z1], [x1 - c, y0 + c, z1]], fill: T(1.06) });
+  }
+  return out;
+}
+
+/**
+ * An ask drawn WHOLE as the thing it is, inside the box that is met (the box itself is not drawn: a `bare` block).
+ * Chunky and specific: built of bevelled chunks a hand could hold, each thing with a face. { sun } throws its shadow.
+ */
 export function askDrawing(thing, { x0, x1, y0, y1, h }, col, { sun = null } = {}) {
   const out = [], f = y0 - E;
-  // THREE TONES under a sun ahead: the top lit, the face toward the runner in shade, the shadow thrown before it
-  if (sun === 'ahead' && ASK_THINGS[thing]) {
-    const base = thing === 'wagon' ? col.steer : thing === 'crates' ? col.jump2 : col.jump;
-    out.push(castShadow({ x0, x1, y0, h }, col), face(x0, x1, y0 - E / 3, 0, h, shade(base, 0.74)), flat(x0, y0, x1, y1, h + E / 3, shade(base, 1.16)));
-  }
+  if (!ASK_THINGS[thing]) return out;
+  if (sun === 'ahead') out.push(castShadow({ x0, x1, y0, h }, col));
   if (thing === 'barrier') {
-    // stripes down its face and across its top, and a foot at each end and between the tracks
-    const n = 11, w = (x1 - x0) / n;
-    for (let i = 1; i < n; i += 2) { out.push(face(x0 + i * w, x0 + (i + 1) * w, f, 0.18, h, col['tell-jump'])); out.push(flat(x0 + i * w, y0, x0 + (i + 1) * w, y1, h + E, col['tell-jump'])); }
-    out.push(face(x0, x1, f - E, 0, 0.18, col.iron));
+    // a striped board on three splayed feet, a rail under it
+    const by0 = y0 + 0.16, by1 = y1 - 0.16, n = 11, w = (x1 - x0) / n;
+    for (const x of [x0 + 0.5, (x0 + x1) / 2, x1 - 0.5]) out.push(...chunk(x - 0.16, x + 0.16, y0, y1, 0, 0.4, col.iron, 0.05));
+    out.push(...chunk(x0 + 0.2, x1 - 0.2, by0 + 0.06, by1 - 0.06, 0.14, 0.26, col.iron));
+    out.push(...chunk(x0, x1, by0, by1, 0.36, h, col.jump, 0.07));
+    for (let i = 1; i < n; i += 2) { out.push(face(x0 + i * w, x0 + (i + 1) * w, by0 - E, 0.36, h - 0.07, col['tell-jump'])); out.push(flat(x0 + i * w, by0 + 0.07, x0 + (i + 1) * w, by1 - 0.07, h + E, col['tell-jump'])); }
   } else if (thing === 'crates') {
-    // five crates side by side: the gaps between them, a batten round each, a stencilled mark
-    // (each a framed panel with a brace across it, every other one a shade deeper, wide gaps between: read as boxes
-    // from far off, where a row of seams reads as a wall)
-    const n = 5, w = (x1 - x0) / n, dark = shade(col.jump2, 0.5), deep = shade(col.jump2, 0.8), g = 0.07, t = 0.11;
-    for (let i = 0; i <= n; i++) { const x = Math.min(x1 - g, Math.max(x0, x0 + i * w - g / 2)); out.push(face(x, x + g, f - E, 0, h, col.iron)); out.push(flat(x, y0, x + g, y1, h + 2 * E, col.iron)); }
+    // five crates with daylight between them, every other one a little lower and set back, each framed and braced
+    const n = 5, w = (x1 - x0) / n, g = 0.07, t = 0.11, dark = shade(col.jump2, 0.5);
     for (let i = 0; i < n; i++) {
-      const a = x0 + i * w + g / 2, b = x0 + (i + 1) * w - g / 2, lean = i % 2 ? -1 : 1;
-      if (i % 2) out.push(face(a, b, f + E / 2, 0, h, deep), flat(a, y0, b, y1, h + E, deep));
-      out.push(face(a, b, f, 0, t, dark), face(a, b, f, h - t, h, dark), face(a, a + t, f, 0, h, dark), face(b - t, b, f, 0, h, dark));
-      // the brace, corner to corner
-      const [p, q] = lean > 0 ? [a + t, b - t] : [b - t, a + t], s = lean * t * 1.2;
-      out.push({ corners: [[p, f, t], [p + s, f, t], [q, f, h - t], [q - s, f, h - t]], fill: dark });
-      out.push(face((a + b) / 2 - 0.2, (a + b) / 2 + 0.2, f - E, h * 0.4, h * 0.6, col['tell-jump']));
+      const odd = i % 2, a = x0 + i * w + g, b = x0 + (i + 1) * w - g, top = odd ? h - 0.14 : h, yf = y0 + (odd ? 0.12 : 0), fy = yf - E;
+      out.push(...chunk(a, b, yf, y1 - (odd ? 0 : 0.1), 0, top, odd ? shade(col.jump2, 0.86) : col.jump2, 0.05));
+      out.push(face(a, b, fy, 0, t, dark), face(a, b, fy, top - 0.05 - t, top - 0.05, dark), face(a, a + t, fy, 0, top - 0.05, dark), face(b - t, b, fy, 0, top - 0.05, dark));
+      const [p, q] = odd ? [b - t, a + t] : [a + t, b - t], sgn = odd ? -1 : 1;
+      out.push({ corners: [[p, fy, t], [p + sgn * t * 1.2, fy, t], [q, fy, top - 0.05 - t], [q - sgn * t * 1.2, fy, top - 0.05 - t]], fill: dark });
+      out.push(face((a + b) / 2 - 0.2, (a + b) / 2 + 0.2, fy - E, top * 0.4, top * 0.6, col['tell-jump']));
     }
   } else if (thing === 'wagon') {
-    // two wagons end-on, one a track: the gap between them, underframes and buffers, an end door, a roof, lamps
-    const mid = (x0 + x1) / 2, deep = shade(col.steer, 0.62), roof = shade(col.steer, 0.5);
-    out.push(face(mid - 0.11, mid + 0.11, f, 0, h, col.iron), flat(mid - 0.11, y0, mid + 0.11, y1, h + E, col.iron));
-    for (const [a, b] of [[x0, mid - 0.11], [mid + 0.11, x1]]) {
+    // two wagons end-on, one a track, daylight between: a round-shouldered body on an underframe and wheels, and a
+    // FACE toward the runner: a windscreen with the sky in it, two headlamps, a number board, a buffer beam
+    const mid = (x0 + x1) / 2, glass = shade(col.steer, 0.36);
+    for (const [a, b] of [[x0, mid - 0.12], [mid + 0.12, x1]]) {
       const c = (a + b) / 2;
-      out.push(face(a, b, f, 0, 0.62, col.iron));
-      out.push(face(a + 0.14, a + 0.44, f - E, 0.72, 1.0, col.trim), face(b - 0.44, b - 0.14, f - E, 0.72, 1.0, col.trim));
-      out.push(face(c - 0.42, c + 0.42, f, 0.78, h - 0.5, deep), face(c - 0.03, c + 0.03, f - E, 0.78, h - 0.5, col.iron));
-      out.push(face(a, b, f, h - 0.26, h, roof), flat(a, y0, b, y1, h + E, roof));
-      out.push(face(c - 0.12, c + 0.12, f - E, h - 0.5, h - 0.3, col.lamp));
+      for (const wx of [a + 0.28, b - 0.28]) out.push(...chunk(wx - 0.16, wx + 0.16, y0 + 0.2, y0 + 0.95, 0, 0.44, col.iron));
+      out.push(...chunk(a + 0.1, b - 0.1, y0 + 0.1, y1, 0.2, 0.64, col.iron));
+      out.push(...chunk(a, b, y0, y1, 0.64, h, col.steer, 0.34));
+      out.push(...chunk(a + 0.06, b - 0.06, y0, y0 + 0.14, 0.52, 0.76, col.trim, 0.03));
+      out.push(face(a + 0.24, b - 0.24, f, 1.66, 2.46, glass), { corners: [[a + 0.36, f - E, 1.78], [a + 0.62, f - E, 1.78], [a + 0.98, f - E, 2.36], [a + 0.72, f - E, 2.36]], fill: col['tell-steer'] });
+      out.push(face(a + 0.2, a + 0.5, f, 0.9, 1.16, col.lamp), face(b - 0.5, b - 0.2, f, 0.9, 1.16, col.lamp));
+      out.push(face(c - 0.3, c + 0.3, f, 1.2, 1.5, col.trim), face(c - 0.22, c + 0.22, f - E, 1.27, 1.43, col.iron));
+      out.push(side(a - E, y0, y1, 1.24, 1.44, col['tell-steer']), side(b + E, y0, y1, 1.24, 1.44, col['tell-steer']));
+      out.push(...chunk(c - 0.3, c + 0.3, y0 + 0.9, y0 + 1.7, h - 0.34, h - 0.12, shade(col.steer, 0.6), 0.04));
     }
-    for (const x of [x0 - E, x1 + E]) out.push(side(x, y0, y1, 0, 0.62, col.iron), side(x, y0, y1, h - 0.26, h, roof));
   }
   return out;
 }
