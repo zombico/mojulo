@@ -851,6 +851,7 @@ function __updateGearLines() {
   // parts carry their normals where its form writes them, else its mesh's own) and carrying a rig is drawn with the cast
   // material, lit by the page's one sun, its sky and its rim its own; no baked rim over it. Absent, the page carries none
   const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
+  const figHasResp = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && Array.isArray(f.response) && f.response.length);
   const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)${figHasCast ? ' && !fig.cast' : ''}) __rimPatch(mesh, fig.rim);` : '';
   // toon ink (toon-shading Phase 4b): outline every rig PART when the world's toon dial asks for
   // ink — the hull + crease lines are children of the bone mesh, so they pose with the bone and
@@ -1330,13 +1331,32 @@ function __makeSkinGroup(fig, b, group) {
 ` : ''}${figHasCast ? `// the cast rig's material for a figure's parts: one set of the rig's uniforms a figure (../cast-rig.js)
 ${figHasForm ? '' : `const castKit = ${castKitSource()};
 `}const __castU = new Map();
-function __castMat(fig, o) {
+${figHasResp ? `// how each of a body's materials answers the light (color-theorist/cast-response.js, a figure's \`response\`): a corner's
+// class read off its own colour, the nearest of the figure's palette, as two bytes a corner (its roughness, its metal)
+function __castMR(fig, c, n) {
+  // (a corner's colour is linear light and may stand a shade under its group's, in a fold or a hollow: so the class is
+  // the palette colour nearest in HUE, each compared as its share of its own sum, the level a tie's breaker)
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const R = fig.__resp || (fig.__resp = fig.response.map((p) => { const a = lin(p[0]), b = lin(p[1]), d = lin(p[2]), t = a + b + d + 1e-4; return [a / t, b / t, d / t, t, p[3], p[4]]; }));
+  const out = new Uint8Array(n * 2); let last = 0, lr = -1, lg = -1, lb = -1;
+  for (let i = 0; i < n; i++) {
+    const r = c[i * 3], g = c[i * 3 + 1], b = c[i * 3 + 2];
+    if (r !== lr || g !== lg || b !== lb) {
+      lr = r; lg = g; lb = b;
+      const t = (r + g + b) / 255 + 1e-4, x = r / 255 / t, y = g / 255 / t, z = b / 255 / t; let best = 1e9;
+      for (let k = 0; k < R.length; k++) { const p = R[k], d = (p[0] - x) * (p[0] - x) + (p[1] - y) * (p[1] - y) + (p[2] - z) * (p[2] - z) + 0.02 * (p[3] - t) * (p[3] - t); if (d < best) { best = d; last = k; } }
+    }
+    out[i * 2] = R[last][4]; out[i * 2 + 1] = R[last][5];
+  }
+  return out;
+}
+` : ''}function __castMat(fig, o) {
   let U = ${place ? '__castNow ? (__castNow.U || (__castNow.U = castKit.uniforms(fig.cast))) : ' : ''}__castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }
-  const m = castKit.material(fig.cast, Object.assign({ surface: fig.cast.surface || 'paint', uniforms: U }, o));
+  const m = castKit.material(fig.cast, Object.assign({ surface: fig.cast.surface || 'paint', uniforms: U${figHasResp ? ', response: Array.isArray(fig.response)' : ''} }, o));
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast }) : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -1365,7 +1385,8 @@ function __castMat(fig, o) {
     if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}${figHasFace ? `
     if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
-    if (fig.cast) { if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }` : ''}
+    if (fig.cast) { if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
+    if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
     geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `

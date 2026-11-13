@@ -150,3 +150,8 @@
 - Day and night for a land's buildings are told by the land's light (a sun clear of the horizon under a sky that gives
   light, or the moon): by night the floods are lit and their heads glow, the rooms' lamps stand at their full level and
   the moon's patches through the windows are faint; by day the floods' heads are dark.
+- The cast's materials told apart by how they answer the light (`color-theorist/cast-response.js`): a hero read lit
+  says each of its palette's groups' class (skin, hair, an eye, cloth, leather, metal: a roughness and whether it is
+  metal), and under the cast rig each corner takes its class off its own colour: cloth is matte, skin takes a soft
+  highlight, an eye a wet one, leather a worn sheen, a metal the rig's sky in its own colour. No map, no new geometry;
+  a body with a painted texture, and the cel register, are as they were.

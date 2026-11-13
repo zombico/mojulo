@@ -90,4 +90,15 @@ describe('a vehicle\'s form body under the cast rig', () => {
     expect(placed).toContain(JSON.stringify(PLACE));
     expect(() => new Function(placed.replace(/\bimport\b/g, '__imp'))).not.toThrow();
   });
+
+  // HOW ITS MATERIALS ANSWER (a figure's `response`, color-theorist/cast-response.js): a corner's class read off its
+  // colour; a figure that says nothing of it is one material, and the page carries none of the reader
+  it('a figure that says how its materials answer brings the reader; without, none of it', () => {
+    const lit = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) });
+    const resp = controllableChannelScript(ent, null, { p: fig({ cast: CAST, response: [[217, 167, 126, 133, 0], [141, 145, 151, 87, 255]] }) });
+    expect(lit).not.toContain('__castMR');
+    expect(resp).toContain('function __castMR(fig, c, n)');
+    expect(resp).toContain("geo.setAttribute('aMR'");
+    expect(resp).toContain('response: Array.isArray(fig.response)');
+  });
 });

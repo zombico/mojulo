@@ -249,7 +249,10 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // (its FACE, the realistic hero's: each state's facial track the clip's it plays, the ambient blink over a state its
   // clip let it play over; a library's clip has no track and takes the ambient blink)
   const face = pack.face?.tracks ? stateFace(pack.face, pack.clips, clips) : null;
-  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}) };
+  // (read lit, a body whose colour is its palette's own (no painted texture) says how each of its materials answers the
+  // light: color-theorist/cast-response.js; the page reads a corner's class off its colour)
+  const response = lit && !pack.paintTex && manifest && manifest.recipe && manifest.recipe.palette ? (await import('@/lib/graph/color-theorist/cast-response.js')).castResponse(manifest.recipe.palette) : null;
+  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
 }
 
 /**
