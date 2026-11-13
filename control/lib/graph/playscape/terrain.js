@@ -194,3 +194,18 @@ export function standBlocks(asks, { seed = 1, rolled = null } = {}) {
   });
   return { faces, colliders, ...(rolled ? { things } : {}) };
 }
+
+/** The ground under a walker from the colliders as they stand NOW (a broken slab drops it): the highest top at or below its feet. */
+export function groundOf(colliders, floor = 0) {
+  return (pos) => {
+    let g = floor;
+    for (const c of colliders || []) if (pos[0] >= c.min[0] && pos[0] <= c.max[0] && pos[1] >= c.min[1] && pos[1] <= c.max[1] && c.max[2] <= pos[2] + 1e-6) g = Math.max(g, c.max[2]);
+    return g;
+  };
+}
+
+/** A broken block's pieces, from the destruct primitives (cleave): a shatter by default. */
+export function blockPieces(block, { pattern = 'voronoi', count = 4, seed = 1, value = 0.62 } = {}) {
+  const rec = boxRecord(block, value);
+  return cleave({ blocks: [rec], frame: { at: rec.c, N: [0, -1, 0], U: [1, 0, 0] } }, { pattern, count, seed });
+}
