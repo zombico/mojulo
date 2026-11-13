@@ -13,3 +13,12 @@ game.
   acting style and its role come with it. Anything the scene says for that part wins.
 - **The director's notes come back with the film**, such as a shot held too long or a speaker turned away from whom
   they're talking to. Each comes with a change to the script that answers it. They never stop the film.
+- **See the film before it is made: a storyboard.** Ask for a scene and the first thing back is its storyboard, in
+  seconds, with nothing rendered. There is a panel for each shot the director would take, drawn as a sketch with
+  stand-in figures where the actors stand and seen from that shot's camera. Beside each panel is a plan of the room
+  from above, showing where everyone stands, the path they walk and where the camera is. Under it are the shot's name,
+  how long it holds, its lens, whether the camera moves, the lines spoken in it and any director's note about it. Look
+  through the cut there before the film is made: the film is made from the same plan, so what you approve is what you
+  get.
+- **An animatic.** Ask for a video and the storyboard is played as one: each panel held for as long as its shot lasts,
+  with the line being spoken shown under it. Several scenes' animatics can be stitched into one cut.

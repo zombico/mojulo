@@ -1,11 +1,11 @@
 ---
 {
   "id": "scene-film",
-  "name": "Scene film (a screenplay acted, shot by its coverage, filmed in Blender)",
+  "name": "Scene film (a screenplay acted, shot by its coverage, storyboarded, filmed in Blender)",
   "family": "motion",
   "entry": "forge_motion",
-  "summary": "A SCENE written as a screenplay, acted by its cast (personas or heroes), shot the way a director covers it, and handed to Blender as a film pack: each actor a skinned GLB with its performance, the cameras cut together, a film (Cycles) or anime (EEVEE) look.",
-  "when": "Reach for this on 'a short film of my two characters talking / shoot this scene / film the dialogue / an animated short / render the conversation in Blender / a scene with my personas / Cycles render of the scene'."
+  "summary": "A SCENE written as a screenplay, acted by its cast (personas or heroes) and shot the way a director covers it: first a STORYBOARD (a panel a shot, drawn with stand-ins, in seconds) and its ANIMATIC, then the film from the same plan, handed to Blender as a film pack: each actor a skinned GLB with its performance, the cameras cut together, a film (Cycles) or anime (EEVEE) look.",
+  "when": "Reach for this on 'a short film of my two characters talking / storyboard this scene / an animatic / shoot this scene / film the dialogue / an animated short / render the conversation in Blender / a scene with my personas / Cycles render of the scene'."
 }
 ---
 
@@ -16,7 +16,7 @@ style, blocked on one clock, shot by the director's coverage. The pack is writte
 ## Forge
 
 ```
-forge_motion({ title: 'The key', export: 'blender',
+forge_motion({ title: 'The key', export: 'storyboard',
   subject: { screenplay: {
     marks: { door: [-1.3, 0.2], window: [1.1, 0.7], table: [0.1, 0.35] },
     cast: { mara: { persona: 'sk_…', mark: 'door' }, jon: { hero: 'sk_…', register: 'documentary', mark: 'window' } },
@@ -49,7 +49,27 @@ forge_motion({ title: 'The key', export: 'blender',
 
   `shot.fps` defaults to 24.
 
-## What comes back
+## The three forms (`export`), cheapest first
+
+- `storyboard` (the default): no mint, no Blender, seconds. `storyboard.page` is one page with a panel for each shot
+  of the coverage. Each panel has:
+  - its frame, drawn by the book press with stand-in mannequins where the actors stand at that moment, seen from the
+    shot's camera;
+  - the blocking from above, with the camera and its field of view;
+  - its span, its time on screen, its lens and its move;
+  - the lines and crosses inside it;
+  - the director's notes that fall in it.
+
+  `storyboard.json` holds the panels' data. Approve the cut here before the film is made.
+- `mp4`: the storyboard plus its ANIMATIC (`mp4_path`): each panel held for its shot's length, the spoken line under
+  it. It is a motion like any other, so `stitch_motion` cuts several scenes' animatics into one.
+- `blender`: the storyboard plus the film from the same plan, in a Blender pack. Each actor is minted, which takes
+  minutes.
+
+The stand-ins are drawn with a level eye: a high or low camera's tilt is drawn by moving the horizon, so those
+frames are close but not exact.
+
+## What comes back (blender)
 
 - `blender.dir`: the pack, `<motion>/blender/`.
   - `actors/<who>.glb`: each actor skinned, with its body's act `act:scene` and its face's take `face:scene`.
@@ -70,7 +90,8 @@ again from the recipe.
 
 ## Not yet
 
-- No web preview: the only form is the Blender pack, so a GIF or MP4 export is refused.
+- The storyboard's stand-ins are mannequins, not the cast's own bodies. Its panels cannot be edited and written back
+  to the scene yet.
 - No set: the actors stand on Blender's empty floor, at their marks.
 - No recorded voice: lines are timed from their words, and the pack carries no audio and no captions.
 - One scene per forge; cut several together in Blender's sequencer.

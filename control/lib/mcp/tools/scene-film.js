@@ -176,10 +176,35 @@ export const packTitle = (title) => String(title ?? '').toLowerCase().normalize(
 /** shot.params a screenplay takes */
 export const SCREENPLAY_PARAMS = Object.freeze(['look', 'style', 'grain', 'grade', 'hero']);
 
+/** The forms a screenplay is forged to: its storyboard (the default: no mint, seconds), the storyboard and its animatic,
+ * or the Blender film (each actor minted: minutes) */
+export const SCREENPLAY_EXPORTS = Object.freeze(['storyboard', 'mp4', 'blender']);
+
+/** The storyboard of a planned scene, written into dir: index.html (the board) and storyboard.json; with `animatic`, the
+ * board's panels held on the scene's screen clock as motion.mp4 (actor/storyboard.js) */
+export async function writeStoryboard({ dir, plan, title, fps = 24, animatic = false }) {
+  const { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg } = await import('@/lib/graph/actor/storyboard.js');
+  const heights = Object.fromEntries(Object.entries(plan.cast).filter(([, C]) => Number.isFinite(C.height)).map(([w, C]) => [w, C.height]));
+  const board = storyboardOf(plan.S, plan.coverage, { notes: plan.notes, title, fps, heights });
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, 'index.html'), storyboardHtml(board));
+  writeFileSync(path.join(dir, 'storyboard.json'), `${JSON.stringify(storyboardJson(board), null, 2)}\n`);
+  let mp4 = null;
+  if (animatic) {
+    const { encodeStitchMp4 } = await import('@/lib/motion/encode-mp4');
+    const segs = animaticSegments(board);
+    mp4 = await encodeStitchMp4(segs.map((g) => ({ frameSvgs: [animaticFrameSvg(board, g, { width: 640, height: 360 })], fps: 1 / g.seconds, title })), path.join(dir, 'motion.mp4'), { fps, width: 960, bg: '#000000' });
+  }
+  return { board, mp4 };
+}
+
 /**
- * forge_motion's SCREENPLAY family: the scene written as a Blender film pack into the motion's outcome folder
- * (`<mo_…>/blender/`), the recipe filed as every motion's is (recipe.json, a Motion Project tag and stash). The tool
- * never launches Blender: the answer names the command that builds the pack where one is found.
+ * forge_motion's SCREENPLAY family, into the motion's outcome folder, its recipe filed as every motion's is (recipe.json,
+ * a Motion Project tag and stash):
+ *   storyboard  (the default) index.html, the board: a panel a coverage shot, drawn with stand-ins; no mint, seconds
+ *   mp4         the board and its animatic (motion.mp4): each panel held its shot's length, the line under it
+ *   blender     the board and the scene as a Blender film pack (`blender/`): each actor minted, minutes
+ * The tool never launches Blender: the answer names the command that builds the pack where one is found.
  */
 export async function forgeScreenplay({ title, subject, shot, exportFormat, tagRef = null }) {
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
@@ -190,7 +215,8 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
   if (!title || typeof title !== 'string') throw new Error('title is required');
   const extraSubject = Object.keys(subject).filter((k) => k !== 'screenplay');
   if (extraSubject.length) throw new Error(`subject.screenplay is a family of its own (not with ${extraSubject.join(', ')}); a set under the scene is to come (${MANUAL})`);
-  if (exportFormat !== undefined && exportFormat !== 'blender') throw new Error(`a screenplay is filmed in Blender: export: 'blender' (a web preview of the scene is to come; ${MANUAL})`);
+  const form = exportFormat ?? 'storyboard';
+  if (!SCREENPLAY_EXPORTS.includes(form)) throw new Error(`a screenplay is forged to export: 'storyboard' (the board, the default), 'mp4' (the board and its animatic) or 'blender' (the film; not '${form}'; ${MANUAL})`);
   const S = shot ?? {};
   if (S.motion !== undefined && S.motion !== 'coverage') throw new Error(`a screenplay is shot by its coverage: shot: { motion: 'coverage' } (not '${S.motion}'; ${MANUAL})`);
   const P = S.params ?? {};
@@ -201,27 +227,28 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
   const fps = S.fps ?? 24;
   const getRow = (r) => SketchRepository.getByRef(r);
   // (refused before anything is written: the script, the cast and its refs)
-  planSceneFilm(subject.screenplay, { getRow, style: P.style ?? null, grain: P.grain ?? null });
+  const plan = planSceneFilm(subject.screenplay, { getRow, style: P.style ?? null, grain: P.grain ?? null });
 
   const ref = `mo_${randomUUID().replace(/-/g, '').slice(0, 12)}`, dir = outcomeDirFor(ref), filmDir = path.join(dir, 'blender');
-  const film = await writeSceneFilm({
+  const { board, mp4 } = await writeStoryboard({ dir, plan, title, fps, animatic: form === 'mp4' });
+  const film = form === 'blender' ? await writeSceneFilm({
     outDir: filmDir, screenplay: subject.screenplay, getRow, title: packTitle(title), style: P.style ?? null,
     grain: P.grain ?? null, grade: P.grade ?? null, fps, hero: P.hero ?? null,
-  });
+  }) : null;
   const recipe = {
     motion_ref: ref, title, subject: { screenplay: subject.screenplay },
-    shot: { motion: 'coverage', params: P, fps },
-    meta: { motion: 'coverage', fps, frames: Math.round(film.seconds * fps), durationSec: film.seconds, createdAt: Math.floor(Date.now() / 1000) },
+    shot: { motion: 'coverage', params: P, fps }, export: form,
+    meta: { motion: 'coverage', fps, frames: Math.round(board.screen * fps), durationSec: board.screen, createdAt: Math.floor(Date.now() / 1000) },
   };
   writeFileSync(path.join(dir, 'recipe.json'), JSON.stringify(recipe, null, 2));
 
   const tag = tagRef ? OpsTagRepository.getByRef(tagRef) : OpsTagRepository.forge({
     title: `Motion: ${title}`,
-    descriptorMd: `A motion project. A screenplay acted by its cast and shot by its coverage, written as a Blender film pack at ${ref}. Members: the recipe stash and the film.`,
+    descriptorMd: `A motion project. A screenplay acted by its cast and shot by its coverage: its storyboard${mp4 ? ' and animatic' : ''}${film ? ' and its Blender film pack' : ''} at ${ref}. Members: the recipe stash and the motion.`,
   });
   if (!tag) throw new Error(`tag_ref '${tagRef}' not found`);
   const stash = StashRepository.mint({ title: `Motion: ${title}` });
-  for (const w of Object.keys(film.actors)) {
+  for (const w of Object.keys(plan.S.actors)) {
     const C = subject.screenplay.cast[w] ?? {}, member = C.persona ?? (typeof C.hero === 'string' ? C.hero : null);
     if (member) StashRepository.gather({ stashRef: stash.stashRef, type: 'sketch', title: `${w} — ${title}`, metadata: { sketch_ref: member, label: `${title} · ${w}` } });
   }
@@ -230,29 +257,36 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
   OpsTagRepository.bind({ tagRef: tag.tagRef, memberKind: 'motion', memberRef: ref });
 
   const url = outcomeUrlFor(ref);
+  const notes = plan.notes.map((n) => ({ id: n.id, ...(n.at !== undefined ? { at: n.at } : {}), says: n.says, try: n.try }));
   return {
     ok: true,
     motion_ref: ref,
     tag_ref: tag.tagRef,
     stash_ref: stash.stashRef,
     url,
-    seconds: film.seconds,
+    seconds: plan.S.seconds,
+    screen_seconds: board.screen,
     frames: recipe.meta.frames,
-    shots: film.shots,
-    actors: film.actors,
-    notes: film.notes,
-    blender: {
-      dir: filmDir,
-      files: film.files.length,
-      scene_md: `${url}blender/SCENE.md`,
-      look,
-      command: `node scripts/export-scene-blender.mjs --build ${filmDir} --look ${look}`,
-      render: 'then: <blender> -b film.blend --python film_render.py -- --preset draft (EEVEE) | final (Cycles)',
-      note: 'Each actor a skinned GLB with its act and face take, the coverage\'s cameras cut at markers, the look built in Blender. Blender runs on the operator\'s machine; mojulo did not launch it.',
-    },
+    storyboard: { page: `${url}index.html`, panels: board.panels.length, json: `${url}storyboard.json` },
+    shots: board.panels.map((p) => ({ n: p.n, name: p.name, span: p.span, lens_mm: p.lens_mm, move: p.move, lines: p.lines.length, ...(p.notes.length ? { notes: p.notes.map((N) => N.id) } : {}) })),
+    ...(mp4 ? { mp4_path: `${url}motion.mp4`, animatic: { seconds: mp4.durationSec ?? board.screen, bytes: mp4.bytes ?? null } } : {}),
+    notes,
+    ...(film ? {
+      actors: film.actors,
+      blender: {
+        dir: filmDir,
+        files: film.files.length,
+        scene_md: `${url}blender/SCENE.md`,
+        look,
+        command: `node scripts/export-scene-blender.mjs --build ${filmDir} --look ${look}`,
+        render: 'then: <blender> -b film.blend --python film_render.py -- --preset draft (EEVEE) | final (Cycles)',
+        note: 'Each actor a skinned GLB with its act and face take, the coverage\'s cameras cut at markers, the look built in Blender. Blender runs on the operator\'s machine; mojulo did not launch it.',
+      },
+    } : {}),
     message:
-      `Screenplay filmed: ${Object.keys(film.actors).length} actors, ${film.seconds} s, ${film.shots.length} shots on ${film.cameras} cameras, written as a Blender film pack at ${filmDir} (SCENE.md). `
-      + (film.notes.length ? `${film.notes.length} director's notes (notes): each says what to try in the script; none stops the film. ` : 'No director\'s notes. ')
-      + `Build it with blender.command, render with film_render.py. Filed under ops tag ${tag.tagRef}.`,
+      `Screenplay ${film ? 'filmed' : 'boarded'}: ${Object.keys(plan.S.actors).length} actors, ${plan.S.seconds} s, ${board.panels.length} shots. The storyboard is at ${url}index.html (a panel a shot, drawn with stand-ins: approve the cut there before the film is made)`
+      + (mp4 ? `; its animatic at ${url}motion.mp4` : '')
+      + (film ? `; the Blender film pack at ${filmDir} (SCENE.md): build it with blender.command, render with film_render.py` : '; export \'blender\' makes the film from the same plan (each actor minted: minutes)')
+      + `. ${notes.length ? `${notes.length} director's notes (notes): each says what to try in the script; none stops the film.` : 'No director\'s notes.'} Filed under ops tag ${tag.tagRef}.`,
   };
 }

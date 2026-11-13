@@ -84,11 +84,19 @@ describe('the plan, before any mint', () => {
 describe("forge_motion's screenplay family", () => {
   const forge = (over) => forgeMotionHandler({ title: 'The key', subject: { screenplay: BASELINE.blocked }, ...over });
   it('is filmed in Blender, shot by its coverage, with its own params', async () => {
-    await expect(forge({ export: 'gif' })).rejects.toThrow(/filmed in Blender: export: 'blender'/);
+    await expect(forge({ export: 'gif' })).rejects.toThrow(/'storyboard' \(the board, the default\), 'mp4'.*not 'gif'/);
     await expect(forge({ shot: { motion: 'orbit' } })).rejects.toThrow(/shot by its coverage/);
     await expect(forge({ shot: { params: { frames: 3 } } })).rejects.toThrow(/look, style, grain, grade, hero \(not frames/);
     await expect(forge({ shot: { params: { look: 'noir' } } })).rejects.toThrow(/film \| anime/);
     await expect(forgeMotionHandler({ title: 't', subject: { screenplay: BASELINE.blocked, world_ref: 'sk_x' } })).rejects.toThrow(/family of its own/);
+  });
+  it('boards a scene by default, no actor minted: a panel a shot, its page and its data', async () => {
+    const out = await forge({ subject: { screenplay: { cast: { ana: {}, ben: {} }, script: 'ANA: Ready?\nBEN (determined): *Ready*.' } } });
+    expect(out.storyboard.panels).toBe(out.shots.length);
+    expect(out.storyboard.page).toMatch(/index\.html$/);
+    expect(out.actors).toBeUndefined();
+    expect(out.blender).toBeUndefined();
+    expect(out.message).toMatch(/export 'blender' makes the film from the same plan/);
   });
   it('refuses a cast ref the store does not have, before writing', async () => {
     await expect(forge({ subject: { screenplay: scene({ mara: { persona: 'sk_nobody' } }) } })).rejects.toThrow(/'sk_nobody' is no sketch, not a persona/);

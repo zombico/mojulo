@@ -1,0 +1,269 @@
+/**
+ * storyboard — a SCENE's coverage drawn: a panel a shot, where the person approves the film before anything is minted or
+ * rendered. A panel IS a coverage shot (coverage.js), so the board never disagrees with the film the same plan makes in
+ * Blender (scene-film.js); nothing here is stored, it is drawn from the scene on every forge.
+ *
+ *   THE FRAME: stand-in MANNEQUINS (field terms: legs, trunk, shoulders, arms, neck, head and a nose for its facing,
+ *   scaled to the part's height) stood where the scene has them at the panel's moment, seen from the coverage camera and
+ *   drawn by the book press's drawn plate (book/drawn-plate.js, a wash). The plate's station turns 1 to 89 degrees off
+ *   the y axis, so the WORLD is turned about the vertical until the camera stands at 45 (the picture is the same); its
+ *   eye is level, so a pitched camera is drawn as a rising or falling front (the horizon moves): exact for a level camera,
+ *   near for a high or a low one.
+ *   THE BLOCKING: the scene from above at one scale for every panel: the marks, each actor at the moment and its way
+ *   through the shot, the camera and its field of view.
+ *   THE WORDS: the shot's number, name, span (the scene's seconds and the screen's), lens and move; the lines and the
+ *   crosses inside it; the director's notes whose moment falls in it (notes.js), the rest the board's own.
+ *
+ *   storyboardOf(S, coverage, { notes?, title?, width?, height?, res?, fps? }) → { title, seconds, screen, panels, notes }
+ *     each panel { n, name, camera, span, screen: [start, length], at, lens_mm, move, lines, crosses, notes, frame
+ *     (svg), blocking (svg) }
+ *   storyboardJson(board) → the board without its drawings (storyboard.json)
+ *   storyboardHtml(board) → one self-contained page (no script, no link out)
+ *   animaticSegments(board) → [{ panel, seconds, caption }]: each panel held its shot's length on screen, cut where a
+ *     line starts or ends, the line spoken under it
+ *   animaticFrameSvg(board, segment, { width?, height? }) → one frame of the animatic: the panel, its number and name,
+ *     the caption
+ *   mannequinForms(S, t, { tints?, turn? }) → the plate's forms; panelStation(framing) → { turn, station }
+ *
+ * Pure and deterministic: the same scene and coverage give the same bytes.
+ */
+import { placeOn } from './scene.js';
+import { coverageCameraAt } from './scene-film.js';
+import { programOf } from '../shoot/sample.js';
+import { renderPlate } from '../book/drawn-plate.js';
+
+export const STORYBOARD_VERSION = 'storyboard/0';
+/** a panel's frame, in the plate's units (16:9) */
+export const PANEL_SIZE = Object.freeze({ width: 480, height: 270 });
+/** each actor's tint on the board, in cast order */
+export const BOARD_TINTS = Object.freeze(['#c49a74', '#7f9cc4', '#9cb07a', '#b8869f', '#c9b46a', '#86b2ad']);
+const STATURE = 1.7;
+const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const rad = (d) => (d * Math.PI) / 180, deg = (r) => (r * 180) / Math.PI;
+
+/** The plate's station for a coverage camera's framing: the world turned so the camera stands at 45 degrees */
+export function panelStation(framing) {
+  const [px, py, pz] = framing.cameraPosition, [lx, ly, lz] = framing.lookAt;
+  const turn = deg(Math.atan2(lx - px, ly - py));
+  return {
+    turn: 45 - turn,
+    station: { turn: 45, eye: r3(pz), distance: r3(Math.max(0.05, Math.hypot(lx - px, ly - py))), lens: r3(Math.min(100, Math.max(10, framing.horizontalFov))), look: [0, 0, r3(lz)] },
+  };
+}
+
+/** a point turned about the vertical by d degrees (clockwise seen from above: +y toward +x) and moved by o */
+function turner(d, about) {
+  const a = rad(d), c = Math.cos(a), s = Math.sin(a);
+  return (x, y) => { const X = x - about[0], Y = y - about[1]; return [r3(X * c + Y * s), r3(-X * s + Y * c)]; };
+}
+
+/** One actor as a mannequin at a place and a facing (yaw 0 faces +y, turning toward +x), `h` its stature */
+function mannequinTerms(P, h, turn) {
+  const s = h / STATURE, a = rad(P.yaw), f = [Math.sin(a), Math.cos(a)], r = [Math.cos(a), -Math.sin(a)];
+  const at = (side, fwd, z) => { const [x, y] = turn(P.x + r[0] * side * s + f[0] * fwd * s, P.y + r[1] * side * s + f[1] * fwd * s); return [x, y, r3(z * s)]; };
+  const capsule = (a1, b1, radius) => ({ op: 'add', shape: { kind: 'capsule', a: a1, b: b1, radius: r3(radius * s) } });
+  const sphere = (center, radius) => ({ op: 'add', shape: { kind: 'sphere', center, radius: r3(radius * s) } });
+  return [
+    capsule(at(-0.09, 0, 0.08), at(-0.09, 0, 0.84), 0.065),
+    capsule(at(0.09, 0, 0.08), at(0.09, 0, 0.84), 0.065),
+    capsule(at(0, 0, 0.92), at(0, 0, 1.28), 0.14),
+    capsule(at(-0.19, 0, 1.35), at(0.19, 0, 1.35), 0.07),
+    capsule(at(-0.23, 0, 1.33), at(-0.25, 0.02, 0.86), 0.048),
+    capsule(at(0.23, 0, 1.33), at(0.25, 0.02, 0.86), 0.048),
+    capsule(at(0, 0, 1.38), at(0, 0, 1.48), 0.05),
+    sphere(at(0, 0, 1.585), 0.11),
+    sphere(at(0, 0.1, 1.57), 0.034),
+  ];
+}
+
+/** The plate's forms: each actor a mannequin where the scene has it at t, the world turned by `turn` degrees about `about` */
+export function mannequinForms(S, t, { tints = BOARD_TINTS, turn = 0, about = [0, 0], heights = {} } = {}) {
+  const T = turner(turn, about);
+  return Object.entries(S.actors).map(([w, A], i) => ({
+    id: w, tint: tints[i % tints.length],
+    terms: mannequinTerms(placeOn(A.root, t), heights[w] ?? STATURE, T),
+  }));
+}
+
+/** the camera keys a shot holds: the first and the last */
+function shotKeys(coverage, s) {
+  const cam = coverage.cameras.find((c) => c.id === s.camera);
+  const ks = cam.keys.filter((k) => k.t >= s.span[0] - 1e-3 && k.t <= s.span[1] + 1e-3);
+  return { cam, a: ks[0], b: ks.at(-1) };
+}
+
+/** what the camera does through a shot, in a director's words */
+function moveOf(a, b) {
+  const d = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+  const travel = d(a.pos, b.pos), aim = d(a.poi, b.poi), zoom = Math.abs((b.focal_mm ?? 0) - (a.focal_mm ?? 0));
+  if (travel < 0.05 && aim < 0.05 && zoom < 1) return 'holds';
+  const parts = [];
+  if (travel >= 0.05) parts.push(`moves ${r2(travel)} m`);
+  else if (aim >= 0.05) parts.push('pans');
+  if (zoom >= 1) parts.push(`zooms to ${Math.round(b.focal_mm)} mm`);
+  return parts.join(', ');
+}
+
+/** the mark a point stands on, by name, else the point */
+const markAt = (marks, p) => Object.entries(marks ?? {}).find(([, q]) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-3)?.[0] ?? `[${r2(p[0])}, ${r2(p[1])}]`;
+
+/** The board: a panel a coverage shot */
+export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {} } = {}) {
+  const program = programOf({ ...coverage, fps });
+  const names = Object.keys(S.actors);
+  const tintOf = Object.fromEntries(names.map((w, i) => [w, BOARD_TINTS[i % BOARD_TINTS.length]]));
+  const placed = [];
+  const panels = coverage.shots.map((s, k) => {
+    const [s0, s1] = s.span, at = r3(Math.min(S.seconds - 1e-3, (s0 + s1) / 2));
+    const { framing } = coverageCameraAt(coverage, at, s);
+    const { a, b, cam } = shotKeys(coverage, s);
+    const { turn, station } = panelStation(framing);
+    const forms = mannequinForms(S, at, { turn, about: framing.lookAt.slice(0, 2), heights });
+    const { svg } = renderPlate({ forms, station, finish: 'wash', frame: 'full', width, height, light: { azimuth: -50, elevation: 40 } }, { prefix: `sb${k + 1}-`, ...(res ? { res } : {}) });
+    const P = program.shots[k];
+    placed.push({ framing, a, b });
+    return {
+      n: k + 1, name: s.name, camera: cam.id, span: [r3(s0), r3(s1)], screen: [r3(P.start), r3(P.length)], at,
+      lens_mm: Math.round(a.focal_mm ?? 35), move: moveOf(a, b),
+      lines: S.turns.filter((T) => T.at < s1 && T.end > s0).map((T) => ({ who: T.who, text: T.text, at: T.at, end: T.end, ...(T.face ? { face: T.face } : {}) })),
+      crosses: names.flatMap((w) => (S.actors[w].walks ?? []).filter((W) => W.start < s1 && W.end > s0).map((W) => ({ who: w, to: markAt(S.marks, W.to), start: W.start, end: W.end }))),
+      notes: notes.filter((N) => N.at !== undefined && N.at >= s0 && (N.at < s1 || k === coverage.shots.length - 1)),
+      frame: svg,
+    };
+  });
+  // (the blocking at one scale for every panel: the marks, every place an actor stands, every camera)
+  // (the room the actors use, at least 3 m by 2 m: a camera beyond it is drawn on its edge, pointing in)
+  const pts = [...Object.values(S.marks ?? {}), ...names.flatMap((w) => S.actors[w].root.map((K) => [K.x, K.y]))];
+  const bx = [Math.min(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[0]))], by = [Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1]))];
+  const half = [Math.max(1.5, (bx[1] - bx[0]) / 2 + 0.9), Math.max(1, (by[1] - by[0]) / 2 + 0.9)], mid = [(bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2];
+  const box = { x0: mid[0] - half[0], x1: mid[0] + half[0], y0: mid[1] - half[1], y1: mid[1] + half[1] };
+  panels.forEach((pn, k) => { pn.blocking = blockingSvg(S, pn, placed[k], box, tintOf); });
+  return {
+    version: STORYBOARD_VERSION, title, seconds: S.seconds, screen: r3(program.total), cast: names, tints: tintOf,
+    panels, notes: notes.filter((N) => N.at === undefined),
+  };
+}
+
+/** The scene from above for one panel: the marks, each actor at the moment and its way through the shot, the camera */
+export function blockingSvg(S, panel, { framing }, box, tintOf) {
+  const W = 220, sc = W / (box.x1 - box.x0), H = Math.round((box.y1 - box.y0) * sc);
+  const X = (x) => r2((x - box.x0) * sc), Y = (y) => r2((box.y1 - y) * sc);
+  const out = [];
+  for (const [m, p] of Object.entries(S.marks ?? {})) out.push(`<g class="mark"><path d="M${X(p[0]) - 4} ${Y(p[1]) - 4}l8 8m0-8l-8 8"/><text x="${X(p[0]) + 6}" y="${Y(p[1]) + 3}">${esc(m)}</text></g>`);
+  // the camera: where it stands, where it looks, its field of view
+  const [lx, ly] = framing.lookAt, aim = Math.atan2(lx - framing.cameraPosition[0], ly - framing.cameraPosition[1]), half = rad(framing.horizontalFov / 2), L = 1.2;
+  // (a camera outside the room stands on its edge, on the line from what it looks at; the room's edge less a margin)
+  const m = 0.12, inside = (u) => { const x = lx + (framing.cameraPosition[0] - lx) * u, y = ly + (framing.cameraPosition[1] - ly) * u; return x >= box.x0 + m && x <= box.x1 - m && y >= box.y0 + m && y <= box.y1 - m; };
+  let u = 1; while (u > 0 && !inside(u)) u -= 0.02;
+  const cx = lx + (framing.cameraPosition[0] - lx) * Math.max(0, u), cy = ly + (framing.cameraPosition[1] - ly) * Math.max(0, u), off = u < 1;
+  const ray = (d) => `L${X(cx + Math.sin(aim + d) * L)} ${Y(cy + Math.cos(aim + d) * L)}`;
+  out.push(`<g class="cam${off ? ' off' : ''}"><path class="fov" d="M${X(cx)} ${Y(cy)}${ray(-half)}M${X(cx)} ${Y(cy)}${ray(half)}"/><circle cx="${X(cx)}" cy="${Y(cy)}" r="4"/></g>`);
+  for (const [w, A] of Object.entries(S.actors)) {
+    const ks = A.root.filter((K) => K.t > panel.span[0] && K.t < panel.span[1]);
+    const way = [placeOn(A.root, panel.span[0]), ...ks, placeOn(A.root, panel.span[1])];
+    if (way.some((p) => Math.hypot(p.x - way[0].x, p.y - way[0].y) > 0.05)) out.push(`<path class="way" stroke="${tintOf[w]}" d="M${way.map((p) => `${X(p.x)} ${Y(p.y)}`).join('L')}"/>`);
+    const P = placeOn(A.root, panel.at), a = rad(P.yaw);
+    out.push(`<g class="who"><circle cx="${X(P.x)}" cy="${Y(P.y)}" r="6" fill="${tintOf[w]}"/><path d="M${X(P.x)} ${Y(P.y)}l${r2(Math.sin(a) * 11)} ${r2(-Math.cos(a) * 11)}"/><text x="${X(P.x)}" y="${Y(P.y) + 17}">${esc(w)}</text></g>`);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="blocking" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="the blocking from above">${out.join('')}</svg>`;
+}
+
+/** The board without its drawings: what storyboard.json keeps */
+export function storyboardJson(board) {
+  return { ...board, panels: board.panels.map(({ frame, blocking, ...p }) => p) };
+}
+
+const UPPER = (w) => String(w).toUpperCase();
+/** a shot's name without the number the coverage gives it (the panel carries its own) */
+export const shotTitle = (name) => String(name).replace(/^\d+\s+/, '');
+/** a line as it is heard: the read's markup (stress, pauses) taken out */
+export const spoken = (text) => String(text).replace(/\*([^*]+)\*/g, '$1').replace(/\[pause[^\]]*\]\s*/g, '').replace(/\s+/g, ' ').trim();
+const span = (a, b) => `${a.toFixed(1)}–${b.toFixed(1)} s`;
+
+/** One self-contained page: a panel a shot (no script, no link out; prints a panel whole) */
+export function storyboardHtml(board) {
+  const panel = (p) => `<article class="panel">
+<div class="frame">${p.frame}<span class="no">${p.n}</span></div>
+<div class="side">${p.blocking}</div>
+<div class="words">
+<h2>${esc(shotTitle(p.name))}</h2>
+<p class="meta">${span(p.span[0], p.span[1])} of the scene · on screen ${p.screen[1].toFixed(1)} s · ${p.lens_mm} mm · ${esc(p.move)}</p>
+${p.lines.map((L) => `<p class="line"><b>${esc(UPPER(L.who))}</b>${L.face ? ` <i>(${esc(L.face)})</i>` : ''} ${esc(spoken(L.text))}</p>`).join('\n')}
+${p.crosses.map((C) => `<p class="dir">${esc(C.who.charAt(0).toUpperCase() + C.who.slice(1))} crosses to ${esc(C.to)}.</p>`).join('\n')}
+${p.notes.map((N) => `<p class="note"><b>Note · ${esc(N.id)}</b> ${esc(N.says)} <i>Try:</i> ${esc(N.try)}</p>`).join('\n')}
+</div>
+</article>`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(board.title)} — storyboard</title>
+<style>
+:root{--bg:#f3f1ec;--card:#fffdf8;--ink:#1f1d1a;--dim:#6b665e;--rule:#d6d1c6;--accent:#a4522f}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1a18;--card:#252320;--ink:#ece9e3;--dim:#a39d93;--rule:#3d3a35;--accent:#e08a62}}
+:root[data-theme=dark]{--bg:#1b1a18;--card:#252320;--ink:#ece9e3;--dim:#a39d93;--rule:#3d3a35;--accent:#e08a62}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,sans-serif;padding:16px}
+header{max-width:1200px;margin:0 auto 16px}h1{font-size:22px;margin:0 0 4px}header p{margin:2px 0;color:var(--dim)}
+.cast span{display:inline-block;margin-right:10px}.cast i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+main{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,540px),1fr));gap:16px}
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:10px;display:grid;grid-template-columns:1fr;gap:8px;break-inside:avoid}
+.frame{position:relative}.frame svg{display:block;width:100%;height:auto;border:1.5px solid var(--ink)}
+.no{position:absolute;top:6px;left:6px;background:var(--ink);color:var(--card);font-weight:700;border-radius:3px;padding:0 6px}
+.side svg{display:block;width:100%;max-width:240px;height:auto;margin:0 auto}
+.blocking text{font:9px system-ui,sans-serif;fill:var(--dim);text-anchor:middle}.blocking .mark text{text-anchor:start}
+.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .who path{stroke:var(--ink);stroke-width:2}
+.blocking .way{fill:none;stroke-width:2;stroke-dasharray:4 3}.blocking .cam circle{fill:var(--accent)}.blocking .cam.off circle{fill:none;stroke:var(--accent);stroke-width:1.5}.blocking .fov{stroke:var(--accent);stroke-width:1.2;fill:none}
+h2{font-size:15px;margin:0}.meta{margin:2px 0 6px;color:var(--dim);font-size:12px}.words p{margin:3px 0}
+.dir{font-style:italic;color:var(--dim)}.note{border-left:3px solid var(--accent);padding-left:8px;font-size:13px}
+.board-notes{max-width:1200px;margin:0 auto 16px}
+@media (min-width:900px){.panel{grid-template-columns:3fr 2fr}.frame{grid-column:1/-1}}
+@media print{body{background:#fff;padding:0}.panel{border-color:#999}}
+</style></head><body>
+<header><h1>${esc(board.title)}</h1>
+<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
+<p class="cast">${board.cast.map((w) => `<span><i style="background:${board.tints[w]}"></i>${esc(UPPER(w))}</span>`).join('')}</p></header>
+${board.notes.length ? `<section class="board-notes">${board.notes.map((N) => `<p class="note"><b>Note · ${esc(N.id)}</b> ${esc(N.says)} <i>Try:</i> ${esc(N.try)}</p>`).join('\n')}</section>` : ''}
+<main>
+${board.panels.map(panel).join('\n')}
+</main>
+</body></html>
+`;
+}
+
+/** The animatic's cuts: each panel held its shot's length on screen, cut where a line starts or ends inside it */
+export function animaticSegments(board) {
+  const out = [];
+  for (const [k, p] of board.panels.entries()) {
+    const [s0, s1] = p.span, cuts = [...new Set([s0, ...p.lines.flatMap((L) => [L.at, L.end]).filter((t) => t > s0 && t < s1), s1])].sort((a, b) => a - b);
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      const a = cuts[i], b = cuts[i + 1], seconds = r3(((b - a) / (s1 - s0)) * p.screen[1]);
+      if (seconds < 0.04) continue;
+      const L = p.lines.find((x) => x.at <= (a + b) / 2 && x.end >= (a + b) / 2);
+      out.push({ panel: k, seconds, caption: L ? `${UPPER(L.who)}: ${spoken(L.text)}` : '' });
+    }
+  }
+  return out;
+}
+
+/** words wrapped to lines of about n characters, at most `max` lines */
+function wrap(text, n = 64, max = 2) {
+  const lines = [];
+  for (const w of text.split(' ')) {
+    if (lines.length && (lines.at(-1) + ' ' + w).length <= n) lines[lines.length - 1] += ` ${w}`;
+    else lines.push(w);
+  }
+  return lines.length > max ? [...lines.slice(0, max - 1), `${lines.slice(max - 1).join(' ').slice(0, n - 1)}…`] : lines;
+}
+
+/** One frame of the animatic: the panel's drawing, its number and name above, the line spoken below */
+export function animaticFrameSvg(board, seg, { width = PANEL_SIZE.width, height = PANEL_SIZE.height } = {}) {
+  const p = board.panels[seg.panel], title = `${p.n} · ${shotTitle(p.name)}`;
+  const inner = p.frame.replace(/^<svg ([^>]*?)\swidth="[^"]*"\sheight="[^"]*"/, '<svg $1').replace(/^<svg /, `<svg x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" `);
+  const lines = seg.caption ? wrap(seg.caption) : [];
+  const fs = Math.round(height / 18), lh = Math.round(fs * 1.3), y0 = height - 12 - (lines.length - 1) * lh;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${inner}`
+    + `<rect x="8" y="8" width="${Math.min(width - 16, 22 + title.length * fs * 0.55)}" height="${lh + 6}" rx="3" fill="#1f1d1a" fill-opacity="0.78"/>`
+    + `<text x="16" y="${8 + lh}" font-family="sans-serif" font-size="${fs}" fill="#fffdf8">${esc(title)}</text>`
+    + (lines.length ? `<rect x="0" y="${y0 - fs - 8}" width="${width}" height="${height - y0 + fs + 8}" fill="#000" fill-opacity="0.55"/>`
+      + lines.map((l, i) => `<text x="${width / 2}" y="${y0 + i * lh}" text-anchor="middle" font-family="sans-serif" font-size="${fs}" fill="#fff">${esc(l)}</text>`).join('') : '')
+    + '</svg>';
+}

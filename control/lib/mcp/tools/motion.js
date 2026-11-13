@@ -138,7 +138,7 @@ function resolveSubject(subject) {
   }
 
   if (subject.screenplay !== undefined) {
-    throw new Error("a screenplay is filmed in Blender (forge_motion export: 'blender'); it has no frames to render or stitch yet: get_motion_vocab({ id: 'scene-film' })");
+    throw new Error("a screenplay is forged whole (export: 'storyboard' | 'mp4' | 'blender'); to stitch one, forge it with export: 'mp4' and stitch that motion ref (its animatic): get_motion_vocab({ id: 'scene-film' })");
   }
   // ── deck subjects (charts / infographics / slides as a slideshow) ──
   if (Array.isArray(subject.deck)) {
@@ -746,7 +746,8 @@ async function recoverClip(clipRef) {
   // render takes as long as the forge did); else its frames come back as PNGs from the same render, which may fetch
   // a browser.
   const mp4 = path.join(dir, 'motion.mp4');
-  if (recipe.subject?.world_ref && await fs.stat(mp4).then(() => true, () => false)) {
+  // (a screenplay's animatic is its MP4 too: scene after scene stitched into one cut)
+  if ((recipe.subject?.world_ref || recipe.subject?.screenplay) && await fs.stat(mp4).then(() => true, () => false)) {
     const framePngs = await decodeMp4Frames(mp4);
     return { ref: clipRef, title: recipe.title || clipRef, framePngs, fps: recipe.meta?.fps ?? recipe.shot?.fps ?? 12, frames: framePngs.length };
   }
@@ -896,7 +897,7 @@ export function registerMotionTools() {
     // May fetch Chrome for Testing or ffmpeg first, then bake frames: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      `Put a mojulo subject in MOTION and render it: a self-contained flipbook SVG plus a GIF, an MP4 opt-in. A deterministic recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it / set up a camera / plan the shots", and "play these charts / a slideshow / a deck / an explainer / a report in motion". Subject families behind one door — read yours via get_motion_vocab({ id }) (by intent: semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4); 'scene-film' (a SCREENPLAY acted by its cast, shot by its coverage, filmed in Blender); its cameras as a SHOOT PLAN (After Effects terms): shoot: { plan } writes, { ops } edits, shot.motion 'plan' renders. Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref | screenplay) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
+      `Put a mojulo subject in MOTION and render it: a self-contained flipbook SVG plus a GIF, an MP4 opt-in. A deterministic recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it / set up a camera / plan the shots", and "play these charts / a slideshow / a deck / an explainer / a report in motion". Subject families behind one door — read yours via get_motion_vocab({ id }) (by intent: semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4); 'scene-film' (a SCREENPLAY acted by its cast, shot by its coverage: boarded, filmed in Blender); its cameras as a SHOOT PLAN (After Effects terms): shoot: { plan } writes, { ops } edits, shot.motion 'plan' renders. Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref | screenplay) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
     inputSchema: {
       type: 'object',
       required: [],
@@ -932,7 +933,7 @@ export function registerMotionTools() {
               items: { type: ['string', 'object'] },
             },
             stash_ref: { type: 'string', description: 'DECK: a stash (st_…) whose sketch-typed items, in gather order, are the slides (≥2).' },
-            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script }, filmed in Blender (get_motion_vocab({ id: 'scene-film' }))" },
+            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script }; export storyboard (default) | mp4 (animatic) | blender (get_motion_vocab({ id: 'scene-film' }))" },
           },
         },
         shot: {
@@ -956,7 +957,7 @@ export function registerMotionTools() {
             loop: { type: 'boolean', description: 'Seamless loop (default true).' },
           },
         },
-        export: { type: 'string', enum: ['gif', 'svg', 'mp4', 'both', 'blender'], description: "Artifact form (default 'both'). SVG families: 'both' = durable flipbook .svg + .gif cache; 'svg' skips the gif; 'mp4' bakes a downloadable H.264 beside the .svg instead of the gif (opt-in — first use resolves/lazy-fetches ffmpeg). WORLD family (raster-native, no svg): 'gif' is the looping preview, 'mp4' the downloadable H.264, 'both' writes both; 'blender' (camera motions) writes the gif plus a Blender film pack — the world + this exact camera, lit and rendered to video in Blender (get_motion_vocab({ id: 'blender-film' }))." },
+        export: { type: 'string', enum: ['gif', 'svg', 'mp4', 'both', 'blender', 'storyboard'], description: "Artifact form (default 'both'). SVG families: 'both' = durable flipbook .svg + .gif cache; 'svg' skips the gif; 'mp4' bakes a downloadable H.264 beside the .svg instead of the gif (opt-in — first use resolves/lazy-fetches ffmpeg). WORLD family (raster-native, no svg): 'gif' is the looping preview, 'mp4' the downloadable H.264, 'both' writes both; 'blender' (camera motions) writes the gif plus a Blender film pack — the world + this exact camera, lit and rendered to video in Blender (get_motion_vocab({ id: 'blender-film' }))." },
         tag_ref: { type: 'string', description: 'Optional existing Motion Project ops tag (ops_…) to file this shot under, instead of forging a new one.' },
       },
     },

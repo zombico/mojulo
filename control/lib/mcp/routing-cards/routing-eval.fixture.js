@@ -96,6 +96,7 @@ export const FIXTURE = [
   // a scene film: a screenplay acted by the person's 3D characters, filmed in Blender (forge_motion's screenplay subject)
   ['make a little movie of my two characters having an argument in the kitchen, rendered in blender', 'forge_motion'],
   ['I wrote a short dialogue scene, can my personas act it out and you shoot it like a director would', 'forge_motion'],
+  ['before we render anything, sketch out the shots of my scene panel by panel so I can approve them', 'forge_motion'],
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],

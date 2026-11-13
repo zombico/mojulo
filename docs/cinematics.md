@@ -188,6 +188,17 @@ from a minted hero, or from a hero spec. The door and the script write through o
 Blender: its answer names the command that builds the pack (`export-scene-blender.mjs --build <dir>`). The manual is
 the `scene-film` motion-vocab card.
 
+Before the film there is the storyboard, the default form, which mints no actor (`actor/storyboard.js`). It has a
+panel for each coverage shot. Each panel has:
+
+- its frame: stand-in mannequins drawn by the book press (`book/drawn-plate.js`, a wash), seen from the shot's
+  camera. The plate's eye is level, so a pitched camera is drawn by moving the horizon;
+- the blocking from above, with the camera;
+- its span, its lens, its move, its lines and crosses, and its notes.
+
+`export: 'mp4'` adds the animatic: the panels held on the screen's clock, with the line spoken under each. A panel
+is a shot of the same coverage the Blender pack cuts, so the board and the film never disagree.
+
 ## The scene in a game
 
 In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's
