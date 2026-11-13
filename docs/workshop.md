@@ -44,6 +44,15 @@ is not declared, the step names the box as a possibility and the agent asks wher
    a new download.
 3. **Small**. Keep each level under the limit (fewer tiles, open land instead of dressed tiles, a lighter biocube) and
    play it as a page.
+4. **Packed**. Nothing is cut: the page's script is gzipped and the browser inflates it (`node scripts/pack-page.mjs
+   <page.html>`, `control/lib/graph/scene/page-pack.js`). One file for a page a person opens or is sent; `--parts` for a
+   host that limits a file, a small `index.html` and the script in binary parts beside it, each under the limit. A
+   packed page is the same page: what it saves is its size, not the browser's work once it is open.
+   A Claude artifact serves only a web page's file types (it refuses a `.bin` or a `.gz` part) and loads scripts inline
+   or from its listed CDNs, so its page is the CDN build (`cdn: true`) packed with `--parts --text`: the script as it
+   is, in `.txt` parts beside a small `index.html`, published as the page and its files. Nothing is saved on disk; the
+   host compresses what it sends. Where a host refuses a blob as a script, the packed page writes its script into the
+   document as the inline module it was.
 
 Whatever the path, pack the data before a long session in a box ends.
 

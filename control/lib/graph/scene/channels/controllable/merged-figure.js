@@ -33,7 +33,7 @@ export function mergeableFigure(fig) {
 /** The page's merged builder (needs the page's `__decodeU16`, `__decodeU32`, `decodeU8`, `scene`). `cast`: the figure
  * casts into the live shadows; `scaled`: a body may carry its own scale; `rig`: a figure that carries the cast rig
  * (its `cast`, ../cast-rig.js) is drawn with the cast material, its normals its mesh's own (needs the page's `__castMat`). */
-export function mergedFigureScript({ cast = false, scaled = false, pose = false, rig = false } = {}) {
+export function mergedFigureScript({ cast = false, scaled = false, pose = false, rig = false, resp = false } = {}) {
   return `
 // ONE DRAW A FIGURE (merged-figure.js): a rigid rig's parts in one skinned mesh, each part's corners bound to its bone
 const __mergeable = ${mergeableFigure.toString()};
@@ -68,7 +68,7 @@ function __mergedMesh(fig, group) {
     v += P.n; k += I.length;
   });
   const geo = __mergedGeo(pos, col, jnt, idx);
-  const mesh = new THREE.SkinnedMesh(geo, ${rig ? 'fig.cast ? (geo.computeVertexNormals(), __castMat(fig, { vertexColors: true, side: THREE.DoubleSide })) : ' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rig ? '\n  if (fig.cast) mesh.receiveShadow = true;' : ''}
+${resp ? "  if (fig.cast && Array.isArray(fig.response)) geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, col, nv), 2, true));\n" : ''}  const mesh = new THREE.SkinnedMesh(geo, ${rig ? 'fig.cast ? (geo.computeVertexNormals(), __castMat(fig, { vertexColors: true, side: THREE.DoubleSide })) : ' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rig ? '\n  if (fig.cast) mesh.receiveShadow = true;' : ''}
   // (culled as a whole: a sphere round the figure's height over its feet holds it in any pose, so a figure out of a
   // render's view, behind the camera or outside the shadow's box, is not drawn there)
   const H = fig.figH || 1.7;

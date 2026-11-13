@@ -129,6 +129,7 @@ node scripts/reindex-embeddings.js   # text-only without the recall group; vecto
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
 node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
 node scripts/hover.mjs <tour.json> [--out dir]   # the hover bot: teleport shots, flights sampled at a speed (docs/hover-bot.md)
+node scripts/pack-page.mjs <page.html> [--parts]   # a World page gzipped, nothing cut: one file, or parts under a host's limit (docs/workshop.md)
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
