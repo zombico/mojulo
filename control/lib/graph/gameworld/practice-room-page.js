@@ -286,6 +286,100 @@ export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given =
   return { html, room, card: CARD };
 }
 
+// THE MENU (practice-mana.js, on mana-ui): the room's readout and its choices, opened by the pilot's pause; the
+// choices as the route reads them (a feel, a mascot's form, a trade or none, an area or none)
+// HOW TO PLAY: the tutorial the screen no longer carries, each key the one the pilot scheme binds
+const MOVE = ['moveForward', 'turnLeft', 'moveBack', 'turnRight'];
+const WORK_TABS = (key, M) => [
+  { label: 'Moving', lines: [{ glyph: key(MOVE), text: 'move: up the screen is up' }, { action: 'boost', text: 'sprint' }, { action: 'interact', text: 'take, work, put down, hand in' }, { action: 'pause', text: 'this menu' }] },
+  { label: 'The work', lines: ['stand at a station and work it; walk off and it waits', 'some run alone once started: come back before they burn', 'shelves keep what is made: put on the left pad, take on the right'] },
+  { label: 'The floor', lines: ['each arrow runs from where a thing comes from to where it goes next', 'warm: hands-on work · cool: carrying, sorting, handing in', 'over a station, pips fill as it is worked, again as it runs alone, then go out toward the burn'] },
+];
+async function workHow(room) {
+  const { keyOf } = await import('./practice-mana.js'), M = room.measured;
+  return [{ label: 'The goal', lines: [`serve ${M.goal} of ${M.arrivals} orders before the bell`, 'an order waits only so long: a lost one is gone'] }, ...WORK_TABS(keyOf, M)];
+}
+async function roomHow(room) {
+  const { keyOf } = await import('./practice-mana.js'), nf = room.room.anchors.foes.length;
+  return [
+    { label: 'Moving', lines: [{ glyph: keyOf(MOVE), text: 'move' }, { glyph: 'mouse', text: 'look' }, { action: 'jump', text: 'jump' }, { action: 'boost', text: 'sprint' }, { action: 'interact', text: 'use' }, { action: 'pause', text: 'this menu' }] },
+    ...(nf ? [{ label: 'The foes', lines: [`${nf} stand on their spots, still until woken`, { action: 'aiToggle', text: 'wake them, or still them' }, 'or the switch in Set up'] }] : []),
+    { label: 'The room', lines: [room.measured ? 'the blue ring is where you start; the shift runs on the counters' : 'the blue ring is where you start, the green the goal'] },
+    ...(room.measured ? WORK_TABS(keyOf).slice(1) : []),
+  ];
+}
+function roomChoices(room, cast) {
+  const C = room.choices, out = [{ id: 'feel', label: 'Movement', now: room.feel, options: C.feels.map((f) => ({ id: f.id, name: `${f.name} (run ${f.run})` })) }];
+  if (room.hero === 'mascot') out.push({ id: 'cast', label: 'Worker', now: cast, options: C.casts.map((c) => ({ id: c, name: c })) });
+  out.push({ id: 'dress', label: 'Dress', now: room.dress ? room.dress.trade : 'none', options: [...C.dresses.map((d) => ({ id: d, name: d })), { id: 'none', name: 'greybox' }] });
+  out.push({ id: 'area', label: 'Area', now: room.area ? room.area.name : 'none', options: [...C.areas.map((a) => ({ id: a, name: a })), { id: 'none', name: 'plane' }] });
+  return out;
+}
+const placeLines = (room) => [
+  room.dress ? `dress: ${room.dress.about}` : 'dress: the blocks as solved, undressed',
+  room.area ? `area: ${room.area.about}` : 'area: the conceptual plane, ruled every two metres',
+  ...(room.area ? [`floor ${room.area.floor} · walls ${room.area.walls}${room.area.cut?.length ? ' (cut away on the camera\'s side)' : ''} · outside: ${room.area.surround.join(', ') || 'nothing'}`] : []),
+];
+// the page's own query, for set up to reopen the room with; none when the page is not the studio's
+const queryOf = (link, q) => (link ? Object.fromEntries(new URLSearchParams(String(link(q)).replace(/^\?/, ''))) : null);
+// the look: the shift family's card for where the room stands (its area, else its dress's trade), else the family's own
+const SHIFT_CARDS = { kitchen: 'shift-kitchen', farm: 'shift-farm', site: 'shift-site', chores: 'shift-garden', hall: 'shift-hall' };
+async function roomTheme(room) {
+  const { cardTheme } = await import('../playscape/ui/theme-cards/loader.js');
+  return cardTheme(SHIFT_CARDS[room.area?.name ?? room.dress?.trade] ?? 'shift');
+}
+async function withMenu(html, cfg, room) {
+  const { practiceMana, practiceManaHtml } = await import('./practice-mana.js');
+  const M = practiceManaHtml(practiceMana({ ...cfg, theme: await roomTheme(room) }));
+  return html.includes('</body>') ? html.replace('</body>', `${M}</body>`) : html + M;
+}
+
+/**
+ * The work room's page: the room on the runtime, and its menu (mana-ui, the pilot's pause opens it; open as the page
+ * loads, the briefing): the shift as tuned (pace, patience, the goal), how to read the room, the work proof at the
+ * template's run, and the presets to choose from (a feel template, a body, the dress, the area), the room reopened with
+ * them.
+ */
+export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { workRoom, WORK_CAST } = await import('./work-room.js');
+  cast = cast ?? WORK_CAST;
+  const room = workRoom(G, { refs, cast, feel, dress, area, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-work-room`);
+  const D = room.card.demand, M = room.measured;
+  const about = [
+    { label: 'The shift', lines: [`${room.card.name ?? room.card.id} · ${room.solved.target}`, `an order every ${D.every} s${D.mode === 'backlog' ? `, ${D.backlog} standing` : `, patience ${D.patience} s`}, ${D.orders.length} on the menu`, `${M.arrivals} orders · the goal ${M.goal}`] },
+    { label: 'Measured', lines: [`a walker who knows the card, at this template's run: ${M.says}`] },
+    { label: 'The place', lines: [room.hero === 'own' ? 'the worker: the world\'s own hero' : `the worker: ${room.mascot.thesis}`, ...placeLines(room)] },
+  ];
+  const html = await withMenu(await emitted(payload, cdn), { title: `Work room · ${room.card.name ?? room.card.id}`, how: await workHow(room), about, choices: roomChoices(room, cast), query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
+  return { html, room };
+}
+
+/**
+ * The game room's page: the room on the runtime, and its menu (mana-ui, as the work room's): the brief (what the game
+ * asked of the room, and why), the primitives laid, the room laws, the shift's proof where there is one, and the presets
+ * to choose from, the room reopened with them; the foes woken on its switch or the pilot's own (still at first).
+ */
+export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { gameRoom } = await import('./game-room.js');
+  const { WORK_CAST } = await import('./work-room.js');
+  cast = cast ?? WORK_CAST;
+  const room = gameRoom(G, { refs, cast, feel, dress, area, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-game-room`);
+  const N = room.needs, counts = {};
+  for (const p of room.room.primitives) counts[p.kind] = (counts[p.kind] ?? 0) + 1;
+  const nf = room.room.anchors.foes.length;
+  const about = [
+    { label: 'The brief', lines: Object.entries(N.why).map(([k, v]) => `${k}: ${v}`) },
+    { label: 'Laid', lines: [Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ') || 'nothing: an open floor', `${room.room.size} m square · ${nf} foe spot${nf === 1 ? '' : 's'}; the spawn's ring blue, the goal's green`] },
+    { label: 'The laws', lines: room.laws.map((l) => `${l.holds ? 'holds' : 'advise'} · ${l.law}: ${l.says}`) },
+    ...(room.measured ? [{ label: 'The shift', lines: [room.measured.says] }] : []),
+    { label: 'The place', lines: [room.hero === 'own' ? 'the hero: the world\'s own' : `the hero: ${room.mascot.thesis}`, ...placeLines(room)] },
+  ];
+  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, how: await roomHow(room), about, choices: roomChoices(room, cast), foes: nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
+  return { html, room };
+}
+
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
   const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
@@ -299,5 +393,5 @@ export async function practiceHtml(G, id, opts = {}) {
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
   }
-  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : mountLaneHtml(G, opts);
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : id === 'room' ? gameRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

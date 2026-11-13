@@ -55,6 +55,7 @@ export const GENRES = Object.freeze({
   defend:     { weight: 0.3, mascot: { promise: { might: 3, pride: 2 } }, person: { role: { frontline: 3, flanker: 2, ranged: 2 }, archetype: { outlaw: 2, everyman: 2, hero: 1.5 }, age: combat } },
   puzzle:     { weight: 0.5, mascot: { promise: { wonder: 3, comfort: 1.5 } }, person: { archetype: { sage: 3, creator: 2 }, role: { 'non-combatant': 3 } } },
   farm:       { weight: 0.35, mascot: { promise: { comfort: 3, cheer: 2 }, energy: { swaying: 2, sturdy: 1.5 } }, person: { role: { 'non-combatant': 8, support: 2 }, archetype: { caregiver: 3, everyman: 3, innocent: 2, creator: 2 }, age: { seasoned: 1.5, elder: 2 } } },
+  work:       { weight: 0.35, mascot: { promise: { comfort: 2, cheer: 3 }, energy: { sturdy: 2, swaying: 1 } }, person: { role: { 'non-combatant': 8, support: 2 }, archetype: { everyman: 4, caregiver: 2, creator: 2 }, age: { seasoned: 1.5 } } },
   battle:     { weight: 0.3, mascot: { promise: { might: 3, pride: 1.5 } }, person: { role: { frontline: 2, flanker: 2, caster: 2 }, archetype: { hero: 1.5, outlaw: 1.5, ruler: 1.5 }, age: combat } },
   shoot:      { weight: 0.1, mascot: { promise: { might: 3 } }, person: { role: { ranged: 4, frontline: 2, flanker: 2 }, archetype: { outlaw: 2, hero: 2, ruler: 1.5 }, age: combat } },
   deathmatch: { weight: 0.1, mascot: { promise: { might: 3, mischief: 2 } }, person: { role: { ranged: 4, flanker: 3, frontline: 2 }, archetype: { outlaw: 3, hero: 2, jester: 1.5 }, age: combat } },

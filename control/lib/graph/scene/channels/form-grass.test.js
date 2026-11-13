@@ -87,4 +87,10 @@ describe('form grass', () => {
     expect(() => new Function('THREE', 'scene', 'D', 'LAYER_U', 'bytes', src)).not.toThrow();
     for (const t of GRASS_TIERS) expect(src).toContain(t.id);
   });
+  it('past the thinning a share of the clumps stand, and a tile draws only the rows that can', () => {
+    const src = formGrassScript();
+    expect(POV_GRASS.keep).toBeGreaterThan(0); expect(POV_GRASS.keep).toBeLessThan(1);
+    expect(src).toContain('T.g.instanceCount = c');
+    expect(src).toContain('near < RP ? T.half : 0');
+  });
 });

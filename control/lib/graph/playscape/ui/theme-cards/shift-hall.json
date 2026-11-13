@@ -1,0 +1,12 @@
+{
+  "id": "shift-hall",
+  "name": "Shift: Hall",
+  "about": "The hall's practice: the shift's tickets on a stone-grey paper, a brick red and a slate blue, a double rule for a room that fights.",
+  "family": "shift",
+  "tags": ["practice", "fight", "hall"],
+  "author": "mojulo",
+  "from": "shift",
+  "tokens": { "ink": "#2a2420", "panel": "#efe8dc", "line": "#3a322a", "accent": "#b0472f", "accent2": "#5f7f8f", "harm": "#b0331f" },
+  "frame": "double",
+  "corner": "soft"
+}

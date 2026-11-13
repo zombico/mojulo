@@ -7,7 +7,8 @@ export const POWER = Object.freeze({
   settings: {
     mechanics: {
       multi: true,
-      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS' },
+      // built 11-13 (Shovels & Buckets): a work card played on a level, game/work-mechanics.js
+      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', since: { work: '2026-11-13' } },
       // built 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
       // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
       // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Three shapes of

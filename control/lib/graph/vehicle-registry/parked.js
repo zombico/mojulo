@@ -257,6 +257,15 @@ export function withParked(manifest) {
     const hx = (Math.abs(c) * v.L + Math.abs(s) * v.W) / 2, hy = (Math.abs(s) * v.L + Math.abs(c) * v.W) / 2;
     colliders.push({ min: [r3(p.at[0] - hx), r3(p.at[1] - hy), p.at[2]], max: [r3(p.at[0] + hx), r3(p.at[1] + hy), r3(p.at[2] + v.H)] });
   });
+  // (SAID ONCE: two parked vehicles that are the same vehicle, in the same dress, are one figure stood twice; the page
+  // carries its body once)
+  const first = new Map();
+  for (const e of entities) {
+    const id = e && e.body && e.body.figure;
+    if (typeof id !== 'string' || !/^parked-\d+$/.test(id) || !figures[id]) continue;
+    const key = JSON.stringify(figures[id]), kept = first.get(key);
+    if (kept === undefined) first.set(key, id); else if (kept !== id) { e.body = { ...e.body, figure: kept }; delete figures[id]; }
+  }
   const { parked: _p, ...rest } = manifest;
   return { manifest: { ...rest, figures, entities }, colliders };
 }

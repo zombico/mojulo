@@ -107,11 +107,27 @@ export async function GET(request, { params }) {
         const room = request.nextUrl.searchParams.get('room') ?? door.rooms[0];
         if (!PRACTICE_ROOMS[room]) return NextResponse.json({ error: `room is ${Object.keys(PRACTICE_ROOMS).join(', ')}` }, { status: 400 });
         if (!door.rooms.includes(room)) return NextResponse.json({ eligible: false, reason: `this world has no ${PRACTICE_ROOMS[room].name.replace(/^The /, '').toLowerCase()} (it has ${door.rooms.join(', ')})` }, { status: 422 });
-        const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
-        if (!['male', 'female'].includes(cast)) return NextResponse.json({ error: 'cast is male or female' }, { status: 400 });
+        // (the work room's and the game room's worker is a mascot, its cast a mascot form: work-room.js WORK_CASTS; the
+        // other rooms' a body)
+        const W = room === 'work' || room === 'room' ? await import('@/lib/graph/gameworld/work-room') : null;
+        const casts = W ? W.WORK_CASTS : ['male', 'female'];
+        const cast = request.nextUrl.searchParams.get('cast') ?? (W ? W.WORK_CAST : 'male');
+        if (!casts.includes(cast)) return NextResponse.json({ error: `cast is ${casts.join(' or ')}` }, { status: 400 });
+        // (the work room's movement: a feel template from the presets, the world's own by default)
+        const feel = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('feel') : null;
+        if (feel !== null) { const { POLES } = await import('@/lib/graph/gameworld/feel/cards'); if (!POLES[feel]) return NextResponse.json({ error: `feel is one of ${Object.keys(POLES).join(', ')}` }, { status: 400 }); }
+        // (and their dress: a trade, gameroom/dress.js DRESSES, or 'none' for the greybox)
+        const dressAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('dress') : null;
+        if (dressAsked !== null && dressAsked !== 'none') { const { DRESSES } = await import('@/lib/graph/gameroom/dress'); if (!DRESSES[dressAsked]) return NextResponse.json({ error: `dress is one of ${Object.keys(DRESSES).join(', ')}, or none` }, { status: 400 }); }
+        const dress = dressAsked === null ? null : dressAsked === 'none' ? false : dressAsked;
+        // (and their area: a trade's, gameroom/area.js AREAS, or 'none' for the conceptual plane)
+        const areaAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('area') : null;
+        if (areaAsked !== null && areaAsked !== 'none') { const { AREAS } = await import('@/lib/graph/gameroom/area'); if (!AREAS[areaAsked]) return NextResponse.json({ error: `area is one of ${Object.keys(AREAS).join(', ')}, or none` }, { status: 400 }); }
+        const area = areaAsked === null ? undefined : areaAsked === 'none' ? false : areaAsked;
+        const link = (q) => `?${new URLSearchParams({ book: 'practice', room, ...Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) })}`;
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast })).html);
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${feel ?? ''}:${dressAsked ?? ''}:${areaAsked ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(room === 'work' || room === 'room' ? { feel, link, dress, area } : {}) })).html);
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one

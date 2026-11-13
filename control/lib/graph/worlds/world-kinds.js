@@ -94,14 +94,6 @@ import { actClipOn } from '@/lib/graph/actor/act';
 // a scene's takes on the page (ctx.takes): the body's keys a second, the face's frames a second (a take runs a scene's
 // length, so both are under a clip's and an export's: the page's bytes, the scene-takes budget)
 export const TAKE_KEYS = 10, TAKE_FACE_FPS = 15;
-/** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
- * players read `q × s` (rig-preview.js, controllable) */
-function quantMorph({ i, d }) {
-  const b = Buffer.from(d, 'base64'), f = new Float32Array(b.buffer, b.byteOffset, b.length / 4);
-  let m = 0; for (const x of f) m = Math.max(m, Math.abs(x));
-  const s = m > 0 ? m / 32767 : 1, q = Int16Array.from(f, (x) => Math.round(x / s));
-  return { i, q: Buffer.from(q.buffer).toString('base64'), s };
-}
 /** the realistic skin's pages on the World page (an export's are dermal-hero.js's own): the body's a side, and the
  * head's, where the face's detail is (its moles, its marks, its fine lines), twice that */
 const PAGE_SKIN = Object.freeze({ page: 1024, headPage: 2048 });
@@ -110,6 +102,7 @@ import { planHeight } from '@/lib/graph/era/cast-density';
 /** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
 const skinPpm = (plan) => { try { return pxPerMetre(readTarget((typeof plan.style?.drawn === 'object' && plan.style.drawn.target) || DEFAULT_TARGET), planHeight(plan)); } catch { return Infinity; } };
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
+import { sparseMorph, quantMorph } from '@/lib/graph/figures/morph-sparse';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
 import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
@@ -1134,7 +1127,9 @@ export const WORLD_KINDS = {
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
         const pack = packLayeredRig(mesh, skin, packR, { clips: clipsIn, ...(acts ? { acts } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
-        if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: quantMorph(P.morph) } : P));
+        // (and said once and only where they move: a corner's row shared with its vertex's others, a target's column its own
+        // rows alone, figures/morph-sparse.js; exact, the same steps)
+        if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: sparseMorph(quantMorph(P.morph)) } : P));
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         // (the realistic hero's pack written a corner a triangle: an export welds it, scene-gltf.js weldCorners)
         // THE HANDS IN A HEADSET (ctx.xrHands: a world a headset plays, channels/xr.js): the grip frame and the digits' curl

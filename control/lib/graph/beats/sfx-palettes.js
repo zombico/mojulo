@@ -153,6 +153,7 @@ export const MECHANIC_SFX = {
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
+  work: { 'work:took': 'pickup', 'work:made': 'thud', 'work:ready': 'chime', 'work:burned': 'hit', 'work:served': 'goal', 'work:walked': 'lose', 'work:full': 'thud', 'work:won': 'goal', 'work:lost': 'lose' },
   aftermath: { 'broke:*': 'thud' },
   trade: { 'pickup:*': 'pickup', 'trade:*:short': 'thud' },
   cargo: { 'cargo:lost:*': 'hit' },

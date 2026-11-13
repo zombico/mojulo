@@ -1,6 +1,9 @@
 import { safeJson } from '../emit-util.js';
 import { terrainWindScript, WIND_AT_GLSL } from './terrain-wind.js';
 import { grassContact } from '../../vegetation/grass-contact.js';
+import { formGrassScript } from './form-grass.js';
+import { viewConeScript } from './view-cone.js';
+import { FAR_LIFT, liftField } from './far-lift.js';
 
 // In-page script: a stage's LIVE GRASS (opt-in: an isekai recipe's `wind`, era/isekai.js). The static blade cards are
 // the floor; this stands grown blades (vegetation/grass.js, the stylized meadow) round the walker and moves them.
@@ -71,6 +74,89 @@ export function farShare(d, { near, radius }) {
   const keep = d <= near ? 1 : Math.max(0.05, (near / d) ** 2), fade = d > 0.8 * radius ? Math.max(0, (radius - d) / (0.2 * radius)) : 1;
   return 1 - Math.min(1, WIDEN * WIDEN * keep) * fade;
 }
+
+/** A stage's lift: its grid's step (m); how it flecks its two stops (the cell, m, and the share that takes the lower
+ *  stop); the fall across a cell past which it is a cliff's face and carries no lift (m). */
+export const STAGE_LIFT = Object.freeze({ step: 1, fleck: 0.3, lower: 0.25, drop: 1.2 });
+
+// THE FORM GRASS ON A STAGE (opt-in: liveGrass.form; in the field's place): the form render's grass (channels/
+// form-grass.js: clumps placed once over the land, all of them near the eye, half from the thinning to the view cone's
+// reach, none past it) and its far lift (channels/far-lift.js: past the reach the grass as the ground raised to the
+// mean height of the clumps that stand there), drawn in the stage's own look: unlit, in the grass ramp's stops, lit or
+// shade by the mask. The stage's landform and mask are read as the grass's ground map (a cell's height, its cover the
+// share of the cells round it grass may stand in, one sward); the blades bend in the stage's wind. With it the field,
+// the far clumps and the blade cards are not drawn; a blade is not pressed by a foot.
+const FORM_FIELD = () => `
+{
+// --- a stage's grass as the form render's, in the stage's ramp (channels/stage-grass.js FORM_FIELD) ---
+(function () {
+  const LG = window.__mojStageLG, TW = window.__mojTerrain; if (!LG || !TW) return;
+  const G = LG.grid, Zs = TW.stageHeights, M = TW.stageMask, CX = G.nx - 1, CY = G.ny - 1, c = G.cell;
+  let zlo = 1e9, zhi = -1e9; for (let i = 0; i < Zs.length; i++) { if (Zs[i] < zlo) zlo = Zs[i]; if (Zs[i] > zhi) zhi = Zs[i]; }
+  const span = Math.max(1e-3, zhi - zlo), px = new Uint8Array(CX * CY * 4), litPx = new Uint8Array(CX * CY * 4);
+  const bit = (i, j) => (i < 0 || j < 0 || i >= CX || j >= CY ? 0 : M[j * CX + i] & 1);
+  for (let j = 0; j < CY; j++) for (let i = 0; i < CX; i++) {
+    const q = (j * CX + i) * 4, zc = (Zs[j * G.nx + i] + Zs[j * G.nx + i + 1] + Zs[(j + 1) * G.nx + i] + Zs[(j + 1) * G.nx + i + 1]) / 4, zq = Math.round(((zc - zlo) / span) * 65535);
+    let g = 0; for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) g += bit(i + a, j + b);
+    px[q] = zq >> 8; px[q + 1] = zq & 255; px[q + 2] = bit(i, j) ? Math.round((g / 9) * 255) : 0; px[q + 3] = 0;
+    litPx[q] = (M[j * CX + i] & 2) ? 255 : 0;
+  }
+  const lin = (v) => new THREE.Color().setRGB(v[0] / 255, v[1] / 255, v[2] / 255, THREE.SRGBColorSpace), W = LG.win, top = lin(LG.ramp[W.lit[1]]);
+  const D = { grass: { px, size: [CX, CY], origin: [G.x0 + c / 2, G.y0 + c / 2], cell: c, z: [zlo, span], base: [top.r, top.g, top.b] } };
+  const bytes = (v) => v, __formMeshes = [], one = () => { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat); t.needsUpdate = true; return t; };
+  const LAYER_U = { tGrassL: { value: one() }, uGOl: { value: new THREE.Vector2() }, uGMl: { value: new THREE.Vector2(1, 1) }, uHasG: { value: 0 }, tPath: { value: one() }, uPathO: { value: new THREE.Vector2() }, uPathM: { value: new THREE.Vector2(1, 1) }, uHasPath: { value: 0 }, uDress: { value: new THREE.Vector3() }, uSdIn: { value: 0 } };
+  const tLit = new THREE.DataTexture(litPx, CX, CY, THREE.RGBAFormat); tLit.magFilter = tLit.minFilter = THREE.NearestFilter; tLit.needsUpdate = true;
+  const stops = Array.from({ length: 8 }, (_, i) => lin(LG.ramp[Math.min(LG.ramp.length - 1, i)]));
+  const STAGE_RAMP = { uRamp: { value: stops }, uWin: { value: new THREE.Vector4(W.lit[0], W.lit[1], W.shade[0], W.shade[1]) }, tLit: { value: tLit } };
+${viewConeScript(null)}${formGrassScript({ ramp: true })}
+  __formMeshes.forEach((m) => { m.raycast = __noFoot; m.userData.blades = true; m.userData.g = 'form-grass'; });
+  // (the cards and what else the stage stood for its far grass: not drawn)
+  const cards = []; scene.traverse((o) => { if (o.isMesh && LG.cards && LG.cards.includes(o.userData.g)) cards.push(o); }); cards.forEach((o) => { o.visible = false; });
+  // THE FAR LIFT: a sheet over the landform, raised to the mean height of the clumps that stand round each node
+  const FF = window.__formFar, CO = window.__mojCone; if (!FF || !CO) return;
+  ${liftField.toString()}
+  const FLg = ${JSON.stringify(FAR_LIFT)}, SL = ${JSON.stringify(STAGE_LIFT)}, fd = FF.tex.image.data, h8 = new Uint8Array(CX * CY); for (let q = 0; q < h8.length; q++) h8[q] = fd[q * 4];
+  const Lf = liftField(h8, CX, CY, Math.max(1, Math.round(FLg.mean / c))), st = Math.max(1, Math.round(SL.step / c)), NX = Math.floor(CX / st) + 1, NY = Math.floor(CY / st) + 1;
+  const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const pos = new Float32Array(NX * NY * 3), lift = new Float32Array(NX * NY * 3), idx = [];
+  for (let J = 0; J < NY; J++) for (let I = 0; I < NX; I++) {
+    const i = I * st, j = J * st, k = J * NX + I; let m = 0, n = 0, lit = 0;
+    for (let b = j - 1; b <= j; b++) for (let a = i - 1; a <= i; a++) { if (a < 0 || b < 0 || a >= CX || b >= CY) continue; n++; m += Lf[b * CX + a]; if (M[b * CX + a] & 2) lit++; }
+    const mean = n ? (m / n / 255) * FF.hMax : 0;
+    pos[k * 3] = G.x0 + i * c; pos[k * 3 + 1] = G.y0 + j * c; pos[k * 3 + 2] = Zs[j * G.nx + i];
+    lift[k * 3] = mean * FLg.stand * sm(FLg.least, FLg.foot, mean); lift[k * 3 + 1] = mean; lift[k * 3 + 2] = n ? lit / n : 0;
+  }
+  for (let J = 0; J < NY - 1; J++) for (let I = 0; I < NX - 1; I++) {
+    const a = J * NX + I, b = a + 1, d = a + NX, e = d + 1;
+    if (Math.max(lift[a * 3 + 1], lift[b * 3 + 1], lift[d * 3 + 1], lift[e * 3 + 1]) < FLg.least) continue;
+    // (not down a cliff: a cell whose corners stand more than SL.drop apart is a face, not a meadow)
+    const za = pos[a * 3 + 2], zb = pos[b * 3 + 2], zd = pos[d * 3 + 2], ze = pos[e * 3 + 2];
+    if (Math.max(za, zb, zd, ze) - Math.min(za, zb, zd, ze) > SL.drop) continue;
+    idx.push(a, b, e, a, e, d);
+  }
+  const LD = { value: new THREE.Vector2(1e6, 2e6) }, lower = (w) => Math.max(w[0], w[1] - 1);
+  const LC = { value: [stops[W.lit[1]], stops[lower(W.lit)], stops[W.shade[1]], stops[lower(W.shade)]] };
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); lg.setAttribute('aLift', new THREE.BufferAttribute(lift, 3)); lg.setIndex(idx);
+  const f3 = (v) => v.toFixed(4), lm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  lm.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uLiftR: LD, uLiftC: LC });
+    sh.vertexShader = 'attribute vec3 aLift; uniform vec2 uLiftR; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  { float kL = smoothstep( uLiftR.x, uLiftR.y, distance( position.xy, cameraPosition.xy ) ); transformed.z += aLift.x * kL; vLiftS = vec3( aLift.y, kL, aLift.z ); vLiftP = position.xy; }');
+    sh.fragmentShader = 'uniform vec3 uLiftC[ 4 ]; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { float hs = fract( sin( dot( floor( vLiftP / ' + f3(FLg.cell) + ' ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ), h2 = fract( sin( dot( floor( vLiftP / ' + f3(SL.fleck) + ' ), vec2( 39.346, 11.135 ) ) ) * 24634.6345 );\\n  if ( vLiftS.x < ' + f3(FLg.least) + ' || hs > vLiftS.y * 1.1 || hs > smoothstep( ' + f3(FLg.least) + ', ' + f3(FLg.wall) + ', vLiftS.x ) * 1.2 ) discard;\\n  diffuseColor.rgb = uLiftC[ ( vLiftS.z > 0.5 ? 0 : 2 ) + ( h2 < ' + f3(SL.lower) + ' ? 1 : 0 ) ]; }');
+  };
+  lm.customProgramCacheKey = () => 'mojulo-stage-form-lift';
+  const sheet = new THREE.Mesh(lg, lm); sheet.frustumCulled = false; sheet.userData.g = 'far-lift'; sheet.userData.blades = true; sheet.raycast = __noFoot; scene.add(sheet);
+  let on = true;
+  const prevL = scene.onBeforeRender;
+  scene.onBeforeRender = function (r, sc, cam, rt) {
+    if (prevL) prevL.call(this, r, sc, cam, rt);
+    if (!cam.isPerspectiveCamera) return;
+    const live = FF.pov() && CO.reach < 1e5; LD.value.set(live ? CO.reach * FLg.from : 1e6, live ? CO.reach * FLg.full : 2e6);
+  };
+  window.__mojStageLift = { triangles: idx.length / 3, get on() { return on; }, set: (v) => { on = !!v; sheet.visible = on; return on; } };
+  window.addEventListener('keydown', (e) => { if (e.key === 'b' || e.key === 'B') console.log('far lift', window.__mojStageLift.set(!on)); });
+})();
+}
+`;
 
 const FIELD = (o) => `
 (function () {
@@ -529,5 +615,5 @@ var __noFoot = function () {};
   window.__mojTerrain = window.__mojTerrain || { kernel: { groundAt }, cfg: {}, stat: {} };
   window.__mojTerrain.stageHeights = Z; window.__mojTerrain.stageMask = dec(G.m); window.__mojStageLG = LG;
 })();
-${terrainWindScript(wind)}${cfg.field === false ? '' : FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
+${terrainWindScript(wind)}${cfg.form ? FORM_FIELD() : cfg.field === false ? '' : FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
 }

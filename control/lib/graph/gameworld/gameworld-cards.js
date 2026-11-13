@@ -674,6 +674,11 @@ const QUICK_LEVERS = {
     '  free spot that keeps the road open (the foes walk round them), waves 1..5, no hero, no pads'],
   puzzle: () => ['  boulders: n (1..4, 2)   no climb, building or ride'],
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
+  work: () => ['  card: kitchen | farm | site | roof | { a Shovels & Buckets card } (kitchen), challenge: beginner | intermediate |',
+    '  advanced | 0..1 (beginner): the solver tunes the card\'s pace and patience for one player; serve: n (1..200) the orders',
+    '  the bell wants (four fifths of what a player who knows the card serves)   no climb, building or ride (docs/worksim.md)',
+    '  seen from overhead and worked by a mascot unless camera or hero says otherwise (hero: false: first person); the work shown in pips',
+    '  its work room: bible?book=practice&room=work (&cast=orb|sprout|toon&feel=<template>): the recipe on the floor, a mascot and a movement from the presets'],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
   fight: () => [
     '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',

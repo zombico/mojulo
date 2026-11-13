@@ -24,6 +24,7 @@ import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
 import { LOOK_IDS } from '../cycle-shelf/cycle-looks.js';
 import { CON_ARCHETYPES } from '../construction-shelf/con-archetypes.js';
 import { conFootprint } from '../construction-shelf/con-figure.js';
+import { MECHA_PALETTES } from '../mecha-shelf/index.js';
 
 // (the field's bodies the sheet builds: one still waiting for its parts cannot park)
 const FIELD = Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k]).map((k) => rowOfHandle('physics', k));
@@ -267,5 +268,13 @@ describe('a walker stands parked', () => {
     const [c] = colliders;
     expect(c.max[2] - c.min[2]).toBeGreaterThan(1.5);
     expect(c.min[0]).toBeLessThan(5); expect(c.max[0]).toBeGreaterThan(5);
+  });
+  it('two of the same walker are one figure stood twice; another dress is its own', () => {
+    const same = withParked({ parked: [{ vehicle: walker, at: [0, 0, 0] }, { vehicle: walker, at: [20, 0, 0], heading: 1 }] });
+    expect(Object.keys(same.manifest.figures)).toEqual(['parked-0']);
+    expect(same.manifest.entities.map((e) => e.body.figure)).toEqual(['parked-0', 'parked-0']);
+    expect(same.colliders).toHaveLength(2);
+    const roles = withParked({ parked: [{ vehicle: walker, at: [0, 0, 0] }, { vehicle: walker, at: [20, 0, 0], palette: Object.keys(MECHA_PALETTES)[0] }] });
+    expect(Object.keys(roles.manifest.figures)).toHaveLength(2);
   });
 });
