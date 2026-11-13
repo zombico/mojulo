@@ -48,6 +48,10 @@ capture and the level played in Node show).
   machine gate, measured in OKLab: every ask is read against the way, the two kinds of ask are told apart by hue,
   nothing on the way is as vivid as an ask, and each tell is in its ask's hue. A game's seed gives it its own shade of
   the theme. `obstacles: { dress }` names one; the greybox loses every law, and says so.
+- Where a course is read (`gameworld/course-view.js`, the principles in `docs/course-dress-principles.md`): the
+  figure's back, the vanishing point where what is coming is read, and the screen's middle third where it is acted on.
+  The roll room's readout says, for its camera and its hero, how far ahead a thing fills a third of the screen, how
+  long before it is met, how wide it is where it is first read, and how long it is looked at large.
 - The tells: paint on the way that carries what the course was measured by, rolled with its ask. A jump's window is
   painted as a strip (jump while on it); posts' arrows point at the open lane from where a two-lane change must begin.
 - A level's `blocks` may carry their own colour (`tint`) and flat paint that goes with them (`marks`).

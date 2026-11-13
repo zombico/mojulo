@@ -82,6 +82,10 @@ open lane from where the lane change must begin; each is part of its ask's rolle
 own, measured in OKLab: the asks are read against the way, told apart by hue, louder than anything that is not an
 ask, and told ahead in their own hue.
 
+Where the eye is on a course, and so what is worth making, is in [course-dress-principles.md](course-dress-principles.md):
+the figure's back, then the vanishing point, then the screen's middle third, a third of the screen the size of one
+designed piece. The room's readout says those measures for its own camera (`view`).
+
 Its machine gate is the reaction bot, which knows how to play and lacks what a player lacks: it sees a thing only
 inside a sight distance, and acts on it only a reaction time after. The room's readout says whether a 0.4 s reaction
 with the course's own sight runs a sample of seeds clean, and whether a 0.8 s one still finishes. The bot is the same

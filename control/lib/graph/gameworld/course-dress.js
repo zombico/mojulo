@@ -29,6 +29,10 @@
  *     told       a tell is in its ask's hue, and is itself seen on the way
  *   DRESS_THEMES, DRESS_ROLES, ASK_ROLE (a primitive's role)
  *
+ * WHERE THE EYE IS (docs/course-dress-principles.md, measured by course-view.js): the figure's back, then the
+ * vanishing point where what is coming is read, then the screen's middle third where it is acted on and the only place
+ * it is seen large. A dress is made for them in that order; the laws here are the far read's.
+ *
  * The eyes gate (does it read as a rail yard, is it handsome) is the operator's. Pure and deterministic.
  */
 import { hexToRgb, rgbToHex, lchOf, oklch, deltaE, hueGap } from '../color-theorist/oklab.js';
