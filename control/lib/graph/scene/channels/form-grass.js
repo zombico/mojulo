@@ -58,10 +58,11 @@ export const POV_GRASS = Object.freeze({ thin: 0.42, keep: 0.5, strands: Object.
  *  reads the land's layers: on a CREST (the ground behind a clump, `look` m further from the eye, falls below the line
  *  of sight to it by `crest` radians: the horizon's line and every ridge's before it) and at a patch's near EDGE (no
  *  grass `edge` m toward the eye: the side of the far lift, channels/far-lift.js). Out to `reach` × the cone's reach,
- *  from `from` of it; each wider (`widen`) and taller (`grow`) per reach of distance so it holds its pixels, and
+ *  from `from` of it; each LOW (`low` × its height: a line hugging the crest, never a plant standing off it) and spread
+ *  sideways (`widen` per reach of distance) so neighbours run together as one edge, and
  *  standing on the far lift where there is one, `sink` m into it. Solved from the camera each frame, whatever camera
  *  that is. Between `thin` of the reach and the reach itself POV_GRASS.keep of the clumps stand. */
-export const GRASS_LINE = Object.freeze({ share: 0.12, reach: 3, from: 0.8, widen: 2, grow: 0.5, crest: Object.freeze([0.002, 0.012]), look: Object.freeze([1, 2.5, 5]), edge: 1.5, sink: 0.1 });
+export const GRASS_LINE = Object.freeze({ share: 0.35, reach: 3, from: 0.8, widen: 1.5, low: 0.65, crest: Object.freeze([0.002, 0.012]), look: Object.freeze([1, 2.5, 5]), edge: 1.5, sink: 0.1 });
 /** How the grass's height wanders: a slow field over the land (`cell` m), taller and shorter stretches between `range`
  *  × the sward's own, and each clump its own share more or less (± `clump`). */
 export const GRASS_HEIGHT = Object.freeze({ cell: 6, range: Object.freeze([0.72, 1.28]), clump: 0.2 });
@@ -211,7 +212,7 @@ export function formGrassScript() {
         '  vec2 dir = ( aRoot.xy - cameraPosition.xy ) / max( dP, 1e-3 ); float r0 = uPovR * uLine.y, ramp = smoothstep( r0, r0 + uPovR * uLine.z, dP );',
         '  float e0 = ( lnZ( aRoot.xy, ramp ) - cameraPosition.z ) / dP, eb = max( max( ' + lnE(LN.look[0]) + ', ' + lnE(LN.look[1]) + ' ), ' + lnE(LN.look[2]) + ' );',
         '  float w = max( smoothstep( ' + f3(LN.crest[0]) + ', ' + f3(LN.crest[1]) + ', e0 - eb ), 1.0 - smoothstep( 0.15, 0.4, lnCov( aRoot.xy - dir * ' + f3(LN.edge) + ' ) ) ) * smoothstep( ' + f3(LN.from) + ', 1.0, dn ) * ( 1.0 - smoothstep( ' + f3(LN.reach * 0.85) + ', ' + f3(LN.reach) + ', dn ) );',
-        '  hP = max( hP, aRoot.w * w * ( 1.0 + ' + f3(LN.grow) + ' * ( dn - 1.0 ) ) ); lnS = 1.0 + ' + f3(LN.widen) + ' * max( 0.0, dn - 1.0 ) * w;',
+        '  hP = max( hP, aRoot.w * w * ' + f3(LN.low) + ' ); lnS = 1.0 + ' + f3(LN.widen) + ' * max( 0.0, dn - 1.0 ) * w;',
         '  lnUp = max( 0.0, uLine.x * ramp * smoothstep( 0.1, 0.6, lnCov( aRoot.xy ) ) - ' + f3(LN.sink) + ' ) * w; } }'].join('\\n');
       const PLACE = 'vec3 transformed = vec3( aRoot.xy + rotG * position.xy * lnS * step( 0.001, hP ), aRoot.z + lnUp + position.z * hP ) + fgBend( aRoot.xy, hP, clamp( position.z, 0.0, 1.0 ), aTurn.x * 2.1 + aTurn.y );';
       // the grass: each length's clump where the sward is that length, fewer and lower where the cover thins, shrinking
