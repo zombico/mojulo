@@ -17,7 +17,7 @@ if (expr.includes('save_as_mainfile') || (py && py.endsWith('import_mojulo.py'))
 if (py === 'film_render.py') {
   if (!existsSync(path.join(cwd, 'film.blend'))) { console.error('fake: no film.blend'); process.exit(1); }
   const S = JSON.parse(readFileSync(path.join(cwd, 'scene.json'), 'utf8')), preset = opt('--preset') ?? 'draft', locale = opt('--locale');
-  const dir = path.join(cwd, 'film', `frames-${preset}`);
+  const dir = path.join(cwd, 'film', `frames-${preset}${locale && S.dubs?.[locale] ? `-${locale}` : ''}`);
   mkdirSync(dir, { recursive: true });
   const [lo, hi] = opt('--frames') ? opt('--frames').split('-').map(Number) : [1, S.frames];
   for (let f = Math.max(1, lo); f <= Math.min(S.frames, hi); f++) { const p = path.join(dir, `${String(f).padStart(4, '0')}.png`); if (!existsSync(p)) writeFileSync(p, 'png'); }

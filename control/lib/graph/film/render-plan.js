@@ -1,14 +1,15 @@
 /**
  * render-plan — how a scene's Blender film pack is built and rendered, as plain data: the build's steps, the render
  * cut into CHUNKS (frame ranges inside a shot, so one shot's settings hold through a chunk and a stopped render loses
- * at most a chunk), and its progress read from the frames on disk (Blender writes `frames-<preset>/0001.png` …; a frame
- * there is a frame done). The worker (scripts/render-film.mjs) runs it; the door reads its record (render.json) and
+ * at most a chunk), and its progress read from the frames on disk (Blender writes `frames-<preset>/0001.png` …, a dub's
+ * into `frames-<preset>-<locale>/`; a frame there is a frame done). The worker (scripts/render-film.mjs) runs it; the door reads its record (render.json) and
  * never launches Blender.
  *
  *   RENDER_PRESETS          film_render.py's: draft (EEVEE, its own sampling, 100 %), final (Cycles, 128 samples, denoised,
  *                           200 %)
  *   buildSteps({ shotFiles, look, set?, lights? }) → [{ step, args }]   blender's arguments after -b, in order: the set's
- *                           pack builds film.blend (else an empty one), the cast, the cameras, the lights, the look
+ *                           pack builds film.blend and is lit as its world declares (else an empty file), the cast,
+ *                           the cameras, the lights, the look
  *   shotFramesOf(scene)     each shot's frame count, from scene.json's coverage as the pack laid it (the shot files)
  *   renderChunks(counts, { chunk? }) → [{ shot, from, to }]   1-based frames on the film's timeline, a chunk never
  *                           crossing a cut
@@ -27,7 +28,9 @@ export const EMPTY_BLEND = "import bpy; bpy.ops.wm.read_factory_settings(use_emp
 export function buildSteps({ shotFiles, look = 'film', set = false, lights = false }) {
   return [
     ...(set
-      ? [{ step: 'set', args: ['--python', 'set/import_mojulo.py', '--', '--mode', 'run', '--blend', 'film.blend'] }, { step: 'set.py', args: ['film.blend', '--python', 'set.py'] }]
+      ? [{ step: 'set', args: ['--python', 'set/import_mojulo.py', '--', '--mode', 'run', '--blend', 'film.blend'] }, { step: 'set.py', args: ['film.blend', '--python', 'set.py'] },
+        // (the set lit as its world declares, atmosphere.json: its sky, its sun or none indoors, its lamps at their power)
+        { step: 'set light', args: ['film.blend', '--python', 'film_light.py', '--', '--root', 'set:root'] }]
       : [{ step: 'film.blend', args: ['--python-expr', EMPTY_BLEND] }]),
     { step: 'actors', args: ['film.blend', '--python', 'actors.py', '--python-expr', 'import bpy; bpy.ops.wm.save_mainfile()'] },
     { step: 'shots', args: ['film.blend', '--python', 'film_shots.py', '--', '--root', 'none', ...shotFiles.flatMap((f) => ['--shot', f]), '--verify', 'film-gate.json'] },

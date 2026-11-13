@@ -36,8 +36,9 @@ import { setupLights } from '../film/setup-light.js';
 import { EMPTY_BLEND } from '../film/render-plan.js';
 
 /** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
- * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set. */
-export const SCENE_PACK_REV = 2;
+ * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
+ * 3: a set lit as its world declares (atmosphere.json, film_light.py). */
+export const SCENE_PACK_REV = 3;
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -53,7 +54,7 @@ export function coverageCameraAt(coverage, t, shot = null) {
 }
 
 /** The pack's files (see the header) */
-export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null, render = null }) {
+export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null, render = null, atmosphere = null }) {
   // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
@@ -73,7 +74,8 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
   // (an actor's place: its root keys on the scene's clock, or, under a time map, sampled every screen frame)
   const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : S.actors[who].root)
     .map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), yaw: r6(k.yaw) }));
-  const film = emitBlenderFilm({ shot: shots[0], shots, title });
+  // (a set's atmosphere, blender-film.js filmAtmosphere: film_light.py lights the set by it)
+  const film = emitBlenderFilm({ shot: shots[0], shots, title, ...(set && atmosphere ? { atmosphere } : {}) });
   const scene = {
     source: 'mojulo', film_version: BLENDER_FILM_VERSION, title, seconds: S.seconds, fps, frames, width, height, up: 'z', units: 'metres',
     ...(clock ? { clock: clock.map((at) => r6(at.t)) } : {}),
@@ -289,6 +291,9 @@ def main():
                         assign(strip, act)
                         done += 1
     print('[mojulo dub] %s: %d faces' % (locale, done))
+    # (no face took the locale's take: the picture would be the original's under the dub's sound, so say so and stop)
+    if not done:
+        raise SystemExit('[mojulo dub] no face in this file has a take for %r (face:dub-%s): build film.blend again (actors.py)' % (locale, locale))
     bpy.ops.wm.save_mainfile()
 
 
@@ -469,6 +474,10 @@ def build(S):
                 new.remove(o)
                 bpy.data.objects.remove(o, do_unlink=True)
         mine = sorted([a for a in bpy.data.actions if a not in had], key=lambda a: a.name)
+        # (every take stays in the file: binding one clears the NLA that held the others, and Blender saves no
+        #  action that nothing uses, so a dub's faces, face:dub-<locale>, would be gone when dub.py asks for them)
+        for a in mine:
+            a.use_fake_user = True
         holder = bpy.data.objects.new(name, None)
         bpy.context.scene.collection.objects.link(holder)
         for o in new:
@@ -826,7 +835,8 @@ The scene plays on a time map (its slow motion, its freezes${coverage.shots.some
 ## Build it (once, in an empty film.blend beside these files)
 
 ${set ? `    <blender> -b --python set/import_mojulo.py -- --mode run --blend film.blend
-    <blender> -b film.blend --python set.py` : `    <blender> -b --python-expr "${EMPTY_BLEND}"`}
+    <blender> -b film.blend --python set.py
+    <blender> -b film.blend --python film_light.py -- --root set:root` : `    <blender> -b --python-expr "${EMPTY_BLEND}"`}
     <blender> -b film.blend --python actors.py -- && <blender> -b film.blend --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
     <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}${render?.light === 'setups' ? `
     <blender> -b film.blend --python light.py` : ''}

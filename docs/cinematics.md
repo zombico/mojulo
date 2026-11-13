@@ -252,6 +252,11 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   - it writes `render.json`, which the film's readout reads back. The tools never launch Blender;
   - a pack made again since its render (the scene edited) is another pack (`film/pack-stamp.js`): it is built and
     rendered again, the other scenes are kept, and the film is cut again.
+- **A set's light** is its world's: the pack carries the world's `atmosphere.json` and `film_light.py` performs it
+  after `set.py` (the sky, a sun or none indoors, the lamps at their power). `render.light: 'setups'` adds each setup's
+  key, fill and rim over it.
+- **A dub's frames** are its own (`film/frames-<preset>-<locale>`): the worker gives the faces the locale's mouths, or
+  the scene's own back, before it draws. A scene with no dub in the locale keeps its own frames and voice.
 - **The stage:** a scene with no set plays on a bare stage (`actors.py`): a matte floor, a soft sky and, where the
   setups are not lit, one key. `film.blend` starts empty, and a hero's page (its view cameras, its ground) stays out
   of the film.

@@ -62,6 +62,12 @@ game.
 - **A bare stage for a scene with no set.** A scene that is not set in one of your worlds now plays on a plain stage:
   a floor, a soft sky and a light. Before, the film opened on Blender's own starting cube, with the actors standing
   inside it, and each actor brought a second floor and spare cameras of its own.
+- **A set is lit as you made it.** A scene set in one of your worlds now takes that world's light into Blender: its
+  sky, its sun, or indoors its lamps at their strength. Before, a room came in dark, its torches barely glowing.
+- **Each language has its own picture.** A dubbed version is now drawn on its own, so going from one language to
+  another, or back to the original, always shows the right mouths. Before, a dubbed render kept the original's mouths
+  under the new voice, and the frames of whichever language was rendered first were used again for the next. A scene
+  with no dub in a language plays its own voice in that language's cut.
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
   place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that

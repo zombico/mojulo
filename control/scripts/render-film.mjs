@@ -12,7 +12,8 @@
 //   --chunk   frames a Blender call renders (a chunk never crosses a cut; a stopped render loses at most a chunk)
 //   --budget-min  stop starting chunks after this many minutes; run again to go on (frames on disk are never redone)
 //   --look    the look built when the pack is first built (default: film.json's look, else film)
-//   --locale  the dub's faces (dub.py) and sound for the encode and the cut
+//   --locale  the dub's faces (dub.py), drawn into frames of their own, and its sound for the encode and the cut (a
+//             scene with no dub in the locale keeps its own frames and voice)
 //   --rebuild build film.blend again (the cast, the cameras, the lights, the look)
 //   --plan    say what would run, run nothing
 //
@@ -73,8 +74,9 @@ function shotFilesOf(p) {
   return many.length ? many : ['shot.json'];
 }
 
-function framesDone(p) {
-  const fdir = path.join(p, 'film', `frames-${preset}`);
+/** the frames on disk: a dub's are its own (the mouths are the locale's), in frames-<preset>-<locale> */
+function framesDone(p, dub = null) {
+  const fdir = path.join(p, 'film', `frames-${preset}${dub ? `-${dub}` : ''}`);
   if (!existsSync(fdir)) return new Set();
   return new Set(readdirSync(fdir).filter((f) => /^\d{4,}\.png$/.test(f) && statSync(path.join(fdir, f)).size > 0).map((f) => Number(f.slice(0, -4))));
 }
@@ -90,13 +92,14 @@ for (const P of packs) {
   const chunks = renderChunks(counts, { chunk });
   // (the record keeps every call across runs, the newest last: what was built, each chunk, the encode)
   const before = existsSync(path.join(P.dir, 'render.json')) ? readJson(path.join(P.dir, 'render.json')) : null;
+  const dub = locale && scene.dubs?.[locale] ? locale : null, done = () => framesDone(P.dir, dub);
   const stamp = packStamp(P.dir), stale = Boolean(before && before.pack !== stamp);
   const rec = { preset, pack: stamp, frames: counts.reduce((a, n) => a + n, 0), calls: (before?.calls ?? []).slice(-200) };
   stamps[P.id] = stamp;
-  const write = () => writeFileSync(path.join(P.dir, 'render.json'), `${JSON.stringify({ ...rec, ...renderProgress(chunks, framesDone(P.dir)), updated: new Date().toISOString() }, null, 2)}\n`);
+  const write = () => writeFileSync(path.join(P.dir, 'render.json'), `${JSON.stringify({ ...rec, ...renderProgress(chunks, done()), updated: new Date().toISOString() }, null, 2)}\n`);
   const steps = buildSteps({ shotFiles, look, set: Boolean(scene.set), lights: Boolean(scene.lights) });
   if (flags.has('plan') || !blender) {
-    report.scenes[P.id] = { build: existsSync(path.join(P.dir, 'film.blend')) && !flags.has('rebuild') && !stale ? 'built' : steps.map((s) => s.step), ...renderProgress(chunks, stale ? new Set() : framesDone(P.dir)), chunks: chunks.length, ...(stale ? { stale: 'the pack was made again since its render: it is built and rendered again' } : {}) };
+    report.scenes[P.id] = { build: existsSync(path.join(P.dir, 'film.blend')) && !flags.has('rebuild') && !stale ? 'built' : steps.map((s) => s.step), ...renderProgress(chunks, stale ? new Set() : done()), chunks: chunks.length, ...(stale ? { stale: 'the pack was made again since its render: it is built and rendered again' } : {}) };
     continue;
   }
   if (stale) {
@@ -112,18 +115,19 @@ for (const P of packs) {
     }
     if (report.scenes[P.id]) continue;
   }
-  if (locale) { const r = run(P.dir, ['film.blend', '--python', 'dub.py', '--', '--locale', locale]); rec.calls.push({ step: `dub ${locale}`, ...r }); }
+  // (a dubbed scene's faces: the locale's mouths, or the scene's own back, before any frame is drawn)
+  if (scene.dubs && renderProgress(chunks, done()).done < rec.frames) { const r = run(P.dir, ['film.blend', '--python', 'dub.py', '--', '--locale', dub ?? 'none']); rec.calls.push({ step: `dub ${dub ?? 'none'}`, ...r }); if (r.status !== 0) { write(); report.scenes[P.id] = { state: 'dub failed', tail: r.tail }; continue; } }
   // ─── the chunks, resumable ──────────────────────────────────────────────────────────────────────────────────────────
   let stopped = false;
-  for (const c of renderProgress(chunks, framesDone(P.dir)).chunks) {
+  for (const c of renderProgress(chunks, done()).chunks) {
     if (c.state === 'done') continue;
     if (Date.now() - t0 > budgetMs) { stopped = true; break; }
-    const r = run(P.dir, ['film.blend', '--python', 'film_render.py', '--', '--preset', preset, '--frames', `${c.from}-${c.to}`, '--no-encode']);
+    const r = run(P.dir, ['film.blend', '--python', 'film_render.py', '--', '--preset', preset, '--frames', `${c.from}-${c.to}`, '--no-encode', ...(locale ? ['--locale', locale] : [])]);
     rec.calls.push({ step: 'chunk', from: c.from, to: c.to, status: r.status, seconds: r.seconds, ...(r.status ? { tail: r.tail } : {}) });
     write();
     if (r.status !== 0) { stopped = true; break; }
   }
-  const progress = renderProgress(chunks, framesDone(P.dir));
+  const progress = renderProgress(chunks, done());
   // ─── the encode: the frames on disk, the voice under them ──────────────────────────────────────────────────────────
   if (!stopped && progress.done === progress.frames && !existsSync(path.join(P.dir, 'film', encodedName))) {
     const r = run(P.dir, ['film.blend', '--python', 'film_render.py', '--', '--preset', preset, ...(locale ? ['--locale', locale] : [])]);

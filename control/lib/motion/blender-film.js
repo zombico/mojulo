@@ -692,8 +692,20 @@ def sound_of(here):
     with open(sj) as f:
         S = json.load(f)
     locale = _opt('--locale')
-    rel = ((S.get('dubs') or {}).get(locale) or {}).get('audio') if locale else S.get('audio')
+    # (a scene with no dub in the locale plays its own voice)
+    rel = (((S.get('dubs') or {}).get(locale) or {}).get('audio') if locale else None) or S.get('audio')
     return os.path.join(here, rel) if rel else None
+
+
+def dubbed(here):
+    """the locale whose mouths the frames show: --locale where the scene pack has that dub, else none. A dub's frames
+    are its own (frames-<preset>-<locale>): the picture is the original's but for the mouths."""
+    locale = _opt('--locale')
+    sj = os.path.join(here, 'scene.json')
+    if not locale or not os.path.exists(sj):
+        return None
+    with open(sj) as f:
+        return locale if locale in (json.load(f).get('dubs') or {}) else None
 
 
 PRESETS = {'draft': ('EEVEE', 0, 100), 'final': ('CYCLES', 128, 200)}
@@ -712,7 +724,8 @@ def main():
     samples = int(_opt('--samples', samples))
     res = int(_opt('--res', res))
     out = os.path.abspath(_opt('--out', os.path.join(here, 'film')))
-    frames_dir = os.path.join(out, 'frames-%s' % preset)
+    spoken = dubbed(here)
+    frames_dir = os.path.join(out, 'frames-%s%s' % (preset, '-' + spoken if spoken else ''))
 
     sc = bpy.context.scene
     if engine == 'CYCLES':

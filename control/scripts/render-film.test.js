@@ -64,6 +64,22 @@ describe('the render worker', () => {
     expect(calls().length).toBe(before);
   });
 
+  it('draws a dub in frames of its own, and gives the scene its own mouths back for the original', () => {
+    const one = path.join(DIR, 'dubbed');
+    pack(one, [6]);
+    writeFileSync(path.join(one, 'scene.json'), JSON.stringify({ source: 'mojulo', frames: 6, dubs: { fr: { audio: 'audio/voice.fr.wav' } } }));
+    const dubCalls = () => calls().filter((c) => c.py === 'dub.py' && c.cwd.endsWith('dubbed')).map((c) => c.after.at(-1));
+    expect(render(one, '--locale', 'fr').scenes.dubbed).toMatchObject({ done: 6, encoded: 'film/film-draft-fr.mp4' });
+    expect(readdirSync(path.join(one, 'film')).sort()).toEqual(['film-draft-fr.mp4', 'frames-draft-fr']);
+    expect(render(one).scenes.dubbed).toMatchObject({ done: 6, encoded: 'film/film-draft.mp4' });
+    expect(readdirSync(path.join(one, 'film', 'frames-draft'))).toHaveLength(6);
+    expect(dubCalls()).toEqual(['fr', 'none']);
+    // (a locale the scene has no dub in: its own frames, nothing drawn again)
+    const before = calls().length;
+    expect(render(one, '--locale', 'de').scenes.dubbed).toMatchObject({ done: 6, encoded: 'film/film-draft-de.mp4' });
+    expect(calls().slice(before).map((c) => c.py)).toEqual(['film_render.py']);
+  });
+
   it('builds and renders a pack made again since its render (the scene edited), and cuts the film again; the other scene is kept', () => {
     const one = path.join(film, 'scenes', 'one', 'blender');
     const was = JSON.parse(readFileSync(path.join(one, 'render.json'), 'utf8')).pack;

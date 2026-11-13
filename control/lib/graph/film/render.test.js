@@ -18,7 +18,8 @@ describe('the render plan', () => {
   it('builds the set first where there is one, the lights where they are asked, the look last', () => {
     expect(buildSteps({ shotFiles: ['shots/a.json'] }).map((s) => s.step)).toEqual(['film.blend', 'actors', 'shots', 'look']);
     const lit = buildSteps({ shotFiles: ['shots/a.json', 'shots/b.json'], set: true, lights: true, look: 'anime' });
-    expect(lit.map((s) => s.step)).toEqual(['set', 'set.py', 'actors', 'shots', 'light.py', 'look']);
+    expect(lit.map((s) => s.step)).toEqual(['set', 'set.py', 'set light', 'actors', 'shots', 'light.py', 'look']);
+    expect(lit.find((s) => s.step === 'set light').args).toEqual(['film.blend', '--python', 'film_light.py', '--', '--root', 'set:root']);
     expect(lit.find((s) => s.step === 'shots').args.filter((x) => x.startsWith('shots/'))).toEqual(['shots/a.json', 'shots/b.json']);
     expect(lit.at(-1).args.at(-1)).toBe('anime');
   });

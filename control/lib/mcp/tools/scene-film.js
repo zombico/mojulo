@@ -198,7 +198,7 @@ async function heroSource(src, { who, getRow, fallback }) {
 }
 
 /** what a pack writes that depends on its scene: cleared before a pack is made again in the same folder */
-const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'shot.json', 'light.py', 'set.py', 'dub.py']);
+const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'shot.json', 'light.py', 'set.py', 'dub.py', 'atmosphere.json']);
 
 /**
  * Write the scene film pack into outDir: actors/<who>.glb, then the pack's files (actor/scene-film.js). Returns the
@@ -249,13 +249,17 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     log(`actors/${w}.glb: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB, ${minted[w].seconds} s`);
   }
   const sound = await writeSceneSound({ dir: outDir, plan, screenplay: P.screenplay, fps, prefix: 'audio/' });
-  let setPack = null;
+  let setPack = null, atmosphere = null;
   if (P.set) {
     const { buildBlenderPack } = await import('@/lib/graph/scene/blender-pack.js');
     await buildBlenderPack({ ref: P.set.ref, outDir: path.join(outDir, 'set'), log });
     setPack = { ref: P.set.ref, ...(P.set.title ? { title: P.set.title } : {}), floor: P.set.floor, pack: 'set/' };
+    // (the set's light is its world's: the sky, the lamps and the fog it declares, read as the world's own film reads them)
+    const { filmAtmosphere } = await import('@/lib/motion/blender-film.js');
+    const world = getRow(P.set.ref);
+    atmosphere = filmAtmosphere({ payload: (await resolveWorldScene(world, { unshaded: true })).payload, manifest: world.manifest ?? {} });
   }
-  const files = sceneFilmFiles({ S, coverage, actors, fps, title, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
+  const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
   for (const f of files) { mkdirSync(path.dirname(path.join(outDir, f.file)), { recursive: true }); writeFileSync(path.join(outDir, f.file), f.text); }
   return {
     files: [...Object.values(minted).map((m) => m.glb), ...files.map((f) => f.file)],
