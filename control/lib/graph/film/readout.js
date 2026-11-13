@@ -8,6 +8,8 @@
  *     played  { <scene id>: { plan?: { S, coverage, notes }, set?, advice?: [], error?: <message> } }
  *     approvals  { <scene id>: { board: <stamp>, at } } (the person's, per scene: actor's eyes gate)
  *     made    { storyboard?, animatic?, blender?: { motion_ref, scenes: { <id>: { stamp } }, pending? } }
+ *     progress  the render worker's record (scripts/render-film.mjs render.json), read by the door: { dir, scenes:
+ *               { <id>: { preset, frames, done, encoded } }, cut }
  *
  * Pure.
  */
@@ -17,7 +19,7 @@ import { sceneOrder, sceneStamp } from './film.js';
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** The film's readout (see the header) */
-export function filmReadout(F, played, { approvals = {}, made = {}, ref = null } = {}) {
+export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, progress = null } = {}) {
   const order = sceneOrder(F), advice = [];
   const scenes = order.map((id) => {
     const P = played[id] ?? {}, stamp = sceneStamp(F, id), A = approvals[id];
@@ -31,8 +33,9 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null }
     if (recorded && recorded < turns.length) advice.push({ id: 'part-voiced', scene: id, says: `scene ${id}: ${recorded} of ${turns.length} lines are recorded (lines ${turns.map((T, k) => (T.recording ? null : k + 1)).filter(Boolean).join(', ')} are read from their words)`, try: 'record the rest (the voice worker, in each part\'s voice), or none: a scene is timed by one or the other throughout' });
     if (approval === 'stale') advice.push({ id: 'stale', scene: id, says: `scene ${id} changed since its board was approved`, try: 'run its storyboard again and look before approving it again' });
     else if (approval === 'open' && made.storyboard) advice.push({ id: 'unapproved', scene: id, says: `scene ${id}'s board is not approved`, try: `look at it in the film's book and approve it: film: { ref, approve: { ${id}: 'board' } }` });
+    const pr = progress?.scenes?.[id];
     return {
-      ...row, parts: Object.keys(S.actors), lines: turns.length, seconds: r3(S.seconds), shots: P.plan.coverage.shots.length,
+      ...row, ...(pr ? { render: pr } : {}), parts: Object.keys(S.actors), lines: turns.length, seconds: r3(S.seconds), shots: P.plan.coverage.shots.length,
       ...(recorded ? { recorded } : {}), ...(F.scenes.find((s) => s.id === id).dub ? { dubs: Object.keys(F.scenes.find((s) => s.id === id).dub) } : {}),
       ...(P.set ? { place: { world: P.set.ref, title: P.set.title, places: P.set.places } } : {}),
     };
@@ -56,6 +59,10 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null }
   else if (!approved) next.push({ department: 'render', says: `${scenes.filter((s) => s.board !== 'approved').length} of ${scenes.length} boards to look at`, try: "read the book, then film: { ref, approve: { <scene>: 'board' } }" });
   else if (!made.animatic) next.push({ department: 'render', says: 'the boards are approved', try: "film: { ref, run: 'animatic' } (the cut, with its sound)" });
   else if (!made.blender || made.blender.pending?.length) next.push({ department: 'render', says: made.blender?.pending?.length ? `${made.blender.pending.length} scene(s) still to film` : 'the cut is made', try: "film: { ref, run: 'blender' } (each actor minted: minutes a scene; resumable)" });
+  else if (progress && !progress.cut) {
+    const left = scenes.filter((s) => !s.render?.encoded);
+    next.push({ department: 'render', says: left.length ? `${left.length} scene(s) to render in Blender (${left.map((s) => `${s.id} ${s.render ? `${s.render.done}/${s.render.frames}` : 'not started'}`).join(', ')})` : 'every scene is rendered; the cut is not', try: `on a machine with Blender: node scripts/render-film.mjs ${progress.dir} --preset final (resumable: run it again to go on)` });
+  }
   return {
     ...(ref ? { ref } : {}), title: F.title ?? null, scenes, departments, waves, advice: advice.map((a) => ({ ...a, department: ADVICE_HOME[a.id] ?? 'script' })),
     next, approved, ...(ref ? { book: `/api/sketches/${encodeURIComponent(ref)}/bible?book=film` } : {}),

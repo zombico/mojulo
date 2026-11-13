@@ -79,6 +79,21 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - the Blender pack carries them under `audio/`, plus `dub.py -- --locale <l>`;
   - `film_render.py` lays the voice under the film, or a dub's with `--locale <l>`.
 
+## The render (`shot.params.render`, Blender's)
+
+`{ light: 'setups', dof: 2.8, motion_blur: true, samples: 256 }`, each optional:
+
+- **`light: 'setups'`** lights each shot as a crew relights a setup. Each shot gets a key on the short side of the
+  face, a fill across the lens and a rim from behind, in the cast rig's colours. They are area lights placed from that
+  shot's camera and subject, and they jump on the cut (`light.py`).
+- **`dof`** is an f-stop. The focus follows the subject the camera looks at.
+- **`motion_blur`** turns on motion blur.
+- **`samples`** sets Cycles' samples for the final render.
+
+Render the pack with the render worker, on a machine with Blender. It works chunk by chunk and is resumable:
+`node scripts/render-film.mjs <the pack> --preset final [--budget-min 60]`. It writes `render.json`. The tool never
+launches Blender.
+
 ## The three forms (`export`), cheapest first
 
 - `storyboard` (the default): no mint, no Blender, seconds. `storyboard.page` is one page with a panel for each shot

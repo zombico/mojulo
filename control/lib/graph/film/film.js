@@ -5,6 +5,7 @@
  *
  *   THE RECIPE: { title?, cast: { <who>: { persona? | hero?, register?, style?, role?, height? } },
  *     sets?: { <id>: <a stored world's ref> }, look?: 'film' | 'anime', grade?, grain?, style?,
+ *     render?: { light?: 'setups' | 'world', dof?: <an f-stop>, motion_blur?, samples? } (film/render-plan.js),
  *     scenes: [{ id, set?, cast: { <who>: { mark?, register?, style?, role?, height? } }, marks?, script, voice?, dub?,
  *       seed? }],
  *     edit?: { order?: [<scene id>], cuts?: { <scene id>: 'cut' | 'fade' } } }
@@ -22,10 +23,11 @@
  * Pure and deterministic.
  */
 import { createHash } from 'node:crypto';
+import { renderErrors } from './render-plan.js';
 
 export const FILM_KIND = 'film';
 export const isFilmKind = (kind) => kind === FILM_KIND;
-export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'scenes', 'edit']);
+export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit']);
 export const FILM_PART_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'height']);
 export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'script', 'voice', 'dub', 'seed']);
 export const SCENE_PART_KEYS = Object.freeze(['mark', 'register', 'style', 'role', 'height']);
@@ -53,6 +55,7 @@ export function filmErrors(F) {
     else for (const [id, ref] of Object.entries(F.sets)) if (!WORD.test(id) || typeof ref !== 'string' || !ref) errs.push(`sets.${id}: a set is a word naming a stored world's ref`);
   }
   if (F.look !== undefined && !FILM_LOOKS.includes(F.look)) errs.push(`look: ${FILM_LOOKS.join(' | ')}`);
+  errs.push(...renderErrors(F.render));
   if (!Array.isArray(F.scenes) || !F.scenes.length) errs.push('scenes: [{ id, cast: { <who>: { mark? } }, script }], one at least');
   else {
     const seen = new Set();

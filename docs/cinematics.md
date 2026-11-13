@@ -239,6 +239,17 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   - `blender` writes each scene's pack and `cut.py`, which joins their renders. It is resumable: a run works until its
     budget and leaves the rest `pending`.
 - **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+- **Light per setup** (`film/setup-light.js`, opt-in with `render.light: 'setups'`): each shot is lit as a crew relights
+  a setup, in the cast rig's colours and ratios.
+  - The key goes on the short side of the face: in front of where it is turned, away from the lens.
+  - The fill goes across the lens. The rim comes from behind.
+  - They jump on the cut (`light.py`).
+- **Focus and blur:** `render.dof` puts the focus on the subject the camera looks at. `render.motion_blur` and
+  `render.samples` go to `film_render.py`.
+- **The render worker** (`scripts/render-film.mjs`, `film/render-plan.js`) renders a pack, or a whole film:
+  - it builds once and renders chunks that never cross a cut, under a budget, resumable from the frames on disk;
+  - it encodes each scene with its voice, then `cut.py` joins the scenes;
+  - it writes `render.json`, which the film's readout reads back. The tools never launch Blender.
 
 ## The scene in a game
 

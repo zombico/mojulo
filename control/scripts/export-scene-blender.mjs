@@ -66,16 +66,10 @@ const gate = { look, blender: blender ?? null, ran: false };
 if (!blender || !existsSync(blender)) gate.skipped = 'no Blender found (MOJULO_BLENDER, lib/workers/find.js): the pack is written; build it as SCENE.md says';
 else {
   const run = (args) => { const r = spawnSync(blender, ['-b', ...args], { cwd: out, encoding: 'utf8', timeout: 30 * 60 * 1000 }); return { status: r.status, tail: (r.stdout + r.stderr).split('\n').slice(-6).join('\n') }; };
-  const shotArgs = shotFiles.flatMap((f) => ['--shot', f]);
-  // (a set: its own pack builds film.blend and set.py lays it on the floor; without one an empty film.blend)
-  const onSet = JSON.parse(readFileSync(path.join(out, 'scene.json'), 'utf8')).set;
-  gate.steps = [
-    ...(onSet ? [['set', run(['--python', 'set/import_mojulo.py', '--', '--mode', 'run', '--blend', 'film.blend'])], ['set.py', run(['film.blend', '--python', 'set.py'])]]
-      : [['film.blend', run(['--python-expr', "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"])]]),
-    ['actors', run(['film.blend', '--python', 'actors.py', '--python-expr', 'import bpy; bpy.ops.wm.save_mainfile()'])],
-    ['shots', run(['film.blend', '--python', 'film_shots.py', '--', '--root', 'none', ...shotArgs, '--verify', 'film-gate.json'])],
-    ['look', run(['film.blend', '--python', 'look.py', '--python-expr', 'import bpy; bpy.ops.wm.save_mainfile()', '--', '--look', look])],
-  ].map(([step, r]) => ({ step, ...r }));
+  // (the build is the render worker's: lib/graph/film/render-plan.js buildSteps: a set's pack first, the lights if lit)
+  const { buildSteps } = await lib('graph/film/render-plan.js');
+  const S = JSON.parse(readFileSync(path.join(out, 'scene.json'), 'utf8'));
+  gate.steps = buildSteps({ shotFiles, look, set: Boolean(S.set), lights: Boolean(S.lights) }).map(({ step, args }) => ({ step, ...run(args) }));
   gate.ran = true;
   gate.ok = gate.steps.every((s) => s.status === 0);
 }

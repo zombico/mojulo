@@ -32,6 +32,7 @@ import { directorsNotes } from './notes.js';
 import { programOf, shotAt } from '../shoot/sample.js';
 import { warped } from '../shoot/time.js';
 import { placeOn } from './scene.js';
+import { setupLights } from '../film/setup-light.js';
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -47,7 +48,7 @@ export function coverageCameraAt(coverage, t, shot = null) {
 }
 
 /** The pack's files (see the header) */
-export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null }) {
+export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null, render = null }) {
   // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
@@ -62,7 +63,7 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
       const f0 = Math.round(s.span[0] * fps), f1 = Math.max(f0 + 1, Math.round(s.span[1] * fps));
       for (let f = f0; f < f1; f++) cameras.push(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing);
     }
-    return filmShot({ motionRef: `${title}-${String(k + 1).padStart(2, '0')}`, worldRef: title, title: s.name, motion: 'scene', fps, width, height, cameras });
+    return filmShot({ motionRef: `${title}-${String(k + 1).padStart(2, '0')}`, worldRef: title, title: s.name, motion: 'scene', fps, width, height, cameras, ...(render?.dof ? { dof: { fstop: render.dof } } : {}) });
   });
   // (an actor's place: its root keys on the scene's clock, or, under a time map, sampled every screen frame)
   const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : S.actors[who].root)
@@ -75,6 +76,8 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...(sound?.audio ? { audio: sound.audio, captions: sound.captions } : {}),
     ...(sound?.dubs ? { dubs: sound.dubs } : {}),
     ...(set ? { set } : {}),
+    ...(render ? { render: Object.fromEntries(Object.entries({ samples: render.samples, motion_blur: render.motion_blur, dof: render.dof }).filter(([, v]) => v !== undefined && v !== null && v !== false)) } : {}),
+    ...(render?.light === 'setups' ? { lights: setupLights({ S, coverage, shots }) } : {}),
     actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
     turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text, ...(T.recording ? { recording: T.recording } : {}) })),
     coverage,
@@ -85,8 +88,9 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     { file: 'actors.py', text: actorsPy() },
     { file: 'look.py', text: lookPy() },
     ...(set ? [{ file: 'set.py', text: setPy() }] : []),
+    ...(render?.light === 'setups' ? [{ file: 'light.py', text: lightPy() }] : []),
     ...(sound?.dubs ? [{ file: 'dub.py', text: dubPy() }] : []),
-    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file), sound, set }) },
+    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file), sound, set, render }) },
   ];
 }
 
@@ -121,6 +125,104 @@ def main():
         root.name = 'set:root'
         root.location.z -= float(st.get('floor', 0.0))
     print('[mojulo set] %s on its floor (%.3f m)' % (st.get('ref', 'the set'), float(st.get('floor', 0.0))))
+    bpy.ops.wm.save_mainfile()
+
+
+main()
+`;
+}
+
+/** light.py — constant text: each shot lit as its setup (scene.json lights: film/setup-light.js), a key, a fill and a
+ * rim of area lights, aimed at the shot's subject, each keyed at its shot's first frame and held through it (constant:
+ * the lights jump on the cut, as a crew relights a setup) */
+export function lightPy() {
+  return String.raw`"""
+light.py - a mojulo scene lit per setup (mojulo scene film v${BLENDER_FILM_VERSION}).
+
+Each shot of the coverage its own key (on the short side of the face), fill (across the lens) and rim (from behind),
+in the cast rig's colours (scene.json lights), as three area lights aimed at the shot's subject and keyed at the shot's
+first frame, holding to the next cut. Run it once, after film_shots.py:
+
+  blender -b film.blend --python light.py
+"""
+import bpy
+import json
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def srgb(hexstr):
+    h = hexstr.lstrip('#')
+    return tuple(((int(h[i:i + 2], 16) / 255.0) ** 2.2) for i in (0, 2, 4))
+
+
+def fcurves_of(act):
+    legacy = getattr(act, 'fcurves', None)
+    if legacy is not None:
+        try:
+            return list(legacy)
+        except Exception:
+            pass
+    out = []
+    for layer in getattr(act, 'layers', []):
+        for strip in getattr(layer, 'strips', []):
+            for bag in getattr(strip, 'channelbags', []):
+                out.extend(bag.fcurves)
+    return out
+
+
+def held(idb):
+    ad = getattr(idb, 'animation_data', None)
+    if ad and ad.action:
+        for fc in fcurves_of(ad.action):
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'CONSTANT'
+
+
+def main():
+    with open(os.path.join(HERE, 'scene.json')) as f:
+        S = json.load(f)
+    setups = S.get('lights') or []
+    if not setups:
+        raise SystemExit('[mojulo light] scene.json has no lights (the pack was written without render.light = setups)')
+    sc = bpy.context.scene
+    coll = bpy.data.collections.get('mojulo-light') or bpy.data.collections.new('mojulo-light')
+    if coll.name not in sc.collection.children:
+        sc.collection.children.link(coll)
+    aim = bpy.data.objects.get('light:subject') or bpy.data.objects.new('light:subject', None)
+    if aim.name not in coll.objects:
+        coll.objects.link(aim)
+    lamps = {}
+    for role in ('key', 'fill', 'rim'):
+        name = 'light:%s' % role
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            ob = bpy.data.objects.new(name, bpy.data.lights.new(name, 'AREA'))
+            coll.objects.link(ob)
+            track = ob.constraints.new('TRACK_TO')
+            track.target = aim
+            track.track_axis = 'TRACK_NEGATIVE_Z'
+            track.up_axis = 'UP_Y'
+        lamps[role] = ob
+    for L in setups:
+        fr = int(L['frame'])
+        aim.location = L['subject']
+        aim.keyframe_insert('location', frame=fr)
+        for role, ob in lamps.items():
+            spec = L[role]
+            ob.location = spec['pos']
+            ob.keyframe_insert('location', frame=fr)
+            ob.data.energy = float(spec['energy'])
+            ob.data.color = srgb(spec['color'])
+            ob.data.size = float(spec.get('size', 1.0))
+            ob.data.keyframe_insert('energy', frame=fr)
+            ob.data.keyframe_insert('color', frame=fr)
+    for ob in [aim, *lamps.values()]:
+        held(ob)
+        if ob.data is not None:
+            held(ob.data)
+    print('[mojulo light] %d setups lit (key, fill, rim)' % len(setups))
     bpy.ops.wm.save_mainfile()
 
 
@@ -650,7 +752,7 @@ if __name__ == '__main__':
 }
 
 /** SCENE.md — the operator's page */
-export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles, sound = null, set = null }) {
+export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles, sound = null, set = null, render = null }) {
   return `# ${title} — a mojulo scene for Blender
 
 ${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.${coverage.shots.some(warped) ? `
@@ -661,7 +763,8 @@ The scene plays on a time map (its slow motion, its freezes${coverage.shots.some
 ${set ? `    <blender> -b --python set/import_mojulo.py -- --mode run --blend film.blend
     <blender> -b film.blend --python set.py` : `    <blender> -b --python-expr "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"`}
     <blender> -b film.blend --python actors.py -- && <blender> -b film.blend --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
-    <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}
+    <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}${render?.light === 'setups' ? `
+    <blender> -b film.blend --python light.py` : ''}
     <blender> -b film.blend --python look.py -- --look film      # or --look anime
     <blender> -b film.blend --python film_render.py
 ${sound?.dubs ? `

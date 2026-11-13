@@ -321,3 +321,14 @@ variant**. For premium *stills* (covers, portraits) the RENDER path (`portrait.p
 auto-orients normals and needs none of this — reach for it first. Static scenery has
 no mirror problem and bakes fine untouched. The bake is frozen (see Limits); it rides
 *alongside* the playable rig, never replaces it.
+
+## A film, rendered by the worker
+
+A scene or a film made in the animation studio (`forge_motion`'s screenplay or film, `export`/`run: 'blender'`)
+renders with `node scripts/render-film.mjs <its folder> --preset draft | final`.
+
+- It builds `film.blend` once: the set, the cast, the cameras, the lights per setup when asked, and the look.
+- It renders the frames in chunks that never cross a cut (`--chunk`, 24 by default), within `--budget-min`. Run it
+  again to go on: a frame on disk is never rendered again.
+- It encodes each scene with its voice, or a dub's with `--locale`, then joins a film's scenes with `cut.py`.
+- What it did is in each pack's `render.json`, which the film's readout and book read back.

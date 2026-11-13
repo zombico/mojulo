@@ -80,11 +80,27 @@ function boardsOf(made, outcomeUrlFor) {
   return Object.fromEntries(Object.entries(B.scenes ?? {}).map(([id, s]) => [id, { page: `${url}scenes/${id}/index.html`, panels: Array.from({ length: s.panels ?? 0 }, (_, k) => `${url}scenes/${id}/panels/${String(k + 1).padStart(2, '0')}.svg`) }]));
 }
 
+/** The render worker's progress on the film's Blender packs (scripts/render-film.mjs writes render.json; the tool only
+ * reads it, and never launches Blender) */
+export async function renderProgressOf(made) {
+  const B = made?.blender;
+  if (!B?.motion_ref) return null;
+  const { outcomeDirFor } = await store();
+  const dir = outcomeDirFor(B.motion_ref), scenes = {};
+  for (const id of Object.keys(B.scenes ?? {})) {
+    const f = path.join(dir, 'scenes', id, 'blender', 'render.json');
+    if (!existsSync(f)) continue;
+    try { const R = JSON.parse(readFileSync(f, 'utf8')); scenes[id] = { preset: R.preset, frames: R.frames, done: R.done, encoded: R.encoded ?? null }; } catch { /* a record being written: read next time */ }
+  }
+  const cut = ['final', 'draft'].map((p) => `cut-${p}.mp4`).find((c) => existsSync(path.join(dir, c))) ?? null;
+  return { dir, scenes, cut };
+}
+
 /** The film's book, read live (the bible route's `book=film`) */
 export async function filmBook(row) {
   const { getRow, outcomeUrlFor } = await store();
   const F = row.manifest.film, played = await playFilm(F, { getRow });
-  const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref });
+  const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress: await renderProgressOf(row.manifest.made) });
   return filmBookHtml({ film: { ...F, title: F.title ?? row.title }, readout, boards: boardsOf(row.manifest.made, outcomeUrlFor) });
 }
 
@@ -256,7 +272,7 @@ async function runBlender(row, F, played, ids) {
     if (P.error) { out[id] = { error: P.error }; continue; }
     if (scenes[id]?.stamp === stamp && existsSync(path.join(dir, 'scene.json'))) { out[id] = { kept: true }; continue; }
     if (Date.now() - t0 > budget) { pending.push(id); continue; }
-    const film = await writeSceneFilm({ outDir: dir, screenplay: sceneScreenplay(F, id), getRow, title: packTitle(`${title} ${id}`), style: F.style ?? null, grain: F.grain ?? null, grade: F.grade ?? null, fps, prepared: P.prep, cache });
+    const film = await writeSceneFilm({ outDir: dir, screenplay: sceneScreenplay(F, id), getRow, title: packTitle(`${title} ${id}`), style: F.style ?? null, grain: F.grain ?? null, grade: F.grade ?? null, fps, prepared: P.prep, cache, render: F.render ?? null });
     scenes[id] = { stamp, at: new Date().toISOString() };
     out[id] = { actors: Object.fromEntries(Object.entries(film.actors).map(([w, A]) => [w, { seconds: A.seconds, plays: A.plays }])), files: film.files.length };
   }
@@ -334,8 +350,10 @@ export async function filmHandler(arg) {
     SketchRepository.update({ ref: row.ref, manifest: { ...row.manifest, made } });
     row = getRow(row.ref);
   }
-  const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref });
+  const progress = await renderProgressOf(row.manifest.made);
+  const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress });
   return {
+    ...(progress ? { render: progress } : {}),
     ok: true, ref: row.ref, url: `/sketches/${encodeURIComponent(row.ref)}`, ...(did.length ? { did } : {}), ...(ran ? { ran } : {}),
     ...readout,
     message: `Film ${row.ref}${did.length ? ` (${did.join(', ')})` : ''}: ${readout.scenes.length} scenes, ${readout.departments.filter((D) => D.state === 'advised').length} departments with advice.`

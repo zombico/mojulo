@@ -23,6 +23,7 @@ export function filmBookHtml({ film, readout, boards = {} }) {
     return `<section class="scene" id="scene-${esc(s.id)}">
 <h3>${esc(s.id)} <span class="badge ${esc(s.board)}">${s.board === 'approved' ? 'board approved' : s.board === 'stale' ? 'changed since approved' : 'board not approved'}</span></h3>
 <p class="meta">${s.error ? 'does not play' : `${s.seconds.toFixed(1)} s · ${s.shots} shot${s.shots === 1 ? '' : 's'} · ${s.lines} line${s.lines === 1 ? '' : 's'}${s.recorded ? ` (${s.recorded} recorded)` : ''}${s.dubs ? ` · dubbed: ${s.dubs.join(', ')}` : ''}`} · ${esc(parts)}${s.place ? ` · on ${esc(s.place.title ?? s.place.world)}` : S.set ? ` · set ${esc(S.set)}` : ''}</p>
+${s.render ? `<p class="meta">Blender (${esc(s.render.preset)}): ${s.render.done} of ${s.render.frames} frames${s.render.encoded ? ` · encoded ${esc(s.render.encoded)}` : ''}</p>` : ''}
 ${B ? `<div class="strip">${B.panels.map((u, k) => `<a href="${esc(B.page)}"><img src="${esc(u)}" alt="panel ${k + 1}" loading="lazy"></a>`).join('')}</div><p class="meta"><a href="${esc(B.page)}">the board</a></p>` : '<p class="meta">No board yet.</p>'}
 <pre>${esc(S.script)}</pre>
 ${R.advice.some((a) => a.scene === s.id) ? `<ul class="advice">${adviceOf((a) => a.scene === s.id)}</ul>` : ''}

@@ -86,7 +86,7 @@ describe("forge_motion's screenplay family", () => {
   it('is filmed in Blender, shot by its coverage, with its own params', async () => {
     await expect(forge({ export: 'gif' })).rejects.toThrow(/'storyboard' \(the board, the default\), 'mp4'.*not 'gif'/);
     await expect(forge({ shot: { motion: 'orbit' } })).rejects.toThrow(/shot by its coverage/);
-    await expect(forge({ shot: { params: { frames: 3 } } })).rejects.toThrow(/look, style, grain, grade, hero \(not frames/);
+    await expect(forge({ shot: { params: { frames: 3 } } })).rejects.toThrow(/look, style, grain, grade, hero, render \(not frames/);
     await expect(forge({ shot: { params: { look: 'noir' } } })).rejects.toThrow(/film \| anime/);
     await expect(forgeMotionHandler({ title: 't', subject: { screenplay: BASELINE.blocked, world_ref: 'sk_x' } })).rejects.toThrow(/family of its own/);
   });

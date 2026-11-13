@@ -26,7 +26,7 @@ export const BLENDER_FILM_VERSION = '0.1.0';
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
 /** The shot.json body for one world camera motion. `cameras` are worldFraming objects. */
-export function filmShot({ motionRef = null, worldRef, title = null, motion, fps, width, height, cameras }) {
+export function filmShot({ motionRef = null, worldRef, title = null, motion, fps, width, height, cameras, dof = null }) {
   if (!Array.isArray(cameras) || cameras.length < 1) throw new Error('filmShot: no cameras');
   return {
     source: 'mojulo',
@@ -39,6 +39,7 @@ export function filmShot({ motionRef = null, worldRef, title = null, motion, fps
     width,
     height,
     frame_count: cameras.length,
+    ...(dof ? { dof } : {}),
     up: 'z',
     units: 'world units (the pack root scales them to metres)',
     cameras: cameras.map((w) => ({
@@ -185,6 +186,12 @@ def load_shot(path, start, M):
     fovs = [c['hfov_deg'] for c in shot['cameras']]
     zooms = max(fovs) - min(fovs) > 1e-4
     cd.angle = math.radians(fovs[0])
+    # depth of field (a shot that asks for it: { fstop }): the focus on the target, the subject the camera looks at, so
+    # it follows the shot with no key of its own
+    if shot.get('dof'):
+        cd.dof.use_dof = True
+        cd.dof.focus_object = target
+        cd.dof.aperture_fstop = float(shot['dof'].get('fstop', 2.8))
     for i, c in enumerate(shot['cameras']):
         fr = start + i
         cam.location = M @ Vector(c['pos'])
@@ -633,6 +640,11 @@ Frames first, so a crash loses one frame; a re-run skips frames already on disk.
 Blender's own sequencer - no ffmpeg install needed. Markers switch the camera at each cut.
 
   blender -b film.blend --python film_render.py -- [--preset draft|final] [--engine EEVEE|CYCLES] [--audio voice.wav] [--locale fr]
+                                                   [--frames 25-48] [--no-encode]
+
+--frames renders that range alone (a chunk: scripts/render-film.mjs renders a film chunk by chunk, resumable) and
+--no-encode stops at the frames; frames already on disk are never rendered again. A scene pack's scene.json render
+settings (samples, motion_blur) are taken under the preset (the arguments win).
 
 A scene's pack (scene.json beside this) lays its voice under the film: scene.json's audio, a dub's with --locale, or
 --audio's; a world's film has none.
@@ -660,6 +672,15 @@ def log(*a):
     print('[film]', *a)
 
 
+def render_of(here):
+    """a scene pack's render settings (scene.json render: samples, motion_blur); none for a world film"""
+    sj = os.path.join(here, 'scene.json')
+    if not os.path.exists(sj):
+        return {}
+    with open(sj) as f:
+        return json.load(f).get('render') or {}
+
+
 def sound_of(here):
     """the film's sound: --audio, else a scene pack's scene.json audio (a dub's with --locale); none for a world film"""
     given = _opt('--audio')
@@ -683,10 +704,13 @@ def main():
     if preset not in PRESETS:
         raise SystemExit('--preset must be draft or final')
     engine, samples, res = PRESETS[preset]
+    here = os.path.dirname(bpy.data.filepath) if bpy.data.filepath else os.getcwd()
+    own = render_of(here)
+    if preset == 'final' and own.get('samples'):
+        samples = int(own['samples'])
     engine = (_opt('--engine') or engine).upper()
     samples = int(_opt('--samples', samples))
     res = int(_opt('--res', res))
-    here = os.path.dirname(bpy.data.filepath) if bpy.data.filepath else os.getcwd()
     out = os.path.abspath(_opt('--out', os.path.join(here, 'film')))
     frames_dir = os.path.join(out, 'frames-%s' % preset)
 
@@ -720,15 +744,29 @@ def main():
         except Exception as e:
             log('GPU unavailable, CPU render:', e)
 
+    if own.get('motion_blur'):
+        sc.render.use_motion_blur = True
+        if hasattr(sc.render, 'motion_blur_shutter'):
+            sc.render.motion_blur_shutter = float(own.get('shutter', 0.5))
+
     os.makedirs(frames_dir, exist_ok=True)
     sc.render.image_settings.file_format = 'PNG'
     sc.render.use_overwrite = False
     sc.render.use_placeholder = True
     sc.render.filepath = os.path.join(frames_dir, '')
     t = time.time()
+    whole = (sc.frame_start, sc.frame_end)
+    chunk = _opt('--frames')
+    if chunk:
+        a, b = (int(x) for x in chunk.split('-'))
+        sc.frame_start, sc.frame_end = max(whole[0], a), min(whole[1], b)
     bpy.ops.render.render(animation=True)
     n = sc.frame_end - sc.frame_start + 1
     log('%d frames (%s) in %.1f s' % (n, preset, time.time() - t))
+    print('MOJ_FILM_FRAMES_DONE', sc.frame_start, sc.frame_end, round(time.time() - t, 2))
+    sc.frame_start, sc.frame_end = whole
+    if '--no-encode' in _argv():
+        return
 
     # encode: a throwaway scene whose sequencer plays the PNGs
     files = sorted(f for f in os.listdir(frames_dir) if f.endswith('.png'))

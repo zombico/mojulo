@@ -33,6 +33,8 @@ forge_motion({ film: { write: {
   film's.
 - A set is a stored world, named once in `sets` and used by any scene's `set`.
 - `look`: `film` | `anime`. `grade`, and `grain` (`twos`), cover the whole film.
+- `render: { light: 'setups', dof, motion_blur, samples }` sets the Blender render for every scene (the `scene-film`
+  card). The Look and light department owns it.
 - `edit.order` is the order the scenes play in.
 - Recordings are bound as they are written, so the row keeps no path.
 
@@ -72,8 +74,14 @@ The waves are script and look, then casting, set and edit, then performance and 
   - Minting is minutes per scene, and each hero is minted once a call. The call works until its budget
     (`MOJULO_RUN_BUDGET_MS`, else 300 s) and returns `pending`. Call it again: scenes already made at their current
     stamp are kept.
-  - Build and render each pack as its `SCENE.md` says, then run `cut.py -- --preset draft | final`. The tool never
-    launches Blender.
+  - **The render worker renders it, on a machine with Blender:** `node scripts/render-film.mjs <the run's folder>
+    --preset final [--budget-min 60]`.
+    - Each pack is built once and rendered chunk by chunk, a chunk never crossing a cut, then encoded with its voice.
+      `cut.py` then joins the scenes.
+    - It is resumable: frames on disk are never rendered again, and running it again goes on.
+    - Its `render.json` is what the readout shows: each scene's frames done and whether it is encoded. The next move
+      names the command.
+  - The tool never launches Blender.
 
 `scenes: [<id>]` limits any run to those scenes. Rendering unapproved boards is allowed, and the readout says so: the
 gate advises and never refuses.

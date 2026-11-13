@@ -202,10 +202,11 @@ async function heroSource(src, { who, getRow, fallback }) {
  * summary the door and the script report: the files, the actors (bytes, seconds to mint, where each part came from),
  * the scene's seconds, its shots and the director's notes.
  */
-export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scene', style = null, grain = null, grade = null, fps = 24, hero = null, log = () => {}, prepared = null, cache = null }) {
+export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scene', style = null, grain = null, grade = null, fps = 24, hero = null, log = () => {}, prepared = null, cache = null, render = null }) {
   if (style !== null) { const e = styleErrors(style, 'style'); if (e.length) throw new Error(e.join('; ')); }
   const graded = readGrade(grade, 'grade');
   if (!Number.isFinite(fps) || fps < 1 || fps > 120) throw new Error('fps: a frame rate, 1 to 120');
+  { const { renderErrors } = await import('@/lib/graph/film/render-plan.js'); const e = renderErrors(render); if (e.length) throw new Error(e.join('; ')); }
   const P = prepared ?? await prepareScreenplay(screenplay, { getRow });
   const plan = planSceneFilm(P.screenplay, { getRow, style, grain });
   const { S, coverage, notes, heroes, sources } = plan;
@@ -247,7 +248,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     await buildBlenderPack({ ref: P.set.ref, outDir: path.join(outDir, 'set'), log });
     setPack = { ref: P.set.ref, ...(P.set.title ? { title: P.set.title } : {}), floor: P.set.floor, pack: 'set/' };
   }
-  const files = sceneFilmFiles({ S, coverage, actors, fps, title, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack });
+  const files = sceneFilmFiles({ S, coverage, actors, fps, title, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
   for (const f of files) { mkdirSync(path.dirname(path.join(outDir, f.file)), { recursive: true }); writeFileSync(path.join(outDir, f.file), f.text); }
   return {
     files: [...Object.values(minted).map((m) => m.glb), ...files.map((f) => f.file)],
@@ -269,7 +270,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
 export const packTitle = (title) => String(title ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'scene';
 
 /** shot.params a screenplay takes */
-export const SCREENPLAY_PARAMS = Object.freeze(['look', 'style', 'grain', 'grade', 'hero']);
+export const SCREENPLAY_PARAMS = Object.freeze(['look', 'style', 'grain', 'grade', 'hero', 'render']);
 
 /** The forms a screenplay is forged to: its storyboard (the default: no mint, seconds), the storyboard and its animatic,
  * or the Blender film (each actor minted: minutes) */
@@ -344,7 +345,7 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
   const { board, mp4, sound } = await writeStoryboard({ dir, plan, title, fps, animatic: form === 'mp4', screenplay: prep.screenplay, set: prep.set });
   const film = form === 'blender' ? await writeSceneFilm({
     outDir: filmDir, screenplay: subject.screenplay, getRow, title: packTitle(title), style: P.style ?? null,
-    grain: P.grain ?? null, grade: P.grade ?? null, fps, hero: P.hero ?? null, prepared: prep,
+    grain: P.grain ?? null, grade: P.grade ?? null, fps, hero: P.hero ?? null, prepared: prep, render: P.render ?? null,
   }) : null;
   const recipe = {
     motion_ref: ref, title, subject: { screenplay: prep.kept },

@@ -51,3 +51,14 @@ game.
     and subtitles.
   - **Blender.** Send the whole film to Blender, scene by scene. A long film is made over several calls, each picking
     up where the last stopped, and a single script joins the rendered scenes into one cut with their sound.
+- **Rendering the film in Blender.** A single command renders a scene, or the whole film, in Blender on your machine.
+  - **Stop and go on.** It works through the film a short piece at a time and can stop whenever you like. Run it again
+    and it carries on from where it stopped, never redrawing a frame it already has.
+  - **The finished film.** It finishes each scene with its voice, then joins the scenes into the finished film.
+  - **Progress.** The film's book shows how far each scene has got.
+- **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that
+  shot's camera stands and which way the actor faces: the main light on the far side of the face, a softer fill
+  across from it, and a rim light from behind that lifts the figure off the background. The lights change on each cut,
+  as a crew relights each setup.
+- **Focus and motion blur.** The camera can focus on whoever it is looking at, with the background softly out of
+  focus, and fast movement can blur as it would through a real lens.
