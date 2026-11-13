@@ -67,9 +67,12 @@ export const DRESS_THEMES = Object.freeze({
     // (a wagon is as long as it is drawn: the posts' box is this deep, and met all along it)
     lens: Object.freeze({ 'posts-left': 3.2, 'posts-right': 3.2 }),
     lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'platform', b: 'cutting' }), backdrop: 'terminus',
-    palette: Object.freeze({ ground: '#3e3b3a', ground2: '#444140', sleeper: '#2c2521', rail: '#54565b', kerb: '#59544f', wall: '#392e29', sky: '#151a29',
-      flank: '#46342c', flank2: '#30241e', trim: '#565249', iron: '#22252a', lamp: '#e6dcc6', land: '#25262c', far: '#463e49', horizon: '#5d5159',
-      jump: '#f2a31b', jump2: '#d9681a', steer: '#3b8fe6', 'tell-jump': '#f6d08a', 'tell-steer': '#9fd0ff', exit: '#5fd08a' }),
+    // (dusk, vivid: an indigo sky over a rose horizon, violet ballast, red brick; every colour of the way is as rich as
+    // the gate's `quiet` lets it be beside asks this bright, and the values are spread: light rails and kerbs on a dark
+    // bed, dark iron on a light sky's foot)
+    palette: Object.freeze({ ground: '#423f5a', ground2: '#4a4764', sleeper: '#241d2d', rail: '#4d4b60', kerb: '#514b5f', wall: '#372a3b', sky: '#1c1f44',
+      flank: '#6a3d37', flank2: '#41262e', trim: '#5c5754', iron: '#191a29', lamp: '#fff0c4', land: '#252342', far: '#62455f', horizon: '#744a67',
+      jump: '#ffae0a', jump2: '#ff5c1f', steer: '#2a7cff', 'tell-jump': '#ffe28f', 'tell-steer': '#a9d3ff', exit: '#35e58b' }),
   }),
   'rail-yard': Object.freeze({
     name: 'Rail yard', says: 'ballast, sleepers and steel rails; amber barriers and orange crates to jump, blue wagons to go round',

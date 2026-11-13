@@ -27,7 +27,9 @@ const clock = () => Number(process.hrtime.bigint() / 1000000n), t0 = clock(), re
 const step = (name, more) => { report.steps.push({ step: name, at: `${((clock() - t0) / 1000).toFixed(1)} s`, ...more }); console.error(name, JSON.stringify(more ?? {}).slice(0, 300)); };
 
 // 1. THE DESIGN: a world, a hero in the body its game reads, one level that is a course
-const world = { id: 'dash', name: 'Dash', feel: 'commuter-rail-runner', roll: true, ...(screen ? { screen } : {}),
+// (its juice and its grade asked for: the effects' floor and the hero's movement juice for its game type, the frame graded
+// as its register is)
+const world = { id: 'dash', name: 'Dash', feel: 'commuter-rail-runner', roll: true, juice: 'auto', grade: 'auto', ...(screen ? { screen } : {}),
   characters: { direction: { tradition: 'anime', primary: 'speed', secondary: 'steel', body: 'game' }, hero: {} },
   levels: { one: { name: 'The Lane', obstacles: { slots } } }, start: 'one' };
 const D = body(await designGameHandler({ world, ref: 'dash' }));

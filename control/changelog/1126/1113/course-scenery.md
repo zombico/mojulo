@@ -50,3 +50,11 @@ one design: the way and its asks (as before), the WALLS beside it, and the BACKD
   the end of the line, its ribs taller than anything on the way and a lit departure board under the first. The top
   of a tall frame is not the far sky alone: the overhead line (a theme's `overhead: 'line'`), a portal at every
   slice's end and a wire over each outer track, running to the vanishing point, all of it over any jump.
+- Last train's palette, again, for contrast and colour: an indigo sky over a rose horizon, violet ballast, red brick,
+  near-black iron, and brighter asks (amber, orange, a stronger blue). Every colour of the way is now about as rich
+  as the gate's `quiet` lets it be beside asks this bright (the way's chroma was near grey before); the values are
+  spread to the dark side, since anything on the way as light as an ask stops the ask being read. Holds every law on
+  200 seeds' shades.
+- The test game asks for its juice and its grade (`juice: 'auto'`, `grade: 'auto'`, the world's own words): the
+  effects' floor in its register (anime) and its game type's movement juice (pinball: a trail at the feet past
+  running pace, the air streaking by near top speed, speed lines on a surge), and the frame graded vivid.

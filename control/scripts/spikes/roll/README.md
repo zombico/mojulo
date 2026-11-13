@@ -90,3 +90,7 @@ at 17 to 19 frames a second (software GL, a 270 x 480 frame). Machine gate only.
 Since the course's dress gained its premise (Last train, the dress unsaid) the same run plays the dressed game: three
 maps clean in 19.0 to 19.3 s each (Node's audit: 18.6 s; a segment is longer by a wagon's length), 19 to 20 frames a
 second.
+
+With the runner's HUD (mana-ui, the toybox look), the world's juice and its grade asked for, the same run: three maps
+clean in about 19 s each; the frame rate here falls to about 10 a second (software GL pays for the grade's pass over
+every frame; a GPU does not).
