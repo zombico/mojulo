@@ -91,5 +91,12 @@ capture and the level played in Node show).
   `create_game` says so when a repeated level has no roll. A level that rolls says which map was played on its result
   (`map 202`), and played again is the same map.
 - A rolled level opened with no shell takes its seed from the page's own `?seed=` (1 unsaid: the reference roll).
+- The door: the agent's card for it (`gameworld-roll`, in `get_game_vocab`): what a roll is, the two ways to ask (a
+  world's `roll: true` over its walking levels; a level's `obstacles` for a course), the run that repeats one level,
+  what each audit says and what none of them sees. The game design routing card answers "a different map every time"
+  and "an obstacle course"; `design_game`'s roll steps point at the card; the levels chapter owns it.
+- A made course's camera is solved for the game's own screen: on an upright frame it is found again at that frame's
+  field of view (the table's pull-back would have moved every third). A world that names no hero runs its course from
+  the eye, and its level says so (`followed`): the tells and the thirds are laid for a chase.
 - Not yet: the foes a seed picks, the level's book, and the room layout itself rolled in the
   page from a kit of rooms.

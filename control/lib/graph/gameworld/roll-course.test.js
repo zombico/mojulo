@@ -8,6 +8,9 @@ import { POLES } from './feel/cards.js';
 import { readRoll, rollWays } from '../game/roll.js';
 import { rollOf } from '../game/level-sim.js';
 import { rhythmFaults } from '../era/wall-rhythm.js';
+import { viewBands, cameraAt } from './course-view.js';
+import { readScreen, screenPayload } from '../game/screen.js';
+import { MEADOWMARK_HERO } from './examples.js';
 
 // THE ROLLED COURSE: a momentum hero's obstacle course, sized by time and rolled by a seed, played by the reaction bot.
 // Two heroes, chosen from the shelf by what they are: the first on the pinball base, the first on its feet that cannot
@@ -168,6 +171,21 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
     expect(M.game.mechanics.find((m) => m.kind === 'reach-exit').at).toEqual(C.exit);
     expect(M.entities[0].rule).toMatchObject({ type: 'platform', speed: feelRule(MOMENTUM).speed });
     expect(M.entities[0].transform.heading).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('its camera frames the thirds on the game\'s own screen, wide or upright; with no hero it is run from the eye, and says so', () => {
+    const step = (extra) => runSteps({ ...world({ slots: 6 }), ...extra }, { ref: 'gw' }).find((s) => s.key.startsWith('level-')), order = (extra) => step(extra).order;
+    for (const screen of ['screen', 'phone']) {
+      const M = order({ characters: MEADOWMARK_HERO.characters, screen }).manifest, P = screenPayload(readScreen(M.screen));
+      expect(M.camera).toMatchObject({ rule: 'follow', target: 'hero', standOff: 0 });
+      const B = viewBands(cameraAt(M.camera, P.v0 ?? undefined), { react: M.obstacles.reactAt, aspect: P.aspect });
+      expect(B.laws.filter((l) => !l.holds)).toEqual([]);
+      expect(M.obstacles.camera).toMatchObject({ dist: M.camera.dist, height: M.camera.height });
+    }
+    const bare = step({});
+    expect(bare.order.manifest.camera.dist).toBeLessThan(1);
+    expect(bare.laws.find((l) => l.law === 'followed')).toMatchObject({ holds: false, says: expect.stringMatching(/names no hero/) });
+    expect(step({ characters: MEADOWMARK_HERO.characters }).laws ?? []).toEqual([]);
   });
 
   it('the made level, read back, is the course it was laid as, and the bot plays it fair', async () => {

@@ -783,6 +783,37 @@ function mountsCard() {
   );
 }
 
+function rollCard() {
+  return lines(
+    'THE ROLL — a game that plays a different map each time. The recipe never changes: the seed its shell sends each play',
+    '  picks what is on a level. Seed 1 is the reference roll (a page with no shell, a capture, the books).',
+    'A WORLD\'S WORD   roll: true | { cover?, items? }   each walking level on a trail takes a roll over its own cover (walls and',
+    '  crates by the trail\'s beats, laid for the roll when the level has none: half or more stand, never all) and its own',
+    '  pickups (half or more lie, never all). A hero with no body is given one: no cover stops it without.',
+    '  Quick: design_game({ quick: { goal: \'collect\', world: { roll: true } } }).',
+    'AN OBSTACLE COURSE (a running game)   a level\'s obstacles: true | { slots?: 4…40, rest?: 0.2…3, dress?: rail-yard | greybox }',
+    '  in place of walk: a lane of slots seen from behind the hero, a hurdle, a block or posts in each, rolled as one paced',
+    '  line. It is sized for the world\'s hero by what each ask needs in seconds, measured on its feel, and followed by a',
+    '  camera that frames it. A hero that runs on momentum (feel: commuter-rail-runner) is the one it is for.',
+    'A LEVEL\'S OWN (create_sketch / update_sketch on the level)   roll: {',
+    '    cover:   [{ of: [\'<block id>\', …], stand: n | [min, max] }]   groups of its blocks ({ id, form: wall | pillar | crate | slab, at, … })',
+    '    items:   [{ of: [\'<pickup id>\', …], lay: n | [min, max] }]     its collect\'s pickups ({ id, item, at })',
+    '    start:   [{ pos: [x, y, z], heading? }, …]                       where the pilot sets out',
+    '    pattern: [{ slots: [[id, …], …], kinds?, run?: 2, beat?, never?, forms?, ramp? }]   a LINE, one standing a slot, paced:',
+    '             never more than `run` of one kind running, never a pair of kinds repeated, `ramp` { form: [first, last] } its weights',
+    '  }   A group\'s picks know nothing of each other; a line\'s do. Left out, a thing is gone whole: nothing breaks.',
+    'A RUN OF ITS MAPS   create_game({ …, shell: \'play\', run: { length, repeat: true } }): one level that rolls, drawn again and',
+    '  again, each draw another map; the result says the map\'s number. Played again, a rolled level is the same map.',
+    'THE GATES (machine: they advise, they never refuse)   create_game answers `rolls` for each level that rolls: a sample of',
+    '  seeds walked in Node (a body, a way through, apart, won), or for a course played by the reaction bot, which sees only so',
+    '  far ahead and acts a reaction time after (fair, finishes, paced, apart). Say how many seeds were walked.',
+    'THE ROLL ROOM (before any level)   bible?book=practice&room=roll: a yard, or for a running game its course; R rolls the',
+    '  next seed. &view=map is the course map: the course from above, on its side, read left to right. Its measures are in',
+    '  design_game\'s readout (practice.measured.roll). Whether a roll reads as designed is the operator\'s to see.',
+    'NOT YET   foes a seed picks; the layout itself rolled; a start rolled by the world\'s word.',
+  );
+}
+
 function wcdCard() {
   return lines(
     'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
@@ -1202,6 +1233,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

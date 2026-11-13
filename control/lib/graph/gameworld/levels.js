@@ -44,14 +44,15 @@ import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
-import { fixedStations, uprightCamera, STEERED } from './cameras.js';
+import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { HOLDER } from './mechanics.js';
-import { readScreen } from '../game/screen.js';
+import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { rollOfLevel } from './roll-lower.js';
 import { obstacleStage, obstacleEnds } from './roll-course.js';
+import { courseCamera } from './course-view.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests, storyActors } from './story.js';
@@ -657,6 +658,13 @@ function withOwnMoves(L, byRef) {
 function screenLevel(written, L) {
   const S = readScreen(written), m = L.args.manifest;
   if (S.orientation !== 'portrait') return { ...L, args: { ...L.args, manifest: { ...m, screen: written } } };
+  // (an obstacle course's chase is solved for the frame, never pulled back by the table: its thirds are the frame's
+  // own, course-view.js, so the camera is found again at the upright frame's vertical fov)
+  if (m.obstacles?.camera && m.camera?.rule === 'follow' && (m.camera.dist ?? 6) >= 1) {
+    const fov = S.fov ?? UPRIGHT.follow.fov, cam = courseCamera({ react: m.obstacles.reactAt, vfov: screenPayload({ ...S, fov }).v0 });
+    const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov };
+    return { ...L, args: { ...L.args, manifest: { ...m, camera: { ...m.camera, ...cam }, obstacles: { ...m.obstacles, camera: cam }, screen } } };
+  }
   const U = uprightCamera(m.camera ?? null);
   const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov: S.fov ?? U.fov };
   const manifest = { ...m, ...(U.camera ? { camera: U.camera } : {}), screen };
@@ -945,8 +953,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   // (a bare HUD look, the world's `hud` (mana-ui's adventure): no level badge on the play; the level stays the status page's
   // and its level-up banner's)
-  // (an obstacle course is framed for where it is read, course-view.js: its hero followed by the course's own camera)
-  if (stage.section === 'obstacles' && pilotPart.camera?.rule === 'follow') pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...stage.manifest.obstacles.camera } };
+  // (an obstacle course is framed for where it is read, course-view.js: its hero followed by the course's own camera;
+  // a walker's follow, with no hero to watch, stays the eye)
+  if (stage.section === 'obstacles' && pilotPart.camera?.rule === 'follow' && (pilotPart.camera.dist ?? 6) >= 1) pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...stage.manifest.obstacles.camera } };
   // ROLL (the world's `roll`, roll-lower.js): the level's cover and its pickups named, and a roll over them on its
   // recipe (game/roll.js): the seed its game sends picks which stand and which lie. A pilot with no body is given one
   let roll = null;
@@ -968,7 +977,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
-  const allLaws = course ? [...laws, ...course.laws.map((x) => ({ ...x, id: `course:${x.id}` }))] : laws;
+  // (a course with no hero to follow is run from the eye: said, since its tells and its thirds are laid for a chase)
+  const eyed = stage.section === 'obstacles' && !((pilotPart.camera?.dist ?? 6) >= 1) ? [{ concern: 'obstacles', law: 'followed', holds: false, says: 'an obstacle course is read from behind its hero (the far end, the way coming, the figure: thirds of the screen); this world names no hero, so it is run from the eye. Name a hero and the camera follows it' }] : [];
+  const allLaws = [...(course ? [...laws, ...course.laws.map((x) => ({ ...x, id: `course:${x.id}` }))] : laws), ...eyed];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(allLaws.length ? { laws: allLaws } : {}), ...(course ? { course: course.plan } : {}) };
 }
 
