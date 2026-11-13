@@ -90,6 +90,42 @@ export function shootClearance(plan, faces, { subjects = null, max = 12 } = {}) 
 }
 
 /**
+ * What stands between each shot's camera and what it looks at: the segment from the camera to its point of interest,
+ * at the shot's first and middle frames, tested against the world's faces short of the subject (`reach`, a fraction of
+ * the way, so the subject's own floor never counts). `[{ shot, camera, t, at }]`, a shot once, at most `max`. A scene
+ * shot on a set (actor/set.js) asks it: its coverage is framed from the marks and knows nothing of the walls.
+ */
+export function shootSightlines(plan, faces, { reach = 0.9, max = 12 } = {}) {
+  const grid = buildGrid(Array.isArray(faces) ? faces : []);
+  if (grid.empty) return [];
+  const stamp = new Int32Array(grid.tris.length).fill(-1), out = [];
+  let seg = 0;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  for (const s of plan.shots) {
+    if (out.length >= max) break;
+    const cam = plan.cameras.find((c) => c.id === s.camera);
+    const keys = (cam?.keys ?? []).filter((k) => Array.isArray(k.pos) && Array.isArray(k.poi) && k.t >= s.span[0] - 1e-3 && k.t <= s.span[1] + 1e-3);
+    for (const k of [keys[0], keys[Math.floor(keys.length / 2)]].filter(Boolean)) {
+      const p = k.pos, d = [(k.poi[0] - p[0]) * reach, (k.poi[1] - p[1]) * reach, (k.poi[2] - p[2]) * reach];
+      let hit = -1;
+      seg += 1;
+      for (let i = grid.cx(Math.min(p[0], p[0] + d[0])); i <= grid.cx(Math.max(p[0], p[0] + d[0])) && hit < 0; i++) {
+        for (let j = grid.cy(Math.min(p[1], p[1] + d[1])); j <= grid.cy(Math.max(p[1], p[1] + d[1])) && hit < 0; j++) {
+          for (const ti of grid.cells.get(i * grid.N + j) || []) {
+            if (stamp[ti] === seg) continue;
+            stamp[ti] = seg;
+            const t = grid.tris[ti], h = segTri(p, d, t[0], t[1], t[2]);
+            if (h >= 0) { hit = h; break; }
+          }
+        }
+      }
+      if (hit >= 0) { out.push({ shot: s.name, camera: cam.id, t: r2(k.t), at: [0, 1, 2].map((c) => r2(p[c] + d[c] * hit)) }); break; }
+    }
+  }
+  return out;
+}
+
+/**
  * The moving half of clearance: the frames a camera's eye passes inside something the world moves on a schedule (a
  * car, a walker), within `margin` (the lens's near reach; a camera that close sees inside it). Only frames a camera
  * is on screen count (inside one of its shots). `[{ camera, t, subject, at }]`, the first frame of each run per

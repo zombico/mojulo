@@ -9,12 +9,12 @@
  *   the y axis, so the WORLD is turned about the vertical until the camera stands at 45 (the picture is the same); its
  *   eye is level, so a pitched camera is drawn as a rising or falling front (the horizon moves): exact for a level camera,
  *   near for a high or a low one.
- *   THE BLOCKING: the scene from above at one scale for every panel: the marks, each actor at the moment and its way
- *   through the shot, the camera and its field of view.
- *   THE WORDS: the shot's number, name, span (the scene's seconds and the screen's), lens and move; the lines and the
- *   crosses inside it; the director's notes whose moment falls in it (notes.js), the rest the board's own.
+ *   THE BLOCKING: the scene from above at one scale for every panel, the room the actors use: a set's rooms (set.js), the
+ *   marks inside it, each actor at the moment and its way through the shot, the camera and its field of view.
+ *   THE WORDS: the shot's number, name, span (the scene's seconds and the screen's), lens and move; the lines (a recorded
+ *   one marked) and the crosses inside it; the director's notes whose moment falls in it (notes.js), the rest the board's own.
  *
- *   storyboardOf(S, coverage, { notes?, title?, width?, height?, res?, fps? }) → { title, seconds, screen, panels, notes }
+ *   storyboardOf(S, coverage, { notes?, title?, width?, height?, res?, fps?, heights?, rooms?, set? }) → { title, seconds, screen, panels, notes }
  *     each panel { n, name, camera, span, screen: [start, length], at, lens_mm, move, lines, crosses, notes, frame
  *     (svg), blocking (svg) }
  *   storyboardJson(board) → the board without its drawings (storyboard.json)
@@ -109,7 +109,7 @@ function moveOf(a, b) {
 const markAt = (marks, p) => Object.entries(marks ?? {}).find(([, q]) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-3)?.[0] ?? `[${r2(p[0])}, ${r2(p[1])}]`;
 
 /** The board: a panel a coverage shot */
-export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {} } = {}) {
+export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {}, rooms = [], set = null } = {}) {
   const program = programOf({ ...coverage, fps });
   const names = Object.keys(S.actors);
   const tintOf = Object.fromEntries(names.map((w, i) => [w, BOARD_TINTS[i % BOARD_TINTS.length]]));
@@ -126,7 +126,7 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
     return {
       n: k + 1, name: s.name, camera: cam.id, span: [r3(s0), r3(s1)], screen: [r3(P.start), r3(P.length)], at,
       lens_mm: Math.round(a.focal_mm ?? 35), move: moveOf(a, b),
-      lines: S.turns.filter((T) => T.at < s1 && T.end > s0).map((T) => ({ who: T.who, text: T.text, at: T.at, end: T.end, ...(T.face ? { face: T.face } : {}) })),
+      lines: S.turns.filter((T) => T.at < s1 && T.end > s0).map((T) => ({ who: T.who, text: T.text, at: T.at, end: T.end, ...(T.face ? { face: T.face } : {}), ...(T.recording ? { recording: T.recording } : {}) })),
       crosses: names.flatMap((w) => (S.actors[w].walks ?? []).filter((W) => W.start < s1 && W.end > s0).map((W) => ({ who: w, to: markAt(S.marks, W.to), start: W.start, end: W.end }))),
       notes: notes.filter((N) => N.at !== undefined && N.at >= s0 && (N.at < s1 || k === coverage.shots.length - 1)),
       frame: svg,
@@ -134,23 +134,30 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
   });
   // (the blocking at one scale for every panel: the marks, every place an actor stands, every camera)
   // (the room the actors use, at least 3 m by 2 m: a camera beyond it is drawn on its edge, pointing in)
-  const pts = [...Object.values(S.marks ?? {}), ...names.flatMap((w) => S.actors[w].root.map((K) => [K.x, K.y]))];
+  // (a set's many places: only where the actors stand and walk sets the room; a mark or a set's room inside it is drawn)
+  const pts = names.flatMap((w) => S.actors[w].root.map((K) => [K.x, K.y]));
   const bx = [Math.min(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[0]))], by = [Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1]))];
-  const half = [Math.max(1.5, (bx[1] - bx[0]) / 2 + 0.9), Math.max(1, (by[1] - by[0]) / 2 + 0.9)], mid = [(bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2];
+  const half = [Math.max(1.5, (bx[1] - bx[0]) / 2 + 0.9), Math.max(1, (by[1] - by[0]) / 2 + 0.9)];
+  // (a plan between two wide to one and square: a long cross widens it rather than towering it)
+  half[0] = Math.max(half[0], half[1]); half[1] = Math.max(half[1], half[0] / 2);
+  const mid = [(bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2];
   const box = { x0: mid[0] - half[0], x1: mid[0] + half[0], y0: mid[1] - half[1], y1: mid[1] + half[1] };
-  panels.forEach((pn, k) => { pn.blocking = blockingSvg(S, pn, placed[k], box, tintOf); });
+  panels.forEach((pn, k) => { pn.blocking = blockingSvg(S, pn, placed[k], box, tintOf, rooms); });
   return {
-    version: STORYBOARD_VERSION, title, seconds: S.seconds, screen: r3(program.total), cast: names, tints: tintOf,
+    version: STORYBOARD_VERSION, title, seconds: S.seconds, screen: r3(program.total), cast: names, tints: tintOf, ...(set ? { set } : {}),
     panels, notes: notes.filter((N) => N.at === undefined),
   };
 }
 
 /** The scene from above for one panel: the marks, each actor at the moment and its way through the shot, the camera */
-export function blockingSvg(S, panel, { framing }, box, tintOf) {
+export function blockingSvg(S, panel, { framing }, box, tintOf, rooms = []) {
   const W = 220, sc = W / (box.x1 - box.x0), H = Math.round((box.y1 - box.y0) * sc);
   const X = (x) => r2((x - box.x0) * sc), Y = (y) => r2((box.y1 - y) * sc);
   const out = [];
-  for (const [m, p] of Object.entries(S.marks ?? {})) out.push(`<g class="mark"><path d="M${X(p[0]) - 4} ${Y(p[1]) - 4}l8 8m0-8l-8 8"/><text x="${X(p[0]) + 6}" y="${Y(p[1]) + 3}">${esc(m)}</text></g>`);
+  // (the set's rooms from above, as far as the panel's room shows them)
+  for (const R of rooms) if (R.max[0] > box.x0 && R.min[0] < box.x1 && R.max[1] > box.y0 && R.min[1] < box.y1) out.push(`<rect class="room" x="${X(R.min[0])}" y="${Y(R.max[1])}" width="${r2((R.max[0] - R.min[0]) * sc)}" height="${r2((R.max[1] - R.min[1]) * sc)}"/>`);
+  const inBox = (p) => p[0] >= box.x0 && p[0] <= box.x1 && p[1] >= box.y0 && p[1] <= box.y1;
+  for (const [m, p] of Object.entries(S.marks ?? {}).filter(([, p]) => inBox(p))) out.push(`<g class="mark"><path d="M${X(p[0]) - 4} ${Y(p[1]) - 4}l8 8m0-8l-8 8"/><text x="${X(p[0]) + 6}" y="${Y(p[1]) + 3}">${esc(m)}</text></g>`);
   // the camera: where it stands, where it looks, its field of view
   const [lx, ly] = framing.lookAt, aim = Math.atan2(lx - framing.cameraPosition[0], ly - framing.cameraPosition[1]), half = rad(framing.horizontalFov / 2), L = 1.2;
   // (a camera outside the room stands on its edge, on the line from what it looks at; the room's edge less a margin)
@@ -189,7 +196,7 @@ export function storyboardHtml(board) {
 <div class="words">
 <h2>${esc(shotTitle(p.name))}</h2>
 <p class="meta">${span(p.span[0], p.span[1])} of the scene · on screen ${p.screen[1].toFixed(1)} s · ${p.lens_mm} mm · ${esc(p.move)}</p>
-${p.lines.map((L) => `<p class="line"><b>${esc(UPPER(L.who))}</b>${L.face ? ` <i>(${esc(L.face)})</i>` : ''} ${esc(spoken(L.text))}</p>`).join('\n')}
+${p.lines.map((L) => `<p class="line"><b>${esc(UPPER(L.who))}</b>${L.face ? ` <i>(${esc(L.face)})</i>` : ''} ${esc(spoken(L.text))}${L.recording ? ' <span class="rec">recorded</span>' : ''}</p>`).join('\n')}
 ${p.crosses.map((C) => `<p class="dir">${esc(C.who.charAt(0).toUpperCase() + C.who.slice(1))} crosses to ${esc(C.to)}.</p>`).join('\n')}
 ${p.notes.map((N) => `<p class="note"><b>Note · ${esc(N.id)}</b> ${esc(N.says)} <i>Try:</i> ${esc(N.try)}</p>`).join('\n')}
 </div>
@@ -208,18 +215,18 @@ main{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(au
 .panel{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:10px;display:grid;grid-template-columns:1fr;gap:8px;break-inside:avoid}
 .frame{position:relative}.frame svg{display:block;width:100%;height:auto;border:1.5px solid var(--ink)}
 .no{position:absolute;top:6px;left:6px;background:var(--ink);color:var(--card);font-weight:700;border-radius:3px;padding:0 6px}
-.side svg{display:block;width:100%;max-width:240px;height:auto;margin:0 auto}
+.side svg{display:block;width:100%;max-width:240px;height:auto;max-height:240px;margin:0 auto}
 .blocking text{font:9px system-ui,sans-serif;fill:var(--dim);text-anchor:middle}.blocking .mark text{text-anchor:start}
-.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .who path{stroke:var(--ink);stroke-width:2}
+.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .room{fill:none;stroke:var(--rule);stroke-width:3}.blocking .who path{stroke:var(--ink);stroke-width:2}
 .blocking .way{fill:none;stroke-width:2;stroke-dasharray:4 3}.blocking .cam circle{fill:var(--accent)}.blocking .cam.off circle{fill:none;stroke:var(--accent);stroke-width:1.5}.blocking .fov{stroke:var(--accent);stroke-width:1.2;fill:none}
 h2{font-size:15px;margin:0}.meta{margin:2px 0 6px;color:var(--dim);font-size:12px}.words p{margin:3px 0}
-.dir{font-style:italic;color:var(--dim)}.note{border-left:3px solid var(--accent);padding-left:8px;font-size:13px}
+.dir{font-style:italic;color:var(--dim)}.rec{font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;margin-left:4px}.note{border-left:3px solid var(--accent);padding-left:8px;font-size:13px}
 .board-notes{max-width:1200px;margin:0 auto 16px}
 @media (min-width:900px){.panel{grid-template-columns:3fr 2fr}.frame{grid-column:1/-1}}
 @media print{body{background:#fff;padding:0}.panel{border-color:#999}}
 </style></head><body>
 <header><h1>${esc(board.title)}</h1>
-<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
+${board.set ? `<p>On the set <b>${esc(board.set.title ?? board.set.ref)}</b> (${esc(board.set.ref)}): the panels draw the actors as stand-ins on open ground; the blocking shows its rooms.</p>\n` : ''}<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
 <p class="cast">${board.cast.map((w) => `<span><i style="background:${board.tints[w]}"></i>${esc(UPPER(w))}</span>`).join('')}</p></header>
 ${board.notes.length ? `<section class="board-notes">${board.notes.map((N) => `<p class="note"><b>Note · ${esc(N.id)}</b> ${esc(N.says)} <i>Try:</i> ${esc(N.try)}</p>`).join('\n')}</section>` : ''}
 <main>

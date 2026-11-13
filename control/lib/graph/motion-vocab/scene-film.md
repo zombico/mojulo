@@ -5,7 +5,7 @@
   "family": "motion",
   "entry": "forge_motion",
   "summary": "A SCENE written as a screenplay, acted by its cast (personas or heroes) and shot the way a director covers it: first a STORYBOARD (a panel a shot, drawn with stand-ins, in seconds) and its ANIMATIC, then the film from the same plan, handed to Blender as a film pack: each actor a skinned GLB with its performance, the cameras cut together, a film (Cycles) or anime (EEVEE) look.",
-  "when": "Reach for this on 'a short film of my two characters talking / storyboard this scene / an animatic / shoot this scene / film the dialogue / an animated short / render the conversation in Blender / a scene with my personas / Cycles render of the scene'."
+  "when": "Reach for this on 'a short film of my two characters talking / storyboard this scene / an animatic / use my recorded lines / dub it in French / set it in my room / shoot this scene / film the dialogue / an animated short / render the conversation in Blender / a scene with my personas / Cycles render of the scene'."
 }
 ---
 
@@ -48,6 +48,36 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - `hero`: the spec every part without a body plays.
 
   `shot.fps` defaults to 24.
+
+## The set, the voice, the dub
+
+- **`world_ref`: the set.** A stored world, such as a geocube `room`, `hall` or `trail`, a stage, or a game's level.
+  - **Its named places are marks.** Each room's middle is `room-<id>`, there is a stand on each side of a door
+    (`<door>-<room>`), and its anchors (a pocket, a landmark) are marks too. Write them in the script as they are
+    named: "Ana crosses to the room-reveal-1."
+  - **A part with no mark** stands in the set's largest room.
+  - **Advice:** a shot whose camera has a wall between it and the actors is advised (`set-blocks`). Move the cast or
+    pick a larger room.
+  - **In Blender,** the world's own pack is put under the actors (`set/`, `set.py`). The storyboard draws the set's
+    rooms in its overhead plan.
+- **`voice`: recorded lines.** Write `{ <line number>: '<path>.wav' | { audio, text? } }`. The number counts spoken
+  lines, 1 the first, in script order.
+  - **They set the clock.** A recorded line lasts its recording. The read is fitted to it, so the face, the gestures on
+    stressed words and the listener's nods land on the recording. The mouth follows the recording's phonemes.
+  - **How they are kept and timed.** They are stored by content, so a re-forge needs no path. Each is timed by the
+    worker's `.timings.json` sidecar beside the WAV, else aligned to its words, else by its loudness.
+  - **Advice:** a recording made for other words (`voice-words`).
+  - **To make them,** run the local voice worker (`docs/local-voice-worker.md`): `speak.py --text '<the line>' --voice
+    '<the persona's voiceArg>' --out <n>.wav --timings`. Or record a person.
+- **`dub`: other languages, to picture.** Write `{ <locale>: { <n>: { audio, text } } }`.
+  - **The picture stays.** The timing, the blocking, the bodies and the face's acting are the original's. Only the
+    mouth is re-solved: each actor gets the take `face:dub-<locale>`.
+  - **Advice:** a dub line that runs into the next line, with how far over (`dub-over`).
+- **What comes back** (`sound`):
+  - the voice track, a dub's tracks and the captions (`.srt`, `.vtt`), all on the screen's clock;
+  - the animatic carries each as a tagged audio track and subtitle track;
+  - the Blender pack carries them under `audio/`, plus `dub.py -- --locale <l>`;
+  - `film_render.py` lays the voice under the film, or a dub's with `--locale <l>`.
 
 ## The three forms (`export`), cheapest first
 
@@ -92,6 +122,7 @@ again from the recipe.
 
 - The storyboard's stand-ins are mannequins, not the cast's own bodies. Its panels cannot be edited and written back
   to the scene yet.
-- No set: the actors stand on Blender's empty floor, at their marks.
-- No recorded voice: lines are timed from their words, and the pack carries no audio and no captions.
+- A dub is to picture only: a locale whose lines need more time cannot re-time the scene yet.
+- The storyboard's frames draw the actors on open ground; only its overhead plan shows the set.
+- Marks are on the floor at the set's height under the lead's mark. A set of many levels is stood on that one floor.
 - One scene per forge; cut several together in Blender's sequencer.

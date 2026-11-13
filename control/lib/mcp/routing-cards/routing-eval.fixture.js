@@ -97,6 +97,7 @@ export const FIXTURE = [
   ['make a little movie of my two characters having an argument in the kitchen, rendered in blender', 'forge_motion'],
   ['I wrote a short dialogue scene, can my personas act it out and you shoot it like a director would', 'forge_motion'],
   ['before we render anything, sketch out the shots of my scene panel by panel so I can approve them', 'forge_motion'],
+  ['I recorded both actors reading their lines, put my wav files into the scene so their mouths match', 'forge_motion'],
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],

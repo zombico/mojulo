@@ -77,6 +77,17 @@ embeds each recording in its own buffer (`face.performances[].audio`: `{ at, rec
 `/hero-live` plays it with the take. The Unreal asset pack carries it too: its importer brings each in as a SoundWave
 cued on its take's AnimSequence (`Voice/<recording>.wav`, a PlaySound notify at the line's start).
 
+## A scene's lines
+
+A scene written as a screenplay takes its recorded lines the same way. `forge_motion`'s `screenplay` subject has
+`voice: { <line number>: 'line.wav' }`, the lines numbered in script order. Speak each line in its persona's voice
+(the voice register's `voiceArg`, `get_voice`), with `--timings` so the mouth has the engine's phonemes, and hand the
+WAVs over. A recorded line holds the scene's clock for as long as its recording lasts. Its face and gestures are
+fitted to the recording, and the scene's voice track and captions are laid on the film's screen clock.
+
+A dub is `dub: { <locale>: { <n>: { audio, text } } }`. The picture keeps its timing and only the mouths take the
+dub's. The manual is `get_motion_vocab({ id: 'scene-film' })`.
+
 ## What rides on this
 
 Today (V0): the CLI itself — text in, WAV out, driven ad hoc by the

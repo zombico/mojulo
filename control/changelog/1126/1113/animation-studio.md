@@ -22,3 +22,20 @@ game.
   get.
 - **An animatic.** Ask for a video and the storyboard is played as one: each panel held for as long as its shot lasts,
   with the line being spoken shown under it. Several scenes' animatics can be stitched into one cut.
+- **Your recordings set the scene.** Give the scene a recording of any line, from the voice worker or from a person.
+  - That line now lasts exactly as long as the recording.
+  - The character's face, gestures and mouth are fitted to the recording, and whoever is listening nods on its
+    stressed words.
+  - The storyboard's animatic plays the recordings with captions. The Blender film carries the voice and plays it
+    under the render.
+  - A recording that was made for different words than its line is pointed out.
+- **Dubbed versions.** Give the same scene in other languages, one recording per line. The picture stays exactly the
+  same and only the mouths change to match the new language.
+  - The animatic carries each language as its own audio track and subtitles.
+  - The Blender film switches between languages with one command.
+  - A dubbed line that runs into the next one is pointed out, with how far over it goes.
+- **A set.** Put a scene in a world you made (a room, a hall, a trail, a level).
+  - Its rooms and doorways become places the script can send the actors to.
+  - Anyone not placed stands in the biggest room.
+  - The world comes into the Blender film under the actors.
+  - A shot whose camera would be behind a wall is pointed out.

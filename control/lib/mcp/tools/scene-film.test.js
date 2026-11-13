@@ -98,6 +98,16 @@ describe("forge_motion's screenplay family", () => {
     expect(out.blender).toBeUndefined();
     expect(out.message).toMatch(/export 'blender' makes the film from the same plan/);
   });
+  it('boards a scene with its recorded lines: the voice track and the captions beside the board', async () => {
+    const { mkdtempSync: mk, writeFileSync: wr } = await import('node:fs');
+    const { writeWavMono } = await import('@/lib/graph/beats/beats-song-dsp.js');
+    const dir = mk(path.join(tmpdir(), 'sf-voice-')), wav = path.join(dir, 'l1.wav');
+    wr(wav, writeWavMono(new Float32Array(16000).map((_, i) => 0.3 * Math.sin(i / 8)), 16000));
+    const out = await forge({ subject: { screenplay: { cast: { ana: {}, ben: {} }, script: 'ANA: Ready?\nBEN: Ready.', voice: { 1: wav } } } });
+    expect(out.sound.voice.lines).toBe(1);
+    expect(out.sound.captions).toMatch(/captions\.srt$/);
+    expect(out.message).toMatch(/1 recorded line set the clock/);
+  });
   it('refuses a cast ref the store does not have, before writing', async () => {
     await expect(forge({ subject: { screenplay: scene({ mara: { persona: 'sk_nobody' } }) } })).rejects.toThrow(/'sk_nobody' is no sketch, not a persona/);
   });

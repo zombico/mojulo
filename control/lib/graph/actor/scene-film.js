@@ -47,7 +47,7 @@ export function coverageCameraAt(coverage, t, shot = null) {
 }
 
 /** The pack's files (see the header) */
-export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null }) {
+export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null }) {
   // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
@@ -72,8 +72,11 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     source: 'mojulo', film_version: BLENDER_FILM_VERSION, title, seconds: S.seconds, fps, frames, width, height, up: 'z', units: 'metres',
     ...(clock ? { clock: clock.map((at) => r6(at.t)) } : {}),
     ...(grade ? { grade } : {}),
+    ...(sound?.audio ? { audio: sound.audio, captions: sound.captions } : {}),
+    ...(sound?.dubs ? { dubs: sound.dubs } : {}),
+    ...(set ? { set } : {}),
     actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
-    turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text })),
+    turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text, ...(T.recording ? { recording: T.recording } : {}) })),
     coverage,
   };
   return [
@@ -81,8 +84,109 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...film.files.filter((f) => f.file !== 'FILM.md'),
     { file: 'actors.py', text: actorsPy() },
     { file: 'look.py', text: lookPy() },
-    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file) }) },
+    ...(set ? [{ file: 'set.py', text: setPy() }] : []),
+    ...(sound?.dubs ? [{ file: 'dub.py', text: dubPy() }] : []),
+    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file), sound, set }) },
   ];
+}
+
+/** set.py — constant text: the set's world (its pack under set/, built into film.blend by its own import_mojulo.py)
+ * lowered by the floor under the cast's marks, its root renamed so nothing takes it for an actor's */
+export function setPy() {
+  return String.raw`"""
+set.py - a mojulo scene's set into Blender (mojulo scene film v${BLENDER_FILM_VERSION}).
+
+The set is a mojulo world's own Blender pack (set/). Its import_mojulo.py builds film.blend first; this script then
+lowers the world by the floor under the cast's marks (scene.json set.floor, metres) so they stand on it, and names its
+root set:root. Run it once, after the set's import and before actors.py:
+
+  blender -b --python set/import_mojulo.py -- --mode run --blend film.blend
+  blender -b film.blend --python set.py
+"""
+import bpy
+import json
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def main():
+    with open(os.path.join(HERE, 'scene.json')) as f:
+        S = json.load(f)
+    st = S.get('set') or {}
+    root = bpy.data.objects.get('set:root') or bpy.data.objects.get('mojulo')
+    if root is None:
+        raise SystemExit('[mojulo set] no world root (run set/import_mojulo.py first)')
+    if root.name != 'set:root':
+        root.name = 'set:root'
+        root.location.z -= float(st.get('floor', 0.0))
+    print('[mojulo set] %s on its floor (%.3f m)' % (st.get('ref', 'the set'), float(st.get('floor', 0.0))))
+    bpy.ops.wm.save_mainfile()
+
+
+main()
+`;
+}
+
+/** dub.py — constant text: each actor's face given a locale's dub take (face:dub-<locale>), or back to the scene's */
+export function dubPy() {
+  return String.raw`"""
+dub.py - a mojulo scene dubbed to picture (mojulo scene film v${BLENDER_FILM_VERSION}).
+
+Each actor's face plays the locale's take (face:dub-<locale>: the same acting, the mouth on the dub's recording), the
+body and the cameras unchanged. --locale none gives the scene's own take back. Render the locale's sound with
+film_render.py -- --locale <locale>.
+
+  blender -b film.blend --python dub.py -- --locale fr
+"""
+import bpy
+import sys
+
+def _opt(name):
+    a = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    return a[a.index(name) + 1] if name in a and a.index(name) + 1 < len(a) else None
+
+
+def target_of(name, locale):
+    """the face action a locale plays, keeping the import's suffix (face:scene.001 -> face:dub-fr.001)"""
+    base, dot, suffix = name.partition('.')
+    want = ('face:scene' if locale == 'none' else 'face:dub-%s' % locale) + (dot + suffix if dot else '')
+    return bpy.data.actions.get(want)
+
+
+def assign(holder, act):
+    holder.action = act
+    if hasattr(holder, 'action_slot') and getattr(act, 'slots', None):
+        holder.action_slot = act.slots[0]
+
+
+def main():
+    locale = _opt('--locale')
+    if not locale:
+        raise SystemExit('dub.py -- --locale <locale> | none')
+    done = 0
+    for key in bpy.data.shape_keys:
+        ad = key.animation_data
+        if ad is None:
+            continue
+        if ad.action is not None and ad.action.name.startswith('face:'):
+            act = target_of(ad.action.name, locale)
+            if act is not None:
+                assign(ad, act)
+                done += 1
+        for track in ad.nla_tracks:
+            for strip in track.strips:
+                if strip.action is not None and strip.action.name.startswith('face:'):
+                    act = target_of(strip.action.name, locale)
+                    if act is not None:
+                        assign(strip, act)
+                        done += 1
+    print('[mojulo dub] %s: %d faces' % (locale, done))
+    bpy.ops.wm.save_mainfile()
+
+
+main()
+`;
 }
 
 /** actors.py — constant text */
@@ -546,7 +650,7 @@ if __name__ == '__main__':
 }
 
 /** SCENE.md — the operator's page */
-export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles }) {
+export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles, sound = null, set = null }) {
   return `# ${title} — a mojulo scene for Blender
 
 ${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.${coverage.shots.some(warped) ? `
@@ -554,14 +658,26 @@ The scene plays on a time map (its slow motion, its freezes${coverage.shots.some
 
 ## Build it (once, in an empty film.blend beside these files)
 
-    <blender> -b --python-expr "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"
+${set ? `    <blender> -b --python set/import_mojulo.py -- --mode run --blend film.blend
+    <blender> -b film.blend --python set.py` : `    <blender> -b --python-expr "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"`}
     <blender> -b film.blend --python actors.py -- && <blender> -b film.blend --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
     <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}
     <blender> -b film.blend --python look.py -- --look film      # or --look anime
     <blender> -b film.blend --python film_render.py
+${sound?.dubs ? `
+A dub (${Object.keys(sound.dubs).join(', ')}), to picture: the faces take the locale's mouths, then its sound renders with them.
 
-Or open film.blend and run actors.py, film_shots.py and look.py from the Scripting tab, in that order.
-
+${Object.keys(sound.dubs).map((L) => `    <blender> -b film.blend --python dub.py -- --locale ${L} && <blender> -b film.blend --python film_render.py -- --locale ${L}`).join('\n')}
+    <blender> -b film.blend --python dub.py -- --locale none      # the scene's own faces again
+` : ''}
+Or open film.blend and run ${set ? 'set.py, ' : ''}actors.py, film_shots.py and look.py from the Scripting tab, in that order.
+${set ? `
+The set is the world ${set.ref}${set.title ? ` (${set.title})` : ''}: its own Blender pack under \`set/\` (its README says what it is), lowered
+${set.floor} m so the cast stands on its floor.
+` : ''}${sound?.audio ? `
+The voice: \`${sound.audio}\`, every recorded line at its moment on the screen's clock; \`film_render.py\` lays it under
+the film (its \`--audio\` takes another). The captions: \`${sound.captions}\`.${sound.dubs ? ` Each dub's: ${Object.entries(sound.dubs).map(([L, D]) => `\`${D.audio}\` and \`${D.captions}\` (${L})`).join(', ')}.` : ''}
+` : ''}
 ## What is here
 
 - \`actors/<who>.glb\`: each actor's hero, skinned, its body's take \`act:scene\` and its face's \`face:scene\` on the scene's

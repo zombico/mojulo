@@ -199,6 +199,27 @@ panel for each coverage shot. Each panel has:
 `export: 'mp4'` adds the animatic: the panels held on the screen's clock, with the line spoken under each. A panel
 is a shot of the same coverage the Blender pack cuts, so the board and the film never disagree.
 
+**The set** (`world_ref`, `actor/set.js`): a stored world's named places are marks the script can name.
+- Each room's middle is `room-<id>`, and each side of a door has a stand.
+- A part with no mark stands in the largest room.
+- The coverage is still framed from the marks, so a wall between a camera and the actors is advised by
+  `shoot/clearance.js` `shootSightlines`.
+- The world's own Blender pack goes under the actors, lowered so its floor is the scene's.
+
+**The voice** (`voice`): recorded lines set the scene's clock.
+- A recorded line lasts its recording, and its read is fitted to it: its rate is tuned until the read meets the
+  recording's length, and its words come from the alignment.
+- So the face, the stresses and the listener's nods land on the recording, and the line's first beat speaks it (the
+  mouth from its phonemes).
+- The voice track and captions are on the screen's clock: a slowed stretch never drags a word.
+
+**The dub** (`dub`, `actor/dub.js`): to picture.
+- The timing, the blocking, the bodies and the acting are the original's. Only the mouths are re-solved, as
+  `face:dub-<locale>`.
+- A dub that runs into the next line is advised.
+- The animatic carries each language as its own audio and subtitle track. In Blender, `dub.py` switches the faces and
+  `film_render.py -- --locale` the sound.
+
 ## The scene in a game
 
 In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's

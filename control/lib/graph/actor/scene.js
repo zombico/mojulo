@@ -3,7 +3,7 @@
  * is the persona's actor (interpret.js: a register, a style, a role); the scene adds what an actor alone cannot have: a
  * partner to speak to and listen to, a place to stand and to walk to, and a body that faces someone.
  *
- *   actScene({ cast, marks?, script, seed? }) → { seconds, beats, marks, time?, actors: { <who>: { register, style?, read,
+ *   actScene({ cast, marks?, script, seed?, voice? }) → { seconds, beats, marks, time?, actors: { <who>: { register, style?, read,
  *     speaks, listens, root, walks } } }
  *     cast    { <who>: { register?, style?, role?, mark?, height? } } (who: the name the script writes, lower case)
  *     marks   { <name>: [x, y] } metres on the floor (+x right, +y away from the camera's first side); none named, the
@@ -16,6 +16,14 @@
  *     time    the screenplay's slow motion and freezes as a time map's moments on the scene's clock (shoot/time.js:
  *             `{ span, speed }`, `{ at, hold }`), which the coverage carries onto its shots; they take no scene time.
  *             Absent when the script says none.
+ *     voice   { <n>: a bound recording } the spoken lines recorded (n the line's number, 1 first, in script order; the
+ *             door binds each WAV, face-acting/recordings.js bindLine: { recording, seconds, timing, phonemes?,
+ *             words?, envelope?, text? }). A recorded line holds the clock its recording's length and the register's
+ *             sentence gap; the actor's read of it is FITTED to the recording (its register's rate tuned until the
+ *             read meets the recording's length; its words the alignment's where they match one to one), so the face,
+ *             the gestures on its stresses and the listener's nods land on the recording, and the line's first beat
+ *             speaks the recording (its mouth from the recording's phonemes). A recorded turn carries `recording`.
+ *             Absent, the scene is as it was, byte for byte.
  *
  * THE CLOCK: the script's beats in order, each after the last. A line takes its read's time in its speaker's register
  * and style and the gap after it; a cross TURN to face the way, then the distance at WALK metres a second; a turn TURN;
@@ -75,6 +83,39 @@ function lineSeconds(text, C) {
   return { speak: r3(R.lines.at(-1).end - READ_PAD.lead), hold: r3(R.lines.at(-1).end - READ_PAD.lead + deliveryOf(R.register).gap.sentence) };
 }
 
+/** how long a recorded line holds the clock: its recording, and the gap after in its speaker's register and style */
+function recordedSeconds(text, C, rec) {
+  const R = actRead({ script: text, register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}) });
+  return { speak: r3(rec.seconds), hold: r3(rec.seconds + deliveryOf(R.register).gap.sentence) };
+}
+
+/** a read's speaking length: its last line's end, less the read's lead */
+const spokenOf = (R) => (R.lines.length ? R.lines.at(-1).end - READ_PAD.lead : 0);
+
+/** a recorded line read alone, FITTED to its recording: its register's rate tuned (twice) until the read's length meets the
+ * recording's (the script's [pause] marks left out: a recording has its own); its words, and each sentence's span, the
+ * alignment's where the words match one to one (else the fitted read's) */
+export function fittedRead(text, C, rec, seed = 1) {
+  const reg = C.register ?? 'anchor', base = typeof reg === 'string' ? { from: reg } : { ...reg };
+  // (the recording carries its own pauses: the script's [pause] marks are not read into it)
+  const said = text.replace(/\[pause[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim() || text;
+  const read = (rate) => actRead({ script: said, register: rate === null ? reg : { ...base, rate }, ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}), seed });
+  let R = read(null), rate = deliveryOf(reg).rate;
+  for (let k = 0; k < 2 && spokenOf(R) > 0 && rec.seconds > 0; k++) {
+    rate = Math.min(2, Math.max(0.05, rate * (spokenOf(R) / rec.seconds)));
+    R = read(r3(rate));
+  }
+  const aligned = Array.isArray(rec.words) ? rec.words : null, words = R.lines.flatMap((L) => L.words);
+  if (aligned && aligned.length === words.length) {
+    let k = 0;
+    R = { ...R, lines: R.lines.map((L) => {
+      const words = L.words.map((x) => { const A = aligned[k++]; return { ...x, t: r3(READ_PAD.lead + A.t), dur: r3(A.dur) }; });
+      return words.length ? { ...L, at: words[0].t, end: r3(words.at(-1).t + words.at(-1).dur), words } : L;
+    }) };
+  }
+  return R;
+}
+
 /** The scene played (see the header) */
 export function actScene(scene) {
   const cast = scene.cast ?? {}, names = Object.keys(cast);
@@ -92,11 +133,14 @@ export function actScene(scene) {
 
   // ─── the clock: each beat after the last ───────────────────────────────────────────────────────────────────────────
   const turns = [], moves = [], looks = [], time = [];
-  let t = READ_PAD.lead, slow = null;
+  let t = READ_PAD.lead, slow = null, ln = 0;
+  const voice = scene.voice ?? null;
   beats.forEach((b, i) => {
     if (b.kind === 'line') {
-      const S = lineSeconds(b.text, cast[b.who]);
-      turns.push({ who: b.who, text: b.text, at: r3(t), end: r3(t + S.speak), hold: S.hold, ...(b.face ? { face: b.face } : {}), i });
+      ln += 1;
+      const rec = voice ? voice[ln] ?? voice[String(ln)] ?? null : null;
+      const S = rec ? recordedSeconds(b.text, cast[b.who], rec) : lineSeconds(b.text, cast[b.who]);
+      turns.push({ who: b.who, text: b.text, at: r3(t), end: r3(t + S.speak), hold: S.hold, ...(b.face ? { face: b.face } : {}), ...(rec ? { recording: rec.recording, line: ln } : {}), i });
       t += S.hold;
     } else if (b.kind === 'cross') {
       const to = marks[b.to.mark], from = [...at[b.who]], d = Math.hypot(to[0] - from[0], to[1] - from[1]);
@@ -157,11 +201,19 @@ export function actScene(scene) {
     let cursor = READ_PAD.lead;
     for (const T of turns) {
       if (T.at > cursor + 1e-6) parts.push(`[pause ${r3(T.at - cursor)}]`);
-      if (T.who === w) { parts.push(T.text); cursor = T.at + T.hold; }
+      if (T.who === w) { parts.push(T.recording ? `[pause ${r3(T.hold)}]` : T.text); cursor = T.at + T.hold; }
       else { parts.push(`[pause ${r3(T.hold)}]`); cursor = T.at + T.hold; }
     }
     if (!turns.some((T) => T.who === w)) { actors[w] = silentActor(w, C, seconds, root[w], walks[w], gazeOf, turns); continue; }
-    const read = actRead({ script: parts.join(' '), register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}), seed: scene.seed ?? 1 });
+    const vOf = (T) => voice[T.line] ?? voice[String(T.line)];
+    // (every line of its recorded: no words left to read, so its read is the first line's fitted read with nothing spoken
+    // but its opening, each recorded line then laid in)
+    const allRecorded = turns.every((T) => T.who !== w || T.recording);
+    let read;
+    if (allRecorded) { const T0 = turns.find((T) => T.who === w), F0 = fittedRead(T0.text, C, vOf(T0), scene.seed ?? 1); read = { ...F0, lines: [], body: [], beats: F0.beats.filter((b) => b.at < READ_PAD.lead - 1e-6 && b.say === undefined) }; }
+    else read = actRead({ script: parts.join(' '), register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}), seed: scene.seed ?? 1 });
+    // (a recorded line: its placeholder's silence given over to its read, fitted to the recording, its first beat speaking it)
+    for (const T of turns) if (T.who === w && T.recording) read = withRecorded(read, T, fittedRead(T.text, C, vOf(T), scene.seed ?? 1), vOf(T));
     const speaks = read.lines.map((L) => [L.at, L.end]), listens = turns.filter((T) => T.who !== w).map((T) => [T.at, T.end]);
     // (the face: each beat's gaze where the scene puts it, the style's glances kept; a listening beat at each other
     // speaker's line; the gaze set again while anyone crosses; a line's parenthetical face on its own words)
@@ -192,7 +244,34 @@ export function actScene(scene) {
 /** a speaker's stressed words' times into its line (s): its words read alone in its register and style */
 function stressedWords(T, cast) {
   const C = cast[T.who], R = actRead({ script: T.text, register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}) });
-  return R.lines.flatMap((L) => L.words.filter((x) => x.emph).map((x) => x.t - READ_PAD.lead));
+  // (a recorded line's stresses where its recording puts them: the natural read scaled to the recording's length)
+  const k = T.recording && spokenOf(R) > 0 ? (T.end - T.at) / spokenOf(R) : 1;
+  return R.lines.flatMap((L) => L.words.filter((x) => x.emph).map((x) => (x.t - READ_PAD.lead) * k));
+}
+
+/** the actor's read with a recorded turn's span given over to the line's fitted read (F), shifted onto the turn: its lines,
+ * its beats (the placeholder's own dropped), its body's cues; the first speaking beat's say the recording, the others
+ * silent (the recording speaks the whole line) */
+function withRecorded(read, T, F, rec) {
+  const off = T.at - READ_PAD.lead, a = T.at - 1e-6, e = T.at + T.hold - 1e-6;
+  const inF = (s) => s >= READ_PAD.lead - 1e-6 && s < READ_PAD.lead + T.hold - 1e-6;
+  const shift = (s) => r3(s + off);
+  const lines = F.lines.map((L) => ({ ...L, at: shift(L.at), end: shift(L.end), words: L.words.map((x) => ({ ...x, t: shift(x.t) })) }));
+  let first = true;
+  const say = { text: rec.text ?? T.text, recording: rec.recording, seconds: rec.seconds, ...(rec.timing ? { timing: rec.timing } : {}), ...(rec.phonemes ? { phonemes: rec.phonemes } : {}), ...(rec.words ? { words: rec.words } : {}), ...(rec.envelope ? { envelope: rec.envelope } : {}) };
+  const beats = F.beats.filter((b) => inF(b.at)).map((b) => {
+    if (b.say === undefined) return { ...b, at: shift(b.at) };
+    const { say: _s, ...rest } = b;
+    if (first) { first = false; return { ...rest, at: r3(T.at), say }; }
+    return { ...rest, at: shift(b.at) };
+  });
+  const body = F.body.filter((c) => inF(c.t)).map((c) => ({ ...c, t: shift(c.t) }));
+  return {
+    ...read,
+    lines: [...read.lines, ...lines].sort((x, y) => x.at - y.at),
+    beats: [...read.beats.filter((b) => b.at < a || b.at >= e), ...beats].sort((x, y) => x.at - y.at),
+    body: [...read.body.filter((c) => c.t < a || c.t >= e), ...body].sort((x, y) => x.t - y.t),
+  };
 }
 
 /** an actor with no line: a held read of the scene's length, listening throughout, watching */

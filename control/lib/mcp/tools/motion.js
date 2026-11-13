@@ -933,7 +933,7 @@ export function registerMotionTools() {
               items: { type: ['string', 'object'] },
             },
             stash_ref: { type: 'string', description: 'DECK: a stash (st_…) whose sketch-typed items, in gather order, are the slides (≥2).' },
-            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script }; export storyboard (default) | mp4 (animatic) | blender (get_motion_vocab({ id: 'scene-film' }))" },
+            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script, world_ref?, voice?, dub? }; export storyboard (default) | mp4 (animatic) | blender (get_motion_vocab({ id: 'scene-film' }))" },
           },
         },
         shot: {

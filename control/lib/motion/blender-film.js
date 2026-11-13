@@ -632,11 +632,15 @@ film_render.py - render a mojulo film to a PNG sequence, then H.264 (mojulo blen
 Frames first, so a crash loses one frame; a re-run skips frames already on disk. The MP4 is cut in
 Blender's own sequencer - no ffmpeg install needed. Markers switch the camera at each cut.
 
-  blender -b film.blend --python film_render.py -- [--preset draft|final] [--engine EEVEE|CYCLES]
+  blender -b film.blend --python film_render.py -- [--preset draft|final] [--engine EEVEE|CYCLES] [--audio voice.wav] [--locale fr]
+
+A scene's pack (scene.json beside this) lays its voice under the film: scene.json's audio, a dub's with --locale, or
+--audio's; a world's film has none.
           [--samples 128] [--res 100] [--out film/]
     draft: EEVEE at the shot size        final: Cycles, 128 samples, denoised, at 200 %
 """
 import bpy
+import json
 import os
 import sys
 import time
@@ -654,6 +658,21 @@ def _opt(name, default=None):
 
 def log(*a):
     print('[film]', *a)
+
+
+def sound_of(here):
+    """the film's sound: --audio, else a scene pack's scene.json audio (a dub's with --locale); none for a world film"""
+    given = _opt('--audio')
+    if given:
+        return os.path.abspath(given)
+    sj = os.path.join(here, 'scene.json')
+    if not os.path.exists(sj):
+        return None
+    with open(sj) as f:
+        S = json.load(f)
+    locale = _opt('--locale')
+    rel = ((S.get('dubs') or {}).get(locale) or {}).get('audio') if locale else S.get('audio')
+    return os.path.join(here, rel) if rel else None
 
 
 PRESETS = {'draft': ('EEVEE', 0, 100), 'final': ('CYCLES', 128, 200)}
@@ -729,7 +748,13 @@ def main():
     enc.render.ffmpeg.format = 'MPEG4'
     enc.render.ffmpeg.codec = 'H264'
     enc.render.ffmpeg.constant_rate_factor = 'HIGH'
-    enc.render.filepath = os.path.join(out, 'film-%s.mp4' % preset)
+    sound = sound_of(here)
+    if sound and os.path.exists(sound):
+        strips.new_sound('voice', sound, channel=2, frame_start=1)
+        enc.render.ffmpeg.audio_codec = 'AAC'
+        log('sound', sound)
+    locale = _opt('--locale')
+    enc.render.filepath = os.path.join(out, 'film-%s%s.mp4' % (preset, '-' + locale if locale else ''))
     with bpy.context.temp_override(scene=enc):
         bpy.ops.render.render(animation=True, scene=enc.name)
     log('encoded', enc.render.filepath)
