@@ -29,7 +29,7 @@ export const FILM_KIND = 'film';
 export const isFilmKind = (kind) => kind === FILM_KIND;
 export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit']);
 export const FILM_PART_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'height']);
-export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'script', 'voice', 'dub', 'seed']);
+export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'script', 'voice', 'dub', 'seed']);
 export const SCENE_PART_KEYS = Object.freeze(['mark', 'register', 'style', 'role', 'height']);
 export const CUTS = Object.freeze(['cut', 'fade']);
 export const FILM_LOOKS = Object.freeze(['film', 'anime']);
@@ -61,7 +61,7 @@ export function filmErrors(F) {
     const seen = new Set();
     F.scenes.forEach((S, i) => {
       const at = `scenes[${i}]`;
-      if (!isPlain(S)) { errs.push(`${at}: { id, set?, cast, marks?, script, voice?, dub?, seed? }`); return; }
+      if (!isPlain(S)) { errs.push(`${at}: { id, set?, cast, marks?, props?, script, voice?, dub?, seed? }`); return; }
       const bad = Object.keys(S).filter((k) => !SCENE_KEYS.includes(k));
       if (bad.length) errs.push(`${at}: a scene takes ${SCENE_KEYS.join(', ')} (not ${bad.join(', ')})`);
       if (typeof S.id !== 'string' || !WORD.test(S.id)) errs.push(`${at}.id: a word (lower case letters, digits, - and _)`);
@@ -109,6 +109,7 @@ export function sceneScreenplay(F, id) {
   return {
     cast, script: S.script,
     ...(S.marks ? { marks: S.marks } : {}),
+    ...(S.props ? { props: S.props } : {}),
     ...(S.seed !== undefined ? { seed: S.seed } : {}),
     ...(S.set !== undefined ? { world_ref: F.sets[S.set] } : {}),
     ...(S.voice ? { voice: S.voice } : {}),

@@ -4,7 +4,7 @@ import { actScene } from './scene.js';
 import { coverScene } from './coverage.js';
 import { directorsNotes } from './notes.js';
 import { coverageCameraAt } from './scene-film.js';
-import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, panelStation, spoken, shotTitle } from './storyboard.js';
+import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, groundForms, panelStation, spoken, shotTitle } from './storyboard.js';
 import { readPlate, stationRig } from '../book/drawn-plate.js';
 
 // the storyboard: a panel a coverage shot, drawn from the scene, never stored. Tested on the baseline's blocked
@@ -76,21 +76,21 @@ describe('the storyboard', () => {
     const forms = roomForms([ROOM]);
     // (a piece that says no height is not drawn; a room with no walls gives nothing)
     expect(forms.map((f) => f.id)).toEqual(['lounge-wall-s', 'lounge-wall-n', 'lounge-wall-w', 'lounge-wall-e', 'lounge-piece-1', 'lounge-piece-2']);
-    expect(forms[4].terms[0].shape.axisTo[2]).toBe(0.8);
-    expect(forms[0].terms[0].shape.axisTo[2]).toBe(2.6);
+    const top = (t) => t.shape.center[2] + t.shape.size[2] / 2, foot = (t) => t.shape.center[2] - t.shape.size[2] / 2;
+    expect(top(forms[4].terms[0])).toBeCloseTo(0.8, 3);
+    expect(top(forms[0].terms[0])).toBeCloseTo(2.6, 3);
     expect(() => readPlate({ forms })).not.toThrow();
     expect(roomForms([{ id: 'yard', min: [0, 0], max: [4, 4] }])).toEqual([]);
     // a door and a window are cut through the wall they lie on, between sill and head; one off every wall is left out
     const cut = roomForms([{ ...ROOM, openings: [{ kind: 'door', min: [-1, 2.5], max: [-0.1, 2.5], sill: 0, head: 2 }, { kind: 'window', min: [-3, -1], max: [-3, 0.5], sill: 0.9, head: 2.1 }, { kind: 'window', min: [0, 0], max: [1, 0], sill: 1, head: 2 }] }]);
     const holes = (id) => cut.find((f) => f.id === id).terms.filter((t) => t.op === 'subtract');
     expect(holes('lounge-wall-n')).toHaveLength(1);
-    expect(holes('lounge-wall-w')[0].shape.axisFrom[2]).toBe(0.9);
-    expect(holes('lounge-wall-w')[0].shape.axisTo[2]).toBe(2.1);
+    expect(foot(holes('lounge-wall-w')[0])).toBeCloseTo(0.9, 3);
+    expect(top(holes('lounge-wall-w')[0])).toBeCloseTo(2.1, 3);
     expect(holes('lounge-wall-s').length + holes('lounge-wall-e').length).toBe(0);
     expect(() => readPlate({ forms: cut })).not.toThrow();
     // turned with the world, as the mannequins are: a quarter turn swaps the piece's sides
-    const q = roomForms([ROOM], { turn: 90 })[4].terms[0].shape.profile.points;
-    expect(Math.max(...q.map((p) => p[0])) - Math.min(...q.map((p) => p[0]))).toBeCloseTo(0.8, 3);
+    expect(roomForms([ROOM], { turn: 90 })[4].terms[0].shape.size.slice(0, 2)).toEqual([0.8, 1.1]);
   });
 
   it('boards the room: the panels change, the plan shows what stands on the floor, and an open set keeps its bytes', () => {
@@ -107,5 +107,33 @@ describe('the storyboard', () => {
     expect(open.set.drawn).toBeUndefined();
     expect(open.panels.map((p) => p.frame)).toEqual(board.panels.map((p) => p.frame));
     expect(open.panels[0].blocking).not.toContain('class="piece"');
+  });
+
+  // any set: what stands on its ground (actor/ground.js, read from the world's faces) is drawn the same way
+  const GROUND = [{ min: [1.5, 1], max: [2.6, 1.8], h: 0.8 }, { min: [-2.8, 2.2], max: [3, 2.4], h: 3 }, { min: [40, 40], max: [41, 41], h: 2 }];
+
+  it('draws what stands on any set\'s ground: one form of boxes near what the panel looks at, a plate the press accepts', () => {
+    const [g] = groundForms(GROUND, { about: [0, 0] });
+    expect(g.terms).toHaveLength(2);   // (the far block is past the panel's reach)
+    expect(g.terms.every((t) => t.shape.kind === 'box')).toBe(true);
+    expect(() => readPlate({ forms: [g] })).not.toThrow();
+    expect(groundForms([], { about: [0, 0] })).toEqual([]);
+    const onGround = storyboardOf(S, C, { notes, title: 'The key', ...small, blocks: GROUND, set: { ref: 'sk_z' } });
+    expect(onGround.set.ground).toBe(true);
+    expect(onGround.panels[0].frame).not.toBe(board.panels[0].frame);
+    expect(onGround.panels[0].blocking).toMatch(/class="piece"/);
+    expect(storyboardHtml(onGround)).toContain('what stands on its ground');
+  });
+
+  it('turns the world by quarter turns only when a set is drawn, the station taking the rest inside 1 to 89 degrees', () => {
+    for (const s of C.shots) {
+      const { framing } = coverageCameraAt(C, (s.span[0] + s.span[1]) / 2, s), { turn, station } = panelStation(framing, { square: true });
+      expect(Math.abs(turn % 90)).toBe(0);
+      expect(station.turn).toBeGreaterThanOrEqual(1);
+      expect(station.turn).toBeLessThanOrEqual(89);
+      // the camera stands where it did, turned with the world (to the degree the station is held inside its range)
+      const free = panelStation(framing);
+      expect(Math.abs(((station.turn - turn) - (free.station.turn - free.turn) + 540) % 360 - 180)).toBeLessThanOrEqual(1.001);
+    }
   });
 });

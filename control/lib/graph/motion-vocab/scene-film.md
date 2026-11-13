@@ -19,6 +19,7 @@ style, blocked on one clock, shot by the director's coverage. The pack is writte
 forge_motion({ title: 'The key', export: 'storyboard',
   subject: { screenplay: {
     marks: { door: [-1.3, 0.2], window: [1.1, 0.7], table: [0.1, 0.35] },
+    // props: { car: { ref: 'sk_…', at: [4.5, 3], turn: 90 } },   anything mojulo made, stood in the scene
     cast: { mara: { persona: 'sk_…', mark: 'door' }, jon: { hero: 'sk_…', register: 'documentary', mark: 'window' } },
     script: 'MARA: You kept the *key*.\nJON (worried): I kept everything. [pause] That was the trouble.\nMara crosses to the table.\nJon turns to Mara.\nMARA (determined): Then send one *now*.' } },
   shot: { motion: 'coverage', params: { look: 'film' } } })
@@ -52,7 +53,14 @@ forge_motion({ title: 'The key', export: 'storyboard',
 
 ## The set, the voice, the dub
 
-- **`world_ref`: the set.** A stored world, such as a geocube `room`, `hall` or `trail`, a stage, or a game's level.
+- **`world_ref`: the set.** Anything mojulo made that has a form: a room, a hall, a trail, a stage, a game's level, a
+  house, a city, a landscape, or a single object such as a table or a vehicle. The set does not have to say anything
+  about itself.
+  - **What stands in it is read from its form.** Wherever the set rises through the height of a body, a cross goes
+    round it, each camera is brought to where it sees the cast past it, and the storyboard draws it as plain blocks.
+    A kerb or a rug is stepped over; a lintel or a bough above a head is walked under.
+  - **A set that names no place** (an object, a city) still takes a cast: they stand on the clear ground nearest its
+    middle, under the open sky where there is any, at a place called `ground`.
   - **Its named places are marks.** Each room's middle is `room-<id>`, there is a stand on each side of a door
     (`<door>-<room>`), and its anchors (a pocket, a landmark) are marks too. Write them in the script as they are
     named: "Ana crosses to the room-reveal-1."
@@ -68,6 +76,14 @@ forge_motion({ title: 'The key', export: 'storyboard',
     - With no lamps of its own it is lit by a soft light under the ceiling.
     - A cross goes round the furniture and round the others, a body's width off each, by the shortest way. With no
       way round, it is walked straight, as on any other set.
+- **`props`: things stood in the scene.** Write `{ <name>: { ref, at, turn?, scale? } }`. `ref` is anything mojulo
+  made; `at` is `[x, y]` in metres or a mark's name; `turn` is degrees about the vertical; `scale` is how many times
+  larger it stands than it was made.
+  - It stands with its lowest point on the floor and its middle at `at`, at its real size where its recipe has a
+    unit. A thing made in no real unit is read as metres: give it a `scale`.
+  - **Its name is a place**: the clear ground beside it. "Ada crosses to the car."
+  - It is walked round, seen past and drawn on the board like the rest of the set. A scene needs no `world_ref` to
+    take props: they stand on the bare stage.
 - **`voice`: recorded lines.** Write `{ <line number>: '<path>.wav' | { audio, text? } }`. The number counts spoken
   lines, 1 the first, in script order.
   - **They set the clock.** A recorded line lasts its recording. The read is fitted to it, so the face, the gestures on
@@ -149,6 +165,9 @@ again from the recipe.
   to the scene yet.
 - A dub is to picture only: a locale whose lines need more time cannot re-time the scene yet.
 - The storyboard's frames draw a decorated room as plain blocks: its walls, furniture and bare openings for the doors and
-  windows, with no door leaf, glass or finishes. On any other set they draw the actors on open ground, and only the overhead plan shows the set.
+  windows, with no door leaf, glass or finishes. Any other set, and every prop, is drawn as plain blocks at its heights: a car reads as a low box with a cabin, not as a car.
+- A prop stands in the plan and the storyboard only. The Blender film does not carry it yet (advice `prop-board-only`).
+- A thing made in no real unit (a vehicle, for one) states no size: it is read as metres until the prop gives a `scale`.
+- A house names no rooms as places yet: as a set, its cast is stood outside it.
 - Marks are on the floor at the set's height under the lead's mark. A set of many levels is stood on that one floor.
 - One scene per forge; cut several together in Blender's sequencer.

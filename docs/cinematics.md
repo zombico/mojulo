@@ -218,6 +218,26 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
     are walked round over their corners, the shortest clear way inside the room. The walk's `via` holds the corners;
     its root keys turn onto each leg in its first steps. A set with no `blocks`, or a cross with no way round, is
     the straight line.
+- **Any world is a set, with nothing said by it** (`actor/ground.js`). Every world resolves to faces
+  (`worlds/world-scene.js`), and the scene reads those:
+  - `standingOf(faces, { about })` reads the ground about the marks the scene uses on a grid: a cell is taken where a
+    face passes between `STEP` and `HEAD` above the floor. The taken cells are gathered into `blocks`, the same shape
+    a decorated room gives, so `routeWalk` and the storyboard need no second path. A world that states its own
+    `blocks` is taken at its word.
+  - `fitSight(framing, sight)` (`actor/coverage.js`) brings each camera along its line of sight past whatever stands
+    between it and its subject, with `faceSight(faces)` (`shoot/clearance.js`) as the line of sight. It runs after
+    `fitRoom` on every set.
+  - A world that names no place gets one, `ground`: `openGround` finds the clear ground nearest the world's middle,
+    under the open sky first, and the floor is the ground under that spot (`floorUnder`).
+  - An object's own page stands it on a studio floor (faces marked `studio`); the scene leaves those out.
+- **Props** (`screenplay.props`, `mcp/tools/scene-film.js` `placeProp`): anything mojulo made, resolved to faces the
+  same way, stood with its lowest point on the floor and its middle at `at`, turned and scaled. Its faces join the
+  set's, so the ground, the cameras and the board treat it like the rest. Its name becomes a mark on the clear ground
+  beside it. The plan plays the screenplay without `props`; the recipe keeps them as written. With no `world_ref`
+  the set's kind is `props` and the cast get marks of their own. The Blender pack does not carry props yet.
+- The storyboard draws every set: `groundForms(blocks)` stands the nearest blocks as boxes in each panel. When a set
+  is drawn, `panelStation(framing, { square: true })` turns the world by quarter turns only, so the blocks stay
+  axis-aligned boxes (cheap for the plate), and the station takes the rest of the angle.
 - The world's own Blender pack goes under the actors, lowered so its floor is the scene's.
 
 **The voice** (`voice`): recorded lines set the scene's clock.

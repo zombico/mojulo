@@ -87,6 +87,20 @@ game.
     rendering it in Blender.
   - **House lights.** A room with no lamps of its own is lit by a soft light under its ceiling. Before, it rendered
     black.
+- **A scene anywhere, with anything in it.** A scene can now be set in anything mojulo made, and anything mojulo made
+  can stand in it. Neither has to be prepared for filming.
+  - **Any world is a set.** A city, a landscape, a house, a level, or a single object such as a table or a vehicle.
+    Before, only worlds that named places to stand could be a set, and the rest were refused. A world with no named
+    places puts the cast on the clear ground nearest its middle.
+  - **Things in the way are respected everywhere.** Whatever the set is, a walk goes round what stands in it, and
+    each camera is moved to where it can see the actors. Before, this worked only in a decorated room.
+  - **Props.** Name any object and where it stands, and it is in the scene: "Ada crosses to the car." sends her to
+    it, walks go round it and the cameras see past it. A scene needs no set to have props.
+  - **The storyboard draws it all.** Buildings, furniture and props are drawn as plain blocks round the stand-in
+    figures, in each panel and in the plan from above.
+  - **Not yet:** a prop is in the plan and the storyboard, but not in the Blender film. An object made without a
+    real size (a vehicle, for one) needs its scale given. A house does not name its rooms, so its cast stands
+    outside it.
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
   place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that

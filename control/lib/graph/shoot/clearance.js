@@ -90,6 +90,33 @@ export function shootClearance(plan, faces, { subjects = null, max = 12 } = {}) 
 }
 
 /**
+ * A world's faces as a line of sight: `sight(p, q)` → how far along p→q (0 to 1) the first face found stands, -1 when
+ * the way is clear. Built once, asked many times (a coverage fits each camera by it: actor/coverage.js fitSight).
+ */
+export function faceSight(faces) {
+  const grid = buildGrid(Array.isArray(faces) ? faces : []);
+  if (grid.empty) return () => -1;
+  const stamp = new Int32Array(grid.tris.length).fill(-1);
+  let seg = 0;
+  return (p, q) => {
+    const d = [q[0] - p[0], q[1] - p[1], q[2] - p[2]];
+    let best = -1;
+    seg += 1;
+    for (let i = grid.cx(Math.min(p[0], q[0])); i <= grid.cx(Math.max(p[0], q[0])); i++) {
+      for (let j = grid.cy(Math.min(p[1], q[1])); j <= grid.cy(Math.max(p[1], q[1])); j++) {
+        for (const ti of grid.cells.get(i * grid.N + j) || []) {
+          if (stamp[ti] === seg) continue;
+          stamp[ti] = seg;
+          const t = grid.tris[ti], h = segTri(p, d, t[0], t[1], t[2]);
+          if (h >= 0 && (best < 0 || h < best)) best = h;
+        }
+      }
+    }
+    return best;
+  };
+}
+
+/**
  * What stands between each shot's camera and what it looks at: the segment from the camera to its point of interest,
  * at the shot's first and middle frames, tested against the world's faces short of the subject (`reach`, a fraction of
  * the way, so the subject's own floor never counts). `[{ shot, camera, t, at }]`, a shot once, at most `max`. A scene

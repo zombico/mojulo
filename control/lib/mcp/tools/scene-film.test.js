@@ -128,3 +128,71 @@ describe('a walled set with no light of its own', () => {
     expect(planSceneFilm(sp, { getRow: () => null }).coverage.cameras[0].keys[0].pos[1]).toBeLessThan(0);
   });
 });
+
+// the animation studio sits on everything mojulo makes: any world is a set, any thing a prop, with nothing said by
+// either. Tested on real recipes of kinds that name no place to stand: an object (a table), a vehicle, a city.
+describe('a scene in anything mojulo makes', () => {
+  const MADE = {
+    sk_table: { title: 'table', manifest: { kind: 'workbench', build: { type: 'furniture', piece: 'table', dials: { type: 'table', w: 1830, d: 975, h: 760 }, size: [1830, 975, 760] }, units: 'mm', title: 'table' } },
+    sk_city: { title: 'city', manifest: { kind: 'fractal-city', seed: 1, anchor: null, depth: 2, density: 0.6, elements: { frontage: true, roundKit: true } } },
+  };
+  const made = (r) => MADE[r] ?? null;
+  const cast = { ada: {}, jon: {} };
+  const inBlock = (B, p) => p[0] > B.min[0] && p[0] < B.max[0] && p[1] > B.min[1] && p[1] < B.max[1];
+
+  it('stands a thing in the scene: its lowest point on the floor, its middle where asked, turned and scaled', async () => {
+    const { placeProp } = await import('./scene-film.js');
+    const box = [{ corners: [[10, 10, 5], [12, 10, 5], [12, 11, 5], [10, 11, 5]] }, { corners: [[10, 10, 5], [12, 10, 5], [12, 10, 6], [10, 10, 6]] }];
+    const P = placeProp(box, [3, 4]);
+    expect(P.size).toEqual([2, 1, 1]);
+    expect(P.faces[0].corners[0]).toEqual([2, 3.5, 0]);
+    // a quarter turn swaps its sides
+    expect(placeProp(box, [3, 4], 90).half).toEqual([0.5, 1]);
+  });
+
+  it('takes any thing as a prop: a place by its name, walked to and round, drawn on the board; the script plays without it', async () => {
+    const { prepareScreenplay } = await import('./scene-film.js');
+    const sp = { cast, props: { table: { ref: 'sk_table', at: [-3.5, 2.5] } }, script: 'ADA: Is that yours?\nAda crosses to the table.\nJON: It is.' };
+    const P = await prepareScreenplay(sp, { getRow: made });
+    expect(P.kept.props).toEqual(sp.props);
+    expect(P.screenplay.props).toBeUndefined();
+    expect(P.set.kind).toBe('props');
+    // the table is its real size (a recipe in millimetres), without the studio floor its own page stands it on
+    expect(P.set.props[0].size).toEqual([1.83, 0.975, 0.76]);
+    // its name is a place on clear ground beside it; the cast stand on marks of their own, not on the prop's
+    expect(P.set.blocks.length).toBeGreaterThan(0);
+    expect(P.set.blocks.some((B) => inBlock(B, P.screenplay.marks.table))).toBe(false);
+    expect(P.screenplay.cast.ada.mark).toBe('ada-mark');
+    const plan = planSceneFilm(P.screenplay, { getRow: made, set: P.set });
+    expect(plan.S.actors.ada.walks).toHaveLength(1);
+    expect(P.advice.some((A) => A.id === 'prop-board-only')).toBe(true);
+  }, 60000);
+
+  it('takes an object as the set itself: the cast is stood on the clear ground beside it, a place called ground', async () => {
+    const { prepareScreenplay } = await import('./scene-film.js');
+    const P = await prepareScreenplay({ cast, world_ref: 'sk_table', script: 'ADA: So this is the table.\nJON: It is.' }, { getRow: made });
+    expect(P.screenplay.marks.ground).toBeDefined();
+    for (const w of ['ada', 'jon']) expect(P.set.floor_plan.blocks.some((B) => inBlock(B, P.screenplay.marks[P.screenplay.cast[w].mark]))).toBe(false);
+    expect(P.set.faces.every((f) => f.corners.every((c) => c[2] > -0.5))).toBe(true);
+  }, 60000);
+
+  it('takes a city as the set: the cast on open ground among its buildings, which the cameras see past and the walks go round', async () => {
+    const { prepareScreenplay } = await import('./scene-film.js');
+    const P = await prepareScreenplay({ cast, world_ref: 'sk_city', script: 'ADA: So this is the place.\nJON: It is.' }, { getRow: made });
+    expect(P.set.kind).toBe('fractal-city');
+    expect(P.set.floor_plan.blocks.length).toBeGreaterThan(0);
+    for (const w of ['ada', 'jon']) expect(P.set.floor_plan.blocks.some((B) => inBlock(B, P.screenplay.marks[P.screenplay.cast[w].mark]))).toBe(false);
+    // every camera sees what it looks at: nothing of the city stands between
+    const { faceSight } = await import('@/lib/graph/shoot/clearance.js');
+    const sight = faceSight(P.set.faces), plan = planSceneFilm(P.screenplay, { getRow: made, set: P.set });
+    for (const c of plan.coverage.cameras) for (const k of c.keys) expect(sight(k.pos, [0, 1, 2].map((i) => k.pos[i] + (k.poi[i] - k.pos[i]) * 0.9))).toBe(-1);
+  }, 120000);
+
+  it('refuses a prop it cannot read, saying what a prop takes', async () => {
+    const { screenplayErrors, prepareScreenplay } = await import('./scene-film.js');
+    expect(screenplayErrors({ cast, script: 'ADA: Hi.', props: { 'The Car': { ref: 'sk_table', at: [0, 0] } } }).join(' ')).toMatch(/named as a mark is/);
+    expect(screenplayErrors({ cast, script: 'ADA: Hi.', props: { car: { at: [0, 0], size: 2 } } }).join(' ')).toMatch(/takes ref, at, turn, scale.*props\.car\.ref/s);
+    await expect(prepareScreenplay({ cast, script: 'ADA: Hi.', props: { car: { ref: 'sk_none', at: [0, 0] } } }, { getRow: made })).rejects.toThrow(/props\.car\.ref: 'sk_none' is no sketch/);
+    await expect(prepareScreenplay({ cast, script: 'ADA: Hi.', props: { car: { ref: 'sk_table', at: 'porch' } } }, { getRow: made })).rejects.toThrow(/no mark 'porch'/);
+  }, 60000);
+});

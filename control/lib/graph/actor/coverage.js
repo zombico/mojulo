@@ -16,7 +16,8 @@
  *     they fall in, as each shot's time map (shoot/time.js: a stretch cut at the shot's edges, a freeze in the shot it
  *     lands in), and `grain` (2 | 3: the world on twos or threes, the camera on ones) onto every shot; neither, and the
  *     coverage is as it was
- *   coverScene(S, { rooms }) keeps every camera inside the walled room its subjects stand in (fitRoom): a real room
+ *   coverScene(S, { sight }) keeps every camera where it SEES its subjects, on any set (fitSight: the world's faces
+ *     as a line of sight); coverScene(S, { rooms }) keeps every camera inside the walled room its subjects stand in (fitRoom): a real room
  *     has four walls, so a wide stands at the far wall on a wider lens; a room with no `walled` is shot as it was
  *
  * Pure and deterministic.
@@ -152,17 +153,48 @@ export function fitRoom(f, rooms) {
   return { pos: [0, 1, 2].map((i) => r3(f.poi[i] + d[i] * u)), poi: f.poi, fov: r3(fov) };
 }
 
+/** how far past what stood in its way a camera is brought (m), the nearest it comes to what it looks at (m), and how
+ * near its subject the last of its line of sight is left unasked (the subject's own ground and body are there) */
+export const SIGHT_OFF = 0.25, SIGHT_NEAR = 0.9, SIGHT_REACH = 0.9;
+
+/**
+ * A framing that SEES what it looks at, on any set: where the world stands between the camera and its subject, the
+ * camera is brought along its own line of sight to SIGHT_OFF past the last thing in the way, and its lens opened to
+ * hold the framing it had (to WIDEST at most), as fitRoom does at a wall. `sight(p, q)` is the world's line of sight
+ * (shoot/clearance.js faceSight): how far along p→q the first face stands, -1 when clear. A clear framing, or a
+ * world with no faces, is returned as it was.
+ */
+export function fitSight(f, sight) {
+  if (typeof sight !== 'function') return f;
+  const d = [f.pos[0] - f.poi[0], f.pos[1] - f.poi[1], f.pos[2] - f.poi[2]], len = Math.hypot(...d);
+  if (!(len > SIGHT_NEAR)) return f;
+  const at = (u) => [0, 1, 2].map((i) => f.poi[i] + d[i] * u), end = at(1 - SIGHT_REACH);
+  let u = 1;
+  // (one thing after another may stand in the way: a hedge, then a wall)
+  for (let n = 0; n < 8; n++) {
+    const p = at(u), h = sight(p, end);
+    if (h < 0) break;
+    // the hit is h of the way from p to `end`: bring the camera just past it
+    const hit = u - h * (u - (1 - SIGHT_REACH)), next = hit - SIGHT_OFF / len;
+    if (next * len <= SIGHT_NEAR) { u = Math.min(u, SIGHT_NEAR / len); break; }
+    u = next;
+  }
+  if (u >= 1) return f;
+  const fov = Math.min(WIDEST, (Math.atan(Math.tan((f.fov * Math.PI) / 360) / u) * 360) / Math.PI);
+  return { pos: at(u).map(r3), poi: f.poi, fov: r3(fov) };
+}
+
 /** The scene's coverage (see the header) */
-export function coverScene(S, { grain = null, rooms = null } = {}) {
+export function coverScene(S, { grain = null, rooms = null, sight = null } = {}) {
   const { names, kept, pt, heading, wideSide, overSide, closeSide } = cutsOf(S);
   // ─── the setups: one camera each, keyed where its shots are ───────────────────────────────────────────────────────
   const cams = new Map(), shots = [];
   kept.forEach((c, i) => {
     const t0 = r3(c.t), t1 = r3(kept[i + 1]?.t ?? S.seconds), mid = (t0 + t1) / 2;
     const id = c.frame === 'wide' ? 'wide' : `${c.frame}-${c.on[0]}`;
-    const at = (s) => fitRoom(c.frame === 'over' ? frameShot('over', [pt(c.on[0], s), pt(c.on[1], s)], { side: overSide(c.on[0], c.on[1], s) })
+    const at = (s) => fitSight(fitRoom(c.frame === 'over' ? frameShot('over', [pt(c.on[0], s), pt(c.on[1], s)], { side: overSide(c.on[0], c.on[1], s) })
       : c.frame === 'close' ? frameShot('close', [pt(c.on[0], s)], { heading: heading(c.on[0], s), side: closeSide(c.on[0], s), lookH: CLOSE_LOOK })
-        : frameShot('wide', names.map((w) => pt(w, s)), { side: wideSide(s) }), rooms);
+        : frameShot('wide', names.map((w) => pt(w, s)), { side: wideSide(s) }), rooms), sight);
     // (a wide over a cross keeps everyone in frame from where it starts to where it ends; another holds where it cut)
     const a = at(t0), b = c.frame === 'wide' ? at(t1) : a;
     const cam = cams.get(id) ?? { id, name: c.frame === 'wide' ? 'the wide' : `${c.frame} on ${c.on[0]}`, type: 'two_node', film_mm: FILM, path: 'linear', keys: [] };
