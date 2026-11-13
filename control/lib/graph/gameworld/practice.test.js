@@ -38,12 +38,12 @@ describe('the door', () => {
     expect(practiceFor({ feel: FIGHTER, mounts: 2 }).rooms).toEqual(['practice', 'mount']);
     expect(practiceFor({ mounts: [{ coat: 'grey' }] }).rooms).toEqual(['mount']);
     expect(practiceFor({ feel: NONE })).toMatchObject({ rooms: [], why: expect.stringMatching(/no practice room yet/) });
-    expect(practiceFor({})).toMatchObject({ rooms: [], why: expect.stringMatching(/writes no feel and rides no horse/) });
+    expect(practiceFor({})).toMatchObject({ rooms: [], why: expect.stringMatching(/writes no feel, rides no horse and works no shift/) });
   });
   it('a room the world does not have is refused, in words', () => {
     expect(() => practiceRoomOf({ feel: FIGHTER }, 'mount')).toThrow(/this world has no mount lane \(it has practice\)/);
-    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, artillery/);
-    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'artillery']);
+    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, artillery, work/);
+    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'artillery', 'work']);
   });
 });
 

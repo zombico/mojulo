@@ -108,9 +108,13 @@ export async function GET(request, { params }) {
         if (!door.rooms.includes(room)) return NextResponse.json({ eligible: false, reason: `this world has no ${PRACTICE_ROOMS[room].name.replace(/^The /, '').toLowerCase()} (it has ${door.rooms.join(', ')})` }, { status: 422 });
         const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
         if (!['male', 'female'].includes(cast)) return NextResponse.json({ error: 'cast is male or female' }, { status: 400 });
+        // (the work room's movement: a feel template from the presets, the world's own by default)
+        const feel = room === 'work' ? request.nextUrl.searchParams.get('feel') : null;
+        if (feel !== null) { const { POLES } = await import('@/lib/graph/gameworld/feel/cards'); if (!POLES[feel]) return NextResponse.json({ error: `feel is one of ${Object.keys(POLES).join(', ')}` }, { status: 400 }); }
+        const link = (q) => `?${new URLSearchParams({ book: 'practice', room, ...Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) })}`;
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast })).html);
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${feel ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(room === 'work' ? { feel, link } : {}) })).html);
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one

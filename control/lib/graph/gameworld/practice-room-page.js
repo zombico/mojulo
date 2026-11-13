@@ -286,6 +286,32 @@ export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given =
   return { html, room, card: CARD };
 }
 
+/**
+ * The work room's page: the room on the runtime, and a panel beside it: the shift as tuned (pace, patience, the goal),
+ * the work proof at the template's run, and the presets to choose from (a feel template, a body), each a link that
+ * reopens the room with it.
+ */
+export async function workRoomHtml(G, { refs = {}, cast = 'male', feel = null, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { workRoom } = await import('./work-room.js');
+  const room = workRoom(G, { refs, cast, feel, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-work-room`);
+  let html = await emitted(payload, cdn);
+  const D = room.card.demand, M = room.measured, esc = (t) => String(t).replace(/[<&"]/g, (c) => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' })[c]);
+  const href = (q) => (link ? esc(link({ cast, feel: room.feel, ...q })) : null);
+  const pick = (label, on, q) => (on ? `<b>${esc(label)}</b>` : href(q) ? `<a href="${href(q)}">${esc(label)}</a>` : esc(label));
+  const feels = room.choices.feels.map((f) => `${pick(f.name, f.id === room.feel, { feel: f.id })} <span class="k">${f.base} · run ${f.run}</span>`).join('<br>');
+  const casts = room.choices.casts.map((c) => pick(c, c === cast && room.hero === 'stand-in', { cast: c })).join(' · ');
+  const HUD = `<style>#wk{position:fixed;top:10px;right:10px;width:330px;max-height:calc(100vh - 20px);overflow:auto;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50}#wk b{color:#fff}#wk a{color:#c9a96a}#wk .k{color:#9aa0a8}#wk h4{margin:6px 0 2px;font-size:11px;color:#c9a96a;text-transform:uppercase;letter-spacing:.05em}</style>
+<div id="wk"><b>Work room</b> <span class="k">${esc(room.card.name ?? room.card.id)} · ${esc(room.solved.target)}</span>
+<h4>the shift</h4><div>an order every <b>${D.every}</b> s, patience <b>${D.patience ?? '—'}</b> s, ${D.orders.length} on the menu · ${M.arrivals} orders · goal <b>${M.goal}</b><br><span class="k">blue: shovel work · green: bucket work · brown: crates · grey: shelves (put on the left pad, take on the right) · cream: the hand-in</span></div>
+<h4>measured</h4><div class="k">a walker who knows the card, at this template's run: ${esc(M.says)}</div>
+<h4>the hero</h4><div>${room.hero === 'own' ? '<b>the world\'s own hero</b>' : `a stand-in: ${casts}`}</div>
+<h4>the movement</h4><div>${feels}</div></div>
+<script>addEventListener('keydown', (e) => { if (e.code === 'KeyH') { const w = document.getElementById('wk'); w.style.display = w.style.display === 'none' ? '' : 'none'; } });</script>`;
+  html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
+  return { html, room };
+}
+
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
   const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
@@ -299,5 +325,5 @@ export async function practiceHtml(G, id, opts = {}) {
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
   }
-  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : mountLaneHtml(G, opts);
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

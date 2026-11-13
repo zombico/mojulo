@@ -21,7 +21,8 @@
  *     spawn) | { origin?, stations?: { <id>: [x,y,z] | [[x,y,z] a slot] }, crates?: { <item>: [x,y,z] }, shelves?: { <item>: [x,y,z] }, serve?: [x,y,z] },
  *     heading?: radians, hands?: how many units the bag holds (the most any one step puts in or asks of it), goal?: orders
  *     to serve by the bell (four fifths of what the simulator's one player serves), seed? (1): the roll of its orders,
- *     tickets?: ticket slots at the hand-in }
+ *     tickets?: ticket slots at the hand-in, reach? (1.1): how far from a place its E works, bases? (true): the places'
+ *     own markers (false: a room that draws them as blocks) }
  *
  * Said on the bus: work:took, work:made, work:ready, work:burned, work:served, work:walked, work:full, work:won,
  * work:lost (the rest `__w<i>:` and the use zones `use-w<i>-…`). Vars: `w<i>:served`, `w<i>:missed`, `w<i>:burned`,
@@ -137,8 +138,12 @@ export function lowerWork(p, ctx) {
 
   const F = { vars: { [carry]: 0, [served]: 0, [missed]: 0, [burned]: 0, [score]: 0, [left]: Math.round(C.session), [tclock]: 0, [live]: 1 }, reactions: [], hud: [], timers: [], watches: [], sources: [], entities: [] };
   const R = (r) => F.reactions.push(r), toast = (on, text, extra = {}) => F.hud.push({ on, as: 'toast', text, ttl: 1.2, ...extra });
-  const zone = (id, at, prompt, radius = 1.1) => F.sources.push({ type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt });
-  const mark = (id, at, color, dz = 0, on = true, radius = 0.45) => F.entities.push({ id, type: 'work', on, position: [at[0], at[1], r3(at[2] + 0.5 + dz)], radius, color });
+  // `reach`: how far from a place its E works (a counter's side, not its middle); `bases: false`, the places' own markers
+  // left out (a room that draws them as blocks), the busy, ready and ticket markers kept, raised over a counter
+  const reach = p.reach === undefined ? 1.1 : p.reach, bases = p.bases !== false, lift = bases ? 0 : 0.6;
+  if (!(Number.isFinite(reach) && reach >= 0.5 && reach <= 3)) fail('reach is how far from a place its E works, 0.5 to 3 m');
+  const zone = (id, at, prompt, radius = reach) => F.sources.push({ type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt });
+  const mark = (id, at, color, dz = 0, on = true, radius = 0.45) => { if (dz === 0 && !bases) return; F.entities.push({ id, type: 'work', on, position: [at[0], at[1], r3(at[2] + 0.5 + dz + lift)], radius, color }); };
   const pieces = (m) => Object.entries(m).map(([i, n]) => `${n > 1 ? `${n} ` : ''}${words(i)}`).join(', ');
 
   // the clock: a quarter-second tick while the session runs, the seconds left, the bell
@@ -178,8 +183,8 @@ export function lowerWork(p, ctx) {
     const id = `${W}-shelf-${item}`, at = shelfAt(item), cap = C.items[item].store === Infinity ? SHELF : C.items[item].store, here = heldVar(id, item), mine = heldVar(BAG, item);
     const [pin, pout] = shelfPads(at, heading);
     F.vars[mine] ??= 0;
-    zone(`${id}-put`, pin, `put down ${words(item)} (holds ${cap})`, 0.6);
-    zone(`${id}-take`, pout, `take ${words(item)}`, 0.6);
+    zone(`${id}-put`, pin, `put down ${words(item)} (holds ${cap})`, Math.min(0.6, reach));
+    zone(`${id}-take`, pout, `take ${words(item)}`, Math.min(0.6, reach));
     mark(`${id}-board`, at, COLOR.shelf, 0, true, 0.5);
     R({ on: `use-${id}-put`, if: { var: mine, gte: 1 }, do: 'emit', type: `${I}:put:${item}` });
     R({ on: `use-${id}-take`, do: 'emit', type: `${I}:get:${item}` });

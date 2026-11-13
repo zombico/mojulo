@@ -15,6 +15,7 @@ the feel chapter's choices are played and measured, and where a game's weapons a
 | `mount`, the mount lane | a world with `mounts` | the horse's gaits, its jump's clearance, the fences, the turn |
 | `range`, the firing range | a world that carries guns (below) | the guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching, the knife |
 | `artillery`, the artillery range | a template that owns a machine (`TEMPLATE_FRAMES`) | the machine walking, transforming and driving, its own guns laid by hand onto stands of matter |
+| `work`, the work room | a quick work game (`goal: 'work'`) | its Shovels & Buckets shift on greybox counters: crates, stations worked by standing at them, shelves, the hand-in; the hero (the world's, or a stand-in, male or female) and its movement (a feel template, the world's own or the everyday walker) chosen from the presets on its page (`&feel=<template>&cast=…`), the shift measured by the work proof at the template's run |
 
 A template whose fights run elsewhere says so instead of opening a room it does not play (`practice-room.js`
 `FIGHTS_ELSEWHERE`): the fighting game's own lab, the RPG's battles, the stealth game's close quarters on the range's

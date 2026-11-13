@@ -112,6 +112,31 @@ The quick door (`goal: 'work'`) does three things:
 2. lays the line on flat ground beside the trail, turned along it;
 3. writes the tuned card into the level's recipe.
 
+### The work room
+
+A shift is tried before its level, as an action game's feel is: in the practice door's **work room**
+(`gameworld/work-room.js`, served at `bible?book=practice&room=work`).
+
+- **The line:** greybox counters coloured by verb (blue shovel work, green bucket work, brown crates, grey shelves,
+  the cream hand-in), with E reached from a counter's side.
+- **The hero:** chosen from the action rooms' presets: the world's own hero, or a stand-in, male or female.
+- **The movement:** a feel template, the world's own or else the everyday walker (the realistic template that runs
+  slowest). The page lists every template with its run speed, and each one is a link that reopens the room with it.
+- **The shift:** the card tuned for one player at the world's challenge, measured by the work proof at the template's
+  own run.
+
+Movement is a lever, and it shows where travel is what is short. The kitchen measured at three templates' runs:
+
+| kitchen      | slowest (3.1 m/s) | middle (5.5 m/s) | fastest (12 m/s) |
+|--------------|-------------------|------------------|------------------|
+| beginner     | 10 of 11          | 10 of 11         | 10 of 11         |
+| advanced     | 13 of 25 (goal 13)| 17 of 25         | 19 of 25         |
+
+At beginner the order pace rules, so movement does not decide the shift. At advanced the slowest walker barely makes
+the goal. The roof barely moves (10, 10, 11 of 12): its ladder trip is fixed in the card as `far`, not walked. The goal
+comes from the simulator, which does not know the template, so a chosen movement makes the same shift easier or
+harder: a capacity lever the presets now expose.
+
 ### What the proof found
 
 The work proof (`work-proof.js`) plays a level on the bus the way the simulator's crew works: it walks straight
@@ -135,7 +160,7 @@ What the proof does not cover: walls (the walk is straight), the hero's own spee
 
 - **Seats.** Two to four players on one kitchen: `crew.workers` as seats, a handoff as a bucket between seats. This is
   what the co-op kitchen probe is blocked on (`soul.dependence=handoff`).
-- **The look.** The stations are greybox markers. A station's dress (a hob, a board, a field, a mixer) belongs on the
+- **The look.** The work room stands the line as greybox counters; a level still draws markers. A station's dress (a hob, a board, a field, a mixer) belongs on the
   prop and furniture shelves, read by the verb and the item.
 - **The book.** A gameworld's `work` page in the game design and production chapter: the card, its target and the
   solver's readout. Fixtures for chores and construction would join the farming fixture in the cosmos.

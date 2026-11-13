@@ -638,7 +638,8 @@ const QUICK_LEVERS = {
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   work: () => ['  card: kitchen | farm | site | roof | { a Shovels & Buckets card } (kitchen), challenge: beginner | intermediate |',
     '  advanced | 0..1 (beginner): the solver tunes the card\'s pace and patience for one player; serve: n (1..200) the orders',
-    '  the bell wants (four fifths of what a player who knows the card serves)   no climb, building or ride (docs/worksim.md)'],
+    '  the bell wants (four fifths of what a player who knows the card serves)   no climb, building or ride (docs/worksim.md)',
+    '  its work room: bible?book=practice&room=work (&feel=<template>&cast=male|female): the shift on counters, a hero and a movement from the presets'],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
   fight: () => [
     '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',

@@ -14,6 +14,9 @@
  *              (TEMPLATE_FRAMES: Mech Battle Kai's transforming biped, walking on the walker's gait, folding into its
  *              wheeled form) fires its own mounts there
  *
+ *   work       the work room (work-room.js): a work shift's card on greybox counters, played by a hero and a movement
+ *              chosen from the presets (the world's hero or a stand-in; a feel template); a quick work game
+ *
  * The gun rooms are a shooter's paradigm, not the melee room's: their own controls (the sights, reload, switch, a knife
  * on V; walk, transform, drive and lay the gun), their own measures and their own pages.
  * A template whose game fights on another runtime has no action room, and the door says where its practice is
@@ -40,6 +43,7 @@ import { mountLane } from './mount-lane.js';
 import { loadoutOf } from './loadout.js';
 import { rangeBody } from './combat/range.js';
 import { measureCombat, combatLaws } from './combat/measure.js';
+import { workRoom, workOf } from './work-room.js';
 
 export const PRACTICE_ROOMS = Object.freeze({
   practice: { name: 'The practice room', about: 'the arsenal\'s swings, strings, weapons, guard and parry on a foe that falls and comes back' },
@@ -47,6 +51,7 @@ export const PRACTICE_ROOMS = Object.freeze({
   mount: { name: 'The mount lane', about: 'the horse\'s gaits, its jump\'s clearance, the fences and the turn' },
   range: { name: 'The firing range', about: 'the game\'s guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching' },
   artillery: { name: 'The artillery range', about: 'the big gun on its base: its rounds into stands of matter at the bands, laid by hand; a frame walks, transforms and drives' },
+  work: { name: 'The work room', about: 'the shift on greybox counters: crates, stations worked by standing at them, shelves, the hand-in, by a hero and a movement chosen from the presets' },
 });
 /** The templates that own a frame of the mecha shelf: their hero is the machine, its bipedal motion the walker's gait
  * (mecha-shelf/mecha-gait.js) and its transform the walker's own (walker and its wheeled form). */
@@ -96,9 +101,10 @@ export function practiceFor(G) {
   if (G?.mounts != null && G.mounts !== false) rooms.push('mount');
   if (rangeFor(G)) rooms.push('range');
   if (artilleryFor(G)) rooms.push('artillery');
+  if (workOf(G)) rooms.push('work');
   const elsewhere = pole && FIGHTS_ELSEWHERE[pole] ? FIGHTS_ELSEWHERE[pole] : null;
   if (rooms.length) return { rooms, ...(elsewhere ? { elsewhere } : {}) };
-  return { rooms, why: elsewhere ?? (pole ? `its feel's template (${POLES[pole].name}) has no practice room yet: it neither fights hand to hand, platforms nor carries a gun, and the world rides no horse` : 'this world writes no feel and rides no horse: a feel (feel: \'<template>\') or mounts open a room') };
+  return { rooms, why: elsewhere ?? (pole ? `its feel's template (${POLES[pole].name}) has no practice room yet: it neither fights hand to hand, platforms nor carries a gun, and the world rides no horse` : 'this world writes no feel, rides no horse and works no shift: a feel (feel: \'<template>\'), mounts or a work goal open a room') };
 }
 
 /** One room's pure build. */
@@ -108,7 +114,7 @@ export function practiceRoomOf(G, id, opts = {}) {
   if (!rooms.includes(id)) throw new Error(`practice: this world has no ${PRACTICE_ROOMS[id].name.replace(/^The /, '').toLowerCase()}${rooms.length ? ` (it has ${rooms.join(', ')})` : `: ${why}`}`);
   // (a gun room's build is its spec: the range's measures and the frame's assembly are its page's, a few seconds each)
   return id === 'practice' ? practiceRoom(G, opts) : id === 'platform' ? platformRoom(G, opts) : id === 'mount' ? mountLane(G, opts)
-    : id === 'range' ? { spec: rangeFor(G) } : { spec: artilleryFor(G) };
+    : id === 'range' ? { spec: rangeFor(G) } : id === 'work' ? workRoom(G, opts) : { spec: artilleryFor(G) };
 }
 
 /** What `mounts: 2` would lay for a world whose feel template rides and that writes no mounts, or null. */

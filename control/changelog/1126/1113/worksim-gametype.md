@@ -35,6 +35,13 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   (`power.mechanics=work`).
 - **The quick door:** `design_game({ quick: { goal: 'work', card?, challenge?, serve? } })` tunes the card for one
   player, lays the line on flat ground beside the trail, and makes the game.
+- **The work room** (`gameworld/work-room.js`, the practice door's `work`) tries a shift before its level, the way the
+  action rooms try a feel. It stands the line as greybox counters coloured by verb. The hero is the world's own or a
+  stand-in (male or female), and its movement is a feel template: the world's own, or the everyday walker (the
+  realistic template that runs slowest). Every template and both bodies are offered on its page, and each reopens the
+  room. The shift is measured by the work proof at the template's run, and the movement shows: the kitchen at advanced
+  serves 13 of 25 at the slowest template's run (its goal 13) and 19 at the fastest; at beginner every template serves
+  10 of 11. The room has its own rail icon.
 - **The work proof** (`worksim/work-proof.js`, a machine gate) plays a level on the page's bus as a player who knows
   the card would. The kitchen, the farm and the roof are won near what the simulator serves. The site, a crew's job
   played alone, falls short, and the proof says so. On the exported page in headless Chromium, one whole order was
