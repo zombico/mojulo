@@ -214,7 +214,9 @@
   cell where a clump stands, its height its own) as the mean of the strands within a metre, the empty cells counted as
   nothing, × 1.5: high where the grass is tall and thick, low where it is short or sparse, none on the trail, in a
   claim or on bare ground. It no longer reads the cover and a height per sward. Not yet seen drawn.
-- The far lift on a gen-6 stage, in progress (`STAGE_LIFT`, `stage-grass.js`, a live grass's `farLift`, opt-in): past
-  the field, a sheet over the stage's landform raised where its mask sets grass, to the grass's mean height × the
-  share of grass within a metre, in the ramp's upper stops, lit or shade; it fills in among the thinning tufts. With
-  it the far clumps are not built and the blade cards are not drawn. Not yet seen drawn; its tests not yet run.
+- The form grass on a gen-6 stage, in progress (`stage-grass.js` FORM_FIELD, a live grass's `form`, opt-in, in the
+  field's place): the form render's grass and its far lift drawn in the stage's look. The grass script takes a `ramp`
+  look (blades unlit, the stop their height picks from the lit or the shade window); the stage's landform and mask are
+  read as its ground map; the lift is a sheet over the landform raised to the mean of the clumps that stand, in the
+  ramp's upper stops. The field, the far clumps and the cards are not drawn; a blade is not pressed by a foot. A first
+  lift written into the old field is removed, and the old field is as it was. Not yet seen drawn; tests not yet run.

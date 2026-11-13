@@ -86,7 +86,11 @@ const WIND_HEAD = 'uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWind
 const STILL_HEAD = 'vec3 fgBend( vec2 root, float hgt, float s, float ph ) { return vec3( 0.0 ); }\nfloat fgGust( vec2 root ) { return 0.0; }\n';
 
 
-export function formGrassScript() {
+/** The grass's page source. `ramp`: the blades unlit, in a host's colour ramp (a gen-6 stage's, channels/stage-grass.js
+ *  `formStageField`: STAGE_RAMP in the host's scope, { uRamp: the stops, uWin: the lit and the shade windows, tLit:
+ *  where the sun reaches }): a blade takes the stop its height up the blade picks from its window, nothing between
+ *  the stops. Absent, the form render's lit blades, the page as it was. */
+export function formGrassScript({ ramp = false } = {}) {
   return `
   // --- the form render's grass (channels/form-grass.js) ---
   if (D.grass) {
@@ -194,7 +198,18 @@ export function formGrassScript() {
       const PLACE = 'vec3 transformed = vec3( aRoot.xy + rotG * position.xy * step( 0.001, hP ), aRoot.z + position.z * hP ) + fgBend( aRoot.xy, hP, clamp( position.z, 0.0, 1.0 ), aTurn.x * 2.1 + aTurn.y );';
       // the grass: each length's clump where the sward is that length, fewer and lower where the cover thins, shrinking
       // toward a seam with another length, none where a standing drift has the ground
-      GTIERS.forEach((T, ti) => {
+${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks from its window, lit or shade where it stands)
+      const rampBlade = (T) => { const rm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+        rm.onBeforeCompile = (sh) => {
+          Object.assign(sh.uniforms, GU, PV, STAGE_RAMP, { uShort: { value: T.sward === 'short' ? 1 : 0 } });
+          sh.vertexShader = GHEAD + windHead(sh) + ROOT + 'attribute float bt;\\nuniform sampler2D tLit;\\nvarying float vBt;\\nvarying float vTone;\\nvarying float vLit;\\n' + sh.vertexShader
+            .replace('#include <begin_vertex>', [POVH, 'mat2 rotG = mat2( cos( aTurn.x ), sin( aTurn.x ), -sin( aTurn.x ), cos( aTurn.x ) );',
+              'vBt = bt; vTone = ( 0.85 + 0.3 * aTurn.y ) * ( 1.0 + fgGust( aRoot.xy ) ); vLit = texture2D( tLit, ( aRoot.xy - uGO ) / uGM ).r;', PLACE].join('\\n'));
+          sh.fragmentShader = 'uniform vec3 uRamp[ 8 ]; uniform vec4 uWin;\\nvarying float vBt;\\nvarying float vTone;\\nvarying float vLit;\\n' + sh.fragmentShader
+            .replace('#include <color_fragment>', '#include <color_fragment>\\n  { float dk = step( 1.5, vBt ), t = clamp( ( vBt - 2.0 * dk ) * vTone, 0.0, 0.999 ); vec2 w = vLit > 0.5 ? uWin.xy : uWin.zw; diffuseColor.rgb = uRamp[ int( clamp( floor( w.x + t * ( w.y - w.x + 1.0 ) ) - dk, 0.0, 7.0 ) ) ]; }');
+        };
+        rm.customProgramCacheKey = () => 'form-grass-ramp-' + T.id + (windU() ? '-wind' : ''); return rm; };
+` : ''}      GTIERS.forEach((T, ti) => {
         const tg = clumpGeometry(T.clump, ti * 31, T.spacing), R = [];
         each(T.spacing * SF.spread[T.sward], ti, (x, y, m, h) => {
           const dL = Math.abs(m.sw - SL[T.sward]) / SL.band; if (dL >= 1) return;
@@ -223,7 +238,7 @@ export function formGrassScript() {
             .replace('#include <color_fragment>', '#include <color_fragment>\\n  float dk = step( 1.5, vBt );\\n  diffuseColor.rgb *= mix( 0.45, 1.1, vBt - 2.0 * dk ) * vTone * mix( 1.0, ' + TWIN.shade.toFixed(3) + ', dk );');
         };
         bm.customProgramCacheKey = () => 'form-grass-' + T.id + (windU() ? '-wind' : '');
-        window.__formGrass = (window.__formGrass || 0) + stand(tg, R, bm) * tg.index.count / 3;
+        window.__formGrass = (window.__formGrass || 0) + stand(tg, R, ${ramp ? 'rampBlade(T)' : 'bm'}) * tg.index.count / 3;
       });
       // (a plant's material: a drift's or a weed's, its own colours, lit as one, bending in the wind)
       const plantMat = () => {
