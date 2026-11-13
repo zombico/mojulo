@@ -1,0 +1,20 @@
+{
+  "id": "toybox",
+  "name": "Toybox",
+  "about": "Glossy toy plastic for a light, quick game with a mascot hero: round blue plates with a pale rim on a little plinth, white rounded letters, yellow for what matters, green for what is going well. Sized for the hand.",
+  "family": "toy",
+  "tags": ["casual", "mascot", "runner", "platformer", "collectathon", "phone"],
+  "author": "mojulo",
+  "from": "idol",
+  "tokens": { "ink": "#ffffff", "panel": "#2468b8", "line": "#cfe6ff", "accent": "#ffd24a", "accent2": "#7be0a0", "stamina": "#7be0a0", "harm": "#ff8a8a" },
+  "type": { "body": "rounded", "display": "rounded", "mono": "rounded" },
+  "frame": "rule",
+  "corner": "round",
+  "plate": "gradient",
+  "material": "glass",
+  "scale": "large",
+  "case": "none",
+  "backing": "plinth",
+  "halo": "shadow",
+  "motion": "ease"
+}

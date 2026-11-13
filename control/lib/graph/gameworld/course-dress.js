@@ -62,8 +62,8 @@ export const DRESS_THEMES = Object.freeze({
     asks: Object.freeze({ hurdle: 'barrier', block: 'crates', 'posts-left': 'wagon', 'posts-right': 'wagon' }), tells: Object.freeze({ jump: 'hatching', steer: 'indicator' }), end: 'terminus', overhead: 'line',
     // (its interface: the theme the game's HUD and screens wear, a mana-ui preset or a card of playscape/ui/theme-cards.
     // A look is chosen by the game's STYLE (a mascot's light, round, bright game), never by an object of its setting:
-    // the library's friendly look until the casual family is drawn)
-    ui: 'idol',
+    // the toy family's toybox)
+    ui: 'toybox',
     // (a wagon is as long as it is drawn: the posts' box is this deep, and met all along it)
     lens: Object.freeze({ 'posts-left': 3.2, 'posts-right': 3.2 }),
     lanes: Object.freeze({ rails: true, sleepers: true }), walls: Object.freeze({ a: 'platform', b: 'cutting' }), backdrop: 'terminus',

@@ -12,6 +12,12 @@ phone, and a theme that comes from the dress's premise.
   what to do in the device's own glyphs. Laid by the course's thirds: nothing in the bottom band, the character's.
   The text legend and the runtime's own gauge are not shown on such a level.
 - A dress names its UI theme (`ui`). A look is chosen by the game's style (who the hero is, its tone, where it is
-  played), not by an object of its setting: Last train wears the library's friendly look (`idol`) until a family for
-  casual mascot games is drawn. A new card, the departure board (`playscape/ui/theme-cards/departure-board.json`), is
-  on the shelf for a sober railway game.
+  played), not by an object of its setting. Last train wears the toybox (`playscape/ui/theme-cards/toybox.json`, the
+  first card of a toy family for light games with a mascot hero): round glossy blue plates with a pale rim on a
+  plinth, white rounded letters, yellow for what matters, sized for the hand. The departure board
+  (`departure-board.json`) is on the shelf for a sober railway game.
+- On a tall frame the HUD is one plate in the top's middle (the run over the stamina, the progress beside them),
+  clear of the shell's menu button in the corner. The metres left are said as words the host writes, so a number that
+  falls every frame is not marked as news every frame.
+- The HUD begins when the game's channel has started, which on a game's level is some frames after the page: the
+  shell's params, the run among them, are in hand by then.

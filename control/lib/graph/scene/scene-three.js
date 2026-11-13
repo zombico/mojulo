@@ -868,7 +868,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (a level with a ROLL says it is shown only once it has started: its first picture is the rolled one)
   const gameBlock = game ? gameChannelScript(game, roll ? { shownOnStart: true } : {}) : '';
   // the level's in-play HUD on mana-ui (channels/mana-hud.js): a level that carries one; absent, not a byte
-  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud) : '';
+  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game }) : '';
   const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
   // a brawl on the world (lib/graph/brawl: the practice yard): it owns the camera; never on a capture run
   const brawlBlock = brawl && !capture ? brawlChannelScript(brawl) : '';
