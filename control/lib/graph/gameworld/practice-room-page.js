@@ -14,7 +14,8 @@
  *   rollRoomHtml(G, { refs?, cast?, sound?, cdn? }) → { html, room, measured }: the roll room, the roll being played (its
  *     seed, what stands, what lies, where it started) beside the seeds audit and the cover forms that stop this hero;
  *     R rolls the next seed, Shift+R the one before (the page's own ?seed=)
- *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js)
+ *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js); the roll room's course with
+ *     `view: 'map'` is its course map (course-map.js) in place of the room
  *   roomRefs(world, ref, exists) → the refs above, by the run's names, each only where its row exists
  *   cardAsked(feel) → what the feel card asks of one swing: { startup, total, cancel, string, lunge, hitstop, stun, dodge,
  *     guard } in frames
@@ -350,6 +351,13 @@ export async function practiceHtml(G, id, opts = {}) {
     if (id === 'range') { const { rangeHtml } = await import('./combat/range.js'); return { html: rangeHtml({ ...rangeFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) }; }
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
+  }
+  // (the roll room's course as its MAP, course-map.js: the book's diagram of a running game's course, `view: 'map'`)
+  if (id === 'roll' && opts.view === 'map') {
+    const room = rollRoom(G, opts);
+    if (room.layout !== 'course') throw new Error('practice: the course map is a running game\'s (a hero that runs on momentum has a course; this world\'s roll room is the yard)');
+    const { courseMapHtml } = await import('./course-map.js');
+    return { html: courseMapHtml(room.course, { title: G.name ?? G.id ?? 'Course' }), room };
   }
   return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

@@ -7,6 +7,7 @@
  *   cd control
  *   node scripts/spikes/roll-room/room.mjs --feel conscription --out /abs/dir [--cast female] [--sound realistic|none] [--cdn]
  *   node scripts/spikes/roll-room/room.mjs --measure            # every feel template: the seeds audit, the forms that stop it
+ *   node scripts/spikes/roll-room/room.mjs --feel commuter-rail-runner --map --out /abs/dir   # the course map (a momentum hero's)
  *
  * Open the page with ?seed=<n> for a roll (R the next, Shift+R the one before). A spike: the eyes gate is the operator's.
  */
@@ -27,7 +28,14 @@ if (argv.includes('--measure')) {
 }
 const feel = opt('--feel', 'conscription'), out = path.resolve(opt('--out', 'roll-room'));
 if (!POLES[feel]) { console.error(`room: feel is one of ${Object.keys(POLES).join(', ')}`); process.exit(2); }
-const { rollRoomHtml } = await import('../../../lib/graph/gameworld/practice-room-page.js');
+const { rollRoomHtml, practiceHtml } = await import('../../../lib/graph/gameworld/practice-room-page.js');
+if (argv.includes('--map')) {
+  const M = await practiceHtml({ id: 'roll-room', name: POLES[feel].name, feel, roll: true }, 'roll', { view: 'map' });
+  await fs.mkdir(out, { recursive: true });
+  await fs.writeFile(path.join(out, 'course-map.html'), M.html);
+  console.log(`room: ${path.join(out, 'course-map.html')} (${(M.html.length / 1024).toFixed(0)} KB)`);
+  process.exit(0);
+}
 const P = await rollRoomHtml({ id: 'roll-room', name: POLES[feel].name, feel, roll: true }, { cast: opt('--cast', 'male'), sound: opt('--sound', 'realistic'), cdn: argv.includes('--cdn') });
 await fs.mkdir(out, { recursive: true });
 const file = path.join(out, 'roll-room.html');

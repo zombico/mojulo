@@ -55,6 +55,12 @@ capture and the level played in Node show).
   followed by a camera that frames them (`courseCamera`): the way's far end on the upper line, the place the reaction
   begins on the lower, the hero in the bottom band; `viewBands` says where the bands fall for any camera, and the roll
   room's readout whether its own frames them. The practice rooms' usual follow camera frames none of the three.
+- The course map (`gameworld/course-map.js`): the diagram a design book draws a running game's course with. The course
+  from straight above, turned on its side, read left to right a row at a time: each segment numbered and named, its
+  ask in its role's colour with its tell before it, a run drawn through it (the reaction bot's, dashed in the air), a
+  ruler in metres and in seconds at the hero's top speed, and the flanks as cells lettered A or B by the walls' rule
+  (`era/wall-rhythm.js`): where a designed slice is placed. One map a roll. Served for the roll room's course at
+  `bible?book=practice&room=roll&view=map`. A lane is drawn as a guide: a place to be, not a thing on the ground.
 - The tells: paint on the way that carries what the course was measured by, rolled with its ask. A jump's window is
   painted as a strip (jump while on it); posts' arrows point at the open lane from where a two-lane change must begin.
 - A level's `blocks` may carry their own colour (`tint`) and flat paint that goes with them (`marks`).

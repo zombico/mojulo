@@ -110,7 +110,12 @@ export async function GET(request, { params }) {
         if (!['male', 'female'].includes(cast)) return NextResponse.json({ error: 'cast is male or female' }, { status: 400 });
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast })).html);
+        // (`view=map`: the roll room's course as the book's course map, gameworld/course-map.js)
+        const view = request.nextUrl.searchParams.get('view');
+        if (view !== null && view !== 'map') return NextResponse.json({ error: "view is 'map' (the roll room's course map)" }, { status: 400 });
+        try {
+          html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${view ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(view ? { view } : {}) })).html);
+        } catch (e) { if (view) return NextResponse.json({ eligible: false, reason: e.message.replace(/^practice: /, '') }, { status: 422 }); throw e; }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one

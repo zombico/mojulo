@@ -62,6 +62,33 @@ What that asks:
 - Near the hero the sides leave by the edges of the bottom band. That band is the character's: nothing beside it
   there should pull the eye off the figure.
 
+## A course is a long trail, and its lanes are not rails
+
+A course is designed as a long trail, segment after segment. Its lanes are places to be, not things on the ground: a
+theme may draw rails there (the rail yard does), or a painted line, or nothing at all. Nothing in the course's rules
+depends on how a lane is drawn.
+
+## The course map
+
+A running game's course is drawn in its design book as a **course map** (`control/lib/graph/gameworld/course-map.js`),
+a diagram made for these games alone. It is the course seen from straight above and turned on its side, so it runs
+from left to right as a line of text does, a few segments a row. Many segments are read one after another, and the
+course is seen whole without running it.
+
+- **Along** the page is the way the hero runs; a ruler under each row says metres and, at the hero's top speed,
+  seconds. **Up** the page is the hero's left. A metre across is a metre along.
+- **A segment** is one slot: the stretch before an ask and the ask at its end, numbered and named at its head.
+- **An ask** is drawn in its role's colour, across what it shuts: the whole way for a hurdle or a block, two lanes for
+  posts. Its tell is drawn before it.
+- **The line** through it is a run: the reaction bot's own, solid on the ground and dashed in the air.
+- **The flanks** either side of the way are cells, one a segment a side, lettered A or B by the walls' rule.
+
+The map is also where assets are placed from. A designed slice goes into a cell: the ask, the stretch before it, and
+the flank cell on each side. The letters say which kind of slice a cell takes.
+
+One map is one roll of the course; the book shows a few. The roll room serves its course's map at
+`bible?book=practice&room=roll&view=map`.
+
 ## The camera that frames it
 
 A camera frames a course when the bands fall where they are meant to: the way's far end on the upper line, the place

@@ -23,7 +23,8 @@
  *   playCourse(course, { seed?, react?, sight?, seconds? }) → { finished, seconds, hits, clean, retries }: one seed
  *                           played by THE REACTION BOT. It knows how to play; what it lacks is what a player lacks: it
  *                           SEES a thing only inside `sight` metres ahead and ACTS on it only `react` seconds after it
- *                           first saw it. Stopped, it backs off for a run-up and comes again.
+ *                           first saw it. Stopped, it backs off for a run-up and comes again. `trace: true` adds
+ *                           `line`: where it went ([[along, across, in the air], …])
  *   courseAudit(course, { seeds? }) → { seeds, laws: [{ law, holds, says }], ok }: the machine gate over a sample of seeds
  *     fair       a player who reacts in `react` s and sees `sight` m runs every sampled seed clean (no hit)
  *     finishes   a slow player (0.8 s) who sees the same still finishes every sampled seed
@@ -188,13 +189,15 @@ function worldOf(course, seed) {
   return { w, me: w.byId.hero, obs, rolled: R };
 }
 
-export function playCourse(course, { seed = 1, react = REACT, sight = course.sight, seconds = 120 } = {}) {
+export function playCourse(course, { seed = 1, react = REACT, sight = course.sight, seconds = 120, trace = false } = {}) {
   const N = live(), { w, me, obs } = worldOf(course, seed), P = course.pace, rule = me.rule;
-  const seen = {}, pressed = {}, hit = {};
+  const seen = {}, pressed = {}, hit = {}, line = [];
   let prev = 0, prevX = 0, press = 0, held = false, flown = false, heldFor = 0, wantX = 0, fast = false, still = 0, backing = 0, retries = 0, f = 0;
   for (; f < seconds * 60; f++) {
     const [x, y] = me.transform.pos, t = f * DT, v = (y - prev) / DT, vx = (x - prevX) / DT; prev = y; prevX = x;
     if (y > course.exit[1]) break;
+    // (`trace`: where it went, every fifth frame: along, across, and whether it was in the air)
+    if (trace && f % 5 === 0) line.push([Math.round(y * 100) / 100, Math.round(x * 100) / 100, me.grounded === false ? 1 : 0]);
     const inp = { forward: 1 };
     let next = null;
     for (const o of obs) {
@@ -219,7 +222,7 @@ export function playCourse(course, { seed = 1, react = REACT, sight = course.sig
     if (fast && v < 0.5 * P.top) { const o = obs.find((q) => y > q.y0 - 1.5 && y < q.y1 + 1); if (o) { hit[o.k] = true; fast = false; } }
   }
   const finished = me.transform.pos[1] > course.exit[1], hits = Object.keys(hit).map(Number);
-  return { finished, seconds: Math.round(f * DT * 10) / 10, hits, clean: finished && !hits.length, retries, asks: obs.map((o) => o.id) };
+  return { finished, seconds: Math.round(f * DT * 10) / 10, hits, clean: finished && !hits.length, retries, asks: obs.map((o) => o.id), ...(trace ? { line } : {}) };
 }
 
 export function courseAudit(course, { seeds = 12 } = {}) {
