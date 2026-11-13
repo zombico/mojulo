@@ -945,6 +945,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   // (a bare HUD look, the world's `hud` (mana-ui's adventure): no level badge on the play; the level stays the status page's
   // and its level-up banner's)
+  // (an obstacle course is framed for where it is read, course-view.js: its hero followed by the course's own camera)
+  if (stage.section === 'obstacles' && pilotPart.camera?.rule === 'follow') pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...stage.manifest.obstacles.camera } };
   // ROLL (the world's `roll`, roll-lower.js): the level's cover and its pickups named, and a roll over them on its
   // recipe (game/roll.js): the seed its game sends picks which stand and which lie. A pilot with no body is given one
   let roll = null;

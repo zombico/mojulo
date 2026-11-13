@@ -40,11 +40,7 @@ import { readFeel } from './feel/lower.js';
 import { POLES } from './feel/cards.js';
 import { courseOf, courseAudit, PRIMITIVES } from './roll-course.js';
 import { railOfGame, gameBody, lowerBody } from './game-bodies.js';
-import { viewZones } from './course-view.js';
-
-// the room's camera as its page stands it (playscape/player.js's follow camera behind a hero at the origin, the page's
-// own field of view): what the course's screen is measured on
-export const ROOM_CAMERA = Object.freeze({ pos: [0, -8.45, 2.956], look: [0, 1.5, 1.108], vfov: 43.808 });
+import { viewBands, cameraAt } from './course-view.js';
 
 const HALF = 14;
 // THE YARD's cover, in three lines across the way from the start (south) to the exit (north). No line can shut the yard:
@@ -98,7 +94,9 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   if (course) {
     const manifest = {
       kind: 'controllable', title: `Roll room · ${G?.name ?? G?.id ?? 'game'}`, bg: course.bg, faces, colliders, figures, entities: [{ ...heroE, transform: { pos: course.start.slice(), heading: Math.PI / 2 } }],
-      camera: { ...P.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
+      // (framed for where a course is read, course-view.js: the far end on the upper line, the reaction's place on the
+      // lower; followed from behind, never orbited: the frame is the course's)
+      camera: { ...P.camera, ...course.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
       blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), radius: 3 }] }, roll: structuredClone(course.roll),
     };
     const yard = [[`${course.slots.length} slots, one every ${course.gap} m: a hurdle, a block or posts in each`, course.slots.map((s) => s.k + 1)]];
@@ -160,8 +158,8 @@ export function rollRoomMeasured(G) {
     // the course: the reaction bot's audit over a sample of seeds, and what the course was sized by
     const C = courseOf(G), A = courseAudit(C, { seeds: 12 }), jumps = C.prims.filter((id) => PRIMITIVES[id].ask === 'jump');
     const out = { layout: 'course', seeds: A.seeds, ways: C.ways, lost: A.laws.filter((l) => !l.holds).map((l) => l.law), ...(A.ok ? {} : { worst: A.laws.filter((l) => !l.holds).map((l) => l.says) }), says: A.laws.map((l) => l.says),
-      // (where its screen is read, course-view.js: how far ahead a thing fills a third of the screen, and for how long)
-      view: viewZones(ROOM_CAMERA, { top: C.pace.top, sight: C.sight }),
+      // (where its screen is read, course-view.js: the three bands on the course's own camera, and whether it frames them)
+      view: (({ laws, ...B }) => ({ ...B, reactAt: C.reactAt, lost: laws.filter((l) => !l.holds).map((l) => l.law), says: laws.map((l) => l.says) }))(viewBands(cameraAt(C.camera), { react: C.reactAt, top: C.pace.top })),
       // (its dress's own gate, course-dress.js: are the asks read against the way, told apart, and told ahead)
       dress: { theme: C.dress.theme, name: C.dress.name, lost: C.dress.laws.filter((l) => !l.holds).map((l) => l.law), says: C.dress.laws.map((l) => l.says) },
       course: { top: Math.round(C.pace.top * 10) / 10, need: C.need, rest: C.rest, gap: C.gap, react: C.react, sight: C.sight, asks: C.prims, windows: Object.fromEntries(jumps.map((id) => [id, C.pace.lead[id].frames])), lane: C.pace.laneTime.slice(1).map((t) => Math.round(t * 100) / 100) } };

@@ -49,9 +49,12 @@ capture and the level played in Node show).
   nothing on the way is as vivid as an ask, and each tell is in its ask's hue. A game's seed gives it its own shade of
   the theme. `obstacles: { dress }` names one; the greybox loses every law, and says so.
 - Where a course is read (`gameworld/course-view.js`, the principles in `docs/course-dress-principles.md`): the
-  figure's back, the vanishing point where what is coming is read, and the screen's middle third where it is acted on.
-  The roll room's readout says, for its camera and its hero, how far ahead a thing fills a third of the screen, how
-  long before it is met, how wide it is where it is first read, and how long it is looked at large.
+  screen in thirds from top to bottom, the vanishing point on the line between the first two. The top third is where
+  stuff comes from (its key: readability and distinction by the game's intent), the middle where it comes to view
+  (readability of form: where a thing is made interesting), the bottom where you react (the character). A course is
+  followed by a camera that frames them (`courseCamera`): the way's far end on the upper line, the place the reaction
+  begins on the lower, the hero in the bottom band; `viewBands` says where the bands fall for any camera, and the roll
+  room's readout whether its own frames them. The practice rooms' usual follow camera frames none of the three.
 - The tells: paint on the way that carries what the course was measured by, rolled with its ask. A jump's window is
   painted as a strip (jump while on it); posts' arrows point at the open lane from where a two-lane change must begin.
 - A level's `blocks` may carry their own colour (`tint`) and flat paint that goes with them (`marks`).

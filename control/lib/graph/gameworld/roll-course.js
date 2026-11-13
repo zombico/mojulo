@@ -48,6 +48,7 @@ import { readRoll, rolledIds, rollWays } from '../game/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
 import { dressOf, ASK_ROLE } from './course-dress.js';
 import { hexToRgb } from '../color-theorist/oklab.js';
+import { courseCamera } from './course-view.js';
 
 export const LANES = Object.freeze([-2, 0, 2]);
 const HALF = 3.3, DT = 1 / 60;
@@ -171,7 +172,10 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   add(quad(-HALF, exit[1] - 0.4, HALF, exit[1] + 0.4, 0.02, col.exit), 'room:lanes');
   const colliders = [{ min: [-W - 0.5, -4, 0], max: [-HALF, length + 4, 4], hold: false }, { min: [HALF, -4, 0], max: [W + 0.5, length + 4, 4], hold: false }, { min: [-W, -4.5, 0], max: [W, -4, 4], hold: false }, { min: [-W, length + 4, 0], max: [W, length + 4.5, 4], hold: false }];
   const roll = { cover };
-  return { feel, rule, pace, prims, dress: D, bg: col.sky, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
+  // THE FRAME (course-view.js): where the reaction begins, the earliest a jump is pressed, and the follow camera that
+  // puts the vanishing point on the screen's upper line and that place on its lower one
+  const jumps = prims.filter((id) => PRIMITIVES[id].ask === 'jump'), reactAt = r2(pace.top * (jumps.length ? Math.max(...jumps.map((id) => pace.lead[id].early)) : pace.laneTime[1]));
+  return { feel, rule, pace, prims, dress: D, bg: col.sky, reactAt, camera: courseCamera({ react: reactAt }), need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
 }
 
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
@@ -251,7 +255,7 @@ export function readObstacles(v) {
 export function obstacleStage(G, v) {
   const C = courseOf(G, readObstacles(v));
   return { kind: 'controllable', title: 'course', bg: C.bg, faces: C.faces, colliders: C.colliders, blocks: C.blocks, roll: structuredClone(C.roll),
-    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, dress: C.dress.theme },
+    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, dress: C.dress.theme, reactAt: C.reactAt, camera: C.camera },
     worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };
 }
 /** A course stage's anchors: the start facing up the lane, the exit at its end, flat ground. */

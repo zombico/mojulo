@@ -83,8 +83,9 @@ own, measured in OKLab: the asks are read against the way, told apart by hue, lo
 ask, and told ahead in their own hue.
 
 Where the eye is on a course, and so what is worth making, is in [course-dress-principles.md](course-dress-principles.md):
-the figure's back, then the vanishing point, then the screen's middle third, a third of the screen the size of one
-designed piece. The room's readout says those measures for its own camera (`view`).
+the screen in thirds from top to bottom (where stuff comes from, where it comes to view, where you react), the
+vanishing point on the upper line, a third of the screen the size of one designed piece. The course is followed by
+a camera that frames those bands (`course-view.js`), and the room's readout says whether it does (`view`).
 
 Its machine gate is the reaction bot, which knows how to play and lacks what a player lacks: it sees a thing only
 inside a sight distance, and acts on it only a reaction time after. The room's readout says whether a 0.4 s reaction
