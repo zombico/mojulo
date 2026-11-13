@@ -1,6 +1,7 @@
 // THE WORLD MAP (world-map.js): what the sentence door lays for a genre whose cube asks for one (the action RPG): one
-// planned map, its first zone in teaching order on one page, a zone a block after it, travelled zone to zone. The
-// concept on two cases, one per path: a first zone alone (its last block the goal) and a first zone with zones after it.
+// planned map that starts as a game starts (the opening a page of its own: the controls, then an enemy trail held as its
+// way out), its first zone after it, a zone a block after that, travelled zone to zone. The concept on two cases, one
+// per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
 import { worldMapLevel, WORLD_MAP } from './world-map.js';
 import { composeGameworld } from './compose.js';
@@ -15,27 +16,41 @@ const lawsOf = (level) => {
 };
 
 describe('the world map', () => {
-  it('a first zone with zones after it: one page for its first three blocks, its beats in teaching order, its laws held', () => {
+  it('starts as a game starts: the opening a page of its own, the controls first, then an enemy trail held as its way out', () => {
     const { level, zoned } = worldMapLevel({ n: 3 });
-    const P = level.glyphs.plan, beats = level.glyphs.sketch.scenario.beats;
+    const P = level.glyphs.plan, beats = level.glyphs.sketch.scenario.beats, [A, B, C] = P.route;
     expect(P.route.length).toBe(WORLD_MAP.first + 2);
-    expect(zoned).toEqual([P.route.slice(0, WORLD_MAP.first)]);
-    expect(P.key[P.route.at(-1)].goal).toEqual({ use: 'keep' });
-    // (teaching order: the look, the lone foe and the blow, the sprint, the pack with the lock and the dodge)
-    const taught = beats.flatMap((b) => [].concat(b.teach ?? []));
-    expect(taught).toEqual(['look', 'strike', 'sprint', 'lock', 'dodge']);
-    expect(Object.values(beats.find((b) => b.id === 'lone').foes)).toEqual([1]);
+    // (the opening block is named by no page, so it is a page of its own; the first zone the two after it)
+    expect(zoned).toEqual([[B, C]]);
+    expect(level.glyphs.zoned).toEqual(zoned);
+    const opening = beats.filter((b) => b.at === A);
+    expect(opening.map((b) => [b.id, b.kind])).toEqual([['controls', 'arrival'], ['lone', 'fight'], ['pair', 'fight']]);
+    // (the body's controls explained first, with the hero in hand: no first look, the camera is the hero's)
+    expect(opening[0]).toMatchObject({ teach: ['move', 'look', 'jump', 'sprint'] });
+    expect(opening[0].faces).toBeUndefined();
+    // (the enemy trail: one foe then two, each on a tile of the way in the walk's order, each where a fight's controls are taught)
+    expect(opening.slice(1).map((b) => [Object.values(b.foes), [].concat(b.teach)])).toEqual([[[1], ['strike']], [[2], ['lock', 'dodge']]]);
+    const way = level.glyphs.segments[A].rows.map((r) => r.replace(/\s+/g, ''));
+    for (const b of opening.slice(1)) expect(way[b.tile[0]][b.tile[1]], b.id).toBe('#');
+    expect(opening[1].tile[1]).toBeLessThan(opening[2].tile[1]);
+    // (forced: the last fight of the trail holds the opening's way out)
+    expect(opening.at(-1).opens).toBe(true);
+    // (the first zone tests what the opening taught and teaches nothing new; no bigger than its tasks: the opening holds
+    // fewer foes than the zone after it)
+    const zone = beats.filter((b) => [B, C].includes(b.at)), foes = (bs) => bs.reduce((t, b) => t + Object.values(b.foes ?? {}).reduce((x, y) => x + y, 0), 0);
+    expect(zone.flatMap((b) => [].concat(b.teach ?? []))).toEqual([]);
+    expect(foes(opening)).toBeLessThan(foes(zone));
     // (each zone's fight holds its way out; the last is the climax, the boss)
-    expect(beats.filter((b) => b.opens).map((b) => b.at)).toEqual(P.route.slice(WORLD_MAP.first - 1, -1));
+    expect(beats.filter((b) => b.opens).map((b) => b.at)).toEqual([A, ...P.route.slice(WORLD_MAP.first - 1, -1)]);
     expect(beats.at(-1)).toMatchObject({ kind: 'climax', at: P.route.at(-1), foes: { boss: 1 } });
     for (const l of lawsOf(level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
   });
 
-  it('a first zone alone: its last block the goal and the climax, no zones', () => {
-    const { level, zoned } = worldMapLevel({ n: 1 });
-    expect(level.glyphs.plan.route.length).toBe(WORLD_MAP.first);
-    expect(zoned).toBeNull();
-    expect(level.glyphs.zoned).toBeUndefined();
+  it('the smallest world: the opening, then a first zone whose last block is the goal and the climax', () => {
+    const { level, zoned } = worldMapLevel({ n: 1 }), P = level.glyphs.plan;
+    expect(P.route.length).toBe(WORLD_MAP.first);
+    expect(zoned).toEqual([P.route.slice(WORLD_MAP.opening)]);
+    expect(level.glyphs.sketch.scenario.beats.filter((b) => b.at === P.route[0]).map((b) => b.id)).toEqual(['controls', 'lone', 'pair']);
     expect(level.glyphs.sketch.scenario.beats.at(-1)).toMatchObject({ kind: 'climax', foes: { boss: 1 } });
     for (const l of lawsOf(level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
   });
@@ -49,6 +64,9 @@ describe('the world map', () => {
     expect(W.levels[ids[0]].walk).toBeUndefined();
     expect(W.levels[ids[0]].glyphs.plan.route.length).toBe(WORLD_MAP.first + 2);
     expect(W.brief.worldMap.level).toBe(ids[0]);
+    // (its brief says how it starts: the opening block, then the first zone)
+    const route = W.levels[ids[0]].glyphs.plan.route;
+    expect(W.brief.worldMap).toMatchObject({ opening: route.slice(0, WORLD_MAP.opening), firstZone: route.slice(WORLD_MAP.opening, WORLD_MAP.first) });
     const call = castingCall(W);
     expect(call.levels[ids[0]].from).toEqual(expect.arrayContaining(['grunt', 'elite', 'boss']));
     // (a genre whose cube asks no world map walks its levels as before)

@@ -150,7 +150,24 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     the cast painted against the ground the world is stored with, what moved kept in `brief.colour`; and a genre with a
     direction chosen for it laid in it (`GENRE_COLOUR`, a row per decision: the action RPG in a quiet land). An existing
     world is untouched until an option is taken.
-- Not here yet: a crew's dress, a beast's coat and a quick game's rolled people are not read as figures; the colour
+- **How a game starts: the controls, then an enemy trail** (`gameworld/world-map.js`, `level/guide.js`,
+  `scene/channels/guide.js`, `level/map-sketch.js`; `docs/game-flow.md`). The action RPG's world map opened on a first
+  zone of three blocks and five foes, its controls shown only as each came up and its first frame a look at the far
+  ruins with the hero out of it. The opening sequence is the flow's own step (a cinematic before play), so the level
+  no longer does its work. The map now starts on an OPENING: its first block alone, a page of its own.
+  - **The controls first, with the hero in hand.** The arrival teaches moving, looking, the jump and the sprint, and
+    the guide explains them as LESSONS: one at a time, each staying up until the pilot does it (walks a few metres,
+    turns the camera, leaves the ground, runs at its sprint) or its patience runs out. An arrival that teaches one
+    verb shows its keys as before.
+  - **Then the enemy trail**: a lone foe on the way through the block (the blow), then two at its way out (the
+    lock-on and the dodge), each fight's keys shown where it stands; the way out is held until both are won.
+  - **No bigger than its tasks**: one block and three foes. The first zone is the next two blocks on one page and
+    teaches nothing new: it tests what the opening taught.
+  - The brief says it (`brief.worldMap.opening`); the hand-laid first zone (`level/first-zone.js`) is as it was.
+- Not here yet: the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
+  opens on a win is not in the level kit), and its foes wait at their posts rather than come down the trail; a flow
+  step that plays a video; the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick
+  game's rolled people are not read as figures; the colour
   book paints the theorist's small landscape, not the game's own level; the options are not yet a `pick_palette`
   argument (the readout and the book carry them); a hero on a body rail (a comic hero, a fighter, a mascot) is still dressed plain; the hero's dress
   rides in its underlayer, though the book calls dress a later page (the adornment page holds equipment only); the

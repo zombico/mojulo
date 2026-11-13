@@ -64,15 +64,18 @@ export const SKETCH_MARKS = Object.freeze({
 });
 export const JOURNEY_KINDS = Object.freeze(['arrival', 'traverse', 'encounter', 'find', 'vista', 'secret', 'rest', 'meet', 'climb', 'puzzle', 'climax']);
 const STATUS = ['draft', 'approved'];
-// THE VERBS A BEAT TEACHES (`teach`), each the keys the guide shows while that beat is the way on: a control taught where
-// it is first needed, never a list up front (the controls themselves are the hero's: gameworld/levels.js)
+// THE VERBS A BEAT TEACHES (`teach`), each the keys the guide shows while that beat is the way on (the controls
+// themselves are the hero's: gameworld/levels.js). The body's own (`fact`: what the page watches the pilot do) are
+// EXPLAINED as the game starts, one at a time under the hero's control, each until it is done (an arrival that teaches
+// several: guide.js `lessons`); what a fight asks is taught where the fight stands.
 export const TEACH = Object.freeze({
-  look: { keys: 'mouse  look around', say: 'looking round' },
+  look: { keys: 'mouse  look around', say: 'looking round', fact: 'look' },
   strike: { keys: 'click  strike', say: 'the blow' },
-  sprint: { keys: 'F  sprint · the green bar is your stamina', say: 'the sprint' },
+  sprint: { keys: 'F  sprint · the green bar is your stamina', say: 'the sprint', fact: 'sprint' },
   dodge: { keys: 'F F  dodge', say: 'the dodge' },
   lock: { keys: 'C  lock on to a foe', say: 'the lock-on' },
-  jump: { keys: 'Space  jump', say: 'the jump' },
+  jump: { keys: 'Space  jump', say: 'the jump', fact: 'jump' },
+  move: { keys: 'W A S D  move', say: 'moving', fact: 'move' },
 });
 // (the mark each kind of beat stands at, by preference: the guide's place for it and the first look's)
 export const BEAT_PLACE = Object.freeze({ meet: ['npc'], encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret', 'loot'], rest: ['rest'], vista: ['landmark'], puzzle: ['hazard', 'landmark'], climb: ['hazard', 'landmark'] });

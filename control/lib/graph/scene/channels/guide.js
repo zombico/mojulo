@@ -4,6 +4,9 @@ import { safeJson } from '../emit-util.js';
 // ONE THING AT A TIME, in one place at the top of the screen, by what the moment asks:
 //   a beat's line said on reaching it (`says`: a meet's words, a find's item), for a few seconds
 //   the intro (the pitch) as the page opens, then the arrival's keys (`introKeys`)
+//   or THE LESSONS (`lessons`: how a game starts), the controls explained with the hero in hand: one key line at a
+//     time, its place in the run beside it, kept until the pilot does it (moves a few metres, turns the camera, leaves
+//     the ground, runs at its sprint) and has had a moment to read it, or its patience runs out; then the way on
 //   at a held way (`held`) while a foe stands on the page: that it is held
 //   near a beat that teaches (`keys`), or in its fight: its keys, each key a cap
 //   else the way on: an arrow turned the way the beat lies from where the camera looks, its words, the metres to it
@@ -31,7 +34,11 @@ export function guideScript(guide) {
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   // (a key line, 'F F  dodge · …': the keys before the double space as caps, the rest the words)
   const capped = (line) => { const i = line.indexOf('  '); if (i < 0) return '<span class="kw">' + esc(line) + '</span>'; return line.slice(0, i).split(' ').map((k) => '<span class="cap">' + esc(k) + '</span>').join('') + '<span class="kw">' + esc(line.slice(i + 2)) + '</span>'; };
-  let k = 0, pillar = null, up = false, phase = GD.intro ? 'intro' : GD.introKeys && GD.introKeys.length ? 'keys0' : 'play', sayText = '', sayUntil = 0;
+  const LS = GD.lessons && GD.lessons.length ? GD.lessons : null, after = LS ? 'lessons' : GD.introKeys && GD.introKeys.length ? 'keys0' : 'play';
+  // (a lesson: read for LESSON.read seconds at least, done by its fact, let go after LESSON.patience)
+  const LESSON = { read: 1.4, patience: 14, plain: 5, move: 3, look: 0.9, sprint: 0.6 };
+  let li = 0, ls = null;
+  let k = 0, pillar = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
   const T3 = typeof THREE !== 'undefined' ? THREE : null, S3 = typeof scene !== 'undefined' ? scene : null;
   function plant() {
     if (!T3 || !S3) return;
@@ -42,7 +49,22 @@ export function guideScript(guide) {
     S3.add(pillar);
   }
   // (the opening's seconds counted from when the world is up, not from the page's parse)
-  function begin() { up = true; plant(); if (phase === 'intro') setTimeout(() => { phase = GD.introKeys && GD.introKeys.length ? 'keys0' : 'play'; if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }, 6500); else if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }
+  function begin() { up = true; plant(); if (phase === 'intro') setTimeout(() => { phase = after; if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }, 6500); else if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }
+  // (a lesson watched: what the pilot has done since it came up, read off its own state and the camera's)
+  function lesson(p, now) {
+    const L = LS[li], x = p.transform.pos[0], y = p.transform.pos[1];
+    let yaw = p.transform.heading;
+    if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }
+    if (!ls) ls = { t0: now, last: now, x, y, yaw, moved: 0, turned: 0, fast: 0, air: false };
+    const dt = Math.min(0.1, (now - ls.last) / 1000), step = Math.hypot(x - ls.x, y - ls.y), run = (p.rule && (p.rule.boostSpeed || p.rule.sprintSpeed)) || 0, walk = (p.rule && p.rule.speed) || 4;
+    ls.moved += step; ls.turned += Math.abs(Math.atan2(Math.sin(yaw - ls.yaw), Math.cos(yaw - ls.yaw)));
+    if (dt > 0 && (p.sprinting || p.boosting || step / dt > (run > walk ? (run + walk) / 2 : walk * 1.15))) ls.fast += dt;
+    if (p.grounded === false && p.vel && p.vel[2] > 0.5) ls.air = true;
+    ls.last = now; ls.x = x; ls.y = y; ls.yaw = yaw;
+    const age = (now - ls.t0) / 1000;
+    const done = L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
+    if ((done && age >= LESSON.read) || age >= LESSON.patience) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
+  }
   const standing = (e) => e.team === 'foes' && !e.gone && !e.downed && !(e.hp <= 0);
   const view = T3 ? new T3.Vector3() : null;
   function tick() {
@@ -57,10 +79,12 @@ export function guideScript(guide) {
         if (d < s.radius && !near) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++; plant(); }
       }
       const now = performance.now(), cur = GD.steps[k];
+      if (phase === 'lessons' && p) lesson(p, now);
       const atHeld = p && GD.held && GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5) && W.entities.some(standing);
       // ONE THING: the line just said, the opening, a held way, a lesson at hand, else the way on
       if (now < sayUntil) put('say', esc(sayText));
       else if (phase === 'intro') put('intro', esc(GD.intro));
+      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys));
       else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''));
       else if (atHeld) put('held', 'The way on is held while foes stand here');
       else if (cur && cur.keys && cur.keys.length && p && d < Math.max(cur.radius * 2, 18)) put('keys', cur.keys.map(capped).join(''));
@@ -74,7 +98,7 @@ export function guideScript(guide) {
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-  window.__mojGuide = { step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode };
+  window.__mojGuide = { step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0 };
 })();
 `;
 }

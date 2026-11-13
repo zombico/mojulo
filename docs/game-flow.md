@@ -48,6 +48,25 @@ flow: {
   no way out, a special where it cannot stand, a cinematic staged on a level the game lacks, a kept cinematic not
   followed by its level, and a loop of cinematics and holds with nothing for the player to press.
 
+## How a game starts
+
+Three things, in this order, each in its own place:
+
+1. **The opening sequence** is the flow's, never the level's: a step of its own before play (the `opening` and
+   `prologue` slots below, directed scenes today). A level does not open on a look at the world or a line of story; it
+   assumes the opening has said what it had to.
+2. **The controls, with the hero in hand.** The first page a player walks starts by explaining the body's controls
+   (moving, looking, the jump, the sprint), one at a time, each staying up until the player does it or its patience
+   runs out, so nobody is held there. The arrival beat that teaches several verbs is that explanation
+   (`level/guide.js` `lessons`; the page watches the pilot, `scene/channels/guide.js`). The camera is the hero's from
+   the first frame.
+3. **The enemy trail.** Then fights that stand ON the way, in the walk's order, each where a fight's own controls are
+   taught: one foe and the blow, then two with the lock-on and the dodge. The way out is HELD until they are won
+   (a beat that `opens`: `gameworld/levels.js`), so the trail is fought, never walked round.
+
+The sentence door lays this as a world map's OPENING: its first block alone, a page of its own and no bigger than
+those tasks (`gameworld/world-map.js`). The first zone after it tests what was taught and teaches nothing new.
+
 ## The default, and the story's cinematics
 
 A game that says no flow has the one its front, levels, run, map and final level have always made (`defaultFlow`), so

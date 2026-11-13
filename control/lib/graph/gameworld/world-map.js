@@ -1,11 +1,19 @@
 /**
  * THE WORLD MAP a genre's cube asks for (its `space.worldMap: 'zones'` on `space.levelForm: 'map'`: the action RPG): what
  * the sentence door lays for it in place of a run of trail walks. One planned map (level/plan.js), walked block by block,
- * built a zone a page (level/zones.js) and travelled zone to zone (topology `interconnected`): its first zone the first
- * three blocks on one page, laid in TEACHING ORDER (level/first-zone.js: the first look, the lone foe and the blow, the
- * traverse and the sprint, the pack with the lock-on and the dodge, the first zone's last fight held as its way out),
- * each further block a zone of its own (a fight held as its way out, a breath after it), the last the climb to the goal
- * and the climax. The scenario (level/map-sketch.js `scenario`) stands each beat on a tile of the default fill's ways,
+ * built a zone a page (level/zones.js) and travelled zone to zone (topology `interconnected`). It STARTS as a game
+ * starts (the opening sequence is the flow's own step before it, a cinematic: game/flow.js, never the level's):
+ *
+ *   THE OPENING   its first block alone, a page of its own and no bigger than its tasks. The CONTROLS first, explained
+ *                 with the hero in hand (the arrival teaches moving, looking, the jump and the sprint: the guide's
+ *                 lessons, each until it is done); then THE ENEMY TRAIL, its fights standing ON the way and the way out
+ *                 HELD until they are won, each where a fight's controls are taught: a lone foe and the blow, then a
+ *                 pair with the lock-on and the dodge
+ *   THE FIRST ZONE  the next two blocks on one page: what was taught is tested (the road run, a pack, a find), its
+ *                 captain held as its way out
+ *
+ * then each further block a zone of its own (a fight held as its way out, a breath after it), the last the climb to the
+ * goal and the climax. The scenario (level/map-sketch.js `scenario`) stands each beat on a tile of the default fill's ways,
  * so the map plays as laid: its fights stand where their marks are, the guide teaches where its beats are.
  *
  * It is the floor to beat, never the level design: each block's sketch (its ground, its heights, its marks) is its
@@ -15,13 +23,14 @@
  *   worldMapLevel({ n, landscape?, roles? }) → { level, zoned } the map's level recipe (`glyphs` a planned map, its sketch's
  *                                             scenario, its blocks approved as laid; its beats' foes the casting call's
  *                                             roles, which stand them: foe-casting.js) for n levels'
- *                                             worth of world: the first zone (three blocks) and n − 1 zones more
+ *                                             worth of world: the opening (one block), the first zone (two) and
+ *                                             n − 1 zones more; `zoned` its pages of several blocks
  *   WORLD_MAP                                → its numbers (the block's size and tile, the first zone's blocks)
  * Pure: numbers and words in, a recipe out.
  */
 import { readPlan, fillSegment, gateTile, MID } from '../level/plan.js';
 
-export const WORLD_MAP = Object.freeze({ size: 3, tile: 24, first: 3, wide: 3 });
+export const WORLD_MAP = Object.freeze({ size: 3, tile: 24, opening: 1, first: 3, wide: 3 });
 // (the blocks' names, by their place on the walk: the first zone's three, the zones between, the goal's)
 const MIDDLE_NAMES = ['the river town', 'the high pass', 'the old outpost', 'the marsh crossing', 'the watchtower'];
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -73,10 +82,14 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   const inOf = (S) => gateTile(size, P.sides[S].in), outOf = (S) => gateTile(size, P.sides[S].out), mid = [m, m];
   const finds = {}, findAt = (S) => (finds[S] ??= landBeside(G[S], [], P.sides[S].out ? outOf(S) : null));
   const beats = [
-    { id: 'set-out', at: A, kind: 'arrival', say: `Set out from ${key[A].name}: ${key[C].name} stand on the skyline`, teach: 'look', faces: 'gate-fight', pace: 'calm' },
-    { id: 'lone', at: A, tile: outOf(A), kind: 'fight', say: `A lone foe at the edge of ${key[A].name}`, foes: { [grunt]: 1 }, teach: 'strike', pace: 'tension' },
-    { id: 'road', at: B, tile: inOf(B), kind: 'traverse', say: `Run ${key[B].name}`, teach: 'sprint', pace: 'calm' },
-    { id: 'pack', at: B, tile: mid, kind: 'fight', say: `Foes hold ${key[B].name}`, foes: harrier === grunt ? { [grunt]: 3 } : { [grunt]: 2, [harrier]: 1 }, teach: ['lock', 'dodge'], pace: 'peak' },
+    // THE OPENING (its own page): the controls with the hero in hand, then the enemy trail, each fight on the way and
+    // the way out held until both are won
+    { id: 'controls', at: A, kind: 'arrival', say: `Find your feet in ${key[A].name}`, teach: ['move', 'look', 'jump', 'sprint'], pace: 'calm' },
+    { id: 'lone', at: A, tile: mid, kind: 'fight', say: `A lone foe stands in the way through ${key[A].name}`, foes: { [grunt]: 1 }, teach: 'strike', pace: 'tension' },
+    { id: 'pair', at: A, tile: outOf(A), kind: 'fight', say: `Two more hold the way out of ${key[A].name}`, foes: { [grunt]: 2 }, teach: ['lock', 'dodge'], pace: 'peak', opens: true },
+    // THE FIRST ZONE: what the opening taught, tested
+    { id: 'road', at: B, tile: inOf(B), kind: 'traverse', say: `Run ${key[B].name}`, pace: 'calm' },
+    { id: 'pack', at: B, tile: mid, kind: 'fight', say: `Foes hold ${key[B].name}`, foes: harrier === grunt ? { [grunt]: 3 } : { [grunt]: 2, [harrier]: 1 }, pace: 'peak' },
     ...(findAt(B) ? [{ id: 'cache', at: B, tile: findAt(B), kind: 'find', say: `A cache off ${key[B].name}: a healing draught`, item: 'healing draught', pace: 'rest' }] : []),
   ];
   if (last === C) beats.push(
@@ -95,10 +108,11 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   }
   // (each block approved as laid: its marks the scenario's, its ground and heights its region's until its author writes them)
   const sketch = { scenario: { beats }, segments: Object.fromEntries(letters.map((S) => [S, { status: 'approved' }])) };
-  const zoned = k > WORLD_MAP.first ? [[A, B, C]] : null;
+  // (the opening block a page of its own, as every block no page names is; the first zone the two after it, one page)
+  const zoned = [[B, C]];
   const level = {
     name: `The ${landscape} realm`,
-    glyphs: { tile: WORLD_MAP.tile, plan, ...(Object.keys(segments).length ? { segments } : {}), sketch, ...(zoned ? { zoned, far: true } : {}) },
+    glyphs: { tile: WORLD_MAP.tile, plan, ...(Object.keys(segments).length ? { segments } : {}), sketch, zoned, far: true },
   };
   return { level, zoned };
 }

@@ -38,7 +38,7 @@ import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
-import { worldMapLevel } from './world-map.js';
+import { worldMapLevel, WORLD_MAP } from './world-map.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
@@ -413,7 +413,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     world.levels[mid] = { ...level, seed: seed * 100 + 1 };
     Object.assign(world, { topology: 'interconnected', start: mid });
     decided.push({ level: mid, seed: seed * 100 + 1, tries: 1, laws: [] });
-    world.brief.worldMap = { level: mid, blocks: level.glyphs.plan.route.length, ...(level.glyphs.zoned ? { firstZone: level.glyphs.zoned[0] } : {}) };
+    // (how it starts: the opening block a page of its own, the controls and the enemy trail on it; then the first zone)
+    world.brief.worldMap = { level: mid, blocks: level.glyphs.plan.route.length, opening: level.glyphs.plan.route.slice(0, WORLD_MAP.opening), ...(level.glyphs.zoned ? { firstZone: level.glyphs.zoned[0] } : {}) };
   }
   for (let i = 0; i < (mapped ? 0 : n); i++) {
     const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);

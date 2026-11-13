@@ -12,6 +12,9 @@
  *     says   what is said on reaching it: a meet's or a rest's line, a find's 'Found: <item>'
  *     keys   a beat that teaches (its `teach`, map-sketch.js TEACH): the keys of what it teaches, shown while it is the way on
  *     introKeys  the arrival's keys (its `teach`), shown under the intro as the page opens
+ *     lessons    an arrival that teaches SEVERAL (how a game starts: the controls explained with the hero in hand):
+ *                [{ keys, fact? }] in place of introKeys, each shown alone until the pilot does it (`fact`: move, look,
+ *                jump, sprint, map-sketch.js TEACH) or its patience runs out, before the way on is shown
  *     held   a concept that holds its pages (`hold`): the page's ways out, each [x, y, z] and the word for it, held while a
  *            foe stands on the page (gameworld/levels.js holds the exits; the page says why one does not open)
  * Pure.
@@ -51,11 +54,13 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
     steps.push({ id: b.id, say: way, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}), ...(says ? { says } : {}) });
   }
   const first = segs.includes(P.route[0]);
-  if (!steps.length && !(first && C.pitch)) return null;
+  if (!steps.length && !(first && (C.pitch || C.journey.some((x) => x.kind === 'arrival' && segs.includes(x.at) && x.teach?.length)))) return null;
   // (a held page's ways out, where it fights: each gate's exit; the word the page shows at one while foes stand)
   const fightHere = C.journey.some((b) => segs.includes(b.at) && (b.kind === 'encounter' || b.kind === 'climax'));
   const held = C.hold && Z && fightHere ? Z.ways.map((w) => [r3(w.exit[0]), r3(w.exit[1]), r3(w.exit[2])]) : null;
   // (the arrival's keys, a page holding the walk's start: shown under the intro, before the first beat's)
   const arr = first ? C.journey.find((b) => b.kind === 'arrival' && segs.includes(b.at) && b.teach?.length) : null;
-  return { ...(first && C.pitch ? { intro: C.pitch } : {}), ...(arr ? { introKeys: arr.teach.map((v) => TEACH[v].keys) } : {}), steps, ...(held?.length ? { held } : {}) };
+  // (an arrival that teaches several is the game's start: the controls explained one at a time, each until it is done)
+  const lessons = arr && arr.teach.length > 1 ? arr.teach.map((v) => ({ keys: TEACH[v].keys, ...(TEACH[v].fact ? { fact: TEACH[v].fact } : {}) })) : null;
+  return { ...(first && C.pitch ? { intro: C.pitch } : {}), ...(lessons ? { lessons } : arr ? { introKeys: arr.teach.map((v) => TEACH[v].keys) } : {}), steps, ...(held?.length ? { held } : {}) };
 }
