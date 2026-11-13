@@ -59,3 +59,30 @@ added.
 - Seen in two shots of the same spot: a gem the seed laid is drawn with its sparkle; one it left out leaves nothing
   (its glyph and its sparkle both: the first run left the glyph, the second the sparkle, each fixed).
 - The audit, 6 seeds all played: every law holds.
+
+## One rolled game, end to end, 2026-11-13 (`game.mjs`)
+
+```bash
+MOJULO_CHROMIUM=/path/to/chrome node scripts/spikes/roll/game.mjs --out /abs/dir --maps 3 --small
+```
+
+A world with a hero and one `obstacles` level is designed, approved and run through `design_game`; `create_game` makes
+a run that draws that level three times (`run: { length: 3, repeat: true }`); `export_game` writes it; headless Chrome
+plays it through its shell. The player is the reaction bot's own policy (`roll-course.js` `playCourse`) run on the
+page's frames with the keyboard for hands: it reads what the page rolled, sees `sight` m ahead, acts `react` s after,
+in the game's own seconds (a page drawn slowly runs slowly).
+
+What it found, each fixed since:
+
+1. **The hero was steered as a tank and the chase eased round behind it**, so the first lane change swung the course
+   off the screen. A course's hero is now steered in the camera's frame and the camera held behind the lane.
+2. **An upright screen pulled the solved camera back** by the cameras table, and the thirds were lost. The course's
+   camera is now solved again at the frame's own field of view.
+3. **The exit was a disc on the centre line**: a run that ended in an outer lane against the kerb ran past the end of
+   the course. Node's bot never saw it (it counted the distance along the lane, never the level's success). The exit is
+   now the lane's whole width.
+4. **The controls legend lay over the bottom of the screen**, the character's band. On a course it is said at the top.
+
+After those: three maps of a run, three different courses, each run clean by the bot in 16.8 to 17.7 s (Node's audit
+of the same level: 16.67 s a run), the shell saying `cleared 1 of 3`, `cleared 2 of 3`, `RUN COMPLETE`, no page error,
+at 17 to 19 frames a second (software GL, a 270 x 480 frame). Machine gate only.

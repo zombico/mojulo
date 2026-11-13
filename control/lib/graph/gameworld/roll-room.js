@@ -38,7 +38,7 @@ import { rollAudit } from '../game/roll-audit.js';
 import { simLevel } from '../game/level-sim.js';
 import { readFeel } from './feel/lower.js';
 import { POLES } from './feel/cards.js';
-import { courseOf, courseAudit, PRIMITIVES } from './roll-course.js';
+import { courseOf, courseAudit, EXIT_HALF, PRIMITIVES } from './roll-course.js';
 import { railOfGame, gameBody, lowerBody } from './game-bodies.js';
 import { viewBands, cameraAt } from './course-view.js';
 
@@ -97,7 +97,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
       // (framed for where a course is read, course-view.js: the far end on the upper line, the reaction's place on the
       // lower; followed from behind, never orbited: the frame is the course's)
       camera: { ...P.camera, ...course.camera, steer: 'orbit', mouseLook: true }, ...(audio ? { audio } : {}), events: { ...(P.events ?? {}) },
-      blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), radius: 3 }] }, roll: structuredClone(course.roll),
+      blocks: course.blocks, game: { levelRef: 'roll-room', mechanics: [{ kind: 'reach-exit', at: course.exit.slice(), half: EXIT_HALF.slice() }] }, roll: structuredClone(course.roll),
     };
     const yard = [[`${course.slots.length} slots, one every ${course.gap} m: a hurdle, a block or posts in each, paced along the line`, course.slots.map((s) => s.k + 1)]];
     return { manifest, layout: 'course', course, yard, hero: own ? 'own' : 'stand-in', ...(!own && rail ? { body: rail.rail } : {}), ways: course.ways };

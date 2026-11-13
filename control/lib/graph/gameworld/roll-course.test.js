@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { paceOf, courseOf, playCourse, courseAudit, courseOfLevel, readObstacles, PRIMITIVES, LANES, REACT, REST } from './roll-course.js';
+import { paceOf, courseOf, playCourse, courseAudit, courseOfLevel, readObstacles, EXIT_HALF, PRIMITIVES, LANES, REACT, REST } from './roll-course.js';
 import { runSteps, readGameworld } from './index.js';
 import { rollReports } from '@/lib/mcp/tools/create-game';
 import { rollRoom, rollRoomMeasured, layoutOf } from './roll-room.js';
@@ -132,7 +132,7 @@ describe('the roll room of a hero that runs on momentum', () => {
     const R = rollRoom({ id: 'g', feel: MOMENTUM, roll: true });
     expect(R.layout).toBe('course');
     expect(R.manifest.blocks).toHaveLength(R.course.slots.length * R.course.prims.length);
-    expect(R.manifest.game.mechanics).toEqual([{ kind: 'reach-exit', at: R.course.exit, radius: 3 }]);
+    expect(R.manifest.game.mechanics).toEqual([{ kind: 'reach-exit', at: R.course.exit, half: [...EXIT_HALF] }]);
     expect(() => readRoll(R.manifest.roll, { blocks: R.manifest.blocks })).not.toThrow();
     expect(rollRoom({ id: 'g', feel: FOOT, roll: true }).layout).toBe('yard');
   });
@@ -169,6 +169,9 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
     expect(M.roll).toEqual(C.roll);
     expect(M.obstacles).toMatchObject({ gap: C.gap, sight: C.sight, react: REACT });
     expect(M.game.mechanics.find((m) => m.kind === 'reach-exit').at).toEqual(C.exit);
+    // (the exit catches the whole lane, kerb to kerb: a run ends in whichever lane its last ask left the hero)
+    expect(M.game.mechanics.find((m) => m.kind === 'reach-exit')).toMatchObject({ half: [...EXIT_HALF] });
+    expect(EXIT_HALF[0]).toBeGreaterThan(Math.max(...LANES) + 1);
     expect(M.entities[0].rule).toMatchObject({ type: 'platform', speed: feelRule(MOMENTUM).speed });
     expect(M.entities[0].transform.heading).toBeCloseTo(Math.PI / 2);
   });
@@ -178,6 +181,12 @@ describe('a level that is an obstacle course (a world level\'s `obstacles`)', ()
     for (const screen of ['screen', 'phone']) {
       const M = order({ characters: MEADOWMARK_HERO.characters, screen }).manifest, P = screenPayload(readScreen(M.screen));
       expect(M.camera).toMatchObject({ rule: 'follow', target: 'hero', standOff: 0 });
+      // (steered across its lanes in the camera's frame, the camera held behind the lane: never eased round behind the hero)
+      expect(M.camera.steer).toBe('orbit');
+      // (nothing is said over the bottom band: the character's)
+      expect(M.events.hud.filter((h) => h.slot === 'bottom' && h.ttl)).toEqual([]);
+      expect(M.events.hud.some((h) => h.slot === 'top')).toBe(true);
+      expect(M.entities[0].rule.move).toBe('camera');
       const B = viewBands(cameraAt(M.camera, P.v0 ?? undefined), { react: M.obstacles.reactAt, aspect: P.aspect });
       expect(B.laws.filter((l) => !l.holds)).toEqual([]);
       expect(M.obstacles.camera).toMatchObject({ dist: M.camera.dist, height: M.camera.height });

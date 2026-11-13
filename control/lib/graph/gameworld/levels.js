@@ -715,7 +715,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const name = title ?? `${G.name ?? G.id} · ${stageTitle(stage)}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.
-  const cam = G.camera ?? null;
+  // (an obstacle course's hero is steered across its lanes in the camera's frame, and the camera stays behind the
+  // lane: a chase that eased behind the hero, or a hero turned as a tank is, would swing the course off the screen at
+  // every lane change, and the course is measured on a hero that slides across: the steered chase the player turns)
+  const cam = G.camera ?? (stage.section === 'obstacles' && heroRef ? 'orbit' : null);
   if (cam === 'top-down' && !heroRef) throw new Error('levels: a top-down camera watches a hero; give the world a hero (quick.hero, or its characters), or play it first-person');
   if (cam === 'side' && !heroRef) throw new Error('levels: a side camera watches a hero run its lane; give the world a hero, or play it first-person');
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
@@ -733,7 +736,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${actionOrbit ? ' · mouse  look' : steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look || shoulder ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${look && X0?.pilot?.rule?.knife ? ' · V  knife' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
-  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
+  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
@@ -956,6 +959,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (an obstacle course is framed for where it is read, course-view.js: its hero followed by the course's own camera;
   // a walker's follow, with no hero to watch, stays the eye)
   if (stage.section === 'obstacles' && pilotPart.camera?.rule === 'follow' && (pilotPart.camera.dist ?? 6) >= 1) pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...stage.manifest.obstacles.camera } };
+  // (and its legend is said at the top: the bottom of a course's screen is the character's, course-view.js)
+  if (stage.section === 'obstacles' && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: pilotPart.events.hud.map((h) => (h.slot === 'bottom' && h.ttl ? { ...h, slot: 'top' } : h)) } };
   // ROLL (the world's `roll`, roll-lower.js): the level's cover and its pickups named, and a roll over them on its
   // recipe (game/roll.js): the seed its game sends picks which stand and which lie. A pilot with no body is given one
   let roll = null;

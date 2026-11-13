@@ -58,6 +58,9 @@ import { rhythmFaults } from '../era/wall-rhythm.js';
 
 export const LANES = Object.freeze([-2, 0, 2]);
 const HALF = 3.3, DT = 1 / 60;
+/** The exit's catch: the whole width of the lane, kerb to kerb (a hero ends its run in whichever lane the last ask left
+ * it, or against a kerb: a disc on the centre line would let it run past the end of the course). */
+export const EXIT_HALF = Object.freeze([HALF + 1, 1.5, 40]);
 export const REACT = 0.4, REST = 0.6;
 // how each ask is weighed along the line, first slot to last: it opens on the wide windows and tightens
 export const RAMP = Object.freeze({ hurdle: [4, 2], block: [1, 4], 'posts-left': [2, 2], 'posts-right': [2, 2] });
@@ -198,6 +201,10 @@ function worldOf(course, seed) {
   return { w, me: w.byId.hero, obs, rolled: R };
 }
 
+/** What a seed stands on a course, slot by slot, as a player meets it: [{ k, id, ask, y0, y1, open? }] (a bot's eyes,
+ * here and in a page). */
+export const courseObstacles = (course, seed = 1) => worldOf(course, seed).obs;
+
 export function playCourse(course, { seed = 1, react = REACT, sight = course.sight, seconds = 120, trace = false } = {}) {
   const N = live(), { w, me, obs } = worldOf(course, seed), P = course.pace, rule = me.rule;
   const seen = {}, pressed = {}, hit = {}, line = [];
@@ -275,7 +282,7 @@ export function obstacleStage(G, v) {
 }
 /** A course stage's anchors: the start facing up the lane, the exit at its end, flat ground. */
 export function obstacleEnds(manifest) {
-  const c = manifest.obstacles, out = { spawn: c.start.slice(), heading: Math.PI / 2, exit: c.exit.slice(), exitFrom: 'the end of the course', planar: true, beats: [], hazards: [] };
+  const c = manifest.obstacles, out = { spawn: c.start.slice(), heading: Math.PI / 2, exit: c.exit.slice(), exitHalf: EXIT_HALF.slice(), exitFrom: 'the end of the course', planar: true, beats: [], hazards: [] };
   for (const [k, val] of Object.entries({ ground: () => 0, rocks: null, colliders: manifest.colliders })) Object.defineProperty(out, k, { value: val, enumerable: false });
   return out;
 }

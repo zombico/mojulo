@@ -98,5 +98,14 @@ capture and the level played in Node show).
 - A made course's camera is solved for the game's own screen: on an upright frame it is found again at that frame's
   field of view (the table's pull-back would have moved every third). A world that names no hero runs its course from
   the eye, and its level says so (`followed`): the tells and the thirds are laid for a chase.
+- A made course is played as it was measured: its hero is steered across the lanes in the camera's frame and the
+  camera is held behind the lane (the chase the player turns), where a hero turned as a tank is and a chase easing
+  round behind it swung the course off the screen at the first lane change. Its exit is the lane's whole width, kerb
+  to kerb (a disc on the centre line let a run that ended in an outer lane go past the end of the course; the roll
+  room's too). Its controls legend is said at the top of the screen: the bottom is the character's.
+- One rolled game, end to end (`scripts/spikes/roll/game.mjs`): designed, approved and run through `design_game`, made
+  as a run of three maps by `create_game`, exported, and played in headless Chrome through its shell by the reaction
+  bot's policy on the page's own frames. Three different courses, each run clean in about the time Node's audit said,
+  the shell carrying the run to its result. It is how the four faults above were found.
 - Not yet: the foes a seed picks, the level's book, and the room layout itself rolled in the
   page from a kit of rooms.
