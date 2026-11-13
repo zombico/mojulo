@@ -29,5 +29,11 @@ capture and the level played in Node show).
   by seed; it never refuses. `create_game` answers with it (`rolls`) for each level that rolls, and a `design_game`
   run's level audit carries it.
 - The browser's walk of a rolled level proves its reference roll: its one-leg plan is led round what seed 1 stands.
+- The roll room (`gameworld/roll-room.js`), a practice room: a world whose levels roll (`roll: true`) tries a roll before
+  any level, on its own hero and feel template. A flat walled yard whose cover, gems and start a seed picks; R rolls
+  the next seed. Its measures are read by `design_game` (`practice.measured.roll`): the seeds audit of the yard, and
+  which forms of cover stop this hero, each form laid across a lane and the hero run at it jumping. A hero on its feet
+  is stopped by a crate; one with an air jump goes over a 2 m wall. Served at `bible?book=practice&room=roll`.
+- A rolled level opened with no shell takes its seed from the page's own `?seed=` (1 unsaid: the reference roll).
 - Not yet: the foes a seed picks, the level's book, and the room layout itself rolled in the
   page from a kit of rooms.

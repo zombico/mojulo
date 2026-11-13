@@ -15,6 +15,7 @@ the feel chapter's choices are played and measured, and where a game's weapons a
 | `mount`, the mount lane | a world with `mounts` | the horse's gaits, its jump's clearance, the fences, the turn |
 | `range`, the firing range | a world that carries guns (below) | the guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching, the knife |
 | `artillery`, the artillery range | a template that owns a machine (`TEMPLATE_FRAMES`) | the machine walking, transforming and driving, its own guns laid by hand onto stands of matter |
+| `roll`, the roll room | a world whose levels roll (`roll`) | a yard whose cover, gems and start a seed picks, on the game's own hero: a different map each time, and which forms of cover stop this hero |
 
 A template whose fights run elsewhere says so instead of opening a room it does not play (`practice-room.js`
 `FIGHTS_ELSEWHERE`): the fighting game's own lab, the RPG's battles, the stealth game's close quarters on the range's
@@ -47,8 +48,22 @@ Both kinds of room carry a machine gate before any level, read by `design_game`:
   `practice.measured.range`. The range's body is a stand-in person, so only the guns are held to the laws, never its
   run. The measures take a few seconds a gun and are kept by the guns they were taken on.
 
+- the roll room's yard (`roll-room.js` `rollRoomMeasured`), as `practice.measured.roll`: a sample of its seeds walked by
+  the seeds audit (`game/roll-audit.js`), and each form of cover laid across a lane with the hero run at it, jumping. A
+  wall is cover only while the hero cannot go over it, and that is its feel's to say: a hero on its feet is stopped by a
+  crate, one with an air jump goes over a 2 m wall. A law lost, or a hero no form stops, is advised as a `roll` step.
+
 A law lost is advised as a `feel` step in the readout's `next`, never a refusal. The eyes gate is the operator's: a
 room played is the only way to know it feels right.
+
+## The roll room
+
+A level with a `roll` is a case that plays a different map each time: its seed picks which of its blocks stand, which of
+its pickups lie and where the pilot sets out. The roll room is that, on a flat walled yard, before any level: three lines
+of cover (walls, low walls, crates and a pillar), five gems and three starts, none of whose rolls shuts the yard. The
+page says the roll being played (its seed, what stands, how many gems lie, the start) beside the measures; R rolls the
+next seed and Shift+R the one before (the page's own `?seed=`). Its CLI is `scripts/spikes/roll-room/room.mjs`, which
+needs no database: `--feel <template>` builds the page on a stand-in, `--measure` reads every template.
 
 ## Not here yet
 

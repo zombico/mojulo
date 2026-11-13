@@ -11,6 +11,9 @@
  *     jumps, wall kick and stomp beside the live ones (each jump's top, the double jump, wall kicks, stomps, touches)
  *   mountLaneHtml(G, { refs?, cast?, coat?, sound?, cdn? }) → { html, room, card }: the mount lane, each gait's speed, the
  *     jump's clearance and the rein-back beside the live speed, the 100 m split, the jumps and the fences cleared or refused
+ *   rollRoomHtml(G, { refs?, cast?, sound?, cdn? }) → { html, room, measured }: the roll room, the roll being played (its
+ *     seed, what stands, what lies, where it started) beside the seeds audit and the cover forms that stop this hero;
+ *     R rolls the next seed, Shift+R the one before (the page's own ?seed=)
  *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js)
  *   roomRefs(world, ref, exists) → the refs above, by the run's names, each only where its row exists
  *   cardAsked(feel) → what the feel card asks of one swing: { startup, total, cancel, string, lunge, hitstop, stun, dodge,
@@ -21,6 +24,7 @@
 import { practiceRoom } from './practice-room.js';
 import { platformRoom, COURSE } from './platform-room.js';
 import { mountLane, FENCES } from './mount-lane.js';
+import { rollRoom, rollRoomMeasured, FORMS } from './roll-room.js';
 import { feelReport, readFeel } from './feel/lower.js';
 import { comboList } from './combos.js';
 import { feelCard } from './feel/lower.js';
@@ -286,6 +290,44 @@ export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given =
   return { html, room, card: CARD };
 }
 
+/** The roll room's page (see the header). */
+export async function rollRoomHtml(G, { refs = {}, cast = 'male', sound = 'realistic', cdn = false } = {}) {
+  const room = rollRoom(G, { refs, cast, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-roll-room`);
+  const measured = rollRoomMeasured(G);
+  let html = await emitted(payload, cdn);
+  const M = { seeds: measured.seeds, ways: measured.ways, distinct: measured.distinct, lost: measured.lost, worst: measured.worst ?? [], stops: measured.forms.stops, passed: measured.forms.passed, forms: FORMS.map((f) => [f.form, f.height]) };
+  const HUD = `<style>#rl{position:fixed;top:52px;left:10px;width:360px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#rl b{color:#fff}#rl .k{color:#9aa0a8}#rl h4{margin:6px 0 2px;font-size:11px;color:#9aa0a8;font-weight:400;text-transform:uppercase;letter-spacing:.06em}#rl .ok{color:#8fd694}#rl .bad{color:#f08a7c}</style>
+<div id="rl"><b>Roll room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><h4>this roll</h4><div id="rl-r" class="k">rolling…</div><h4>measured before any level (a machine gate)</h4><div id="rl-m"></div><h4>what stops this hero</h4><div id="rl-f"></div><h4>the yard</h4><div class="k">${room.yard.map(([n, ids]) => `${n}: ${ids.length}`).join('<br>')}</div><div class="k" style="margin-top:6px">R the next roll · Shift+R the one before · H this panel</div></div>
+<script>
+(() => {
+  const M = ${JSON.stringify(M)};
+  const $ = (id) => document.getElementById(id), names = (ids, cut) => ids.map((s) => s.replace(cut, '')).join(', ') || 'none';
+  let show = true, said = false;
+  const seedNow = () => { const n = Number(new URLSearchParams(location.search).get('seed')); return Number.isInteger(n) && n > 0 ? n : 1; };
+  const go = (n) => { const q = new URLSearchParams(location.search); q.set('seed', String(Math.max(1, n))); location.search = '?' + q.toString(); };
+  addEventListener('keydown', (e) => {
+    if (e.code === 'KeyR') go(seedNow() + (e.shiftKey ? -1 : 1));
+    if (e.code === 'KeyH') { show = !show; $('rl').style.display = show ? '' : 'none'; }
+  });
+  $('rl-m').innerHTML = '<b>' + M.seeds + '</b> seeds walked: <b>' + M.distinct + '</b> different yards, of <b>' + M.ways + '</b> there are<br>'
+    + (M.lost.length ? '<span class="bad">lost: ' + M.lost.join(', ') + '</span>' + (M.worst.length ? '<br><span class="k">' + M.worst.join('<br>') + '</span>' : '') : '<span class="ok">every law holds: a body, a way through, apart, won</span>');
+  $('rl-f').innerHTML = M.forms.map((f) => f[0] + ' (' + f[1] + ' m): ' + (M.stops.indexOf(f[0]) >= 0 ? '<b class="ok">stops it</b>' : '<b class="bad">gone over</b>')).join('<br>');
+  function tick() {
+    const R = window.__mojRoll;
+    if (R && !said) {
+      said = true;
+      $('rl-r').innerHTML = 'seed <b>' + R.seed + '</b><br>stands: <b>' + names(R.stand, /^$/) + '</b><br>gems laid: <b>' + R.lay.length + '</b> of ' + (R.lay.length + R.unlaid.length) + '<br>start: <b>' + (R.start == null ? 'its own' : R.start + 1) + '</b>';
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>`;
+  html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
+  return { html, room, measured };
+}
+
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
   const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
@@ -299,5 +341,5 @@ export async function practiceHtml(G, id, opts = {}) {
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
   }
-  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : mountLaneHtml(G, opts);
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

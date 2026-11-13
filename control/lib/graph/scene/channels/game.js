@@ -279,7 +279,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
   });
 ` : ''}  // handshake: hosted levels announce and await params; standalone/capture runs fall back to
   // the contract's default preset (a 1.5 s grace for a slow shell; capture never waits).
-  function fallback() { start((__GAME.presets && __GAME.presets.default) || {}, 1); }
+  function fallback() { start((__GAME.presets && __GAME.presets.default) || {}, ${shownOnStart ? '__aloneSeed()' : '1'}); }${shownOnStart ? `
+  // (a level that rolls, opened with no shell: its seed is the page's own ?seed=, a whole number, else 1: the reference roll)
+  function __aloneSeed() { try { const n = Number(new URLSearchParams(location.search).get('seed')); return Number.isInteger(n) && n > 0 ? n : 1; } catch (e) { return 1; } }` : ''}
   if (hosted && !capture) {
     // hosted: the level's scenes wait for the shell's params (a scene on the level's start, a stage the shell asks for)
     window.__mojWaitInit = true;

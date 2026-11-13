@@ -89,6 +89,9 @@
  *     mounts?: 2 | [{ coat?, at?, heading? }],     // horses on each walking level, beside the spawn (or `at`): the hero gets on
  *                                                  // with interact, rides them (W/S, A/D, Space jumps) and gets off
  *                                                  // (worlds/mount-units.js; the runtime's worlds/controllable/mount.js)
+ *     roll?: true,                         // its levels roll: a seed picks what is on them each time (game/roll.js). Today
+ *                                          // the world's word opens the roll room (roll-room.js) and its measures; a level
+ *                                          // takes its own `roll` on its recipe
  *     foes?: { '<id>': { class, rank?, skill?, skin? } },   // the bestiary: the foe classes it fields (foes.js); a
  *                                         // level stands them with its own `foes`
  *     moves?: true,                       // every person the run makes (the hero, its foes, guards, keepers) is made
@@ -245,7 +248,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
