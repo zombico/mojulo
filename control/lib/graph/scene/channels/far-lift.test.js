@@ -5,16 +5,24 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { FAR_LIFT, FAR_LIFT_HEIGHTS, farLiftScript, readFarLift } from './far-lift.js';
+import { FAR_LIFT, liftField, farLiftScript, readFarLift } from './far-lift.js';
 import { formLandScript } from './form-land.js';
 
 const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
 
 describe('the far lift', () => {
-  it('stands a longer sward taller', () => {
-    const [tall, medium, short] = FAR_LIFT_HEIGHTS;
-    expect(tall).toBeGreaterThan(medium); expect(medium).toBeGreaterThan(short); expect(short).toBeGreaterThan(0);
-    expect(FAR_LIFT.stand).toBeGreaterThan(0);
+  it('stands to the mean of the grass that is there: tall where it is tall and thick, lower where it is sparse, nothing where there is none', () => {
+    // (a map: tall grass on every cell at the left, on every other cell in the middle, none at the right)
+    const nx = 30, ny = 12, h8 = new Uint8Array(nx * ny);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) h8[j * nx + i] = i < 10 ? 200 : i < 20 ? ((i + j) % 2 ? 200 : 0) : 0;
+    const L = liftField(h8, nx, ny, 2), at = (i) => L[6 * nx + i];
+    expect(at(4)).toBe(200);
+    expect(at(15)).toBeGreaterThan(80); expect(at(15)).toBeLessThan(120);
+    expect(at(26)).toBe(0);
+    // (and it falls from one to the next over the radius, never a step)
+    for (let i = 5; i < 25; i++) expect(Math.abs(at(i + 1) - at(i))).toBeLessThan(60);
+    expect(Array.from(liftField(h8, nx, ny, 2))).toEqual(Array.from(L));
+    expect(FAR_LIFT.least).toBeLessThan(FAR_LIFT.wall);
   });
   it('is absent unless asked', () => {
     expect(farLiftScript(null)).toBe('');
@@ -28,6 +36,7 @@ describe('the far lift', () => {
     expect(at).toBeGreaterThan(page.indexOf('--- the far field'));
     const lift = page.slice(at);
     expect(lift).toContain('q.geometry.attributes.splat');
+    expect(lift).toContain('window.__formFar, fd = FF.tex.image.data');
     expect(lift).toContain('farBlanket( vLiftP');
     expect(lift).toContain('transformed.z += liftAt(');
     expect(lift).toContain('window.__formFarLift');

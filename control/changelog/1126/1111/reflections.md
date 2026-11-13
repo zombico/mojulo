@@ -210,3 +210,7 @@
 - The grass lines are removed: past the reach the far lift alone stands for the grass, one switch between real blades
   and the lift. The halved clumps between the thinning and the reach, and a tile drawing only the rows that can stand,
   stay.
+- The far lift stands where the grass is, in progress: its place and height are read from the far map (a strand a
+  cell where a clump stands, its height its own) as the mean of the strands within a metre, the empty cells counted as
+  nothing, × 1.5: high where the grass is tall and thick, low where it is short or sparse, none on the trail, in a
+  claim or on bare ground. It no longer reads the cover and a height per sward. Not yet seen drawn.
