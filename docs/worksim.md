@@ -117,9 +117,25 @@ The quick door (`goal: 'work'`) does three things:
 A shift is tried before its level, as an action game's feel is: in the practice door's **work room**
 (`gameworld/work-room.js`, served at `bible?book=practice&room=work`).
 
-- **The line:** greybox counters coloured by verb (blue shovel work, green bucket work, brown crates, grey shelves,
-  the cream hand-in), with E reached from a counter's side.
-- **The hero:** chosen from the action rooms' presets: the world's own hero, or a stand-in, male or female.
+These are high-concept games. The room's fidelity is in showing the work and its process, not in the characters, so
+it is a conceptual space:
+
+- **The space:** a pale plane ruled every two metres, seen by the ¾ overhead camera with north up the screen. The work
+  flows up the screen: crates at the bottom, then the line, then the shelves, then the hand-in at the top. W walks up
+  the screen.
+- **The floor is the flowchart.** The card's recipe is drawn as arrows from where each thing is had (a crate, a shelf,
+  a station that makes it) to where it goes next. Each arrow is coloured by the work it feeds: shovel work warm
+  (active), bucket work cool (sorting, storing, handing in). On a site, a product's arrow runs to the climb and on from
+  its foot.
+- **The work shows where it happens** (the mechanic's `show`). Over each station slot, five pips fill as it is worked
+  (in its verb's colour), fill again as it runs alone (violet), then stand full in red and go out one by one toward the
+  burn. Over each shelf, a gold pip for every unit it holds.
+- **The line:** counters coloured by verb, with crates, shelves and the hand-in in neutrals. E is reached from a
+  counter's side.
+- **The worker is a mascot**, rolled from a form chosen from the presets (`orb`, `sprout`, `toon`: the mascot forms)
+  and piloted by its own body. It is carried inline: a figure may hold its layered recipe (`layered`) instead of a
+  stored ref, regenerated on read as a stored one is, so nothing is minted. The world's own hero is used where one is
+  made.
 - **The movement:** a feel template, the world's own or else the everyday walker (the realistic template that runs
   slowest). The page lists every template with its run speed, and each one is a link that reopens the room with it.
 - **The shift:** the card tuned for one player at the world's challenge, measured by the work proof at the template's

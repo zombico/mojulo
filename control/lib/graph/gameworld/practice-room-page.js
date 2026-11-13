@@ -291,8 +291,9 @@ export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given =
  * the work proof at the template's run, and the presets to choose from (a feel template, a body), each a link that
  * reopens the room with it.
  */
-export async function workRoomHtml(G, { refs = {}, cast = 'male', feel = null, sound = 'realistic', cdn = false, link = null } = {}) {
-  const { workRoom } = await import('./work-room.js');
+export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { workRoom, WORK_CAST } = await import('./work-room.js');
+  cast = cast ?? WORK_CAST;
   const room = workRoom(G, { refs, cast, feel, sound });
   const payload = await resolved(room.manifest, `${G.id ?? 'game'}-work-room`);
   let html = await emitted(payload, cdn);
@@ -300,12 +301,15 @@ export async function workRoomHtml(G, { refs = {}, cast = 'male', feel = null, s
   const href = (q) => (link ? esc(link({ cast, feel: room.feel, ...q })) : null);
   const pick = (label, on, q) => (on ? `<b>${esc(label)}</b>` : href(q) ? `<a href="${href(q)}">${esc(label)}</a>` : esc(label));
   const feels = room.choices.feels.map((f) => `${pick(f.name, f.id === room.feel, { feel: f.id })} <span class="k">${f.base} · run ${f.run}</span>`).join('<br>');
-  const casts = room.choices.casts.map((c) => pick(c, c === cast && room.hero === 'stand-in', { cast: c })).join(' · ');
-  const HUD = `<style>#wk{position:fixed;top:10px;right:10px;width:330px;max-height:calc(100vh - 20px);overflow:auto;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50}#wk b{color:#fff}#wk a{color:#c9a96a}#wk .k{color:#9aa0a8}#wk h4{margin:6px 0 2px;font-size:11px;color:#c9a96a;text-transform:uppercase;letter-spacing:.05em}</style>
+  const casts = room.choices.casts.map((c) => pick(c, c === cast && room.hero === 'mascot', { cast: c })).join(' · ');
+  const { WORK_COLORS: K } = await import('../game/work-mechanics.js');
+  const dot = (c) => `<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};margin:0 3px 0 0;vertical-align:-1px"></i>`;
+  const HUD = `<style>#wk{position:fixed;top:10px;right:10px;width:330px;max-height:calc(100vh - 20px);overflow:auto;font:12px/1.5 ui-sans-serif,system-ui,sans-serif;color:#3a352e;background:rgba(250,247,241,.92);border:1px solid #d9d0c1;border-radius:10px;padding:10px 12px;z-index:50;box-shadow:0 2px 10px rgba(60,50,30,.08)}#wk b{color:#1f1b16}#wk a{color:#b0603a}#wk .k{color:#8a8173}#wk h4{margin:8px 0 2px;font-size:10.5px;color:#9a6b3f;text-transform:uppercase;letter-spacing:.07em}</style>
 <div id="wk"><b>Work room</b> <span class="k">${esc(room.card.name ?? room.card.id)} · ${esc(room.solved.target)}</span>
-<h4>the shift</h4><div>an order every <b>${D.every}</b> s, patience <b>${D.patience ?? '—'}</b> s, ${D.orders.length} on the menu · ${M.arrivals} orders · goal <b>${M.goal}</b><br><span class="k">blue: shovel work · green: bucket work · brown: crates · grey: shelves (put on the left pad, take on the right) · cream: the hand-in</span></div>
+<h4>the shift</h4><div>an order every <b>${D.every}</b> s${D.mode === 'backlog' ? `, ${D.backlog} standing` : `, patience <b>${D.patience}</b> s`}, ${D.orders.length} on the menu · ${M.arrivals} orders · goal <b>${M.goal}</b></div>
+<h4>reading the room</h4><div class="k">${dot(K.shovel)}shovel work (active) ${dot(K.bucket)}bucket work (sorting, storing, handing in)<br>the floor is the recipe: each arrow from where a thing is had to where it goes next<br>over a station, pips fill as it is worked ${dot(K.shovel)}, fill again as it runs alone ${dot(K.wait)}, and go out toward the burn ${dot(K.hold)}<br>over a shelf, a pip a unit it holds ${dot(K.stock)} (put on the left pad, take on the right)</div>
 <h4>measured</h4><div class="k">a walker who knows the card, at this template's run: ${esc(M.says)}</div>
-<h4>the hero</h4><div>${room.hero === 'own' ? '<b>the world\'s own hero</b>' : `a stand-in: ${casts}`}</div>
+<h4>the worker</h4><div>${room.hero === 'own' ? '<b>the world\'s own hero</b>' : `a mascot: ${casts}<br><span class="k">${esc(room.mascot.thesis)}</span>`}</div>
 <h4>the movement</h4><div>${feels}</div></div>
 <script>addEventListener('keydown', (e) => { if (e.code === 'KeyH') { const w = document.getElementById('wk'); w.style.display = w.style.display === 'none' ? '' : 'none'; } });</script>`;
   html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;

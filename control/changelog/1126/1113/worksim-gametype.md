@@ -42,6 +42,15 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   room. The shift is measured by the work proof at the template's run, and the movement shows: the kitchen at advanced
   serves 13 of 25 at the slowest template's run (its goal 13) and 19 at the fastest; at beginner every template serves
   10 of 11. The room has its own rail icon.
+- **The work room is a conceptual space.** The fidelity is in showing the work, not the characters:
+  - **The view:** a pale plane ruled every two metres under the ¾ overhead camera, the work flowing up the screen.
+  - **The floor is the recipe:** arrows from each crate, shelf and station to where its thing goes next, coloured by
+    the work they feed (shovel work warm, bucket work cool).
+  - **Pips show the work:** they fill over a station as it is worked, fill again as it runs alone, and go out toward
+    the burn. A shelf shows a pip a unit (the mechanic's `show: true`; absent, nothing of it is laid).
+  - **The worker is a mascot** of a form chosen on the page (orb, sprout, toon), piloted by its own body.
+- **An inline character.** A figure may carry its layered recipe inline (`layered`) instead of a stored ref, a
+  mascot's plan or a hero, regenerated on read and held to the same pilot check. Absent, nothing changes.
 - **A site, a real climb.** A card may stand its line on a deck: `site: { up, climb? }`, a roof `up` metres high with
   the hand-in on the ground below, joined by the playscape's ladder (a lean ladder, rungs, a rope or a net). The card
   reads the climb's seconds from the ladder object and walks them both ways on every hand-in. The work room builds the
@@ -55,5 +64,5 @@ A solver tunes a card to a challenge, and the `work` mechanic plays it on a leve
   played by hand and served. The proof walks a route when one is given (a room's climb), each leg at its own speed.
 - **Starter cards** (`scenarios.js`): a sushi counter, a wheat farm, a building site (a spade or an excavator) and
   leaves off a roof (4 m up a lean ladder). The board `scripts/spikes/worksim/solve.mjs` solves each at each preset.
-- The gates are machine gates only: whether a shift is fun is for someone playing it to judge. The stations are
-  greybox markers.
+- The gates are machine gates only: whether a shift is fun is for someone playing it to judge. On a level the
+  stations are still markers; the work room draws them as counters.

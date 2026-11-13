@@ -198,6 +198,15 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     const refused = heroRefError(name, spec.heroRef, src, { walker: spec.walker === true });
     if (refused) throw new Error(refused);
     manifest = src.manifest;
+  } else if (spec.layered && typeof spec.layered === 'object' && !Array.isArray(spec.layered)) {
+    // an INLINE character (`layered`: a layered recipe the world carries instead of storing it, a mascot's plan or a
+    // hero), regenerated on read as a stored one is, held to the same check a heroRef is (a hero or a mascot pilots)
+    const { heroRefError } = await import('@/lib/graph/worlds/controllable/body-types.js');
+    const inline = { ...spec.layered, kind: 'layered' };
+    const refused = heroRefError(name, '(inline)', { manifest: inline }, { walker: spec.walker === true });
+    if (refused) throw new Error(refused.replace("heroRef '(inline)'", 'its inline layered recipe'));
+    const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+    manifest = expandLayeredManifest(inline);
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
     manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
@@ -1242,7 +1251,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
         // no hero is resolved, byte-identical.
         // (and a MODEL made elsewhere, `modelRef`: a rigged humanoid .glb bound onto a sketch, worn as a hero's pack is)
-        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string') {
+        // (and an INLINE one, `layered`: a layered recipe carried in the world, a mascot's plan or a hero, never stored)
+        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string' || (rawSpec.layered && typeof rawSpec.layered === 'object')) {
           // (a composed juice floor's game type times the hero's swing: hero-swing.js swingTiming; the floor or none ⇒ its own)
           const fxs = sketch.manifest.fxStyle, swing = fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs).flavor : null;
           // THE HELD STRIKE: a platform body playing this hero whose rule carries a feel's string (its contact window,

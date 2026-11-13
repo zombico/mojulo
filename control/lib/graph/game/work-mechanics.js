@@ -22,7 +22,8 @@
  *     heading?: radians, hands?: how many units the bag holds (the most any one step puts in or asks of it), goal?: orders
  *     to serve by the bell (four fifths of what the simulator's one player serves), seed? (1): the roll of its orders,
  *     tickets?: ticket slots at the hand-in, reach? (1.1): how far from a place its E works, bases? (true): the places'
- *     own markers (false: a room that draws them as blocks) }
+ *     own markers (false: a room that draws them as blocks), show? (false): the work drawn where it happens, in pips (a
+ *     station's work filling, its wait filling, its hold going out toward the burn; a pip a unit on a shelf) }
  *
  * Said on the bus: work:took, work:made, work:ready, work:burned, work:served, work:walked, work:full, work:won,
  * work:lost (the rest `__w<i>:` and the use zones `use-w<i>-…`). Vars: `w<i>:served`, `w<i>:missed`, `w<i>:burned`,
@@ -36,7 +37,7 @@
 import { readCard, isRaw } from '../worksim/card.js';
 import { arrivalsOf, simulate, TPS } from '../worksim/sim.js';
 import { SCENARIOS } from '../worksim/scenarios.js';
-import { lowerMove, heldVar, NOWHERE } from '../playscape/ui/items.js';
+import { lowerMove, heldVar, itemKey, NOWHERE } from '../playscape/ui/items.js';
 
 const BAG = 'bag';
 const STEP = 1 / TPS;
@@ -48,7 +49,10 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const WALK = 2.5;
 // what a shelf holds when the card stores no number for its item
 const SHELF = 4;
-const COLOR = { shovel: '#5b84b1', bucket: '#8fb15b', crate: '#b07a3a', shelf: '#8a8170', serve: '#d9d2c3', busy: '#f0a020', ready: '#5fd35f' };
+// the colours of the work: shovel work warm (active), bucket work cool (passive), what runs alone a third hue, the hold
+// going toward the burn red, what is kept gold; the places' own neutral
+export const WORK_COLORS = Object.freeze({ shovel: '#e4875f', bucket: '#5fa3c7', wait: '#a98fd6', hold: '#e8604c', stock: '#e9b949', busy: '#f0a020', ready: '#5cc46a', crate: '#c9a978', shelf: '#a99f90', serve: '#f6f2ea' });
+const COLOR = WORK_COLORS;
 const TICKETS = ['#e05a5a', '#5a9be0', '#e0c25a', '#a05ae0', '#5ae0b4', '#e07f5a'];
 
 // one guard after another (the bus's `if` takes one predicate): `on` → … → `ok` when every guard holds; the first that
@@ -140,7 +144,8 @@ export function lowerWork(p, ctx) {
   const R = (r) => F.reactions.push(r), toast = (on, text, extra = {}) => F.hud.push({ on, as: 'toast', text, ttl: 1.2, ...extra });
   // `reach`: how far from a place its E works (a counter's side, not its middle); `bases: false`, the places' own markers
   // left out (a room that draws them as blocks), the busy, ready and ticket markers kept, raised over a counter
-  const reach = p.reach === undefined ? 1.1 : p.reach, bases = p.bases !== false, lift = bases ? 0 : 0.6;
+  const reach = p.reach === undefined ? 1.1 : p.reach, bases = p.bases !== false, lift = bases ? 0 : 0.6, show = p.show === true;
+  if (p.show !== undefined && typeof p.show !== 'boolean') fail('show is true (the work drawn where it happens, in pips) or false');
   if (!(Number.isFinite(reach) && reach >= 0.5 && reach <= 3)) fail('reach is how far from a place its E works, 0.5 to 3 m');
   const zone = (id, at, prompt, radius = reach) => F.sources.push({ type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt });
   const mark = (id, at, color, dz = 0, on = true, radius = 0.45) => { if (dz === 0 && !bases) return; F.entities.push({ id, type: 'work', on, position: [at[0], at[1], r3(at[2] + 0.5 + dz + lift)], radius, color }); };
@@ -176,6 +181,62 @@ export function lowerWork(p, ctx) {
     toast(ok, `took ${words(item)}`, { ttl: 0.8 });
   }
 
+  // SHOWING THE WORK (`show: true`): the process drawn where it happens, in pips. Over each station slot a row of five:
+  // they fill as it is worked (its verb's colour), fill again as it runs alone (the wait's), and when it is done they
+  // stand full in the hold's colour and go out one by one toward the burn. Over each shelf, a pip a unit it holds. Each a
+  // marker the bus toggles at a fifth of the way (a watch on the slot's own clock); absent, nothing of it is laid
+  const PIPS = 5;
+  const pipRow = (base, at, n, color, dz) => Array.from({ length: n }, (_, q) => {
+    const pid = `${base}-${q + 1}`;
+    // (a little toward the screen's bottom, -y: in front of the counter's top as the overhead view sees it)
+    F.entities.push({ id: pid, type: 'work-pip', on: false, position: [r3(at[0] + (q - (n - 1) / 2) * 0.26), r3(at[1] - 0.35), r3(at[2] + dz)], radius: 0.11, color });
+    return pid;
+  });
+  const off = (on, ids) => { for (const t of ids) R({ on, do: 'toggle', target: t, to: false }); };
+  const fill = (v, of, ids, wtype) => ids.forEach((t, q) => {
+    F.watches.push({ type: `${wtype}:${q + 1}`, when: { var: v, gte: r3((of * (q + 1)) / PIPS) } });
+    R({ on: `${wtype}:${q + 1}`, do: 'toggle', target: t, to: true });
+  });
+  function showSlot({ id, P, Pp, Pw, Ph, st, work, at, taken }) {
+    const dz = bases ? 1.4 : 1.45;
+    const W5 = pipRow(`${id}-pip-work`, at, PIPS, COLOR[st.verb], dz);
+    const C5 = st.wait ? pipRow(`${id}-pip-wait`, at, PIPS, COLOR.wait, dz) : [];
+    const H5 = st.wait && st.hold !== Infinity ? pipRow(`${id}-pip-hold`, at, PIPS, COLOR.hold, dz) : [];
+    const all = [...W5, ...C5, ...H5];
+    off(`${P}:start`, all);
+    fill(Pp, work, W5, `${P}:pw`);
+    if (st.wait) {
+      off(`${P}:cook`, W5);
+      fill(Pw, st.wait, C5, `${P}:pc`);
+      off(`${P}:ready`, C5);
+      if (H5.length) {
+        for (const t of H5) R({ on: `${P}:ready`, do: 'toggle', target: t, to: true });
+        // the hold going: the last pip out first, at each fifth of it
+        H5.slice().reverse().forEach((t, q) => {
+          F.watches.push({ type: `${P}:ph:${q + 1}`, when: { var: Ph, gte: r3((st.hold * (q + 1)) / PIPS) } });
+          R({ on: `${P}:ph:${q + 1}`, if: { var: P, eq: 4 }, do: 'toggle', target: t, to: false });
+        });
+        off(`${P}:burn`, H5);
+      }
+    } else {
+      off(`moved:${P}:hand:${itemKey(st.item)}`, W5);
+      off(`${P}:leave`, W5);
+    }
+    off(taken, all);
+  }
+  function showShelf(id, at, item, cap) {
+    const n = Math.min(cap, 6), here = heldVar(id, item);
+    const ids = Array.from({ length: n }, (_, q) => {
+      const pid = `${id}-pip-${q + 1}`;
+      F.entities.push({ id: pid, type: 'work-pip', on: false, position: [r3(at[0] + (q - (n - 1) / 2) * 0.2), at[1], r3(at[2] + (bases ? 1.35 : 1.4))], radius: 0.075, color: COLOR.stock });
+      F.watches.push({ type: `${id}:has:${q + 1}`, when: { var: here, gte: q + 1 } }, { type: `${id}:lacks:${q + 1}`, when: { var: here, lt: q + 1 } });
+      R({ on: `${id}:has:${q + 1}`, do: 'toggle', target: pid, to: true });
+      R({ on: `${id}:lacks:${q + 1}`, do: 'toggle', target: pid, to: false });
+      return pid;
+    });
+    return ids;
+  }
+
   // shelves (bucket work: storage): two pads side by side, one that puts one down (while the shelf has room), one that
   // takes one (while the hands have room): a bag of several things needs to say which
   const kept = Object.keys(L.shelves);
@@ -186,6 +247,7 @@ export function lowerWork(p, ctx) {
     zone(`${id}-put`, pin, `put down ${words(item)} (holds ${cap})`, Math.min(0.6, reach));
     zone(`${id}-take`, pout, `take ${words(item)}`, Math.min(0.6, reach));
     mark(`${id}-board`, at, COLOR.shelf, 0, true, 0.5);
+    if (show) showShelf(id, at, item, cap);
     R({ on: `use-${id}-put`, if: { var: mine, gte: 1 }, do: 'emit', type: `${I}:put:${item}` });
     R({ on: `use-${id}-take`, do: 'emit', type: `${I}:get:${item}` });
     chain(F.reactions, `${I}:put:${item}`, [{ var: here, lte: cap - 1 }], `${I}:putting:${item}`, null);
@@ -210,8 +272,8 @@ export function lowerWork(p, ctx) {
       Object.assign(F.vars, { [P]: 0, [Pp]: 0, [Pw]: 0, [Ph]: 0 });
       zone(id, at, `${words(sid)}: ${Object.keys(st.takes).length ? `${pieces(st.takes)} → ` : ''}${st.batch > 1 ? `${st.batch} ` : ''}${words(st.item)} (${st.verb})`);
       mark(`${id}-base`, at, COLOR[st.verb], 0, true, 0.6);
-      mark(busy, at, COLOR.busy, 0.8, false, 0.25);
-      mark(ready, at, COLOR.ready, 0.8, false, 0.3);
+      // (with the work shown, the pips say busy and ready: the two markers are not laid)
+      if (!show) { mark(busy, at, COLOR.busy, 0.8, false, 0.25); mark(ready, at, COLOR.ready, 0.8, false, 0.3); }
       // E: take what is done, start (its takes in the bag), or resume
       R({ on: use, if: { var: P, eq: 4 }, do: 'emit', type: `${P}:collect` });
       R({ on: use, if: { var: P, eq: 0 }, do: 'emit', type: `${P}:try` });
@@ -277,6 +339,7 @@ export function lowerWork(p, ctx) {
       R({ on: ok, do: 'toggle', target: ready, to: false });
       R({ on: ok, do: 'emit', type: 'work:took', item: st.item });
       toast(ok, `took the ${words(st.item)}`, { ttl: 0.8 });
+      if (show) showSlot({ id, P, Pp, Pw, Ph, at, st, work, taken: ok });
     });
   }
 

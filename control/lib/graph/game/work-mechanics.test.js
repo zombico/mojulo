@@ -75,6 +75,28 @@ describe('the work mechanic', () => {
     L.press('shelf-cut-take');
     expect([L.V['held:bag:cut'], L.V['held:w0-shelf-cut:cut'], L.V['w0:carry']]).toEqual([1, 0, 1]);
   });
+  it('shown, the work fills its pips as it is done, runs alone in its own, and goes out toward the burn', () => {
+    const L = level({ show: true });
+    const lit = (base) => [1, 2, 3, 4, 5].map((q) => L.s.byId[`w0-pot-0-pip-${base}-${q}`].on);
+    L.press('crate-rice'); L.press('pot-0');
+    L.wait(0.5);
+    expect(lit('work')).toEqual([true, true, false, false, false]);
+    L.wait(0.75);
+    expect(lit('work').some(Boolean)).toBe(false);
+    // what runs alone, then the hold: the pips lit are the fifths done (the wait) and the fifths left (the hold), read
+    // off the slot's own clocks at every tick
+    L.leave('pot-0');
+    for (let k = 0; k < 4 * 5.5; k++) {
+      L.wait(0.25);
+      const P = L.V['__w0:pot:0'], w = L.V['__w0:pot:0:w'], h = L.V['__w0:pot:0:h'];
+      if (P === 3) expect(lit('wait').filter(Boolean).length).toBe(Math.min(5, Math.floor((w * 5) / 3 + 1e-9)));
+      if (P === 4) { expect(lit('wait').some(Boolean)).toBe(false); expect(lit('hold').filter(Boolean).length).toBe(5 - Math.floor((h * 5) / 2 + 1e-9)); }
+    }
+    expect(lit('hold')).toEqual([false, false, false, false, false]);
+    expect(L.said('work:burned')).toBe(true);
+    // absent, none of it is laid
+    expect(level().s.entities.some((e) => e.type === 'work-pip')).toBe(false);
+  });
   it('one hand-in press serves one order, and the bell decides', () => {
     const L = level({ goal: 1, hands: 4 });
     const dish = () => {
