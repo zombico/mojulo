@@ -255,7 +255,9 @@ ${cfg.landSun ? `  // (and whenever the land asks for its sun's map again, its t
     const want = __csStatic.has(o)${noCast ? ' && !__csNoCast(o)' : ''};
     if (o.castShadow !== want) { __hrArmed.push([o, o.castShadow]); o.castShadow = want; }
   });
-  __hrL.shadow.needsUpdate = true;${cfg.landSun ? `
+  __hrL.shadow.needsUpdate = true;${cfg.floods ? `
+  // (the floods' own maps, channels/form.js: drawn on this frame, the static world in them)
+  if (window.__mojFloodShadows) for (const l of window.__mojFloodShadows) l.shadow.needsUpdate = true;` : ''}${cfg.landSun ? `
   // (the land's own sun, channels/form-land.js: the light a body under the cast rig is lit by. Its map is drawn on this
   // frame too, the static world in it, so a body indoors stands in its building's shade and takes the sun only through
   // an opening, as the room's own faces do)

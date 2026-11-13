@@ -122,3 +122,6 @@
 - The hour's map fitted to the built place: on a land whose own sun shades it, the map covers its buildings' aprons
   and a margin for what stands by them, not the whole land, so its texels are centimetres: a tree's leaves read in its
   shadow on a wall, a window's patch has an edge.
+- A floodlight's shadow: a yard's first two floods each carry a map of their own, drawn once with the static world in
+  it, so what stands under a flood (a container, a parked walker, a building's corner) throws its shadow across the
+  slab and up the next thing.
