@@ -83,7 +83,7 @@ The things are the ones Mojulo already draws:
 | `hall` | a fight's room: long tables and shelves for its cover, crates; its pillars and decks as built |
 
 A shift is dressed in its card's trade (a card's own `dress`, else its starter's), a fight in the hall. `dress: false`
-keeps the greybox. The practice pages offer every trade and the greybox as links (`&dress=<trade>|none`).
+keeps the greybox. The practice pages offer every trade and the greybox on their set-up screen (`&dress=<trade>|none`).
 
 ## The area
 
@@ -107,7 +107,7 @@ garden's lawn, hedge and houses (on a roof card, the deck is drawn as the house)
 A world designs its own with `room: { dress?, area? }`. The area is a name, or an object over one:
 `{ like?, floor?, walls?, surround?, ground?, sky?, cut? }`, where a floor or walls is a name or
 `{ pattern | style, height?, colors? }`. A malformed area is taught, never guessed. `area: false` keeps the conceptual
-plane. The practice pages offer every trade's area and the plane as links (`&area=<trade>|none`); the page's choice
+plane. The practice pages offer every trade's area and the plane on their set-up screen (`&area=<trade>|none`); the page's choice
 comes first, then the world's, then the trade's own.
 
 ## The practice room
@@ -118,7 +118,10 @@ that fights hand to hand, works a shift or has foes:
 - **The space:** the area (or the conceptual plane), each primitive drawn by its dress (or a block in its tone in the greybox), the
   spawn and the goal ringed on the floor, a shift's recipe drawn as arrows.
 - **The hero:** the world's own, or a mascot of a form chosen on the page, on the world's feel or one chosen.
-- **The foes:** on their spots, still until Shift+F wakes them.
+- **The foes:** on their spots, still until they are woken (the pilot's AI switch, G, or the menu's).
 - **The camera:** a chase pulled back to read the room, or overhead for a shift.
 
-Its page says the brief, what was laid, the laws, and the shift's proof where there is one.
+Its menu is mana-ui's ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)), opened by the pilot's pause (Esc, a pad's start) and
+open as the page loads, as the briefing: the brief, what was laid, the laws and the shift's proof where there is one;
+set up (the movement, the worker, the dress, the area, the foes), the room reopened with them; and the controls this
+world answers to.

@@ -54,6 +54,18 @@ roguelike's rooms: one seeded, editable composition. Design notes: [docs/game-ro
   `walls`, `surround`, `ground`, `sky`, `cut`); a malformed one is taught. `area: false`, or `&area=none` on the
   practice pages, keeps the conceptual plane, and the pages offer every trade's area. Seen in headless Chromium for
   each trade and the hall; the work proofs are unchanged.
+- **The rooms' menu on mana-ui** (`gameworld/practice-mana.js`): the work room's and the game room's readout and
+  choices leave their page panel, the H key and Shift+F for a menu drawn by mana-ui and driven by the controls layer.
+  The keys, every pad layout and a finger work it alike, and each control is named as the controls kernel names it.
+  - **It is the shell's pause, kept on the page.** The pilot scheme's `pause` (Esc, a pad's start) opens it, and the
+    scene is held on the shell's sidecar, its clocks stopped. It opens as the page loads, as the room's briefing.
+  - **Its screens:** the room's readout in tabs; set up (the movement, the worker, the dress, the area and the foes),
+    the room reopened with them; and the controls this world answers to, its live rows.
+  - **The foes** are woken on the shell's AI switch or the pilot's own G.
+  - **The hint line** names each action by the key the scheme binds it to.
+
+  In headless Chromium, the shift's clock held at 240 through the briefing and ran once resumed. Esc reopened the menu,
+  and set up reopened the room with the movement and the area picked.
 - Played in headless Chromium: a sword fighter's hall (28 m, two decks, pillars, low cover, three foes) and a shift's
   room (its line on counters, the proof won). Machine gates only: whether the room plays well is for someone in it to
   judge.

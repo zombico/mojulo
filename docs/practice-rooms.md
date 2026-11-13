@@ -25,6 +25,10 @@ knife. A world with no room is told why, in words.
 Each room is served at `bible?book=practice&room=<id>`, listed by `design_game`'s readout (`practice.rooms`) and on the
 rail, each with its own icon.
 
+The work room and the game room keep their readout and their choices in a menu drawn by mana-ui and driven by the
+controls layer, opened by the pilot's pause ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)); the others still keep a
+panel and keys of their own.
+
 ## The gun rooms
 
 The firing range and the artillery range are a shooter's paradigm, not the action room's: their own controls (aim

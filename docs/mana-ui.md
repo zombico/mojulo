@@ -807,6 +807,22 @@ default; `tabletop: { …, ui: { theme?, languages?, language? } }` names anothe
 - **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
 - A round game played on a board still draws its own panel.
 
+### The practice rooms' menu
+
+The work room and the game room (the practice door's `work` and `room`) put their readout and their choices on
+mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by the page.
+
+- **It is the game shell's pause, kept on the page.** The pilot scheme's `pause` (its keys and its pad button, read
+  from `controls/schemes.js`) opens it. The scene is held on the shell's own sidecar (`MSG_PAUSE`: the sim and its
+  clocks frozen), and it answers with its live control rows, which the controls screen lists. The foes are woken on the
+  shell's AI switch (`MSG_AI`), the path the pilot's own `aiToggle` takes. It opens as the page loads, as the room's
+  briefing, over the held room.
+- **The screens:** `pause-menu` (resume, the room, set up, controls); the room, its readout in tabs; set up, the
+  movement, the worker, the dress and the area as cyclers and the foes as a switch, the room reopened with them (the
+  studio's query, so a page saved to disk says it cannot); controls.
+- **The hint line** at the page's foot names each action by the key the scheme binds it to (`practiceLegend`).
+- **Input** is mana-host's while a screen is up; with none up, play has it, and only the pause opens the menu.
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by

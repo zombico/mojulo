@@ -142,6 +142,9 @@ it is a conceptual space:
   collider kept (`gameroom/dress.js`): a kitchen's range, workbenches, counters and shelving; a farm's field plots and
   carts; a site's mixer drum and sandbags; a chore's leaf piles, sacks and bin. `&dress=none` keeps the greybox
   counters, coloured by verb. E is reached from a counter's side.
+- **Its menu is mana-ui's** ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)), opened by the pilot's pause and open
+  as the page loads, the shift's briefing over the held room (its clock stopped): the shift as tuned, how to read the
+  room, the proof, and set up (the movement, the worker, the dress, the area), the room reopened with them.
 - **The area it stands in** (`gameroom/area.js`, [game-room.md](game-room.md#the-area)): the trade's floor, its walls cut
   away on the camera's side, and what stands outside. A kitchen has tiles, a dining room past the far wall and the
   street; a farm has a fenced yard, fields and a barn; a site has slabs inside hoarding, a frame going up and a crane; a
