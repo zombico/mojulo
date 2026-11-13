@@ -220,3 +220,5 @@
   read as its ground map; the lift is a sheet over the landform raised to the mean of the clumps that stand, in the
   ramp's upper stops. The field, the far clumps and the cards are not drawn; a blade is not pressed by a foot. A first
   lift written into the old field is removed, and the old field is as it was. Not yet seen drawn; tests not yet run.
+- A stage kept clean (`hats: false`): no grass cap on a rock and no fringe over a cliff lip; absent, the stage as it
+  was.
