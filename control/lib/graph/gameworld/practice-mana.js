@@ -21,9 +21,12 @@
  *     query    the page's own query ({ book, room, … }): set up reopens the room with it and the choices; absent (a page
  *              saved to disk), set up says it cannot
  *   practiceManaHtml(cfg) → the sheet and the script laid into a page (the kernel, the host, the runtime)
+ *   theme    the look (a preset, a card resolved, a theme object): the shift family's card for the room's trade
+ *            (playscape/ui/theme-cards/shift-*.json), drawn on the menu and on the play around it (playCss)
+ *   playCss(theme) → the HUD's counters, its hint line, the use prompt and the page's margin in the theme's look
  *   practiceLegend(words) → the hint bar's line, each action named by its key as the pilot scheme binds it
  */
-import { manaUi, manaUiSource, withIdioms, manaCss, themeCss } from '../../mana-ui/index.js';
+import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme, FACE_STACKS } from '../../mana-ui/index.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -79,7 +82,7 @@ function openControls() {
 }
 
 /** The menu's config for the page (see the header). */
-export function practiceMana({ title, about = [], choices = [], foes = false, query = null } = {}) {
+export function practiceMana({ title, about = [], choices = [], foes = false, query = null, theme = 'greybox' } = {}) {
   const fields = choices.map((c) => ({ kind: 'cycler', label: c.label, var: `pr.pick.${c.id}`, options: c.options.map((o) => o.name) }));
   if (foes) fields.push({ kind: 'toggle', label: 'Foes awake', var: 'pr.foes' });
   const state = { pr: {
@@ -90,19 +93,43 @@ export function practiceMana({ title, about = [], choices = [], foes = false, qu
   } };
   const C = manaControls();
   const ids = Object.fromEntries(choices.map((c) => [c.id, Object.fromEntries(c.options.map((o) => [o.name, o.id]))]));
-  return { spec: practiceManaSpec({ foes }), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, ids, query, foes: !!foes,
+  return { theme: readTheme(theme), spec: practiceManaSpec({ foes }), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, ids, query, foes: !!foes,
     msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS, ai: MSG_AI } };
+}
+
+/**
+ * The play around the menu in the menu's look: the HUD's counters and its hint line as the theme's tickets (its plate,
+ * its ink, its heavy line, a slab of the accent offset under each, its rounded face), the use prompt a ticket with its
+ * key a cap, and the page's margin the plate's colour. The scene viewer's own orbit hint (a viewer's, not a game's) is
+ * hidden. Only the HUD's own hooks are styled (events.js HUD_CSS's classes, its `--moj-*` tokens), never its structure.
+ */
+export function playCss(theme) {
+  const T = readTheme(theme), k = T.tokens, face = FACE_STACKS[T.type.body] ?? FACE_STACKS.system;
+  const disp = FACE_STACKS[T.type.display] ?? face, r = { round: 14, soft: 8, cut: 0, square: 0 }[T.corner] ?? 8;
+  const w = { heavy: 3, double: 3, bevel: 2, rule: 2 }[T.frame] ?? 1, slab = T.backing === 'none' ? 'none' : `4px 4px 0 ${k.accent}`;
+  const cut = '';   // (a cut corner is drawn square here: a clip would cut the slab off with it)
+  return [
+    `:root{--moj-ink:${k.ink};--moj-panel:${k.panel};--moj-panel-a:${k.panel};--moj-line:${k.line};--moj-accent:${k.accent};--moj-accent2:${k.accent2};--moj-font:${face}}`,
+    `html,body{background:${k.panel}}#wrap .hint{display:none}`,
+    `.moj-w{border:${w}px solid ${k.line};border-radius:${r}px;box-shadow:${slab};color:${k.ink};font-family:${face};${cut}}`,
+    `.moj-w-counter .moj-val{font-family:${disp};color:${k.ink}}.moj-w-counter .moj-lbl{opacity:.75;letter-spacing:1.5px}`,
+    `.moj-w-bar .moj-track{background:rgba(0,0,0,.08);border:2px solid ${k.line};height:10px}.moj-w-bar .moj-fill{background:${k.accent2}}`,
+    `.moj-w-text{font-size:13px;font-weight:600;box-shadow:none;border-width:2px}`,
+    `.moj-reach{background:${k.panel};color:${k.ink};border:${w}px solid ${k.line};border-radius:${r}px;box-shadow:${slab};font:700 15px ${face};padding:7px 14px;${cut}}`,
+    `.moj-reach b{background:${k.ink};color:${k.panel};border:0;border-radius:${Math.min(r, 6)}px;padding:1px 7px}`,
+  ].join('\n');
 }
 
 /** The sheet and the script a practice page lays in (the kernel, the host and the runtime inlined). */
 export function practiceManaHtml(cfg) {
   const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
-  return `<style>${manaCss()}\n${themeCss('greybox')}</style>
+  const { theme, ...page } = cfg;
+  return `<style>${manaCss()}\n${themeCss(theme)}\n${playCss(theme)}</style>
 <script>
 const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
-(${practiceManaRuntime.toString()})(${json(cfg)});
+(${practiceManaRuntime.toString()})(${json(page)});
 </script>`;
 }
 

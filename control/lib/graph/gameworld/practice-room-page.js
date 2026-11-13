@@ -303,9 +303,15 @@ const placeLines = (room) => [
 ];
 // the page's own query, for set up to reopen the room with; none when the page is not the studio's
 const queryOf = (link, q) => (link ? Object.fromEntries(new URLSearchParams(String(link(q)).replace(/^\?/, ''))) : null);
-async function withMenu(html, cfg) {
+// the look: the shift family's card for where the room stands (its area, else its dress's trade), else the family's own
+const SHIFT_CARDS = { kitchen: 'shift-kitchen', farm: 'shift-farm', site: 'shift-site', chores: 'shift-garden', hall: 'shift-hall' };
+async function roomTheme(room) {
+  const { cardTheme } = await import('../playscape/ui/theme-cards/loader.js');
+  return cardTheme(SHIFT_CARDS[room.area?.name ?? room.dress?.trade] ?? 'shift');
+}
+async function withMenu(html, cfg, room) {
   const { practiceMana, practiceManaHtml } = await import('./practice-mana.js');
-  const M = practiceManaHtml(practiceMana(cfg));
+  const M = practiceManaHtml(practiceMana({ ...cfg, theme: await roomTheme(room) }));
   return html.includes('</body>') ? html.replace('</body>', `${M}</body>`) : html + M;
 }
 
@@ -327,7 +333,7 @@ export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dre
     { label: 'Measured', lines: [`a walker who knows the card, at this template's run: ${M.says}`] },
     { label: 'The place', lines: [room.hero === 'own' ? 'the worker: the world\'s own hero' : `the worker: ${room.mascot.thesis}`, ...placeLines(room)] },
   ];
-  const html = await withMenu(await emitted(payload, cdn), { title: `Work room · ${room.card.name ?? room.card.id}`, about, choices: roomChoices(room, cast), query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) });
+  const html = await withMenu(await emitted(payload, cdn), { title: `Work room · ${room.card.name ?? room.card.id}`, about, choices: roomChoices(room, cast), query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
   return { html, room };
 }
 
@@ -352,7 +358,7 @@ export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dre
     ...(room.measured ? [{ label: 'The shift', lines: [room.measured.says] }] : []),
     { label: 'The place', lines: [room.hero === 'own' ? 'the hero: the world\'s own' : `the hero: ${room.mascot.thesis}`, ...placeLines(room)] },
   ];
-  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, about, choices: roomChoices(room, cast), foes: nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) });
+  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, about, choices: roomChoices(room, cast), foes: nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
   return { html, room };
 }
 

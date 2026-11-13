@@ -1,0 +1,11 @@
+{
+  "id": "shift-kitchen",
+  "name": "Shift: Kitchen",
+  "about": "The kitchen's shift: cream order tickets, tomato red and the dish pit's blue, the awning's stripes behind a screen.",
+  "family": "shift",
+  "tags": ["cooking", "restaurant", "kitchen"],
+  "author": "mojulo",
+  "from": "shift",
+  "tokens": { "ink": "#2b2420", "panel": "#fffaf0", "line": "#2b2420", "accent": "#c2401c", "accent2": "#3a8fb7", "harm": "#c8331f" },
+  "stage": "stripes"
+}

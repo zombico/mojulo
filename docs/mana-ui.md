@@ -822,6 +822,12 @@ mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by 
   studio's query, so a page saved to disk says it cannot); controls.
 - **The hint line** at the page's foot names each action by the key the scheme binds it to (`practiceLegend`).
 - **Input** is mana-host's while a screen is up; with none up, play has it, and only the pause opens the menu.
+- **The look** is the shift family's card for where the room stands (`theme-cards/shift-*.json`: a kitchen, a farm, a
+  site, a garden, a hall; `shift` itself for the plane). It is a couch co-op work sim's look: chunky order tickets on
+  paper over a slab offset in the accent, rounded faces, a heavy outline, and the floor's own two colours as the accents
+  (shovel work warm, bucket work cool), each trade tinting them. It bounces in and never slams. The play around the menu
+  takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
+  and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
 
 ### The strategy boards
 

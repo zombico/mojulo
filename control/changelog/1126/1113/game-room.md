@@ -64,6 +64,12 @@ roguelike's rooms: one seeded, editable composition. Design notes: [docs/game-ro
   - **The foes** are woken on the shell's AI switch or the pilot's own G.
   - **The hint line** names each action by the key the scheme binds it to.
 
+  - **Its look is the shift family** (theme cards `shift`, `shift-kitchen`, `shift-farm`, `shift-site`,
+    `shift-garden`, `shift-hall`), chosen by where the room stands. It is a couch co-op work sim's look: order tickets on
+    paper over an offset slab, rounded faces, a heavy outline, the floor's shovel and bucket colours as its accents,
+    and each trade's own tint (the kitchen's tomato and the awning's stripes, the farm's stitched feed-sack, the site's
+    hazard yellow and stripe). The HUD's counters, its hint line and the use prompt wear it too. Every card's words read
+    on its focus and its tabs (the contrast advice measured).
   In headless Chromium, the shift's clock held at 240 through the briefing and ran once resumed. Esc reopened the menu,
   and set up reopened the room with the movement and the area picked.
 - Played in headless Chromium: a sword fighter's hall (28 m, two decks, pillars, low cover, three foes) and a shift's

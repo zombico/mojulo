@@ -6,7 +6,9 @@ import { manaGlyphs } from '../controls/mana-controls.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
-import { practiceMana, practiceManaSpec, practiceManaHtml, practiceLegend } from './practice-mana.js';
+import { practiceMana, practiceManaSpec, practiceManaHtml, practiceLegend, playCss } from './practice-mana.js';
+import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
+import { themeAdvice } from '../../mana-ui/theme.js';
 import { WORK_LEGEND } from './work-room.js';
 import { ROOM_LEGEND } from './game-room.js';
 
@@ -42,5 +44,14 @@ describe('the practice menu', () => {
     expect(D.state.pr.why).toMatch(/studio/);
     expect(D.state.pr.fields.some((f) => f.kind === 'toggle')).toBe(false);
     expect(practiceManaHtml(C)).toMatch(/__mojPracticeUi/);
+  });
+  it('wears the shift family: every card of it reads (words on its focus and its tabs), and the play around the menu takes its look', () => {
+    const shift = THEME_CARD_IDS.filter((id) => THEME_CARDS[id].family === 'shift');
+    expect(shift.length).toBeGreaterThan(1);
+    for (const id of shift) expect(themeAdvice(cardTheme(id)).filter((a) => a.law === 'focus-reads' || a.law === 'tab-reads'), id).toEqual([]);
+    const T = cardTheme(shift.find((id) => THEME_CARDS[id].from === 'shift')), css = playCss(T);
+    expect(css).toContain(`--moj-ink:${T.tokens.ink}`);
+    expect(css).toContain(`4px 4px 0 ${T.tokens.accent}`);
+    expect(practiceManaHtml(practiceMana({ title: 't', theme: T }))).toContain(css);
   });
 });

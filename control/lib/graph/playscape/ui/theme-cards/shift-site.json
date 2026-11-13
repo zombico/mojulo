@@ -1,0 +1,13 @@
+{
+  "id": "shift-site",
+  "name": "Shift: Site",
+  "about": "The building site's shift: hazard yellow on the hoarding's board, cut corners, the hazard stripe at each window's rim, a blueprint blue.",
+  "family": "shift",
+  "tags": ["construction", "building site"],
+  "author": "mojulo",
+  "from": "shift",
+  "tokens": { "ink": "#1d1d1f", "panel": "#fff6dc", "line": "#1d1d1f", "accent": "#f2b320", "accent2": "#3a6ea5", "harm": "#d9483a" },
+  "corner": "cut",
+  "ornaments": ["hazard"],
+  "stage": "stripes"
+}
