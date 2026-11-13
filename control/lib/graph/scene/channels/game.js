@@ -11,6 +11,28 @@ import { safeJson } from '../emit-util.js';
 // it lands on __mojGame.envelope so capture probes can assert it (the completability audit).
 // The store lives in the shell, never here. Emitted in capture runs too (unlike audio): the
 // bridge is inert I/O there — no DOM, no messaging — but the envelope must be observable.
+/**
+ * THE GRACE a hosted level gives its shell before it starts on its presets: `wait` ms in which the shell COULD have
+ * answered. A shell in the same window shares the level's thread, so while the level builds its world the shell can
+ * neither hear `game-ready` nor have its `game-init` delivered; time the thread was busy is no time the shell had. The
+ * wait is counted in ticks, and a tick that fires late (the thread was busy through it) counts for nothing, so an
+ * answer queued behind the level's own build is always heard before the presets run in its place. (Counted on the clock
+ * alone, a build that ended near the 1.5 s mark started the level on its presets and seed 1 with the shell's answer
+ * still queued: the game's params and its seed were dropped.) Import-free: the page runs this source.
+ *
+ *   awaitShell({ started, fallback, wait?, tick?, slack?, now?, later? })   now, later: the clock and the timer (tests)
+ */
+export function awaitShell({ started, fallback, wait = 1500, tick = 100, slack = 50, now = () => performance.now(), later = (fn, ms) => setTimeout(fn, ms) }) {
+  let had = 0;
+  (function next(due) {
+    later(() => {
+      if (started()) return;
+      if (now() - due <= slack) had += tick;
+      if (had >= wait) fallback(); else next(now() + tick);
+    }, tick);
+  })(now() + tick);
+}
+
 export function gameChannelScript(game) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
@@ -256,7 +278,7 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     if (typeof from === 'string' && __GAME.arrive.indexOf(from) >= 0) setTimeout(function () { try { __inputQueue.push({ type: 'arrive:' + from }); } catch (e) { console.error('arrive', e); } }, 0);
   });
 ` : ''}  // handshake: hosted levels announce and await params; standalone/capture runs fall back to
-  // the contract's default preset (1.5s grace for a slow shell; capture never waits).
+  // the contract's default preset (a 1.5 s grace for a slow shell; capture never waits).
   function fallback() { start((__GAME.presets && __GAME.presets.default) || {}, 1); }
   if (hosted && !capture) {
     // hosted: the level's scenes wait for the shell's params (a scene on the level's start, a stage the shell asks for)
@@ -272,9 +294,8 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     // shown: the first frame drawn (two frames on: the world's loop draws in the first), so the shell's veil lifts on a
     // picture, never on a page still building
     requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }));
-    // (the grace is 1.5 s of waiting, not of a busy page: a timer that fires late, the page having been building its
-    // world, gives the shell's answer, already queued, another grace before the presets run in its place)
-    (function grace(due) { setTimeout(() => { if (st.started) return; if (performance.now() - due > 250) grace(performance.now() + 1500); else fallback(); }, Math.max(0, due - performance.now())); })(performance.now() + 1500);
+    // (the grace is 1.5 s the shell could have answered in, not 1.5 s on the clock: awaitShell below)
+    (${awaitShell.toString()})({ started: () => st.started, fallback });
   } else {
     fallback();
   }

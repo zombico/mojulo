@@ -29,7 +29,7 @@ Measured on Node 22 and headless Chromium with software GL, 2026-11-13.
    has come 1.5 s after it asked. The shell and the level share one thread, so the answer is often queued behind the
    level's own build; when the build ends within 250 ms of that timer, the fallback runs first and the shell's params
    and seed are dropped. Seen in 4 of about 17 loads here. This is not the roll's doing: it loses a game's loadout
-   and entry door the same way.
+   and entry door the same way. Fixed since (`scene/channels/game.js` `awaitShell`): 0 of 13 loads after.
 4. **A win steered straight at the exit fails on every rolled seed** (8 of 8, stuck on a wall for the full 150 s). The
    same win steered corner to corner on the nav grid passes 8 of 8. The audit of a rolled level must steer by the nav
    grid.

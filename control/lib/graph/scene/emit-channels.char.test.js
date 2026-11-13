@@ -721,6 +721,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-10 (1110-cast-channel merging 1105-rc): `brawl` only, moved by both lines (the candidate's game UI
 // runtime in its page; here the yard client's cast rig): the merged page carries both. No other fixture differs from the
 // candidate's pin.
+// Re-pinned 2026-11-13 (the handshake's grace): `game`, `kitchen-sink` and `kitchen-sink-capture`, the three whose page
+// carries the game channel. The 1.5 s a hosted level waits for its shell is counted in time the shell could have
+// answered in (channels/game.js awaitShell, inlined in place of the one-line timer), so an answer queued behind the
+// level's own build is never beaten by the presets. Every other fixture stays as it was.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
