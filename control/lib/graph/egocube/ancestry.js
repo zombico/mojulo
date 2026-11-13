@@ -264,6 +264,17 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'structure', line: 'a skull under dried skin, the sockets empty' },
     ],
   },
+  goblin: {
+    reads: 'goblin-kin', humanity: [0.1, 0.24], builds: ['stout'], cover: { 'sea-green': '#3fa585', moss: '#5f8a4a', teal: '#2f8f8a', ochre: '#a08a3a' },
+    built: 'the goblin skull (creature-heads/relational.js) on the goblin card (beast/cards.js): its head and its body its kin\'s own',
+    cues: [
+      { at: 1, ch: 'eyes', line: 'big eyes with slit pupils in a bright iris', derives: ['sculpt.catchlight +'] },
+      { at: 1, ch: 'structure', line: 'a long pointed nose over a wide mouth, the chin drawn to a point', derives: ['door = creature'] },
+      { at: 1, ch: 'ornament', line: 'long thin ears swept back past the skull' },
+      { at: 1, ch: 'frame', line: 'a skinny little body with a pot belly on short bent legs, the back hunched' },
+      { at: 1, ch: 'ornament', line: 'blunt claws on the fingers and toes', plan: { claws: 'blunt' } },
+    ],
+  },
 });
 
 export function ancestryIds(custom = {}) { return [...HUMAN_IDS, ...Object.keys(LINEAGES), ...Object.keys(custom)]; }

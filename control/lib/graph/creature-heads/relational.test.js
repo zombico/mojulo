@@ -44,8 +44,33 @@ describe('the relational creature head', () => {
       const nose = H.vajras.find((w) => w.name === 'nose');
       const ahead = frontAt(H, nose.c.z);
       expect(ahead, preset).toBeGreaterThan(nose.c.y + nose.r[1] * 0.85);
-      expect(H.paint({ x: 0, y: ahead * V, z: nose.c.z * V })).toBe('nose');
+      // (a skull whose nose is its muzzle's pad: the pad is the face's front there, and paints. One with a nose of its
+      // own, below, carries it past the pad)
+      if (!(R.noseLength > 0)) expect(H.paint({ x: 0, y: ahead * V, z: nose.c.z * V })).toBe('nose');
     }
+  });
+
+  it('a nose of its own stands out past the muzzle to a point, in the skin\'s colour; a pointed chin under it; ears swept back', () => {
+    // (the skull that carries one, chosen from the presets; the same skull without it, its relations over the preset's)
+    const preset = Object.keys(CREATURE_HEADS).find((k) => CREATURE_HEADS[k].noseLength > 0), G = CREATURE_HEADS[preset];
+    const H = relationalCreatureHead({ preset }), bare = relationalCreatureHead({ preset, relations: { noseLength: 0, chinPoint: 0, earSweep: 0 } });
+    const snoot = H.vajras.find((w) => w.name === 'snoot');
+    expect(bare.vajras.some((w) => w.name === 'snoot' || w.name === 'chinTip')).toBe(false);
+    // (the face's front at the nose's tip's height: well past the same skull's without it, by most of the nose's length)
+    expect(frontAt(H, snoot.b.z) - frontAt(bare, snoot.b.z)).toBeGreaterThan(G.noseLength * 0.6);
+    // (a point: thinner at its tip than at its root, and skin there, not the pad's paint)
+    expect(snoot.r[2]).toBeLessThan(snoot.r[0] / 3);
+    expect(H.paint({ x: 0, y: frontAt(H, snoot.b.z) * V, z: snoot.b.z * V })).toBeNull();
+    // (the chin drawn down and forward of the jaw's own)
+    const chin = H.vajras.find((w) => w.name === 'chinTip');
+    expect(chin.b.z).toBeLessThan(chin.a.z); expect(chin.b.y).toBeGreaterThan(chin.a.y);
+    // (the ears swept: their tips further back than the same ears upright, their length kept)
+    const tip = (X) => X.vajras.find((w) => w.name === 'earR'), len = (w) => Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y, w.b.z - w.a.z);
+    expect(tip(H).b.y).toBeLessThan(tip(bare).b.y - 0.3);
+    expect(len(tip(H))).toBeCloseTo(len(tip(bare)), 1);
+    // (and a skull that names none of the three is as it was: no such mass, its ear's line its own)
+    const W0 = relationalCreatureHead({ preset: Object.keys(CREATURE_HEADS).find((k) => !(CREATURE_HEADS[k].noseLength > 0)) });
+    expect(W0.vajras.some((w) => w.name === 'snoot' || w.name === 'chinTip')).toBe(false);
   });
 
   it('tells its skulls apart by their relations, and is deterministic', () => {

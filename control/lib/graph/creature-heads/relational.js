@@ -26,7 +26,12 @@
  *   the teeth     dentition ('canid' | 'felid': creature-heads/dentition.js), fang (the canines' length, a share of the
  *                 dentition's own)
  *   the ears      earSize (the ear's height), earWidth (its base, a share of its height), earSet (0 on the side … 1 on
- *                 the top), earTilt (degrees out from the vertical), earPoint (0 round … 1 pointed)
+ *                 the top), earTilt (degrees out from the vertical), earPoint (0 round … 1 pointed), earSweep (degrees
+ *                 the ear is laid back toward the back of the skull; 0: upright in its tilt)
+ *   a long nose   noseLength (a nose of its own: a cone from under the brow out past the muzzle's front to a point, its
+ *                 length past the muzzle; 0: none, the muzzle's pad the nose), noseWidth (its root's breadth), noseDrop
+ *                 (how far its tip falls below its root)
+ *   a chin        chinPoint (0 … 1: the chin drawn out to a point forward and down of the jaw's front; 0: the jaw's own)
  *
  *   relationalCreatureHead({ preset, relations, globes, ears }) → { field, bounds, points, paint(p), relations, vajras,
  *     globes, earFields }: `globes: false` leaves the eyes' globes out of the field (their sockets kept) and `ears: false`
@@ -48,7 +53,8 @@ export const CREATURE_RELATIONS = Object.freeze({
   mouthLine: 0.3, gape: 0.62, jawDepth: 0.2, chin: 0.12,
   cheekWidth: 0.92, cheekFull: 0.11,
   eyeSize: 0.085, eyeSet: 0.6, eyeHeight: 0.6, pupil: 'round', iris: 0.45, dentition: 'canid', fang: 1,
-  earSize: 0.5, earWidth: 0.55, earSet: 0.75, earTilt: 18, earPoint: 0.8,
+  earSize: 0.5, earWidth: 0.55, earSet: 0.75, earTilt: 18, earPoint: 0.8, earSweep: 0,
+  noseLength: 0, noseWidth: 0.16, noseDrop: 0.1, chinPoint: 0,
 });
 export const CREATURE_RELATION_NAMES = Object.freeze(Object.keys(CREATURE_RELATIONS));
 
@@ -62,6 +68,15 @@ export const CREATURE_HEADS = Object.freeze({
   felid: Object.freeze({ craniumLength: 0.88, cephalic: 0.9, crown: 0.09, muzzle: 0.2, muzzleWidth: 0.46, muzzleDepth: 0.3, taper: 0.8, muzzleDrop: 0.06, stop: 0.06,
     nosePad: 0.045, whisker: 0.95, mouthLine: 0.28, gape: 0.7, jawDepth: 0.16, chin: 0.06, cheekWidth: 1.02, cheekFull: 0.14,
     eyeSize: 0.125, eyeSet: 0.86, eyeHeight: 0.58, pupil: 'slit', iris: 0.1, dentition: 'felid', earSize: 0.48, earWidth: 0.72, earSet: 0.62, earTilt: 24, earPoint: 0.65 }),
+  // the goblin: a small round vault under a heavy brow, a short broad muzzle that is all mouth (its corners back under
+  // the eyes) over a chin drawn to a point, a long nose of its own carried over it to a point straight ahead, big forward
+  // eyes with slit pupils, and long thin ears set low on the sides, laid out and swept back past the skull
+  goblin: Object.freeze({ craniumLength: 0.82, cephalic: 0.92, crown: 0.05, brow: 0.11, stop: 0.12,
+    muzzle: 0.3, muzzleWidth: 0.42, muzzleDepth: 0.3, taper: 0.75, muzzleDrop: 0.05, nosePad: 0.02, whisker: 0,
+    mouthLine: 0.3, gape: 1.15, jawDepth: 0.18, chin: 0.05, chinPoint: 1, cheekWidth: 1.0, cheekFull: 0.09,
+    noseLength: 0.68, noseWidth: 0.2, noseDrop: 0.12,
+    eyeSize: 0.12, eyeSet: 0.8, eyeHeight: 0.58, pupil: 'slit', iris: 0.2, fang: 0.5,
+    earSize: 1.2, earWidth: 0.2, earSet: 0.05, earTilt: 78, earPoint: 1, earSweep: 60 }),
 });
 
 const v3 = (x, y, z) => ({ x, y, z });
@@ -82,7 +97,12 @@ export function creaturePoints(R) {
   const zyX = halfW * R.cheekWidth, eyeX = halfW * (0.95 - 0.55 * R.eyeSet), eyeY = g.y - 0.04 + 0.06 * R.eyeSet;
   const eye = v3(eyeX, eyeY, R.eyeHeight);
   const earBase = v3(halfW * (1 - 0.55 * R.earSet), -0.08 * L, 0.74 + 0.2 * R.earSet);
-  const tilt = deg(R.earTilt), earTip = v3(earBase.x + Math.sin(tilt) * R.earSize, earBase.y - 0.12 * R.earSize, earBase.z + Math.cos(tilt) * R.earSize);
+  // (the ear's line from its base: out by its tilt, a little back; SWEPT back by `earSweep`, the line turned toward the
+  // back of the skull by that angle about its own foot, its length kept. An ear with no sweep is as it was)
+  const tilt = deg(R.earTilt);
+  let earTip = v3(earBase.x + Math.sin(tilt) * R.earSize, earBase.y - 0.12 * R.earSize, earBase.z + Math.cos(tilt) * R.earSize);
+  if (R.earSweep) { const L0 = Math.hypot(1, 0.12), back = Math.atan(0.12) + deg(R.earSweep), out = L0 * Math.cos(back) * R.earSize;
+    earTip = v3(earBase.x + Math.sin(tilt) * out, earBase.y - L0 * Math.sin(back) * R.earSize, earBase.z + Math.cos(tilt) * out); }
   return { g, op, crown, n, root, prn, tip, ch, gn, go, eye, earBase, earTip, halfW, zyX, depth0, depth1, zM };
 }
 
@@ -108,6 +128,10 @@ function creatureVajras(R, P) {
   const noseC = v3(0, prn.y - R.nosePad * 0.75, top1 - R.nosePad * 0.45);
   add('nose', v3(0, noseC.y - R.nosePad * 0.3, noseC.z + R.nosePad * 0.15), noseC, v3(0, noseC.y, noseC.z - R.nosePad * 0.3), [R.nosePad * 0.8, R.nosePad, R.nosePad * 0.8]);
   W.at(-1).blend = 0.03;
+  // A NOSE OF ITS OWN (`noseLength` > 0): a cone from the muzzle's top under the brow, out over the mouth and past the
+  // muzzle's front, tapering to a point; a feature at a narrow blend, so the muzzle's fillet does not swallow it
+  if (R.noseLength > 0) { const r0 = R.noseWidth / 2, a = v3(0, n.y + 0.04, n.z - 0.02 - r0 * 0.5), b = v3(0, prn.y + R.noseLength, a.z - R.noseDrop);
+    add('snoot', a, lerp(a, b, 0.5), b, [r0, r0 * 0.62, 0.014]); W.at(-1).blend = 0.05; }
   // THE WHISKER PADS: the upper lip's masses either side under the nose, their foot on the mouth's line
   const pad = R.whisker * 0.1;
   if (pad > 0.005) { add('whisker', v3(pad * 0.95, prn.y - pad * 0.55, zM + pad * 0.85), v3(pad * 1.15, prn.y - pad * 1.1, zM + pad * 0.85), v3(Math.max(pad * 1.3, w1 * 0.8), prn.y - pad * 2.2, zM + pad * 0.8), [pad, pad, pad * 0.85], true);
@@ -117,6 +141,9 @@ function creatureVajras(R, P) {
   const rJ = R.jawDepth / 2, chinY = prn.y - R.chin;
   add('jaw', v3(go.x * 0.85, go.y - 0.02, go.z + rJ), v3(Math.max(0.03, w0 * 0.72), ch.y, zM - rJ), v3(0.04, chinY - rJ * 0.8, zM - rJ * 0.95), [rJ * 1.2, rJ, rJ * 0.8], true);
   if (pad > 0.005) { add('chinPad', v3(0, chinY - rJ * 1.2, zM - rJ * 0.9), v3(0, chinY - rJ * 0.9, zM - rJ), v3(0, chinY - rJ * 0.7, zM - rJ * 1.1), [pad * 0.55, pad * 0.6, pad * 0.5]); W.at(-1).blend = 0.06; }
+  // A POINTED CHIN (`chinPoint` > 0): a cone from the jaw's front, forward and down to a point, at a narrow blend
+  if (R.chinPoint > 0) { const a = v3(0, chinY - rJ * 0.9, zM - rJ * 1.0), b = v3(0, chinY + 0.16 * R.chinPoint, zM - rJ * 1.0 - 0.2 * R.chinPoint);
+    add('chinTip', a, lerp(a, b, 0.5), b, [rJ * 0.75, rJ * 0.45, 0.014]); W.at(-1).blend = 0.06; }
   add('throat', v3(0, -0.2, 0.22), v3(0, (ch.y - 0.2) / 2, zM - rJ * 1.1), v3(0, ch.y, zM - rJ * 1.05), [0.2, 0.15, rJ * 0.95]);
   // (the mouth's line, for its groove: the corners at the jaw's breadth under the eye, the front where the lips meet)
   P.mouth = { corner: v3(w0 * 0.92, ch.y, zM + 0.005), front: v3(0, y1 + ru1 * 0.15, zM + 0.004) };

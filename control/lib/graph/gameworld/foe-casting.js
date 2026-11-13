@@ -35,6 +35,9 @@ import { FOE_CLASSES } from '../foes/index.js';
 import { ATTACKS, MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { peopleSeed } from '../foes/people.js';
+import { LINEAGES } from '../egocube/ancestry.js';
+import { HEIGHT } from '../egocube/plan.js';
+import { ARMORY_ARMS } from '../equipment/armory.js';
 import { fitOfPeople } from '../foes/fit.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -64,10 +67,15 @@ export const ROLES = Object.freeze({
 /** The peoples each era fields its foes from (egocube/ancestry.js lineages); an era without a row fields beasts. */
 export const ERA_PEOPLES = Object.freeze({
   myth: ['undead', 'skeleton', 'infernal'],
-  rustic: ['orcish', 'lupine', 'sylvan'],
+  rustic: ['goblin', 'orcish', 'lupine', 'sylvan'],
   modern: ['human'],
   future: ['insectoid', 'human'],
 });
+/** What a people that swings a blow carries in its right hand, by lineage (equipment/armory.js rows): its rank and
+ * file's arm and its leaders' (the elite, the boss). A lineage with no row fights with what its own roll gives it; a
+ * new people's arms is a row. */
+const CLUBS = Object.freeze({ file: 'cudgel', lead: 'spiked-club' });
+export const PEOPLE_ARMS = Object.freeze({ goblin: CLUBS, orcish: CLUBS });
 /** The crews a person cast is dressed as, by era (foes/dress.js: the comic hero pack's grunt factions); a game whose
  * minds hunt or guard as soldiers do (MILITARY) takes the first, any other one rolled from the row. */
 export const ERA_DRESS = Object.freeze({
@@ -185,13 +193,18 @@ export function castingCall(world) {
     // a shot does, straight and at once (an automatic's hitscan, combos.js SIDEARM_MODES `auto`: an arrow's flight and
     // drop is no answer to a rifle at thirty metres), and then it stands where it is; else it is a flanker on foot. The
     // boss is cast before the elite, the heaviest such body its own.
+    // EACH SWINGS A BLOW OF ITS OWN (a `strike`: a wind-up, a contact, a recovery the hero reads and trades with), from
+    // the first foe on: a charge down a line and a touch are a beast's lessons (step aside, stomp it), not the blade's.
+    // The elite is such a class a rank up, the grunt's own where no other is left (the bigger one of its kind), never
+    // the boss's heavier body. Where the shelf has no such class left, one that meets the blade as before.
     const meets = (c) => reachOf(c) === 'near' && !counters(c) && !MOVES[c.move]?.rule?.flier;
+    const swings = (c) => meets(c) && c.attack.kind === 'strike';
     const answers = (kit?.ranged ?? []).some((G) => G.mode === 'auto');
-    take('grunt', (c) => c.threat <= 3 && meets(c), (c) => c.threat <= 3 && reachOf(c) !== 'calls');
-    take('harrier', answers ? (c) => c.threat <= 3 && reachOf(c) === 'far' && c.move === 'hold' : (c) => c.threat <= 3 && meets(c),
-      (c) => c.threat <= 3 && reachOf(c) !== 'calls' && reachOf(c) !== reachOf(cast.grunt.c));
+    take('grunt', (c) => c.threat <= 3 && swings(c), (c) => c.threat <= 3 && meets(c), (c) => c.threat <= 3 && reachOf(c) !== 'calls');
+    take('harrier', answers ? (c) => c.threat <= 3 && reachOf(c) === 'far' && c.move === 'hold' : (c) => c.threat <= 3 && swings(c),
+      (c) => c.threat <= 3 && meets(c), (c) => c.threat <= 3 && reachOf(c) !== 'calls' && reachOf(c) !== reachOf(cast.grunt.c));
     take('boss', (c) => c.threat >= 3 && meets(c), (c) => c.threat >= 3);
-    take('elite', (c) => c.threat >= 2 && meets(c), (c) => c.threat >= 2);
+    take('elite', (c) => c.threat >= 2 && c.threat <= 3 && swings(c), (c) => c.threat >= 2 && meets(c), (c) => c.threat >= 2);
   } else {
     take('grunt', (c) => c.threat <= 3 && reachOf(c) !== 'calls');
     take('harrier', (c) => c.threat <= 3 && reachOf(c) !== 'calls' && reachOf(c) !== reachOf(cast.grunt.c));
@@ -199,13 +212,20 @@ export function castingCall(world) {
     take('boss', (c) => c.threat >= 3);
   }
 
+  // (a people's RANK AND FILE stands at its lineage's smallest build, its elite and its boss at their own roll grown by
+  // their rank: the goblin under the orc. A person dressed as a crew takes its build from its dress)
+  const small = people && !F && LINEAGES[people]?.builds?.length ? [...LINEAGES[people].builds].sort((a, b) => HEIGHT[a] - HEIGHT[b])[0] : null;
   const bossRank = ['miniboss', 'boss'].includes(mind.rank) ? mind.rank : 'boss';
   const skill = mind.skill && mind.skill !== 'regular' ? mind.skill : null;
   const foes = {}, roles = [];
   // (said in the roles' order of record, whichever was cast first)
   for (const [role, x] of Object.keys(ROLES).filter((r) => cast[r]).map((r) => [r, cast[r]])) {
     const rank = role === 'boss' ? bossRank : ROLES[role].rank;
-    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}) } : null;
+    const file = rank === 'minion' && small && fitOfPeople(x.c.id, { people, facets: { build: small } }).ok ? { facets: { build: small } } : {};
+    // (a people that swings a blow carries its lineage's arm: PEOPLE_ARMS; a dressed person carries its crew's kit)
+    const arm = !F && x.c.attack.kind === 'strike' ? PEOPLE_ARMS[people]?.[rank === 'minion' ? 'file' : 'lead'] : null;
+    const armed = arm ? { gear: { right: { ...ARMORY_ARMS[arm], laws: 2 } } } : {};
+    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...file, ...armed, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}) } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };

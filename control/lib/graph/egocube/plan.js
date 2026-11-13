@@ -874,7 +874,11 @@ export function planFromSheet(sheet, { title, dress, gen } = {}) {
   if (gen !== 6 && beastOnTiered(sheet)) {
     const built = beastOf(sheet, dress);
     const thesis = `${sheet.ancestry.reads} on the tiered body${built.read ? ', composed from its notes' : ''}: ${built.legs}, ${built.head.standIn ? 'a person\'s head' : `the ${built.head.id} head`}${built.cover !== 'none' ? `, ${built.cover} as its material` : ''}`;
-    return { door: 'hero', beast: true, thesis, create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: beastLedger(sheet, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+    // (THE GAME'S TRADITION IS THE BODY'S RULE, for a beast as for a person (setting.js): rolled in an anime game's
+    // setting it stands under the character light, flat tones stepped once and inked, so it is drawn as the game's
+    // people are and not smooth-shaded beside them; any other setting, as it was)
+    const lit = sheet.setting?.tradition === 'anime' ? { toon: { light: true } } : {};
+    return { door: 'hero', beast: true, thesis, create: { as: 'hero', title: name, spec: built.spec, ...lit }, after: [], ledger: beastLedger(sheet, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }
   if (door === 'creature') {
     const built = creature(sheet, name);

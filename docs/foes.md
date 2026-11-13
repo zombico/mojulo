@@ -94,6 +94,22 @@ the realistic body.
 Every body an entry stands wears the entry's one figure, so a squad of one entry is one soldier repeated; two entries
 of one faction and colourway are two soldiers of one crew.
 
+### Skin: a people, what it carries and where it stands
+
+`skin: { people, facets?, gear? }` is a person or a non-human people (`foes/people.js`, the lineages of
+`egocube/ancestry.js`). `gear` is what its hands carry, in the hero door's own words (`{ right: { item, … } }`): the
+book's card says it under Who, by the armory's name where the build is one of its rows (`equipment/armory.js`).
+
+A people whose body is not a person's is a KIN: a card of anatomy words on the game's own rig (`beast/cards.js`) and a
+head from the creature library. A kin's card can name a head of its own (`head`: a relational skull,
+`creature-heads/relational.js`, and its size on the body) and where it stands (`stands`: its share of a person's
+height in its rest, which the foe shelf measures it by and the book's lineup draws it at). The goblin is the first
+such kin: a skull with a long nose of its own over a wide mouth, a pointed chin and ears swept back, on a small
+hunched body with its knees forward. A new kin is a lineage row, a card and, where it needs one, a skull.
+
+A kin rolled in an anime game's setting stands under the character light, as that game's people do (`egocube/plan.js`):
+flat tones stepped once and inked, so a cast of beasts is drawn in the game's own style beside its hero.
+
 ### Relations: a summoner and its summons
 
 A relation is between foes, not inside one: each body stays its own layer 0, and the relation reads only the contract
@@ -192,7 +208,16 @@ cast stays on the stand-in beasts. A cast of people is dressed as one crew (`ERA
 soldier's for a game whose minds are soldiers': a shooter, a stealth game), its colourway rolled, each role the kind its
 class reads as by what the kind carries (a class on watch, a kind whose arms are stowed; one that fires, a long gun at
 the ready; the boss or a heavy class, the heaviest build). The grunt and harrier stand on every walk or building, the elite from the middle
-on, and one boss alone on the last, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
+on, and one boss alone on the last, won by clearing it.
+
+A hero that plays strings (the cube's moveset, or a kit its world or its feel's template carries) meets foes that swing
+a blow from the first one on: the grunt, the flanker and the elite are cast from the classes that strike, never one
+that charges down a line or hurts by a touch, and never a mind whose counter a string cannot answer; the elite is such a
+class a rank up. A people's rank and file stands at its lineage's smallest build, its elite and boss at their own
+roll, and a people that swings a blow carries its lineage's arm (`PEOPLE_ARMS`: a cudgel for the rank and file, a
+spiked club for its leaders, from the armory). In a world armed with a kit the book numbers each foe on the kit's
+scale (the strings its rank takes and the health that is, `gameworld/arsenal.js`) and writes a boss's phases as its
+levels carry them. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.
 
 ### Variants: a beast grown by oozes

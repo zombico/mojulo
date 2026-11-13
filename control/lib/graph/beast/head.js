@@ -31,6 +31,7 @@ import { readTarget, pxPerMetre, DEFAULT_TARGET } from '../era/target.js';
 import { planHeight } from '../era/cast-density.js';
 import { beastCoverOf } from './cover.js';
 import { CREATURE_HEADS, CREATURE_RELATIONS } from '../creature-heads/relational.js';
+import { BEAST_KINS } from './cards.js';
 import { wornHead, CREATURE_WEAR } from '../creature-heads/worn.js';
 import { DENTITIONS } from '../creature-heads/dentition.js';
 
@@ -55,7 +56,9 @@ export const BEAST_HEADS = Object.freeze(['person', ...Object.keys(HEAD_LIBRARY)
 export const DESIGNED_HEAD_KEYS = Object.freeze(['from', 'name', 'moves', 'eye', 'regions', 'ornaments', 'palette']);
 export const isDesigned = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.from === 'string';
 /** a RELATIONAL head's words (creature-heads/relational.js): its skull, and its relations over the skull's */
-export const RELATIONAL_HEAD_KEYS = Object.freeze(['relational', 'relations']);
+export const RELATIONAL_HEAD_KEYS = Object.freeze(['relational', 'relations', 'scale']);
+/** a relational head's size on its body, a ratio of the size its figure's height gives it (a small body under a big head) */
+export const HEAD_SCALE = Object.freeze([0.5, 2.5]);
 export const isRelationalHead = (w) => !!w && typeof w === 'object' && !Array.isArray(w) && typeof w.relational === 'string';
 /** the relations that take a word, and their words */
 const WORD_RELATIONS = Object.freeze({ pupil: Object.freeze(['round', 'slit']), dentition: Object.freeze(Object.keys(DENTITIONS)) });
@@ -64,6 +67,7 @@ export function relationalHeadErrors(w) {
   const errs = [];
   for (const k of Object.keys(w)) if (!RELATIONAL_HEAD_KEYS.includes(k)) errs.push(`beast.head.${k}: not a word of a relational head (${RELATIONAL_HEAD_KEYS.join(', ')})`);
   if (!CREATURE_HEADS[w.relational]) errs.push(`beast.head.relational: the skull (${Object.keys(CREATURE_HEADS).join(' | ')})`);
+  if (w.scale !== undefined && !(Number.isFinite(w.scale) && w.scale >= HEAD_SCALE[0] && w.scale <= HEAD_SCALE[1])) errs.push(`beast.head.scale: ${HEAD_SCALE[0]} … ${HEAD_SCALE[1]}, the head's size against the one its figure's height gives it`);
   if (w.relations !== undefined) {
     if (!w.relations || typeof w.relations !== 'object' || Array.isArray(w.relations)) errs.push('beast.head.relations: an object of relations');
     else for (const [k, v] of Object.entries(w.relations)) {
@@ -86,12 +90,13 @@ export function designedHeadErrors(w) {
 
 export function beastHeadOf(hero) {
   const card = beastCard(hero); if (!card) return null;
-  const word = hero.beast.head;
+  // (its own word, else its kin's card's where the kin's head is not a library skull's: cards.js `head`)
+  const word = hero.beast.head ?? BEAST_KINS[hero.beast.kin]?.head;
   if (word === 'person') return null;
   const H = (() => {
     if (word && HEAD_LIBRARY[word]) return { id: word };
     // (the relational head: its skull and relations, an ooze's growth on it)
-    if (isRelationalHead(word)) return { relational: word.relational, ...(word.relations ? { relations: word.relations } : {}), ...(card.ooze?.headScale ? { scale: card.ooze.headScale } : {}) };
+    if (isRelationalHead(word)) return { relational: word.relational, ...(word.relations ? { relations: word.relations } : {}), ...(word.scale || card.ooze?.headScale ? { scale: (word.scale ?? 1) * (card.ooze?.headScale ?? 1) } : {}) };
     // (a head DESIGNED from a library skull, the creature-from-sheet catalyst's way: its derivation, creature-heads/derive.js)
     if (isDesigned(word) && HEAD_LIBRARY[word.from]) return { id: word.from, derive: word };
     // (a hero that names a head of its own wears it; the door keeps the beast's own head word on the stored record)

@@ -120,7 +120,7 @@ describe('the beast-kin on the tiered body', () => {
 
   it('the door refuses what the tiered body does not stand', () => {
     const errs = (beast, extra = {}) => validateHeroSpec(beastWords({ form: 'tiered', cast: 'male', beast, ...extra })).join('\n');
-    expect(errs({ kin: 'goblin' })).toMatch(/beast\.kin: one of/);
+    expect(errs({ kin: 'no-such-kin' })).toMatch(/beast\.kin: one of/);
     expect(errs({ kin: BARREL, legs: 'hooved' })).toMatch(/beast\.legs/);
     expect(errs({ kin: BARREL, toes: 6 })).toMatch(/beast\.toes/);
     expect(errs({ kin: BARREL, fingers: 2 })).toMatch(/beast\.fingers/);

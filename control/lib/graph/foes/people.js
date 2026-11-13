@@ -30,6 +30,7 @@ import { HEIGHT, AGE_SCALE } from '../egocube/plan.js';
 import { FACETS } from '../egocube/facets.js';
 import { classOfExtent } from '../fauna/size-class.js';
 import { MOVES } from './vocab.js';
+import { BEAST_KINS } from '../beast/cards.js';
 import { readDress } from './dress.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
 
@@ -61,7 +62,10 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
 
 export function peopleBody(skin) {
   const S = readPeopleSkin(skin), f = S.facets ?? {};
-  const h = r3((HEIGHT[f.build] ?? HEIGHT.canonical) * (AGE_SCALE[f.age] ?? AGE_SCALE.adult));
+  // (a kin that stands well under a person, its legs short and its back hunched, at its card's share: beast/cards.js `stands`)
+  // (and a lineage of one build stands at it where its skin names none: its roll can be no other)
+  const only = LINEAGES[S.people]?.builds?.length === 1 ? LINEAGES[S.people].builds[0] : null;
+  const h = r3((HEIGHT[f.build ?? only] ?? HEIGHT.canonical) * (AGE_SCALE[f.age] ?? AGE_SCALE.adult) * (BEAST_KINS[S.people]?.stands ?? 1));
   return { support: 'two', wings: false, swimmer: false, size: classOfExtent(h, h), extent: h, height: h, scale: 1, gaits: ['walk', 'jog', 'run'], people: S.people };
 }
 
