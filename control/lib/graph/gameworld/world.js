@@ -58,6 +58,9 @@
                                          // — a lap or a stage, by preset name or course spec, on its own ground; a
                                          // race on it reads its contract (its checkpoints, grid and racing line)
        airspace?: { map?: { form?, field?, craft?, ceiling? }, ground?: { land?, heartbeat?, scale?, pads?, geocube? }, course?: true | { gates?, laps?, land? } },
+       obstacles?: true | { slots?, rest? },   // in place of `walk`: the level is an obstacle course run at speed
+                                         // (roll-course.js): a lane of slots a seed fills with a hurdle, a block or
+                                         // posts, spaced by what its hero needs in seconds; every play another course
        runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
@@ -113,6 +116,7 @@
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
 import { readWorldRoll } from './roll-lower.js';
+import { readObstacles } from './roll-course.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { STAGE_KITS, resolveKitId, stageKit, isGroundKit, GROUND_KITS, roomKitDoor } from '../era/stage.js';
 import { readScenes } from '../playscape/ui/scenes.js';
@@ -259,7 +263,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'obstacles'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -651,6 +655,10 @@ export function readGameworld(W) {
       const { enter: En, ...town } = L.geotown;
       if (En !== undefined && !(Array.isArray(En) && En.length <= 6 && En.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.geotown.enter is the uses entered at their door (['shop', 'hall', 'dwelling'], the default: the nearest the walk of each), [] for none`);
       try { readGeotown(town); } catch (e) { throw new Error(`gameworld: ${at}.geotown: ${e.message.replace(/^geotown:\s*/, '')}`); }
+    } else if (L.obstacles !== undefined) {
+      // an obstacle course: a lane of slots a seed fills, run at speed (roll-course.js), sized for the world's hero
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: an obstacle course is the lane alone: no walk, building, city, roadway, airspace, runner, places, ground or arena beside it`);
+      try { readObstacles(L.obstacles); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
     } else if (L.runner !== undefined) {
       // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
@@ -951,6 +959,8 @@ export function resolveLevel(world, id) {
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
+  // an obstacle course: its settings (levels.js lays the lane for the world's hero)
+  if (L.obstacles) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, obstacles: readObstacles(L.obstacles) };
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {

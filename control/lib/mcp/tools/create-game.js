@@ -112,9 +112,18 @@ export async function rolledPlan(levelRef, plan, { payloadOf = rolledPayload } =
   return route && route.length ? { ...plan, waypoints: route } : plan;
 }
 /** The seeds audit of every level that rolls: [{ ref, seeds, ways, distinct, ok, laws, failed }] (none: []). */
-export async function rollReports(levelRefs, { payloadOf = rolledPayload, seeds, plays } = {}) {
+const rolledCourse = async (levelRef) => { const m = SketchRepository.getByRef(levelRef)?.manifest; return m?.obstacles ? (await import('@/lib/graph/gameworld/roll-course')).courseOfLevel(m) : null; };
+export async function rollReports(levelRefs, { payloadOf = rolledPayload, courseOf = payloadOf === rolledPayload ? rolledCourse : null, seeds, plays } = {}) {
   const out = [];
   for (const ref of levelRefs) {
+    // a level that is an obstacle course (gameworld/roll-course.js): its things are jumped and steered round, never
+    // walked round, so it is the reaction bot that plays it, not the walk
+    const course = courseOf ? await courseOf(ref) : null;
+    if (course) {
+      const A = (await import('@/lib/graph/gameworld/roll-course')).courseAudit(course, { ...(seeds ? { seeds } : {}) });
+      out.push({ ref, seeds: A.seeds, ways: course.ways, ok: A.ok, laws: A.laws, course: { gap: course.gap, sight: course.sight, react: course.react }, gate: 'machine: a sample of seeds played in Node by the reaction bot (it sees only so far ahead and acts a reaction time after); whether the course reads as designed is the eyes gate' });
+      continue;
+    }
     let payload = null;
     try { payload = await payloadOf(ref); } catch (e) { out.push({ ref, ok: false, note: `its roll could not be read: ${e.message}` }); continue; }
     if (!payload) continue;

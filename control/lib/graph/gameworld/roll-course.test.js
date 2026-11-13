@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { paceOf, courseOf, playCourse, courseAudit, PRIMITIVES, LANES, REACT, REST } from './roll-course.js';
+import { paceOf, courseOf, playCourse, courseAudit, courseOfLevel, readObstacles, PRIMITIVES, LANES, REACT, REST } from './roll-course.js';
+import { runSteps, readGameworld } from './index.js';
+import { rollReports } from '@/lib/mcp/tools/create-game';
 import { rollRoom, rollRoomMeasured, layoutOf } from './roll-room.js';
 import { feelRule } from './feel/lower.js';
 import { POLES } from './feel/cards.js';
@@ -116,5 +118,43 @@ describe('the roll room of a hero that runs on momentum', () => {
     expect(M.course.sight).toBe(courseOf({ feel: MOMENTUM }).sight);
     expect(M.forms).toBeUndefined();
     expect(rollRoomMeasured({ id: 'g', feel: FOOT, roll: true }).layout).toBe('yard');
+  });
+});
+
+describe('a level that is an obstacle course (a world level\'s `obstacles`)', () => {
+  const world = (obstacles, extra = {}) => ({ id: 'dash', name: 'Dash', feel: MOMENTUM, levels: { one: { name: 'The Lane', obstacles, ...extra } }, start: 'one' });
+  const made = (obstacles) => runSteps(world(obstacles), { ref: 'gw' }).find((s) => s.key.startsWith('level-')).order.manifest;
+
+  it('the word, read: true, or how many slots and how long a rest; alone on its level; the malformed refused', () => {
+    expect(readObstacles(true)).toEqual({ slots: 10, rest: REST });
+    expect(readObstacles({ slots: 6 })).toEqual({ slots: 6, rest: REST });
+    expect(() => readObstacles({ slots: 2 })).toThrow(/4 to 40/);
+    expect(() => readObstacles({ rest: 9 })).toThrow(/0\.2 to 3/);
+    expect(() => readObstacles({ lanes: 5 })).toThrow(/not a course's setting \(slots, rest\)/);
+    expect(() => readGameworld(world(true, { walk: { nodes: { path: { trail: {} } } } }))).toThrow(/an obstacle course is the lane alone/);
+    expect(() => readGameworld(world('fast'))).toThrow(/obstacles is true or \{ slots\?, rest\? \}/);
+  });
+
+  it('a run lays it: the lane for the world\'s hero, its things as the level\'s blocks, a roll over them, the exit at its end', () => {
+    const M = made({ slots: 6 }), C = courseOf({ feel: MOMENTUM }, { slots: 6 });
+    expect(M.blocks.map((b) => b.id)).toEqual(C.blocks.map((b) => b.id));
+    expect(M.roll).toEqual(C.roll);
+    expect(M.obstacles).toMatchObject({ gap: C.gap, sight: C.sight, react: REACT });
+    expect(M.game.mechanics.find((m) => m.kind === 'reach-exit').at).toEqual(C.exit);
+    expect(M.entities[0].rule).toMatchObject({ type: 'platform', speed: feelRule(MOMENTUM).speed });
+    expect(M.entities[0].transform.heading).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('the made level, read back, is the course it was laid as, and the bot plays it fair', async () => {
+    const M = made({ slots: 6 }), back = courseOfLevel(M), laid = courseOf({ feel: MOMENTUM }, { slots: 6 });
+    expect(back.slots).toEqual(laid.slots);
+    expect(back.pace.top).toBeCloseTo(laid.pace.top, 1);
+    expect(courseOfLevel({ entities: M.entities })).toBeNull();
+    // create_game's readout: a course is played by the bot (its things are jumped, never walked round)
+    const R = await rollReports(['lane'], { payloadOf: async () => null, courseOf: async () => back, seeds: 6 });
+    expect(R).toHaveLength(1);
+    expect(R[0]).toMatchObject({ ref: 'lane', seeds: 6, ok: true, course: { gap: laid.gap, sight: laid.sight, react: REACT } });
+    expect(R[0].laws.map((l) => l.law)).toEqual(['fair', 'finishes', 'apart']);
+    expect(R[0].gate).toMatch(/^machine: .*reaction bot.*eyes gate$/);
   });
 });

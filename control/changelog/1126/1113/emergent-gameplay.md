@@ -42,6 +42,10 @@ capture and the level played in Node show).
   roll is fair by how it is laid. Its audit is the reaction bot: it sees only so far ahead and acts a reaction time
   after; the laws are fair (a 0.4 s reaction with the sight the course asks runs every sampled seed clean), finishes
   (a 0.8 s one still does) and apart. The sight a course asks is (its need + the reaction) x the hero's speed.
+- A level that is an obstacle course: a gameworld level's `obstacles: true | { slots?, rest? }`, in place of `walk`. A
+  run lays the lane for the world's hero (sized by its measured pace), its things as the level's blocks and a roll
+  over them, the exit at its end; every play is another course. `create_game` answers with the reaction bot's audit
+  for it (the made level read back as a course: its things are jumped and steered round, never walked round).
 - The roll room's stand-in hero wears the body its game reads (`game-bodies.js`): a mascot's big head on a small body
   for a runner, a platformer or a game to collect. The rail runner's feel (the one on the pinball base) joins the mascot
   rail, so its hero reads as a mascot wherever a game's body is read from its feel.

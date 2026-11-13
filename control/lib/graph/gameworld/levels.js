@@ -51,6 +51,7 @@ import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { rollOfLevel } from './roll-lower.js';
+import { obstacleStage, obstacleEnds } from './roll-course.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests, storyActors } from './story.js';
@@ -179,6 +180,8 @@ export function gameStages(world) {
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
     if (R.runner) { out.push({ level, node: 'runner', section: 'runner', index: 0, manifest: runnerStage(R.runner) }); continue; }
+    // an obstacle course is one stage: the lane (roll-course.js), its slots filled by the level's roll, sized for the hero
+    if (R.obstacles) { out.push({ level, node: 'obstacles', section: 'obstacles', index: 0, manifest: obstacleStage(G, R.obstacles) }); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
     // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
@@ -677,7 +680,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
-  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stageEnds(stage.manifest);
+  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);

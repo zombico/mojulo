@@ -28,6 +28,11 @@
  *     fair       a player who reacts in `react` s and sees `sight` m runs every sampled seed clean (no hit)
  *     finishes   a slow player (0.8 s) who sees the same still finishes every sampled seed
  *     apart      the sample is not one course
+ *   courseOfLevel(manifest) → the course read back off a level that is one (its `obstacles`, its blocks, its roll, its
+ *                           pilot's own rule), so a made level is audited by the bot as the room's is
+ *   readObstacles(v)      → { slots, rest } checked (a level's `obstacles`: true | { slots?, rest? }), teaching
+ *   obstacleStage(G, v)   → a level's stage (gameworld/levels.js): the lane, its slots' things and the roll over them,
+ *                           sized for the world's hero; obstacleEnds(manifest) → its anchors (start, exit, flat ground)
  *   PRIMITIVES, LANES, REACT, REST
  *
  * The bot is the same on every run: it finds what is possible for a reaction and a sight, not what is comfortable.
@@ -58,10 +63,12 @@ const heroOf = (rule, y = 0) => ({ id: 'hero', pilotable: true, rule, body: { ty
 const steer = (rule, x, vx, want, sign) => { const slide = (vx * Math.abs(vx)) / (2 * (rule.accel || 7)), e = want - (x + slide); return Math.abs(e) > 0.12 ? Math.sign(e) * sign : 0; };
 
 const PACES = new Map();
-export function paceOf(feel) {
-  const key = JSON.stringify(feel ?? null);
+/** The pace of a feel's hero (see the header); `paceOfRule` the same for a rule as a level holds it. */
+export const paceOf = (feel) => paceOfRule(ruleOf(feel));
+export function paceOfRule(rule) {
+  const key = JSON.stringify(rule);
   if (PACES.has(key)) return PACES.get(key);
-  const N = live(), rule = ruleOf(feel);
+  const N = live();
   const spawn = (colliders, y = 0) => { const w = N.createWorld({ entities: [heroOf(rule, y)], colliders }); return { w, me: w.byId.hero }; };
   const a = spawn([]); let prev = 0, top = 0;
   for (let f = 0; f < 600; f++) { N.stepWorld(a.w, { forward: 1 }, DT, hooks); top = Math.max(top, (a.me.transform.pos[1] - prev) / DT); prev = a.me.transform.pos[1]; }
@@ -110,7 +117,7 @@ export function paceOf(feel) {
 const r2 = (v) => Math.round(v * 100) / 100;
 
 export function courseOf(G, { slots = 10, rest = REST, react = REACT } = {}) {
-  const feel = G?.feel ?? null, pace = paceOf(feel);
+  const feel = G?.feel ?? null, rule = ruleOf(feel), pace = paceOfRule(rule);
   // the primitives this hero can be asked: a jump it cannot make is left out of the course
   const prims = Object.keys(PRIMITIVES).filter((id) => PRIMITIVES[id].ask !== 'jump' || pace.lead[id]);
   // the neediest ask: a two-lane change, or a jump's earliest lead
@@ -133,13 +140,13 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT } = {}) {
   for (let j = -4; j < length + 4; j += tile) for (let i = -W; i < W; i += tile) faces.push({ corners: [[i, j, 0], [Math.min(W, i + tile), j, 0], [Math.min(W, i + tile), j + tile, 0], [i, j + tile, 0]], fill: (Math.round(i / tile) + Math.round(j / tile)) % 2 ? '#74767c' : '#6a6c72', group: 'room:floor', doubleSided: true });
   const colliders = [{ min: [-W - 0.5, -4, 0], max: [-HALF, length + 4, 4], hold: false }, { min: [HALF, -4, 0], max: [W + 0.5, length + 4, 4], hold: false }, { min: [-W, -4.5, 0], max: [W, -4, 4], hold: false }, { min: [-W, length + 4, 0], max: [W, length + 4.5, 4], hold: false }];
   const roll = { cover };
-  return { feel, pace, prims, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
+  return { feel, rule, pace, prims, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
 }
 
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
 function worldOf(course, seed) {
   const N = live(), read = readRoll(course.roll, { blocks: course.blocks }), B = standBlocks(course.blocks, { rolled: rolledIds(read) });
-  const w = N.createWorld({ entities: [heroOf(ruleOf(course.feel))], colliders: [...course.colliders, ...B.colliders], roll: { cover: read.cover, things: B.things } });
+  const w = N.createWorld({ entities: [heroOf(course.rule)], colliders: [...course.colliders, ...B.colliders], roll: { cover: read.cover, things: B.things } });
   const R = N.applyRoll(w, seed), stands = new Set(R.stand);
   // what stands in each slot, as the bot's eyes meet it
   const obs = course.slots.map((s) => { const bid = Object.keys(s.of).find((id) => stands.has(id)), P = PRIMITIVES[s.of[bid]]; return { k: s.k, id: s.of[bid], ask: P.ask, y0: s.y, y1: s.y + P.len, ...(P.ask === 'steer' ? { open: LANES[P.open] } : {}) }; });
@@ -196,4 +203,42 @@ export function courseAudit(course, { seeds = 12 } = {}) {
     { law: 'apart', holds: met.size > 1, says: `${met.size} different courses in ${seeds} seeds, of ${course.ways} there are` },
   ];
   return { seeds, laws, ok: laws.every((l) => l.holds) };
+}
+
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** A level's `obstacles`, read: true | { slots?: 4 … 40, rest?: 0.2 … 3 seconds }. */
+export function readObstacles(v) {
+  if (v === true) return { slots: 10, rest: REST };
+  if (!isObj(v)) throw new Error('obstacles is true or { slots?, rest? } (an obstacle course run at speed: a lane of slots a seed fills, gameworld/roll-course.js)');
+  for (const k of Object.keys(v)) if (k !== 'slots' && k !== 'rest') throw new Error(`obstacles.${k} is not a course's setting (slots, rest)`);
+  if (v.slots !== undefined && !(Number.isInteger(v.slots) && v.slots >= 4 && v.slots <= 40)) throw new Error('obstacles.slots is how many places the course has, 4 to 40');
+  if (v.rest !== undefined && !(Number.isFinite(v.rest) && v.rest >= 0.2 && v.rest <= 3)) throw new Error('obstacles.rest is the seconds of rest after each ask is met, 0.2 to 3 (0.6 unsaid)');
+  return { slots: v.slots ?? 10, rest: v.rest ?? REST };
+}
+/** A course level's stage: the lane as a world of its own, its things as `blocks`, its `roll` over them. */
+export function obstacleStage(G, v) {
+  const C = courseOf(G, readObstacles(v));
+  return { kind: 'controllable', title: 'course', bg: '#1b1d22', faces: C.faces, colliders: C.colliders, blocks: C.blocks, roll: structuredClone(C.roll),
+    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims },
+    worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };
+}
+/** A course stage's anchors: the start facing up the lane, the exit at its end, flat ground. */
+export function obstacleEnds(manifest) {
+  const c = manifest.obstacles, out = { spawn: c.start.slice(), heading: Math.PI / 2, exit: c.exit.slice(), exitFrom: 'the end of the course', planar: true, beats: [], hazards: [] };
+  for (const [k, val] of Object.entries({ ground: () => 0, rocks: null, colliders: manifest.colliders })) Object.defineProperty(out, k, { value: val, enumerable: false });
+  return out;
+}
+
+/** A made level that is a course, read back as one (see the header); null for a level that is not. */
+export function courseOfLevel(manifest) {
+  const O = manifest?.obstacles, pilot = (manifest?.entities ?? []).find((e) => e?.pilotable) ?? manifest?.entities?.[0];
+  if (!isObj(O) || !pilot?.rule || !Array.isArray(manifest.blocks) || !manifest.roll?.cover) return null;
+  // (the pilot as the bot plays it: its own rule on its feet, steered in its own frame, never the camera's)
+  const { move: _m, ...own } = pilot.rule, rule = { ...own, type: 'platform', eye: 0, collideRadius: own.collideRadius || 0.3, collideHeight: own.collideHeight || 1.7, step: own.step ?? 0.3 };
+  const pace = paceOfRule(rule), byId = new Map(manifest.blocks.map((b) => [b.id, b]));
+  const slots = manifest.roll.cover.map((g, k) => {
+    const of = Object.fromEntries(g.of.map((id) => [id, id.replace(/^s\d+-/, '')])), first = byId.get(g.of[0]);
+    return { k, y: r2(first.at[1] - PRIMITIVES[of[g.of[0]]].len / 2), of };
+  });
+  return { feel: null, rule, pace, prims: O.asks, need: O.need, rest: O.rest, react: O.react, gap: O.gap, sight: O.sight, length: O.exit[1] + 3, slots, blocks: manifest.blocks, roll: manifest.roll, ways: rollWays(readRoll(manifest.roll, { blocks: manifest.blocks })), exit: O.exit, start: O.start, colliders: manifest.colliders, faces: manifest.faces };
 }
