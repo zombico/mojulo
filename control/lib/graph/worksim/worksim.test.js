@@ -26,9 +26,32 @@ describe('the card', () => {
   });
   it('teaches what a station is', () => {
     expect(() => readCard(tiny({ stations: { cook: { verb: 'bucket', gives: { dish: 1 }, work: 1, wait: 3 } } }))).toThrow(/a bucket does not run alone/);
-    expect(() => readCard(tiny({ stations: { a: { verb: 'shovel', gives: { dish: 1 }, work: 1 }, b: { verb: 'shovel', gives: { dish: 1 }, work: 1 } } }))).toThrow(/one station an item/);
     expect(() => readCard(tiny({ stations: { a: { verb: 'shovel', takes: { y: 1 }, gives: { dish: 1 }, work: 1 }, b: { verb: 'shovel', takes: { dish: 1 }, gives: { y: 1 }, work: 1 } } }))).toThrow(/recipes loop/);
     expect(() => readCard(tiny({ demand: { mode: 'backlog', orders: [{ wants: { dish: 1 } }] } }))).toThrow(/standing job/);
+  });
+});
+
+describe('routes', () => {
+  // land graded with a hoe or a leveller: two stations give one item, the cheaper preferred, the other found when it is busy
+  const graded = (over = {}) => tiny({
+    stations: {
+      hoe: { verb: 'shovel', gives: { dish: 1 }, work: 9, slots: 2 },
+      leveller: { verb: 'shovel', gives: { dish: 1 }, work: 3, far: 2 },
+    },
+    demand: { every: 4, patience: 30, orders: [{ wants: { dish: 1 } }] }, crew: { workers: 2, travel: 1 }, ...over,
+  });
+  it('reads every route and prefers the cheapest a unit', () => {
+    const C = readCard(graded());
+    expect(C.producers.dish).toEqual(['hoe', 'leveller']);
+    expect(C.producer.dish).toBe('leveller');
+    expect(C.routes.dish.map((r) => r.station)).toEqual(['hoe', 'leveller']);
+  });
+  it('the crew takes the other route when the preferred is busy', () => {
+    const r = simulate(graded(), { seed: 1 });
+    expect(r.stations.leveller).toBeGreaterThan(0);
+    expect(r.stations.hoe).toBeGreaterThan(0);
+    const one = simulate(graded({ stations: { leveller: { verb: 'shovel', gives: { dish: 1 }, work: 3, far: 2 } } }), { seed: 1 });
+    expect(r.served).toBeGreaterThan(one.served);
   });
 });
 

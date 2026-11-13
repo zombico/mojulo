@@ -8,7 +8,8 @@
  *   2. a hand-in     the open order due soonest whose wants are all on the shelf (bucket: serve)
  *   3. a collect     any finished output (bucket), so its station is free again
  *   4. a run         the station whose output the open orders (and the crew's prep) are short of, inputs on the shelf,
- *                    a slot free, the longest chain first (start the rice before chopping the fish)
+ *                    a slot free: what runs alone first (start the rice before chopping the fish), then the step
+ *                    nearest an order (bag the piles before raking more)
  * FORESIGHT (crew.foresight, 0 to 1, default 1) is the player the session is measured against: at 1 the crew keeps made
  * ahead what the orders to come will want within each order's critical path (the farmer sows before the order, not
  * after); at 0 it only answers orders already open (a newcomer). A backlog is known whole, so it has none.
@@ -26,6 +27,7 @@
  *   stations    each station's occupancy (busy slots ÷ slots)
  *
  *   simulate(card, { seed? (1) }) → the readout
+ *   arrivalsOf(card, seed?)      → the session's orders [{ tick, at, order }], the page's and the simulator's alike
  *
  * Deterministic: integer ticks (TPS a second), one seeded stream (mulberry32) for arrivals and their mix, the card's own
  * order for every tie.
@@ -43,8 +45,7 @@ function plan(C) {
   const post = [], seen = new Set();
   const dfs = (item) => {
     if (seen.has(item)) return; seen.add(item);
-    const sid = C.producer[item];
-    if (sid) for (const i of Object.keys(C.stations[sid].takes)) dfs(i);
+    for (const sid of C.producers[item] ?? []) for (const i of Object.keys(C.stations[sid].takes)) dfs(i);
     post.push(item);
   };
   for (const o of C.demand.orders) for (const i of Object.keys(o.wants)) dfs(i);
@@ -59,7 +60,20 @@ function plan(C) {
     return memo[sid];
   };
   const crit = Object.fromEntries(ids.map((sid) => [sid, C.stations[sid].work + C.stations[sid].wait + down(sid)]));
-  const byCrit = [...ids].sort((a, b) => crit[b] - crit[a] || ids.indexOf(a) - ids.indexOf(b));
+  // the order runs are started in: what runs alone first, the longest chain first among them (start the rice before
+  // chopping the fish); then the step nearest an order (finish what can be finished: bag the piles before raking more);
+  // among an item's routes, the quickest first (the leveller before the hoe, the hoe when the leveller is busy)
+  const wanted = new Set(C.demand.orders.flatMap((o) => Object.keys(o.wants)));
+  const dmemo = {};
+  const depth = (sid) => {
+    if (dmemo[sid] !== undefined) return dmemo[sid];
+    dmemo[sid] = Infinity;
+    const item = C.stations[sid].item, next = ids.filter((t) => C.stations[t].takes[item]).map(depth);
+    return (dmemo[sid] = wanted.has(item) ? 0 : next.length ? 1 + Math.min(...next) : Infinity);
+  };
+  const urge = (sid) => crit[C.producer[C.stations[sid].item]], own = (sid) => C.stations[sid].work + C.stations[sid].wait;
+  const alone = (sid) => (C.stations[sid].wait ? 1 : 0);
+  const byCrit = [...ids].sort((a, b) => alone(b) - alone(a) || (alone(a) ? urge(b) - urge(a) : depth(a) - depth(b)) || own(a) - own(b) || ids.indexOf(a) - ids.indexOf(b));
   // foresight: what the orders to come will want within each one's critical path, kept made ahead (orders mode)
   const ahead = {};
   if (C.demand.mode === 'orders' && C.crew.foresight) {
@@ -73,32 +87,47 @@ function plan(C) {
   return { topo, byCrit, ahead };
 }
 
-export function simulate(card, { seed = 1 } = {}) {
+/**
+ * The session's orders, rolled once: [{ tick, at (seconds), order (its index in demand.orders) }] in time order. A
+ * backlog's standing job at 0, then the flow (`every`, its cadence and rushes); a backlog's regrowth stops a critical
+ * path before the bell (an order added later could not be made, and would count as left undone). The simulator and the
+ * page's mechanic (game/work-mechanics.js) play the same list, so the page's orders are the ones the solver measured.
+ */
+export function arrivalsOf(card, seed = 1) {
   const C = card.producer ? card : readCard(card);
-  const { topo, byCrit, ahead } = plan(C);
-  const D = C.demand, end = T(C.session), dice = streamOf(seed, 'worksim', C.id);
-  const stock = Object.fromEntries(topo.map((i) => [i, []]));
-  const slots = Object.fromEntries(Object.entries(C.stations).map(([sid, s]) => [sid, Array.from({ length: s.slots }, () => ({ st: 'free', until: 0, readyAt: 0 }))]));
-  const workers = Array.from({ length: C.crew.workers }, () => ({ until: 0, task: null }));
-  const open = [];
-  const R = { arrived: 0, served: 0, missed: 0, late: 0, burned: 0, spoiled: 0, overflow: 0, busy: 0, juggle: 0, peak: 0, slack: 0, labour: { shovel: 0, bucket: 0, travel: 0 }, occ: Object.fromEntries(Object.keys(C.stations).map((s) => [s, 0])) };
+  const D = C.demand, end = T(C.session), dice = streamOf(seed, 'worksim', C.id), out = [];
   const wsum = D.orders.reduce((t, o) => t + o.weight, 0);
-  const pickOrder = () => { let u = dice() * wsum; for (const o of D.orders) { u -= o.weight; if (u < 0) return o; } return D.orders[D.orders.length - 1]; };
+  const pick = () => { let u = dice() * wsum; for (let j = 0; j < D.orders.length; j++) { u -= D.orders[j].weight; if (u < 0) return j; } return D.orders.length - 1; };
   const inRush = (tick) => D.rush && ((tick / TPS) % D.rush.period) < D.rush.length;
   const gap = (tick) => {
     const mean = D.every / (inRush(tick) ? D.rush.factor : 1), u = dice();
     return Math.max(1, T(D.cadence === 'steady' ? mean * (0.8 + 0.4 * u) : -Math.log(1 - u) * mean));
   };
-  let seq = 0;
-  const arrive = (tick) => {
-    const o = pickOrder();
+  const add = (tick) => out.push({ tick, at: tick / TPS, order: pick() });
+  if (D.mode === 'backlog') for (let k = 0; k < D.backlog; k++) add(0);
+  const last = D.mode === 'backlog' ? end - T(Math.max(...D.orders.map((o) => pathOf(C, o.wants)))) : end;
+  for (let next = D.every ? T(D.first) : Infinity; next <= last; next += gap(next)) add(next);
+  return out;
+}
+
+/** The order a crew starts runs in (see plan): station ids. */
+export const runOrder = (card) => plan(card.producer ? card : readCard(card)).byCrit;
+
+export function simulate(card, { seed = 1 } = {}) {
+  const C = card.producer ? card : readCard(card);
+  const { topo, byCrit, ahead } = plan(C);
+  const D = C.demand, end = T(C.session);
+  const stock = Object.fromEntries(topo.map((i) => [i, []]));
+  const slots = Object.fromEntries(Object.entries(C.stations).map(([sid, s]) => [sid, Array.from({ length: s.slots }, () => ({ st: 'free', until: 0, readyAt: 0 }))]));
+  const workers = Array.from({ length: C.crew.workers }, () => ({ until: 0, task: null }));
+  const open = [];
+  const R = { arrived: 0, served: 0, missed: 0, late: 0, burned: 0, spoiled: 0, overflow: 0, busy: 0, juggle: 0, peak: 0, slack: 0, labour: { shovel: 0, bucket: 0, travel: 0 }, occ: Object.fromEntries(Object.keys(C.stations).map((s) => [s, 0])) };
+  const queue = arrivalsOf(C, seed);
+  let seq = 0, qi = 0;
+  const arrive = (tick, o) => {
     open.push({ id: seq++, wants: o.wants, arrive: tick, deadline: D.mode === 'backlog' ? end : tick + T(D.patience), serving: false });
     R.arrived++;
   };
-  if (D.mode === 'backlog') for (let k = 0; k < D.backlog; k++) arrive(0);
-  // a backlog's regrowth stops once an order added could no longer be made by the bell (it would count as left undone)
-  const last = D.mode === 'backlog' ? end - T(Math.max(...D.orders.map((o) => pathOf(C, o.wants)))) : end;
-  let next = D.every ? T(D.first) : Infinity;
 
   const deposit = (item, n) => { for (let k = 0; k < n; k++) { if (stock[item].length < C.items[item].store) stock[item].push(t); else R.overflow++; } };
   const room = (item, n) => stock[item].length + n <= C.items[item].store;
@@ -140,21 +169,22 @@ export function simulate(card, { seed = 1 } = {}) {
     const want = {};
     for (const o of open) if (!o.serving) for (const [i, n] of Object.entries(o.wants)) want[i] = (want[i] ?? 0) + n;
     for (const i of topo) want[i] = (want[i] ?? 0) + C.items[i].prep + (ahead[i] ?? 0);
-    const runs = {};
+    // what each item is short of, its inputs wanted through its preferred route
+    const short = {};
     for (const i of topo) {
-      const sid = C.producer[i], s = C.stations[sid];
-      const pipe = slots[sid].filter((sl) => BUSY.has(sl.st)).length * s.batch;
-      const short = Math.max(0, want[i] - stock[i].length - pipe);
-      if (!short) continue;
-      runs[sid] = Math.ceil(short / s.batch);
-      for (const [j, k] of Object.entries(s.takes)) if (!isRaw(C, j)) want[j] = (want[j] ?? 0) + runs[sid] * k;
+      const pipe = C.producers[i].reduce((t, sid) => t + slots[sid].filter((sl) => BUSY.has(sl.st)).length * C.stations[sid].batch, 0);
+      short[i] = Math.max(0, want[i] - stock[i].length - pipe);
+      if (!short[i]) continue;
+      const s = C.stations[C.producer[i]], runs = Math.ceil(short[i] / s.batch);
+      for (const [j, k] of Object.entries(s.takes)) if (!isRaw(C, j)) want[j] = (want[j] ?? 0) + runs * k;
     }
     for (const sid of byCrit) {
-      if (!runs[sid]) continue;
-      const s = C.stations[sid], k = slots[sid].findIndex((sl) => sl.st === 'free');
+      const s = C.stations[sid];
+      if (!short[s.item]) continue;
+      const k = slots[sid].findIndex((sl) => sl.st === 'free');
       if (k < 0) continue;
       if (!Object.entries(s.takes).every(([i, n]) => isRaw(C, i) || stock[i].length >= n)) continue;
-      if (!s.wait && !room(s.item, s.batch * (1 + slots[sid].filter((sl) => sl.st === 'work').length))) continue;
+      if (!s.wait && !room(s.item, s.batch + C.producers[s.item].reduce((t, p) => t + slots[p].filter((sl) => sl.st === 'work').length * C.stations[p].batch, 0))) continue;
       let fetch = 0;
       for (const [i, n] of Object.entries(s.takes)) { if (isRaw(C, i)) fetch += n * C.items[i].fetch; else stock[i].splice(0, n); }
       slots[sid][k].st = 'work';
@@ -187,7 +217,7 @@ export function simulate(card, { seed = 1 } = {}) {
       }
     }
     for (const i of topo) { const sp = T(C.items[i].spoil); while (stock[i].length && stock[i][0] <= t - sp) { stock[i].shift(); R.spoiled++; } }
-    while (next <= t && next <= last) { arrive(next); next += gap(next); }
+    while (qi < queue.length && queue[qi].tick <= t) { arrive(queue[qi].tick, D.orders[queue[qi].order]); qi++; }
     for (let k = open.length - 1; k >= 0; k--) if (!open[k].serving && open[k].deadline < t) { open.splice(k, 1); R.missed++; }
     for (const w of workers) if (!w.task) { const task = choose(); if (task) { w.task = task; w.until = t + Math.max(1, task.d); } }
     R.busy += workers.filter((w) => w.task).length;

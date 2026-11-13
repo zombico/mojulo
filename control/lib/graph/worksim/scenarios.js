@@ -4,7 +4,8 @@
  *
  *   kitchen        orders over time, near-even shovel and bucket, an unattended pot that burns: the multitasking sim
  *   farm           a shovel-heavy cycle (the tractor) with a long unattended grow and a harvest that is bucket work
- *   site           contracts on a long clock, a mixer that sets if left, a two-person crew: the scheduling sim
+ *   site           contracts on a long clock, a mixer that sets if left, a two-person crew, a trench dug by spade or by
+ *                  excavator: the scheduling sim
  *   roof           a standing job (a backlog) the wind adds to, a ladder that makes travel the cost: the chores sim
  *
  * Their numbers are seconds of play, not of life (a crop grows in a minute).
@@ -50,7 +51,9 @@ export const SCENARIOS = Object.freeze({
     crew: { workers: 2, travel: 3 },
     items: { cement: { fetch: 2 }, timber: { fetch: 2 }, trench: { store: 2 } },
     stations: {
+      // two routes to a trench: the spade (two hands, slow) or the excavator (one, quick, parked across the site)
       dig: { verb: 'shovel', gives: { trench: 1 }, work: 10, slots: 2 },
+      excavator: { verb: 'shovel', gives: { trench: 1 }, work: 3, far: 6 },
       mixer: { verb: 'shovel', takes: { cement: 1 }, gives: { concrete: 2 }, work: 2, wait: 10, hold: 12 },
       pour: { verb: 'bucket', takes: { trench: 1, concrete: 1 }, gives: { footing: 1 }, work: 3 },
       frame: { verb: 'shovel', takes: { footing: 1, timber: 2 }, gives: { frame: 1 }, work: 12, slots: 2 },

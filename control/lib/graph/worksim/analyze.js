@@ -10,6 +10,8 @@
  *   bottleneck         the highest load: the crew (hands are short) or a station (hobs are short)
  *   critical path      the fewest seconds an order can be made in, one worker, no queue: the floor under patience
  *
+ * An item with several routes (card.js) is read through its preferred, the cheapest; `routes` says each one's labour a unit.
+ *
  * It ignores queueing (two orders wanting one hob), dispatch and travel order, so it reads low under pressure; the
  * simulator (sim.js) measures what it cannot. The solver (solve.js) starts from it.
  *
@@ -82,6 +84,7 @@ export function analyze(card) {
     labour: Object.fromEntries(Object.entries(labour).map(([k, v]) => [k, round(v)])),
     shovelShare: round(labour.shovel / Math.max(1e-9, labour.shovel + labour.bucket)),
     rate: round(rate, 4), crew: round(crew), stations, bottleneck, criticalPath,
+    routes: C.routes,
     headroom: C.demand.patience === null ? null : round(C.demand.patience - criticalPath),
     // the mean seconds between orders that would load the crew to ρ (orders mode; the rush's extra kept)
     everyFor: (rho) => {

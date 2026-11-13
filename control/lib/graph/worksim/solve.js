@@ -18,6 +18,10 @@
  *      or for a backlog a better tool at the busiest shovel (output); too few → less patience, or more regrowth
  *   4. 2 and 3 again until both hold or the rounds run out: then the closest is returned, said, never refused
  *
+ * THE PLAYER. Difficulty is measured against someone: a target names its player as the crew's foresight (sim.js), a
+ * beginner's a newcomer who answers open orders only (0), an advanced's an expert who makes ahead what is coming (1).
+ * It is not a lever (it is who plays), so it is set on the card, never a move.
+ *
  * Machine gate only: the solver measures challenge. Whether it is fun at that challenge is the eyes gate's (someone plays).
  *
  *   PRESETS                    the three targets
@@ -33,19 +37,19 @@ import { simulate } from './sim.js';
 
 export const PRESETS = Object.freeze({
   beginner: {
-    challenge: 0, cadence: 'steady', rush: null, patience: 3, mix: 'simple',
+    challenge: 0, foresight: 0, cadence: 'steady', rush: null, patience: 3, mix: 'simple',
     bands: { pressure: [0.45, 0.65], miss: [0, 0.05], juggle: [0, 1], slack: [0.4, 1] },
-    says: 'orders on an even beat, the simpler half of the menu, three times the time to make each, hands busy about half the time, almost nothing lost',
+    says: 'measured against a newcomer (answers open orders only): orders on an even beat, the simpler half of the menu, three times the time to make each, hands busy about half the time, almost nothing lost',
   },
   intermediate: {
-    challenge: 0.5, cadence: 'random', rush: { period: 90, length: 20, factor: 1.5 }, patience: 2, mix: 'most',
+    challenge: 0.5, foresight: 0.5, cadence: 'random', rush: { period: 90, length: 20, factor: 1.5 }, patience: 2, mix: 'most',
     bands: { pressure: [0.65, 0.82], miss: [0.03, 0.15], juggle: [0, 2], slack: [0.2, 1] },
-    says: 'orders when they come, a mild rush now and then, all but the hardest dish, twice the time to make each, hands mostly busy, a few lost',
+    says: 'measured against a player who makes some ahead: orders when they come, a mild rush now and then, all but the hardest dish, twice the time to make each, hands mostly busy, a few lost',
   },
   advanced: {
-    challenge: 1, cadence: 'random', rush: { period: 60, length: 20, factor: 2 }, patience: 1.4, mix: 'all',
+    challenge: 1, foresight: 1, cadence: 'random', rush: { period: 60, length: 20, factor: 2 }, patience: 1.4, mix: 'all',
     bands: { pressure: [0.82, 0.97], miss: [0.08, 0.25], juggle: [0, 3], slack: [0, 1] },
-    says: 'the whole menu, rushes at twice the rate, little more time than it takes to make each, hands nearly always busy: a session is won by what was made ahead',
+    says: 'measured against an expert who makes ahead what is coming: the whole menu, rushes at twice the rate, little more time than it takes to make each, hands nearly always busy',
   },
 });
 const ORDER = ['beginner', 'intermediate', 'advanced'];
@@ -63,7 +67,7 @@ export function targetOf(t = 'intermediate') {
   const ra = a.rush ?? { period: b.rush.period, length: b.rush.length, factor: 1 };
   const rush = { period: Math.round(lerp(ra.period, b.rush.period, f)), length: Math.round(lerp(ra.length, b.rush.length, f)), factor: Math.round(lerp(ra.factor, b.rush.factor, f) * 100) / 100 };
   return {
-    name: `challenge ${t}`, challenge: t, cadence: t < 0.25 ? 'steady' : 'random', rush: rush.factor > 1 ? rush : null,
+    name: `challenge ${t}`, challenge: t, foresight: Math.round(lerp(a.foresight, b.foresight, f) * 100) / 100, cadence: t < 0.25 ? 'steady' : 'random', rush: rush.factor > 1 ? rush : null,
     patience: Math.round(lerp(a.patience, b.patience, f) * 100) / 100, mix: t < 1 / 3 ? 'simple' : t < 2 / 3 ? 'most' : 'all',
     bands: { pressure: band('pressure'), miss: band('miss'), juggle: band('juggle'), slack: band('slack') },
     says: `between ${t <= 0.5 ? 'beginner and intermediate' : 'intermediate and advanced'}`,
@@ -99,6 +103,8 @@ export function solve(card, target = 'intermediate', { seeds = [1, 2, 3], rounds
     moves.push({ lever: path, family, from: from ?? null, to, because });
   };
   const backlog = (K.demand.mode ?? 'orders') === 'backlog';
+  // the player the session is measured against (not a lever: who plays it)
+  (K.crew ??= {}).foresight = P.foresight;
 
   // 1. the demand's shape
   set('demand.cadence', P.cadence, 'demand', P.cadence === 'steady' ? 'an even beat a beginner can learn' : 'orders when they come');
@@ -181,7 +187,7 @@ export function solve(card, target = 'intermediate', { seeds = [1, 2, 3], rounds
   const missing = Object.entries(holds).filter(([, h]) => !h).map(([k]) => `${k} ${m[k]} outside [${P.bands[k].join(', ')}]`);
   const { everyFor, ...analysis } = analyze(K);
   return {
-    id: K.id, target: { name: P.name, bands: P.bands, says: P.says }, card: K, moves, metrics: m, analysis, holds,
+    id: K.id, target: { name: P.name, bands: P.bands, says: P.says }, player: { foresight: P.foresight }, card: K, moves, metrics: m, analysis, holds,
     verdict: missing.length ? 'closest' : 'tuned',
     says: missing.length ? `closest found: ${missing.join('; ')}` : `every band holds at ${P.name}`,
   };

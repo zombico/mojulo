@@ -36,11 +36,16 @@
  *     session?: seconds (240),
  *   }
  *
- * An item no station gives is raw (taken from its crate as bucket work, never short). Every other item has exactly one
- * station that gives it: the card is a tree of recipes, read from the orders down.
+ * An item no station gives is raw (taken from its crate as bucket work, never short). Every other item is given by one
+ * station or by several: its ROUTES. The puzzle is never one solution; the card lays the situations where solutions are
+ * found (land graded with a hoe or a leveller, to the degree of done the worker can and the job needs). The preferred
+ * route is the one whose unit costs the least labour; the crew takes another when it is busy or its inputs are not
+ * there. The recipes are a graph read from the orders down, never a loop.
  *
  *   readCard(card)   → the card with every default written (throws, teaching, on a malformed one)
- *   producerOf(C)    → { <item>: <station id> }
+ *                      { …, producer: { <item>: the preferred station }, producers: { <item>: [stations] },
+ *                        routes: { <item>: [{ station, perUnit }] } for each item with more than one }
+ *   producerOf(C)    → { <item>: <the preferred station> }
  *   isRaw(C, item)
  *
  * Pure, no dice.
@@ -106,12 +111,12 @@ export function readCard(card) {
     stations[sid] = out;
   }
 
-  const producer = {};
-  for (const [sid, s] of Object.entries(stations)) {
-    if (producer[s.item]) fail(`${s.item} is given by both ${producer[s.item]} and ${sid}: one station an item`);
-    producer[s.item] = sid;
-  }
-  const known = new Set([...Object.keys(producer), ...Object.values(stations).flatMap((s) => Object.keys(s.takes))]);
+  // several stations may give one item: its ROUTES (a hoe or a leveller grades the land). The preferred is the one whose
+  // unit costs the least labour (its work, its collect, its hop, its raw fetches, over its batch); the others are there to
+  // be found, taken when the preferred is busy or out of reach
+  const producers = {};
+  for (const [sid, s] of Object.entries(stations)) (producers[s.item] ??= []).push(sid);
+  const known = new Set([...Object.keys(producers), ...Object.values(stations).flatMap((s) => Object.keys(s.takes))]);
 
   const items = {};
   for (const k of known) {
@@ -123,6 +128,12 @@ export function readCard(card) {
     items[k] = it;
   }
   for (const k of Object.keys(card.items ?? {})) if (!known.has(k)) fail(`items.${k}: no station takes or gives it`);
+  const unitCost = (sid) => {
+    const st = stations[sid], fetch = Object.entries(st.takes).reduce((t, [i, n]) => t + (producers[i] ? 0 : n * items[i].fetch), 0);
+    return (st.work + (st.wait ? st.collect + crew.travel + st.far : 0) + crew.travel + st.far + fetch) / st.batch;
+  };
+  const producer = {};
+  for (const [item, list] of Object.entries(producers)) producer[item] = list.reduce((a, b) => (unitCost(b) < unitCost(a) ? b : a));
 
   // a cycle in the recipes would make an item its own ingredient
   const seen = new Map();
@@ -130,8 +141,7 @@ export function readCard(card) {
     if (seen.get(item) === 'done') return;
     if (seen.get(item) === 'open') fail(`the recipes loop: ${[...path, item].join(' ← ')}`);
     seen.set(item, 'open');
-    const sid = producer[item];
-    if (sid) for (const i of Object.keys(stations[sid].takes)) walk(i, [...path, item]);
+    for (const sid of producers[item] ?? []) for (const i of Object.keys(stations[sid].takes)) walk(i, [...path, item]);
     seen.set(item, 'done');
   };
   for (const k of known) walk(k, []);
@@ -169,7 +179,8 @@ export function readCard(card) {
       fail('demand.rush is { period, length, factor }: for length seconds in every period, orders come factor (≥ 1) times as often');
     }
   }
-  return { id, name: card.name ?? id, why: card.why ?? null, crew, collect, stations, items, demand, session, producer };
+  const routes = Object.fromEntries(Object.entries(producers).filter(([, l]) => l.length > 1).map(([item, l]) => [item, l.map((sid) => ({ station: sid, perUnit: Math.round(unitCost(sid) * 1000) / 1000 }))]));
+  return { id, name: card.name ?? id, why: card.why ?? null, crew, collect, stations, items, demand, session, producer, producers, routes };
 }
 
 export const producerOf = (C) => C.producer;
