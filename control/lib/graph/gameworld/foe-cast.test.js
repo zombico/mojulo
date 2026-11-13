@@ -4,7 +4,7 @@
 // that counts and one that shows health; absence costs nothing.
 import { describe, it, expect } from 'vitest';
 import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS, COUNSEL } from './foe-cast.js';
-import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE, PEOPLE_ARMS, KIN_SIZES } from './foe-casting.js';
+import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE, PEOPLE_ARMS, KIN_SIZES, KIN_BANDS } from './foe-casting.js';
 import { packStylesOf, packSays, bodySays, WILD_SIZE_IDS } from '../foes/packs.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
 import { ERA_OF_KIT } from './cast-setting.js';
@@ -247,20 +247,37 @@ describe('the casting call', () => {
     expect(() => readGameworld({ ...fighting, foes: P.foes })).not.toThrow();
     expect(() => readGameworld({ ...fighting, foes: A.foes })).not.toThrow();
     // (A KIN'S CAST, foes/packs.js: on a world whose roll is a people a pack style is cut for. WILD where its minds are
-    // each its own: bare, and where its lineage has one build told apart by size, the role's (the card's own size said
-    // by no word); a PACK where the cube's minds hunt as one: every role the same style and colourway, its sizes kept)
+    // creatures of the place: bare, and where its lineage has one build told apart by size, the role's (the card's own
+    // size said by no word), every role the people itself. A PACK where they are a force come for the hero (they hunt)
+    // or hunt as one (the cube's squad): every role the same style and colourway, and its elite and its boss its
+    // band's bigger kin where the style is cut for it and the class fits it, at its own card's size, its boss the big one)
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], kinSeed = seeds.find((seed) => packStylesOf(castingCall({ ...fighting, seed }).from.people).length);
     expect(kinSeed, 'a seed that rolls a kin a pack is cut for').toBeTruthy();
-    const wild = castingCall({ ...fighting, seed: kinSeed }), packed = castingCall({ ...fighting, seed: kinSeed, intent: { from: 'shooter', cube: { mind: { squad: 'pack' } } } });
-    const kinRoles = (C) => C.roles.filter((r) => r.skin?.people);
-    expect(kinRoles(wild).every((r) => r.skin.pack === undefined)).toBe(true);
-    if (LINEAGES[wild.from.people].builds.length === 1) for (const r of kinRoles(wild)) expect(r.skin.body?.size ?? 'squat').toBe(KIN_SIZES[r.id]);
-    expect(packed.from.people).toBe(wild.from.people);
-    const packs = kinRoles(packed).map((r) => r.skin.pack);
-    expect(packs.length).toBeGreaterThan(1);
-    expect(packs.every((p) => p && p.style === packStylesOf(wild.from.people)[0] && p.colourway === packs[0].colourway)).toBe(true);
+    const withMind = (mind) => castingCall({ ...fighting, seed: kinSeed, intent: { from: 'shooter', cube: { mind } } });
+    const wild = withMind({ motivation: 'territorial' }), hunting = withMind({ motivation: 'hunt' }), packed = withMind({ motivation: 'territorial', squad: 'pack' });
+    const kinRoles = (C) => C.roles.filter((r) => r.skin?.people), folk = wild.from.people;
+    expect(kinRoles(wild).every((r) => r.skin.pack === undefined && r.skin.people === folk)).toBe(true);
+    expect(wild.from.pack).toBeUndefined(); expect(wild.from.leaders).toBeUndefined();
+    if (LINEAGES[folk].builds.length === 1) for (const r of kinRoles(wild)) expect(r.skin.body?.size ?? 'squat').toBe(KIN_SIZES[r.id]);
+    for (const P2 of [hunting, packed]) {
+      expect(P2.from.people).toBe(folk);
+      const packs = kinRoles(P2).map((r) => r.skin.pack);
+      expect(packs.length).toBeGreaterThan(1);
+      expect(packs.every((p) => p && p.style === packStylesOf(folk)[0] && p.colourway === packs[0].colourway)).toBe(true);
+      expect(P2.from.pack).toEqual(packs[0]);
+      const leaders = KIN_BANDS[folk]?.leaders;
+      if (leaders) {
+        expect(P2.from.leaders).toBe(leaders);
+        for (const r of kinRoles(P2)) {
+          const led = ['elite', 'boss'].includes(r.id);
+          expect(r.skin.people).toBe(led ? leaders : folk);
+          if (led) expect(r.skin.body?.size).toBe(r.id === 'boss' ? KIN_SIZES.boss : undefined);
+        }
+        expect(kinRoles(P2).some((r) => r.skin.people === leaders)).toBe(true);
+      }
+    }
     expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: wild.foes })).not.toThrow();
-    expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: packed.foes })).not.toThrow();
+    expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: hunting.foes })).not.toThrow();
     const plat = castingCall({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
     expect(plat.from.flavor).toBe('platformer');
     expect(plat.roles.every((r) => !r.skin?.people)).toBe(true);
@@ -311,6 +328,7 @@ describe('the sheet', () => {
     const W = world({ wild: { class: cls, skin: { people } }, packed: { class: cls, skin: { people, pack: { style }, body: { size: WILD_SIZE_IDS.at(-1) } } } }, ['wild', 'packed']);
     const C = foeCastOf(W), wild = C.foes.find((x) => x.id === 'wild'), packed = C.foes.find((x) => x.id === 'packed');
     expect(wild.skin.says).toMatch(/wild \(bare\)$/); expect(wild.skin.pack).toBeUndefined();
+    expect(foeCastOf(world({ own: { class: cls, skin: { people, adorned: true } } }, ['own'])).foes[0].skin.says).toMatch(/adorned by its own role and standing$/);
     expect(packed.skin.pack).toBe(packSays({ people, pack: { style } }));
     expect(packed.skin.body).toBe(bodySays({ people, body: { size: WILD_SIZE_IDS.at(-1) } }));
     expect(packed.skin.says).toContain(packed.skin.pack);

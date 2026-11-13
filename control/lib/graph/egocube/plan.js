@@ -31,7 +31,7 @@ import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
-import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
+import { outfitFromSheet, adornFromSheet, heroOutfitOf, heroAdornOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { variantOf, UNDEAD_CARDS } from '../undead/index.js';
@@ -816,7 +816,11 @@ function beastOf(sheet, dress) {
   const spec = { form: 'tiered', cast: f.age === 'child' ? f.pole : { pole: f.pole, build: f.build }, tune: { stature }, palette, beast };
   const clothed = dress === 'designed' && f.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : null;
   if (clothed) spec.outfit = legs === 'serpent' ? aboveTheCoil(heroOutfitOf(clothed.outfit)) : heroOutfitOf(clothed.outfit);
-  return { spec, head, legs, topo, cover, outfit: clothed, adorned: dress === 'designed' && !clothed, read };
+  // (a people near the beast is ADORNED, not clothed: the frame-adorned principles' pieces (outfit.js adornFromSheet) worn
+  // on its bare frame, an outfit build with no cut)
+  const adorn = dress === 'designed' && !clothed ? adornFromSheet(sheet, { coat }) : null;
+  if (adorn) { const worn = heroAdornOf(adorn.outfit); spec.outfit = legs === 'serpent' ? aboveTheCoil(worn) : worn; }
+  return { spec, head, legs, topo, cover, outfit: clothed ?? adorn, adorned: !!adorn, read };
 }
 /** the channels whose lines the cue lexicon reads for the body (a people of its own: beast/lexicon.js) */
 const LEXICON_CHANNELS = new Set(['frame', 'silhouette', 'structure', 'cover', 'ornament', 'stance', 'hair']);
@@ -840,7 +844,7 @@ function beastLedger(sheet, built) {
   const rows = [];
   for (const [ch, notes] of Object.entries(sheet.notes)) for (const n of notes) {
     let at = BEAST_AT[ch], pending = null;
-    if (ch === 'dress') { if (built.outfit) at = built.legs === 'serpent' ? 'spec.outfit (above the coil: the top and the upper pieces; the lower dress pending on a coil)' : 'spec.outfit (the cut and its pieces)'; else pending = built.adorned ? 'its adornment (pieces with no cut) is not worn on the tiered body yet' : 'bare: no dress asked'; }
+    if (ch === 'dress') { if (built.adorned) at = built.legs === 'serpent' ? 'spec.outfit (its adornment above the coil: pieces on the bare frame, no cut)' : 'spec.outfit (its adornment: pieces on the bare frame, no cut)'; else if (built.outfit) at = built.legs === 'serpent' ? 'spec.outfit (above the coil: the top and the upper pieces; the lower dress pending on a coil)' : 'spec.outfit (the cut and its pieces)'; else pending = 'bare: no dress asked'; }
     if (ch === 'cover' && built.cover === 'none') { at = null; pending = 'no cover hint for this people'; }
     if (ch === 'ornament' && /horns|antennae|tusks|crest|frill/.test(n.line) && !(built.head.id === 'dragon' && /horns|crest/.test(n.line)) && !(built.head.id === 'mandibled' && /antennae/.test(n.line))) { at = null; pending = 'an ornament the library head and the tiered body do not carry yet'; }
     if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line)) { at = null; pending = 'not on the tiered body yet (folded wings, a crest, a familiar)'; }

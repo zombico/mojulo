@@ -1,79 +1,85 @@
 /**
  * A KIN DRESSED AND SIZED: one body, many foes. A non-human people on the game's own rig (a kin: beast/cards.js) is one
- * body; what tells one of its foes from another is what it WEARS and how big it stands, never another body. Two ways:
+ * body; what tells one of its foes from another is what it WEARS and how big it stands, never another body. Its gear is
+ * never designed by hand either: it is what THE FRAME-ADORNED PRINCIPLES give it (egocube/outfit.js adornFromSheet: a
+ * beast is not clothed, its body is the costume, and what it wears accents the frame: its role's gear, metal by its
+ * station, one focal by its archetype, what its anatomy offers, what its concept makes, five pieces at most). Three ways:
  *
- *   WILD    bare, each its own size (`body.size`, WILD_SIZES): a runt, a lean one, a squat one, a big one. Nothing worn,
- *           so a crowd of them is a rabble, no two alike
- *   PACK    dressed alike (`pack`): a PACK STYLE's garments on every member, in one COLOURWAY, under one MARK (its
- *           motif), so a crowd of them reads as one band at a glance; its leaders wear more of the same, by rank
+ *   WILD      bare, each its own size (`body.size`, WILD_SIZES): a runt, a lean one, a squat one, a big one. A rabble
+ *   ADORNED   `adorned: true`: each geared by its own sheet, its own role and standing; no two alike but by their work
+ *   PACK      `pack`: THE SAME PRINCIPLES WITH WHAT A BAND SHARES PINNED. A pack style pins the character every member
+ *             is read as (its archetype, so its one focal and its concept's found things; its order, so its symmetry),
+ *             its cloth, its colours and its mark; a member's CLASS still gives its role's gear and its RANK its station
+ *             and how many pieces it keeps. So a crowd reads as one band at a glance, its fighters told from its
+ *             casters by their gear, its leaders by wearing more of the same
  *
- *   skin: { people: <a kin>, pack?: { style, colourway?, motif? }, body?: { coat?, size? } }
+ *   skin: { people: <a kin>, adorned?: true, pack?: { style, colourway?, motif? }, body?: { coat?, size? } }
  *     pack.style      a pack style (PACK_STYLE_IDS)
  *     pack.colourway  the pack's colours (one of its colourways); absent, its first. A bestiary dressed alike shares them
- *     pack.motif      the pack's mark (one of the style's motifs: the outfit kernel's, outfit/expand.js); absent, its first
+ *     pack.motif      the pack's mark, embossed on its plates (one of the style's motifs); absent, its first
  *     body.coat       the body's own colour: one of its lineage's swatches by word (egocube/ancestry.js `cover`) or a
- *                     #rrggbb; absent, a pack's members share the lineage's first, a wild one keeps its sheet's roll
+ *                     #rrggbb; absent, a pack's members share the lineage's first, any other keeps its sheet's roll
  *     body.size       how big it stands (WILD_SIZES); absent, the card's own
  *
- * A style is cut for the peoples it names (`peoples`), a people's own cut of it leaving off what its body does not take
- * (`cuts`: the orc wears the raiders bare-chested).
- * A pack style names no geometry. Its garments are an outfit build in the outfit kernel's own grammar (outfit/styles.js:
- * a cut), its pieces and their detail the stylism solver's (stylism/index.js: a genre, a silhouette, a register and a
- * budget by rank, the pack's motif), its leaders' helmets a kin's own (creature-heads/headgear.js: the skull's surface
- * set out, so one fits any kin), its colours a palette over the kin's one coat (beast/tiered.js beastWords: a hero's
- * own palette words stand over it). So a new pack is a row, and what it looks like on a body is solved, not modelled.
+ * A pack style names no geometry and no piece. A new pack is a row: a character, a cloth, colours, marks.
  *
- *   PACK_STYLES, PACK_STYLE_IDS, packStylesOf(people), WILD_SIZES, WILD_SIZE_IDS
+ *   PACK_STYLES, PACK_STYLE_IDS, PACK_RANKS, packStylesOf(people), WILD_SIZES, WILD_SIZE_IDS
  *   readPack(p, people, at) / readKinBody(b, people, at)   → the words read (throw teaching the words)
- *   kinWords(skin, { rank })   → the hero-door words a kin's figure takes over its sheet's person: `outfit`, `stylism`,
- *                                `palette`, `tune`, and a leader's `headgear`; null when the skin names neither a pack
- *                                nor a body
+ *   packSheet(skin, sheet)    → the member's sheet as its pack reads it (the pack's character over its own role and body)
+ *   packAdornment(skin, { rank, sheet })   → { outfit, laws, concept }: the principles' answer for this member of its
+ *                                pack (the pieces with their reasons, in the pack's colours and mark)
+ *   kinWords(skin, { rank, sheet })   → the hero-door words a kin's figure takes over its sheet's person: a pack's
+ *                                `outfit` and `palette` and a leader's `headgear`, a body's `tune` and coat; null when
+ *                                the skin names neither a pack nor a body. `sheet` its rolled sheet (a pack is dressed
+ *                                from it)
+ *   kinBare(skin, sheet)      → the kin stands BARE: its sheet's people is adorned by the cube (below the clothed line,
+ *                                on the tiered body) and its skin names neither `adorned` nor a pack (the wild)
  *   packSays(skin) / bodySays(skin)   → the words in a line, for a book
  *
  * Pure and deterministic.
  */
 import { BEAST_KINS, kinCoat } from '../beast/cards.js';
 import { LINEAGES } from '../egocube/ancestry.js';
-import { HEIGHT, BUILD_TUNE } from '../egocube/plan.js';
+import { HEIGHT, BUILD_TUNE, CLOTHED_H, beastOnTiered } from '../egocube/plan.js';
+import { adornFromSheet, heroAdornOf } from '../egocube/outfit.js';
+import { outfitLaws } from '../polygonizer/outfit-plan.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const HEX = /^#[0-9a-f]{6}$/i;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-/** How a rank wears its pack: the stylism solver's register (how heightened) and budget (how many pieces), rising with
- * the rank (mind/vocab.js RANKS). The rank and file plain, its leaders considered and rich. */
+/** How a rank stands in its pack, as the principles read it: its STATION (the metal it has come to: arm rings from the
+ * middle, the throat's at the top) and its ROOM (how many pieces it keeps of what the principles offer; five the most a
+ * frame takes). The rank and file a few, its leaders all of it (mind/vocab.js RANKS). */
 export const PACK_RANKS = Object.freeze({
-  minion: Object.freeze({ register: 'grounded', detail: 'plain' }),
-  elite: Object.freeze({ register: 'grounded', detail: 'considered' }),
-  miniboss: Object.freeze({ register: 'storybook', detail: 'considered' }),
-  boss: Object.freeze({ register: 'storybook', detail: 'rich' }),
+  minion: Object.freeze({ station: 0.3, room: 3 }),
+  elite: Object.freeze({ station: 0.55, room: 4 }),
+  miniboss: Object.freeze({ station: 0.7, room: 5 }),
+  boss: Object.freeze({ station: 0.9, room: 5 }),
 });
 
-/** The pack styles: each a cut every member wears, the solver's words over it, its marks and its colourways. A
- * colourway's `tones` are the outfit's groups (Bottom, Outer, Panel, Trim, Leather, Buckle) and the solver's own
- * (OutfitBase … OutfitShade: its pieces' and its ornaments'), so no piece falls back to a colour derived off the coat. */
+/** The pack styles: what a band SHARES. `archetype` the character every member is read as (its focal, BEAST_FOCAL, and
+ * its concept's found things, egocube/concept.js); `order` its symmetry (free at a half and over: one-sided, a raider's
+ * one great shoulder; bound: paired); `cut` its cloth, an outfit's language with no garment on the chest, the frame
+ * left bare for the pieces; `head` its leaders' helmets by rank (creature-heads/headgear.js); a colourway the outfit's
+ * palette roles (base, secondary, trim, accent, leather, metal: the cloth in the secondary and the accent, the plates
+ * in the metal, the found things in the base), each role a clear step of value from the others, as the outfit's laws
+ * ask of any palette (polygonizer/outfit-plan.js outfitLaws: the pack's adornment is read by them again in its colours). */
 export const PACK_STYLES = Object.freeze({
   raiders: Object.freeze({
     name: 'Raiders',
-    reads: 'a raiding band: a hide vest open over the bare chest, short breeches, a cloth in the pack\'s colour hung front and back from a belt, bare feet; shoulder plates and wrist wraps, and on its leaders the pack\'s mark and beads',
+    reads: 'a raiding band: short breeches and a cloth in the pack\'s colour hung front and back from a belt, bare feet, the chest bare; over it a fighter\'s gear, one great shoulder plate its mark, trophies and paint; its leaders helmed',
     peoples: Object.freeze(['goblin', 'orc']),
-    // (a people's own cut of it: the parts of the cut its body leaves off. The orc's chest takes no vest: bare under its plates)
-    cuts: Object.freeze({ orc: Object.freeze({ without: Object.freeze(['outer']), reads: 'bare-chested' }) }),
-    outfit: Object.freeze({ type: 'outfit', style: Object.freeze({ id: 'designed', dials: Object.freeze({ stylize: 0.4, fit: 0.5, coverage: 1, ornament: 1 }),
-      language: Object.freeze({ bottom: Object.freeze({ family: 'woven', leg: 'short' }), outer: Object.freeze({ family: 'woven', sleeve: 'none', hem: 'waist', open: true, fit: 'fitted' }),
-        panels: Object.freeze([Object.freeze({ at: 'front', length: 'knee', width: 0.3, rigidity: 'soft' }), Object.freeze({ at: 'back', length: 'knee', width: 0.36, rigidity: 'soft' })]), feet: 'none', focal: 'belt' }) }) }),
-    stylism: Object.freeze({ genre: 'fantasy', silhouette: 'brawler' }),
-    // (what its leaders wear on the head, by rank: a kin's helmets, cut from its own skull, creature-heads/headgear.js; its
-    // rank and file bare-headed)
+    archetype: 'hero', order: 0.7,
+    cut: Object.freeze({ dials: Object.freeze({ stylize: 0.4, fit: 0.5, coverage: 1, ornament: 1 }),
+      language: Object.freeze({ bottom: Object.freeze({ family: 'woven', leg: 'short' }),
+        panels: Object.freeze([Object.freeze({ at: 'front', length: 'knee', width: 0.3, rigidity: 'soft' }), Object.freeze({ at: 'back', length: 'knee', width: 0.36, rigidity: 'soft' })]), feet: 'none', focal: 'belt' }) }),
     head: Object.freeze({ elite: 'kin-cap', miniboss: 'kin-nasal-helm', boss: 'kin-horned-helm' }),
     motifs: Object.freeze(['knot', 'key', 'wave', 'vine']),
     colourways: Object.freeze({
-      rust: Object.freeze({ reads: 'rust hide and a red cloth, bone fittings',
-        tones: Object.freeze({ Bottom: '#5a4632', Outer: '#6b3a26', Panel: '#8a2f24', Trim: '#d8c9a0', Leather: '#3d2a1d', Buckle: '#cdbb8a', OutfitBase: '#8a7a5c', OutfitSecond: '#5a4632', OutfitTrim: '#cdbb8a', OutfitAccent: '#8a2f24', OutfitMetal: '#5d5a55', OutfitShade: '#2e2620' }) }),
-      bone: Object.freeze({ reads: 'blackened hide and a bone-pale cloth, bone fittings',
-        tones: Object.freeze({ Bottom: '#3b3a36', Outer: '#2e2c2a', Panel: '#d9d2bd', Trim: '#d9d2bd', Leather: '#2a2522', Buckle: '#d9d2bd', OutfitBase: '#d9d2bd', OutfitSecond: '#3b3a36', OutfitTrim: '#d9d2bd', OutfitAccent: '#d9d2bd', OutfitMetal: '#6a6a66', OutfitShade: '#1f1e1c' }) }),
-      moss: Object.freeze({ reads: 'green-brown hide and an ochre cloth, brass fittings',
-        tones: Object.freeze({ Bottom: '#4a4a30', Outer: '#3f4a2c', Panel: '#b08a2e', Trim: '#c9a55a', Leather: '#33301f', Buckle: '#c9a55a', OutfitBase: '#7a7a4e', OutfitSecond: '#4a4a30', OutfitTrim: '#c9a55a', OutfitAccent: '#b08a2e', OutfitMetal: '#6b6046', OutfitShade: '#26281a' }) }),
+      rust: Object.freeze({ reads: 'rust hide and a red cloth, bone fittings', roles: Object.freeze({ base: '#8f7f60', secondary: '#3a2c20', trim: '#cdbb8a', accent: '#9c3528', leather: '#3d2a1d', metal: '#5d5a55' }) }),
+      bone: Object.freeze({ reads: 'blackened hide and a bone-pale cloth, bone fittings', roles: Object.freeze({ base: '#7d786c', secondary: '#2e2c2a', trim: '#d9d2bd', accent: '#d9d2bd', leather: '#2a2522', metal: '#6a6a66' }) }),
+      moss: Object.freeze({ reads: 'green-brown hide and an ochre cloth, brass fittings', roles: Object.freeze({ base: '#5d5e3a', secondary: '#33301f', trim: '#d6b56a', accent: '#c29a36', leather: '#2a2819', metal: '#6b6046' }) }),
     }),
   }),
 });
@@ -119,24 +125,45 @@ export function readKinBody(b, people, at = 'foe: .skin.body') {
 const coatOf = (people, coat) => LINEAGES[people]?.cover?.[coat] ?? coat;
 /** the stature a kin's sheet gives a build (egocube/plan.js beastOf: its height over a person's 1.8 m, held to 0.85 … 1.15) */
 const sheetStature = (people, build) => { const only = LINEAGES[people]?.builds?.length === 1 ? LINEAGES[people].builds[0] : null, b = build ?? only ?? 'canonical'; return Math.min(1.15, Math.max(0.85, (BUILD_TUNE[b]?.stature ?? 1) * HEIGHT[b] / 1.8)); };
+/** the pieces a pack's mark is embossed on (polygonizer/outfit-plan.js: a plate's motif) */
+const MARKED = Object.freeze(['pauldron', 'chestPlate']);
+
+/** The member's sheet as its pack reads it: its own role, body and anatomy; the pack's character (its archetype, its
+ * order) in place of its own, an adult's standing (its rank says the rest). */
+export function packSheet(skin, sheet) {
+  const S = PACK_STYLES[readPack(skin.pack, skin.people).style];
+  return { ...sheet, facets: { ...sheet.facets, archetype: S.archetype, order: S.order, age: 'adult' } };
+}
+
+export function packAdornment(skin, { rank = 'minion', sheet } = {}) {
+  if (!sheet) throw new Error('foes/packs: a pack is dressed from its member\'s sheet (its role and its anatomy)');
+  const P = readPack(skin.pack, skin.people), S = PACK_STYLES[P.style], R = PACK_RANKS[rank] ?? PACK_RANKS.minion;
+  const coat = skin.body?.coat !== undefined ? coatOf(skin.people, skin.body.coat) : kinCoat(skin.people);
+  const A = adornFromSheet(packSheet(skin, sheet), { coat, station: R.station, room: R.room });
+  // (the pack's colours in place of the sheet's own roll; its mark on its plates)
+  A.outfit.intent = { ...A.outfit.intent, palette: { ...S.colourways[P.colourway].roles } };
+  for (const p of A.outfit.pieces) if (MARKED.includes(p.kind)) p.motif = P.motif;
+  // (the laws read again on what is worn: the pack's colours, not the sheet's roll)
+  return { ...A, laws: outfitLaws(A.outfit, { order: S.order, archetype: S.archetype, mustSee: [], frame: true }) };
+}
 
 /**
  * The hero-door words a kin's figure takes over its sheet's person (gameworld/runner.js lays them, as it lays its gear):
- * a pack's garments and the solver's words at its rank, its colours over the body's one coat, the body's size as its
- * tune. A wild one with no words of its own takes none: null.
+ * a pack's adornment over its cloth in its colours, its leaders' helmet, the body's one coat; the body's size as its
+ * tune. A kin that names neither takes none: null.
  */
-export function kinWords(skin, { rank = 'minion' } = {}) {
+export function kinWords(skin, { rank = 'minion', sheet } = {}) {
   if (!skin || !isKin(skin.people) || (skin.pack === undefined && skin.body === undefined)) return null;
   const people = skin.people, P = skin.pack !== undefined ? readPack(skin.pack, people) : null, B = skin.body !== undefined ? readKinBody(skin.body, people) : {};
   const out = {};
-  // (a pack's members share one coat, the lineage's first where the body names none; a wild one keeps its sheet's roll)
+  // (a pack's members share one coat, the lineage's first where the body names none; any other keeps its sheet's roll)
   const coat = B.coat !== undefined ? coatOf(people, B.coat) : P ? kinCoat(people) : null;
   if (P) {
-    const S = PACK_STYLES[P.style], R = PACK_RANKS[rank] ?? PACK_RANKS.minion;
-    out.outfit = structuredClone(S.outfit);
-    for (const part of S.cuts?.[people]?.without ?? []) delete out.outfit.style.language[part];
-    out.stylism = { ...S.stylism, register: R.register, detail: R.detail, motif: P.motif };
-    out.palette = { Skin: coat, ...S.colourways[P.colourway].tones };
+    const S = PACK_STYLES[P.style], C = S.colourways[P.colourway].roles;
+    // (its cloth in the pack's colours: the breeches the secondary, the hung cloth the accent, its fittings the trim)
+    const tones = { Bottom: C.secondary, Panel: C.accent, Trim: C.trim, Buckle: C.trim, Leather: C.leather };
+    out.outfit = heroAdornOf(packAdornment(skin, { rank, sheet }).outfit, { cut: { ...structuredClone(S.cut), tones } });
+    out.palette = { Skin: coat, ...tones };
     if (S.head?.[rank]) out.headgear = S.head[rank];
   } else if (coat) out.palette = { Skin: coat };
   if (B.size !== undefined) {
@@ -146,12 +173,13 @@ export function kinWords(skin, { rank = 'minion' } = {}) {
   return Object.keys(out).length ? out : null;
 }
 
+export const kinBare = (skin, sheet) => !!skin && isKin(skin.people) && !skin.adorned && skin.pack === undefined && !!sheet && beastOnTiered(sheet) && sheet.facets.humanity < CLOTHED_H;
+
 /** A pack in a line: its style, its colours, its mark. */
 export function packSays(skin) {
   if (skin?.pack === undefined) return null;
   const P = readPack(skin.pack, skin.people), S = PACK_STYLES[P.style];
-  const cut = S.cuts?.[skin.people]?.reads;
-  return `dressed as the ${S.name.toLowerCase()}${cut ? ` (${cut})` : ''}, ${S.colourways[P.colourway].reads}, its mark a ${P.motif}`;
+  return `of the ${S.name.toLowerCase()}, ${S.colourways[P.colourway].reads}, its mark a ${P.motif}`;
 }
 /** A body's own words in a line: its size, its coat. */
 export function bodySays(skin) {

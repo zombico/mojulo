@@ -413,11 +413,12 @@ export function distortOf(sheet) {
   return { amount: Math.round(a * 100) / 100, side: 'R', ...(DISTORT[f.ancestry] ?? { chunk: 1.3, flare: 1.3 }) };
 }
 
-export function adornFromSheet(sheet, { coat } = {}) {
+export function adornFromSheet(sheet, { coat, station, room = 5 } = {}) {
   const f = sheet.facets, a = f.archetype, A = anatomyOf(sheet), free = f.order >= 0.5, side = 'R';
   const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
   const elder = ['seasoned', 'elder'].includes(f.age), youth = ['child', 'youth'].includes(f.age), heavy = ['stout', 'brute'].includes(f.build);
-  const F = Math.max(0, Math.min(1, (STATION[a] ?? 0.4) + (elder ? 0.15 : youth ? -0.15 : 0)));
+  // (its station the archetype's and the age's; or the one GIVEN it, `station`: a foe's rank in its band, foes/packs.js)
+  const F = station ?? Math.max(0, Math.min(1, (STATION[a] ?? 0.4) + (elder ? 0.15 : youth ? -0.15 : 0)));
   const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
   const pieces = [], has = (k) => pieces.some((p) => p.kind === k);
   // the role's gear; a winged back carries nothing (the quiver moves to a hip satchel)
@@ -452,19 +453,20 @@ export function adornFromSheet(sheet, { coat } = {}) {
   if (A.chitin) for (const p of pieces) if (['harness', 'baldric'].includes(p.kind)) Object.assign(p, { studs: 5, why: `${p.why}, riveted across the plates` });
   // THE CONCEPT (concept.js): what character this is decides what agrees; its own adornment (found, textile, ritual,
   // craft) joins the gear, so a beast is not only a gladiator
-  const concept = conceptOf(sheet), agreed = dressByConcept(pieces, sheet, { A, tailSeen, room: 5, concept });
+  const concept = conceptOf(sheet), agreed = dressByConcept(pieces, sheet, { A, tailSeen, room, concept });
   // order: bound pairs, free one asymmetric note
   const asym = (p) => ['satchel', 'baldric', 'charms', 'trophy', 'toolRoll'].includes(p.kind) || (['pauldron', 'armRings', 'feathers', 'prayerBand'].includes(p.kind) && !p.pair) || (p.kind === 'streamers' && !p.pair && p.on !== 'tail');
   if (free && !pieces.some(asym)) { const r = pieces.find((p) => ['pauldron', 'armRings'].includes(p.kind)); if (r) r.why = `${r.why}, on one side: the free order's asymmetric note`; else if (!concept.refuses.includes('satchel')) pieces.push({ kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' }); }
   if (!free) for (const p of pieces) if (['pauldron', 'armRings'].includes(p.kind)) p.pair = true;
   // (no broadened shoulder line: a beast's own shoulders carry its silhouette, and its plates lie close on them)
-  // restraint: five pieces at most, so the frame shows (the focal, the role's first need, the station, the asymmetric note)
+  // restraint: five pieces at most (`room`: fewer where it is given fewer, a band's rank and file), so the frame shows
+  // (the focal, the role's first need, the station, the asymmetric note)
   const rank = (p) => (p.role === 'focal' ? 0 : p.family ? 1.6 : (BEAST_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 1 : ['tailRing', 'anklets'].includes(p.kind) || (p.kind === 'harness' && A.chitin) ? 1.5 : ['chestPlate', 'torc', 'chain', 'armRings'].includes(p.kind) ? 2 : asym(p) ? 3 : 5);
-  if (pieces.length > 5) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, 5)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
+  if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
   // repetition: the metal twice at least (a ring, studs, a band takes it)
   const trims = () => pieces.filter((p) => (p.colour ?? DEFAULT[p.kind] ?? 'base') === 'trim').length + pieces.filter((p) => p.cordColour === 'trim').length + pieces.filter((p) => ['bracers', 'chestPlate', 'harness', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && p.role !== 'focal')).length;
   if (trims() < 2) { const m = pieces.find((p) => ['medallion', 'chain'].includes(p.kind)); if (m) m.cordColour = 'trim'; }
-  if (trims() < 2 && pieces.length < 5 && !has('armRings')) pieces.push({ kind: 'armRings', colour: 'trim', role: 'detail', pair: !free, why: 'the metal repeated small on the arms, tying the adornment together' });
+  if (trims() < 2 && pieces.length < room && !has('armRings')) pieces.push({ kind: 'armRings', colour: 'trim', role: 'detail', pair: !free, why: 'the metal repeated small on the arms, tying the adornment together' });
   else if (trims() < 2) { const r = pieces.find((p) => p.role !== 'focal' && ['bracers', 'wraps', 'armRings', 'tailRing'].includes(p.kind)); if (r) r.colour = 'trim'; }
   // WARP AND DISTORT: the focal exaggerated, the rest kept smaller (contrast of scale); the dominant side's pairs grow
   // against the other's (the compile's asymmetry), heavy frames chunked, sleek ones flared
@@ -473,6 +475,15 @@ export function adornFromSheet(sheet, { coat } = {}) {
   const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin), distort, concept: concept.word }, pieces };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [], frame: true });
   return { outfit, laws, concept: { ...concept, agreed } };
+}
+
+/** THE ADORNMENT FOR THE HERO DOOR: a beast's pieces (adornFromSheet) as an outfit build with NO CUT, so a kin on the
+ * tiered body wears them on its bare frame (the pieces in the intent's palette; their reasons the readout's); or over a
+ * `cut` given it ({ language, dials?, tones? }: a band's shared cloth, foes/packs.js) */
+export function heroAdornOf(outfit, { cut = null } = {}) {
+  const pieces = (outfit.pieces || []).map(({ why: _w, ...p }) => p), { palette, symmetry, side, distort } = outfit.intent;
+  return { type: 'outfit', style: { id: 'designed', dials: cut?.dials ?? {}, language: cut?.language ?? { feet: 'none' }, ...(cut?.tones ? { tones: cut.tones } : {}) },
+    ...(pieces.length ? { pieces, intent: { palette, ...(symmetry ? { symmetry } : {}), ...(side ? { side } : {}), ...(distort ? { distort } : {}) } } : {}) };
 }
 
 /** THE CUT FOR THE HERO DOOR: the same derived cut as an inline outfit card for a person's record (`spec.outfit`), its

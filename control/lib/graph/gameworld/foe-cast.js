@@ -161,7 +161,7 @@ function skinOf(entry, f) {
     // (a kin's pack and its body's own words, foes/packs.js: what its band wears alike, its size and its colour)
     const carries = carriesOf(entry), pack = packSays(entry.skin), body = bodySays(entry.skin);
     return { kind: 'people', ...(carries.length ? { carries } : {}), ...(pack ? { pack } : {}), ...(body ? { body } : {}),
-      says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}${body ? `, ${body}` : ''}${pack ? `, ${pack}` : packStylesOf(entry.skin.people).length ? ', wild (bare)' : ''}` };
+      says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}${body ? `, ${body}` : ''}${pack ? `, ${pack}` : entry.skin.adorned ? ', adorned by its own role and standing' : packStylesOf(entry.skin.people).length ? ', wild (bare)' : ''}` };
   }
   // (its oozes, each at its strength, and the stylism it is drawn in: mutagen/compose.js)
   const own = entry.skin?.species !== undefined, oozes = f.skin.ooze !== undefined ? normalizeOozes(f.skin.ooze).filter((o) => o.strength > 0) : [];

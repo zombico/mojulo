@@ -49,19 +49,34 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     health that is, where it counted the foe shelf's blows (two for a grunt that falls to one string, sixty for a boss
     that takes eleven), and writes a boss's phases as its levels carry them;
   - the agent's foes card names a people's `gear`; the foes doc says the kin, the arms and the casting.
-- **One body, many foes: a kin is dressed and sized, never remodelled** (`foes/packs.js`, new). Two words on a kin's
-  skin, read by `foes/people.js` and laid over its rolled sheet when the run makes its figure (`gameworld/runner.js`),
-  as its `gear` is:
-  - `body: { size?, coat? }`: how big it stands over its card (runt, lean, squat, big: the stature and the frame's words
-    multiplied; the foe shelf measures it and its collider stands at that size) and its own colour, a lineage swatch by
-    word or a hex. A WILD kin is this alone: bare, told apart by size.
-  - `pack: { style, colourway?, motif? }`: what its band wears alike. The first style, the raiders: a hide vest, short
-    breeches, a cloth hung front and back from a belt, shoulder plates and wrist wraps. A style names no geometry: a cut
-    in the outfit grammar, the stylism solver's pieces at a register and budget that rise with the foe's rank, a
-    colourway (rust, bone, moss) over the one coat the pack shares, the solver's motif as its mark. Every rank wears the
-    same cut and colours; its leaders wear more of it. A people's own cut leaves off what its body does not take.
-  - The casting call proposes a kin WILD, sized by role where its lineage has one build, and as a PACK in one rolled
-    colourway where the cube's minds hunt as one (`squad: 'pack'`).
+- **One body, many foes, and no gear designed by hand** (`foes/packs.js`, new; `egocube/outfit.js`, `egocube/plan.js`,
+  `foes/people.js`, `gameworld/runner.js`). A kin's foes are told apart by what they wear and how big they stand, and
+  what they wear is what the FRAME-ADORNED PRINCIPLES give them (`adornFromSheet`: role, station, archetype, anatomy,
+  concept, restraint; each piece with its reason). Those principles were written for the creature biped and their answer
+  was dropped on the tiered body, the ledger saying so.
+  - **The bridge.** A kin on the tiered body made with a designed dress (the cube's default) now wears its adornment: an
+    outfit with no cut, the pieces on its bare frame (`heroAdornOf`). A kin character made from a sheet is adorned from
+    here on; one already made is as it was.
+  - **Three words on a kin foe's skin.** Wild: neither, bare (the run's order says so, since the cube would now adorn
+    it), a rabble told apart by `body: { size?, coat? }` (runt, lean, squat, big; a lineage swatch or a hex).
+    `adorned: true`: each by its own sheet. `pack: { style, colourway?, motif? }`: the same principles with what a band
+    shares pinned.
+  - **The pack is the principles, not a design.** A pack style names no piece: it pins the character every member is
+    read as (the raiders a hero's: one great shoulder plate the focal, a warrior's trophies and paint), its order, its
+    cloth (short breeches and a cloth hung front and back, the chest left bare for the pieces), its colourways and its
+    marks. A member's class gives its role's gear and its rank its station and how many pieces it keeps
+    (`adornFromSheet` takes a `station` and a `room`). So two of one class and rank wear the same whoever they are, a
+    fighter is told from a caster, and a leader wears all the rank and file does and more. The laws are read again in
+    the pack's colours, and the colourways (rust, bone, moss) were set to keep them; a caster of the rank and file, at
+    three pieces, carries the trim once where the law asks twice (its belt's fittings, which the law does not count,
+    are the second).
+  - A kin whose card is one body is rolled at its lineage's one build (a goblin rolled a brute stood 1.7 m).
+  - **The casting call reads which a kin's cast is off the game's minds** (`gameworld/foe-casting.js`). Creatures of
+    the place (they guard a ground, they wander): WILD, sized by role where the lineage has one build. A force come for
+    the hero (the cube's motivation hunts) or one that hunts as one (`squad: 'pack'`): a PACK in one rolled colourway,
+    and a band of two kins is led by the bigger (`KIN_BANDS`: the goblin under the orc), its elite and its boss that
+    kin where the style is cut for it and the class fits. So the action RPG made from a sentence fields goblin raiders,
+    a guard and a lean patroller, under an orc elite and an orc boss, one pack; it fielded bare goblins of four sizes.
   - A kin's collider now stands at its card's height (`stands`) and its size: a goblin's was a person's.
 - **The orc is its own creature** (`creature-heads/relational.js`, `creature-heads/dentition.js`, `beast/cards.js`,
   `egocube/ancestry.js`). A lineage `orc`, a kin card and a skull: a deep jaw square at its front and set ahead of a flat
@@ -69,10 +84,11 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   sides; on a wedge of a body, the head sunk between sloped shoulders, long heavy arms, short bowed legs. The head gains
   `jawSquare` (the jaw's front a bar across) and `tusk` (the lower canines drawn out, on the jaw's bone, the one tooth
   that stands outside the shut skin); both nothing at their canon value, so every other head is as it was. The meadow's
-  era fields the orc where it fielded the orcish, with the same arms; the orc wears the raiders bare-chested. `orcish`,
+  era fields the orc where it fielded the orcish, with the same arms. `orcish`,
   the near-human on the hero door, is as it was and still what the word "orc" in a character's brief rolls.
-- **The books say it**: a foe's card in the foes book has `body` and `pack` rows and its line says wild or which pack;
-  the agent's foes card names both words (its ceiling re-pinned, with the reason); the foes doc has the section.
+- **The books say it**: a foe's card in the foes book has `body` and `pack` rows and its line says wild, adorned or
+  which pack; the agent's foes card names the three words (its ceiling re-pinned, with the reason); the foes doc has
+  the principles as a table and the three words.
 - **Brows, as form** (`creature-heads/relational.js`, `creature-heads/worn.js`, `beast/head.js`). The relational head
   gains `browRidge` and `browSlant`: a bar over each eye from beside the nose out past the eye's corner, its beads
   marched out to the skin and left standing proud of it, its inner end fallen for a scowl. It is a volume, so the
@@ -88,9 +104,9 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   card's own masses joined on: a skull cap, a helm with a nasal, a horned helm, a spiked cap. One card fits any skull.
   Worn by the hero door's `headgear` word, which on a kin (a new body the word knows, `kin`) lowers to its head's word;
   a person's card is refused on a kin and a kin's on a person, by name. The raiders' leaders wear them by rank (an elite
-  the cap, a boss the horned helm); the plate takes the pack's metal.
+  the cap, a boss the horned helm).
 - Not here yet: the party battles' own "goblin" and "shaman" (`gameworld/battles.js`) are still orcish people, and the
   word "orc" in a brief still rolls the near-human; a kin's headgear has helmets only (no hood, no mask, no cloth) and no row in the
-  agent's foes card yet; the brow ridge is a round bar (no arch, no thinning to its tail); the raiders' vest breaks up across a goblin's chest where it is open;
+  agent's foes card yet; the brow ridge is a round bar (no arch, no thinning to its tail); the foes book does not yet list a pack member's pieces and their reasons (the principles give them);
   a row for the action RPG in the pose rails, so its hero stands as its game shows it; the goblin's hips, boxed where
   its thighs thicken; ink on what a hand holds.

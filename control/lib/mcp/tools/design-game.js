@@ -198,10 +198,11 @@ async function realize(step, action) {
     // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so
     // the ref and its history stay
     // (a people foe's body its game puts in its henchmen: the words laid over the sheet's person, gameworld/runner.js)
-    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, title: order.title, ref, ...(order.spec ? { spec: order.spec } : {}) });
+    // (and a kin that stands bare, the wild: its order's `dress`, in place of the adornment the cube gives a kin)
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, title: order.title, ref, ...(order.spec ? { spec: order.spec } : {}), ...(order.dress ? { dress: order.dress } : {}) });
     else {
       const beside = childRef(ref, 'remake');
-      await createCharacterHandler({ egocube: order.egocube, title: order.title, ref: beside, ...(order.spec ? { spec: order.spec } : {}) });
+      await createCharacterHandler({ egocube: order.egocube, title: order.title, ref: beside, ...(order.spec ? { spec: order.spec } : {}), ...(order.dress ? { dress: order.dress } : {}) });
       try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: the fighter remade from its sheet' }); }
       finally { SketchRepository.deleteByRef(beside); }
     }

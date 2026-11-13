@@ -111,22 +111,39 @@ jaw's bone) under a brow and a low vault, on a wedge of a body, the head sunk be
 and short bowed legs. The near-human `orcish` above it is a person on the hero door, as it was. A new kin is a lineage
 row, a card and, where it needs one, a skull.
 
-### One body, many foes: wild and pack
+### One body, many foes: wild, adorned, pack
 
-A kin is one body. What tells one of its foes from another is what it wears and how big it stands, never another body
-(`foes/packs.js`), two words on a kin's skin:
+A kin is one body. What tells one of its foes from another is what it wears and how big it stands, never another body,
+and what it wears is never designed by hand. It is what the FRAME-ADORNED PRINCIPLES give it (`egocube/outfit.js`
+`adornFromSheet`): a beast is not clothed, its body is the costume, and what it wears accents the frame. They read a
+sheet and answer with pieces, each with its reason:
 
-- **`body: { size?, coat? }`**: its own. `size` is how big it stands over its card (`WILD_SIZES`: the stature and the
-  frame's words multiplied, so the foe shelf measures it and the lineup draws it at that size); `coat` is its colour, one
-  of its lineage's swatches by word or a `#rrggbb`. A WILD kin is this and nothing else: bare, a rabble told apart by
-  size.
-- **`pack: { style, colourway?, motif? }`**: what its band wears alike. A pack style (`PACK_STYLES`) names no geometry:
-  its garments are a cut in the outfit grammar, its pieces and their detail the stylism solver's (a genre, a silhouette,
-  and a register and budget that rise with the foe's rank, `PACK_RANKS`), its colours a colourway over the one coat the
-  whole pack shares, its mark the solver's motif. So every member wears the same cut in the same colours under the same
-  mark and reads as one band at a glance, and its leaders wear more of the same. A style is cut for the peoples it
-  names; a people's own cut of it leaves off what its body does not take (the orc wears the raiders bare-chested). A new
-  pack is a row; a new colourway or mark a word in it.
+| principle | what it decides |
+| --- | --- |
+| role | the gear the work asks: a frontline's shoulder plate and bracers, a flanker's baldric and bound wrists, a ranger's quiver, a caster's wrapped hands |
+| station | metal grows with standing: arm rings from the middle, the throat's at the top |
+| archetype | the one focal, exaggerated; the rest kept smaller |
+| anatomy | what the frame offers and refuses: no torc under a ruff, nothing on a winged back, a ring on a tail that must read, a plate only where the body is not its own armour |
+| concept | what the character makes of its own: a people near the beast wears found things, feathers, trophies, paint |
+| restraint | five pieces at most, one focal, the metal twice, a palette whose roles are each a clear step of value |
+
+A kin on the tiered body wears that answer as an outfit with no cut (`egocube/plan.js`: any kin made with a designed
+dress, which is the cube's default). On the foe shelf it is three words on a kin's skin (`foes/packs.js`):
+
+- **wild**: neither word. Bare, the run's order saying so, a rabble told apart by `body: { size?, coat? }`: how big it
+  stands over its card (`WILD_SIZES`: the stature and the frame's words multiplied, so the foe shelf measures it and the
+  lineup draws it at that size) and its own colour, a lineage swatch by word or a `#rrggbb`.
+- **`adorned: true`**: each geared by its own sheet, its own role and standing, as any kin character is.
+- **`pack: { style, colourway?, motif? }`**: the same principles with what a band SHARES pinned. A pack style
+  (`PACK_STYLES`) names no piece and no geometry. It pins the character every member is read as (its archetype, so its
+  one focal and its concept's found things; its order, so its symmetry), its cloth, its colourways and its marks. A
+  member's CLASS still gives its role's gear and its RANK its station and how many pieces it keeps (`PACK_RANKS`). So
+  two members of one class and rank wear the same whoever they are, a fighter is told from a caster by its gear, and a
+  leader wears everything the rank and file does and more. The pack's adornment is read by the outfit's laws again in
+  the pack's colours, and its colourways keep them. A new pack is a row: a character, a cloth, colours, marks.
+
+A kin whose card is one body (the goblin, the orc) is rolled at its lineage's one build: the roll takes a lineage's
+builds as advice, and a goblin rolled a brute stood as tall as a person.
 
 A pack's leaders wear a helmet too (`PACK_STYLES.<style>.head`, by rank; its rank and file bare-headed). A kin's
 helmets are their own (`creature-heads/headgear.js`): a person's headgear is drawn on a person's cranium, which a kin
@@ -139,13 +156,14 @@ A kin's face is read by its brow: a skull can carry a ridge of its own over each
 seated on the skin and standing proud of it, so the light steps on it and the ink finds its edge. And a kin whose arms
 are heavy carries hands to match: a card's `hands` sizes the hand whole, where `mass.hand` only thickens it.
 
-The run lays both over the kin's rolled sheet when its figure is made, as it lays its `gear` (`gameworld/runner.js`), and
-a skin changed remakes the figure. The casting call proposes a kin's cast WILD, sized by role where its lineage has one
-build (`KIN_SIZES`), and as a PACK in one rolled colourway where the game's minds hunt as one (the cube's `squad: 'pack'`).
-The foes book says each (`body`, `pack` on a foe's card).
-
-A kin rolled in an anime game's setting stands under the character light, as that game's people do (`egocube/plan.js`):
-flat tones stepped once and inked, so a cast of beasts is drawn in the game's own style beside its hero.
+The run lays a pack's and a body's words over the kin's rolled sheet when its figure is made, as it lays its `gear`
+(`gameworld/runner.js`), and a skin changed remakes the figure. The casting call reads which a kin's cast is off the
+game's minds (`gameworld/foe-casting.js`). Where they are creatures of the place (they guard a ground, they wander) the
+cast is WILD, sized by role where its lineage has one build (`KIN_SIZES`). Where they are a force come for the hero
+(the cube's motivation hunts) or hunt as one (its `squad: 'pack'`) the cast is a PACK in one rolled colourway, and a
+band of two kins is led by the bigger one (`KIN_BANDS`: the goblin under the orc): its elite and its boss are that kin,
+where the style is cut for it and the class fits it. So the action RPG made from a sentence fields goblin raiders under
+orc leaders. The foes book says each (`body`, `pack` on a foe's card, and wild or adorned in its line).
 
 ### Relations: a summoner and its summons
 

@@ -10,7 +10,7 @@
  *     foes     the bestiary proposed, in the bestiary's own words (foes.js readBestiary takes it)
  *     levels   { <level id>: <its foes words> } for each walk or building that names none
  *     patch    the JSON Pointer ops that write both (design_game { patch })
- *     from     { genre, flavor, register, era, people?, dress?, oozes?, mind: { <axis>: value } } what was read
+ *     from     { genre, flavor, register, era, people?, leaders?, pack?, dress?, oozes?, mind: { <axis>: value } } what was read
  *
  * The cast is ROLES (one row each): the grunt the hero cuts through, the harrier that hurts from where the grunt cannot,
  * the elite that tests what the hero learned, the boss a level ends on. Each role takes the class that scores best
@@ -22,8 +22,10 @@
  * a class that stands on two legs; a platformer's and a pinball table's cast stays the stand-in beasts. A person cast is
  * dressed as one crew (ERA_DRESS: its faction by era, a soldier's for a game whose minds are soldiers', its colourway
  * rolled), each role the kind its class reads as by what the kind carries. A kin cast (a people on its card's body) is
- * WILD, bare and told apart by size (KIN_SIZES), or where the cube's minds hunt as a pack a PACK, dressed alike in one
- * style and colourway (foes/packs.js). A beast cast is grown by the world's oozes (ELEMENT_OOZE, ERA_OOZES): a variant of each
+ * WILD, bare and told apart by size (KIN_SIZES), where the game's minds are creatures of the place; a PACK where they
+ * are a force come for the hero (the cube's motivation hunts) or hunt as one (its squad): dressed alike in one style
+ * and colourway by the frame-adorned principles (foes/packs.js), its elite and its boss its band's bigger kin where the
+ * style is cut for it (KIN_BANDS: the goblin under the orc). A beast cast is grown by the world's oozes (ELEMENT_OOZE, ERA_OOZES): a variant of each
  * beast role per ooze, and its boss grown dire.
  *
  * Pure and deterministic: the people, the crew and its colours are the world's seed's (mulberry32), nothing else is rolled.
@@ -82,6 +84,13 @@ export const PEOPLE_ARMS = Object.freeze({ goblin: CLUBS, orc: CLUBS, orcish: CL
 /** How big each role of a kin stands (foes/packs.js WILD_SIZES), where its lineage has one build and so no other way
  * to tell its ranks apart: the grunt the card's own, the harrier the lean one, its leaders the big one. */
 export const KIN_SIZES = Object.freeze({ grunt: 'squat', harrier: 'lean', elite: 'big', boss: 'big' });
+/** A BAND of two kins: the people its rank and file is, and the bigger kin that LEADS it (its elite and its boss), where
+ * the band is a pack and one style is cut for both: the goblin under the orc. A leader stands at its own card's size,
+ * its boss the big one. A people with no row leads itself. */
+export const KIN_BANDS = Object.freeze({ goblin: Object.freeze({ leaders: 'orc' }) });
+/** The motivations whose minds are a FORCE come for the hero (mind/vocab.js MOTIVATIONS: it seeks a target and fights
+ * it), not a creature of the place: a kin cast so is a band, dressed alike. */
+const BAND_MOTIVES = Object.freeze(['hunt']);
 /** The crews a person cast is dressed as, by era (foes/dress.js: the comic hero pack's grunt factions); a game whose
  * minds hunt or guard as soldiers do (MILITARY) takes the first, any other one rolled from the row. */
 export const ERA_DRESS = Object.freeze({
@@ -161,11 +170,16 @@ export function castingCall(world) {
   // crew dressed on it, the realistic body where the rail draws one; a book that names none dresses the crew as before)
   const hench = F ? henchmenOf(G) : null;
   const colourway = F ? colourways[Math.floor(rnd() * colourways.length)] : null;
-  // (a KIN's cast, foes/packs.js: WILD where the game's minds are each its own, bare and told apart by size; a PACK where
-  // they hunt as one (the cube's squad), dressed alike in one style, its colours the world's roll)
-  const kinStyle = people && mind.squad === 'pack' ? packStylesOf(people)[0] ?? null : null;
+  // (a KIN's cast, foes/packs.js: WILD where the game's minds are creatures of the place, each its own, bare and told
+  // apart by size; a PACK where they are a force come for the hero (they hunt, BAND_MOTIVES) or hunt as one (the cube's
+  // squad): dressed alike in one style, its colours the world's roll)
+  const band = mind.squad === 'pack' || BAND_MOTIVES.includes(mind.motivation);
+  const kinStyle = people && band ? packStylesOf(people)[0] ?? null : null;
   const kinColours = kinStyle ? Object.keys(PACK_STYLES[kinStyle].colourways) : [], kinColourway = kinStyle ? kinColours[Math.floor(rnd() * kinColours.length)] : null;
-  const sized = people && isKin(people) && LINEAGES[people]?.builds?.length === 1;
+  // (and a pack's LEADERS, its elite and its boss, are its band's bigger kin where the same style is cut for it: KIN_BANDS)
+  const lead = kinStyle && PACK_STYLES[kinStyle].peoples.includes(KIN_BANDS[people]?.leaders) ? KIN_BANDS[people].leaders : null;
+  const folkOf = (role, c) => (lead && ['elite', 'boss'].includes(role) && fitOfPeople(c.id, { people: lead }).ok ? lead : people);
+  const sizedFolk = (folk) => isKin(folk) && LINEAGES[folk]?.builds?.length === 1;
   // (each role the kind its class reads as, by what the kind carries: a class on watch the kind whose arms are stowed, one
   // that fires the kind with a long gun at the ready in its hands, the boss or a heavy class the heaviest build; the rest,
   // and any match taken, the faction's kinds by weight)
@@ -225,19 +239,21 @@ export function castingCall(world) {
 
   // (a people's RANK AND FILE stands at its lineage's smallest build, its elite and its boss at their own roll grown by
   // their rank: the goblin under the orc. A person dressed as a crew takes its build from its dress)
-  const small = people && !F && LINEAGES[people]?.builds?.length ? [...LINEAGES[people].builds].sort((a, b) => HEIGHT[a] - HEIGHT[b])[0] : null;
+  const smallOf = (folk) => (folk && !F && LINEAGES[folk]?.builds?.length ? [...LINEAGES[folk].builds].sort((a, b) => HEIGHT[a] - HEIGHT[b])[0] : null);
   const bossRank = ['miniboss', 'boss'].includes(mind.rank) ? mind.rank : 'boss';
   const skill = mind.skill && mind.skill !== 'regular' ? mind.skill : null;
   const foes = {}, roles = [];
   // (said in the roles' order of record, whichever was cast first)
   for (const [role, x] of Object.keys(ROLES).filter((r) => cast[r]).map((r) => [r, cast[r]])) {
-    const rank = role === 'boss' ? bossRank : ROLES[role].rank;
-    const file = rank === 'minion' && small && fitOfPeople(x.c.id, { people, facets: { build: small } }).ok ? { facets: { build: small } } : {};
+    const rank = role === 'boss' ? bossRank : ROLES[role].rank, folk = people ? folkOf(role, x.c) : null, led = folk !== people, small = smallOf(folk);
+    const file = rank === 'minion' && small && fitOfPeople(x.c.id, { people: folk, facets: { build: small } }).ok ? { facets: { build: small } } : {};
     // (a people that swings a blow carries its lineage's arm: PEOPLE_ARMS; a dressed person carries its crew's kit)
-    const arm = !F && x.c.attack.kind === 'strike' ? PEOPLE_ARMS[people]?.[rank === 'minion' ? 'file' : 'lead'] : null;
+    const arm = !F && x.c.attack.kind === 'strike' ? PEOPLE_ARMS[folk]?.[rank === 'minion' ? 'file' : 'lead'] : null;
     const armed = arm ? { gear: { right: { ...ARMORY_ARMS[arm], laws: 2 } } } : {};
-    const kin = { ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(sized && KIN_SIZES[role] !== 'squat' ? { body: { size: KIN_SIZES[role] } } : {}) };
-    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...file, ...armed, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}), ...kin } : null;
+    // (its size by its role where its lineage has one build; a band's leader of the bigger kin at its own card's, its boss the big one)
+    const size = !sizedFolk(folk) ? null : led ? (role === 'boss' ? KIN_SIZES.boss : null) : KIN_SIZES[role] !== 'squat' ? KIN_SIZES[role] : null;
+    const kin = { ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(size ? { body: { size } } : {}) };
+    const skin = folk && fitOfPeople(x.c.id, { people: folk }).ok ? { people: folk, ...file, ...armed, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}), ...kin } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };
@@ -293,12 +309,12 @@ export function castingCall(world) {
   const reasons = [
     genre ? `a ${genre} (the intent's cube), its minds ${Object.entries(mind).filter(([k]) => k !== 'foes').map(([k, v]) => `${k} ${v}`).join(', ') || 'unsaid'}` : 'no genre: the cube\'s own values',
     `a ${style.flavor} game in the ${style.register} register (${style.from})`,
-    people ? `set in the ${era} era: the cast is ${people === 'human' ? 'people' : `${people} folk`} where a class stands on two legs` : `${era ? `the ${era} era names no people for a ${style.flavor} cast` : 'no era'}: every foe on its class's stand-in beast`,
+    people ? `set in the ${era} era: the cast is ${people === 'human' ? 'people' : `${people} folk`} where a class stands on two legs${kinStyle ? `; a force come for the hero, so a band dressed alike: the ${PACK_STYLES[kinStyle].name.toLowerCase()}, ${PACK_STYLES[kinStyle].colourways[kinColourway].reads}${lead ? `, led by ${lead} folk` : ''}` : packStylesOf(people).length ? '; creatures of the place, so wild: bare, told apart by size' : ''}` : `${era ? `the ${era} era names no people for a ${style.flavor} cast` : 'no era'}: every foe on its class's stand-in beast`,
     ...(F ? [`dressed as one crew, ${F.name.toLowerCase()} in ${F.colourways[colourway].reads}${MILITARY.includes(genre) ? `: a ${genre}'s soldiers` : ''}; each role the kind its class reads as (on watch, arms stowed; firing, a long gun at the ready; the boss the heaviest)`] : []),
     ...(variants.length || foes.boss?.skin?.ooze ? [`its beasts grown by the world's oozes (${oozes.map((o) => `${o}${Object.values([D.primary, D.secondary]).some((w) => ELEMENT_OOZE[w] === o) ? ', its element' : `, the ${era} era`}`).join('; ') || 'none'}): ${variants.length ? `a variant of each beast role per ooze, met deeper in (from the second level, or the first of two)` : 'no variant fits'}${foes.boss?.skin?.ooze ? `; the boss grown ${foes.boss.skin.ooze.join(' and ')}` : ''}`] : []),
     ...(unfit.length ? [`left ungrown, the grown body no longer fitting its class: ${unfit.join(', ')}`] : []),
     ...(bossRank !== 'boss' ? [`the boss stands as a ${bossRank}, the cube's rank`] : []),
     ...(skill ? [`every foe at ${skill} skill, the cube's`] : []),
   ];
-  return { foes, levels, patch, roles, variants, from: { genre, flavor: style.flavor, register: style.register, era, ...(people ? { people } : {}), ...(F ? { dress: { faction, colourway } } : {}), ...(oozes.length ? { oozes } : {}), mind: { ...mind } }, reasons };
+  return { foes, levels, patch, roles, variants, from: { genre, flavor: style.flavor, register: style.register, era, ...(people ? { people } : {}), ...(lead ? { leaders: lead } : {}), ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(F ? { dress: { faction, colourway } } : {}), ...(oozes.length ? { oozes } : {}), mind: { ...mind } }, reasons };
 }
