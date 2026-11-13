@@ -82,7 +82,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}) };
+    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}), ...(l.rolls ? { rolls: true } : {}) };
   });
 
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
@@ -115,7 +115,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     theme: Object.keys(levelTheme).length ? levelTheme : null,
     playtest: !!playtest,
     startLevel,
-    ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
+    ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
@@ -348,6 +348,8 @@ export function playShellRuntime(cfg, K) {
     let a = (n * 2654435761) >>> 0;
     const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const pool = LEVELS.slice();
+    // (`repeat`: a level may be drawn again, never twice running when there is another: a run of one rolled level's maps)
+    if (RUN.repeat) { const out = []; let prev = -1; for (let k = 0; k < RUN.length; k++) { let j = Math.floor(rnd() * pool.length); if (pool.length > 1 && j === prev) j = (j + 1) % pool.length; out.push(pool[j]); prev = j; } return out; }
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const x = pool[i]; pool[i] = pool[j]; pool[j] = x; }
     return pool.slice(0, RUN.length);
   }
@@ -365,13 +367,16 @@ export function playShellRuntime(cfg, K) {
     app.appendChild(el('div', { cls: 'screen center' }, [
       PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
       el('h1', { text: M.title }),
-      el('div', { cls: 'muted', text: 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
+      el('div', { cls: 'muted', text: RUN.repeat ? 'a run: ' + RUN.length + ' maps, rolled anew each time; fall, and it ends' : 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
       runs ? el('div', { cls: 'badge', text: 'deepest: ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') }) : null,
       el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: () => go('play') })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
     ]));
   }
   // a run's end: how deep it went, what it gained; a new run, the title, the credits
+  // a level that rolls says which of its maps was played (its seed): the number a player names a map by
+  let againSeed = null, lastSeed = null;
+  const mapSays = (lv, env) => (lv && lv.rolls && env && Number.isFinite(env.seed) ? el('div', { cls: 'muted', text: 'map ' + env.seed }) : null);
   function renderRunResult() {
     if (!run || !lastOutcome) { home(); return; }
     const env = lastOutcome.env, deep = lastOutcome.deep, won = run.at >= run.order.length;
@@ -383,6 +388,7 @@ export function playShellRuntime(cfg, K) {
       el('div', { cls: 'result-mark' + (won ? '' : ' fail'), text: won ? 'run complete' : 'run over' }),
       el('h1', { text: 'run ' + r.n + ': ' + r.at + ' of ' + r.order.length }),
       el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
+      mapSays(r.order[Math.min(r.at, r.order.length - 1)], env),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
       el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: () => go('again') }), el('button', { text: 'title', on: () => go('home') }), onOf('credits') ? el('button', { text: 'credits', on: () => go('credits') }) : null]),
@@ -504,7 +510,10 @@ export function playShellRuntime(cfg, K) {
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
     if (stage) params.__stage = stage;
-    session = { level: lv, params, seed: (run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1), ended: false };
+    // (a level that rolls, played again: the same seed, so the same map; anything else, the next seed)
+    const fresh = run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1, seed = lv.rolls && againSeed != null ? againSeed : fresh;
+    againSeed = null; lastSeed = seed;
+    session = { level: lv, params, seed, ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
@@ -742,6 +751,7 @@ export function playShellRuntime(cfg, K) {
     const kids = [
       el('div', { cls: 'result-mark' + (env.result === 'success' ? '' : ' fail'), text: res }),
       el('h1', { text: lv.title }),
+      mapSays(lv, env),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
       done && M.final ? el('div', { cls: 'badge', text: 'the game is complete' }) : null,
@@ -806,7 +816,7 @@ export function playShellRuntime(cfg, K) {
       resolve: (sp, c) => {
         const i = c.level ? LEVELS.findIndex((l) => l.ref === c.level) : -1;
         if (sp === '$first') return LEVELS[0] ? LEVELS[0].ref : null;
-        if (sp === '$again') return c.level || null;
+        if (sp === '$again') { againSeed = !run && c.level ? lastSeed : null; return c.level || null; }
         if (sp === '$next') { const nx = MAP || i < 0 ? null : LEVELS[i + 1]; return nx && isOpen(nx) ? nx.ref : null; }
         if (sp === '$continue') { const lv = continueTo(); return lv ? lv.ref : null; }
         if (sp === '$picked') return c.picked || null;

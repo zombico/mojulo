@@ -40,6 +40,11 @@ capture and the level played in Node show).
   half or more stand and never all, and its pickups, of which half or more lie and never all. A pilot with no body (a
   first-person walker's) is given one, since no cover stops it without. A level that is no trail walked on foot, and a
   world that does not roll, are as they were.
+- A run over levels that roll (`game/game-manifest.js`, the play shell): `run: { length, repeat: true }` lets a run draw
+  a level more than once, so a run may be longer than its pool: one level that rolls is a run of its maps. Each draw
+  has its own seed (the run's number and step), never the same level twice running when there is another.
+  `create_game` says so when a repeated level has no roll. A level that rolls says which map was played on its result
+  (`map 202`), and played again is the same map.
 - A rolled level opened with no shell takes its seed from the page's own `?seed=` (1 unsaid: the reference roll).
 - Not yet: the foes a seed picks, the level's book, and the room layout itself rolled in the
   page from a kit of rooms.

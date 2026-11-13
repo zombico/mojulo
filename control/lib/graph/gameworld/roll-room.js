@@ -95,19 +95,26 @@ export function rollRoomLevel(G) {
 
 export function coverForms(G) {
   return FORMS.map(({ form, height }) => {
-    // a lane 4 m wide walled either side, the form across the whole of it 8 m on; the hero run at it, jumping on a
-    // beat (a jump, held, and again in the air), for as long as a level would let a player try
+    // a lane 4 m wide walled either side, the form across the whole of it 8 m on; the hero run at it and jumping as a
+    // player would learn to: from a few distances short of it, the jump held, and again at the top of its arc (an air
+    // jump, where its feel has one). One way over is enough: it does not stop this hero
     const colliders = [{ min: [-3, -2, 0], max: [-2, 30, 6] }, { min: [2, -2, 0], max: [3, 30, 6] }, { min: [-2, 8, 0], max: [2, 8.5, height] }];
-    const sim = simLevel({ entities: [bodyOf(G, [0, 0, 0])], colliders });
-    const me = sim.world.byId.hero;
-    let over = false;
-    for (let f = 0; f < 30 * 10 && !over; f++) {
-      const beat = f % 24;
-      for (const k of Object.keys(sim.input)) delete sim.input[k];
-      Object.assign(sim.input, { forward: 1, ...(beat < 2 || (beat >= 9 && beat < 11) ? { jump: 1 } : {}), ...(beat < 18 ? { jumpHeld: 1 } : {}) });
-      sim.frame(1 / 30, []);
-      over = me.transform.pos[1] > 9.5;
-    }
+    const over = [0.8, 1.5, 2.5, 4, 6].some((from) => {
+      const sim = simLevel({ entities: [bodyOf(G, [0, 0, 0])], colliders }), me = sim.world.byId.hero;
+      let press = 0, jumped = false, again = false, top = 0;
+      for (let f = 0; f < 30 * 8; f++) {
+        const [, y, z] = me.transform.pos;
+        if (y > 9.5) return true;
+        if (!jumped && 8 - y < from) { jumped = true; press = 2; top = z; }
+        else if (jumped && !again && z < top - 0.01) { again = true; press = 2; }
+        if (jumped) top = Math.max(top, z);
+        for (const k of Object.keys(sim.input)) delete sim.input[k];
+        Object.assign(sim.input, { forward: 1, ...(press > 0 ? { jump: 1 } : {}), ...(jumped ? { jumpHeld: 1 } : {}) });
+        press--;
+        sim.frame(1 / 30, []);
+      }
+      return false;
+    });
     return { form, height, stops: !over };
   });
 }

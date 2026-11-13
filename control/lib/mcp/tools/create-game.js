@@ -282,6 +282,8 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
 
   // the seeds audit of each level that rolls (advice: it is said, never a refusal)
   const rolls = await rollReports(finalized.levels.map((l) => l.ref));
+  // (a run that draws a level more than once wants levels that roll: one that does not is said)
+  const flat = finalized.run?.repeat ? finalized.levels.map((l) => l.ref).filter((r) => !SketchRepository.getByRef(r)?.manifest?.roll) : [];
 
   const levelMusic = suggestLevelMusic(finalized.levels.map((l) => l.ref), sketch.ref);
   // advice (level-dress.js): a level that is plain mesh bodies on the stage's default checkerboard is a greybox
@@ -295,6 +297,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: autoSkipped && a.autoAuditPlan && a.completable === null ? `${a.reason}; auto-audit skipped: ${autoSkipped}` : a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
     ...(rolls.length ? { rolls } : {}),
+    ...(flat.length ? { run_note: `run.repeat draws a level more than once, and ${flat.join(', ')} ${flat.length === 1 ? 'has' : 'have'} no roll: each draw of it is the same map (give the level a roll, or its world roll: true)` } : {}),
     ...(eyes ? { first_frame: eyes } : {}),
     ...(levelMusic ? { music: levelMusic } : {}),
     ...(undressed ? { undressed } : {}),
