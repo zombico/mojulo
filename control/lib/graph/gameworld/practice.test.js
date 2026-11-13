@@ -26,7 +26,8 @@ const MECH = Object.keys(TEMPLATE_FRAMES)[0];
 
 describe('the door', () => {
   it('a template that fights hand to hand has the action room; one that platforms the platform room', () => {
-    expect(practiceFor({ feel: FIGHTER }).rooms).toEqual(['practice']);
+    expect(practiceFor({ feel: FIGHTER }).rooms).toEqual(['practice', 'room']);
+    // (a platformer, a shooter and a machine keep to their own rooms: the game room is for the games with none)
     expect(practiceFor({ feel: PLATFORMER }).rooms).toEqual(['platform']);
   });
   it('a template whose fights are another runtime\'s has no action room, and says where its practice is', () => {
@@ -35,15 +36,15 @@ describe('the door', () => {
     expect(D.why ?? D.elsewhere).toBe(FIGHTS_ELSEWHERE[ELSEWHERE]);
   });
   it('a world that rides has the mount lane, beside whatever else it has; none at all says why', () => {
-    expect(practiceFor({ feel: FIGHTER, mounts: 2 }).rooms).toEqual(['practice', 'mount']);
+    expect(practiceFor({ feel: FIGHTER, mounts: 2 }).rooms).toEqual(['practice', 'mount', 'room']);
     expect(practiceFor({ mounts: [{ coat: 'grey' }] }).rooms).toEqual(['mount']);
     expect(practiceFor({ feel: NONE })).toMatchObject({ rooms: [], why: expect.stringMatching(/no practice room yet/) });
-    expect(practiceFor({})).toMatchObject({ rooms: [], why: expect.stringMatching(/writes no feel and rides no horse/) });
+    expect(practiceFor({})).toMatchObject({ rooms: [], why: expect.stringMatching(/writes no feel, rides no horse and works no shift/) });
   });
   it('a room the world does not have is refused, in words', () => {
-    expect(() => practiceRoomOf({ feel: FIGHTER }, 'mount')).toThrow(/this world has no mount lane \(it has practice\)/);
-    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, artillery/);
-    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'artillery']);
+    expect(() => practiceRoomOf({ feel: FIGHTER }, 'mount')).toThrow(/this world has no mount lane \(it has practice, room\)/);
+    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, artillery, room, work/);
+    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'artillery', 'room', 'work']);
   });
 });
 
@@ -56,12 +57,12 @@ describe('the gun rooms', () => {
   });
   it('the stealth game has the range and not the action room, and says its close quarters are the range\'s knife', () => {
     const D = practiceFor({ feel: STEALTH });
-    expect(D.rooms).toEqual(['range']);
+    expect(D.rooms).toEqual(['range', 'room']);
     expect(D.elsewhere).toMatch(/knife/);
     expect(practiceRoomOf({ feel: STEALTH }, 'range').spec.weapons).toContainEqual({ name: 'knife', fire: 'melee' });
   });
   it('a world that carries a gun has the range whatever its template; one carrying none under a melee template, none', () => {
-    expect(practiceFor({ feel: FIGHTER, quick: { goal: 'shoot', arms: ['rifle'] } }).rooms).toEqual(['practice', 'range']);
+    expect(practiceFor({ feel: FIGHTER, quick: { goal: 'shoot', arms: ['rifle'] } }).rooms).toEqual(['practice', 'range', 'room']);
     expect(practiceFor({ feel: FIGHTER }).rooms).not.toContain('range');
   });
   it('the range measured on the world\'s guns: its laws carried or lost, the same guns kept, none without a range', () => {

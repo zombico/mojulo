@@ -15,6 +15,8 @@ the feel chapter's choices are played and measured, and where a game's weapons a
 | `mount`, the mount lane | a world with `mounts` | the horse's gaits, its jump's clearance, the fences, the turn |
 | `range`, the firing range | a world that carries guns (below) | the guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching, the knife |
 | `artillery`, the artillery range | a template that owns a machine (`TEMPLATE_FRAMES`) | the machine walking, transforming and driving, its own guns laid by hand onto stands of matter |
+| `room`, the game room | a world that fights hand to hand, works a shift or has foes (a shooter and a platformer keep to their own rooms) | one room composed for the game out of room primitives (cover, pillars, decks, counters), its brief read from the world, held to the room laws, played by its hero (its own, or a mascot) with its foes on their spots: [game-room.md](game-room.md) |
+| `work`, the work room | a quick work game (`goal: 'work'`) | its Shovels & Buckets shift in a conceptual space seen from overhead: the recipe drawn on the floor as arrows, the work shown in pips over each station and shelf, crates, stations worked by standing at them, shelves, the hand-in; a mascot worker (its form, `orb`, `sprout` or `toon`, chosen from the presets, carried inline) or the world's own hero, and its movement (a feel template, the world's own or the everyday walker), both chosen on its page (`&cast=<form>&feel=<template>`); the shift measured by the work proof at the template's run |
 
 A template whose fights run elsewhere says so instead of opening a room it does not play (`practice-room.js`
 `FIGHTS_ELSEWHERE`): the fighting game's own lab, the RPG's battles, the stealth game's close quarters on the range's
@@ -22,6 +24,10 @@ knife. A world with no room is told why, in words.
 
 Each room is served at `bible?book=practice&room=<id>`, listed by `design_game`'s readout (`practice.rooms`) and on the
 rail, each with its own icon.
+
+The work room and the game room keep their readout and their choices in a menu drawn by mana-ui and driven by the
+controls layer, opened by the pilot's pause ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)); the others still keep a
+panel and keys of their own.
 
 ## The gun rooms
 

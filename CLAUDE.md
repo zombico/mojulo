@@ -307,6 +307,10 @@ Pointers only; each target carries its own design notes.
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
   manual: the `hud-title` card. A host that cannot carve shows the banner.
+- One room for a game (the game room): [gameroom/](control/lib/graph/gameroom/) (room primitives, the brief read from the
+  world, a seeded composition, the room laws, the dress by trade), played as the practice door's `room`
+  (`gameworld/game-room.js`) and dressing the work room:
+  [docs/game-room.md](docs/game-room.md).
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
