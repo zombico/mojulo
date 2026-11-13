@@ -185,7 +185,7 @@
   bytes, and its face's rows named by the welded corners. A part with an engine's tangent, corrective or metal stays as
   it came. The facility's page with a realistic hero goes from 59 MB to 48 MB, 22.7 MB packed in parts; the hero itself
   from about 21 MB to about 10 MB.
-- The far box, in progress (`scene/channels/far-box.js`, a land's `farBox`, opt-in): the grass past the view cone's
-  reach as a volume read from the grass map on a coarse grid, its floor the ground, its top the sward's height, its
-  walls only where grass meets no grass. Its first form is a wireframe. The lines are built and tested; they have not
-  yet been seen drawn on a page.
+- The far lift, in progress (`scene/channels/far-lift.js`, a land's `farLift`, opt-in): the grass past the view
+  cone's reach given its height. The ground is drawn a second time where grass grows, pushed up to the sward's height
+  × its cover (so it comes down to the ground where the grass ends), in the far field's colour, rising from nothing at
+  the reach. Not yet seen drawn on a page. It replaces a first attempt drawn as a wireframe box.
