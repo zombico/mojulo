@@ -526,7 +526,7 @@ function readout(ref, world, context = {}) {
   // the roll room measured (roll-room.js: the seeds audit of its yard, the cover forms that stop this hero, before any
   // level): a law lost, or a hero no form of cover stops, is advised; never a refusal
   const rollM = door.rooms.includes('roll') ? rollMeasured(world) : null;
-  if (rollM?.dress?.lost.length) next.push({ step: 'roll', dress: rollM.dress.theme, lost: rollM.dress.lost, why: 'the course\'s dress loses a law of its own: an ask must be read against the way, told from the other kind, and told ahead', card: 'gameworld-roll' });
+  if (rollM?.dress?.lost.length) next.push({ step: 'roll', dress: rollM.dress.theme, lost: rollM.dress.lost, why: 'the course\'s dress loses a law of its own: an ask is read against the way, the walls and the backdrop, told from the other kind and told ahead; the walls and the backdrop recede behind it', sheet: rollM.dress.sheet, card: 'gameworld-course-dress' });
   if (rollM && (rollM.lost.length || (rollM.forms && !rollM.forms.stops.length))) next.push({ step: 'roll', ...(rollM.lost.length ? { lost: rollM.lost, worst: rollM.worst } : {}), ...(rollM.forms && !rollM.forms.stops.length ? { why: 'no form of cover stops this hero: its feel clears a high wall, so a roll of walls changes little; roll what it cannot go over, or what lies and where it starts' } : {}), card: 'gameworld-roll' });
   if (mountsSuggest) next.push({ step: 'mounts', suggest: mountsSuggest.suggest, why: mountsSuggest.why, patch: [{ op: 'set', path: '/mounts', value: mountsSuggest.suggest }], card: 'gameworld-mounts' });
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)

@@ -16,8 +16,9 @@
  *              strip, posts' arrows toward the open lane.
  *   the line   where a player runs it: the reaction bot's own run (a 0.4 s reaction, the course's sight), drawn solid
  *              on the ground and dashed in the air
- *   the flanks the bands either side of the way: one cell a segment a side, lettered A or B. That is the PATTERN the
- *              sides are dressed in (era/wall-rhythm.js: never three alike, never a pair repeated), and each cell is
+ *   the flanks the bands either side of the way: the course's own walls (course-scenery.js), a cell a slice, lettered
+ *              A (the complex slice) or B (the plain one) and named. That is the PATTERN the sides are dressed in
+ *              (era/wall-rhythm.js: never three alike, never a pair repeated), and each cell is
  *              where a designed slice of that kind is placed.
  *
  * To scale: a metre across is a metre along.
@@ -30,7 +31,6 @@
  * Pure and deterministic: the roll's own dice, the bot's own run.
  */
 import { playCourse, PRIMITIVES, LANES } from './roll-course.js';
-import { wallRhythm } from '../era/wall-rhythm.js';
 
 const HALF = 3.3;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -40,8 +40,8 @@ const NAMES = { hurdle: 'hurdle', block: 'block', 'posts-left': 'posts, left ope
 
 export function courseMap(course, { seed = 1, perRow = 5, flank = 6, scale = 9, title = 'Course' } = {}) {
   const run = playCourse(course, { seed, trace: true }), asks = run.asks, col = course.dress.palette, n = course.slots.length, top = course.pace.top;
-  // the sides' pattern: A and B by the wall's rule, the right side the left's read the other way so the two differ
-  const left = [...wallRhythm(n, { kinds: 2, pick: 0.35 })], right = [...wallRhythm(n, { kinds: 2, pick: 0.8 })].reverse();
+  // the sides' pattern: the course's own (course-scenery.js), a slice a segment's length, each side in its own order
+  const left = [...course.scenery.left], right = [...course.scenery.right];
   // a segment: from the end of the ask before it (the start, for the first) to the end of its own
   const ends = course.slots.map((s, k) => s.y + PRIMITIVES[asks[k]].len), seg = course.slots.map((s, k) => ({ k, from: k ? ends[k - 1] : 0, to: k === n - 1 ? course.exit[1] : ends[k], y: s.y, id: asks[k] }));
   const rows = []; for (let i = 0; i < n; i += perRow) rows.push(seg.slice(i, i + perRow));
@@ -55,11 +55,14 @@ export function courseMap(course, { seed = 1, perRow = 5, flank = 6, scale = 9, 
   rows.forEach((R, ri) => {
     const x0 = R[0].from, X = (y) => padX + (y - x0) * scale, y0 = head + ri * rowH, cy = y0 + (across / 2) * scale, Y = (x) => cy + x * scale;
     const xa = X(R[0].from), xb = X(R[R.length - 1].to);
-    // the flanks: a cell a segment a side, lettered by the pattern
-    for (const s of R) for (const [side, pat, ya, yb] of [['left', left, Y(-HALF - flank), Y(-HALF)], ['right', right, Y(HALF), Y(HALF + flank)]]) {
-      const L = pat[s.k];
-      out.push(`<rect x="${r1(X(s.from))}" y="${r1(ya)}" width="${r1(X(s.to) - X(s.from))}" height="${r1(yb - ya)}" fill="${FLANK[L]}" stroke="${PAPER}" stroke-width="2"/>`);
-      out.push(`<text x="${r1(X(s.from) + 7)}" y="${r1(side === 'left' ? ya + 15 : yb - 7)}" font-weight="600" fill="#55604a">${L}</text>`);
+    // the flanks: the course's own slices (course-scenery.js), a cell each, lettered A or B and named
+    const [ra, rb] = [R[0].from, R[R.length - 1].to];
+    for (const c of course.scenery.cells) {
+      const a = Math.max(ra, c.y0), b = Math.min(rb, c.y1);
+      if (b - a < 0.5) continue;
+      const [ya, yb] = c.side === 'left' ? [Y(-HALF - flank), Y(-HALF)] : [Y(HALF), Y(HALF + flank)];
+      out.push(`<rect x="${r1(X(a))}" y="${r1(ya)}" width="${r1(X(b) - X(a))}" height="${r1(yb - ya)}" fill="${FLANK[c.kind]}" stroke="${PAPER}" stroke-width="2"/>`);
+      if (b - a > 4) out.push(`<text x="${r1(X(a) + 7)}" y="${r1(c.side === 'left' ? ya + 15 : yb - 7)}" fill="#55604a"><tspan font-weight="600">${c.kind}</tspan>${b - a > 12 ? ` · ${esc((c.kind === 'A' ? course.dress.walls.a : course.dress.walls.b).name)}` : ''}</text>`);
     }
     out.push(`<text x="${r1(xa - 6)}" y="${r1(Y(-HALF - flank / 2))}" fill="#6b675e" font-size="10" text-anchor="middle" transform="rotate(-90 ${r1(xa - 6)} ${r1(Y(-HALF - flank / 2))})">left</text><text x="${r1(xa - 6)}" y="${r1(Y(HALF + flank / 2))}" fill="#6b675e" font-size="10" text-anchor="middle" transform="rotate(-90 ${r1(xa - 6)} ${r1(Y(HALF + flank / 2))})">right</text>`);
     // the way, its kerbs, its lanes as guides

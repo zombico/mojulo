@@ -51,7 +51,8 @@ import { composeLive } from '../worlds/controllable/compose.js';
 import { feelRule } from './feel/lower.js';
 import { readRoll, rolledIds, rollWays } from '../game/roll.js';
 import { standBlocks } from '../playscape/terrain.js';
-import { dressOf, ASK_ROLE } from './course-dress.js';
+import { dressOf, readDress, ASK_ROLE } from './course-dress.js';
+import { sceneryOf, sceneryLaws } from './course-scenery.js';
 import { hexToRgb } from '../color-theorist/oklab.js';
 import { courseCamera } from './course-view.js';
 import { rhythmFaults } from '../era/wall-rhythm.js';
@@ -181,6 +182,10 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   if (D.lanes.sleepers) for (const lane of LANES) for (let j = 0; j < length; j += 1.2) add(quad(lane - 0.8, j, lane + 0.8, j + 0.26, 0.008, col.sleeper), 'room:lanes');
   if (D.lanes.rails) for (const lane of LANES) for (const off of [-0.55, 0.55]) for (let j = -4; j < length + 4; j += 20) add(quad(lane + off - 0.05, j, lane + off + 0.05, Math.min(length + 4, j + 20), 0.016, col.rail), 'room:lanes');
   add(quad(-HALF, exit[1] - 0.4, HALF, exit[1] + 0.4, 0.02, col.exit), 'room:lanes');
+  // THE SCENERY (course-scenery.js): the walls beside the way, a slice a segment, and the backdrop past its end; held
+  // with the way and the asks to one gate
+  const scenery = sceneryOf(D, { length, gap, seed: D.seed });
+  for (const f of scenery.faces) faces.push(f);
   const colliders = [{ min: [-W - 0.5, -4, 0], max: [-HALF, length + 4, 4], hold: false }, { min: [HALF, -4, 0], max: [W + 0.5, length + 4, 4], hold: false }, { min: [-W, -4.5, 0], max: [W, -4, 4], hold: false }, { min: [-W, length + 4, 0], max: [W, length + 4.5, 4], hold: false }];
   // the line's pacing (game/roll.js pattern): see the header
   const ramp = Object.fromEntries(Object.entries(RAMP).filter(([f]) => prims.includes(f)));
@@ -188,7 +193,9 @@ export function courseOf(G, { slots = 10, rest = REST, react = REACT, dress = 'r
   // THE FRAME (course-view.js): where the reaction begins, the earliest a jump is pressed, and the follow camera that
   // puts the vanishing point on the screen's upper line and that place on its lower one
   const jumps = prims.filter((id) => PRIMITIVES[id].ask === 'jump'), reactAt = r2(pace.top * (jumps.length ? Math.max(...jumps.map((id) => pace.lead[id].early)) : pace.laneTime[1]));
-  return { feel, rule, pace, prims, dress: D, bg: col.sky, reactAt, camera: courseCamera({ react: reactAt }), need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
+  const camera = courseCamera({ react: reactAt });
+  D.laws = [...D.laws, ...sceneryLaws(D, scenery, { camera, length })];
+  return { feel, rule, pace, prims, dress: D, scenery: { left: scenery.left, right: scenery.right, cells: scenery.cells, far: scenery.far }, bg: col.sky, reactAt, camera, need: r2(need), rest, react, gap, sight: Math.ceil(pace.top * (need + react)), length, slots: list, blocks, roll, ways: rollWays(readRoll(roll, { blocks })), exit, start: [0, 0, 0], colliders, faces };
 }
 
 // the course as the runtime stands it: its lane, its rolled things (the same readers the scene uses), the hero
@@ -268,7 +275,7 @@ export function readObstacles(v) {
   if (v === true) return { slots: 10, rest: REST };
   if (!isObj(v)) throw new Error('obstacles is true or { slots?, rest?, dress? } (an obstacle course run at speed: a lane of slots a seed fills, gameworld/roll-course.js)');
   for (const k of Object.keys(v)) if (k !== 'slots' && k !== 'rest' && k !== 'dress') throw new Error(`obstacles.${k} is not a course's setting (slots, rest, dress)`);
-  if (v.dress !== undefined) dressOf(v.dress);   // (a theme there is, said by name)
+  if (v.dress !== undefined) readDress(v.dress);   // (a theme by name, or the dress written out: it teaches)
   if (v.slots !== undefined && !(Number.isInteger(v.slots) && v.slots >= 4 && v.slots <= 40)) throw new Error('obstacles.slots is how many places the course has, 4 to 40');
   if (v.rest !== undefined && !(Number.isFinite(v.rest) && v.rest >= 0.2 && v.rest <= 3)) throw new Error('obstacles.rest is the seconds of rest after each ask is met, 0.2 to 3 (0.6 unsaid)');
   return { slots: v.slots ?? 10, rest: v.rest ?? REST, ...(v.dress !== undefined ? { dress: v.dress } : {}) };
@@ -277,7 +284,7 @@ export function readObstacles(v) {
 export function obstacleStage(G, v) {
   const C = courseOf(G, readObstacles(v));
   return { kind: 'controllable', title: 'course', bg: C.bg, faces: C.faces, colliders: C.colliders, blocks: C.blocks, roll: structuredClone(C.roll),
-    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, dress: C.dress.theme, reactAt: C.reactAt, camera: C.camera },
+    obstacles: { gap: C.gap, need: C.need, rest: C.rest, sight: C.sight, react: C.react, exit: C.exit, start: C.start, asks: C.prims, dress: C.dress.theme, scenery: { left: C.scenery.left, right: C.scenery.right, walls: [C.dress.walls.a.id, C.dress.walls.b.id], backdrop: C.dress.backdrop.id }, reactAt: C.reactAt, camera: C.camera },
     worldFraming: { cameraPosition: [0, -8, 4], lookAt: [0, 12, 1], horizontalFov: 70 } };
 }
 /** A course stage's anchors: the start facing up the lane, the exit at its end, flat ground. */

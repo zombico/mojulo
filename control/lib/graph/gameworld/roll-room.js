@@ -74,8 +74,18 @@ export function layoutOf(G) { const pole = poleOf(G); return pole && POLES[pole]
 const mechanicsOf = () => [{ kind: 'collect', into: 'bag', pickups: YARD.pickups.map((p) => ({ ...p, at: p.at.slice(), radius: 1.5 })) }, { kind: 'bag', slice: 'bag' }, { kind: 'reach-exit', at: YARD.exit.slice(), radius: 2 }];
 const ruleOf = (G) => (G && G.feel != null ? feelRule(G.feel) : {});
 
+/** The dress the roll room's course wears: a course level's own (`level` by id, else the world's first level that is
+ * an obstacle course), so the room, its map and its sheet show the look the game will have; the theme's unsaid. */
+export function courseDressOf(G, level = null) {
+  const L = G?.levels && typeof G.levels === 'object' ? G.levels : {};
+  if (level != null && !(L[level] && L[level].obstacles)) throw new Error(`practice: level '${level}' is not an obstacle course of this world (${Object.keys(L).filter((k) => L[k]?.obstacles).join(', ') || 'it has none'})`);
+  const id = level ?? Object.keys(L).find((k) => L[k]?.obstacles), o = id != null ? L[id].obstacles : null;
+  return o && typeof o === 'object' && o.dress !== undefined ? o.dress : undefined;
+}
+const roomCourse = (G, level = null) => { const dress = courseDressOf(G, level); return courseOf(G, dress !== undefined ? { dress } : {}); };
+
 /** The roll room (see the header). */
-export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = {}) {
+export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic', level = null } = {}) {
   const own = typeof refs.hero === 'string';
   const P = playerWorld({ heroRef: own ? refs.hero : 'stand-in', id: 'hero', title: 'roll room', controls: ROLL_LEGEND, rule: { ...ruleOf(G), move: 'camera' } });
   const { heroRef: _r, ...lib } = P.figures.hero;
@@ -85,7 +95,7 @@ export function rollRoom(G, { refs = {}, cast = 'male', sound = 'realistic' } = 
   const standIn = lowerBody({ cast }, rail ? gameBody(rail.rail, 'hero', { pole: cast }) : null);
   const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, hero: standIn } };
   const heroE = { ...P.entities[0], transform: { pos: YARD.roll.start[0].pos.slice(), heading: Math.PI / 2 } };
-  const course = layoutOf(G) === 'course' ? courseOf(G) : null;
+  const course = layoutOf(G) === 'course' ? roomCourse(G, level) : null;
   const { faces, colliders } = course ? { faces: course.faces, colliders: course.colliders } : floorOf({ half: HALF });
   const soundOf = (word) => { const v = sound === 'none' ? null : sfxSound(word, { style: sound }); return v && v.gestures ? v.gestures : null; };
   const step = soundOf('step-concrete'), jump = soundOf('jump'), land = soundOf('land');
@@ -152,16 +162,17 @@ export function coverForms(G) {
 // the measures by the feel they were taken on (the same feel measures the same: pure, kept); a few at a time
 const KEPT = new Map(), KEEP = 16;
 export function rollRoomMeasured(G) {
-  const key = JSON.stringify(G?.feel ?? null);
+  const key = JSON.stringify([G?.feel ?? null, layoutOf(G) === 'course' ? courseDressOf(G) ?? null : null]);
   if (KEPT.has(key)) return KEPT.get(key);
   if (layoutOf(G) === 'course') {
     // the course: the reaction bot's audit over a sample of seeds, and what the course was sized by
-    const C = courseOf(G), A = courseAudit(C, { seeds: 12 }), jumps = C.prims.filter((id) => PRIMITIVES[id].ask === 'jump');
+    const C = roomCourse(G), A = courseAudit(C, { seeds: 12 }), jumps = C.prims.filter((id) => PRIMITIVES[id].ask === 'jump');
     const out = { layout: 'course', seeds: A.seeds, ways: C.ways, lost: A.laws.filter((l) => !l.holds).map((l) => l.law), ...(A.ok ? {} : { worst: A.laws.filter((l) => !l.holds).map((l) => l.says) }), says: A.laws.map((l) => l.says),
       // (where its screen is read, course-view.js: the three bands on the course's own camera, and whether it frames them)
       view: (({ laws, ...B }) => ({ ...B, reactAt: C.reactAt, lost: laws.filter((l) => !l.holds).map((l) => l.law), says: laws.map((l) => l.says) }))(viewBands(cameraAt(C.camera), { react: C.reactAt, top: C.pace.top })),
       // (its dress's own gate, course-dress.js: are the asks read against the way, told apart, and told ahead)
-      dress: { theme: C.dress.theme, name: C.dress.name, lost: C.dress.laws.filter((l) => !l.holds).map((l) => l.law), says: C.dress.laws.map((l) => l.says) },
+      // (every layer of it: the way and the asks, the walls beside them, the backdrop behind; the sheet shows them as one)
+      dress: { theme: C.dress.theme, name: C.dress.name, ...(C.dress.own ? { own: true } : {}), walls: { a: C.dress.walls.a.name, b: C.dress.walls.b.name, left: C.scenery.left, right: C.scenery.right }, backdrop: C.dress.backdrop.name, sheet: 'bible?book=practice&room=roll&view=sheet', lost: C.dress.laws.filter((l) => !l.holds).map((l) => l.law), says: C.dress.laws.map((l) => l.says) },
       course: { top: Math.round(C.pace.top * 10) / 10, need: C.need, rest: C.rest, gap: C.gap, react: C.react, sight: C.sight, asks: C.prims, windows: Object.fromEntries(jumps.map((id) => [id, C.pace.lead[id].frames])), lane: C.pace.laneTime.slice(1).map((t) => Math.round(t * 100) / 100) } };
     KEPT.set(key, out);
     if (KEPT.size > KEEP) KEPT.delete(KEPT.keys().next().value);

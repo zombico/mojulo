@@ -791,7 +791,7 @@ function rollCard() {
     '  crates by the trail\'s beats, laid for the roll when the level has none: half or more stand, never all) and its own',
     '  pickups (half or more lie, never all). A hero with no body is given one: no cover stops it without.',
     '  Quick: design_game({ quick: { goal: \'collect\', world: { roll: true } } }).',
-    'AN OBSTACLE COURSE (a running game)   a level\'s obstacles: true | { slots?: 4…40, rest?: 0.2…3, dress?: rail-yard | greybox }',
+    'AN OBSTACLE COURSE (a running game)   a level\'s obstacles: true | { slots?: 4…40, rest?: 0.2…3, dress? (gameworld-course-dress) }',
     '  in place of walk: a lane of slots seen from behind the hero, a hurdle, a block or posts in each, rolled as one paced',
     '  line. It is sized for the world\'s hero by what each ask needs in seconds, measured on its feel, and followed by a',
     '  camera that frames it. A hero that runs on momentum (feel: commuter-rail-runner) is the one it is for.',
@@ -811,6 +811,39 @@ function rollCard() {
     '  next seed. &view=map is the course map: the course from above, on its side, read left to right. Its measures are in',
     '  design_game\'s readout (practice.measured.roll). Whether a roll reads as designed is the operator\'s to see.',
     'NOT YET   foes a seed picks; the layout itself rolled; a start rolled by the world\'s word.',
+  );
+}
+
+function courseDressCard() {
+  return lines(
+    'THE COURSE\'S DRESS — how an obstacle course (a level\'s `obstacles`, gameworld-roll) looks: its way and asks, the WALLS',
+    '  beside it and the BACKDROP behind it. One dress, because they share one screen, read in thirds from the top: where',
+    '  stuff comes from (the backdrop\'s), where it comes to view (the walls\' and the asks\'), where you react (the character\'s).',
+    'THE WORD   a level\'s obstacles.dress: \'rail-yard\' | \'greybox\' | {',
+    '    theme?:    the card every part left out falls back to (rail-yard unsaid)',
+    '    palette?:  { <role>: \'#rrggbb\' }   by ROLE, never thing by thing:',
+    '               the way ground ground2 sleeper rail kerb wall · the asks jump jump2 (go over) steer (go round) ·',
+    '               the tells tell-jump tell-steer · exit · the walls flank flank2 trim · the backdrop sky horizon far land',
+    '    walls?:    { a?, b?, order? }   A the complex slice, B the plain one that lets A be seen. A slice is one segment long:',
+    '               a name (shed, stacks, fence, bank) or { name?, parts: [{ box: [u0, d0, z0, u1, d1, z1], role }] }, u 0…1',
+    '               along it, d metres off the kerb outward, z metres up, role flank | flank2 | trim (40 parts at most).',
+    '               order: one side\'s own (\'ABBA\'), else the walls\' rule lays each side (never three alike, never ABAB).',
+    '    backdrop?: a name (yard, open) or { bands?: 3…12, skyline?: [{ at: -1…1, wide, tall }] }   the sky in steps from',
+    '               `horizon` up to `sky`, silhouettes in `far`, the land in `land`, 400 m past the course\'s end.',
+    '  }',
+    'IN UNISON   design every layer in one patch and read one sheet: bible?book=practice&room=roll&view=sheet (&level=<id>).',
+    '  It draws the screen from the course\'s own geometry through its own camera, its thirds ruled, the slices in',
+    '  elevation, the palette by layer and every law. &view=map places the slices along the course. Work it as a wave:',
+    '  the levels chapter owns the asks and their pace, the world chapter\'s style gives the place and its palette, and',
+    '  both patch levels.<id>.obstacles.dress; neither is done until the sheet\'s laws hold for the whole dress.',
+    'THE LAWS (one machine gate over every layer; it advises)   readable: an ask stands out from the way, the walls and the',
+    '  backdrop. distinct: go over and go round differ by hue. quiet: nothing but an ask is vivid. told: a tell is in its',
+    '  ask\'s hue. receding: the skyline is nearer the horizon\'s colour than the walls are. interest: A has more parts than',
+    '  B. rhythm: each side keeps the walls\' rule and the sides differ. banded: the skyline stays in the top third.',
+    '  design_game\'s readout carries them (practice.measured.roll.dress: lost, says) and a `roll` step names what is lost.',
+    'ORDER OF WORK   the character\'s back, then the far end (quiet, so what is coming is read), then the middle third: make A',
+    '  interesting at a segment\'s size, then B plainer, then their order. The eyes gate is the operator\'s, on the game\'s page.',
+    'NOT YET   walls a seed re-orders each run; textured parts; tall tells in the top third.',
   );
 }
 
@@ -1234,6 +1267,7 @@ const CARDS = [
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
+  ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

@@ -15,7 +15,8 @@
  *     seed, what stands, what lies, where it started) beside the seeds audit and the cover forms that stop this hero;
  *     R rolls the next seed, Shift+R the one before (the page's own ?seed=)
  *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js); the roll room's course with
- *     `view: 'map'` is its course map (course-map.js) in place of the room
+ *     `view: 'map'` is its course map (course-map.js) in place of the room, `view: 'sheet'` its course sheet
+ *     (course-sheet.js); `level` names the course level whose dress it wears (the first, unsaid)
  *   roomRefs(world, ref, exists) → the refs above, by the run's names, each only where its row exists
  *   cardAsked(feel) → what the feel card asks of one swing: { startup, total, cancel, string, lunge, hitstop, stun, dodge,
  *     guard } in frames
@@ -358,6 +359,17 @@ export async function practiceHtml(G, id, opts = {}) {
     if (room.layout !== 'course') throw new Error('practice: the course map is a running game\'s (a hero that runs on momentum has a course; this world\'s roll room is the yard)');
     const { courseMapHtml } = await import('./course-map.js');
     return { html: courseMapHtml(room.course, { title: G.name ?? G.id ?? 'Course' }), room };
+  }
+  // (and as its SHEET, course-sheet.js: the way, the asks, the walls and the backdrop on one page, `view: 'sheet'`; framed
+  // for the game's own screen)
+  if (id === 'roll' && opts.view === 'sheet') {
+    const room = rollRoom(G, opts);
+    if (room.layout !== 'course') throw new Error('practice: the course sheet is a running game\'s (a hero that runs on momentum has a course; this world\'s roll room is the yard)');
+    const [{ courseSheetHtml }, { readScreen, screenPayload }, { UPRIGHT }, { courseCamera }] = await Promise.all([import('./course-sheet.js'), import('../game/screen.js'), import('./cameras.js'), import('./course-view.js')]);
+    const S = G.screen ? readScreen(G.screen) : null, P = S ? screenPayload(S.orientation === 'portrait' ? { ...S, fov: S.fov ?? UPRIGHT.follow.fov } : S) : null;
+    // (an upright screen's course is followed by the camera solved for it, as its level's is: levels.js screenLevel)
+    const course = P?.v0 ? { ...room.course, camera: courseCamera({ react: room.course.reactAt, vfov: P.v0 }) } : room.course;
+    return { html: courseSheetHtml(course, { title: G.name ?? G.id ?? 'Course', ...(P ? { aspect: P.aspect } : {}), ...(P?.v0 ? { vfov: P.v0 } : {}) }), room };
   }
   return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

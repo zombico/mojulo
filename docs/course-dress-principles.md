@@ -117,6 +117,45 @@ On a flat way nothing that stands lower than the camera rises above the vanishin
 the sky and the way's far end. Things that tell what is coming from up there (a signal over each lane, a gantry, a
 skyline) have to be taller than the camera stands, 3.55 m here.
 
+## The walls and the backdrop: one dress with the way
+
+The way and its asks, the walls beside it and the backdrop behind it are one design, because they share one screen.
+They are written in one place (a level's `obstacles.dress`), coloured from one list of roles, and held to one gate.
+The code is `control/lib/graph/gameworld/course-scenery.js`; the agent's card is `gameworld-course-dress`.
+
+| Layer | Where it is on the screen | Its roles | What it is made of |
+|---|---|---|---|
+| The backdrop | the top third | `sky`, `horizon`, `far`, `land` | the sky in steps from the horizon up, a skyline of silhouettes, the land beyond the way, 400 m past the course's end |
+| The walls | the sides of the middle third | `flank`, `flank2`, `trim` | a slice a segment, A (complex) or B (plain), each side in its own order |
+| The way and the asks | the middle third, down to the character | as before | the lane, the things to go over and round, their tells |
+
+A slice is data: boxes measured along the slice (0 to 1), off the kerb outward, and up, each in a role. It is one
+segment long, which is the size a designed piece is seen at. The cards (a goods shed, stacked containers, a fence
+before an embankment, an open bank) are written in the same form a creator writes their own in.
+
+The laws the outer layers add to the gate, and why:
+
+- **receding**: the skyline is nearer the horizon's colour than the walls are. The far end is where what is coming is
+  read, so it is the quietest thing on the screen.
+- **interest**: A has more parts than B. A side of equals reads as noise, or as nothing.
+- **rhythm**: each side keeps the walls' rule (never three alike, never a pair repeated) and the two sides differ, so
+  the frame is not a mirror.
+- **banded**: the skyline is seen from the first step and is still inside the top third at the last.
+- The laws that were there now count the walls and the backdrop among what an ask is read against (**readable**) and
+  among what may not be as vivid as an ask (**quiet**).
+
+## The course sheet
+
+The page where the layers are seen together without running the game: `bible?book=practice&room=roll&view=sheet`
+(`&level=<id>` for a level other than the first course level). It draws the screen from the course's own geometry
+through its own camera with one roll standing and the thirds ruled across it, from the start and from the middle of the
+course; each slice in elevation; the palette by layer; and every law. It is a painter's drawing, right for a sheet and
+not a render: the eyes gate is the game's own page.
+
+Working it as one design: the level designer owns the asks and their pace, the art director owns the place and its
+palette, and both write into the same dress and read the same sheet. Neither is done until the sheet's laws hold for
+the whole of it.
+
 ## What this asks of the work
 
 - A piece is authored and reviewed as it is seen coming down the middle band, not on a turntable.

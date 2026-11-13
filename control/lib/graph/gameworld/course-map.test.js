@@ -39,12 +39,14 @@ describe('the map', () => {
 
   it('its flanks are cells, one a segment a side, lettered by the walls\' rule; the two sides differ', () => {
     for (const side of ['left', 'right']) {
-      expect(M.flanks[side]).toHaveLength(C.slots.length);
+      expect(M.flanks[side]).toBe(C.scenery[side]);
+      expect(M.flanks[side].length).toBeGreaterThanOrEqual(C.slots.length);
       expect(M.flanks[side]).toMatch(/^[AB]+$/);
       expect(rhythmFaults(M.flanks[side])).toEqual([]);
     }
     expect(M.flanks.left).not.toBe(M.flanks.right);
-    expect(M.svg.split('font-weight="600" fill="#55604a"').length - 1).toBe(2 * C.slots.length);
+    // (a cell a slice: lettered, and named where it is long enough)
+    expect(M.svg).toMatch(new RegExp(`<tspan font-weight="600">A</tspan> · ${C.dress.walls.a.name}`));
   });
 
   it('a run is drawn through it: on the ground and, over each thing jumped, in the air', () => {

@@ -90,6 +90,7 @@ a camera that frames those bands (`course-view.js`), and the room's readout says
 The course is drawn for the design book as a course map (`course-map.js`: the course from above, on its side, read
 left to right, with its asks, its tells, a run through it and its flanks as lettered cells), at
 `bible?book=practice&room=roll&view=map`.
+`&view=sheet` is its course sheet: the way, the asks, the walls and the backdrop on one page (`docs/course-dress-principles.md`).
 
 The course's slots are rolled as one line (`roll.pattern`), not slot by slot: never three asks of one kind running,
 never a pair of kinds repeated, never the same posts twice, hurdles weighed most at its start and blocks at its end.
