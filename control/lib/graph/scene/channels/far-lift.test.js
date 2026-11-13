@@ -20,7 +20,8 @@ describe('the far lift', () => {
     expect(farLiftScript(null)).toBe('');
     expect(readFarLift(undefined)).toBe(null); expect(readFarLift(false)).toBe(null); expect(readFarLift(true)).toEqual({});
     expect(() => readFarLift({ height: 2 })).toThrow(/farLift/);
-    expect(formLandScript(land)).not.toContain('far lift');
+    expect(formLandScript(land)).not.toContain('--- the far lift');
+    expect(formLandScript(land)).not.toContain('window.__formFarLift =');
   });
   it('asked for, is the ground drawn again after the far field, cut to the blanket and risen from the reach', () => {
     const page = formLandScript({ ...land, farLift: true }), at = page.indexOf('--- the far lift');
