@@ -167,6 +167,11 @@
   small `index.html` and the script in binary files beside it, each under a size) for a host that limits a file. The
   day facility's page goes from 38 MB to 25 MB as one file and 19 MB in parts; with a realistic hero, 129 MB to 40 MB
   and 30 MB. The packed page was run in a browser both ways and draws as the page it was.
+- Page pack's text form (`bundlePage({ form: 'text' })`, `pack-page.mjs --parts --text`): the script as it is, in
+  `.txt` parts that each end on a whole character, for a host that serves only a web page's file types. A Claude
+  artifact refused the binary parts by their extension (`.bin`, `.gz`) and took the text parts of the CDN build. A
+  packed page whose host refuses a blob as a script now writes the script into the document as an inline module; seen
+  to run that way under a policy that allows only inline and CDN scripts.
 - Said once: two parked vehicles that are the same vehicle in the same dress are one figure stood twice.
 - A face's blend shapes said once and only where they move (`figures/morph-sparse.js`): a faced part carried a row a
   corner, every target at every corner; now the corners that share a row share it, and each target's column holds only

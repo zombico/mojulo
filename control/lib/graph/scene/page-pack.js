@@ -35,7 +35,9 @@ function splitPage(html) {
 
 // the lines that run an inflated script as the module it was: a blob the document imports (its bare imports resolve
 // through the page's own import map, as the script's did)
-const RUN = 'const __u = URL.createObjectURL(new Blob([__t], { type: "text/javascript" })); await import(__u); URL.revokeObjectURL(__u);';
+// (a host whose policy refuses a blob as a script fails the import before a line runs: the script is then written into
+// the document as the inline module it was, which such a host allows)
+const RUN = 'const __u = URL.createObjectURL(new Blob([__t], { type: "text/javascript" })); try { await import(__u); window.__mojPack = "blob"; } catch (e) { if (!(e instanceof TypeError && /import|module/i.test(e.message))) throw e; const __s = document.createElement("script"); __s.type = "module"; __s.textContent = __t; document.body.appendChild(__s); window.__mojPack = "inline"; } URL.revokeObjectURL(__u);';
 const INFLATE = (stream) => `const __t = await new Response(${stream}.pipeThrough(new DecompressionStream("gzip"))).text();`;
 const FAIL = 'document.body.insertAdjacentHTML("beforeend", "<p style=\\"font:14px system-ui;padding:16px\\">This page could not be opened: " + String(e && e.message || e) + "</p>");';
 
@@ -47,17 +49,33 @@ export function packPage(html, { level = PAGE_PACK.level } = {}) {
   return P.head + loader + P.tail;
 }
 
-export function bundlePage(html, { partBytes = PAGE_PACK.partBytes, name = 'world', level = PAGE_PACK.level } = {}) {
+export function bundlePage(html, { partBytes = PAGE_PACK.partBytes, name = 'world', level = PAGE_PACK.level, form = 'gzip' } = {}) {
+  if (form !== 'gzip' && form !== 'text') throw new Error("page-pack: form is 'gzip' or 'text'");
   if (!(Number.isInteger(partBytes) && partBytes >= 64 * 1024)) throw new Error('page-pack: partBytes is a whole number of bytes, 65536 or more');
   if (!/^[a-z0-9][a-z0-9-]*$/i.test(name)) throw new Error('page-pack: name is letters, digits and hyphens');
   const P = splitPage(html);
   if (!P) return { 'index.html': html, files: {}, manifest: { parts: [], bytes: Buffer.byteLength(html) } };
+  if (form === 'text') return textBundle(P, html, partBytes, name);
   const z = zlib.gzipSync(Buffer.from(P.src, 'utf8'), { level }), files = {}, parts = [];
   for (let o = 0, k = 0; o < z.length; o += partBytes, k++) { const id = `${name}-${k}.bin`; files[id] = z.subarray(o, Math.min(z.length, o + partBytes)); parts.push(id); }
   // (the parts fetched together, joined in order as one stream, inflated)
   const loader = `<script type="module" ${PAGE_PACK.mark}="1">try { const __p = ${JSON.stringify(parts)}; const __b = await Promise.all(__p.map(async (u) => { const r = await fetch(u); if (!r.ok) throw new Error(u + ": " + r.status); return r.arrayBuffer(); })); ${INFLATE('new Blob(__b).stream()')} ${RUN} } catch (e) { ${FAIL} throw e; }${CLOSE}`;
   const index = P.head + loader + P.tail;
   return { 'index.html': index, files, manifest: { parts, bytes: Buffer.byteLength(index) + z.length, script: z.length, was: Buffer.byteLength(html) } };
+}
+
+// the script as it is, in parts of text: for a host that serves only the file types of a web page (no binary part, no
+// archive) and compresses what it sends itself. Each part ends on a whole character
+function textBundle(P, html, partBytes, name) {
+  const u = Buffer.from(P.src, 'utf8'), files = {}, parts = [];
+  for (let o = 0, k = 0; o < u.length; k++) {
+    let e = Math.min(u.length, o + partBytes);
+    while (e < u.length && (u[e] & 0xc0) === 0x80) e--;
+    const id = `${name}-${k}.txt`; files[id] = u.subarray(o, e); parts.push(id); o = e;
+  }
+  const loader = `<script type="module" ${PAGE_PACK.mark}="1">try { const __p = ${JSON.stringify(parts)}; const __b = await Promise.all(__p.map(async (u) => { const r = await fetch(u); if (!r.ok) throw new Error(u + ": " + r.status); return r.arrayBuffer(); })); const __t = await new Blob(__b).text(); ${RUN} } catch (e) { ${FAIL} throw e; }${CLOSE}`;
+  const index = P.head + loader + P.tail;
+  return { 'index.html': index, files, manifest: { parts, bytes: Buffer.byteLength(index) + u.length, script: u.length, was: Buffer.byteLength(html) } };
 }
 
 export function unpackPage(html) {

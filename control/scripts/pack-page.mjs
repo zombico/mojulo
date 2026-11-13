@@ -5,6 +5,8 @@
 //   node scripts/pack-page.mjs <page.html> --parts [bytes]       → <page>.bundle/: index.html and its script in gzipped
 //                                                                  parts of at most `bytes` (12 MB by default), for a
 //                                                                  host that limits a file's size; serve the folder
+//   --text         with --parts: the parts as plain text (.txt), not gzipped, for a host that serves only a web page's
+//                  file types and compresses what it sends itself (a Claude artifact)
 //   --out <path>   where to write (a file for the one-file form, a folder for the parts)
 //   --json         print what was written as JSON (an agent reads it: the files and their sizes)
 import fs from 'node:fs';
@@ -18,7 +20,7 @@ const html = fs.readFileSync(src, 'utf8'), base = src.replace(/\.html?$/i, ''), 
 let report;
 if (flag('--parts')) {
   const partBytes = Number(val('--parts')) || PAGE_PACK.partBytes, dir = val('--out') || `${base}.bundle`;
-  const B = bundlePage(html, { partBytes, name: path.basename(base).replace(/[^a-z0-9-]/gi, '-') || 'world' });
+  const B = bundlePage(html, { partBytes, form: flag('--text') ? 'text' : 'gzip', name: path.basename(base).replace(/[^a-z0-9-]/gi, '-') || 'world' });
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index.html'), B['index.html']);
   for (const [k, v] of Object.entries(B.files)) fs.writeFileSync(path.join(dir, k), v);

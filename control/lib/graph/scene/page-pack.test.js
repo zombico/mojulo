@@ -34,6 +34,15 @@ describe('page pack', () => {
     expect(() => bundlePage(page, { partBytes: 10 })).toThrow(/partBytes/);
     expect(() => bundlePage(page, { name: '../x' })).toThrow(/name/);
   });
+  it('the text form holds the script as it is, in parts that each end on a whole character', () => {
+    const src = 'const s = "é→日本語";\n'.repeat(9000), B = bundlePage(`<script type="module">${src}</script>`, { partBytes: 64 * 1024, form: 'text', name: 'w' });
+    expect(B.manifest.parts.length).toBeGreaterThan(1);
+    expect(B.manifest.parts[0]).toBe('w-0.txt');
+    for (const id of B.manifest.parts) { expect(B.files[id].length).toBeLessThanOrEqual(64 * 1024); expect(B.files[id].toString('utf8')).not.toContain('\ufffd'); }
+    expect(Buffer.concat(B.manifest.parts.map((id) => B.files[id])).toString('utf8')).toBe(src);
+    expect(B['index.html']).not.toContain('DecompressionStream');
+    expect(() => bundlePage(page, { form: 'zip' })).toThrow(/form/);
+  });
   it('a page with no module script, or one already packed, is left as it is', () => {
     expect(packPage('<p>none</p>')).toBe('<p>none</p>');
     const packed = packPage(page);
