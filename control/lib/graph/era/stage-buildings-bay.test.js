@@ -108,6 +108,16 @@ describe('a base building on the land, seated clean and lit by the one sun', () 
     expect(inside.length).toBe(0);
   });
 
+  it('wet, its yard carries a capture of its own: a point on the widest strip of slab, corrected to that strip', () => {
+    const day = { sun: [1.6, 1.5, 1.3], ambient: [0.3, 0.35, 0.45], dir: noon.sky.sun.dir }, base = { kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [OUTPOST] };
+    const wet = assembleStageScene({ ...base, wet: 'wet' }, { formLit: true, dayLight: day }).form.room.reflect;
+    const { at, box, open } = wet.probe;
+    expect(open).toBe(true);
+    // (the point stands inside its box, over the slab)
+    for (let k = 0; k < 2; k++) { expect(at[k]).toBeGreaterThan(box[0][k]); expect(at[k]).toBeLessThan(box[1][k]); }
+    expect(at[2]).toBeGreaterThan(box[0][2] + 1);
+  }, 90000);
+
   it('read by the form render, its rooms\' light comes with it and its shell is baked under the same sun', () => {
     const F = assembleStageScene({ kind: 'stage', geocube: 'valley-morning', trail: true, hour: 'noon', buildings: [OUTPOST] }, { formLit: true, dayLight: { sun: [1.6, 1.5, 1.3], ambient: [0.3, 0.35, 0.45], dir: noon.sky.sun.dir } });
     const R = F.form?.room, sun = R?.lights.find((l) => l.radius >= 1e8);

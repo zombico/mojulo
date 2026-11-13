@@ -125,3 +125,7 @@
 - A floodlight's shadow: a yard's first two floods each carry a map of their own, drawn once with the static world in
   it, so what stands under a flood (a container, a parked walker, a building's corner) throws its shadow across the
   slab and up the next thing.
+- A wet yard gives back the place: where a land's buildings are wet, a capture of the yard as it stands lit, taken from
+  the widest strip of slab beside them, is what its wet slab, walls and containers hold (the buildings, the containers,
+  the land), corrected to that strip's box and read along the ray past it. Standing water out of doors gives back more
+  than a film does, so what stands by a puddle reads in it.

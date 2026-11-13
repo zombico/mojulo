@@ -1144,9 +1144,26 @@ export function withBuildings(payload, manifest, ctx = {}) {
     return { rect: R, size, data: Buffer.from(px).toString('base64') };
   })() : null;
   const lin = (c) => c.map((v) => r5((v / 255) ** 2.2));
+  // (THE YARD'S OWN CAPTURE: where the yard is wet, a cube of the place as it stands lit, taken from a point in the widest
+  // strip of slab beside the buildings, so what the wet ground and the wet walls round it give back is the buildings,
+  // the containers and the land that stand there, where they stand: corrected to that strip's box, its near side the
+  // wall. A surface outside the box keeps the sky's gradient: the capture is of this side only)
+  const yardProbe = (() => {
+    if (!wetness) return null;
+    const bound = (re) => { const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]; let n = 0;
+      for (const f of faces) if (re.test(f.group || '')) { n++; for (const c of f.corners) for (let k = 0; k < 3; k++) { b[k] = Math.min(b[k], c[k]); b[k + 3] = Math.max(b[k + 3], c[k]); } }
+      return n ? b : null; };
+    const A = bound(/^building:apron$/), Wl = bound(/^building:wall$/);
+    if (!A || !Wl) return null;
+    // the four strips of slab round the walls: [x0, y0, x1, y1], the widest taken
+    const strips = [[A[0], A[1], Wl[0], A[4]], [Wl[3], A[1], A[3], A[4]], [A[0], A[1], A[3], Wl[1]], [A[0], Wl[4], A[3], A[4]]];
+    const wide = (q) => Math.min(q[2] - q[0], q[3] - q[1]), best = strips.reduce((m, q) => (wide(q) > wide(m) ? q : m));
+    if (!(wide(best) > 2)) return null;
+    return { at: [(best[0] + best[2]) / 2, (best[1] + best[3]) / 2, A[5] + 1.7].map(r5), box: [[best[0], best[1], A[5] - 0.05].map(r5), [best[2], best[3], Wl[5]].map(r5)], open: true };
+  })();
   const reflect = ctx.dayLight && formRooms.length && payload.sky?.zenith && payload.sky?.horizon ? {
     env: { zenith: lin(payload.sky.zenith.slice(0, 3)), horizon: lin(payload.sky.horizon.slice(0, 3)), ground: lin(payload.sky.horizon.slice(0, 3)).map((v) => r5(v * 0.35)) },
-    surfaces: BUILT_SURFACES, ...(floods.length ? { floods } : {}),
+    surfaces: BUILT_SURFACES, ...(floods.length ? { floods } : {}), ...(yardProbe ? { probe: yardProbe } : {}),
     // (it has rained: every built thing out of doors is wet with no depth, era/laws.js 'wet-hugs-the-surface': the slab's
     // joints full, its faces dark, walls and containers run with it)
     ...(wetness ? { wet: { ...wetness, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: Object.keys(BUILT_SURFACES), damp: true, ...(puddleMask ? { mask: puddleMask } : {}) } } : {}) } : null;
