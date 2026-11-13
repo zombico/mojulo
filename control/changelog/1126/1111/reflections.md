@@ -192,5 +192,11 @@
   hides the feet of far trunks. It replaces a first attempt drawn as a wireframe box.
 - The grass's economy, in progress: the tall and medium swards a fifth shorter (their width kept, so the cone's reach
   is unchanged) and about a fifth denser, thinning sooner (from 0.42 of the reach), so the density is spent near the
-  eye; the far lift stands over the blades' tips (× 1.3). A change to every gen-7 page's grass; the change-reach tests
-  have not yet been run on it.
+  eye; the far lift stands over the blades' tips (× 1.3). A change to every gen-7 page's grass; its change-reach tests
+  pass.
+- The grass lines, in progress (`GRASS_LINE`, `form-grass.js`): between the thinning and the reach half the clumps
+  stand (`POV_GRASS.keep`); past the reach a share of them stand again on a crest (the ground behind falls below the
+  line of sight) and at a patch's near edge, out to three reaches, wider and taller with distance, on the far lift
+  where there is one: the land's layers and the lift's side read by a line of blades, solved from the camera each
+  frame. A tile's rows are ordered by their dice and it draws only those that can stand at its distance. Not yet seen
+  drawn; its tests not yet run.

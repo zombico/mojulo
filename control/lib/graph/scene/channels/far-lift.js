@@ -61,7 +61,7 @@ export function farLiftScript(lift) {
     // (the ground's meshes: the land's parts that carry its layers)
     const meshes = __formMeshes.filter((q) => q.geometry && q.geometry.attributes.splat).map((q) => { const l = new THREE.Mesh(q.geometry, m); l.receiveShadow = true; l.frustumCulled = false; scene.add(l); return l; });
     let on = true;
-    window.__formFarLift = { meshes: meshes.length, get on() { return on; }, set: (v) => { on = !!v; meshes.forEach((l) => { l.visible = on; }); return on; } };
+    window.__formFarLift = { meshes: meshes.length, heights: ${JSON.stringify(FAR_LIFT_HEIGHTS)}, blend: ${FAR_FIELD.blend}, rise: ${FAR_LIFT.rise}, get on() { return on; }, set: (v) => { on = !!v; meshes.forEach((l) => { l.visible = on; }); return on; } };
     window.addEventListener('keydown', (e) => { if (e.key === 'b' || e.key === 'B') console.log('far lift', window.__formFarLift.set(!on)); });
   })();
 `;
