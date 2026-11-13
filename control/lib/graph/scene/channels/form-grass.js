@@ -203,8 +203,8 @@ export function formGrassScript() {
       // (the grass lines, GRASS_LINE: a share of the clumps standing again past the reach, on a crest or at a patch's near
       // edge as this camera sees them; uLine: the far lift's height for this sward, and where it rises)
       const LU = GTIERS.map(() => ({ value: new THREE.Vector3(0, 0.9, 0.35) })), f3 = (v) => v.toFixed(4);
-      const LINE_HEAD = 'uniform vec3 uLine;\nfloat lnCov( vec2 p ) { return texture2D( tGrass, ( p - uGO ) / uGM ).b; }\n'
-        + 'float lnZ( vec2 p, float ramp ) { vec4 g = texture2D( tGrass, ( p - uGO ) / uGM ); return uGZ.x + ( ( g.r * 65280.0 + g.g * 255.0 ) / 65535.0 ) * uGZ.y + uLine.x * ramp * smoothstep( 0.1, 0.6, g.b ); }\n';
+      const LINE_HEAD = 'uniform vec3 uLine;\\nfloat lnCov( vec2 p ) { return texture2D( tGrass, ( p - uGO ) / uGM ).b; }\\n'
+        + 'float lnZ( vec2 p, float ramp ) { vec4 g = texture2D( tGrass, ( p - uGO ) / uGM ); return uGZ.x + ( ( g.r * 65280.0 + g.g * 255.0 ) / 65535.0 ) * uGZ.y + uLine.x * ramp * smoothstep( 0.1, 0.6, g.b ); }\\n';
       const lnE = (m) => '( lnZ( aRoot.xy + dir * ' + f3(m) + ', ramp ) - cameraPosition.z ) / ( dP + ' + f3(m) + ' )';
       const LINEH = ['float lnS = 1.0, lnUp = 0.0;',
         'if ( aTurn.y < ' + f3(LN.share) + ' && uPovR < 1e5 ) { float dn = dP / uPovR; if ( dn > ' + f3(LN.from) + ' && dn < ' + f3(LN.reach) + ' ) {',
@@ -212,7 +212,7 @@ export function formGrassScript() {
         '  float e0 = ( lnZ( aRoot.xy, ramp ) - cameraPosition.z ) / dP, eb = max( max( ' + lnE(LN.look[0]) + ', ' + lnE(LN.look[1]) + ' ), ' + lnE(LN.look[2]) + ' );',
         '  float w = max( smoothstep( ' + f3(LN.crest[0]) + ', ' + f3(LN.crest[1]) + ', e0 - eb ), 1.0 - smoothstep( 0.15, 0.4, lnCov( aRoot.xy - dir * ' + f3(LN.edge) + ' ) ) ) * smoothstep( ' + f3(LN.from) + ', 1.0, dn ) * ( 1.0 - smoothstep( ' + f3(LN.reach * 0.85) + ', ' + f3(LN.reach) + ', dn ) );',
         '  hP = max( hP, aRoot.w * w * ( 1.0 + ' + f3(LN.grow) + ' * ( dn - 1.0 ) ) ); lnS = 1.0 + ' + f3(LN.widen) + ' * max( 0.0, dn - 1.0 ) * w;',
-        '  lnUp = max( 0.0, uLine.x * ramp * smoothstep( 0.1, 0.6, lnCov( aRoot.xy ) ) - ' + f3(LN.sink) + ' ) * w; } }'].join('\n');
+        '  lnUp = max( 0.0, uLine.x * ramp * smoothstep( 0.1, 0.6, lnCov( aRoot.xy ) ) - ' + f3(LN.sink) + ' ) * w; } }'].join('\\n');
       const PLACE = 'vec3 transformed = vec3( aRoot.xy + rotG * position.xy * lnS * step( 0.001, hP ), aRoot.z + lnUp + position.z * hP ) + fgBend( aRoot.xy, hP, clamp( position.z, 0.0, 1.0 ), aTurn.x * 2.1 + aTurn.y );';
       // the grass: each length's clump where the sward is that length, fewer and lower where the cover thins, shrinking
       // toward a seam with another length, none where a standing drift has the ground

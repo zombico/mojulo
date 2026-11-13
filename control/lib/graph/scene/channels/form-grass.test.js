@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { GRASS_TIERS, SWARD_LENGTH, STILL_FIELD, POV_GRASS, GRASS_HEIGHT, formGrassScript } from './form-grass.js';
+import { GRASS_TIERS, SWARD_LENGTH, STILL_FIELD, POV_GRASS, GRASS_HEIGHT, GRASS_LINE, formGrassScript } from './form-grass.js';
 import { SWARDS } from '../../era/biocube.js';
 
 // a clump's triangles: each blade a strip of segments, two triangles a segment (the tip narrowed, not closed); a
@@ -41,7 +41,7 @@ describe('form grass', () => {
   it('the field: the grass and the drifts placed once over the map, in tiles, nothing following the eye, nothing dithered', () => {
     const src = formGrassScript();
     expect(STILL_FIELD.tile).toBeGreaterThan(0);
-    expect(src).toContain('const stand = (tg, R, mat, kind = \'grass\') => {');
+    expect(src).toContain('const stand = (tg, R, mat, kind = \'grass\', lines = false) => {');
     // (no grid that walks with the camera, no carpet, no far forms: what is placed is placed once)
     expect(src).not.toContain('cameraPosition.xy / uSp');
     expect(src).not.toContain('form-grass-patch');
@@ -86,5 +86,15 @@ describe('form grass', () => {
     const src = formGrassScript();
     expect(() => new Function('THREE', 'scene', 'D', 'LAYER_U', 'bytes', src)).not.toThrow();
     for (const t of GRASS_TIERS) expect(src).toContain(t.id);
+  });
+  it('past the thinning a share of the clumps stand, and past the reach the lines\' smaller share, on a crest or an edge', () => {
+    const src = formGrassScript();
+    expect(POV_GRASS.keep).toBeGreaterThan(0); expect(POV_GRASS.keep).toBeLessThan(1);
+    expect(GRASS_LINE.share).toBeLessThan(POV_GRASS.keep);
+    expect(GRASS_LINE.reach).toBeGreaterThan(1);
+    // (the lines are solved in the blade's own shader from the camera, and a tile draws only the rows that can stand)
+    expect(src).toContain('cameraPosition.z');
+    expect(src).toContain('T.g.instanceCount = c');
+    expect(src).toContain('uniform vec3 uLine;\\n');
   });
 });
