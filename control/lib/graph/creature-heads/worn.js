@@ -147,7 +147,7 @@ function buildHead(neck0, worn, C) {
   // THE TEETH AND THE GUMS along the mouth's arch, inside the shut skin (./dentition.js)
   // THE MOUTH'S LINING in place of the one skin's bag (./mouth.js)
   parts.mouth = mouthLining({ mouth: head.mouth.map(toHero), fH, k, zL, lipDepth: C.lipDepth });
-  Object.assign(parts, dentitionParts({ mouth: head.mouth.map(toHero), fH, k, zL, dentition: head.relations.dentition, fang: head.relations.fang }));
+  Object.assign(parts, dentitionParts({ mouth: head.mouth.map(toHero), fH, k, zL, dentition: head.relations.dentition, fang: head.relations.fang, tusk: head.relations.tusk }));
   // THE EARS, each its own part on its own field
   const E = head.earFields.find((e) => e.side === 'R'), w = head.vajras.find((v) => v.name === 'earR');
   if (E && w) {

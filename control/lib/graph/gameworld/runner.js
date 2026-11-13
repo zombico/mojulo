@@ -63,6 +63,7 @@ import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
+import { kinWords } from '../foes/packs.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
@@ -589,8 +590,10 @@ const foeSteps = (G, ref, ready) => {
     // (the body its game puts in its henchmen, where the book names one (game-bodies.js): the words it changes over the
     // sheet's person, laid over it when the character is made; a book that names none makes it as before)
     // (and what it carries, its skin's `gear`, foes/people.js: the hero door's words over the rolled person)
-    const body = hench ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear;
-    const words = body || gear ? { ...(body ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
+    // (and what a kin wears as its pack and how big it stands, its skin's `pack` and `body`, foes/packs.js: its garments
+    // and their colours at its rank, its size as its tune)
+    const body = hench ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank });
+    const words = body || gear || kin ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
       { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title, ...(words ? { spec: words } : {}) }, print: fingerprint({ roll, moves: true, ...(words ? { spec: words } : {}) }) },

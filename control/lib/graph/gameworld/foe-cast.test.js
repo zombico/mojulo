@@ -4,7 +4,8 @@
 // that counts and one that shows health; absence costs nothing.
 import { describe, it, expect } from 'vitest';
 import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS, COUNSEL } from './foe-cast.js';
-import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE, PEOPLE_ARMS } from './foe-casting.js';
+import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE, PEOPLE_ARMS, KIN_SIZES } from './foe-casting.js';
+import { packStylesOf, packSays, bodySays, WILD_SIZE_IDS } from '../foes/packs.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
 import { ERA_OF_KIT } from './cast-setting.js';
 import { colorKey } from './nature.js';
@@ -245,6 +246,21 @@ describe('the casting call', () => {
     }
     expect(() => readGameworld({ ...fighting, foes: P.foes })).not.toThrow();
     expect(() => readGameworld({ ...fighting, foes: A.foes })).not.toThrow();
+    // (A KIN'S CAST, foes/packs.js: on a world whose roll is a people a pack style is cut for. WILD where its minds are
+    // each its own: bare, and where its lineage has one build told apart by size, the role's (the card's own size said
+    // by no word); a PACK where the cube's minds hunt as one: every role the same style and colourway, its sizes kept)
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], kinSeed = seeds.find((seed) => packStylesOf(castingCall({ ...fighting, seed }).from.people).length);
+    expect(kinSeed, 'a seed that rolls a kin a pack is cut for').toBeTruthy();
+    const wild = castingCall({ ...fighting, seed: kinSeed }), packed = castingCall({ ...fighting, seed: kinSeed, intent: { from: 'shooter', cube: { mind: { squad: 'pack' } } } });
+    const kinRoles = (C) => C.roles.filter((r) => r.skin?.people);
+    expect(kinRoles(wild).every((r) => r.skin.pack === undefined)).toBe(true);
+    if (LINEAGES[wild.from.people].builds.length === 1) for (const r of kinRoles(wild)) expect(r.skin.body?.size ?? 'squat').toBe(KIN_SIZES[r.id]);
+    expect(packed.from.people).toBe(wild.from.people);
+    const packs = kinRoles(packed).map((r) => r.skin.pack);
+    expect(packs.length).toBeGreaterThan(1);
+    expect(packs.every((p) => p && p.style === packStylesOf(wild.from.people)[0] && p.colourway === packs[0].colourway)).toBe(true);
+    expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: wild.foes })).not.toThrow();
+    expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: packed.foes })).not.toThrow();
     const plat = castingCall({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
     expect(plat.from.flavor).toBe('platformer');
     expect(plat.roles.every((r) => !r.skin?.people)).toBe(true);
@@ -288,6 +304,18 @@ describe('the sheet', () => {
     expect(html).toContain('<a href="#foes">Foes</a>');
     // (a world that fields none: not a byte of it)
     expect(gameworldBibleHtml(world())).not.toMatch(/id="foes"|<h4>Foes<\/h4>|class="tile"/);
+  });
+  it('says a kin\'s pack and its body: what its band wears alike, its size; a kin that names neither is wild', () => {
+    // (a pack style and a people it is cut for, chosen from the table; the book's own words for them)
+    const people = Object.keys(LINEAGES).find((p) => packStylesOf(p).length), style = packStylesOf(people)[0], cls = CLASSES.find((c) => { try { resolveFoe({ class: c.id, skin: { people } }); return true; } catch { return false; } }).id;
+    const W = world({ wild: { class: cls, skin: { people } }, packed: { class: cls, skin: { people, pack: { style }, body: { size: WILD_SIZE_IDS.at(-1) } } } }, ['wild', 'packed']);
+    const C = foeCastOf(W), wild = C.foes.find((x) => x.id === 'wild'), packed = C.foes.find((x) => x.id === 'packed');
+    expect(wild.skin.says).toMatch(/wild \(bare\)$/); expect(wild.skin.pack).toBeUndefined();
+    expect(packed.skin.pack).toBe(packSays({ people, pack: { style } }));
+    expect(packed.skin.body).toBe(bodySays({ people, body: { size: WILD_SIZE_IDS.at(-1) } }));
+    expect(packed.skin.says).toContain(packed.skin.pack);
+    const html = foeCastHtml(W);
+    expect(html).toContain(packed.skin.pack.replace(/'/g, '&#39;'));
   });
   it('says what a people carries, and in a world armed with a kit its numbers on the kit\'s scale and a boss\'s phases', () => {
     // (the cast the call proposes for a hero that plays strings, on a seed whose lineage carries arms; the kit chosen

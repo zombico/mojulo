@@ -275,6 +275,18 @@ export const LINEAGES = Object.freeze({
       { at: 1, ch: 'ornament', line: 'blunt claws on the fingers and toes', plan: { claws: 'blunt' } },
     ],
   },
+  orc: {
+    reads: 'orc-kin', humanity: [0.1, 0.24], builds: ['brute'], cover: { moss: '#5d6b3e', olive: '#6b6a3a', ash: '#7a7a6e', slate: '#4d5458' },
+    built: 'the orc skull (creature-heads/relational.js) on the orc card (beast/cards.js): its head and its body its kin\'s own; the near-human orcish above it is a person',
+    cues: [
+      { at: 1, ch: 'eyes', line: 'small deep eyes under a heavy brow ridge' },
+      { at: 1, ch: 'structure', line: 'a deep square jaw set ahead of a flat broad nose, the vault low behind the brow', derives: ['door = creature'] },
+      { at: 1, ch: 'ornament', line: 'tusks standing up out of the lower lip' },
+      { at: 1, ch: 'ornament', line: 'short pointed ears laid out to the sides' },
+      { at: 1, ch: 'frame', line: 'a wedge of a body: huge sloped shoulders, a thick neck, long heavy arms, short bowed legs, the back humped' },
+      { at: 1, ch: 'ornament', line: 'blunt claws on the fingers and toes', plan: { claws: 'blunt' } },
+    ],
+  },
 });
 
 export function ancestryIds(custom = {}) { return [...HUMAN_IDS, ...Object.keys(LINEAGES), ...Object.keys(custom)]; }

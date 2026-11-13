@@ -15,10 +15,11 @@
  *   the gums     a ringed tube along each arch through the midline, its lower (the upper gum's) edge at the teeth's necks,
  *                its rings drawn in wherever they would stand out of the skin
  *
- *   dentitionParts({ mouth, fH, k, zL, dentition, fang })  → { teethU, teethL, gumU, gumL }: layer-1 parts (the teeth a
+ *   dentitionParts({ mouth, fH, k, zL, dentition, fang, tusk })  → { teethU, teethL, gumU, gumL }: layer-1 parts (the teeth a
  *                     mesh each row, the gums ringed), in the hero's frame (metres; `mouth` there, corner → front; `fH` the
- *                     closed skin's field there; `k` the head's scale, a V being HEAD_V × k; `zL` the mouth line's height)
- *   DENTITIONS, ARCH
+ *                     closed skin's field there; `k` the head's scale, a V being HEAD_V × k; `zL` the mouth line's height;
+ *                     `tusk` the lower canines drawn out as tusks, TUSK)
+ *   DENTITIONS, ARCH, TUSK
  * Pure and deterministic: fixed loops, ties by index; no dice, no clock.
  */
 import { HEAD_V } from '../polygonizer/head-relational.js';
@@ -60,7 +61,12 @@ const KINDS = Object.freeze({
   premolar: Object.freeze({ tip: 0.22, bend: 0.05, lean: 0, root: 0.5 }),
   carnassial: Object.freeze({ tip: 0.2, bend: 0.06, lean: 0, root: 0.5 }),
   molar: Object.freeze({ tip: 0.6, bend: 0, lean: 0, root: 0.6 }),
+  tusk: Object.freeze({ tip: 0.1, bend: -0.06, lean: 0.22, root: 0.55 }),
 });
+/** A TUSK (the head's `tusk` > 0): the lower canine drawn out, one a side: where along the lower arch it stands, how far
+ * OUT of the arch its foot is set (V: on the lip, not behind it), its crown's length at tusk 1 and its breadth and depth
+ * (V). It stands out of the shut mouth, so it is never fitted inside the skin as the rows are. */
+export const TUSK = Object.freeze({ at: 0.3, out: 0.05, h: 0.1, w: 0.075, d: 0.068 });
 /** the fit inside the skin: the margin a point keeps under it (V), the steps a tooth is moved in (V) and the scales it
  * is shortened to, in that order */
 const FIT = Object.freeze({ margin: 0.004, inward: Object.freeze([0, 0.01, 0.02, 0.03, 0.04, 0.05]), scale: Object.freeze([1, 0.85, 0.7, 0.55, 0.4]) });
@@ -157,7 +163,7 @@ function gumPart(arch, gumZ, up, V, fH, bone) {
   return { layer: 1, closure: 'closed', slots, stations: stations.map(({ mid: _m, ...st }) => st), caps: { back: end(first, out0), tip: end(last, out1) }, group: 'Gums', bind: bone };
 }
 
-export function dentitionParts({ mouth, fH, k, zL, dentition = 'canid', fang = 1 }) {
+export function dentitionParts({ mouth, fH, k, zL, dentition = 'canid', fang = 1, tusk = 0 }) {
   const V = HEAD_V * k, rows = DENTITIONS[dentition] ?? DENTITIONS.canid, line = [...mouth].reverse(), margin = FIT.margin * V;
   const inside = (m) => m.ring.every((r) => r.every((p) => fH(p) < -margin)) && fH(m.tip) < -margin;
   const row = (teeth, off, gumZ, down) => {
@@ -174,6 +180,11 @@ export function dentitionParts({ mouth, fH, k, zL, dentition = 'canid', fang = 1
     return { arch, placed };
   };
   const U = row(rows.upper, ARCH.upper, zL + ARCH.gumLine * V, -1), L = row(rows.lower, ARCH.lower, zL - ARCH.gumLine * V, 1);
+  // THE TUSKS: a pair on the lower row, each set out of the arch onto the lip and left standing out of the skin
+  if (tusk > 0) {
+    const a = L.arch(TUSK.at), at = { ...a, p: add(a.p, a.n, -TUSK.out * V) }, T = { at: TUSK.at, kind: 'tusk', h: TUSK.h * tusk, w: TUSK.w, d: TUSK.d };
+    for (const side of [1, -1]) L.placed.push(toothMesh(side > 0 ? at : { p: [-at.p[0], at.p[1], at.p[2]], t: [-at.t[0], at.t[1], 0], n: [-at.n[0], at.n[1], 0] }, T, V, 1, 1));
+  }
   return {
     teethU: teethPart(U.placed, 'head'), teethL: teethPart(L.placed, 'jaw'),
     gumU: gumPart(U.arch, zL + ARCH.gumLine * V, 1, V, fH, 'head'), gumL: gumPart(L.arch, zL - ARCH.gumLine * V, -1, V, fH, 'jaw'),

@@ -29,6 +29,7 @@ import { readGameworld } from './world.js';
 import { fingerprint, checkReviewEntry, stampPart, MODES, FOE_CAST_PART } from './review.js';
 import { bestiaryOf, fieldedIds, modeChain, readLevelFoes, SUMMON, isModel, isPeople, isDressed } from './foes.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
+import { packSays, bodySays, packStylesOf } from '../foes/packs.js';
 import { vanishOf, VANISHES } from './vanish.js';
 import { juiceOfGame, juiceSuggestion } from './juice.js';
 import { settingOfGame } from './cast-setting.js';
@@ -156,7 +157,12 @@ function skinOf(entry, f) {
     const D = entry.skin.dress, S = GRUNT_STYLES[D.faction], cw = D.colourway ?? Object.keys(S.colourways)[0];
     return { kind: 'people', dress: { ...D, colourway: cw }, says: `a person dressed as the ${S.name.toLowerCase()}'s ${D.kind ?? 'crew'}, ${S.colourways[cw].reads}${D.kind ? `: ${S.kinds[D.kind].reads.replace(/^the [a-z ]+: /, '')}` : ''}${entry.skin.facets?.pole ? `, ${entry.skin.facets.pole}` : ''}` };
   }
-  if (isPeople(entry)) { const carries = carriesOf(entry); return { kind: 'people', ...(carries.length ? { carries } : {}), says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}` }; }
+  if (isPeople(entry)) {
+    // (a kin's pack and its body's own words, foes/packs.js: what its band wears alike, its size and its colour)
+    const carries = carriesOf(entry), pack = packSays(entry.skin), body = bodySays(entry.skin);
+    return { kind: 'people', ...(carries.length ? { carries } : {}), ...(pack ? { pack } : {}), ...(body ? { body } : {}),
+      says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}${body ? `, ${body}` : ''}${pack ? `, ${pack}` : packStylesOf(entry.skin.people).length ? ', wild (bare)' : ''}` };
+  }
   // (its oozes, each at its strength, and the stylism it is drawn in: mutagen/compose.js)
   const own = entry.skin?.species !== undefined, oozes = f.skin.ooze !== undefined ? normalizeOozes(f.skin.ooze).filter((o) => o.strength > 0) : [];
   const species = words(f.body.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase());

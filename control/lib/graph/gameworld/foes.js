@@ -64,7 +64,7 @@ import { readVanish, vanishOf } from './vanish.js';
 import { readStates, stateBirth } from '../foes/states.js';
 import { trailContext } from './juice.js';
 import { resolveTrailColor } from '../scene/juice-style.js';
-import { peopleRoll, peopleSeed } from '../foes/people.js';
+import { peopleRoll, peopleSeed, peopleStands } from '../foes/people.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
@@ -323,7 +323,7 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
     // the sheet the run made it from
     const sheet = C.sheets[eid] ?? (C.sheets[eid] = rollEgocube(peopleRollOf(G, eid, entry)));
     part.figures[id] = had ?? fieldFigure(ref, fieldOf({ body: 'person', sheet }));
-    return peopleBody(statureOf({ body: 'person', sheet }), f.scale);
+    return peopleBody(statureOf({ body: 'person', sheet }) * peopleStands(entry.skin), f.scale);
   }
   part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
   return beastBody(f.measured, f.scale);

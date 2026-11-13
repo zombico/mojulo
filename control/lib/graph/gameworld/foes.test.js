@@ -19,6 +19,7 @@ import { strikeWindow } from '../fauna/behavior/strike.js';
 import { peopleRollOf } from './foes.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { PEOPLE } from '../foes/people.js';
+import { PACK_STYLES, PACK_STYLE_IDS, WILD_SIZES, WILD_SIZE_IDS, kinWords } from '../foes/packs.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const SOLO = CLASSES.find((c) => !MOVES[c.move].group);
@@ -198,6 +199,19 @@ describe('the run', () => {
     expect(sheet.order.manifest).toMatchObject({ kind: 'egocube', moves: true, roll: { facets: { ancestry: 'orcish' }, setting: settingOfGame(readGameworld(W)) } });
     expect(made.order).toEqual({ egocube: sheet.ref, title: made.order.title });
     expect(made.order.animal).toBeUndefined();
+  });
+  it('a kin dressed as its pack, or sized, is made with those words over its sheet; one that names neither as before', () => {
+    // (a pack style and a people it is cut for, chosen from the table)
+    const style = PACK_STYLE_IDS[0], people = PACK_STYLES[style].peoples[0], size = WILD_SIZE_IDS.find((z) => WILD_SIZES[z].stature !== 1);
+    const made = (skin, rank) => runSteps(heroWith({ a: { class: SOLO.id, ...(rank ? { rank } : {}), skin } }, true), { ref: 'gw' }).find((x) => x.key === 'foes-a');
+    const bare = made({ people }), pack = made({ people, pack: { style } }), lead = made({ people, pack: { style } }, 'boss'), sized = made({ people, body: { size } });
+    expect(bare.order.spec).toBeUndefined();
+    expect(pack.order.spec).toEqual(kinWords({ people, pack: { style } }, { rank: 'minion' }));
+    expect(lead.order.spec).toEqual(kinWords({ people, pack: { style } }, { rank: 'boss' }));
+    expect(lead.order.spec.outfit).toEqual(pack.order.spec.outfit);
+    expect(sized.order.spec).toEqual({ tune: kinWords({ people, body: { size } }).tune });
+    // (each its own print: a skin changed remakes the figure)
+    expect(new Set([bare.print, pack.print, lead.print, sized.print]).size).toBe(4);
   });
   it('a people plays its own moves on the field, below the hero door as on the tiered body, at a person\'s body', () => {
     // (a people whose roll falls below the hero door, and one above it: chosen by rolling, not by name)

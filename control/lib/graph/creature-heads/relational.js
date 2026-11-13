@@ -32,6 +32,10 @@
  *                 length past the muzzle; 0: none, the muzzle's pad the nose), noseWidth (its root's breadth), noseDrop
  *                 (how far its tip falls below its root)
  *   a chin        chinPoint (0 … 1: the chin drawn out to a point forward and down of the jaw's front; 0: the jaw's own)
+ *   a heavy jaw   jawSquare (0 … 1: the jaw's front drawn out sideways toward the muzzle's breadth, a square chin; 0:
+ *                 the jaw's own, narrowing to its chin); a `chin` below 0 sets the chin AHEAD of the nose's tip, an underbite
+ *   tusks         tusk (the lower canines drawn out as tusks: their length in the dentition's canine's, standing up out
+ *                 of the lower lip outside the upper, on the jaw; 0: none: ./dentition.js)
  *
  *   relationalCreatureHead({ preset, relations, globes, ears }) → { field, bounds, points, paint(p), relations, vajras,
  *     globes, earFields }: `globes: false` leaves the eyes' globes out of the field (their sockets kept) and `ears: false`
@@ -55,6 +59,7 @@ export const CREATURE_RELATIONS = Object.freeze({
   eyeSize: 0.085, eyeSet: 0.6, eyeHeight: 0.6, pupil: 'round', iris: 0.45, dentition: 'canid', fang: 1,
   earSize: 0.5, earWidth: 0.55, earSet: 0.75, earTilt: 18, earPoint: 0.8, earSweep: 0,
   noseLength: 0, noseWidth: 0.16, noseDrop: 0.1, chinPoint: 0,
+  jawSquare: 0, tusk: 0,
 });
 export const CREATURE_RELATION_NAMES = Object.freeze(Object.keys(CREATURE_RELATIONS));
 
@@ -77,6 +82,14 @@ export const CREATURE_HEADS = Object.freeze({
     noseLength: 0.68, noseWidth: 0.2, noseDrop: 0.12,
     eyeSize: 0.12, eyeSet: 0.8, eyeHeight: 0.58, pupil: 'slit', iris: 0.2, fang: 0.5,
     earSize: 1.2, earWidth: 0.2, earSet: 0.05, earTilt: 78, earPoint: 1, earSweep: 60 }),
+  // the orc: a low broad vault behind a brow ridge that shades small deep eyes, a short flat muzzle as broad as the
+  // face with a flat nose on it, and under it the jaw that is the head: deep, square at its front and set ahead of the
+  // nose (an underbite), two tusks standing up out of its lip; short pointed ears laid out to the sides and back
+  orc: Object.freeze({ craniumLength: 0.9, cephalic: 0.98, crown: -0.12, brow: 0.12, stop: 0.09,
+    muzzle: 0.22, muzzleWidth: 0.56, muzzleDepth: 0.34, taper: 0.92, muzzleDrop: 0.03, nosePad: 0.075, whisker: 0,
+    mouthLine: 0.27, gape: 1.0, jawDepth: 0.34, chin: -0.08, jawSquare: 1, cheekWidth: 1.12, cheekFull: 0.13,
+    eyeSize: 0.056, eyeSet: 0.86, eyeHeight: 0.57, pupil: 'round', iris: 0.6, fang: 0.6, tusk: 2.4,
+    earSize: 0.5, earWidth: 0.5, earSet: 0, earTilt: 100, earPoint: 1, earSweep: 25 }),
 });
 
 const v3 = (x, y, z) => ({ x, y, z });
@@ -139,7 +152,12 @@ function creatureVajras(R, P) {
   // THE LOWER JAW: the mandible either side from its angle to the chin, its top on the mouth's line, narrower than the
   // muzzle and its chin set back; the throat's floor between
   const rJ = R.jawDepth / 2, chinY = prn.y - R.chin;
-  add('jaw', v3(go.x * 0.85, go.y - 0.02, go.z + rJ), v3(Math.max(0.03, w0 * 0.72), ch.y, zM - rJ), v3(0.04, chinY - rJ * 0.8, zM - rJ * 0.95), [rJ * 1.2, rJ, rJ * 0.8], true);
+  // (a SQUARE jaw, `jawSquare`: its front bead drawn out sideways to the muzzle's half breadth and its middle past it,
+  // so the chin is a bar across and not a point and the lower lip stands outside the upper; at 0 the jaw's own)
+  const sq = R.jawSquare, chinX = 0.04 + sq * Math.max(0, w0 - 0.04), midX = Math.max(0.03, w0 * (0.72 + 0.45 * sq));
+  add('jaw', v3(go.x * 0.85, go.y - 0.02, go.z + rJ), v3(midX, ch.y, zM - rJ), v3(chinX, chinY - rJ * 0.8, zM - rJ * 0.95), [rJ * 1.2, rJ, rJ * 0.8], true);
+  // (and the bar between its two front beads, so a square chin is whole across the midline)
+  if (sq > 0) add('chinBar', v3(-chinX, chinY - rJ * 0.8, zM - rJ * 0.95), v3(0, chinY - rJ * 0.8, zM - rJ * 0.95), v3(chinX, chinY - rJ * 0.8, zM - rJ * 0.95), [rJ * 0.8, rJ * 0.8, rJ * 0.8]);
   if (pad > 0.005) { add('chinPad', v3(0, chinY - rJ * 1.2, zM - rJ * 0.9), v3(0, chinY - rJ * 0.9, zM - rJ), v3(0, chinY - rJ * 0.7, zM - rJ * 1.1), [pad * 0.55, pad * 0.6, pad * 0.5]); W.at(-1).blend = 0.06; }
   // A POINTED CHIN (`chinPoint` > 0): a cone from the jaw's front, forward and down to a point, at a narrow blend
   if (R.chinPoint > 0) { const a = v3(0, chinY - rJ * 0.9, zM - rJ * 1.0), b = v3(0, chinY + 0.16 * R.chinPoint, zM - rJ * 1.0 - 0.2 * R.chinPoint);

@@ -55,6 +55,8 @@ import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
 import { VANISHES, SEVERS } from './vanish.js';
 import { PEOPLE } from '../foes/people.js';
+import { PACK_STYLES, PACK_STYLE_IDS, WILD_SIZE_IDS } from '../foes/packs.js';
+const KIN_PACKED = [...new Set(PACK_STYLE_IDS.flatMap((id) => PACK_STYLES[id].peoples))];
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
@@ -882,6 +884,8 @@ function foesCard() {
     '        Or skin: { people, facets?, gear? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
     '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height;',
     '        gear: what its hands carry, the hero door\'s words ({ right: { item, … } }: a club, a blade).',
+    `        A kin (${KIN_PACKED.join(', ')}) is one body: wild, bare, each its body: { size?: ${WILD_SIZE_IDS.join(' | ')}, coat? }; or a pack`,
+    `        dressed alike, pack: { style: ${PACK_STYLE_IDS.join(' | ')}, colourway?, motif? }, its leaders wearing more of it.`,
     '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
     '        A person dressed as a crew: { people: \'human\', dress: { faction, kind?, colourway?, body? } } (the grunt factions).',
     'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',

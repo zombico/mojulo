@@ -21,7 +21,9 @@
  * to the class's order. A role's people is rolled once for the world from its era's peoples (one force, not a zoo), on
  * a class that stands on two legs; a platformer's and a pinball table's cast stays the stand-in beasts. A person cast is
  * dressed as one crew (ERA_DRESS: its faction by era, a soldier's for a game whose minds are soldiers', its colourway
- * rolled), each role the kind its class reads as by what the kind carries. A beast cast is grown by the world's oozes (ELEMENT_OOZE, ERA_OOZES): a variant of each
+ * rolled), each role the kind its class reads as by what the kind carries. A kin cast (a people on its card's body) is
+ * WILD, bare and told apart by size (KIN_SIZES), or where the cube's minds hunt as a pack a PACK, dressed alike in one
+ * style and colourway (foes/packs.js). A beast cast is grown by the world's oozes (ELEMENT_OOZE, ERA_OOZES): a variant of each
  * beast role per ooze, and its boss grown dire.
  *
  * Pure and deterministic: the people, the crew and its colours are the world's seed's (mulberry32), nothing else is rolled.
@@ -35,6 +37,7 @@ import { FOE_CLASSES } from '../foes/index.js';
 import { ATTACKS, MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { peopleSeed } from '../foes/people.js';
+import { PACK_STYLES, packStylesOf, isKin } from '../foes/packs.js';
 import { LINEAGES } from '../egocube/ancestry.js';
 import { HEIGHT } from '../egocube/plan.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
@@ -67,7 +70,7 @@ export const ROLES = Object.freeze({
 /** The peoples each era fields its foes from (egocube/ancestry.js lineages); an era without a row fields beasts. */
 export const ERA_PEOPLES = Object.freeze({
   myth: ['undead', 'skeleton', 'infernal'],
-  rustic: ['goblin', 'orcish', 'lupine', 'sylvan'],
+  rustic: ['goblin', 'orc', 'lupine', 'sylvan'],
   modern: ['human'],
   future: ['insectoid', 'human'],
 });
@@ -75,7 +78,10 @@ export const ERA_PEOPLES = Object.freeze({
  * file's arm and its leaders' (the elite, the boss). A lineage with no row fights with what its own roll gives it; a
  * new people's arms is a row. */
 const CLUBS = Object.freeze({ file: 'cudgel', lead: 'spiked-club' });
-export const PEOPLE_ARMS = Object.freeze({ goblin: CLUBS, orcish: CLUBS });
+export const PEOPLE_ARMS = Object.freeze({ goblin: CLUBS, orc: CLUBS, orcish: CLUBS });
+/** How big each role of a kin stands (foes/packs.js WILD_SIZES), where its lineage has one build and so no other way
+ * to tell its ranks apart: the grunt the card's own, the harrier the lean one, its leaders the big one. */
+export const KIN_SIZES = Object.freeze({ grunt: 'squat', harrier: 'lean', elite: 'big', boss: 'big' });
 /** The crews a person cast is dressed as, by era (foes/dress.js: the comic hero pack's grunt factions); a game whose
  * minds hunt or guard as soldiers do (MILITARY) takes the first, any other one rolled from the row. */
 export const ERA_DRESS = Object.freeze({
@@ -155,6 +161,11 @@ export function castingCall(world) {
   // crew dressed on it, the realistic body where the rail draws one; a book that names none dresses the crew as before)
   const hench = F ? henchmenOf(G) : null;
   const colourway = F ? colourways[Math.floor(rnd() * colourways.length)] : null;
+  // (a KIN's cast, foes/packs.js: WILD where the game's minds are each its own, bare and told apart by size; a PACK where
+  // they hunt as one (the cube's squad), dressed alike in one style, its colours the world's roll)
+  const kinStyle = people && mind.squad === 'pack' ? packStylesOf(people)[0] ?? null : null;
+  const kinColours = kinStyle ? Object.keys(PACK_STYLES[kinStyle].colourways) : [], kinColourway = kinStyle ? kinColours[Math.floor(rnd() * kinColours.length)] : null;
+  const sized = people && isKin(people) && LINEAGES[people]?.builds?.length === 1;
   // (each role the kind its class reads as, by what the kind carries: a class on watch the kind whose arms are stowed, one
   // that fires the kind with a long gun at the ready in its hands, the boss or a heavy class the heaviest build; the rest,
   // and any match taken, the faction's kinds by weight)
@@ -225,7 +236,8 @@ export function castingCall(world) {
     // (a people that swings a blow carries its lineage's arm: PEOPLE_ARMS; a dressed person carries its crew's kit)
     const arm = !F && x.c.attack.kind === 'strike' ? PEOPLE_ARMS[people]?.[rank === 'minion' ? 'file' : 'lead'] : null;
     const armed = arm ? { gear: { right: { ...ARMORY_ARMS[arm], laws: 2 } } } : {};
-    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...file, ...armed, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}) } : null;
+    const kin = { ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(sized && KIN_SIZES[role] !== 'squat' ? { body: { size: KIN_SIZES[role] } } : {}) };
+    const skin = people && fitOfPeople(x.c.id, { people }).ok ? { people, ...file, ...armed, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}), ...kin } : null;
     const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };

@@ -73,6 +73,26 @@ describe('the relational creature head', () => {
     expect(W0.vajras.some((w) => w.name === 'snoot' || w.name === 'chinTip')).toBe(false);
   });
 
+  it('a square jaw is a bar across the chin, set ahead of the nose where the chin is below 0; a skull without is as it was', () => {
+    // (the skull that carries one, chosen from the presets; the same skull with the jaw's own front)
+    const preset = Object.keys(CREATURE_HEADS).find((k) => CREATURE_HEADS[k].jawSquare > 0), G = CREATURE_HEADS[preset];
+    const H = relationalCreatureHead({ preset }), bare = relationalCreatureHead({ preset, relations: { jawSquare: 0 } });
+    const jaw = (X) => X.vajras.find((w) => w.name === 'jaw'), bar = H.vajras.find((w) => w.name === 'chinBar');
+    expect(bare.vajras.some((w) => w.name === 'chinBar')).toBe(false);
+    // (its front bead drawn out sideways, the bar from one to the other through the midline)
+    expect(jaw(H).b.x).toBeGreaterThan(jaw(bare).b.x * 3);
+    expect([bar.a.x, bar.c.x, bar.b.x]).toEqual([-jaw(H).b.x, 0, jaw(H).b.x]);
+    // (the skin at the chin's height, off the midline: there where the jaw's own front has none)
+    const z = jaw(H).b.z, x = jaw(H).b.x * 0.9;
+    expect(frontAt(H, z, x)).toBeGreaterThan(frontAt(bare, z, x) ?? -1);
+    // (an underbite: the chin's front ahead of the upper lip's, on a skull whose chin is set ahead of its nose)
+    expect(G.chin).toBeLessThan(0);
+    expect(frontAt(H, z)).toBeGreaterThan(frontAt(H, H.relations.mouthLine + 0.06));
+    // (the canon has neither, and carries no tusk)
+    expect(CREATURE_RELATIONS.jawSquare).toBe(0); expect(CREATURE_RELATIONS.tusk).toBe(0);
+    expect(relationalCreatureHead({ preset: 'wolf' }).vajras.some((w) => w.name === 'chinBar')).toBe(false);
+  });
+
   it('tells its skulls apart by their relations, and is deterministic', () => {
     const W = relationalCreatureHead({ preset: 'wolf' }), C = relationalCreatureHead({ preset: 'felid' });
     expect(frontAt(W, 0.45) - frontAt(C, 0.45)).toBeGreaterThan(0.4);   // (the wolf's muzzle the long one)

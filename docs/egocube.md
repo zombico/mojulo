@@ -162,7 +162,7 @@ rolling the same ancestry again gives another person of the same people.
   one and full scales replace patches. Below about h = 0.5, or once a cue needs a snout, beak or muzzle, the sheet's
   **door** is the creature loop, not the hero door. The built ones: draconic (the dragon head and body, the membrane
   wing), sylvan, dwarven, orcish, infernal, undead, feline, lupine, ursine (the bear head), avian (the feathered wing),
-  insectoid and goblin (its own skull and card). Each says what the creature loop already has for it; the rest is words the loop prints a plan from.
+  insectoid, goblin and orc (each its own skull and card; `orcish` stays the near-human on the hero door). Each says what the creature loop already has for it; the rest is words the loop prints a plan from.
 - **A people established once can be rolled for variations.** A custom lineage is the same data as a built one,
   passed in (`rollEgocube({ lineages })`, or `--lineages <file>` on the script), so a race designed for one game
   rolls more of its own people. A blind roll never picks a lineage: a non-human people is the world's decision (a

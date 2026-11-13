@@ -75,7 +75,9 @@ describe('the rail\'s cards', () => {
     // two steps the rails now say)
     // gameworld-foes 5248 (2026-11-13, 1113-rpg-world-inhabiting: a people's `gear`, what its hands carry, one line,
     // and the goblin joining the peoples the card lists from the table; 5108 bytes before, 5226 with them)
-    const CEIL = { 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5248, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608 };
+    // gameworld-foes 5504 (2026-11-13, 1113-rpg-world-inhabiting: a kin's `pack` and `body`, two lines, and the orc
+    // joining the peoples; 5226 bytes before, 5455 with them)
+    const CEIL = { 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5504, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

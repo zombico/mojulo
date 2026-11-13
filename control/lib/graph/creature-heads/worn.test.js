@@ -11,7 +11,8 @@ import { relationalHeadErrors } from '../beast/head.js';
 import { coverMap } from '../beast/cover.js';
 import { beastCoverStyleOf, beastCoatOf } from '../beast/cover.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
-import { relationalCreatureHead } from './relational.js';
+import { relationalCreatureHead, CREATURE_HEADS } from './relational.js';
+import { BEAST_KINS } from '../beast/cards.js';
 
 const spec = (beast) => withDefaultWalk(beastWords(withDefaultForm({ cast: 'female', beast })));
 const mint = (beast) => { const hero = heroRecord(spec(beast)), { recipe, dials } = expandLayeredManifest({ kind: 'layered', hero }); return { hero, recipe, dials }; };
@@ -79,6 +80,23 @@ describe('the relational creature head, worn', () => {
     }
     const cat = mint({ kin: 'feline', head: { relational: 'felid' } }).recipe.parts;
     expect(Object.keys(cat.teethU.mesh.points).filter((k) => k.endsWith('tip')).length).toBe(12);
+  }, 180_000);
+
+  it('tusks: a pair on the jaw\'s row standing up out of the shut skin, longer than any tooth; a head without has none', () => {
+    // (the kin whose card's skull carries tusks, chosen from the cards)
+    const kin = Object.keys(BEAST_KINS).find((k) => CREATURE_HEADS[BEAST_KINS[k].head?.relational]?.tusk > 0), skull = BEAST_KINS[kin].head.relational;
+    const { recipe } = mint({ kin }), P = recipe.parts, F = recipe.creatureHead.fit;
+    const H = relationalCreatureHead({ preset: skull, globes: false, ears: false }), fH = (q) => H.field({ x: q[0] / F.k, y: (q[1] - F.ty) / F.k, z: (q[2] - F.men) / F.k }) * F.k;
+    const m = P.teethL.mesh.points, tips = Object.keys(m).filter((k) => k.endsWith('tip')), out = tips.filter((t) => fH(m[t]) > 0);
+    expect(P.teethL.bind).toBe('jaw');
+    expect(out.length).toBe(2);
+    expect(m[out[0]][0]).toBeCloseTo(-m[out[1]][0], 5);
+    // (standing up: its tip over every other tooth's on the row, and the longest of them)
+    const len = (t) => { const i = t.slice(0, -3); return Math.hypot(...m[`${i}tip`].map((x, j) => x - m[`${i}base`][j])); }, rest = tips.filter((t) => !out.includes(t));
+    expect(m[out[0]][2]).toBeGreaterThan(Math.max(...rest.map((t) => m[t][2])));
+    expect(len(out[0])).toBeGreaterThan(Math.max(...rest.map(len)));
+    // (the upper row has none: every tooth of it inside the skin, as on any head)
+    expect(Math.max(...Object.values(P.teethU.mesh.points).map(fH))).toBeLessThan(0);
   }, 180_000);
 
   it('the mouth\'s lining: inside the shut skin, open along the lips (no face joins the head\'s to the jaw\'s but the throat\'s)', () => {

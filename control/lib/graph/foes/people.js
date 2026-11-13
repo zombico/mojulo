@@ -6,10 +6,11 @@
  *                       draconic, dwarven, sylvan, feline, lupine, ursine, avian, insectoid): each a band of humanity,
  *                       on the hero door above DOOR_H (kin with ears and a tail) and below it the beast-kin's
  *                       tiered body (lib/graph/beast; egocube/plan.js beastOnTiered)
- *   readPeopleSkin(skin, at)   → { people, facets?, dress?, gear? } checked (throws teaching the words); a person's `dress`
+ *   readPeopleSkin(skin, at)   → { people, facets?, dress?, gear?, pack?, body? } checked (throws teaching the words); a person's `dress`
  *                       (./dress.js) dresses it as a crew's, made through the hero door rather than the egocube's loop;
  *                       `gear` what it carries, the hero door's own words (hero-gear.js: a sword in the right hand, a
- *                       shield on the left: a skeleton's basic arms), laid over its rolled person when it is made
+ *                       shield on the left: a skeleton's basic arms), laid over its rolled person when it is made; a kin's
+ *                       `pack` what its band wears alike and `body` its own colour and size (./packs.js), laid the same way
  *   peopleBody(skin)    → the body ./fit.js measures: { support: 'two', wings: false, swimmer: false, size, extent,
  *                         height, scale: 1, gaits, people }; its height the build's and the age's (egocube/plan.js HEIGHT,
  *                         AGE_SCALE), the facets' when named, else the canonical adult's
@@ -33,9 +34,10 @@ import { MOVES } from './vocab.js';
 import { BEAST_KINS } from '../beast/cards.js';
 import { readDress } from './dress.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
+import { readPack, readKinBody, WILD_SIZES } from './packs.js';
 
 export const PEOPLE = Object.freeze(['human', ...Object.keys(LINEAGES)]);
-const SKIN_KEYS = ['people', 'facets', 'dress', 'gear'];
+const SKIN_KEYS = ['people', 'facets', 'dress', 'gear', 'pack', 'body'];
 // (the facets a skin may name: the egocube's own, its frame's build beside them)
 const FACET_KEYS = [...Object.keys(FACETS).filter((k) => k !== 'frame'), 'build', 'pole'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -57,15 +59,22 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
     if (stray.length) throw new Error(`${at}.facets: a dressed person's build and age are its dress's; it names only its pole (not ${stray.join(', ')})`);
   }
   if (skin.gear !== undefined) { const errs = validateGear(skin.gear); if (errs.length) throw new Error(`${at}.gear: ${errs.join('; ')}`); }
-  return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}), ...(skin.gear !== undefined ? { gear: structuredClone(skin.gear) } : {}) };
+  // (a kin dressed as its pack and sized as its own: ./packs.js)
+  const pack = skin.pack !== undefined ? readPack(skin.pack, skin.people, `${at}.pack`) : undefined, body = skin.body !== undefined ? readKinBody(skin.body, skin.people, `${at}.body`) : undefined;
+  return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}), ...(skin.gear !== undefined ? { gear: structuredClone(skin.gear) } : {}),
+    ...(pack ? { pack } : {}), ...(body ? { body } : {}) };
 }
+
+/** How tall a people stands against its sheet's person: a kin's share of it (beast/cards.js `stands`: short legs under a
+ * hunched back) times its body's size (./packs.js WILD_SIZES); 1 for a person. */
+export const peopleStands = (skin) => r3((BEAST_KINS[skin?.people]?.stands ?? 1) * (WILD_SIZES[skin?.body?.size]?.stature ?? 1));
 
 export function peopleBody(skin) {
   const S = readPeopleSkin(skin), f = S.facets ?? {};
   // (a kin that stands well under a person, its legs short and its back hunched, at its card's share: beast/cards.js `stands`)
   // (and a lineage of one build stands at it where its skin names none: its roll can be no other)
   const only = LINEAGES[S.people]?.builds?.length === 1 ? LINEAGES[S.people].builds[0] : null;
-  const h = r3((HEIGHT[f.build ?? only] ?? HEIGHT.canonical) * (AGE_SCALE[f.age] ?? AGE_SCALE.adult) * (BEAST_KINS[S.people]?.stands ?? 1));
+  const h = r3((HEIGHT[f.build ?? only] ?? HEIGHT.canonical) * (AGE_SCALE[f.age] ?? AGE_SCALE.adult) * peopleStands(S));
   return { support: 'two', wings: false, swimmer: false, size: classOfExtent(h, h), extent: h, height: h, scale: 1, gaits: ['walk', 'jog', 'run'], people: S.people };
 }
 
