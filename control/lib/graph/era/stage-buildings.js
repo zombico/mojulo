@@ -83,7 +83,7 @@ const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0
 // how each built part gives the sky back (roughness 0 a mirror to 1 chalk; metal 1 a bare metal): painted steel
 // sheens, a container's enamel more, poured concrete barely
 // a yard's floodlight: its mast's height (m), its light where its falloff is whole (linear, the solve's units) and its reach
-const FLOOD = Object.freeze({ h: 9, key: Object.freeze([2.9, 2.4, 1.5]), radius: 34, dusk: 0.12 });   // (a sodium lamp's amber)
+const FLOOD = Object.freeze({ h: 9, key: Object.freeze([2.9, 2.4, 1.5]), radius: 34 });   // (a sodium lamp's amber)
 const BUILT_SURFACES = Object.freeze({ 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
 const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55, skirt: 0.25 });
 // a building set into its slope: how far its grade runs out past its sides, and how deep the level ground behind it is (m)
@@ -102,6 +102,12 @@ function turnFor(facing) {
 // (how many times the land's sun a room's paint takes it: a room's bases are solved under its lamps, darker than a
 // shell's under the day, so the same sun on them reads as bright as it does outside)
 const INDOOR_SUN = 7, INDOOR_HUE = 0.8, INDOOR_DAY = 0.55;
+// (is it day? the land's key is a sun standing clear of the horizon under a sky that gives light; at night the key is
+// the moon, high in a sky that gives almost none: era/cube-light.js. By day the floods are dark and the rooms' lamps
+// stand lower beside the sun; by night the lamps are the light and the moon's patches are faint)
+const lumL = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+const isDay = (L) => !!L && L.dir[2] > 0.12 && lumL(L.ambient) >= 0.08;
+const INDOOR_MOON = 1.5;
 function sunIn(sky, q) {
   // (a sky with no sun, a night's or a dusk's under its moon, lays no patch; its day dims the daylight at the windows)
   const day = r5(Math.max(0, Math.min(1, sky?.day ?? 1)));
@@ -993,11 +999,11 @@ export function withBuildings(payload, manifest, ctx = {}) {
         // (its head: a lamp face a hand under the mast's top, turned down and in toward the building)
         const hx = px, hy = py + (mid ? 0 : 0.5), hz = zt + H - 0.1, down = turnN([0, 0, -1]);
         const lampC = [[hx - 0.3, hy - 0.2, hz], [hx + 0.3, hy - 0.2, hz], [hx + 0.3, hy + 0.2, hz], [hx - 0.3, hy + 0.2, hz]].map(W);
-        lampFaces.push({ corners: lampC.map(P3), group: 'yard:flood', fill: '#fff6dc', normal: P3(down), outNormal: P3(down), emissive: [1, 0.95, 0.82], emissiveStrength: 4, glow: '0 0 14px 6px #ffe9b8', doubleSided: true, node: `${id}:flood-${q + 1}` });
+        lampFaces.push({ corners: lampC.map(P3), group: 'yard:flood', normal: P3(down), outNormal: P3(down), ...(isDay(ctx.dayLight) ? { fill: '#8a8f94' } : { fill: '#fff6dc', emissive: [1, 0.95, 0.82], emissiveStrength: 4, glow: '0 0 14px 6px #ffe9b8' }), doubleSided: true, node: `${id}:flood-${q + 1}` });
         const L = W([hx, hy + (mid ? 0.35 : 0.6), hz - 0.2]);
         // (a flood is lit when the sun is down or low: by day its mast stands dark, and what stands under it wears the
         // sun's shadow, not a lamp's)
-        if (!(ctx.dayLight && ctx.dayLight.dir[2] > FLOOD.dusk)) floods.push({ at: P3(L), key: FLOOD.key, radius: FLOOD.radius });
+        if (!isDay(ctx.dayLight)) floods.push({ at: P3(L), key: FLOOD.key, radius: FLOOD.radius });
       }
     }
     const yardLit = shellLight && yardF.length ? sunLitFaces(yardF, shellLight, {}).faces : yardF;
@@ -1007,14 +1013,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // on the floor and the far wall, a mullion its bar across it, and what stands in the patch its shadow. A face turned
     // from the sun says the sun has no share of it (0), so the map darkens nothing there: a tree behind a wall lays no
     // shadow on the wall's inner face. The painted patches a room laid at its windows give way to the real ones)
-    const sunUp = shellLight && shellLight.dir[2] > 0.02, lumOf = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    const byDay = isDay(shellLight), sunUp = shellLight && shellLight.dir[2] > 0.02, lumOf = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     const indoors = !shellLight ? moved : moved.filter((f) => !(sunUp && f.group === 'stage:sunpatch')).map((f0) => {
       if (!f0.cornerLight || f0.sunShare !== undefined) return f0;
       // (by day the eye is set for the sun: the lamps' light stands lower beside it, so a patch of sun reads as one)
-      const dim = (c) => c.map((v) => r5(v * INDOOR_DAY)), f = sunUp ? { ...f0, cornerLight: typeof f0.cornerLight[0] === 'number' ? dim(f0.cornerLight) : f0.cornerLight.map(dim) } : f0;
+      const dim = (c) => c.map((v) => r5(v * INDOOR_DAY)), f = sunUp && byDay ? { ...f0, cornerLight: typeof f0.cornerLight[0] === 'number' ? dim(f0.cornerLight) : f0.cornerLight.map(dim) } : f0;
       const n = f.normal, cos = sunUp && Array.isArray(n) ? Math.max(0, n[0] * shellLight.dir[0] + n[1] * shellLight.dir[1] + n[2] * shellLight.dir[2]) : 0;
       if (!(cos > 0)) return { ...f, sunShare: 0 };
-      const sun = shellLight.sun.map((v) => v * cos * INDOOR_SUN), one = typeof f.cornerLight[0] === 'number', sunY = lumOf(sun);
+      const sun = shellLight.sun.map((v) => v * cos * (byDay ? INDOOR_SUN : INDOOR_MOON)), one = typeof f.cornerLight[0] === 'number', sunY = lumOf(sun);
       // (the sun laid mostly in the hue of the light the corner already stands in: the page takes the sun's share away
       // by one number a corner, not one a channel, so a sun of another hue would leave its colour behind in the shade)
       const add = (c) => { const y = Math.max(1e-9, lumOf(c)); return c.map((v, k) => r5(v + sun[k] * (1 - INDOOR_HUE) + (sunY * v / y) * INDOOR_HUE)); };
@@ -1133,7 +1139,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   // of it thrown back up off the floor), lower by day as the room's faces are; and the yard's floods. The page lights a
   // body under the cast rig by the room it stands in, or by the sky out of doors: scene/channels/controllable)
   const place = ctx.dayLight && formRooms.length ? (() => {
-    const day = ctx.dayLight.dir[2] > 0.02 ? INDOOR_DAY : 1, rooms = [];
+    const day = isDay(ctx.dayLight) ? INDOOR_DAY : 1, rooms = [];
     for (const R of formRooms) {
       const A = anchors.find((a) => a.id === R._of), lamps = R.lights.filter((l) => l.radius < 1e8 && !l.beat), fall = R.fall ?? 1;
       for (const r of (A && A.rooms) || []) {

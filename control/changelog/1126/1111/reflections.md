@@ -144,3 +144,9 @@
   sun's shadow.
 - The land's own casters (its ground, its trees) stay in the maps drawn with the static world, so its trees shade
   what is built.
+- The form render takes the finish by default: a page drawn as form (a land, a land's buildings) wears the default
+  `light.finish` (its tone curve, its bloom) where its recipe says nothing of one, so its lamps, its floods and its lit
+  windows spill their light; `light.finish: false` says otherwise.
+- Day and night for a land's buildings are told by the land's light (a sun clear of the horizon under a sky that gives
+  light, or the moon): by night the floods are lit and their heads glow, the rooms' lamps stand at their full level and
+  the moon's patches through the windows are faint; by day the floods' heads are dark.

@@ -859,7 +859,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.hydraulics = walls.length ? { ...H, mists: mistAir(H.mists, { colliders: [...walls, ...solids] }) } : H;
   }
   // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
-  { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }
+  // (and the form render's own: a page drawn as form takes the default finish where its recipe says nothing of one, so
+  // its lamps, its floods and its lit windows spill their light (the bloom) without being asked; `light.finish: false`
+  // says otherwise, and a page that is paint is as it was)
+  { const L = sketch.manifest.light, said = L && typeof L === 'object' && L.finish !== undefined;
+    const fin = payload && !unshaded ? (said ? readFinish(L) : payload.form && (payload.form.land || payload.form.room) ? readFinish({ finish: true }) : null) : null;
+    if (fin) payload.finish = fin; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,

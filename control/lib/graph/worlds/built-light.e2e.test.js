@@ -26,5 +26,7 @@ describe('a land\'s buildings under the form render\'s light', () => {
     expect(P.form.room.place.rooms.length).toBeGreaterThan(0);
     expect(P.form.room.place.floods).toBeUndefined();
     expect(P.figures.hero.cast).toMatchObject({ surface: 'form' });
+    // (and the form render's finish, asked by no one: its lamps and lit windows spill their light)
+    expect(P.finish).toMatchObject({ curve: 'neutral', bloom: { strength: 1, radius: 1 } });
   }, 900000);
 });
