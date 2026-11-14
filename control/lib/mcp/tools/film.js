@@ -78,10 +78,12 @@ function setsOf(F, getRow) {
 /** each scene played: its set read, its recordings checked, its plan; an error kept by scene, never thrown */
 export async function playFilm(F, { getRow }) {
   const { prepareScreenplay, planSceneFilm, setAdvice } = await import('@/lib/mcp/tools/scene-film.js');
+  const worlds = new Map();
   const played = {};
   for (const id of sceneOrder(F)) {
     try {
-      const prep = await prepareScreenplay(sceneScreenplay(F, id), { getRow });
+      // (`worlds`: a set several scenes play in is read once a call, not once a scene)
+      const prep = await prepareScreenplay(sceneScreenplay(F, id), { getRow, worlds });
       const plan = planSceneFilm(prep.screenplay, { getRow, style: F.style ?? null, grain: F.grain ?? null, set: prep.set });
       played[id] = { prep, plan, set: prep.set, advice: [...prep.advice, ...await setAdvice(plan, prep.set)] };
     } catch (e) {

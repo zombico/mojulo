@@ -230,6 +230,13 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
   - A world that names no place gets one, `ground`: `openGround` finds the clear ground nearest the world's middle,
     under the open sky first, and the floor is the ground under that spot (`floorUnder`).
   - An object's own page stands it on a studio floor (faces marked `studio`); the scene leaves those out.
+- **A window, and what stands by instancing** (`mcp/tools/scene-film.js` `setFaces`, `standingExtras`). On a set
+  with no walled room only the faces with a corner within `WINDOW` of the scene's marks are read. With them, within
+  `NEAR`: each instance of `payload.repeats` (its template through its place and scale, the faces within a body's
+  height of its foot, capped per instance) and each collider box nothing names (a parked vehicle's:
+  `vehicle-registry/parked.js`). They join the set's faces before the ground is read, so they are blocks to the
+  routes, the cameras and the board; they are not part of the relief. `playFilm` hands `prepareScreenplay` a map of
+  the worlds it has read (`worlds`), for the one call.
 - **Ground that is not flat** (`actor/relief.js`). A scene is planned on a level floor; where the land about its marks
   rises or falls by more than a step, the film keeps that plan and carries the land beside it.
   - The land is walked outward from the scene's marks with the world's own ground probe (`network/walk-gate.js`
@@ -303,6 +310,13 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   - `blender` writes each scene's pack and `cut.py`, which joins their renders. It is resumable: a run works until its
     budget and leaves the rest `pending`.
 - **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+- **The scene's hour** (`screenplay.hour`, `mcp/tools/scene-film.js` `hourPreset`; a film's `scenes/*/hour`, the
+  look and light department's). Read with `era/geocube-hours.js` `readHour`. It is taken out of what the plan plays
+  (`set.hour`), so the blocking, the coverage and the board do not move. When the pack is written the set's
+  atmosphere takes the hour's preset (`day`, `dawn`, `dusk`, `night`: what `film_light.py` lights by); a geocube set
+  is resolved at that hour for its own sky (its faces are the same at every hour). `scene.json`'s `set` records
+  `hour` and `lit`. The lamps ride the set's own pack, made at the set's own hour, so a night's street lamps are
+  only there if the world was made with them.
 - **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
   stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
   keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the

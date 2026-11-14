@@ -31,7 +31,8 @@ forge_motion({ film: { write: {
   with its `register`, `style`, `role` and `height`.
 - A scene names who is in it. `cast: { <who>: { mark?, style?, role?, register? } }` gives the scene's words over the
   film's.
-- A set is a stored world, named once in `sets` and used by any scene's `set`.
+- A set is a stored world, named once in `sets` and used by any scene's `set`. A scene's `hour` is the time of day
+  it is shot at there (the `scene-film` manual): one set, any hour.
 - **A set can be asked for, with no world made first.** `sets: { lake: { words: 'a grassy field by a lake at dusk',
   seed? } }` says a land in words; `sets: { street: { cube: 'valley-morning', show: 'geotown', seed? } }` names a
   geocube preset and how it is laid (`path`, `trail`, `town`, `geotown`, `geocity`, `hall`; the presets and words are

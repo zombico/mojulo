@@ -59,6 +59,11 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - **What stands in it is read from its form.** Wherever the set rises through the height of a body, a cross goes
     round it, each camera is brought to where it sees the cast past it, and the storyboard draws it as plain blocks.
     A kerb or a rug is stepped over; a lintel or a bough above a head is walked under.
+  - **Trees, poles and parked cars count.** Things a world stands by repeating one model (a street's trees, its
+    poles) and its parked vehicles are read with the set near the scene: a tree is its trunk, walked round and
+    drawn as a post, its crown walked under.
+  - **Only the world near the scene is read** (80 m about its marks), and in a film a set several scenes share is
+    read once a call. A city's first read is still about a minute.
   - **A set that names no place** (an object, a city) still takes a cast: they stand on the clear ground nearest its
     middle, under the open sky where there is any, at a place called `ground`.
   - **Land that rises and falls** (a field, a hillside, a street on a slope) is walked as the world's own walk walks
@@ -89,6 +94,12 @@ forge_motion({ title: 'The key', export: 'storyboard',
     - With no lamps of its own it is lit by a soft light under the ceiling.
     - A cross goes round the furniture and round the others, a body's width off each, by the shortest way. With no
       way round, it is walked straight, as on any other set.
+- **`hour`: the time of day the scene is shot at**, whatever hour its set was made at. A number from 0 up to 24 or
+  a word: `dawn`, `morning`, `noon`, `afternoon`, `golden`, `dusk`, `night`. The Blender film is lit by it (day, dawn,
+  dusk or night light; a set made as a geocube also gives its own sky at that hour), so one street can be shot at
+  noon and at night with no second world. The set's form, the blocking and the storyboard are the same at any hour.
+  A scene with no set is advised (`hour-unused`). Not yet: its weather (clouds, rain); lamps a world lights only at
+  night.
 - **`props`: things stood in the scene.** Write `{ <name>: { thing | ref, at, turn?, scale? } }`. `at` is `[x, y]` in
   metres or a mark's name; `turn` is degrees about the vertical; `scale` is how many times larger it stands than it
   was made.

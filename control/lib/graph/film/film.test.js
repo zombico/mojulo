@@ -107,3 +107,18 @@ describe('the readout', () => {
     expect(html).toContain('panels/01.svg');
   });
 });
+
+describe('a scene\'s hour', () => {
+  it('rides the scene into its screenplay, and belongs to the look and light department', async () => {
+    const { departmentOfPath, ADVICE_HOME } = await import('./departments.js');
+    const F = { ...FILM, scenes: FILM.scenes.map((S, i) => (i ? S : { ...S, hour: 'dusk' })) };
+    expect(filmErrors(F)).toEqual([]);
+    expect(sceneScreenplay(F, F.scenes[0].id).hour).toBe('dusk');
+    expect(sceneScreenplay(FILM, FILM.scenes[0].id).hour).toBeUndefined();
+    // (a change of hour is a change of the scene: its board's approval reads as stale)
+    expect(sceneStamp(F, F.scenes[0].id)).not.toBe(sceneStamp(FILM, FILM.scenes[0].id));
+    expect(departmentOfPath('/scenes/0/hour')).toBe('look');
+    expect(ADVICE_HOME['hour-unused']).toBe('look');
+  });
+});
+

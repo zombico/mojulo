@@ -35,6 +35,7 @@ import { standingOf, openGround, floorUnder, middleOf, EASE, STEP, REACH } from 
 import { reliefOf, reliefFrom, heightAt, levelled, landBetween } from '@/lib/graph/actor/relief.js';
 import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
+import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -45,7 +46,14 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'voice', 'dub']);
+/** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
+ * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
+ * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
+export function hourPreset(hour) {
+  const h = readHour(hour);
+  return h >= 21 || h < 5 ? 'night' : h < 7.5 ? 'dawn' : h >= 17 ? 'dusk' : 'day';
+}
 /** what a prop takes: what it is, where it stands (metres or a mark), how it is turned (degrees), and how much larger
  * it stands than it was made (a thing made in no real unit is read as metres) */
 export const PROP_KEYS = Object.freeze(['ref', 'thing', 'at', 'turn', 'scale']);
@@ -81,6 +89,7 @@ export function screenplayErrors(sp) {
     if (C.style !== undefined) errs.push(...styleErrors(C.style, `cast.${who}.style`));
   }
   if (sp.marks !== undefined && !isPlain(sp.marks)) errs.push('marks: { <name>: [x, y] } (metres)');
+  if (sp.hour !== undefined) { try { readHour(sp.hour); } catch (e) { errs.push(`hour: the time of day the scene is shot at: ${e.message}`); } }
   if (sp.props !== undefined) {
     if (!isPlain(sp.props)) errs.push('props: { <name>: { thing | ref, at: [x, y] | <a mark>, turn?, scale? } }: a thing off the shelves by its word, or anything mojulo made by its ref, stood in the scene');
     else for (const [name, Q] of Object.entries(sp.props)) {
@@ -149,18 +158,22 @@ export function planSceneFilm(sp, { getRow, style = null, grain = null, set = nu
  * written, its recordings bound (so a re-forge needs no path), the set's places never copied in (the world is read
  * again on every forge).
  */
-export async function prepareScreenplay(sp, { getRow } = {}) {
+export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   const errs = screenplayErrors(sp);
   if (errs.length) throw new Error(`screenplay refused:\n - ${errs.join('\n - ')}\n(${MANUAL})`);
   // (the props are the set's: the plan plays the screenplay without them, a recipe keeps them as written)
-  const { props, ...written } = sp;
+  // (and its hour is the light's: film/look, read when the film is made)
+  const { props, hour, ...written } = sp;
   let play = written, set = null;
   if (sp.world_ref !== undefined) {
     const row = getRow?.(sp.world_ref);
     if (!row?.manifest) throw new Error(`world_ref: '${sp.world_ref}' is ${row ? 'a sketch with no recipe' : 'no sketch'} (a stored world is the set; ${MANUAL})`);
     const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js');
     const { setPlaces, castOnSet } = await import('@/lib/graph/actor/set.js');
-    const { payload } = await resolveWorldScene(row);
+    // (`worlds`: the caller's own, for one call: a set several scenes play in is read once, a city's read a minute)
+    const held = worlds?.get(sp.world_ref);
+    const { payload } = held ?? await resolveWorldScene(row);
+    if (worlds && !held) worlds.set(sp.world_ref, { payload });
     const places = setPlaces(payload);
     if (!payload) throw new Error(`world_ref: '${sp.world_ref}' (${row.manifest.kind}) has no form to stand in (${MANUAL})`);
     // (a world that names no place, an object, a city, a landscape, is a set all the same: the cast is stood on the
@@ -179,14 +192,18 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
     }
     const on = castOnSet(written, places);
     play = on.screenplay;
-    let faces = setFaces(payload, on.floor), relief = null;
-    if (!places.rooms.some((R) => R.walled) && faces.length) {
+    // A WINDOW, NOT THE WHOLE PLACE: only the world within WINDOW of the scene's marks is read, and what stands there
+    // by instancing or as a parked thing's box is read with it (a tree's trunk, a car), each at a body's height
+    const open = !places.rooms.some((R) => R.walled);
+    const win = open ? usedMarks(play).map((id) => play.marks[id]) : null, extras = open ? standingExtras(payload, win) : [];
+    let faces = [...setFaces(payload, on.floor, false, win), ...extras.map((f) => ({ corners: f.corners.map((c) => [c[0], c[1], c[2] - on.floor]) }))], relief = null;
+    if (open && faces.length) {
       // GROUND THAT IS NOT FLAT (actor/relief.js): the land about the scene's marks walked as the world's own walk walks
       // it. Where it rises or falls, the set is read with its ground laid level (a hillside is not a thing in the way)
       // and the film lifts each actor, camera and prop back onto the ground under it (`relief`). A level set reads as it did.
       const own = written.marks ?? {}, used = usedMarks(play);
-      const R = reliefOf(setFaces(payload, 0, true), used.map((id) => [...play.marks[id], Object.hasOwn(own, id) ? on.floor : places.floors[id] ?? on.floor]));
-      if (R && uneven(R, used.map((id) => play.marks[id]))) { relief = reliefFrom(R, on.floor); faces = levelled(setFaces(payload, 0), R); }
+      const R = reliefOf(setFaces(payload, 0, true, win), used.map((id) => [...play.marks[id], Object.hasOwn(own, id) ? on.floor : places.floors[id] ?? on.floor]));
+      if (R && uneven(R, used.map((id) => play.marks[id]))) { relief = reliefFrom(R, on.floor); faces = levelled([...setFaces(payload, 0, false, win), ...extras], R); }
     }
     if (!places.rooms.length && faces.length) {
       // STANDING PLACES in a world with no rooms: a place the scene uses that is inside a thing, or hard against one, is
@@ -208,6 +225,10 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
     set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, ...(plan ? { floor_plan: plan } : {}), places: Object.keys(places.marks).length, faces, ...(relief ? { relief } : {}) };
   }
   const advice = [];
+  if (hour !== undefined) {
+    if (set) set.hour = hour;
+    else advice.push({ id: 'hour-unused', says: `the scene is shot at ${typeof hour === 'string' ? hour : `${hour} h`}, but it has no set: a bare stage is lit the same at any hour`, try: 'set the scene in a world (world_ref, or a film\'s set), or take the hour out' });
+  }
   if (props && Object.keys(props).length) {
     // ANYTHING mojulo made stood in the scene: its faces join the set's, so it is walked round, seen past and boarded
     // like the rest (actor/ground.js), and its name is a place: the clear ground nearest its south side
@@ -301,10 +322,53 @@ function uneven(R, about) {
   return hi - lo >= STEP;
 }
 
+/** how far about a scene's marks its world is read (m); how far about them what stands by instancing is read (m), how
+ * high above its foot an instance is read (a body's height and a little), and the most faces one instance gives */
+const WINDOW = 80, NEAR = 30, BODY_TOP = 2.2, INSTANCE_MOST = 240;
+
+/**
+ * What stands in a world besides its faces, near a scene's marks, as faces in metres (the world's own heights):
+ *   - each INSTANCE of a repeated thing (payload.repeats: a tree, a pole, a parked car laid by instancing) within NEAR:
+ *     its template through its place and scale, the part within a body's height of its foot (a tree is its trunk; its
+ *     crown is walked under), at most INSTANCE_MOST faces of it
+ *   - each box a world keeps a body out of that nothing names (a parked vehicle's: vehicle-registry/parked.js), as a box
+ * So a tree or a parked car is walked round, seen past and drawn on the board like the rest of the set.
+ */
+export function standingExtras(payload, about) {
+  if (!about?.length) return [];
+  const k = Number.isFinite(payload?.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1, out = [];
+  const by = (x, y) => about.some((p) => Math.hypot(x * k - p[0], y * k - p[1]) <= NEAR);
+  for (const R of Array.isArray(payload?.repeats) ? payload.repeats : []) {
+    if (!Array.isArray(R?.template) || !Array.isArray(R.transforms)) continue;
+    for (const T of R.transforms) {
+      if (!Array.isArray(T?.pos) || !by(T.pos[0], T.pos[1])) continue;
+      const s = Number.isFinite(T.scale) ? T.scale : 1, top = BODY_TOP / k;
+      let n = 0;
+      for (const f of R.template) {
+        if (n >= INSTANCE_MOST) break;
+        if (!Array.isArray(f?.corners) || f.corners.length < 3 || !f.corners.some((p) => p[2] * s <= top)) continue;
+        out.push({ corners: f.corners.map((p) => [(T.pos[0] + p[0] * s) * k, (T.pos[1] + p[1] * s) * k, (T.pos[2] + Math.min(p[2] * s, top * 1.5)) * k]) });
+        n += 1;
+      }
+    }
+  }
+  for (const C of Array.isArray(payload?.colliders) ? payload.colliders : []) {
+    if (C?.of !== undefined || !Array.isArray(C?.min) || !Array.isArray(C?.max) || !by((C.min[0] + C.max[0]) / 2, (C.min[1] + C.max[1]) / 2)) continue;
+    const [x0, y0, z0] = C.min.map((v) => v * k), [x1, y1, z1] = C.max.map((v) => v * k);
+    out.push({ corners: [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]] },
+      { corners: [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]] }, { corners: [[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]] },
+      { corners: [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]] }, { corners: [[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]] });
+  }
+  return out;
+}
+
 /** A set's faces in the scene's frame: metres, its floor at z 0 (what the coverage's cameras are framed in); `normals`
  * keeps each face's own (the walk's ground probe reads which way a face faces: actor/relief.js) */
-function setFaces(payload, floor, normals = false) {
+export function setFaces(payload, floor, normals = false, about = null) {
   const k = Number.isFinite(payload?.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1;
+  // (`about`: only what has a corner within WINDOW of one of these points, the scene's marks)
+  const near = about?.length ? (f) => f.corners.some((c) => about.some((p) => Math.abs(c[0] * k - p[0]) <= WINDOW && Math.abs(c[1] * k - p[1]) <= WINDOW)) : null;
+  if (near) return (payload?.faces ?? []).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3 && !f.studio && near(f)).map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k - floor]), ...(normals && Array.isArray(f.normal) ? { normal: f.normal } : {}) }));
   // (an object's own page stands it on a studio floor, `studio`: that is the page's, not the thing's)
   return (payload?.faces ?? []).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3 && !f.studio).map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k - floor]), ...(normals && Array.isArray(f.normal) ? { normal: f.normal } : {}) }));
 }
@@ -432,7 +496,11 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     // (the set's light is its world's: the sky, the lamps and the fog it declares, read as the world's own film reads them)
     const { filmAtmosphere } = await import('@/lib/motion/blender-film.js');
     const world = getRow(P.set.ref);
-    atmosphere = filmAtmosphere({ payload: (await resolveWorldScene(world, { unshaded: true })).payload, manifest: world.manifest ?? {} });
+    // (THE SCENE'S HOUR: the light is the hour's. A geocube is asked for its own sky at that hour, its form the same;
+    //  any world's rig is lit by the hour's preset)
+    const H = P.set.hour, manifest = H !== undefined && world.manifest?.kind === 'geocube' ? { ...world.manifest, hour: H } : world.manifest ?? {};
+    atmosphere = filmAtmosphere({ payload: (await resolveWorldScene(H !== undefined ? { ...world, manifest } : world, { unshaded: true })).payload, manifest });
+    if (H !== undefined) { const preset = hourPreset(H); atmosphere = { ...atmosphere, preset, sky: { ...(atmosphere.sky ?? {}), preset, stars: preset === 'night', moon: preset === 'night' } }; setPack.hour = H; setPack.lit = preset; }
     // (a walled set with no light of its own would render black: its house lights, actor/scene-film.js actors.py house)
     const house = !atmosphere.sky && !atmosphere.lamps.length ? houseLights(P.set.rooms) : [];
     if (house.length) setPack.house = house;

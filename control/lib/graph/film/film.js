@@ -7,8 +7,8 @@
  *     sets?: { <id>: <a stored world's ref> | { words, seed? } | { cube, show, seed? } } (a place asked for is made
  *       into a geocube once by the door, its `ref` kept beside the words), look?: 'film' | 'anime', grade?, grain?, style?,
  *     render?: { light?: 'setups' | 'world', dof?: <an f-stop>, motion_blur?, samples? } (film/render-plan.js),
- *     scenes: [{ id, set?, cast: { <who>: { mark?, register?, style?, role?, height? } }, marks?, script, voice?, dub?,
- *       seed? }],
+ *     scenes: [{ id, set?, cast: { <who>: { mark?, register?, style?, role?, height? } }, marks?, props?, hour?, script,
+ *       voice?, dub?, seed? }] (`hour`: the time of day the scene is shot at, whatever its set's own),
  *     edit?: { order?: [<scene id>], cuts?: { <scene id>: 'cut' | 'fade' } },
  *     order?: a client's brief, where the film was made to order (film/order.js) }
  *   A scene names who is in it (its `cast`'s keys, each the film's part), the film's words for each part under the
@@ -32,7 +32,7 @@ export const FILM_KIND = 'film';
 export const isFilmKind = (kind) => kind === FILM_KIND;
 export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit', 'order']);
 export const FILM_PART_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'height']);
-export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'script', 'voice', 'dub', 'seed']);
+export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'hour', 'script', 'voice', 'dub', 'seed']);
 export const SCENE_PART_KEYS = Object.freeze(['mark', 'register', 'style', 'role', 'height']);
 export const CUTS = Object.freeze(['cut', 'fade']);
 export const FILM_LOOKS = Object.freeze(['film', 'anime']);
@@ -139,6 +139,7 @@ export function sceneScreenplay(F, id) {
     cast, script: S.script,
     ...(S.marks ? { marks: S.marks } : {}),
     ...(S.props ? { props: S.props } : {}),
+    ...(S.hour !== undefined ? { hour: S.hour } : {}),
     ...(S.seed !== undefined ? { seed: S.seed } : {}),
     // (a set asked for in words plays in the place the film made of it; one not made yet has no world)
     ...(S.set !== undefined && setRef(F.sets[S.set]) ? { world_ref: setRef(F.sets[S.set]) } : {}),

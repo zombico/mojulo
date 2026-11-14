@@ -125,6 +125,11 @@ game.
     Before, a city named nowhere and its cast was stood near the middle of the map.
   - **A walk follows the path.** Send someone from one place on a trail or a sidewalk to another and they go along
     it. Before, they walked a straight line across country.
+  - **Street trees and parked cars are part of the set.** The cast walks round a tree's trunk and a parked car,
+    the camera avoids them, and the storyboard draws them. Before, anything a town or city placed by repeating one
+    model was invisible to the scene and the cast walked through it.
+  - **Faster on big places.** Only the part of the world near the scene is read, and a film whose scenes share a
+    place reads it once. A city still takes about a minute the first time.
   - **Not yet:** a town's park, school yard and lot, and a city's waterfront and squares, are not places.
 - **The written build steps keep the cast.** The steps a scene's Blender folder gives for building it by hand now
   save the actors into the film. Before, followed as written, they left the film with its set and cameras and no
@@ -137,6 +142,10 @@ game.
   - **It says what it understood.** The film lists which of your words shaped the place and points out any it
     could not use, such as a thing or a person, which belong in the scene's props.
   - **An ordered cutscene can ask the same way,** so whoever orders it need not hand over a world for every place.
+- **Shoot a place at any hour.** Give a scene its hour (dawn, noon, dusk, night, or a time) and the Blender film is
+  lit for it, whatever time of day the place was made at. One street can be a noon scene and a night scene in the
+  same film, with no second copy of the street. Before, a scene could only be lit as its place was made.
+  - **Not yet:** weather (cloud, rain), and street lamps that a place lights only at night.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
   notes on what happens in each event.

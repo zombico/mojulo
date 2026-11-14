@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { closeDb } from '@/lib/db/index';
 import { BASELINE } from '@/lib/graph/actor/baseline.js';
-import { resolveSceneCast, planSceneFilm, screenplayErrors, writeSceneFilm, readGrain, packTitle, houseLights } from './scene-film.js';
+import { resolveSceneCast, planSceneFilm, screenplayErrors, writeSceneFilm, readGrain, packTitle, houseLights, standingExtras, setFaces, hourPreset, prepareScreenplay as prepareHour } from './scene-film.js';
 import { forgeMotionHandler } from './motion.js';
 
 // the scene film's core (scene-film.js): the cast resolved from personas and heroes, the scene planned without a mint,
@@ -198,3 +198,59 @@ describe('a scene in anything mojulo makes', () => {
     await expect(prepareScreenplay({ cast, script: 'ADA: Hi.', props: { car: { ref: 'sk_table', at: 'porch' } } }, { getRow: made })).rejects.toThrow(/no mark 'porch'/);
   }, 60000);
 });
+
+describe('a window of a world, and what stands in it by instancing', () => {
+  const quad = (a, b, c, d) => ({ corners: [a, b, c, d] });
+  // a trunk 0.4 m square and 6 m tall with a crown above it, as a tree's template; two of them, one far away
+  const trunk = [quad([-0.2, -0.2, 0], [0.2, -0.2, 0], [0.2, -0.2, 6], [-0.2, -0.2, 6]), quad([-0.2, 0.2, 0], [0.2, 0.2, 0], [0.2, 0.2, 6], [-0.2, 0.2, 6])];
+  const crown = [quad([-3, -3, 6], [3, -3, 6], [3, 3, 8], [-3, 3, 8])];
+  const world = { faces: [quad([-200, -200, 0], [-190, -200, 0], [-190, -190, 0], [-200, -190, 0]), quad([-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0])],
+    repeats: [{ template: [...trunk, ...crown], transforms: [{ pos: [3, 0, 0], scale: 1 }, { pos: [300, 0, 0], scale: 1 }], group: 'maple' }],
+    colliders: [{ min: [-3, -1, 0], max: [-1, 1, 1.4] }, { min: [0, 8, 0], max: [1, 9, 12], of: 'bound:x' }] };
+
+  it('reads each instance near the scene at a body\'s height: a tree is its trunk, not its crown', () => {
+    const X = standingExtras(world, [[0, 0]]);
+    const at = (x) => X.filter((f) => f.corners.every((c) => Math.abs(c[0] - x) < 0.5));
+    // the near tree's two trunk faces, cut off above a body; nothing of its crown; nothing of the far tree
+    expect(at(3)).toHaveLength(2);
+    expect(Math.max(...at(3).flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(4);
+    expect(X.some((f) => f.corners.some((c) => c[0] > 100))).toBe(false);
+    // a box nothing names (a parked vehicle's) is a box of five faces; one that is named (a bound) is not read
+    const car = X.filter((f) => f.corners.every((c) => c[0] <= -1 && c[0] >= -3));
+    expect(car).toHaveLength(5);
+    expect(X.some((f) => f.corners.some((c) => c[2] > 10))).toBe(false);
+    expect(standingExtras(world, null)).toEqual([]);
+    expect(standingExtras({ faces: world.faces }, [[0, 0]])).toEqual([]);
+  });
+
+  it('reads only the world near the scene\'s marks; with no marks named, all of it', () => {
+    expect(setFaces(world, 0)).toHaveLength(2);
+    expect(setFaces(world, 0, false, [[0, 0]])).toHaveLength(1);
+    expect(setFaces(world, 0, false, [[0, 0]])[0].corners[0]).toEqual([-5, -5, 0]);
+  });
+});
+
+describe('the scene\'s hour', () => {
+  const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
+
+  it('is a number or a word on the dial, and names the light the film is lit by', () => {
+    expect(hourPreset('noon')).toBe('day');
+    expect(hourPreset('night')).toBe('night');
+    expect(hourPreset('dawn')).toBe('dawn');
+    expect(hourPreset('dusk')).toBe('dusk');
+    expect(hourPreset(3)).toBe('night');
+    expect(hourPreset(10.5)).toBe('day');
+    expect(screenplayErrors(sp({ hour: 'noon' }))).toEqual([]);
+    expect(screenplayErrors(sp({ hour: 'teatime' })).join()).toMatch(/hour: the time of day the scene is shot at.*dawn/);
+    expect(screenplayErrors(sp({ hour: 30 })).join()).toMatch(/from 0 up to 24/);
+  });
+
+  it('is the light\'s, not the plan\'s: the scene plays the same, and a scene with no set is told its hour does nothing', async () => {
+    const plain = await prepareHour(sp({}), { getRow: () => null }), timed = await prepareHour(sp({ hour: 'night' }), { getRow: () => null });
+    expect(timed.screenplay).toEqual(plain.screenplay);
+    expect(timed.kept.hour).toBe('night');
+    expect(timed.advice.map((a) => a.id)).toEqual(['hour-unused']);
+    expect(plain.advice).toEqual([]);
+  });
+});
+
