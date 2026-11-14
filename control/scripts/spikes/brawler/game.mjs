@@ -3,7 +3,7 @@
 // (design_game `quick: { goal: 'brawl' }`): its players made as characters, its street a level, the game in the play
 // shell; it is exported (export_game) and opened in headless Chrome through its shell. What it answers: does the door
 // make a brawler end to end, does the shell start the street, and does the street's end reach the shell.
-//   node control/scripts/spikes/brawler/game.mjs [--out dir] [--roster 1] [--light] [--fell]
+//   node control/scripts/spikes/brawler/game.mjs [--out dir] [--roster 1] [--light] [--fell] [--level '{"kind":"greybox","preset":"street"}'] [--crowd shadowClan]
 import { register as registerLoader } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -12,7 +12,7 @@ import http from 'node:http';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-game') }, roster: { type: 'string', default: '1' }, light: { type: 'boolean', default: false }, fell: { type: 'boolean', default: false }, secs: { type: 'string', default: '150' } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-game') }, roster: { type: 'string', default: '1' }, light: { type: 'boolean', default: false }, fell: { type: 'boolean', default: false }, secs: { type: 'string', default: '150' }, level: { type: 'string' }, crowd: { type: 'string' } } });
 const out = path.resolve(opt.out); await fs.mkdir(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -25,8 +25,10 @@ const body = (r) => r?.structuredContent ?? r, t0 = Date.now(), at = () => `${((
 const say = (k, v) => console.log(JSON.stringify([k, at(), v]).slice(0, 700));
 // (a roster of its own keeps the run short: one all-rounder; --light a street a masher finishes)
 const roster = Array.from({ length: Number(opt.roster) }, (_, k) => ({ archetype: ['hero', 'explorer', 'rebel', 'sage'][k % 4], style: ['all-rounder', 'rushdown', 'grappler', 'zoner'][k % 4] }));
-const streets = opt.light ? [{ id: 'street', name: 'The street', waves: [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [{ type: 'thug', n: 1 }] }] }] : undefined;
-const D = body(await designGameHandler({ quick: { goal: 'brawl', roster, ...(streets ? { streets } : {}), world: { id: 'brawl', name: 'Brawl' } }, ref: 'b' }));
+const level = opt.level ? { level: JSON.parse(opt.level) } : {};
+const streets = opt.light ? [{ id: 'street', name: 'The street', ...level, waves: [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [{ type: 'thug', n: 1 }] }] }] : opt.level ? [{ id: 'street', name: 'The street', ...level }] : undefined;
+const crowd = opt.crowd ? { crowd: opt.crowd.startsWith('{') ? JSON.parse(opt.crowd) : opt.crowd } : {};
+const D = body(await designGameHandler({ quick: { goal: 'brawl', roster, ...crowd, ...(streets ? { streets } : {}), world: { id: 'brawl', name: 'Brawl' } }, ref: 'b' }));
 say('design_game', { ok: D.ok, error: D.error, next: (D.next ?? []).map((n) => n.step), made: Object.keys(D.made ?? {}) });
 // (a run makes what its time allows: run it on until nothing is left to make)
 for (let k = 0, N = D; k < 6 && (N.next ?? []).some((n) => n.step === 'run'); k++) {
@@ -62,11 +64,13 @@ say('level', { frame: !!F, shell: await words() });
 if (F) {
   await wait(1500); await shot('street');
   // the bot, in the level's frame: at the nearest body on the street, attack when lined up
-  const t1 = Date.now(); let over = null, last = null;
+  const t1 = Date.now(); let over = null, last = null, shots = 0;
   while ((Date.now() - t1) / 1000 < Number(opt.secs) && !over) {
     const s = await F.evaluate(() => { const B = window.__mojBrawl; if (!B || !B.room) return null; const me = B.room.s.bodies[0]; const on = B.room.s.bodies.filter((b) => b.side === 'crowd' && !b.gone && !b.ko).sort((a, b) => Math.abs(a.x - me.x) + Math.abs(a.z - me.z) - Math.abs(b.x - me.x) - Math.abs(b.z - me.z))[0]; return { me: [me.x, me.z], near: on ? [on.x, on.z] : null, R: B.read, over: B.over }; }).catch(() => null);
     if (!s) { await wait(300); continue; }
     last = s; over = s.over;
+    // (the fight seen as it goes: a frame whenever a body of the crowd is close)
+    if (s.near && shots < 4 && Math.abs(s.near[0] - s.me[0]) < 2500 && (Date.now() - t1) / 1000 > shots * 12) await shot(`fight-${++shots}`);
     // (--fell: the spike's shortcut to the street's end, every body on the street felled as it comes, to see the shell's win)
     if (opt.fell) await F.evaluate(() => { for (const b of window.__mojBrawl.room.s.bodies) if (b.side === 'crowd' && !b.gone && !b.ko) { b.ko = 1; b.hp = 0; b.st = 'ko'; b.sf = 0; } });
     const want = new Set();
