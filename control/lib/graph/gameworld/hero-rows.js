@@ -33,7 +33,7 @@
         "hem": "petal"}]}, "tones": {"Top": "#c83a38", "Bottom": "#7a2c28", "Outer": "#c83a38", "Trim": "#c9a24a",
         "Button": "#c9a24a", "Buckle": "#c9a24a", "Leather": "#5e4d3e", "Shoes": "#2b1a3c", "Panel": "#c83a38"}},
         "pieces": [{"kind": "cloak", "colour": "secondary", "hem": {"part": "thigh", "run": 0.15}, "lining": "#e39fb4",
-        "ease": 0.025}, {"kind": "bands", "at": 0.5, "gap": 0.13, "arc": 1.02}, {"kind": "midriff", "group": "Bottom",
+        "ease": 0.025, "arms": false}, {"kind": "bands", "at": 0.5, "gap": 0.13, "arc": 1.02}, {"kind": "midriff", "group": "Bottom",
         "u": [0, 2.6]}, {"kind": "pauldron", "colour": "trim", "plain": true, "pair": true, "standoff": 0.034,
         "size": 0.7, "crown": 0.04, "hover": false}, {"kind": "bracers"}, {"kind": "crest", "at": "waist",
         "lift": -0.03, "proud": -0.01}, {"kind": "anklets", "id": "bootRim", "window": [0.4, 0.5]},
@@ -42,7 +42,8 @@
         "trim": "#c9a24a", "accent": "#78b0ec", "leather": "#5e4d3e", "metal": "#5d6168"}, "symmetry": "asymmetric",
         "side": "R"}},_ELEMENTS), in the words the hero door reads.
  *
- *   GENRE_HERO      { <genre>: { id, says, garment, reads: [..], looks } }
+ *   GENRE_HERO      { <genre>: { id, says, garment, reads: [..], looks, carry? } }
+ *   carriedBlade(G, gear) → a hero's gear with its row's blade (`carry.blade`: build words over the blade in the hand)
  *   genreHero(G)    → the row of a read world's genre (its intent's), or null
  *
  * THE ACTION RPG's: a young swordswoman read at a glance against a green land. A red tunic to the waist over a wine
@@ -51,6 +52,8 @@
  * clasped on a gemmed crest with one pouch beside it, indigo boots ringed in gold; a blonde bell bob, its fringe split
  * into strands, a level brow and a slight smile. The red is the meadow card's accent (color-theorist/directions.js
  * kit-card), the plum the red ramp's own darkest stop, the gem the card's sky: every colour on her is the world's.
+ * Her sword is an arming sword cut short (`carry.blade`), worn at the left hip out of combat (`carry.sheath`: the hero
+ * door's `hip` slot, levels.js sheathedSpec), where the cape and the sword hand both clear it.
  *
  * A row is recipe data: the creator rewrites any page (design_game { patch } at /characters/hero/looks/<page>) and the
  * row is no longer read (hero-design.js: pages written are theirs). Pure data.
@@ -98,7 +101,7 @@ export const GENRE_HERO = fz({
         "hem": "petal"}]}, "tones": {"Top": "#c83a38", "Bottom": "#7a2c28", "Outer": "#c83a38", "Trim": "#c9a24a",
         "Button": "#c9a24a", "Buckle": "#c9a24a", "Leather": "#5e4d3e", "Shoes": "#2b1a3c", "Panel": "#c83a38"}},
         "pieces": [{"kind": "cloak", "colour": "secondary", "hem": {"part": "thigh", "run": 0.15}, "lining": "#e39fb4",
-        "ease": 0.025}, {"kind": "bands", "at": 0.5, "gap": 0.13, "arc": 1.02}, {"kind": "midriff", "group": "Bottom",
+        "ease": 0.025, "arms": false}, {"kind": "bands", "at": 0.5, "gap": 0.13, "arc": 1.02}, {"kind": "midriff", "group": "Bottom",
         "u": [0, 2.6]}, {"kind": "pauldron", "colour": "trim", "plain": true, "pair": true, "standoff": 0.034,
         "size": 0.7, "crown": 0.04, "hover": false}, {"kind": "bracers"}, {"kind": "crest", "at": "waist",
         "lift": -0.03, "proud": -0.01}, {"kind": "anklets", "id": "bootRim", "window": [0.4, 0.5]},
@@ -107,8 +110,18 @@ export const GENRE_HERO = fz({
         "trim": "#c9a24a", "accent": "#78b0ec", "leather": "#5e4d3e", "metal": "#5d6168"}, "symmetry": "asymmetric",
         "side": "R"}},
     },
+    carry: { sheath: 'hip', blade: { parts: { endLength: 58 } } },
   },
 });
 
 /** The row of a read world's genre, or null. */
 export const genreHero = (G) => GENRE_HERO[G?.intent?.from] ?? null;
+
+const BLADES = ['dagger', 'sword', 'greatsword'];
+/** A hero's gear with its genre row's blade: the row's build words over the blade in the right hand (a blade the
+ * creator gave words of its own keeps them); any other gear, or a world with no row, as it is. */
+export function carriedBlade(G, gear) {
+  const B = genreHero(G)?.carry?.blade, R = gear?.right;
+  if (!B || !R || !BLADES.includes(R.item) || R.parts || R.style) return gear;
+  return { ...gear, right: { ...R, ...structuredClone(B) } };
+}

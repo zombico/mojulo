@@ -47,6 +47,7 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
+import { carriedBlade, genreHero } from './hero-rows.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
@@ -290,6 +291,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   if (Q) {
     // the motion's gaits and clips ride; the stand that shows the gear (HOLD_STAND) wins over the motion's own
     const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}), ...(edited ? rowSurfaces(lookup.head) : {}) };
+    // (its genre's hero row's blade: hero-rows.js carriedBlade; an adopted hero's gear is its own)
+    if (!adopted && spec.gear) spec.gear = carriedBlade(G, spec.gear);
     // an adopted hero's light is its own row's (create_character's `toon`), not the tradition's
     const toon = adopted ? lookup?.head?.toon : hero.mint.toon;
     const { toon: _t, ...mint } = hero.mint;
@@ -606,7 +609,7 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   // one); a stage they do not reach plays its goal as before. On a stage the party battles are fought on, the battle's
   // own fail-on-death is the level's end: the foes stand and are cleared, their hits taking no second hp
   const mech = (ends) => levelGoalMechanics(goal ?? {}, ends, { last });
-  return { ...own, goal: (ends) => (foePlacements(G, s.level, { ...ends, node: s.node }).length ? withFoeWin(G, s.level, { ...ends, node: s.node }, fought ? mech(ends) : withFoeHits(mech(ends))) : mech(ends)) };
+  return { ...own, goal: (ends) => (foePlacements(G, s.level, { ...ends, node: s.node }).length ? withFoeWin(G, s.level, { ...ends, node: s.node }, fought ? mech(ends) : withFoeHits(mech(ends), { bar: !!genreHero(G) })) : mech(ends)) };
 }
 /** The bestiary's figures (foes.js): a beast for each entry some level stands, at `<ref>-foes-<id>`, made through the
  * animal door with its skin's oozes (a person dressed as a crew's through the hero door), in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what

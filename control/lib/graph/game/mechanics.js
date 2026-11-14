@@ -222,6 +222,7 @@ const MECHANICS = {
   'fail-on-death': {
     role: 'terminal', ends: ['fail'], requires: ['character'],
     lower(p, ctx) {
+      // (`bar: true`: the hp read as a bar of its start, labelled Health, where a number chip reads as a debug readout)
       // `hits`: what each hit the player takes (the cast's hit:<player>: a round, a blade, a splash) costs it, on the HUD
       const hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : null;
       if (p.hits !== undefined && !hits) throw new Error(`fail-on-death[${ctx.i}]: hits is the hp a hit on the player takes, above 0`);
@@ -235,7 +236,7 @@ const MECHANICS = {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
           watches: [{ type: 'dead', when: { var: 'hp', lte: 0 } }],
-          ...(hits ? { reactions: [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud: [{ var: 'hp', label: 'HP' }] } : {}),
+          ...(hits ? { reactions: [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud: [p.bar === true ? { var: 'hp', label: 'Health', as: 'bar', max: Number.isFinite(p.startHp) ? p.startHp : 100, color: 'harm' } : { var: 'hp', label: 'HP' }] } : {}),
         },
         on: { dead: { end: 'fail' } },
       };

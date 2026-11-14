@@ -489,9 +489,9 @@ function cloakOf(p, B, G) {
   const to = p.tailClear && B.tail ? hemAt(B, null, B.tail + 0.05 * B.k) : p.hem && typeof p.hem === 'object' ? p.hem : hemAt(B, p.hem ?? 'calf');
   const arc = 360 * Math.max(0.2, Math.min(0.95, p.wrap ?? 0.6)), part = ['torso', 'upperArm', ...legsTo(B, to)].filter((n) => B.names.has(n)), id = p.id ?? 'cloak';
   const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3(((p.ease ?? 0.02) + (B.round ?? 0)) * B.k), thick = r3(0.006 * B.k);
-  return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), rigidity: p.rigidity ?? 'soft' },
-    // (`lining`: the cloak's inside in a colour of its own: a second cape a cloth's thickness inside the first)
-    ...(p.lining ? [{ id: `${id}Lining`, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease: r3(Math.max(0.004 * B.k, ease - 0.012 * B.k)), flare: [0, r3(p.flare ?? 0.12)], thick: r3(0.004 * B.k), group: G({ colour: p.lining }), rigidity: p.rigidity ?? 'soft' }] : []),
+  return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), rigidity: p.rigidity ?? 'soft',
+    // (`lining`: the cloak's inside in a colour of its own, the same cloth's inner face: body-garment.js `insideGroup`; `arms: false`: off the arms)
+    ...(p.lining ? { insideGroup: G({ colour: p.lining }) } : {}), ...(p.arms === false ? { arms: false } : {}) },
     ...hoodOf(p, B, G, id, around, r3(ease * 1.2))], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
 }
 

@@ -114,7 +114,8 @@ function loft(name, part) {
   const flip = { band, tip: band, back: !band };
   for (const f of right) {
     const tri = flip[f.family] ? [...f.tri].reverse() : f.tri; faces[f.id] = tri; groups[f.id] = f.group;
-    const mid = mirrorFaceId(f.id, n); faces[mid] = [...tri].reverse().map(mirrorPid); groups[mid] = f.group;
+    // (`mirrorGroup`: the left half's bands in a group of their own: an open slab's inner face, body-garment.js capePart)
+    const mid = mirrorFaceId(f.id, n); faces[mid] = [...tri].reverse().map(mirrorPid); groups[mid] = part.mirrorGroup && f.family === 'band' ? part.mirrorGroup : f.group;
   }
   return { points, faces, groups };
 }

@@ -70,7 +70,7 @@ function yokeOf(parts, src, C) {
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'hemCut', 'girth', 'head', 'open', 'waistband', 'collar', 'swell'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'hemCut', 'girth', 'head', 'open', 'waistband', 'collar', 'swell', 'insideGroup', 'arms'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -107,6 +107,8 @@ export function validateGarments(G) {
     if (P.fit === 'hood' && !(P.from && typeof P.from.part === 'string' && (Number.isFinite(P.from.u) || Number.isFinite(P.from.run)))) errs.push(`${at}.from: { part, u | run } — the shoulders' height, an address on a body part`);
     if (P.fit === 'skirt' || P.fit === 'panel' || P.fit === 'cape') for (const k of ['from', 'to']) if (!(P[k] && typeof P[k].part === 'string' && (Number.isFinite(P[k].u) || Number.isFinite(P[k].run)))) errs.push(`${at}.${k}: { part, u | run } — the ${k === 'from' ? (P.fit === 'cape' ? 'shoulders' : 'waist') : 'hem'}'s height, an address on a body part`);
     errs.push(...rigidityErrors(P.rigidity, `${at}.rigidity`));
+    if (P.insideGroup !== undefined && !(P.fit === 'cape' && typeof P.insideGroup === 'string' && P.insideGroup)) errs.push(`${at}.insideGroup: the group of a cape's inner face (a cape's alone)`);
+    if (P.arms !== undefined && !(P.fit === 'cape' && P.arms === false)) errs.push(`${at}.arms: false (a cape that hangs from the trunk alone, never carried by an arm)`);
     if (P.drape !== undefined && !(Number.isFinite(P.drape) && P.drape >= 0)) errs.push(`${at}.drape: how far the cloth may fall in per metre it falls below what holds it out (≥ 0; 0 falls straight)`);
     if (P.toe !== undefined && !(Number.isFinite(P.toe) && P.toe > 0)) errs.push(`${at}.toe: the toe box's height as a share of the foot's (> 0)`);
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
@@ -569,7 +571,9 @@ function panelPart(parts, names, P, worn) {
  * height down to the waist, then hands over to the pelvis and the legs as a skirt's points do, and DRAPES ON THE ARMS:
  * cloth near an arm takes that arm's blend by nearness, so it goes where the arm goes. With no `root` it flows as a
  * curtain, a string per share of its width, each kept out of the arms. The piece is `<id>_cape`, rings st0 (the
- * shoulders) … st13 (the hem). */
+ * shoulders) … st13 (the hem). `insideGroup`: its inner face's group (a lining).
+ * `arms: false`: it hangs from the trunk alone (no arm carries it: a short cape an arm swings clear of, where cloth
+ * carried by a swinging arm is dragged through the cloth beside it). */
 const CAPE_SLOTS = 13, CAPE_RINGS = 14, ARM_SHARE = 1, ARM_NEAR = 0.05, ARM_FAR = 0.12;
 function capePart(parts, names, P, worn) {
   const n = SLOT_FAMILIES.ring20.length, N = CAPE_RINGS, e = P.ease, thick = P.thick ?? 0.005, flare = Array.isArray(P.flare) ? P.flare[1] : (P.flare ?? 0);
@@ -615,7 +619,7 @@ function capePart(parts, names, P, worn) {
       const d = dmath.hypot(...sub(p, add(a.c, mul(ab, t)))) - (a.r + (b.r - a.r) * t); if (!best || d < best.d) best = { d, a, b, t }; }
     if (best) best.w = mixBlend(best.a.w, best.b.w, best.t);   // the skin's own blend there, between its two rings
     return best; };
-  const blendAt = (p, z) => { const base = trunkAt(p, z), A = armNear(p); if (!A) return base;
+  const blendAt = (p, z) => { const base = trunkAt(p, z), A = P.arms === false ? null : armNear(p); if (!A) return base;
     const f = Math.max(0, Math.min(1, (ARM_FAR - A.d) / (ARM_FAR - ARM_NEAR))), share = ARM_SHARE * f * f * (3 - 2 * f);
     return share < 0.01 ? base : mixBlend(base, A.w, share); };
   const [a0, a1] = P.around, m = CAPE_SLOTS, L = 2 * m;
@@ -625,11 +629,16 @@ function capePart(parts, names, P, worn) {
   zs.forEach((z, i) => { const id = `st${i}`, points = {};
     slots.forEach((sl, k) => { const inner = k >= m, j = inner ? 2 * m - 1 - k : k, deg = a0 + (a1 - a0) * j / (m - 1), th = deg * Math.PI / 180;
       const r = rAt(i, deg) + e - (inner ? thick : 0), p = [Math.sin(th) * r, cy + Math.cos(th) * r, z]; points[sl] = p.map(r6);
-      blend[`${id}.${sl}`] = blendAt(p, z); });
+      // (its inside skins as the outside over it: a point a cloth's thickness nearer an arm took more of that arm, and
+      // the inside came through the outside wherever the arm moved)
+      const ro = r + (inner ? thick : 0); blend[`${id}.${sl}`] = blendAt(inner ? [Math.sin(th) * ro, cy + Math.cos(th) * ro, z] : p, z); });
     stations.push({ id, u: i, points }); });
   const mid = (i) => mean(Object.values(stations[i].points)), top = mid(0), bot = mid(N - 1);
   // no `root`: a flowing cape hangs as a CURTAIN (hero-flow.js), a string down each share of its width, so the cloth over
   // an arm is held out of that arm by its own string, not by one string down the spine
+  // A LINING (`insideGroup`: a group): the slab's inner face in a colour of its own (station-loft.js `mirrorGroup`: the
+  // ring's left half is the inner face here). One cloth, so it cannot cross itself as a second cape inside it did
   return { layer: 1, closure: 'closed', garment: true, slots, stations, caps: { back: [top[0], top[1], top[2] + 0.004].map(r6), tip: [bot[0], bot[1], bot[2] - 0.004].map(r6) }, group: P.group,
+    ...(P.insideGroup ? { mirrorGroup: P.insideGroup } : {}),
     bind: { bone: pelvisBone, blend: { ...blend, back: torsoAt(zt), tip: trunkAt(bot, bot[2]) } } };
 }

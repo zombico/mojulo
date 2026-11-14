@@ -61,13 +61,16 @@ describe('the clothing words the row is made of', () => {
     expect(validateOutfitCard({ id: 'designed', language: L }).join(' ')).not.toMatch(/hem: one of/);
   });
 
-  it('a cloak\'s lining is a second cape just inside the first; its hem may be a place between the words', () => {
-    const r = (P) => { const st = P.stations[Math.floor(P.stations.length / 2)], v = Object.values(st.points); return v.reduce((s, p) => s + Math.hypot(p[0], p[1]), 0) / v.length; };
-    expect(parts.cloakLining_cape).toBeTruthy();
-    expect(r(parts.cloakLining_cape)).toBeLessThan(r(parts.cloak_cape));
-    expect(parts.cloakLining_cape.group).not.toBe(parts.cloak_cape.group);
+  it('a cloak\'s lining is its own inner face in another colour, off the arms where it says; its hem may be a place between the words', () => {
+    // (one cloth: a second cape inside the first crossed it wherever the figure moved)
+    expect(parts.cloakLining_cape).toBeUndefined();
+    expect(parts.cloak_cape.mirrorGroup).toBeTruthy();
+    expect(parts.cloak_cape.mirrorGroup).not.toBe(parts.cloak_cape.group);
+    // (`arms: false`: no point of it is carried by an arm)
+    expect(Object.values(parts.cloak_cape.bind.blend).some((b) => Object.keys(b).some((bone) => /Arm/.test(bone)))).toBe(false);
+    expect(Object.values(outfitOf([{ kind: 'cloak', hem: 'hip' }]).recipe.parts.cloak_cape.bind.blend).some((b) => Object.keys(b).some((bone) => /Arm/.test(bone)))).toBe(true);
     const plain = outfitOf([{ kind: 'cloak', hem: 'hip' }]).recipe.parts;
-    expect(plain.cloakLining_cape).toBeUndefined();
+    expect(plain.cloak_cape.mirrorGroup).toBeUndefined();
     const low = (P) => Math.min(...Object.values(P.stations.at(-1).points).map((p) => p[2]));
     expect(low(parts.cloak_cape)).toBeLessThan(low(plain.cloak_cape));
   });

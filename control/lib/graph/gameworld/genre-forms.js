@@ -66,6 +66,8 @@ export const pendingOf = (id) => (PENDING[id] ? { waits: WAITS[PENDING[id]], ...
 const GENRE_VIBE = Object.freeze({
   'dungeon-crawler': 'stoic', 'top-down-adventure': 'spirited', metroidvania: 'nimble', 'survival-horror': 'weary',
   'story-adventure': 'composed', stealth: 'nimble', 'co-op-platformer': 'bouncy', jrpg: 'spirited', collectathon: 'bouncy',
+  // (a swordswoman runs the hero's own run, steady: the spirited one's straight flung arms read as a schoolgirl's dash)
+  'action-rpg': 'composed',
 });
 // the blade a melee genre's hero carries for its own blow (its swing, reach and damage the held strike's: world-scene.js)
 const MELEE_ITEM = Object.freeze({ id: 'blade', slot: 'right', build: Object.freeze({ item: 'sword' }), serves: Object.freeze(['strike']) });

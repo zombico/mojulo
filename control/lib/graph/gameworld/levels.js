@@ -49,6 +49,7 @@ import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
+import { genreHero } from './hero-rows.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
@@ -162,7 +163,10 @@ export function gameStages(world) {
       const { zoned, ...glyphs } = R.glyphs, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
       const groups = Array.isArray(zoned) ? zoned : [], pageOf = (S) => groups.find((g) => g.includes(S)) ?? [S], pages = [];
       for (const S of order) { const g = pageOf(S); if (!pages.includes(g)) pages.push(g); }
-      pages.forEach((g, index) => { const zone = g.length > 1 ? g : g[0]; out.push({ level, node: g.join('+'), section: 'map', index, zone, manifest: { kind: 'map', level: { ...glyphs, zone } } }); });
+      // (a page is titled by its places' names, the plan's key: 'The village', 'The meadow road and the old ruins'; a
+      // place the key leaves unnamed, the page's letters as before)
+      const named = (g) => { const ns = g.map((S) => (glyphs.grid?.plan?.key ?? P.key)?.[S]?.name); if (!ns.every((x) => typeof x === 'string' && x)) return null; const t = ns.length > 1 ? `${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}` : ns[0]; return t[0].toUpperCase() + t.slice(1); };
+      pages.forEach((g, index) => { const zone = g.length > 1 ? g : g[0], label = named(g); out.push({ level, node: g.join('+'), section: 'map', index, zone, ...(label ? { label } : {}), manifest: { kind: 'map', level: { ...glyphs, zone } } }); });
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
@@ -1303,13 +1307,17 @@ export const POSE_LAYERS = Object.freeze({
   ],
 });
 /** The SHEATHED HERO an action hero's world makes beside the equipped one (gameworld/runner.js `hero-sheathed`): its spec
- * with the right hand's blade on its back (polygonizer/hero-gear.js `back`: hilt up over the right shoulder), played out
+ * with the right hand's blade on its back (polygonizer/hero-gear.js `back`: hilt up over the right shoulder; at the
+ * hip where its genre's hero row says so), played out
  * of combat; null where the world has no action hero (the orbit and a blow) or the hand holds no blade. */
 export function sheathedSpec(G, spec) {
   const R = spec?.gear?.right, BLADES = ['dagger', 'sword', 'greatsword', 'knife'];
   if (G.camera !== 'orbit' || !carriesStrike(G) || !R || !BLADES.includes(R.item) || spec.gear.back) return null;
   const { right: _r, ...rest } = spec.gear, { gesture: _g, ...bare } = spec;
-  return { ...bare, gear: { ...rest, back: R } };
+  // (where it is worn: the back, or the slot its genre's hero row names: hero-rows.js `carry.sheath`)
+  const slot = genreHero(G)?.carry?.sheath ?? 'back';
+  if (spec.gear[slot]) return null;
+  return { ...bare, gear: { ...rest, [slot]: R } };
 }
 // AN ACTION HERO'S WALL (a hero that starts with `wall` or is granted it): walking into a wall, a house's or a rock's,
 // never climbs it; a jump at it takes hold (worlds/controllable/wall.js `ground: false`), as an open world's climb is a

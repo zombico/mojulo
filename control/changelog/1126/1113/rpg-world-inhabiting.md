@@ -222,8 +222,11 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
 - **Clothing words the design needed** (`polygonizer/outfit-plan.js`, `body-garment.js`, `outfit/styles.js`,
   `outfit/expand.js`). Each is an option on the outfit any hero can wear; absent, a piece is built as before.
   - **A drape panel's `hem: 'petal'`**: its corners drawn up in a curve, the middle the longest.
-  - **A cloak's `lining`** (a second cape just inside the first, in its own colour) and a `hem` given as a place
-    between the length words.
+  - **A cloak's `lining`** (the cape's own inner face in its own colour: one cloth, where a second cape inside the
+    first crossed it whenever the figure moved; `polygonizer/body-garment.js` `insideGroup`, `station-loft.js`
+    `mirrorGroup`), a `hem` given as a place between the length words, and **`arms: false`**: a cape hung from the
+    trunk alone, where one carried by a swinging arm was dragged through the cloth beside it. A cape's inside now
+    skins as the outside over it.
   - **`crest`** (a six-sided plaque with a gem standing proud of it, on the breast or on the centre line at the
     waist), **`bands`** (lines of braid across the front of the chest), **`midriff`** (the belly's cloth in another
     cloth's colour).
@@ -235,8 +238,21 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   sheet and given a score (an empty `sound` and an empty `music`): its sword, its ground underfoot, its foes' voices
   and a bed a place solved from the game, every level scored from the cue sheet. Play's sounds only: the interface
   keeps its own sound set. The brief says so; a game with no map is laid silent as before.
-- Not here yet: a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
-  cloth takes no texture on the anime body; whether the cape and the panels move in play is not checked; the back of
+- **The made game reads as a game** (the action RPG's, each change opt-in so no other game's bytes move):
+  - Her sword is cut short and worn at the left hip out of combat, never on the back under the cape (a genre hero
+    row's `carry`: `gameworld/hero-rows.js`, `levels.js` sheathedSpec).
+  - She runs the hero's own run, steady (`gameworld/genre-forms.js`: the action RPG's vibe is `composed`; the spirited
+    run's flung arms read as a dash).
+  - A zone's page is titled by its places ("The village", "The meadow road and the old ruins"), where it showed the
+    map's id and the zone's letters (`gameworld/levels.js`).
+  - The hero's health is a bar labelled Health, where it was a chip reading "HP 20" (`fail-on-death` `bar: true`,
+    `game/mechanics.js`; set where the genre has a hero row).
+  - On a page a player pilots, the rim's near rings stay the land's colour under a far range (`level/grid-scene.js`):
+    a hero who starts by the border no longer stands over a slab of far haze.
+- Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
+  does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
+  hangs bare at the hip); the pause menu still says "quit to levels"; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  cloth takes no texture on the anime body; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
   blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the
   page can reach); the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
