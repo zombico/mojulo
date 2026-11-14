@@ -791,7 +791,9 @@ export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
 // a character); its STREETS are its levels, each a brawl level (brawl-levels.js: a greybox street, a stage on a kit)
 // with the waves that hold its screens (brawl-crowd.js: a crowd by type, a boss on the boss's screen).
 const BRAWL_KEYS = ['goal', 'roster', 'streets', 'register', 'theme', 'camera', 'screen'];
-export const BRAWL_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'greybox', preset: 'street' }) });
+// (the street a brawl is fought down when it names none: the open-air plaza's, dressed and lit by its kit, brawl-levels.js
+// the stage kind: painted fronts on the far side, its paving, the kit's own dressing; the greybox street is a blockout's)
+export const BRAWL_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'stage', kit: 'island-plaza' }) });
 /** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, a knife
  * among them from the second; the boss's screen its boss (a grappler on the fight's easiest mind) with two beside it. */
 export function defaultWaves(belt) {
