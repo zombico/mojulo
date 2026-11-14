@@ -92,6 +92,7 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
+import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -1384,6 +1385,41 @@ export function genreCardById(id) {
   return { id, name: `What game it is: ${GENRES[genre].name}`, summary: GENRES[genre].why, when: `a ${GENRES[genre].name.toLowerCase()} game`, scope: 'rail', body: genreCard(genre) };
 }
 
+// THE SIDE-SCROLL MAP (brawl/brawl-dress.js): generated from the shelves, so a new setting, set or piece is in the card
+const sideScrollCard = () => {
+  const wrap = (label, words, width = 112) => { const out = []; let line = label; for (const w of words) { if ((line + ' ' + w).length > width) { out.push(line); line = '    ' + w; } else line += (line.trim().length === label.trim().length && line === label ? '' : ' ') + w; } out.push(line); return out; };
+  const floor = DRESS_PIECE_IDS.filter((id) => !DRESS_PIECES[id].wall), marks = DRESS_PIECE_IDS.filter((id) => DRESS_PIECES[id].wall);
+  return [
+    'THE SIDE-SCROLL MAP: a belt seen from one side (a brawl\'s street; docs/side-scroll-map-principles.md).',
+    'A map is DRESSED: what stands beside the band, a set a screen, in a SETTING (the kind of place).',
+    '',
+    'THE PRINCIPLES (measured, advised; brawl-dress.js dressLaws):',
+    '  the band low, the backdrop over it (a dressed map takes the belt\'s `street` angle)',
+    '  nothing between the camera and the fight over a body\'s waist; the dress stands OUTSIDE the band',
+    '  a screen is a place: no two running alike; the turn tells a story; the boss\'s screen is HELD (its marks, its colour)',
+    '  layers: things on the floor AND marks on the wall, something overhead, a way through; no long bare run',
+    '  a mark belongs to one building or bay; a set draws on several different things',
+    '  wear is the place\'s own matter where it falls (skandart), its vessels in groups, some tipped or broken',
+    '',
+    'SETTINGS (each its sets, and the turn unsaid: way in → held screens → the boss\'s):',
+    ...DRESS_SETTING_IDS.map((id) => { const S = DRESS_SETTINGS[id], T = S.turn; return `  ${id}   ${S.sets.join(', ')}   (${T.way} → ${T.held.join(', ')} → ${T.boss})${S.kits.length ? `   kits: ${S.kits.join(', ')}` : ''}`; }),
+    '',
+    'A LEVEL (a quick brawl\'s streets[i].level, or brawlLevel):',
+    '  { kind: \'town\', fronts?: \'rough\' | \'broken\', dress?: false | { sets?, colour?, seed? } }   the street',
+    '  { kind: \'stage\', kit, dress?: false | { setting?, sets?, colour?, seed?, kit? } }   a building\'s bays; a kit with',
+    '    a setting of its own is dressed as it unsaid; any kit takes a setting said',
+    '  sets: one a screen: a set\'s name, null (bare), or A SET OF ITS OWN:',
+    '    { says?, far: { piece: weight }, wall?: { piece: weight }, gap?: [m, m], marks?: [m, m], near?: { piece: weight } }',
+    '  colour: the holder\'s (#rrggbb): its tags, banners, stencils; a quick brawl gives its crowd\'s',
+    '',
+    ...wrap('FLOOR PIECES:', floor.map((id, i) => id + (i < floor.length - 1 ? ',' : ''))),
+    ...wrap('WALL MARKS:', marks.map((id, i) => id + (i < marks.length - 1 ? ',' : ''))),
+    '',
+    'A new kind of place is rows (a setting, its sets, its pieces) in brawl-dress.js; see it without a fight:',
+    '  node scripts/spikes/brawler/street.mjs --tour --level \'{"kind":"stage","kit":"bay-military"}\'',
+  ].join('\n');
+};
+
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
@@ -1411,6 +1447,7 @@ const CARDS = [
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
   ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
+  ['gameworld-side-scroll', 'The side-scroll map', 'a belt seen from one side, dressed as a place: its principles, its settings (a street, a facility, a base, an office), a set a screen, a set of the agent\'s own', 'a beat \'em up level, a side-scrolling stage, a street to fight down, a warehouse level, a military base level, an office level, dress the street, what makes a good brawler stage', sideScrollCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

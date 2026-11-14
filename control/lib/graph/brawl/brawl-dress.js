@@ -18,6 +18,8 @@
  *   readDress(dress, belt, where)   → the settled dress { seed, sets: [a set a screen], colour?, far, near?, wall }
  *   dressFaces(dress, belt)         → [{ corners: [[x, y, z]…] world metres, out: [x, y, z], hex }] its faces, unshaded
  *   dressSceneFaces(dress, belt, light?) → the same as a World page's faces (wound to their `out`, shaded by the level's light)
+ *   DRESS_SETTINGS, dressSets(belt, setting), settingOfKit(kit)   the kinds of place, each its sets and its turn
+ *   dressLaws(dress, belt)          → [{ law, ok, what }] the principles of a side-scrolling map, measured (they advise)
  *   boxModels(whats)                → the street's breakables as skandart's vessels, and what each leaves broken
  *   dressCount(dress, belt)         → { pieces, faces, bySet }
  *
@@ -80,6 +82,13 @@ function debris(mix, a, b, R) {
 }
 
 // ── the primitives (a piece's own frame: s along, n across, z up; `out` in the same frame) ──
+// (the contemporary interiors' own: a plant, a base, an office)
+const K = Object.freeze({
+  safety: '#e8a21c', black: '#1b1c1f', orange: '#d9601c', white: '#ecebe6', rackBlue: '#2f4f86', rackOrange: '#d9641e', tankSteel: '#9aa1a8', valve: '#c22d24', machine: '#3f6a4a', machineY: '#d8b11e',
+  locker: ['#5f7186', '#6f7f6a', '#7a7f88'], olive: '#4b5334', khaki: '#a8996c', khakiDark: '#8a7c56', camo: ['#4b5334', '#6b6a44', '#2f3a2a', '#7c7450'], gun: '#232528', lamp: '#fff4c4',
+  desk: '#b79a72', deskDark: '#7b6248', screen: '#9fd0e6', plastic: '#d9d9d4', plasticDark: '#b9bab6', fabric: ['#3e5f7a', '#7a4a3e', '#4f6a52', '#6a6a72'], board: '#f4f4f0', frame: '#3b3d42', glass: '#bcd9e4', blind: '#e2ddd0', exit: '#2fae5c', water: '#6fb7e0',
+  art: ['#c8553a', '#3a6f9a', '#d9b44a', '#4f8a5a', '#8a5a9a'], mapPaper: '#e6dcc0',
+});
 const quad = (a, b, c, d, out, hex) => ({ corners: [a, b, c, d], out, hex });
 /** A box s0..s1 × n0..n1 × z0..z1: its four sides and its top (its foot is on the ground or on another box). */
 function box(s0, n0, s1, n1, z0, z1, hex, top = hex) {
@@ -175,6 +184,53 @@ export const DRESS_PIECES = Object.freeze({
     build: (R, crew) => { const h = crew ?? C.goods[0], z = 0.7 + R() * 0.3; return [quad([-0.8, 0, z], [-0.55, 0, z], [0.1, 0, z + 1], [-0.15, 0, z + 1], [0, -1, 0], h), quad([-0.2, 0, z], [0.05, 0, z], [0.7, 0, z + 1], [0.45, 0, z + 1], [0, -1, 0], h), quad([-0.85, 0, z + 0.4], [0.8, 0, z + 0.4], [0.8, 0, z + 0.56], [-0.85, 0, z + 0.56], [0, -1, 0], C.chalk)]; } },
   banner: { says: 'a banner hung flat on the wall from its bar, in the crew\'s colour, a pale band across it', size: [1, 0.05], tall: 4, wall: true, crew: true,
     build: (R, crew) => { const h = crew ?? C.canvas[Math.floor(R() * C.canvas.length)]; return [...box(-0.5, -0.03, 0.5, 0.03, 3.9, 3.96, C.iron), quad([-0.42, 0, 2.5], [0.42, 0, 2.5], [0.42, 0, 3.9], [-0.42, 0, 3.9], [0, -1, 0], h), quad([-0.42, -0.004, 3.1], [0.42, -0.004, 3.1], [0.42, -0.004, 3.4], [-0.42, -0.004, 3.4], [0, -1, 0], C.chalk), { corners: [[-0.42, 0, 2.5], [0, 0, 2.2], [0.42, 0, 2.5]], out: [0, -1, 0], hex: h }]; } },
+  // ── A PLANT, A WAREHOUSE, A UTILITY (the facility) ──
+  racking: { says: 'pallet racking: uprights, three beams, boxes and a pallet on its shelves', size: [2.8, 1], tall: 3.2,
+    build(R) {
+      const out = [];
+      for (const a of [-1.35, 0, 1.35]) for (const b of [-0.42, 0.42]) out.push(...post(a, b, 0, 3.1, K.rackBlue, 0.04));
+      for (const z of [0.15, 1.2, 2.2]) {
+        out.push(...box(-1.38, -0.45, 1.38, -0.4, z, z + 0.1, K.rackOrange), ...box(-1.38, 0.4, 1.38, 0.45, z, z + 0.1, K.rackOrange), ...box(-1.35, -0.4, 1.35, 0.4, z + 0.08, z + 0.11, C.slat).slice(4));
+        for (let x = -1.25; x < 1.1;) { const w = 0.45 + R() * 0.5, h = 0.3 + R() * 0.5; if (R() < 0.8) out.push(...box(x, -0.34, Math.min(x + w, 1.28), 0.3, z + 0.11, z + 0.11 + h, C.card[Math.floor(R() * C.card.length)])); x += w + 0.08; }
+      }
+      return out;
+    } },
+  tank: { says: 'a process tank on its legs, banded, a pipe off it to the wall', size: [1.7, 1.6], tall: 3, build: () => [...[[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]].flatMap(([a, b]) => post(a, b, 0, 0.5, K.frame, 0.05)), ...drum(0, 0, 0.72, 0.45, 2.5, K.tankSteel, C.steelDark), ...drum(0, 0, 0.74, 1.1, 1.18, C.steelDark).slice(0, 8), ...drum(0, 0, 0.74, 1.9, 1.98, C.steelDark).slice(0, 8), ...drum(0, 0, 0.3, 2.5, 2.75, C.steelDark, K.frame), ...box(-0.06, 0.7, 0.06, 0.8, 1.5, 1.62, K.valve), ...box(-0.05, 0.6, 0.05, 0.8, 1.5, 1.6, C.steel).slice(0, 4), ...drum(0.5, -0.6, 0.12, 1.3, 1.34, K.valve)] },
+  reel: { says: 'a cable reel stood on its flange', size: [1.2, 1.2], tall: 0.85, build: () => [...drum(0, 0, 0.56, 0, 0.07, C.wood, C.slat), ...drum(0, 0, 0.3, 0.07, 0.75, K.black, K.black), ...drum(0, 0, 0.56, 0.75, 0.82, C.wood, C.slat), ...drum(0, 0, 0.08, 0.82, 0.86, C.iron)] },
+  cones: { says: 'traffic cones, one on its side', size: [1.5, 0.6], tall: 0.75, build: (R) => { const out = []; for (const a of [-0.5, 0, 0.5]) { const b = (R() - 0.5) * 0.2; out.push(...box(a - 0.17, b - 0.17, a + 0.17, b + 0.17, 0, 0.04, K.black)); for (let k = 0; k < 4; k++) { const t0 = (k * Math.PI) / 2 + Math.PI / 4, t1 = t0 + Math.PI / 2, m = t0 + Math.PI / 4, p = (t, r, z) => [a + r * Math.cos(t), b + r * Math.sin(t), z]; out.push(quad(p(t0, 0.17, 0.04), p(t1, 0.17, 0.04), p(t1, 0.1, 0.36), p(t0, 0.1, 0.36), [Math.cos(m), Math.sin(m), 0.3], K.orange), quad(p(t0, 0.1, 0.36), p(t1, 0.1, 0.36), p(t1, 0.07, 0.48), p(t0, 0.07, 0.48), [Math.cos(m), Math.sin(m), 0.3], K.white), quad(p(t0, 0.07, 0.48), p(t1, 0.07, 0.48), p(t1, 0.02, 0.7), p(t0, 0.02, 0.7), [Math.cos(m), Math.sin(m), 0.3], K.orange)); } } return out; } },
+  barrier: { says: 'a concrete barrier, striped', size: [2.1, 0.6], tall: 0.9, build: () => { const out = [...box(-1, -0.28, 1, 0.28, 0, 0.3, '#9c9d9a'), ...box(-1, -0.16, 1, 0.16, 0.3, 0.85, '#a8a9a5')]; for (let k = 0; k < 6; k++) out.push(quad([-0.95 + k * 0.32, -0.165, 0.42], [-0.79 + k * 0.32, -0.165, 0.42], [-0.67 + k * 0.32, -0.165, 0.72], [-0.83 + k * 0.32, -0.165, 0.72], [0, -1, 0], k % 2 ? K.black : K.safety)); return out; } },
+  forklift: { says: 'a forklift parked along the wall, its forks down', size: [2.7, 1.2], tall: 2.3, build: () => [...box(-0.2, -0.5, 1.1, 0.5, 0.25, 1, K.machineY, K.black), ...box(0.5, -0.5, 1.15, 0.5, 1, 1.25, K.black), ...box(-0.05, -0.3, 0.4, 0.3, 1, 1.2, K.frame), ...[[-0.2, -0.45], [-0.2, 0.45], [1.05, -0.45], [1.05, 0.45]].flatMap(([a, b]) => post(a, b, 1, 2.15, K.black, 0.035)), ...box(-0.25, -0.5, 1.1, 0.5, 2.15, 2.2, K.black), ...post(-0.36, -0.3, 0.1, 2.25, K.frame, 0.045), ...post(-0.36, 0.3, 0.1, 2.25, K.frame, 0.045), ...box(-0.4, -0.34, -0.32, 0.34, 0.5, 0.58, K.frame), ...box(-1.3, -0.34, -0.36, -0.22, 0.06, 0.11, C.steel), ...box(-1.3, 0.22, -0.36, 0.34, 0.06, 0.11, C.steel), ...drum(-0.02, -0.56, 0.26, 0.1, 0.2, K.black).map(tipWheel(-0.02, -0.56)), ...drum(0.85, -0.56, 0.22, 0.1, 0.2, K.black).map(tipWheel(0.85, -0.56))] },
+  generator: { says: 'a generator on its skid, its grille to the room, an exhaust up', size: [1.8, 0.9], tall: 1.5, build: () => [...box(-0.85, -0.4, 0.85, 0.4, 0, 0.12, K.frame), ...box(-0.8, -0.38, 0.8, 0.38, 0.12, 1.05, K.machine, '#35583e'), ...box(-0.7, -0.385, 0.1, -0.38, 0.3, 0.9, K.black).slice(0, 1), ...box(0.25, -0.385, 0.7, -0.38, 0.55, 0.9, K.safety).slice(0, 1), ...post(0.55, 0.1, 1.05, 1.45, C.iron, 0.05), ...drum(-0.4, 0, 0.14, 1.05, 1.12, K.black)] },
+  lockers: { says: 'a row of steel lockers', size: [1.7, 0.5], tall: 1.9, build: (R) => { const out = [], h = K.locker[Math.floor(R() * K.locker.length)]; for (let k = 0; k < 4; k++) { const a = -0.8 + k * 0.4; out.push(...box(a, -0.22, a + 0.39, 0.22, 0.08, 1.88, h), ...box(a + 0.08, -0.225, a + 0.31, -0.22, 1.55, 1.72, C.steelDark).slice(0, 1), ...box(a + 0.3, -0.24, a + 0.34, -0.22, 0.95, 1.05, C.iron).slice(0, 1)); } return out; } },
+  // ── A BASE (military) ──
+  sandbags: { says: 'sandbags laid in courses, breast high', size: [2.3, 0.7], tall: 1.05, build: (R) => { const out = []; for (let row = 0; row < 5; row++) { const off = row % 2 ? 0.22 : 0, z = row * 0.2; for (let a = -1.1 + off; a < 1.05 - (row === 4 ? 0.4 : 0); a += 0.46) out.push(...box(a, -0.26 + (R() - 0.5) * 0.04, Math.min(a + 0.44, 1.1), 0.26, z, z + 0.19, R() < 0.5 ? K.khaki : K.khakiDark)); } return out; } },
+  ammo: { says: 'footlockers and steel crates stacked (skandart\'s vessels, the industrial look)', size: [2.4, 1.1], tall: 1.3, build: (R) => vessels({ chest: 3, crate: 3 }, 'industrial', 0.15, 2.4, R) },
+  jerry: { says: 'jerry cans in a row', size: [1.3, 0.4], tall: 0.55, build: (R) => { const out = []; for (let k = 0; k < 4; k++) { if (R() < 0.15) continue; const a = -0.58 + k * 0.3; out.push(...box(a, -0.09, a + 0.26, 0.09, 0, 0.44, k === 3 ? '#8a2f22' : K.olive), ...box(a + 0.04, -0.03, a + 0.1, 0.03, 0.44, 0.5, K.black), ...box(a + 0.1, -0.02, a + 0.24, 0.02, 0.44, 0.49, K.olive).slice(0, 4)); } return out; } },
+  radio: { says: 'a field table with a radio set on it, its mast up', size: [1.6, 0.8], tall: 3, build: () => [...box(-0.75, -0.35, 0.75, 0.35, 0.72, 0.76, K.olive), ...[[-0.7, -0.3], [0.7, -0.3], [-0.7, 0.3], [0.7, 0.3]].flatMap(([a, b]) => post(a, b, 0, 0.72, K.frame, 0.025)), ...box(-0.5, -0.1, 0.05, 0.25, 0.76, 1.1, K.olive, '#3a4128'), ...box(-0.44, -0.105, -0.2, -0.1, 0.84, 1.02, K.black).slice(0, 1), ...box(-0.14, -0.105, -0.02, -0.1, 0.9, 0.96, K.lamp).slice(0, 1), ...post(0.55, 0.2, 0.76, 2.95, K.frame, 0.012), ...box(0.2, -0.25, 0.6, 0.05, 0.76, 0.79, K.mapPaper).slice(4)] },
+  floodlight: { says: 'a floodlight on its tripod', size: [1, 1], tall: 3.3, build: () => [...post(0, 0, 0.3, 3, K.frame, 0.03), quad([-0.4, -0.3, 0], [-0.36, -0.3, 0], [0.02, 0, 0.9], [-0.02, 0, 0.9], [0, -1, 0.2], K.frame), quad([0.36, -0.3, 0], [0.4, -0.3, 0], [0.02, 0, 0.9], [-0.02, 0, 0.9], [0, -1, 0.2], K.frame), quad([-0.02, 0.4, 0], [0.02, 0.4, 0], [0.02, 0, 0.9], [-0.02, 0, 0.9], [1, 0, 0.2], K.frame), ...box(-0.3, -0.12, 0.3, 0.06, 2.95, 3.25, K.black), quad([-0.27, -0.125, 2.98], [0.27, -0.125, 2.98], [0.27, -0.125, 3.22], [-0.27, -0.125, 3.22], [0, -1, 0], K.lamp)] },
+  // ── AN OFFICE ──
+  desk: { says: 'a desk with its screen and its chair', size: [1.6, 1.45], tall: 1.25, build: (R) => { const f = K.fabric[Math.floor(R() * K.fabric.length)]; return [...box(-0.75, 0, 0.75, 0.7, 0.72, 0.76, K.desk), ...box(-0.75, 0.02, -0.71, 0.68, 0, 0.72, K.deskDark), ...box(0.71, 0.02, 0.75, 0.68, 0, 0.72, K.deskDark), ...box(-0.71, 0.62, 0.71, 0.66, 0.2, 0.72, K.deskDark), ...box(0.2, 0.05, 0.7, 0.6, 0.08, 0.66, K.plasticDark), ...box(-0.3, 0.4, 0.3, 0.44, 0.84, 1.2, K.black), quad([-0.27, 0.398, 0.87], [0.27, 0.398, 0.87], [0.27, 0.398, 1.17], [-0.27, 0.398, 1.17], [0, -1, 0], K.screen), ...post(0, 0.44, 0.76, 0.86, K.black, 0.03), ...box(-0.22, 0.14, 0.22, 0.28, 0.76, 0.78, K.plasticDark), ...box(-0.25, -0.62, 0.25, -0.16, 0.44, 0.5, f), ...box(-0.25, -0.68, 0.25, -0.62, 0.5, 0.98, f), ...post(0, -0.4, 0.06, 0.44, K.black, 0.03), ...drum(0, -0.4, 0.26, 0, 0.06, K.black)]; } },
+  cabinet: { says: 'filing cabinets, a box on one', size: [1.5, 0.65], tall: 1.6, build: (R) => { const out = []; for (let k = 0; k < 3; k++) { const a = -0.72 + k * 0.48, h = k === 1 ? 1 : 1.32; out.push(...box(a, -0.3, a + 0.46, 0.3, 0, h, K.plasticDark, K.plastic)); for (let z = 0.06; z + 0.28 < h; z += 0.31) out.push(...box(a + 0.03, -0.305, a + 0.43, -0.3, z, z + 0.28, K.plastic).slice(0, 1), ...box(a + 0.17, -0.32, a + 0.29, -0.305, z + 0.18, z + 0.21, K.frame).slice(0, 1)); } if (R() < 0.7) out.push(...box(-0.2, -0.2, 0.18, 0.18, 1, 1.26, C.card[0])); return out; } },
+  cooler: { says: 'a water cooler', size: [0.5, 0.5], tall: 1.5, build: () => [...box(-0.18, -0.18, 0.18, 0.18, 0, 1, K.plastic), ...box(-0.1, -0.185, 0.1, -0.18, 0.62, 0.8, K.plasticDark).slice(0, 1), ...drum(0, 0, 0.15, 1, 1.42, K.water, K.water)] },
+  copier: { says: 'a copier, paper beside it', size: [1.1, 0.75], tall: 1.2, build: () => [...box(-0.5, -0.33, 0.4, 0.33, 0, 0.95, K.plastic, K.plasticDark), ...box(-0.5, -0.33, 0.4, 0.33, 0.95, 1.08, K.plasticDark), ...box(-0.4, -0.335, 0.3, -0.33, 0.2, 0.42, K.plasticDark).slice(0, 1), ...box(0.1, -0.34, 0.36, -0.33, 0.82, 0.92, K.black).slice(0, 1), ...box(0.42, -0.2, 0.52, 0.2, 0, 0.3, K.board)] },
+  sofa: { says: 'a sofa', size: [2, 0.9], tall: 0.85, build: (R) => { const f = K.fabric[Math.floor(R() * K.fabric.length)]; return [...box(-0.95, -0.4, 0.95, 0.4, 0.12, 0.44, f), ...box(-0.95, 0.2, 0.95, 0.42, 0.44, 0.84, f), ...box(-0.98, -0.42, -0.8, 0.42, 0.12, 0.62, f), ...box(0.8, -0.42, 0.98, 0.42, 0.12, 0.62, f), ...[[-0.9, -0.36], [0.9, -0.36], [-0.9, 0.36], [0.9, 0.36]].flatMap(([a, b]) => post(a, b, 0, 0.12, K.black, 0.03))]; } },
+  partition: { says: 'a cubicle screen with a low cabinet at its foot', size: [1.9, 0.6], tall: 1.5, build: (R) => { const f = K.fabric[Math.floor(R() * K.fabric.length)]; return [...box(-0.92, 0.2, 0.92, 0.26, 0.05, 1.48, f), ...box(-0.94, 0.19, 0.94, 0.27, 1.44, 1.5, K.frame), ...post(-0.93, 0.23, 0, 1.5, K.frame, 0.03), ...post(0.93, 0.23, 0, 1.5, K.frame, 0.03), ...box(-0.5, -0.25, 0.3, 0.18, 0, 0.62, K.plasticDark, K.desk)]; } },
+  reception: { says: 'a reception counter, its top over a panelled front', size: [2.7, 0.8], tall: 1.15, build: () => [...box(-1.3, -0.3, 1.3, 0.3, 0, 1.05, K.deskDark), ...box(-1.34, -0.36, 1.34, 0.34, 1.05, 1.12, K.desk), ...box(-1.2, -0.305, -0.1, -0.3, 0.12, 0.92, K.desk).slice(0, 1), ...box(0.1, -0.305, 1.2, -0.3, 0.12, 0.92, K.desk).slice(0, 1), ...box(-0.2, 0.05, 0.2, 0.09, 1.12, 1.42, K.black), quad([-0.17, 0.048, 1.15], [0.17, 0.048, 1.15], [0.17, 0.048, 1.39], [-0.17, 0.048, 1.39], [0, -1, 0], K.screen)] },
+  // (on the wall, the interiors')
+  pipes: { says: 'a run of pipes along the wall on brackets, a valve wheel on one, a drop to the floor', size: [3.3, 0.35], tall: 3.2, wall: true, build: () => [...box(-1.6, -0.22, 1.6, -0.08, 2.5, 2.64, C.steel), ...box(-1.6, -0.22, 1.6, -0.1, 2.82, 2.94, '#b8862e'), ...[-1.2, 0, 1.2].flatMap((a) => box(a - 0.03, -0.24, a + 0.03, 0, 2.44, 3, K.frame).slice(0, 4)), ...box(0.9, -0.22, 1.04, -0.08, 0.05, 2.5, C.steel).slice(0, 4), { corners: Array.from({ length: 8 }, (_, k) => [-0.5 + 0.2 * Math.cos((k * Math.PI) / 4), -0.26, 2.57 + 0.2 * Math.sin((k * Math.PI) / 4)]), out: [0, -1, 0], hex: K.valve }] },
+  panel: { says: 'an electrical cabinet on the wall, its warning mark, its conduit up', size: [1, 0.3], tall: 4.5, wall: true, build: () => [...box(-0.45, -0.24, 0.45, 0, 0.7, 2, '#8f959c', C.steelDark), ...box(-0.01, -0.245, 0.01, -0.24, 0.75, 1.95, C.steelDark).slice(0, 1), { corners: [[-0.33, -0.245, 1.45], [-0.09, -0.245, 1.45], [-0.21, -0.245, 1.68]], out: [0, -1, 0], hex: K.safety }, ...box(0.2, -0.26, 0.28, -0.24, 1.2, 1.36, K.black).slice(0, 1), ...box(-0.05, -0.1, 0.05, 0, 2, 4.4, C.steelDark).slice(0, 4)] },
+  hazard: { says: 'a hazard board on the wall: black on yellow, striped', size: [1.4, 0.05], tall: 2.6, wall: true, build: () => { const out = [quad([-0.65, 0, 1.5], [0.65, 0, 1.5], [0.65, 0, 2.4], [-0.65, 0, 2.4], [0, -1, 0], K.safety)]; for (let k = 0; k < 4; k++) out.push(quad([-0.6 + k * 0.32, -0.004, 1.5], [-0.44 + k * 0.32, -0.004, 1.5], [-0.3 + k * 0.32, -0.004, 1.74], [-0.46 + k * 0.32, -0.004, 1.74], [0, -1, 0], K.black)); out.push({ corners: [[-0.22, -0.004, 1.86], [0.22, -0.004, 1.86], [0, -0.004, 2.3]], out: [0, -1, 0], hex: K.black }); return out; } },
+  extinguisher: { says: 'a fire extinguisher on its bracket, its sign over it', size: [0.5, 0.25], tall: 2.2, wall: true, build: () => [...drum(0, -0.12, 0.09, 0.85, 1.35, K.valve, K.black), ...drum(0, -0.12, 0.04, 1.35, 1.45, K.black), quad([-0.16, 0, 1.75], [0.16, 0, 1.75], [0.16, 0, 2.07], [-0.16, 0, 2.07], [0, -1, 0], K.valve), quad([-0.08, -0.004, 1.83], [0.08, -0.004, 1.83], [0.08, -0.004, 1.99], [-0.08, -0.004, 1.99], [0, -1, 0], K.white)] },
+  duct: { says: 'a duct along the wall overhead, jointed, a grille in it', size: [3.6, 0.6], tall: 4.2, wall: true, build: () => { const out = [...box(-1.75, -0.55, 1.75, 0, 3.4, 3.95, C.steel, C.steelDark)]; for (const a of [-0.9, 0, 0.9]) out.push(...box(a - 0.03, -0.57, a + 0.03, 0, 3.38, 3.97, C.steelDark).slice(0, 5)); out.push(quad([-0.5, -0.555, 3.5], [-0.05, -0.555, 3.5], [-0.05, -0.555, 3.85], [-0.5, -0.555, 3.85], [0, -1, 0], K.black)); return out; } },
+  stencil: { says: 'a unit\'s marking stencilled on the wall: its number in blocks over a bar', size: [2, 0.05], tall: 2.1, wall: true, crew: true, build: (R, crew) => { const out = [], h = K.white; let a = -0.9; for (let k = 0; k < 3; k++) { const kind = Math.floor(R() * 3); out.push(quad([a, 0, 1.25], [a + 0.12, 0, 1.25], [a + 0.12, 0, 1.95], [a, 0, 1.95], [0, -1, 0], h)); if (kind > 0) out.push(quad([a + 0.3, 0, 1.25], [a + 0.42, 0, 1.25], [a + 0.42, 0, 1.95], [a + 0.3, 0, 1.95], [0, -1, 0], h), quad([a, 0, 1.83], [a + 0.42, 0, 1.83], [a + 0.42, 0, 1.95], [a, 0, 1.95], [0, -1, 0], h)); if (kind > 1) out.push(quad([a, 0, 1.25], [a + 0.42, 0, 1.25], [a + 0.42, 0, 1.37], [a, 0, 1.37], [0, -1, 0], h)); a += 0.62; } out.push(quad([-0.95, 0, 1.02], [0.95, 0, 1.02], [0.95, 0, 1.14], [-0.95, 0, 1.14], [0, -1, 0], crew ?? K.safety)); return out; } },
+  mapboard: { says: 'a map board on the wall: the ground in patches, routes and pins on it', size: [2, 0.06], tall: 2.5, wall: true, crew: true, build: (R, crew) => { const out = [...box(-0.95, -0.04, 0.95, 0, 1.1, 2.4, K.frame).slice(0, 1), quad([-0.9, -0.045, 1.15], [0.9, -0.045, 1.15], [0.9, -0.045, 2.35], [-0.9, -0.045, 2.35], [0, -1, 0], K.mapPaper)]; for (let k = 0; k < 5; k++) { const a = -0.8 + R() * 1.3, z = 1.25 + R() * 0.8, w = 0.2 + R() * 0.3; out.push(quad([a, -0.05, z], [a + w, -0.05, z + 0.05], [a + w - 0.06, -0.05, z + w * 0.8], [a - 0.04, -0.05, z + w * 0.6], [0, -1, 0], k % 2 ? '#9db58a' : '#b9c7cf')); } out.push(quad([-0.7, -0.054, 1.3], [-0.66, -0.054, 1.3], [0.6, -0.054, 2.2], [0.56, -0.054, 2.2], [0, -1, 0], crew ?? K.valve)); return out; } },
+  rack: { says: 'a rack of long guns on the wall', size: [1.6, 0.2], tall: 2.2, wall: true, build: () => { const out = [...box(-0.75, -0.06, 0.75, 0, 0.9, 1, K.deskDark), ...box(-0.75, -0.06, 0.75, 0, 1.7, 1.78, K.deskDark)]; for (let k = 0; k < 5; k++) { const a = -0.6 + k * 0.3; out.push(quad([a - 0.03, -0.08, 0.7], [a + 0.03, -0.08, 0.7], [a + 0.03, -0.08, 2], [a - 0.03, -0.08, 2], [0, -1, 0], K.gun), quad([a - 0.06, -0.085, 0.7], [a + 0.06, -0.085, 0.7], [a + 0.05, -0.085, 1.1], [a - 0.05, -0.085, 1.1], [0, -1, 0], C.wood)); } return out; } },
+  camo: { says: 'a camouflage net hung on the wall', size: [3, 0.1], tall: 2.9, wall: true, build: (R) => { const out = []; for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) { if (R() < 0.12) continue; const a = -1.45 + i * 0.48 + (R() - 0.5) * 0.1, z = 0.9 + j * 0.48 + (R() - 0.5) * 0.1; out.push(quad([a, 0, z], [a + 0.5, 0, z + (R() - 0.5) * 0.1], [a + 0.46, 0, z + 0.5], [a + 0.03, 0, z + 0.46], [0, -1, 0], K.camo[Math.floor(R() * K.camo.length)])); } return out; } },
+  whiteboard: { says: 'a whiteboard, written on', size: [2.3, 0.06], tall: 2.5, wall: true, build: (R) => { const out = [...box(-1.12, -0.04, 1.12, 0, 1, 2.3, K.frame).slice(0, 1), quad([-1.08, -0.045, 1.04], [1.08, -0.045, 1.04], [1.08, -0.045, 2.26], [-1.08, -0.045, 2.26], [0, -1, 0], K.board)]; for (let k = 0; k < 6; k++) { const a = -0.95 + R() * 1.3, z = 1.2 + k * 0.16; out.push(quad([a, -0.05, z], [a + 0.3 + R() * 0.5, -0.05, z], [a + 0.3 + R() * 0.5, -0.05, z + 0.04], [a, -0.05, z + 0.04], [0, -1, 0], K.art[k % 3])); } return out; } },
+  clock: { says: 'a wall clock', size: [0.6, 0.06], tall: 2.9, wall: true, build: () => [{ corners: Array.from({ length: 8 }, (_, k) => [0.24 * Math.cos((k * Math.PI) / 4 + Math.PI / 8), -0.03, 2.5 + 0.24 * Math.sin((k * Math.PI) / 4 + Math.PI / 8)]), out: [0, -1, 0], hex: K.frame }, { corners: Array.from({ length: 8 }, (_, k) => [0.2 * Math.cos((k * Math.PI) / 4 + Math.PI / 8), -0.035, 2.5 + 0.2 * Math.sin((k * Math.PI) / 4 + Math.PI / 8)]), out: [0, -1, 0], hex: K.board }, quad([-0.012, -0.04, 2.5], [0.012, -0.04, 2.5], [0.012, -0.04, 2.66], [-0.012, -0.04, 2.66], [0, -1, 0], K.black), quad([0, -0.04, 2.49], [0.11, -0.04, 2.42], [0.12, -0.04, 2.44], [0, -0.04, 2.51], [0, -1, 0], K.black)] },
+  picture: { says: 'framed pictures', size: [1.9, 0.06], tall: 2.3, wall: true, build: (R) => { const out = []; for (const a of [-0.9, 0.1]) { const w = 0.7 + R() * 0.15, z = 1.4 + R() * 0.15, h = 0.5 + R() * 0.2; out.push(quad([a, -0.03, z], [a + w, -0.03, z], [a + w, -0.03, z + h], [a, -0.03, z + h], [0, -1, 0], K.frame), quad([a + 0.05, -0.035, z + 0.05], [a + w - 0.05, -0.035, z + 0.05], [a + w - 0.05, -0.035, z + h - 0.05], [a + 0.05, -0.035, z + h - 0.05], [0, -1, 0], K.board), quad([a + 0.12, -0.04, z + 0.12], [a + w - 0.12, -0.04, z + 0.12], [a + w - 0.2, -0.04, z + h - 0.12], [a + 0.18, -0.04, z + h - 0.14], [0, -1, 0], K.art[Math.floor(R() * K.art.length)])); } return out; } },
+  glazing: { says: 'an inner window, its blind half down', size: [2.5, 0.06], tall: 2.6, wall: true, build: (R) => { const out = [...box(-1.22, -0.05, 1.22, 0, 0.95, 2.45, K.frame).slice(0, 1), quad([-1.16, -0.055, 1.01], [1.16, -0.055, 1.01], [1.16, -0.055, 2.39], [-1.16, -0.055, 2.39], [0, -1, 0], K.glass), quad([-0.02, -0.06, 1.01], [0.02, -0.06, 1.01], [0.02, -0.06, 2.39], [-0.02, -0.06, 2.39], [0, -1, 0], K.frame)]; const low = 1.5 + R() * 0.5; for (let z = 2.36; z > low; z -= 0.09) out.push(quad([-1.15, -0.062, z - 0.06], [1.15, -0.062, z - 0.06], [1.15, -0.062, z], [-1.15, -0.062, z], [0, -1, 0], K.blind)); return out; } },
+  exit: { says: 'a lit exit sign', size: [0.8, 0.1], tall: 3, wall: true, build: () => [...box(-0.3, -0.08, 0.3, 0, 2.6, 2.82, K.exit), quad([-0.2, -0.085, 2.67], [0.05, -0.085, 2.67], [0.05, -0.085, 2.75], [-0.2, -0.085, 2.75], [0, -1, 0], K.white), { corners: [[0.08, -0.085, 2.64], [0.22, -0.085, 2.71], [0.08, -0.085, 2.78]], out: [0, -1, 0], hex: K.white }] },
 });
 function shift(f, ds, dn) { return { ...f, corners: f.corners.map(([s, n, z]) => [s + ds, n + dn, z]) }; }
 // (a drum laid on its side as a wheel: its axis turned from z to n, about its own middle)
@@ -191,16 +247,75 @@ export const DRESS_SETS = Object.freeze({
   yard: set('a back street\'s load-in: pallets and stacked crates, a skip, tyres, barrels, rubbish, a fire in a drum', { drums: 4, rubble: 3, wreckage: 2, shards: 1, pallet: 3, crates: 3, skip: 1, tyres: 2, barrels: 2, crate: 1, cart: 1, bags: 2, boxes: 1, drumfire: 1, litter: 2 }, [0.8, 2.4], { poster: 2, tag: 2, piece: 2, escape: 2, pipe: 2, aircon: 1, boards: 1, shutter: 1 }, { tyres: 1, crate: 1, bollard: 2 }, [3, 6]),
   turf: set('the crew\'s own corner: its pieces and its marks on every wall, its banners out, fires in drums, tyres, barrels and crates where it sits', { drums: 3, rubble: 3, wreckage: 2, shards: 2, tyres: 3, barrels: 2, crates: 2, drumfire: 3, bags: 2, bench: 1, crate: 1, litter: 2 }, [1, 2.6], { tag: 3, piece: 3, banner: 2, shutter: 2, poster: 1, escape: 1, boards: 1 }, { tyres: 1, barrel: 1, bollard: 1 }, [2.5, 5]),
   plain: set('a quiet stretch: a bench, a paper box, a planter, a little rubbish, far apart', { rubble: 2, shards: 1, planter: 1, bench: 2, paperbox: 1, pot: 1, board: 1, bags: 1, litter: 2 }, [3, 6], { poster: 2, pipe: 1, aircon: 1 }, { bollard: 1 }),
+  // ── the facility ──
+  dock: set('a loading dock: pallets, a forklift, drums, barriers and cones, a roll-up door down', { pallet: 4, forklift: 2, drums: 2, barrier: 2, cones: 2, boxes: 2, bags: 1, lockers: 1 }, [0.6, 2], { shutter: 2, hazard: 2, panel: 1, extinguisher: 1, poster: 1 }, { cones: 1, bollard: 2 }, [3, 6]),
+  store: set('a store of racking: boxes on its shelves, pallets and drums at its foot, a forklift, cones', { racking: 6, pallet: 3, drums: 2, forklift: 1, cones: 2, boxes: 2 }, [0.4, 1.4], { hazard: 2, extinguisher: 2, duct: 1, panel: 1, pipes: 1 }, { cones: 1 }, [4, 7]),
+  plant: set('a process hall: tanks on their legs, cable reels, drums, a generator, pipes and cabinets on every wall', { tank: 4, reel: 2, drums: 3, generator: 2, barrier: 1, cones: 1, rubble: 1 }, [0.5, 1.8], { pipes: 4, panel: 2, hazard: 2, duct: 2, extinguisher: 1 }, { cones: 1 }, [2.5, 5]),
+  core: set('the plant\'s heart, held: tanks and generators behind barriers, wreckage, the crew\'s marks over the cabinets', { tank: 3, generator: 2, drums: 2, barrier: 3, wreckage: 2, reel: 1, drumfire: 1 }, [0.5, 1.6], { pipes: 3, panel: 3, tag: 2, banner: 1, duct: 1, hazard: 1 }, { cones: 1 }, [2.5, 4.5]),
+  // ── the base ──
+  gate: set('a gate\'s approach: sandbags, barriers, a floodlight, cones', { sandbags: 4, barrier: 3, floodlight: 1, cones: 2, drums: 1, jerry: 1 }, [0.8, 2.4], { stencil: 2, hazard: 2, extinguisher: 1 }, { cones: 1 }, [4, 7]),
+  depot: set('a supply depot: footlockers and steel crates stacked, drums, jerry cans, sandbags', { ammo: 5, drums: 3, jerry: 3, sandbags: 2, pallet: 2, lockers: 1 }, [0.4, 1.6], { stencil: 3, rack: 1, hazard: 1, extinguisher: 1, camo: 1 }, { cones: 1 }, [3, 6]),
+  motor: set('a motor pool\'s edge: tyres, drums, a generator, barriers, jerry cans, a floodlight', { tyres: 3, drums: 3, generator: 2, barrier: 2, jerry: 2, cones: 1, floodlight: 1, reel: 1 }, [0.6, 2], { stencil: 2, panel: 1, pipes: 1, camo: 1, hazard: 1 }, { tyres: 1 }, [3, 6]),
+  post: set('the command post, held: a radio table, sandbags, footlockers, a map board, the guns racked, its colours hung', { radio: 3, sandbags: 3, ammo: 2, floodlight: 1, lockers: 1, jerry: 1 }, [0.5, 1.6], { mapboard: 3, banner: 2, rack: 2, stencil: 1, camo: 2 }, { cones: 1 }, [2.5, 4.5]),
+  // ── the office ──
+  lobby: set('a lobby: a reception counter, sofas, plants, a water cooler, pictures', { reception: 2, sofa: 3, pot: 3, cooler: 1, planter: 1 }, [0.8, 2.2], { picture: 3, clock: 1, exit: 1, glazing: 1 }, { pot: 1 }, [3, 6]),
+  floor: set('an open floor: desks and their chairs, cubicle screens, filing cabinets, a copier, plants', { desk: 6, partition: 3, cabinet: 3, copier: 1, pot: 1, boxes: 1 }, [0.4, 1.3], { glazing: 3, whiteboard: 2, poster: 2, clock: 1, exit: 1 }, { pot: 1 }, [3, 5.5]),
+  breakroom: set('a break room: vending machines, a water cooler, sofas, a cabinet, the bin full', { vending: 3, cooler: 2, sofa: 2, pot: 1, bags: 1, cabinet: 1 }, [0.6, 1.8], { poster: 3, clock: 1, picture: 1, exit: 1 }, { pot: 1 }, [3, 6]),
+  suite: set('the corner suite, held: a desk or two, sofas, cabinets turned out, papers and glass on the floor, the crew\'s mark on its wall', { desk: 2, sofa: 2, cabinet: 2, pot: 2, reception: 1, shards: 2, boxes: 1 }, [0.6, 1.8], { picture: 2, whiteboard: 2, glazing: 2, banner: 1, tag: 2 }, { pot: 1 }, [2.5, 5]),
 });
 export const DRESS_SET_IDS = Object.freeze(Object.keys(DRESS_SETS));
-// the set a screen takes when none is said, by its place: the way in a shuttered strip, the held screens a market, a
-// strip, a yard in turn, a walk between them quiet, the boss's the crew's corner (a cafe terrace is said, never fallen to)
-const TURN = ['market', 'strip', 'yard'];
-export function dressSets(belt) { let k = 0; return belt.screens.map((sc) => (sc.boss ? 'turf' : sc.gate ? TURN[k++ % TURN.length] : k ? 'plain' : 'strip')); }
+/**
+ * THE SETTINGS: the kind of place a map is, each a row: the sets that belong to it, the TURN it takes when a map says
+ * none (the way in, the held screens in turn, a walk between them, the boss's), what stands in its band to be broken
+ * (brawl-things.js THINGS.box), and the stage kits it is the dress of (brawl-levels.js). A new kind of place is a row,
+ * its sets rows above; an agent's own set is said in a map's `sets` (readDress).
+ */
+const setting = (says, o) => Object.freeze({ says, ...o, sets: Object.freeze(o.sets), turn: Object.freeze({ ...o.turn, held: Object.freeze(o.turn.held) }), boxes: Object.freeze(o.boxes), kits: Object.freeze(o.kits ?? []) });
+export const DRESS_SETTINGS = Object.freeze({
+  street: setting('a city street gone rough: shops shuttered, a market, a load-in, the crew\'s corner', { sets: ['strip', 'market', 'yard', 'turf', 'plain', 'cafe'], turn: { way: 'strip', held: ['market', 'strip', 'yard'], between: 'plain', boss: 'turf' }, boxes: ['barrel', 'crate', 'drum'] }),
+  facility: setting('a plant, a warehouse, a utility: a dock, racking, a process hall, its heart', { sets: ['dock', 'store', 'plant', 'core'], turn: { way: 'dock', held: ['store', 'plant', 'dock'], between: 'store', boss: 'core' }, boxes: ['drum', 'crate', 'drum'], kits: ['bay-utility', 'bay-science', 'research-lab'] }),
+  base: setting('a military base: its gate, a depot, a motor pool, the command post', { sets: ['gate', 'depot', 'motor', 'post'], turn: { way: 'gate', held: ['depot', 'motor'], between: 'depot', boss: 'post' }, boxes: ['drum', 'crate', 'drum'], kits: ['bay-military'] }),
+  office: setting('an office building: a lobby, open floors, a break room, the corner suite', { sets: ['lobby', 'floor', 'breakroom', 'suite'], turn: { way: 'lobby', held: ['floor', 'breakroom'], between: 'floor', boss: 'suite' }, boxes: ['crate', 'drum'], kits: ['bay-everyday'] }),
+});
+export const DRESS_SETTING_IDS = Object.freeze(Object.keys(DRESS_SETTINGS));
+/** The setting a stage kit is dressed as when its level says none (null: a kit with no setting of its own). */
+export const settingOfKit = (kit) => DRESS_SETTING_IDS.find((id) => DRESS_SETTINGS[id].kits.includes(kit)) ?? null;
+/** The set a screen takes when none is said, by its place, in a setting's turn. */
+export function dressSets(belt, settingId = 'street') {
+  const T = DRESS_SETTINGS[settingId].turn;
+  let k = 0;
+  return belt.screens.map((sc) => (sc.boss ? T.boss : sc.gate ? T.held[k++ % T.held.length] : k ? T.between : T.way));
+}
+// AN AGENT'S OWN SET, said in a map's `sets` in a name's place: { says?, far: { piece: weight }, wall?: { piece: weight },
+// gap?: [lo, hi], marks?: [lo, hi], near?: { piece: weight } }: the same shape a row has, read against the pieces
+const OWN_KEYS = ['says', 'far', 'wall', 'gap', 'marks', 'near'];
+function readOwnSet(o, where) {
+  for (const k of Object.keys(o)) if (!OWN_KEYS.includes(k)) throw new Error(`brawl: ${where}.${k} is not a set's word (${OWN_KEYS.join(', ')})`);
+  const table = (v, name, wall) => {
+    if (v === undefined) return {};
+    if (!isObj(v) || (name === 'far' && !Object.keys(v).length)) throw new Error(`brawl: ${where}.${name} is { piece: weight }`);
+    for (const [id, w] of Object.entries(v)) {
+      if (!DRESS_PIECES[id]) throw new Error(`brawl: ${where}.${name}.${id} is no piece (${DRESS_PIECE_IDS.join(', ')})`);
+      if (!!DRESS_PIECES[id].wall !== wall) throw new Error(`brawl: ${where}.${name}.${id} is ${DRESS_PIECES[id].wall ? 'a wall\'s mark: it goes in `wall`' : 'a thing on the floor: it goes in `far` or `near`'}`);
+      if (!(typeof w === 'number' && w > 0 && w <= 20)) throw new Error(`brawl: ${where}.${name}.${id} is its weight, over 0 to 20`);
+    }
+    return { ...v };
+  };
+  const span = (v, name, d) => { if (v === undefined) return d; if (!(Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && v[0] >= 0.2 && v[1] >= v[0] && v[1] <= 30)) throw new Error(`brawl: ${where}.${name} is [least, most] m, 0.2 to 30`); return [...v]; };
+  if (o.far === undefined) throw new Error(`brawl: ${where} is a set's name (${DRESS_SET_IDS.join(', ')}), null, or a set of its own { far: { piece: weight }, wall?, gap?, marks?, near? }`);
+  const near = table(o.near, 'near', false);
+  for (const id of Object.keys(near)) if (DRESS_PIECES[id].tall > NEAR_TALL) throw new Error(`brawl: ${where}.near.${id} stands ${DRESS_PIECES[id].tall} m: the near side is between the camera and the fight, nothing on it over ${NEAR_TALL} m`);
+  return { says: typeof o.says === 'string' ? o.says : 'a set of its own', far: table(o.far, 'far', false), wall: table(o.wall, 'wall', true), near, gap: span(o.gap, 'gap', [0.6, 2]), marks: span(o.marks, 'marks', [3, 6]) };
+}
+/** A set by what a map says of it: a row's name, or its own. */
+const setOf = (v) => (typeof v === 'string' ? DRESS_SETS[v] : v);
+const setName = (v, i) => (typeof v === 'string' ? v : `own-${i + 1}`);
+// how tall a thing on the near side may stand (m): a body's waist
+const NEAR_TALL = 1.1;
 
 // how far a wall's mark stands off the fronts' line (m): past a shopfront's shutters, sills and plinth
 const PROUD = 0.16;
-const KEYS = ['seed', 'sets', 'colour', 'far', 'near', 'wall', 'fronts'];
+const KEYS = ['seed', 'sets', 'setting', 'colour', 'far', 'near', 'wall', 'fronts'];
 const strip = (v, where) => { if (!(Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && Math.abs(v[1] - v[0]) >= 0.6)) throw new Error(`brawl: ${where} is a strip across the belt [n0, n1] m, at least 0.6 m deep`); return [Math.min(...v), Math.max(...v)]; };
 /** A dress, settled against its belt. `far` is the strip between the band's far edge and the fronts ([n0, n1]), `wall`
  * the fronts' line (the far strip's far edge unless said), `near` the strip between the camera and the band (optional:
@@ -219,9 +334,11 @@ export function readDress(dress, belt, where = 'dress') {
   // an ALLEY, dressed as one. Unsaid, one front the belt's length at `wall`)
   if (dress.fronts !== undefined && !(Array.isArray(dress.fronts) && dress.fronts.every((f) => isObj(f) && [f.from, f.to, f.wall].every(Number.isFinite) && f.to > f.from))) throw new Error(`brawl: ${where}.fronts is the buildings along the belt [{ from, to, wall }] (m along it, the front's line across it)`);
   const fronts = dress.fronts ? dress.fronts.map((f) => ({ from: r3(f.from), to: r3(f.to), wall: r3(f.wall) })).sort((a, b) => a.from - b.from) : null;
-  const sets = dress.sets ?? dressSets(belt);
-  if (!Array.isArray(sets) || sets.length !== belt.screens.length || sets.some((s) => s !== null && !DRESS_SETS[s])) throw new Error(`brawl: ${where}.sets is a set a screen (${belt.screens.length}): ${DRESS_SET_IDS.join(', ')}, or null for a bare one`);
-  return { seed: dress.seed ?? 1, sets: [...sets], ...(dress.colour ? { colour: dress.colour.toLowerCase() } : {}), far, ...(near ? { near } : {}), wall: dress.wall ?? far[1], ...(fronts ? { fronts } : {}) };
+  if (dress.setting !== undefined && !DRESS_SETTINGS[dress.setting]) throw new Error(`brawl: ${where}.setting is the kind of place it is: ${DRESS_SETTING_IDS.join(', ')}`);
+  const settingId = dress.setting ?? 'street', raw = dress.sets ?? dressSets(belt, settingId);
+  if (!Array.isArray(raw) || raw.length !== belt.screens.length) throw new Error(`brawl: ${where}.sets is a set a screen (${belt.screens.length}): a name (${DRESS_SET_IDS.join(', ')}), null for a bare one, or a set of its own { far: { piece: weight }, wall?, gap?, marks?, near? }`);
+  const sets = raw.map((v, i) => { if (v === null) return null; if (typeof v === 'string') { if (!DRESS_SETS[v]) throw new Error(`brawl: ${where}.sets[${i}]: no set '${v}' (${DRESS_SET_IDS.join(', ')})`); return v; } if (!isObj(v)) throw new Error(`brawl: ${where}.sets[${i}] is a set's name, null, or a set of its own`); return readOwnSet(v, `${where}.sets[${i}]`); });
+  return { seed: dress.seed ?? 1, ...(dress.setting ? { setting: dress.setting } : {}), sets, ...(dress.colour ? { colour: dress.colour.toLowerCase() } : {}), far, ...(near ? { near } : {}), wall: dress.wall ?? far[1], ...(fronts ? { fronts } : {}) };
 }
 
 // what an alley holds (each narrow enough for one)
@@ -231,8 +348,8 @@ const pick = (weights, R) => { const E = Object.entries(weights), sum = E.reduce
 export function dressPlan(dress, belt) {
   const D = readDress(dress, belt), out = [];
   belt.screens.forEach((sc, i) => {
-    const id = D.sets[i]; if (!id) return;
-    const S = DRESS_SETS[id], R = streamOf(D.seed, 'brawl-dress', `${i}:${id}`), deep = D.far[1] - D.far[0];
+    if (!D.sets[i]) return;
+    const S = setOf(D.sets[i]), id = setName(D.sets[i], i), R = streamOf(D.seed, 'brawl-dress', `${i}:${id}`), deep = D.far[1] - D.far[0];
     // the far side: against the fronts, a piece and a gap at a time (a piece too deep for the strip is passed over)
     for (let s = sc.from + 0.6 + R() * 1.2; s < sc.to - 0.6;) {
       const piece = pick(S.far, R), P = DRESS_PIECES[piece];
@@ -240,15 +357,15 @@ export function dressPlan(dress, belt) {
       if (s + P.size[0] > sc.to - 0.3) break;
       // (its back to the fronts, a hand off them; now and then stood out toward the band, never into it)
       const slack = deep - P.size[1] - 0.1, n = D.far[1] - 0.08 - P.size[1] / 2 - (R() < 0.3 ? R() * Math.min(slack, 0.9) : 0);
-      out.push({ piece, set: id, s: r3(s + P.size[0] / 2), n: r3(n), side: 'far', turn: 1 });
+      out.push({ piece, set: id, s: r3(s + P.size[0] / 2), n: r3(n), side: 'far', turn: 1, ...(sc.boss ? { boss: true } : {}) });
       s += P.size[0] + S.gap[0] + R() * (S.gap[1] - S.gap[0]);
     }
     // its wall: the set's marks at their stride, proud of the fronts' own relief
-    for (let s = sc.from + 1 + R() * 2; s < sc.to - 1; s += S.marks[0] + R() * (S.marks[1] - S.marks[0])) {
+    if (Object.keys(S.wall).length) for (let s = sc.from + 1 + R() * 2; s < sc.to - 1; s += S.marks[0] + R() * (S.marks[1] - S.marks[0])) {
       const piece = pick(S.wall, R), half = DRESS_PIECES[piece].size[0] / 2;
       // (on the building it falls on, where that front is wide enough for it; over an alley's mouth, none)
       const F = D.fronts ? D.fronts.find((f) => s - half >= f.from + 0.15 && s + half <= f.to - 0.15) : { wall: D.wall };
-      if (F) out.push({ piece, set: id, s: r3(s), n: r3(F.wall - PROUD), side: 'wall', turn: 1 });
+      if (F) out.push({ piece, set: id, s: r3(s), n: r3(F.wall - PROUD), side: 'wall', turn: 1, ...(sc.boss ? { boss: true } : {}) });
     }
     // its alleys (the gaps between its fronts): what is left in one, a little way in
     if (D.fronts) for (let k = 0; k + 1 < D.fronts.length; k++) {
@@ -258,14 +375,14 @@ export function dressPlan(dress, belt) {
       for (let j = 0, n = back + 0.6 + Ra(); j < 3; j++, n += 1 + Ra() * 1.2) {
         const piece = pick(ALLEY, Ra), P = DRESS_PIECES[piece];
         if (P.size[0] > b - a - 0.2) continue;
-        out.push({ piece, set: id, s: r3(a + P.size[0] / 2 + 0.1 + Ra() * Math.max(0, b - a - P.size[0] - 0.2)), n: r3(n), side: 'alley', turn: 1 });
+        out.push({ piece, set: id, s: r3(a + P.size[0] / 2 + 0.1 + Ra() * Math.max(0, b - a - P.size[0] - 0.2)), n: r3(n), side: 'alley', turn: 1, ...(sc.boss ? { boss: true } : {}) });
       }
     }
     // the near side: sparse and low, well clear of the band (between the camera and the fight)
-    if (D.near) for (let s = sc.from + 2 + R() * 5; s < sc.to - 1; s += 6 + R() * 7) {
+    if (D.near && Object.keys(S.near).length) for (let s = sc.from + 2 + R() * 5; s < sc.to - 1; s += 6 + R() * 7) {
       const piece = pick(S.near, R), P = DRESS_PIECES[piece], room = D.near[1] - D.near[0] - P.size[1];
       if (room < 0.4) continue;
-      out.push({ piece, set: id, s: r3(s), n: r3(D.near[1] - 0.4 - P.size[1] / 2 - R() * Math.min(room - 0.4, 1.2)), side: 'near', turn: -1 });
+      out.push({ piece, set: id, s: r3(s), n: r3(D.near[1] - 0.4 - P.size[1] / 2 - R() * Math.min(room - 0.4, 1.2)), side: 'near', turn: -1, ...(sc.boss ? { boss: true } : {}) });
     }
   });
   return out;
@@ -277,7 +394,7 @@ export function dressFaces(dress, belt) {
   const D = readDress(dress, belt), t = (belt.heading * Math.PI) / 180, c = Math.cos(t), si = Math.sin(t), out = [];
   dressPlan(D, belt).forEach((p, k) => {
     const P = DRESS_PIECES[p.piece], R = streamOf(D.seed, 'brawl-dress-piece', `${k}:${p.piece}`);
-    for (const f of P.build(R, P.crew && (p.set === 'turf' || p.piece === 'tag' || p.piece === 'banner' || R() < 0.34) ? D.colour ?? null : null)) {
+    for (const f of P.build(R, P.crew && (p.boss || p.piece === 'tag' || p.piece === 'banner' || R() < 0.34) ? D.colour ?? null : null)) {
       const o = [f.out[0], f.out[1] * p.turn, f.out[2]];
       out.push({ corners: f.corners.map(([s, n, z]) => beltPoint(belt, p.s + s, p.n + n * p.turn, z)), out: [r3(o[0] * c - o[1] * si), r3(o[0] * si + o[1] * c), r3(o[2])], hex: f.hex });
     }
@@ -321,6 +438,40 @@ export function boxModels(whats) {
     out[what] = { whole: tris(whole.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x, y - mid, z]) }))), wreck: tris(debris(B[2], 1.1, 1.1, R)) };
   }
   return out;
+}
+
+/**
+ * THE LAWS OF A SIDE-SCROLLING MAP (docs/side-scroll-map-principles.md), measured on a dress laid on its belt: each
+ * `{ law, ok, what }`. They advise: a map that loses one is still made, and says so.
+ *   outside-the-band    nothing of the dress stands in the band: the fight's floor is the fight's
+ *   a-place-a-screen    no two screens running wear the same set: a held screen is remembered as a place
+ *   the-boss-owns-it    the boss's screen carries its holder's marks (a crew's piece on it), where the map has a boss
+ *   two-depths          every dressed screen has things on the floor AND marks on the wall: a backdrop is layers
+ *   no-bare-run         no stretch of the far side longer than BARE m with nothing on the floor or the wall
+ *   variety             a screen draws at least three different pieces: a row of one thing is a pattern, not a place
+ *   low-near-side       nothing between the camera and the fight stands over a body's waist
+ */
+export const DRESS_LAWS = Object.freeze({ bare: 9, variety: 3 });
+export function dressLaws(dress, belt) {
+  const D = readDress(dress, belt), P = dressPlan(D, belt), laws = [], dressed = belt.screens.map((_, i) => !!D.sets[i]);
+  const half = (p) => DRESS_PIECES[p.piece].size[1] / 2;
+  const inBand = P.filter((p) => (p.side === 'far' && p.n - half(p) < belt.depth[1] - 1e-6) || (p.side === 'near' && p.n + half(p) > belt.depth[0] + 1e-6));
+  laws.push({ law: 'outside-the-band', ok: !inBand.length, what: inBand.length ? `${inBand.length} of the dress stand in the band (${inBand.slice(0, 3).map((p) => `${p.piece} at ${p.s} m`).join(', ')})` : `all ${P.length} stand outside the band` });
+  const names = D.sets.map((v, i) => (v ? setName(v, i) : null)), same = names.map((n, i) => (i && n && n === names[i - 1] ? i : -1)).filter((i) => i >= 0);
+  laws.push({ law: 'a-place-a-screen', ok: !same.length, what: same.length ? `screens ${same.map((i) => `${i} and ${i + 1}`).join(', ')} wear the same set (${names[same[0]]}): a screen is a place of its own` : `${names.filter(Boolean).length} dressed screens, no two running alike` });
+  const bossAt = belt.screens.findIndex((sc) => sc.boss);
+  if (bossAt >= 0 && dressed[bossAt]) { const S = setOf(D.sets[bossAt]), owned = [...Object.keys(S.far), ...Object.keys(S.wall)].some((id) => DRESS_PIECES[id].crew); laws.push({ law: 'the-boss-owns-it', ok: owned, what: owned ? `the boss's screen (${names[bossAt]}) carries its holder's marks` : `the boss's screen (${names[bossAt]}) carries nothing of its holder's: a tag, a banner, a stencil, a map board` }); }
+  const flat = belt.screens.map((sc, i) => (dressed[i] ? { i, floor: P.filter((p) => p.side === 'far' && p.s >= sc.from && p.s < sc.to), wall: P.filter((p) => p.side === 'wall' && p.s >= sc.from && p.s < sc.to) } : null)).filter(Boolean);
+  const one = flat.filter((f) => !f.floor.length || !f.wall.length);
+  laws.push({ law: 'two-depths', ok: !one.length, what: one.length ? `screen ${one.map((f) => f.i + 1).join(', ')} has ${one[0].floor.length ? 'nothing on its wall' : 'nothing on its floor'}: a backdrop reads in layers` : 'every dressed screen has things on its floor and marks on its wall' });
+  let worst = 0, at = 0;
+  for (const sc of belt.screens.filter((_, i) => dressed[i])) { const xs = [sc.from, ...P.filter((p) => (p.side === 'far' || p.side === 'wall') && p.s >= sc.from && p.s < sc.to).map((p) => p.s).sort((a, b) => a - b), sc.to]; for (let k = 1; k < xs.length; k++) if (xs[k] - xs[k - 1] > worst) { worst = xs[k] - xs[k - 1]; at = xs[k - 1]; } }
+  laws.push({ law: 'no-bare-run', ok: worst <= DRESS_LAWS.bare, what: `the longest bare stretch of the far side is ${r3(worst)} m (from ${r3(at)} m; the most ${DRESS_LAWS.bare})` });
+  const thin = flat.filter((f) => new Set([...f.floor, ...f.wall].map((p) => p.piece)).size < DRESS_LAWS.variety);
+  laws.push({ law: 'variety', ok: !thin.length, what: thin.length ? `screen ${thin.map((f) => f.i + 1).join(', ')} draws fewer than ${DRESS_LAWS.variety} different pieces` : `every dressed screen draws ${DRESS_LAWS.variety} pieces or more` });
+  const tall = P.filter((p) => p.side === 'near' && DRESS_PIECES[p.piece].tall > NEAR_TALL);
+  laws.push({ law: 'low-near-side', ok: !tall.length, what: tall.length ? `${tall.length} on the near side stand over ${NEAR_TALL} m` : 'nothing between the camera and the fight stands over a body\'s waist' });
+  return laws;
 }
 
 export function dressCount(dress, belt) {

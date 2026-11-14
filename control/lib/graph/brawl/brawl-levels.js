@@ -35,7 +35,7 @@ import { FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { STAGE_KITS } from '../era/stage.js';
 import { designGeotown } from '../geotown/design.js';
-import { readDress } from './brawl-dress.js';
+import { readDress, settingOfKit } from './brawl-dress.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -150,7 +150,9 @@ const STAGE_LOOK = { 'island-plaza': 'island-noon' };
 // (a kit whose dressing stands on the floor, the plaza's fountain, the lab's benches and its tank, is dressed only when
 // asked: the band is a fighting floor)
 const STAGE_CENTRE_PIECE = new Set(['island-plaza', 'research-lab']);
-export const BRAWL_STAGE_KITS = ARENA_KITS;
+// (the fight's arena kits, and the contemporary bays: a military base's, a utility's, a science building's, an everyday
+// building's: era/stage.js)
+export const BRAWL_STAGE_KITS = Object.freeze([...ARENA_KITS, 'bay-military', 'bay-utility', 'bay-science', 'bay-everyday']);
 const STAGE_SCREENS = Object.freeze([{ length: 14 }, { length: 16, gate: true }, { length: 16, gate: true }, { length: 16, boss: true }]);
 
 /** The stage a belt is laid in: { manifest (a `kind: 'stage'` recipe), belt }. */
@@ -166,20 +168,33 @@ function brawlStage(words) {
   const band = Array.isArray(depth) && depth.length === 2 ? depth[1] - depth[0] : NaN;
   // (the room's depth on the grid, the band centred in it)
   const D = Math.ceil((band + 2 * front) / g) * g;
-  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? 'classic' }, 'level');
+  // (a kit dressed as a place of its own is framed as the street is: the band low, its backdrop over it)
+  const dressedKit = words.dress !== false && (isObj(words.dress) || !!settingOfKit(kit));
+  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? (dressedKit ? 'street' : 'classic') }, 'level');
   const rooms = open
     ? [{ id: 'street', x: 0, y: 0, w: belt.length, d: D, h: height, open: ['-y'] }]
     : belt.screens.map((sc, i) => ({ id: `screen-${i + 1}`, x: sc.from, y: 0, w: sc.length, d: D, h: height, open: ['-y'] }));
   const links = open ? [] : rooms.slice(1).map((r, i) => ({ from: rooms[i].id, to: r.id, width: Math.min(D - 2 * (K.door?.frame ?? 0.3) - (K.wall ?? 0.5) - 0.01, r3(band + STAGE.door)), height: height - 1 }));
   const look = words.look ?? STAGE_LOOK[kit];
+  // ITS DRESS (brawl-dress.js): `dress` true | false is the kit's own dressing (as before); an object is the belt's:
+  // { setting?, sets?, colour?, seed?, kit?: the kit's own dressing too }. Unsaid, a kit with a setting of its own (a
+  // military bay a base, a utility's a facility, an everyday building's an office) is dressed as it; the far strip is
+  // the floor between the band and the room's far wall, a front a screen (its doorways' walls kept clear)
+  const own = isObj(words.dress) ? words.dress : null, settingId = own?.setting ?? settingOfKit(kit);
+  if (own) for (const k of Object.keys(own)) if (!['setting', 'sets', 'colour', 'seed', 'kit'].includes(k)) throw new Error(`brawl: a stage street's dress.${k} is not its word (setting, sets, colour, seed, kit)`);
+  const kitDress = own ? own.kit ?? !STAGE_CENTRE_PIECE.has(kit) : words.dress ?? !STAGE_CENTRE_PIECE.has(kit);
+  const wallN = r3(D - belt.at[1] - 0.12), far = [r3(belt.depth[1] + 0.25), r3(wallN - 0.05)];
+  const { kit: _k, ...laid } = own ?? {};
+  const dress = words.dress === false || (!own && !settingId) || far[1] - far[0] < 0.6 ? null
+    : readDress({ ...(settingId ? { setting: settingId } : {}), ...laid, far, wall: wallN, ...(open ? {} : { fronts: belt.screens.map((sc) => ({ from: r3(sc.from + 0.5), to: r3(sc.to - 0.5), wall: wallN })) }) }, belt, 'level.dress');
   return {
     manifest: {
       kind: 'stage', kit, ...(look ? { reference: look } : {}), ...(words.title ? { title: words.title } : {}),
-      ...((words.dress ?? !STAGE_CENTRE_PIECE.has(kit)) ? {} : { dress: false }),
+      ...(kitDress ? {} : { dress: false }),
       viewBox: { width: 1280, height: 720 }, rooms, ...(links.length ? { links } : {}), lights: 'auto',
       camera: { name: 'brawl', worldFraming: { ...beltCamera(belt, viewHalf(belt)), pictureCenter: [640, 360] } },
     },
-    belt,
+    belt, ...(dress ? { dress } : {}),
   };
 }
 
@@ -204,7 +219,7 @@ function brawlTown(words) {
   // a screen. `dress: false` leaves the street the town's own
   const Sy = D.sections.y.find((q) => q.rank === 'main') ?? D.sections.y[0], wall = r3(Sy.half);
   if (words.dress !== undefined && words.dress !== false && !isObj(words.dress)) throw new Error('brawl: a town street\'s dress is false (the town\'s own street) or { sets?, colour?, seed? }');
-  if (isObj(words.dress)) for (const k of Object.keys(words.dress)) if (!['sets', 'colour', 'seed'].includes(k)) throw new Error(`brawl: a town street's dress.${k} is not its word (sets, colour, seed)`);
+  if (isObj(words.dress)) for (const k of Object.keys(words.dress)) if (!['sets', 'colour', 'seed', 'setting'].includes(k)) throw new Error(`brawl: a town street's dress.${k} is not its word (setting, sets, colour, seed)`);
   // (no near dress: the street's angle frames the band at the frame's foot, the near walk under it)
   const far = [r3(belt.depth[1] + 0.25), r3(wall - 0.05)];
   // (the shops' own lines along the belt, so a mark stands on its building and an alley is dressed as one)

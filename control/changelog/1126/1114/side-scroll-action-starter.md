@@ -115,6 +115,26 @@ screen) is now played on a page; before, only its practice yard was.
   a steel drum in turn: `quick.js` defaultThings; a new box `drum`), every other one holding food. A box is drawn as
   its skandart vessel (`brawl-dress.js` boxModels, carried by the page only when a box is laid) and, broken, leaves its
   wreck where it stood (its form's planks and splinters, a drum's sheet).
+- The side-scroll map, for any contemporary place (`brawl/brawl-dress.js`,
+  [docs/side-scroll-map-principles.md](../../../../docs/side-scroll-map-principles.md), the agent's card
+  `gameworld-side-scroll`). What made the street work is said as principles and measured as laws (`dressLaws`, which
+  advise): the band low and the backdrop over it, nothing tall between the camera and the fight, the dress outside
+  the band, a screen a place of its own, the boss's screen held, things on the floor AND marks on the wall, no long
+  bare run, variety inside a set. A map now has a SETTING, the kind of place it is, a row each with its sets, the turn
+  it takes unsaid and what stands in its band to be broken:
+  - `street` (as before), `facility` (a dock, a store of racking, a process hall, its heart), `base` (a gate, a depot,
+    a motor pool, the command post), `office` (a lobby, an open floor, a break room, the corner suite);
+  - their pieces: pallet racking, a tank, a cable reel, cones, a barrier, a forklift, a generator, lockers; sandbags,
+    footlockers (skandart's vessels), jerry cans, a radio table, a floodlight; a desk, cabinets, a cooler, a copier, a
+    sofa, a cubicle screen, a reception counter; on the wall pipes, a cabinet, a hazard board, an extinguisher, a duct,
+    a stencilled unit number, a map board, a gun rack, a camouflage net, a whiteboard, a clock, pictures, glazing, an
+    exit sign.
+  A map's `sets` may name a set, leave a screen bare, or say A SET OF THE AGENT'S OWN from the pieces
+  (`{ far, wall, gap, marks, near }`), read against them and held to the same laws.
+- A building's bays are brawl levels: the stage kind takes the contemporary bays (`bay-military`, `bay-utility`,
+  `bay-science`, `bay-everyday`) beside the arena kits, a kit with a setting of its own is dressed as it unsaid (its
+  `dress` an object: `{ setting, sets, colour, seed, kit }`; true or false is still the kit's own dressing), and a
+  dressed stage is framed by the belt's `street` angle. A quick brawl's boxes are its setting's.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

@@ -32,11 +32,12 @@ const boss = { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, ar
 // (--level: the street's level, a brawl level's words as JSON: '{"kind":"town"}' the geotown's main street)
 const LV = opt.level ? JSON.parse(opt.level) : { kind: 'greybox', preset: 'street' };
 const { defaultThings } = await import('@/lib/graph/gameworld/quick.js');
+const { DRESS_SETTINGS } = await import('@/lib/graph/brawl/brawl-dress.js');
 const LVT = opt.tour ? { ...LV, screens: [{ length: 30 }, { length: 30, gate: true }] } : LV;
 const manifest = brawlLevel(LVT, { title: 'street', ...(opt.register ? { register: opt.register } : {}), street: {
   players: [me],
   // (what stands on it to be broken: the quick brawl's own, skandart's vessels)
-  things: defaultThings(brawlLevel(LVT).brawl.belt),
+  things: (() => { const B = brawlLevel(LVT).brawl; return defaultThings(B.belt, B.dress?.setting ? DRESS_SETTINGS[B.dress.setting].boxes : null); })(),
   // (--light: a street a masher can finish, to see its end)
   waves: opt.tour ? [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }] : opt.light ? [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [], boss: { recipe: boss, plays: ['chain'], cpu: Object.keys(CPU_LEVELS)[0], hp: 150 } }]
     : [{ screen: 1, crowd: [{ type: 'thug', n: 4 }] }, { screen: 2, crowd: [{ type: 'thug', n: 3 }, { type: 'knife', n: 2 }] },

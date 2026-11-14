@@ -1,7 +1,7 @@
 // THE STREET'S DRESS (brawl-dress.js): what stands along a belt beside the band. The concepts: it is laid outside the
 // band, a set a screen, seeded, in the crew's colour where it is the crew's; absent it is nothing.
 import { describe, it, expect } from 'vitest';
-import { DRESS_PIECES, DRESS_SETS, readDress, dressPlan, dressFaces, dressSceneFaces, dressSets, dressCount, boxModels } from './brawl-dress.js';
+import { DRESS_PIECES, DRESS_SETS, readDress, dressPlan, dressFaces, dressSceneFaces, dressSets, dressCount, boxModels, dressLaws, DRESS_SETTINGS, DRESS_SETTING_IDS, settingOfKit } from './brawl-dress.js';
 import { THINGS } from './brawl-things.js';
 import { brawlYardData } from './brawl-page.js';
 import { brawlLevel } from './brawl-levels.js';
@@ -136,5 +136,72 @@ describe('skandart on the street', () => {
     const block = { belt, street: { players: [0], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }] } };
     expect(brawlYardData(block).boxes).toBeUndefined();
     expect(Object.keys(brawlYardData({ ...block, street: { ...block.street, things: [{ kind: 'box', what, at: 20 }] } }).boxes)).toEqual([what]);
+  });
+});
+
+describe('the settings: a kind of place', () => {
+  it('each names sets that exist, a turn among them, boxes the street can break, and its boss\'s set is held', () => {
+    for (const id of DRESS_SETTING_IDS) {
+      const S = DRESS_SETTINGS[id], T = S.turn;
+      for (const n of [...S.sets, T.way, T.between, T.boss, ...T.held]) expect(DRESS_SETS[n], `${id}: ${n}`).toBeTruthy();
+      for (const n of [T.way, T.between, T.boss, ...T.held]) expect(S.sets, `${id}: ${n}`).toContain(n);
+      for (const b of S.boxes) expect(THINGS.box[b], `${id}: ${b}`).toBeTruthy();
+      const B = DRESS_SETS[T.boss];
+      expect([...Object.keys(B.far), ...Object.keys(B.wall)].some((p) => DRESS_PIECES[p].crew), id).toBe(true);
+    }
+  });
+  it('a map laid in a setting takes its turn and keeps its laws; every piece a setting draws is built', () => {
+    for (const id of DRESS_SETTING_IDS) {
+      const Dm = { far: [3.3, 6], wall: 6.1, seed: 2, colour: '#b3261e', setting: id };
+      expect(readDress(Dm, belt).sets).toEqual(dressSets(belt, id));
+      for (const l of dressLaws(Dm, belt)) expect(l.ok, `${id}: ${l.law}: ${l.what}`).toBe(true);
+      expect(dressFaces(Dm, belt).length, id).toBeGreaterThan(50);
+    }
+    expect(() => readDress({ ...D, setting: 'moon' }, belt)).toThrow(/kind of place/);
+  });
+  it('a stage kit with a setting of its own is dressed as it, framed as the street is; another kit takes one said', () => {
+    const kit = DRESS_SETTING_IDS.flatMap((id) => DRESS_SETTINGS[id].kits)[0], id = settingOfKit(kit);
+    const L = brawlLevel({ kind: 'stage', kit });
+    expect(L.brawl.dress.setting).toBe(id);
+    expect(L.brawl.belt.angle).toBe('street');
+    expect(L.brawl.dress.far[0]).toBeGreaterThanOrEqual(L.brawl.belt.depth[1]);
+    expect(brawlLevel({ kind: 'stage', kit, dress: false }).brawl.dress).toBeUndefined();
+    const bare = 'gothic-stone';
+    expect(settingOfKit(bare)).toBeNull();
+    expect(brawlLevel({ kind: 'stage', kit: bare }).brawl.dress).toBeUndefined();
+    expect(brawlLevel({ kind: 'stage', kit: bare }).brawl.belt.angle).toBe('classic');
+    expect(brawlLevel({ kind: 'stage', kit: bare, dress: { setting: id } }).brawl.dress.setting).toBe(id);
+    expect(() => brawlLevel({ kind: 'stage', kit, dress: { far: [0, 1] } })).toThrow(/not its word/);
+  });
+});
+
+describe('a set of an agent\'s own', () => {
+  const own = { says: 'a server room', far: { lockers: 4, generator: 1, cones: 1 }, wall: { panel: 3, duct: 1, exit: 1 }, gap: [0.4, 1.2], marks: [2.5, 4] };
+  it('is said in a name\'s place and laid like a row', () => {
+    const Dm = { ...D, sets: ['strip', own, 'yard', 'turf'] }, P = dressPlan(Dm, belt), mine = P.filter((p) => p.set === 'own-2');
+    expect(mine.length).toBeGreaterThan(3);
+    for (const p of mine) { expect(Object.keys({ ...own.far, ...own.wall })).toContain(p.piece); expect(p.s).toBeGreaterThan(belt.screens[1].from); expect(p.s).toBeLessThan(belt.screens[1].to); }
+  });
+  it('is read against the pieces: an unknown piece, a mark on the floor, a tall thing on the near side are said', () => {
+    const at = (o) => () => readDress({ ...D, sets: ['strip', o, 'yard', 'turf'] }, belt);
+    expect(at({ far: { hovercraft: 1 } })).toThrow(/no piece/);
+    expect(at({ far: { panel: 1 } })).toThrow(/goes in `wall`/);
+    expect(at({ far: { desk: 1 }, wall: { desk: 1 } })).toThrow(/goes in `far`/);
+    expect(at({ far: { desk: 1 }, near: { racking: 1 } })).toThrow(/near side/);
+    expect(at({ wall: { panel: 1 } })).toThrow(/set of its own/);
+  });
+});
+
+describe('the laws of a side-scrolling map', () => {
+  const law = (d, name) => dressLaws(d, belt).find((l) => l.law === name);
+  it('the same set on two screens running is said; a boss\'s screen with nothing of its holder\'s is said', () => {
+    expect(law({ ...D, sets: ['strip', 'market', 'market', 'turf'] }, 'a-place-a-screen').ok).toBe(false);
+    expect(law({ ...D, sets: ['strip', 'market', 'yard', 'cafe'] }, 'the-boss-owns-it').ok).toBe(true);     // (its banner)
+    expect(law({ ...D, sets: ['strip', 'market', 'yard', { far: { bench: 1 }, wall: { clock: 1 } }] }, 'the-boss-owns-it').ok).toBe(false);
+  });
+  it('a screen with one depth, or one thing over and over, is said', () => {
+    expect(law({ ...D, sets: ['strip', { far: { bench: 1 } }, 'yard', 'turf'] }, 'two-depths').ok).toBe(false);
+    expect(law({ ...D, sets: ['strip', { far: { bench: 1 }, wall: { clock: 1 } }, 'yard', 'turf'] }, 'variety').ok).toBe(false);
+    expect(law({ ...D, sets: ['strip', { far: { bench: 1 }, wall: { clock: 1 }, gap: [12, 14], marks: [20, 22] }, 'yard', 'turf'] }, 'no-bare-run').ok).toBe(false);
   });
 });

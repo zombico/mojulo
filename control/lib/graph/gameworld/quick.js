@@ -221,6 +221,7 @@ import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-le
 import { brawlLevel, readBrawlLevel } from '../brawl/brawl-levels.js';
 import { readStreet } from '../brawl/brawl-street.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
+import { DRESS_SETTINGS } from '../brawl/brawl-dress.js';
 import { GRUNT_STYLES, GRUNT_STYLE_IDS, gruntOrders } from '../cosmos/packs/comic-hero/grunts.js';
 import { CPU_LEVELS } from '../versus/versus-cpu.js';
 import { settingOfGame } from './cast-setting.js';
@@ -872,8 +873,8 @@ export function defaultWaves(belt, types = null) {
 /** What a street has standing on it to be broken when it names none (brawl-things.js THINGS.box, drawn as skandart's
  * vessels): two on each held screen, toward its far side, a barrel, a crate and a steel drum in turn; every other one
  * holds something to eat, the boss's screen a roast chicken. */
-export function defaultThings(belt) {
-  const out = [], BOX = ['barrel', 'crate', 'drum'], far = belt.depth[1] - 0.7, r2 = (v) => Math.round(v * 100) / 100;
+export function defaultThings(belt, boxes = null) {
+  const out = [], BOX = boxes?.length ? boxes : ['barrel', 'crate', 'drum'], far = belt.depth[1] - 0.7, r2 = (v) => Math.round(v * 100) / 100;
   let k = 0;
   belt.screens.forEach((sc) => {
     if (!sc.gate && !sc.boss) return;
@@ -898,9 +899,9 @@ export function brawlBody(created, heavy = false) {
 export function brawlStreets(Q, { title, roster, cast, types, colour } = {}) {
   return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves, things }) => {
     // (a town street's dress wears the crew's colour, unless the street says its own)
-    const L0 = level ?? BRAWL_STREET.level, L = colour && L0.kind === 'town' && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(L0.dress ?? {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
-    const belt = brawlLevel(L, { title: t }).brawl.belt;
-    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const L0 = level ?? BRAWL_STREET.level, L = colour && (L0.kind === 'town' || (L0.kind === 'stage' && (isObj(L0.dress) || (L0.dress === undefined && brawlLevel(L0).brawl.dress)))) && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(isObj(L0.dress) ? L0.dress : {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
+    const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt, boxes = B0.dress?.setting ? DRESS_SETTINGS[B0.dress.setting].boxes : null;
+    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
