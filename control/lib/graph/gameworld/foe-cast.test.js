@@ -20,7 +20,6 @@ import { readReview, FOE_CAST_PART } from './review.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { composeGameworld } from './compose.js';
-import { MOVES } from '../foes/vocab.js';
 import { RANKS, AGGRESSIVENESS } from '../mind/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
