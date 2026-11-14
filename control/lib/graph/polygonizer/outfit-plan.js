@@ -424,8 +424,8 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none', material }) {
     ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: on('foreArm'), run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie }] : [])];
   const trim = trimOf(p, B, G, { hem: B.names.has('pelvis') ? `${id}Skirt_skirt` : null, cuffs: sleeves.length && B.names.has('foreArm') ? [`${id}Cuff_foreArmR`, `${id}Cuff_foreArmL`] : [], bodice: `${id}Bodice_torso` });
   return {
-    garments: [{ id: `${id}Bodice`, part: on('torso'), ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B), ...shoulderOf(B, sleeves.length > 0) }, ...sleeves,
-      ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p), ...clothOf(p, material) }] : []),
+    garments: [{ id: `${id}Bodice`, part: on('torso'), ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B), ...shoulderOf(B, sleeves.length > 0), ...cinchOf(B) }, ...sleeves,
+      ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), ...skirtFrom(B, id), to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p), ...clothOf(p, material) }] : []),
       ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6), material)],
     ...trim,
   };
@@ -439,6 +439,17 @@ const lieOf = (B) => (B.laws >= 2 && B.waist != null ? { lie: r3(B.ringAt(B.tors
 /** THE SHOULDER UNDER A BODICE (outfit laws 2, on a body with shoulder forms, the tiered body's): its cloth carried over
  * the shoulder into the sleeve's head, or to an armhole on the shoulder point (body-garment.js `shoulder`, layShoulders) */
 const shoulderOf = (B, sleeved) => (B.laws >= 2 && B.names.has('shoulderCone') ? { shoulder: sleeved ? 'sleeved' : 'sleeveless' } : {});
+/** BELTED (outfit laws 2, on a body with shoulder forms, the tiered body's, a belt or a sash at the natural waist): the
+ * bodice is taken in under it (body-garment.js `cinch`: CINCH_EASE off the cloth beneath at the waist's ring, its own
+ * ease back by CINCH_UP above, blousing a little over the band), and the skirt hangs from under the belt (SKIRT_UNDER
+ * stations under the waist's ring, over the bodice) instead of standing out from the top of the hips below it; else as
+ * before, the skirt from the top of the hips */
+const CINCH_EASE = 0.004, CINCH_UP = 0.14, SKIRT_UNDER = 0.22, BODICE_UNDER = 0.1;
+const belted = (B) => B.laws >= 2 && B.belted && B.waist != null && B.names.has('shoulderCone');
+const cinchOf = (B) => { if (!belted(B)) return {}; const s = B.ringAt(B.torso, B.waist).s;
+  // (its window from just under the skirt's top, so no bodice stands below the belt inside the skirt)
+  return { u: [r3(Math.max(0, s - SKIRT_UNDER - BODICE_UNDER)), r3(B.uTop(B.torso))], cinch: { at: r3(s), ease: r3(CINCH_EASE * B.k), band: r3(CINCH_UP * B.k) } }; };
+const skirtFrom = (B, id) => (belted(B) ? { from: { part: 'torso', u: r3(B.ringAt(B.torso, B.waist).s - SKIRT_UNDER) }, over: [`${id}Bodice_torso`] } : { from: { part: 'pelvis', run: 1 } });
 /** A MANTLE (outfit laws 2): a short cape hung from the neck's root over the shoulders and the arms' tops to `drop` (m, at
  * the body's scale) below the shoulder line, round the whole figure but a slit at the front (`open`, degrees each side),
  * over everything worn there (the garment kernel's `fit: 'cape'`); closed at the throat by a round CLASP in the trim's
@@ -583,6 +594,8 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];
   // (what is already worn, as each piece is compiled: a necklace reads the close cloth on the chest it hangs over)
   if (B.laws >= 2) B.worn = garments;
+  // (outfit laws 2: whether a belt or a sash is worn at the natural waist, which a bodice is taken in under: gownOf)
+  if (B.laws >= 2) B.belted = O.pieces.some((p) => (p.kind === 'belt' && p.at === 'waist') || p.kind === 'sash');
   for (const { p } of pieces) { const K = OUTFIT_KINDS[p.kind]; if (!K) throw new Error(`outfit: '${p.kind}' is not a piece kind (have ${OUTFIT_KIND_NAMES.join(', ')})`);
     // a designed piece is worn ON TOP of the frame: it clears the fur, locks and scales pinned to its carrier
     const out = K.compile(p, B, G, I); garments.push(...(out.garments || [])); if (out.paint) piecePaint.push(...out.paint); adorn.push(...(out.adorn || []).map((A) => ({ ...distorted(A, p, I.distort), onTop: true }))); segments.push(...(out.segments || [])); }

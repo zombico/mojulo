@@ -169,7 +169,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). On the tiered body (outfit laws 2) every top's cloth, the
   cut's shirt and coat and a piece's bodice alike, runs from its neckline over the shoulder: into its sleeve's head when
   sleeved, to an armhole on the shoulder point when not, the shoulder's ball and web laid under it, the shirt's shoulder
-  inside a sleeveless tunic's. A `cloak`
+  inside a sleeveless tunic's; its front and back rise from the chest to a shallow round neckline at the neck's root as
+  one surface (no level edge across the upper chest), a sleeveless piece's side runs up from the chest to its armhole, and
+  a bodice under a belt or a sash at the waist is taken in under it, its skirt hung from under the belt. A `cloak`
   hangs from the shoulders round the back and over the arms to the calf (`wrap` 0.2–0.95 of a turn, 0.6 by default;
   `hem`; `rigidity`, `soft` by default), round where a flat board was, and DRAPES ON THE ARMS: the cloth over an arm
   goes with it, so a swing does not pass through it. A `bow` (`at`: back | collar | wrists; `tails` m; `loops: false`

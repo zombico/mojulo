@@ -127,7 +127,9 @@ the sourced VRoid and VRM practice. It is not a documented miHoYo rule.
    hulls over hulls instead, which is the waist's +23–42 cm.
 3. **Garments live in the body's bone frames, and dressing tightens them.** VRoid 2.0 fits clothes by
    bone adjustment, and creators shrink the waist bones when dressing [snippet]. The hero's ring copy
-   already does the first half; the second half (pulling in to the body at the waist) is missing.
+   already does the first half. The second half (pulling in to the body at the waist) exists in one case: under
+   outfit laws 2 on the tiered body, a robe's, a gown's or a tunic's bodice worn under a belt or a sash at the waist
+   is taken in under it (`body-garment.js` `cinch`), and its skirt hangs from under the belt. Elsewhere it is missing.
 4. **The drape is a separate chain of spring bones colliding with body capsules.** The VRMC_springBone
    spec covers "hair and costumes": per-joint stiffness, gravity and drag, with sphere and capsule
    colliders on body nodes [spec]. `hero-flow.js` is already this, with rigidity words and capsules.

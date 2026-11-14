@@ -209,3 +209,30 @@ sleeves, the hood).
   millimetres. With the arm raised, a shirt's sleeve head still comes up through a sleeveless armhole with the arm.
   Still open: the bodice's front still turns into its top at a level line across the upper chest, and the peasant's
   tunic is still boxy below the shoulders. Outfit laws 1 and the realistic body are unchanged.
+- **A top's front is one surface to its neckline, and a belted tunic is a tunic (the tiered body).** The tiered torso's
+  top is a box: its front and back stand up to the shoulder line and its last rings turn in over a flat lid to the neck.
+  A top copied off those rings turned over the same lid, a level edge across the upper chest with a shadow under it, the
+  shirt showing in a sliver along it, a little V at the neck, and a fold across the shoulder blades. Under outfit laws 2,
+  on a body with shoulder forms (`body-garment.js`):
+  - every piece on the trunk that names its `shoulder` RISES: from the chest's fullest ring up, each of its lines is one
+    curve to the neckline, which is the neck's root carried out over what is worn there (a shallow round, lower at the
+    front than at the sides). It is lifted over the layers beneath it, over the body, and over the shoulder's cone by its
+    yoke's own ease, so the yoke lies under it at rest and comes out with a raised arm;
+  - a sleeveless piece is an armhole: under the arm its side runs up from the chest's own width, never held out by the
+    arm's root or by the shirt there, which now shows in the armhole; over the armpit it goes on over the shoulder's
+    corner to its own yoke, so the shoulder point is narrower and rounder;
+  - a robe's, a gown's or a tunic's bodice worn under a belt or a sash at the waist is taken in under it (the new garment
+    word `cinch`), blousing a little above it, and ends just under it, where its skirt now hangs from (before, from the
+    top of the hips, a ledge under the belt).
+  The game body's jacket fit reads a risen ring at each point's own height, so a jerkin's front is no longer pulled in
+  to the neck at the front (on the rogue that showed as a dark chevron of the shirt). Measured from the front on the
+  peasant, ranger, mage, cleric and rogue cards (round) and the peasant and mage cards (low-poly, chamfer, box, anime),
+  the largest step down the front's middle line from under the neckline to mid-chest went from 26–94 mm to 1–2 mm, and
+  its sharpest turn from 48–80° to 9–20°, on the eleven heroes that had the lid, at rest, in a walk and with an arm
+  raised; the fold across the back is gone. The peasant's chest is 2–4 cm narrower a side, it comes in a further 4.5–6 cm a
+  side to the belt, and its skirt starts under the belt. The anime body shared the defect and takes the fix. Outfit laws 1
+  and the realistic body are unchanged.
+  Still open: the tunic's cross-section at the chest is no rounder (its front corners stay while its side came in);
+  with an arm raised, the shoulder's cloth that follows the arm still meets the chest at an edge at mid-clavicle; the
+  neckline rides 1–2 cm up the neck on some casts; the peasant's hood worn down still covers the shoulders; on the box
+  and low-poly registers a small chip of the shirt shows at the top of a sleeveless armhole.

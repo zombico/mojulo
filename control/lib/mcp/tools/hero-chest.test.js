@@ -57,8 +57,14 @@ describe('the chest, outfit laws 2', () => {
       const nowP = partsOf({ ...body, outfit: outfit(2, ROBE) }), wasP = partsOf({ ...body, outfit: outfit(1, ROBE) }), now = nowP.robeBodice_torso, was = wasP.robeBodice_torso;
       expect(rolls(was, band, 0.002, 4, 50).length, 'laws 1 stood a roll above the band').toBeGreaterThan(0);
       expect(rolls(now, band, 0.002, 4, 50).map((d) => `${d.id}.${d.sl}:${d.by}`).join(" "), "the chest and the back, one surface").toEqual("");
-      // (the rings in the band and below it, where the sash holds the cloth, as they were)
-      now.stations.forEach((st, i) => { if (mid(was.stations[i])[2] < band - 0.01) expect(st).toEqual(was.stations[i]); });
+      // (the rings in the band and below it, where the sash holds the cloth: as they were on a body without shoulder forms;
+      // re-pinned 2026-11-14 (chest line, outfit laws 2): on the tiered body a belted bodice is taken in under its sash and
+      // ends just under it, the skirt hung from there (outfit-plan.js cinchOf, skirtFrom), so its band is narrower than
+      // laws 1's and none of it runs on below the band)
+      if (!nowP.shoulderConeR) now.stations.forEach((st, i) => { if (mid(was.stations[i])[2] < band - 0.01) expect(st).toEqual(was.stations[i]); });
+      else { const half = (st) => Math.max(...Object.values(st.points).map((p) => Math.abs(p[0]))), at = (P) => P.stations.filter((st) => mid(st)[2] < band - 0.01);
+        expect(Math.min(...at(now).map(half))).toBeLessThan(Math.min(...at(was).map(half)));
+        expect(Math.min(...now.stations.map((st) => mid(st)[2]))).toBeGreaterThan(Math.min(...was.stations.map((st) => mid(st)[2]))); }
       // (and the sleeve down the arm: one surface, never a stack of rings)
       expect(rolls(wasP.robeSleeve_upperArmR, -Infinity).length + rolls(wasP.robeCuff_foreArmR, -Infinity).length, 'laws 1 stacked the sleeve').toBeGreaterThan(0);
       expect([...rolls(nowP.robeSleeve_upperArmR, -Infinity), ...rolls(nowP.robeCuff_foreArmR, -Infinity)]).toEqual([]);

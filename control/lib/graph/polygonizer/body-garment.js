@@ -57,7 +57,10 @@
  * the band on what it is worn over with no ease, the cloth's own ease back by the hips' widest ring. `lie` (a copy
  * piece's: the station parameter from which it lies smooth, lieSmooth): above it the cloth bridges the dents between its
  * rings, so a bodice lies flat to the shoulders instead of standing a roll at each ring; on a cape, its own ring from
- * which it does so down its fall (a mantle's). Absent, as before. Pure, deterministic.
+ * which it does so down its fall (a mantle's). `cinch` (a copy piece's: { at, ease, band? }, outfit laws 2's belted
+ * bodice): taken in to `ease` at the ring at `at`, back to its own ease over `band` above it, a little fuller just above
+ * (it blouses over the belt). Absent, as before. A piece that RISES to the neck (riseToNeck) is marked
+ * `risen`: its upper rings are not level, so what fits it later reads each point at its own height. Pure, deterministic.
  */
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
@@ -84,7 +87,7 @@ const YOKE_RAMP = 0.5;
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'material', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell', 'lie', 'worn', 'point', 'depth', 'budget', 'shoulder', 'armhole'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'material', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell', 'lie', 'worn', 'point', 'depth', 'budget', 'shoulder', 'armhole', 'cinch'];
 /** a trunk piece's SHOULDER words (`shoulder`): its cloth over a sleeve's head, or ending at an armhole on the shoulder */
 export const SHOULDER_WORDS = Object.freeze(['sleeved', 'sleeveless']);
 /** the tiered body's shoulder forms (tiered-form.js tieredSockets: the ball, its cone to the neck's root, its web) */
@@ -135,6 +138,7 @@ export function validateGarments(G) {
     if (P.girth !== undefined && !(P.girth && typeof P.girth === 'object' && !Array.isArray(P.girth) && Object.entries(P.girth).every(([k, v]) => GIRTH_LANDMARKS.includes(k) && Number.isFinite(v) && v >= 0))) errs.push(`${at}.girth: { landmark: metres of girth over the body (≥ 0) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`);
     if (P.shoulder !== undefined && !SHOULDER_WORDS.includes(P.shoulder)) errs.push(`${at}.shoulder: ${SHOULDER_WORDS.map((w) => `'${w}'`).join(' | ')} — a trunk piece's cloth over the shoulder, into a sleeve's head or to an armhole on it`);
     if (P.armhole !== undefined && typeof P.armhole !== 'boolean') errs.push(`${at}.armhole: true (a piece on the shoulder's cone ends at the shoulder point, its armhole) or false`);
+    if (P.cinch !== undefined && !(P.cinch && typeof P.cinch === 'object' && Number.isFinite(P.cinch.at) && Number.isFinite(P.cinch.ease) && P.cinch.ease >= 0 && (P.cinch.band === undefined || (Number.isFinite(P.cinch.band) && P.cinch.band > 0)))) errs.push(`${at}.cinch: { at: the station parameter it is taken in at, ease: metres off what it is worn over there (≥ 0), band?: metres above it the cloth comes back to its own ease (> 0) }`);
     if (P.dense !== undefined && typeof P.dense !== 'boolean') errs.push(`${at}.dense: true (the cloth's rings resampled to at least twelve points, rounded) or false`);
     for (const k of Object.keys(P)) if (!GARMENT_FIELDS.includes(k)) errs.push(`${at}.${k}: not a garment field (${GARMENT_FIELDS.join(', ')})`);
     if (P.thick !== undefined && !(Number.isFinite(P.thick) && P.thick > 0)) errs.push(`${at}.thick: a skirt's cloth thickness at the hem (m, > 0)`);
@@ -244,11 +248,20 @@ export function garmentParts(parts, garments, dials = {}) {
       const n = rings.length, ua = rings[0].u, span = rings[n - 1].u - ua || 1;
       const C = rings.map((r) => mean(part.slots.map((sl) => r.points[sl])));
       const ptsOf = (n) => parts[n].stations.flatMap((s) => Object.values(s.points));
-      const beneath = [...overs, ...(worn[src] || []).filter((n) => !(underHulls && HULL_FIT.test(n)))].flatMap(ptsOf);
+      let beneath = [...overs, ...(worn[src] || []).filter((n) => !(underHulls && HULL_FIT.test(n)))].flatMap(ptsOf);
       // (the shoulder's other layers count only where they lie under this piece's own rings: within SHOULDER_NEAR of their
       // surface and along their run, never an arm's length away: shoulderNear)
       // (lifted over along each point's normal only, never met between the rings: shoulderNear)
-      const sb = shoulderBeneath(parts, src, worn, P.group), lifted = sb.length ? [...beneath, ...sb.flatMap(ptsOf).filter(shoulderNear(rings, C, part.slots))] : beneath;
+      const sb = shoulderBeneath(parts, src, worn, P.group);
+      // (an ARMHOLE, a sleeveless trunk piece's on a body with shoulder forms: what lies inside the arm, its root, its ball
+      // and its web, is the arm's, never held out by the cloth on the trunk: armVolume)
+      const inArm = P.shoulder === 'sleeveless' && src === 'torso' ? armVolume(parts) : null;
+      if (inArm) beneath = beneath.filter((v) => !inArm(v));
+      // (a piece that RISES to the neck, riseToNeck, is cleared above its rise by the rise itself: below it, only what lies
+      // at or under the ring it rises from counts, so a layer beneath that rose with it never holds out the chest under it)
+      const rise = P.shoulder && src === 'torso' ? riseStart(rings, C, part.slots, armpitOf(parts)) : null;
+      if (rise) beneath = beneath.filter((v) => v[2] <= rise.z);
+      const lifted = sb.length ? [...beneath, ...sb.flatMap(ptsOf).filter(shoulderNear(rings, C, part.slots))] : beneath;
       // THE YOKE: on a trunk with shoulder balls (the tiered body), its rings above the armpit run out into the shoulder;
       // cloth lies close over it (its armhole at the arm's root) and hangs from the chest, never from the shoulder point
       const yoke = yokeOf(parts, src, C), yokeW = Number.isFinite(P.lie) ? yokeOf(parts, src, C, true) : yoke.map((y) => (y ? 1 : 0));
@@ -328,6 +341,14 @@ export function garmentParts(parts, garments, dials = {}) {
             const q = S.findIndex(([i]) => i >= j); const [i0, s0] = S[q - 1], [i1, s1] = S[q]; return s0 + (s1 - s0) * (j - i0) / (i1 - i0); };
           easeAt = (j) => easeOf(j) * shareAt(j); }
       }
+      // A CINCH (`cinch` { at, ease, band? }, a copy piece's; outfit laws 2: a bodice under a belt): taken in to `ease` at the
+      // ring at `at`, coming back to its own ease over `band` above it (CINCH_BAND below), the cloth just above it standing
+      // a little fuller (CINCH_BLOUSE: it blouses over the belt), so the side runs in from the chest to the belt
+      if (P.cinch) { const base = easeAt, zc = (() => { const k = rings.findIndex((r) => r.u >= P.cinch.at - 1e-9); if (k <= 0) return C[Math.max(0, k)][2];
+          const f = (P.cinch.at - rings[k - 1].u) / Math.max(1e-9, rings[k].u - rings[k - 1].u); return C[k - 1][2] + (C[k][2] - C[k - 1][2]) * f; })();
+        const up = P.cinch.band ?? CINCH_BAND * 3;
+        easeAt = (j) => { const d = C[j][2] - zc, g = Math.min(1, Math.abs(d) / (d > 0 ? up : CINCH_BAND)), sm = g * g * (3 - 2 * g), b = base(j);
+          return (P.cinch.ease + (b - P.cinch.ease) * sm) * (d > 0 ? 1 + CINCH_BLOUSE * Math.sin(Math.PI * Math.min(1, d / (up / 2))) * (d < up / 2 ? 1 : 0) : 1); }; }
       // THE WAISTBAND (`waistband`, the station parameter its band starts at): the band sits on what it is worn over with no
       // ease (a hair off the layers under it, the drape's lift dropped), and the cloth below takes its own ease back by the
       // hips' widest ring, so trousers are never bulky at the waist
@@ -349,13 +370,17 @@ export function garmentParts(parts, garments, dials = {}) {
         floor: (j, k) => add(rings[j].points[part.slots[k]], mul(N[j][k], H0[j][k] + LIE_FLOOR * easeAt(j))),
         cap: (j, k, p) => { if (!yoke[j]) return p; const b = rings[j].points[part.slots[k]], sx = Math.sign(b[0]) || 1, c = YOKE_SIDE * easeAt(j), o = sx * (p[0] - b[0]);
           return o > c ? [b[0] + sx * (c + (o - c) * (1 - yokeW[j])), p[1], p[2]] : p; } });
+      // THE RISE (a `shoulder` piece's, outfit laws 2, on a trunk with shoulder forms): from the chest up, one surface to
+      // the neckline (riseToNeck), never the torso's boxy top turned over as a lid
+      const risen = P.shoulder && yoke.some(Boolean);
+      if (risen) riseToNeck(stations, rings, C, part.slots, { under: [...overs, ...(worn[src] || []).filter((nm) => !HULL_FIT.test(nm)), ...riseForms(parts, worn, P.group, false)].map((nm) => parts[nm]), forms: riseForms(parts, worn, P.group, true).map((nm) => parts[nm]), ease: formEase(parts, P), armhole: P.shoulder === 'sleeveless', inArm, armIn: inArm ?? armVolume(parts), body: parts[src], easeAt, armpit: armpitOf(parts) });
       const name = `${P.id}_${src}`;
       // the caps pinched on the axis a little beyond the end rings (a cap in its ring's plane has no outward side)
       const axis = unit(sub(C[n - 1], C[0])), rad = (j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(stations[j].points[sl], C[j])), 0, 0]))[0];
       // (a sleeve's head, over the web laid under the shoulder's line: its crown's cap barely past its first ring, never a
       // dome standing on the shoulder)
       const pinch = /^shoulderWeb[RL]$/.test(src) ? SHOULDER_CROWN : 0.3;
-      const piece = { layer: 1, closure: 'closed', garment: true, slots: part.slots, stations, caps: { back: sub(C[0], mul(axis, pinch * rad(0))).map(r6), tip: add(C[n - 1], mul(axis, 0.3 * rad(n - 1))).map(r6) }, group: P.group, ...(part.slotT ? { slotT: { ...part.slotT } } : {}), ...(P.collar ? { collar: P.collar } : {}) };
+      const piece = { layer: 1, closure: 'closed', garment: true, slots: part.slots, stations, caps: { back: sub(C[0], mul(axis, pinch * rad(0))).map(r6), tip: add(C[n - 1], mul(axis, 0.3 * rad(n - 1))).map(r6) }, group: P.group, ...(part.slotT ? { slotT: { ...part.slotT } } : {}), ...(P.collar ? { collar: P.collar } : {}), ...(risen ? { risen: true } : {}) };
       if (part.bind !== undefined) {
         const own = (r) => (r.mix ? mixBlend(blendOf(part.bind, r.mix[0]), blendOf(part.bind, r.mix[1]), r.mix[2]) : blendOf(part.bind, r.id));
         const blend = Object.fromEntries(rings.map((r) => [r.id, own(r)]));
@@ -392,6 +417,8 @@ export function garmentParts(parts, garments, dials = {}) {
  * yoke, its cap eased in over the rise above the armpit), the line laid again over what the cap left. A sleeve lies the
  * same way down the arm. In place. */
 const LIE_FLOOR = 0.35, LIE_ROUND = 12, LIE_PASSES = 4;
+/** a cinch's band below its ring (m) and how much fuller the cloth stands just above it (a share of its own ease) */
+const CINCH_BAND = 0.05, CINCH_BLOUSE = 0.25;
 function lieSmooth(stations, rings, C, slots, from, { floor = null, cap = null } = {}) {
   const J = rings.map((r, j) => j).filter((j) => rings[j].u >= from - 1e-9);
   if (J.length < 3) return;
@@ -412,6 +439,125 @@ function lieSmooth(stations, rings, C, slots, from, { floor = null, cap = null }
     for (let q = 1; q + 1 < n; q++) { const p = add(A[q], mul(U[q], y[q]));
       stations[J[q]].points[sl] = (cap ? cap(J[q], k, p) : p).map(r6); }
   });
+}
+/**
+ * THE RISE (a trunk piece's `shoulder`, outfit laws 2, on a body with shoulder forms). The tiered torso's top is a box: its
+ * front and back walls stand up to the shoulder line and its last rings turn in over a flat lid to the neck. A piece copied
+ * off those rings turned over the same lid, a level edge across the upper chest (and a fold across the shoulder blades),
+ * and its top ring, carried along its own tipped normal, dipped the neckline in a V. Risen, each slot's line from the chest
+ * up is ONE CURVE: it leaves the ring where the slot stands furthest out (the chest, the shoulder blades, the side under
+ * the arm, from RISE_BELOW under the armpit up) along the line it came up on, and arrives at the NECKLINE moving in toward
+ * the neck (RISE_TILT up), so there is no edge between the chest and the neck but the neckline's own. The neckline is the
+ * neck's root ring (the torso's top ring, its own shallow round: lower at the front than at the sides), carried out level
+ * by NECK_EASE of the piece's ease over what is worn there. The rings between lie along the curve by its length, then each
+ * point is lifted along the curve's normal over what is worn beneath it, over the body (LIE_FLOOR of the ease) and over the
+ * shoulder's cone by its yoke's own ease (so the piece's yoke lies under it at rest and comes out with a raised arm), the
+ * lift smoothed along the line and each line's dents bridged in one frame (no roll at a ring). What lies inside the arm
+ * (armVolume) is the arm's: the body's corner above the armpit is never held out. A SLEEVELESS piece is an ARMHOLE: under
+ * the arm its side runs up from the chest's own width (never held out by the arm's root or the shirt's under it, which
+ * show in the armhole), letting go over the armpit so the cloth goes on over the shoulder's corner. In place.
+ */
+const RISE_BELOW = 0.1, RISE_K = 0.55, RISE_TILT = 1, NECK_EASE = 0.4, NECK_REACH = 0.015, RISE_CLEAR = 0.003, ARMHOLE_SIDE = 0.7, ARMHOLE_TOP = 0.05, RISE_HULL = 3, NECK_RISE = 0.5;
+const armpitOf = (parts) => { const balls = Object.keys(parts).filter((nm) => /^shoulderBall[RL]$/.test(nm));
+  return balls.length ? Math.min(...balls.flatMap((nm) => parts[nm].stations.flatMap((st) => Object.values(st.points).map((p) => p[2])))) : null; };
+/** whether a point lies inside an arm: its root (the upper arm), its ball or its web, each read as the tube through its
+ * rings' middles at their mean radius (a hair inside it) */
+function armVolume(parts) {
+  const tubes = Object.keys(parts).filter((nm) => /^(upperArm|shoulderBall|shoulderWeb)[RL]$/.test(nm) && parts[nm].stations?.length > 1).map((nm) => parts[nm].stations.map((st) => { const P = Object.values(st.points), c = mean(P);
+    return { c, r: mean(P.map((p) => [dmath.hypot(...sub(p, c)), 0, 0]))[0] - SKIN_HAIR }; }));
+  return (v) => tubes.some((T) => { for (let i = 0; i + 1 < T.length; i++) { const ax = sub(T[i + 1].c, T[i].c), L2 = dot3(ax, ax); if (L2 < 1e-12) continue;
+    const f = Math.max(0, Math.min(1, dot3(sub(v, T[i].c), ax) / L2)); if (dmath.hypot(...sub(v, add(T[i].c, mul(ax, f)))) < T[i].r + (T[i + 1].r - T[i].r) * f) return true; } return false; });
+}
+/** what a rising trunk piece goes over on the shoulder: the shoulder's cones (`own`: the forms, cleared by the cloth's
+ * ease, so the piece's own yoke lies under it at rest) or the cloth another layer wears on them */
+const riseForms = (parts, worn, group, own) => ['R', 'L'].flatMap((S) => (own ? [`shoulderCone${S}`].filter((nm) => parts[nm]?.stations)
+  : (worn[`shoulderCone${S}`] || []).filter((nm) => parts[nm] && parts[nm].group !== group)));
+/** the ease a piece's yoke stands off the shoulder's cone with (its own, proportional to the cone's mean ring radius when
+ * the piece's is), so the rise clears the yoke and no more */
+function formEase(parts, P) {
+  const cones = ['R', 'L'].map((S) => parts[`shoulderCone${S}`]).filter((c) => c?.stations?.length);
+  if (!P.proportional || !cones.length) return P.ease;
+  return P.ease * mean(cones.flatMap((c) => c.stations.map((st) => [ringRadius(st), 0, 0])))[0] / P.proportional;
+}
+/** where a trunk piece's rise starts (see riseToNeck): the ring index `j` and the height `z` up to which what lies beneath
+ * is cleared by the ordinary lift (halfway to the next ring), or null where it does not rise. The curve starts on one ring
+ * for every slot: the lowest of the rings where the body under a slot stands furthest out, from RISE_BELOW under the
+ * armpit, so the turn begins at the chest's fullest and the rings above it stay rings */
+function riseStart(rings, C, slots, armpit) {
+  const n = rings.length, t = n - 1; if (armpit === null || n < 4) return null;
+  const ct = C[t], hd = (p) => dmath.hypot(p[0] - ct[0], p[1] - ct[1]);
+  const lo = C.findIndex((c) => c[2] >= armpit - RISE_BELOW); if (lo < 1 || lo > t - 2) return null;
+  const j = Math.min(...slots.map((sl) => { let b = lo; for (let q = lo; q < t; q++) if (hd(rings[q].points[sl]) > hd(rings[b].points[sl])) b = q; return b; }));
+  return j > t - 2 ? null : { j, z: (C[j][2] + C[j + 1][2]) / 2 };
+}
+function riseToNeck(stations, rings, C, slots, { under, forms, ease, armhole = false, inArm = null, armIn, body, easeAt, armpit }) {
+  const n = stations.length, t = n - 1; if (armpit === null || n < 4) return;
+  const ct = C[t], up = [0, 0, 1];
+  const hOut = (p) => unit([p[0] - ct[0], p[1] - ct[1], 0]), hd = (p) => dmath.hypot(p[0] - ct[0], p[1] - ct[1]);
+  const start = riseStart(rings, C, slots, armpit); if (!start) return;
+  const j0 = start.j;
+  // (what it clears, read as surfaces: each part's rings and the quarters between them, each ring's slots and the halves
+  // between them, so the lift is met between rings as well as on them and never stands a roll at one)
+  const fill = (P) => { const S = P.stations, sl = P.slots, o = [];
+    for (let i = 0; i < S.length; i++) for (const f of i + 1 < S.length ? [0, 0.25, 0.5, 0.75] : [0]) { const ring = sl.map((q) => (f ? lerp3(S[i].points[q], S[i + 1].points[q], f) : S[i].points[q]));
+      ring.forEach((p, k) => o.push(p, lerp3(p, ring[(k + 1) % ring.length], 0.5))); }
+    return o; };
+  const zMin = Math.min(...C.slice(j0).map((c) => c[2])) - 0.06, near = (p) => p[2] >= zMin && !(inArm && inArm(p));
+  // (an armhole's cloth answers only to what lies inside its line, the chest's width under the arm, ARMHOLE_SIDE: what lies
+  // out past it is the sleeve's, which comes out of the armhole)
+  const capW = armhole ? Math.max(...slots.map((sl) => stations[j0].points[sl]).filter((p) => Math.abs(hOut(p)[0]) >= ARMHOLE_SIDE).map(hd), 0) : 0;
+  const inside = (p) => !armhole || !capW || p[2] > armpit + ARMHOLE_TOP || Math.abs(p[0] - ct[0]) <= capW;
+  const wornPts = under.flatMap(fill).filter(near).filter(inside), bodyPts = fill(body).filter(near).filter((p) => !(p[2] > armpit && armIn(p))), formPts = forms.flatMap(fill).filter(near).filter((p) => !armIn(p) && inside(p));
+  // the lift over a point set along a direction, within a hand's breadth round it and its slab along the line (and, at
+  // the neckline, only what lies within NECK_REACH out of it: the neck's own layers, never the chest's front)
+  const liftOver = (p, nrm, tau, half, pts, clear, reach = Infinity) => { let h = 0; for (const v of pts) { const d = sub(v, p), dn = dot3(d, nrm), o = dn + clear; if (o <= h || dn > reach) continue;
+    const al = dot3(d, tau); if (al < -half || al > half) continue; if (dmath.hypot(...sub(d, add(mul(nrm, dn), mul(tau, al)))) < 0.06) h = o; } return h; };
+  const out = stations.map((st) => slots.map((sl) => st.points[sl])), lift = stations.map(() => slots.map(() => 0)), liftW = stations.map(() => slots.map(() => 0)), NRM = stations.map(() => slots.map(() => null));
+  slots.forEach((sl, k) => {
+    const b = rings[t].points[sl];
+    // the neckline: the neck's root carried out level over what is worn there
+    const ho = hOut(b), Q = add(b, mul(ho, NECK_EASE * easeAt(t) + liftOver(b, ho, up, 0.015, wornPts, SKIN_HAIR, NECK_REACH)));
+    const P0 = stations[j0].points[sl], T0 = unit(sub(P0, stations[j0 - 1].points[sl])), T3 = unit(add(mul(hOut(Q), -1), mul(up, RISE_TILT)));
+    const d = sub(Q, P0), L = dmath.hypot(...d), a = Math.min(0.5 * L, RISE_K * Math.max(0.25 * L, dot3(d, T0))), bb = Math.min(0.5 * L, RISE_K * Math.max(0.25 * L, dot3(d, T3)));
+    const B = [P0, add(P0, mul(T0, a)), sub(Q, mul(T3, bb)), Q];
+    const at = (s) => { const r = 1 - s; return add(add(mul(B[0], r * r * r), mul(B[1], 3 * r * r * s)), add(mul(B[2], 3 * r * s * s), mul(B[3], s * s * s))); };
+    const tan = (s) => { const r = 1 - s; return unit(add(add(mul(sub(B[1], B[0]), 3 * r * r), mul(sub(B[2], B[1]), 6 * r * s)), mul(sub(B[3], B[2]), 3 * s * s))); };
+    // (the rings between by the curve's length)
+    const S = 48, len = [0]; for (let q = 1; q <= S; q++) len.push(len[q - 1] + dmath.hypot(...sub(at(q / S), at((q - 1) / S))));
+    const sAt = (f) => { const g = f * len[S]; let q = 1; while (q < S && len[q] < g) q++; return (q - 1 + (g - len[q - 1]) / Math.max(1e-12, len[q] - len[q - 1])) / S; };
+    const seg = len[S] / (t - j0);
+    for (let j = j0 + 1; j <= t; j++) { const s = j === t ? 1 : sAt((j - j0) / (t - j0)), p = at(s), tau = tan(s);
+      const beta = unit(cross3(up, hOut(p))); let nrm = unit(cross3(tau, beta)); if (dot3(nrm, add(hOut(p), up)) < 0) nrm = mul(nrm, -1);
+      out[j][k] = p; NRM[j][k] = nrm;
+      if (j < t) liftW[j][k] = liftOver(p, nrm, tau, seg / 2, wornPts, SKIN_HAIR + RISE_CLEAR);
+      if (j < t) lift[j][k] = Math.max(liftW[j][k], liftOver(p, nrm, tau, seg / 2, bodyPts, LIE_FLOOR * easeAt(j)), liftOver(p, nrm, tau, seg / 2, formPts, ease + RISE_CLEAR)); }
+  });
+  // (the lift smoothed along the line, never below its own: each slot's normal is its own, so it is not carried round the
+  // ring to a slot facing another way)
+  for (let pass = 0; pass < 2; pass++) for (let j = j0 + 1; j < t; j++) lift[j] = lift[j].map((h, k) => Math.max(h, (lift[j - 1][k] + lift[j + 1][k]) / 2));
+  // (an ARMHOLE, a sleeveless piece's: under the arm the cloth goes up from the chest's own width to the shoulder, never
+  // held out past it by the arm's root, which the arm covers: a slot facing the side, ARMHOLE_SIDE, is kept within its
+  // width at the chest)
+  // (over the armpit the cap lets go, ARMHOLE_TOP, so the cloth goes on over the shoulder's corner to its own yoke)
+  // (never in past the cloth worn beneath it there, which only an arm covers: what is inside the line is the piece's)
+  const cap = (k, p, j) => { const ho = hOut(stations[j0].points[slots[k]]); if (!armhole || Math.abs(ho[0]) < ARMHOLE_SIDE) return p;
+    const w = Math.max(hd(stations[j0].points[slots[k]]), hd(add(out[j][k], mul(NRM[j][k], liftW[j][k])))), r = hd(p);
+    const g = Math.max(0, Math.min(1, (p[2] - armpit) / ARMHOLE_TOP)), f = 1 - g * g * (3 - 2 * g);
+    return r > w && f > 0 ? [ct[0] + (p[0] - ct[0]) * (1 - f * (1 - w / r)), ct[1] + (p[1] - ct[1]) * (1 - f * (1 - w / r)), p[2]] : p; };
+  for (let j = j0 + 1; j < t; j++) slots.forEach((sl, k) => { stations[j].points[sl] = cap(k, add(out[j][k], mul(NRM[j][k], lift[j][k])), j).map(r6); });
+  // (the neckline never under the ring below it: where that ring was lifted over the layers at the neck, the neckline
+  // comes up with it, still rising into it at NECK_RISE of the band's width, so the front never dips into a V nor turns
+  // a level band at the neck)
+  slots.forEach((sl, k) => { const q = out[t][k], b = stations[t - 1].points[sl], w = dmath.hypot(q[0] - b[0], q[1] - b[1]);
+    stations[t].points[sl] = [q[0], q[1], Math.max(q[2], b[2] + NECK_RISE * w)].map(r6); });
+  // (then each slot's line, from RISE_HULL rings under the rise to the neckline, read in one frame as lieSmooth reads it,
+  // has its dents bridged: a lift that met one ring and not the next stands no roll between them; never past the cap)
+  const J = stations.map((_, j) => j).filter((j) => j >= Math.max(0, j0 - RISE_HULL)), a = mean(slots.map((sl) => stations[J[0]].points[sl]));
+  const ax = sub(mean(slots.map((sl) => stations[t].points[sl])), a), L2 = dot3(ax, ax) || 1e-12, foot = (p) => add(a, mul(ax, dot3(sub(p, a), ax) / L2));
+  slots.forEach((sl, k) => { const P = J.map((j) => stations[j].points[sl]), x = [0]; for (let q = 1; q < P.length; q++) x.push(x[q - 1] + Math.max(1e-6, dmath.hypot(...sub(P[q], P[q - 1]))));
+    const A = P.map(foot), D = P.map((p, q) => sub(p, A[q])), r = D.map((v) => dmath.hypot(...v)), y = upperHull(x, r);
+    for (let q = 1; q + 1 < P.length; q++) if (y[q] > r[q] + 1e-7) { const j = J[q], p = add(A[q], mul(D[q], y[q] / (r[q] || 1e-9)));
+      stations[j].points[sl] = (j > j0 ? cap(k, p, j) : p).map(r6); } });
 }
 /** the upper hull of the line (x, y) (x increasing) read at each x: every y raised to the least concave line over them */
 function upperHull(x, y) {
