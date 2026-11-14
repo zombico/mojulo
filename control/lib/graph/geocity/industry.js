@@ -27,7 +27,7 @@
  *                  a storey; a `celltower` stamp: a monopole at a works' or storage's back corner, geocity/rooftop.js)
  *   industrialPlan(b, R, { far? }) → [op]: a block's plan, each op one the scene draws: { op: 'box', q, z, h, group, wall,
  *                    roof }, { op: 'gable', q, z, ze, zr, axis, group, wall, roof }, { op: 'door', side, a, w, h, q, z },
- *                    { op: 'stamp', key, at, z?, scale? }, { op: 'vehicle', role, at, nose }, { op: 'fence', q }; `z`
+ *                    { op: 'stamp', key, at, z?, scale? }, { op: 'vehicle', role, at, nose, back? }, { op: 'fence', q }; `z`
  *                    over the block's ground at the op's middle, metres
  *
  * Metres, the design's frame. Pure; the block's own dice.
@@ -313,10 +313,11 @@ export function industrialPlan(b, R, { far = false } = {}) {
     const side = longY ? (front < 0 ? 'w' : 'e') : (front < 0 ? 's' : 'n');
     for (let a = la0 + pitch; a + dw / 2 <= la1 - pitch / 2; a += pitch) {
       ops.push({ op: 'door', side, a, w: dw, h: dh, at: face });
-      if (ware && R() < 0.45) { const c = P(a, face - inward * 9); ops.push({ op: 'vehicle', role: 'delivery', at: c, nose: noseIn(-inward) }); }
+      // (a rig backed to the dock: `at` its tail, its length out into the court, fleets.js `freight`)
+      if (ware && R() < 0.45) { const c = P(a, face - inward * 0.6); ops.push({ op: 'vehicle', role: 'freight', at: c, nose: noseIn(-inward), back: true }); }
     }
     if (ware) ops.push({ op: 'box', q: Q(la0, Math.min(face, face - inward * 3.5), la1, Math.max(face, face - inward * 3.5)), z: dh + 0.4, h: 0.4, group: 'geocity:canopy', wall: INDUSTRY_PAINT.canopy, roof: INDUSTRY_PAINT.canopy });
-    else for (let k = 0; k < 2; k++) if (R() < 0.6) ops.push({ op: 'vehicle', role: 'delivery', at: P(la0 + 20 + k * 30, face - inward * 12), nose: noseIn(-inward) });
+    else for (let k = 0; k < 2; k++) if (R() < 0.6) ops.push({ op: 'vehicle', role: 'industry', at: P(la0 + 20 + k * 30, face - inward * 12), nose: noseIn(-inward) });
     // a works' stack, some; its back end's containers and pallets of stock
     if (!ware && R() < 0.45) ops.push({ op: 'stamp', key: 'stack', at: P(la1 + 10, (hallS0 + hallS1) / 2) });
     if (!ware) for (let k = 0; k < 4; k++) if (R() < 0.7) ops.push({ op: 'stamp', key: `container:${axisAcross}`, at: P(la1 + 6 + k * 3.2, sBack - inward * 14), tint: pick(R, CONTAINER_PAINT) });
@@ -335,6 +336,8 @@ export function industrialPlan(b, R, { far = false } = {}) {
     }
     if (silo) ops.push({ op: 'stamp', key: `silos:${axisAcross}`, at: P(a1 - 20, s0 + 8) });
     { const sf = finishOf('shed', R), sq = Q(a0 + 2, sFront + inward * 2, a0 + 14, sFront + inward * 10); ops.push({ op: 'box', q: sq, z: 0, h: 4, group: sf.group, wall: sf.wall, roof: sf.roof }); if (!far) ops.push({ op: 'punched', q: sq, storeys: 1, floorH: 4, sides: ['s', 'e', 'n', 'w'], pitch: 3, w: 1.4, h: 1.2 }); }
+    // (rigs waiting by its gate, along its front between the shed and the stacks: as many as its length holds)
+    if (!far) for (let a = a0 + 18; a + 24 <= la1; a += 28) ops.push({ op: 'vehicle', role: 'freight', at: P(a + 12, sFront + inward * 4), nose: longY ? [0, 1] : [1, 0] });
     fence();
   } else if (b.kind === 'tanks') {
     // the tank farm: tanks in bunded rows, a pipe rack down its middle; gas spheres at one end; a gasholder where

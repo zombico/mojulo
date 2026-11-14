@@ -303,9 +303,11 @@ export function assembleGeocityScene(m, ctx = {}) {
   counts.industry = {};
   // (a tipper the site's own waiting truck, SITE.truck: one template between them)
   const machineAt = (arch, pos, rotZ) => { counts.machines = (counts.machines ?? 0) + 1; if (arch === SITE.truck[0]) { siteNear('truck', pos, rotZ); return; } (machines.get(arch) ?? machines.set(arch, []).get(arch)).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}) }); };
-  // (its nose along `nose`, [dx, dy])
-  const vehicleAt = (role, x, y, z, nose, key) => {
+  // (its nose along `nose`, [dx, dy]; `back`: [x, y] its tail, its middle half its length out along its nose: a rig
+  // backed to a dock)
+  const vehicleAt = (role, x, y, z, nose, key, back = false) => {
     const v = pickOf(fleetOf(role), streamOf(seed, 'fleet', key)), heading = Math.atan2(-nose[0], nose[1]);
+    if (back && !v.model.startsWith('site:')) { const h = carModel(v.model).L / 2, n = Math.hypot(nose[0], nose[1]) || 1; x += (nose[0] / n) * h; y += (nose[1] / n) * h; }
     if (v.model.startsWith('site:')) machineAt(v.model.slice(5), [x, y, z], heading);
     else { parkCar(vehicles, { x, y, z, heading, paint: v.paint, model: v.model, ...(v.extra ? { extra: v.extra } : {}) }); counts.vehicles = (counts.vehicles ?? 0) + 1; }
   };
@@ -1242,7 +1244,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         if (far && !INDUSTRY_FAR.includes(name)) continue;
         (indStamps.get(o.key) ?? indStamps.set(o.key, []).get(o.key)).push({ pos: P3([x, y, zg(x, y) + (o.z ?? 0)]), ...(o.scale ? { scale: o.scale } : {}), ...(o.tint ? { tint: linC(o.tint) } : {}) });
         counts.industry[name] = (counts.industry[name] ?? 0) + 1;
-      } else if (o.op === 'vehicle' && !far) vehicleAt(o.role, o.at[0], o.at[1], zg(o.at[0], o.at[1]), o.nose, `${b.id}:${r5(o.at[0])}:${r5(o.at[1])}`);
+      } else if (o.op === 'vehicle' && !far) vehicleAt(o.role, o.at[0], o.at[1], zg(o.at[0], o.at[1]), o.nose, `${b.id}:${r5(o.at[0])}:${r5(o.at[1])}`, !!o.back);
       else if (o.op === 'bund' && !far) {
         const [a0, b0, a1, b1] = o.q, z0 = zg((a0 + a1) / 2, (b0 + b1) / 2);
         for (const q of [[a0, b0, a1, b0 + 0.3], [a0, b1 - 0.3, a1, b1], [a0, b0, a0 + 0.3, b1], [a1 - 0.3, b0, a1, b1]]) box(q[0], q[1], q[2], q[3], z0, z0 + 1.2, '#b9b4a9', '#c4bfb4', 'geocity:bund-wall');
