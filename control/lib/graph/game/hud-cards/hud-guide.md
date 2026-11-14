@@ -39,6 +39,10 @@ A row of a world's `events.hud` is a **widget** in one slot. Four kinds:
   cue or a rule that listens for that event does the rest. It is how a touch screen gets a control the
   virtual pad has none for (the pad already has move, look, jump, fire and use). `label` is its word; one
   that names a pictogram (jump, fire, use, map, bag…) is drawn as it in a look that draws icons.
+  A level made for a phone needs none written for its keys: every key it listens for that the touch pad
+  has no control for (its `events.input` keys, the journal's J, the library's L, the party's P) gets a
+  button by itself on a touch screen. Write a row only to name or place one yourself (`key` in place of
+  `press` presses that key).
 
 Widgets in one slot stack in declaration order. A legacy `{ var, label }` row (what
 `scoreCounter`, `countdownClock`, `hazard-damage`, `survive`, `win-when`, `defeat-all` emit) is a

@@ -34,6 +34,12 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
+  // (a HUD of the level's own making, a course's: the level's buttons for a touch screen alone, game/screen-keys.js, are
+  // drawn by it too, since the page's own widget rows stand down beside it)
+  if (hud.rows !== 'events' && hud.spec.hud && Array.isArray(rows) && rows.some((r) => r && r.touch === true && r.key !== undefined)) {
+    const K = hudToMana(rows.filter((r) => r && r.touch === true && r.key !== undefined), { hero: false });
+    hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), ...K.spec.hud.children] } } };
+  }
   // THE TOUCH PAD (controllable/touch.js): on a level made for a screen the HUD draws the virtual pad's stick and pads at
   // its foot, from what the touch layer says of itself each frame (touch.*: on, lane, held, down, buttons); the layer
   // reads the thumbs and draws nothing
@@ -56,7 +62,11 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
-  function press(e) { if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit); }
+  // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
+  function press(e) {
+    if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
+    if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit);
+  }
   const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: press, now: function () { return clock; } });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
   // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
@@ -139,7 +149,8 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     }
     st.hint.show = clock < hintUntil;
     // (the touch layer's word for its pad, when the page has one)
-    const TV = window.__mojTouch && window.__mojTouch.view; if (TV) st.touch = TV();
+    // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
+    const TT = window.__mojTouch; if (TT) { if (TT.view) st.touch = TT.view(); else st.touch.on = !!TT.on() && !window.__mojMenuOpen; }
   })();
 })();`;
 }

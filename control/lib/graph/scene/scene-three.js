@@ -93,6 +93,7 @@ import { viewConeScript } from './channels/view-cone.js';
 import { formSkyScript, formSkyInput } from './channels/form-sky.js';
 import { farStructuresScript } from './channels/far-structures.js';
 import { manaHudScript } from './channels/mana-hud.js';
+import { withScreenKeys } from '../game/screen-keys.js';
 import { atmosphereScript, atmosphereEarlyScript } from './channels/atmosphere.js';
 import { framePassScript } from './channels/frame-pass.js';
 import { CITY_CONE, CITY_CONE_TILE, cityConeRule } from './channels/city-cone.js';
@@ -277,6 +278,10 @@ const SCREEN_ZONES_CSS = [
 ].join('\n');
 
 export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
+  // SCREEN KEYS (game/screen-keys.js): a level made for a screen never asks for a key a thumb cannot press: each key it
+  // listens for that the virtual pad has no control for (its own inputs, the journal, the library, the party menu) gets a
+  // button in its HUD, drawn only on a touch screen. A level with no screen, or no such key, is as it was
+  if (screen && events) events = withScreenKeys(events);
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   // THE PAGE'S LIGHT, one record (scene/page-light.js): every channel below that shades or casts reads its sun from it

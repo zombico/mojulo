@@ -58,7 +58,8 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
       toasts.push({ ...(w.var ? { var: w.var } : { on: w.on }), text: w.text, ttl: w.ttl, line: lines[w.slot], ...cond(w) });
     } else if (w.kind === 'button') {
       // (a button: tapped or clicked, it raises its event on the level's bus; the HUD's host carries the effect there)
-      bySlot[w.slot].push({ use: 'button', props: { label: w.label }, on: { accept: { emit: w.press } }, ...gate(w, i) });
+      // (a keyed one presses its key; one for a touch screen alone stands while the virtual pad does)
+      bySlot[w.slot].push({ use: 'button', props: { label: w.label }, on: { accept: w.key ? { key: w.key, code: w.code } : { emit: w.press } }, ...(w.touch ? { when: B('touch.on') } : gate(w, i)) });
     } else if (w.kind === 'legend') {
       const keys = { use: 'text', props: { value: w.text, role: 'label' } };
       // (a level steered by a virtual pad, `touch`: while the pad is up the line says what the thumbs do, not the keys)

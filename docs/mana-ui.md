@@ -176,6 +176,11 @@ widgets under a pointer (only the view knows where they are).
     (`events.input` is its keyboard half); a cue or a rule that listens does the rest. The level's mana-ui HUD draws
     it as a `button` and its host carries the press to the bus; a level with the page's own HUD draws it there. A
     level with no such row carries none of it.
+  - **A level made for a screen never asks for a key a thumb cannot press** (`game/screen-keys.js`). Every key it
+    listens for that the pad has no control for gets a HUD button by itself, drawn only on a touch screen: the
+    level's own key inputs (`events.inputs`), the journal (J), the library (L), the party menu (P). Pressed, the
+    button is that key pressed (the same keydown), so no channel learns about touch. A key the level's HUD already
+    has a button for is left to it; a level with no screen, or no such key, is as it was.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
   they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
   held to the scheme by a test, and the same typing), never in the kernel.

@@ -13,7 +13,8 @@ describe('a HUD button reaches the level', () => {
     expect(plain).not.toContain('__mojBus.press');
     expect(plain).not.toContain("w.kind === 'button'");
     expect(pressed).toContain("window.__mojBus.press = function (type) { __inputQueue.push({ type: String(type) }); };");
-    expect(pressed).toContain("else if (w.kind === 'button') { el.textContent = w.label;");
+    expect(pressed).toContain("else if (w.kind === 'button') {");
+    expect(pressed).toContain("else __inputQueue.push({ type: w.press });");
   });
   it('the mana-ui HUD draws it as a button and carries its press to the bus', () => {
     const s = manaHudScript({ rows: 'events', theme: 'greybox' }, { rows: [SCORE, BUTTON] });

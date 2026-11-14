@@ -26,5 +26,15 @@ mana-ui draws them, the controls layer keeps reading the thumbs.
   control the virtual pad has none for. The mana-ui HUD draws it as a button and its host carries the press; the
   page's own HUD draws it too. Only a level with such a row carries the bus's way in. The HUD guide card teaches it.
   Tapped in headless Chrome on a phone frame: the event reached the bus and a banner listening for it showed.
+- **Built: a screen level never asks for a key a thumb cannot press** (`lib/graph/game/screen-keys.js`). The pad
+  already stands for the keys that move, look, jump, fire and use. Every other key a level made for a screen
+  listens for gets a HUD button by itself, drawn only on a touch screen: its own key inputs (`events.inputs`), the
+  journal (J), the library (L), the party menu (P). Pressed, the button is that key pressed, so the channel that
+  listens for it hears what it always did. A HUD button row may say `key` (and `code`) in place of `press`, and
+  `touch: true` to stand only while the touch layer is up. A level with no screen, or no such key, emits what it
+  did. Seen in headless Chrome: a level that binds Q grew a button on a touch screen, a tap fired its event, and on a
+  desk no button was drawn.
+- Not covered by that rule: a physics toy's action keys and a mover's key (they are a world's, outside a level's
+  events), and a level walked with the tour's walk camera in place of a pilot.
 - Not yet: the pad's size and place tuned by hand on a real phone; a world with no `ui` and no course (it keeps
   the driver's own drawing); a gameworld's own word for such a button (today it is a level's `events.hud` row).
