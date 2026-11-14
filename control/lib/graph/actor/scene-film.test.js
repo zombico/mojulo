@@ -90,6 +90,15 @@ describe('the scene film pack', () => {
     expect(actorsPy()).toMatch(/Q\.get\('z', 0\.0\)/);
   });
 
+  it('carries a prop that arrives: its way keyed on the scene\'s clock; one that stands has no keys', () => {
+    const keys = [{ t: 1, x: 4.5, y: -10 }, { t: 2, x: 4.5, y: -3.5 }, { t: 3, x: 4.5, y: 3 }];
+    const props = [{ name: 'car', thing: 'sedan', glb: 'props/car.glb', at: [4.5, 3], turn: 0, dims: [2, 4.9, 1.4], keys }];
+    const on = JSON.parse(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked', props }).find((f) => f.file === 'scene.json').text);
+    expect(on.props[0].keys).toEqual(keys);
+    expect(actorsPy()).toMatch(/for K in Q\.get\('keys'\) or \[\]:/);
+    expect(actorsPy()).toMatch(/holder\.keyframe_insert\('location', frame=1 \+ float\(K\['t'\]\) \* float\(S\['fps'\]\)\)/);
+  });
+
   it('is deterministic', () => {
     expect(JSON.stringify(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked' }))).toBe(JSON.stringify(files));
   });

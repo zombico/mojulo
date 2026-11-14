@@ -259,6 +259,10 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
   a town's `street`s and `crossing` from its ports, a city's `corner`s from the signals nearest its seat (each at
   the height its walker goes, a hint the relief reads the ground from). Its walkers' paths are carried as
   `floor_plan.paths`, and a cross whose two ends stand by one path follows it (`route.js` `pathWalk`).
+- **A prop that arrives** (`props.<name>.from`, `start`, `speed`; `ARRIVE_SPEED`). It is placed and read at its
+  `at`, where it rests (its faces join the set there), turned along its way when it names no turn. `set.props`
+  carries `move: { from, start, seconds }`; the pack lowers it to `keys` ([{ t, x, y, z? }], a couple of metres
+  apart, each on the relief's ground), and `actors.py` keys the prop's empty on them, linear.
 - **Dressing by word** (`mcp/tools/set-things.js`). A prop's `thing` is a word read on the shelves in order: the
   corner props (`era/props.js`), the furniture styles and kinds (`furnishings/forms.js`, and a room piece's word
   through `furnishings/roster.js`), the vehicle registry (`vehicle-registry/roster.js`, lowered as the vehicle door

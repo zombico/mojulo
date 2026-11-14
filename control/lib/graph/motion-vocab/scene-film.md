@@ -109,6 +109,11 @@ forge_motion({ title: 'The key', export: 'storyboard',
     so a vehicle needs no `scale`. A word no shelf has is refused with what the shelves have. Dress a set this way
     first: `props: { car: { thing: 'sedan', at: [3, 2], turn: 30 } }`.
   - **`ref`: anything mojulo made**, for a thing no shelf has.
+  - **A thing that arrives:** `from` (`[x, y]` or a mark's name), `start?` (the second it sets off, 0) and `speed?`
+    (metres a second: a vehicle 6, anything else 1.4). It comes in a straight line to its `at` and rests there: `car:
+    { thing: 'sedan', at: [12.5, 48], from: [12.5, 5], start: 1 }` is a car that pulls up. With no `turn` it faces
+    the way it came. The plan, the walks and the storyboard read it where it rests; it moves in the Blender film.
+    Not yet: a thing that leaves, a way that bends, the script saying when (it is timed in seconds).
   - It stands with its lowest point on the floor and its middle at `at`, at its real size where its recipe has a
     unit. A thing made in no real unit is read as metres: give it a `scale`.
   - **Its name is a place**: the clear ground beside it. "Ada crosses to the car."

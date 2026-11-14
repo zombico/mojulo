@@ -56,7 +56,11 @@ export function hourPreset(hour) {
 }
 /** what a prop takes: what it is, where it stands (metres or a mark), how it is turned (degrees), and how much larger
  * it stands than it was made (a thing made in no real unit is read as metres) */
-export const PROP_KEYS = Object.freeze(['ref', 'thing', 'at', 'turn', 'scale']);
+export const PROP_KEYS = Object.freeze(['ref', 'thing', 'at', 'turn', 'scale', 'from', 'start', 'speed']);
+/** how fast a thing that arrives moves when the scene does not say (m/s): a vehicle, and anything else */
+export const ARRIVE_SPEED = Object.freeze({ vehicle: 6, other: 1.4 });
+/** how far apart a thing that arrives is keyed along its way, metres */
+const ARRIVE_KEY = 2;
 /** the grain words: the scene shown on ones, twos or threes (shoot/time.js), the camera on ones */
 export const GRAINS = Object.freeze({ ones: 1, twos: 2, threes: 3 });
 
@@ -104,6 +108,11 @@ export function screenplayErrors(sp) {
       if (!(typeof Q.at === 'string' && Q.at) && !(Array.isArray(Q.at) && Q.at.length >= 2 && Q.at.slice(0, 2).every(Number.isFinite))) errs.push(`${at}.at: where it stands, [x, y] in metres or a mark's name`);
       if (Q.turn !== undefined && !Number.isFinite(Q.turn)) errs.push(`${at}.turn: degrees it is turned about the vertical`);
       if (Q.scale !== undefined && !(Number.isFinite(Q.scale) && Q.scale > 0)) errs.push(`${at}.scale: how many times larger it stands than it was made (above 0)`);
+      // (a thing that ARRIVES: it comes from `from` to where it stands, setting off `start` seconds in, at `speed`)
+      if (Q.from !== undefined && !(typeof Q.from === 'string' && Q.from) && !(Array.isArray(Q.from) && Q.from.length >= 2 && Q.from.slice(0, 2).every(Number.isFinite))) errs.push(`${at}.from: where it comes from, [x, y] in metres or a mark's name (it arrives at its \`at\`)`);
+      if (Q.start !== undefined && !(Number.isFinite(Q.start) && Q.start >= 0)) errs.push(`${at}.start: the second of the scene it sets off at (0 or more)`);
+      if (Q.speed !== undefined && !(Number.isFinite(Q.speed) && Q.speed > 0)) errs.push(`${at}.speed: metres a second (above 0)`);
+      if ((Q.start !== undefined || Q.speed !== undefined) && Q.from === undefined) errs.push(`${at}: start and speed are a thing's that arrives: say where it comes from (from)`);
     }
   }
   if (sp.world_ref !== undefined && (typeof sp.world_ref !== 'string' || !sp.world_ref)) errs.push('world_ref: a stored world\'s ref, the set');
@@ -202,7 +211,9 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
       // it. Where it rises or falls, the set is read with its ground laid level (a hillside is not a thing in the way)
       // and the film lifts each actor, camera and prop back onto the ground under it (`relief`). A level set reads as it did.
       const own = written.marks ?? {}, used = usedMarks(play);
-      const R = reliefOf(setFaces(payload, 0, true, win), used.map((id) => [...play.marks[id], Object.hasOwn(own, id) ? on.floor : places.floors[id] ?? on.floor]));
+      // (and where a prop stands or comes from, given as a point: the ground is read along a thing's way in too)
+      const ways = Object.values(props ?? {}).flatMap((Q) => [Q?.at, Q?.from]).filter((p) => Array.isArray(p) && p.slice(0, 2).every(Number.isFinite)).map((p) => [p[0], p[1], on.floor]);
+      const R = reliefOf(setFaces(payload, 0, true, win ? [...win, ...ways] : win), [...used.map((id) => [...play.marks[id], Object.hasOwn(own, id) ? on.floor : places.floors[id] ?? on.floor]), ...ways]);
       if (R && uneven(R, used.map((id) => play.marks[id]))) { relief = reliefFrom(R, on.floor); faces = levelled([...setFaces(payload, 0, false, win), ...extras], R); }
     }
     if (!places.rooms.length && faces.length) {
@@ -254,9 +265,16 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
       // (a thing its shelf measures stands at that measure, unless the scene scales it itself)
       let k = Q.scale ?? 1;
       if (T && Q.scale === undefined) { const { thingScale } = await import('@/lib/mcp/tools/set-things.js'); k = thingScale(T, placeProp(raw, [0, 0]).dims); }
-      const placed = placeProp(k === 1 ? raw : raw.map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]) })), at, Q.turn ?? 0);
+      // (a thing that arrives: it comes from `from` and is read where it comes to rest, `at`; with no turn of its own it
+      //  faces the way it came, its length along its way)
+      const from = Q.from === undefined ? null : Array.isArray(Q.from) ? Q.from.slice(0, 2) : marks[Q.from];
+      if (Q.from !== undefined && !from) throw new Error(`props.${name}.from: no mark '${Q.from}' (${Object.keys(marks).join(', ') || 'the scene has none'})`);
+      const way = from ? Math.hypot(at[0] - from[0], at[1] - from[1]) : 0;
+      const turn = Q.turn ?? (way > 1e-6 ? Math.round(((Math.atan2(at[0] - from[0], at[1] - from[1]) * 180) / Math.PI) * 100) / 100 : 0);
+      const placed = placeProp(k === 1 ? raw : raw.map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]) })), at, turn);
       set.faces.push(...placed.faces);
-      stood.push({ name, ...placed, ...(T ? { shelf: T.shelf, is: T.label } : {}) });
+      const speed = Q.speed ?? ARRIVE_SPEED[T?.shelf === 'vehicle' ? 'vehicle' : 'other'];
+      stood.push({ name, ...placed, turn, ...(T ? { shelf: T.shelf, is: T.label } : {}), ...(way > 1e-6 ? { move: { from: [Math.round(from[0] * 1000) / 1000, Math.round(from[1] * 1000) / 1000], start: Q.start ?? 0, seconds: Math.round((way / speed) * 1000) / 1000 } } : {}) });
     }
     for (const P of stood) if (!Object.hasOwn(marks, P.name)) marks[P.name] = openGround(set.faces, [P.at[0], P.at[1] - P.half[1] - EASE], { seek: 4 });
     // (with no world under them the cast would be stood on the first places named, the props' own: a part with no mark
@@ -268,7 +286,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
       free.forEach((w, i) => { const id = `${w}-mark`; if (!Object.hasOwn(marks, id)) marks[id] = [Math.round((mid[0] + (i - (free.length - 1) / 2) * PAIR) * 1000) / 1000, mid[1]]; cast = { ...cast, [w]: { ...cast[w], mark: id } }; });
     }
     play = { ...play, marks, cast };
-    set.props = stood.map((P) => ({ name: P.name, ...(props[P.name].thing !== undefined ? { thing: props[P.name].thing, shelf: P.shelf, is: P.is } : { ref: props[P.name].ref }), at: P.at, size: P.size, dims: P.dims, ...(props[P.name].turn ? { turn: props[P.name].turn } : {}) }));
+    set.props = stood.map((P) => ({ name: P.name, ...(props[P.name].thing !== undefined ? { thing: props[P.name].thing, shelf: P.shelf, is: P.is } : { ref: props[P.name].ref }), at: P.at, size: P.size, dims: P.dims, ...(P.turn ? { turn: P.turn } : {}), ...(P.move ? { move: P.move } : {}) }));
     set.places += stood.length;
     const own = groundPlan(stood.flatMap((P) => P.faces), play);
     // (in a room that says its own pieces, the props' ground is added to them; anywhere else the whole ground is read again)
@@ -279,6 +297,21 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   const bound = bindScreenplayVoice(play);
   const withBound = (x) => ({ ...x, ...(bound.voice ? { voice: bound.voice } : {}), ...(bound.dub ? { dub: bound.dub } : {}) });
   return { screenplay: withBound(play), kept: withBound(sp), set, advice: [...advice, ...bound.advice] };
+}
+
+/**
+ * The way of a prop that ARRIVES, as the Blender film keys it: from its `move.from` to its `at` in a straight line, a
+ * couple of metres a key, on the scene's clock (it sets off at `move.start` and takes `move.seconds`); `lift(x, y)` the
+ * ground's height under a point, on land that rises and falls. → [{ t, x, y, z? }], or null for a prop that stands.
+ */
+export function arrivalKeys(Q, lift = null) {
+  if (!Q?.move) return null;
+  const r3 = (v) => Math.round(v * 1000) / 1000, [x0, y0] = Q.move.from, [x1, y1] = Q.at;
+  const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / ARRIVE_KEY));
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const u = i / steps, x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u;
+    return { t: r3(Q.move.start + Q.move.seconds * u), x: r3(x), y: r3(y), ...(lift ? { z: r3(lift(x, y)) } : {}) };
+  });
 }
 
 /**
@@ -518,7 +551,10 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     const file = `props/${packTitle(Q.name)}.glb`;
     mkdirSync(path.join(outDir, 'props'), { recursive: true });
     writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
-    propPack.push({ name: Q.name, ...(Q.thing !== undefined ? { thing: Q.thing } : { ref: Q.ref }), glb: file, at: Q.at, turn: Q.turn ?? 0, dims: Q.dims, ...(P.set.relief ? { z: Math.round(heightAt(P.set.relief, Q.at[0], Q.at[1]) * 1000) / 1000 } : {}) });
+    // (a thing that arrives: its way keyed a couple of metres apart, each key on the ground under it)
+    const lift = (x, y) => (P.set.relief ? Math.round(heightAt(P.set.relief, x, y) * 1000) / 1000 : 0);
+    const keys = arrivalKeys(Q, P.set.relief ? lift : null);
+    propPack.push({ name: Q.name, ...(Q.thing !== undefined ? { thing: Q.thing } : { ref: Q.ref }), glb: file, at: Q.at, turn: Q.turn ?? 0, dims: Q.dims, ...(P.set.relief ? { z: lift(Q.at[0], Q.at[1]) } : {}), ...(keys ? { keys } : {}) });
     log(`${file}: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB`);
   }
   const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, props: propPack, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readThing, thingPayload, thingScale, THING_SHELVES } from './set-things.js';
-import { prepareScreenplay, screenplayErrors } from './scene-film.js';
+import { prepareScreenplay, screenplayErrors, arrivalKeys } from './scene-film.js';
 import { PROP_KINDS } from '@/lib/graph/era/props.js';
 import { FURNITURE_STYLES } from '@/lib/graph/furnishings/forms.js';
 import { VEHICLES } from '@/lib/graph/vehicle-registry/roster.js';
@@ -63,3 +63,40 @@ describe('a scene dressed by word', () => {
     await expect(prepareScreenplay(sp({ beast: { thing: 'unicorn', at: [0, 0] } }), { getRow: () => null })).rejects.toThrow(/props\.beast\.thing: 'unicorn' is on no shelf/);
   });
 });
+
+describe('a thing that arrives', () => {
+  const sp = (props) => ({ cast: { ada: {}, jon: {} }, props, script: 'ADA: Hello.\nJON: Hello.' });
+
+  it('comes from somewhere to where it stands: read where it rests, facing the way it came, with how long it takes', async () => {
+    const { set } = await prepareScreenplay(sp({ box: { thing: PROP, at: [3, 10], from: [3, 3], start: 2, speed: 3.5 } }), { getRow: () => null });
+    expect(set.props[0]).toMatchObject({ name: 'box', at: [3, 10], move: { from: [3, 3], start: 2, seconds: 2 } });
+    // it came along +y: no turn; along +x it is turned a quarter
+    expect(set.props[0].turn).toBeUndefined();
+    const east = (await prepareScreenplay(sp({ box: { thing: PROP, at: [10, 3], from: [3, 3] } }), { getRow: () => null })).set.props[0];
+    expect(east.turn).toBe(90);
+    expect(east.move.seconds).toBe(5);
+    // (a turn of its own wins; a thing that stands has no move)
+    expect((await prepareScreenplay(sp({ box: { thing: PROP, at: [10, 3], from: [3, 3], turn: 15 } }), { getRow: () => null })).set.props[0].turn).toBe(15);
+    expect((await prepareScreenplay(sp({ box: { thing: PROP, at: [10, 3] } }), { getRow: () => null })).set.props[0].move).toBeUndefined();
+  });
+
+  it('is keyed along its way on the scene\'s clock, on the ground under it', () => {
+    const Q = { at: [3, 10], move: { from: [3, 3], start: 2, seconds: 3.5 } };
+    const K = arrivalKeys(Q);
+    expect(K[0]).toEqual({ t: 2, x: 3, y: 3 });
+    expect(K.at(-1)).toEqual({ t: 5.5, x: 3, y: 10 });
+    expect(K.length).toBe(5);
+    for (let i = 1; i < K.length; i++) expect(K[i].t).toBeGreaterThan(K[i - 1].t);
+    // on land that rises and falls each key takes the ground's height
+    expect(arrivalKeys(Q, (x, y) => y / 10).map((k) => k.z)).toEqual([0.3, 0.475, 0.65, 0.825, 1]);
+    expect(arrivalKeys({ at: [0, 0] })).toBe(null);
+  });
+
+  it('says what it takes', async () => {
+    expect(screenplayErrors(sp({ box: { thing: PROP, at: [0, 0], from: 7 } })).join()).toMatch(/from: where it comes from/);
+    expect(screenplayErrors(sp({ box: { thing: PROP, at: [0, 0], start: 2 } })).join()).toMatch(/say where it comes from/);
+    expect(screenplayErrors(sp({ box: { thing: PROP, at: [0, 0], from: [1, 1], speed: 0 } })).join()).toMatch(/speed: metres a second/);
+    await expect(prepareScreenplay(sp({ box: { thing: PROP, at: [0, 0], from: 'nowhere' } }), { getRow: () => null })).rejects.toThrow(/props\.box\.from: no mark 'nowhere'/);
+  });
+});
+
