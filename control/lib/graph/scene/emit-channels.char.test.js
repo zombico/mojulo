@@ -745,6 +745,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 again (the game turn, played through): `brawl` and `holo`, for the same reason. A `when` or an
 // `unless` on a param a def was not given is a condition not met, where it was no condition at all (the play shell's
 // loading screen drew its failure's Retry and Quit while it loaded); a def given every param it tests draws as it did.
+// Re-pinned 2026-11-14 (the touch controller drawn by mana-ui): `brawl` and `holo`, the two whose page inlines the game
+// UI kernel and its sheet. The `touchpad` takes what the touch layer knows (`lane`, `held`, `down`), a stick at rest is
+// seen through, and the pad is as wide as its frame allows; neither page draws a touch pad, and every other fixture
+// holds byte for byte (a level with no mana-ui HUD emits the touch layer it did).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
