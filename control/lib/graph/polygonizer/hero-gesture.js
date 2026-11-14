@@ -54,7 +54,15 @@ export const GESTURE_CLIP = 'gesture';
  * on or drops it with the head, as the character light's read-time default does. */
 export const ANIME_GESTURE = 'relaxed';
 /** The gesture a hero record stands in: its own (`rest` is the one opt-out: no stand), else the anime head's default. */
-export const heroGesture = (hero) => hero?.gesture ?? (hero?.head === 'anime' ? ANIME_GESTURE : undefined);
+const standOf = (hero) => hero?.gesture ?? (hero?.head === 'anime' ? ANIME_GESTURE : undefined);
+/** a hand that holds a WEAPON: a blade, a haft, a bow or a gun in the right or the left (a shield rides the forearm) */
+export const heldWeapon = (hero) => ['right', 'left'].some((s) => typeof hero?.gear?.[s]?.item === 'string' && hero.gear[s].item !== 'shield');
+/** A HELD WEAPON NEVER TAKES THE FIST GUARD. The guard is a boxer's: both fists raised before the face, so a blade or a
+ * club in the hand stands across the head (a hero stabbing itself in the face). A hero that holds a weapon and is
+ * asked for the guard stands ENGAGED instead (the stand it fights in: the weapon arm carried low and out, GESTURE_PRESETS
+ * `engage`); the record keeps the word it was given, so the guard comes back when the hand is empty. */
+const armedStand = (g, hero) => (heldWeapon(hero) ? (g === 'guard' ? 'engage' : Array.isArray(g) && g.includes('guard') ? g.map((w) => (w === 'guard' ? 'engage' : w)) : g) : g);
+export const heroGesture = (hero) => armedStand(standOf(hero), hero);
 
 /** the relaxed stand's body (every cast): weight on the left leg, the hips turned toward the free leg and the chest
  * counter-turned, the shoulder line dropping to the support side, the head tilted toward the high shoulder, chin down */
@@ -98,6 +106,15 @@ export const GESTURE_PRESETS = deepFreeze({
       hipR: { yaw: -0.7, pitch: 10, roll: -5 }, kneeR: 50, shL: { yaw: -12, pitch: 38.8, roll: 10.6 }, elbowL: 122.5, shR: { yaw: 11.8, pitch: 28, roll: -7.2 }, elbowR: 143.3 },
     male: { support: 'L', crouch: 0.2, pelvis: -12, spine: { twist: ['right', 0.3], curl: 0.1 }, hinge: 4, head: { pitch: -10 },
       hipR: { yaw: -4.1, pitch: 15, roll: 0 }, kneeR: 55, shL: { yaw: -12.5, pitch: 38.8, roll: 18.8 }, elbowL: 123.8, shR: { yaw: 12.8, pitch: 29.5, roll: -17.5 }, elbowR: 140 },
+  },
+  // ENGAGED: the stand a hero fights in with a weapon in hand (an action hero's combat, gameworld/levels.js POSE_LAYERS:
+  // leaning in, the feet wide), the weapon arm carried low and out with the forearm forward, the point ahead and clear
+  // of the body, the off hand open and out for balance; never a fist before the face
+  engage: {
+    female: { support: 'L', crouch: 0.14, pelvis: -10, spine: { twist: ['right', 0.22], curl: 0.06 }, hinge: 8, head: { pitch: -6 },
+      hipR: { yaw: -1, pitch: 10, roll: -4 }, kneeR: 38, shL: { yaw: -16, pitch: 6, roll: 6 }, elbowL: 38, shR: { yaw: 14, pitch: 16, roll: 0 }, elbowR: 58 },
+    male: { support: 'L', crouch: 0.14, pelvis: -10, spine: { twist: ['right', 0.22], curl: 0.06 }, hinge: 8, head: { pitch: -6 },
+      hipR: { yaw: -3, pitch: 12, roll: -2 }, kneeR: 40, shL: { yaw: -16, pitch: 6, roll: 6 }, elbowL: 38, shR: { yaw: 14, pitch: 16, roll: 0 }, elbowR: 58 },
   },
 });
 export const GESTURE_WORDS = ['rest', ...Object.keys(GESTURE_PRESETS)];
@@ -252,11 +269,13 @@ export function validateHeroClips(clips, { jaw = false, face = false, western = 
  *   hand-on-hip  its mirror: the free left foot forward
  *   guard        a fighter's base: feet about twice the hip spread, bladed with the left leading, the rear heel up, the
  *                hands closed in fists (the structured core's hand has digits)
+ *   engage       the armed stand: the fighter's base a little narrower and higher, the hands as the grip leaves them
  */
 export const STRUCTURED_STANDS = deepFreeze({
   relaxed: { free: 'R', legs: { support: 'both', stance: 1.3, stagger: -0.1, heelR: -10, crouch: 0.04 } },
   'hand-on-hip': { free: 'L', legs: { support: 'both', stance: 1.35, stagger: 0.1, heelL: -10, crouch: 0.04 } },
   guard: { free: 'R', legs: { support: 'both', stance: 2, stagger: 0.34, heelR: -28, crouch: 0.32 }, hands: { fingersL: 'fist', fingersR: 'fist' } },
+  engage: { free: 'R', legs: { support: 'both', stance: 1.8, stagger: 0.3, heelR: -18, crouch: 0.22 } },
 });
 /** a swing's base on the structured core (layered.js heroPlanOf): feet a little wider than the hips and the left ahead, the
  * knees always soft enough to reach them */

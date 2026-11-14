@@ -32,6 +32,7 @@ import { feelBookHtml, BOOK_CASTS } from '@/lib/graph/gameworld/feel/book';
 import { combatBookHtml, BOOK_VIEWS } from '@/lib/graph/gameworld/combat/book';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { gameworldAtlasHtml, ATLAS_LOOK_IDS } from '@/lib/graph/gameworld/atlas-html';
+import { colourBookHtml } from '@/lib/graph/gameworld/colour-book';
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
 import { cityBookHtml } from '@/lib/graph/city/plan/book-html';
@@ -95,7 +96,7 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas' or 'combat'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat' or 'colour'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
         // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
@@ -148,6 +149,14 @@ export async function GET(request, { params }) {
           throw err;
         }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-combat${view === 'own' ? '' : `-${view}`}`;
+      } else if (book === 'colour') {
+        // the colour book (lib/graph/gameworld/colour-book.js): what the game's colour is now and the ways it could be
+        // oriented, each painted into the same landscape with its cast on its ground, measured, and each a patch
+        try { html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:colour`, () => colourBookHtml(world)); } catch (err) {
+          if (/no ground to read/.test(err.message)) return NextResponse.json({ eligible: false, reason: err.message }, { status: 422 });
+          throw err;
+        }
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-colour`;
       } else if (book === 'atlas') {
       // the atlas (lib/graph/gameworld/atlas-html.js): the world's levels, trails and ways drawn as a map, in a look
         const look = request.nextUrl.searchParams.get('look') ?? 'painted';

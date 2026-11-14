@@ -15,6 +15,8 @@
  *             trunk at the waist on top of it (over 1 a barrel, under 1 a wasp's waist), `neck`, `upperArm`, `foreArm`,
  *             `hand` (the palm and the digits), `thigh`, `shank`, `foot`, and `hips` (the pelvis and the belly over it, an insect's
  *             abdomen, fading out up to the waist)
+ *   hands     the hands' SIZE against the cast's (1 a person's): the palm and the digits whole, their joints with them,
+ *             where `mass.hand` only thickens them; a kin whose arms are heavy carries hands to match
  *   frame     its proportions, as the hero's tune words (shoulders, depth, legs, neck, waist, hips …: tune ratios of the
  *             cast), recorded under the operator's own (./tiered.js beastWords) and multiplied over the rolled build's
  *   keel      the chest's front swelling forward under the shoulders, 0 … 1 (its back held): a bird's keel, a deep-chested
@@ -33,6 +35,11 @@
  *             legs or the coil and the hips over them (a lamia's: its torso a person's skin)
  *   cover     the coat carried as a material (./cover.js COVERS: fur, scales, chitin, feathers), or 'none'
  *   rest.hunch the hero's word `hunch` (degrees, 0 … 35)
+ *   head      the kin's own head where it is not a library skull's: a relational head's words (./head.js), its size on
+ *             the body among them
+ *   stands    the share of a person's height (at the same build and age) it stands at in its rest, where its legs, its
+ *             crouch and its hunch take it well under one: what the foe shelf measures it by (foes/people.js peopleBody)
+ *             and its book draws it at; absent, a person's
  *
  * Each kin is a silhouette of its own, so a cast of them is not one lean figure in six coats: the bear the heavyweight
  * (a barrel and a hump, short legs), the dragon the hulking V (broad and deep, thick haunches), the wolf the brawler (an
@@ -112,6 +119,22 @@ export const BEAST_KINS = Object.freeze({
     frame: { shoulders: 1.14, depth: 1.12, hips: 1.1 },
     mass: { trunk: 1.08, waist: 0.6, hips: 1.14, neck: 0.8, upperArm: 0.85, foreArm: 0.82, hand: 0.88, thigh: 0.95, shank: 0.85, foot: 0.9 }, hump: 0, keel: 0.35,
     rest: { hunch: 6, crouch: 0.1, arm: { x: 0.2, y: 0.24, z: -0.95 } },
+  },
+  goblin: {
+    reads: 'goblin-kin: a skinny little body under a big head, a round pot belly under a narrow chest, thin arms hung forward with big hands, short bent legs with thick thighs and the knees forward on big feet, all of it hunched',
+    fingers: 4, toes: 4, tail: 'none', claws: 'blunt', claw: MAMMAL_CLAW, cover: 'none',
+    head: { relational: 'goblin', scale: 1.7 }, stands: 0.68,
+    frame: { shoulders: 0.72, depth: 0.9, legs: 0.7, neck: 0.7, hips: 0.92 },
+    mass: { trunk: 0.74, waist: 1.55, hips: 1.18, neck: 0.7, upperArm: 0.62, foreArm: 0.66, hand: 1.2, thigh: 1.18, shank: 0.8, foot: 1.25 }, hump: 0.35,
+    rest: { hunch: 30, crouch: 0.3, arm: { x: 0.14, y: 0.34, z: -0.93 } },
+  },
+  orc: {
+    reads: 'orc-kin: a wedge of a body, the head sunk between huge sloped shoulders on a neck as thick as itself, a barrel chest over a hard belly, long heavy arms hung forward with big hands, short thick bowed legs, the back rounded under a hump',
+    fingers: 4, toes: 4, tail: 'none', claws: 'blunt', claw: MAMMAL_CLAW, cover: 'none',
+    head: { relational: 'orc', scale: 1.6 }, stands: 0.79,
+    frame: { shoulders: 1.25, depth: 1.2, legs: 0.9, neck: 0.85, armLength: 1.12, hips: 1.2, waist: 1.12 },
+    mass: { trunk: 1.24, waist: 1.3, hips: 1.3, neck: 1.4, upperArm: 1.45, foreArm: 1.5, hand: 1.12, thigh: 1.7, shank: 1.5, foot: 1.35 }, hump: 0.6, hands: 1.55,
+    rest: { hunch: 20, crouch: 0.1, arm: { x: 0.28, y: 0.3, z: -0.91 } },
   },
 });
 export const BEAST_KIN_IDS = Object.freeze(Object.keys(BEAST_KINS));

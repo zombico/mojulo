@@ -45,7 +45,7 @@ const C = (id, department, name, { paths = [], parts = [], steps = [], cards = [
 /** The book's chapters, in the order a book is written (every chapter after the ones it reads). */
 export const CHAPTERS = Object.freeze([
   C('intent', 'production', 'What game it is', { paths: ['/id', '/name', '/seed', '/intent', '/brief', '/gameBrief', '/backdrop', '/quick', '/loop'], parts: ['intent'], cards: ['gameworld-guide', 'gameworld-brief', 'gameworld-intent', 'gameworld-intent-*', 'gameworld-quick'], outcome: 'intent' }),
-  C('world', 'worlds', 'The world', { paths: ['/style', '/civilizations', '/grade'], parts: ['world', 'nature', 'civilizations', 'key', 'tech:*'], cards: ['gameworld-world'], reads: ['intent'], outcome: 'world' }),
+  C('world', 'worlds', 'The world', { paths: ['/style', '/civilizations', '/grade'], parts: ['world', 'nature', 'civilizations', 'key', 'tech:*'], cards: ['gameworld-world', 'gameworld-colour'], reads: ['intent'], outcome: 'world' }),
   C('main-quest', 'production', 'The main quest', { paths: ['/mainQuest'], cards: ['gameworld-main-quest'], reads: ['intent', 'world'] }),
   C('levels', 'worlds', 'The levels', { paths: ['/levels', '/links', '/start', '/hub', '/topology', '/megaworld', '/wcd', '/qow', '/room'], parts: ['level:*'], steps: ['level-*', 'map-*'], cards: ['gameworld-wcd', 'gameworld-course', 'gameworld-qow'], reads: ['world', 'main-quest'], outcome: 'levels' }),
   C('direction', 'characters', 'The direction', { paths: ['/characters/direction'], parts: ['characters:direction'], cards: ['gameworld-direction'], reads: ['intent', 'world'], outcome: 'characters' }),

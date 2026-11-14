@@ -4,12 +4,14 @@
 // nothing written adding nothing.
 import { describe, expect, it } from 'vitest';
 
-import { readGameArsenal, arsenalOfGame, arsenalSuggestion, armLevel, heroStrikes } from './arsenal.js';
+import { readGameArsenal, arsenalOfGame, arsenalSuggestion, armLevel, heroStrikes, stringDamage, foeHealth, bossPhases } from './arsenal.js';
+import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { TEMPLATE_ARSENALS, BASIC_ARSENAL, arsenalFor } from './combos.js';
 import { MEADOWMARK_HERO, readGameworld } from './index.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { POLES } from './feel/cards.js';
+import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
 
 const BLADE = { id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] };
 const H = MEADOWMARK_HERO.characters.hero;
@@ -95,6 +97,46 @@ describe('a level armed', () => {
     expect(f2.body.combo).toBe(own);
     // (a kit without a juggle leaves the foes as they were)
     expect(armLevel({ arsenal: STEADY }, { entities: [hero(), foe()] }).entities[1].body.combo).toBeUndefined();
+  });
+
+  it('numbers its foes in the kit\'s strings: a grunt falls to one, an elite to three or four, a boss to ten or twelve', () => {
+    const K = TEMPLATE_ARSENALS[STEADY], S = stringDamage(K);
+    const ranked = (id, rank) => ({ ...foe(), id, rule: { type: 'ai', mind: { rank } } });
+    const m = armLevel({ arsenal: STEADY }, { entities: [hero(), ranked('g', 'minion'), ranked('e', 'elite'), ranked('b', 'boss'), foe()] });
+    const hp = Object.fromEntries(m.entities.filter((e) => e.team === 'foes').map((e) => [e.id, e.body.hp]));
+    expect(hp.g / S).toBeCloseTo(1, 1);
+    expect(hp.e / S).toBeGreaterThanOrEqual(3); expect(hp.e / S).toBeLessThanOrEqual(4);
+    expect(hp.b / S).toBeGreaterThanOrEqual(10); expect(hp.b / S).toBeLessThanOrEqual(12);
+    // (a foe that names no rank is a minion)
+    expect(hp['foe-1']).toBe(foeHealth('minion', K));
+    // (the string is the kit's first light combo on a normal blade: its moves' damage summed, never a fixed number)
+    const W = K.weapons[0], c = W.combos.find((x) => !x.air && x.beats[0] === 'L');
+    expect(S).toBe(c.moves.reduce((s, id) => s + (W.moves[id].damage ?? 1), 0) * (W.damage ?? 1) * HELD_STRIKE.normal.damage);
+    // (no arsenal: the foe shelf's own numbers, the level as it was)
+    const bare = { entities: [hero(), ranked('g', 'minion')] };
+    expect(armLevel({}, bare)).toBe(bare);
+  });
+
+  it('a boss\'s phases never step into the counter a string cannot answer; any other mind keeps its own', () => {
+    const stuffs = (a) => !!AGGRESSIVENESS[a].knobs?.tackleGuard;
+    const tempers = Object.keys(AGGRESSIVENESS).sort((a, b) => AGGRESSIVENESS[a].level - AGGRESSIVENESS[b].level);
+    // (the temper one step under the counter, chosen from the vocabulary: the boss whose default escalation meets it)
+    const under = tempers[tempers.findIndex(stuffs) - 1];
+    const boss = (mind) => ({ ...foe(), id: 'b', rule: { type: 'ai', mind: { rank: 'boss', ...mind } } });
+    const m = armLevel({ arsenal: STEADY }, { entities: [hero(), boss({ aggressiveness: under })] });
+    const phases = m.entities.find((e) => e.id === 'b').rule.mind.phases;
+    expect(phases.length).toBe(2);
+    expect(phases.every((ph) => !stuffs(ph.aggressiveness))).toBe(true);
+    expect(phases[0].below).toBeGreaterThan(phases[1].below);
+    // (the mind's other words are kept; a boss that writes its own phases, one that never meets the counter and a foe
+    // that is no boss are as they were)
+    expect(m.entities.find((e) => e.id === 'b').rule.mind.aggressiveness).toBe(under);
+    const own = [{ below: 0.5, aggressiveness: under, shift: 0 }];
+    expect(bossPhases({ rank: 'boss', aggressiveness: under, phases: own })).toBeNull();
+    expect(bossPhases({ rank: 'boss', aggressiveness: tempers[tempers.length - 1] })).toBeNull();
+    expect(bossPhases({ rank: 'elite', aggressiveness: under })).toBeNull();
+    const elite = armLevel({ arsenal: STEADY }, { entities: [hero(), { ...foe(), id: 'e', rule: { type: 'ai', mind: { rank: 'elite', aggressiveness: under } } }] });
+    expect(elite.entities.find((e) => e.id === 'e').rule.mind.phases).toBeUndefined();
   });
 
   it('through the level\'s lowering: a striking hero plays the kit, its first press taken as the kit\'s opener', () => {

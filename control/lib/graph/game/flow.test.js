@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFlow, defaultFlow, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
+import { readFlow, defaultFlow, startInPlay, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
 import { validateGameManifest } from './game-manifest.js';
 
 // A GAME'S FLOW: what plays when, from the first screen to the credits, as data. The reader teaches every fault; a game
@@ -191,5 +191,51 @@ describe('the flow is stepped, and walked headless', () => {
   it('the words it teaches are its own tables', () => {
     expect(FLOW_SPECIALS.every((s) => s.startsWith('$'))).toBe(true);
     expect(Object.values(SCREEN_EVENTS).every((evs) => evs.length > 0)).toBe(true);
+  });
+  it('a cutscene is an encapsulated sequence: a video, a directed scene on a stage, or an empty slot; it goes on by its next', () => {
+    const flow = (cut) => ({ start: 'opening', steps: { opening: { kind: 'cutscene', ...cut, next: 'vale' }, vale: { kind: 'level', level: 'vale', on: { won: 'opening' } } } });
+    for (const cut of [{}, { video: 'media/opening.mp4' }, { scene: 'opening', stage: 'vale' }, { video: 'a.mp4', skip: false }]) expect(readFlow(flow(cut), { levels: LEVELS, scenes: ['opening'] }), JSON.stringify(cut)).toEqual([]);
+    const bad = (cut, re) => expect(readFlow(flow(cut), { levels: LEVELS, scenes: ['opening'] }).join('\n')).toMatch(re);
+    bad({ video: 'a.mp4', scene: 'opening', stage: 'vale' }, /a video or a directed scene, one or the other/);
+    bad({ scene: 'opening' }, /stage is the level whose page its scene plays on/);
+    bad({ stage: 'vale' }, /stage is a directed scene's/);
+    bad({ scene: 'nowhere', stage: 'vale' }, /no scene 'nowhere'/);
+    bad({ video: 7 }, /video is the video it plays/);
+    expect(readFlow({ start: 'a', steps: { a: { kind: 'cutscene' } } }, { levels: LEVELS }).join('\n')).toMatch(/next: where it goes as it ends/);
+    // a loop of cutscenes alone is nothing for the player to press
+    expect(readFlow({ start: 'a', steps: { a: { kind: 'cutscene', next: 'b' }, b: { kind: 'cutscene', next: 'a' } } }, { levels: LEVELS }).join('\n')).toMatch(/loops with nothing for the player/);
+    // (stepped: an empty slot and a video carry the level last played; a directed scene is on its stage)
+    expect(stepFlow(flow({}), 'opening', 'next', shell(LEVELS).ctx)).toEqual({ step: 'vale', level: 'vale' });
+    const F = { start: 'title', steps: { title: { kind: 'screen', screen: 'title', on: { play: 'cut' } }, cut: { kind: 'cutscene', scene: 'opening', stage: 'gate', next: '$first' }, any: { kind: 'level', level: '$any', on: { won: 'title' } } } };
+    expect(stepFlow(F, 'title', 'play', shell(LEVELS).ctx)).toEqual({ step: 'cut', level: 'gate' });
+  });
+
+  it('a flow started in play: its opening a cutscene, then straight into the game; the title only where quitting goes', () => {
+    // one game per shape the default flow has: a plain one, one with a front and the story's prologue, a run
+    const shapes = { plain: { levels: LEVELS }, fronted: { levels: LEVELS, front: { press: true, end: { text: 'done' } }, cinematics: { prologue: { scene: 'p', stage: 'vale' }, ending: { scene: 'e', stage: 'keep' } } }, run: { levels: LEVELS, run: { length: 2 } } };
+    for (const [name, game] of Object.entries(shapes)) {
+      const D = defaultFlow(game), F = startInPlay(D);
+      expect(readFlow(F, { levels: LEVELS, scenes: ['p', 'e'] }), name).toEqual([]);
+      expect(F.start, name).toBe('opening');
+      expect(F.steps.opening.kind, name).toBe('cutscene');
+      expect(F.home, name).toBe(D.home);
+      // every step the default had is kept but the attract and the prologue: nothing is pressed or played before play
+      // but the opening
+      expect(Object.keys(F.steps).sort(), name).toEqual([...Object.keys(D.steps).filter((id) => !['prologue', 'attract'].includes(id)), 'opening'].sort());
+      expect(D).toEqual(defaultFlow(game));
+    }
+    // a first boot goes through the empty slot to the first level; a save with progress to where it left off
+    const F = startInPlay(defaultFlow(shapes.plain)), fresh = shell(LEVELS);
+    expect(walk(F, fresh.ctx, fresh.S, ['next'])).toEqual(['opening', 'play(vale)']);
+    const saved = shell(LEVELS); saved.S.cleared.add('vale');
+    expect(walk(F, saved.ctx, saved.S, ['next'])).toEqual(['opening', 'play(gate)']);
+    // a run begins its run; the cutscene given it is what the slot plays
+    const R = shell(LEVELS, { runOrder: ['gate', 'vale'] });
+    expect(walk(startInPlay(defaultFlow(shapes.run)), R.ctx, R.S, ['next'])).toEqual(['opening', 'play(gate)']);
+    expect(startInPlay(defaultFlow(shapes.plain), { video: 'media/opening.mp4' }).steps.opening).toEqual({ kind: 'cutscene', video: 'media/opening.mp4', next: ['$continue', '$first'] });
+    // the title's play no longer goes by a prologue, and nothing idles back to an opening that is not a loop
+    const fr = startInPlay(defaultFlow({ ...shapes.fronted, cinematics: { ...shapes.fronted.cinematics, opening: { scene: 'o', stage: 'vale' } } }));
+    expect(fr.steps.title.on.play).toBe('$first');
+    expect(Object.values(fr.steps).some((s) => s.idle?.go === 'opening')).toBe(false);
   });
 });

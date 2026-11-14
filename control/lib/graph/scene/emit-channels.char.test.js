@@ -721,6 +721,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-10 (1110-cast-channel merging 1105-rc): `brawl` only, moved by both lines (the candidate's game UI
 // runtime in its page; here the yard client's cast rig): the merged page carries both. No other fixture differs from the
 // candidate's pin.
+// Re-pinned 2026-11-11 (1111-design-code-rail-alignment: a killing blow floors a body with no poise): every fixture that
+// inlines the controllable runtime (combat-hit.js armReaction), sixteen. A body that carries no poise (a hero whose hp
+// the stats bind) taken to 0 by a blade or a round is now downed, as the ranged path's own comment meant; before, it was
+// left standing at 0 and its level never failed. No fixture without the runtime moves.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -7,6 +7,9 @@ import { FOE_CLASSES } from './index.js';
 import { MOVES, FOE_RANKS } from './vocab.js';
 import { fitOfPeople } from './fit.js';
 import { resolveFoe } from './resolve.js';
+import { BEAST_KINS } from '../beast/cards.js';
+import { LINEAGES } from '../egocube/ancestry.js';
+import { HEIGHT } from '../egocube/plan.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const pick = (what, pred) => { const c = CLASSES.find(pred); if (!c) throw new Error(`no class ${what}`); return c; };
@@ -50,9 +53,22 @@ describe('a people\'s body', () => {
     expect(resolveFoe({ class: 'stalker', skin: { people: 'skeleton', gear } }).skin).toMatchObject({ people: 'skeleton', gear });
   });
   it('refuses a word it does not know, naming the known ones', () => {
-    expect(() => readPeopleSkin({ people: 'goblin' })).toThrow(/no people 'goblin'/);
+    expect(() => readPeopleSkin({ people: 'no-such-people' })).toThrow(/no people 'no-such-people'/);
     expect(() => readPeopleSkin({ people: 'human', facets: { ancestry: 'orcish' } })).toThrow(/say it as people/);
     expect(() => readPeopleSkin({ people: 'human', species: 'wolf' })).toThrow(/no key 'species'/);
     expect(() => resolveFoe({ class: GROUND.id, skin: { species: 'wolf', people: 'human' } })).toThrow(/no key 'species'/);
+  });
+});
+
+describe('a kin that stands under a person', () => {
+  it('is measured at its card\'s share of a person\'s height, and a lineage of one build at that build', () => {
+    // (a kin whose card says where it stands, and one whose card says nothing, chosen from the cards)
+    const short = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].stands < 1 && PEOPLE.includes(k)), plain = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].stands === undefined && PEOPLE.includes(k));
+    const build = LINEAGES[short].builds[0];
+    expect(peopleBody({ people: short, facets: { build } }).height).toBeCloseTo(HEIGHT[build] * BEAST_KINS[short].stands, 3);
+    expect(peopleBody({ people: plain, facets: { build: 'canonical' } }).height).toBeCloseTo(HEIGHT.canonical, 3);
+    // (its skin naming no build: its lineage's only one)
+    if (LINEAGES[short].builds.length === 1) expect(peopleBody({ people: short }).height).toBe(peopleBody({ people: short, facets: { build } }).height);
+    expect(peopleBody({ people: 'human' }).height).toBeCloseTo(HEIGHT.canonical, 3);
   });
 });

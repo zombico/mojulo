@@ -12,6 +12,7 @@ import { LEVEL_GOAL } from './quick.js';
 import { castingCall } from './foe-casting.js';
 import { composeGameworld } from './compose.js';
 import { composeMechanics } from '../game/mechanics.js';
+import { readCues } from '../playscape/ui/cues.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
@@ -19,6 +20,7 @@ import { strikeWindow } from '../fauna/behavior/strike.js';
 import { peopleRollOf } from './foes.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { PEOPLE } from '../foes/people.js';
+import { PACK_STYLES, PACK_STYLE_IDS, WILD_SIZES, WILD_SIZE_IDS, kinWords } from '../foes/packs.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const SOLO = CLASSES.find((c) => !MOVES[c.move].group);
@@ -199,6 +201,27 @@ describe('the run', () => {
     expect(made.order).toEqual({ egocube: sheet.ref, title: made.order.title });
     expect(made.order.animal).toBeUndefined();
   });
+  it('a kin stands wild, adorned or in its pack by its skin: bare by its order, dressed by the cube, or in its pack\'s words over its sheet', () => {
+    // (a pack style and a people it is cut for, chosen from the table)
+    const style = PACK_STYLE_IDS[0], people = PACK_STYLES[style].peoples[0], size = WILD_SIZE_IDS.find((z) => WILD_SIZES[z].stature !== 1);
+    const W = (skin, rank) => heroWith({ a: { class: SOLO.id, ...(rank ? { rank } : {}), skin } }, true);
+    const made = (skin, rank) => runSteps(W(skin, rank), { ref: 'gw' }).find((x) => x.key === 'foes-a');
+    const sheetOf = (skin, rank) => rollEgocube(peopleRollOf(readGameworld(W(skin, rank)), 'a', { class: SOLO.id, skin }));
+    const wild = made({ people }), adorned = made({ people, adorned: true }), pack = made({ people, pack: { style } }), lead = made({ people, pack: { style } }, 'boss'), sized = made({ people, body: { size } });
+    // (the wild: no words, its order says bare; one adorned: no words and no such order, the cube dresses it)
+    expect(wild.order.spec).toBeUndefined(); expect(wild.order.dress).toBe('kit');
+    expect(adorned.order.spec).toBeUndefined(); expect(adorned.order.dress).toBeUndefined();
+    // (a pack: its adornment read off the member's own sheet at its rank, never bare)
+    expect(pack.order.spec).toEqual(kinWords({ people, pack: { style } }, { rank: 'minion', sheet: sheetOf({ people, pack: { style } }) }));
+    expect(lead.order.spec).toEqual(kinWords({ people, pack: { style } }, { rank: 'boss', sheet: sheetOf({ people, pack: { style } }, 'boss') }));
+    expect(pack.order.dress).toBeUndefined();
+    expect(lead.order.spec.outfit.style).toEqual(pack.order.spec.outfit.style);
+    expect(sized.order.spec).toEqual({ tune: kinWords({ people, body: { size } }).tune }); expect(sized.order.dress).toBe('kit');
+    // (each its own print: a skin changed remakes the figure)
+    expect(new Set([wild.print, adorned.print, pack.print, lead.print, sized.print]).size).toBe(5);
+    // (a person, and a people on the hero door, as before: no such order)
+    expect(made({ people: 'human' }).order.dress).toBeUndefined();
+  });
   it('a people plays its own moves on the field, below the hero door as on the tiered body, at a person\'s body', () => {
     // (a people whose roll falls below the hero door, and one above it: chosen by rolling, not by name)
     const doorOf = (people) => rollEgocube(peopleRollOf(readGameworld(world({ a: { class: SOLO.id, skin: { people } } }, true)), 'a', { class: SOLO.id, skin: { people } })).ancestry.door;
@@ -324,5 +347,30 @@ describe('the run', () => {
     const step = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'foe');
     expect(step.order.animal).toMatchObject({ species: 'wolf', ooze: 'dire' });
     expect(() => readGameworld({ ...MEADOWMARK_HERO, battles: { foe: { species: 'wolf', ooze: 'plaid' } } })).toThrow(/unknown ooze "plaid"/);
+  });
+  it('a fight that comes after another: its foes minted asleep, woken when every foe of the one before is down; absent, nothing', () => {
+    const cls = Object.values(FOE_CLASSES).find((c) => c.attack.kind === 'strike' && !MOVES[c.move].group && !MOVES[c.move].own).id;
+    const mark = (beat, count, more = {}) => ({ at: [20, 0, 0], tile: [1, 2], count, kind: 'a', say: beat, segment: 'A', beat, ...more });
+    const cast = (encounters) => hostileCast(world({ a: { class: cls } }, true), 'one', { spawn: [0, 0, 0], exit: [30, 0, 0], beats: [], encounters }, { refs: { a: 'w-foes-a' } });
+    const X = cast([mark('lone', 1), mark('pair', 2, { after: 'lone' })]);
+    expect(X.entities.map((e) => [e.id, !!e.dormant])).toEqual([['foe-a-1', false], ['foe-a-2', true], ['foe-a-3', true]]);
+    // (each fall of the fight before counted, the wave woken at the count, said on a banner)
+    const [fell, come] = X.play.cues;
+    expect(fell).toMatchObject({ when: { down: 'foe-a-1' }, once: true, then: { add: come.when.var, by: 1 } });
+    expect(come).toMatchObject({ when: { gte: 1 }, once: true });
+    expect(come.then.filter((t) => t.spawn).map((t) => t.spawn)).toEqual(['foe-a-2', 'foe-a-3']);
+    expect(come.then.some((t) => typeof t.say === 'string')).toBe(true);
+    expect(() => readCues({ cues: X.play.cues })).not.toThrow();
+    // a fight of several before it: the wave waits on all of them
+    const Y = cast([mark('pack', 3), mark('more', 1, { after: 'pack' })]);
+    expect(Y.play.cues.filter((c) => c.when.down).length).toBe(3);
+    expect(Y.play.cues.at(-1).when.gte).toBe(3);
+    // no fight comes after another: every foe stands, no cue is laid; one that waits on a fight not on the stage stands too
+    const plain = cast([mark('lone', 1), mark('pair', 2)]);
+    expect(plain.play).toBeUndefined();
+    expect(plain.entities.some((e) => e.dormant)).toBe(false);
+    const lost = cast([mark('pair', 2, { after: 'elsewhere' })]);
+    expect(lost.play).toBeUndefined();
+    expect(lost.entities.some((e) => e.dormant)).toBe(false);
   });
 });

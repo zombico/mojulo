@@ -135,7 +135,30 @@ function armyHtml(G, cid) {
   return `<div class="tech tech-army"><h4>What it fields in a skirmish</h4><table class="vocab"><tr><th>unit</th><th>role</th><th>tier</th><th>hp</th><th>strike</th><th>reach</th><th>pace</th><th>supply</th><th>gold</th></tr>${units}</table><p><b>Buildings</b> ${houses}</p>${ladder ? `<p><b>Its ladder</b> ${ladder}, at the ${esc(r.buildings[Object.values(L)[0].at].name)}</p>` : ''}<ul class="ledger">${r.ledger.map((l) => `<li>${esc(l.line)}</li>`).join('')}</ul></div>`;
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
-const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway', airspace: 'airspace', geotown: 'town' };
+const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway', airspace: 'airspace', geotown: 'town', map: 'map' };
+
+/** A MAP level in plan (a planned glyph map, level/plan.js; an action RPG's world map, gameworld/world-map.js): each
+ * block a square in its place with its letter and its name, the walk through them in order, the blocks one page shows
+ * together outlined as a zone, the goal marked, and under each name who its scenario stands there to fight. A map
+ * written tile by tile with no plan is said so, never drawn wrong. */
+function mapPlanSvg(glyphs, width = 300) {
+  const P = glyphs.grid?.plan;
+  if (!P) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 60" width="${width}"><text x="150" y="34" text-anchor="middle" fill="currentColor" font-size="13">a map written tile by tile: its atlas draws it</text></svg>`;
+  const rows = P.rows.map((r) => r.trim().split(/\s+/)), cols = Math.max(...rows.map((r) => r.length)), C = 92, pad = 8;
+  const at = {}; rows.forEach((r, i) => r.forEach((S, j) => { if (S !== '.') at[S] = [pad + j * C, pad + i * C]; }));
+  const fights = {};
+  for (const b of glyphs.sketch?.scenario?.beats ?? []) if (b.foes) for (const [role, n] of Object.entries(b.foes)) (fights[b.at] ??= {})[role] = (fights[b.at][role] ?? 0) + n;
+  const zoneOf = (S) => (glyphs.zoned ?? []).find((z) => z.includes(S));
+  const cell = (S) => {
+    const [x, y] = at[S], k = P.key?.[S] ?? {}, f = Object.entries(fights[S] ?? {}).map(([role, n]) => `${n > 1 ? `${n} ` : ''}${role}`).join(', ');
+    return `<g><rect x="${x + 3}" y="${y + 3}" width="${C - 6}" height="${C - 6}" rx="4" fill="currentColor" fill-opacity="${zoneOf(S) ? 0.1 : 0.04}" stroke="currentColor" stroke-opacity="${zoneOf(S) ? 0.7 : 0.35}"/>`
+      + `<text x="${x + 10}" y="${y + 19}" fill="currentColor" font-size="11" font-weight="700">${esc(S)}${k.goal ? ' ★' : ''}</text>`
+      + `<text x="${x + C / 2}" y="${y + C / 2 + 2}" text-anchor="middle" fill="currentColor" font-size="9">${esc(k.name ?? '')}</text>`
+      + (f ? `<text x="${x + C / 2}" y="${y + C - 13}" text-anchor="middle" fill="currentColor" fill-opacity="0.75" font-size="8">${esc(f)}</text>` : '') + '</g>';
+  };
+  const route = (P.route ?? []).filter((S) => at[S]).map((S, i) => `${i ? 'L' : 'M'}${at[S][0] + C / 2} ${at[S][1] + C / 2 + 12}`).join(' ');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pad * 2 + cols * C} ${pad * 2 + rows.length * C}" width="${width}">${Object.keys(at).map(cell).join('')}<path d="${route}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" stroke-opacity="0.6"/></svg>`;
+}
 
 // the plates a world's parts are drawn as
 function castleAxon(c, paint, w = 1000, h = 700) {
@@ -149,6 +172,15 @@ function houseRow(L, kit, seed) {
     const d = speak(L, use, lot, st, seed + i, { ring: 'near', ...o });
     return `<figure class="house">${plate(`house-${L.id}-${use}`, drawStructures([[...d.faces, ...d.tile]], { view: 'axon', paint, w: 260, h: 240 }))}<figcaption>${esc(use)} · ${d.measures.ridge} m</figcaption></figure>`;
   }).join('');
+}
+
+/** How a level's fights PLAYED (a check's playthrough, kept in the run's record: made.js `play`): each made stage of
+ * the level a line, won or lost by the basic player and what the still one did; the machine's gate, never the eyes'.
+ * A level no check has played says nothing. */
+function playedHtml(made, id) {
+  const rows = Object.entries(made ?? {}).filter(([k, v]) => v?.play && k.startsWith(`level-${id}-`)).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+  if (!rows.length) return '';
+  return `<div class="own"><span class="eyebrow">Played · machine gate</span><ul class="ledger">${rows.map(([k, v]) => `<li><b>stage ${Number(k.slice(`level-${id}-`.length)) + 1}</b> ${v.play.pass ? 'won by a player who fights, not by one who stands still' : 'not yet won by a player who fights'}<span>${esc(v.play.says.join(' · '))}</span></li>`).join('')}</ul></div>`;
 }
 
 // a level, built: its stages, its town, its castle, its plates
@@ -191,6 +223,8 @@ function buildLevel(G, id) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(20 + w * k).toFixed(0)} ${(20 + h * k).toFixed(0)}" width="300"><path d="${d}" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
     return { R, laid: { stages: [{ node: 'roadway', section: 'roadway' }], order: ['roadway'] }, town: null, paint, walk: [{ node: 'roadway', section: 'roadway', svg }] };
   }
+  // a map level: its plan (mapPlanSvg), one section, the map
+  if (R.glyphs) return { R, laid: { stages: [{ node: 'map', section: 'map' }], order: ['map'] }, town: null, paint, walk: [{ node: 'map', section: 'map', svg: mapPlanSvg(R.glyphs, 300) }] };
   const laid = layLevel(R.level), st = structureStyle(R.style.kit, R.seed);
   const town = R.town ? designTown(st, R.seed, R.town) : null;
   const walk = laid.stages.map((s) => ({ node: s.node, section: s.section, svg: s.section === 'trail' ? outTrailPlanSvg(s.manifest, 300) : localMeruPlanSvg(s.manifest.meru, 360) }));
@@ -398,7 +432,7 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : R.geotown ? 'The town' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}${b.finishes?.tiles.length ? `<div class="finishes"><h4>Its finishes</h4>${finishesHtml(b.finishes, esc)}</div>` : ''}${FX ? FX.onLevel(id) : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : R.geotown ? 'The town' : R.glyphs ? 'The map' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}${b.finishes?.tiles.length ? `<div class="finishes"><h4>Its finishes</h4>${finishesHtml(b.finishes, esc)}</div>` : ''}${FX ? FX.onLevel(id) : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}${playedHtml(world.made, id)}</aside></div></section>`;
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not
@@ -449,9 +483,9 @@ ${BX ? `${BX.section}
 
 /** The binder's stylesheet, shared by the character book's bible (character-bible-html.js). */
 export const CSS = `
-:root{--paper:#eef1f4;--sheet:#fff;--ink:#17202e;--muted:#5b6676;--rule:#d3d9e0;--dot:#c3cad3;--c-trail:#3a8a57;--c-meru:#b9822a;--c-building:#6a58a8;--c-place:#b14f39;--local:#b14f39;
+:root{--paper:#eef1f4;--sheet:#fff;--ink:#17202e;--muted:#5b6676;--rule:#d3d9e0;--dot:#c3cad3;--c-trail:#3a8a57;--c-meru:#b9822a;--c-building:#6a58a8;--c-map:#2f7f8a;--c-place:#b14f39;--local:#b14f39;
 --display:"Big Shoulders Display","Arial Narrow",sans-serif;--body:"Public Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
-@media (prefers-color-scheme:dark){:root{--paper:#0f141b;--sheet:#171e28;--ink:#e6eaf0;--muted:#99a4b3;--rule:#2b3543;--dot:#2b3543;--c-trail:#5cb57c;--c-meru:#dba44a;--c-building:#9c8ad8;--c-place:#dd7a62;--local:#dd7a62;color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root{--paper:#0f141b;--sheet:#171e28;--ink:#e6eaf0;--muted:#99a4b3;--rule:#2b3543;--dot:#2b3543;--c-trail:#5cb57c;--c-meru:#dba44a;--c-building:#9c8ad8;--c-map:#5fb3bf;--c-place:#dd7a62;--local:#dd7a62;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--body)}
 .wrap{max-width:1240px;margin-inline:auto;padding-inline:20px;padding-block:0 64px}
 h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:.01em;line-height:1;margin:0;text-transform:uppercase;text-wrap:balance}

@@ -80,7 +80,7 @@ describe('a beast of its words alone', () => {
     expect(errs({ hunch: 50 })).toMatch(/beast\.hunch/);
     expect(errs({ coat: 'top' })).toMatch(/beast\.coat/);
     expect(errs({ hair: 'yes' })).toMatch(/beast\.hair/);
-    expect(errs({ kin: 'goblin' })).toMatch(/beast\.kin/);
+    expect(errs({ kin: 'no-such-kin' })).toMatch(/beast\.kin/);
     expect(errs({})).toBe('');
   });
 });

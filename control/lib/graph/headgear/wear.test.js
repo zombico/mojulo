@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import { HEADGEAR, HEADGEAR_IDS, withHeadgear } from './cards.js';
 import { HELMETS, HELMET_WORDS } from './helmets.js';
+import { KIN_HEADGEAR_IDS } from '../creature-heads/headgear.js';
+import { BEAST_KINS } from '../beast/cards.js';
 import { HEADGEAR_WORDS, headgearOf, headgearErrors, wearHeadgear, headgearBody } from './wear.js';
 
 const FAMILY_FIRSTS = [...new Set(HEADGEAR_IDS.map((id) => HEADGEAR[id].family))].map((f) => HEADGEAR_IDS.find((id) => HEADGEAR[id].family === f));
@@ -31,6 +33,28 @@ describe('headgear words', () => {
     expect(headgearErrors(HELMET_WORDS[0], {})[0]).toMatch(/helmet by tradition, worn on an outfit build/);
     expect(headgearErrors(HELMET_WORDS[0], { outfit: OUTFIT })).toEqual([]);
     expect(headgearBody({ form: 'realistic' })).toBe('realistic'); expect(headgearBody({})).toBe('tiered');
+  });
+});
+
+describe('a kin\'s headgear word', () => {
+  // (a kin whose card's head is a relational skull, chosen from the cards; a kin helmet, from its table)
+  const KIN = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].head?.relational), HELM = KIN_HEADGEAR_IDS[0];
+  it('is worn on a kin\'s own skull: the word rides its head\'s word, the card\'s where the hero names none, and is dropped', () => {
+    const hero = { form: 'tiered', beast: { kin: KIN } };
+    expect(headgearBody(hero)).toBe('kin');
+    expect(headgearOf(HELM)).toMatchObject({ family: 'kin helmet', fits: ['kin'] });
+    expect(headgearErrors(HELM, hero)).toEqual([]);
+    const worn = wearHeadgear({ ...hero, headgear: HELM });
+    expect(worn.headgear).toBeUndefined();
+    expect(worn.beast).toEqual({ kin: KIN, head: { ...BEAST_KINS[KIN].head, gear: HELM } });
+    // (a head word of the hero's own keeps its relations under the gear)
+    const own = { relational: BEAST_KINS[KIN].head.relational, relations: { fang: 0.2 } };
+    expect(wearHeadgear({ form: 'tiered', beast: { kin: KIN, head: own }, headgear: HELM }).beast.head).toEqual({ ...own, gear: HELM });
+  });
+  it('fits no other body, and a person\'s card does not fit a kin: each refused by name', () => {
+    expect(headgearErrors(HELM, {})[0]).toMatch(/not fitted to the tiered body \(fits: kin\)/);
+    expect(headgearErrors(TIERED_ONLY, { form: 'tiered', beast: { kin: KIN } })[0]).toMatch(/not fitted to the kin body/);
+    expect(() => wearHeadgear({ cast: 'male', headgear: HELM })).toThrow(/not fitted/);
   });
 });
 

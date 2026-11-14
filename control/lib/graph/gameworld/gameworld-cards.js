@@ -55,6 +55,8 @@ import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
 import { VANISHES, SEVERS } from './vanish.js';
 import { PEOPLE } from '../foes/people.js';
+import { PACK_STYLES, PACK_STYLE_IDS, WILD_SIZE_IDS } from '../foes/packs.js';
+const KIN_PACKED = [...new Set(PACK_STYLE_IDS.flatMap((id) => PACK_STYLES[id].peoples))];
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
@@ -80,11 +82,14 @@ import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, j
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
 import { QOW_PRINCIPLES, SIGHT } from '../qow/qow.js';
 import { ATLAS_LOOK_IDS } from './atlas-html.js';
+import { FIGURE_MIN, HUE_KEEP, FIGURE_LAWS } from '../color-theorist/figures.js';
+import { COLOUR_DIRECTIONS } from '../color-theorist/directions.js';
+import { GENRE_COLOUR } from './world-palette.js';
 import { BOOK_SKINS } from './book-skin.js';
 import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
-import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS } from '../game/flow.js';
+import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -345,6 +350,10 @@ function looksCard() {
     `  proportions (the tradition sets them; a bridge crosses): ${(Array.isArray(PROPORTION_WORDS) ? PROPORTION_WORDS : Object.keys(PROPORTION_WORDS)).join(', ')}.`,
     `  looks.underlayer  what the base wears: the world's kit chooses (${Object.entries(UNDERLAYERS).map(([k, v]) => `${k} ${v.style}`).join(', ')}), at ornament 0; your own outfit build replaces it (ledgered), and the direction still colours it`,
     '  looks.base        the pinned base revision { ref, rev, print }: a run writes it',
+    '  A world composed from a sentence has its pages WRITTEN where no body rail designs the hero: the protagonist rolled',
+    '  as a person of the world (a party\'s anchor where it has a cast), its hair, face and build, the cut and pieces the',
+    '  outfit principles design, its garment the world\'s accent so it reads against the ground (brief.hero.design says',
+    '  how). Each is a page like any other: rewrite one, or clear looks for the bare base.',
     '',
     'LAWS: no adornment, paint or gear on the base (they are later pages). The tradition sets the head and proportions;',
     'every word of the hero door is open to a page: read get_solid_vocab({ id: \'layered\', section }) for',
@@ -398,6 +407,30 @@ function feelCard() {
       const L = lowerFeel(feelCardOf(f)), R = L.rule;
       return [`  brief: "${brief}"`, `    feel: ${JSON.stringify(f)}`, `    lowers to: run ${R.speed} m/s, jump ${R.jumpSpeed} m/s on ${R.gravity}/${R.fallGravity} m/s², coyote ${R.coyote} s, buffer ${R.buffer} s${R.airJumps ? `, ${R.airJumps} air jump` : ''}; not carried: ${L.lost.map((x) => x.field).join(', ')}`];
     }),
+  );
+}
+
+function colourCard() {
+  return lines(
+    'THE COLOUR — the game coloured as a whole: the land its palette paints, and the cast that stands on it.',
+    'The colour theorist solves a palette for the WORLD (style.palette: pick_palette\'s spec, or its cube\'s own). Who',
+    'walks it is coloured elsewhere (a lineage\'s skin, a pack\'s cloth, the hero\'s garment), so a cast can sink into its land.',
+    `MEASURED: each figure's distance from the ground and the foliage it is seen on (OKLab). Under ${FIGURE_MIN} it sinks: the`,
+    'readout says so (a `colour` step with its `sinks`) and names the colour book.',
+    'THE COLOUR BOOK, /api/sketches/<ref>/bible?book=colour: the game as it is and each way it could go, every one painted',
+    'into the same landscape with the cast on its ground, its distances, its laws and its patch. Show it to the creator:',
+    'the machine measures and names its pick; which one reads as their game is theirs to see (the eyes gate).',
+    'THE OPTIONS, each a patch for design_game({ ref, patch }):',
+    `  cast         the same land; each figure moved inside its own hue family (its value and chroma, ${HUE_KEEP} degrees of hue at`,
+    '               most) until it parts from the ground and from the others: a goblin stays green',
+    ...Object.entries(COLOUR_DIRECTIONS).map(([id, D]) => `  ${id.padEnd(12)} ${D.says}, the cast solved against it${D.levels ? ` (a world of ${D.levels} levels or more)` : ''}`),
+    'WHO IS READ: the hero (its garment: one the sentence door designed wears the world\'s accent); a kin foe\'s skin',
+    '(foes.<id>.skin.body.coat); a pack\'s mark (skin.pack.accent: the world\'s second accent, or the hero\'s complement where',
+    'the two accents are neighbours). A crew\'s dress and a beast\'s coat are not read yet: the book says so (`unread`).',
+    `FROM A SENTENCE: a composed world's cast is painted once, when it is stored; a genre with a direction chosen for it is`,
+    `laid in it (${Object.entries(GENRE_COLOUR).map(([g, d]) => `${g}: ${d}`).join(', ')}), said in brief.colour.`,
+    `LAWS (advice, never a refusal): ${FIGURE_LAWS.map((l) => l.law).join(', ')}; and the palette's own (pick_palette).`,
+    'A new palette for the land is pick_palette\'s; this page is how it and the cast are chosen together.',
   );
 }
 
@@ -474,10 +507,15 @@ function flowCard() {
     ...Object.entries(SCREEN_EVENTS).map(([k, evs]) => `               ${k}: ${evs.join(', ')}`),
     '  cinematic  { scene, stage: <level id>, next, keep?, skip? }   a story moment (or a level\'s scene) played on its',
     '             level\'s page; keep: the prologue\'s, play goes on from it; skip: false, unskippable',
+    '  cutscene   { video? | scene?, stage?, next, skip? }   a sequence made elsewhere, played whole: a video file, or a',
+    '             directed scene on its stage; neither yet, an empty slot passed at once',
     `  level      { level: <level id> | $any, on: { ${LEVEL_EVENTS.join(', ')} } }`,
     '  hold       { for?: s, until?: event, next }',
     `  target: a step id, a special (${FLOW_SPECIALS.join(' ')}), or [alts], an alt { when: ${FLOW_GUARDS.join(' | ')}, go }`,
     '  start: a step, or alts: [{ when: \'unseen\', go: \'opening\' }, \'title\'] (an opening on a first boot)',
+    `flow: '${FLOW_IN_PLAY}'   the default STARTED IN PLAY: an opening cutscene (the story\'s opening moment, else the empty`,
+    '  slot), then straight into the game, no attract, title or prologue first; the title is where quitting goes. A',
+    '  game laid from a sentence says it.',
     'Every step reached from the start, every one with a way out, no loop of cinematics and holds alone: the read says',
     'which, and how. A cinematic waits for its scene to end; a level for its end; a screen for the player.',
   );
@@ -884,8 +922,12 @@ function foesCard() {
     'foes    the bestiary, on the world: { <id>: { class, rank?, skill?, skin?: { species?, ooze?, stylism? }, vanish? } }. skin: the',
     '        animal door\'s words (a species, the oozes that grow it: dire, mythical, frost …); absent, the class\'s stand-in.',
     '        A skin that does not fit its class is refused, saying why (a swooper needs wings).',
-    '        Or skin: { people, facets? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
-    '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height.',
+    '        Or skin: { people, facets?, gear? }: a person (\'human\') or a people (' + PEOPLE.slice(1).join(', ') + '),',
+    '        rolled in the world\'s setting in its class\'s role, made by the character loop with its moves, at its own height;',
+    '        gear: what its hands carry, the hero door\'s words ({ right: { item, … } }: a club, a blade).',
+    `        A kin (${KIN_PACKED.join(', ')}) is one body, its gear never designed: wild, bare, each its body: { size?: ${WILD_SIZE_IDS.join(' | ')},`,
+    `        coat? }; adorned: true, geared by its own role and standing; or a pack, pack: { style: ${PACK_STYLE_IDS.join(' | ')}, colourway?,`,
+    '        motif?, accent? }: the same gear in one cloth, colours and mark, by class and rank, its leaders helmed.',
     '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
     '        A person dressed as a crew: { people: \'human\', dress: { faction, kind?, colourway?, body? } } (the grunt factions).',
     'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
@@ -1052,7 +1094,12 @@ function nextCard() {
     '  run        run: true makes every step that is ready: the hero first; a world with no characters (a composed one), its levels and the game.',
     '             A run stops at its budget (~2 min): with `pending`, run again (tell the creator). Each',
     '             reach or survive level is walked after the game, a step each, on check: true: `audits` (machine gate).',
+    '  playthrough  check: true plays each fight level by a basic player and a still one (machine gate), as the budget',
+    '             lasts (`unplayed`); `lost`: those the basic one could not win (`playthrough.levels`: how far, who hit it).',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
+    '  room       the first slice: the combat room (`url`, the creator plays it), then the first level.',
+    '  worldmap   its blocks are a floor: ask `req` (each block\'s ground, heights, marks), then its play layer from each',
+    '             block\'s brief (docs/examples/the-old-keep). No raised walkways: those are a platformer\'s.',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',
     '  intent     the world has not said what game it is: write intent (gameworld-intent); `suggest` names the genres',
@@ -1201,6 +1248,7 @@ const CARDS = [
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
   ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
+  ['gameworld-colour', 'The colour', 'the game coloured as a whole: its land and the cast on it, measured, and the ways it could go', 'what colours should my game be, the enemies blend into the grass, make the hero stand out, colour options for my game, recolour the world', colourCard],
   ['gameworld-juice', 'The juice', 'how its effects are drawn and timed: its register (anime | western) and its game type', 'anime-style hit effects, punchier impacts, western explosions, snappier effects, effects on twos, a cartoon boop', juiceCard],
   ['gameworld-interface', 'The interface', 'the menus, the front and the HUD, and their look: a register the art director picks, the colour theorist\'s palette, a theme card or a child theme, the game\'s languages', 'the menus of my game, the UI look, a pause menu like Persona, a souls-like menu, a darker HUD, a language picker, my game in Japanese and Spanish, a theme for my game\'s UI', interfaceCard],
   ['gameworld-actions', 'The actions', 'what the hero can do; it decides the systems', 'my hero\'s powers, a metroidvania, a soulslike', actionsCard],

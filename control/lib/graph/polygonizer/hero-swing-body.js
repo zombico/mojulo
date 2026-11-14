@@ -415,13 +415,19 @@ function lerpPose(a, b, k) {
  * shoulder's pitch, yaw and roll and the elbow searched for the hand's place and the blade's line, weighed alike (the
  * hand rides the forearm, so the blade's tip rides the forearm's frame; with no forearm twist and the shoulder's roll
  * at most 120°, the blade leans back only as far as the arm trails). ctx: { R, rigNodesAt, boneFrames, tip (the
- * blade's point at rest on the hand) }.
+ * blade's point at rest on the hand) }. With no tip (an EMPTY HAND: the hero's run with the blade sheathed, the
+ * engagement run's body without the sword), the arm is held as CARRY.empty says, the hand by the hip; no `blade`
+ * and no `goal` are returned.
  */
-export const CARRY = Object.freeze({ blade: [0.55, -0.45, -0.7], hand: { out: 0.18, back: -0.38, up: 0.16 }, sway: 4 });
+export const CARRY = Object.freeze({ blade: [0.55, -0.45, -0.7], hand: { out: 0.18, back: -0.38, up: 0.16 }, sway: 4,
+  // (an EMPTY hand is held, not solved: the upper arm a little back and out, the forearm bent forward, the hand by the
+  // hip; reached by the blade's solve, the arm twisted round to put the hand where a sword would be carried)
+  empty: Object.freeze({ shR: Object.freeze({ pitch: -12, yaw: -6, roll: 0 }), elbowR: 50 }) });
 export function carryArm(ctx) {
   const { R, rigNodesAt, boneFrames, tip } = ctx;
   const fi = R.bones.findIndex((b) => b.id === 'foreArmR' || (b.head === 'elbowR' && b.tail === 'wristR'));
-  if (fi < 0 || !tip) return null;
+  if (fi < 0) return null;
+  if (!tip) { const E = CARRY.empty, n = rigNodesAt(R, { shR: E.shR, elbowR: E.elbowR }).nodes; return { shR: { ...E.shR }, elbowR: E.elbowR, hand: n.wristR.map((v) => Math.round(v * 1e3) / 1e3) }; }
   const unit = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return v.map((x) => x / l); };
   const want = unit(CARRY.blade), J = R.joints, hipZ = (J.hipR ?? J[R.legs.R.hip])[2];
   const goal = [J.shoulderR[0] + CARRY.hand.out, J.shoulderR[1] + CARRY.hand.back, hipZ + CARRY.hand.up];
