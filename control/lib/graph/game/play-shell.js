@@ -531,6 +531,8 @@ export function playShellRuntime(cfg, K) {
     // (a turn's picks: the game's own words as __picks, and of a consumed slice the members picked and no others)
     if (picked) {
       if (Object.keys(picked.picks).length) params.__picks = picked.picks;
+      // (the difficulty picked is the dial the level's foes read: the engine's tier, params.difficulty)
+      if (typeof picked.picks.difficulty === 'string') params.difficulty = picked.picks.difficulty;
       for (const sl in picked.slices) {
         const v = state[sl], key = v && v.roster ? 'roster' : 'items', out = {};
         if (!v || !v[key]) continue;

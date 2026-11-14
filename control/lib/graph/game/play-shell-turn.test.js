@@ -77,6 +77,15 @@ describe('the play shell runs a turn', () => {
     P.close();
   });
 
+  it('a difficulty picked is the dial the level\'s foes read: handed as params.difficulty', async () => {
+    const P = await page({ picks: [{ id: 'difficulty', from: { options: ['easy', 'medium', 'max'] } }] });
+    await P.key('Enter'); await P.key('ArrowDown'); await P.key('ArrowDown'); await P.key('Enter');   // start, max
+    const init = P.init();
+    expect(init.params.difficulty).toBe('max');
+    expect(init.params.__picks).toEqual({ difficulty: 'max' });
+    P.close();
+  });
+
   it('a retry and the pause\'s restart load again with the same picks, never asked twice', async () => {
     const P = await page({ picks: [PICKS[0]] });
     await P.key('Enter'); await P.key('ArrowDown'); await P.key('Enter');   // start, hard

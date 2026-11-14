@@ -27,6 +27,7 @@ import { TEMPLATE_ARSENALS } from './combos.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
+import { DIFFICULTY_TIERS } from './setup.js';
 import { ARMS_KIT_WORDS, ARMS_MAX } from './arms-kit.js';
 // the carried arms a shooter's player holds (arms-kit.js): aimed with the right mouse, switched on the wheel
 const ARMS_LINE = `  arms: [${ARMS_KIT_WORDS.join(' | ')} | { item, model }] (1..${ARMS_MAX})   the player's own kit: right click aims down the sights (a scope zooms, Shift steadies it), R reloads, wheel or 1-5 switches, a bow draws while held`;
@@ -516,6 +517,14 @@ function flowCard() {
     `flow: '${FLOW_IN_PLAY}'   the default STARTED IN PLAY: an opening cutscene (the story\'s opening moment, else the empty`,
     '  slot), then straight into the game, no attract, title or prologue first; the title is where quitting goes. A',
     '  game laid from a sentence says it.',
+    'A LEVEL STEP IS A TURN: before it loads the player may be asked things, and a scene may play as play starts or ends.',
+    '  level  { …, picks?: [{ id, from: { slice } | { options: [id | { id, name?, about? }] }, min?, max?, ask?, hint? }],',
+    '           start?: { scene | video, skip?, once? }, end?: { scene | video, skip?, when?: won | lost | left } }',
+    '  A pick from options is the game\'s own words; from a slice, which of a consumed slice\'s members go in (the party).',
+    `setup: { difficulty?: true | { ask?, hint?, options?: [${Object.keys(DIFFICULTY_TIERS).join(' | ')} | { id, name?, about? }] }, picks?: [pick] }`,
+    '  the set-up, said once on the world: asked before every level that asks nothing of its own. difficulty tunes the',
+    '  foes\' minds (the engine\'s tiers, named in the game\'s words). Say it when the creator asks for a difficulty select,',
+    '  a character or squad select, or a loadout before a level; the review\'s flow:sequence shows what each level asks.',
     'Every step reached from the start, every one with a way out, no loop of cinematics and holds alone: the read says',
     'which, and how. A cinematic waits for its scene to end; a level for its end; a screen for the player.',
   );

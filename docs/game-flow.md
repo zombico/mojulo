@@ -102,6 +102,25 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
 - An end trigger that is a video plays after the level's own end card, before the flow goes on; the store's write is
   already made by then, so closing the page mid-video loses nothing.
 
+### The set-up: said once on a world
+
+A gameworld says what is asked before a level in one key, `setup` (`control/lib/graph/gameworld/setup.js`), and
+`design_game` lowers it into the turn of every level step that asks nothing of its own:
+
+```js
+setup: { difficulty: true }                                   // easy, medium, max in default words
+setup: { difficulty: { ask: 'How cruel?', options: ['easy', { id: 'max', name: 'Merciless' }] },
+         picks: [{ id: 'squad', from: { slice: 'party' }, max: 2 }] }
+```
+
+- **Difficulty** is the engine's own tiers (`easy`, `medium`, `max`), named in the game's words. The play shell hands
+  the level the pick as `params.difficulty`, which tunes its foes' minds (how quick, how bold); a level whose foes
+  have no mind plays as it did.
+- **Picks** are a turn's picks, as above; a slice is one of the game's store that its levels consume.
+- A world with a set-up plays the default flow with it (or its own flow, or the flow started in play). The review's
+  `flow:sequence` says what each level asks (`asks`), and the flow's card (`gameworld-flow`) teaches it.
+- A world that says none hands its game the order it always did.
+
 Not yet: an end trigger that is a scene is passed (a level cannot be told to play a scene after it has started); a
 row is never locked (the store has no word for it yet); a face is a placeholder until mana-ui draws pictures; one
 cursor, not one a seat; a quit from the pause is not recorded.

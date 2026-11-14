@@ -68,7 +68,7 @@ export const CHAPTERS = Object.freeze([
   C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/ui', '/hud'], parts: ['interface:*'], cards: ['gameworld-interface'], reads: ['intent', 'world', 'feel', 'systems', 'battles', 'cast'] }),
   // the game's flow, what plays when from the first screen to the credits: the game director's page, the main agent's own
   // (never a subagent's), reading the spine, the levels, the story's cinematics and the interface's screens (game-flow.js)
-  C('flow', 'production', 'The flow', { paths: ['/flow'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
+  C('flow', 'production', 'The flow', { paths: ['/flow', '/setup'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
   C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'flow', 'play-layer'], outcome: 'play' }),
 ]);
 
