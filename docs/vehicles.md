@@ -23,8 +23,17 @@ registry words read to the realistic body each stands as. A row the registry bui
 police car, an ambulance, a fire engine) names the body it stands as. Each role is kept in its yard, a parking block the
 metro's design gives it.
 
+The garbage trucks, fire engines and ambulances are the city's own realistic bodies (`road-civic.js`). The deliveries
+take small trucks (a cube van, a 2-ton cab-over) among their vans and box trucks. Two fleets work the industrial land and
+the highways: `freight` (the eighteen-wheeler and its tanker, a cab-over lorry) and `industry` (wing bodies, flatbeds,
+box trucks). In an industrial neighbourhood ([geocity/industry.js](../control/lib/graph/geocity/industry.js)) the rigs
+back onto a warehouse's docks and wait at a storage yard's gate, and the working trucks stand in a works' court.
+
 Its traffic ([geocity/flow.js](../control/lib/graph/geocity/flow.js)) drives the same fleets on every arterial's travel
 lanes, through a signal at each crossing: the old city's signalised model (`scene/channels/traffic-model.js`) in metres.
+Each road has its own mix: a street's small trucks among its cars, an arterial along an industrial neighbourhood's
+working trucks, and a highway's rigs. A rig never takes a signalled street, so the signal boxes are sized to the streets'
+longest vehicle.
 The page ([scene/channels/flow.js](../control/lib/graph/scene/channels/flow.js)) steps a lane and draws its vehicles only
 near the camera, on the parked vehicles' own templates (a repeat's `pool`).
 

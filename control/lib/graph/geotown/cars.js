@@ -11,7 +11,10 @@
  *   carModel(key)                   → { card, L, W, H, roof: { y, z }, paint: faces, trim: faces }, memoized: vehicle space
  *                                     (+y its nose, z up from the ground under its tyres, its middle at the origin); `key`
  *                                     a car shelf card, or `loft:<class>` a realistic loft (a bus, a van, a box truck, a
- *                                     pickup: car-designer/realistic.js) its paint split from its trim the same way
+ *                                     pickup: car-designer/realistic.js) its paint split from its trim the same way;
+ *                                     `loft:<class>|<brief>` under its brief's words (a semi's trailer: `|tanker`). A
+ *                                     hull-kit class's (road-military.js: a hauler, a city truck, a civic body) compiled
+ *                                     in a pale livery: its own paint takes the tint, its bands and its trim its own
  *   ROOF_EXTRAS                     what a vehicle may carry on its roof (a light bar, a beacon, a taxi's sign)
  *   pickCar(fleet, R)               → one of the fleet by its weight (one die)
  *   parkCar(list, { x, y, z, heading, paint, model, extra? })   a car placed (heading 0: its nose along +y; radians
@@ -28,6 +31,7 @@ import { compileCar } from '../car-shelf/car-figure.js';
 import { bakeForm } from '../car-designer/road-form.js';
 import { compileRealistic } from '../car-designer/realistic.js';
 import { rollVehicleSheet } from '../car-designer/sheet.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 // the family cars a town keeps, as people say them, and how often each is parked
@@ -35,6 +39,7 @@ export const TOWN_CARS = Object.freeze({ sedan: 3, hatchback: 3, crossover: 3, s
 // a parked car's paint (yards.js CAR_PAINTS, the town's own): tinted over the pale body
 export const CAR_PAINT_HEX = Object.freeze(['#8a2a2a', '#2a3f6a', '#d8d6d0', '#3a3d42', '#6a6f75', '#2f5a3a', '#c9b48a']);
 const PALE = '#ffffff';
+const HULL_PALE = Object.freeze({ pattern: 'mono', colours: Object.freeze([PALE]), marks: Object.freeze({ emblem: false }) });
 const lin = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 16) / 255; return r4(c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); });
 const TINTS = new Map(CAR_PAINT_HEX.map((h) => [h, lin(h)]));
 
@@ -55,16 +60,23 @@ const MODELS = new Map();
 export function carModel(card) {
   let m = MODELS.get(card);
   if (m) return m;
-  const loft = card.startsWith('loft:');
-  const c = loft ? compileRealistic(rollVehicleSheet({ brief: '', facets: { pole: 'realistic', class: card.slice(5) }, seed: 1 }), { form: true }) : compileCar(card, { form: true });
+  const loft = card.startsWith('loft:'), [cls, brief = ''] = loft ? card.slice(5).split('|') : [];
+  // (a hull-kit body in a pale mono livery: its paint is the faces that wear it)
+  const hull = loft && !!MILITARY_CLASSES[cls];
+  const c = loft ? compileRealistic(rollVehicleSheet({ brief, facets: { pole: 'realistic', class: cls }, seed: 1 }), { form: true, ...(hull ? { livery: HULL_PALE } : {}) }) : compileCar(card, { form: true });
   const body = c.form.root, wheels = Object.entries(c.form).filter(([b]) => b !== 'root').flatMap(([, fs]) => fs);
-  const paint = bakeForm(body.filter((f) => f.material === 'paint').map((f) => ({ ...f, albedo: PALE, cornerAlbedo: undefined })));
-  const trim = bakeForm([...body.filter((f) => f.material !== 'paint'), ...wheels]);
-  const cs = body.flatMap((f) => f.corners), ys = cs.map((q) => q[1]), L = Math.max(...ys) - Math.min(...ys), W = Math.max(...cs.map((q) => q[0])) - Math.min(...cs.map((q) => q[0])), H = Math.max(...cs.map((q) => q[2]));
-  const front = loft ? cs.filter((q) => q[1] > Math.max(...ys) - L / 3) : cs, top = front.reduce((a, q) => (q[2] > a[2] ? q : a), front[0]);
+  const painted = (f) => f.material === 'paint' || (hull && f.material === 'milPaint' && f.albedo === PALE);
+  const paint = bakeForm(body.filter(painted).map((f) => ({ ...f, albedo: PALE, cornerAlbedo: undefined })));
+  const trim = bakeForm([...body.filter((f) => !painted(f)), ...wheels]);
+  // (its width its body's: a hull-kit body's fittings, its mirrors on their arms, stand off it as a car's do not)
+  const cs = body.flatMap((f) => f.corners), ws = body.filter((f) => !f.fitting).flatMap((f) => f.corners.map((q) => q[0]));
+  const ys = cs.map((q) => q[1]), L = Math.max(...ys) - Math.min(...ys), W = Math.max(...ws) - Math.min(...ws), H = Math.max(...cs.map((q) => q[2]));
+  // (its front third's: the nose found once, not once a corner, a rig's tens of thousands of them)
+  const nose = Math.max(...ys), front = loft ? cs.filter((q) => q[1] > nose - L / 3) : cs, top = front.reduce((a, q) => (q[2] > a[2] ? q : a), front[0]);
   m = Object.freeze({ card, L: r4(L), W: r4(W), H: r4(H), roof: { y: r4(top[1]), z: r4(top[2]) }, paint, trim });
   MODELS.set(card, m);
-  if (MODELS.size > 16) MODELS.delete(MODELS.keys().next().value);
+  // (a metro's whole fleet, its trucks and rigs among them, kept: a model evicted is compiled again)
+  if (MODELS.size > 32) MODELS.delete(MODELS.keys().next().value);
   return m;
 }
 
