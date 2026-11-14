@@ -93,7 +93,7 @@ export const ICON_ALIASES = Object.freeze({
   attack: 'sword', defeat: 'skull', deaths: 'skull', energy: 'bolt', stamina: 'bolt', power: 'bolt', fire: 'flame', water: 'drop', mana: 'drop', mp: 'drop', nature: 'leaf',
   player: 'person', hero: 'person', fast: 'speed', sprint: 'speed', waypoint: 'pin', objective: 'target', aim: 'target', look: 'eye', title: 'home',
   settings: 'gear', options: 'gear', volume: 'sound', resume: 'play', start: 'play', retry: 'restart', again: 'restart', quit: 'close', cancel: 'close', done: 'check', ok: 'check', accept: 'check',
-  add: 'plus', remove: 'minus', items: 'bag', inventory: 'bag', 'swipe-left': 'swipe', 'swipe-right': 'swipe', steer: 'swipe', press: 'tap', touch: 'tap',
+  add: 'plus', remove: 'minus', use: 'tap', interact: 'tap', talk: 'tap', items: 'bag', inventory: 'bag', 'swipe-left': 'swipe', 'swipe-right': 'swipe', steer: 'swipe', press: 'tap', touch: 'tap',
 });
 const slug = (s) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 export function iconOf(name) { const k = slug(name); return ICONS[k] ? k : ICON_ALIASES[k] ?? null; }

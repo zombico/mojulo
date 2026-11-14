@@ -64,4 +64,12 @@ describe('the host carries a level\'s rows', () => {
     expect(levelHud('console', { screen: 'phone' }).theme).toEqual({ from: 'console', distance: 'hand' });
   });
   it('none ⇒ not a byte', () => { expect(manaHudScript(null, { rows: ROWS })).toBe(''); });
+  it('a level steered by a virtual pad: its legend says the thumbs while the pad is up, the keys otherwise', () => {
+    const rows = [{ kind: 'legend', slot: 'bottom', text: 'W A S D move' }];
+    const plain = JSON.stringify(hudToMana(rows).spec), touch = JSON.stringify(hudToMana(rows, { touch: true }).spec);
+    expect(plain).not.toContain('touch.');
+    expect(touch).toContain('"unless":{"bind":"touch.on"}');
+    expect(touch).toContain('"value":{"bind":"touch.hint"}');
+    expect(touch).toContain('W A S D move');
+  });
 });

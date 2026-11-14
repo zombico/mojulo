@@ -287,7 +287,7 @@ let __tView = null, __tSig = '';
 function __tViewOf() {
   const down = Object.keys(__T_IDX).filter((c) => __tBtn[__T_IDX[c]].pressed), reach = !!window.__mojReach;
   const sig = (__tShown ? 1 : 0) + '|' + (reach ? 1 : 0) + '|' + down.join(',') + '|' + (__tHeld ? [__tHeld.ox, __tHeld.oy, __tHeld.dx, __tHeld.dy].map(Math.round).join(',') : '');
-  if (sig !== __tSig || !__tView) { __tSig = sig; __tView = { on: !!__tShown, lane: !!__TL.lane, held: __tHeld, down: down, buttons: reach ? __tPadsUse : __tPads }; }
+  if (sig !== __tSig || !__tView) { __tSig = sig; __tView = { on: !!__tShown, lane: !!__TL.lane, held: __tHeld, down: down, buttons: reach ? __tPadsUse : __tPads, hint: __tHint }; }
   return __tView;
 }
 // the layer's place on the screen: off while a menu, a battle or a journal holds the world (they take the taps), the

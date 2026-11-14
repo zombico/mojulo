@@ -196,7 +196,8 @@ export const SAMPLE_STATE = Object.freeze({
   achievements: [{ id: 'a1', text: 'First Blood', sub: 'Achievement unlocked', icon: 'Sword' }, { id: 'a2', text: 'Untouchable', sub: 'Rare achievement', icon: 'Shield', tier: 'rare', weight: 'major' }],
   labels: [{ x: 0.3, y: 0.58, text: 'Crest Key' }, { x: 0.72, y: 0.5, text: 'Keeper' }, { x: 0.5, y: 0.34, text: 'East Gate' }],
   stealth: { state: 'searching', level: 62, max: 100 },
-  touch: ['A', 'B', 'X', 'Y'],
+  // a phone's pad as its driver says it: the left thumb pushing the stick up and right, the jump held
+  touch: { buttons: [{ label: 'jump', control: 'south' }, { label: 'fire', control: 'rt' }, { label: 'use', control: 'west' }], held: { ox: 18, oy: -30, dx: 22, dy: -34 }, down: ['south'] },
   // a match's end as contest-results.js contestResults hands it on (a tennis match: the points won first)
   match: { home: 'North', away: 'South', homeScore: '2', awayScore: '1', clock: 1325, period: 'Q3', result: {
     outcome: 'Won',

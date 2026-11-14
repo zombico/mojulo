@@ -806,7 +806,8 @@ export function buildManaUi() {
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
           case 'touchpad': { const H = isObj(p.held) ? p.held : null, px = (v) => `${Math.round(Number(v) || 0)}px`; return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left', 'data-lane': p.lane ? 'yes' : null, 'data-held': H ? 'yes' : null, style: H ? `transform:translate(${px(H.ox)},${px(H.oy)})` : null }, ['i', { style: H ? `transform:translate(${px(H.dx)},${px(H.dy)})` : null }]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
-            return ['span', { class: 'mana-pad', 'data-control': control, 'data-on': control && p.down.indexOf(control) >= 0 ? 'yes' : null }, label];
+            // (a pad named for what it does wears its pictogram where the theme draws them: jump, fire, use)
+            return ['span', { class: 'mana-pad', 'data-control': control, 'data-on': control && p.down.indexOf(control) >= 0 ? 'yes' : null }, ['b', { 'data-icon': iconName(label) }, label]];
           })]]; }
           case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);

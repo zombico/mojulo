@@ -4,7 +4,8 @@
  * (scene/channels/mana-hud.js). The rows keep their meaning and their slots; what changes is who draws them: the
  * theme the game's screens wear, so a level's readouts, its moments and its menus are one look.
  *
- *   hudToMana(rows, { register?, hero? }) → { spec: { hud }, feed: { rows, hero } }
+ *   hudToMana(rows, { register?, hero?, touch? }) → { spec: { hud }, feed: { rows, hero } }   (touch: the level is steered
+ *                                              by a virtual pad: a legend says the thumbs while the pad is up)
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
  *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
  *   levelHud(theme, { screen? }) → a level manifest's `manaHud`: { rows: 'events', theme } (the page lowers the level's
@@ -32,7 +33,7 @@ const B = (path) => ({ bind: path });
 const MEANS = [[/^(hp|health|life|lives|hull)$/, 'hp'], [/^(mp|mana|magic|energy)$/, 'mp'], [/^(xp|exp|experience)$/, 'xp'], [/^(stamina|boost|sprint|breath|fuel)$/, 'stamina'], [/^(shield|armou?r|guard)$/, 'shield'], [/^boss/, 'boss']];
 const meaningOf = (w) => { for (const name of [w.var, w.label]) { const k = String(name ?? '').toLowerCase().trim(); for (const [re, v] of MEANS) if (re.test(k)) return v; } return 'plain'; };
 
-export function hudToMana(rows, { register = null, hero = true } = {}) {
+export function hudToMana(rows, { register = null, hero = true, touch = false } = {}) {
   const { widgets } = normalizeHud(Array.isArray(rows) ? rows : [], register ? { register } : {});
   const vars = {}, keyOf = new Map(), gates = [], banners = [], toasts = [], lines = {};
   const varKey = (name) => { if (!keyOf.has(name)) { const k = `v${keyOf.size}`; keyOf.set(name, k); vars[k] = name; } return keyOf.get(name); };
@@ -54,7 +55,11 @@ export function hudToMana(rows, { register = null, hero = true } = {}) {
     else if (w.kind === 'toast') {
       if (!lines[w.slot]) lines[w.slot] = `l${Object.keys(lines).length}`;
       toasts.push({ ...(w.var ? { var: w.var } : { on: w.on }), text: w.text, ttl: w.ttl, line: lines[w.slot], ...cond(w) });
-    } else if (w.kind === 'legend') bySlot[w.slot].push({ use: 'text', props: { value: w.text, role: 'label' }, ...gate(w, i, w.ttl || 0) });
+    } else if (w.kind === 'legend') {
+      const keys = { use: 'text', props: { value: w.text, role: 'label' } };
+      // (a level steered by a virtual pad, `touch`: while the pad is up the line says what the thumbs do, not the keys)
+      bySlot[w.slot].push(touch ? { use: 'stack', props: { gap: 'tight' }, ...gate(w, i, w.ttl || 0), children: [{ ...keys, unless: B('touch.on') }, { use: 'text', props: { value: B('touch.hint'), role: 'label' }, when: B('touch.on') }] } : { ...keys, ...gate(w, i, w.ttl || 0) });
+    }
     // (a title is carved letters in the scene: the title channel's, as before)
   });
   // the pilot's own gauges lead the top-left: its health (unless a row is already the health), its sprint

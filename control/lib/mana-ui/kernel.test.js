@@ -503,7 +503,8 @@ describe('mana-ui: form and the kernel', () => {
     expect(html()).toContain('data-held="yes"');
     expect(html()).toContain('transform:translate(40px,-12px)');
     expect(html()).toContain('transform:translate(30px,0px)');
-    expect(html()).toMatch(/data-control="rt" data-on="yes"/);
-    expect(html()).toMatch(/data-control="south">jump/);
+    expect(html()).toMatch(/data-control="rt"[^>]*data-on="yes"/);
+    // (a pad named for what it does carries its pictogram's name: the theme draws it where it draws icons)
+    expect(html()).toMatch(/data-control="south"><b data-icon="jump">jump<\/b>/);
   });
 });

@@ -166,6 +166,13 @@ widgets under a pointer (only the view knows where they are).
   a lane's stick as a bar, a pad pressed filled, `use` only while the figure stands where it is used. A game that
   moves on W A S D needs nothing of its own: the stick is the pad's left stick, read through the pilot scheme. A
   level with no mana-ui HUD, and a runner's or a course's swipes, keep the driver as it was.
+  - A pad named for what it does (jump, fire, use) wears its pictogram inside its round, where the theme draws icons.
+  - The pads fill from the screen's edge inward and from its foot up, so one pad is under the thumb.
+  - The HUD's bottom corners stand over the pad while it is drawn; a region whose every part is gated off draws no
+    empty plate.
+  - A level's hint line says what the thumbs do while the pad is up, and its keys otherwise.
+  - A game's own extra button is a HUD `button` or `slot` with `on.accept`, tapped (it takes no focus). A level's
+    HUD host does not yet carry such an effect to the level's bus, so a made level has only the pad's own controls.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
   they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
   held to the scheme by a test, and the same typing), never in the kernel.
