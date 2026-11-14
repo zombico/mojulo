@@ -264,8 +264,10 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
   leaves, unless it names a turn. `set.props` carries `move: { from?, start?, to?, leave?, speed }` as written; the
   pack lowers it with the played scene to `keys` ([{ t, x, y, z? }], a couple of metres apart): a time is a second
   or a line's start or end (`S.turns`), a leaving with no time sets off as the last line begins, never before the
-  arrival ends. The relief takes a prop's `at`, `from` and `to` as seeds, so the keys are on the ground along the
-  way. `actors.py` keys the prop's empty on them, linear.
+  arrival ends. `from` and `to` are routes (a point or a list); each key carries `turn`, the heading of the stretch
+  it is on (the key at a corner the next stretch's), unwrapped so no key is more than a half turn from the one
+  before. The relief takes every point of a prop's `at`, `from` and `to` as seeds, so the keys are on the ground
+  along the way. `actors.py` keys the prop's empty on them, place and turn, linear.
 - **Dressing by word** (`mcp/tools/set-things.js`). A prop's `thing` is a word read on the shelves in order: the
   corner props (`era/props.js`), the furniture styles and kinds (`furnishings/forms.js`, and a room piece's word
   through `furnishings/roster.js`), the vehicle registry (`vehicle-registry/roster.js`, lowered as the vehicle door

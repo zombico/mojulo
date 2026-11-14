@@ -110,8 +110,10 @@ game.
     the scene: a car that pulls up at the kerb. Say where it goes and it drives off. Say both and it pulls up,
     waits, and goes. Time it by the script ("as line 2 starts", "when line 4 ends") or in seconds. It faces the way
     it came, and stays on the ground along its way. In the storyboard it is drawn where it stops.
-  - **Not yet:** a house does not name its rooms, so its cast stands outside it. A moving thing goes in straight
-    lines: it cannot yet follow a bend or turn round.
+  - **It can follow a route.** Give a moving thing the points of its way and it goes through them in turn, facing
+    the way it is going and turning into each corner: a car that comes along one street and turns into the next.
+  - **Not yet:** a house does not name its rooms, so its cast stands outside it. A moving thing's route is the one
+    you give it: it is not found for it, and it is not kept clear of the cast.
 - **Film outdoors: hills, fields and streets.** A scene can be set on land that rises and falls, and in a town.
   - **The cast stands on the ground.** On a hillside each actor, camera and prop stands at the height of the ground
     under it, and a walk keeps its feet on the land. Before, everyone stood at one height, so on a slope they floated

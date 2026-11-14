@@ -69,7 +69,7 @@ describe('a thing that moves', () => {
   const stood = async (Q) => (await prepareScreenplay(sp({ box: { thing: PROP, ...Q } }), { getRow: () => null })).set.props[0];
 
   it('arrives from somewhere at its place, read where it rests, facing the way it came', async () => {
-    expect(await stood({ at: [3, 10], from: [3, 3], start: 2, speed: 3.5 })).toMatchObject({ name: 'box', at: [3, 10], move: { from: [3, 3], start: 2, speed: 3.5 } });
+    expect(await stood({ at: [3, 10], from: [3, 3], start: 2, speed: 3.5 })).toMatchObject({ name: 'box', at: [3, 10], move: { from: [[3, 3]], start: 2, speed: 3.5 } });
     // it came along +y: no turn; along +x it is turned a quarter; a turn of its own wins
     expect((await stood({ at: [3, 10], from: [3, 3] })).turn).toBeUndefined();
     expect((await stood({ at: [10, 3], from: [3, 3] })).turn).toBe(90);
@@ -80,17 +80,17 @@ describe('a thing that moves', () => {
 
   it('leaves for somewhere, facing the way it goes when that is all it does', async () => {
     const P = await stood({ at: [3, 3], to: [10, 3], leave: { line: 2 } });
-    expect(P.move).toMatchObject({ to: [10, 3], leave: { line: 2 } });
+    expect(P.move).toMatchObject({ to: [[10, 3]], leave: { line: 2 } });
     expect(P.move.from).toBeUndefined();
     expect(P.turn).toBe(90);
   });
 
-  it('is keyed along its way on the scene\'s clock, on the ground under it', () => {
+  it('is keyed along its way on the scene\'s clock, on the ground under it, facing along it', () => {
     const S = { turns: [{ at: 0, end: 4 }, { at: 9, end: 12 }] };
-    const arrive = { at: [3, 10], move: { from: [3, 3], start: 2, speed: 2 } };
+    const arrive = { at: [3, 10], move: { from: [[3, 3]], start: 2, speed: 2 } };
     const K = arrivalKeys(arrive);
-    expect(K[0]).toEqual({ t: 2, x: 3, y: 3 });
-    expect(K.at(-1)).toEqual({ t: 5.5, x: 3, y: 10 });
+    expect(K[0]).toEqual({ t: 2, x: 3, y: 3, turn: 0 });
+    expect(K.at(-1)).toEqual({ t: 5.5, x: 3, y: 10, turn: 0 });
     expect(K.length).toBe(5);
     for (let i = 1; i < K.length; i++) expect(K[i].t).toBeGreaterThan(K[i - 1].t);
     // on land that rises and falls each key takes the ground's height
@@ -99,14 +99,31 @@ describe('a thing that moves', () => {
     expect(arrivalKeys({ ...arrive, move: { ...arrive.move, start: { line: 2 } } }, null, S)[0].t).toBe(9);
     expect(arrivalKeys({ ...arrive, move: { ...arrive.move, start: { line: 1, at: 'end' } } }, null, S)[0].t).toBe(4);
     // it arrives, rests, and leaves as the last line begins (no `leave` said): never before it has arrived
-    const both = arrivalKeys({ at: [3, 10], move: { from: [3, 3], start: 0, to: [3, 20], speed: 2 } }, null, S);
-    const rest = both.filter((k) => k.y === 10);
-    expect(rest.map((k) => k.t)).toEqual([3.5, 9]);
-    expect(both.at(-1)).toEqual({ t: 14, x: 3, y: 20 });
-    expect(arrivalKeys({ at: [3, 10], move: { from: [3, 3], start: 0, to: [3, 20], leave: 1, speed: 2 } }, null, S).filter((k) => k.y === 10)).toHaveLength(1);
-    // a thing that only leaves sets off from its place
-    expect(arrivalKeys({ at: [0, 0], move: { to: [4, 0], leave: 6, speed: 2 } })).toEqual([{ t: 6, x: 0, y: 0 }, { t: 7, x: 2, y: 0 }, { t: 8, x: 4, y: 0 }]);
+    const both = arrivalKeys({ at: [3, 10], move: { from: [[3, 3]], start: 0, to: [[3, 20]], speed: 2 } }, null, S);
+    expect(both.filter((k) => k.y === 10).map((k) => k.t)).toEqual([3.5, 9]);
+    expect(both.at(-1)).toMatchObject({ t: 14, x: 3, y: 20 });
+    expect(arrivalKeys({ at: [3, 10], move: { from: [[3, 3]], start: 0, to: [[3, 20]], leave: 1, speed: 2 } }, null, S).filter((k) => k.y === 10)).toHaveLength(1);
+    // a thing that only leaves sets off from its place, facing as it stands, and turns to its way
+    expect(arrivalKeys({ at: [0, 0], turn: 90, move: { to: [[4, 0]], leave: 6, speed: 2 } })).toEqual([{ t: 6, x: 0, y: 0, turn: 90 }, { t: 7, x: 2, y: 0, turn: 90 }, { t: 8, x: 4, y: 0, turn: 90 }]);
     expect(arrivalKeys({ at: [0, 0] })).toBe(null);
+  });
+
+  it('follows a route round a corner, turning into it the short way, and rests facing the way it came in', async () => {
+    // north 8 m, then east 6 m to its place
+    const P = await stood({ at: [6, 8], from: [[0, 0], [0, 8]], speed: 2 });
+    expect(P.move.from).toEqual([[0, 0], [0, 8]]);
+    expect(P.turn).toBe(90);
+    const K = arrivalKeys(P);
+    expect(K[0]).toMatchObject({ x: 0, y: 0, turn: 0 });
+    // at the corner it already faces east; it gets there after 4 s and to its place after 7
+    expect(K.find((k) => k.x === 0 && k.y === 8)).toMatchObject({ t: 4, turn: 90 });
+    expect(K.at(-1)).toMatchObject({ t: 7, x: 6, y: 8, turn: 90 });
+    // a turn past a half turn is taken the short way: from facing south-west round to north-west, never the long way
+    const turns = arrivalKeys({ at: [-4, 4], turn: -45, move: { from: [[4, 4], [0, 0]], start: 0, speed: 2 } }).map((k) => k.turn);
+    for (let i = 1; i < turns.length; i++) expect(Math.abs(turns[i] - turns[i - 1])).toBeLessThanOrEqual(180);
+    // a route may name marks
+    const viaMark = await prepareScreenplay({ ...sp({ box: { thing: PROP, at: [6, 8], from: ['gate', [0, 8]] } }), marks: { gate: [0, -5] } }, { getRow: () => null });
+    expect(viaMark.set.props[0].move.from).toEqual([[0, -5], [0, 8]]);
   });
 
   it('says what it takes', async () => {

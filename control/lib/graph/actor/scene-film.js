@@ -39,8 +39,9 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
 /** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
  * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
  * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb).
- * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). */
-export const SCENE_PACK_REV = 7;
+ * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). 8: a moving prop
+ * turns along its way (a key's `turn`). */
+export const SCENE_PACK_REV = 8;
 /** how far apart a walk is keyed on ground that is not flat, metres */
 const WALK_KEY = 0.4;
 
@@ -531,13 +532,18 @@ def props(S):
         cx, cy = k * (lo[0] + hi[0]) / 2.0, k * (lo[1] + hi[1]) / 2.0
         holder.scale = (k, k, k)
         holder.rotation_euler = (0.0, 0.0, a)
-        def place(x, y, z):
+        def place(x, y, z, a):
             return (float(x) - (cx * math.cos(a) - cy * math.sin(a)), float(y) - (cx * math.sin(a) + cy * math.cos(a)), float(z) - k * lo[2])
-        holder.location = place(Q['at'][0], Q['at'][1], Q.get('z', 0.0))
-        # (a thing that ARRIVES, scene.json props keys: it comes along its way on the scene's clock and rests at its place)
+        holder.location = place(Q['at'][0], Q['at'][1], Q.get('z', 0.0), a)
+        # (a thing that MOVES, scene.json props keys: it goes along its way on the scene's clock, facing along it, and
+        #  rests at its place)
         for K in Q.get('keys') or []:
-            holder.location = place(K['x'], K['y'], K.get('z', 0.0))
-            holder.keyframe_insert('location', frame=1 + float(K['t']) * float(S['fps']))
+            ka = -math.radians(float(K['turn'])) if 'turn' in K else a
+            holder.rotation_euler = (0.0, 0.0, ka)
+            holder.location = place(K['x'], K['y'], K.get('z', 0.0), ka)
+            frame = 1 + float(K['t']) * float(S['fps'])
+            holder.keyframe_insert('location', frame=frame)
+            holder.keyframe_insert('rotation_euler', frame=frame)
         if Q.get('keys') and holder.animation_data and holder.animation_data.action:
             for fc in fcurves_of(holder.animation_data.action):
                 for kp in fc.keyframe_points:

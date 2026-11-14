@@ -115,10 +115,12 @@ forge_motion({ title: 'The key', export: 'storyboard',
     - **A time is a second of the scene, or a line:** `{ line: 2 }` is as line 2 starts, `{ line: 2, at: 'end' }` as it
       ends. `car: { thing: 'sedan', at: [9.3, 50], from: [9.3, 6], start: { line: 1 }, to: [9.3, 68], leave: { line:
       4 } }` pulls up on the first line and drives on at the fourth.
-    - Each leg is a straight line. With no `turn` it faces the way it came (or, only leaving, the way it goes), and
-      keeps that facing: a thing that leaves back the way it came reverses out.
+    - **A route.** `from` and `to` take one point or a list of them, gone through in turn: `from: [[55, 9.3], [9.3,
+      9.3]]` comes along one street and turns into the next. It faces along its way and turns into each corner. With
+      no `turn` it rests facing the way it came in (or, only leaving, the way it goes); leaving, it turns to its way
+      as it sets off.
     - The plan, the walks and the storyboard read it at its `at`; it moves in the Blender film, on the ground.
-    - Not yet: a way that bends or follows a street; a turn on the way.
+    - Not yet: a route found for it (along a street, round what stands); it is not kept off the cast or the set.
 - **`voice`: recorded lines.** Write `{ <line number>: '<path>.wav' | { audio, text? } }`. The number counts spoken
   lines, 1 the first, in script order.
   - **They set the clock.** A recorded line lasts its recording. The read is fitted to it, so the face, the gestures on
