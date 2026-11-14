@@ -159,7 +159,28 @@ widgets under a pointer (only the view knows where they are).
   - `controlsRows(scheme)` lists a scheme on the controls screen as the kernel labels it, a clash marked.
   - `remap()` returns the conflicts it makes (advised, never refused).
 - **The drawn touch pad** is a look only: its buttons are named by the gamepad controls they are (`data-control`). The
-  virtual pad's driver is the controls layer's.
+  virtual pad's driver is the controls layer's (`scene/channels/controllable/touch.js`). On a level made for a screen
+  whose HUD is mana-ui's, the HUD carries the pad at its foot and the driver draws nothing: it reads the thumbs, finds
+  which pad a touch landed on from the view's own elements, and says what it knows each frame (`touch.on`, `lane`,
+  `held`, `down`, `buttons`). The `touchpad` draws that: a stick risen where the thumb landed with its nub under it,
+  a lane's stick as a bar, a pad pressed filled, `use` only while the figure stands where it is used. A game that
+  moves on W A S D needs nothing of its own: the stick is the pad's left stick, read through the pilot scheme. A
+  level with no mana-ui HUD, and a runner's or a course's swipes, keep the driver as it was.
+  - A pad named for what it does (jump, fire, use) wears its pictogram inside its round, where the theme draws icons.
+  - The pads fill from the screen's edge inward and from its foot up, so one pad is under the thumb.
+  - The HUD's bottom corners stand over the pad while it is drawn; a region whose every part is gated off draws no
+    empty plate.
+  - A level's hint line says what the thumbs do while the pad is up, and its keys otherwise.
+  - A game's own extra button is a level's HUD row, `events.hud: [{ press: '<event>', label, slot? }]` (bottom right
+    unless it says). Tapped or clicked, it raises that event on the level's bus as a key bound to it would
+    (`events.input` is its keyboard half); a cue or a rule that listens does the rest. The level's mana-ui HUD draws
+    it as a `button` and its host carries the press to the bus; a level with the page's own HUD draws it there. A
+    level with no such row carries none of it.
+  - **A level made for a screen never asks for a key a thumb cannot press** (`game/screen-keys.js`). Every key it
+    listens for that the pad has no control for gets a HUD button by itself, drawn only on a touch screen: the
+    level's own key inputs (`events.inputs`), the journal (J), the library (L), the party menu (P). Pressed, the
+    button is that key pressed (the same keydown), so no channel learns about touch. A key the level's HUD already
+    has a button for is left to it; a level with no screen, or no such key, is as it was.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
   they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
   held to the scheme by a test, and the same typing), never in the kernel.
@@ -531,7 +552,9 @@ The screens and HUD parts games share, as defs. Each one says what it reads, wha
 into the sample state (`samples.js`).
 
 - `idioms-front.js` — the front and the menus: attract (key art behind, a press-start that takes any button), title
-  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, character select (couch seats),
+  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, a choice
+  before a level (`pick-screen`: what is asked and how far along, what was chosen before, a list or a grid of faces
+  beside the one in focus; the play shell's turn draws its picks with it, [game-flow.md](game-flow.md)), character select (couch seats),
   arena select, pause, options (sections of fields), controls (keybinds; accept asks the host to capture), confirm,
   results (in sequence: the outcome slams in, the figures count, the rank is stamped), save slots.
 - `idioms-rpg.js` — the deep menus, each a list or grid beside the detail of what it has picked: party, skill tree,

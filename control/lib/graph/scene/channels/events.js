@@ -91,6 +91,7 @@ function hudScript(widgets, style, register, menus = null, titles = null, juice 
   };
   const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? titleRow(w) : {}) }));
   const gated = widgets.some((w) => w.id || w.when);
+  const pressed = widgets.some((w) => w.kind === 'button');   // a level with a button row
   const on = (x) => (gated ? ` && __hudOn(${x})` : '');
   const titled = !!titles && widgets.some((w) => w.kind === 'title');
   return `// HUD: the screen-space widget layer (hud-widgets.js) — a column per slot, a widget per row.
@@ -119,7 +120,12 @@ const __TOAST_CAP = 8, __TOAST_RISE = 28;
     } else if (w.kind === 'banner') { el.textContent = w.text; el.classList.add('moj-hidden'); __hudBanners.push({ w: w, el: el, until: 0 }); }
     else if (w.kind === 'toast') { col(w.slot); __hudToasts.push({ w: w, prev: null, n: 0 }); return; }   // spawns per firing; no standing element${titled ? `
     else if (w.kind === 'title') { __hudTitles.push({ w: w, run: null, seq: 0 }); return; }   // carved letters in the scene; no element` : ''}
-    else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
+${pressed ? `    else if (w.kind === 'button') {   // a thing to press: its event on the bus, or its key pressed; one for a touch screen alone stands while the pad does
+      el.textContent = w.label; el.style.pointerEvents = 'auto'; el.style.cursor = 'pointer';
+      el.addEventListener('pointerdown', function (e) { e.preventDefault(); if (w.key) { ['keydown', 'keyup'].forEach(function (t) { window.dispatchEvent(new KeyboardEvent(t, { key: w.key, code: w.code || w.key, bubbles: true, cancelable: true })); }); } else __inputQueue.push({ type: w.press }); });
+      if (w.touch) { el.style.display = 'none'; setInterval(function () { el.style.display = window.__mojTouch && window.__mojTouch.on() && !window.__mojMenuOpen ? '' : 'none'; }, 400); }
+    }
+` : ''}    else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
 ${gated ? `    if (w.id || w.when) __hudGated.push({ w: w, el: el });
 ` : ''}    col(w.slot).appendChild(el);
   });
@@ -438,6 +444,8 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${widgets.some((w) => w.kind === 'button' && w.press) ? `
+// a HUD button pressed (a level's button row, drawn here or by the mana-ui HUD): its event on the bus this frame
+window.__mojBus.press = function (type) { __inputQueue.push({ type: String(type) }); };` : ''}${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }
 

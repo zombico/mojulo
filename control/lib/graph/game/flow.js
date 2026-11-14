@@ -19,8 +19,10 @@
  *                (`stage`, asked of it by game-init params.__stage) with control held, left as the level says it
  *                ends (game-scene-end; at once when it has no such scene); `keep` hands the stage on to the level step after it, the page kept (the game-start
  *                animation: the prologue ends and the player has control); `skip: false` makes it unskippable
- *     level      { level: '<level ref>' | '$any', on: { won?, lost?, left?, door? } }
- *                a level, left by its outcome (won, lost, left) or a door; `$any` is the step any level plays in
+ *     level      { level: '<level ref>' | '$any', on: { won?, lost?, left?, door? }, picks?, start?, end? }
+ *                a level, left by its outcome (won, lost, left) or a door; `$any` is the step any level plays in.
+ *                A level step is a TURN (turn.js): `picks` what the player chooses before it loads, `start` and `end`
+ *                a scene or a video played as play starts and as it ends; a step that says none plays as it always has
  *     hold       { for?: seconds, until?: '<event>', next }   a beat, or a wait for an event
  *     cutscene   { video?, scene?, stage?, next, skip? }
  *                THE CUTSCENE AFFORDANCE: an encapsulated sequence the game hands to (its opening), whatever it is made
@@ -40,7 +42,9 @@
  *            unseen     the step it goes to has never been entered in this save (an opening on the first boot)
  *
  *   FLOW_KINDS · FLOW_SCREENS · SCREEN_EVENTS · LEVEL_EVENTS · FLOW_SPECIALS · FLOW_GUARDS
- *   readFlow(flow, { levels, scenes?, where? })  → errors[] (teaching): shape, events, targets, reach, exits, loops
+ *   readFlow(flow, { levels, scenes?, consumes?, where? })  → errors[] (teaching): shape, events, targets, reach,
+ *                                                  exits, loops, each level step's turn (consumes: { <level ref>:
+ *                                                  [the slices it consumes] }, so a pick's slice is checked)
  *   defaultFlow(game)                            → the flow a play-shell game has always had (its front, its levels,
  *                                                  its run, its map, its final level), so a game that says none
  *                                                  plays as it did; with game.cinematics ({ opening?, prologue?,
@@ -60,6 +64,7 @@
  *   ctx: { level?, resolve(special, ctx) → level ref | null, guard(name, ctx) → bool }
  */
 import { frontConfig } from './play-front.js';
+import { readTurn, TURN_KEYS } from './turn.js';
 
 export const FLOW_KINDS = Object.freeze(['screen', 'cinematic', 'level', 'hold', 'cutscene']);
 // the screens a play shell draws, and what the player can do on each
@@ -84,7 +89,7 @@ export const FLOW_CINEMATICS = Object.freeze(['opening', 'prologue', 'ending']);
 const KEYS = {
   screen: ['kind', 'screen', 'on', 'next', 'idle'],
   cinematic: ['kind', 'scene', 'stage', 'next', 'keep', 'skip'],
-  level: ['kind', 'level', 'on'],
+  level: ['kind', 'level', 'on', ...TURN_KEYS],
   hold: ['kind', 'for', 'until', 'next'],
   cutscene: ['kind', 'video', 'scene', 'stage', 'next', 'skip'],
 };
@@ -109,7 +114,7 @@ function altsOf(t) {
 }
 
 /** A flow as written: every fault said, with what it should be. */
-export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = {}) {
+export function readFlow(flow, { levels = [], scenes = null, consumes = null, where = 'flow' } = {}) {
   if (!isObj(flow)) return [`${where} is { start, steps: { <id>: step } }: the game's flow, what plays when from the first screen to the credits`];
   const errors = [];
   for (const k of Object.keys(flow)) if (!['start', 'home', 'steps'].includes(k)) errors.push(`${where}.${k}: a flow is { start, home?, steps }`);
@@ -163,6 +168,10 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
       if (!(s.level === '$any' || (isStr(s.level) && refs.has(s.level)))) errors.push(`${at}.level is a level (${levels.join(', ') || 'none'}) or $any (the step any level plays in)`);
       if (!isObj(s.on) || !Object.keys(s.on).length) errors.push(`${at}.on: where its outcomes go (${LEVEL_EVENTS.join(', ')})`);
       else for (const e of Object.keys(s.on)) if (!LEVEL_EVENTS.includes(e)) errors.push(`${at}.on.${e}: a level is left by ${LEVEL_EVENTS.join(', ')}`);
+      // its turn (turn.js): a pick's slice is one the level consumes ($any: one every level consumes)
+      const played = s.level === '$any' ? levels : [s.level];
+      const eats = isObj(consumes) && played.length && played.every((r) => Array.isArray(consumes[r])) ? consumes[played[0]].filter((sl) => played.every((r) => consumes[r].includes(sl))) : null;
+      errors.push(...readTurn(s, { consumes: eats, scenes, where: at }));
     } else if (s.kind === 'cutscene') {
       if (s.video !== undefined && !isStr(s.video)) errors.push(`${at}.video is the video it plays (a url or a path)`);
       if (s.video !== undefined && s.scene !== undefined) errors.push(`${at}: a cutscene is a video or a directed scene, one or the other`);

@@ -350,6 +350,8 @@ export function manaCss(scope = '.mana-root') {
     // the parts that are their own frame sit bare, with the halo: the aim, a moment's banner, a phone's controls
     `${s} .mana-place>.mana-region:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad,.mana-moments)){background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
     // a bare region: no plate, its parts their own frame (a fight's bars, its combo over the round), the words haloed
+    // (a region whose every part is gated off draws nothing: no empty plate left standing over the world)
+    `${s} .mana-place>.mana-region:empty,${s} .mana-place>.mana-region:has(>.mana-stack:only-child:empty){display:none}`,
     `${s} .mana-place>.mana-region[data-variant=bare]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{background:${v('panel')};box-shadow:0 0 0 ${u(3)} ${v('panel')}}`,
     // A FIGHT'S BARS, over the round: lit, not flat. The track sunk (a shade inside its top edge), the bar standing off
@@ -482,11 +484,22 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-arc{position:absolute;font-size:${u(33)};line-height:1;color:${v('harm')}}`,
     `${s} .mana-letterbox i{position:absolute;left:0;right:0;height:11%;background:${v('shade')}}`,
     `${s} .mana-letterbox i:first-child{top:0}`, `${s} .mana-letterbox i:last-child{bottom:0}`,
-    `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:${u(1770)};max-width:100%;padding:0 ${u(18)}}`,
+    `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:min(${u(1770)},90cqw);padding:0 ${u(18)}}`,
     `${s} .mana-stick,${s} .mana-pad{pointer-events:auto;touch-action:none}`,
-    `${s} .mana-stick{position:relative;width:${u(180)};height:${u(180)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};opacity:.85}`,
+    `${s} .mana-stick{position:relative;width:${u(180)};height:${u(180)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};opacity:.4}`,
     `${s} .mana-stick i{position:absolute;inset:${u(57)};border-radius:50%;background:${v('ink')};opacity:.5}`,
-    `${s} .mana-pads{display:grid;grid-template-columns:repeat(2,${u(90)});gap:${u(18)}}`,
+    // (the driver's word: a lane's stick is a bar, a stick under a thumb stands out where it rose, a pad pressed is filled)
+    `${s} .mana-stick[data-lane]{height:${u(84)};border-radius:${u(42)}}`,
+    `${s} .mana-stick[data-lane] i{inset:${u(9)} ${u(57)}}`,
+    `${s} .mana-stick[data-held]{opacity:.75}`,
+    `${s} .mana-pad[data-on]{background:${v('ink')};color:${v('panel')};opacity:1}`,
+    // (the HUD's bottom corners stand over the pad, and over a hint line above it, while it is drawn: the stick and the
+    // pads have the foot of the screen)
+    `${s} .mana-hud:has(.mana-touchpad) .mana-place:is([data-at=bottom-left],[data-at=bottom-right]){bottom:calc(${SY} + ${u(288)})}`,
+    // (the pads fill from the screen's edge inward and from its foot up: one pad is under the thumb, not a column in)
+    `${s} .mana-pads{display:flex;flex-wrap:wrap-reverse;flex-direction:row-reverse;gap:${u(18)};max-width:${u(198)}}`,
+    // (a pad's pictogram, where the theme draws them, stands inside its round: the pad keeps its edge and its fill)
+    `${s} .mana-pad b{display:flex;align-items:center;justify-content:center;width:62%;height:62%;font-weight:inherit;white-space:nowrap}`,
     `${s} .mana-pad{display:flex;align-items:center;justify-content:center;width:${u(90)};height:${u(90)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};font:700 ${t('body')} ${v('mono')};opacity:.85}`,
     // enemies: awareness as a glyph, statuses as boxes
     `${s} .mana-awareness{font-size:${t('caption')};text-transform:uppercase;letter-spacing:.06em;color:${v('mid')}}`,
