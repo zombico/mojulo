@@ -4,10 +4,13 @@
  * (a car shelf card, a realistic loft, a construction shelf machine), and the YARD each role is kept in (a parking
  * block given to it, design.js `yards`).
  *
- *   FLEETS        { <role>: { read, rows: [{ word, weight, paint?, extra? , stand? }] } }: civilian (the family cars),
- *                 taxi, police, ambulance, fire, garbage, utility, delivery, bus, construction; a row the registry
- *                 builds no realistic body for yet (a taxi, a police car, an ambulance, a fire engine) STANDS as the
- *                 nearest one that is (`stand`), in its livery, its roof's extra marking it
+ *   FLEETS        { <role>: { read, rows: [{ word, weight, paint?, extra?, stand?, brief? }] } }: civilian (the family
+ *                 cars), taxi, police, ambulance, fire, garbage, utility, delivery (vans, a box truck and the small
+ *                 city trucks), bus, construction, freight (the highway's rigs: the eighteen-wheeler and its trailers, a
+ *                 cab-over lorry) and industry (the trucks an industrial lot works: wing bodies, flatbeds, box
+ *                 trucks); a row the registry builds no realistic body for yet (a taxi, a police car) STANDS as the
+ *                 nearest one that is (`stand`), in its livery, its roof's extra marking it; `brief` its body's words (a
+ *                 semi's trailer: tanker)
  *   YARDS         { lot, depot, works, emergency, contractor }: what each yard keeps (its roles) and its building
  *   fleetOf(role) → [{ word, vehicle, model, weight, paints, extra?, stand? }], memoized: each row read through the
  *                 registry (cars.js carModel's keys: a card, `loft:<class>`; a machine `site:<archetype>`)
@@ -29,14 +32,21 @@ export const FLEETS = Object.freeze({
   civilian: { read: 'the family cars people park', rows: Object.entries(TOWN_CARS).filter(([w]) => METRO_CARS.includes(w)).map(([word, weight]) => ({ word, weight })) },
   taxi: { read: 'taxis at their rank and on the kerb', rows: [{ word: 'taxi', stand: 'sedan', weight: 1, paint: ['#f2c230'], extra: 'taxi-sign' }] },
   police: { read: 'the police: patrol cars', rows: [{ word: 'police-car', stand: 'sedan', weight: 1, paint: ['#f1f1ee'], extra: 'lightbar-rb' }] },
-  ambulance: { read: 'ambulances', rows: [{ word: 'ambulance', stand: 'cargo-van', weight: 1, paint: ['#f4f4f0'], extra: 'lightbar-r' }] },
-  fire: { read: 'fire engines', rows: [{ word: 'fire-engine', stand: 'box-truck', weight: 1, paint: ['#b3221d'], extra: 'lightbar-r' }] },
-  garbage: { read: 'the city\'s garbage trucks', rows: [{ word: 'box-truck', weight: 1, paint: ['#2f6b3a'] }] },
+  // (the city's own bodies, road-civic.js: their light bars, bands and lockers their own, their paint the fleet's)
+  ambulance: { read: 'ambulances', rows: [{ word: 'ambulance', weight: 1, paint: ['#f4f4f0'] }] },
+  fire: { read: 'fire engines', rows: [{ word: 'fire-engine', weight: 1, paint: ['#b3221d'] }] },
+  garbage: { read: 'the city\'s garbage trucks', rows: [{ word: 'garbage truck', weight: 1, paint: ['#e9e9e2', '#2f6b3a'] }] },
   utility: { read: 'the city\'s works pickups and vans', rows: [{ word: 'pickup', weight: 2, paint: ['#f1f1ee', '#e07b25'], extra: 'beacon' }, { word: 'cargo-van', weight: 1, paint: ['#f1f1ee'], extra: 'beacon' }] },
-  delivery: { read: 'vans and box trucks delivering', rows: [{ word: 'cargo-van', weight: 3, paint: ['#f1f1ee', '#5a3a22', '#2a3f6a', '#c9b48a'] }, { word: 'box-truck', weight: 1, paint: ['#f1f1ee', '#8a2a2a'] }] },
+  // (the small trucks among them, road-city-truck.js: a cube van, a 2-ton cab-over)
+  delivery: { read: 'vans, box trucks and small trucks delivering', rows: [{ word: 'cargo-van', weight: 3, paint: ['#f1f1ee', '#5a3a22', '#2a3f6a', '#c9b48a'] }, { word: 'box-truck', weight: 1, paint: ['#f1f1ee', '#8a2a2a'] }, { word: 'cube van', weight: 1, paint: ['#f1f1ee', '#d8d6d0'] }, { word: '2 ton truck', weight: 1, paint: ['#eceae4', '#2a5a8a', '#3f6a3a'] }] },
   bus: { read: 'the city\'s buses', rows: [{ word: 'bus', weight: 1, paint: ['#c8322a'] }] },
   // (two machines, the site's own tipper among them: each a heavy template, a page carries each once)
   construction: { read: 'a site\'s machines: mixer trucks and tippers', rows: [{ word: 'mixer-truck', weight: 1 }, { word: 'tipper-truck', weight: 1 }] },
+  // (the highway's rigs, road-haul.js: each a heavy template, so a few, their paints for their variety; never on a
+  // signalled street, flow.js)
+  freight: { read: 'the highway\'s rigs: eighteen-wheelers and their trailers, a cab-over lorry', rows: [{ word: 'semi truck', weight: 3, paint: ['#7a1d24', '#1f3f6a', '#e6e6e2', '#2b2d30', '#c45a1d'] }, { word: 'semi truck', brief: 'tanker', weight: 1, paint: ['#e6e6e2', '#2b2d30'] }, { word: 'cab-over lorry', weight: 1, paint: ['#e6e6e2', '#1f4f8a'] }] },
+  // (an industrial lot's working trucks, road-city-truck.js and road-haul.js)
+  industry: { read: 'an industrial lot\'s trucks: wing bodies, flatbeds, box trucks', rows: [{ word: 'wing truck', weight: 2, paint: ['#e9e8e2', '#2a5a8a'] }, { word: 'flatbed truck', weight: 1, paint: ['#20497f', '#7a1d24'] }, { word: 'box-truck', weight: 1, paint: ['#f1f1ee'] }] },
 });
 
 // what each yard keeps, by role and how often, and what stands in it besides
@@ -60,7 +70,7 @@ export function fleetOf(role) {
     // (its own realistic body, else the one it stands as for now)
     const p = parkable(r.stand ?? r.word, `fleets.${role} '${r.word}'`);
     // (a construction shelf machine; a car shelf card, the row's own or its first; else its class's realistic loft)
-    const card = p.car ?? handlesOf(p.vehicle).car?.[0], model = p.construction ? `site:${p.construction}` : card ? card : `loft:${p.class}`;
+    const card = p.car ?? handlesOf(p.vehicle).car?.[0], model = p.construction ? `site:${p.construction}` : card ? card : `loft:${p.class}${r.brief ? `|${r.brief}` : ''}`;
     return { word: r.word, vehicle: hit.id, model, weight: r.weight, paints: r.paint ?? CAR_PAINT_HEX, ...(r.extra ? { extra: r.extra } : {}), ...(r.stand ? { stand: p.vehicle } : {}) };
   });
   MEMO.set(role, out);

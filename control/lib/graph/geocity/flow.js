@@ -3,7 +3,9 @@
  * arterial's travel lanes a ring its vehicles drive round (out at the land's edge, back in at the other), a signal at
  * every crossing (two exclusive phases and an all-red clearance, the shared model's), each vehicle one of the fleets'
  * (fleets.js: the family cars mostly, a taxi, a delivery van or truck, a bus, a works pickup now and then), stopping at
- * its stop line behind the crosswalk on red, queueing behind the one ahead and pulling away on green.
+ * its stop line behind the crosswalk on red, queueing behind the one ahead and pulling away on green. Each road its own
+ * mix: a street's small trucks among its cars, an arterial along an industrial neighbourhood's working trucks, a
+ * highway's rigs (an eighteen-wheeler never takes a signalled street: the boxes are sized to the streets' longest).
  *
  * The page runs it (scene/channels/flow.js): one model per lane, stepped only while the camera is within reach of it
  * (a lane far off waits; one come into reach starts from its cycle's last turn of the clock, so the pose at a clock is
@@ -35,8 +37,11 @@ export const FLOW = Object.freeze({
   speed: 12, spacing: 42, spread: [0.75, 1.35],
   // a highway's (highways.js): faster, its vehicles farther apart, no signal on it
   highway: { speed: 24, spacing: 55 },
-  // what drives: each role's share (fleets.js), the core's taxis over it
-  mix: [['civilian', 0.84], ['delivery', 0.07], ['taxi', 0.04], ['bus', 0.02], ['utility', 0.02], ['garbage', 0.01]],
+  // what drives: each role's share (fleets.js), the core's taxis over it; a street's (its vans and small trucks among
+  // its cars), an arterial's along an industrial neighbourhood (its working trucks), a highway's (its rigs)
+  mix: [['civilian', 0.82], ['delivery', 0.09], ['taxi', 0.04], ['bus', 0.02], ['utility', 0.02], ['garbage', 0.01]],
+  industrialMix: [['civilian', 0.62], ['industry', 0.18], ['delivery', 0.14], ['utility', 0.04], ['garbage', 0.02]],
+  highwayMix: [['civilian', 0.66], ['freight', 0.18], ['delivery', 0.12], ['bus', 0.02], ['utility', 0.02]],
   // the road's height along a lane sampled at the drape's cells (scene.js CELL), a kerb's ramp where a lane crosses a walk
   cell: 40, ramp: 0.3,
 });
@@ -81,9 +86,9 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
   if (!raw.length && !(d.highways ?? []).length && !(d.waterfront ?? []).some((W) => W.boulevard)) return null;
   // what drives: each vehicle a role's (its model, paint and roof), measured
   const kinds = [], kindOf = new Map(), tints = [], tintOf = new Map();
-  const pick = (R) => {
-    let u = R(), role = FLOW.mix[FLOW.mix.length - 1][0];
-    for (const [r, w] of FLOW.mix) { if (u < w) { role = r; break; } u -= w; }
+  const pick = (R, mix = FLOW.mix) => {
+    let u = R(), role = mix[mix.length - 1][0];
+    for (const [r, w] of mix) { if (u < w) { role = r; break; } u -= w; }
     const v = pickOf(fleetOf(role), R);
     // (a site's machine never drives the arterials)
     if (v.model.startsWith('site:')) return null;
@@ -92,13 +97,21 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     if (!tintOf.has(v.paint)) { tintOf.set(v.paint, tints.length); tints.push(lin(v.paint)); }
     return { kind: kindOf.get(key), tint: tintOf.get(v.paint) };
   };
-  // each lane's vehicles chosen first (the longest of them sizes the model's boxes), then counted to what it holds
+  // the arterials along an industrial neighbourhood (design.js): their lanes the industrial mix
+  const ind = (d.regions ?? []).filter((r) => r.industrial), along = (l) => ind.some((r) => {
+    const [x0, y0, x1, y1] = r.rect, near = (a, b) => Math.abs(a - b) <= l.half + 1;
+    return l.axis === 'ns' ? near(l.at, x0) || near(l.at, x1) : near(l.at, y0) || near(l.at, y1);
+  });
+  const industrial = new Set(d.lines.filter(along).map((l) => l.id));
+  // each lane's vehicles chosen first (the longest of a signalled street's sizes the model's boxes), then counted to what
+  // it holds
   const picks = raw.map((L, i) => {
     const R = streamOf(seed, 'flow', `${L.line}:${L.cross}`), span = FLOW.spacing * (FLOW.spread[0] + (FLOW.spread[1] - FLOW.spread[0]) * R());
-    const want = Math.max(1, Math.round(Math.abs(L.hi - L.lo) / span)), list = [];
-    for (let k = 0; k < want * 2 && list.length < want; k++) { const p = pick(R); if (p) list.push(p); }
+    const want = Math.max(1, Math.round(Math.abs(L.hi - L.lo) / span)), list = [], mix = industrial.has(L.line) ? FLOW.industrialMix : FLOW.mix;
+    for (let k = 0; k < want * 2 && list.length < want; k++) { const p = pick(R, mix); if (p) list.push(p); }
     return { list, start: R(), i };
   });
+  const streetKinds = new Set(picks.flatMap((P) => P.list.map((p) => p.kind)));
   // the highways' lanes (highways.js): each way its lanes on the right of its median by the metro's hand, on its deck,
   // nothing crossing them; their vehicles chosen with the rest (the longest of all sizes the boxes)
   const hand = d.grammar?.traffic === 'left' ? -1 : 1, hw = [], own = new Map();
@@ -106,7 +119,7 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     const sg = (h.axis === 'x' ? -dir : dir) * hand, off = sg * (HIGHWAY.median / 2 + HIGHWAY.shoulder + HIGHWAY.lane * (k + 0.5));
     const L = { axis: h.axis, cross: r4(h.at + off), lo: h.lo, hi: h.hi, dir, total: r2(h.hi - h.lo), speed: FLOW.highway.speed, crossings: [], line: h.id, ground: h.stations };
     const R = streamOf(seed, 'flow', `${h.id}:${dir}:${k}`), want = Math.max(1, Math.round(L.total / (FLOW.highway.spacing * (FLOW.spread[0] + (FLOW.spread[1] - FLOW.spread[0]) * R())))), list = [];
-    for (let j = 0; j < want * 2 && list.length < want; j++) { const p = pick(R); if (p) list.push(p); }
+    for (let j = 0; j < want * 2 && list.length < want; j++) { const p = pick(R, FLOW.highwayMix); if (p) list.push(p); }
     own.set(L, { list, start: R() });
     hw.push(L);
   }
@@ -124,7 +137,9 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
       hw.push(L);
     }
   }
-  const T = { ...TRAFFIC, ...FLOW.T, CAR_LEN: Math.max(...kinds.map((k) => k.len)), CAR_WID: Math.max(...kinds.map((k) => k.wid)) };
+  // (the boxes sized to the signalled streets' vehicles: a highway's rig, its own length its own, crosses none)
+  const boxed = kinds.filter((k, i) => streetKinds.has(i)), sized = boxed.length ? boxed : kinds;
+  const T = { ...TRAFFIC, ...FLOW.T, CAR_LEN: Math.max(...sized.map((k) => k.len)), CAR_WID: Math.max(...sized.map((k) => k.wid)) };
   // the crossings: each north-south line over each east-west one, its box the two rights-of-way
   const junctions = [];
   for (const a of NS) for (const b of EW) junctions.push({ x: r4(a.at), y: r4(b.at), wx: r4(2 * a.half), wy: r4(2 * b.half) });
