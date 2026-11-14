@@ -29,11 +29,13 @@ const CASES = {
 };
 // (records re-pinned for the hero laws 20, anime-sockets.js: each record carries the new laws; no plan moves)
 // (and for the hero laws 21, hero-form.js FORM_BODY: each record carries the new laws; a beast-kin keeps its own body,
-// so no plan moves; and for the hero laws 22, hero-form.js ANIME_FRAME, the same: each record its stamp, no plan)
+// so no plan moves; and for the hero laws 22, hero-form.js ANIME_FRAME, the same: each record its stamp, no plan; and
+// 2026-11-14 for the hero laws 23, hero-cloth.js, the cloth on strings read where the rig is packed: each record its
+// stamp, no plan)
 const PINS = {
-  plantigrade: ['56382d64c57a956e', 'd7f91ee2a0c8ebed'], digitigrade: ['3604c87641cc8688', '075b0200012951a1'],
-  coil: ['46014eb57d05b19b', '3f1e7c335efbfed4'], ridged: ['0d464d97275e0633', '21c75f71c17b6632'],
-  frame: ['bf522026e05f8daa', 'e2804beb1c150914'], winged: ['e23b2b33b8aa5ae4', '4f1319463ecd6e2f'],
+  plantigrade: ['0f6992bc14df181b', 'd7f91ee2a0c8ebed'], digitigrade: ['63bf3866217d3073', '075b0200012951a1'],
+  coil: ['a965be18ab899e03', '3f1e7c335efbfed4'], ridged: ['5f1cb2dd6d5eb32c', '21c75f71c17b6632'],
+  frame: ['6276f1cc105bfaae', 'e2804beb1c150914'], winged: ['6c140d5ee1a938f3', '4f1319463ecd6e2f'],
 };
 
 describe('the kin presets compose what their cards made', () => {

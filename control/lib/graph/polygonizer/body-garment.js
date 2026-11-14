@@ -35,7 +35,9 @@
  * cloth has two faces, down the outside, folded at the hem and back up `thick` (m) inside to the hips, so the hem is an edge
  * and the skirt open beneath. The piece is `<id>_skirt`; its outer rings are st0 (the waist) … st11 (the hem).
  * `rigidity` (any piece's; hero-flow.js): how it moves with the figure — 'shell' (locked, the default), 'stiff', 'crisp',
- * 'soft', 'flowing' or 0 … 1 — carried on its part for the flow rig; the mesh is the same either way.
+ * 'soft', 'flowing' or 0 … 1 — carried on its part for the flow rig; the mesh is the same either way. `material` (any
+ * piece's; cloth-law.js MATERIALS: silk, linen, wool …) names its rigidity and its weight the same way; a `rigidity`
+ * beside it wins.
  * `drape` (a copy piece's): held out above, the cloth falls from there, coming in at most `drape` per metre of fall (a
  * shirt from the bust, not hugging back under it).
  * `fit: 'panel'` is an open DRAPE PANEL over an arc of the skirt's hull (`around`: [from, to] degrees, 0 the front, 90 the
@@ -51,11 +53,15 @@
  * so the cloth keeps the body's ratios and a limb's taper survives. `dense`: the cloth's rings resampled to at least
  * twelve points (densePart), so a six-sided limb is not a six-sided sleeve. Both are absent → as before (the kernel only
  * grows: outfit/principles.js, the update law). `collar` (a neck piece's: its kind and its front, polygonizer/shirt-collar.js, the kit hook shapes it), `waistband` (a copy piece's: the station parameter its band starts at):
- * the band on what it is worn over with no ease, the cloth's own ease back by the hips' widest ring. Pure, deterministic.
+ * the band on what it is worn over with no ease, the cloth's own ease back by the hips' widest ring. `lie` (a copy
+ * piece's: the station parameter from which it lies smooth, lieSmooth): above it the cloth bridges the dents between its
+ * rings, so a bodice lies flat to the shoulders instead of standing a roll at each ring; on a cape, its own ring from
+ * which it does so down its fall (a mantle's). Absent, as before. Pure, deterministic.
  */
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
 import { rigidityErrors } from './rigidity.js';
+import { materialErrors } from './cloth-law.js';
 
 /** THE YOKE's share of a layer's ease it may stand out sideways over the shoulder (body-garment's yokeOf) */
 export const YOKE_SIDE = 0.25;
@@ -70,7 +76,7 @@ function yokeOf(parts, src, C) {
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'material', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell', 'lie'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -106,12 +112,13 @@ export function validateGarments(G) {
     if ((P.fit === 'panel' || P.fit === 'cape' || P.fit === 'hood') && !(Array.isArray(P.around) && P.around.length === 2 && P.around.every(Number.isFinite) && P.around[1] > P.around[0] && P.around[1] - P.around[0] <= 360)) errs.push(`${at}.around: [from, to] degrees about the ${P.fit === 'cape' ? 'shoulders' : 'waist'} (0 the front, 90 the right, 180 the back), from < to, at most a turn`);
     if (P.fit === 'hood' && !(P.from && typeof P.from.part === 'string' && (Number.isFinite(P.from.u) || Number.isFinite(P.from.run)))) errs.push(`${at}.from: { part, u | run } — the shoulders' height, an address on a body part`);
     if (P.fit === 'skirt' || P.fit === 'panel' || P.fit === 'cape') for (const k of ['from', 'to']) if (!(P[k] && typeof P[k].part === 'string' && (Number.isFinite(P[k].u) || Number.isFinite(P[k].run)))) errs.push(`${at}.${k}: { part, u | run } — the ${k === 'from' ? (P.fit === 'cape' ? 'shoulders' : 'waist') : 'hem'}'s height, an address on a body part`);
-    errs.push(...rigidityErrors(P.rigidity, `${at}.rigidity`));
+    errs.push(...rigidityErrors(P.rigidity, `${at}.rigidity`), ...materialErrors(P.material, `${at}.material`));
     if (P.drape !== undefined && !(Number.isFinite(P.drape) && P.drape >= 0)) errs.push(`${at}.drape: how far the cloth may fall in per metre it falls below what holds it out (≥ 0; 0 falls straight)`);
     if (P.toe !== undefined && !(Number.isFinite(P.toe) && P.toe > 0)) errs.push(`${at}.toe: the toe box's height as a share of the foot's (> 0)`);
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
     if (P.proportional !== undefined && !(Number.isFinite(P.proportional) && P.proportional > 0)) errs.push(`${at}.proportional: the radius (m) at which the ease is as given; each ring's ease scales with its own radius, so the body's taper survives (> 0)`);
     if (P.waistband !== undefined && !Number.isFinite(P.waistband)) errs.push(`${at}.waistband: the station parameter its waistband starts at (the band sits on what it is worn over, no ease)`);
+    if (P.lie !== undefined && !Number.isFinite(P.lie)) errs.push(`${at}.lie: the station parameter from which the cloth lies smooth (its dents between rings bridged)`);
     if (P.girth !== undefined && !(P.girth && typeof P.girth === 'object' && !Array.isArray(P.girth) && Object.entries(P.girth).every(([k, v]) => GIRTH_LANDMARKS.includes(k) && Number.isFinite(v) && v >= 0))) errs.push(`${at}.girth: { landmark: metres of girth over the body (≥ 0) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`);
     if (P.dense !== undefined && typeof P.dense !== 'boolean') errs.push(`${at}.dense: true (the cloth's rings resampled to at least twelve points, rounded) or false`);
     for (const k of Object.keys(P)) if (!GARMENT_FIELDS.includes(k)) errs.push(`${at}.${k}: not a garment field (${GARMENT_FIELDS.join(', ')})`);
@@ -191,8 +198,9 @@ export function garmentParts(parts, garments, dials = {}) {
   const worn = {};   // body part → the garment parts already on it (the next one stands off them)
   garments.forEach((P, i) => {
     const names = both(P.part).flatMap((n) => { const hit = partsNamed(parts, n); if (!hit.length) throw new Error(`garments[${i}]: '${n}' is not an L1 part`); return hit; });
-    // `rigidity` (hero-flow.js) rides the piece's part: how it moves when the figure moves (absent: locked, a shell)
-    const stiff = (part) => (P.rigidity !== undefined ? Object.assign(part, { rigidity: P.rigidity }) : part);
+    // `rigidity` (hero-flow.js) rides the piece's part: how it moves when the figure moves (absent: locked, a shell); and
+    // `material` (cloth-law.js: what it is made of, a rigidity and a weight), when it names one
+    const stiff = (part) => Object.assign(part, P.rigidity !== undefined ? { rigidity: P.rigidity } : {}, P.material !== undefined ? { material: P.material } : {});
     if (['skirt', 'panel', 'cape', 'hood'].includes(P.fit)) { const name = `${P.id}_${P.fit}`; parts[name] = stiff({ skirt: skirtPart, panel: panelPart, cape: capePart, hood: hoodPart }[P.fit](parts, names, P, worn));
       for (const src of names) (worn[src] ??= []).push(name);
       for (const d of Object.values(dials)) if (Array.isArray(d.parts) && names.some((n) => d.parts.includes(n))) d.parts = [...d.parts, name];
@@ -301,6 +309,7 @@ export function garmentParts(parts, garments, dials = {}) {
         const off = (k) => { const o = mul(N[j][k], e + h(k)); if (!yoke[j]) return o; const x = r.points[part.slots[k]][0], sx = Math.sign(x) || 1, cap = YOKE_SIDE * e;
           return sx * o[0] > cap ? [sx * cap, o[1], o[2]] : o; };
         return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], off(k)).map(r6)])) }; });
+      if (Number.isFinite(P.lie)) lieSmooth(stations, rings, C, part.slots, P.lie);
       const name = `${P.id}_${src}`;
       // the caps pinched on the axis a little beyond the end rings (a cap in its ring's plane has no outward side)
       const axis = unit(sub(C[n - 1], C[0])), rad = (j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(stations[j].points[sl], C[j])), 0, 0]))[0];
@@ -328,6 +337,31 @@ export function garmentParts(parts, garments, dials = {}) {
     }
   });
   return parts;
+}
+
+/** LYING SMOOTH (`lie`, a copy piece's: the station parameter from which it lies): from that ring up, each slot's line
+ * along the piece bridges the dents between its rings (its distance off the ring's middle raised to the upper hull of
+ * the line, by the run between the rings' middles), so no ring stands proud of its neighbours as a roll and the cloth
+ * lies straight from the bust to the shoulder, as cloth does over a chest; below it, where the cloth is held (a sash, a
+ * belt), it gathers as it did. Only ever out (nothing worn beneath is let through), the first and last rings as they
+ * were. In place. */
+function lieSmooth(stations, rings, C, slots, from) {
+  const J = rings.map((r, j) => j).filter((j) => rings[j].u >= from - 1e-9);
+  if (J.length < 3) return;
+  const L = [0]; for (let q = 1; q < J.length; q++) L.push(L[q - 1] + dmath.hypot(...sub(C[J[q]], C[J[q - 1]])));
+  for (const sl of slots) {
+    const d = J.map((j) => { const p = stations[j].points[sl]; return [p[0] - C[j][0], p[1] - C[j][1]]; }), r = d.map((v) => dmath.hypot(v[0], v[1])), line = upperHull(L, r);
+    for (let q = 1; q + 1 < J.length; q++) { if (line[q] <= r[q] + 1e-7 || r[q] < 1e-9) continue;
+      const p = stations[J[q]].points[sl], f = line[q] / r[q]; stations[J[q]].points[sl] = [C[J[q]][0] + d[q][0] * f, C[J[q]][1] + d[q][1] * f, p[2]].map(r6); }
+  }
+}
+/** the upper hull of the line (x, y) (x increasing) read at each x: every y raised to the least concave line over them */
+function upperHull(x, y) {
+  const H = [];
+  for (let q = 0; q < x.length; q++) { while (H.length >= 2) { const a = H[H.length - 2], b = H[H.length - 1]; if ((x[b] - x[a]) * (y[q] - y[a]) - (y[b] - y[a]) * (x[q] - x[a]) >= 0) H.pop(); else break; } H.push(q); }
+  const out = [...y];
+  for (let h = 0; h + 1 < H.length; h++) { const a = H[h], b = H[h + 1]; for (let q = a + 1; q < b; q++) out[q] = Math.max(y[q], y[a] + (y[b] - y[a]) * (x[q] - x[a]) / Math.max(1e-9, x[b] - x[a])); }
+  return out;
 }
 
 /** A HOOD (`fit: 'hood'`): cloth rising from the shoulders (`from`) over the head, open at the face. The head and the
@@ -589,6 +623,11 @@ function capePart(parts, names, P, worn) {
   const zw = parts.pelvis ? heightAt(parts, { part: 'pelvis', run: 1 }) : zt - 0.4 * (zt - zh), sum = (r) => r.reduce((a, b) => a + b, 0);
   let hold = 0; R.forEach((r, i) => { if (zs[i] >= zw && sum(r) > sum(R[hold])) hold = i; });
   for (let i = hold + 1; i < N; i++) R[i] = R[i].map((x, k) => Math.max(x, R[i - 1][k] + flare * Math.abs(zs[i] - zs[i - 1])));
+  // LYING SMOOTH (`lie`: from that ring down, its rings' own parameter): each direction's line down the cape bridges the
+  // dents between its rings (upperHull), so a short cape over the shoulders (a mantle) is one surface, never a ring stood
+  // in under its neighbours at each slab; absent, as before
+  if (Number.isFinite(P.lie)) { const I = zs.map((_, i) => i).filter((i) => i >= P.lie - 1e-9);
+    if (I.length >= 3) for (let k = 0; k < n; k++) { const y = upperHull(I.map((i) => zt - zs[i]), I.map((i) => R[i][k])); I.forEach((i, q) => { R[i][k] = y[q]; }); } }
   // how a point skins: the torso's ring at its height above the waist, handing over to the pelvis by the waist; below it
   // as a skirt's point (legHull), when there are legs to hang over
   const torso = parts.torso, pelvisBone = parts.pelvis?.bind?.bone ?? 'pelvis';

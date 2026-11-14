@@ -6,11 +6,13 @@
  *     `shell` (1: locked, it moves rigidly with its bones and is part of the form), `stiff` (0.8: leather, a starched
  *     hem), `crisp` (0.6: cotton), `soft` (0.4: wool, a long hair mass), `flowing` (0.2: silk, chiffon), or a number in
  *     0 … 1. It sets the strings' pull to shape, damping, how much air they catch and how much gravity they feel
- *     (rigidityParams). A garment piece is a shell unless it says otherwise; the hair's sections carry their own.
+ *     (rigidityParams); a piece's `material` (cloth-law.js) names one and a weight that slows its pull and its sail.
+ *     A garment piece is a shell unless it says otherwise; the hair's sections carry their own.
  *   • THE STRINGS. A piece hangs on one or more strings, chains of joints from its attached edge to its free one:
  *     a STRAND (one string: a hair section from its root on the skull, nearest the skull's centre, to its tip; a ribbon
  *     or a sash tail from its top) or a CURTAIN (a string every 360 / M degrees round its hanging edge, its neighbours
- *     coupled: a skirt, a cape — a coarse cloth). Each joint rides the piece's CARRIER bone (the head, the pelvis); a
+ *     coupled: a skirt — a coarse cloth; an open one, a cape, spreads its M strings over the arc it covers, so its open
+ *     edges are its own and its middle is coupled). Each joint rides the piece's CARRIER bone (the head, the pelvis); a
  *     bone per link, its roll from two joints across the carrier. The piece's vertices are re-weighed along their
  *     strings (between the two nearest strings round a curtain, between the two nearest links along each), less what
  *     their own skin weighs an arm: cloth DRAPED on an arm keeps that share on it (a cloak over the shoulder).
@@ -39,8 +41,11 @@ const mtv = (m, v) => [m[0][0] * v[0] + m[1][0] * v[1] + m[2][0] * v[2], m[0][1]
 const centroid = (pts) => mul(pts.reduce((s, p) => add(s, p), [0, 0, 0]), 1 / pts.length);
 const r6 = (v) => +v.toFixed(6);
 
-// ─── rigidity (rigidity.js: the vocabulary, shared with the garments that declare it) ───
+// ─── rigidity (rigidity.js: the vocabulary, shared with the garments that declare it) and the material (cloth-law.js:
+// a word naming a rigidity and a weight) ───
 import { RIGIDITY_WORDS, rigidityOf, rigidityErrors, rigidityParams } from './rigidity.js';
+import { clothRigidity, materialParams } from './cloth-law.js';
+import * as dmath from '../../util/dmath.js';
 export { RIGIDITY_WORDS, rigidityOf, rigidityErrors, rigidityParams };
 
 /**
@@ -91,8 +96,9 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
   const want = [];
   for (const [part, P] of Object.entries(hair || {})) if (byPart[part]) want.push({ part, layout: 'strand', from: 'skull', ...P });
   // a part that says its rigidity; one tied at a point (`root`: a ribbon, a streamer, a bow's tail) hangs as a strand from it
-  const said = Object.fromEntries(Object.entries(recipe.parts || {}).filter(([, p]) => p.rigidity !== undefined).map(([n, p]) => [n, { rigidity: p.rigidity, ...(Array.isArray(p.root) ? { layout: 'strand', from: p.root } : {}) }]));
-  for (const [part, P] of Object.entries({ ...said, ...pieces })) { if (!byPart[part] || rigidityOf(P.rigidity) === null || rigidityOf(P.rigidity) >= 1) continue; want.push({ part, layout: 'curtain', ...P }); }
+  // (or its material, cloth-law.js: a rigidity and a weight; `pieces` adds to what a part says, field by field)
+  const said = Object.fromEntries(Object.entries(recipe.parts || {}).filter(([, p]) => p.rigidity !== undefined || p.material !== undefined).map(([n, p]) => [n, { ...(p.rigidity !== undefined ? { rigidity: p.rigidity } : {}), ...(p.material !== undefined ? { material: p.material } : {}), ...(Array.isArray(p.root) ? { layout: 'strand', from: p.root } : {}) }]));
+  for (const part of new Set([...Object.keys(said), ...Object.keys(pieces)])) { const P = { ...said[part], ...pieces[part] }, r = clothRigidity(P); if (!byPart[part] || r === null || r >= 1) continue; want.push({ part, layout: 'curtain', ...P }); }
   const flowing = new Set(want.map((w) => w.part));
   const joints = { ...rig.joints }, bones = [...rig.bones], strings = [], pairs = [];
   const axes = new Set();
@@ -115,7 +121,7 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
   };
   for (const W of want) {
     const ids = byPart[W.part]; if (ids.length < 8) continue;
-    const params = { ...rigidityParams(W.rigidity), ...Object.fromEntries(['stiffness', 'damping', 'sail', 'gravity'].filter((k) => W[k] !== undefined).map((k) => [k, W[k]])) };
+    const params = { ...materialParams({ rigidity: W.rigidity, material: W.material }), ...Object.fromEntries(['stiffness', 'damping', 'sail', 'gravity'].filter((k) => W[k] !== undefined).map((k) => [k, W[k]])) };
     const pts = ids.map((i) => V[i]);
     // the carrier: what holds the attached edge (the head for hair; for a garment the bone its top rides most)
     const carrier = W.carrier ?? (W.from === 'skull' ? 'head' : carrierOf(ids.filter((_, i) => pts[i][2] >= Math.max(...pts.map((p) => p[2])) - 0.1 * (Math.max(...pts.map((p) => p[2])) - Math.min(...pts.map((p) => p[2]))))));
@@ -136,11 +142,17 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
     const M = W.strings ?? CURTAIN.strings, n = W.links ?? CURTAIN.links;
     const zs = pts.map((p) => p[2]), zt = Math.max(...zs), zb = Math.min(...zs), H = zt - zb; if (H < 0.02) continue;
     const top = ids.filter((_, i) => zs[i] >= zt - 0.1 * H), c = centroid(top.map((i) => V[i]));
-    const th = pts.map((p) => Math.atan2(p[0] - c[0], p[1] - c[1])), s = pts.map((p) => (zt - p[2]) / H);
+    const th = pts.map((p) => dmath.atan2(p[0] - c[0], p[1] - c[1])), s = pts.map((p) => (zt - p[2]) / H);
     const angDiff = (a, b) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
+    // AN OPEN CURTAIN (a cape round the back, open at the front) spreads its strings over the arc it covers, from one
+    // edge to the other, so its open edges are the cloth's own and the strings either side of its middle are coupled; a
+    // ring (a skirt: no gap wider than a string's share) keeps its strings from the back round
+    const ths = [...th].sort((a, b) => a - b); let gap = ths[0] + 2 * Math.PI - ths[ths.length - 1], from = ths[0];
+    for (let q = 1; q < ths.length; q++) if (ths[q] - ths[q - 1] > gap) { gap = ths[q] - ths[q - 1]; from = ths[q]; }
+    const open = gap > (2 * Math.PI) / M, arc = open ? 2 * Math.PI - gap : 2 * Math.PI, origin = open ? from : -Math.PI;
     const made = [];
     for (let m = 0; m < M; m++) {
-      const a0 = -Math.PI + (2 * Math.PI * (m + 0.5)) / M, inA = ids.filter((_, i) => angDiff(th[i], a0) < Math.PI / M);
+      const a0 = origin + (arc * (m + 0.5)) / M, inA = ids.filter((_, i) => angDiff(th[i], a0) < arc / (2 * M));
       if (inA.length < 8) continue;
       const S = Object.fromEntries(inA.map((i) => [i, s[ids.indexOf(i)]]));
       const bin = (lo, hi) => inA.filter((i) => S[i] >= lo && S[i] <= hi);
@@ -150,7 +162,9 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
     }
     if (!made.length) continue;
     // the vertices: between the two strings either side of them, by angle; neighbours coupled (round a full ring)
-    const full = made.length === M;
+    // (a ring stays a ring when a share of it found too few vertices for a string: its neighbours either side of the gap
+    // take its cloth between them, rather than leaving a seam the cloth opens along)
+    const full = !open && made.length >= 3;
     ids.forEach((i, mi) => {
       let lo = null, hi = null;
       for (let q = 0; q < made.length; q++) { const A = made[q], B = made[(q + 1) % made.length]; if (!full && q === made.length - 1) break; const span = ((B.a0 - A.a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) || 2 * Math.PI, at = ((th[mi] - A.a0) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI); if (at <= span) { lo = A; hi = B; const f = at / span; (strings[A.k].cover ??= []).push({ i, a: [[0, 1 - f]], s: s[mi] }); if (f > 0) (strings[B.k].cover ??= []).push({ i, a: [[0, f]], s: s[mi] }); break; } }
@@ -288,7 +302,7 @@ export function flowSimulation(H, { substep = 1 / 240, iterations = 3, floor = n
         for (let j = 1; j < S.length; j++) {
           const x = S[j]; const v = mul(sub(x.p, x.prev), 1 / sdt);
           const acc = add(add(mul(sub(T[j], x.p), P.stiffness), grav), mul(sub(air, v), P.sail));
-          const vn = mul(add(v, mul(acc, sdt)), Math.exp(-P.damping * sdt));
+          const vn = mul(add(v, mul(acc, sdt)), dmath.exp(-P.damping * sdt));
           x.prev = x.p; x.p = add(x.p, mul(vn, sdt));
         }
       });
@@ -316,10 +330,11 @@ export function flowSimulation(H, { substep = 1 / 240, iterations = 3, floor = n
  * A clip's flow, simulated: `poses` the clip's poses at even steps over `seconds` (a loop: the last step meets the
  * first), `air(t)` the air's velocity at time t (world m/s, the body's own motion taken off). A loop is run in until two
  * cycles agree (at least `warm`, at most `settle`) and the last recorded, its seam cross-faded over `fade` of the cycle
- * and put through the constraints; a one-shot runs once from rest. → the poses with their `flow`.
+ * and put through the constraints; a one-shot runs once from rest. `substep` and `iterations` the simulation's
+ * (flowSimulation; its defaults when absent). → the poses with their `flow`.
  */
-export function simulateClip(H, poses, seconds, { loop = true, warm = 3, settle = 10, fade = 0.15, air = () => [0, 0, 0] } = {}) {
-  const N = poses.length, dt = seconds / (loop ? N : Math.max(1, N - 1)); const sim = flowSimulation(H);
+export function simulateClip(H, poses, seconds, { loop = true, warm = 3, settle = 10, fade = 0.15, air = () => [0, 0, 0], substep, iterations } = {}) {
+  const N = poses.length, dt = seconds / (loop ? N : Math.max(1, N - 1)); const sim = flowSimulation(H, { ...(substep ? { substep } : {}), ...(iterations ? { iterations } : {}) });
   for (let k = 0; k < 60; k++) sim.step(poses[0], 1 / 60, air(0));   // settled at the first pose (and the clip's air before it)
   let out = [], gap = Infinity;
   for (let c = 0; c < (loop ? settle : 1); c++) {

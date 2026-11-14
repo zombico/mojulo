@@ -1495,7 +1495,8 @@ function designedPieces(plan, hero) {
   const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
   const { worn } = sortPieces(plan, O, { once: true });
-  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }, { rounds: bodyRoundsOf(hero) }) : plan;
+  // (under the outfit laws the build was stamped with: outfit/principles.js, the pieces' own laws)
+  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn, ...(O.laws !== undefined ? { laws: O.laws } : {}) } }, { rounds: bodyRoundsOf(hero) }) : plan;
 }
 /** Which designed pieces sit on this body: each compiled alone, kept when every place it reads is a number on its part
  * (a piece built for a creature's landmarks may find none on a person's: a necklace's pin on a layered chest); the
@@ -1507,7 +1508,7 @@ export function sortPieces(plan, O, { once = false } = {}) {
   const segOf = (n) => plan.segments.find((g) => g.name === n);
   for (const piece of O.pieces) {
     let c;
-    try { c = compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: [piece] } }); } catch (e) { unworn.push({ kind: piece.kind, why: e.message }); continue; }
+    try { c = compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: [piece], ...(O.laws !== undefined ? { laws: O.laws } : {}) } }); } catch (e) { unworn.push({ kind: piece.kind, why: e.message }); continue; }
     const added = c.adorn.slice(before), grown = c.segments.slice(plan.segments.length);
     const off = added.find((A) => !finite(A) || (A.mode === 'shell' && Array.isArray(A.s) && segOf(A.part)?.stations && A.s[1] > uOfStation(segOf(A.part).stations.at(-1), segOf(A.part).stations.length - 1)))
       ?? grown.map((g) => ({ id: g.name, g })).find(({ g }) => !finite(g) || (Array.isArray(g.stations) && g.stations.some((st) => !Array.isArray(st.at) || st.at.length !== 3 || st.r === undefined)));

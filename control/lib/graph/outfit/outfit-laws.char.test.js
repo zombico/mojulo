@@ -44,6 +44,16 @@ const PINS = {
     'outer': { laws: '127769bbfdd8e767', rings: '8f4d4ce6c555f2f5' },
     'panels': { laws: 'd114d51d72f13d3b', rings: 'b1b985a1eea41afa' },
   },
+  // (1114: outfit laws 2 moves only the designed pieces, outfit-plan.js: a bodice that lies smooth above the waist's band
+  // and the mantle a shoulder cape; the cut's garment rings, what `rings` hashes, are version 1's byte for byte, and the
+  // expansion moves only by the laws number its trace carries, `laws: 2`)
+  2: {
+    'out': { laws: '0659819ee52c3626', rings: '60bedc5fd6405b56' },
+    'tucked': { laws: 'ae741a03d1b21afa', rings: '4441eb37826397f3' },
+    'dress': { laws: '7b5acb8e7b507522', rings: '6ddf4d3aa9afd248' },
+    'outer': { laws: 'a86963b6fcab94af', rings: '8f4d4ce6c555f2f5' },
+    'panels': { laws: '9ddc509067634072', rings: 'b1b985a1eea41afa' },
+  },
 };
 
 const L = (id) => SEEDED_OUTFITS[id].language;

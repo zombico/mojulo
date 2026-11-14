@@ -38,8 +38,14 @@
 //   c. The PIN decides. outfit-laws.char.test.js hashes every seeded card's garment rings on the anime casts: a moved
 //      hash without a bump fails, and a bump re-pins the new version beside the kept old one.
 // Version 1 is the laws 3.1.0 ships with (rewritten in place before that release, when nothing had been minted).
+// Version 2 (1114) DRESSES THE CHEST AS CLOTH LIES ON IT, in the designed pieces (polygonizer/outfit-plan.js): a gown's,
+// a robe's or a tunic's bodice lies smooth from a short band above the waist to the shoulders (body-garment.js `lie`:
+// it bridges the body's dents along its length, so no ring stands proud of its neighbours as a roll), and a MANTLE is a
+// short cape over the shoulders with a clasp at the throat (the cape fit), where version 1 drew it as a band with a
+// buckle round the upper chest, which read as a belt there and was made one on the realistic body. The cut's own laws
+// and rings are as in version 1.
 
-export const OUTFIT_LAWS_VERSION = 1;
+export const OUTFIT_LAWS_VERSION = 2;
 
 export const OUTFIT_DIALS = Object.freeze({
   stylize: 'realism 0 → stylized 1: one proportion curve for the whole outfit (law 8)',

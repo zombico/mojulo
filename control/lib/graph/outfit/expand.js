@@ -75,7 +75,7 @@ export function validateOutfitBuild(build) {
   if (build.intent !== undefined && !(build.intent && typeof build.intent === 'object' && !Array.isArray(build.intent))) errs.push('outfit.intent: { palette: { base, secondary, trim, accent, leather? }, symmetry?, side?, distort? }');
   if (build.intent !== undefined && build.pieces === undefined) errs.push('outfit.intent: the intent of designed pieces; give outfit.pieces with it');
   for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws', 'detail', 'pieces', 'intent'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws, detail, pieces, intent)`);
-  if (build.laws !== undefined && build.laws !== OUTFIT_LAWS_VERSION) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws ${OUTFIT_LAWS_VERSION}`);
+  if (build.laws !== undefined && !(Number.isInteger(build.laws) && build.laws >= 1 && build.laws <= OUTFIT_LAWS_VERSION)) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws 1 … ${OUTFIT_LAWS_VERSION}`);
   return errs;
 }
 // a slot of another KIND (a skirt for trousers) replaces the card's, never merges with it: a trouser's fit or cut is no

@@ -83,11 +83,11 @@ const shell = (id, part, s, extra = {}) => ({ id, mode: 'shell', part, s: s.map(
 /** THE CATALOGUE: each kind's layer, class, colour role and compile (piece, body, groupOf) → { garments?, adorn?, segments? } */
 export const OUTFIT_KINDS = Object.freeze({
   // L2: a GOWN, a ROBE, a TUNIC: a fitted bodice and a skirt tailored from the waist to its hem
-  gown: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'shin', flare: 0.45 }) },
-  robe: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'ankle', flare: 0.25 }) },
-  tunic: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'thigh', flare: 0.15 }) },
+  gown: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'shin', flare: 0.45, material: 'silk' }) },
+  robe: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'ankle', flare: 0.25, material: 'wool' }) },
+  tunic: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'thigh', flare: 0.15, material: 'linen' }) },
   // a WIZARD'S ROBE: a robe to the ankle, fuller, its sleeves belled wide at the wrist (`sleeve`, `hood` as a robe's)
-  wizardRobe: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'ankle', flare: 0.2, sleeve: 'bell' }) },
+  wizardRobe: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'ankle', flare: 0.2, sleeve: 'bell', material: 'wool' }) },
   // L3: a CLOAK behind (from the shoulder line, on the back's plumb line, to the calf or above a tail that must read), a
   // COLLAR standing behind the nape (a rise above the shoulders)
   cloak: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => cloakOf(p, B, G) },
@@ -95,8 +95,11 @@ export const OUTFIT_KINDS = Object.freeze({
     const z0 = B.top.z - 0.03 * B.k, rise = (p.rise ?? 0.16) * B.k, z1 = (B.neckTop ?? B.top.z) + rise, th = 0.01 * B.k;
     const pts = [[ny - 0.01 * B.k, z0, nr * 1.5], [ny - 0.03 * B.k, z0 + 0.45 * (z1 - z0), nr * 1.9], [ny - 0.06 * B.k, z1, nr * (p.flare ?? 2.5)]];
     return { segments: [boardOf(p.id ?? 'collar', pts, th, G(p), { bone: 'torso', blend: { st2: { torso: 0.7, neck: 0.3 }, tip: { torso: 0.7, neck: 0.3 } } })] }; } },
-  // L3: a MANTLE over the shoulders (`shoulder`: a shoulder piece, which the trunk plates' cut leaves whole: tiered-form.js)
-  mantle: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => { const a = B.ringAt(B.torso, B.shoulder - 0.09 * B.k).s, b = B.uTop(B.torso) - 0.05;
+  // L3: a MANTLE over the shoulders: a short cape from the neck's root over the shoulders and the arms' tops, closed at the
+  // throat by a clasp (outfit laws 2: mantleOf); laws 1 drew it as a band round the upper chest with a buckle on its
+  // front (`shoulder`: a shoulder piece, which the trunk plates' cut leaves whole: tiered-form.js), kept for the rows
+  // stamped with them
+  mantle: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => { if (B.laws >= 2) return mantleOf(p, B, G); const a = B.ringAt(B.torso, B.shoulder - 0.09 * B.k).s, b = B.uTop(B.torso) - 0.05;
     return { adorn: [shell(p.id ?? 'mantle', 'torso', [a, b], { nt: 16, ns: 3, mugen: r3(0.035 * B.k), thick: r3(0.016 * B.k), group: G(p), shoulder: true, ...(p.clasp === false ? { signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.003 * B.k), count: 1, m: 6, group: G(p) } } : { signature: { kind: 'buckle', k: 0, j: 2, w: r3(0.05 * B.k), h: r3(0.04 * B.k), bar: r3(0.008 * B.k), standoff: r3(0.008 * B.k), group: G({ colour: p.claspColour ?? 'trim' }) } }) })] }; } },
   // L5: a SASH at the natural waist, a BELT on the hip line, a BALDRIC across the chest
   // a SASH is cloth (the secondary; the accent, where the chroma is spent, when it is the focal); only its buckle is the
@@ -364,7 +367,9 @@ const legsTo = (B, to) => ['pelvis', 'thigh', ...(to.part !== 'thigh' ? [to.part
  * the mouth's extra ease in m), a HOOD if asked (`hood`), and a SKIRT from the top of the hips to its hem: the garment kernel's `fit: 'skirt'`,
  * one hull round the hips and both legs in twenty directions (round, clear of the legs and of what is worn on them, never
  * narrowing below the hips), flaring by `flare` (m per m of fall), each point skinning as a skirt's does (the pelvis at
- * the waist, the leg it lies over below), so it follows a stride instead of passing through it. */
+ * the waist, the leg it lies over below), so it follows a stride instead of passing through it. The skirt is made of the
+ * kind's MATERIAL (cloth-law.js: a gown's silk, a robe's wool, a tunic's linen; `material` or `rigidity` on the piece
+ * instead), which is how it hangs on strings when it flows (hero-flow.js, the hero laws 23). */
 /** A designed piece's own TRIM (`trim: { hem?, cuffs?, chest?, motif? }`): a BINDING is a band of the secondary cloth
  * painted on the edge; EMBROIDERY the motif worked along the hem in the trim's thread; an EMBLEM the motif on the
  * bodice's front (as the outfit's own: outfit/expand.js). `parts` names the piece's hem part, its cuff parts and its
@@ -380,7 +385,10 @@ function trimOf(p, B, G, parts) {
   return { ...(paint.length ? { paint } : {}), ...(adorn.length ? { adorn } : {}) };
 }
 
-function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none' }) {
+/** what a piece's flowing cloth is made of (cloth-law.js MATERIALS): its own `material` or the kind's, and its own
+ * `rigidity` when it says one (which wins over the material's) */
+const clothOf = (p, material) => ({ ...(p.rigidity !== undefined ? { rigidity: p.rigidity } : {}), material: p.material ?? material });
+function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none', material }) {
   const e = (p.ease ?? 0.018) * B.k, id = p.id ?? p.kind, to = hemAt(B, p.hem ?? hem), sleeve = p.sleeve ?? sleeveOf, ref = r3(0.1 * B.k);
   // SLEEVES (`sleeve`): 'long' to the wrist on the arm's own rings; 'bell' the same, widening from the elbow to an open
   // mouth at the wrist (a wizard's); 'none' bare. Worn over the cut, so they stand off the sleeves beneath
@@ -390,11 +398,31 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none' }) {
     ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: 'foreArm', run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p) }] : [])];
   const trim = trimOf(p, B, G, { hem: B.names.has('pelvis') ? `${id}Skirt_skirt` : null, cuffs: sleeves.length && B.names.has('foreArm') ? [`${id}Cuff_foreArmR`, `${id}Cuff_foreArmL`] : [], bodice: `${id}Bodice_torso` });
   return {
-    garments: [{ id: `${id}Bodice`, part: 'torso', ease: r3(e), proportional: ref, dense: true, group: G(p) }, ...sleeves,
-      ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p) }] : []),
+    garments: [{ id: `${id}Bodice`, part: 'torso', ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B) }, ...sleeves,
+      ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p), ...clothOf(p, material) }] : []),
       ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6))],
     ...trim,
   };
+}
+
+/** WHERE A BODICE LIES (outfit laws 2): from a short band above the natural waist (BLOUSE_BAND, at the body's scale) up,
+ * where a sash or a belt holds the cloth and it blouses over it, the bodice lies smooth to the shoulders (body-garment.js
+ * `lie`); laws 1 stood a roll at each of its rings from the waist to the shoulders */
+const BLOUSE_BAND = 0.07;
+const lieOf = (B) => (B.laws >= 2 && B.waist != null ? { lie: r3(B.ringAt(B.torso, B.waist + BLOUSE_BAND * B.k).s) } : {});
+/** A MANTLE (outfit laws 2): a short cape hung from the neck's root over the shoulders and the arms' tops to `drop` (m, at
+ * the body's scale) below the shoulder line, round the whole figure but a slit at the front (`open`, degrees each side),
+ * over everything worn there (the garment kernel's `fit: 'cape'`); closed at the throat by a round CLASP in the trim's
+ * metal (`clasp: false` none), never a buckle: a buckle on a band reads as a belt, and a belt belongs at the waist */
+function mantleOf(p, B, G) {
+  const k = B.k, id = p.id ?? 'mantle', part = ['torso', 'upperArm'].filter((n) => B.names.has(n));
+  const hem = Math.max(B.waist + 0.05 * k, (B.shoulder ?? B.top.z) - (p.drop ?? 0.17) * k), open = Math.max(2, Math.min(40, p.open ?? 8));
+  const garments = [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to: { part: 'torso', u: r3(B.ringAt(B.torso, hem).s) }, around: [open, 360 - open],
+    ease: r3((0.014 + (B.round ?? 0)) * k), flare: [0, r3(p.flare ?? 0.12)], thick: r3(0.006 * k), lie: 0, group: G(p) }];
+  if (p.clasp === false) return { garments };
+  const top = B.uTop(B.torso), cg = G({ colour: p.claspColour ?? 'trim' });
+  return { garments, adorn: [{ id: `${id}Clasp`, mode: 'shell', part: 'torso', side: 'R', s: [r3(top - 0.3), r3(top - 0.1)], t: [0, 0.3], nt: 2, ns: 2, mugen: r3(0.01 * k), thick: r3(0.004 * k), rad: r3(0.02 * k), group: G(p),
+    signature: { kind: 'boss', k: 0, j: 1, r: r3(0.016 * k), h: r3(0.008 * k), m: 10, rim: 0.75, group: cg } }] };
 }
 
 /** A BOW: a small knot shell, its loops (two short ribbons doubling back on themselves, locked) and its tails (two
@@ -433,7 +461,8 @@ function hoodOf(p, B, G, id, around, ease) {
 /** A CLOAK: hung from the shoulders down the back and round the sides (`wrap`, the share of a turn it covers, 0.6 by
  * default: the back and the arms' outer sides) to the calf, or above a tail that must read: the garment kernel's
  * `fit: 'cape'`, one hull round the trunk, the arms and the legs, so it is round over the shoulders and the arms where a
- * board was flat, draping on the arms. It flows as a curtain (`rigidity`, soft by default). `hood: true` (or
+ * board was flat, draping on the arms. It flows as a curtain (`rigidity`, soft by default; `material`, wool by default,
+ * cloth-law.js). `hood: true` (or
  * `{ open }`, the face's opening in degrees each side of the front) raises a `fit: 'hood'` over the head. */
 /** the ease a loose layer takes over a rounded body, a round (of the body's scale): the bulge between rings that the
  * close cloth under it gains */
@@ -442,7 +471,7 @@ function cloakOf(p, B, G) {
   const to = p.tailClear && B.tail ? hemAt(B, null, B.tail + 0.05 * B.k) : hemAt(B, p.hem ?? 'calf');
   const arc = 360 * Math.max(0.2, Math.min(0.95, p.wrap ?? 0.6)), part = ['torso', 'upperArm', ...legsTo(B, to)].filter((n) => B.names.has(n)), id = p.id ?? 'cloak';
   const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3(((p.ease ?? 0.02) + (B.round ?? 0)) * B.k), thick = r3(0.006 * B.k);
-  return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), rigidity: p.rigidity ?? 'soft' },
+  return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), ...(p.rigidity !== undefined || p.material === undefined ? { rigidity: p.rigidity ?? 'soft' } : {}), material: p.material ?? 'wool' },
     ...hoodOf(p, B, G, id, around, r3(ease * 1.2))], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
 }
 
@@ -503,7 +532,9 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
   const O = plan.outfit; if (!O) return plan;
   // (`rounds`: the body rounded after it is built, body-smooth.js; its skin and the close cloth over it bulge out between
   // their rings, so the loose layers over them take ROUND_EASE more ease a round)
-  const B = { ...bodyMap(plan), round: rounds ? r3(ROUND_EASE * rounds) : 0 }, I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
+  // (`laws`: the outfit laws the pieces are compiled under, outfit/principles.js; absent ⇒ 1, a creature's and a row's from
+  // before the stamp)
+  const B = { ...bodyMap(plan), round: rounds ? r3(ROUND_EASE * rounds) : 0, laws: O.laws ?? 1 }, I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
   const G = (p) => { const role = p.colour ?? OUTFIT_KINDS[p.kind]?.colour ?? 'base'; return /^#/.test(role) ? role : COLOUR_GROUPS[role] ?? COLOUR_GROUPS.base; };
   const pieces = [...O.pieces].map((p, i) => ({ p, i, layer: OUTFIT_KINDS[p.kind]?.layer ?? 9 })).sort((a, b) => a.layer - b.layer || a.i - b.i);
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];
