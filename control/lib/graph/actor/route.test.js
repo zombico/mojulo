@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { routeWalk, BODY, SQUEEZE } from './route.js';
+import { pathWalk, routeWalk, BODY, SQUEEZE } from './route.js';
 import { actScene, placeOn, WALK } from './scene.js';
 
 const table = { min: [2, -0.5], max: [3, 0.5] };
@@ -65,3 +65,27 @@ describe('a scene on a floor with pieces on it', () => {
     expect(S.actors.ada.root.length).toBeLessThan(actScene({ ...sp, ...plan }).actors.ada.root.length);
   });
 });
+
+describe('a cross that follows a path', () => {
+  // a trail that bends: north, then east
+  const trail = [...Array.from({ length: 11 }, (_, i) => [0, i * 2]), ...Array.from({ length: 10 }, (_, i) => [(i + 1) * 2, 20])];
+
+  it('goes along the path between two places on it, not across country', () => {
+    const way = pathWalk([0.5, 0], [20, 20.5], [trail]);
+    expect(way[0]).toEqual([0.5, 0]);
+    expect(way.at(-1)).toEqual([20, 20.5]);
+    expect(way.length).toBeGreaterThan(4);
+    // it passes the bend, which the straight line misses by metres
+    expect(way.some((p) => Math.hypot(p[0], p[1] - 20) < 0.01)).toBe(true);
+    // and back the other way, the same corners in turn
+    expect(pathWalk([20, 20.5], [0.5, 0], [trail]).slice(1, -1)).toEqual(way.slice(1, -1).reverse());
+  });
+
+  it('is no way where an end is off the path, the two are by one stretch of it, or the path is the long way round', () => {
+    expect(pathWalk([0.5, 0], [12, 4], [trail])).toBe(null);
+    expect(pathWalk([0.5, 0], [0.4, 1], [trail])).toBe(null);
+    expect(pathWalk([0, 0], [10, 0], [[[0, 0], [0, 40], [10, 40], [10, 0]]])).toBe(null);
+    expect(pathWalk([0, 0], [10, 0], [])).toBe(null);
+  });
+});
+

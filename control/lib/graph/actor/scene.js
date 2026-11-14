@@ -41,7 +41,7 @@
  *
  * Seeded, pure and deterministic.
  */
-import { routeWalk } from './route.js';
+import { routeWalk, pathWalk } from './route.js';
 import { actRead } from './interpret.js';
 import { parseScreenplay } from './screenplay.js';
 const TIME_KINDS = ['slow', 'real', 'hold'];
@@ -156,8 +156,10 @@ export function actScene(scene) {
       const to = !them ? marks[b.to.mark] : gap > PAIR + 1e-3 ? [r3(them[0] + ((from[0] - them[0]) * PAIR) / gap), r3(them[1] + ((from[1] - them[1]) * PAIR) / gap), ...from.slice(2)] : from;
       // (on a set that says what stands on its floor the cross goes round it and round the others: route.js; else,
       // and with nothing in the way, it is the straight line it always was)
-      const way = floor && Math.hypot(to[0] - from[0], to[1] - from[1]) > 1e-3
-        ? routeWalk(from, to, { blocks: floor.blocks ?? [], room: roomOf(floor, from), people: names.filter((o) => o !== b.who).map((o) => at[o]) }) : [from, to];
+      // (a cross between two places on a path the world lays, a trail or a sidewalk, follows it: route.js pathWalk)
+      const along = floor?.paths && !them ? pathWalk(from, to, floor.paths) : null;
+      const way = along ?? (floor && Math.hypot(to[0] - from[0], to[1] - from[1]) > 1e-3
+        ? routeWalk(from, to, { blocks: floor.blocks ?? [], room: roomOf(floor, from), people: names.filter((o) => o !== b.who).map((o) => at[o]) }) : [from, to]);
       const legs = way.slice(1).map((p, k) => Math.hypot(p[0] - way[k][0], p[1] - way[k][1]));
       const d = legs.reduce((s, l) => s + l, 0);
       if (d > 1e-3) {

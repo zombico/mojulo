@@ -4,7 +4,7 @@ import { actScene } from './scene.js';
 import { coverScene } from './coverage.js';
 import { directorsNotes } from './notes.js';
 import { coverageCameraAt } from './scene-film.js';
-import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, groundForms, panelStation, spoken, shotTitle } from './storyboard.js';
+import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, groundForms, panelStation, spoken, shotTitle, landForms } from './storyboard.js';
 import { readPlate, stationRig } from '../book/drawn-plate.js';
 
 // the storyboard: a panel a coverage shot, drawn from the scene, never stored. Tested on the baseline's blocked
@@ -137,3 +137,28 @@ describe('the storyboard', () => {
     }
   });
 });
+
+describe('land that rises and falls, on the board', () => {
+  // a slope rising 1 in 4 along x, as a set's relief carries it
+  const nx = 80, ny = 80, relief = { x0: -20, y0: -20, cell: 0.5, nx, ny, z: Array.from({ length: nx * ny }, (_, k) => (-20 + ((k % nx) + 0.5) * 0.5) * 0.25) };
+
+  it('is drawn as terraces over the lowest ground in view, the cast raised onto it', () => {
+    const L = landForms(relief, { about: [0, 0] });
+    // the lowest ground in view is the plate's ground: nothing is lowered
+    expect(L.lift(-10, 0)).toBeCloseTo(0, 1);
+    expect(L.lift(10, 0)).toBeCloseTo(5, 1);
+    expect(L.forms).toHaveLength(1);
+    const boxes = L.forms[0].terms.map((t) => t.shape);
+    expect(boxes.length).toBeGreaterThan(3);
+    expect(boxes.length).toBeLessThanOrEqual(30);
+    // higher up the slope the terraces stand higher
+    const top = (x) => Math.max(...boxes.filter((b) => Math.abs(b.center[0] - x) <= b.size[0] / 2).map((b) => b.size[2]));
+    expect(top(8)).toBeGreaterThan(top(-6));
+    expect(JSON.stringify(landForms(relief, { about: [0, 0] }).forms)).toBe(JSON.stringify(L.forms));
+  });
+
+  it('level land draws nothing', () => {
+    expect(landForms({ ...relief, z: relief.z.map(() => 2) }, { about: [0, 0] }).forms).toEqual([]);
+  });
+});
+

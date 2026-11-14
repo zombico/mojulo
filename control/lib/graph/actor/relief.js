@@ -7,13 +7,15 @@
  *
  *   reliefOf(faces, seeds, { reach?, cell? }) → { x0, y0, cell, nx, ny, z: [..], lo, hi } | null
  *     faces   [{ corners: [[x, y, z], …], normal? }] in metres, the world's own heights
- *     seeds   [[x, y, z], …] where the scene is played (its marks, each with the height its place names)
+ *     seeds   [[x, y, z], …] where the scene is played (its marks, each with the height its place names; a place
+ *             that names a height under its ground is stood on the lowest ground above it)
  *     z       the ground's height at each cell's middle, row by row from (x0, y0), in the faces' own heights: walked
  *             outward from the seeds a cell at a time, a step taken where the ground under it is within a RISER up or
  *             a DROP down (a bank is climbed, a wall or a cliff is not); a cell the walk never reached (inside a
  *             house, on a roof, past a cliff) takes the height of the nearest it did
  *     null    where no seed stands on anything
  *   heightAt(R, x, y)  → the ground's height at a point (between cells' middles; held past the edges)
+ *   landBetween(coverage, R) → the shots whose camera has the land between it and what it looks at
  *   levelled(faces, R, floor) → the faces with the ground laid level: each corner lowered by the ground under it, the
  *                        ground at z 0
  *
@@ -23,6 +25,8 @@ import { walker } from '../network/walk-gate.js';
 
 /** what a walker steps up, and down, a cell (m); how far about the seeds the ground is walked, and its cell */
 export const RISER = 0.45, DROP = 0.9, REACH = 16, CELL = 0.5;
+/** how far above a place's own height its ground is looked for, metres */
+const LIFT = 12;
 /** the grid's most cells a side: a wider ground is walked coarser */
 const SIDE = 200;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -41,7 +45,11 @@ export function reliefOf(faces, seeds, { reach = REACH, cell = CELL } = {}) {
     const i = Math.min(nx - 1, Math.max(0, Math.floor((p[0] - x0) / c))), j = Math.min(ny - 1, Math.max(0, Math.floor((p[1] - y0) / c))), k = j * nx + i;
     if (!Number.isNaN(z[k])) continue;
     // (the place's own height first; a place that names none, or one in the air, is stood on the highest ground under it)
-    const g = ground(...mid(i, j), p[2] + RISER) ?? ground(...mid(i, j), Infinity);
+    let g = ground(...mid(i, j), p[2] + RISER);
+    // (nothing at that height: the lowest ground above it, looked for a step at a time, so a place given low under a
+    //  city's street is stood on the street and not on the roof over it; then whatever is highest)
+    for (let up = RISER; g === null && up <= LIFT; up += RISER) g = ground(...mid(i, j), p[2] + RISER + up);
+    g = g ?? ground(...mid(i, j), Infinity);
     if (g === null) continue;
     z[k] = g; queue.push(k);
   }
@@ -81,6 +89,30 @@ export function heightAt(R, x, y) {
 
 /** A relief with its heights measured from `floor` (what a film carries: the lift over the level plan) */
 export const reliefFrom = (R, floor) => ({ ...R, z: R.z.map((v) => r3(v - floor)), lo: r3(R.lo - floor), hi: r3(R.hi - floor) });
+
+/**
+ * Where the LAND stands between a camera and what it looks at: the plan is level, so a rise between the two is not in
+ * its sightlines (coverage.js fitSight reads the set with its ground laid level). Each shot's camera, at its first and
+ * its middle key, raised onto the ground under it, and its line to what it looks at walked a half metre at a time.
+ * `R`: the relief as a film carries it (heights over the set's floor). → [{ shot, at: [x, y], over }] where the
+ * ground stands `over` metres above the line (the first place it does, a shot once).
+ */
+export function landBetween(coverage, R, { reach = 0.9, clear = 0.05 } = {}) {
+  const out = [], r2 = (v) => Math.round(v * 100) / 100;
+  for (const s of coverage?.shots ?? []) {
+    const cam = coverage.cameras.find((c) => c.id === s.camera);
+    const keys = (cam?.keys ?? []).filter((k) => Array.isArray(k.pos) && Array.isArray(k.poi) && k.t >= s.span[0] - 1e-3 && k.t <= s.span[1] + 1e-3);
+    shot: for (const k of [keys[0], keys[Math.floor(keys.length / 2)]].filter(Boolean)) {
+      const a = [k.pos[0], k.pos[1], k.pos[2] + heightAt(R, k.pos[0], k.pos[1])], b = [k.poi[0], k.poi[1], k.poi[2] + heightAt(R, k.poi[0], k.poi[1])];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil((len * reach) / 0.5));
+      for (let i = 1; i <= n; i++) {
+        const t = (i / n) * reach, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, z = a[2] + (b[2] - a[2]) * t, over = heightAt(R, x, y) - z;
+        if (over > clear) { out.push({ shot: s.name, at: [r2(x), r2(y)], over: r2(over) }); break shot; }
+      }
+    }
+  }
+  return out;
+}
 
 /** The faces with the ground laid level (see the header) */
 export function levelled(faces, R) {

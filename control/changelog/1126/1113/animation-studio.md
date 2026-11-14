@@ -117,7 +117,15 @@ game.
     door. Before, they were stood inside it and the first shot was a blank wall.
   - **Nobody is stood inside a thing.** A place a scene uses that is inside a rock or a building is moved to the
     clear ground beside it.
-  - **Not yet:** the storyboard draws the ground level, so a slope shows only in the Blender film.
+  - **The storyboard shows the slope.** The land is drawn as low steps the cast stands on, so someone up the hill
+    is drawn up the hill. Before, the storyboard drew the ground level and a slope showed only in Blender.
+  - **A hill between the camera and the cast is pointed out,** with where it rises and by how much.
+  - **More places to send the cast.** A landscape, a town or a city now has a `start` (where its walk begins). A
+    town also has its streets and the crossing where two meet. A city has the street corners nearest its centre.
+    Before, a city named nowhere and its cast was stood near the middle of the map.
+  - **A walk follows the path.** Send someone from one place on a trail or a sidewalk to another and they go along
+    it. Before, they walked a straight line across country.
+  - **Not yet:** a town's park, school yard and lot, and a city's waterfront and squares, are not places.
 - **The written build steps keep the cast.** The steps a scene's Blender folder gives for building it by hand now
   save the actors into the film. Before, followed as written, they left the film with its set and cameras and no
   actors (rendering with the one command was not affected).

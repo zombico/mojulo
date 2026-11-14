@@ -240,10 +240,18 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
   - The set carries the lift as `relief` (heights over its `floor`). The Blender pack keys each actor's root in `z`,
     keys a walk along its way, and lifts each camera, its point of interest, each setup's lights and each prop by the
     ground under it. A level set has no `relief` and is written as before.
-  - Not yet: the storyboard draws the ground level; a ridge between a camera and the cast is not checked.
+  - The storyboard draws it (`storyboard.js` `landForms`): the land out to where the cast stands as low terraces
+    over the lowest ground in view, which is the plate's ground; the camera, what it looks at, the cast and the
+    blocks are each raised by the ground under them. Terraces step 0.3 m at the finest and coarsen past thirty.
+  - A rise between a camera and what it looks at is read from the land itself (`landBetween`), since the planned
+    sightlines see the ground laid level; it is advised as `set-blocks`.
 - **Standing places in an open world** (`actor/set.js`, `mcp/tools/scene-film.js`). An anchor with a `box` and a
   front (`N`), a town's house, is stood before its front. In a world with no rooms, a mark the scene uses that is
   not on clear ground is moved to the nearest that is, and the parts with no mark stand in their line on clear ground.
+  A geocube's world is read for the places it knows and does not name (`setPlaces`): `start` from its walk's spawn,
+  a town's `street`s and `crossing` from its ports, a city's `corner`s from the signals nearest its seat (each at
+  the height its walker goes, a hint the relief reads the ground from). Its walkers' paths are carried as
+  `floor_plan.paths`, and a cross whose two ends stand by one path follows it (`route.js` `pathWalk`).
 - **Dressing by word** (`mcp/tools/set-things.js`). A prop's `thing` is a word read on the shelves in order: the
   corner props (`era/props.js`), the furniture styles and kinds (`furnishings/forms.js`, and a room piece's word
   through `furnishings/roster.js`), the vehicle registry (`vehicle-registry/roster.js`, lowered as the vehicle door

@@ -64,10 +64,16 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - **Land that rises and falls** (a field, a hillside, a street on a slope) is walked as the world's own walk walks
     it. The cast, the cameras and the props stand on the ground under them in the Blender film, and a walk keeps its
     feet on it. Rising land is not read as something in the way; a bank too steep to step up, a wall or a cliff
-    still is. The storyboard draws the ground level.
+    still is. The storyboard draws the land as low terraces the cast stands on, and a shot whose camera has a rise
+    between it and the actors is advised (`set-blocks`).
   - **A place that is a building** (a town's `house-…`) is the ground before its front, a step off the wall. A
     place the scene uses that is inside a thing is moved to the clear ground nearest it, and parts with no mark stand
     in their line on clear ground.
+  - **A geocube's world names more places than its own.** `start` is where its walk begins. A town has `street`,
+    `street-2`… (the middle of each street) and `crossing` (where two meet). A city has `corner`, `corner-2`…, the
+    street corners nearest its centre, on the pavement.
+  - **A cross follows the path.** Between two places on a trail or a sidewalk, "Ada crosses to the lake." goes
+    along it, not straight across country.
   - **Its named places are marks.** Each room's middle is `room-<id>`, there is a stand on each side of a door
     (`<door>-<room>`), and its anchors (a pocket, a landmark) are marks too. Write them in the script as they are
     named: "Ana crosses to the room-reveal-1."

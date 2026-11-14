@@ -62,3 +62,38 @@ describe('a building as a place', () => {
     expect(P.marks.well).toEqual([3, 3]);
   });
 });
+
+describe('the places a geocube\'s world knows', () => {
+  const town = { geocube: { show: 'geotown' }, walk: { spawn: [17.7, 56.8, 6.58], minEye: 1.7 },
+    geotown: { ports: [{ id: 'ns-0', from: [9, 0], to: [9, 70], z: [3, 5] }, { id: 'ew-0', from: [0, 10], to: [115, 10], z: [3.6, 2] }] },
+    walkers: [{ path: [[10, 0, 3], [10, 20, 3.5], [10, 40, 4]] }], anchors: [{ id: 'house-1', kind: 'house', at: [24, 47, 4.7] }] };
+
+  it('are its walk\'s start, its streets and where two cross, and the ways a walker goes', () => {
+    const P = setPlaces(town);
+    expect(P.marks.start).toEqual([17.7, 56.8]);
+    expect(P.floors.start).toBeCloseTo(4.88, 2);
+    expect(P.marks.street).toEqual([9, 35]);
+    expect(P.floors.street).toBe(4);
+    expect(P.marks['street-2']).toEqual([57.5, 10]);
+    expect(P.marks.crossing).toEqual([9, 10]);
+    expect(P.paths).toEqual([[[10, 0], [10, 20], [10, 40]]]);
+    // (its own places come first: a part with no mark stands by the first)
+    expect(Object.keys(P.marks)[0]).toBe('house-1');
+  });
+
+  it('a city\'s are the street corners nearest its seat, on the pavement, at the height its walker goes', () => {
+    const P = setPlaces({ geocity: { seat: [100, 100] }, walk: { spawn: [100, 90, 8], minEye: 1.7 }, walkers: [{ path: [[101, 95, 6.5], [140, 95, 6.9]] }],
+      flow: { signals: [{ x: 300, y: 100, wx: 30, wy: 20 }, { x: 110, y: 100, wx: 30, wy: 20 }] } });
+    expect(P.marks.corner).toEqual([127, 88]);
+    expect(P.floors.corner).toBe(6.9);
+    expect(P.marks['corner-2'][0]).toBeGreaterThan(300);
+    expect(P.marks.start).toBeDefined();
+  });
+
+  it('a world that is no geocube\'s names none of them', () => {
+    const P = setPlaces({ walk: { spawn: [1, 2, 3] }, walkers: [{ path: [[0, 0, 0], [5, 0, 0]] }], anchors: [{ id: 'well', kind: 'spot', at: [3, 3, 0] }] });
+    expect(Object.keys(P.marks)).toEqual(['well']);
+    expect(P.paths).toBeUndefined();
+  });
+});
+

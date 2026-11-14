@@ -27,6 +27,7 @@
  *   animaticFrameSvg(board, segment, { width?, height? }) → one frame of the animatic: the panel, its number and name,
  *     the caption
  *   mannequinForms(S, t, { tints?, turn? }) → the plate's forms; panelStation(framing) → { turn, station }
+ *   landForms(relief, { turn?, about? }) → land that rises and falls as low terraces, and how high it stands under a point
  *   groundForms(blocks, { turn?, about? }) → what stands on any set's ground (actor/ground.js) as the plate's forms
  *   roomForms(rooms, { turn?, about? }) → a walled room's walls and standing pieces as the plate's forms
  *
@@ -34,6 +35,7 @@
  */
 import { placeOn } from './scene.js';
 import { coverageCameraAt } from './scene-film.js';
+import { heightAt } from './relief.js';
 import { programOf } from '../shoot/sample.js';
 import { renderPlate } from '../book/drawn-plate.js';
 
@@ -67,9 +69,9 @@ function turner(d, about) {
 }
 
 /** One actor as a mannequin at a place and a facing (yaw 0 faces +y, turning toward +x), `h` its stature */
-function mannequinTerms(P, h, turn) {
+function mannequinTerms(P, h, turn, up = 0) {
   const s = h / STATURE, a = rad(P.yaw), f = [Math.sin(a), Math.cos(a)], r = [Math.cos(a), -Math.sin(a)];
-  const at = (side, fwd, z) => { const [x, y] = turn(P.x + r[0] * side * s + f[0] * fwd * s, P.y + r[1] * side * s + f[1] * fwd * s); return [x, y, r3(z * s)]; };
+  const at = (side, fwd, z) => { const [x, y] = turn(P.x + r[0] * side * s + f[0] * fwd * s, P.y + r[1] * side * s + f[1] * fwd * s); return [x, y, r3(z * s + up)]; };
   const capsule = (a1, b1, radius) => ({ op: 'add', shape: { kind: 'capsule', a: a1, b: b1, radius: r3(radius * s) } });
   const sphere = (center, radius) => ({ op: 'add', shape: { kind: 'sphere', center, radius: r3(radius * s) } });
   return [
@@ -86,12 +88,13 @@ function mannequinTerms(P, h, turn) {
 }
 
 /** The plate's forms: each actor a mannequin where the scene has it at t, the world turned by `turn` degrees about `about` */
-export function mannequinForms(S, t, { tints = BOARD_TINTS, turn = 0, about = [0, 0], heights = {} } = {}) {
+export function mannequinForms(S, t, { tints = BOARD_TINTS, turn = 0, about = [0, 0], heights = {}, lift = null } = {}) {
   const T = turner(turn, about);
-  return Object.entries(S.actors).map(([w, A], i) => ({
+  // (`lift`: on land that rises and falls, how high the ground stands under a point: landForms)
+  return Object.entries(S.actors).map(([w, A], i) => { const P = placeOn(A.root, t); return {
     id: w, tint: tints[i % tints.length],
-    terms: mannequinTerms(placeOn(A.root, t), heights[w] ?? STATURE, T),
-  }));
+    terms: mannequinTerms(P, heights[w] ?? STATURE, T, lift ? lift(P.x, P.y) : 0),
+  }; });
 }
 
 /** An upright box between two corners of the floor and two heights, the world turned by `T` (a quarter turn or
@@ -141,13 +144,14 @@ const GROUND_REACH = 10, GROUND_MOST = 24;
  * an upright prism at its height, the nearest GROUND_MOST within GROUND_REACH of what the panel looks at, turned as
  * the mannequins are. One form: the ground reads as one thing behind the cast.
  */
-export function groundForms(blocks = [], { turn = 0, about = [0, 0] } = {}) {
+export function groundForms(blocks = [], { turn = 0, about = [0, 0], lift = null } = {}) {
   const T = turner(turn, about), far = (B) => Math.hypot(Math.max(B.min[0] - about[0], 0, about[0] - B.max[0]), Math.max(B.min[1] - about[1], 0, about[1] - B.max[1]));
   const near = blocks.filter((B) => B.h > 0 && far(B) <= GROUND_REACH).map((B, i) => ({ B, i, d: far(B) })).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, GROUND_MOST).sort((a, b) => a.i - b.i);
   if (!near.length) return [];
   return [{
     id: 'ground', tint: ROOM_TINTS.piece, tintOpacity: 0.35,
-    terms: near.map(({ B }) => ({ op: 'add', shape: boxShape(T, B.min, B.max, 0, B.h) })),
+    // (on land that rises and falls each stands on the ground under its middle)
+    terms: near.map(({ B }) => { const z = lift ? lift((B.min[0] + B.max[0]) / 2, (B.min[1] + B.max[1]) / 2) : 0; return { op: 'add', shape: boxShape(T, B.min, B.max, 0, r3(z + B.h)) }; }),
   }];
 }
 
@@ -174,21 +178,69 @@ function moveOf(a, b) {
 const markAt = (marks, p) => Object.entries(marks ?? {}).find(([, q]) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1e-3)?.[0] ?? `[${r2(p[0])}, ${r2(p[1])}]`;
 
 /** The board: a panel a coverage shot */
-export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {}, rooms = [], blocks = [], set = null } = {}) {
+/** the land's tint on the board; how high a terrace steps and how wide its cells are at the finest (m); the most
+ * terraces a panel draws */
+export const LAND_TINT = '#cdc6b2';
+const LAND_STEP = 0.3, LAND_CELL = 1, LAND_MOST = 30, LAND_FAR = 45;
+
+/**
+ * LAND THAT RISES AND FALLS as the plate's forms (a set's `relief`: actor/relief.js): the ground within `reach`
+ * of what the panel looks at (GROUND_REACH, or as far as the cast stands: nobody is left standing on air), drawn as low TERRACES over the lowest ground there, which is the plate's own ground.
+ * Each terrace an upright prism to the land's height, stepped LAND_STEP at the finest; where they are more than
+ * LAND_MOST the steps and the cells are coarsened. → { forms, lift(x, y) } where `lift` is how high the land stands
+ * under a point over that lowest ground (what the cast, the blocks and the camera are raised by)
+ */
+export function landForms(relief, { turn = 0, about = [0, 0], reach = GROUND_REACH } = {}) {
+  const T = turner(turn, about), x0 = about[0] - reach, y0 = about[1] - reach, span = reach * 2;
+  let base = Infinity;
+  for (let y = y0; y <= y0 + span; y += 1) for (let x = x0; x <= x0 + span; x += 1) base = Math.min(base, heightAt(relief, x, y));
+  const lift = (x, y) => Math.max(0, heightAt(relief, x, y) - base);
+  let boxes = [];
+  for (let c = LAND_CELL, step = LAND_STEP, pass = 0; pass < 6; pass++, c *= 1.4, step *= 1.5) {
+    const n = Math.max(1, Math.round(span / c)), w = span / n, band = new Int32Array(n * n), used = new Uint8Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) band[j * n + i] = Math.round(lift(x0 + (i + 0.5) * w, y0 + (j + 0.5) * w) / step);
+    boxes = [];
+    // (a run along x grown along y while the rows below match it: actor/ground.js gathers its blocks the same way)
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const k = j * n + i, b = band[k];
+      if (!b || used[k]) continue;
+      let i1 = i;
+      while (i1 + 1 < n && band[j * n + i1 + 1] === b && !used[j * n + i1 + 1]) i1++;
+      let j1 = j;
+      const rowOk = (jj) => { for (let ii = i; ii <= i1; ii++) if (band[jj * n + ii] !== b || used[jj * n + ii]) return false; return true; };
+      while (j1 + 1 < n && rowOk(j1 + 1)) j1++;
+      for (let jj = j; jj <= j1; jj++) for (let ii = i; ii <= i1; ii++) used[jj * n + ii] = 1;
+      boxes.push({ min: [x0 + i * w, y0 + j * w], max: [x0 + (i1 + 1) * w, y0 + (j1 + 1) * w], h: r3(b * step) });
+    }
+    if (boxes.length <= LAND_MOST) break;
+  }
+  return {
+    lift,
+    forms: boxes.length ? [{ id: 'land', tint: LAND_TINT, tintOpacity: 0.3, terms: boxes.map((B) => ({ op: 'add', shape: boxShape(T, B.min, B.max, 0, B.h) })) }] : [],
+  };
+}
+
+export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {}, rooms = [], blocks = [], set = null, relief = null } = {}) {
   const program = programOf({ ...coverage, fps });
   const names = Object.keys(S.actors);
   const tintOf = Object.fromEntries(names.map((w, i) => [w, BOARD_TINTS[i % BOARD_TINTS.length]]));
   const placed = [];
   // (inside walls the light comes from above, as a ceiling's does: a low sun would lay the walls' shadow over the cast)
-  const indoors = rooms.some((R) => R.walled && R.h > 0), drawn = indoors || blocks.some((B) => B.h > 0);
+  const indoors = rooms.some((R) => R.walled && R.h > 0), drawn = indoors || blocks.some((B) => B.h > 0) || !!relief;
   const panels = coverage.shots.map((s, k) => {
     const [s0, s1] = s.span, at = r3(Math.min(S.seconds - 1e-3, (s0 + s1) / 2));
     const { framing } = coverageCameraAt(coverage, at, s);
     const { a, b, cam } = shotKeys(coverage, s);
-    const { turn, station } = panelStation(framing, { square: drawn });
     const about = framing.lookAt.slice(0, 2);
+    // (on land that rises and falls the panel is drawn as the land lies: the camera, what it looks at, the cast and
+    //  what stands there each raised by the ground under it, over the lowest ground in view; landForms)
+    // (drawn out to where the cast stands, a few metres past the farthest of them)
+    const reach = relief ? Math.min(LAND_FAR, Math.max(GROUND_REACH, ...names.map((w) => { const P = placeOn(S.actors[w].root, at); return Math.hypot(P.x - about[0], P.y - about[1]) + 3; }))) : 0;
+    const land = relief ? landForms(relief, { about, reach }) : null, lift = land?.lift ?? null;
+    const seen = lift ? { ...framing, cameraPosition: [framing.cameraPosition[0], framing.cameraPosition[1], framing.cameraPosition[2] + lift(framing.cameraPosition[0], framing.cameraPosition[1])], lookAt: [framing.lookAt[0], framing.lookAt[1], framing.lookAt[2] + lift(about[0], about[1])] } : framing;
+    const { turn, station } = panelStation(seen, { square: drawn });
     // (a walled room is drawn round them: its walls and what stands in it; any other set stays open ground)
-    const forms = [...roomForms(rooms, { turn, about }), ...groundForms(blocks, { turn, about }), ...mannequinForms(S, at, { turn, about, heights })];
+    const forms = [...roomForms(rooms, { turn, about }), ...(relief ? landForms(relief, { turn, about, reach }).forms : []), ...groundForms(blocks, { turn, about, lift }), ...mannequinForms(S, at, { turn, about, heights, lift })];
     const { svg } = renderPlate({ forms, station, finish: 'wash', frame: 'full', width, height, light: { azimuth: -50, elevation: indoors ? INDOOR_LIGHT : 40 } }, { prefix: `sb${k + 1}-`, ...(res ? { res } : {}) });
     const P = program.shots[k];
     placed.push({ framing, a, b });

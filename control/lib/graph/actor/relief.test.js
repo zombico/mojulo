@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reliefOf, reliefFrom, heightAt, levelled, RISER } from './relief.js';
+import { reliefOf, reliefFrom, heightAt, levelled, landBetween, RISER } from './relief.js';
 import { standingOf } from './ground.js';
 
 // ground that is not flat, walked as a world's own walk walks it. Tested on faces built by hand the way every world
@@ -58,5 +58,20 @@ describe('the ground a scene is played on', () => {
     expect(heightAt(F, 5, 0)).toBeCloseTo(0, 1);
     expect(heightAt(F, 10, -3)).toBeCloseTo(1, 1);
     expect(JSON.stringify(reliefOf(HILL, [[5, 0, 1]]))).toBe(JSON.stringify(R));
+  });
+
+  it('says where the land stands between a camera and what it looks at', () => {
+    // a ridge 2 m high across x 4..6 on level ground, as a film carries it
+    const nx = 40, ny = 40, R = { x0: -10, y0: -10, cell: 0.5, nx, ny, z: Array.from({ length: nx * ny }, (_, k) => { const x = -10 + ((k % nx) + 0.5) * 0.5; return x > 4 && x < 6 ? 2 : 0; }) };
+    const shot = (pos, poi) => ({ shots: [{ name: '1 wide', camera: 'a', span: [0, 2] }], cameras: [{ id: 'a', keys: [{ t: 0, pos, poi }, { t: 2, pos, poi }] }] });
+    // over the ridge at head height: blocked, at the ridge
+    const hit = landBetween(shot([0, 0, 1.5], [9, 0, 1.5]), R);
+    expect(hit).toHaveLength(1);
+    expect(hit[0].shot).toBe('1 wide');
+    expect(hit[0].at[0]).toBeGreaterThan(3.9);
+    expect(hit[0].over).toBeGreaterThan(0.3);
+    // along the level ground, and from a crane above the ridge: clear
+    expect(landBetween(shot([0, 0, 1.5], [3, 0, 1.5]), R)).toEqual([]);
+    expect(landBetween(shot([0, 0, 4], [9, 0, 2.6]), R)).toEqual([]);
   });
 });

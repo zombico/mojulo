@@ -37,6 +37,35 @@ function crosses(R, a, b) {
   return t1 - t0 > 1e-9;
 }
 
+/** how near a way's two ends must be to a path to follow it (m), how far apart the corners kept from it are at least
+ * (m), and how many times the straight line a way along it may be before the straight line is walked */
+export const PATH_NEAR = 3, PATH_STEP = 1.2, PATH_MOST = 3;
+
+/**
+ * A cross that FOLLOWS a path the world lays (a trail, a sidewalk: set.js `paths`): where both its ends stand by one
+ * path, the way goes along it, not across country. → [from, …the path's corners between, to], or null where no path
+ * passes both ends, the ends are by the same stretch of it, or the way along it is far longer than the straight line.
+ */
+export function pathWalk(from, to, paths = []) {
+  const a = [from[0], from[1]], b = [to[0], to[1]], straight = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (straight < PATH_STEP * 2) return null;
+  let best = null;
+  for (const P of paths) {
+    const nearest = (p) => { let k = -1, d = Infinity; P.forEach((q, i) => { const e = Math.hypot(q[0] - p[0], q[1] - p[1]); if (e < d) { d = e; k = i; } }); return { k, d }; };
+    const A = nearest(a), B = nearest(b);
+    if (A.d > PATH_NEAR || B.d > PATH_NEAR || A.k === B.k) continue;
+    const run = A.k < B.k ? P.slice(A.k, B.k + 1) : P.slice(B.k, A.k + 1).reverse();
+    let len = A.d + B.d;
+    for (let i = 1; i < run.length; i++) len += Math.hypot(run[i][0] - run[i - 1][0], run[i][1] - run[i - 1][1]);
+    if (len > straight * PATH_MOST || (best && len >= best.len)) continue;
+    // (its corners thinned to a step apart: a walk is keyed corner to corner)
+    const mid = [];
+    for (const q of run) if (Math.hypot(q[0] - a[0], q[1] - a[1]) >= PATH_STEP && Math.hypot(q[0] - b[0], q[1] - b[1]) >= PATH_STEP && (!mid.length || Math.hypot(q[0] - mid.at(-1)[0], q[1] - mid.at(-1)[1]) >= PATH_STEP)) mid.push([r3(q[0]), r3(q[1])]);
+    best = { len, way: [a, ...mid, b] };
+  }
+  return best && best.way.length > 2 ? best.way : null;
+}
+
 /** The way from `from` to `to` (see the header) */
 export function routeWalk(from, to, opts = {}) {
   // (the easy way first; where the pieces stand too close for it, a decorator's 420 mm between a sofa and its table,

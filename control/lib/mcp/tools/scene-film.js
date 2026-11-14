@@ -32,7 +32,7 @@ import path from 'node:path';
 import { actScene } from '@/lib/graph/actor/scene.js';
 import { coverScene } from '@/lib/graph/actor/coverage.js';
 import { standingOf, openGround, floorUnder, middleOf, EASE, STEP, REACH } from '@/lib/graph/actor/ground.js';
-import { reliefOf, reliefFrom, heightAt, levelled } from '@/lib/graph/actor/relief.js';
+import { reliefOf, reliefFrom, heightAt, levelled, landBetween } from '@/lib/graph/actor/relief.js';
 import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
@@ -202,7 +202,9 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
     }
     // (what stands on the set's floor: a world that says so is taken at its word (a decorated room's pieces); any
     // other is read from its faces, about where the scene is played: actor/ground.js)
-    const plan = on.floor_plan ?? groundPlan(faces, play);
+    let plan = on.floor_plan ?? groundPlan(faces, play);
+    // (the ways a walker goes in the world, its trail or its sidewalks: a cross between two places on one follows it)
+    if (places.paths && !places.rooms.some((R) => R.walled)) plan = { ...(plan ?? { blocks: [], rooms: [] }), paths: places.paths };
     set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, ...(plan ? { floor_plan: plan } : {}), places: Object.keys(places.marks).length, faces, ...(relief ? { relief } : {}) };
   }
   const advice = [];
@@ -323,7 +325,10 @@ export function houseLights(rooms) {
 export async function setAdvice(plan, set) {
   if (!set?.faces?.length) return [];
   const { shootSightlines } = await import('@/lib/graph/shoot/clearance.js');
-  return shootSightlines(plan.coverage, set.faces).map((h) => ({ id: 'set-blocks', shot: h.shot, at: h.at, says: `shot "${h.shot}": the set stands between its camera and the actors (at [${h.at.join(', ')}])`, try: 'move the cast toward the middle of the room (their marks), or set the scene where the room is larger' }));
+  const blocked = shootSightlines(plan.coverage, set.faces).map((h) => ({ id: 'set-blocks', shot: h.shot, at: h.at, says: `shot "${h.shot}": the set stands between its camera and the actors (at [${h.at.join(', ')}])`, try: 'move the cast toward the middle of the room (their marks), or set the scene where the room is larger' }));
+  // (on land that rises and falls the plan is level: a rise between a camera and the cast is read from the land itself)
+  const rises = set.relief ? landBetween(plan.coverage, set.relief).filter((h) => !blocked.some((b) => b.shot === h.shot)).map((h) => ({ id: 'set-blocks', shot: h.shot, at: h.at, says: `shot "${h.shot}": the land rises ${h.over} m into the line between its camera and the actors (at [${h.at.join(', ')}])`, try: 'stand the cast on the higher ground, or nearer each other, so the camera looks along the slope and not through it' })) : [];
+  return [...blocked, ...rises];
 }
 
 /** The sound a planned scene carries: its voice track, each dub's, the captions; null where nothing is recorded */
@@ -481,7 +486,7 @@ export const SCREENPLAY_EXPORTS = Object.freeze(['storyboard', 'mp4', 'blender']
 export async function writeStoryboard({ dir, plan, title, fps = 24, animatic = false, screenplay = null, set = null, panels = false }) {
   const { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg } = await import('@/lib/graph/actor/storyboard.js');
   const heights = Object.fromEntries(Object.entries(plan.cast).filter(([, C]) => Number.isFinite(C.height)).map(([w, C]) => [w, C.height]));
-  const board = storyboardOf(plan.S, plan.coverage, { notes: plan.notes, title, fps, heights, ...(set ? { rooms: set.rooms, ...(set.blocks?.length ? { blocks: set.blocks } : {}), set: { ref: set.ref ?? 'props', title: set.title ?? (set.ref ? null : 'its props') } } : {}) });
+  const board = storyboardOf(plan.S, plan.coverage, { notes: plan.notes, title, fps, heights, ...(set ? { rooms: set.rooms, ...(set.blocks?.length ? { blocks: set.blocks } : {}), ...(set.relief ? { relief: set.relief } : {}), set: { ref: set.ref ?? 'props', title: set.title ?? (set.ref ? null : 'its props') } } : {}) });
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, 'index.html'), storyboardHtml(board));
   writeFileSync(path.join(dir, 'storyboard.json'), `${JSON.stringify(storyboardJson(board), null, 2)}\n`);
