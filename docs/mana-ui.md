@@ -171,8 +171,11 @@ widgets under a pointer (only the view knows where they are).
   - The HUD's bottom corners stand over the pad while it is drawn; a region whose every part is gated off draws no
     empty plate.
   - A level's hint line says what the thumbs do while the pad is up, and its keys otherwise.
-  - A game's own extra button is a HUD `button` or `slot` with `on.accept`, tapped (it takes no focus). A level's
-    HUD host does not yet carry such an effect to the level's bus, so a made level has only the pad's own controls.
+  - A game's own extra button is a level's HUD row, `events.hud: [{ press: '<event>', label, slot? }]` (bottom right
+    unless it says). Tapped or clicked, it raises that event on the level's bus as a key bound to it would
+    (`events.input` is its keyboard half); a cue or a rule that listens does the rest. The level's mana-ui HUD draws
+    it as a `button` and its host carries the press to the bus; a level with the page's own HUD draws it there. A
+    level with no such row carries none of it.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
   they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
   held to the scheme by a test, and the same typing), never in the kernel.

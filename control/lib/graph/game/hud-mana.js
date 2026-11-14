@@ -15,6 +15,7 @@
  *   readout text → stat · counter → counter (its label's pictogram, where the icon shelf has one) · bar → bar (its
  *   meaning by its name: hp, mp, xp, stamina, shield, boss) · clock → timer
  *   banner → a moment (one on screen at a time, by weight)        toast → a line of its slot's feed, aged by its ttl
+ *   button → a button in its slot, tapped: its event raised on the level's bus (the host's act)
  *   legend → words in its slot, for its ttl                        title → stays the carved letters' (title-carve.js)
  * A row's `id` and `when` gate it as they did (the bus vars ui-<id>, ui-<id>-state, phase): the host says which stand.
  * A row's colour is not carried: the theme owns the look.
@@ -55,6 +56,9 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
     else if (w.kind === 'toast') {
       if (!lines[w.slot]) lines[w.slot] = `l${Object.keys(lines).length}`;
       toasts.push({ ...(w.var ? { var: w.var } : { on: w.on }), text: w.text, ttl: w.ttl, line: lines[w.slot], ...cond(w) });
+    } else if (w.kind === 'button') {
+      // (a button: tapped or clicked, it raises its event on the level's bus; the HUD's host carries the effect there)
+      bySlot[w.slot].push({ use: 'button', props: { label: w.label }, on: { accept: { emit: w.press } }, ...gate(w, i) });
     } else if (w.kind === 'legend') {
       const keys = { use: 'text', props: { value: w.text, role: 'label' } };
       // (a level steered by a virtual pad, `touch`: while the pad is up the line says what the thumbs do, not the keys)

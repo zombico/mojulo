@@ -72,4 +72,10 @@ describe('the host carries a level\'s rows', () => {
     expect(touch).toContain('"value":{"bind":"touch.hint"}');
     expect(touch).toContain('W A S D move');
   });
+  it('a button row is a button in its slot whose press is its event', () => {
+    const { spec } = hudToMana([{ press: 'whistle', label: 'whistle' }, { press: 'map', label: 'map', slot: 'top-right', id: 'map' }]);
+    const at = (slot) => JSON.stringify(spec.hud.children.find((r) => r.props.at === slot));
+    expect(at('bottom-right')).toContain('{"use":"button","props":{"label":"whistle"},"on":{"accept":{"emit":"whistle"}}}');
+    expect(at('top-right')).toMatch(/"on":\{"accept":\{"emit":"map"\}\},"when":\{"bind":"on\.r1"\}/);
+  });
 });

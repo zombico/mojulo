@@ -18,7 +18,8 @@
  *
  * The state it writes (a spec binds these): course { metres, of, left, says } · run { show, at, of } (the shell's
  * `params.__run`) · hero { stamina, staminaMax, sprints } · coins { count } (the bus's `coins`) · start { count, sub } · hint { show } · moments [].
- * It takes no input and reads no device: a HUD is seen. The page's own gauge and its widget rows are hidden while this stands (by a rule
+ * It reads no device: a HUD is seen. A part that is pressed (a level's button row, tapped or clicked) raises its event on
+ * the level's bus (`window.__mojBus.press`, there only for a level with such a row). The page's own gauge and its widget rows are hidden while this stands (by a rule
  * on its class: the runtime that draws it is untouched). `window.__mojHud = { rt, state }` for a headless driver.
  */
 import { manaUiSource } from '../../../mana-ui/kernel.js';
@@ -54,7 +55,9 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
-  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: function () {}, now: function () { return clock; } });
+  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
+  function press(e) { if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit); }
+  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: press, now: function () { return clock; } });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
   // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
   const __tq = new URLSearchParams(location.search).get('touch');

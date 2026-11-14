@@ -749,6 +749,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // UI kernel and its sheet. The `touchpad` takes what the touch layer knows (`lane`, `held`, `down`), a stick at rest is
 // seen through, and the pad is as wide as its frame allows; neither page draws a touch pad, and every other fixture
 // holds byte for byte (a level with no mana-ui HUD emits the touch layer it did).
+// Re-pinned 2026-11-14 again (the touch controller's look): `brawl` and `holo`, for the same reason. A pad's pictogram
+// stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
+// whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
+// draws a touch pad or an empty region, and every other fixture holds byte for byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

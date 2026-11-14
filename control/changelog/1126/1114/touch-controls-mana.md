@@ -21,5 +21,10 @@ mana-ui draws them, the controls layer keeps reading the thumbs.
   region whose every part is gated off left an empty plate; it draws nothing now.
 - Played in headless Chrome on a phone-sized touch screen, a made game in the toybox look: the stick rose under the
   thumb and the hero walked; a touch on the jump pad pressed the pad's control and the hero jumped.
-- Not yet: a game's own extra buttons reaching the level (the HUD host drops a HUD part's effect), the pad's size
-  and place tuned by hand on a real phone, a world with no `ui` and no course (it keeps the driver's own drawing).
+- **Built: a game's own button.** A level's HUD takes a button row, `{ press: '<event>', label, slot? }`. Pressed
+  (a tap or a click), it raises that event on the level's bus as a key bound to it would, so a touch screen gets a
+  control the virtual pad has none for. The mana-ui HUD draws it as a button and its host carries the press; the
+  page's own HUD draws it too. Only a level with such a row carries the bus's way in. The HUD guide card teaches it.
+  Tapped in headless Chrome on a phone frame: the event reached the bus and a banner listening for it showed.
+- Not yet: the pad's size and place tuned by hand on a real phone; a world with no `ui` and no course (it keeps
+  the driver's own drawing); a gameworld's own word for such a button (today it is a level's `events.hud` row).

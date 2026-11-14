@@ -493,8 +493,9 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-stick[data-lane] i{inset:${u(9)} ${u(57)}}`,
     `${s} .mana-stick[data-held]{opacity:.75}`,
     `${s} .mana-pad[data-on]{background:${v('ink')};color:${v('panel')};opacity:1}`,
-    // (the HUD's bottom corners stand over the pad while it is drawn: the stick and the pads have the foot of the screen)
-    `${s} .mana-hud:has(.mana-touchpad) .mana-place:is([data-at=bottom-left],[data-at=bottom-right]){bottom:calc(${SY} + ${u(216)})}`,
+    // (the HUD's bottom corners stand over the pad, and over a hint line above it, while it is drawn: the stick and the
+    // pads have the foot of the screen)
+    `${s} .mana-hud:has(.mana-touchpad) .mana-place:is([data-at=bottom-left],[data-at=bottom-right]){bottom:calc(${SY} + ${u(288)})}`,
     // (the pads fill from the screen's edge inward and from its foot up: one pad is under the thumb, not a column in)
     `${s} .mana-pads{display:flex;flex-wrap:wrap-reverse;flex-direction:row-reverse;gap:${u(18)};max-width:${u(198)}}`,
     // (a pad's pictogram, where the theme draws them, stands inside its round: the pad keeps its edge and its fill)

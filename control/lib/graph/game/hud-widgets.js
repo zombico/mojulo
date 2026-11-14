@@ -290,6 +290,14 @@ export function normalizeHud(rows, ctx = {}) {
     if (r.when !== undefined && !(Array.isArray(r.when) && r.when.every((k) => Number.isInteger(k) && k >= 0))) errors.push(`${where}.when is a list of phase indices`);
     const gate = { id: isStr(r.id) && /^[a-z][a-z0-9-]*$/.test(r.id) ? r.id : undefined, when: Array.isArray(r.when) && r.when.every((k) => Number.isInteger(k) && k >= 0) ? [...r.when] : undefined };
 
+    // A BUTTON: a thing on the screen to press (a tap, a click), which raises `press` on the level's bus as a key bound
+    // to it would (events.input); what it does is whatever listens for that event. A touch screen's extra control
+    if (r.press !== undefined) {
+      if (!isStr(r.press)) errors.push(`${where}.press names the event the button raises on the bus (a cue or a rule listens for it)`);
+      if (!isStr(r.label)) errors.push(`${where}: a button needs a label (its word, or what it does: jump, use, a pictogram's name)`);
+      if (isStr(r.press) && isStr(r.label)) widgets.push({ kind: 'button', press: r.press, label: r.label, slot: slot || 'bottom-right', ...gate });
+      return;
+    }
     if (isStr(r.var) && r.as === 'toast') {   // the var toast: its own widget, never merged with the readout
       if (r.text !== undefined && !isStr(r.text)) errors.push(`${where}.text must be a string (default '{delta}')`);
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
@@ -348,7 +356,7 @@ export function normalizeHud(rows, ctx = {}) {
       widgets.push({ kind: 'legend', text: r.text, slot: slot || 'bottom', ttl: ttl(null), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
-    errors.push(`${where} must be a readout { var, label? }, a banner { on, text } or a legend { text }`);
+    errors.push(`${where} must be a readout { var, label? }, a banner { on, text }, a legend { text } or a button { press, label }`);
   });
   // fill readout defaults AFTER merging so a later row's slot/kind can still land on the first
   const out = widgets.map((w) => {

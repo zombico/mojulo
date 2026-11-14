@@ -21,6 +21,7 @@ A row of a world's `events.hud` is a **widget** in one slot. Four kinds:
 { "on": "game-over", "text": "TIME! {score}", "slot": "center", "ttl": 3 }
 { "on": "shot", "text": "-{event.damage}", "as": "toast", "slot": "top" }
 { "text": "WASD to move · click to whack", "slot": "bottom" }
+{ "press": "whistle", "label": "whistle", "slot": "bottom-right" }
 ```
 
 - **readout** (`var`) projects a bus var — `as: text | counter | bar | clock` (card `hud-readout`).
@@ -33,6 +34,11 @@ A row of a world's `events.hud` is a **widget** in one slot. Four kinds:
   stamp) and `style` (heavy | blocky | slick | thin | italic); a text may name a word in the world's
   language (`'@fight'`, the world's `locale`) (card `hud-title`).
 - **legend** (`text`) is static: the controls hint, the "press E" prompt (card `hud-banner`).
+- **button** (`press`) is a thing on the screen to press: a tap or a click raises `press` on the bus, as
+  a key bound to it would (`events.input: [{ on: 'key', key, emit: { type } }]` is its keyboard half), and a
+  cue or a rule that listens for that event does the rest. It is how a touch screen gets a control the
+  virtual pad has none for (the pad already has move, look, jump, fire and use). `label` is its word; one
+  that names a pictogram (jump, fire, use, map, bag…) is drawn as it in a look that draws icons.
 
 Widgets in one slot stack in declaration order. A legacy `{ var, label }` row (what
 `scoreCounter`, `countdownClock`, `hazard-damage`, `survive`, `win-when`, `defeat-all` emit) is a
