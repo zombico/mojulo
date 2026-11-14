@@ -90,3 +90,44 @@ sleeves, the hood).
   elsewhere. On the hair I chose clearance over tucking. A ponytail or long hair under the hood is enclosed, so the back
   of the hood stands out over it. The hood's body stays locked: up, to the head and the neck; down, to the shoulders.
   Laws 1 keep the bell byte for byte.
+- **The open items, cleared where they fall out (outfit laws 2, hero laws 23).**
+  - A clip played at two speeds. A clip that carried no seconds played over three seconds on the World page and over
+    one in the GLB, and its cloth was simulated for the page's three, so the exported swing was the slow one played
+    fast. A hero whose cloth flows now plays every clip over one duration on the page and in an export, the one its
+    swing is baked at: a clip with seconds keeps them, the hero's own clips take the anime hero's timing (an idle in
+    four seconds, a wave in two, a walk in one), a compiled clip one second, and an act its own clock. A hero with
+    nothing that flows is as it was.
+  - The realistic body's cape keeps its skin. On strings its open side edges sheared into angular flaps where the arm
+    carries the cloth draped on it and the strings swing the rest, and the shirt showed through between them. No
+    tuning of the strings made that clean, so the cape rides its weights as it did before the hero laws 23. A hood's
+    liripipe still flows.
+  - A heel still shows out of the back of an ankle-length robe in a stride. The cause is that the strings collide at
+    their joints only: a heel kicked up behind the leg sits between the knee's joint and the hem's, mid-link, where no
+    joint can meet it, which is why adding the foot to the collision form did nothing. Colliding the links as well,
+    with the foot in the form, moved the hem but let the heel through between the strings and opened holes in the
+    cloth, so it was not kept. The solver is as it was.
+  - The medallion is worn. The necklace read the neck's radius as a chain's, and the hero's neck is a loft, so its
+    chain came out with no size and the piece was left off. Under outfit laws 2 it reads the lofted neck by its lowest
+    ring and hangs from the nape to its pendant on the chest. Laws 1 leave it off with the line that says so. The pendant
+    is laid on the body's chest, so a tunic's or a robe's bodice over it still hides it.
+  - A hood worn down lies flat on the back. It stood the hood's whole ease and a deep sack off the cloak, a hump in
+    profile; it now keeps a share of the ease and a shallow sack, and its liripipe lies on the sack it hangs from.
+  - The mantle is wool, so it hangs on strings and swings a little in the clips.
+  - On the realistic body a robe's, a gown's or a tunic's bodice is the outer layer. The pieces named their part as a
+    bare word where a card's pieces name a list of one, and the realistic body's tailor reads only the list, so it
+    passed the bodice and the sleeves by: the game body's kernel drew them on the bare skin and the tailor's shirt came
+    out over them. Under outfit laws 2 they name a list, the tailor makes them as its own cloth, a layer over the card's
+    shirt and its sleeves, and the shirt shows only at the collar. The game body reads either form alike, so the
+    tiered and anime bodies are unchanged; laws 1 keep the old look.
+  - The realistic bodice under the bust. With the bodice now the tailor's close cloth, the 14 mm roll the game body's
+    kernel drew there is gone from the realistic body. Over a 6.4 cm chord the tailor's bodice still goes in about 7 mm
+    under the bust, where the card's shirt went in about 6; it was not brought under a few millimetres.
+  - Not changed. The tunic's and robe's shoulders keep their bulbous caps: they are the game body's own shoulder forms
+    (its deltoid ball, the trapezius cone and the web) standing out of the bodice's yoke. Wearing the bodice over them
+    raised a ridge round the neck and left the caps, so it was not kept. The neckline is still the torso's top turning
+    in to the neck. The embroidery that floats off a skirt mid-stride is placed at the skirt's waist ring rather than its
+    hem (its window counts the skirt's rings from the top), and much of it lies too far from the cloth to ride it; it is
+    left as it was. The box register's cloak reads its row as written (four strings of two links, held on twos); it moves
+    little because two long links follow the skin closely. The hood still clears big hair rather than tucking it, so the
+    chibi's hood stays large and the anime hood's back stays boxy over long hair. The chamfer noble's green shirt still
+    shows at the back waist at mid-stride, where the skirt's top swings off it.

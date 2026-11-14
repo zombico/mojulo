@@ -88,6 +88,12 @@ describe('the hood, outfit laws 2', () => {
     expect(Math.max(...V.map((p) => p[2])), 'below the chin').toBeLessThan(R.chin);
     expect(V.filter((p) => p[1] > R.cy + 0.02).length, 'nothing before the throat but the collar').toBeLessThan(V.length * 0.2);
     const T = R.recipe.parts.cloakHood_hoodTail; expect(T, 'the liripipe').toBeTruthy();
+    // (lying FLAT on the back, 2026-11-14: down the spine its back stands off the cape it lies on by a few cm, never a hump
+    // a hand's breadth proud of it in profile: the laws' first cut stood about 10 cm off it)
+    const cape = R.recipe.parts.cloak_cape.stations.flatMap((st) => Object.values(st.points)).filter((p) => Math.abs(p[0]) < 0.05);
+    const capeBack = (z) => { const near = cape.filter((p) => Math.abs(p[2] - z) < 0.03); return near.length ? Math.min(...near.map((p) => p[1])) : null; };
+    const proud = (pts) => Math.max(...pts.filter((p) => Math.abs(p[0]) < 0.05).map((p) => { const c = capeBack(p[2]); return c === null ? 0 : c - p[1]; }));
+    expect(proud(V), 'the sack on the back').toBeLessThan(0.075);
     expect(T.material).toBe('wool'); expect(Array.isArray(T.root)).toBe(true);
     const tz = T.stations.map((st) => Object.values(st.points)[0][2]); expect(tz[tz.length - 1]).toBeLessThan(tz[0]);
     // (up, the long point's tail hangs from behind the crown, below it)

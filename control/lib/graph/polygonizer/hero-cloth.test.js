@@ -10,6 +10,7 @@ import { MATERIALS, MATERIAL_NAMES, CLOTH_REGISTERS, materialParams, materialErr
 import { RIGIDITY_WORDS, rigidityParams } from './rigidity.js';
 import { CLOTH_LAWS, clothFlows, heroClothRig, bakeClothClips } from './hero-cloth.js';
 import { heroRecord, heroPlanOf, planLayered, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { clothClipSeconds, ANIME_CLIP_SECONDS } from './hero-gesture.js';
 
 const heroOf = (spec) => {
   const hero = heroRecord(spec); const ex = expandLayeredManifest({ kind: 'layered', title: 't', hero });
@@ -86,6 +87,37 @@ describe('hero-cloth: the bake', () => {
         for (const [, ci] of limbs) expect(segD(nodes[j], caps[ci].a, caps[ci].b), `key ${k} ${j} in ${H.form[ci].bone}`).toBeGreaterThan(Math.min(rAt(caps[ci], nodes[j]), restD[si][q][ci]) - 0.02);
       }));
     }
+  });
+});
+
+describe('hero-cloth: one duration for the page and the export', () => {
+  // the swing is baked for one duration, so every clip a flowing hero plays carries it: the page and the GLB both play a
+  // clip's `s` (rig-preview.js, scene-gltf.js), where before a clip with none played three seconds on the page and one
+  // in the GLB, its cloth simulated for the page's
+  const R = validateRig(ROBED.recipe.rig);
+  it('a clip with seconds keeps them; the hero\'s own clip takes its designed duration; a compiled clip one second; an act keeps its own clock', () => {
+    const own = Object.keys(ROBED.recipe.clips), fn = Object.assign(() => ({}), { keys: 24 }), act = Object.assign(() => ({}), { act: { seconds: 2.5 } });
+    const S = clothClipSeconds(ROBED.hero, { ...ROBED.recipe.clips, swing: fn, take: act }, { walk: 1.2 });
+    expect(S.walk).toBe(1.2); expect(S.swing).toBe(1); expect(S.take).toBeUndefined();
+    for (const n of own.filter((x) => x !== 'walk')) expect(S[n], n).toBe(ANIME_CLIP_SECONDS[n] ?? Math.max(1, 0.5 * ROBED.recipe.clips[n].length));
+  });
+  it('the bake simulates a clip over the seconds it is given, and an act over its own', () => {
+    const idle = ROBED.recipe.clips.idle, at = (b) => JSON.stringify(b.idle(0.25).flow);
+    const fast = bakeClothClips(H0(), { idle }, R, { seconds: { idle: 1 } }), slow = bakeClothClips(H0(), { idle }, R, { seconds: { idle: 4 } });
+    expect(at(fast)).not.toBe(at(slow));
+    const fn = layeredClip(idle, R), acted = Object.assign((u) => fn(u), fn, { act: { seconds: 4 } });
+    expect(JSON.stringify(bakeClothClips(H0(), { idle: acted }, R).idle(0.25).flow)).toBe(at(slow));
+  });
+});
+const H0 = () => heroClothRig(ROBED.mesh, ROBED.recipe, ROBED.hero);
+
+describe('hero-cloth: the realistic cape keeps its skin', () => {
+  // (2026-11-14: hung on strings, the realistic body's cape sheared into flaps at its open edges where the arm carries
+  // it; the lane is read off the hero, so the narrow case's mesh stands in for the realistic body's)
+  it('on the realistic lane the cape has no strings; what else flows still does', () => {
+    const H = heroClothRig(ROBED.mesh, ROBED.recipe, { ...ROBED.hero, form: 'realistic' });
+    expect(H.strings.some((s) => s.part === 'cloak_cape')).toBe(false);
+    expect(H.strings.some((s) => s.part === 'robeSkirt_skirt')).toBe(true);
   });
 });
 

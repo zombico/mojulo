@@ -59,7 +59,7 @@ import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbe
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
-import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
+import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, clothClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
@@ -1058,6 +1058,10 @@ export const WORLD_KINDS = {
         const cloth = m.hero && clothFlows(m.hero) ? heroClothRig(mesh, m.recipe, m.hero) : null;
         const packR = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
         if (typeof ctx.ride === 'function') clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
+        // (a hero whose cloth flows plays every clip over ONE duration on the page and in an export, the one its cloth's
+        // swing is baked at: hero-gesture.js clothClipSeconds. Before, a clip with none played three seconds on the page
+        // and one in the GLB, its swing baked for the page's)
+        if (cloth) seconds = clothClipSeconds(m.hero, clipsIn, seconds);
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the coated locks' and the xeno appliances' coat rides it too: alone where nothing else does (the landmark head, an
         // anime head unpainted), stacked under the painted face's or the realistic skin's atlas (hair-coat.js stackPaints); on the page

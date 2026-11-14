@@ -306,7 +306,10 @@ export const OUTFIT_KIND_NAMES = Object.freeze(Object.keys(OUTFIT_KINDS));
  * through that curve (the `polyline` signature: the body's rings cannot address a ring round the neck), its segments
  * alternating a bead and a link so it reads as a chain. `heavy` the chain of office's weight */
 function necklaceOf(p, B, G, { r, heavy = 1 }) {
-  const id = p.id ?? p.kind, k = B.k, nb = B.J.neckBase ?? [0, 0, B.top.z], n = B.neckSeg, rn = n ? rad(n.rA) : 0.1 * k;
+  const id = p.id ?? p.kind, k = B.k, nb = B.J.neckBase ?? [0, 0, B.top.z], n = B.neckSeg;
+  // (the neck's radius: a chain's `rA`; outfit laws 2 reads a lofted neck too (the hero's), by its lowest ring, where
+  // laws 1 found no radius there and left the necklace off)
+  const rn = n ? (n.rA === undefined && B.laws >= 2 && n.stations?.length ? rad(n.stations[0].r) : rad(n.rA)) : 0.1 * k;
   const T = B.top, top = T.z, tr = Array.isArray(T.r) ? T.r : [T.r, T.r], tyc = T.yc ?? 0;
   const bead = 0.011 * heavy * k, link = 0.0055 * heavy * k, clear = 0.01 * k + bead, N = 40;
   const zNape = Math.max(nb[2], top) + 0.05 * k, zFront = top - (p.drop ?? 0.17) * k * (0.9 + 0.1 * heavy);
@@ -396,12 +399,16 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none', material }) {
   const bell = sleeve === 'bell' ? r3((p.bell ?? 0.08) * B.k) : 0, elbow = bell ? r3(0.012 * B.k) : 0;
   // (outfit laws 2: a sleeve lies smooth down the arm, `lie`, as the bodice does, never a stack of rings)
   const sleeveLie = B.laws >= 2 ? { lie: 0 } : {};
+  // (outfit laws 2: each piece names its part as a list, `[part]`, as a card's pieces do, so the realistic body's tailor
+  // (body-relational-wear.js) makes the bodice and the sleeves as its own cloth, a layer over the card's shirt; laws 1
+  // named a bare string, which the tailor passed by, and the shirt drew over the bodice. The game body reads either)
+  const on = (part) => (B.laws >= 2 ? [part] : part);
   const sleeves = sleeve === 'none' || !B.names.has('upperArm') ? [] : [
-    { id: `${id}Sleeve`, part: 'upperArm', run: [0, 1], ease: r3(e), ...(elbow ? { flare: [0, elbow] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie },
-    ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: 'foreArm', run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie }] : [])];
+    { id: `${id}Sleeve`, part: on('upperArm'), run: [0, 1], ease: r3(e), ...(elbow ? { flare: [0, elbow] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie },
+    ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: on('foreArm'), run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie }] : [])];
   const trim = trimOf(p, B, G, { hem: B.names.has('pelvis') ? `${id}Skirt_skirt` : null, cuffs: sleeves.length && B.names.has('foreArm') ? [`${id}Cuff_foreArmR`, `${id}Cuff_foreArmL`] : [], bodice: `${id}Bodice_torso` });
   return {
-    garments: [{ id: `${id}Bodice`, part: 'torso', ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B) }, ...sleeves,
+    garments: [{ id: `${id}Bodice`, part: on('torso'), ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B) }, ...sleeves,
       ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p), ...clothOf(p, material) }] : []),
       ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6), material)],
     ...trim,
@@ -421,7 +428,7 @@ function mantleOf(p, B, G) {
   const k = B.k, id = p.id ?? 'mantle', part = ['torso', 'upperArm'].filter((n) => B.names.has(n));
   const hem = Math.max(B.waist + 0.05 * k, (B.shoulder ?? B.top.z) - (p.drop ?? 0.17) * k), open = Math.max(2, Math.min(40, p.open ?? 8));
   const garments = [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to: { part: 'torso', u: r3(B.ringAt(B.torso, hem).s) }, around: [open, 360 - open],
-    ease: r3((0.014 + (B.round ?? 0)) * k), flare: [0, r3(p.flare ?? 0.12)], thick: r3(0.006 * k), lie: 0, group: G(p) }];
+    ease: r3((0.014 + (B.round ?? 0)) * k), flare: [0, r3(p.flare ?? 0.12)], thick: r3(0.006 * k), lie: 0, group: G(p), ...clothOf(p, 'wool') }];
   if (p.clasp === false) return { garments };
   const top = B.uTop(B.torso), cg = G({ colour: p.claspColour ?? 'trim' });
   return { garments, adorn: [{ id: `${id}Clasp`, mode: 'shell', part: 'torso', side: 'R', s: [r3(top - 0.3), r3(top - 0.1)], t: [0, 0.3], nt: 2, ns: 2, mugen: r3(0.01 * k), thick: r3(0.004 * k), rad: r3(0.02 * k), group: G(p),

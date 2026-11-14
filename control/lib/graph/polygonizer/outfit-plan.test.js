@@ -1,7 +1,8 @@
 // outfit-plan.test.js — the outfit catalogue's cloth pieces worn on a hero (designed `pieces`): a robe's sleeves and a
 // cloak's hood are the garment kernel's pieces (body-garment.js), on the hero's own landmarks. One hero per procedure.
 import { describe, expect, it } from 'vitest';
-import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { compileOutfit } from './outfit-plan.js';
 
 const partsOf = (cast, style, pieces) => expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast, head: 'anime', outfit: { type: 'outfit', style, pieces } }) }).recipe.parts;
 const centre = (st) => { const v = Object.values(st.points); return [0, 1, 2].map((k) => v.reduce((s, p) => s + p[k], 0) / v.length); };
@@ -45,5 +46,17 @@ describe('a hooded cloak', () => {
     // the face's opening: from the chin up, nothing within 45° of the front about the head's axis (x 0, y 0)
     for (const st of H.stations.filter((x) => z(x) > foot + 0.6 * (crown - foot))) for (const p of Object.values(st.points)) expect(Math.abs(Math.atan2(p[0], p[1])) * 180 / Math.PI).toBeGreaterThan(45);
     expect(Object.keys(partsOf('female', 'traveler', [{ kind: 'cloak' }])).some((n) => /_hood$/.test(n))).toBe(false);
+  });
+});
+
+describe('a robe\'s bodice and sleeves name their parts as a card\'s pieces do (outfit laws 2)', () => {
+  // (2026-11-14: laws 1 named a bare part string, which the realistic body's tailor (body-relational-wear.js reads a
+  // one-item list) passed by, so the bodice was drawn on the skin and the card's shirt over it; laws 2 name a list, and
+  // the tailor makes them a layer over the shirt. The game body reads either alike)
+  const plan = (laws) => ((B) => compileOutfit({ ...B, outfit: { laws, pieces: [{ kind: 'robe', sleeve: 'long' }] } }))(heroPlanOf(heroRecord({ cast: 'female', outfit: { type: 'outfit', style: 'adventurer', pieces: [] } })));
+  const of = (P, id) => P.garments.find((g) => g.id === id)?.part;
+  it('laws 2: a one-item list each; laws 1: the bare name', () => {
+    const two = plan(2), one = plan(1);
+    for (const [id, part] of [['robeBodice', 'torso'], ['robeSleeve', 'upperArm'], ['robeCuff', 'foreArm']]) { expect(of(two, id), id).toEqual([part]); expect(of(one, id), id).toBe(part); }
   });
 });

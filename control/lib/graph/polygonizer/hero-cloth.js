@@ -5,7 +5,7 @@
  *
  *   • WHAT FLOWS: every part that says how it moves (a `rigidity` below 1 or a `material`, cloth-law.js): the cloak, a
  *     robe's or a gown's skirt, a card's drape panels, a bow's tails, a hood's liripipe (its long point, a strand of the
- *     hood's cloth). The hair stays as it is (its own sections are the solver's too; not yet baked here), a hood's body
+ *     hood's cloth). Not the realistic body's cape (kept on its skin: its edges sheared into flaps). The hair stays as it is (its own sections are the solver's too; not yet baked here), a hood's body
  *     is locked to the head (or, worn down, to the shoulders), and a card's panels under a flowing cloak keep
  *     their skin (the layers do not collide with each other yet). What is worked on the cloth (a hem's embroidery, a
  *     trim) rides the flowing vertex nearest it.
@@ -46,10 +46,14 @@ export const clothFlows = (hero) => !!hero && (hero.laws ?? 1) >= CLOTH_LAWS;
  */
 export function heroClothRig(mesh, recipe, hero) {
   const reg = CLOTH_REGISTERS[clothRegisterOf(hero)];
-  const flows = Object.entries(recipe.parts || {}).filter(([, p]) => { const r = clothRigidity(p); return r !== null && r < 1; }).map(([n]) => n);
+  // (the REALISTIC body's cape keeps its skin: hung on strings, its open side edges sheared into angular flaps where the
+  // arm carries the cloth draped on it and the strings swing the rest, and the shirt showed through between them; it
+  // rides its weights as it did before the hero laws 23, until the strings and the arm share one drape there)
+  const kept = (n) => clothRegisterOf(hero) === 'realistic' && /_cape$/.test(n);
+  const flows = Object.entries(recipe.parts || {}).filter(([n, p]) => { const r = clothRigidity(p); return r !== null && r < 1 && !kept(n); }).map(([n]) => n);
   // cloth under a flowing cloak (a card's drape panels) keeps its skin: the two layers do not collide with each other
   // yet, so a panel swung on its own strand comes out through the cloak over it
-  const caped = flows.some((n) => /_cape$/.test(n)), locked = new Set(caped ? flows.filter((n) => /_panel$/.test(n)) : []);
+  const caped = flows.some((n) => /_cape$/.test(n)), locked = new Set([...(caped ? flows.filter((n) => /_panel$/.test(n)) : []), ...Object.keys(recipe.parts || {}).filter(kept)]);
   const pieces = Object.fromEntries(flows.filter((n) => !locked.has(n)).map((n) => [n, Array.isArray(recipe.parts[n].root) ? { links: reg.links } : { strings: reg.strings, links: reg.links }]));
   if (!Object.keys(pieces).length) return null;
   const rec = locked.size ? { ...recipe, parts: Object.fromEntries(Object.entries(recipe.parts).map(([n, p]) => [n, locked.has(n) ? (({ rigidity: _r, material: _m, ...q }) => q)(p) : p])) } : recipe;
@@ -89,7 +93,9 @@ export function bakeClothClips(H, clips, R, { seconds = null, speeds = null, key
   const reg = CLOTH_REGISTERS[register] ?? CLOTH_REGISTERS.round, out = {};
   for (const [name, clip] of Object.entries(clips || {})) {
     const fn = typeof clip === 'function' ? clip : layeredClip(clip, R);
-    const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys, once = fn.once === true, s = seconds?.[name] > 0 ? seconds[name] : PAGE_PERIOD;
+    // (simulated over the seconds its consumers play it: the pack's, which the page and an export both play
+    // (hero-gesture.js clothClipSeconds), an act's own clock, else the page's period)
+    const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys, once = fn.once === true, s = seconds?.[name] > 0 ? seconds[name] : fn.act?.seconds > 0 ? fn.act.seconds : PAGE_PERIOD;
     // simulated between the keys: `sub` samples a key, the keys among them
     const sub = Math.max(1, Math.ceil((s * SIM_HZ) / Math.max(1, once ? K - 1 : K))), M = once ? (K - 1) * sub + 1 : K * sub;
     const poses = Array.from({ length: M }, (_, m) => fn(once ? (M > 1 ? m / (M - 1) : 0) : m / M));

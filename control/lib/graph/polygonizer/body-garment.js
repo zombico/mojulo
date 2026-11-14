@@ -607,13 +607,19 @@ function drapedHood(parts, names, P, worn) {
       const bp = under.filter((p) => p[2] <= z + hi && p[2] >= z - lo); let r = bp.length ? support(bp) : prev; prev = r; return fill(r); });
     // (its line down the back bridged as the cloth lies, the sack's bulk and the collar's roll on it)
     for (let q = 0; q < n; q++) { const y = upperHull(zs.map((z) => -z), R.map((r) => r[q])); y.forEach((v, i) => { R[i][q] = v; }); }
-    const bulk = (0.07 + 0.04 * (1 - rg)) * hs, roll = 0.06 * hs;
+    // (a collapsed hood lies FLAT on the back: its sack a little cloth deep and its collar's roll low, so from the side it
+    // reads as cloth lying on the back, never a hump standing proud of it)
+    const bulk = (0.035 + 0.025 * (1 - rg)) * hs, roll = 0.035 * hs;
+    const sackAt = (t) => Math.sin(Math.PI * (0.12 + 0.88 * t) ** 0.8) * bulk;
     zs.forEach((z, i) => { const t = i / (N - 1), a0 = b0 + (180 - Math.max(6, 14 * (1 - rg)) - b0) * smooth01(t) ** 0.7;
-      const sack = Math.sin(Math.PI * (0.12 + 0.88 * t) ** 0.8) * bulk, rl = roll * (1 - smooth01(t * 3));
-      const rOf = (deg, j) => { const w = Math.sin(Math.PI * j / (m - 1)) ** 0.6; return rAt(R[i], deg) + e + rl + sack * w; };
-      ring(i, z, Math.min(a0, 179), rOf, (deg, r) => Math.max(rAt(R[i], deg) + 0.4 * e, r - Math.max(thick, 0.7 * (r - rAt(R[i], deg) - e))), mixBlend(foot, neckB, i === 0 ? 0.5 : 0)); });
+      const sack = sackAt(t), rl = roll * (1 - smooth01(t * 3));
+      // (it lies ON what is beneath: a share of the ease off it, DOWN_EASE, never the whole ease a hood worn up keeps
+      // round the head, which stood the sack a hand's breadth proud of the cloak in profile)
+      const rOf = (deg, j) => { const w = Math.sin(Math.PI * j / (m - 1)) ** 0.6; return rAt(R[i], deg) + DOWN_EASE * e + rl + sack * w; };
+      ring(i, z, Math.min(a0, 179), rOf, (deg, r) => Math.max(rAt(R[i], deg) + 0.4 * DOWN_EASE * e, r - Math.max(thick, 0.7 * (r - rAt(R[i], deg) - DOWN_EASE * e))), mixBlend(foot, neckB, i === 0 ? 0.5 : 0)); });
     const last = mean(Object.values(stations[N - 1].points)); tailRoot = [0, last[1], last[2]];
-    tailBack = (z) => { const i = zs.findIndex((x) => x <= z); return i < 0 ? null : rAt(R[i], 180) + e + bulk; };
+    // (the liripipe lies on the sack where it is, never a sack's full depth off the back below it: it hooked out there)
+    tailBack = (z) => { const i = zs.findIndex((x) => x <= z); return i < 0 ? null : rAt(R[i], 180) + DOWN_EASE * e + sackAt(i / (N - 1)); };
   }
   const mid = (i) => mean(Object.values(stations[i].points)), bot = mid(0), topC = mid(stations.length - 1);
   const piece = { layer: 1, closure: 'closed', garment: true, slots, stations, caps: up ? { back: [bot[0], bot[1], bot[2] - 0.004].map(r6), tip: [topC[0], topC[1], topC[2] + 0.004].map(r6) } : { back: [bot[0], bot[1], bot[2] + 0.004].map(r6), tip: [topC[0], topC[1], topC[2] - 0.004].map(r6) }, group: P.group,
@@ -634,6 +640,8 @@ function drapedHood(parts, names, P, worn) {
   return { ...piece, tail };
 }
 const rr0 = (r0) => 0.25 * r0;
+/** the share of a hood's ease it keeps off what it lies on, worn down */
+const DOWN_EASE = 0.3;
 
 // ─── footwear: two sections superposed on a flat sole ───
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

@@ -26,10 +26,21 @@ describe('a hero\'s designed pieces', () => {
     const m = expandLayeredManifest({ kind: 'layered', hero });
     expect(() => bindLayered(compileLayered(m.recipe), m.recipe)).not.toThrow();
   });
-  it('the medallion, built on a creature\'s neck chain: left off on a hero, and the readout says so plainly', () => {
+  it('the medallion: under outfit laws 1 (a creature\'s neck chain) left off on a hero, said plainly; under laws 2 worn on its lofted neck', () => {
     const bare = heroPlanOf(heroRecord({ cast: 'female', outfit: outfit(belted, []) }));
-    const { worn, unworn } = sortPieces(bare, { pieces: [{ kind: 'medallion' }] }, { once: true });
+    const { worn, unworn } = sortPieces(bare, { pieces: [{ kind: 'medallion' }], laws: 1 }, { once: true });
     expect(worn).toEqual([]);
     expect(unworn).toEqual([{ kind: 'medallion', why: expect.stringMatching(/^its medallion hangs on a creature's landmarks .*so it is left off$/) }]);
+    // (outfit laws 2, 2026-11-14: the neck's radius read off its lowest ring, the chain hung from the nape round it to a
+    // pendant on the chest's front)
+    const two = sortPieces(bare, { pieces: [{ kind: 'medallion' }], laws: 2 }, { once: true });
+    expect(two.unworn).toEqual([]); expect(two.worn.map((p) => p.kind)).toEqual(['medallion']);
+    const hero = heroRecord({ cast: 'female', outfit: outfit(belted, [{ kind: 'medallion' }]) }), plan = heroPlanOf(hero);
+    const pend = plan.adorn.find((A) => A.id === 'medallionPendant')?.signature, neck = plan.segments.find((g) => g.name === 'neck');
+    expect(pend).toBeTruthy();
+    // the pendant hangs in front of the chest, below the neck's root
+    expect(pend.c[1]).toBeGreaterThan(neck.stations[0].at?.[1] ?? 0); expect(pend.c[2]).toBeLessThan(neck.stations[0].at?.[2] ?? neck.stations[0].z);
+    const m = expandLayeredManifest({ kind: 'layered', hero });
+    expect(() => bindLayered(compileLayered(m.recipe), m.recipe)).not.toThrow();
   });
 });

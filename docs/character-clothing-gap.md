@@ -132,7 +132,8 @@ the sourced VRoid and VRM practice. It is not a documented miHoYo rule.
    spec covers "hair and costumes": per-joint stiffness, gravity and drag, with sphere and capsule
    colliders on body nodes [spec]. `hero-flow.js` is already this, with rigidity words and capsules.
    Since the hero laws 23 a hero's loose cloth (a cloak, a robe's or a gown's skirt, a card's panels)
-   hangs on it, each clip's swing baked into bone keys (`hero-cloth.js`); the hair is not baked yet.
+   hangs on it, each clip's swing baked into bone keys (`hero-cloth.js`), every clip then played over one duration on
+   the page and in an export; the hair is not baked yet, and the realistic body's cape keeps its skin.
 5. **The silhouette comes from a few deliberate pieces, and the body line stays tight.** In BotW, art
    director Takizawa described a style that "makes it easy to lie" while keeping a feeling of reality, and
    Link's hat was cut for not reading well [snippet: GDC 2017 coverage]. Putting the silhouette in

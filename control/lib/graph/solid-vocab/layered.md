@@ -173,7 +173,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open, worn, point, depth }`) raises
   a hood draped from the shoulders over the head as cloth: close on the skull and hair, the face framed by a rolled
   brim (`depth` deep | shallow; `open` degrees each side), a `point` behind the crown (none | short | long, a liripipe
-  that flows), its foot gathered on the collar; `worn: 'down'` lies it collapsed on the back, the head bare. Robes, gowns, tunics and cloaks take
+  that flows), its foot gathered on the collar; `worn: 'down'` lies it collapsed flat on the back, the head bare. On the
+  realistic body a robe's, a gown's or a tunic's bodice and sleeves are the tailor's cloth, a layer over the card's shirt,
+  and the cloak keeps its skin rather than flowing. Robes, gowns, tunics and cloaks take
   `trim: { hem?: 'binding' | 'embroidery', cuffs?: 'binding', chest?: 'emblem', motif? }` (a band of the secondary
   cloth; the motif in the trim's thread). PLATE (`pauldron`, `chestPlate`, `bracers`, the metal bands) is drawn as games
   draw armour: a hollow plate (a thin wall, a rolled edge in the trim, its inside in shade), within the figure's own width
