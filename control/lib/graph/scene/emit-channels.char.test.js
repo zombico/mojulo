@@ -735,6 +735,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 again (mana-ui's layout that adapts): `brawl` and `holo`, for the same reason. The kernel holds
 // the frame it is drawn in (`rt.frame`, the `frame` binding, a mount's own measure) and a stack's `fit`; a spec that
 // names neither draws as it did, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 (the belt's hold, worlds/controllable: cast.js `hold`, rules-platform.js, rules-basic.js side):
+// every fixture that inlines the controllable runtime, seventeen. A cue may hold the pilot between two marks along a way
+// and keep the side camera inside them (`ends`), its depth kept (`keel`). A world with no hold and a camera with no keel
+// step as they did; no fixture without the runtime moves.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
