@@ -35,5 +35,6 @@
     "none"
   ],
   "icons": "line",
-  "sounds": "glass"
+  "sounds": "glass",
+  "iconTone": "meaning"
 }

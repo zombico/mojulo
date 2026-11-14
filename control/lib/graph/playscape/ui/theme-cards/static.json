@@ -34,5 +34,6 @@
     "none"
   ],
   "icons": "solid",
-  "sounds": "terminal"
+  "sounds": "terminal",
+  "iconTone": "meaning"
 }

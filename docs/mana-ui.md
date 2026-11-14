@@ -885,6 +885,11 @@ changes its frames. Nothing is loaded: the theme's sheet carries each as a mask,
 beside it. The runtime only names one (`data-icon` on an `icon`, a counter's `icon`, a prompt's glyph); a game's other
 words for it (`coins`, `time`, `hp`) are aliases in the library.
 
+A theme dresses them further. `icons` has eight styles: `solid`, `line`, `chunky`, `badge`, `duo`, `sketch` (drawn by
+hand), `stencil` (cut and sprayed) and `glow` (a lit tube). `iconTone: 'meaning'` colours each by what it means in the
+theme's own tokens (a heart the health's, a bolt the stamina's, a skull the harm's, what is won the accent). A badge's
+plate takes the theme's corner. `iconSwap` gives a look its own picture for a word (`{ coin: 'ticket' }`).
+
 ### Stages: a show, not one pattern
 
 A theme's `stage` is the shape behind everything a screen holds. Beside the calm ones (`band`, `stripes`, `rings`,

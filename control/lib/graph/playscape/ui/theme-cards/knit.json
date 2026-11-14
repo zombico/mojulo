@@ -41,6 +41,7 @@
     "zigzag",
     "none"
   ],
-  "icons": "duo",
-  "sounds": "paper"
+  "icons": "badge",
+  "sounds": "paper",
+  "iconTone": "meaning"
 }

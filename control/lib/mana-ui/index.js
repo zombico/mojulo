@@ -27,7 +27,7 @@ import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey } from './board.js';
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
 export { manaCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
 export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast, gameHudCss } from './theme.js';
-export { ICONS, ICON_IDS, ICON_STYLES, ICON_ALIASES, iconOf, iconSvg, iconCss } from './icons.js';
+export { ICONS, ICON_IDS, ICON_STYLES, ICON_ALIASES, ICON_MEANING, ICON_TONES, iconOf, iconSvg, iconCss } from './icons.js';
 export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms, coverageOverlap } from './idioms.js';
 export { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
 export { manaUiBoard, boardFrames, BOARD_HUDS, PREVIEW_KEYS, previewKey } from './board.js';

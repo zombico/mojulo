@@ -6,8 +6,11 @@
  *   solid    filled silhouettes (the plainest: reads smallest)
  *   line     the outline alone, round-jointed (clean, technical)
  *   chunky   filled and fattened by a round stroke (a toy's, a mascot game's)
- *   badge    the silhouette on a round plate in the accent (a sticker, a button's face)
+ *   badge    the silhouette on a plate in the accent, the plate the theme's corner (a sticker, a button's face)
  *   duo      the outline over a pale fill of itself (two tones of one ink)
+ *   sketch   drawn by hand: a pencil line that wobbles, gone over twice (a cosy game's, a notebook's)
+ *   stencil  sprayed through a cut sheet, a bridge left across it (a broadcast's, a crate's)
+ *   glow     a lit tube: the line and its light round it (a clean ship's, a sign's)
  *   none     no pictograms: an icon is its name's initials, as it was (the greybox's, and any theme that says none)
  *
  * Nothing is loaded and no picture is embedded: an icon is a MASK in the theme's sheet (an SVG in a data URL, cut
@@ -19,7 +22,8 @@
  *   ICON_IDS · ICON_STYLES · ICON_ALIASES ({ <word>: <id> }: the other words a game says for one: coins, time, hp)
  *   iconOf(name)     the icon a name draws (its id, an alias's), or null
  *   iconSvg(id, style?)  the icon as a whole <svg> (a board's, a doc's)
- *   iconCss(style, scope)  the sheet's rules for a style, under a scope ('' for none)
+ *   iconCss(style, scope, { tone?, plate?, swap? })  the sheet's rules for a style, as a theme dresses it
+ *   ICON_MEANING · ICON_TONES   what an icon means in the theme's colours (a theme's `iconTone: 'meaning'`)
  *
  * Pure data and strings: imports nothing.
  */
@@ -82,7 +86,6 @@ export const ICONS = Object.freeze({
   jump: 'M12 3l6 6.5h-4V15h-4V9.5H6zM4 18h16v3H4z',
 });
 export const ICON_IDS = Object.freeze(Object.keys(ICONS));
-export const ICON_STYLES = Object.freeze(['solid', 'line', 'chunky', 'badge', 'duo']);
 /** The other words a game says for an icon (a HUD's label, an action's name): each draws the icon it names. */
 export const ICON_ALIASES = Object.freeze({
   coins: 'coin', gold: 'coin', money: 'coin', gems: 'gem', hp: 'heart', health: 'heart', lives: 'heart', life: 'heart', stars: 'star', keys: 'key', locked: 'lock',
@@ -95,16 +98,33 @@ export const ICON_ALIASES = Object.freeze({
 const slug = (s) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 export function iconOf(name) { const k = slug(name); return ICONS[k] ? k : ICON_ALIASES[k] ?? null; }
 
-// one outline, five ways: the SVG a style draws it as (a mask: only its alpha is read, so its ink is any ink)
+/** WHAT AN ICON MEANS, as the theme's own colour for it (a theme's `iconTone: 'meaning'`): a heart is the health's
+ * colour, a bolt the stamina's, a skull the harm's, what is won the accent. An icon with no meaning stays the ink. */
+export const ICON_MEANING = Object.freeze({
+  heart: 'hp', potion: 'mp', drop: 'mp', bolt: 'stamina', speed: 'stamina', leaf: 'stamina', check: 'stamina', shield: 'shield',
+  skull: 'harm', flame: 'harm', close: 'harm', mute: 'harm', coin: 'accent', star: 'accent', trophy: 'accent', crown: 'accent', key: 'accent', flag: 'accent', gem: 'accent2', ticket: 'accent2',
+});
+export const ICON_TONES = Object.freeze(['ink', 'meaning']);
+
+// one outline, many ways: the SVG a style draws it as (a mask: only its alpha is read, so its ink is any ink). A
+// filter inside it is the style's hand: a wobble for a pencil, a blur for a glow. Fixed seeds: the same every time.
+const STROKE = "stroke='currentColor' stroke-linejoin='round' stroke-linecap='round'";
 const DRAW = {
   solid: (d) => `<path d='${d}' fill-rule='evenodd'/>`,
-  line: (d) => `<path d='${d}' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linejoin='round' stroke-linecap='round'/>`,
-  chunky: (d) => `<path d='${d}' fill-rule='evenodd' stroke='currentColor' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'/>`,
+  line: (d) => `<path d='${d}' fill='none' ${STROKE} stroke-width='1.7'/>`,
+  chunky: (d) => `<path d='${d}' fill-rule='evenodd' ${STROKE} stroke-width='1.4'/>`,
   badge: (d) => `<path d='${d}' fill-rule='evenodd'/>`,
-  duo: (d) => `<path d='${d}' fill-rule='evenodd' fill-opacity='.34' stroke='currentColor' stroke-width='1.5' stroke-linejoin='round' stroke-linecap='round'/>`,
+  duo: (d) => `<path d='${d}' fill-rule='evenodd' fill-opacity='.34' ${STROKE} stroke-width='1.5'/>`,
+  // sketch: drawn by hand, twice over: a pencil line that wobbles and a paler one a little off it
+  sketch: (d) => `<filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='2' seed='4'/><feDisplacementMap in='SourceGraphic' scale='1.5'/></filter><g filter='url(#w)'><path d='${d}' fill-rule='evenodd' fill-opacity='.16'/><path d='${d}' fill='none' ${STROKE} stroke-width='1.5'/><path d='${d}' fill='none' ${STROKE} stroke-width='.8' opacity='.5' transform='translate(.7 .5) rotate(1.4 12 12)'/></g>`,
+  // stencil: sprayed through a cut sheet: the silhouette with a bridge left across it
+  stencil: (d) => `<mask id='m'><rect x='-2' y='-2' width='28' height='28' fill='white'/><rect x='-4' y='11.1' width='32' height='1.8' fill='black' transform='rotate(-28 12 12)'/></mask><path d='${d}' fill-rule='evenodd' mask='url(#m)'/>`,
+  // glow: a lit tube: the line, and its light round it
+  glow: (d) => `<filter id='g' x='-40%' y='-40%' width='180%' height='180%'><feGaussianBlur stdDeviation='1.5'/></filter><path d='${d}' fill='none' ${STROKE} stroke-width='3' opacity='.6' filter='url(#g)'/><path d='${d}' fill='none' ${STROKE} stroke-width='1.4'/>`,
 };
-// (a fattened or outlined icon needs room round its grid for the stroke)
-const BOX = { solid: '0 0 24 24', line: '-1 -1 26 26', chunky: '-1 -1 26 26', badge: '0 0 24 24', duo: '-1 -1 26 26' };
+export const ICON_STYLES = Object.freeze(Object.keys(DRAW));
+// (a fattened, outlined or glowing icon needs room round its grid)
+const BOX = { solid: '0 0 24 24', line: '-1 -1 26 26', chunky: '-1 -1 26 26', badge: '0 0 24 24', duo: '-1 -1 26 26', sketch: '-2 -2 28 28', stencil: '0 0 24 24', glow: '-3 -3 30 30' };
 export function iconSvg(id, style = 'solid') {
   const k = iconOf(id);
   if (!k) throw new Error(`icon '${id}' is one of: ${ICON_IDS.join(', ')}`);
@@ -112,20 +132,31 @@ export function iconSvg(id, style = 'solid') {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${BOX[style]}'>${DRAW[style](ICONS[k])}</svg>`;
 }
 const urlOf = (svg) => `url("data:image/svg+xml,${svg.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/#/g, '%23').replace(/"/g, '%22')}")`;
+// a badge's plate takes the theme's corner: round, soft, square, or cut at two corners
+const PLATES = { round: 'border-radius:50%', soft: 'border-radius:30%', square: 'border-radius:8%', cut: 'border-radius:0;clip-path:polygon(22% 0,100% 0,100% 78%,78% 100%,0 100%,0 22%)' };
 
 /**
  * The sheet for a style. A named icon hides its initials and draws its mask in the ink (a ::before, so the part
- * keeps its box); a badge keeps a round plate of the accent under a smaller silhouette. `vars` are the sheet's own
- * names for the accent and the ink that reads on it.
+ * keeps its box). What the theme adds:
+ *   tone   'ink' (the words' colour) | 'meaning' (each icon in the theme's colour for what it means: ICON_MEANING)
+ *   plate  a badge's plate shape, the theme's corner: round | soft | square | cut
+ *   on     the ink that reads on a badge's plate (the theme's own reckoning for its accent)
+ *   swap   { <icon>: <icon> }: a look's own picture for a word (its coins drawn as tickets): the name is kept, the
+ *          outline is the other's
  */
-export function iconCss(style, scope = '.mana-root', vars = { accent: 'var(--mana-accent)', on: 'var(--mana-focus-ink)' }) {
+export function iconCss(style, scope = '.mana-root', { tone = 'ink', plate = 'round', swap = {}, on = 'var(--mana-focus-ink)' } = {}) {
   if (!style || style === 'none') return '';
   if (!DRAW[style]) throw new Error(`an icon style is one of: ${ICON_STYLES.join(', ')}`);
   const s = scope, names = (id) => [id, ...Object.keys(ICON_ALIASES).filter((a) => ICON_ALIASES[a] === id)], badge = style === 'badge';
+  const every = [...ICON_IDS, ...Object.keys(ICON_ALIASES)].map((n) => `[data-icon=${n}]`).join(',');
   const out = [
-    `${s} [data-icon]:is(${[...ICON_IDS, ...Object.keys(ICON_ALIASES)].map((n) => `[data-icon=${n}]`).join(',')}){font-size:0;position:relative;border-color:transparent;background:${badge ? vars.accent : 'transparent'};${badge ? `border-radius:50%;color:${vars.on}` : ''}}`,
-    `${s} [data-icon]:is(${[...ICON_IDS, ...Object.keys(ICON_ALIASES)].map((n) => `[data-icon=${n}]`).join(',')})::before{content:"";position:absolute;inset:${badge ? '19%' : '0'};background:currentColor;-webkit-mask:var(--mana-icon) center/contain no-repeat;mask:var(--mana-icon) center/contain no-repeat}`,
+    `${s} [data-icon]:is(${every}){font-size:0;position:relative;border-color:transparent;background:${badge ? 'var(--mana-accent)' : 'transparent'};${badge ? `${PLATES[plate] ?? PLATES.round};color:${on}` : ''}}`,
+    `${s} [data-icon]:is(${every})::before{content:"";position:absolute;inset:${badge ? '19%' : '0'};background:currentColor;-webkit-mask:var(--mana-icon) center/contain no-repeat;mask:var(--mana-icon) center/contain no-repeat}`,
   ];
-  for (const id of ICON_IDS) out.push(`${s} :is(${names(id).map((n) => `[data-icon=${n}]`).join(',')}){--mana-icon:${urlOf(iconSvg(id, style))}}`);
+  for (const id of ICON_IDS) {
+    const sel = `${s} :is(${names(id).map((n) => `[data-icon=${n}]`).join(',')})`, drawn = swap[id] && ICONS[swap[id]] ? swap[id] : id, means = tone === 'meaning' ? ICON_MEANING[drawn] : null;
+    // (in its meaning's colour: the silhouette, or under a badge the plate, its silhouette the ink that reads on it)
+    out.push(`${sel}{--mana-icon:${urlOf(iconSvg(drawn, style))}${means ? (badge ? `;background:var(--mana-${means})` : `;color:var(--mana-${means})`) : ''}}`);
+  }
   return out.join('\n');
 }

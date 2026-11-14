@@ -40,6 +40,7 @@
     "confetti",
     "none"
   ],
-  "icons": "chunky",
-  "sounds": "paper"
+  "icons": "sketch",
+  "sounds": "paper",
+  "iconTone": "meaning"
 }

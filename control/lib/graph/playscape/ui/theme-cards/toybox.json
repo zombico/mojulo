@@ -43,5 +43,6 @@
     "confetti",
     "none"
   ],
-  "icons": "chunky"
+  "icons": "chunky",
+  "iconTone": "meaning"
 }

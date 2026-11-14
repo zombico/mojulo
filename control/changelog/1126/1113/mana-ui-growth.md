@@ -16,3 +16,11 @@ the parts every game composes by hand, more motion, a layout law, and a handoff 
   static: restraint). Each has its icon style and its stages. The shelf's README names every family and what it
   holds to.
 - The toybox draws its pictograms chunky; the runner's HUD counts coins beside a coin.
+- The pictograms take more of the theme. Three more styles, each a hand of its own inside the icon's picture:
+  `sketch` (a pencil line that wobbles, gone over twice), `stencil` (the silhouette with a bridge left across it),
+  `glow` (the line and its light round it). `iconTone: 'meaning'` draws each icon in the theme's colour for what it
+  means (a heart the health's, a bolt the stamina's, a skull the harm's, what is won the accent), where `ink` keeps
+  the words' colour. A badge's plate is the theme's corner (round, soft, square, cut), its silhouette the ink the
+  theme reckons reads on it. `iconSwap: { coin: 'ticket' }` is a look's own picture for a word.
+- The cards say theirs: matchday stencil, picnic and dread sketch, orbit glow, knit badge, floodlight and lightdeck
+  line, static solid, toybox chunky; matchday, picnic, knit, lightdeck, static and toybox in the colours of meaning.

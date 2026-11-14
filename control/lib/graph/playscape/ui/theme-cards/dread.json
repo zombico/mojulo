@@ -28,6 +28,6 @@
   "transition": "fade",
   "backdrop": "dim",
   "stage": "none",
-  "icons": "line",
+  "icons": "sketch",
   "sounds": "crypt"
 }

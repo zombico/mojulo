@@ -63,6 +63,10 @@
  *                                                                    count over the play), so a game is not one pattern
  *     icons     none | solid | line | chunky | badge | duo            the style its pictograms are drawn in (icons.js): a
  *                                                                    coin, a heart, a clock in place of words; none: initials
+ *               | sketch | stencil | glow
+ *     iconTone  ink | meaning                                        their colour: the words' ink, or each in the theme's
+ *                                                                    colour for what it means (a heart the health's)
+ *     iconSwap  { <icon>: <icon> }                                   a look's own picture for a word (its coins as tickets)
  *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
  *               | hydraulic | clack | crypt | jackpot                  (beats/ui-sounds.js: one interval plan, each set a
  *                                                                    voice; the last four the heavy ones);
@@ -91,7 +95,7 @@
  *   themeAdvice(t)         → [{ law, at, advice }]: contrast measured (WCAG), never refused
  *   contrast(a, b)         → the WCAG contrast ratio of two hex colours
  */
-import { iconCss } from './icons.js';
+import { iconCss, ICONS } from './icons.js';
 export const FACE_STACKS = Object.freeze({
   system: 'system-ui,-apple-system,"Segoe UI",sans-serif',
   serif: 'Georgia,"Times New Roman",serif',
@@ -124,11 +128,14 @@ export const THEME_WORDS = Object.freeze({
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
   hud: ['panel', 'bare'],
   // the style its pictograms are drawn in (icons.js); none: an icon is its name's initials
-  icons: ['none', 'solid', 'line', 'chunky', 'badge', 'duo'],
+  icons: ['none', 'solid', 'line', 'chunky', 'badge', 'duo', 'sketch', 'stencil', 'glow'],
+  // their colour: the ink of the words beside them, or each in the theme's colour for what it means (a heart the
+  // health's, a bolt the stamina's, what is won the accent)
+  iconTone: ['ink', 'meaning'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides', 'icons'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides', 'icons', 'iconTone', 'iconSwap'];
 export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay', 'stage']);
 // how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
 // and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
@@ -230,7 +237,7 @@ export function readTheme(t) {
   const out = { name: typeof t.name === 'string' ? t.name : base.name, from };
   for (const k of Object.keys(THEME_WORDS)) {
     // (a word a preset does not say is its quietest: no pictograms)
-    const x = t[k] === undefined ? (base[k] === undefined && k === 'icons' ? 'none' : base[k]) : t[k];
+    const x = t[k] === undefined ? (base[k] === undefined && k === 'icons' ? 'none' : base[k] === undefined && k === 'iconTone' ? 'ink' : base[k]) : t[k];
     if (k === 'ornaments') {
       if (!Array.isArray(x) || x.some((o) => !THEME_WORDS.ornaments.includes(o))) throw new Error(`theme.ornaments is a list of: ${THEME_WORDS.ornaments.join(', ')}`);
       out.ornaments = [...new Set(x)];
@@ -241,6 +248,10 @@ export function readTheme(t) {
     } else if (!THEME_WORDS[k].includes(x)) throw new Error(`theme.${k} is one of: ${THEME_WORDS[k].join(', ')}${k === 'stage' ? ', or a list of them (a show: each kind of screen its own)' : ''}`);
     else out[k] = x;
   }
+  // a look's own pictures for words (icons.js): { <icon>: <icon> }, each an icon there is; a child keeps its parent's
+  const swap = t.iconSwap === undefined ? base.iconSwap ?? {} : t.iconSwap;
+  if (!isObj(swap) || Object.entries(swap).some(([a, b]) => !ICONS[a] || !ICONS[b])) throw new Error(`theme.iconSwap is { <icon>: <icon> }, each one of: ${Object.keys(ICONS).join(', ')}`);
+  out.iconSwap = { ...swap };
   // tokens: a theme's own over its preset's (a theme from another preset keeps that preset's colours it does not name)
   if (t.tokens !== undefined && !isObj(t.tokens)) throw new Error(`theme.tokens is { ${TOKENS.join(', ')} } (hex colours)`);
   // new core colours re-derive the rest (a dark theme over the greybox keeps none of its light greys)
@@ -519,7 +530,7 @@ export function themeCss(theme, scope = '.mana-root') {
   if (T.halo === 'plate') out.push(`${s} .mana-window[data-variant=ghost]{background:${alpha(k.panel, 0.82)};padding:calc(9 * var(--mana-du)) calc(15 * var(--mana-du))}`, `${s} .mana-screen>.mana-title{width:fit-content;background:${alpha(k.panel, 0.82)};padding:0 calc(15 * var(--mana-du))}`);
   if (T.ornaments.includes('glow')) out.push(`${win}{box-shadow:0 0 0 1px ${alpha(k.accent, 0.5)},0 0 18px ${alpha(k.accent, 0.35)}}`);
   // the pictograms, in the theme's style (icons.js): none adds nothing
-  if (T.icons !== 'none') out.push(iconCss(T.icons, s));
+  if (T.icons !== 'none') out.push(iconCss(T.icons, s, { tone: T.iconTone, plate: T.corner, swap: T.iconSwap, on: onAccent }));
   return out.join('\n');
 }
 
