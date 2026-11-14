@@ -1,8 +1,18 @@
 ### The game turn: one level session in named phases
 
-In progress. Built so far: the turn's shape, its reader and its kernel, read by the flow and walked headless
-(`lib/graph/game/turn.js`; [docs/game-flow.md](../../../../docs/game-flow.md), "A level step is a turn"). No shell
-runs a turn yet, so nothing a game emits has changed. The rest below is what the theme will hold.
+In progress. Built so far: the turn's shape, its reader and its kernel (`lib/graph/game/turn.js`), and the play
+shell running it ([docs/game-flow.md](../../../../docs/game-flow.md), "A level step is a turn"). A game whose level
+steps say no turn carries none of it. The arena shell and versus still keep their own set-up. The rest below is what
+the theme will hold.
+
+- **Built: the play shell runs a turn.** The picks are drawn by mana-ui, one screen a pick, in the game's `ui` or
+  the greybox; back unwinds one. The level is handed the game's own words as `params.__picks` and, of a consumed
+  slice, the members picked. A retry and the pause's restart keep the picks. A start trigger's scene is staged on
+  the level's page, or its video plays over the held level, once a save, with no pause while it plays. An end
+  trigger's video plays after the level's end card. Not yet: an end trigger that is a scene, a locked row, a quit
+  from the pause recorded.
+- The play shell's cutscene video and the triggers' share one player; every play shell page's inlined code changes
+  by that and by the turn's hooks.
 
 - **Built: a level step's turn.** A level step takes `picks` (what the player chooses before it loads, from the
   game's own options or from a slice the level consumes), `start` and `end` (a scene or a video as play starts and

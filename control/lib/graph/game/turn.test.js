@@ -94,6 +94,8 @@ describe('a turn, stepped', () => {
     expect(stepTurn(T, play, 'resume')).toMatchObject({ phase: 'main', sub: 'play' });
     expect(stepTurn(T, play, 'resume').paused).toBeUndefined();
     expect(stepTurn(T, play, 'quit')).toMatchObject({ phase: 'cleanup', outcome: 'left' });
+    expect(stepTurn(T, { ...play, picks: { difficulty: 'hard' } }, 'restart')).toEqual({ phase: 'upkeep', level: null, picks: { difficulty: 'hard' }, again: true });
+    expect(stepTurn(T, { ...play, paused: undefined }, 'restart')).toBe(null);
     const farewell = turnOf({ ...STEP, end: { scene: 'farewell', when: ['won', 'left'] } });
     expect(stepTurn(farewell, play, 'quit')).toMatchObject({ phase: 'main', sub: 'end', outcome: 'left' });
   });

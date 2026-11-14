@@ -85,7 +85,20 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
 - **The kernel** (`buildTurnKernel`: `beginTurn`, `stepTurn`, `walkTurn`) is self-contained, to be inlined in a shell
   beside the flow kernel. It draws nothing: a shell draws each phase.
 
-Read and walked today; no shell runs it yet (below).
+**The play shell runs it** (`play-shell.js`). A game whose steps say no turn carries no key and none of the kernel.
+
+- The picks are drawn by mana-ui, one screen a pick, in the game's `ui` (the greybox when it says none). Back unwinds
+  one pick, then leaves the turn the way it was come into. A pick of several is marked row by row and confirmed.
+- The level is handed the game's own words as `params.__picks`, and of a consumed slice the members picked and no
+  others.
+- A retry (`$again`) and the pause's restart load again with the same picks.
+- A start trigger that is a scene is staged on the level's page (`params.__stage`); a video plays over the held
+  level. The pause does nothing while it plays. A save that has seen it does not see it again.
+- An end trigger that is a video plays after the level's own end card, before the flow goes on; the store's write is
+  already made by then, so closing the page mid-video loses nothing.
+
+Not yet: an end trigger that is a scene is passed (a level cannot be told to play a scene after it has started); a
+row is never locked (the store has no word for it yet); a quit from the pause is not recorded.
 
 ## How a game starts
 
@@ -153,8 +166,7 @@ cinematics a save has seen beside it, so an opening plays on a first boot, and f
 
 - Holding the world through a scene: the world freeze stops the clock the scene itself runs on, so a hold needs a
   narrower freeze (foes and hazards still, the scene's cast and camera moving).
-- The turn (above) is read by the flow and walked headless; the play shell does not run it yet, so a level step's
-  picks and triggers are not played.
+- The arena shell and versus do not run a turn (above): their set-up screens are still their own.
 - The arena shell, versus, tabletop, table-rpg and pixelizer keep their own screen machines.
 - The play shell's screens are drawn by mana-ui only for a game with a `ui` (play-shell-mana.js: the look resolved,
   the game's languages; design_game writes it from a world's `ui`); without one they stay the shell's own DOM and the

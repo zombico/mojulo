@@ -6,12 +6,12 @@
  * this: no kernel, no sheet, no theme, no host.
  *
  *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
- *   shellManaSpec(ui)            → the spec: the screens (attract, title, levels, options, credits, end, result,
+ *   shellManaSpec(ui, { picks }) → (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
  *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
  *   shellManaCss(ui)             → the sheet and the theme, scoped to the mana root
  *   shellManaScript()            → the page's code: the kernel, the controls host, and `__mojMana`
- *   shellManaConfig(ui)          → cfg.mana: { spec, glyphs, controls: { keys, pad } }
+ *   shellManaConfig(ui, opts)    → cfg.mana: { spec, glyphs, controls: { keys, pad } }
  *   playShellManaRuntime(cfg, api) → (inlined) { draw(name), close(), loading(place), loaded(), pause(), unpause(),
  *                                  moment(text, sub?) }: the shell's api is
  *                                  { go, onOf, show, app, title, front, levels(), result(), run(), settings(),
@@ -38,7 +38,7 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}) {
+export function shellManaSpec(ui = {}, { picks = false } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
   const screens = {
     attract: { use: 'attract-screen', props: { title: B('title'), prompt: B('press'), then: { emit: 'press' } } },
@@ -68,6 +68,14 @@ export function shellManaSpec(ui = {}) {
     // over a level's frame while it loads: no number to claim, ready on its first frame, gone by itself (a quick load never shows)
     loading: { use: 'loading-screen', props: { place: B('load.place'), ready: B('load.ready'), auto: true, then: { emit: 'loaded' } } },
   };
+  // UNTAP (turn.js): one pick of a level's turn, the rows the store says can be picked beside the one in focus; a row
+  // taken is marked, a locked one says why; one pick at a time, back unwinds one (the shell's, by the stack closing)
+  if (picks) screens.pick = { use: 'screen', props: { title: B('pick.title'), place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
+    { use: 'text', props: { value: B('pick.ask'), role: 'label' } },
+    { use: 'text', props: { value: B('pick.why'), role: 'caption' }, when: B('pick.why') },
+    { use: 'list', id: 'pick', props: { rows: B('pick.rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [{ use: 'text', props: { value: { item: 'name' }, role: 'heading' } }, { use: 'badge', props: { value: { item: 'mark' } }, when: { item: 'mark' } }] } }, on: { accept: { emit: 'turn:pick', id: { item: 'id' } } } },
+    { use: 'button', props: { label: { word: 'continue' }, disabled: B('pick.short'), why: B('pick.shortWhy') }, when: B('pick.many'), on: { accept: { emit: 'turn:confirm' } } },
+  ] }] }] };
   // what passes over the play: a moment, one at a time (a run's map cleared)
   const hud = { use: 'hud', children: [{ use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] }] };
   const full = withIdioms({ screens, hud, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
@@ -79,9 +87,9 @@ export function shellManaSpec(ui = {}) {
 // (the image component draws a placeholder until it takes a picture: a game's screens show none of its marks, where a
 // wireframe would; a backdrop keeps its ground, the theme's own)
 export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
-export function shellManaConfig(ui = {}) {
+export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
-  return { spec: shellManaSpec(ui), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
+  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
 }
 export const shellManaScript = () => `const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
@@ -111,6 +119,8 @@ export function playShellManaRuntime(cfg, api) {
   function act(e) {
     if (e.emit === 'mana:closed') {
       if (quiet) return;
+      // (a pick left by its back: the turn unwinds one pick, or is left)
+      if (up === 'pick') { up = null; api.turn.back(); return; }
       // (the pause left by its back: the game resumes)
       if (up === 'pause' || up === 'controls') { up = null; api.pause.resume(); return; }
       // a back that emptied the stack: the step's back, else the screen it left drawn again
@@ -119,6 +129,8 @@ export function playShellManaRuntime(cfg, api) {
       if (!(api.onOf('back') && api.go('back'))) draw(was);
       return;
     }
+    if (e.emit === 'turn:pick') { api.turn.pick(e.id); return; }
+    if (e.emit === 'turn:confirm') { api.turn.confirm(); return; }
     if (e.emit === 'pause:resume') { api.pause.resume(); return; }
     if (e.emit === 'pause:restart') { api.pause.restart(); return; }
     if (e.emit === 'pause:quit') { api.pause.quit(); return; }
@@ -174,6 +186,9 @@ export function playShellManaRuntime(cfg, api) {
     close() { hush(() => rt.close()); up = null; view.paint(); },
     loading(place) { UI.ui.load = { place: place || '', ready: false }; open('loading'); },
     loaded() { UI.ui.load = Object.assign({}, UI.ui.load, { ready: true }); view.paint(); },
+    // untap: one pick of the turn, as the shell stands ({ title, ask, why, rows, many, short, shortWhy })
+    // (`fresh`: another pick than the one up, so the cursor starts at its first row)
+    pick(view, fresh) { UI.ui.pick = view; api.app.textContent = ''; api.show('title'); if (up === 'pick' && !fresh) view.paint(); else { open('pick'); rt.focusAt(0); view.paint(); } },
     // the pause over a held level, and off again; a moment over the play (a run's map cleared)
     pause() { fillPause(); open('pause'); },
     unpause() { if (up === 'pause' || up === 'controls') { hush(() => rt.close()); up = null; view.paint(); } },

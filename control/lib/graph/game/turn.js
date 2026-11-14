@@ -43,7 +43,8 @@
  * Events, by phase:
  *   untap    { pick: id | [ids] } (the choice for the pick asked) · back
  *   upkeep   ready · { fail: '<why>' }
- *   main     start, end: scene-end (it ended or was skipped) · play: interrupt, resume, quit, { outcome: won | lost | left }
+ *   main     start, end: scene-end (it ended or was skipped) · play: interrupt, { outcome: won | lost | left };
+ *            paused: resume, restart (upkeep again, the same picks), quit (a level left)
  *   cleanup  { applied: true | false }
  *   end      retry (upkeep again, the same picks) · any other word leaves the turn by it (next, home)
  *
@@ -207,6 +208,8 @@ export function buildTurnKernel() {
       if (name === 'interrupt') return s.paused ? null : copy(s, { paused: true });
       if (name === 'resume') return s.paused ? leave(s, { phase: 'main', sub: 'play' }) : null;
       if (name === 'quit') return s.paused ? toCleanup(turn, s, 'left') : null;
+      // (restart: the level loaded again with the same picks, as a retry is)
+      if (name === 'restart') return s.paused ? { phase: 'upkeep', level: s.level, picks: s.picks, again: true } : null;
       if ('outcome' in e && OUTCOMES.indexOf(e.outcome) >= 0) return s.paused ? null : toCleanup(turn, s, e.outcome);
       return null;
     }
