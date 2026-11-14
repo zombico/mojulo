@@ -22,6 +22,8 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { levelHud } from '../game/hud-mana.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
 import { PARTY_CHASE } from '../playscape/hero-chase.js';
@@ -44,12 +46,15 @@ import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
-import { fixedStations, uprightCamera, STEERED } from './cameras.js';
+import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { HOLDER } from './mechanics.js';
-import { readScreen } from '../game/screen.js';
+import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
+import { rollOfLevel } from './roll-lower.js';
+import { obstacleStage, obstacleEnds } from './roll-course.js';
+import { courseCamera, COURSE_NEAR, COURSE_TALL_FOV } from './course-view.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests, storyActors } from './story.js';
@@ -178,6 +183,8 @@ export function gameStages(world) {
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
     if (R.runner) { out.push({ level, node: 'runner', section: 'runner', index: 0, manifest: runnerStage(R.runner) }); continue; }
+    // an obstacle course is one stage: the lane (roll-course.js), its slots filled by the level's roll, sized for the hero
+    if (R.obstacles) { out.push({ level, node: 'obstacles', section: 'obstacles', index: 0, manifest: obstacleStage(G, R.obstacles) }); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
     // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
@@ -653,6 +660,13 @@ function withOwnMoves(L, byRef) {
 function screenLevel(written, L) {
   const S = readScreen(written), m = L.args.manifest;
   if (S.orientation !== 'portrait') return { ...L, args: { ...L.args, manifest: { ...m, screen: written } } };
+  // (an obstacle course's chase is solved for the frame, never pulled back by the table: its thirds are the frame's
+  // own, course-view.js, so the camera is found again at the upright frame's vertical fov)
+  if (m.obstacles?.camera && m.camera?.rule === 'follow' && (m.camera.dist ?? 6) >= 1) {
+    const fov = S.fov ?? COURSE_TALL_FOV, cam = courseCamera({ react: m.obstacles.reactAt, vfov: screenPayload({ ...S, fov }).v0, near: COURSE_NEAR.tall });
+    const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov };
+    return { ...L, args: { ...L.args, manifest: { ...m, camera: { ...m.camera, ...cam }, obstacles: { ...m.obstacles, camera: cam }, screen } } };
+  }
   const U = uprightCamera(m.camera ?? null);
   const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov: S.fov ?? U.fov };
   const manifest = { ...m, ...(U.camera ? { camera: U.camera } : {}), screen };
@@ -676,7 +690,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
-  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stageEnds(stage.manifest);
+  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);
@@ -703,7 +717,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const name = title ?? `${G.name ?? G.id} · ${stageTitle(stage)}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.
-  const cam = G.camera ?? null;
+  // (an obstacle course's hero is steered across its lanes in the camera's frame, and the camera stays behind the
+  // lane: a chase that eased behind the hero, or a hero turned as a tank is, would swing the course off the screen at
+  // every lane change, and the course is measured on a hero that slides across: the steered chase the player turns)
+  const cam = G.camera ?? (stage.section === 'obstacles' && heroRef ? 'orbit' : null);
   if (cam === 'top-down' && !heroRef) throw new Error('levels: a top-down camera watches a hero; give the world a hero (quick.hero, or its characters), or play it first-person');
   if (cam === 'side' && !heroRef) throw new Error('levels: a side camera watches a hero run its lane; give the world a hero, or play it first-person');
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
@@ -721,7 +738,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${actionOrbit ? ' · mouse  look' : steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look || shoulder ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${look && X0?.pilot?.rule?.knife ? ' · V  knife' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
-  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
+  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [...(ends.coins ? [{ kind: 'coins', pickups: ends.coins.map((c) => ({ id: c.id, at: c.at, radius: 1.1 })) }, { kind: 'score', var: 'coins', label: 'Coins', best: 'high', points: [] }] : []), { kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
@@ -877,11 +894,15 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the trail's posts take none
   if (ends.arena) blocks = [...(blocks ?? []), ...ends.arena.blocks];
   // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats
-  if (concerns.includes('cover') && stage.section === 'trail' && !ends.arena) {
+  // (a world that ROLLS, roll-lower.js: the same cover laid for its roll when the concerns laid none, by the trail's beats)
+  const rolls = G.roll && stage.section === 'trail' && !ends.arena ? G.roll : null;
+  let cover = [];
+  if ((concerns.includes('cover') || (rolls && rolls.cover)) && stage.section === 'trail' && !ends.arena) {
     posts ??= beatPosts(ends);
-    const cover = coverBlocks(posts, ends);
-    if (cover.length) blocks = [...(blocks ?? []), ...cover];
+    cover = coverBlocks(posts, ends);
   }
+  const coverFrom = (blocks ?? []).length;
+  if (cover.length) blocks = [...(blocks ?? []), ...cover];
   // REACHABLE (the intent's `reachable` concern): with a pilot that jumps, every other pickup on steps a jump climbs
   const jump = concerns.includes('reachable') && stage.section === 'trail' ? jumpHeight(pilotPart.entities[0].rule) : 0;
   let raised = [];
@@ -937,17 +958,39 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   // (a bare HUD look, the world's `hud` (mana-ui's adventure): no level badge on the play; the level stays the status page's
   // and its level-up banner's)
+  // (an obstacle course is framed for where it is read, course-view.js: its hero followed by the course's own camera;
+  // a walker's follow, with no hero to watch, stays the eye)
+  if (stage.section === 'obstacles' && pilotPart.camera?.rule === 'follow' && (pilotPart.camera.dist ?? 6) >= 1) pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...stage.manifest.obstacles.camera } };
+  // (and its legend is said at the top: the bottom of a course's screen is the character's, course-view.js)
+  // (the course's HUD says what to do in the device's own glyphs, course-hud.js: the text legend is not laid)
+  if (stage.section === 'obstacles' && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: stage.manifest.manaHud ? pilotPart.events.hud.filter((h) => !(h.slot === 'bottom' && h.ttl)) : pilotPart.events.hud.map((h) => (h.slot === 'bottom' && h.ttl ? { ...h, slot: 'top' } : h)) } };
+  // ROLL (the world's `roll`, roll-lower.js): the level's cover and its pickups named, and a roll over them on its
+  // recipe (game/roll.js): the seed its game sends picks which stand and which lie. A pilot with no body is given one
+  let roll = null;
+  if (rolls) {
+    const p0 = pilotPart.entities[0], L = rollOfLevel(rolls, { cover, mechanics: game.mechanics, rule: p0.rule });
+    if (L?.roll) {
+      roll = L.roll; game.mechanics = L.mechanics;
+      if (blocks) blocks = blocks.map((b, i) => (i >= coverFrom && i < coverFrom + cover.length ? L.cover[i - coverFrom] : b));
+      if (L.rule !== p0.rule) pilotPart = { ...pilotPart, entities: [{ ...p0, rule: L.rule }, ...pilotPart.entities.slice(1)] };
+    }
+  }
   const bare = G.hud && readTheme(G.hud).hud === 'bare';
   if (bare && Array.isArray(play?.parts)) play = { ...play, parts: play.parts.filter((p) => !(p.part === 'readout' && p.id === 'level')) };
   play = withBookUi(G, play);
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
-  const manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
+  // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
+  if (G.ui !== undefined && !manifest.manaHud) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
-  const allLaws = course ? [...laws, ...course.laws.map((x) => ({ ...x, id: `course:${x.id}` }))] : laws;
+  // (a course with no hero to follow is run from the eye: said, since its tells and its thirds are laid for a chase)
+  const eyed = stage.section === 'obstacles' && !((pilotPart.camera?.dist ?? 6) >= 1) ? [{ concern: 'obstacles', law: 'followed', holds: false, says: 'an obstacle course is read from behind its hero (the far end, the way coming, the figure: thirds of the screen); this world names no hero, so it is run from the eye. Name a hero and the camera follows it' }] : [];
+  const allLaws = [...(course ? [...laws, ...course.laws.map((x) => ({ ...x, id: `course:${x.id}` }))] : laws), ...eyed];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(allLaws.length ? { laws: allLaws } : {}), ...(course ? { course: course.plan } : {}) };
 }
 

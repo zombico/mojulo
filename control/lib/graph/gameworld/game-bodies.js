@@ -86,7 +86,7 @@ export const GAME_BODIES = Object.freeze({
     read: 'the platformer\'s: a big head on a small round body, or a few flat faces',
     genres: ['collectathon', 'co-op-platformer', 'metroidvania', 'endless-runner', 'racing', 'kart-racer', 'rhythm'],
     goals: ['collect', 'runner', 'race', 'rhythm'],
-    feels: ['jumping-giuseppe', 'galaxy-boy'],
+    feels: ['jumping-giuseppe', 'galaxy-boy', 'commuter-rail-runner'],
     styles: Object.freeze({
       mascot: { when: 'any world but a pixel one (the default)', roles: {
         hero: { build: 'chibi' },

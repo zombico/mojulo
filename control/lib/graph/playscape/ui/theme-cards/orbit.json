@@ -1,0 +1,40 @@
+{
+  "id": "orbit",
+  "name": "Orbit",
+  "about": "Dark glass in orbit: a deep blue-black, a cyan that draws every edge, an amber for what is yours, a grid over all of it. Precise and cool.",
+  "family": "clean",
+  "tags": [
+    "sci-fi",
+    "clean",
+    "space",
+    "shooter",
+    "racing"
+  ],
+  "author": "mojulo",
+  "from": "modern",
+  "tokens": {
+    "ink": "#e9f6ff",
+    "panel": "#0b1722",
+    "line": "#4fd6ff",
+    "accent": "#4fd6ff",
+    "accent2": "#ffd166",
+    "harm": "#ff6a5c",
+    "stamina": "#7be0a0"
+  },
+  "frame": "hairline",
+  "corner": "cut",
+  "plate": "gradient",
+  "material": "glass",
+  "overlay": "grid",
+  "case": "upper",
+  "motion": "snap",
+  "stage": [
+    "tunnel",
+    "rings",
+    "streaks",
+    "tunnel",
+    "none"
+  ],
+  "icons": "glow",
+  "sounds": "glass"
+}

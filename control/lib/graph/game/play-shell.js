@@ -82,7 +82,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}) };
+    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}), ...(l.rolls ? { rolls: true } : {}) };
   });
 
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
@@ -115,7 +115,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     theme: Object.keys(levelTheme).length ? levelTheme : null,
     playtest: !!playtest,
     startLevel,
-    ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
+    ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
@@ -348,6 +348,8 @@ export function playShellRuntime(cfg, K) {
     let a = (n * 2654435761) >>> 0;
     const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const pool = LEVELS.slice();
+    // (`repeat`: a level may be drawn again, never twice running when there is another: a run of one rolled level's maps)
+    if (RUN.repeat) { const out = []; let prev = -1; for (let k = 0; k < RUN.length; k++) { let j = Math.floor(rnd() * pool.length); if (pool.length > 1 && j === prev) j = (j + 1) % pool.length; out.push(pool[j]); prev = j; } return out; }
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const x = pool[i]; pool[i] = pool[j]; pool[j] = x; }
     return pool.slice(0, RUN.length);
   }
@@ -365,13 +367,16 @@ export function playShellRuntime(cfg, K) {
     app.appendChild(el('div', { cls: 'screen center' }, [
       PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
       el('h1', { text: M.title }),
-      el('div', { cls: 'muted', text: 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
+      el('div', { cls: 'muted', text: RUN.repeat ? 'a run: ' + RUN.length + ' maps, rolled anew each time; fall, and it ends' : 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
       runs ? el('div', { cls: 'badge', text: 'deepest: ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') }) : null,
       el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: () => go('play') })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
     ]));
   }
   // a run's end: how deep it went, what it gained; a new run, the title, the credits
+  // a level that rolls says which of its maps was played (its seed): the number a player names a map by
+  let againSeed = null, lastSeed = null;
+  const mapSays = (lv, env) => (lv && lv.rolls && env && Number.isFinite(env.seed) ? el('div', { cls: 'muted', text: 'map ' + env.seed }) : null);
   function renderRunResult() {
     if (!run || !lastOutcome) { home(); return; }
     const env = lastOutcome.env, deep = lastOutcome.deep, won = run.at >= run.order.length;
@@ -383,6 +388,7 @@ export function playShellRuntime(cfg, K) {
       el('div', { cls: 'result-mark' + (won ? '' : ' fail'), text: won ? 'run complete' : 'run over' }),
       el('h1', { text: 'run ' + r.n + ': ' + r.at + ' of ' + r.order.length }),
       el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
+      mapSays(r.order[Math.min(r.at, r.order.length - 1)], env),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
       el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: () => go('again') }), el('button', { text: 'title', on: () => go('home') }), onOf('credits') ? el('button', { text: 'credits', on: () => go('credits') }) : null]),
@@ -504,12 +510,18 @@ export function playShellRuntime(cfg, K) {
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
     if (stage) params.__stage = stage;
-    session = { level: lv, params, seed: (run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1), ended: false };
+    // (a run: the level is told its place in it, for a HUD that says which map this is)
+    if (run) params.__run = { at: run.at + 1, of: run.order.length, n: run.n };
+    // (a level that rolls, played again: the same seed, so the same map; anything else, the next seed)
+    const fresh = run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1, seed = lv.rolls && againSeed != null ? againSeed : fresh;
+    againSeed = null; lastSeed = seed;
+    session = { level: lv, params, seed, ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
     // the veil while it loads: mana-ui's loading screen when the game draws its screens with it
-    if (MANA) MANA.loading(lv.title);
+    // (in a run the place it is going is the map's number in the run: what was cleared, and what is next)
+    if (MANA) MANA.loading(run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
@@ -533,7 +545,7 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
     if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
@@ -586,10 +598,14 @@ export function playShellRuntime(cfg, K) {
       // a RUN: a clear goes on to its next level, else the run's end (how deep it went, kept)
       if (run) {
         if (env.result === 'success') run.at += 1;
+        // (what the run adds up: its seconds of play, and what its maps kept that is counted high: coins)
+        const secs = playedSecs();
+        if (secs !== null) run.secs = (run.secs || 0) + secs;
+        for (const k of (env.stats && Array.isArray(env.stats.kept) ? env.stats.kept : [])) if (k.best === 'high' && Number.isFinite(Number(k.value))) { run.kept = run.kept || {}; run.kept[k.label] = (run.kept[k.label] || 0) + Number(k.value); }
         const deep = num(DEEP_KEY);
         if (run.at > deep) keep(DEEP_KEY, run.at);
         lastOutcome = { lv: session.level, env, ok: r.ok, deep };
-        if (env.result === 'success' && run.at < run.order.length) toast('cleared ' + run.at + ' of ' + run.order.length);
+        if (env.result === 'success' && run.at < run.order.length) { if (MANA) MANA.moment('cleared ' + run.at + ' of ' + run.order.length, secs !== null ? secs.toFixed(1) + ' s' : ''); else toast('cleared ' + run.at + ' of ' + run.order.length); }
         const sess = session;
         setTimeout(() => { if (session === sess) go(event); }, 1400);
         return;
@@ -615,13 +631,18 @@ export function playShellRuntime(cfg, K) {
   // ---- pause ----
   // OWNED (docs/local-multiplayer-principles.md): the controller whose start opened the pause owns it; another's start
   // does nothing until it closes. With seats (the level's game-seats) the panel names the owner's seat in its colour.
-  let paused = false, pauseBy = null, seatList = [];
+  let paused = false, pauseBy = null, seatList = [], pausedAt = 0;
+  // (the seconds a level was played: from its first frame shown to now, the time it stood paused taken out)
+  function playedSecs() { return session && session.t0 ? Math.max(0, Math.round((performance.now() - session.t0 - (session.held || 0)) / 100) / 10) : null; }
   function setPaused(on, by) {
+    if (on !== paused && session) { if (on) pausedAt = performance.now(); else session.held = (session.held || 0) + (performance.now() - pausedAt); }
     paused = on;
     pauseBy = on ? by || null : null;
-    pauseEl.style.display = on ? 'flex' : 'none';
+    // (a game whose screens are mana-ui's pauses on its pause menu; else the shell's own panel)
+    pauseEl.style.display = on && !(MANA && screen === 'level') ? 'flex' : 'none';
     if (screen === 'level') post({ moj: W.pause, on });
-    if (on) renderPause();
+    if (MANA && screen === 'level') { if (on) MANA.pause(); else MANA.unpause(); }
+    else if (on) renderPause();
   }
   function renderPause(view) {
     pauseEl.textContent = '';
@@ -742,6 +763,7 @@ export function playShellRuntime(cfg, K) {
     const kids = [
       el('div', { cls: 'result-mark' + (env.result === 'success' ? '' : ' fail'), text: res }),
       el('h1', { text: lv.title }),
+      mapSays(lv, env),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
       done && M.final ? el('div', { cls: 'badge', text: 'the game is complete' }) : null,
@@ -788,7 +810,10 @@ export function playShellRuntime(cfg, K) {
     const r = run, deep = lastOutcome.deep, won = r.at >= r.order.length, gains = lastOutcome.ok ? gainsOf(lastOutcome.env.events || []) : [];
     run = null; session = null;
     const items = [{ label: 'new run', then: { emit: 'again' } }, { label: 'title', then: { emit: 'home' } }].concat(onOf('credits') ? [{ label: 'credits', then: { emit: 'credits' } }] : []);
-    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(gains.map((g) => ({ label: g, value: '' }))), rank: '', items };
+    const last = r.order[Math.min(r.at, r.order.length - 1)], env = lastOutcome.env;
+    // (which map it ended on, the seconds it was played, what its maps kept that adds up)
+    const more = [].concat(last && last.rolls && Number.isFinite(env.seed) ? [{ label: 'map', value: String(env.seed) }] : [], r.secs ? [{ label: 'time', value: r.secs.toFixed(1) + ' s' }] : [], Object.keys(r.kept || {}).map((k) => ({ label: k.toLowerCase(), value: String(r.kept[k]) })));
+    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(more, gains.map((g) => ({ label: g, value: '' }))), rank: won ? 'clear' : '', items };
   }
   const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
     go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
@@ -797,6 +822,15 @@ export function playShellRuntime(cfg, K) {
     reset: () => { resetStore(); persist(); },
     levels: () => LEVELS.map((lv) => ({ ref: lv.ref, title: lv.title, open: isOpen(lv), cleared: cleared(lv.ref), lock: isOpen(lv) ? null : lv.gate && !K.evalGate(SCHEMA, state, lv.gate) ? needs(lv.gate) : 'not found yet' })),
     result: resultInfo, run: runInfo,
+    // a run's title: its rules in words, how deep the best went
+    runTitle: () => { if (!RUN) return null; const deep = num(DEEP_KEY), runs = num(RUNS_KEY); return { rules: RUN.repeat ? RUN.length + ' maps, rolled anew each run. Fall, and it ends.' : RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each run. Fall, and it ends.', best: runs ? 'best ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') : '', runs }; },
+    // the pause, as mana-ui's pause menu drives it
+    pause: {
+      resume: () => setPaused(false), restart: () => { setPaused(false); if (session) launch(session.level); }, quit: () => { setPaused(false); session = null; home(); },
+      sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
+      rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],
+      owner: () => { const o = pauseBy && seatList.find((x) => x.controller === pauseBy); return o ? o.label : ''; },
+    },
   }) : null;
 
   // ---- the flow runner ----
@@ -806,7 +840,7 @@ export function playShellRuntime(cfg, K) {
       resolve: (sp, c) => {
         const i = c.level ? LEVELS.findIndex((l) => l.ref === c.level) : -1;
         if (sp === '$first') return LEVELS[0] ? LEVELS[0].ref : null;
-        if (sp === '$again') return c.level || null;
+        if (sp === '$again') { againSeed = !run && c.level ? lastSeed : null; return c.level || null; }
         if (sp === '$next') { const nx = MAP || i < 0 ? null : LEVELS[i + 1]; return nx && isOpen(nx) ? nx.ref : null; }
         if (sp === '$continue') { const lv = continueTo(); return lv ? lv.ref : null; }
         if (sp === '$picked') return c.picked || null;

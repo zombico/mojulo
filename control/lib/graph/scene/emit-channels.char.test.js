@@ -725,6 +725,19 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // inlines the controllable runtime (combat-hit.js armReaction), sixteen. A body that carries no poise (a hero whose hp
 // the stats bind) taken to 0 by a blade or a round is now downed, as the ranged path's own comment meant; before, it was
 // left standing at 0 and its level never failed. No fixture without the runtime moves.
+// Re-pinned 2026-11-13 (the handshake's grace): `game`, `kitchen-sink` and `kitchen-sink-capture`, the three whose page
+// carries the game channel. The 1.5 s a hosted level waits for its shell is counted in time the shell could have
+// answered in (channels/game.js awaitShell, inlined in place of the one-line timer), so an answer queued behind the
+// level's own build is never beaten by the presets. Every other fixture stays as it was.
+// Re-pinned 2026-11-14 (mana-ui's pictograms, mana-ui/icons.js): `brawl` and `holo`, the two whose page inlines the game
+// UI runtime's kernel. An icon, a counter's icon and a prompt's glyph now carry `data-icon` (the name a theme's sheet
+// finds its pictogram by); every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 again (mana-ui's layout that adapts): `brawl` and `holo`, for the same reason. The kernel holds
+// the frame it is drawn in (`rt.frame`, the `frame` binding, a mount's own measure) and a stack's `fit`; a spec that
+// names neither draws as it did, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 (the holo arena's `ready`, tabletop/holo-arena.client.js): `holo`. Its probe says whether a
+// person's click would be taken now (in play, their turn, no beat on stage or waiting), so a driver waits on the page and
+// not on a clock; the arena plays as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

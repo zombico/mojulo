@@ -142,6 +142,9 @@ export const FIXTURE = [
   ['a stealth game where you sneak up four floors of an office block to the boardroom', 'design_game', 'quick'],
   ['a shooter level fighting room to room through a research lab building', 'design_game', 'quick'],
   ['a horror level creeping through a warehouse and its offices at night', 'design_game', 'quick'],
+  // a game whose levels ROLL (gameworld card `gameworld-roll`): a world's `roll`, a running game's obstacle course
+  ['a collecting game that plays a different map every time I start it', 'design_game'],
+  ['an obstacle course runner where the hurdles and gates change each run', 'design_game'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

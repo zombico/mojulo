@@ -103,7 +103,8 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
     const cv = validateLevelContract(game, norm.store);
     if (!cv.ok) { errors.push(`level '${lv.ref}' contract (against this game's store): ${cv.errors.join('; ')}`); continue; }
-    levels.push({ ref: lv.ref, title: lv.title, contract: normalizeLevelContract(game), src: levelSrc(lv.ref) });
+    // (`rolls`: a level whose seed picks what is on it, game/roll.js: the shell says its map's number and plays it again as it was)
+    levels.push({ ref: lv.ref, title: lv.title, contract: normalizeLevelContract(game), src: levelSrc(lv.ref), ...(sketch.manifest.roll ? { rolls: true } : {}) });
   }
   // a door link's ends must be doors its levels have (each level's `door` mechanics)
   for (const [i, lk] of (norm.links || []).entries()) {
