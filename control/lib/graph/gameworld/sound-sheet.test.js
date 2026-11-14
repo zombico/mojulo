@@ -307,3 +307,32 @@ describe('a sheet game\'s ride (its engine, a held voice by its speed)', () => {
     expect(heard.audio.engine.top).toBeGreaterThan(5);
   });
 });
+
+describe('a composed game\'s place (its stages carry no kit of their own: the world\'s style says it)', () => {
+  it('the ground and the bed from the world\'s kit and weather, the level\'s climate and its look\'s title', async () => {
+    const { sheetBed } = await import('./sound-sheet.js');
+    const grove = Object.keys(STAGE_KITS).find((k) => STAGE_KITS[k].shell === 'isekai' && /bamboo/.test(k));
+    const meadow = Object.keys(STAGE_KITS).find((k) => STAGE_KITS[k].shell === 'isekai' && /meadow/.test(k));
+    // a grove under a night look: grass, and the night over the wood
+    const G = { style: { kit: grove } }, M = { kind: 'stage', geocube: { title: 'Gothic night' } };
+    expect(soundSheet(G, { manifest: M }).slots.step).toBe('step-grass');
+    expect(sheetBed(G, { manifest: M })).toBe('night');
+    expect(sheetBed(G, { manifest: { kind: 'stage' } })).toBe('forest');
+    // the weather over the kit: a desert's sand, an alpine level's snow (its climate, an object of what may fall)
+    expect(soundSheet({ style: { kit: meadow, weather: 'desert' } }, { manifest: { kind: 'stage' } }).slots.step).toBe('step-sand');
+    expect(soundSheet({ style: { kit: meadow } }, { manifest: { kind: 'stage', weather: { climate: { clear: 1, snow: 2 } } } }).slots.step).toBe('step-snow');
+    // the default meadow under a world says grass, and no bed: it is under a desert and a city too
+    expect(soundSheet({ style: { kit: meadow } }, { manifest: { kind: 'stage' } }).slots.step).toBe('step-grass');
+    expect(sheetBed({ style: { kit: meadow } }, { manifest: { kind: 'stage' } })).toBeNull();
+    // a level's own kit still wins over the world's
+    expect(soundSheet({ style: { kit: meadow } }, { manifest: { kit: 'gothic-stone' } }).slots.step).toBe('step-concrete');
+  });
+
+  it('a composed forest game on the sheet walks grass under its bed, on every level', async () => {
+    const { composeGameworld, runSteps } = await import('./index.js');
+    const w = composeGameworld({ prompt: 'a haunted forest with relics to collect', seed: 1 });
+    const L = runSteps({ ...w, sound: {} }, { ref: 'gw' }).filter((s) => s.key.startsWith('level-') && s.order?.manifest);
+    expect(L.length).toBeGreaterThan(0);
+    for (const s of L) { expect(s.order.manifest.audio.sfx.sheet.slots.step).toBe('step-grass'); expect(s.order.manifest.audio.bed).toBeTruthy(); }
+  });
+});

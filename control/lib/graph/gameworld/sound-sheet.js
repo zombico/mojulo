@@ -142,19 +142,33 @@ function movesOf(G, own) {
   return { moves: { swing, hit, ...one }, why };
 }
 
-// a stage kit's own words for its ground, before its shell: snow, sand, mud, dry leaves, gravel
+// A LEVEL'S PLACE, in words: its stage kit (the level's own, else the world's: a composed game's stages are laid on
+// `style.kit` and carry none themselves), its weather (the level's climate and the world's `style.weather`), its hour
+// and its look's title (a geocube's: "Gothic night")
+const GRASS_SHELLS = new Set(['nature', 'jungle', 'isekai']);
+function placeOf(G, manifest) {
+  const w = manifest?.weather;
+  const climate = typeof w === 'string' ? w : isObj(w) ? (typeof w.climate === 'string' ? w.climate : isObj(w.climate) ? Object.keys(w.climate).join(' ') : '') : '';
+  const own = typeof manifest?.kit === 'string' ? manifest.kit : null, world = typeof G?.style?.kit === 'string' ? G.style.kit : null;
+  const kit = own ?? world;
+  const weather = [climate, typeof G?.style?.weather === 'string' ? G.style.weather : ''].filter(Boolean).join(' ');
+  const hour = [manifest?.time, manifest?.lighting?.time, isObj(manifest?.geocube) ? manifest.geocube.title : null].filter((x) => typeof x === 'string').join(' ');
+  return { kit, own, world, shell: kit ? stageKit(kit)?.shell ?? null : null, weather: weather.toLowerCase(), hour: hour.toLowerCase() };
+}
+
+// a place's own words for its ground, before its shell: snow, sand, mud, dry leaves, gravel
 const GROUNDS = [
-  { test: /snow|ice|winter|tundra|frost/, step: 'step-snow' }, { test: /desert|sand|dune|beach/, step: 'step-sand' },
+  { test: /snow|ice|winter|tundra|frost|alpine|blizzard/, step: 'step-snow' }, { test: /desert|sand|dune|beach|dust/, step: 'step-sand' },
   { test: /swamp|bog|marsh|mire/, step: 'step-mud' }, { test: /autumn|fall-forest/, step: 'step-leaves' }, { test: /quarry|gravel|scree/, step: 'step-gravel' },
 ];
-/** The ground the hero walks: what the stage kit's name says (snow, sand, mud, leaves, gravel), else grass on a stage
- *  grown on a nature or jungle kit, stone where it is built. */
-function stepOf(manifest) {
-  const named = manifest?.kit ? GROUNDS.find((x) => x.test.test(String(manifest.kit))) : null;
-  if (named) return { step: named.step, why: `a ${manifest.kit} stage: ${SOUNDS[named.step].label}` };
-  const shell = manifest?.kit ? stageKit(manifest.kit)?.shell : null;
-  if (shell === 'nature' || shell === 'jungle') return { step: 'step-grass', why: `a ${shell} stage: grass underfoot` };
-  return { step: 'step-concrete', why: manifest?.kit ? `a ${shell ?? manifest.kit} stage: stone underfoot` : 'stone underfoot' };
+/** The ground the hero walks: what the place's words say (its kit's name, its weather: snow, sand, mud, leaves,
+ *  gravel), else grass on a stage grown on a nature, jungle or isekai kit, stone where it is built. */
+function stepOf(G, manifest) {
+  const P = placeOf(G, manifest), words = [P.kit, P.weather].filter(Boolean).join(' ');
+  const named = words ? GROUNDS.find((x) => x.test.test(words)) : null;
+  if (named) return { step: named.step, why: `${P.kit && named.test.test(P.kit) ? `a ${P.kit} stage` : `${P.weather} weather`}: ${SOUNDS[named.step].label}` };
+  if (GRASS_SHELLS.has(P.shell)) return { step: 'step-grass', why: `a ${P.shell} stage${P.own ? '' : ` (the world's kit, ${P.kit})`}: grass underfoot` };
+  return { step: 'step-concrete', why: P.kit ? `a ${P.shell ?? P.kit} stage: stone underfoot` : 'stone underfoot' };
 }
 
 // a beast struck: the short voice the shelf has for its kind (a big cat's short roar); the rest take the blow's own sound
@@ -233,7 +247,7 @@ export function readSound(S) {
 export function soundSheet(G, { manifest = null } = {}) {
   const own = readSound(G?.sound);
   const style = own.style ?? 'mouth';
-  const st = strikeOf(G), sp = stepOf(manifest), fv = foeVoices(G);
+  const st = strikeOf(G), sp = stepOf(G, manifest), fv = foeVoices(G);
   const mv = movesOf(G, own);
   const fs = foeSoundsOf(G, fv.foes, own);
   const slots = { step: sp.step, jump: 'jump', land: 'land', dodge: 'dodge', swing: st.swing, strike: st.strike, ...(own.slots ?? {}) };
@@ -251,26 +265,29 @@ export function soundSheet(G, { manifest = null } = {}) {
   return { style, slots, on, ...(mv ? { moves: mv.moves } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
-// a stage's environment by its kit's words, its weather and its hour: the bed it lays under the score
+// a place's environment by its words (its own kit, its weather, its hour and its look's title): the bed it lays under the score
 const ENVIRONMENTS = [
   { test: /rain|storm|monsoon/, bed: 'rain' }, { test: /cave|cavern|crypt|dungeon|mine|grotto/, bed: 'cave' },
   { test: /swamp|bog|marsh|mire|bayou/, bed: 'swamp' }, { test: /farm|barn|ranch|pasture|meadow/, bed: 'farm' },
-  { test: /night|moon|midnight/, bed: 'night' }, { test: /forest|wood|grove|jungle|glade/, bed: 'forest' },
+  { test: /night|moon|midnight/, bed: 'night' }, { test: /forest|wood|grove|jungle|glade|bamboo|sakura/, bed: 'forest' },
 ];
+// (the world's kit speaks for a level's bed only where it names a wood: the default meadow is under every composed
+// world, a desert's and a city's too, and says nothing of what is heard there)
+const WOODED = /forest|wood|grove|jungle|glade|bamboo|sakura/;
 /**
- * A level's bed (sfx-shelf/beds.js), or null: the game's own (`sound.bed`, a bed or false), else what its stage says
- * (its kit's name, its weather, its hour: rain over a forest, night over a meadow), else a nature or jungle stage's
- * forest. A built stage lays none.
+ * A level's bed (sfx-shelf/beds.js), or null: the game's own (`sound.bed`, a bed or false), else what its place says
+ * (its own kit's name, its weather, its hour or its look's title: rain over a forest, night over a meadow; a wooded
+ * world kit), else a nature or jungle stage's forest. A built stage lays none.
  */
 export function sheetBed(G, { manifest = null } = {}) {
   const own = G?.sound?.bed;
   if (own === false) return null;
   if (own !== undefined) return resolveBed(own);
-  const words = [manifest?.weather, manifest?.time, manifest?.kit].filter(Boolean).map(String).join(' ');
+  const P = placeOf(G, manifest);
+  const words = [P.weather, P.hour, P.own, P.world && WOODED.test(P.world) ? P.world : null].filter(Boolean).join(' ');
   const hit = words ? ENVIRONMENTS.find((x) => x.test.test(words)) : null;
   if (hit) return hit.bed;
-  const shell = manifest?.kit ? stageKit(manifest.kit)?.shell : null;
-  return shell === 'nature' || shell === 'jungle' ? 'forest' : null;
+  return P.own && (P.shell === 'nature' || P.shell === 'jungle') ? 'forest' : null;
 }
 
 /**

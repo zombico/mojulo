@@ -240,7 +240,12 @@ A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, th
   motorbike, a kart, a truck's diesel, a tank, a boat; else a car). It follows the ride's own speed from an idle up
   to its top speed, which is read from the ride's rule (its governed speed, or where its power meets its drag).
   `sound.ride` is the game's own held voice, or `false` for none.
-- **Its ground:** grass on a nature or jungle stage, else stone.
+- **Its ground:** what the level's place says. Its words first (snow, sand, mud, dry leaves, gravel: from its kit's
+  name and its weather), else grass on a stage grown on a nature, jungle or isekai kit, else stone. A composed
+  game's stages carry no kit of their own, so the place is read from the world's style (its kit and weather), the
+  level's climate and its look's title. One ground a level: it does not change where the surface does.
+- **Its bed:** the environment under the score, from the same words: rain, a cave, a swamp, a farm, night, a wood.
+  The world's default meadow lays none, since it is under a desert and a city too.
 - **Its foes:** a beast's voice by its species, heard when it spots the hero and each time it attacks; a big cat
   also grunts when struck. A foe drawn as a person shouts on its attack, grunts on a blow and cries out as it falls.
   A pack's attacks are held apart, so five wolves never say one snarl at once. A foe that is neither is listed as
