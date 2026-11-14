@@ -17,6 +17,11 @@
  * { <weapon id>: { swing?, heavy?, hit?, finisher? } }` and an event with `sound.moves: { block?, parry?, … }`. A game
  * with no arsenal keeps the two slots (`swing`, `strike`) it had.
  *
+ * ITS GUNS: a level's carried guns (a shooter's kit: quick.js) each sound as what they are (gunSounds below, the
+ * firing range's procedure, combat/range-sound.js: a shot by its cartridge, a reload over the gun's own reload time,
+ * a round landing, the draw), in the shelf's realistic style whatever the sheet's (the mouth voices no gunshot). A
+ * game overrides a gun with `sound.guns: { <gun's name>: { shot?, reload?, hit?, draw? } }`.
+ *
  * NEW VOICES FIRST (the operator's rule, 2026-11-10): the sheet's style is `mouth` unless the game writes another
  * (`sound.style`), so every event the mouth voices (mouth foley: the swings, the strikes, the staff, the steps on grass,
  * the latch, the creatures) plays that voice, and the rest are realistic as the overlay falls back (styles.js); and
@@ -38,6 +43,7 @@ import { arsenalOfGame } from './arsenal.js';
 import { BASIC_ARSENAL } from './combos.js';
 import { stageKit } from '../era/stage.js';
 import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
+import { gunCues } from './combat/range-sound.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -49,6 +55,7 @@ export const MOVE_SOUND_WORDS = Object.freeze({ 'blade-light': 'blade-swing', 'b
 // a moveset's one-cue events (beats-world.js MOVE_SOUNDS.one) → the table's row
 const MOVE_EVENTS = Object.freeze({ block: 'block', parry: 'parry', break: 'guard-break', draw: 'bow-draw', loose: 'bow-shot', arrow: 'arrow-hit', felled: 'felled', cycle: 'cycle', foeSwing: 'foe-swing', hurt: 'hurt' });
 const WEAPON_KEYS = Object.freeze(['swing', 'heavy', 'hit', 'finisher']);
+const GUN_KEYS = Object.freeze(['shot', 'reload', 'hit', 'draw']);
 const fail = (m) => new Error(`gameworld: sound${m}`);
 
 // the palette cue ids a mechanic plays (sfx-palettes.js MECHANIC_SFX) that the shelf's newest voices answer better
@@ -145,7 +152,7 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, bed?, vary? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, bed?, vary? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
@@ -154,6 +161,13 @@ export function readSound(S) {
   if (S.moves !== undefined) {
     if (!isObj(S.moves)) throw fail(`.moves is { ${Object.keys(MOVE_EVENTS).join('?, ')}? }, each a shelf word`);
     for (const [ev, w] of Object.entries(S.moves)) { if (!(ev in MOVE_EVENTS)) throw fail(`.moves.${ev} is not a moveset's event (${Object.keys(MOVE_EVENTS).join(', ')})`); word(`.moves.${ev}`, w); }
+  }
+  if (S.guns !== undefined) {
+    if (!isObj(S.guns)) throw fail(`.guns is { <gun's name>: { ${GUN_KEYS.join('?, ')}? } }, each a shelf word`);
+    for (const [id, o] of Object.entries(S.guns)) {
+      if (!isObj(o)) throw fail(`.guns.${id} is { ${GUN_KEYS.join('?, ')}? }, each a shelf word`);
+      for (const [k, w] of Object.entries(o)) { if (!GUN_KEYS.includes(k)) throw fail(`.guns.${id}.${k}: a gun's sounds are ${GUN_KEYS.join(', ')}`); word(`.guns.${id}.${k}`, w); }
+    }
   }
   if (S.weapons !== undefined) {
     if (!isObj(S.weapons)) throw fail(`.weapons is { <weapon id>: { ${WEAPON_KEYS.join('?, ')}? } }, each a shelf word`);
@@ -242,4 +256,15 @@ export function levelSheet(G, { manifest = null, quick = G?.quick } = {}) {
   const own = isObj(manifest?.audio) ? manifest.audio : {};
   const bed = own.bed === undefined ? sheetBed(G, { manifest }) : null;
   return { ...own, ...(own.sfx === undefined ? { sfx: sheetAudio(G, { manifest }) } : {}), ...(bed ? { bed } : {}) };
+}
+
+/**
+ * A sheet game's guns, heard: each of a level's carried guns (`slots`: [{ name, weapon }], a kit's loadout) by what it
+ * is, or by the game's word (`sound.guns`). → { sfx: { <name>: { shot, reload, hit, draw } }, cues } (range-sound.js
+ * gunCues), or null for a game on no sheet. Realistic whatever the sheet's style: no other style voices a gunshot by
+ * its cartridge.
+ */
+export function gunSounds(G, slots, { quick = G?.quick } = {}) {
+  if (!onSheet(G, quick) || !Array.isArray(slots) || !slots.length) return null;
+  try { return gunCues({ slots, sounds: readSound(G?.sound).guns ?? {} }); } catch (e) { throw fail(`.guns: ${e.message}`); }
 }

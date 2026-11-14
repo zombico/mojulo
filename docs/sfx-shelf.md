@@ -229,14 +229,18 @@ A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, th
   move's weight (light, heavy, finisher), the guard's block, parry and break, the bow's draw and loose, the weapon
   cycle, a foe's swing and fall, a blow taken. These are the practice room's words (`MOVE_SOUND_WORDS`), so a level
   plays what the room played, with a weapon read by its words where the shelf has its own (a katana's heavy cut).
+- **Its guns:** each gun a shooter's player carries (the kit, or the one rifle the goal hands them) sounds as what
+  it is, by the firing range's procedure: a shot by its cartridge (pistol, submachine gun, magnum, rifle, sniper,
+  shotgun; a launcher's round away), a reload spread over the gun's own reload time, a round landing, the draw.
+  Guns play realistic whatever the sheet's style, since no other style voices a gunshot by its cartridge.
 - **Its ground:** grass on a nature or jungle stage, else stone.
 - **Its foes:** a beast's voice by its species, heard when it spots the hero.
 - **Its doors:** a door opens on a latch.
 
 **The newest voices come first.** The sheet's style is `mouth` unless the game says otherwise, so a sound the mouth
-doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on?, weapons?, moves? }`, each a shelf word: `weapons` is
-`{ <weapon id>: { swing?, heavy?, hit?, finisher? } }` and `moves` is `{ block?, parry?, break?, draw?, loose?, arrow?,
-felled?, cycle?, foeSwing?, hurt? }`.
+doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on?, weapons?, moves?, guns? }`, each a shelf word: `weapons` is
+`{ <weapon id>: { swing?, heavy?, hit?, finisher? } }` `moves` is `{ block?, parry?, break?, draw?, loose?, arrow?,
+felled?, cycle?, foeSwing?, hurt? }`, and `guns` is `{ <gun's name>: { shot?, reload?, hit?, draw? } }`.
 A game that writes a `sound` of its own, even an empty one, hears the sheet on every level it builds; a quick game's
 levels also hear it with `sfx: 'sheet'`, and a quick game that names another `sfx` keeps that. A game with neither
 builds its levels as it did. A stage that wrote its own `audio` keeps it under the sheet. `beats-world.js` voices `sfx: { sheet }`, wiring each event

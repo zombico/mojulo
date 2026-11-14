@@ -204,7 +204,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (sheet) {
     const style = sheet.style ?? 'mouth';
     const cueOf = (word) => { const v = sfxSound(word, { style }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
-    const cues = {}, on = {};
+    // (`sheet.cues`: more cues, each a gesture list, for the level's book: its guns' own, played from the weapon)
+    const cues = { ...(sheet.cues && typeof sheet.cues === 'object' ? sheet.cues : {}) }, on = {};
     for (const kind of Array.isArray(ctx.mechanics) ? ctx.mechanics : []) {
       for (const [glob, cue] of Object.entries(MECHANIC_SFX[kind] || {})) {
         if (glob in on) continue;

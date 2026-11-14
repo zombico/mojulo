@@ -10,9 +10,13 @@
   bow, the weapon cycle, a foe's swing and fall, a blow taken. The words are the practice room's (one table,
   `MOVE_SOUND_WORDS`, read by both), and a weapon is read by its words where the shelf has its own. A game overrides a
   weapon with `sound.weapons` and an event with `sound.moves`. A game with no arsenal keeps its two slots.
+- **Guns by cartridge.** On a sheet game's shooter levels (the shoot and deathmatch goals), each gun the player
+  carries sounds as what it is, by the firing range's procedure: its shot by its cartridge, its reload over its own
+  reload time, a round landing, the draw. A game overrides a gun with `sound.guns`. Not on the sheet yet: a
+  dogfight's craft, guns picked up off the floor, the bots' guns, and a rocket's blast.
 - **Fixed: a game's `sound` reached no level.** The world reader checked `sound` and did not carry it, so a quick
   game on the sheet played the solved sheet and ignored the game's own style, slots and cues.
-- Planned, not built yet: the sheet covering guns, foes' attacks and rides; a music department
+- Planned, not built yet: the sheet covering foes' attacks and rides; a music department
   that sets the game's audio direction (play keeps the SFX and reads it) and whose cue sheet answers each
   department's request for music (the flow's screens, the levels, the fights, the cinematics, the outcomes) on the
   game's one score identity; a title theme (the menu and the credits the same tune at another energy) and a cue

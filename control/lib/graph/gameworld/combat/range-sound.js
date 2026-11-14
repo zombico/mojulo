@@ -22,8 +22,8 @@ import { ROUNDS } from '../rounds.js';
 // the rounds' words (gameworld/rounds.js) onto the shelf's shots
 const ROUND_SHOT = Object.freeze({ pistol: 'pistol shot', smg: 'smg shot', magnum: 'magnum shot', rifle: 'rifle shot', marksman: 'rifle shot', sniper: 'sniper shot', shotgun: 'shotgun shot' });
 
-const cue = (word) => {
-  const s = sfxSound(word);
+const cue = (word, style) => {
+  const s = style ? sfxSound(word, { style }) : sfxSound(word);
   if (!s || !s.gestures) throw new Error(`firing range: '${word}' is not a one-shot on the SFX shelf`);
   return s.gestures;
 };
@@ -43,10 +43,32 @@ export function shotWordOf(slot) {
 }
 
 /** the reload as one cue over the gun's reload time: out, in, racked (a launcher's: the round seated) */
-export function reloadCue(slot) {
+export function reloadCue(slot, style) {
   const r = slot.weapon.reload ?? 2;
-  if (slot.weapon.fireClass === 'lob') return later(cue('mag in'), r * 0.6);
-  return [...cue('mag out'), ...later(cue('mag in'), r * 0.55), ...later(cue('rack'), r * 0.8)];
+  if (slot.weapon.fireClass === 'lob') return later(cue('mag in', style), r * 0.6);
+  return [...cue('mag out', style), ...later(cue('mag in', style), r * 0.55), ...later(cue('rack', style), r * 0.8)];
+}
+
+/**
+ * Each gun's own sounds, by what it is or the game's word: { sfx: { <slot name>: { shot, reload, hit, draw } }, cues }
+ * (`cues`: the same gestures by `<name>:<sound>`, for the page's book of cues). `style`: a shelf style (the shelf's
+ * own, realistic, when absent). The range's and a sheet game's levels' (gameworld/sound-sheet.js gunSounds).
+ */
+export function gunCues({ slots = [], sounds = {}, style } = {}) {
+  const sfx = {}, cues = {};
+  for (const s of slots) {
+    const own = sounds?.[s.name] ?? {};
+    for (const [k, w] of Object.entries(own)) if (w != null && !resolveSoundId(w)) throw new Error(`sounds.${s.name}.${k}: '${w}' is not a sound on the SFX shelf`);
+    const S = {
+      shot: cue(own.shot ?? shotWordOf(s), style),
+      reload: own.reload ? cue(own.reload, style) : reloadCue(s, style),
+      hit: cue(own.hit ?? 'flesh impact', style),
+      draw: cue(own.draw ?? 'weapon switch', style),
+    };
+    sfx[s.name] = S;
+    for (const [k, g] of Object.entries(S)) cues[`${s.name}:${k}`] = g;
+  }
+  return { sfx, cues };
 }
 
 export function rangeAudio({ slots = [], knife = null, sounds = {}, vary = false } = {}) {

@@ -188,3 +188,53 @@ describe('the whole arsenal on the sheet (a moveset\'s events by shelf word)', (
     expect(room.sfx.cues.block).toEqual(sfxSound(MOVE_SOUND_WORDS.block, { style: 'foley' }).gestures);
   });
 });
+
+describe('a sheet game\'s guns (each by what it is, the firing range\'s procedure)', () => {
+  it('a gun\'s shot by its numbers, its reload over its own time; the game\'s word wins; a game on no sheet has none', async () => {
+    const { gunSounds } = await import('./sound-sheet.js');
+    const slots = [{ name: 'boomstick', weapon: { pellets: 8, reload: 2 } }, { name: 'tube', weapon: { fireClass: 'lob', reload: 3 } }];
+    expect(gunSounds({}, slots)).toBeNull();
+    const H = gunSounds({ sound: {} }, slots);
+    expect(H.sfx.boomstick.shot).toEqual(sfxSound('shotgun shot').gestures);
+    expect(H.sfx.tube.shot).toEqual(sfxSound('missile launch').gestures);
+    expect(Object.keys(H.cues)).toEqual(expect.arrayContaining(['boomstick:shot', 'boomstick:reload', 'tube:hit', 'tube:draw']));
+    // (the last gesture of a reload lands inside the gun's reload time)
+    expect(Math.max(...H.sfx.boomstick.reload.map((g) => g.at ?? 0))).toBeLessThan(2);
+    expect(gunSounds({ sound: { guns: { boomstick: { shot: 'magnum shot' } } } }, slots).sfx.boomstick.shot).toEqual(sfxSound('magnum shot').gestures);
+    expect(() => readSound({ guns: { boomstick: { bang: 'punch' } } })).toThrow(/a gun's sounds/);
+    expect(() => readSound({ guns: { boomstick: { shot: 'nope nope' } } })).toThrow(/not a sound on the shelf/);
+  });
+
+  it('a quick shooter on the sheet: the kit\'s guns carry their sounds and the level\'s audio their cues; off the sheet, the level it was', async () => {
+    const { quickGuns, goalAudio } = await import('./quick.js');
+    const Q = { goal: 'shoot' };
+    expect(quickGuns({ quick: Q }, Q)).toBeNull();
+    const guns = quickGuns({ quick: Q, sound: {} }, Q);
+    expect(Object.keys(guns.sfx)).toEqual(['rifle']);
+    // the level's audio carries the gun's cues in its book, and they resolve on the page
+    const G = { quick: Q, sound: {} };
+    const audio = goalAudio(Q, { sheet: sheetAudio(G), cues: guns.cues });
+    const R = resolveWorldAudio(audio, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(R.cues['rifle:shot']).toEqual(guns.sfx.rifle.shot);
+    expect(() => new Function(audioChannelScript(R))).not.toThrow();
+    // without the cues the sheet is the sheet it was
+    expect(goalAudio(Q, { sheet: sheetAudio(G) })).toEqual({ sfx: sheetAudio(G) });
+  });
+
+  it('a made shooter level: each gun of the carried kit sounds as itself, its cues in the level\'s audio; with no `sound`, no gun carries one', async () => {
+    const { runSteps } = await import('./index.js');
+    const { quickWorld } = await import('./quick.js');
+    const level = (W) => runSteps(W, { ref: 'gw' }).find((s) => s.key.startsWith('level-')).order.manifest;
+    const quick = { goal: 'shoot', arms: ['shotgun', 'handgun'] };
+    const pilotOf = (M) => (M.entities ?? []).find((e) => e.rule?.loadout);
+    const plain = level(quickWorld({ id: 'qg', quick }));
+    expect(pilotOf(plain).rule.loadout.every((s) => s.weapon.sfx === undefined)).toBe(true);
+    const heard = level({ ...quickWorld({ id: 'qg', quick }), sound: {} });
+    const kit = pilotOf(heard).rule.loadout;
+    expect(kit.map((s) => s.name)).toEqual(['shotgun', 'handgun']);
+    expect(kit[0].weapon.sfx.shot).toEqual(sfxSound('shotgun shot').gestures);
+    expect(kit[1].weapon.sfx.shot).toEqual(sfxSound('pistol shot').gestures);
+    expect(pilotOf(heard).weapon.sfx).toEqual(kit[0].weapon.sfx);
+    expect(heard.audio.sfx.sheet.cues['shotgun:shot']).toEqual(kit[0].weapon.sfx.shot);
+  });
+});
