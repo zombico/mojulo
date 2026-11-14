@@ -77,5 +77,41 @@ describe('a vehicle\'s form body under the cast rig', () => {
     expect(both.match(/const castKit = /g).length).toBe(1);
     expect(both).toContain('function __castMat(fig, o)');
   });
-});
 
+  // THE LIGHT OF WHERE A BODY STANDS (`place`: a land's buildings' rooms and floods): each body its own set of the
+  // rig's uniforms, eased each frame toward its place's light; a page with no place carries none of it
+  it('a page with places lights each body by where it stands; without, the figure\'s one rig as it was', () => {
+    const PLACE = { rooms: [{ min: [0, 0, 0], max: [4, 4, 3], sky: [1, 1, 1], ground: [0.4, 0.4, 0.4] }] };
+    const lit = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) }), placed = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) }, { place: PLACE });
+    expect(lit).not.toContain('__placeStep');
+    expect(lit).not.toContain('__castNow');
+    expect(placed).toContain('function __placeStep(dt)');
+    expect(placed).toContain('__placeStep(dt);');
+    expect(placed).toContain(JSON.stringify(PLACE));
+    expect(() => new Function(placed.replace(/\bimport\b/g, '__imp'))).not.toThrow();
+  });
+
+  // HOW ITS MATERIALS ANSWER (a figure's `response`, color-theorist/cast-response.js): a corner's class read off its
+  // colour; a figure that says nothing of it is one material, and the page carries none of the reader
+  it('a figure that says how its materials answer brings the reader; without, none of it', () => {
+    const lit = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) });
+    const resp = controllableChannelScript(ent, null, { p: fig({ cast: CAST, response: [[217, 167, 126, 133, 0], [141, 145, 151, 87, 255]] }) });
+    expect(lit).not.toContain('__castMR');
+    expect(resp).toContain('function __castMR(fig, c, n)');
+    expect(resp).toContain("geo.setAttribute('aMR'");
+    expect(resp).toContain('response: Array.isArray(fig.response)');
+  });
+
+  // ITS RELIEF (a realistic hero's, on its paint's atlas): the cast material reads its normal map and its roughness; a
+  // figure with none brings no reader
+  it('a figure that carries its relief brings the maps\' reader; without, none of it', () => {
+    const T = { url: 'data:image/png;base64,AA==', w: 2, h: 2 };
+    const plain = controllableChannelScript(ent, null, { p: fig({ cast: CAST, paintTex: T }, part({ uv: f32(Array(12).fill(0)) })) });
+    const relief = controllableChannelScript(ent, null, { p: fig({ cast: CAST, paintTex: T, normalTex: T, ormTex: T }, part({ uv: f32(Array(12).fill(0)) })) });
+    expect(plain).not.toContain('__castRelief');
+    expect(relief).toContain('function __castRelief(fig)');
+    expect(relief).toContain('o.normalMap = tex(fig.normalTex)');
+    expect(relief).toContain('o.roughnessMap = tex(fig.ormTex)');
+    expect(relief).toContain('...(map ? __castRelief(fig) : {})');
+  });
+});

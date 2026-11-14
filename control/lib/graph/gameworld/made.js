@@ -29,9 +29,12 @@ export function readMade(made) {
   for (const [k, v] of Object.entries(made)) {
     if (!MADE_KEY.test(k)) throw fail(`.${k} is not something a run makes (hero, hero-equipped, hero-sheathed, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>, casting, systems, gear-<class>, stock-<id>, level-<level>-<n>, audit-level-<level>-<n>, map-<n>, game, fighter-<id>[-sheet], foes-<id>, foe-<kind>, folk-<town>-<body>; a figure's pool: guard-2 …)`);
     if (!isObj(v) || typeof v.ref !== 'string' || !v.ref || !PRINT.test(v.order ?? '') || !PRINT.test(v.stored ?? '')) throw fail(`.${k} is { ref, order, stored }`);
-    // a level's record keeps its opening frame's verdict; an audit's, its walk's
-    const audit = k.startsWith('audit-'), extra = audit ? 'verdict' : 'frame';
-    for (const x of Object.keys(v)) if (!['ref', 'order', 'stored', extra].includes(x) && !(k === 'game' && x === 'unasked')) throw fail(`.${k}.${x} is not part of the record (ref, order, stored, ${extra})`);
+    // a level's record keeps its opening frame's verdict, and its playthrough's (`play`: a fight level played by the
+    // scripted players, gameworld/playthrough.js); an audit's, its walk's
+    const audit = k.startsWith('audit-'), extra = audit ? 'verdict' : 'frame', played = k.startsWith('level-');
+    for (const x of Object.keys(v)) if (!['ref', 'order', 'stored', extra].includes(x) && !(played && x === 'play') && !(k === 'game' && x === 'unasked')) throw fail(`.${k}.${x} is not part of the record (ref, order, stored, ${extra}${played ? ', play' : ''})`);
+    const P = v.play;
+    if (P !== undefined && (!isObj(P) || !PRINT.test(P.stored ?? '') || typeof P.pass !== 'boolean' || !(Array.isArray(P.says) && P.says.every((x) => typeof x === 'string')))) throw fail(`.${k}.play is { stored, pass: true | false, says: [what each player did] } (the playthrough a check played)`);
     if (v.unasked !== undefined && v.unasked !== true) throw fail(`.${k}.unasked is true, or left out`);
     if (audit && (!isObj(v.verdict) || ![true, false, null].includes(v.verdict.completable) || typeof v.verdict.note !== 'string')) throw fail(`.${k}.verdict is { completable: true | false | null, note }`);
     const F = v.frame;

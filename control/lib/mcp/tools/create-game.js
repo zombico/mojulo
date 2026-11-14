@@ -195,7 +195,7 @@ function walkSays(legs, target, pilot = null) {
   return `every leg arrived; it stood at ${at3(end)}${target ? ` under or beside ${at3(target)}, where the exit is not reached` : ''}`;
 }
 
-export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, ui, screen, hud, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, flow, ui, screen, hud, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -219,7 +219,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}), ...(final !== undefined ? { final } : {}),
     // (the play shell's screens in the game UI runtime, the screen the game is made for, its HUD's look: the game's own
     // words, as a gameworld's run hands them over, game/game-manifest.js)
-    ...(ui !== undefined ? { ui } : {}), ...(screen !== undefined ? { screen } : {}), ...(hud !== undefined ? { hud } : {}) };
+    ...(flow !== undefined ? { flow } : {}), ...(ui !== undefined ? { ui } : {}), ...(screen !== undefined ? { screen } : {}), ...(hud !== undefined ? { hud } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -386,11 +386,12 @@ export async function createGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, ui, screen, hud, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  // (`flow`, game/flow.js: what plays when; the gameworld's page, carried from its run, design-game.js, and unlisted here)
+  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, flow, ui, screen, hud, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   if (input.tabletop !== undefined) return mintTabletop(input, context);
   if (input.table_rpg !== undefined) return mintTableRpg(input, context);
   try {
-    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, ui, screen, hud, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, flow, ui, screen, hud, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
     // the game is complete: now is when the operator is asked how to share it (share-offer.js)
     return { ...out, share: shareForContext(context, { ref: out.ref, playUrl: out.playUrl }) };
   } catch (err) {

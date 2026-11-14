@@ -807,6 +807,31 @@ default; `tabletop: { …, ui: { theme?, languages?, language? } }` names anothe
 - **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
 - A round game played on a board still draws its own panel.
 
+### The practice rooms' menu
+
+The work room and the game room (the practice door's `work` and `room`) put their readout and their choices on
+mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by the page.
+
+- **It is the game shell's pause, kept on the page.** The pilot scheme's `pause` (its keys and its pad button, read
+  from `controls/schemes.js`) opens it. The scene is held on the shell's own sidecar (`MSG_PAUSE`: the sim and its
+  clocks frozen), and it answers with its live control rows, which the controls screen lists. The foes are woken on the
+  shell's AI switch (`MSG_AI`), the path the pilot's own `aiToggle` takes. It opens as the page loads, as the room's
+  briefing, over the held room.
+- **The screen keeps to the game.** What the page once explained on the screen (the keys, how the work runs, how to
+  read the floor) is the menu's How to play, a tutorial in tabs, each key a `prompt` in the glyph of the device in hand.
+  In play, the screen shows the counters, the use prompt and one chip in the corner that names the menu's key.
+- **The screens:** `pause-menu` (resume, how to play, the room, set up, controls); the room, its readout in tabs; set up, the
+  movement, the worker, the dress and the area as cyclers and the foes as a switch, the room reopened with them (the
+  studio's query, so a page saved to disk says it cannot); controls.
+- **The hint line** at the page's foot names each action by the key the scheme binds it to (`practiceLegend`).
+- **Input** is mana-host's while a screen is up; with none up, play has it, and only the pause opens the menu.
+- **The look** is the shift family's card for where the room stands (`theme-cards/shift-*.json`: a kitchen, a farm, a
+  site, a garden, a hall; `shift` itself for the plane). It is a couch co-op work sim's look: chunky order tickets on
+  paper over a slab offset in the accent, rounded faces, a heavy outline, and the floor's own two colours as the accents
+  (shovel work warm, bucket work cool), each trade tinting them. It bounces in and never slams. The play around the menu
+  takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
+  and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by

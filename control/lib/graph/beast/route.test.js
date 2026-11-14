@@ -110,9 +110,13 @@ describe('the egocube\'s route to the tiered body', () => {
     expect(person.create.spec.outfit).toBeTruthy(); expect(person.outfit).toBeTruthy();
     expect(validateHeroSpec(person.create.spec)).toEqual([]);
     const beast = planFromSheet(roll({ ancestry: 'lupine', humanity: CLOTHED_H - 0.03 }), { dress: 'designed' });
-    expect(beast.create.spec.outfit).toBeUndefined();
+    // (below the clothed line it is ADORNED: the frame-adorned principles' pieces on its bare frame, an outfit with no cut,
+    // its dress landed there; with no dress asked, bare)
+    expect(beast.create.spec.outfit).toMatchObject({ type: 'outfit', style: { language: { feet: 'none' } } });
+    expect(beast.create.spec.outfit.pieces.length).toBeGreaterThan(0); expect(beast.outfit.laws).toBeTruthy();
     const dress = beast.ledger.filter((x) => x.channel === 'dress');
-    expect(dress.length).toBeGreaterThan(0); for (const r of dress) expect(r.pending).toMatch(/adornment/);
+    expect(dress.length).toBeGreaterThan(0); for (const r of dress) { expect(r.at).toMatch(/adornment/); expect(r.pending).toBeFalsy(); }
+    expect(planFromSheet(roll({ ancestry: 'lupine', humanity: CLOTHED_H - 0.03 })).create.spec.outfit).toBeUndefined();
   });
 
   it('the call mints: the tiered body compiles from it, deterministic', () => {

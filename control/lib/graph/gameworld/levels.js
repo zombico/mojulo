@@ -1328,15 +1328,16 @@ const OPP_SIDE = Object.freeze({ n: 's', s: 'n', e: 'w', w: 'e' });
 /** A stage's ways out laid on its own ground: the first way on at the trail's exit, the first way back just behind
  * the spawn, any more at its pockets then its landmarks; a key on a beat of its own; and for each way, the point a pilot
  * coming in by it arrives at, a few metres inside (the way back's arrival is the spawn itself). */
-// AN ACTION HERO's combat and stride (rules-platform.js `combat`, the page's pose layers): in combat the deliberate guard
-// (its own walk at COMBAT.speed), leaning in, its weapon arm up and forward, its feet wide; on the run its legs set apart.
-// Figure-local turns: right +x, forward +y, up +z; each op turns its pivot and carries its chain round the pivot's head
+// AN ACTION HERO's combat (rules-platform.js `combat`, the page's pose layers): in combat the deliberate guard (its own
+// walk at COMBAT.speed), leaning in, its weapon arm up and forward, its feet wide. Its run out of combat lays nothing
+// over the clip: it is the engagement run's body (the pilot's run, world-kinds.js ctx.pilot), the legs as the gait sets
+// them (a layer that set them 6° apart read as a mincing run). Figure-local turns: right +x, forward +y, up +z; each op
+// turns its pivot and carries its chain round the pivot's head
 export const COMBAT = Object.freeze({ near: 10, far: 15, linger: 3, speed: 2.4, stride: 1.6 });
 const FINGERS = (s) => ['thumb', 'index', 'middle', 'ring', 'little'].flatMap((f) => [1, 2, 3].map((k) => `${f}${k}${s}`));
 const ARM = (s) => [`foreArm${s}`, `hand${s}`, ...FINGERS(s), `elbowFold${s}`];
 const LEG = (s) => [`shank${s}`, `kneeFold${s}`, `foot${s}`, `toes${s}`];
 export const POSE_LAYERS = Object.freeze({
-  run: [{ pivot: 'thighR', chain: LEG('R'), axis: [0, 1, 0], deg: -6 }, { pivot: 'thighL', chain: LEG('L'), axis: [0, 1, 0], deg: 6 }],
   combat: [
     { pivot: 'lumbar', chain: ['torso', 'neck', 'head', 'jaw', ...['R', 'L'].flatMap((s) => [`clavicle${s}`, `upperArm${s}`, ...ARM(s), `shoulderFold${s}`])], axis: [1, 0, 0], deg: -8 },
     { pivot: 'upperArmR', chain: ARM('R'), axis: [1, 0, 0], deg: 40 }, { pivot: 'foreArmR', chain: [`handR`, ...FINGERS('R')], axis: [1, 0, 0], deg: 45 },

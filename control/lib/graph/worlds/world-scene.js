@@ -67,6 +67,8 @@ import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
+// (the margin round a land's buildings their shadow map reaches: what stands by them and shades them, metres)
+const BUILT_SHADE = 12;
 import { GLASS_GROUPS } from '@/lib/graph/era/bay-glass';
 import { floraRead, floraBox, viewHeld, FLORA_HIDES, leafPilesRead } from '@/lib/graph/form/flora-read';
 import { snowBase, readSnow } from '@/lib/graph/era/snow';
@@ -186,7 +188,7 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false, pilot = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -199,6 +201,15 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     const refused = heroRefError(name, spec.heroRef, src, { walker: spec.walker === true });
     if (refused) throw new Error(refused);
     manifest = src.manifest;
+  } else if (spec.layered && typeof spec.layered === 'object' && !Array.isArray(spec.layered)) {
+    // an INLINE character (`layered`: a layered recipe the world carries instead of storing it, a mascot's plan or a
+    // hero), regenerated on read as a stored one is, held to the same check a heroRef is (a hero or a mascot pilots)
+    const { heroRefError } = await import('@/lib/graph/worlds/controllable/body-types.js');
+    const inline = { ...spec.layered, kind: 'layered' };
+    const refused = heroRefError(name, '(inline)', { manifest: inline }, { walker: spec.walker === true });
+    if (refused) throw new Error(refused.replace("heroRef '(inline)'", 'its inline layered recipe'));
+    const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+    manifest = expandLayeredManifest(inline);
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
     manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
@@ -223,14 +234,24 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
     // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
+    // (and the lit read asks for the body as the skinned export gets it, `face`: a realistic hero's relief with it, its
+    // normal map, its cloth's occlusion, roughness and metal, epidermis/cloth-relief.js: what the page's cast material reads)
     // (`lit`: a body the cast rig lights, color-theorist/cast-rig.js: its colour under no light and each corner's normal, as
     // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
     // holds are the same read's. Absent: the body as it always was, its light baked)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true } : {}) });
+    // (`pilot`: a body a player pilots plays it: its run the engagement run's body, world-kinds.js ctx.pilot)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
-  const { preview, embodies, held, ...pack } = body;
+  // (of what the lit read brings for a skinned export, the page keeps the maps its cast material reads, the normal map
+  // and the roughness; each corner's tangent, the parallax's depth and the correctives are an engine's, left off)
+  const { preview, embodies, held, ...pack0 } = body;
+  const pack1 = lit && (pack0.normalTex || pack0.ormTex) ? (({ correctives: _c, depthTex: _d, ...rest }) => ({ ...rest, parts: rest.parts.map((q) => (q && q.tan ? (({ tan: _t, ...r }) => r)(q) : q)) }))(pack0) : pack0;
+  // (and its face's rows as the page reads them: in 16-bit steps, said once and only where they move, exactly;
+  // figures/morph-sparse.js. The lit read brings them as an export's floats)
+  const { quantMorph, sparseMorph } = lit && pack1.parts.some((q) => q && q.morph && q.morph.d) ? await import('@/lib/graph/figures/morph-sparse.js') : {};
+  const pack = quantMorph ? { ...pack1, parts: pack1.parts.map((q) => (q && q.morph ? { ...q, morph: sparseMorph(quantMorph(q.morph)) } : q)) } : pack1;
   const clips = { ...pack.clips };
   // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
   // a state's clip the hero lacks is taken from it, once per clip, under the library's own name
@@ -248,7 +269,10 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // (its FACE, the realistic hero's: each state's facial track the clip's it plays, the ambient blink over a state its
   // clip let it play over; a library's clip has no track and takes the ambient blink)
   const face = pack.face?.tracks ? stateFace(pack.face, pack.clips, clips) : null;
-  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}) };
+  // (read lit, a body whose colour is its palette's own (no painted texture) says how each of its materials answers the
+  // light: color-theorist/cast-response.js; the page reads a corner's class off its colour)
+  const response = lit && !pack.paintTex && manifest && manifest.recipe && manifest.recipe.palette ? (await import('@/lib/graph/color-theorist/cast-response.js')).castResponse(manifest.recipe.palette) : null;
+  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
 }
 
 /**
@@ -862,7 +886,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.hydraulics = walls.length ? { ...H, mists: mistAir(H.mists, { colliders: [...walls, ...solids] }) } : H;
   }
   // THE FINISH (`light.finish`, scene/page-light.js readFinish): what a world asks to be laid over its bake; absent ⇒ none
-  { const fin = payload && !unshaded ? readFinish(sketch.manifest.light) : null; if (fin) payload.finish = fin; }
+  // (and the form render's own: a page drawn as form takes the default finish where its recipe says nothing of one, so
+  // its lamps, its floods and its lit windows spill their light (the bloom) without being asked; `light.finish: false`
+  // says otherwise, and a page that is paint is as it was)
+  { const L = sketch.manifest.light, said = L && typeof L === 'object' && L.finish !== undefined;
+    const fin = payload && !unshaded ? (said ? readFinish(L) : payload.form && (payload.form.land || payload.form.room) ? readFinish({ finish: true }) : null) : null;
+    if (fin) payload.finish = fin; }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,
@@ -926,6 +955,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     { const rain = read ? readWetness(M.wet !== undefined ? M.wet : M.buildings !== undefined ? wetOfWeather(M.weather) : null) : null;
       if (rain && rain.rain > 0) payload.form.land.rain = rain.rain; }
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
+    // (a land's buildings under its hour's map: the map fitted to the built place (its aprons and a margin for what
+    // stands by them and shades them), not to the whole land, which its own sun's map shades: channels/cast-shadows.js)
+    if (payload && builtSun && payload.shadows && typeof payload.shadows === 'object' && payload.shadows.hour && payload.form.land) {
+      const A = payload.buildings.map((b) => b.site && b.site.apron).filter(Array.isArray);
+      if (A.length) {
+        const x0 = Math.min(...A.map((a) => a[0])), y0 = Math.min(...A.map((a) => a[1])), x1 = Math.max(...A.map((a) => a[2])), y1 = Math.max(...A.map((a) => a[3]));
+        const z = payload.buildings.reduce((t, b) => t + (b.floor ?? 0), 0) / payload.buildings.length;
+        payload.shadows = { ...payload.shadows, fit: { at: [(x0 + x1) / 2, (y0 + y1) / 2, z + 6].map((v) => Math.round(v * 100) / 100), half: Math.round((Math.hypot(x1 - x0, y1 - y0) / 2 + BUILT_SHADE) * 100) / 100 } };
+      }
+    }
     // (and its dunes' sand drawn by the wind that laid them: ripples, slip faces, glint; era/out-dunes.js duneMap)
     if (read && payload.dunes) payload.form = { ...payload.form, land: { ...payload.form.land, dunes: payload.dunes } };
     // (and its snow laid over the ground as it lies: era/snow.js snowMap, its colour solved under the cube's light)
@@ -1260,7 +1299,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
         // no hero is resolved, byte-identical.
         // (and a MODEL made elsewhere, `modelRef`: a rigged humanoid .glb bound onto a sketch, worn as a hero's pack is)
-        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string') {
+        // (and an INLINE one, `layered`: a layered recipe carried in the world, a mascot's plan or a hero, never stored)
+        if (rawSpec.hero || typeof rawSpec.heroRef === 'string' || typeof rawSpec.modelRef === 'string' || (rawSpec.layered && typeof rawSpec.layered === 'object')) {
           // (a composed juice floor's game type times the hero's swing: hero-swing.js swingTiming; the floor or none ⇒ its own)
           const fxs = sketch.manifest.fxStyle, swing = fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs).flavor : null;
           // THE HELD STRIKE: a platform body playing this hero whose rule carries a feel's string (its contact window,
@@ -1284,12 +1324,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
           const takes = takesOf?.[name] ?? null;
           // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on a page whose
-          // land is drawn as form, the body a player pilots is read lit (its colour under no light, its normals) and carries
-          // the rig solved from the land's own cube at its hour, so the page lights it by the land's one sun; its clips and
-          // its playback are as they were. Every other figure (a walker, a foe, a crowd), and every page without a form
-          // land, as it was: nothing added
-          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+          // land is drawn as form, every body an entity wears (the hero a player pilots, a foe, a walker, one that stands
+          // still) is read lit (its colour under no light, its normals) and carries the rig solved from the land's own cube
+          // at its hour, so the page lights the whole cast by the land's one sun; its clips and its playback are as they
+          // were. A figure no entity wears, and every page without a form land, as it was: nothing added
+          // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
+          const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
+          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
@@ -1318,7 +1360,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(piloted ? { pilot: true } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = figure.cast ? { ...pose, cast: figure.cast } : pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
@@ -1376,7 +1418,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // frame the root). Absent ⇒ none is resolved, byte-identical.
         if (rawSpec.mecha && typeof rawSpec.mecha === 'object') {
           const { mechaFigure } = await import('@/lib/graph/mecha-shelf/mecha-figure.js');
-          payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha));
+          // (read in the form render, its faces carry their materials and it is lit as its world is: its sky, and wet
+          // when its weather is the wet family's, as a field vehicle is)
+          const { STATES } = await import('@/lib/graph/weather/weather.js');
+          const W = sketch.manifest.weather, wet = typeof W === 'string' && STATES[W]?.family === 'wet';
+          payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map

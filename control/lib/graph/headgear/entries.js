@@ -9,7 +9,7 @@ export function headgearCard() {
   const realistic = HEADGEAR_WORDS.filter((w) => headgearOf(w).fits.includes('realistic'));
   const lines = ['# Headgear', '',
     "Masks, cowls, eyegear, mouthpieces, helmets, respirators and visors, each a word a hero wears: `headgear: '<word>'` on the hero's spec (create_character as 'hero', or update_character { spec: { headgear } } to swap it; null takes it off). The word is kept on the hero and lowered on every read, so a swap re-dresses it in place. A card's colours sit beneath the hero's palette: name a group (Helmet, HelmetVisor, HelmetTrim, Mask, MaskLens, EyeLens, EyeGlow …) in `palette` to recolour it. A helmet drops the hair.", '',
-    `Every word fits the game body (form: 'tiered'); the realistic body (form: 'realistic') wears ${realistic.join(' and ')} alone. A helmet by tradition is worn as an outfit build's language head, so it needs an outfit build (outfit: { type: 'outfit', style }); its cover, band, net and mount stay the outfit's (outfit.language.head).`, ''];
+    `Every word but a kin's fits the game body (form: 'tiered'); a kin helmet is a beast-kin's on its own skull (a goblin, an orc), cut from that skull's surface so it fits it; the realistic body (form: 'realistic') wears ${realistic.join(' and ')} alone. A helmet by tradition is worn as an outfit build's language head, so it needs an outfit build (outfit: { type: 'outfit', style }); its cover, band, net and mount stay the outfit's (outfit.language.head).`, ''];
   for (const [f, list] of Object.entries(byFamily)) {
     lines.push(`## ${f}`, '');
     for (const H of list) lines.push(`- \`${H.word}\` — ${H.reads}${H.fits.includes('realistic') ? ' (both bodies)' : ''}`);

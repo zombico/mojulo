@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { emitPlayShell } from './play-shell.js';
-import { defaultFlow } from './flow.js';
+import { defaultFlow, startInPlay } from './flow.js';
 import { normalizeGameManifest } from './game-manifest.js';
 import { normalizeLevelContract, CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE, MSG_DOOR, MSG_SCENE_END } from './level-contract.js';
 
@@ -180,5 +180,51 @@ describe('the play shell runs the game\'s flow', () => {
     expect(P.screen()).toContain('made with mojulo');
     P.click('done');
     expect(P.screen()).toContain('play');
+  });
+  it('a game started in play boots through its opening cutscene straight into the first level: an empty slot is passed at once', async () => {
+    const P = page({ flow: startInPlay(defaultFlow(game())) });
+    expect(P.level()).toBeNull();
+    await wait(40);
+    expect(P.level()).toBe('vale');                        // no title, no press: the game
+    // the screens after a level are as they were: the level picker is where this game's result goes back to
+    P.end('fail'); P.say({ moj: MSG_CARD_DONE });
+    P.click('levels');
+    expect(P.level()).toBeNull();
+    expect(P.screen()).toContain('GATE');
+  });
+
+  it('a cutscene\'s video plays over the shell and the game goes on as it ends, or at a skip once it has been up a moment', async () => {
+    const boot = (cut) => page({ flow: startInPlay(defaultFlow(game()), cut) });
+    const P = boot({ video: 'media/opening.mp4' }), video = () => P.d.querySelector('video');
+    await wait(20);
+    expect(video().getAttribute('src')).toBe('media/opening.mp4');
+    expect(P.level()).toBeNull();
+    // a key at once is the key that started the game, not a skip
+    P.w.dispatchEvent(new P.w.KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(video()).not.toBeNull();
+    video().dispatchEvent(new P.w.Event('ended'));
+    expect(video()).toBeNull();
+    expect(P.level()).toBe('vale');
+    // skipped once it has been up a moment; unskippable, it plays on
+    const Q = boot({ video: 'media/opening.mp4' });
+    await wait(700);
+    Q.w.dispatchEvent(new Q.w.KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(Q.level()).toBe('vale');
+    const U = boot({ video: 'media/opening.mp4', skip: false });
+    await wait(700);
+    U.w.dispatchEvent(new U.w.KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(U.level()).toBeNull();
+    // a video that cannot play is no dead end
+    U.d.querySelector('video').dispatchEvent(new U.w.Event('error'));
+    expect(U.level()).toBe('vale');
+  });
+
+  it('a cutscene made of a directed scene is staged as a cinematic is, and the game goes on as its scene ends', async () => {
+    const P = page({ flow: startInPlay(defaultFlow(game()), { scene: 'dawn', stage: 'gate' }) });
+    await wait(20);
+    expect(P.level()).toBe('gate');                        // its stage
+    expect(P.ready().params.__stage).toMatchObject({ scene: 'dawn' });
+    P.say({ moj: MSG_SCENE_END, scene: 'dawn' });
+    expect(P.level()).toBe('vale');                        // the first level
   });
 });

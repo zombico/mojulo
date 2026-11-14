@@ -4,7 +4,9 @@
 // that counts and one that shows health; absence costs nothing.
 import { describe, it, expect } from 'vitest';
 import { foeCastOf, castable, foeParts, foeState, approveFoe, STAT_WORDS, REGISTER_WORDS, COUNSEL } from './foe-cast.js';
-import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE } from './foe-casting.js';
+import { castingCall, ROLES, ERA_DRESS, ERA_OOZES, BOSS_OOZE, PEOPLE_ARMS, KIN_SIZES, KIN_BANDS } from './foe-casting.js';
+import { packStylesOf, packSays, bodySays, WILD_SIZE_IDS } from '../foes/packs.js';
+import { ARMORY_ARMS } from '../equipment/armory.js';
 import { ERA_OF_KIT } from './cast-setting.js';
 import { colorKey } from './nature.js';
 import { BOOK_SKINS, skinHead } from './book-skin.js';
@@ -17,7 +19,14 @@ import { readGameworld, MEADOWMARK_HERO, gameworldBibleHtml } from './index.js';
 import { readReview, FOE_CAST_PART } from './review.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
-import { RANKS } from '../mind/vocab.js';
+import { composeGameworld } from './compose.js';
+import { RANKS, AGGRESSIVENESS } from '../mind/vocab.js';
+import { resolveFoe } from '../foes/resolve.js';
+import { FIXTURES } from '../cosmos/fixtures.js';
+import { TEMPLATE_ARSENALS } from './combos.js';
+import { arsenalOfGame, foeHealth, STRINGS_BY_RANK } from './arsenal.js';
+import { LINEAGES } from '../egocube/ancestry.js';
+import { HEIGHT } from '../egocube/plan.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
 const SOLO = CLASSES.find((c) => !MOVES[c.move].group && c.attack.kind !== 'call');
@@ -119,6 +128,39 @@ describe('the casting call', () => {
     expect(P.levels[walks[walks.length - 1]]).toEqual({ from: ['boss'], count: 1, win: 'clear' });
   });
 
+  it('a hero that plays strings meets its foes blade to blade: on the ground, no counter, the boss the heaviest', () => {
+    // (the genre and the kits chosen from the tables: a cube that plays strings, a kit whose sidearm fires straight and
+    // one whose sidearm draws)
+    const genre = FIXTURES.find((f) => f.cube.power?.moveset === 'strings' && [].concat(f.cube.power.combat).includes('melee')).id;
+    const kitOf = (mode) => Object.keys(TEMPLATE_ARSENALS).find((k) => (TEMPLATE_ARSENALS[k].ranged ?? []).some((G) => G.mode === mode));
+    const W = (arsenal) => ({ ...MEADOWMARK_HERO, intent: { from: genre }, arsenal });
+    const near = (id) => !['shot', 'lob', 'spray', 'call'].includes(FOE_CLASSES[id].attack.kind);
+    const counters = (id) => !!AGGRESSIVENESS[resolveFoe({ class: id }).mind.mind.aggressiveness]?.knobs?.tackleGuard;
+    const flies = (id) => !!MOVES[FOE_CLASSES[id].move]?.rule?.flier;
+    const roles = (arsenal) => Object.fromEntries(castingCall(W(arsenal)).roles.map((r) => [r.id, r.class]));
+    for (const mode of ['auto', 'draw']) {
+      const by = roles(kitOf(mode));
+      for (const role of ['grunt', 'elite', 'boss']) { expect(near(by[role]), `${mode} ${role}`).toBe(true); expect(counters(by[role]), role).toBe(false); expect(flies(by[role]), role).toBe(false); }
+      expect(FOE_CLASSES[by.boss].threat).toBeGreaterThanOrEqual(FOE_CLASSES[by.elite].threat);
+    }
+    // (a sidearm that answers a shot straight, an automatic's: the harrier a shooter that stands; one that draws an
+    // arrow: a flanker on foot)
+    const auto = roles(kitOf('auto')), draw = roles(kitOf('draw'));
+    expect(near(auto.harrier)).toBe(false);
+    expect(FOE_CLASSES[auto.harrier].move).toBe('hold');
+    expect(near(draw.harrier)).toBe(true);
+    // (each swings a blow of its own from the first foe on: a strike, never a charge down a line or a touch; the elite
+    // such a class a rank up, never the boss's body)
+    const swings = (id) => FOE_CLASSES[id].attack.kind === 'strike';
+    for (const role of ['grunt', 'harrier', 'elite']) expect(swings(draw[role]), `draw ${role}`).toBe(true);
+    for (const role of ['grunt', 'elite']) expect(swings(auto[role]), `auto ${role}`).toBe(true);
+    expect(draw.elite).not.toBe(draw.boss);
+    // (the roles said in their order of record, and the world reads the cast as written)
+    const P = castingCall(W(kitOf('draw')));
+    expect(P.roles.map((r) => r.id)).toEqual(Object.keys(ROLES));
+    expect(() => readGameworld({ ...W(kitOf('draw')), foes: P.foes })).not.toThrow();
+  });
+
   it('dresses the crew on the body its game puts in its henchmen when the book names one, and as before when it does not', () => {
     const era = Object.keys(ERA_DRESS)[0], kit = Object.keys(ERA_OF_KIT).find((k) => ERA_OF_KIT[k] === era && !/lab/.test(k) && k !== 'jungle-trail');
     const W = (direction) => world(null, null, { intent: { from: 'stealth' }, style: { kit }, ...(direction ? { characters: { direction } } : {}) });
@@ -183,6 +225,60 @@ describe('the casting call', () => {
     const P = castingCall(fighting);
     expect(P.from.people).toBeTruthy();
     expect(P.roles.some((r) => r.skin?.people === P.from.people)).toBe(true);
+    // (its rank and file at the lineage's smallest build, its elite and its boss at their own roll: the smaller of
+    // its kind under the bigger; a people of one build, or a person dressed as a crew, stands as it did)
+    const builds = LINEAGES[P.from.people]?.builds ?? [];
+    const small = [...builds].sort((a, b) => HEIGHT[a] - HEIGHT[b])[0];
+    for (const r of P.roles.filter((x) => x.skin?.people && !x.skin.dress)) {
+      if (r.rank === 'minion' && small) expect(r.skin.facets).toEqual({ build: small });
+      else expect(r.skin.facets).toBeUndefined();
+    }
+    // (a people that swings a blow carries its lineage's arm, the armory's own build: its rank and file's, its leaders';
+    // a lineage with no row, and a class that does not strike, carry none. Read on a world whose roll is such a
+    // lineage: the first seed that rolls one)
+    const A = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => castingCall({ ...fighting, seed })).find((c) => PEOPLE_ARMS[c.from.people]);
+    expect(A, 'a seed that rolls an armed lineage').toBeTruthy();
+    const arms = PEOPLE_ARMS[A.from.people];
+    expect(A.roles.some((r) => r.skin?.gear)).toBe(true);
+    for (const r of A.roles.filter((x) => x.skin?.people && !x.skin.dress)) {
+      const strikes = FOE_CLASSES[r.class].attack.kind === 'strike';
+      if (strikes) expect(r.skin.gear.right).toEqual({ ...ARMORY_ARMS[arms[r.rank === 'minion' ? 'file' : 'lead']], laws: 2 });
+      else expect(r.skin.gear).toBeUndefined();
+    }
+    expect(() => readGameworld({ ...fighting, foes: P.foes })).not.toThrow();
+    expect(() => readGameworld({ ...fighting, foes: A.foes })).not.toThrow();
+    // (A KIN'S CAST, foes/packs.js: on a world whose roll is a people a pack style is cut for. WILD where its minds are
+    // creatures of the place: bare, and where its lineage has one build told apart by size, the role's (the card's own
+    // size said by no word), every role the people itself. A PACK where they are a force come for the hero (they hunt)
+    // or hunt as one (the cube's squad): every role the same style and colourway, and its elite and its boss its
+    // band's bigger kin where the style is cut for it and the class fits it, at its own card's size, its boss the big one)
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], kinSeed = seeds.find((seed) => packStylesOf(castingCall({ ...fighting, seed }).from.people).length);
+    expect(kinSeed, 'a seed that rolls a kin a pack is cut for').toBeTruthy();
+    const withMind = (mind) => castingCall({ ...fighting, seed: kinSeed, intent: { from: 'shooter', cube: { mind } } });
+    const wild = withMind({ motivation: 'territorial' }), hunting = withMind({ motivation: 'hunt' }), packed = withMind({ motivation: 'territorial', squad: 'pack' });
+    const kinRoles = (C) => C.roles.filter((r) => r.skin?.people), folk = wild.from.people;
+    expect(kinRoles(wild).every((r) => r.skin.pack === undefined && r.skin.people === folk)).toBe(true);
+    expect(wild.from.pack).toBeUndefined(); expect(wild.from.leaders).toBeUndefined();
+    if (LINEAGES[folk].builds.length === 1) for (const r of kinRoles(wild)) expect(r.skin.body?.size ?? 'squat').toBe(KIN_SIZES[r.id]);
+    for (const P2 of [hunting, packed]) {
+      expect(P2.from.people).toBe(folk);
+      const packs = kinRoles(P2).map((r) => r.skin.pack);
+      expect(packs.length).toBeGreaterThan(1);
+      expect(packs.every((p) => p && p.style === packStylesOf(folk)[0] && p.colourway === packs[0].colourway)).toBe(true);
+      expect(P2.from.pack).toEqual(packs[0]);
+      const leaders = KIN_BANDS[folk]?.leaders;
+      if (leaders) {
+        expect(P2.from.leaders).toBe(leaders);
+        for (const r of kinRoles(P2)) {
+          const led = ['elite', 'boss'].includes(r.id);
+          expect(r.skin.people).toBe(led ? leaders : folk);
+          if (led) expect(r.skin.body?.size).toBe(r.id === 'boss' ? KIN_SIZES.boss : undefined);
+        }
+        expect(kinRoles(P2).some((r) => r.skin.people === leaders)).toBe(true);
+      }
+    }
+    expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: wild.foes })).not.toThrow();
+    expect(() => readGameworld({ ...fighting, seed: kinSeed, foes: hunting.foes })).not.toThrow();
     const plat = castingCall({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
     expect(plat.from.flavor).toBe('platformer');
     expect(plat.roles.every((r) => !r.skin?.people)).toBe(true);
@@ -227,6 +323,46 @@ describe('the sheet', () => {
     // (a world that fields none: not a byte of it)
     expect(gameworldBibleHtml(world())).not.toMatch(/id="foes"|<h4>Foes<\/h4>|class="tile"/);
   });
+  it('says a kin\'s pack and its body: what its band wears alike, its size; a kin that names neither is wild', () => {
+    // (a pack style and a people it is cut for, chosen from the table; the book's own words for them)
+    const people = Object.keys(LINEAGES).find((p) => packStylesOf(p).length), style = packStylesOf(people)[0], cls = CLASSES.find((c) => { try { resolveFoe({ class: c.id, skin: { people } }); return true; } catch { return false; } }).id;
+    const W = world({ wild: { class: cls, skin: { people } }, packed: { class: cls, skin: { people, pack: { style }, body: { size: WILD_SIZE_IDS.at(-1) } } } }, ['wild', 'packed']);
+    const C = foeCastOf(W), wild = C.foes.find((x) => x.id === 'wild'), packed = C.foes.find((x) => x.id === 'packed');
+    expect(wild.skin.says).toMatch(/wild \(bare\)$/); expect(wild.skin.pack).toBeUndefined();
+    expect(foeCastOf(world({ own: { class: cls, skin: { people, adorned: true } } }, ['own'])).foes[0].skin.says).toMatch(/adorned by its own role and standing$/);
+    expect(packed.skin.pack).toBe(packSays({ people, pack: { style } }));
+    expect(packed.skin.body).toBe(bodySays({ people, body: { size: WILD_SIZE_IDS.at(-1) } }));
+    expect(packed.skin.says).toContain(packed.skin.pack);
+    const html = foeCastHtml(W);
+    expect(html).toContain(packed.skin.pack.replace(/'/g, '&#39;'));
+  });
+  it('says what a people carries, and in a world armed with a kit its numbers on the kit\'s scale and a boss\'s phases', () => {
+    // (the cast the call proposes for a hero that plays strings, on a seed whose lineage carries arms; the kit chosen
+    // from the table)
+    const kit = Object.keys(TEMPLATE_ARSENALS)[0];
+    const genre = FIXTURES.find((f) => f.cube.power?.moveset === 'strings' && [].concat(f.cube.power.combat).includes('melee')).id;
+    const base = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => ({ ...MEADOWMARK_HERO, seed, intent: { from: genre }, arsenal: kit })).find((w) => PEOPLE_ARMS[castingCall(w)?.from.people]);
+    const P = castingCall(base), armed = { ...base, foes: P.foes, levels: Object.fromEntries(Object.entries(base.levels).map(([id, L]) => [id, { ...L, ...(P.levels[id] ? { foes: P.levels[id] } : {}) }])) };
+    const C = foeCastOf(armed), K = arsenalOfGame(armed).arsenal;
+    const grunt = C.foes.find((x) => x.id === 'grunt'), boss = C.foes.find((x) => x.id === 'boss');
+    // (its arm by the armory's name, in the hand that holds it)
+    expect(grunt.skin.carries).toEqual([`a ${PEOPLE_ARMS[P.from.people].file.replace(/-/g, ' ')} in the right hand`]);
+    expect(boss.skin.carries).toEqual([`a ${PEOPLE_ARMS[P.from.people].lead.replace(/-/g, ' ')} in the right hand`]);
+    // (the strings its rank takes and the health that is, as every level arms it: arsenal.js)
+    expect(grunt.kit).toEqual({ strings: STRINGS_BY_RANK.minion, hp: foeHealth('minion', K) });
+    expect(boss.kit.hp).toBe(foeHealth('boss', K));
+    expect(grunt.costs).toContain(`${STRINGS_BY_RANK.minion} of the kit's strings to down (${foeHealth('minion', K)} health)`);
+    // (a boss's phases as they are written for it: none of them the counter)
+    expect(boss.kit.phases.map((p) => p.aggressiveness).every((a) => !AGGRESSIVENESS[a].knobs?.tackleGuard)).toBe(true);
+    const html = foeCastHtml(armed);
+    expect(html).toContain(grunt.skin.carries[0]);
+    expect(html).toContain(`${STRINGS_BY_RANK.boss} of the kit's (${foeHealth('boss', K)} health)`);
+    expect(html).toMatch(/<dt>phases<\/dt>/);
+    // (the same cast in a world with no arsenal: the foe shelf's own frame, no kit, no phases written)
+    const { arsenal: _a, ...plain } = armed, D = foeCastOf(plain);
+    expect(D.foes.every((x) => x.kit === undefined)).toBe(true);
+    expect(foeCastHtml(plain)).not.toMatch(/strings to down|<dt>phases<\/dt>/);
+  });
   it('is drawn in its world\'s colours: the page\'s accent one of its kit\'s own', () => {
     const kit = MEADOWMARK_HERO.style.kit, html = foeCastHtml({ ...MEADOWMARK_HERO, intent: { from: 'metroidvania' } });
     const accent = html.match(/:root\{--local:(#[0-9a-f]{6});/)?.[1];
@@ -248,5 +384,16 @@ describe('the sheet', () => {
     expect(html).toContain('proposed, not written');
     for (const r of Object.keys(ROLES)) expect(html).toContain(`id="role-${r}"`);
     expect(() => foeCastHtml(world())).toThrow(/fields no foe/);
+  });
+  it('a game whose minds hunt fields a rank and file that comes at the hero; one whose minds hold their ground does not', () => {
+    const comes = (id) => { const c = FOE_CLASSES[id]; return (c.mind.motivation ?? MOVES[c.move].mind?.motivation) === 'hunt' && c.mind.perception === 'sight'; };
+    const hunting = castingCall(composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 }));
+    expect(hunting.from.mind.motivation).toBe('hunt');
+    expect(comes(hunting.foes.grunt.class)).toBe(true);
+    expect(hunting.roles.find((r) => r.id === 'grunt').why.join(' ')).toMatch(/its motivation is the game's \(hunt\)/);
+    // (the same people under a game whose minds guard their ground: the grunt holds a post)
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 });
+    const guarding = castingCall({ ...W, intent: { ...W.intent, cube: { mind: { motivation: 'guard' } } } });
+    expect(comes(guarding.foes.grunt.class)).toBe(false);
   });
 });

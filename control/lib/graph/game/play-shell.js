@@ -548,7 +548,7 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
-    if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && cs.kind === 'cinematic' && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
+    if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (d.moj === W.ready) {
@@ -672,7 +672,7 @@ export function playShellRuntime(cfg, K) {
   const padPrev = {};
   (function padPoll() {
     requestAnimationFrame(padPoll);
-    const cine = FLOW.steps[at.step] && FLOW.steps[at.step].kind === 'cinematic';   // a cinematic has no pause
+    const cine = FLOW.steps[at.step] && (FLOW.steps[at.step].kind === 'cinematic' || FLOW.steps[at.step].kind === 'cutscene');   // a cinematic has no pause
     if (screen !== 'level' || cine || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
     const ps = navigator.getGamepads();
     for (let i = 0; i < ps.length; i++) {
@@ -878,7 +878,8 @@ export function playShellRuntime(cfg, K) {
   function poke() { if (idleAfter) { clearTimeout(idleTimer); idleTimer = setTimeout(() => go('idle'), idleAfter * 1000); } }
   window.addEventListener('keydown', poke);
   window.addEventListener('pointerdown', poke);
-  // a step entered: a level plays, a screen is drawn, a hold waits, a cinematic plays on its stage
+  // a step entered: a level plays, a screen is drawn, a hold waits, a cinematic plays on its stage, a cutscene plays
+  // its video or its scene (or, empty, is passed)
   function enter(next, more) {
     const m = more || {}, s = FLOW.steps[next.step];
     at = next;
@@ -898,6 +899,25 @@ export function playShellRuntime(cfg, K) {
     // a cinematic: seen from now on (an opening plays on a first boot)
     seenSteps[next.step] = 1;
     try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
+    // A CUTSCENE with no directed scene: its video over the shell, left as it ends, fails or is skipped (a key or a
+    // tap, once it has been up a moment); with no video either the slot is empty, and it is passed at once
+    if (s.kind === 'cutscene' && !s.scene) {
+      if (!s.video) { holdTimer = setTimeout(() => { if (at === next) go('next'); }, 0); return; }
+      session = null; pauseBtn.style.display = 'none';
+      const box = el('div', {}), v = document.createElement('video');
+      box.style.cssText = 'position:fixed;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center';
+      v.src = s.video; v.autoplay = true; v.playsInline = true; v.style.cssText = 'max-width:100%;max-height:100%';
+      let over = false;
+      const end = () => { if (over) return; over = true; window.removeEventListener('keydown', skip); box.removeEventListener('pointerdown', skip); box.remove(); if (at === next) go('next'); };
+      // (a skip counts once it has been up a moment: the key or the tap that started the game is not a skip)
+      let up = false; setTimeout(() => { up = true; }, 600);
+      const skip = () => { if (s.skip !== false && up) end(); };
+      v.addEventListener('ended', end); v.addEventListener('error', end);
+      window.addEventListener('keydown', skip); box.addEventListener('pointerdown', skip);
+      box.appendChild(v); document.body.appendChild(box);
+      const p = v.play(); if (p && p.catch) p.catch(() => { /* autoplay held: a tap skips, or it waits to be played */ });
+      return;
+    }
     // played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
     // the level says when it ends. A level that never answers (a page from before stages) is given two minutes
     const stage = LEVELS.find((l) => l.ref === s.stage);

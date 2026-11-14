@@ -44,8 +44,78 @@ describe('the relational creature head', () => {
       const nose = H.vajras.find((w) => w.name === 'nose');
       const ahead = frontAt(H, nose.c.z);
       expect(ahead, preset).toBeGreaterThan(nose.c.y + nose.r[1] * 0.85);
-      expect(H.paint({ x: 0, y: ahead * V, z: nose.c.z * V })).toBe('nose');
+      // (a skull whose nose is its muzzle's pad: the pad is the face's front there, and paints. One with a nose of its
+      // own, below, carries it past the pad)
+      if (!(R.noseLength > 0)) expect(H.paint({ x: 0, y: ahead * V, z: nose.c.z * V })).toBe('nose');
     }
+  });
+
+  it('a nose of its own stands out past the muzzle to a point, in the skin\'s colour; a pointed chin under it; ears swept back', () => {
+    // (the skull that carries one, chosen from the presets; the same skull without it, its relations over the preset's)
+    const preset = Object.keys(CREATURE_HEADS).find((k) => CREATURE_HEADS[k].noseLength > 0), G = CREATURE_HEADS[preset];
+    const H = relationalCreatureHead({ preset }), bare = relationalCreatureHead({ preset, relations: { noseLength: 0, chinPoint: 0, earSweep: 0 } });
+    const snoot = H.vajras.find((w) => w.name === 'snoot');
+    expect(bare.vajras.some((w) => w.name === 'snoot' || w.name === 'chinTip')).toBe(false);
+    // (the face's front at the nose's tip's height: well past the same skull's without it, by most of the nose's length)
+    expect(frontAt(H, snoot.b.z) - frontAt(bare, snoot.b.z)).toBeGreaterThan(G.noseLength * 0.6);
+    // (a point: thinner at its tip than at its root, and skin there, not the pad's paint)
+    expect(snoot.r[2]).toBeLessThan(snoot.r[0] / 3);
+    expect(H.paint({ x: 0, y: frontAt(H, snoot.b.z) * V, z: snoot.b.z * V })).toBeNull();
+    // (the chin drawn down and forward of the jaw's own)
+    const chin = H.vajras.find((w) => w.name === 'chinTip');
+    expect(chin.b.z).toBeLessThan(chin.a.z); expect(chin.b.y).toBeGreaterThan(chin.a.y);
+    // (the ears swept: their tips further back than the same ears upright, their length kept)
+    const tip = (X) => X.vajras.find((w) => w.name === 'earR'), len = (w) => Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y, w.b.z - w.a.z);
+    expect(tip(H).b.y).toBeLessThan(tip(bare).b.y - 0.3);
+    expect(len(tip(H))).toBeCloseTo(len(tip(bare)), 1);
+    // (and a skull that names none of the three is as it was: no such mass, its ear's line its own)
+    const W0 = relationalCreatureHead({ preset: Object.keys(CREATURE_HEADS).find((k) => !(CREATURE_HEADS[k].noseLength > 0)) });
+    expect(W0.vajras.some((w) => w.name === 'snoot' || w.name === 'chinTip')).toBe(false);
+  });
+
+  it('a square jaw is a bar across the chin, set ahead of the nose where the chin is below 0; a skull without is as it was', () => {
+    // (the skull that carries one, chosen from the presets; the same skull with the jaw's own front)
+    const preset = Object.keys(CREATURE_HEADS).find((k) => CREATURE_HEADS[k].jawSquare > 0), G = CREATURE_HEADS[preset];
+    const H = relationalCreatureHead({ preset }), bare = relationalCreatureHead({ preset, relations: { jawSquare: 0 } });
+    const jaw = (X) => X.vajras.find((w) => w.name === 'jaw'), bar = H.vajras.find((w) => w.name === 'chinBar');
+    expect(bare.vajras.some((w) => w.name === 'chinBar')).toBe(false);
+    // (its front bead drawn out sideways, the bar from one to the other through the midline)
+    expect(jaw(H).b.x).toBeGreaterThan(jaw(bare).b.x * 3);
+    expect([bar.a.x, bar.c.x, bar.b.x]).toEqual([-jaw(H).b.x, 0, jaw(H).b.x]);
+    // (the skin at the chin's height, off the midline: there where the jaw's own front has none)
+    const z = jaw(H).b.z, x = jaw(H).b.x * 0.9;
+    expect(frontAt(H, z, x)).toBeGreaterThan(frontAt(bare, z, x) ?? -1);
+    // (an underbite: the chin's front ahead of the upper lip's, on a skull whose chin is set ahead of its nose)
+    expect(G.chin).toBeLessThan(0);
+    expect(frontAt(H, z)).toBeGreaterThan(frontAt(H, H.relations.mouthLine + 0.06));
+    // (the canon has neither, and carries no tusk)
+    expect(CREATURE_RELATIONS.jawSquare).toBe(0); expect(CREATURE_RELATIONS.tusk).toBe(0);
+    expect(relationalCreatureHead({ preset: 'wolf' }).vajras.some((w) => w.name === 'chinBar')).toBe(false);
+  });
+
+  it('a brow ridge of its own stands proud of the skin over each eye, slanted, and paints; a skull without is as it was', () => {
+    // (the skull that carries one, chosen from the presets; the same skull without it)
+    const preset = Object.keys(CREATURE_HEADS).find((k) => CREATURE_HEADS[k].browRidge > 0);
+    const H = relationalCreatureHead({ preset }), bare = relationalCreatureHead({ preset, relations: { browRidge: 0 } });
+    const ridge = H.vajras.find((w) => w.name === 'browRidge'), left = H.vajras.find((w) => w.name === 'browRidgeL');
+    expect(bare.vajras.some((w) => w.name === 'browRidge')).toBe(false);
+    expect(left.c.x).toBeCloseTo(-ridge.c.x, 9);
+    // (a volume: the face's front at the ridge's middle well ahead of the same skull's without it)
+    const gain = frontAt(H, ridge.c.z, ridge.c.x) - frontAt(bare, ridge.c.z, ridge.c.x);
+    expect(gain).toBeGreaterThan(ridge.r[1] * 0.8);
+    // (over the eye: its underside no lower than the eye's middle, so the globe sits under it and is not buried in it)
+    const eyeZ = H.points.eye.z / V;
+    expect(ridge.c.z - ridge.r[1]).toBeGreaterThan(eyeZ);
+    // (a scowl: its inner end lower than its middle, on a skull that slants it)
+    expect(CREATURE_HEADS[preset].browSlant).toBeGreaterThan(0);
+    expect(ridge.a.z).toBeLessThan(ridge.c.z);
+    // (painted the brow on its front, the bare skull's skin there unpainted)
+    const y = frontAt(H, ridge.c.z, ridge.c.x);
+    expect(H.paint({ x: ridge.c.x * V, y: (y - 0.004) * V, z: ridge.c.z * V })).toBe('brow');
+    expect(bare.paint({ x: ridge.c.x * V, y: frontAt(bare, ridge.c.z, ridge.c.x) * V, z: ridge.c.z * V })).toBeNull();
+    // (the canon carries none)
+    expect(CREATURE_RELATIONS.browRidge).toBe(0);
+    expect(relationalCreatureHead({ preset: 'wolf' }).vajras.some((w) => w.seat !== undefined)).toBe(false);
   });
 
   it('tells its skulls apart by their relations, and is deterministic', () => {

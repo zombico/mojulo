@@ -446,6 +446,16 @@ describe('rule: platform (gravity + jump)', () => {
     expect(w.byId.foe.locomotion).toBe('topple');
   });
 
+  it('a killing blow floors a body that carries no poise (a hero whose hp the stats bind has none)', () => {
+    const w = createWorld({ entities: [
+      { id: 'atk', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeDur: 0.4, strikeReach: 4, strikeDamage: 10 }, transform: { pos: [0, 0, 0], heading: 0 } },
+      { id: 'foe', rule: { type: 'static' }, body: { type: 'figure-rig', hittable: true, radius: 0.5, hp: 5 }, transform: { pos: [2, 0, 0] } },
+    ] });
+    run(w, {}, 5, 1 / 60, FLAT); run(w, { fire: 1 }, 24, 1 / 60, FLAT);
+    expect(w.byId.foe.body.hp).toBe(0);
+    expect(w.byId.foe.downed).toBe(true);
+  });
+
   it('strikeVerbs + swingSet (the whip seams): per-verb cone aim/reach/topple, own clip set', () => {
     // the geof heat-rod shape: side sweeps aim the WHOLE cone to their side (the body
     // turns with the strike), the thrust reaches long on a narrow line, the downswing

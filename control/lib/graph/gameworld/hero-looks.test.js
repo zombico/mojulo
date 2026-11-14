@@ -28,6 +28,16 @@ describe('the hero\'s looks', () => {
     expect(W.elements.head.spec).toEqual({ head: 'landmark' });
   });
 
+  it('a world its palette repaints still wears its stock kit\'s setting: the kit id is the paint\'s, the rail the kit\'s', () => {
+    // (a kit with a rail whose painted world stands on a kit id of its own, chosen from the table)
+    const painted = (kit) => world({ direction: { tradition: 'anime' } }, { kit, palette: { seed: 7 } });
+    const kit = Object.keys(UNDERLAYERS).filter(isGroundKit).find((k) => painted(k).style.kit !== k);
+    expect(kit).toBeTruthy();
+    const U = underlayerFor(painted(kit));
+    expect(U.read).toBe(UNDERLAYERS[kit].read);
+    expect(U.build.style).toBe(UNDERLAYERS[kit].style);
+  });
+
   it('a bridge crosses one thing, and the page follows it', () => {
     const L = heroLooks(anime(undefined, { bridge: { proportions: 'hero' } }));
     expect(L.elements.body.spec.proportions).toBe('hero');
