@@ -3,7 +3,7 @@
 // way out), its first zone after it, a zone a block after that, travelled zone to zone. The concept on two cases, one
 // per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
-import { worldMapLevel, WORLD_MAP } from './world-map.js';
+import { worldMapLevel, WORLD_MAP, PLACE_LIGHT } from './world-map.js';
 import { composeGameworld, MAP_FLORA } from './compose.js';
 import { readGeocube } from '../era/geocube.js';
 import { castingCall } from './foe-casting.js';
@@ -90,6 +90,9 @@ describe('the world map', () => {
     expect(readGeocube(W.style.geocube).biocube).toBeTruthy();
     expect(readGeocube(W.style.geocube).biocube).not.toBe(MAP_FLORA.biocube);
     expect(W.brief.worldMap.grows).toBeUndefined();
+    // (each place its own light: home's blocks unmoved, every place with a row the world's palette moved by it)
+    for (const r of Object.values(W.levels[ids[0]].glyphs.plan.key)) expect(r.palette, r.name).toEqual(PLACE_LIGHT[r.name] ? { shift: PLACE_LIGHT[r.name].shift } : undefined);
+    expect(Object.values(W.levels[ids[0]].glyphs.plan.key).some((r) => r.palette)).toBe(true);
     // (it starts in play: its opening a cutscene's slot, then straight into the game; the brief says so)
     expect(W.flow).toBe(FLOW_IN_PLAY);
     expect(W.brief.start).toMatch(/cutscene.*straight into play/);

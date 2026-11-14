@@ -204,7 +204,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     AT[Q.at].forEach((c, ci) => { for (let k = 0; k < split; k++) { const a0 = c - arc / 2 + k * (w + gap);
       const id = `panel${i}${AT[Q.at].length > 1 ? names[ci + 1] : ''}${split > 1 ? String.fromCharCode(97 + k) : ''}`;
       panels.push({ id, fit: 'panel', part: ['pelvis', 'thigh', ...(to.part === 'shank' ? ['shank'] : [])], from: structured ? { part: 'pelvis', u: 6 } : { part: 'thigh', u: 0 }, to,
-        around: [r6(a0), r6(a0 + w)], ease: r6(easeOf(fam) * 1.5), flare: [0, r6(SKIRT_CUTS[Q.cut ?? 'aline'] * (1 + 0.5 * dials.stylize))], group: 'Panel', rigidity: Q.rigidity ?? 'soft' }); } });
+        around: [r6(a0), r6(a0 + w)], ease: r6(easeOf(fam) * 1.5), flare: [0, r6(SKIRT_CUTS[Q.cut ?? 'aline'] * (1 + 0.5 * dials.stylize))], group: 'Panel', rigidity: Q.rigidity ?? 'soft', ...(Q.hem ? { hemCut: Q.hem } : {}) }); } });
   });
   // ── 2b FIT BY ZONE (law 2): a slot's own `fit` word over the dials. SKIN is a second skin, painted on the body's own
   // faces (body-paint.js: leggings, tights, a close undershirt), no thickness and no flare; FITTED follows the body in at

@@ -529,7 +529,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const wet = Object.keys(water).length ? water : null;
   // (the colour DIRECTION its genre is laid in (world-palette.js GENRE_COLOUR: a choice made at the eyes gate, a row): the
   // axes it moves on the cube's own palette, written as the cube's palette words under any the sentence's own name)
-  const direction = genre && cubeId ? genrePaletteWords(genre.id, GEOCUBE_PALETTES[cubeId] ?? {}) : null;
+  const direction = genre && cubeId ? genrePaletteWords(genre.id, GEOCUBE_PALETTES[cubeId] ?? {}, style.kit) : null;
   if (direction) { palette = { ...direction.words, ...(palette ?? {}) }; world.brief.colour = { direction: direction.direction }; }
   if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || dunes !== null || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, dunes, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));

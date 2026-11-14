@@ -19,6 +19,7 @@
  *               (color-theorist/directions.js: its land moved, the cast solved against the land it makes). One that
  *               would change nothing is not offered: a game already coloured has none
  *     recommend the first option under which every figure law holds, the fewest palette laws advising
+ *   landsOf(G, spec)      → the lands a cast is seen on: the palette, and it moved wherever a place moves it
  *   paintedCast(world)    → { world, painted }: the `cast` option taken on a world just composed (the sentence door's)
  *   GENRE_COLOUR          the direction a genre is laid in from a sentence (world-palette.js)
  *
@@ -101,6 +102,22 @@ export function figuresOfGame(G) {
   return { figures, unread };
 }
 
+/** THE LANDS a game's cast is seen on: its palette, and the same palette moved wherever a place moves it (a map's
+ * regions' `palette: { shift }`: world-map.js PLACE_LIGHT), each distinct one once, home first. One land where nothing
+ * moves. `spec` the palette they are solved from (the world's, or a direction's). */
+export function landsOf(G, spec) {
+  const shifts = [], seen = new Set(['{}']);
+  for (const id of G.ids ?? Object.keys(G.levels ?? {})) for (const r of Object.values(G.levels[id]?.glyphs?.plan?.key ?? {})) {
+    const s = r?.palette?.shift, k = JSON.stringify(s ?? {});
+    if (isObj(s) && Object.keys(r.palette).length === 1 && !seen.has(k)) { seen.add(k); shifts.push(s); }
+  }
+  const { script: _s, shift: _h, ...base } = spec;
+  return [solvePalette(base), ...shifts.map((shift) => solvePalette({ ...base, shift }))];
+}
+// a ground of several lands: a figure is seen against every one (the first the palette its roles are worn from)
+const groundOver = (lands) => ({ against: lands.flatMap((K) => seenOn(K)), palette: lands[0], from: 'palette', ...(lands.length > 1 ? { lands } : {}) });
+const groundIn = (G) => { const g = groundOf(G), spec = isObj(G?.style?.palette) ? G.style.palette : null; if (!g || !spec || g.from !== 'palette') return g; const lands = landsOf(G, spec); return lands.length > 1 ? groundOver(lands) : g; };
+
 // the theorist's order for a game's figures on a ground (a figure that wears a role needs the palette: on a kit's own
 // ramps it is left out, and said)
 function orderOf(figures, ground) {
@@ -111,7 +128,7 @@ const named = (R, figures) => R.figures.map((f) => { const F = figures.find((x) 
 const sinksOf = (R) => R.figures.filter((f) => f.clear < FIGURE_MIN).map((f) => ({ id: f.id, clear: f.clear, from: f.nearest }));
 
 export function colourOfGame(G) {
-  const ground = groundOf(G);
+  const ground = groundIn(G);
   if (!ground) return null;
   const { figures, unread } = figuresOfGame(G), order = orderOf(figures, ground);
   if (!order) return { ground, figures: [], laws: [], sinks: [], unread };
@@ -150,14 +167,16 @@ export function colourOptions(world) {
       ...(moved ? { palette: { spec: moved, failing } } : {}), ...(contracts ? { zones: contracts } : {}) };
   };
   const options = [option('cast', 'The same land, the cast painted clear of it', 'nothing moves in the land; every figure is moved, inside its own hue family, until it parts from the ground and from the others',
-    'the smallest change: the world keeps its look and the cast stops sinking into it', spec ? [solvePalette(spec)] : null, [], spec)];
+    'the smallest change: the world keeps its look and the cast stops sinking into it', spec ? landsOf(G, spec) : null, [], spec)];
+  const kit = G.style?.colours?.base ?? G.style?.kit;
   if (spec) for (const [id, D] of Object.entries(COLOUR_DIRECTIONS)) {
     if ((D.levels ?? 1) > levels) continue;
-    const moved = directSpec(spec, id);
+    const moved = directSpec(spec, id, { kit });
     if (JSON.stringify(moved) === JSON.stringify(spec)) continue;
-    // (a script travels: the cast is solved against every level's land at once, so it parts from each)
+    // (a script travels: the cast is solved against every level's land at once, so it parts from each; and a map's
+    // places each move the palette: against every place's)
     const { script, ...base } = moved, n = script ? levels : 1;
-    const contracts = Array.from({ length: n }, (_, i) => { const shift = script ? scriptShift(script, i, n) : null; return solvePalette(shift ? { ...base, shift } : base); });
+    const contracts = script ? Array.from({ length: n }, (_, i) => { const shift = scriptShift(script, i, n); return solvePalette(shift ? { ...base, shift } : base); }) : landsOf(G, base);
     options.push(option(id, D.name, D.says, D.why, contracts, [{ op: 'set', path: '/style/palette', value: moved }], moved));
   }
   // (an option that changes nothing is no option: a cast already painted is not offered its own colours)
@@ -175,7 +194,7 @@ export function colourOptions(world) {
  * none moved.
  */
 export function paintedCast(world) {
-  const { kind: _k, ...W } = world, G = readGameworld(W), ground = groundOf(G);
+  const { kind: _k, ...W } = world, G = readGameworld(W), ground = groundIn(G);
   const { figures } = ground ? figuresOfGame(G) : { figures: [] }, order = ground ? orderOf(figures, ground) : null;
   if (!order) return { world, painted: [] };
   const R = solveFigures(order), ops = castPatch(G, R, figures);

@@ -222,6 +222,7 @@ function mapLaws(G, cells, faces, colliders, Z = null, MW = null, ranks = null) 
 // the stage words a tile takes from its level, and from its region over them (grid.js REGION_WORDS less the map's own:
 // its name, rise, ways and shore)
 const STAGE_WORDS = REGION_WORDS.filter((w) => !MAP_WORDS.includes(w));
+const isShift = (p) => !!p && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1 && p.shift && typeof p.shift === 'object';
 const hashTile = (seed, r, c) => ((Math.imul((seed | 0) + 17, 2654435761) ^ Math.imul(r + 31, 40503) ^ Math.imul(c + 7, 22541)) >>> 0) % 100000;
 
 // the base64 typed arrays the grass channel reads (era/isekai.js b64)
@@ -507,6 +508,11 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     // (a sketched ground over them: its flora the kit's preset; rocks, more boulders along its path)
     const sg = G.sketch?.ground.get(`${cell.r},${cell.c}`);
     if (sg && SKETCH_BIOCUBE[sg]) words.biocube = SKETCH_BIOCUBE[sg];
+    // (a region's palette that is a SHIFT alone moves the level's cube for its tiles: the same palette, moved, as a
+    // world's level moves its world's (gameworld/world.js); the cube's own palette must be a spec to be moved)
+    const shifted = cube && isShift(words.palette) && cube.geocube && typeof cube.geocube === 'object' && cube.geocube.palette && typeof cube.geocube.palette === 'object'
+      ? { ...cube, geocube: { ...cube.geocube, palette: { ...cube.geocube.palette, shift: words.palette.shift } } } : null;
+    if (cube && isShift(words.palette)) delete words.palette;
     const rocks = sg === 'r' && cell.kind === 'path' ? { boulders: SKETCH_BOULDERS } : {};
     // (THE MAP'S WATER near it, map-water.js: its bodies and its shore's edges, cut into the tile's land)
     const wt = MW?.near(cell.r, cell.c) ?? null;
@@ -522,7 +528,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const raw = { kind: 'stage', ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
     // (THE GEOCUBE: the map's cube paints every tile as it paints a trail, era/geocube.js withGeocube: its look, its land
     // drawn as the cube's, its flora; lowered here, so the casters handed between tiles read the same tile the build does)
-    return cube ? withGeocube({ ...raw, ...cube }) : raw;
+    return cube ? withGeocube({ ...raw, ...(shifted ?? cube) }) : raw;
   };
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it

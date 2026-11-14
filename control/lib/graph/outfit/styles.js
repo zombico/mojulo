@@ -376,6 +376,8 @@ const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
 
 /** Validate a card → error strings naming the choices (`at` prefixes them) */
+/** How a drape panel may end (absent: a level hem). */
+export const PANEL_HEMS = Object.freeze(['petal']);
 export function validateOutfitCard(card, at = 'outfit.style') {
   if (!card || typeof card !== 'object' || Array.isArray(card)) return [`${at}: a card { dials?, language, tones? }`];
   const errs = [], L = card.language ?? {};
@@ -408,7 +410,8 @@ export function validateOutfitCard(card, at = 'outfit.style') {
       if (Q.at === undefined) errs.push(`${w}.at: one of ${PANEL_AT.join(', ')}`);
       if (Q.width !== undefined && !(Number.isFinite(Q.width) && Q.width > 0 && Q.width <= 1)) errs.push(`${w}.width: a share of the half turn, 0 < width ≤ 1`);
       if (Q.split !== undefined && ![1, 2].includes(Q.split)) errs.push(`${w}.split: 1 or 2 (two tails side by side)`);
-      for (const k of Object.keys(Q)) if (!['at', 'length', 'width', 'split', 'cut', 'family', 'rigidity'].includes(k)) errs.push(`${w}.${k}: not a panel field (at, length, width, split, cut, family, rigidity)`); }); }
+      if (Q.hem !== undefined && !PANEL_HEMS.includes(Q.hem)) errs.push(`${w}.hem: one of ${PANEL_HEMS.join(', ')} (how the panel ends: a petal's curve; absent, a level line)`);
+      for (const k of Object.keys(Q)) if (!['at', 'length', 'width', 'split', 'cut', 'family', 'rigidity', 'hem'].includes(k)) errs.push(`${w}.${k}: not a panel field (at, length, width, split, cut, family, rigidity, hem)`); }); }
   for (const k of ['top', 'bottom', 'outer']) { const G = L[k] && typeof L[k] === 'object' ? L[k].girth : undefined; if (G === undefined) continue;
     if (!(G && typeof G === 'object' && !Array.isArray(G) && Object.entries(G).every(([w, c]) => GIRTH_LANDMARKS.includes(w) && Number.isFinite(c) && c >= 0))) errs.push(`${at}.language.${k}.girth: { landmark: cm of girth over the body (≥ 0; 0 on the skin) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`); }
   for (const [k, list] of [['top', FITS], ['bottom', FITS], ['outer', FITS.slice(1)]]) if (L[k] && typeof L[k] === 'object') errs.push(...one(L[k].fit, L[k].kind === 'skirt' ? [] : list, `${at}.language.${k}.fit`));

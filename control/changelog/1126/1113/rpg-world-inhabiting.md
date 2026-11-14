@@ -204,7 +204,37 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   - **A world map grows.** A cube's land takes grass only where a biocube brings it, and the map's cube named none, so
     it was bare ground. A meadow kit's map takes the meadow's own flora unless the cube or the sentence names what
     grows; the brief says so.
-- Not here yet: a cutscene's video has no file carried into the export by the game's own door (it names a path the
+- **The meadow card's colours as the action RPG's world, each place derived from it** (`color-theorist/directions.js`,
+  `gameworld/world-palette.js`, `world-map.js`, `colour.js`, `level/grid-scene.js`). Supersedes the quiet land the
+  action RPG was laid in: a choice made again at the eyes gate.
+  - **`kit-card`, a colour direction**: the land given back to its kit's card, as a palette the theorist solves to the
+    card exactly and can move. The action RPG's row in `GENRE_COLOUR` is now this; any game on a kit with a row is
+    offered it in its colour options.
+  - **Each place its own light** (`PLACE_LIGHT`): the village and its road are home, unmoved; the ruins, the towns
+    between and the castle heights are the same palette shifted, a row and a sentence a place. A region's
+    `palette: { shift }` moves the level's cube for its tiles.
+  - **The cast is painted clear of every place** (`landsOf`): the figure solver sees each place's land at once, so the
+    sentence door's cast and every colour option hold across the whole map.
+- **The action RPG's protagonist, designed at the eyes gate** (`gameworld/hero-rows.js`, new; `hero-design.js`). A genre
+  may have a protagonist kept as a row (`GENRE_HERO`): its looks pages whole, given to a game of that genre laid from
+  a sentence in place of the rolled person. The action RPG's is a young swordswoman in red and gold under a short plum
+  cape, blonde, every colour on her the meadow card's. A creator's own pages still take it away.
+- **Clothing words the design needed** (`polygonizer/outfit-plan.js`, `body-garment.js`, `outfit/styles.js`,
+  `outfit/expand.js`). Each is an option on the outfit any hero can wear; absent, a piece is built as before.
+  - **A drape panel's `hem: 'petal'`**: its corners drawn up in a curve, the middle the longest.
+  - **A cloak's `lining`** (a second cape just inside the first, in its own colour) and a `hem` given as a place
+    between the length words.
+  - **`crest`** (a six-sided plaque with a gem standing proud of it, on the breast or on the centre line at the
+    waist), **`bands`** (lines of braid across the front of the chest), **`midriff`** (the belly's cloth in another
+    cloth's colour).
+  - **A waist belt of pouches on the torso** (`on: 'torso'`, with one pouch alone at the front or the back), a belt
+    with no buckle of its own, a belt or a sash worn lower (`drop`), a hip belt's `window` and `standoff`.
+  - **A plain shoulder cap in any colour** (`plain`), its `size`, `crown` and `standoff`; **anklets** anywhere on the
+    shin (`window`: a boot's rim), on a hero's shank as on a creature's shin.
+- Not here yet: a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  cloth takes no texture on the anime body; whether the cape and the panels move in play is not checked; the back of
+  light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
+  blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the
   page can reach); the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
   opens on a win is not in the level kit); a pursuer gives up a hero it can no longer see (it hunts by sight, not by
   memory); the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick

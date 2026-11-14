@@ -70,7 +70,7 @@ function yokeOf(parts, src, C) {
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'hemCut', 'girth', 'head', 'open', 'waistband', 'collar', 'swell'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -538,6 +538,8 @@ function skirtPart(parts, names, P, worn) {
  * hangs it as a strand from the waist when it flows (hero-flow.js). The piece is `<id>_panel`, rings st0 (the waist) …
  * st11 (the hem). */
 const PANEL_SLOTS = 9;
+// a petal hem: from this share of the fall down, the corners rise by this share of the fall
+const PETAL = Object.freeze({ from: 0.45, rise: 0.42 });
 function panelPart(parts, names, P, worn) {
   const { N, zs, R, cy, pelvisBone, blendAt } = legHull(parts, names, P, worn), e = P.ease, thick = P.thick ?? 0.005;
   const [a0, a1] = P.around, m = PANEL_SLOTS, n = SLOT_FAMILIES.ring20.length;
@@ -547,8 +549,11 @@ function panelPart(parts, names, P, worn) {
   // the hull's radius in any direction: between its twenty, by angle
   const rAt = (i, deg) => { const x = ((deg % 360) + 360) % 360 / (360 / n), k = Math.floor(x) % n, f = x - Math.floor(x); return R[i][k] + (R[i][(k + 1) % n] - R[i][k]) * f; };
   const stations = [], blend = {};
-  zs.forEach((z, i) => { const id = `st${i}`, points = {};
-    slots.forEach((sl, k) => { const inner = k >= m, j = inner ? 2 * m - 1 - k : k, deg = a0 + (a1 - a0) * j / (m - 1), th = deg * Math.PI / 180;
+  // (`hemCut: 'petal'`: the hem a curve, not a level line: over the panel's lower part its corners are drawn up, the
+  // middle left the longest, so the cloth ends as a petal does)
+  const fall = zs[0] - zs[N - 1], petal = P.hemCut === 'petal' ? (i, j) => { const f = Math.max(0, (i / (N - 1) - PETAL.from) / (1 - PETAL.from)), edge = Math.abs(2 * j / (m - 1) - 1); return PETAL.rise * fall * f * f * edge * edge; } : () => 0;
+  zs.forEach((z0, i) => { const id = `st${i}`, points = {};
+    slots.forEach((sl, k) => { const inner = k >= m, j = inner ? 2 * m - 1 - k : k, deg = a0 + (a1 - a0) * j / (m - 1), th = deg * Math.PI / 180, z = z0 + petal(i, j);
       const r = rAt(i, deg) + e - (inner ? thick : 0), p = [Math.sin(th) * r, cy + Math.cos(th) * r, z]; points[sl] = p.map(r6); blend[`${id}.${sl}`] = blendAt(p, z); });
     stations.push({ id, u: i, points }); });
   const mid = (i) => mean(Object.values(stations[i].points)), top = mid(0), bot = mid(N - 1);
