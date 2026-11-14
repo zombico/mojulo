@@ -182,6 +182,8 @@ game.
     green.
   - The film says so if a vehicle would drive through where an actor stands, and if the scene's place has no
     traffic of its own.
+  - A city that has people of its own has them walk through the film too: round their blocks, waiting at the
+    crossings, each stepping as far as it goes.
   - **Not yet:** people walking in the street, animals, and vehicles turning at a crossing. The storyboard and the
     animatic do not show the traffic.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation

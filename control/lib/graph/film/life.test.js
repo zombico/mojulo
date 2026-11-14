@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LIFE, lifeErrors, hasLife, flowLife, lifeFaces, lifeDims } from './life.js';
+import { LIFE, lifeErrors, hasLife, flowLife, walkLife, lifeFaces, lifeDims } from './life.js';
 import { FLOW } from '../geocity/flow.js';
 import { sceneScreenplay, sceneStamp } from './film.js';
 import { departmentOfPath, ADVICE_HOME } from './departments.js';
@@ -62,6 +62,28 @@ describe('the set\'s life', () => {
     const F = flow([lane({ hi: 150, total: 150, ground: [0, 0, 150, 0] })], [[0, 0, 0, 0.5]]);
     expect(flowLife(F, { about: [10, 140], seconds: 2, reach: 300 })).toHaveLength(1);
     expect(flowLife(F, { about: [10, 140], seconds: 8, reach: 300 })).toHaveLength(0);
+  });
+
+  it('reads a city\'s people in metres, facing as they go, the gait\'s phase from the ground covered', () => {
+    const fig = { rig: true, bones: [], parts: [], clips: {}, figH: 2 };
+    const square = [[0, 0, 0], [20, 0, 0], [20, 20, 0], [0, 20, 0], [0, 0, 0]];
+    const P = { metersPerUnit: 2, figures: { p: fig, d: fig }, walkers: [{ figure: 'd', path: square, speed: 1, follow: true }, { figure: 'p', path: square, speed: 1, scale: 0.5 }] };
+    expect(hasLife(P)).toBe(true);
+    expect(hasLife({ ...P, walkers: [P.walkers[0]] })).toBe(false);
+    const L = walkLife(P, { about: [0, 0], seconds: 4, reach: 50 });
+    // (the followed walker is the viewer's; the other is counted as the page counts it)
+    expect(L.map((W) => W.id)).toEqual(['walker:1']);
+    const W = L[0];
+    expect(W).toMatchObject({ figure: 'p', hgt: 2 });
+    // (a unit a second along +x is two metres a second; a stride is 0.72 of its height)
+    expect(W.keys.at(-1)).toMatchObject({ t: 4, x: 8, y: 0, turn: 90 });
+    expect(W.keys.at(-1).p).toBeCloseTo(8 / 1.44, 2);
+    expect(W.keys.every((k, i) => !i || k.p >= W.keys[i - 1].p)).toBe(true);
+    // (round a corner it turns the short way; out of reach it is not read)
+    const far = walkLife(P, { about: [0, 0], seconds: 25, reach: 50 })[0].keys;
+    expect(far.at(-1).turn).toBe(0);
+    expect(walkLife(P, { about: [500, 500], seconds: 4, reach: 50 })).toEqual([]);
+    expect(JSON.stringify(walkLife(P, { about: [0, 0], seconds: 4 }))).toBe(JSON.stringify(walkLife(P, { about: [0, 0], seconds: 4 })));
   });
 
   it('builds a vehicle as the parked ones are, its paint the tint\'s', () => {

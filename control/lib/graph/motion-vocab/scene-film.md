@@ -113,11 +113,13 @@ forge_motion({ title: 'The key', export: 'storyboard',
 - **`life`: the set's own traffic drives through the scene.** `true`, or `{ clock?, reach?, most? }`. A city made as
   a metro has traffic of its own: lanes, signals, family cars, taxis, vans, trucks and buses. With `life` the Blender
   film has the vehicles that come near the cast, each driving its lane for the scene's length, stopping at a red
-  light and pulling away on green, as the city's page drives them.
+  light and pulling away on green, as the city's page drives them. A planned city (`kind: 'city'`) has people of its
+  own, walking round their blocks and waiting at the crossings: with `life` those who come near the cast walk
+  through the film, each stepping as far as it goes and standing where it waits.
   - `clock`: the second of the city's clock the scene starts at (0 unless given). The lights and the queues differ
     from one second to another, so another `clock` is another moment of the same street.
   - `reach`: how far about the cast the traffic is read, in metres. `most`: how many vehicles at most, the nearest
-    first.
+    first (and as many people).
   - The lanes are the city's: nothing is steered round the cast. A vehicle driven through where a part stands is
     advised (`life-crosses`); stand the cast on the pavement (a `corner` place).
   - A set that moves nothing of its own (a field, a street of houses, a room) is advised (`life-unused`): bring a

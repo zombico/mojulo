@@ -10,18 +10,26 @@
  *   flowLife(flow, { about, seconds, clock?, reach?, most? })
  *                              → [{ id, model, extra?, tint: [r, g, b] linear, len, wid, near, keys: [{ t, x, y, z, turn }] }]
  *                                (metres, the world's frame; `turn` degrees clockwise from +y, as a prop's)
+ *   walkLife(payload, { about, seconds, clock?, reach?, most? })
+ *                              → [{ id, figure, hgt, near, keys: [{ t, x, y, z, turn, p }] }]: a city's people (its `walkers`,
+ *                                read as a camera follows them, shoot/subjects.js), `p` the gait's cycles walked so far
  *   lifeFaces({ model, extra?, tint })  → the vehicle's faces, its paint the tint's (the page's own model and paint rule)
  *   lifeDims(model)            → [wid, len, hgt] metres
+ *
+ * A planned city's people (its `walkers`: loops round their blocks, waiting at the crossings' signals) are read the same
+ * way: each on the world's clock, in metres, its gait's phase from the ground it has covered, as the page plays it, so a
+ * walker held at a kerb stands. The walker a view follows (a geocube's stand-in) is the viewer's, never the set's.
  *
  * Pure; the model's own seeded plan, no dice here.
  */
 import { createTrafficModel, stepTraffic } from '../scene/channels/traffic-model.js';
 import { readFlow } from '../scene/channels/flow.js';
 import { carModel, ROOF_EXTRAS } from '../geotown/cars.js';
+import { shootSubjects } from '../shoot/subjects.js';
 
 export const LIFE = Object.freeze({ reach: 90, most: 16, key: 0.25, mostAsked: 60, reachAsked: 320 });
 const LIFE_KEYS = ['clock', 'reach', 'most'];
-const WRAP = 100;
+const WRAP = 100, WALK_WRAP = 6, STRIDE = 0.72;
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 
 export function lifeErrors(v) {
@@ -36,7 +44,14 @@ export function lifeErrors(v) {
 }
 
 /** Whether a world's payload moves anything a film can read. */
-export const hasLife = (payload) => !!readFlow(payload?.flow);
+export const hasLife = (payload) => !!readFlow(payload?.flow) || walkersOf(payload).length > 0;
+
+// a world's ambient walkers as the page lists them (scene-three's filter, the subjects' own), the followed one left out
+function walkersOf(payload) {
+  const figs = payload?.figures || {};
+  return (Array.isArray(payload?.walkers) ? payload.walkers : []).filter((w) => w && typeof w.figure === 'string' && figs[w.figure] && Array.isArray(w.path) && w.path.length > 2)
+    .map((w, i) => ({ w, i })).filter(({ w }) => !w.follow);
+}
 
 // the road's height at u along a lane (its samples ascending: the page's own rule, channels/flow.js)
 function groundAt(g, u) {
@@ -83,6 +98,40 @@ export function flowLife(flow, { about, seconds, clock = 0, reach = LIFE.reach, 
       found.push({ id: `flow:${li}:${k}`, model: kind.model, ...(kind.extra ? { extra: kind.extra } : {}), tint: F.tints[c[2]], len: kind.len, wid: kind.wid, near: r3(near[k]), keys: keys[k] });
     });
   });
+  return found.sort((a, b) => a.near - b.near || (a.id < b.id ? -1 : 1)).slice(0, most);
+}
+
+/** The people who come within `reach` of `about` during the scene, nearest first, each keyed along its way. */
+export function walkLife(payload, { about, seconds, clock = 0, reach = LIFE.reach, most = LIFE.most } = {}) {
+  const list = walkersOf(payload);
+  if (!list.length || !Array.isArray(about) || !(seconds > 0)) return [];
+  const k = Number.isFinite(payload.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1, subjects = shootSubjects(payload);
+  const [ax, ay] = about, n = Math.max(1, Math.ceil(seconds / LIFE.key)), times = Array.from({ length: n + 1 }, (_, i) => Math.min(seconds, i * LIFE.key));
+  const found = [];
+  for (const { w, i } of list) {
+    const S = subjects.get(`walker:${i}`), fig = payload.figures[w.figure], scale = w.scale > 0 ? w.scale : 1;
+    if (!S) continue;
+    // (one gait cycle a stride of ground: the page's own rule, channels/walkers.js)
+    const stride = (w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * STRIDE * scale)) * k;
+    let near = Infinity, walked = 0, last = null, turn = 0, wraps = false;
+    const keys = times.map((t) => {
+      const { pos, heading } = S.at(clock + t), x = pos[0] * k, y = pos[1] * k;
+      if (last) { const d = Math.hypot(x - last[0], y - last[1]); if (d > WALK_WRAP) wraps = true; walked += d; }
+      // (it faces the way it goes; where it stands, the way it last went)
+      if (!last || Math.hypot(x - last[0], y - last[1]) > 1e-6) {
+        // (turned the short way round from where it faced, so a corner is not spun through)
+        let a = 90 - heading * 180 / Math.PI;
+        if (last) a = turn + ((((a - turn) % 360) + 540) % 360 - 180);
+        turn = r3(a);
+      }
+      last = [x, y];
+      near = Math.min(near, Math.hypot(x - ax, y - ay));
+      return { t: r3(t), x: r3(x), y: r3(y), z: r3((pos[2] || 0) * k), turn, p: r3(walked / stride) };
+    });
+    // (an open way's walker relands at its far end: left out, as a vehicle that rounds its lane's ring is)
+    if (near > reach || wraps) continue;
+    found.push({ id: `walker:${i}`, figure: w.figure, hgt: r3((fig.figH || 1.8) * scale * k), near: r3(near), keys });
+  }
   return found.sort((a, b) => a.near - b.near || (a.id < b.id ? -1 : 1)).slice(0, most);
 }
 

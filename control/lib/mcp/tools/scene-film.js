@@ -37,7 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
-import { lifeErrors, hasLife, flowLife, lifeFaces, lifeDims } from '@/lib/graph/film/life.js';
+import { lifeErrors, hasLife, flowLife, walkLife, lifeFaces, lifeDims } from '@/lib/graph/film/life.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -261,7 +261,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   // (and its LIFE: what the set's own world moves, read when the film is made; film/life.js)
   if (life !== undefined && life !== false) {
     if (set && alive) set.life = life;
-    else advice.push({ id: 'life-unused', says: set ? `the scene asks for the set's life, but ${set.title ? `'${set.title}'` : 'this set'} moves nothing of its own (a metro has traffic; a field, a street of houses and a room have none)` : 'the scene asks for the set\'s life, but it has no set', try: 'play the scene in a city (a set asked for as a metro), bring a thing in yourself (a prop with `from` or `to`), or take `life` out' });
+    else advice.push({ id: 'life-unused', says: set ? `the scene asks for the set's life, but ${set.title ? `'${set.title}'` : 'this set'} moves nothing of its own (a metro has traffic, a planned city its people; a field, a street of houses and a room have none)` : 'the scene asks for the set\'s life, but it has no set', try: 'play the scene in a city (a set asked for as a metro), bring a thing in yourself (a prop with `from` or `to`), or take `life` out' });
   }
   if (props && Object.keys(props).length) {
     // ANYTHING mojulo made stood in the scene: its faces join the set's, so it is walked round, seen past and boarded
@@ -587,7 +587,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     log(`actors/${w}.glb: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB, ${minted[w].seconds} s`);
   }
   const sound = await writeSceneSound({ dir: outDir, plan, screenplay: P.screenplay, fps, prefix: 'audio/' });
-  let setPack = null, atmosphere = null, flow = null;
+  let setPack = null, atmosphere = null, flow = null, living = null;
   if (P.set?.ref) {
     const { buildBlenderPack } = await import('@/lib/graph/scene/blender-pack.js');
     await buildBlenderPack({ ref: P.set.ref, outDir: path.join(outDir, 'set'), log });
@@ -600,7 +600,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     const H = P.set.hour, manifest = H !== undefined && world.manifest?.kind === 'geocube' ? { ...world.manifest, hour: H } : world.manifest ?? {};
     const lit = (await resolveWorldScene(H !== undefined ? { ...world, manifest } : world, { unshaded: true })).payload;
     atmosphere = filmAtmosphere({ payload: lit, manifest });
-    if (P.set.life !== undefined) flow = lit.flow ?? null;
+    if (P.set.life !== undefined) { flow = lit.flow ?? null; living = lit; }
     // (THE SCENE'S WEATHER: the sun through its cloud, the sky, the air and what falls, about where the cast stands)
     if (P.set.weather !== undefined) {
       const pts = Object.values(S.actors).map((A) => A.root[0]), mid = [pts.reduce((n, k) => n + k.x, 0) / pts.length, pts.reduce((n, k) => n + k.y, 0) / pts.length];
@@ -634,9 +634,27 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   // (THE SET'S LIFE: its world's own traffic within reach of the cast, each vehicle its own model keyed along its lane
   //  on the scene's clock, as a thing that moves is; film/life.js)
   const lifeAdvice = [];
-  if (flow) {
+  if (living) {
     const ask = isPlain(P.set.life) ? P.set.life : {}, roots = Object.values(S.actors).map((A) => A.root);
     const mid = [roots.reduce((n, R) => n + R[0].x, 0) / roots.length, roots.reduce((n, R) => n + R[0].y, 0) / roots.length];
+    const r3 = (v) => Math.round(v * 1000) / 1000;
+    // (THE PEOPLE: a city's walkers, each its own figure and its walk, the gait's phase keyed from the ground it covers)
+    const people = walkLife(living, { about: mid, seconds: S.seconds, ...ask }), cast = new Map();
+    for (const [i, W] of people.entries()) {
+      if (!cast.has(W.figure)) {
+        const glb = facesToGlb({ faces: [], figures: { [W.figure]: living.figures[W.figure] } }, { generator: `mojulo scene film · life ${W.figure}`, clips: '_all', lit: true });
+        if (!glb) continue;
+        const file = `life/${packTitle(W.figure)}.glb`;
+        mkdirSync(path.join(outDir, 'life'), { recursive: true });
+        writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
+        cast.set(W.figure, file);
+      }
+      const keys = W.keys.map((k) => ({ ...k, z: r3(k.z - P.set.floor) }));
+      propPack.push({ name: `walker-${i + 1}`, life: W.id, glb: cast.get(W.figure), at: [keys[0].x, keys[0].y], turn: keys[0].turn, dims: [r3(W.hgt * 0.36), r3(W.hgt * 0.36), W.hgt], z: keys[0].z, keys });
+      const hit = roots.flatMap((R) => R.map((q) => ({ q, k: keys.reduce((b, k) => (Math.abs(k.t - q.t) < Math.abs(b.t - q.t) ? k : b), keys[0]) }))).find(({ q, k }) => Math.hypot(k.x - q.x, k.y - q.y) < 0.6);
+      if (hit) lifeAdvice.push({ id: 'life-crosses', at: r3(hit.q.t), says: `one of the set's people walks through where a part stands at ${r3(hit.q.t)} s ([${hit.k.x}, ${hit.k.y}]): the cast is on their way`, try: 'stand the cast a step off the walk (a mark), or start the world\'s clock elsewhere (`life: { clock }`)' });
+    }
+    if (people.length) log(`life: ${people.length} of the set's people, ${cast.size} figures`);
     const driven = flowLife(flow, { about: mid, seconds: S.seconds, ...ask }), made = new Map();
     for (const [i, V] of driven.entries()) {
       const key = `${V.model}|${V.extra ?? ''}|${V.tint.join(',')}`;
@@ -648,14 +666,14 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
         writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
         made.set(key, file);
       }
-      const r3 = (v) => Math.round(v * 1000) / 1000, keys = V.keys.map((k) => ({ t: k.t, x: k.x, y: k.y, z: r3(k.z - P.set.floor), turn: k.turn }));
+      const keys = V.keys.map((k) => ({ t: k.t, x: k.x, y: k.y, z: r3(k.z - P.set.floor), turn: k.turn }));
       propPack.push({ name: `life-${i + 1}`, life: V.id, glb: made.get(key), at: [keys[0].x, keys[0].y], turn: keys[0].turn, dims: lifeDims(V.model), z: keys[0].z, keys });
       // (a vehicle driven through where a part stands: said, never moved; the lane is the world's)
       const hit = roots.flatMap((R) => R.map((q) => ({ q, k: keys.reduce((b, k) => (Math.abs(k.t - q.t) < Math.abs(b.t - q.t) ? k : b), keys[0]) }))).find(({ q, k }) => Math.hypot(k.x - q.x, k.y - q.y) < V.wid / 2 + 0.4);
       if (hit) lifeAdvice.push({ id: 'life-crosses', at: r3(hit.q.t), says: `the set's traffic drives through where a part stands at ${r3(hit.q.t)} s ([${hit.k.x}, ${hit.k.y}]): the cast is on a lane`, try: 'stand the cast on the pavement (a `corner` place, or a mark off the road), or start the world\'s clock elsewhere (`life: { clock }`)' });
     }
-    setPack.life = { vehicles: driven.length, models: made.size };
-    log(`life: ${driven.length} vehicles of the set's traffic, ${made.size} models`);
+    setPack.life = { vehicles: driven.length, models: made.size, ...(people.length ? { walkers: people.length, figures: cast.size } : {}) };
+    if (driven.length) log(`life: ${driven.length} vehicles of the set's traffic, ${made.size} models`);
   }
   const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, props: propPack, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
   for (const f of files) { mkdirSync(path.dirname(path.join(outDir, f.file)), { recursive: true }); writeFileSync(path.join(outDir, f.file), f.text); }

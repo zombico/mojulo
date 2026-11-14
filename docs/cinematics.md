@@ -342,8 +342,12 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   `carModel`, its paint the plan's tint) and written as `life/<model>-<n>.glb`; it rides `scene.json`'s `props` as a
   thing that moves (its `keys`), so `actors.py` needs nothing new. A vehicle that wraps round its lane's ring during
   the scene is left out. Advice: `life-unused` (the set has no traffic), `life-crosses` (a vehicle within half its
-  width and 0.4 m of a part's root at the same second). The old `city` kind's cars and walkers (`shoot/subjects.js`)
-  are not read yet.
+  width and 0.4 m of a part's root at the same second). A planned city's people (`walkLife`: its `walkers`, each read
+  on the world's clock as a camera follows it, `shoot/subjects.js`, in metres) are written once a figure as
+  `life/<figure>.glb` with its walk clip and ride `props` the same way, each key also carrying `p`, the cycles of
+  the gait gone by (ground covered over the stride, the page's rule): `actors.py` reads each of the figure's curves
+  again a frame at a time at that phase, so a walker held at a kerb stands. The walker a view follows is left out.
+  The planned city's cars (its baked meshes) are not read yet.
 - **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
   stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
   keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the

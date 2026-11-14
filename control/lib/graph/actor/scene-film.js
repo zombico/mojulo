@@ -40,8 +40,9 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
  * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
  * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb).
  * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). 8: a moving prop
- * turns along its way (a key's `turn`). 9: a scene's weather (atmosphere.json weather, film_light.py). */
-export const SCENE_PACK_REV = 9;
+ * turns along its way (a key's `turn`). 9: a scene's weather (atmosphere.json weather, film_light.py).
+ * 10: a prop that walks (its keys' `p`, the cycles of its own clip gone by). */
+export const SCENE_PACK_REV = 10;
 /** how far apart a walk is keyed on ground that is not flat, metres */
 const WALK_KEY = 0.4;
 
@@ -490,6 +491,38 @@ def house(S):
         log('%s: %d W under the ceiling' % (name, round(lamp.energy)))
 
 
+def gait(objs, keys, fps, frames):
+    acts = []
+    for o in objs:
+        act = o.animation_data.action if o.animation_data else None
+        if act is not None and act not in acts:
+            acts.append(act)
+    ts, ps = [float(K['t']) for K in keys], [float(K.get('p', 0.0)) for K in keys]
+    def phase(t):
+        if t <= ts[0]:
+            return ps[0]
+        for i in range(1, len(ts)):
+            if t <= ts[i]:
+                u = (t - ts[i - 1]) / ((ts[i] - ts[i - 1]) or 1e-9)
+                return ps[i - 1] + (ps[i] - ps[i - 1]) * u
+        return ps[-1]
+    at = [phase((f - 1) / fps) % 1.0 for f in range(1, frames + 1)]
+    for act in acts:
+        f0, f1 = act.frame_range
+        for fc in fcurves_of(act):
+            vals = [fc.evaluate(f0 + p * (f1 - f0)) for p in at]
+            while len(fc.keyframe_points):
+                fc.keyframe_points.remove(fc.keyframe_points[0], fast=True)
+            fc.keyframe_points.add(frames)
+            flat = []
+            for i, v in enumerate(vals):
+                flat += [float(1 + i), v]
+            fc.keyframe_points.foreach_set('co', flat)
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
+            fc.update()
+
+
 def props(S):
     """The scene's PROPS (scene.json props): each a thing mojulo made, its own model, stood where the plan stood it. Its
     size is the one it was read at (dims, metres, before its turn), whatever unit its model came in; its middle is over
@@ -548,6 +581,10 @@ def props(S):
             for fc in fcurves_of(holder.animation_data.action):
                 for kp in fc.keyframe_points:
                     kp.interpolation = 'LINEAR'
+        # (a thing that WALKS, its keys' p: the cycles of its own clip gone by at each key. Each of its curves is read
+        #  again a frame at a time at that phase of the cycle, so it steps as far as it goes and stands where it waits)
+        if any('p' in K for K in Q.get('keys') or []):
+            gait(new, Q['keys'], float(S['fps']), int(S['frames']))
         log('%s: %.2f x %.2f x %.2f m at [%.2f, %.2f]' % (name, k * ext[0], k * ext[1], k * ext[2], float(Q['at'][0]), float(Q['at'][1])))
 
 
