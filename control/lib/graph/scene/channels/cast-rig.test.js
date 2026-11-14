@@ -47,6 +47,10 @@ describe('the cast material', () => {
     expect(sh.fragmentShader).not.toContain('castNeutral');
     const own = compiled(kit.material(castRigInput(RIG), { surface: 'paint' }));
     expect(own.fragmentShader.indexOf('castNeutral( gl_FragColor.rgb')).toBeLessThan(own.fragmentShader.indexOf('#include <tonemapping_fragment>'));
+    // (the curve's shoulder alone over paint: no toe taking 0.04 off a body the untoned paint beside it keeps)
+    const curve = own.fragmentShader.slice(own.fragmentShader.indexOf('vec3 castNeutral('), own.fragmentShader.indexOf('}', own.fragmentShader.indexOf('vec3 castNeutral(')));
+    expect(curve).toContain('newPeak');
+    expect(curve).not.toContain('offset');
     expect(own.uniforms.uCastSky.value.toArray()).toEqual(RIG.hemi.sky);
     expect(own.uniforms.uCastKey.value).toBe(RIG.key.gain);
     // (the cel: three's toon material over the rig's ramp, its rim stepped)

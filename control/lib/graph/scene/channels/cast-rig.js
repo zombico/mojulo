@@ -9,7 +9,8 @@
 //   the rim          a fresnel edge in the horizon's hue, added on the body's own surface (as the fight's coat is);
 //                    the cel steps it
 //   the tone         on a form page the renderer's curve tones the body with the land; on a painted page (the paint is
-//                    drawn as it is, the renderer tones nothing) the body tones itself, the same curve in its shader
+//                    drawn as it is, the renderer tones nothing) the body tones itself, the same curve's shoulder in its
+//                    shader (its toe left out: castNeutral below)
 //
 //   castRigInput(rig)    a rig → what the page carries of it (its lights and laws' results, not their prose)
 //   castKitSource()      the kit as page source: an expression a page assigns (`const castKit = ${castKitSource()};`),
@@ -52,12 +53,14 @@ export function buildCastKit(THREE) {
       uCastRimP: { value: R.rim.power }, uCastExposure: { value: (R.tone && R.tone.exposure) || 1 },
     };
   }
-  // (Khronos PBR neutral, as three's NeutralToneMapping: a painted page's renderer tones nothing, so the body does)
+  // (Khronos PBR neutral's shoulder, as three's NeutralToneMapping rolls a highlight off: a painted page's renderer tones
+  // nothing, so the body does. Its toe is left out: the toe takes up to 0.04 off every channel to cancel the 0.04
+  // Fresnel floor an image-lit PBR frame adds to every surface. The paint beside the body is never toned and the body
+  // here reflects no environment, so the toe would only take 0.04 off a body the paint keeps: a dark cloth's weak
+  // channels to nothing, a skin's blue by half, darker and more saturated than the same albedo painted)
   const NEUTRAL = `
 vec3 castNeutral( vec3 color ) {
   const float start = 0.8 - 0.04, desat = 0.15;
-  float x = min( color.r, min( color.g, color.b ) ), offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
-  color -= offset;
   float peak = max( color.r, max( color.g, color.b ) );
   if ( peak < start ) return color;
   float d = 1.0 - start, newPeak = 1.0 - d * d / ( peak + d - start );
