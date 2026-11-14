@@ -22,6 +22,8 @@ import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
+import { createBeatsHandler, updateBeatsHandler } from './beats.js';
+import { fieldCue, parseFieldSpec } from '../../graph/beats/field-cue.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
 import { createGameHandler, auditGameLevel } from './create-game.js';
@@ -174,6 +176,16 @@ async function realize(step, action) {
     if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: `design_game: ${key === 'hero' ? 'the motion page' : 'a cast member\'s motion'}` });
     return pin ? { pin } : {};
   }
+  if (key.startsWith('cue-')) {
+    // a cue of the game's score (gameworld/cue-sheet.js): a beats-composition from the sheet's answer, minted as
+    // create_beats mints a field score; a changed answer writes its recipe whole in place
+    if (action === 'make') await createBeatsHandler({ title: order.title, score: order.score, ref });
+    else {
+      const { kind: _k, title: _t, ...body } = fieldCue(parseFieldSpec({ score: order.score }));
+      await updateBeatsHandler({ ref, title: order.title, manifest: { kind: 'beats-composition', title: order.title, ...body, score: order.score }, note: 'design_game: the score\'s cue' });
+    }
+    return {};
+  }
   if (key === 'ride') {
     // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
@@ -232,7 +244,7 @@ async function realize(step, action) {
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(front ? { front } : {}), ...(flow ? { flow } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(front ? { front } : {}), ...(flow ? { flow } : {}), ...(order.music ? { music: order.music } : {}) } });
     }
     return {};
   }
@@ -544,6 +556,10 @@ function readout(ref, world, context = {}) {
   // lays out what it is now and the ways it could be oriented, each one a patch (the theorist's aid, the same for any game)
   const colour = (() => { try { const { kind: _k, ...W } = world; return colourOfGame(readGameworld(W)); } catch { return null; } })();
   if (colour?.sinks.length) next.push({ step: 'colour', sinks: colour.sinks, book: `/api/sketches/${encodeURIComponent(ref)}/bible?book=colour`, card: 'gameworld-colour' });
+  // its audio (gameworld/sound-sheet.js, cue-sheet.js): a game on no sound sheet, or with no music, is told what writing
+  // one lays (suggested, never laid: each changes every level's bytes); its books are where the creator listens
+  if (world.sound === undefined && world.quick?.sfx === undefined) next.push({ step: 'sound', suggest: {}, why: 'no sound sheet: its levels are built without sound effects. An empty `sound` lays the sheet solved from the game (its ground, its arsenal, its foes) on every level', patch: [{ op: 'set', path: '/sound', value: {} }], book: 'sound', card: 'gameworld-sound' });
+  if (world.music === undefined && world.quick?.music === undefined) next.push({ step: 'music', suggest: {}, why: 'no music: its levels are built unscored. An empty `music` scores every level from the cue sheet (its place, its fights, its boss) on one identity', patch: [{ op: 'set', path: '/music', value: {} }], book: 'score', card: 'gameworld-music' });
   // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
   // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
   const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);

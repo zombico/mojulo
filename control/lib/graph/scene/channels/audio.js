@@ -26,18 +26,22 @@ export function audioChannelScript(audio) {
   const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
   const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
+  // an environment's bed (audio.bed, sfx-shelf/beds.js): a pattern of the shelf's one-shots on its own engine, under the
+  // score at its own level. Absent, not a byte of it is emitted.
+  const bed = !!audio.bed, bedLevel = Number(audio.bedLevel ?? 0.5);
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
 const __BEATS_PATCHES = ${safeJson(combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
-let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;
+let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
 // CPU quiet while muted. resume() only sticks post-gesture — the pointerdown unlock owns that.
 function __beatsApply() {
   __beatsBtn.textContent = __beatsMuted ? '\\u{1F507}' : '\\u{1F50A}';
   if (!__beatsEng) return;
-  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${combat ? `
+  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${bed ? `
+  if (__bedEng) __bedEng.master.gain.value = __beatsMuted ? 0 : ${bedLevel} * __beatsVol;` : ''}${combat ? `
   if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});
 }
@@ -56,7 +60,8 @@ ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
     else __beatsEng.startAmbient(__AUDIO.soundtrack, __BEATS_PATCHES);`}
   }
-  if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);
+  if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);${bed ? `
+  __bedEng = __BEATS.createEngine(__beatsCtx); __bedEng.startPattern(__AUDIO.bed, __BEATS_PATCHES);   // the environment's bed` : ''}
   __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
 }
 renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.tension ? `
@@ -171,7 +176,18 @@ __proxGain = (function (g) { var k = ${900 / reach}; return function (p) { var L
 ` : ''}${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
-// bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
+${audio.breath ? `// one breath across the game's hits (audio.breath, the sound sheet's): each hit is played at the breath left (down to
+// floor), spends spend of it, and a rest refills recover a second: a fast combo lightens, the first hit after a pause
+// is the strongest
+let __breath = 1, __breathT = 0;
+__beatsCue = (function (play) { return function (cue, gain) {
+  var now = __beatsCtx ? __beatsCtx.currentTime : 0;
+  __breath = Math.min(1, __breath + (now - __breathT) * ${Number(audio.breath.recover)}); __breathT = now;
+  var k = ${Number(audio.breath.floor)} + ${1 - Number(audio.breath.floor)} * __breath;
+  __breath = Math.max(0, __breath - ${Number(audio.breath.spend)});
+  return play(cue, gain == null ? k : gain * k);
+}; })(__beatsCue);
+` : ''}// bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
 // events and never touches state, so bus determinism (hash → replay) is untouched. Match the
 // state.log DELTA, not the incoming array: the reducer cascades reaction-emitted events
 // (goal:reached, pickup:*, door:*) internally, so only the log holds the whole drained stream.
@@ -361,6 +377,54 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
       l.swing = e.swingCount || 0; l.hit = e.meleeHitCount || 0; l.guard = e.lastGuard ? e.lastGuard.seq : 0; l.w = e.mvWeapon;
       l.wpn = e.weapon; l.charge = e.weapon ? e.weapon.chargeCount || 0 : 0; l.shots = e.weapon ? e.weapon.shots || 0 : 0; l.down = !!e.downed; l.hits = e.hits || 0;
     }
+  })();
+})();
+` : ''}${audio.foes ? `// a sheet level's FOES (audio.foes, beats-world.js; gameworld/sound-sheet.js): each foe of the bestiary by its id
+// (a body's id is foe-<its id>-<n>) sounds on its attack (a swing begun), on a blow taken and as it falls, each a cue
+// of the level's, placed where it stands. A kind's attacks are held apart (a pack never says one sound at once).
+// Read-only, as the moveset's above. (No backticks: inside an emitted template literal.)
+(function () {
+  const F = __AUDIO.foes, C = __AUDIO.cues || {}, L = {}, keys = Object.keys(F).sort(function (a, b) { return b.length - a.length; }), said = {};
+  const kindOf = (id) => { for (const k of keys) if (id.indexOf('foe-' + k + '-') === 0) return k; return null; };
+  (function __beatsFoes() {
+    requestAnimationFrame(__beatsFoes);
+    if (!__beatsEng || __beatsMuted) return;
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world;
+    if (!ctrl) return;
+    const now = performance.now() / 1000;
+    for (const e of ctrl.entities) {
+      if (e.team !== 'foes' || typeof e.id !== 'string') continue;
+      const l = L[e.id] || (L[e.id] = { k: kindOf(e.id), swing: e.swingCount || 0, hits: e.hits || 0, down: !!e.downed });
+      const S = l.k ? F[l.k] : null;
+      if (S) {
+        const play = (what, gap) => { const id = S[what], key = l.k + ':' + what; if (!id || !C[id] || (gap && now - (said[key] || -1e9) < gap)) return; said[key] = now; __beatsCue(C[id], __proxGain(e.transform.pos)); };
+        if (e.downed && !l.down) play('down', 0);
+        else if ((e.hits || 0) > l.hits && !e.downed) play('hurt', 0.12);
+        if ((e.swingCount || 0) > l.swing) play('attack', 0.3);
+      }
+      l.swing = e.swingCount || 0; l.hits = e.hits || 0; l.down = !!e.downed;
+    }
+  })();
+})();
+` : ''}${audio.engine ? `// a ride's ENGINE (audio.engine, beats-world.js; gameworld/sound-sheet.js rideSound): a held voice driven by the
+// pilot's own travel speed over the ride's top, from its idle up, smoothed so a stop winds down. Built lazily on
+// unlock; silent while muted or with no pilot. Read-only and presentation-only. (No backticks.)
+(function () {
+  const E = __AUDIO.engine, K = { pos: null, t: 0, speed: 0 };
+  let H = null;
+  (function __beatsEngine() {
+    requestAnimationFrame(__beatsEngine);
+    if (!__beatsEng) return;
+    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
+    const now = performance.now() / 1000;
+    if (P && P.transform && P.transform.pos) {
+      const p = P.transform.pos, dt = now - K.t;
+      if (K.pos && dt > 0 && dt < 0.5) { const d = Math.hypot(p[0] - K.pos[0], p[1] - K.pos[1], (p[2] || 0) - (K.pos[2] || 0)); K.speed += (d / dt - K.speed) * 0.12; }
+      K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
+    } else K.speed *= 0.9;
+    const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
+    H.set(__beatsMuted || !P ? 0 : x);
   })();
 })();
 ` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the

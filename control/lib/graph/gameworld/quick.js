@@ -67,8 +67,10 @@
  *     music?: '<mood>' | 'auto',            // rhythm: the field score whose beat it runs to (wayfarer). Any other goal:
  *                                           // a field score under each level, one identity across the game ('auto':
  *                                           // the mood each level's place and play call for, beats/score-suggest.js)
- *     sfx?: 'auto' | '<palette>',           // action sounds wired to the goal's events, in the music's key ('auto': the
- *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
+ *     sfx?: 'sheet' | 'auto' | '<palette>', // action sounds wired to the goal's events: 'sheet' the SFX shelf's, solved from
+ *                                           // the game (gameworld/sound-sheet.js: its weapon, its ground, its foes; the
+ *                                           // newest voices first); 'auto' the palette the score implies, in the music's
+ *                                           // key; or a palette: arcade, foley, orchestral, synth (beats/sfx-palettes.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     xr?: true | false | { move?, turn?, hud? },   // played in a headset (scene/channels/xr.js), written to the world's
  *                                           // own `xr` (each level carries it)
@@ -183,6 +185,7 @@ import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
+import { gunSounds } from './sound-sheet.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { quickGenre } from './intent.js';
 import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
@@ -528,7 +531,7 @@ export function readQuick(Q) {
   if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
   if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
   if (Q.xr !== undefined && Q.xr !== true && Q.xr !== false && !isObj(Q.xr)) throw fail('.xr is true (played in a headset), false, or { move?: seated | standing, turn?: smooth | snap }');
-  if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
+  if (Q.sfx !== undefined && Q.sfx !== 'auto' && Q.sfx !== 'sheet' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'sheet' (the SFX shelf's sounds, solved from the game), 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
   if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
@@ -1421,7 +1424,7 @@ export function shootDrops(posts, ends) {
 /** A shooter's cast, on a stage: each foe at its post, armed, hunting by sight and taking cover (the walls are the
  * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
-export function shootCast(quick, ends, ref, { hero = false, camera, G = null } = {}) {
+export function shootCast(quick, ends, ref, { hero = false, camera, G = null, guns = null } = {}) {
   // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
   if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
   const posts = shootPosts(quick, ends), figures = {}, entities = [], part = { figures, entities };
@@ -1433,10 +1436,10 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
   const over = shoulderOf(camera ?? quick.camera, hero);
   // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on, a knife in the free hand:
   // arms-kit.js)
-  const kit = quick.arms ? armsLoadout(quick.arms, SHOOT.rifle, { eye: hero ? 1.5 : 0, converge: !!over }) : null;
+  const kit = quick.arms ? heardKit(armsLoadout(quick.arms, SHOOT.rifle, { eye: hero ? 1.5 : 0, converge: !!over }), guns) : null;
   const pilot = {
     rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(SHOOT.foeHp) } : {}) },
-    weapon: kit ? kit[0].weapon : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
+    weapon: kit ? kit[0].weapon : heardGun({ ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) }, guns),
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
   return { figures, entities, posts, pilot, ...(over ? { camera: over } : {}) };
@@ -1503,7 +1506,7 @@ export const deathmatchBots = (quick) => Array.from({ length: quick.bots ?? DEAT
  * centre; every gun held right-handed (`hand`: past an edge on its right a shooter fires with less of itself out); the
  * bots match players (mind.js `frag`: fight whom they see, hunt the noise, strafe, peek an edge) on the navmesh.
  * `ref`: their figure; `hero`: the player has a body. → { figures, entities, pilot } (stageLevelOrder's `extra`). */
-export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) {
+export function deathmatchCast(quick, ends, ref, { hero = false, camera, guns = null } = {}) {
   const A = ends.arena, bots = deathmatchBots(quick), figures = {}, entities = [];
   const face = (p) => r3(Math.atan2(A.centre[1] - p[1], A.centre[0] - p[0]));
   // on the shooter pole: every gun the pole's (the same for all), every body its hp, the bots' minds and the player's
@@ -1538,11 +1541,11 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
     : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
   const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
   // (a carried kit, arms-kit.js: its rounds scaled to the pole's own gun, else the shooter's rifle)
-  const kit = quick.arms ? armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }) : null;
+  const kit = quick.arms ? heardKit(armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }), guns) : null;
   const pilot = {
     ...(S ? { team: 'red' } : {}),
     rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(P ? P.hp : SHOOT.foeHp) } : {}) },
-    weapon: kit ? kit[0].weapon : P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
+    weapon: kit ? kit[0].weapon : heardGun(P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv }, guns),
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },
   };
@@ -1596,16 +1599,40 @@ export function bagPlay(quick) {
 }
 
 /**
+ * A quick shooter's carried guns as the sound sheet hears them (sound-sheet.js gunSounds), or null: the kit's slots
+ * (`arms`), else the one gun the goal hands the player (the pole's, or the shooter's rifle). A dogfight's craft and
+ * guns laid on the floor (`weapons`) are not on the sheet. The casts lay each gun's sounds on it (`guns`), and the
+ * level's audio carries their cues (goalAudio `cues`).
+ */
+export function quickGuns(G, quick) {
+  if ((quick.goal !== 'shoot' && quick.goal !== 'deathmatch') || quick.craft !== undefined || quick.weapons !== undefined) return null;
+  const P = quick.goal === 'deathmatch' && quick.pole !== undefined ? shooterPole(quick.pole) : null, base = P ? P.weapon : SHOOT.rifle;
+  const slots = quick.arms ? armsLoadout(quick.arms, base, {}) : [{ name: 'rifle', weapon: base }];
+  return gunSounds(G, slots, { quick });
+}
+// a gun with its own sounds laid on it (the page plays a weapon's `sfx` before the level's)
+const heardKit = (kit, guns) => (guns ? kit.map((s) => (guns.sfx[s.name] ? { ...s, weapon: { ...s.weapon, sfx: guns.sfx[s.name] } } : s)) : kit);
+const heardGun = (weapon, guns) => (guns?.sfx.rifle ? { ...weapon, sfx: guns.sfx.rifle } : weapon);
+
+/**
  * A level's audio (null: none). A rhythm game's music, its beat said on the bus. Any other goal with `music`: a field
  * score under the level, every level sharing the game's identity (`game`, a seed); 'auto' asks score-suggest for the
  * mood the level's place (`manifest`) and play (the goal, `final`) call for, quiet when its place calls for none.
- * `sfx`: the level's action sounds (beats-world resolves 'auto' against the level's own mechanics).
+ * `sfx`: the level's action sounds (beats-world resolves 'auto' and the sheet against the level's own mechanics); for
+ * 'sheet', `sheet` is the game's (sound-sheet.js sheetAudio, the runner's: it reads the whole game).
+ * `cues`: more cues for a sheet level's book (its guns': quickGuns below). `engine`: its ride's engine (rideSound).
  */
-export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
-  const sfx = quick.sfx === undefined ? null : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
-  const withSfx = (a) => (sfx ? { ...(a || {}), sfx } : a);
+export function goalAudio(quick, { manifest = {}, final = false, game, sheet: sheet0 = null, bed = null, cues = null, engine = null, score: cueScore = null } = {}) {
+  // (a sheet game's guns: each gun's own cues in the level's book of cues, so the page's kernel carries their gestures)
+  const sheet = sheet0 && cues ? { sheet: { ...sheet0.sheet, cues } } : sheet0;
+  // (no `sfx` said and a sheet handed over: the game has a `sound` of its own, so its levels hear it: sound-sheet.js onSheet)
+  const sfx = quick.sfx === undefined || quick.sfx === 'sheet' ? sheet : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
+  // (a sheet game's level lays its environment's bed under the score: sound-sheet.js sheetBed, the runner's)
+  // (and its ride's engine, a held voice by its speed: sound-sheet.js rideSound)
+  const withSfx = (a) => (sfx || bed || engine ? { ...(a || {}), ...(sfx ? { sfx } : {}), ...(bed ? { bed } : {}), ...(engine ? { engine } : {}) } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
-  if (quick.music === undefined) return withSfx(null);
+  // (no `music` said: the level's score from the game's cue sheet, where the game has one: cue-sheet.js levelScore)
+  if (quick.music === undefined) return withSfx(cueScore);
   const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;
   const mood = quick.music === 'auto' ? s?.mood : quick.music;
   const club = s?.style === 'club' || Object.prototype.hasOwnProperty.call(CLUB_MOODS, mood ?? '');

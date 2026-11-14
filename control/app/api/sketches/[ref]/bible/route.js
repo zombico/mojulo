@@ -1,5 +1,5 @@
 /**
- * GET /api/sketches/[ref]/bible[?book=world|characters|feel|practice|foes|atlas] — serve a stored gameworld as its bible: the world bible
+ * GET /api/sketches/[ref]/bible[?book=world|characters|feel|practice|foes|atlas|combat|sound|score] — serve a stored gameworld as its bible: the world bible
  * (its map, its land, its civilizations' towns and castles, each level) by default, the character bible with
  * `book=characters` when the world has a character book, the feel book with `book=feel` when it writes a feel (the stick
  * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the practice room
@@ -7,7 +7,9 @@
  * on its template's stage, its arsenal on the runtime the game ships; the run's own hero and foes once made, stand-ins
  * before; `cast=female` for the stand-in), the cast sheet
  * with `book=foes` when it fields foes or fights something a casting call could cast for (lib/graph/gameworld/
- * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included). All are drawn
+ * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included)., the sound book
+ * with `book=sound` (lib/graph/gameworld/sound-book.js: the game's sound sheet, each sound a button), the score
+ * book with `book=score` (lib/graph/gameworld/score-book.js: its cue sheet, each cue a button). All are drawn
  * from the recipe and kept in memory per revision (lib/sheet-cache.js), never stored. `?download=1` flips the
  * Content-Disposition.
  *
@@ -96,7 +98,7 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat' or 'colour'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound' or 'score'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
         // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
@@ -157,6 +159,16 @@ export async function GET(request, { params }) {
           throw err;
         }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-colour`;
+      // the sound book (lib/graph/gameworld/sound-book.js): the game's sound sheet read and heard, each sound a button
+      } else if (book === 'sound') {
+        const { soundBookHtml } = await import('@/lib/graph/gameworld/sound-book');
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:sound`, () => soundBookHtml(world));
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-sound`;
+      // the score book (lib/graph/gameworld/score-book.js): the game's cue sheet read and heard, each cue a button
+      } else if (book === 'score') {
+        const { scoreBookHtml } = await import('@/lib/graph/gameworld/score-book');
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:score`, () => scoreBookHtml(world, { ref }));
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-score`;
       } else if (book === 'atlas') {
       // the atlas (lib/graph/gameworld/atlas-html.js): the world's levels, trails and ways drawn as a map, in a look
         const look = request.nextUrl.searchParams.get('look') ?? 'painted';
