@@ -24,14 +24,21 @@
 - **The sound book** (`/bible?book=sound`, `gameworld/sound-book.js`). A game's sound sheet as a page: every sound
   it plays, the shelf word and why, each with a button that plays it on the game's own kernel; the beds by level
   and what is owed. A game on no sheet sees the sheet it would have.
+- **The music department and the audio direction** (`gameworld/audio-direction.js`; the book's new `music`
+  department, its chapters `audio-direction` and `score`; the recipe's new `music` key). The direction is the
+  game's taste in sound, what the art direction is to the picture: `music.direction: { style?, identity?, cast?,
+  sfx?, space?, ui? }`, solved from the game's words where it writes none (the orchestra unless they say
+  electronic). Play keeps the SFX and reads it: the sound sheet speaks the direction's `sfx` where `sound.style`
+  says none, and each level of a game with a `music` is heard in a space (the direction's, else its place: a cave a
+  cavern). Taste is advice: the department says where the sheet sits badly with the score (the sound book shows
+  it) and changes nothing. A game with no `music` builds what it built.
 - **Fixed: a composed game's ground and bed.** A composed game's stages carry no stage kit (the world's style
   holds it), so the sheet gave a forest stone footsteps and no bed. A level's place is now read from the world's
   kit and weather, the level's climate and its look's title: grass in a grove, sand in a desert, snow in the alps,
   the night or the wood as its bed.
 - **Fixed: a game's `sound` reached no level.** The world reader checked `sound` and did not carry it, so a quick
   game on the sheet played the solved sheet and ignored the game's own style, slots and cues.
-- Planned, not built yet: the ground changing within a level; a music department
-  that sets the game's audio direction (play keeps the SFX and reads it) and whose cue sheet answers each
+- Planned, not built yet: the ground changing within a level; the music department's score, a cue sheet that answers each
   department's request for music (the flow's screens, the levels, the fights, the cinematics, the outcomes) on the
   game's one score identity; a title theme (the menu and the credits the same tune at another energy) and a cue
   that ends, written to a cinematic's length.

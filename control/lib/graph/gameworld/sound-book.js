@@ -5,7 +5,7 @@
  * before (or beside) the game.
  *
  *   soundBook(world)      → { name, on, style, rows: [{ group, what, word, label, why, kind: 'cue' | 'held', id }],
- *                           levels: [{ level, step, bed }], owed, cues: { <id>: [gesture…] }, held: { <id>: spec } }
+ *                           levels: [{ level, step, bed }], owed, taste (audio-direction.js tasteNotes), cues: { <id>: [gesture…] }, held: { <id>: spec } }
  *   soundBookHtml(world)  → the page (self-contained: the kernel with only the features its sounds use)
  *
  * A world on no sheet (no `sound`, no quick `sfx: 'sheet'`) is shown the sheet it would have, said as a suggestion:
@@ -13,6 +13,7 @@
  */
 import { soundSheet, sheetBed, onSheet, rideSound } from './sound-sheet.js';
 import { quickGuns } from './quick.js';
+import { tasteNotes } from './audio-direction.js';
 import { readGameworld } from './world.js';
 import { gameStages } from './levels.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
@@ -80,7 +81,7 @@ export function soundBook(world) {
   const grounds = [...new Set(levels.map((L) => L.step))];
   if (grounds.length > 1) for (const g of grounds) { const on = levels.filter((L) => L.step === g); add('The ground', `a step on ${on.map((L) => L.level).join(', ')}`, g, on[0].stepWhy); }
   const seen = new Set();
-  return { name: G.name ?? G.id ?? 'This game', on, style: S.style, rows: rows.filter((r) => { const k = `${r.group}|${r.what}`; if (seen.has(k)) return false; seen.add(k); return true; }), levels, owed: S.owed, cues, held };
+  return { name: G.name ?? G.id ?? 'This game', on, style: S.style, rows: rows.filter((r) => { const k = `${r.group}|${r.what}`; if (seen.has(k)) return false; seen.add(k); return true; }), levels, owed: S.owed, taste: tasteNotes(G, S), cues, held };
 }
 
 const CSS = `:root{--paper:#f6f4ee;--sheet:#fff;--ink:#1c1b19;--muted:#6b675f;--rule:#d9d4c7;--accent:#0f6b5c}
@@ -109,6 +110,7 @@ export function soundBookHtml(world) {
 ${B.on ? '' : '<div class="note">This game is on no sound sheet yet: its levels are built without these sounds. Writing a <code>sound</code> of its own (even <code>sound: {}</code>) lays this sheet on every level it builds.</div>'}
 ${groups.map(table).join('\n')}
 ${bedIds.length ? `<h2>The beds</h2><div class="wrap"><table><tr><th>under the score</th><th>levels</th></tr>${bedIds.map((id) => { const on = beds.filter((L) => L.bed.id === id); return `<tr><td><code>${esc(id)}</code><br>${esc(on[0].bed.label === id ? '' : on[0].bed.label)}</td><td class="why">${on.length === B.levels.length ? 'every level' : esc(on.map((L) => L.level).join(', '))}</td></tr>`; }).join('')}</table></div>` : ''}
+${B.taste.length ? `<h2>The music department says</h2><p class="lede">Advice against the game's audio direction. Play decides.</p><ul>${B.taste.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
 ${B.owed.length ? `<h2>Owed</h2><ul>${B.owed.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
 </main><script>
 const K = (${source})(), CUES = ${safeJson(B.cues)}, HELD = ${safeJson(B.held)};

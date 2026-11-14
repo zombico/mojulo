@@ -262,6 +262,11 @@ levels also hear it with `sfx: 'sheet'`, and a quick game that names another `sf
 builds its levels as it did. A stage that wrote its own `audio` keeps it under the sheet. `beats-world.js` voices `sfx: { sheet }`, wiring each event
 the level's mechanics emit as `auto` wires a palette. `auto` and the palettes are as they were.
 
+**The audio direction** (`gameworld/audio-direction.js`, the music department's page) is read by the sheet. A game
+with a `music` takes its sheet's style from `music.direction.sfx` where `sound.style` says none, and hears each
+level in a space on the mixer: the direction's `space`, else the level's place (a cave a cavern, a room an
+interior, else the open). The department's advice on the sheet is shown in the sound book; play decides.
+
 **The sound book** (`gameworld/sound-book.js`, `/api/sketches/<ref>/bible?book=sound`) is the sheet read and heard:
 every sound the game plays, the shelf word that plays it and why, each with a button that sounds it on the kernel
 the game ships (a held voice is revved). It lists the hero, the arsenal, the guns, the ride, the foes, the game's

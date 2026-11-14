@@ -31,6 +31,11 @@
  * what is ridden (a motorbike, a kart, a truck's diesel, a tank, a boat; else a car), following the ride's speed up
  * to its top (the page's engine channel, scene/channels/audio.js). `sound.ride` is the game's own word, or false.
  *
+ * THE AUDIO DIRECTION (audio-direction.js, the music department's): a game with a `music` reads it. The sheet's style
+ * is the direction's `sfx` where `sound.style` says none, and each level's sounds are heard in a space (levelSpace: the
+ * direction's own, else the level's place). Taste is advice: the direction changes a default, never a word the game
+ * wrote.
+ *
  * NEW VOICES FIRST (the operator's rule, 2026-11-10): the sheet's style is `mouth` unless the game writes another
  * (`sound.style`), so every event the mouth voices (mouth foley: the swings, the strikes, the staff, the steps on grass,
  * the latch, the creatures) plays that voice, and the rest are realistic as the overlay falls back (styles.js); and
@@ -247,7 +252,9 @@ export function readSound(S) {
 /** The game's sheet (see the header). */
 export function soundSheet(G, { manifest = null } = {}) {
   const own = readSound(G?.sound);
-  const style = own.style ?? 'mouth';
+  // (its style: the game's own word, else the audio direction's `sfx` (audio-direction.js, the music department's
+  // taste), else the newest voices)
+  const style = own.style ?? G?.music?.direction?.sfx ?? 'mouth';
   const st = strikeOf(G), sp = stepOf(G, manifest), fv = foeVoices(G);
   const mv = movesOf(G, own);
   const fs = foeSoundsOf(G, fv.foes, own);
@@ -291,6 +298,24 @@ export function sheetBed(G, { manifest = null } = {}) {
   return P.own && (P.shell === 'nature' || P.shell === 'jungle') ? 'forest' : null;
 }
 
+// a place's space by its words: where a level's sounds are heard (the SFX mixer's spaces)
+const SPACES = [
+  { test: /vacuum|orbit|space station|moon|asteroid|cosmos/, space: 'vacuum' }, { test: /cave|cavern|crypt|mine|grotto|sewer|catacomb/, space: 'cavern' },
+  { test: /hangar|warehouse|cathedral|arena|stadium|factory/, space: 'hangar' }, { test: /dungeon|interior|room|house|castle|tavern|shop|lab|station|corridor/, space: 'interior' },
+];
+/**
+ * The space a level's sounds are heard in, for a game with an audio direction (`music`): the direction's own
+ * (`music.direction.space`), else what the level's place says (a cave a cavern, a room an interior, else the open). A
+ * game with no `music` names none: its levels are mixed as they were.
+ */
+export function levelSpace(G, { manifest = null } = {}) {
+  if (G?.music === undefined) return null;
+  const own = G.music?.direction?.space;
+  if (own) return own;
+  const P = placeOf(G, manifest), words = [P.own, manifest?.kind === 'floorplan' || manifest?.building ? 'interior' : null, typeof manifest?.title === 'string' ? manifest.title.toLowerCase() : null].filter(Boolean).join(' ');
+  return (words ? SPACES.find((x) => x.test.test(words)) : null)?.space ?? 'open';
+}
+
 /**
  * Whether a game's hits vary (each a seeded variant: a sword combo, a burst of gunfire, a beam's shots never one sound
  * said twice): what its `sound.vary` says, else on for a game on the sound sheet (`sfx: 'sheet'`, or a `sound` of its
@@ -304,7 +329,8 @@ export function variesHits(G) {
 /** The level's audio word for the sheet (beats-world.js resolves `sfx: { sheet }`): what the shelf plays each slot and cue by. */
 export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
-  return { sheet: { style: S.style, slots: S.slots, on: S.on, ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}) } };
+  const space = levelSpace(G, opts);
+  return { sheet: { style: S.style, slots: S.slots, on: S.on, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}) } };
 }
 
 /**

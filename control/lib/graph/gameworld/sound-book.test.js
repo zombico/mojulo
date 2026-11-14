@@ -36,6 +36,13 @@ describe('the sound book', () => {
     expect(soundBookHtml({ ...off, sound: {} })).not.toContain('on no sound sheet yet');
   });
 
+  it('carries the music department\'s advice where the sheet sits badly with the direction', () => {
+    const W = { ...world(), sound: { style: 'arcade' } };
+    expect(soundBook(W).taste.length).toBeGreaterThan(0);
+    expect(soundBookHtml(W)).toContain('The music department says');
+    expect(soundBookHtml({ ...world(), sound: {} })).not.toContain('The music department says');
+  });
+
   it('the page is self-contained and its script parses', () => {
     const html = soundBookHtml({ ...world(), sound: {} });
     expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=/);

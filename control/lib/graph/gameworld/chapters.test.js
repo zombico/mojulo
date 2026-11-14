@@ -36,7 +36,8 @@ const stampsOf = (w) => [...reviewState(w), ...(w.characters ? characterState(w)
 describe('the chapters', () => {
   it('each in one of the departments, each after the chapters it reads; the build reads every other', () => {
     // (level design, 2026-11-08: promoted to its own department, the scene composer kai: a block's play layer)
-    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production', 'interface', 'level-design']);
+    // (music, 2026-11-13: the soundtrack and the audio direction; play keeps the SFX and reads it)
+    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production', 'interface', 'level-design', 'music']);
     for (const d of DEPARTMENTS) expect(CHAPTERS.some((c) => c.department === d.id), d.id).toBe(true);
     expect(new Set(CHAPTERS.map((c) => c.id)).size).toBe(CHAPTERS.length);
     CHAPTERS.forEach((c, i) => {
