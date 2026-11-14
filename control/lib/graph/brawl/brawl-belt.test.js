@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS, beltFloor, RISE_LIMITS, beltTurn, TURN_LIMITS } from './brawl-belt.js';
+import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS, beltFloor, RISE_LIMITS, beltTurn, TURN_LIMITS, beltDrift, DRIFT_LIMITS } from './brawl-belt.js';
 import { brawlLevel, brawlPreset, readBrawlLevel, BRAWL_PRESETS, BRAWL_STAGE_KITS } from './brawl-levels.js';
 import { STAGE_KITS } from '../era/stage.js';
 import { readGreybox } from '../level/greybox-scene.js';
@@ -211,5 +211,26 @@ describe('a belt that turns', () => {
     expect(() => readBelt({ ...flat, turn: [[0, 0], [30, TURN_LIMITS.yaw + 10]] }, 'belt')).toThrow(/either way/);
     expect(() => readBelt({ ...flat, turn: [[10, 0], [11, 40]] }, 'belt')).toThrow(/walked round/);
     expect(() => readBelt({ ...flat, turn: [[0, 0], [50, 10]] }, 'belt')).toThrow(/along the belt/);
+  });
+});
+
+describe('a belt that drifts', () => {
+  const flat = { at: [0, 0], heading: 0, depth: [-2.5, 2.5], screens: [{ length: 20 }, { length: 20, gate: true }] };
+  const drift = [[0, 0], [10, 0], [20, 6], [40, 6]];
+  it('its band slides across on a line through its points; a straight belt\'s is 0', () => {
+    const B = readBelt({ ...flat, drift }, 'belt');
+    expect(beltDrift(B, 4)).toBe(0); expect(beltDrift(B, 15)).toBeCloseTo(3, 6); expect(beltDrift(B, 33)).toBe(6);
+    expect(beltDrift(readBelt(flat, 'belt'), 15)).toBe(0);
+    expect(readBelt({ ...flat, drift: [[0, 0], [40, 0]] }, 'belt')).toEqual(readBelt(flat, 'belt'));
+  });
+  it('the camera follows the band across, square to the street as ever', () => {
+    const B = readBelt({ ...flat, drift }, 'belt'), F = readBelt(flat, 'belt'), a = beltCamera(B, 30), b = beltCamera(F, 30);
+    expect(a.lookAt[1] - b.lookAt[1]).toBeCloseTo(6, 6); expect(a.cameraPosition[1] - b.cameraPosition[1]).toBeCloseTo(6, 6);
+    expect(a.cameraPosition[0]).toBe(b.cameraPosition[0]); expect(a.cameraPosition[2]).toBe(b.cameraPosition[2]);
+  });
+  it('a fault is said: too far, too fast, off the belt', () => {
+    expect(() => readBelt({ ...flat, drift: [[0, 0], [40, DRIFT_LIMITS.across + 5]] }, 'belt')).toThrow(/across/);
+    expect(() => readBelt({ ...flat, drift: [[10, 0], [11, 3]] }, 'belt')).toThrow(/up the screen/);
+    expect(() => readBelt({ ...flat, drift: [[0, 0], [50, 1]] }, 'belt')).toThrow(/along the belt/);
   });
 });

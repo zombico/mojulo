@@ -34,6 +34,8 @@ YARD.position.set(BELT.at[0], BELT.at[1], BELT.floor);
 // (a belt that RISES, brawl-belt.js `rise`: the floor's height where a thing stands, m; the simulation stays on a level
 // floor, and everything it places is drawn that much higher)
 const FL = (mm) => beltFloor(BELT, mm / 1000);
+// (a belt that DRIFTS, `drift`: how far the band has slid across where a thing stands, m; drawn that much across)
+const DR = (mm) => beltDrift(BELT, mm / 1000);
 YARD.rotation.z = (BELT.heading * Math.PI) / 180;
 scene.add(YARD);
 
@@ -67,8 +69,8 @@ function yardRig(register) {
   g.add(key, key.target);
   const span = BELT.depth[1] - BELT.depth[0];
   // (the shadows' catcher lies on the floor: on a belt that rises, a ribbon cut a metre along, each row at the floor's height)
-  const catchGeo = new THREE.PlaneGeometry(BELT.length + 12, span + 6, BELT.rise ? Math.ceil(BELT.length + 12) : 1, 1);
-  if (BELT.rise) { const P = catchGeo.attributes.position; for (let i = 0; i < P.count; i++) P.setZ(i, beltFloor(BELT, P.getX(i) + BELT.length / 2)); P.needsUpdate = true; catchGeo.computeVertexNormals(); }
+  const catchGeo = new THREE.PlaneGeometry(BELT.length + 12, span + 6, BELT.rise || BELT.drift ? Math.ceil(BELT.length + 12) : 1, 1);
+  if (BELT.rise || BELT.drift) { const P = catchGeo.attributes.position; for (let i = 0; i < P.count; i++) { const sx = P.getX(i) + BELT.length / 2; P.setZ(i, beltFloor(BELT, sx)); P.setY(i, P.getY(i) + beltDrift(BELT, sx)); } P.needsUpdate = true; catchGeo.computeVertexNormals(); }
   const catcher = new THREE.Mesh(catchGeo, new THREE.ShadowMaterial({ color: toon ? 0x1c1830 : 0x000000, opacity: toon ? 0.6 : 0.55 }));
   catcher.position.set(BELT.length / 2, MID, 0.004); catcher.receiveShadow = true; catcher.renderOrder = 1;
   g.add(catcher);
@@ -77,7 +79,7 @@ function yardRig(register) {
   return {
     toon,
     follow(x) {
-      KEY_TO.set(x, MID, 1 + beltFloor(BELT, x)); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 12);
+      KEY_TO.set(x, MID + beltDrift(BELT, x), 1 + beltFloor(BELT, x)); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 12);
     },
     material(o) {
       const m = toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
@@ -146,7 +148,7 @@ function build() {
 
 // ── the bodies (the fight's stick figure in the round, versus-arena.client.js's) ────────────────────────────
 
-const worldOf = (p, n, out) => out.set(p.x / 1000 + p.face * n[1], p.z / 1000 - p.face * n[0], p.y / 1000 + n[2] + FL(p.x));
+const worldOf = (p, n, out) => out.set(p.x / 1000 + p.face * n[1], p.z / 1000 - p.face * n[0] + DR(p.x), p.y / 1000 + n[2] + FL(p.x));
 const BLADE_OF = { fall: 0, ko: 0, down: 0, thrown: 0, held: 0.4, rise: 0.4, hit: 0.5 };
 // the light baked into the geometry's colours (the greybox world is drawn unlit, by its faces' own shading)
 function shaded(geo) {
@@ -252,7 +254,7 @@ const M4 = new THREE.Matrix4();
 function placeCharacter(B, p, F, N) {
   const S = figureSegments(B.skin.base, N);
   // the figure faces +y in its own frame: turned to face the way the body faces along the belt, its feet on the floor
-  B.group.position.set(p.x / 1000, p.z / 1000, p.y / 1000 + FL(p.x));
+  B.group.position.set(p.x / 1000, p.z / 1000 + DR(p.x), p.y / 1000 + FL(p.x));
   B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
   for (let i = 0; i < B.meshes.length; i++) {
     const m = B.meshes[i];
@@ -377,7 +379,7 @@ function placeFromPose(B, N) {
 }
 function placePlayed(B, p, F, N) {
   const pack = B.skin.pack, pick = yardClip(p, F, pack.clips || {});
-  B.group.position.set(p.x / 1000, p.z / 1000, p.y / 1000 + FL(p.x));
+  B.group.position.set(p.x / 1000, p.z / 1000 + DR(p.x), p.y / 1000 + FL(p.x));
   B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
   if (!pick) placeFromPose(B, N);
   else {
@@ -438,7 +440,7 @@ function placeMount(B, p) {
   if (B.mount && B.mount.userData.kind !== kind) { YARD.remove(B.mount); B.mount = null; }
   if (!kind || !MOUNTS[kind]) return 0;
   if (!B.mount) { B.mount = mountOf(kind); YARD.add(B.mount); }
-  B.mount.position.set(p.x / 1000, p.z / 1000, FL(p.x));
+  B.mount.position.set(p.x / 1000, p.z / 1000 + DR(p.x), FL(p.x));
   B.mount.rotation.set(0, 0, p.face > 0 ? 0 : Math.PI);
   // (the rider sat on its saddle: lifted from a stander's hip to the saddle's top)
   return MOUNTS[kind].seat + 60 - RIDER_HIP;
@@ -458,11 +460,11 @@ function placeBody(B, p, F) {
   else placeStick(B, p, F, N);
   placeBlade(B, p, F, J, N);
   if (p.gn !== undefined) placeGun(B, p, N);
-  B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01 + FL(p.x));
+  B.shadow.position.set(p.x / 1000, p.z / 1000 + DR(p.x), 0.01 + FL(p.x));
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.6) * Math.max(0.4, 1 - p.y / 1600));
   if (B.line) {
     const half = viewHalf(BELT);
-    B.line.position.set(p.x / 1000, p.z / 1000, 0.008 + FL(p.x));
+    B.line.position.set(p.x / 1000, p.z / 1000 + DR(p.x), 0.008 + FL(p.x));
     B.line.scale.set(half * 2, (room.s.rules.line * 2) / 1000, 1);
   }
 }
@@ -572,10 +574,10 @@ function placeRounds() {
       rounds.set(r.id, m);
     }
     const rad = Math.min(0.09, Math.max(0.025, r.w / 2000));
-    vM.set(r.x / 1000, r.z / 1000, r.y / 1000 + FL(r.x));
+    vM.set(r.x / 1000, r.z / 1000 + DR(r.x), r.y / 1000 + FL(r.x));
     if (m.big) { m.tracer.position.copy(vM); m.tracer.scale.setScalar(rad * 1.4); }
-    else { vN.set((r.x - r.vx * 2.5) / 1000, (r.z - (r.vz || 0) * 2.5) / 1000, r.y / 1000 + FL(r.x - r.vx * 2.5)); cylinderAt(m.tracer, vN, vM, rad); }
-    m.shadow.position.set(r.x / 1000, r.z / 1000, 0.006 + FL(r.x));
+    else { vN.set((r.x - r.vx * 2.5) / 1000, (r.z - (r.vz || 0) * 2.5) / 1000 + DR(r.x - r.vx * 2.5), r.y / 1000 + FL(r.x - r.vx * 2.5)); cylinderAt(m.tracer, vN, vM, rad); }
+    m.shadow.position.set(r.x / 1000, r.z / 1000 + DR(r.x), 0.006 + FL(r.x));
     m.shadow.scale.setScalar(rad * 1.6);
   }
   for (const [id, m] of rounds) if (!seen.has(id)) { YARD.remove(m.tracer, m.shadow); rounds.delete(id); }
@@ -591,7 +593,7 @@ const COVER_LOOK = { sandbags: '#b39a6b', crates: '#9a7444', wall: '#8d8f93' };
 const BOXES = BRAWL_YARD.boxes || {};
 const modelOf = (M) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(M.col.map((v) => v / 255), 3)); g.computeVertexNormals(); return castOn(new THREE.Mesh(g, RIG ? RIG.material({ color: '#ffffff', vertexColors: true }) : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))); };
 const WRECKS = [];
-function wreckAt(e) { const M = BOXES[e.what]; if (!M || e.cover) return; const m = modelOf(M.wreck); m.position.set(e.x / 1000, e.z / 1000, FL(e.x)); m.rotation.z = (e.x % 628) / 100; YARD.add(m); WRECKS.push(m); if (WRECKS.length > 24) YARD.remove(WRECKS.shift()); }
+function wreckAt(e) { const M = BOXES[e.what]; if (!M || e.cover) return; const m = modelOf(M.wreck); m.position.set(e.x / 1000, e.z / 1000 + DR(e.x), FL(e.x)); m.rotation.z = (e.x % 628) / 100; YARD.add(m); WRECKS.push(m); if (WRECKS.length > 24) YARD.remove(WRECKS.shift()); }
 function placeThings() {
   const seen = new Set();
   for (const T of room.s.things ?? []) {
@@ -608,7 +610,7 @@ function placeThings() {
       m.userData.what = T.what;
       things.set(T.id, m); YARD.add(m);
     }
-    m.position.set(T.x / 1000, T.z / 1000, (T.y ?? 0) / 1000 + FL(T.x));
+    m.position.set(T.x / 1000, T.z / 1000 + DR(T.x), (T.y ?? 0) / 1000 + FL(T.x));
     if (T.kind === 'power') m.rotation.z = t * 0.05;
   }
   for (const [id, m] of things) if (!seen.has(id)) { YARD.remove(m); things.delete(id); }
@@ -620,7 +622,7 @@ const FLASHES = [];
 const FLASH_GEO = new THREE.SphereGeometry(1, 12, 8);
 function flash(e, heavy, spark = false) {
   const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
-  m.position.set(e.x / 1000, (e.z ?? 0) / 1000, (e.y ?? 1100) / 1000 + FL(e.x));
+  m.position.set(e.x / 1000, (e.z ?? 0) / 1000 + DR(e.x), (e.y ?? 1100) / 1000 + FL(e.x));
   // (a round's spark small and quick; a blow's flash; a heavy one's, or a burst's, big)
   YARD.add(m); FLASHES.push({ m, k: 0, n: spark ? 5 : heavy ? 12 : 8, r: spark ? 0.14 : heavy ? 0.45 : 0.3 });
 }

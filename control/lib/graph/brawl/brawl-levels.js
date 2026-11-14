@@ -29,7 +29,7 @@
  *
  * Pure: no clock, no dice.
  */
-import { readBelt, beltPoint, beltCamera, beltFloor, viewHalf, BELT_DEPTH } from './brawl-belt.js';
+import { readBelt, beltPoint, beltCamera, beltFloor, beltDrift, viewHalf, BELT_DEPTH } from './brawl-belt.js';
 import { readGreybox, GREYBOX_SUN } from '../level/greybox-scene.js';
 import { FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
@@ -44,30 +44,43 @@ const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const beltBlock = (B, s, n, z, [w, d, h], tone) => { const [x, y] = beltPoint(B, s, n); return { at: [x, y, r3(z)], size: [r3(w), r3(d), r3(h)], turn: B.heading, tone }; };
 
 /**
- * A BELT THAT RISES, blocked out: each block cut along the belt wherever the floor under it changes, a ramp cut into
- * steps a riser high, so the blockout reads as terraces and flights. A block on the ground grows down to it (no gap
+ * A BELT THAT RISES OR DRIFTS, blocked out: each block cut along the belt wherever the floor under it changes, a ramp
+ * cut into steps a riser high, so the blockout reads as terraces and flights; and wherever the band slides across, cut
+ * into short pieces each jogged across with it, so the whole street (its road, its kerbs, its fronts) runs on the
+ * band's diagonal, its fronts still square to the camera. A block on the ground grows down to it (no gap
  * under a raised road); one off the ground (a lintel, a sign) is lifted whole. A flat belt's blocks are as they were.
  */
-const RISER = 0.18;
+// (a jog as fine as the blockout's budget of boxes allows: the finest of these that fits)
+const RISER = 0.18, JOGS = Object.freeze([0.3, 0.45, 0.6, 0.9, 1.4]), BLOCK_BUDGET = 400;
 function terraced(B, blocks) {
-  if (!B.rise) return blocks;
+  if (!B.rise && !B.drift) return blocks;
+  if (!B.drift) return terracedAt(B, blocks, JOGS[0]);
+  for (const jog of JOGS) { const out = terracedAt(B, blocks, jog); if (out.length <= BLOCK_BUDGET || jog === JOGS[JOGS.length - 1]) return out; }
+  return blocks;
+}
+function terracedAt(B, blocks, JOG) {
   const t = (B.heading * Math.PI) / 180, c = Math.cos(t), si = Math.sin(t), out = [];
+  // the cuts a line of points asks of a block from s0 to s1: its own points, and a stretch that changes cut so each
+  // piece changes by no more than `step` (a riser up, a jog across)
+  const cutsOf = (line, step, s0, s1) => {
+    const cuts = [], pts = [[-Infinity, line[0][1]], ...line, [Infinity, line[line.length - 1][1]]];
+    for (let i = 1; i < pts.length; i++) {
+      const [a, va] = pts[i - 1], [e, ve] = pts[i], lo = Math.max(a, s0), hi = Math.min(e, s1);
+      if (hi <= lo) continue;
+      const n = Math.abs(ve - va) < 1e-9 || !Number.isFinite(a) || !Number.isFinite(e) ? 1 : Math.max(1, Math.ceil((Math.abs(ve - va) * (hi - lo)) / (e - a) / step));
+      for (let k = 1; k <= n; k++) cuts.push(lo + ((hi - lo) * k) / n);
+    }
+    return cuts;
+  };
   for (const b of blocks) {
     const dx = b.at[0] - B.at[0], dy = b.at[1] - B.at[1], s = dx * c + dy * si, n = -dx * si + dy * c, [w, d, h] = b.size, s0 = s - w / 2, s1 = s + w / 2;
-    // the cuts: the rise's own points inside the block, and a ramp between two of them in riser-high steps
-    const cuts = [s0];
-    const pts = [[-Infinity, B.rise[0][1]], ...B.rise, [Infinity, B.rise[B.rise.length - 1][1]]];
-    for (let i = 1; i < pts.length; i++) {
-      const [a, za] = pts[i - 1], [e, ze] = pts[i], lo = Math.max(a, s0), hi = Math.min(e, s1);
-      if (hi <= lo) continue;
-      const steps = Math.abs(ze - za) < 1e-9 || !Number.isFinite(a) || !Number.isFinite(e) ? 1 : Math.max(1, Math.ceil((Math.abs(ze - za) * (hi - lo)) / (e - a) / RISER));
-      for (let k = 1; k <= steps; k++) cuts.push(lo + ((hi - lo) * k) / steps);
-    }
+    const cuts = [...new Set([s0, ...(B.rise ? cutsOf(B.rise, RISER, s0, s1) : []), ...(B.drift ? cutsOf(B.drift, JOG, s0, s1) : []), s1].map((v) => Math.round(v * 1e4) / 1e4))].sort((p, q) => p - q);
     const grounded = b.at[2] <= 0.2 + 1e-9;
     for (let k = 1; k < cuts.length; k++) {
       const a = cuts[k - 1], e = cuts[k]; if (e - a < 1e-6) continue;
-      const lift = beltFloor(B, (a + e) / 2), [x, y] = beltPoint(B, (a + e) / 2, n);
-      out.push({ ...b, at: [x, y, r3(grounded ? b.at[2] + Math.min(0, lift) : b.at[2] + lift)], size: [r3(e - a), d, r3(grounded ? h + Math.abs(lift) : h)] });
+      // (a block that drifts with the band is laid a hair long, so two jogged pieces leave no slit between them)
+      const m = (a + e) / 2, lift = beltFloor(B, m), [x, y] = beltPoint(B, m, n + beltDrift(B, m));
+      out.push({ ...b, at: [x, y, r3(grounded ? b.at[2] + Math.min(0, lift) : b.at[2] + lift)], size: [r3(e - a + (B.drift ? 0.02 : 0)), d, r3(grounded ? h + Math.abs(lift) : h)] });
     }
   }
   return out;
@@ -163,7 +176,7 @@ export const BRAWL_PRESET_IDS = Object.freeze(Object.keys(BRAWL_PRESETS));
 export function brawlPreset(id, beltOver = {}) {
   const P = BRAWL_PRESETS[id];
   if (!P) throw new Error(`brawl: a greybox street's preset is one of ${BRAWL_PRESET_IDS.join(', ')}`);
-  if (!isObj(beltOver)) throw new Error('brawl: a level\'s belt is { at?, heading?, floor?, depth?, screens?, angle?, rise?, turn? } over its preset\'s');
+  if (!isObj(beltOver)) throw new Error('brawl: a level\'s belt is { at?, heading?, floor?, depth?, screens?, angle?, rise?, turn?, drift? } over its preset\'s');
   const belt = readBelt({ ...P.belt, ...beltOver }, 'level.belt');
   if (belt.depth[0] < P.room[0] || belt.depth[1] > P.room[1]) throw new Error(`brawl: the ${id} street's band lies within [${P.room.join(', ')}] across its belt (the kerb to what stands on the pavement)`);
   return { reads: P.reads, belt, blocks: terraced(belt, P.blocks(belt)) };
@@ -252,7 +265,10 @@ function brawlTown(words) {
   const flatBelt = readBelt({ at: [x0, r3(main.at)], heading: 0, floor: r3(D.land.S(x0, main.at)), depth: words.depth ?? TOWN.depth, screens, angle: words.angle ?? TOWN.angle }, 'level');
   // (its rise read off the town's own ground along the street, a point every two metres)
   const rise = climb ? Array.from({ length: Math.floor(flatBelt.length / 2) + 1 }, (_, i) => { const sv = Math.min(flatBelt.length, i * 2); return [r3(sv), r3(D.land.S(x0 + sv, main.at) - flatBelt.floor)]; }).filter((p, i, a) => !i || p[0] > a[i - 1][0]) : null;
-  const belt = rise || words.turn ? readBelt({ at: flatBelt.at, heading: 0, floor: flatBelt.floor, depth: flatBelt.depth, screens, angle: flatBelt.angle, ...(rise ? { rise } : {}), ...(words.turn ? { turn: words.turn } : {}) }, 'level') : flatBelt;
+  const belt = rise || words.turn || words.drift ? readBelt({ at: flatBelt.at, heading: 0, floor: flatBelt.floor, depth: flatBelt.depth, screens, angle: flatBelt.angle, ...(rise ? { rise } : {}), ...(words.turn ? { turn: words.turn } : {}), ...(words.drift ? { drift: words.drift } : {}) }, 'level') : flatBelt;
+  // (a town's street does not move: its band may DRIFT only over the street's own ground, from the near walk's edge to
+  // the fronts, the road and both walks; a street that runs on a diagonal is a greybox street's)
+  if (belt.drift) { const half0 = (D.sections.y.find((q) => q.rank === 'main') ?? D.sections.y[0]).half, lo = r3(-half0 + 0.3 - belt.depth[0]), hi = r3(half0 - 0.9 - belt.depth[1]); for (const [ps, pn] of belt.drift) if (pn < lo - 1e-6 || pn > hi + 1e-6) throw new Error(`brawl: a town street's drift stays on its own ground: ${lo} to ${hi} m across (at ${ps} m it is ${pn}); a street on a diagonal is a greybox street's`); }
   if (belt.length > x1 - x0 + 1e-6) throw new Error(`brawl: the town's block holds a street of ${Math.floor(x1 - x0)} m between its cross streets (the screens run ${r3(belt.length)} m): fewer or shorter screens`);
   // ITS DRESS (brawl-dress.js): on the far walk between the band and the fronts, and on the fronts themselves; a set
   // a screen. `dress: false` leaves the street the town's own
@@ -287,7 +303,7 @@ export const BRAWL_LEVELS = Object.freeze({
   }),
   town: Object.freeze({
     reads: 'a street of the geotown: a block of the town\'s pattern, the belt down its main street between its cross streets, the shops on the far side, the town\'s margin open to the camera',
-    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'fronts', 'climb', 'turn', 'title'],
+    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'fronts', 'climb', 'turn', 'drift', 'title'],
     build: brawlTown,
   }),
 });

@@ -238,3 +238,22 @@ describe('a level that turns', () => {
     expect(() => brawlLevel({ kind: 'town', turn: [[0, 0], [1, 50]] })).toThrow(/walked round/);
   });
 });
+
+describe('a level whose band drifts', () => {
+  it('a greybox street runs on the band\'s diagonal: its blocks jogged across with it, within the blockout\'s budget', () => {
+    const drift = [[0, 0], [12, 0], [26, 9], [62, 9]];
+    const G = brawlLevel({ kind: 'greybox', preset: 'street', belt: { drift } }), F = brawlLevel({ kind: 'greybox', preset: 'street' });
+    expect(G.blocks.length).toBeGreaterThan(F.blocks.length); expect(G.blocks.length).toBeLessThanOrEqual(400);
+    const ys = (L, from, to) => L.blocks.filter((b) => b.tone === 'floor' && b.at[0] > from && b.at[0] < to).map((b) => b.at[1]);
+    expect(Math.max(...ys(G, 40, 60)) - Math.max(...ys(F, -100, 200))).toBeCloseTo(9, 0);
+    expect(Math.max(...ys(G, 0, 10))).toBeCloseTo(Math.max(...ys(F, -100, 200)), 3);
+  });
+  it('a town\'s street does not move: its band drifts only over its own ground, and no dress is left standing in it', () => {
+    const T = brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [30, -2.5], [62, -2.5]] });
+    expect(T.brawl.belt.drift).toBeTruthy();
+    expect(() => brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [40, 9], [62, 9]] })).toThrow(/own ground/);
+    const up = brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [30, 2], [62, 2]] });
+    expect(dressLaws(up.brawl.dress, up.brawl.belt).find((l) => l.law === 'outside-the-band').ok).toBe(true);
+    expect(dressPlan(up.brawl.dress, up.brawl.belt).filter((p) => p.side === 'far').length).toBeLessThan(dressPlan(brawlLevel({ kind: 'town' }).brawl.dress, brawlLevel({ kind: 'town' }).brawl.belt).filter((p) => p.side === 'far').length);
+  });
+});

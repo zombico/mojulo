@@ -26,7 +26,7 @@
  * `colour` is the crew's (the faction the street is held by): its tags, its banners and one canopy in a market wear it.
  * A dress collides with nothing: it stands outside the band, by its strips. Pure and deterministic (seeded dice only).
  */
-import { beltPoint, beltFloor } from './brawl-belt.js';
+import { beltPoint, beltFloor, beltDrift } from './brawl-belt.js';
 import { streamOf } from '../city/plan/dice.js';
 import { shadeHex } from '../polygonizer/vexar.js';
 import { skandartVessels } from '../era/skandart-vessels.js';
@@ -357,7 +357,8 @@ export function dressPlan(dress, belt) {
       if (s + P.size[0] > sc.to - 0.3) break;
       // (its back to the fronts, a hand off them; now and then stood out toward the band, never into it)
       const slack = deep - P.size[1] - 0.1, n = D.far[1] - 0.08 - P.size[1] / 2 - (R() < 0.3 ? R() * Math.min(slack, 0.9) : 0);
-      out.push({ piece, set: id, s: r3(s + P.size[0] / 2), n: r3(n), side: 'far', turn: 1, ...(sc.boss ? { boss: true } : {}) });
+      // (where the band has DRIFTED toward the fronts, what would stand in it is left out: the fronts do not move)
+      if (n - P.size[1] / 2 >= belt.depth[1] + beltDrift(belt, s + P.size[0] / 2) + 0.15 - 1e-9) out.push({ piece, set: id, s: r3(s + P.size[0] / 2), n: r3(n), side: 'far', turn: 1, ...(sc.boss ? { boss: true } : {}) });
       s += P.size[0] + S.gap[0] + R() * (S.gap[1] - S.gap[0]);
     }
     // its wall: the set's marks at their stride, proud of the fronts' own relief
@@ -457,7 +458,7 @@ export const DRESS_LAWS = Object.freeze({ bare: 9, variety: 3 });
 export function dressLaws(dress, belt) {
   const D = readDress(dress, belt), P = dressPlan(D, belt), laws = [], dressed = belt.screens.map((_, i) => !!D.sets[i]);
   const half = (p) => DRESS_PIECES[p.piece].size[1] / 2;
-  const inBand = P.filter((p) => (p.side === 'far' && p.n - half(p) < belt.depth[1] - 1e-6) || (p.side === 'near' && p.n + half(p) > belt.depth[0] + 1e-6));
+  const inBand = P.filter((p) => (p.side === 'far' && p.n - half(p) < belt.depth[1] + beltDrift(belt, p.s) - 1e-6) || (p.side === 'near' && p.n + half(p) > belt.depth[0] + beltDrift(belt, p.s) + 1e-6));
   laws.push({ law: 'outside-the-band', ok: !inBand.length, what: inBand.length ? `${inBand.length} of the dress stand in the band (${inBand.slice(0, 3).map((p) => `${p.piece} at ${p.s} m`).join(', ')})` : `all ${P.length} stand outside the band` });
   const names = D.sets.map((v, i) => (v ? setName(v, i) : null)), same = names.map((n, i) => (i && n && n === names[i - 1] ? i : -1)).filter((i) => i >= 0);
   laws.push({ law: 'a-place-a-screen', ok: !same.length, what: same.length ? `screens ${same.map((i) => `${i} and ${i + 1}`).join(', ')} wear the same set (${names[same[0]]}): a screen is a place of its own` : `${names.filter(Boolean).length} dressed screens, no two running alike` });

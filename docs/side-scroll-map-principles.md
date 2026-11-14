@@ -78,6 +78,20 @@ still made, and says which.
     boss's corner at the end. Use it where the map wants the player to look ahead; keep the fight's own screens
     nearer square, where the lines across the band read best.
 
+## The drift
+
+20. **The band may leave the straight line.** North or south of it, on a diagonal, and back: the walkway slides across
+    the belt as it is walked (`drift`) and the camera, still square to the street, follows it up or down the screen.
+    This is the arcade street that runs from the top corner of the screen to the bottom: the fronts stay face-on, and
+    the ground steps across beneath them.
+21. **Turn or drift, by what should stay still.** A turn swings the view and keeps the street's geometry; a drift keeps
+    the view and moves the street. Use a drift where the fronts should stay square to the camera (signs read, doors
+    face the player), a turn where the map should open ahead.
+22. **The band moves with its ground, or over it.** A street built for the map (a blockout) moves whole with the band:
+    road, kerbs and fronts on the same diagonal. A street that already stands (a town's) does not move: there the band
+    drifts only over ground that is the street's own, from one walk across the road to the other, and anything that
+    would be left standing in it is cleared.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:
