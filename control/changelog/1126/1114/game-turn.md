@@ -10,6 +10,10 @@ The names are internal; the agent and the person read plain words (set up, loadi
   checks the picks against the level's contract, seeds, loads and starts the level), `turn:main` (play),
   `turn:cleanup` (the outcome applied to the store, the save written, the unlocks worked out) and `turn:end`
   (results and what next). `interrupt` is the pause over the held game, legal in play only, and is not a phase.
+- **The load's screen:** `turn:upkeep` is the app's work, and the loading screen is all it shows.
+- **Main's triggers:** a level may name a scene or a video for the start of play and for its end (by outcome: won,
+  lost, left). Each plays on the level's page with control held, can be skipped, and the start plays once a save. A
+  level that names none waits on nothing.
 - **Where it runs:** in the flow kernel and the store kernel (`lib/graph/game/`). The flow strings turns together;
   the title, the options and the credits sit outside a turn.
 - **mana-ui stays a view:** it draws the picks, the load, the pause and the results, owns cursors and drafts, and
