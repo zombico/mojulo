@@ -42,15 +42,6 @@ describe('a figure under the cast rig', () => {
     expect(rimmed).toContain('if (Array.isArray(fig.rim) && !fig.cast) __rimPatch(mesh, fig.rim);');
     expect(controllableChannelScript(ent, null, { p: fig({ rim: [1, 1, 1, 0.4, 3] }) })).toContain('if (Array.isArray(fig.rim)) __rimPatch(mesh, fig.rim);');
   });
-
-  it('on a page with no sun a body can take (`sun: false`, a painted page) the kit makes its key, once; on a form land none', () => {
-    const paint = controllableChannelScript(ent, null, { p: fig({ cast: { ...CAST, surface: 'paint', sun: false } }) });
-    expect(paint).toContain('let __castKeyed = false;');
-    expect(paint).toContain('setTimeout(() => castKit.key(scene, R), 0)');
-    const land = controllableChannelScript(ent, null, { p: fig({ cast: CAST }) });
-    expect(land).not.toContain('__castKeyed');
-    expect(land).not.toContain('castKit.key(');
-  });
 });
 
 describe('a vehicle\'s form body under the cast rig', () => {

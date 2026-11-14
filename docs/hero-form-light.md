@@ -93,19 +93,9 @@ material in `control/lib/graph/scene/channels/cast-rig.js`). What is built, and 
   by rebalancing the cube.
 - **Only the key is a light.** The sky over the ground and the rim are in the body's own shader, so they light nothing
   else; a page has one key, the land's sun on a form page.
-- **Who is drawn under it.** A fight game's and a brawl's bodies under a register; the hero a player pilots, on every
-  World page that draws it; a vehicle's form body (its own setting's sky, its physical slots kept). Walkers, foes and
-  crowds stay paint under the live light. A model made elsewhere (`modelRef`) and the exports (`paint`, `unshaded`) carry
-  no rig.
-- **The piloted hero's cube** (`worlds/world-scene.js`, `heroCastSource`), the first that holds: the page's form land
-  (its cube and hour; the rig as it was); the land's own cube drawn as paint (a geocube, a map's `level.geocube`) at the
-  recipe's hour; the hero's own `geocube` (its spec's or its stored row's); else the rig's card (`CAST_CARD`). The hero is
-  read lit (its colour under no light and its normals), so the rig replaces the baked light on the page and is never
-  stacked on it. The register is the game's `fxStyle`.
-- **Off a form land the body makes its own key.** The figure's rig says `surface: 'paint'` (the body tones itself; a
-  form room's or town's page, which the renderer tones, says `'form'`) and `sun: false`: the page has no sun a body can
-  take, so the kit's `key()` takes the page's shadow-casting light, gives it the rig's colour and level, and puts the
-  other directional lights out; with none, it adds a light along the rig's key. A form land's page is as it was.
+- **Who is drawn under it.** A fight game's and a brawl's bodies under a register; the hero a player pilots on a page
+  whose land is drawn as form; a vehicle's form body (its own setting's sky, its physical slots kept). Walkers, foes and
+  crowds stay paint under the live light.
 - **Two registers of the body**, the light the same: `western` lit as an engine lights it, `anime` cel.
 
 Not built:
@@ -114,6 +104,5 @@ Not built:
    GLB; the realistic body's plating groups (`Alloy`, `Joint`) still have no material row.
 2. **A palette's hues on the rig** (`skinDirection`'s light), and the per-group reads (the emblem's step, a group's
    shade a hole) on the solved light: they are still `heroFormLight`'s, on the gen-6 levels.
-3. **A second body that wants the page's light.** The key the kit makes off a form land is the page's one shadow
-   light: a vehicle's form body on the same painted page sets that light too, and the last to set it wins.
+3. **The hero on a gen-7 page with no form land** (a metro, a room): it stays paint under the live light.
 4. **A lamp in the palette.** A night cube whose brightest colour is a neon sets its light's level by it.
