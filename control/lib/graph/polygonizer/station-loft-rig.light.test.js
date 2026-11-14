@@ -342,7 +342,7 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
     expect(h((await world(m)).figures)).toBe('0cf311a1b36fb58c');
     expect(h((await world({ ...m, hullShade: true, rim: [0.4, 0.6, 1, 0.5, 3] })).figures)).toBe('53e044e1da845818');
     const { emitThreeWorld } = await import('../scene/scene-three.js');
-    expect(h(emitThreeWorld(await world({ ...m, toon: { ink: true } })))).toBe('224c1fe6db9189ae');   // (2026-11-06: re-pinned, the capture bridge's step draws nothing when a walk is compiled)
+    expect(h(emitThreeWorld(await world({ ...m, toon: { ink: true } })))).toBe('986702f28169734f');   // (2026-11-06: re-pinned, the capture bridge's step draws nothing when a walk is compiled; 2026-11-14: the rig preview places a shared corner by its weights, rig-preview.js rpBlend: the page's script, the pack unchanged)
   });
   // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
   // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
@@ -354,7 +354,7 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
     // re-pinned for the landmark head's forehead: upright, the brow's end on its own landmark; then for the ear, head-ear.js;
     // then for smooth shading under the studio light, STUDIO_SMOOTH_CREASE: the faces' and the pack's corners;
     // then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis); then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull))
-    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('1d40314423c16eeb');   // (2026-11-06: re-pinned, as above)
+    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('fdc44bacc2b6f7c2');   // (2026-11-06: re-pinned, as above; 2026-11-14: the rig preview's blend, as above)
     const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', core: 'streamlined' }) }), toon: { ink: { crease: 50 }, bake: true } });
     expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('500925b1d448a3d9');
   });

@@ -21,7 +21,7 @@
  * Deterministic: the rolls' turns from the part's name, no dice. (`beltPts` the belts' points: a garment blouses over a
  * belt only when it runs under it; `gathered` { part: [[zLo, zHi]] } a band a piece is gathered into, its own rib.)
  */
-import { mixW } from './body-relational-resample.js';
+import { mixW, four } from './body-relational-resample.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
@@ -69,7 +69,9 @@ function refine(P, want) {
     for (let k = 1; k <= n; k++) {
       const t = k / (n + 1), id = `${a.id}f${k}`;
       out.push({ id, u: r6((a.u ?? i) + ((b.u ?? i + 1) - (a.u ?? i)) * t), points: Object.fromEntries(P.slots.map((sl) => [sl, a.points[sl].map((x, q) => r6(x + (b.points[sl][q] - x) * t))])) });
-      if (blend) for (const sl of P.slots) blend[`${id}.${sl}`] = mixW(blend[`${a.id}.${sl}`] ?? own, blend[`${b.id}.${sl}`] ?? own, t);
+      // (held to four bones, as every other mixed ring is: two neighbours of four each may share fewer than four, and a
+      // fold ring between them had carried five, refused at the rig gate; a mix of four or fewer is as it was)
+      if (blend) for (const sl of P.slots) blend[`${id}.${sl}`] = four(mixW(blend[`${a.id}.${sl}`] ?? own, blend[`${b.id}.${sl}`] ?? own, t));
     }
   }
   P.stations = out;

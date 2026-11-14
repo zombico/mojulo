@@ -945,7 +945,7 @@ export const WORLD_KINDS = {
         // interpolated at the split), and with the character ink the preview inks its moving parts and hides the
         // static outline with the static solid (`preview.ink`, the rig-preview channel).
         // Standing, the static solid IS the stand (skinned exactly), so the preview opens on it (`solid: 'stand'`) and
-        // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
+        // leaves the one-key clip out of its picker (the stand is the solid itself; played, it would only repeat it);
         // the clip stays in the pack for the skinned and engine exports.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : figLight !== light ? figLight.rim : null;
         // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB): the

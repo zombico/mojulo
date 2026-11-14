@@ -1463,14 +1463,16 @@ export function heroRecord(spec, { staleScale = false } = {}) {
 /** The plan a hero record generates: the humanoid starter when it wears the landmark head (the default), the bare hero
  * form with a blank trunk (`head: 'none'`) or a baked include; the door's clips (`clips`) merged over its own, and the
  * stand (`gesture`) as its first clip. */
+/** The hero every pass of its plan reads: a sport's KIT (sportswear/kits.js) lowered first, into the dress, and the
+ * HEADGEAR word (headgear/wear.js) over it; then the STYLISM tuner, into the outfit (and an armour build's dials); then a
+ * statue's card, standing, stilling and draping the hero beneath its own words (statue/expand.js passes 1 and 2). Each
+ * absent ⇒ the hero as it is. */
+function dressedHero(hero) {
+  hero = styledHero(wornHero(hero));
+  return statueHero(hero, { female: femaleOf(hero), structured: (hero.core ?? DEFAULT_CORE) === 'structured' });
+}
 export function heroPlanOf(hero) {
-  // a sport's KIT (sportswear/kits.js) lowers first, into the dress every pass below reads, and the HEADGEAR word
-  // (headgear/wear.js) over it; absent ⇒ the hero as it is
-  hero = wornHero(hero);
-  // the STYLISM tuner resolves first, into the outfit (and an armour build's dials) every pass below reads; absent ⇒ the hero
-  hero = styledHero(hero);
-  // a statue's card stands, stills and drapes the hero beneath its own words (statue/expand.js passes 1 and 2)
-  hero = statueHero(hero, { female: femaleOf(hero), structured: (hero.core ?? DEFAULT_CORE) === 'structured' });
+  hero = dressedHero(hero);
   // the door's clips merge over the form's own (hero-gesture.js withHeroClips); the stand rides as a one-key `gesture`
   // clip listed first; the anime hero's default is read here, so a /hero/head switch takes it on or drops it; neither ⇒
   // the plan as it was
@@ -1492,14 +1494,15 @@ function designedPieces(plan, hero) {
   // (the card's own gear first, a team's kit, then the build's: outfit/expand.js outfitPieces)
   const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
-  const { worn } = sortPieces(plan, O);
+  const { worn } = sortPieces(plan, O, { once: true });
   return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }, { rounds: bodyRoundsOf(hero) }) : plan;
 }
 /** Which designed pieces sit on this body: each compiled alone, kept when every place it reads is a number on its part
  * (a piece built for a creature's landmarks may find none on a person's: a necklace's pin on a layered chest); the
- * rest are said (heroReadout), never dropped without a word. → { worn, unworn: [{ kind, why }] } */
-export function sortPieces(plan, O) {
-  const worn = [], unworn = [], before = plan.adorn?.length ?? 0;
+ * rest are said (heroReadout), never dropped without a word. `once`: on the plan the pieces are worn over, a piece whose
+ * thing the outfit already wears (the card's belt) is said and left off too. → { worn, unworn: [{ kind, why }] } */
+export function sortPieces(plan, O, { once = false } = {}) {
+  const worn = [], unworn = [], before = plan.adorn?.length ?? 0, taken = new Set(once ? (plan.adorn || []).map((A) => A.id) : []);
   const finite = (v) => (typeof v === 'number' ? Number.isFinite(v) : Array.isArray(v) ? v.every(finite) : v && typeof v === 'object' ? Object.values(v).every(finite) : true);
   const segOf = (n) => plan.segments.find((g) => g.name === n);
   for (const piece of O.pieces) {
@@ -1508,8 +1511,13 @@ export function sortPieces(plan, O) {
     const added = c.adorn.slice(before), grown = c.segments.slice(plan.segments.length);
     const off = added.find((A) => !finite(A) || (A.mode === 'shell' && Array.isArray(A.s) && segOf(A.part)?.stations && A.s[1] > uOfStation(segOf(A.part).stations.at(-1), segOf(A.part).stations.length - 1)))
       ?? grown.map((g) => ({ id: g.name, g })).find(({ g }) => !finite(g) || (Array.isArray(g.stations) && g.stations.some((st) => !Array.isArray(st.at) || st.at.length !== 3 || st.r === undefined)));
-    if (off) unworn.push({ kind: piece.kind, why: `no place on this body for its ${off.id} yet (it was designed on a creature's landmarks)` });
-    else worn.push(piece);
+    // ONE OF EACH (`once`, on the plan the pieces are worn over): a piece the outfit already wears (the card's belt; a
+    // kit's, hero-dress.js) keeps the first, as a kit's belt keeps over an outfit's, and the second is said and left off,
+    // never refused at the rig gate as a name worn twice
+    const twice = once && added.find((A) => taken.has(A.id));
+    if (off) unworn.push({ kind: piece.kind, why: `its ${off.id} hangs on a creature's landmarks (a neck chain, a chest plate) that this body does not carry yet, so it is left off` });
+    else if (twice) unworn.push({ kind: piece.kind, why: `the outfit already wears a ${twice.id} (its card's, or an earlier piece's): that one is kept and this one left off` });
+    else { worn.push(piece); for (const A of added) taken.add(A.id); }
   }
   return { worn, unworn };
 }
@@ -1866,9 +1874,10 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const coreBands = { ...(formBodied(hero) ? FORM_BODY.coreBands[coreBody] : {}), ...(anime ? animeStyleOf(hero, castHeadPoleOf(hero))?.coreBands : {}) };
   const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody, Object.keys(coreBands).length ? coreBands : null) } : null;
   if (core && core.core === 'structured') warnings.push(...core.advice);
-  // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
-  const styledOutfit = styledHero(hero).outfit;
-  if (isOutfitBuild(styledOutfit) && outfitPieces(styledOutfit).length) for (const u of sortPieces(plan, { ...styledOutfit, pieces: outfitPieces(styledOutfit) }).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
+  // a designed piece with no place on this body, or one the outfit already wears, is said, never dropped without a word:
+  // sorted on the plan the pieces were worn over (designedPieces), so a worn piece is not read as worn twice
+  const dressed = dressedHero(hero), styledOutfit = dressed.outfit;
+  if (isOutfitBuild(styledOutfit) && outfitPieces(styledOutfit).length) for (const u of sortPieces(heroFormPlan(dressed), { ...styledOutfit, pieces: outfitPieces(styledOutfit) }, { once: true }).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
   const clips = clipsReadout(hero, recipe);
   const budget = heroBudget(plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);

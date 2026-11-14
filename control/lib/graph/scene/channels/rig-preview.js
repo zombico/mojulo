@@ -19,7 +19,7 @@ import { safeJson } from '../emit-util.js';
 // without one is byte-identical.
 //
 // STAND (`solid: 'stand'` on a preview — the layered hero standing in its gesture): the static solid IS
-// the stand, skinned exactly, so the page opens on it (not on the first clip's rigidly moved parts) and
+// the stand, skinned exactly, so the page opens on it (not on the first clip's moved parts) and
 // its entry reads 'stand (the solid)'. No preview carrying it ⇒ both interpolations are the old text.
 //
 // INK (`toonInk`, passed by the emitter only when a preview carries `ink` and the world draws the toon
@@ -46,7 +46,43 @@ import { safeJson } from '../emit-util.js';
 // TIMING (a bank clip carrying `s`, its designed duration — the anime hero's, station-loft-rig packLayeredRig
 // `seconds`): that clip plays one cycle over `s` seconds, the length the GLB gives it; a clip without
 // one keeps the preview's period (3 s). No clip carrying `s` ⇒ the phase line is its old text ⇒ byte-identical.
+//
+// THE BLEND (a bank part carrying its corners' skin, `jnt` and `wgt`: every layered pack's): each triangle rides the
+// bone its corners vote for, and a corner the skin shares between bones (a joint's, a skirt's between the legs) is
+// placed by its weights, as the skinned GLB places it (`rpBlend`, below, inlined verbatim), then taken into its bone
+// mesh's frame. So two triangles meeting at a shared corner meet in every frame: a skirt's centre seam (its corners
+// half on each thigh, its triangles voting for one leg or the other in turn) no longer opens in a sawtooth, and a knee
+// no longer cracks. The ink a part wears follows its moved corners. No part carrying both ⇒ every interpolation below
+// is its old text ⇒ byte-identical.
+/** One bone mesh's shared corners placed by their weights: `sk` { rest, idx, J, W } (the part's rest positions, the
+ * indices of the corners not wholly on bone `bi`, their four joints and weights), `M` each bone's world frame as a
+ * row-major 3×4 [R | t] (12 numbers a bone); writes each such corner into `pos` in bone `bi`'s frame. */
+export function rpBlend(sk, M, bi, pos) {
+  const o = bi * 12, r = sk.rest, J = sk.J, W = sk.W, I = sk.idx;
+  for (let n = 0; n < I.length; n++) {
+    const i = I[n], v = i * 3, x = r[v], y = r[v + 1], z = r[v + 2];
+    let X = 0, Y = 0, Z = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = W[i * 4 + k]; if (!(w > 0)) continue;
+      const m = J[i * 4 + k] * 12;
+      X += w * (M[m] * x + M[m + 1] * y + M[m + 2] * z + M[m + 3]);
+      Y += w * (M[m + 4] * x + M[m + 5] * y + M[m + 6] * z + M[m + 7]);
+      Z += w * (M[m + 8] * x + M[m + 9] * y + M[m + 10] * z + M[m + 11]);
+    }
+    X -= M[o + 3]; Y -= M[o + 7]; Z -= M[o + 11];
+    pos[v] = M[o] * X + M[o + 4] * Y + M[o + 8] * Z;
+    pos[v + 1] = M[o + 1] * X + M[o + 5] * Y + M[o + 9] * Z;
+    pos[v + 2] = M[o + 2] * X + M[o + 6] * Y + M[o + 10] * Z;
+  }
+}
+/** The corners of bone part `bi` the blend moves: any with a weight on another bone (`J`, `W` four a corner). */
+export function rpBlendIndex(J, W, bi) {
+  const idx = [];
+  for (let i = 0; i < W.length / 4; i++) for (let k = 0; k < 4; k++) if (W[i * 4 + k] > 0 && J[i * 4 + k] !== bi) { idx.push(i); break; }
+  return Uint32Array.from(idx);
+}
 export function rigPreviewChannelScript(previews, bank, { toonInk = null, layers = false } = {}) {
+  const blend = Object.values(bank || {}).some((f) => f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt));
   // rim (shader-look phase 4): a bank figure carrying `rim: [r,g,b,strength,power]` gets
   // ms-contrast's additive fresnel edge on every part material. The patch is DUPLICATED from the
   // controllable channel's __rimPatch by design — this channel never depends on the controllable
@@ -165,6 +201,27 @@ function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill
       __rpBone(fig, clip, phase, o.bone, __rpq, __rpHead); const rh = fig.bones[o.bone].head;
       __rph.set(rh[0], rh[1], rh[2]).applyQuaternion(__rpq); __rpv.set(__rpHead[0] - __rph.x, __rpHead[1] - __rph.y, __rpHead[2] - __rph.z);
       o.mesh.matrix.compose(__rpv, __rpq, __rpONE); }` : '';
+  const blendBlock = blend ? `
+const __rpM = new THREE.Matrix4();
+${rpBlend.toString()}
+${rpBlendIndex.toString()}
+function __rpSkin(mesh, part, bi) {   // a bone mesh's shared corners (after its hooks: the face's neutral, its ink built)
+  const at = mesh.geometry.getAttribute('position'), J = decodeU8(part.jnt), W = decodeF32(part.wgt), idx = rpBlendIndex(J, W, bi);
+  if (!idx.length) return null;
+  const rest = Float32Array.from(at.array), key = (a, v) => a[v] + ',' + a[v + 1] + ',' + a[v + 2], of = new Map(), kids = [];
+  for (const i of idx) { const k = key(rest, i * 3); if (!of.has(k)) of.set(k, i); }
+  // the ink's copies of those corners (a hull, its lines: their own positions, copied from the part's)
+  mesh.traverse((c) => { if (c === mesh || !c.geometry) return; const ca = c.geometry.getAttribute('position'); if (!ca || ca === at) return;
+    const pairs = []; for (let h = 0; h < ca.count; h++) { const s = of.get(key(ca.array, h * 3)); if (s !== undefined) pairs.push(h, s); }
+    if (pairs.length) kids.push({ a: ca, pairs: Uint32Array.from(pairs) }); });
+  return { rest, idx, J, W, at, kids };
+}` : '';
+  const blendStep = blend ? `
+    for (let bi = 0; bi < fig.bones.length; bi++) {
+      const mesh = r.rig.boneMeshes[bi], sk = mesh && mesh.userData.sk; if (!sk) continue;
+      const s = sk.at.array; rpBlend(sk, r.rig.M, bi, s); sk.at.needsUpdate = true;
+      for (const c of sk.kids) { const a = c.a.array; for (let n = 0; n < c.pairs.length; n += 2) { const h = c.pairs[n] * 3, v = c.pairs[n + 1] * 3; a[h] = s[v]; a[h + 1] = s[v + 1]; a[h + 2] = s[v + 2]; } c.a.needsUpdate = true; }
+    }` : '';
   const stand = previews.some((pv) => pv && pv.solid === 'stand');
   const standStart = stand ? " || pv.solid === 'stand'" : '';
   const restLabel = stand ? "(pv.solid === 'stand' ? 'stand (the solid)' : 'rest (the solid)')" : "'rest (the solid)'";
@@ -184,7 +241,7 @@ const RPREV = ${safeJson(previews)};
 const RBANK = ${safeJson(bank)};${rimBlock}${inkBlock}${layerBlock}
 const __rpONE = new THREE.Vector3(1, 1, 1);
 const __rpq = new THREE.Quaternion(), __rph = new THREE.Vector3(), __rpv = new THREE.Vector3();
-const __rpHead = [0, 0, 0];
+const __rpHead = [0, 0, 0];${blendBlock}
 ${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per figure
   if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; }
   return fig.__tex;
@@ -228,14 +285,15 @@ function __rpFace(r, clipName, phase, sec) {   // the face's weights on its bone
     __rpMorph(fig, part, geo);` : ''}
     geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${faced ? `
-    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${metalHook}${rimHook}${inkHook}${layerHook}
+    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${metalHook}${rimHook}${inkHook}${layerHook}${blend ? `
+    if (part.jnt && part.wgt) mesh.userData.sk = __rpSkin(mesh, part, bi);` : ''}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
     group.add(mesh);
     return mesh;
   });${overlayBuild}
   scene.add(group);
-  return { group, boneMeshes${overlayRet} };
+  return { group, boneMeshes${overlayRet}${blend ? ', M: new Float64Array(fig.bones.length * 12)' : ''} };
 }
 // one bone's [q, head'] from a clip at phase p — the frame-pair quaternion nlerp over the clip's sparse
 // keys (wrapping), byte-for-byte the walkers / controllable runtime's math.
@@ -281,14 +339,15 @@ stepRigPreview = (t) => {
     const phase = (sec / ${timed ? '(clip.s > 0 ? clip.s : r.period)' : 'r.period'}) % 1;
     for (let bi = 0; bi < fig.bones.length; bi++) {
       const mesh = r.rig.boneMeshes[bi];
-      if (!mesh) continue;
+      if (!mesh${blend ? ' && !r.rig.M' : ''}) continue;
       __rpBone(fig, clip, phase, bi, __rpq, __rpHead);
       // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
       const rh = fig.bones[bi].head;
       __rph.set(rh[0], rh[1], rh[2]).applyQuaternion(__rpq);
       __rpv.set(__rpHead[0] - __rph.x, __rpHead[1] - __rph.y, __rpHead[2] - __rph.z);
-      mesh.matrix.compose(__rpv, __rpq, __rpONE);
-    }${overlayStep}${faced ? `
+${blend ? `      const mx = mesh ? mesh.matrix : __rpM; mx.compose(__rpv, __rpq, __rpONE);
+      { const e = mx.elements; r.rig.M.set([e[0], e[4], e[8], e[12], e[1], e[5], e[9], e[13], e[2], e[6], e[10], e[14]], bi * 12); }` : '      mesh.matrix.compose(__rpv, __rpq, __rpONE);'}
+    }${blendStep}${overlayStep}${faced ? `
     if (fig.face) __rpFace(r, r.state.clip, phase, sec);` : ''}
     probe.phase = phase;
   }
