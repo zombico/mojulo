@@ -46,41 +46,41 @@ const beltBlock = (B, s, n, z, [w, d, h], tone) => { const [x, y] = beltPoint(B,
 /**
  * A BELT THAT RISES OR DRIFTS, blocked out: each block cut along the belt wherever the floor under it changes, a ramp
  * cut into steps a riser high, so the blockout reads as terraces and flights; and wherever the band slides across, cut
- * into short pieces each jogged across with it, so the whole street (its road, its kerbs, its fronts) runs on the
- * band's diagonal, its fronts still square to the camera. A block on the ground grows down to it (no gap
+ * at the drift's own points and each piece TURNED onto the band's diagonal, so the whole street (its road, its kerbs,
+ * its fronts) runs smooth along it. A block on the ground grows down to it (no gap
  * under a raised road); one off the ground (a lintel, a sign) is lifted whole. A flat belt's blocks are as they were.
  */
-// (a jog as fine as the blockout's budget of boxes allows: the finest of these that fits)
-const RISER = 0.18, JOGS = Object.freeze([0.3, 0.45, 0.6, 0.9, 1.4]), BLOCK_BUDGET = 400;
+const RISER = 0.18;
 function terraced(B, blocks) {
   if (!B.rise && !B.drift) return blocks;
-  if (!B.drift) return terracedAt(B, blocks, JOGS[0]);
-  for (const jog of JOGS) { const out = terracedAt(B, blocks, jog); if (out.length <= BLOCK_BUDGET || jog === JOGS[JOGS.length - 1]) return out; }
-  return blocks;
-}
-function terracedAt(B, blocks, JOG) {
   const t = (B.heading * Math.PI) / 180, c = Math.cos(t), si = Math.sin(t), out = [];
-  // the cuts a line of points asks of a block from s0 to s1: its own points, and a stretch that changes cut so each
-  // piece changes by no more than `step` (a riser up, a jog across)
+  // the cuts a line of points asks of a block from s0 to s1: its own points, and (a rise) a stretch that changes cut so
+  // each piece rises by no more than a riser
   const cutsOf = (line, step, s0, s1) => {
     const cuts = [], pts = [[-Infinity, line[0][1]], ...line, [Infinity, line[line.length - 1][1]]];
     for (let i = 1; i < pts.length; i++) {
       const [a, va] = pts[i - 1], [e, ve] = pts[i], lo = Math.max(a, s0), hi = Math.min(e, s1);
       if (hi <= lo) continue;
-      const n = Math.abs(ve - va) < 1e-9 || !Number.isFinite(a) || !Number.isFinite(e) ? 1 : Math.max(1, Math.ceil((Math.abs(ve - va) * (hi - lo)) / (e - a) / step));
+      const n = !step || Math.abs(ve - va) < 1e-9 || !Number.isFinite(a) || !Number.isFinite(e) ? 1 : Math.max(1, Math.ceil((Math.abs(ve - va) * (hi - lo)) / (e - a) / step));
       for (let k = 1; k <= n; k++) cuts.push(lo + ((hi - lo) * k) / n);
     }
     return cuts;
   };
   for (const b of blocks) {
     const dx = b.at[0] - B.at[0], dy = b.at[1] - B.at[1], s = dx * c + dy * si, n = -dx * si + dy * c, [w, d, h] = b.size, s0 = s - w / 2, s1 = s + w / 2;
-    const cuts = [...new Set([s0, ...(B.rise ? cutsOf(B.rise, RISER, s0, s1) : []), ...(B.drift ? cutsOf(B.drift, JOG, s0, s1) : []), s1].map((v) => Math.round(v * 1e4) / 1e4))].sort((p, q) => p - q);
+    // (a drift cuts a block only at its own points: between two of them the band runs straight on its diagonal)
+    const cuts = [...new Set([s0, ...(B.rise ? cutsOf(B.rise, RISER, s0, s1) : []), ...(B.drift ? cutsOf(B.drift, 0, s0, s1) : []), s1].map((v) => Math.round(v * 1e4) / 1e4))].sort((p, q) => p - q);
     const grounded = b.at[2] <= 0.2 + 1e-9;
     for (let k = 1; k < cuts.length; k++) {
       const a = cuts[k - 1], e = cuts[k]; if (e - a < 1e-6) continue;
-      // (a block that drifts with the band is laid a hair long, so two jogged pieces leave no slit between them)
-      const m = (a + e) / 2, lift = beltFloor(B, m), [x, y] = beltPoint(B, m, n + beltDrift(B, m));
-      out.push({ ...b, at: [x, y, r3(grounded ? b.at[2] + Math.min(0, lift) : b.at[2] + lift)], size: [r3(e - a + (B.drift ? 0.02 : 0)), d, r3(grounded ? h + Math.abs(lift) : h)] });
+      const m = (a + e) / 2, lift = beltFloor(B, m);
+      // ON A DIAGONAL the piece is TURNED onto it, not stepped: laid along the band's own line between the two cuts
+      // (its length the diagonal's, its depth narrowed so it is as deep across the belt as it was), and run on a
+      // little past each end so two pieces meeting at a bend close the corner between them
+      const dn = B.drift ? beltDrift(B, e) - beltDrift(B, a) : 0, th = Math.atan2(dn, e - a), co = Math.cos(th);
+      const [x, y] = beltPoint(B, m, n + (B.drift ? (beltDrift(B, a) + beltDrift(B, e)) / 2 : 0));
+      const long = Math.abs(th) > 1e-6 ? (e - a) / co + Math.min(d, 6) * Math.abs(Math.tan(th)) * 0.5 : e - a;
+      out.push({ ...b, at: [x, y, r3(grounded ? b.at[2] + Math.min(0, lift) : b.at[2] + lift)], size: [r3(long), r3(Math.abs(th) > 1e-6 ? d * co : d), r3(grounded ? h + Math.abs(lift) : h)], ...(Math.abs(th) > 1e-6 ? { turn: r3((b.turn ?? B.heading) + (th * 180) / Math.PI) } : {}) });
     }
   }
   return out;

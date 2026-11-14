@@ -763,6 +763,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 (a belt that drifts, brawl/brawl-belt.js `drift`): `brawl`. Its page inlines the belt (the
 // band's slide across it, the camera following) and the yard's client (every thing the simulation places drawn that
 // much across); the fixture's belt is straight, so its drift is 0 everywhere and its page plays as it did.
+// Re-pinned 2026-11-14 (the player's line on a drifting belt, brawl/brawl-yard.client.js): `brawl`. The line lies
+// along the band's diagonal where the player stands; the fixture's belt is straight, so its line lies as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

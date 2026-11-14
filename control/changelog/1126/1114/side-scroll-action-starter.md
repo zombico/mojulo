@@ -153,8 +153,9 @@ screen) is now played on a page; before, only its practice yard was.
   across, north of the line over 0, no faster than 1.2 m a metre walked; `beltDrift`). The camera stays square to the
   street and follows the band up or down the screen, so the walkway runs on a diagonal, as an arcade street does where
   it leaves the straight line; the simulation is untouched (it plays a straight band; the page draws everything that
-  much across). A greybox street moves whole with it: its blocks cut and jogged across (as fine as the blockout's
-  budget of boxes allows), road, kerbs and fronts on the band's diagonal. A town's street does not move: its band
+  much across). A greybox street moves whole with it, smooth: each block cut at the drift's own points
+  and the piece on a diagonal TURNED onto it (its length the diagonal's, a little past each end so a bend closes),
+  road, kerbs and fronts along the band's line. A town's street does not move: its band
   drifts only over the street's own ground (a fault past it), and dress that would stand in the drifted band is left
   out. Three principles join the doc (the drift).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.

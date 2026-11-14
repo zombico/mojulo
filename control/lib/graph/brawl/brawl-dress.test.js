@@ -240,13 +240,21 @@ describe('a level that turns', () => {
 });
 
 describe('a level whose band drifts', () => {
-  it('a greybox street runs on the band\'s diagonal: its blocks jogged across with it, within the blockout\'s budget', () => {
-    const drift = [[0, 0], [12, 0], [26, 9], [62, 9]];
+  it('a greybox street runs on the band\'s diagonal, smooth: a block on it turned onto it, not stepped', () => {
+    const drift = [[0, 0], [12, 0], [26, 9], [62, 9]], ang = (Math.atan2(9, 14) * 180) / Math.PI;
     const G = brawlLevel({ kind: 'greybox', preset: 'street', belt: { drift } }), F = brawlLevel({ kind: 'greybox', preset: 'street' });
-    expect(G.blocks.length).toBeGreaterThan(F.blocks.length); expect(G.blocks.length).toBeLessThanOrEqual(400);
-    const ys = (L, from, to) => L.blocks.filter((b) => b.tone === 'floor' && b.at[0] > from && b.at[0] < to).map((b) => b.at[1]);
-    expect(Math.max(...ys(G, 40, 60)) - Math.max(...ys(F, -100, 200))).toBeCloseTo(9, 0);
-    expect(Math.max(...ys(G, 0, 10))).toBeCloseTo(Math.max(...ys(F, -100, 200)), 3);
+    // (a long block is three pieces, one a stretch; a short one is still one: far fewer than a stepped street's)
+    expect(G.blocks.length).toBeGreaterThan(F.blocks.length); expect(G.blocks.length).toBeLessThan(F.blocks.length * 3);
+    const turned = G.blocks.filter((b) => b.turn);
+    expect(turned.length).toBeGreaterThan(5);
+    for (const b of turned) expect(b.turn).toBeCloseTo(ang, 1);
+    // (before the diagonal as it was, past it moved across whole, on it centred on the band's line)
+    const floor = (L, from, to) => L.blocks.filter((b) => b.tone === 'floor' && !b.turn && b.at[0] > from && b.at[0] < to).map((b) => b.at[1]);
+    expect(floor(G, 26, 70)[0] - floor(F, -100, 200)[0]).toBeCloseTo(9, 3);
+    expect(floor(G, -20, 12)[0]).toBeCloseTo(floor(F, -100, 200)[0], 3);
+    const road = turned.find((b) => b.tone === 'floor');
+    expect(road.at[0]).toBeCloseTo(19, 1); expect(road.at[1] - floor(F, -100, 200)[0]).toBeCloseTo(4.5, 1);
+    expect(road.size[0]).toBeGreaterThanOrEqual(Math.hypot(14, 9));
   });
   it('a town\'s street does not move: its band drifts only over its own ground, and no dress is left standing in it', () => {
     const T = brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [30, -2.5], [62, -2.5]] });

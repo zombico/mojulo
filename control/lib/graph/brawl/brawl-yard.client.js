@@ -466,6 +466,8 @@ function placeBody(B, p, F) {
     const half = viewHalf(BELT);
     B.line.position.set(p.x / 1000, p.z / 1000 + DR(p.x), 0.008 + FL(p.x));
     B.line.scale.set(half * 2, (room.s.rules.line * 2) / 1000, 1);
+    // (on a belt that drifts the line lies along the band's diagonal where the player stands)
+    B.line.rotation.z = BELT.drift ? Math.atan2(DR(p.x + 500) - DR(p.x - 500), 1) : 0;
   }
 }
 // ── a held blade (versus-arena.client.js's): from the grip hand along the sim's own line, so what is drawn is what
