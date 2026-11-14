@@ -58,7 +58,7 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
       { use: 'text', props: { value: B('title'), role: 'caption' } },
       button('continue', 'done'),
     ] }] },
-    result: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items') } },
+    result: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items'), bare: B('result.bare') } },
     // the pause over a held level: resume, restart, the controls, the sound, the way out (back resumes)
     pause: { use: 'pause-menu', props: { title: B('pause.title'), items: B('pause.items') } },
     // what the level's controls are, as the level says them (its live bindings): read, and back
@@ -167,7 +167,7 @@ export function playShellManaRuntime(cfg, api) {
     if (name === 'options') u.optionsTitle = 'options';
     if (name === 'credits') u.credits = ((F.credits && F.credits.roll) || []).map((r) => ({ role: r.role, names: r.names.join(' · ') })).concat(F.credits && F.credits.attribution === false ? [] : [{ role: '', names: 'made with mojulo · github.com/zombico/mojulo' }]);
     if (name === 'end') { u.endMark = 'game complete'; u.endText = (F.end && F.end.text) || 'The end'; }
-    if (name === 'result' || name === 'run-result') u.result = name === 'result' ? api.result() : api.run();
+    if (name === 'result' || name === 'run-result') { u.result = name === 'result' ? api.result() : api.run(); u.result.bare = !((u.result.stats || []).length || u.result.rank); }
   }
   function draw(name) {
     if (!name) return false;

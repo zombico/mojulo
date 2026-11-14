@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readTurn, turnOf, beginTurn, stepTurn, walkTurn, pickErrors, turnParams, buildTurnKernel, TURN_PHASES } from './turn.js';
+import { readTurn, turnOf, beginTurn, stepTurn, walkTurn, pickErrors, turnParams, keptPicks, buildTurnKernel, TURN_PHASES } from './turn.js';
 import { readFlow } from './flow.js';
 
 // A GAME'S TURN: one level session in phases (untap, upkeep, main, cleanup, end), the pause an interrupt in play only.
@@ -106,6 +106,26 @@ describe('a turn, stepped', () => {
     expect(stepTurn(T, { ...play, paused: undefined }, 'restart')).toBe(null);
     const farewell = turnOf({ ...STEP, end: { scene: 'farewell', when: ['won', 'left'] } });
     expect(stepTurn(farewell, play, 'quit')).toMatchObject({ phase: 'main', sub: 'end', outcome: 'left' });
+  });
+  it('a pick kept for the game is asked once: held by the save it is never asked again, and back steps past it', () => {
+    const K = turnOf({ ...STEP, picks: [{ ...STEP.picks[0], keep: 'game' }, STEP.picks[1]] });
+    expect(readTurn({ kind: 'level', picks: [{ id: 'a', keep: 'run', from: { options: ['x', 'y'] } }] }).join('\n')).toMatch(/keep is how long the choice lasts: level .* or game/);
+    // a first turn asks both, and says which choice lasts
+    const first = walkTurn(K, [{ pick: 'hard' }, { pick: 'ash' }], {}, ctx).at(-1);
+    expect(keptPicks(K, first)).toEqual({ difficulty: 'hard' });
+    // the next turn holds it: only the squad is asked, back leaves the turn, the level still hears the difficulty
+    const next = beginTurn(K, { level: 'vale', held: { difficulty: 'hard' } });
+    expect(next).toMatchObject({ phase: 'untap', at: 1, picks: { difficulty: 'hard' }, held: ['difficulty'] });
+    expect(stepTurn(K, next, 'back', ctx)).toMatchObject({ phase: 'out', exit: 'back' });
+    const loaded = stepTurn(K, next, { pick: 'bryn' }, ctx);
+    expect(loaded.phase).toBe('upkeep');
+    expect(turnParams(K, loaded)).toEqual({ picks: { difficulty: 'hard' }, slices: { party: ['bryn'] } });
+    expect(stepTurn(K, loaded, { fail: 'no' }, ctx)).toMatchObject({ phase: 'untap', at: 1 });
+    // every pick held: nothing is asked
+    const only = turnOf({ kind: 'level', picks: [{ ...STEP.picks[0], keep: 'game' }] });
+    expect(beginTurn(only, { held: { difficulty: 'easy' } })).toMatchObject({ phase: 'upkeep', picks: { difficulty: 'easy' } });
+    // a pick kept for the level is asked whatever the save holds
+    expect(beginTurn(T, { held: { difficulty: 'easy' } })).toMatchObject({ phase: 'untap', at: 0, picks: {} });
   });
   it('the picks hand the level its own words, and which members of a consumed slice go in', () => {
     const s = walkTurn(T, [{ pick: 'hard' }, { pick: 'bryn' }], {}, ctx).at(-1);

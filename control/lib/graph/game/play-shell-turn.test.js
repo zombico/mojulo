@@ -77,6 +77,13 @@ describe('the play shell runs a turn', () => {
     P.close();
   });
 
+  it('a level\'s title that is only an id is said in words; one written as words is left as it is', () => {
+    const titled = (title) => emitPlayShell(normalizeGameManifest({ kind: 'game', title: 'Lantern Keep', shell: 'play', store: STORE, levels: [{ ref: 'vale', title }] }), [{ ref: 'vale', contract }]);
+    expect(titled('small-meadow-1 · approach-a')).toContain('"title":"Small Meadow 1 · Approach A"');
+    expect(titled('The Vale')).toContain('"title":"The Vale"');
+    expect(titled('vale')).toContain('"title":"vale"');
+  });
+
   it('a difficulty picked is the dial the level\'s foes read: handed as params.difficulty', async () => {
     const P = await page({ picks: [{ id: 'difficulty', from: { options: ['easy', 'medium', 'max'] } }] });
     await P.key('Enter'); await P.key('ArrowDown'); await P.key('ArrowDown'); await P.key('Enter');   // start, max
@@ -112,6 +119,24 @@ describe('the play shell runs a turn', () => {
     expect(P.screen()).toBe('title');
     await P.key('Enter');
     expect(P.screen()).toBe('pick');
+    P.close();
+  });
+
+  it('a pick kept for the game is asked once: the next turn loads with it, unasked; back on a first pick goes home', async () => {
+    const P = await page({ picks: [{ id: 'difficulty', keep: 'game', from: { options: ['easy', 'hard'] } }] });
+    await P.key('Enter');
+    expect(P.screen()).toBe('pick');
+    await P.key('Escape');                                  // back: the title it came from
+    expect(P.screen()).toBe('title');
+    await P.key('Enter'); await P.key('ArrowDown'); await P.key('Enter');   // start, hard
+    expect(P.init().params.difficulty).toBe('hard');
+    P.say({ moj: MSG_SHOWN }); await wait(150);
+    await P.outcome('fail');
+    await P.key('ArrowDown'); await P.key('Enter');         // title
+    expect(P.screen()).toBe('title');
+    await P.key('Enter');                                   // start: a new turn, the difficulty held
+    expect(P.screen()).toBe('loading');
+    expect(P.init().params.difficulty).toBe('hard');
     P.close();
   });
 

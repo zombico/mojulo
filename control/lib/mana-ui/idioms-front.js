@@ -179,11 +179,11 @@ export const FRONT_IDIOMS = {
   },
   'results-screen': {
     kind: 'screen', about: 'the end of a run (victory, defeat, a level cleared), in sequence: the outcome slams in, its figures rise and count up one after another, the rank is stamped on, then what next; accept while it counts lands every figure at once',
-    reads: 'outcome, stats: [{ label, value }], rank, items: [{ label, then }]', emits: 'each item\'s then',
-    params: ['outcome', 'stats', 'rank', 'items'],
+    reads: 'outcome, stats: [{ label, value }], rank, items: [{ label, then }], bare (no figures and no rank: no window for them)', emits: 'each item\'s then',
+    params: ['outcome', 'stats', 'rank', 'items', 'bare'],
     node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
       { use: 'banner', props: { value: P('outcome') } },
-      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt({ word: 'rank' }, 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
+      { use: 'window', unless: P('bare'), children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider', when: P('rank') }, { use: 'stack', props: { dir: 'row', align: 'apart' }, when: P('rank'), children: [txt({ word: 'rank' }, 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
       { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
     ] }]),
     example: { outcome: { bind: 'results.outcome' }, stats: { bind: 'results.stats' }, rank: { bind: 'results.rank' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'Retry', then: { emit: 'retry' } }, { label: 'Quit', then: { emit: 'quit' } }] },

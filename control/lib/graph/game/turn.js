@@ -13,12 +13,13 @@
  * What a level step says of its turn (all optional; a step that says none plays as it always has):
  *
  *   picks: [{ id, from: { slice: '<a slice the level consumes>' } | { options: ['<id>' | { id, name?, about? }, …] },
- *            min?, max?, ask?, hint? }]
+ *            min?, max?, ask?, hint?, keep? }]
  *          what the player chooses before the level loads, in order; `id` is the name the choice lands under in the
  *          session; from a slice the choice is which of its members go in (the contract's consumes pick), from
  *          options it is the game's own words (a difficulty, a mode; an option may say its name and what it means);
  *          min (1; 0: may be passed) to max (1); ask: the question as the screen says it (its id when not said),
- *          hint: a line under it
+ *          hint: a line under it; keep: how long the choice lasts, `level` (asked before every level: the default)
+ *          or `game` (asked once, then held by the save: a difficulty)
  *   start: { scene | video, skip?, once? }
  *          MAIN'S START TRIGGER: a scene the level has (scripted motion, talking) or a video, played as the level's
  *          first frame shows, control held; once (true): never again in this save, and never on a retry
@@ -32,8 +33,11 @@
  *   buildTurnKernel()                               → { beginTurn, stepTurn, walkTurn, pickErrors, turnParams }:
  *                                                     self-contained, inlined in a shell by toString() beside the
  *                                                     flow kernel; node uses the same
- *   beginTurn(turn, { level, picks?, again? })      → the turn's first state: untap at its first pick, or upkeep
- *                                                     when there is nothing to pick or the picks are carried (a retry)
+ *   beginTurn(turn, { level, picks?, again?, held? }) → the turn's first state: untap at its first pick, or upkeep
+ *                                                     when there is nothing to pick or the picks are carried (a
+ *                                                     retry); held: { <id>: … } the choices the save holds (a pick
+ *                                                     kept for the game, already made): never asked again
+ *   keptPicks(turn, state)                          → { <id>: … } the choices this turn made that last the game
  *   stepTurn(turn, state, event, ctx?)              → the state an event leads to (null: the event means nothing here)
  *   walkTurn(turn, events, opts?, ctx?)             → the states a run of events visits (the headless walk)
  *
@@ -61,7 +65,8 @@ export const TURN_PHASES = Object.freeze(['untap', 'upkeep', 'main', 'cleanup', 
 export const TURN_OUTCOMES = Object.freeze(['won', 'lost', 'left']);
 export const TURN_KEYS = Object.freeze(['picks', 'start', 'end']);
 
-const PICK_KEYS = ['id', 'from', 'min', 'max', 'ask', 'hint'];
+const PICK_KEYS = ['id', 'from', 'min', 'max', 'ask', 'hint', 'keep'];
+export const PICK_KEEPS = Object.freeze(['level', 'game']);
 const OPTION_KEYS = ['id', 'name', 'about'];
 // an option as written: a word, or { id, name?, about? }
 const optionId = (o) => (isObj(o) ? o.id : o);
@@ -96,6 +101,7 @@ export function readTurn(step, { consumes = null, scenes = null, where = 'step' 
           if (consumes && !consumes.includes(f.slice)) errors.push(`${at}.from.slice '${f.slice}' is not a slice the level consumes (${consumes.join(', ') || 'it consumes none'}): the level would never hear the choice`);
         } else if (f.options.length < 2 || !f.options.every(optionOk) || new Set(f.options.map(optionId)).size !== f.options.length) errors.push(`${at}.from.options is two or more words, each once (a word, or { id, name?, about? }): with one there is nothing to pick`);
         for (const k of ['ask', 'hint']) if (p[k] !== undefined && !isStr(p[k])) errors.push(`${at}.${k} is words: ${k === 'ask' ? 'the question as the screen says it' : 'a line under the question'}`);
+        if (p.keep !== undefined && !PICK_KEEPS.includes(p.keep)) errors.push(`${at}.keep is how long the choice lasts: level (asked before every level) or game (asked once, then held by the save)`);
         const min = p.min === undefined ? 1 : p.min, max = p.max === undefined ? 1 : p.max;
         if (p.min !== undefined && !whole(p.min, 0)) errors.push(`${at}.min is how few may be picked, 0 or more (0: the pick may be passed)`);
         if (p.max !== undefined && !whole(p.max, 1)) errors.push(`${at}.max is how many may be picked, 1 or more`);
@@ -132,7 +138,7 @@ export function turnOf(step) {
   const trigger = (t, more) => (isObj(t) ? { ...(t.scene !== undefined ? { scene: t.scene } : { video: t.video }), skip: t.skip !== false, ...more(t) } : null);
   return {
     picks: (Array.isArray(s.picks) ? s.picks : []).map((p) => ({
-      id: p.id, min: p.min === undefined ? 1 : p.min, max: p.max === undefined ? 1 : p.max, ...(p.ask !== undefined ? { ask: p.ask } : {}), ...(p.hint !== undefined ? { hint: p.hint } : {}),
+      id: p.id, min: p.min === undefined ? 1 : p.min, max: p.max === undefined ? 1 : p.max, ...(p.ask !== undefined ? { ask: p.ask } : {}), ...(p.hint !== undefined ? { hint: p.hint } : {}), ...(p.keep === 'game' ? { keep: 'game' } : {}),
       // (an option said in full: its id, its name, what it means)
       from: isObj(p.from) && Array.isArray(p.from.options) ? { options: p.from.options.map((o) => (isObj(o) ? { name: o.id, ...o } : { id: o, name: o })) } : p.from,
     })),
@@ -150,7 +156,7 @@ export function buildTurnKernel() {
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
   const copy = (s, more) => Object.assign({}, s, more);
   // a state with the keys of the phase it left taken off
-  const leave = (s, more) => { const n = {}; for (const k of ['level', 'picks', 'again']) if (s[k] !== undefined) n[k] = s[k]; return Object.assign(n, more); };
+  const leave = (s, more) => { const n = {}; for (const k of ['level', 'picks', 'again', 'held']) if (s[k] !== undefined) n[k] = s[k]; return Object.assign(n, more); };
   // what can be picked now: the store's answer (ctx.rows), else the pick's own options
   function rowsOf(pick, ctx) {
     if (ctx && ctx.rows) { const r = ctx.rows(pick); if (Array.isArray(r)) return r; }
@@ -186,7 +192,22 @@ export function buildTurnKernel() {
     const o = opts || {}, base = { level: o.level || null, picks: Object.assign({}, o.picks || {}) };
     if (o.again) base.again = true;
     if (!turn.picks.length || o.picks) return Object.assign(base, { phase: 'upkeep' });
-    return Object.assign(base, { phase: 'untap', at: 0 });
+    // (a pick kept for the game that the save already holds is not asked: its choice is in hand)
+    const held = turn.picks.filter((p) => p.keep === 'game' && o.held && o.held[p.id] !== undefined).map((p) => p.id);
+    if (held.length) { base.held = held; for (const id of held) base.picks[id] = o.held[id]; }
+    const at = ask(turn, base, -1, 1);
+    return at < 0 ? Object.assign(base, { phase: 'upkeep' }) : Object.assign(base, { phase: 'untap', at });
+  }
+  // the next pick to ask from `from`, forward (1) or back (-1), past the ones the save holds (-1: none that way)
+  function ask(turn, s, from, way) {
+    for (let i = from + way; i >= 0 && i < turn.picks.length; i += way) if (!(s.held && s.held.indexOf(turn.picks[i].id) >= 0)) return i;
+    return -1;
+  }
+  /** The choices this turn made that last the game: what the save holds from now on. */
+  function keptPicks(turn, s) {
+    const out = {};
+    for (const p of turn.picks) if (p.keep === 'game' && s.picks[p.id] !== undefined) out[p.id] = s.picks[p.id];
+    return out;
   }
   /** The state an event leads to (null: the event means nothing here; a choice that cannot stand keeps the pick, with `why`). */
   function stepTurn(turn, s, event, ctx) {
@@ -194,10 +215,11 @@ export function buildTurnKernel() {
     if (s.phase === 'untap') {
       const pick = turn.picks[s.at];
       if (name === 'back') {
-        if (s.at === 0) return leave(s, { phase: 'out', exit: 'back' });
+        const prev = ask(turn, s, s.at, -1);
+        if (prev < 0) return leave(s, { phase: 'out', exit: 'back' });
         const picks = Object.assign({}, s.picks);
-        delete picks[turn.picks[s.at - 1].id];
-        return leave(copy(s, { picks }), { phase: 'untap', at: s.at - 1 });
+        delete picks[turn.picks[prev].id];
+        return leave(copy(s, { picks }), { phase: 'untap', at: prev });
       }
       if (!('pick' in e)) return null;
       const why = pickErrors(pick, e.pick, ctx);
@@ -206,12 +228,13 @@ export function buildTurnKernel() {
       if (e.pick === undefined || e.pick === null || (Array.isArray(e.pick) && !e.pick.length)) delete picks[pick.id];
       else picks[pick.id] = pick.max === 1 && Array.isArray(e.pick) ? e.pick[0] : pick.max > 1 && !Array.isArray(e.pick) ? [e.pick] : e.pick;
       const next = leave(copy(s, { picks }), {});
-      return s.at + 1 < turn.picks.length ? Object.assign(next, { phase: 'untap', at: s.at + 1 }) : Object.assign(next, { phase: 'upkeep' });
+      const to = ask(turn, s, s.at, 1);
+      return to >= 0 ? Object.assign(next, { phase: 'untap', at: to }) : Object.assign(next, { phase: 'upkeep' });
     }
     if (s.phase === 'upkeep') {
       if (name === 'ready') return toMain(turn, s, ctx);
       // a load that failed: back to the last pick with its reason; with nothing to pick, out of the turn
-      if ('fail' in e) return turn.picks.length ? leave(s, { phase: 'untap', at: turn.picks.length - 1, why: String(e.fail || 'the level did not load') }) : leave(s, { phase: 'out', exit: 'failed', why: String(e.fail || 'the level did not load') });
+      if ('fail' in e) return ask(turn, s, turn.picks.length, -1) >= 0 ? leave(s, { phase: 'untap', at: ask(turn, s, turn.picks.length, -1), why: String(e.fail || 'the level did not load') }) : leave(s, { phase: 'out', exit: 'failed', why: String(e.fail || 'the level did not load') });
       return null;
     }
     if (s.phase === 'main') {
@@ -258,7 +281,7 @@ export function buildTurnKernel() {
     }
     return { picks, slices };
   }
-  return { beginTurn, stepTurn, walkTurn, pickErrors, turnParams };
+  return { beginTurn, stepTurn, walkTurn, pickErrors, turnParams, keptPicks };
 }
 const TK = buildTurnKernel();
 
@@ -270,5 +293,7 @@ export const stepTurn = (turn, state, event, ctx = {}) => TK.stepTurn(turn, stat
 export const walkTurn = (turn, events, opts = {}, ctx = {}) => TK.walkTurn(turn, events, opts, ctx);
 /** Why a choice cannot stand ([]: it can). */
 export const pickErrors = (pick, value, ctx = {}) => TK.pickErrors(pick, value, ctx);
+/** The choices a turn made that last the game: what the save holds from now on. */
+export const keptPicks = (turn, state) => TK.keptPicks(turn, state);
 /** What the picks hand the level: the game's own words, and which members of each consumed slice go in. */
 export const turnParams = (turn, state) => TK.turnParams(turn, state);

@@ -24,6 +24,15 @@ the theme will hold.
   as `params.difficulty`, the dial its foes' minds already read. The review's `flow:sequence` says what each level
   asks; the flow's card teaches the set-up and a level step's turn; `/setup` is the flow chapter's. A world that
   says none hands its game the order it did.
+- **Streamlined after playing a made game through a turn:**
+  - A pick says how long it lasts (`keep: 'level' | 'game'`). One kept for the game is asked once, held by the save
+    and never asked again; a set-up's difficulty is kept for the game unless it says `level`.
+  - Back on a turn's first pick goes to the screen it came from, or home when it came from a cutscene or a level.
+  - A game with a `screen` has its mana-ui shell screens drawn in its levels' frame, centred (a phone game's menus
+    are a phone's on a monitor).
+  - A level's title that is only an id is said in words on the shell's screens (`sayTitle`).
+  - The results screen draws no rank row without a rank, and no window with neither figures nor a rank
+    (`results-screen`'s `bare`).
 - **Fixed in mana-ui's defs:** a `when` or an `unless` on a param a def was not given was no condition at all, so
   the play shell's loading screen drew its failure's Retry and Quit buttons while a level loaded (and Enter landed on
   Retry). A param not given is now a condition not met. Found by playing a made game through a whole turn. The brawl

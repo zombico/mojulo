@@ -4,10 +4,11 @@
  * flow says what plays when, the set-up what is asked before a level plays.
  *
  *   setup: {
- *     difficulty?: true | { ask?, hint?, options?: [tier | { id: tier, name?, about? }] }
+ *     difficulty?: true | { ask?, hint?, options?: [tier | { id: tier, name?, about? }], keep?: 'game' | 'level' }
  *                  how hard the foes play, picked before a level: the engine's own tiers (worlds/controllable/mind.js
  *                  AI_DIFFICULTY: easy, medium, max), each in the game's words. The play shell hands the level the pick
- *                  as params.difficulty, which tunes its foes' minds; a level with no minds plays as it did
+ *                  as params.difficulty, which tunes its foes' minds; a level with no minds plays as it did. Asked
+ *                  once and held by the save (keep: 'game'); 'level' asks before every level
  *     picks?:      [a turn's picks]   any other choice, as game/turn.js says a pick: { id, from: { slice } | { options },
  *                  min?, max?, ask?, hint? } (a slice is one of the game's store, consumed by its levels: the party)
  *   }
@@ -19,7 +20,7 @@
  *
  * Pure. A world that says no set-up adds nothing.
  */
-import { readTurn } from '../game/turn.js';
+import { readTurn, PICK_KEEPS } from '../game/turn.js';
 
 export const SETUP_KEYS = Object.freeze(['difficulty', 'picks']);
 /** The engine's tiers, each as a game says it when it says no words of its own. */
@@ -29,7 +30,7 @@ export const DIFFICULTY_TIERS = Object.freeze({
   max: Object.freeze({ name: 'Hard', about: 'Foes at their sharpest: they read an opening and take it.' }),
 });
 const TIERS = Object.keys(DIFFICULTY_TIERS);
-const DIFFICULTY_KEYS = ['ask', 'hint', 'options'];
+const DIFFICULTY_KEYS = ['ask', 'hint', 'options', 'keep'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isStr = (v) => typeof v === 'string' && v.length > 0;
 const tierOf = (o) => (isObj(o) ? o.id : o);
@@ -45,6 +46,7 @@ export function readSetup(setup, where = 'setup') {
     else {
       for (const k of Object.keys(d)) if (!DIFFICULTY_KEYS.includes(k)) errors.push(`${where}.difficulty.${k}: the difficulty takes ${DIFFICULTY_KEYS.join(', ')}`);
       for (const k of ['ask', 'hint']) if (d[k] !== undefined && !isStr(d[k])) errors.push(`${where}.difficulty.${k} is words`);
+      if (d.keep !== undefined && !PICK_KEEPS.includes(d.keep)) errors.push(`${where}.difficulty.keep is game (asked once, held by the save) or level (asked before every level)`);
       if (d.options !== undefined) {
         const ok = (o) => TIERS.includes(tierOf(o)) && (!isObj(o) || Object.keys(o).every((k) => ['id', 'name', 'about'].includes(k) && isStr(o[k])));
         if (!Array.isArray(d.options) || d.options.length < 2 || !d.options.every(ok) || new Set(d.options.map(tierOf)).size !== d.options.length) {
@@ -67,7 +69,7 @@ export function setupPicks(setup) {
   const out = [], d = setup.difficulty;
   if (d !== undefined) {
     const o = isObj(d) ? d : {}, options = (o.options ?? TIERS).map((x) => ({ id: tierOf(x), name: (isObj(x) && x.name) || DIFFICULTY_TIERS[tierOf(x)].name, about: (isObj(x) && x.about) || DIFFICULTY_TIERS[tierOf(x)].about }));
-    out.push({ id: 'difficulty', ask: o.ask ?? 'Choose a difficulty', ...(o.hint !== undefined ? { hint: o.hint } : {}), from: { options } });
+    out.push({ id: 'difficulty', ask: o.ask ?? 'Choose a difficulty', ...(o.hint !== undefined ? { hint: o.hint } : {}), from: { options }, ...(o.keep === 'level' ? {} : { keep: 'game' }) });
   }
   return [...out, ...(setup.picks ?? [])];
 }

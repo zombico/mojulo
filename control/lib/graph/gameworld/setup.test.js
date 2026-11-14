@@ -18,7 +18,9 @@ describe('a game\'s set-up', () => {
     expect(Object.keys(DIFFICULTY_TIERS)).toEqual(Object.keys(AI_DIFFICULTY));
     expect(readSetup({ difficulty: true })).toEqual([]);
     const [p] = setupPicks({ difficulty: true });
-    expect(p).toMatchObject({ id: 'difficulty', ask: 'Choose a difficulty' });
+    // (asked once and held by the save, unless the game says before every level)
+    expect(p).toMatchObject({ id: 'difficulty', ask: 'Choose a difficulty', keep: 'game' });
+    expect(setupPicks({ difficulty: { keep: 'level' } })[0].keep).toBeUndefined();
     expect(p.from.options.map((o) => o.id)).toEqual(['easy', 'medium', 'max']);
     expect(p.from.options[1]).toEqual({ id: 'medium', ...DIFFICULTY_TIERS.medium });
     const own = setupPicks({ difficulty: { ask: 'How cruel?', options: ['easy', { id: 'max', name: 'Merciless' }] } })[0];

@@ -80,6 +80,8 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
   a line under it. From `options` it is the game's own words (a difficulty, a mode), each a word or `{ id, name?,
   about? }`. From a `slice` it is which members of a slice the level consumes go in; what is there, and
   what is locked and why, is the store's answer, never the screen's.
+- **How long a pick lasts.** `keep: 'level'` (the default) asks before every level. `keep: 'game'` asks once: the
+  save holds the choice beside what it has seen, later turns load with it unasked, and a reset forgets it.
 - **Triggers.** A `scene` the level has (scripted motion, talking) or a `video`. `skip: false` makes one
   unskippable. The end trigger plays on the outcomes its `when` names (won and lost when not said).
 - **Exits.** A retry loads again with the same picks. A load that fails goes back to the last pick with its reason.
@@ -97,6 +99,11 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
 - The level is handed the game's own words as `params.__picks`, and of a consumed slice the members picked and no
   others.
 - A retry (`$again`) and the pause's restart load again with the same picks.
+- Back on a turn's first pick leaves it for the screen it was come into from; come into from a cutscene or a level
+  (a game started in play, the next level), it goes home.
+- A game with a `screen` has the shell's mana-ui screens drawn in the box its levels are (the frame's aspect, up to
+  the reach), centred, so a phone game's menus are a phone's on a monitor too.
+- A level's title that is only an id (`small-meadow-1 · approach-a`) is said in words on every shell screen.
 - A start trigger that is a scene is staged on the level's page (`params.__stage`); a video plays over the held
   level. The pause does nothing while it plays. A save that has seen it does not see it again.
 - An end trigger that is a video plays after the level's own end card, before the flow goes on; the store's write is
@@ -113,7 +120,8 @@ setup: { difficulty: { ask: 'How cruel?', options: ['easy', { id: 'max', name: '
          picks: [{ id: 'squad', from: { slice: 'party' }, max: 2 }] }
 ```
 
-- **Difficulty** is the engine's own tiers (`easy`, `medium`, `max`), named in the game's words. The play shell hands
+- **Difficulty** is the engine's own tiers (`easy`, `medium`, `max`), named in the game's words, asked once and held
+  by the save (`keep: 'level'` asks before every level). The play shell hands
   the level the pick as `params.difficulty`, which tunes its foes' minds (how quick, how bold); a level whose foes
   have no mind plays as it did.
 - **Picks** are a turn's picks, as above; a slice is one of the game's store that its levels consume.

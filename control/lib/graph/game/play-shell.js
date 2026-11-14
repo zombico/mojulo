@@ -39,7 +39,7 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
-import { readScreen } from './screen.js';
+import { readScreen, screenPayload } from './screen.js';
 import { buildFlowKernel, defaultFlow, readFlow } from './flow.js';
 import { buildTurnKernel, turnOf, TURN_KEYS } from './turn.js';
 import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
@@ -83,7 +83,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}), ...(l.rolls ? { rolls: true } : {}) };
+    return { ref: lv.ref, title: sayTitle(lv.title || l.title || lv.ref), gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}), ...(l.rolls ? { rolls: true } : {}) };
   });
 
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
@@ -204,7 +204,8 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
   #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
   ${SCREEN_CSS}` : ''}${front ? `
   ${FRONT_CSS}` : ''}${mana ? `
-  ${shellManaCss(ui)}` : ''}
+  ${shellManaCss(ui)}` : ''}${mana && screen ? `
+  ${manaFrameCss(screen)}` : ''}
 </style></head>
 <body>
 <main id="app"></main>${front ? `
@@ -225,6 +226,19 @@ const __mojTurnK = (${buildTurnKernel.toString()})();` : ''}
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
 </script>
 </body></html>`;
+}
+
+// a level's title as a player reads it: one that is only an id (lower case, digits and hyphens, parts joined by ·) is
+// said in words (small-meadow-1 · approach-a → Small Meadow 1 · Approach A); a title written as words is left as it is
+const sayTitle = (t) => (/^[a-z0-9]+(-[a-z0-9]+)*( · [a-z0-9]+(-[a-z0-9]+)*)*$/.test(t) && t.includes('-') ? t.replace(/-/g, ' ').replace(/(^| )([a-z])/g, (m, a, c) => a + c.toUpperCase()) : t);
+
+// THE GAME'S FRAME over its screens (screen.js): a game made for a phone or a monitor has its menus drawn in the box its
+// levels are (the frame's aspect, longer along its long axis up to the reach), centred, the rest of the device barred as
+// a level's is. Only a game with both a screen and mana-ui's screens carries it.
+function manaFrameCss(screen) {
+  const P = screenPayload(screen), lo = P.portrait ? P.aspect / P.reach : P.aspect, hi = P.portrait ? P.aspect : P.aspect * P.reach;
+  const w = `min(100vw, calc(100dvh * ${hi}))`, h = `min(100dvh, calc(100vw / ${lo}))`;
+  return `#mana > .mana-root{left:calc((100vw - ${w}) / 2);top:calc((100dvh - ${h}) / 2);right:auto;bottom:auto;width:${w};height:${h}}`;
 }
 
 /**
@@ -931,7 +945,8 @@ export function playShellRuntime(cfg, K) {
       // A TURN (turn.js): its picks first (untap), unless it is played again, which keeps them; then the load
       if (T) {
         const keep = again && turn && turn.lv === lv;
-        turn = { T, lv, from: was, arrive, carry, draft: null, s: TK.beginTurn(T, { level: lv.ref, picks: keep ? turn.s.picks : undefined, again: keep }) };
+        // (a pick kept for the game, made in an earlier turn of this save, is held and not asked again)
+        turn = { T, lv, from: was, arrive, carry, draft: null, s: TK.beginTurn(T, { level: lv.ref, picks: keep ? turn.s.picks : undefined, again: keep, held: seenSteps.$picks }) };
         if (turn.s.phase === 'untap' && MANA) { session = null; drawPick(); } else launchTurn();
         return;
       }
@@ -1020,11 +1035,15 @@ export function playShellRuntime(cfg, K) {
     turn.s = n;
     if (n.phase === 'untap') drawPick();
     else if (n.phase === 'upkeep') launchTurn();
-    else { const from = turn.from; turn = null; if (from && from.step) enter(from); else home(); }
+    // (out the way it was come into, when that was a screen; a turn come into from a cutscene or a level goes home)
+    else { const from = turn.from; turn = null; if (from && from.step && FLOW.steps[from.step] && FLOW.steps[from.step].kind === 'screen' && from.step !== FK.homeOf(FLOW)) enter(from); else home(); }
   }
   // upkeep: the level loaded with what was picked; a start trigger that is a scene is staged on its page (__stage)
   function launchTurn() {
     const T = turn.T, me = turn, peek = TK.stepTurn(T, turn.s, 'ready', turnCtx());
+    // (the choices that last the game are the save's from now on, beside what it has seen, forgotten with it)
+    const kept = TK.keptPicks(T, turn.s);
+    if (Object.keys(kept).length) { seenSteps.$picks = Object.assign({}, seenSteps.$picks, kept); try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ } }
     const t = peek && peek.sub === 'start' ? peek.trigger : null, stage = t && t.scene ? { scene: t.scene, ...(t.skip ? {} : { skip: false }) } : null;
     launch(turn.lv, turn.arrive, turn.carry, stage, TK.turnParams(T, turn.s));
     // (a level that never says its scene ended, a page from before stages, is given two minutes)
