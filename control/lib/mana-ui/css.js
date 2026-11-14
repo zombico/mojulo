@@ -482,10 +482,15 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-arc{position:absolute;font-size:${u(33)};line-height:1;color:${v('harm')}}`,
     `${s} .mana-letterbox i{position:absolute;left:0;right:0;height:11%;background:${v('shade')}}`,
     `${s} .mana-letterbox i:first-child{top:0}`, `${s} .mana-letterbox i:last-child{bottom:0}`,
-    `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:${u(1770)};max-width:100%;padding:0 ${u(18)}}`,
+    `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:min(${u(1770)},90cqw);padding:0 ${u(18)}}`,
     `${s} .mana-stick,${s} .mana-pad{pointer-events:auto;touch-action:none}`,
-    `${s} .mana-stick{position:relative;width:${u(180)};height:${u(180)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};opacity:.85}`,
+    `${s} .mana-stick{position:relative;width:${u(180)};height:${u(180)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};opacity:.4}`,
     `${s} .mana-stick i{position:absolute;inset:${u(57)};border-radius:50%;background:${v('ink')};opacity:.5}`,
+    // (the driver's word: a lane's stick is a bar, a stick under a thumb stands out where it rose, a pad pressed is filled)
+    `${s} .mana-stick[data-lane]{height:${u(84)};border-radius:${u(42)}}`,
+    `${s} .mana-stick[data-lane] i{inset:${u(9)} ${u(57)}}`,
+    `${s} .mana-stick[data-held]{opacity:.75}`,
+    `${s} .mana-pad[data-on]{background:${v('ink')};color:${v('panel')};opacity:1}`,
     `${s} .mana-pads{display:grid;grid-template-columns:repeat(2,${u(90)});gap:${u(18)}}`,
     `${s} .mana-pad{display:flex;align-items:center;justify-content:center;width:${u(90)};height:${u(90)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};font:700 ${t('body')} ${v('mono')};opacity:.85}`,
     // enemies: awareness as a glyph, statuses as boxes

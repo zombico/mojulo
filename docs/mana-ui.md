@@ -159,7 +159,13 @@ widgets under a pointer (only the view knows where they are).
   - `controlsRows(scheme)` lists a scheme on the controls screen as the kernel labels it, a clash marked.
   - `remap()` returns the conflicts it makes (advised, never refused).
 - **The drawn touch pad** is a look only: its buttons are named by the gamepad controls they are (`data-control`). The
-  virtual pad's driver is the controls layer's.
+  virtual pad's driver is the controls layer's (`scene/channels/controllable/touch.js`). On a level made for a screen
+  whose HUD is mana-ui's, the HUD carries the pad at its foot and the driver draws nothing: it reads the thumbs, finds
+  which pad a touch landed on from the view's own elements, and says what it knows each frame (`touch.on`, `lane`,
+  `held`, `down`, `buttons`). The `touchpad` draws that: a stick risen where the thumb landed with its nub under it,
+  a lane's stick as a bar, a pad pressed filled, `use` only while the figure stands where it is used. A game that
+  moves on W A S D needs nothing of its own: the stick is the pad's left stick, read through the pilot scheme. A
+  level with no mana-ui HUD, and a runner's or a course's swipes, keep the driver as it was.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
   they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
   held to the scheme by a test, and the same typing), never in the kernel.

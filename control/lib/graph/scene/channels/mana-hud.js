@@ -8,6 +8,7 @@
  *     level, so the HUD begins when the game's channel starts (the shell's params in hand)
  *     spec    a mana-ui spec: { hud, screens? } (a screen named `ready` is the start cue: while it is up the pilot's
  *             input is held, the controllable channel's own rule for any screen)
+ *     (`touch`: the level is made for a screen and its pilot is steered by a virtual pad: the HUD carries the pad)
  *     theme   a mana-ui theme (a preset's name or a theme object, resolved by the level's author)
  *             or, for a level whose HUD is its own widget rows (`events.hud`): { rows: 'events', theme } and the rows
  *             handed in (`rows`, `register`): lowered by game/hud-mana.js to a spec and the feed below
@@ -28,10 +29,18 @@ import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-export function manaHudScript(hud, { game = false, rows = null, register = null } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
+  // THE TOUCH PAD (controllable/touch.js): on a level made for a screen the HUD draws the virtual pad's stick and pads at
+  // its foot, from what the touch layer says of itself each frame (touch.*: on, lane, held, down, buttons); the layer
+  // reads the thumbs and draws nothing
+  if (touch && hud.spec.hud) {
+    const T = (k) => ({ bind: `touch.${k}` });
+    const pad = { use: 'region', props: { at: 'bottom', variant: 'bare' }, when: T('on'), children: [{ use: 'touchpad', props: { lane: T('lane'), held: T('held'), down: T('down'), buttons: T('buttons') } }] };
+    hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
+  }
   const R = hud.feed && hud.feed.rows;
   const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}`;
   return `
@@ -43,7 +52,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null 
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
+  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [] }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: function () {}, now: function () { return clock; } });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
@@ -126,6 +135,8 @@ export function manaHudScript(hud, { game = false, rows = null, register = null 
       else { cue = null; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.cue.go, weight: 'major' }]); if (hintUntil > 0) hintUntil = clock + F.hint.seconds; }
     }
     st.hint.show = clock < hintUntil;
+    // (the touch layer's word for its pad, when the page has one)
+    const TV = window.__mojTouch && window.__mojTouch.view; if (TV) st.touch = TV();
   })();
 })();`;
 }

@@ -491,4 +491,19 @@ describe('mana-ui: form and the kernel', () => {
     expect(html({ error: 'no route' })).toContain('failed');
     expect(html({ error: 'no route' })).not.toContain('fine');
   });
+  it('the touch pad draws what its driver knows: a lane, a stick under a thumb where it rose, a pad pressed', () => {
+    const st = { touch: { held: null, down: [] } };
+    const rt = manaUi.runtime({ screens: {}, hud: { use: 'hud', children: [{ use: 'region', props: { at: 'bottom' }, children: [{ use: 'touchpad', props: { lane: true, held: { bind: 'touch.held' }, down: { bind: 'touch.down' }, buttons: [{ label: 'jump', control: 'south' }, { label: 'fire', control: 'rt' }] } }] }] } }, host(st));
+    const html = () => rt.view();
+    expect(html()).toContain('data-lane="yes"');
+    expect(html()).not.toContain('data-held="yes"');
+    expect(html()).not.toContain('data-on="yes"');
+    st.touch = { held: { ox: 40.4, oy: -12, dx: 30, dy: 0 }, down: ['rt'] };
+    rt.tick();
+    expect(html()).toContain('data-held="yes"');
+    expect(html()).toContain('transform:translate(40px,-12px)');
+    expect(html()).toContain('transform:translate(30px,0px)');
+    expect(html()).toMatch(/data-control="rt" data-on="yes"/);
+    expect(html()).toMatch(/data-control="south">jump/);
+  });
 });
