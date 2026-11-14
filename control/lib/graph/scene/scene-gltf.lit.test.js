@@ -43,4 +43,16 @@ describe('facesToGlb lit', () => {
     expect(ja.extensionsUsed).toContain('KHR_materials_unlit');
     expect(ja.materials.every((m) => m.extensions?.KHR_materials_unlit)).toBe(true);
   });
+
+  it('what stands by instancing (a street\'s trees, its parked cars) is lit as the faces round it; unlit by default, as it was', () => {
+    const repeats = [{ template: [q(0, 0, 0, { fill: '#335522' })], transforms: [{ pos: [10, 0, 0], scale: 1 }, { pos: [20, 0, 0], scale: 2 }], group: 'maple' }];
+    const lit = glbJson(facesToGlb({ faces: FACES, repeats }, { generator: 't', lit: true }).bytes);
+    const maple = lit.materials.find((m) => m.name === 'maple');
+    expect(maple).toBeDefined();
+    expect(maple.extensions?.KHR_materials_unlit).toBeUndefined();
+    expect(lit.extensionsUsed || []).not.toContain('KHR_materials_unlit');
+    const plain = glbJson(facesToGlb({ faces: FACES, repeats }, { generator: 't' }).bytes);
+    expect(plain.materials.find((m) => m.name === 'maple').extensions.KHR_materials_unlit).toBeDefined();
+  });
 });
+

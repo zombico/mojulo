@@ -145,6 +145,9 @@ game.
 - **Shoot a place at any hour.** Give a scene its hour (dawn, noon, dusk, night, or a time) and the Blender film is
   lit for it, whatever time of day the place was made at. One street can be a noon scene and a night scene in the
   same film, with no second copy of the street. Before, a scene could only be lit as its place was made.
+  - **Street trees and parked cars take the light.** In a world sent to Blender, anything placed by repeating one
+    model (a street's trees, its parked cars) is now lit like the rest of the place, and casts its shadow. Before,
+    those kept their own flat colour whatever the light, so at night they glowed white against a dark street.
   - **Not yet:** weather (cloud, rain), and street lamps that a place lights only at night.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and

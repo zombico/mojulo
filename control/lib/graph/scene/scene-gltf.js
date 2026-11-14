@@ -1831,7 +1831,9 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     const gm = faceListToMesh(plainFaces(shape(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i])));
     if (!gm.positions.length) return;
     const name = r.group || `repeat-${i}`;
-    const mat = b.unlitMaterial({ name });
+    // (in a lit handoff an instance is lit as the faces round it are: a street's trees and parked cars take the
+    // engine's light, its night too; the default export keeps the baked look, unlit, byte for byte)
+    const mat = b.surfaceMaterial({ name });
     b.addInstancedNodes(name, gm.positions, gm.colors, 3, mat, r.transforms);
     vertexCount += gm.positions.length / 3;                                // stored once
     triangleCount += (gm.positions.length / 9) * r.transforms.length;      // depicted N times
