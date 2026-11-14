@@ -19,6 +19,15 @@ vi.mock('@/lib/mcp/tools/sketch-mint.js', () => {
     updateSketchHandler: async ({ ref, manifest }) => { SketchRepository.update({ ref, manifest: { ...manifest, ...brief(manifest) } }); minted.push(['remade', ref]); return { ok: true, ref }; },
   };
 });
+// (the interior designer's door drafts a house and decorates a room: here a stub that keeps what it was asked)
+const designed = [];
+vi.mock('@/lib/mcp/tools/interior.js', () => ({
+  designInteriorHandler: async (input) => {
+    if (input.ref) { const row = SketchRepository.getByRef(input.ref); SketchRepository.update({ ref: input.ref, manifest: { ...row.manifest, ...(input.style ? { style: input.style } : {}) } }); designed.push(['redecorated', input.ref, input.style]); return { ok: true, ref: input.ref }; }
+    const row = SketchRepository.create({ title: input.title, manifest: { kind: 'interior', room: input.section.room, section: input.section, ...(input.style ? { style: input.style } : {}) } });
+    designed.push(['made', row.ref, input.section]); return { ok: true, ref: row.ref };
+  },
+}));
 const { forgeMotionHandler } = await import('./motion.js');
 const { filmErrors, sceneScreenplay, setRef } = await import('@/lib/graph/film/film.js');
 const { filmOfOrder, orderErrors } = await import('@/lib/graph/film/order.js');
@@ -70,4 +79,21 @@ describe('a set asked for', () => {
     expect(filmErrors(F)).toEqual([]);
     expect(orderErrors({ ...O, places: { lake: 7 } }).join()).toMatch(/a place asked for/);
   });
+
+  it('a room is made by the interior designer, redecorated in place for a new style, and made anew for another room', async () => {
+    const out = await film({ write: FILM({ den: { room: 'living', style: 'dark-academia' } }) });
+    expect(out.did).toEqual(['made the set den', 'written']);
+    const ref = SketchRepository.getByRef(out.ref).manifest.film.sets.den.ref;
+    // (a room asked for with no size or openings gets a floor, a window wall and a door)
+    expect(designed[0]).toEqual(['made', ref, { room: 'living', size: ['14ft', '18ft'], windows: ['S'], doors: [{ wall: 'N', to: 'hall' }] }]);
+    expect(out.sets[0]).toMatchObject({ id: 'den', ref, kind: 'interior', style: 'dark-academia', asked: 'a living room in dark-academia' });
+    const restyled = await film({ ref: out.ref, patch: [{ op: 'set', path: '/sets/den/style', value: 'japandi' }] });
+    expect(restyled.did).toEqual(['redecorated the set den', 'patched']);
+    expect(restyled.sets[0]).toMatchObject({ ref, style: 'japandi' });
+    const moved = await film({ ref: out.ref, patch: [{ op: 'set', path: '/sets/den/room', value: 'study' }] });
+    expect(moved.did).toEqual(['made the set den', 'patched']);
+    expect(moved.sets[0].ref).not.toBe(ref);
+    expect(designed.map((d) => d[0])).toEqual(['made', 'redecorated', 'made']);
+  });
 });
+

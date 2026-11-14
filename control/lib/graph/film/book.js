@@ -67,7 +67,7 @@ ${R.next.length ? `<h2>Next</h2><ul>${R.next.map((n) => `<li>${esc(n.says)} <i>T
 ${R.scenes.map(scene).join('\n')}
 <h2>The cast</h2>
 <ul>${Object.entries(film.cast).map(([w, C]) => `<li><b>${esc(w.toUpperCase())}</b> ${C.persona ? `persona ${esc(C.persona)}` : typeof C.hero === 'string' ? `hero ${esc(C.hero)}` : C.hero ? 'a hero spec' : 'the default hero'}${C.style ? ` · ${esc(C.style)}` : ''}${C.register ? ` · ${esc(typeof C.register === 'string' ? C.register : C.register.from ?? 'a tuned register')}` : ''}</li>`).join('')}</ul>
-${film.sets ? `<h2>The sets</h2><ul>${Object.entries(film.sets).map(([id, V]) => `<li><b>${esc(id)}</b> ${typeof V === 'string' ? esc(V) : `${esc(V.words ? `“${V.words}”` : `${typeof V.cube === 'string' ? V.cube : 'a cube'} as ${V.show ?? 'a place'}`)}${V.ref ? ` · ${esc(V.ref)}` : ' · not made yet'}`}</li>`).join('')}</ul>` : ''}
+${film.sets ? `<h2>The sets</h2><ul>${Object.entries(film.sets).map(([id, V]) => `<li><b>${esc(id)}</b> ${typeof V === 'string' ? esc(V) : `${esc(V.room !== undefined ? `a ${V.room} room${V.style ? ` in ${V.style}` : ''}` : V.words ? `“${V.words}”` : `${typeof V.cube === 'string' ? V.cube : 'a cube'} as ${V.show ?? 'a place'}`)}${V.ref ? ` · ${esc(V.ref)}` : ' · not made yet'}`}</li>`).join('')}</ul>` : ''}
 ${R.advice.length ? `<h2>All advice, by department</h2>${DEPARTMENTS.filter((D) => R.advice.some((a) => a.department === D.id)).map((D) => `<h3>${esc(D.name)}</h3><ul class="advice">${adviceOf((a) => a.department === D.id)}</ul>`).join('')}` : ''}
 <p class="meta">Advice suggests and never refuses. Whether a board reads as the film is the person's call: approve it per scene.</p>
 </main></body></html>

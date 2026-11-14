@@ -48,10 +48,16 @@ forge_motion({ film: { write: {
     geocube's own keys: `style` (a starter: `tudor-market`, `art-deco`, `brutalist`, `bay-and-gable`, `main-street`,
     `walk-up`…, or a style of your own), and `geotown`, `geocity` or `town` (`{ cube: 'valley-morning', show:
     'geotown', style: 'tudor-market', geotown: { streetscape: 'leafy' } }`). The readout's `sets` says the style.
+- **A set can be a room asked for.** `sets: { den: { room: 'living', style?: 'dark-academia', brief?, size?: ['14ft',
+  '18ft'], windows?, doors? } }`: one of `living`, `bedroom`, `dining`, `study`, `entry`, drafted and decorated by the
+  interior designer (the `interior` card's styles and briefs). Its furniture, door and windows are places a script
+  names ("Ada crosses to the bookcase."). A new `style` or `brief` redecorates the same room; another room, size or
+  openings makes another. A room is lit by its own lights: a scene's `hour` does not light it.
 - **The set department proposes a place.** A scene with no set plays on a bare stage. Where its words name a place
   (an order's notes on the event, else its script), the readout advises `no-set` with what they ask for and the
   patch that takes it: a street of houses for a house, a door or a street; a city for a corner, a tower or traffic;
-  a land in the scene's own words for a field, a lake or a trail; and the hour they name. It proposes; take it, change
+  a land in the scene's own words for a field, a lake or a trail; a room for a lounge, a bedroom, a study or a scene
+  "inside"; and the hour they name. It proposes; take it, change
   it (the preset is only a starting look), or leave the scene on its stage.
 - `look`: `film` | `anime`. `grade`, and `grain` (`twos`), cover the whole film.
 - `render: { light: 'setups', dof, motion_blur, samples }` sets the Blender render for every scene (the `scene-film`

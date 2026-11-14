@@ -29,7 +29,7 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { readFilm, sceneScreenplay, sceneOrder, sceneStamp, setRef, setAsk, FILM_KIND, isFilmKind, FILM_MANUAL } from '@/lib/graph/film/film.js';
+import { readFilm, sceneScreenplay, sceneOrder, sceneStamp, setRef, setAsk, isRoomAsk, FILM_KIND, isFilmKind, FILM_MANUAL } from '@/lib/graph/film/film.js';
 import { filmReadout, orderStamp } from '@/lib/graph/film/readout.js';
 import { filmOfOrder } from '@/lib/graph/film/order.js';
 import { filmBookHtml } from '@/lib/graph/film/book.js';
@@ -37,6 +37,8 @@ import { packStamp } from '@/lib/graph/film/pack-stamp.js';
 
 export const FILM_RUNS = Object.freeze(['storyboard', 'animatic', 'blender']);
 export const FILM_BUDGET_MS = 300_000;
+/** the floor of a room asked for with no size: width east to west, depth north to south */
+const ROOM_SIZE = Object.freeze(['14ft', '18ft']);
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -69,7 +71,7 @@ function setsOf(F, getRow) {
     const ref = setRef(V), M = ref ? getRow(ref)?.manifest : null, B = M?.brief;
     return {
       id, ref, ...(M ? { kind: M.kind, ...(M.show ? { show: M.show } : {}), ...(M.style !== undefined ? { style: typeof M.style === 'string' ? M.style : M.style?.from ?? 'its own' } : {}) } : {}),
-      ...(typeof V === 'object' ? { asked: V.words ?? `${typeof V.cube === 'string' ? V.cube : 'a cube'} as ${V.show ?? 'a place'}` } : {}),
+      ...(typeof V === 'object' ? { asked: V.room !== undefined ? `a ${V.room} room${V.style ? ` in ${V.style}` : ''}` : V.words ?? `${typeof V.cube === 'string' ? V.cube : 'a cube'} as ${V.show ?? 'a place'}` } : {}),
       ...(B && typeof V === 'object' && V.words !== undefined ? { read: (B.read ?? []).map((r) => r.word), unread: B.unread ?? [] } : {}),
     };
   });
@@ -374,7 +376,23 @@ export async function filmHandler(arg) {
       // (asked for as it was when the film was last written: the place it made then is the place)
       const ask = setAsk(V), before = row?.manifest?.film?.sets?.[id], was = before && typeof before === 'object' ? before : null;
       const ref = V.ref ?? was?.ref ?? null, had = ref ? getRow(ref) : null;
-      if (had?.manifest?.kind === 'geocube' && was && JSON.stringify(setAsk(was)) === JSON.stringify(ask)) { F = { ...F, sets: { ...F.sets, [id]: { ...ask, ref } } }; continue; }
+      if (had?.manifest && was && JSON.stringify(setAsk(was)) === JSON.stringify(ask)) { F = { ...F, sets: { ...F.sets, [id]: { ...ask, ref } } }; continue; }
+      // INDOORS: a room asked for is drafted and decorated by the interior designer (tools/interior.js): its house
+      // section first, then the room fitted out. Asked for in another style or brief, the same room is redecorated;
+      // another room, size or openings is another room
+      if (isRoomAsk(V)) {
+        const { designInteriorHandler } = await import('@/lib/mcp/tools/interior.js');
+        const shell = (a) => JSON.stringify([a.room, a.size ?? null, a.windows ?? null, a.doors ?? null]);
+        const redo = had?.manifest?.kind === 'interior' && was && shell(setAsk(was)) === shell(ask);
+        try {
+          const out = redo
+            ? await designInteriorHandler({ ref: had.ref, ...(ask.style ? { style: ask.style } : {}), ...(ask.brief ? { brief: ask.brief } : {}) })
+            : await designInteriorHandler({ title: `${F.title ?? arg.title ?? 'film'} · ${id}`, section: { room: ask.room, size: ask.size ?? ROOM_SIZE, windows: ask.windows ?? ['S'], doors: ask.doors ?? [{ wall: 'N', to: 'hall' }] }, ...(ask.style ? { style: ask.style } : {}), ...(ask.brief ? { brief: ask.brief } : {}) });
+          F = { ...F, sets: { ...F.sets, [id]: { ...ask, ref: out.ref } } };
+          did.push(`${redo ? 'redecorated' : 'made'} the set ${id}`);
+        } catch (e) { throw new Error(`film: set ${id}: ${e.message}`); }
+        continue;
+      }
       try {
         const out = had?.manifest?.kind === 'geocube'
           ? await updateSketchHandler({ ref: had.ref, manifest: { kind: 'geocube', ...ask } })

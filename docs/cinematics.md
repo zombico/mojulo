@@ -330,7 +330,9 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   read) and the geocube's own (`sceneOfWords`), and gives a set ask, the hour and the words that decided. A scene
   with no set whose words name a place is advised `no-set` with the patch that takes the proposal. CONSTRUCTION: a
   set ask carries the geocube's `style`, `geotown`, `geocity` and `town` to the geocube as given; the readout's
-  `sets` says the style. DRESSING: a prop's `thing` (above).
+  `sets` says the style. DRESSING: a prop's `thing` (above). INDOORS: a set ask with `room` (`film.js` `SET_ROOMS`, `isRoomAsk`) is made by
+  the interior designer's door (`designInteriorHandler`: a house section drafted, the room fitted out); the same room
+  is redecorated when only its style or brief changes; `ROOM_WORDS` proposes one for a scene indoors.
 - **A film made to order** (`film/order.js`, the door's `order`, `deliver` and `ordered_by`): a client studio's
   characters, places and event notes written as a film (`filmOfOrder`), the brief kept in the recipe's `order`. An
   event with notes and no script holds the notes in its scene (`draftScript`) and reads `unwritten`, advised in the

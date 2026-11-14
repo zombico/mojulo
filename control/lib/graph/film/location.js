@@ -8,6 +8,8 @@
  *     a street, a house, a door, a village     → a neighbourhood (`show: 'geotown'`): houses, their fronts, a street
  *     a city, a corner, a tower, traffic       → a metro (`show: 'geocity'`)
  *     land: a field, a lake, a trail, a shore  → a land with nobody on it, in the scene's own words (`{ words }`)
+ *     indoors: a lounge, a bedroom, a study    → a room, drafted and decorated (`{ room }`); no hour: a room is lit by
+ *                                                its own lights
  *   proposeLocation(text) → { ask, hour?, kind: 'geotown' | 'geocity' | 'land', from: [<the words that decided>] } | null
  *     ask    a film's set, asked for: { cube, show } for a town or a city (the preset a starting look, to change), or
  *            { words } for a land (the words of the text the geocube reads as land, in their order)
@@ -27,6 +29,9 @@ export const SHOW_WORDS = Object.freeze({
 /** words that mean a land the geocube's own table does not read, each with the word it is asked as (a land with a
  * trail is what a land is laid as; open ground is a field) */
 export const LAND_HINTS = Object.freeze({ trail: 'field', trailhead: 'field', path: 'field', hill: 'hills', hillside: 'hills', moor: 'meadow', clearing: 'meadow', lakeside: 'lake', riverbank: 'river', seaside: 'coast' });
+/** the words that ask for a room indoors, each with the room it is (film.js SET_ROOMS) */
+export const ROOM_WORDS = Object.freeze({ lounge: 'living', parlour: 'living', parlor: 'living', 'sitting-room': 'living', sofa: 'living', fireplace: 'living', hearth: 'living',
+  bedroom: 'bedroom', bed: 'bedroom', dining: 'dining', supper: 'dining', dinner: 'dining', study: 'study', office: 'study', library: 'study', desk: 'study', hallway: 'entry', entry: 'entry', indoors: 'living', inside: 'living' });
 /** the preset each is first asked in: a starting look, changed by whoever takes the proposal */
 export const SHOW_CUBE = Object.freeze({ geotown: 'valley-morning', geocity: 'city-night' });
 const wordsOf = (text) => String(text ?? '').toLowerCase().replace(/[^a-z0-9\s'-]/g, ' ').split(/\s+/).filter(Boolean);
@@ -37,6 +42,13 @@ export function proposeLocation(text) {
   if (!W.length) return null;
   const hourWord = W.find((w) => Object.hasOwn(HOUR_WORDS, w)) ?? (W.includes('evening') ? 'dusk' : W.includes('midnight') ? 'night' : W.includes('sunrise') ? 'dawn' : W.includes('sunset') ? 'dusk' : W.includes('midday') ? 'noon' : null);
   const hour = hourWord ? { hour: hourWord } : {};
+  // (indoors first: a room's word outweighs the house it is in, unless the scene says it is outside)
+  const rooms = W.filter((w) => Object.hasOwn(ROOM_WORDS, w));
+  if (rooms.length && !W.includes('outside') && !W.includes('outdoors')) {
+    // (a room named outweighs a bare "inside")
+    const named = rooms.find((w) => w !== 'inside' && w !== 'indoors') ?? rooms[0];
+    return { kind: 'room', ask: { room: ROOM_WORDS[named] }, from: [...new Set(rooms)] };
+  }
   // (a city's word outweighs a town's: a street corner downtown is the metro's)
   for (const kind of ['geocity', 'geotown']) {
     const from = W.filter((w) => SHOW_WORDS[kind].includes(w));

@@ -153,6 +153,10 @@ game.
   one, the film now suggests it, ready to accept: a street of houses for "outside her house", a city for "a street
   corner downtown", a landscape in the scene's own words for "a field by a lake", and the time of day it mentions.
   For an ordered cutscene it reads the notes on each event, so an order can arrive with no places at all.
+- **Ask for a room.** A film's place can be a living room, a bedroom, a dining room, a study or an entry, in a
+  named style, with no room made first. The film has it designed and furnished, and the scene can send the cast to
+  its sofa, its bookcase or its door. Ask for another style and the same room is redecorated. A scene set
+  "in the study" or "inside" is offered a room the same way an outdoor scene is offered a street.
 - **Choose how a street is built.** A place asked for as a town or city can name its building style (a Tudor market
   town, art deco, brutalist, a brick streetcar suburb and others) and how its streets are laid.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation

@@ -59,7 +59,7 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, 
     if (!P) return;
     const id = Object.hasOwn(F.sets ?? {}, S.id) ? `${S.id}-set` : S.id;
     const patch = [{ op: 'set', path: `/sets/${id}`, value: P.ask }, { op: 'set', path: `/scenes/${i}/set`, value: id }, ...(P.hour && S.hour === undefined ? [{ op: 'set', path: `/scenes/${i}/hour`, value: P.hour }] : [])];
-    advice.push({ id: 'no-set', scene: S.id, says: `scene ${S.id} has no set and plays on a bare stage. Its words (${P.from.join(', ')}) ask for ${P.kind === 'geotown' ? 'a street of houses' : P.kind === 'geocity' ? 'a city' : 'a land'}${P.hour && S.hour === undefined ? `, at ${P.hour}` : ''}`, try: `film: { ref, patch: ${JSON.stringify(patch)} }`, proposal: P });
+    advice.push({ id: 'no-set', scene: S.id, says: `scene ${S.id} has no set and plays on a bare stage. Its words (${P.from.join(', ')}) ask for ${P.kind === 'room' ? `a ${P.ask.room} room` : P.kind === 'geotown' ? 'a street of houses' : P.kind === 'geocity' ? 'a city' : 'a land'}${P.hour && S.hour === undefined ? `, at ${P.hour}` : ''}`, try: `film: { ref, patch: ${JSON.stringify(patch)} }`, proposal: P });
   });
   // (a set asked for in words: a word nothing read is said, with what was read, so the words can be mended)
   for (const T of sets ?? []) if (T.unread?.length) advice.push({ id: 'words-unread', set: T.id, says: `the set ${T.id} did not read: ${T.unread.join(', ')} (it read: ${T.read.join(', ') || 'nothing'})`, try: `say it in words a place is made of (the land, what grows, the water, the sky, the hour), or dress the scene with it: film: { ref, patch: [{ op: 'set', path: '/sets/${T.id}/words', value: '…' }] }` });

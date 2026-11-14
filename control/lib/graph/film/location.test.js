@@ -48,3 +48,22 @@ describe('a set\'s construction', () => {
     expect(filmErrors(film({ cube: 'city-night', show: 'geocity', geocity: 'big' })).join()).toMatch(/geocity: how the city is laid/);
   });
 });
+
+describe('a room asked for', () => {
+  const film = (set) => ({ cast: { a: {} }, sets: { s: set }, scenes: [{ id: 'x', set: 's', cast: { a: {} }, script: 'A: Hi.' }] });
+  it('is one of the interior designer\'s rooms, with its size, style and brief, and none of a place outdoors', () => {
+    expect(filmErrors(film({ room: 'living' }))).toEqual([]);
+    expect(filmErrors(film({ room: 'study', size: ['12ft', '14ft'], style: 'dark-academia', brief: 'a writer works here' }))).toEqual([]);
+    expect(filmErrors(film({ room: 'cellar' })).join()).toMatch(/room: one of living, bedroom/);
+    expect(filmErrors(film({ room: 'living', show: 'geotown' })).join()).toMatch(/a room is indoors.*not show/);
+    expect(filmErrors(film({ words: 'a field', size: ['1ft', '2ft'] })).join()).toMatch(/size: a room's/);
+  });
+
+  it('is proposed for a scene indoors, unless the scene says it is outside', () => {
+    expect(proposeLocation('Late, in the study. He is at the desk.')).toEqual({ kind: 'room', ask: { room: 'study' }, from: ['study', 'desk'] });
+    expect(proposeLocation('They wait inside.')).toMatchObject({ kind: 'room', ask: { room: 'living' } });
+    expect(proposeLocation('Outside the bedroom window, on the street.')).toMatchObject({ kind: 'geotown' });
+    expect(filmErrors(film(proposeLocation('in the lounge').ask))).toEqual([]);
+  });
+});
+

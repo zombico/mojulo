@@ -41,7 +41,11 @@ const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export const FILM_MANUAL = "manual: get_motion_vocab({ id: 'film-studio' })";
 
 /** what a set asked for in words takes: a sentence (a land), or a geocube preset and the kind of place it is laid as */
-export const SET_KEYS = Object.freeze(['words', 'cube', 'show', 'seed', 'hour', 'clouds', 'style', 'geotown', 'geocity', 'town', 'ref']);
+export const SET_KEYS = Object.freeze(['words', 'cube', 'show', 'seed', 'hour', 'clouds', 'style', 'geotown', 'geocity', 'town', 'room', 'size', 'brief', 'windows', 'doors', 'ref']);
+/** the rooms a set can be asked for as (the interior designer's: interior/section.js) */
+export const SET_ROOMS = Object.freeze(['living', 'bedroom', 'dining', 'study', 'entry']);
+/** whether a set asked for is a ROOM (made by the interior designer) and not a place outdoors (a geocube) */
+export const isRoomAsk = (V) => isPlain(V) && V.room !== undefined;
 /** the world a set is played in: its ref, or the ref of the place its words were made into (null: not made yet) */
 export const setRef = (V) => (typeof V === 'string' ? V : isPlain(V) && typeof V.ref === 'string' && V.ref ? V.ref : null);
 /** what a set asks a geocube for, as that kind's recipe keys (no `ref`: that is the film's) */
@@ -52,10 +56,23 @@ export function setErrors(id, V) {
   const at = `sets.${id}`;
   if (!WORD.test(id)) return [`${at}: a set is named by a word (lower case letters, digits, - and _)`];
   if (typeof V === 'string') return V ? [] : [`${at}: a stored world's ref`];
-  if (!isPlain(V)) return [`${at}: a stored world's ref, or a place asked for: { words: 'a grassy field by a lake at dusk' } or { cube: '<a geocube preset>', show: 'geotown' | 'geocity' | 'path' | … }`];
+  if (!isPlain(V)) return [`${at}: a stored world's ref, or a place asked for: { words: 'a grassy field by a lake at dusk' }, { cube: '<a geocube preset>', show: 'geotown' | 'geocity' | 'path' | … } or { room: '${SET_ROOMS.join("' | '")}' }`];
   const errs = [], bad = Object.keys(V).filter((k) => !SET_KEYS.includes(k));
   if (bad.length) errs.push(`${at}: a place asked for takes ${SET_KEYS.join(', ')} (not ${bad.join(', ')})`);
-  if (V.words === undefined && V.cube === undefined) errs.push(`${at}: say the place in words ({ words }), or name a geocube preset and how it is laid ({ cube, show })`);
+  if (V.room !== undefined) {
+    // INDOORS: a room, drafted and decorated by the interior designer (interior/section.js, design_interior)
+    if (!SET_ROOMS.includes(V.room)) errs.push(`${at}.room: one of ${SET_ROOMS.join(', ')}`);
+    const out = ['words', 'cube', 'show', 'hour', 'clouds', 'geotown', 'geocity', 'town'].filter((k) => V[k] !== undefined);
+    if (out.length) errs.push(`${at}: a room is indoors: it takes room, size, style, brief, windows, doors, seed (not ${out.join(', ')})`);
+    if (V.size !== undefined && !(Array.isArray(V.size) && V.size.length === 2)) errs.push(`${at}.size: [width, depth], e.g. ['14ft', '18ft']`);
+    if (V.style !== undefined && (typeof V.style !== 'string' || !V.style)) errs.push(`${at}.style: an interior style's name (japandi, mid-century, industrial, dark-academia…)`);
+    if (V.brief !== undefined && (typeof V.brief !== 'string' || !V.brief.trim())) errs.push(`${at}.brief: a few words on how the room is used`);
+    if (V.seed !== undefined && !Number.isInteger(V.seed)) errs.push(`${at}.seed: a whole number`);
+    if (V.ref !== undefined && (typeof V.ref !== 'string' || !V.ref)) errs.push(`${at}.ref: the ref of the room the film made (the film writes it)`);
+    return errs;
+  }
+  for (const k of ['size', 'brief', 'windows', 'doors']) if (V[k] !== undefined) errs.push(`${at}.${k}: a room's (say which room: { room: ${SET_ROOMS.join(' | ')} })`);
+  if (V.words === undefined && V.cube === undefined) errs.push(`${at}: say the place in words ({ words }), name a geocube preset and how it is laid ({ cube, show }), or ask for a room ({ room })`);
   if (V.words !== undefined && (typeof V.words !== 'string' || !V.words.trim())) errs.push(`${at}.words: a few words about the place`);
   if (V.cube !== undefined && !(typeof V.cube === 'string' && V.cube) && !isPlain(V.cube)) errs.push(`${at}.cube: a geocube preset's name, or a cube`);
   if (V.show !== undefined && (typeof V.show !== 'string' || !V.show)) errs.push(`${at}.show: how the place is laid (path, trail, town, geotown, geocity, hall)`);
