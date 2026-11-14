@@ -742,6 +742,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // inlines the game UI kernel. A mount on an element with no box of its own (a bare div its root is laid out of) measures
 // its root's, so the frame is known there too, and the runtime's words gain `choose` and `choices`; a page that mounts
 // on a sized element and says neither word draws as it did, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 again (the game turn, played through): `brawl` and `holo`, for the same reason. A `when` or an
+// `unless` on a param a def was not given is a condition not met, where it was no condition at all (the play shell's
+// loading screen drew its failure's Retry and Quit while it loaded); a def given every param it tests draws as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

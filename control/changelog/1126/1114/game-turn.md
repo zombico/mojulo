@@ -24,6 +24,10 @@ the theme will hold.
   as `params.difficulty`, the dial its foes' minds already read. The review's `flow:sequence` says what each level
   asks; the flow's card teaches the set-up and a level step's turn; `/setup` is the flow chapter's. A world that
   says none hands its game the order it did.
+- **Fixed in mana-ui's defs:** a `when` or an `unless` on a param a def was not given was no condition at all, so
+  the play shell's loading screen drew its failure's Retry and Quit buttons while a level loaded (and Enter landed on
+  Retry). A param not given is now a condition not met. Found by playing a made game through a whole turn. The brawl
+  and holo pages are re-pinned for it.
 - **Fixed in mana-ui's mount:** a view mounted on an element with no box of its own (the play shell's, the preview
   page's) never measured its frame, so a spec that branches on the frame always drew wide. It measures its root's
   box there now. The brawl and holo pages, which inline the kernel, are re-pinned for it and for two new words.

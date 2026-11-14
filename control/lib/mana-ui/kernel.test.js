@@ -483,4 +483,12 @@ describe('mana-ui: form and the kernel', () => {
     expect(() => manaUiPage({ screens: { a: { use: 'nope' } } })).toThrow(/is a component/);
     expect(manaUiBoard()).not.toMatch(/\b(src|href)=["']?https?:/);
   });
+  it('a `when` on a param a def was not given is not met; an `unless` on one is', () => {
+    const def = { params: ['error'], node: { use: 'screen', children: [{ use: 'text', props: { value: 'failed' }, when: { param: 'error' } }, { use: 'text', props: { value: 'fine' }, unless: { param: 'error' } }] } };
+    const html = (props) => { const rt = manaUi.runtime({ screens: { s: { use: 'load', props } }, defs: { load: def }, start: 's' }, { read: () => undefined, act: () => {} }); return JSON.stringify(rt.view()); };
+    expect(html({})).toContain('fine');
+    expect(html({})).not.toContain('failed');
+    expect(html({ error: 'no route' })).toContain('failed');
+    expect(html({ error: 'no route' })).not.toContain('fine');
+  });
 });

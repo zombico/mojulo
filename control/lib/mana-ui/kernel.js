@@ -243,7 +243,9 @@ export function buildManaUi() {
   const subst = (v, args) => {
     if (isObj(v) && Object.keys(v).length === 1 && typeof v.param === 'string') return args[v.param];
     if (Array.isArray(v)) return v.map((x) => subst(x, args));
-    if (isObj(v)) { const o = {}; for (const k in v) { const x = subst(v[k], args); if (x !== undefined) o[k] = x; } return o; }
+    // (a `when` or an `unless` on a param the user did not give is a condition that is not met, never no condition: a
+    // loading screen told no `error` draws no error)
+    if (isObj(v)) { const o = {}; for (const k in v) { const x = subst(v[k], args); if (x !== undefined) o[k] = x; else if ((k === 'when' || k === 'unless') && v[k] !== undefined) o[k] = false; } return o; }
     return v;
   };
   function checkType(t, v, where) {
