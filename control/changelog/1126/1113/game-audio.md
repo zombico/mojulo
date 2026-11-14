@@ -21,6 +21,9 @@
 - **A ride's engine.** A sheet game's driven level hears its vehicle: a held voice of the shelf by what is ridden,
   following the ride's speed from an idle up to its top (a level's new `audio.engine`, and the page's engine
   channel). `sound.ride` names another held voice, or `false`. A transformer's forms are not on the sheet yet.
+- **The sound book** (`/bible?book=sound`, `gameworld/sound-book.js`). A game's sound sheet as a page: every sound
+  it plays, the shelf word and why, each with a button that plays it on the game's own kernel; the beds by level
+  and what is owed. A game on no sheet sees the sheet it would have.
 - **Fixed: a composed game's ground and bed.** A composed game's stages carry no stage kit (the world's style
   holds it), so the sheet gave a forest stone footsteps and no bed. A level's place is now read from the world's
   kit and weather, the level's climate and its look's title: grass in a grove, sand in a desert, snow in the alps,

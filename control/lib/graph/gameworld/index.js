@@ -27,6 +27,7 @@ export { gameworldBibleHtml } from './bible-html.js';
 export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, HOLLIN_VALE } from './examples.js';
 export { characterBibleHtml } from './character-bible-html.js';
 export { foeCastHtml } from './foe-cast-html.js';
+export { soundBook, soundBookHtml } from './sound-book.js';
 export { foeCastOf, foeState, foeParts, approveFoe, castable } from './foe-cast.js';
 export { castingCall } from './foe-casting.js';
 export { readIntent, tunnel } from './tunnel.js';

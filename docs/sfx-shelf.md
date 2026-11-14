@@ -262,6 +262,12 @@ levels also hear it with `sfx: 'sheet'`, and a quick game that names another `sf
 builds its levels as it did. A stage that wrote its own `audio` keeps it under the sheet. `beats-world.js` voices `sfx: { sheet }`, wiring each event
 the level's mechanics emit as `auto` wires a palette. `auto` and the palettes are as they were.
 
+**The sound book** (`gameworld/sound-book.js`, `/api/sketches/<ref>/bible?book=sound`) is the sheet read and heard:
+every sound the game plays, the shelf word that plays it and why, each with a button that sounds it on the kernel
+the game ships (a held voice is revved). It lists the hero, the arsenal, the guns, the ride, the foes, the game's
+events, the beds and what is owed. A game on no sheet is shown the sheet it would have and told how to take it.
+It is where a person listens: the ears gate is theirs.
+
 ## Who plays it
 
 A fight game (the versus kind, under its register) sounds its blows from the families: `versus/versus-sfx.js` builds

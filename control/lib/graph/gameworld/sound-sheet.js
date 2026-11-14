@@ -167,8 +167,9 @@ function stepOf(G, manifest) {
   const P = placeOf(G, manifest), words = [P.kit, P.weather].filter(Boolean).join(' ');
   const named = words ? GROUNDS.find((x) => x.test.test(words)) : null;
   if (named) return { step: named.step, why: `${P.kit && named.test.test(P.kit) ? `a ${P.kit} stage` : `${P.weather} weather`}: ${SOUNDS[named.step].label}` };
-  if (GRASS_SHELLS.has(P.shell)) return { step: 'step-grass', why: `a ${P.shell} stage${P.own ? '' : ` (the world's kit, ${P.kit})`}: grass underfoot` };
-  return { step: 'step-concrete', why: P.kit ? `a ${P.shell ?? P.kit} stage: stone underfoot` : 'stone underfoot' };
+  const a = (w) => `${/^[aeiou]/i.test(w) ? 'an' : 'a'} ${w}`;
+  if (GRASS_SHELLS.has(P.shell)) return { step: 'step-grass', why: `${a(P.shell)} stage${P.own ? '' : ` (the world's kit, ${P.kit})`}: grass underfoot` };
+  return { step: 'step-concrete', why: P.kit ? `${a(P.shell ?? P.kit)} stage: stone underfoot` : 'stone underfoot' };
 }
 
 // a beast struck: the short voice the shelf has for its kind (a big cat's short roar); the rest take the blow's own sound
