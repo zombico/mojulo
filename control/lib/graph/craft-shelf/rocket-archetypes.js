@@ -103,4 +103,69 @@ export const ROCKET_ARCHETYPES = {
       { id: 'capsule', sku: 'capsule-deep', at: 'upper.top' },
     ],
   },
+
+  // ── the older launchers ──────────────────────────────────────────────────────────────────────────
+  moonRocket: {
+    realm: 'launch', role: 'crew', stand: UP, palette: 'launchWhite', class: 'moon rocket', label: 'three-stage moon rocket', classOf: 'three-stage moon rocket class (110.6 m, 10.1 m, 2950 t)',
+    reference: { span: 13.5, length: 13.5, height: 110.6, mtow: 2950000 },
+    bom: { 'rocket-stage': 3, 'rocket-engine': 1, 'rocket-fins': 1, 'rocket-capsule': 1 },
+    layout: [
+      { id: 'stage1', sku: 'stage-moon-1' },
+      { id: 'engines', sku: 'eng-moon-5', at: 'stage1.engines' },
+      { id: 'fins', sku: 'fins-moon-tail', at: 'stage1.fins' },
+      { id: 'stage2', sku: 'stage-moon-2', at: 'stage1.top' },
+      { id: 'stage3', sku: 'stage-moon-3', at: 'stage2.top' },
+      { id: 'capsule', sku: 'capsule-moon', at: 'stage3.top' },
+    ],
+  },
+  earlyCapsule: {
+    realm: 'launch', role: 'crew', stand: UP, palette: 'launchWhite', class: 'early capsule rocket', label: 'early single-seat capsule rocket', classOf: 'early single-stage crew launcher class (25.4 m, 1.78 m, 30 t)',
+    reference: { span: 2.6, length: 2.6, height: 25.4, mtow: 30000 },
+    bom: { 'rocket-stage': 1, 'rocket-engine': 1, 'rocket-fins': 1, 'rocket-capsule': 1 },
+    layout: [
+      { id: 'stage1', sku: 'stage-early' },
+      { id: 'engines', sku: 'eng-early-1', at: 'stage1.engines' },
+      { id: 'fins', sku: 'fins-early-tail', at: 'stage1.fins' },
+      { id: 'capsule', sku: 'capsule-early', at: 'stage1.top' },
+    ],
+  },
+  twoSeatCapsule: {
+    realm: 'launch', role: 'crew', stand: UP, palette: 'launchWhite', class: 'two-seat capsule rocket', label: 'two-stage, two-seat capsule rocket', classOf: 'two-stage crew launcher class (33.2 m, 3.05 m, 154 t)',
+    reference: { span: 3.1, length: 3.2, height: 33.2, mtow: 154000 },
+    bom: { 'rocket-stage': 2, 'rocket-engine': 1, 'rocket-capsule': 1 },
+    layout: [
+      { id: 'stage1', sku: 'stage-twoseat-1' },
+      { id: 'engines', sku: 'eng-twoseat-pair', at: 'stage1.engines' },
+      { id: 'stage2', sku: 'stage-twoseat-2', at: 'stage1.top' },
+      { id: 'capsule', sku: 'capsule-twoseat', at: 'stage2.top' },
+    ],
+  },
+  clusterCrew: {
+    realm: 'launch', role: 'crew', stand: UP, palette: 'launchWhite', class: 'cluster crew rocket', label: 'four-booster cluster crew rocket', classOf: 'four-booster cluster crew launcher class (46.3 m, 10.3 m across, 308 t)',
+    // (its strap-ons on its diagonals: square on, it is 6.4 m across; corner to corner, the class's 10.3 m)
+    reference: { span: 6.4, length: 6.4, height: 46.3, mtow: 308000 },
+    bom: { 'rocket-stage': 2, 'rocket-engine': 1, 'rocket-booster': 4, 'rocket-fairing': 1 },
+    layout: [
+      { id: 'core', sku: 'stage-cluster-core' },
+      { id: 'engines', sku: 'eng-cluster-core', at: 'core.engines' },
+      { id: 'booster', sku: 'booster-cluster', at: 'core.side', pair: true, roll: -45 },
+      { id: 'boosterB', sku: 'booster-cluster', at: 'core.sideB', pair: true, roll: 45 },
+      { id: 'upper', sku: 'stage-cluster-upper', at: 'core.top' },
+      { id: 'fairing', sku: 'fairing-cluster', at: 'upper.top' },
+    ],
+  },
+  sideOrbiterStack: {
+    realm: 'launch', role: 'crew', stand: UP, palette: 'orbiterWhite', class: 'side-mount orbiter stack', label: 'winged orbiter on a heavy core and its four strap-ons', classOf: 'side-mount orbiter stack class (58.7 m, 2400 t)',
+    reference: { span: 24.0, length: 26.0, height: 58.7, mtow: 2400000 },
+    bom: { 'rocket-stage': 5, 'rocket-engine': 5, 'rocket-orbiter': 1 },
+    layout: [
+      { id: 'core', sku: 'stage-heavy-core-side' },
+      { id: 'engines', sku: 'eng-heavy-core-4', at: 'core.engines' },
+      { id: 'strap', sku: 'stage-strapon-side', at: 'core.side', pair: true },
+      { id: 'strapEngines', sku: 'eng-strapon-4', at: 'strap.engines', pair: true },
+      { id: 'strapB', sku: 'stage-strapon-side', at: 'core.sideB', pair: true },
+      { id: 'strapBEngines', sku: 'eng-strapon-4', at: 'strapB.engines', pair: true },
+      { id: 'orbiter', sku: 'orbiter-side-stacked', at: 'core.orbiter', roll: 180 },
+    ],
+  },
 };

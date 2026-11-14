@@ -117,7 +117,9 @@ Launch vehicles are on the same shelf, in their own realm (`launch`): `rocket-od
   (`stand: 'vertical'`). Its reference is its figures on the pad.
 - The classes: a reusable two-stage medium launcher, the same carrying a crew capsule, a three-core heavy, a stainless
   super-heavy and its ship, a winged orbiter's stack on its tank and two solid boosters, the orbiter alone on its gear,
-  and a heavy-lift crew rocket with its abort tower. No agency's or company's markings.
+  and a heavy-lift crew rocket with its abort tower. The older ones: a three-stage moon rocket, an early single-seat
+  capsule rocket, a two-seat capsule rocket, a four-booster cluster rocket and a winged orbiter on a heavy core's side.
+  No agency's, company's or country's markings.
 - Its grid fins and its legs are stowed against it until posed out (`pose.fins`, `pose.legs`).
 - A level parks one on its tail; nothing flies one yet. Review renders: `scripts/render-rockets.mjs`.
 

@@ -29,6 +29,12 @@ function bar(id, a, b, w, tint, up = [0, 1, 0]) {
 }
 // (a disc of radius r on a surface at p, its face along n: a window, a port)
 const disc = (id, p, n, r, tint, depth = 0.04) => lathe(id, p, add(p, mul(norm(n), depth)), [[0, r], [1, r]], tint, { samples: 14, crossSections: 2 });
+// (a panel of a band round the axis from angle a0 to a1 (radians), y0 to y1, standing just off radius r: a roll pattern's
+// black, a heat shield's tiles)
+function arcPanel(id, y0, y1, a0, a1, r, tint, d = 0.03, n = 8) {
+  const A = Array.from({ length: n + 1 }, (_, i) => a0 + ((a1 - a0) * i) / n), at = (rr) => A.map((a) => [Math.cos(a) * rr, 0, Math.sin(a) * rr]);
+  return extrudeWorld(id, [0, y0, 0], [0, y1, 0], [...at(r + d), ...at(r - 0.02).reverse()], tint);
+}
 // (an ogive's profile from its base radius R to its tip: a tangent ogive sampled)
 const ogive = (R, tip = 0.04, n = 8) => Array.from({ length: n + 1 }, (_, i) => { const t = i / n; return [t, Math.max(R * tip, R * Math.sqrt(Math.max(0, 1 - t * t)) * (1 - 0.18 * t))]; });
 
@@ -38,20 +44,37 @@ function buildStage(row, C) {
   const P = b.points ?? {}, hp = { mount: [0, 0, 0], top: [0, Lg, 0], engines: [0, 0, 0] };
   const S = { samples: 36 };
   if (b.family === 'core') {
-    const y0 = b.adapter ? b.adapter.len : b.skirt ?? 0, yT = Lg - (b.interstage ?? b.nose ?? 0);
+    const y0 = b.adapter ? b.adapter.len : b.skirt ?? 0, yN = Lg - (b.interstage ?? b.nose ?? 0), yT = yN - (b.taperTop?.len ?? 0);
+    // (its radius along it: its own profile's, [share of its length, share of its radius], else the stage's)
+    const rAt = (y) => {
+      if (!b.profile) return R;
+      const t = Math.max(0, Math.min(1, y / Lg)), P = b.profile;
+      for (let i = 1; i < P.length; i++) if (t <= P[i][0]) { const [t0, k0] = P[i - 1], [t1, k1] = P[i]; return R * (k0 + ((k1 - k0) * (t - t0)) / (t1 - t0 || 1)); }
+      return R * P[P.length - 1][1];
+    };
     // (an interstage houses the stage above's engine: that stage's tail sits a third of it down)
     if (b.interstage) hp.top = [0, Lg - b.interstage / 3, 0];
     // (an adapter's cone from the stage below's diameter; else its engine section's skirt, dark)
     if (b.adapter) lathes.push(lathe('adapter', [0, 0, 0], [0, y0, 0], [[0, b.adapter.from / 2], [1, R]], tone(C.paint, -0.06), S));
     else if (y0) lathes.push(lathe('skirt', [0, 0, 0], [0, y0, 0], [[0, R * 0.99], [1, R]], tone(C.trim, 0.18), S));
-    lathes.push(lathe('tank', [0, y0, 0], [0, yT, 0], [[0, R], [1, R]], C.paint, S));
+    lathes.push(lathe('tank', [0, y0, 0], [0, yT, 0], b.profile ? b.profile.filter(([t]) => t * Lg >= y0 - 1e-9 && t * Lg <= yT + 1e-9).map(([t]) => [(t * Lg - y0) / (yT - y0), rAt(t * Lg)]) : [[0, R], [1, R]], C.paint, S));
+    // (a tapered top to the stage above's narrower diameter: an adapter over what it carries)
+    if (b.taperTop) lathes.push(lathe('taper', [0, yT, 0], [0, yN, 0], [[0, R], [1, b.taperTop.to / 2]], C.paint, S));
     // (its interstage over the stage above's engine, black; or a side core's nose cone)
-    if (b.interstage) lathes.push(lathe('interstage', [0, yT, 0], [0, Lg, 0], [[0, R * 1.004], [1, R * 1.004]], C.trim, S));
-    if (b.nose) lathes.push(lathe('nose', [0, yT, 0], [0, Lg, 0], ogive(R, 0.06), C.paint, S));
+    if (b.interstage) lathes.push(lathe('interstage', [0, yN, 0], [0, Lg, 0], [[0, R * 1.004], [1, R * 1.004]], C.trim, S));
+    if (b.nose) lathes.push(lathe('nose', [0, yN, 0], [0, Lg, 0], ogive(R, 0.06), C.paint, S));
+    // (its black rings, from y to y; its roll pattern's panels round it)
+    for (const [ya, yb] of b.rings ?? []) lathes.push(lathe(`ring_${Math.round(ya * 10)}`, [0, ya, 0], [0, yb, 0], [[0, rAt(ya) * 1.004], [1, rAt(yb) * 1.004]], C.trim, S));
+    for (const [k, st] of (b.stripes ?? []).entries()) for (let i = 0; i < st.n; i++) {
+      const a0 = ((st.start + (i * 360) / st.n) * Math.PI) / 180, a1 = a0 + (st.width * Math.PI) / 180;
+      extrudes.push(arcPanel(`roll_${k}_${i}`, st.from, st.to, a0, a1, rAt((st.from + st.to) / 2), C.trim));
+    }
     // (a reused stage's soot band low down; a raceway up its side)
     for (const [f0, f1] of b.bands ?? []) lathes.push(lathe(`band_${f0}`, [0, y0 + f0 * Lg, 0], [0, y0 + f1 * Lg, 0], [[0, R * 1.003], [1, R * 1.003]], tone(C.trim, 0.32), S));
     if (b.raceway) extrudes.push(extrudeWorld('raceway', [0, y0 + 0.6, 0], [0, yT - 0.3, 0], [[-0.14, 0, R - 0.02], [0.14, 0, R - 0.02], [0.1, 0, R + 0.12], [-0.1, 0, R + 0.12]], tone(C.paint, -0.1)));
     if (b.side !== undefined) hp.side = [round3(2 * R + b.side), 0, 0];
+    // (its strap-ons' axes, each named: [name, distance, angle (degrees, 0 toward +x, 90 toward +z), height])
+    for (const [name, d, deg, y] of b.sides ?? []) hp[name] = ring(d, (deg * Math.PI) / 180, y).map(round3);
   } else if (b.family === 'stainless') {
     const y0 = b.skirt ?? 0, yT = Lg - (b.nose ?? 0) - (b.hotStage ?? 0);
     lathes.push(lathe('skirt', [0, 0, 0], [0, y0, 0], [[0, R * 0.97], [1, R]], tone(C.paint, -0.25), S));
@@ -99,16 +122,16 @@ function buildStage(row, C) {
     extrudes.push(extrudeWorld('feedline', [0, 1.4, 0], [0, (b.intertank?.[0] ?? yT) - 0.2, 0], [[R * 0.32 - 0.22, 0, -(R - 0.05)], [R * 0.32 + 0.22, 0, -(R - 0.05)], [R * 0.32 + 0.22, 0, -(R + 0.42)], [R * 0.32 - 0.22, 0, -(R + 0.42)]], tone(foam, -0.06)));
     // (a strap-on's axis, its tail as far below the tank's as the stack sets it)
     if (b.side !== undefined) hp.side = [round3(b.side), b.sideAt ?? 0, 0];
-    // (an orbiter's fittings: a bipod forward, the aft struts, its belly's fitting `orbiter`)
-    if (b.orbiter) {
-      const z = -(R + b.orbiter.gap), yA = b.orbiter.at, yF = yA + 26.0;
-      for (const s of [1, -1]) {
-        sweeps.push(sweep(`bipod_${s > 0 ? 'r' : 'l'}`, [[s * 1.4, yF - 1.0, -(R - 0.1)], [s * 0.35, yF, z]], 0.12, C.chrome));
-        sweeps.push(sweep(`aftstrut_${s > 0 ? 'r' : 'l'}`, [[s * 1.8, yA + 0.6, -(R - 0.1)], [s * 1.6, yA, z]], 0.18, C.chrome));
-      }
-      hp.orbiter = [0, round3(yA), round3(z)];
-    }
   } else throw new Error(`Unknown rocket-stage family '${b.family}'`);
+  // (an orbiter's fittings on a tank or a core: a bipod forward, the aft struts, its belly's fitting `orbiter`)
+  if (b.orbiter) {
+    const z = -(R + b.orbiter.gap), yA = b.orbiter.at, yF = yA + (b.orbiter.span ?? 26.0);
+    for (const s of [1, -1]) {
+      sweeps.push(sweep(`bipod_${s > 0 ? 'r' : 'l'}`, [[s * 1.4, yF - 1.0, -(R - 0.1)], [s * 0.35, yF, z]], 0.12, C.chrome));
+      sweeps.push(sweep(`aftstrut_${s > 0 ? 'r' : 'l'}`, [[s * 1.8, yA + 0.6, -(R - 0.1)], [s * 1.6, yA, z]], 0.18, C.chrome));
+    }
+    hp.orbiter = [0, round3(yA), round3(z)];
+  }
   if (P.fins !== undefined) hp.fins = [0, P.fins, 0];
   if (P.legs !== undefined) hp.legs = [0, P.legs, 0];
   if (P.flapsFore !== undefined) hp.flapsFore = [0, P.flapsFore, 0];
@@ -119,6 +142,7 @@ function buildStage(row, C) {
 // ── a solid booster ─────────────────────────────────────────────────────────────────────
 function buildBooster(row, C) {
   const b = row.build, R = row.dims.diameter / 2, Lg = row.dims.length, lathes = [];
+  if (b.family === 'conic') return conicBooster(row, C);
   const S = { samples: 28 }, seam = tone(C.paint, -0.22), yN = Lg - b.nose;
   lathes.push(lathe('skirt', [0, 0, 0], [0, b.skirt, 0], [[0, b.flare / 2], [0.7, R * 1.04], [1, R]], C.paint, S));
   lathes.push(lathe('nozzle_srb', [0, 0.2, 0], [0, -2.2, 0], [[0, R * 0.36], [0.2, R * 0.42], [1, R * 0.7]], C.chrome, S));
@@ -131,6 +155,19 @@ function buildBooster(row, C) {
   return { lathes, hardpoints: { mount: [0, 0, 0], top: [0, Lg, 0] } };
 }
 
+// (a tapered strap-on: its base wide, its point at its top, its inner edge kept straight along the core it leans on (its
+// local −x, toward the core), its four chambers and its two verniers under it, an air vane on its outside)
+function conicBooster(row, C) {
+  const b = row.build, R = row.dims.diameter / 2, Lg = row.dims.length, rt = b.top / 2, yC = Lg - b.nose, n = 20;
+  const circle = (r) => Array.from({ length: n }, (_, i) => { const a = (i / n) * TAU; return [-R + r + r * Math.cos(a), 0, r * Math.sin(a)]; });
+  const lofts = [loftWorld('booster', [0, 0, 0], [0, Lg, 0], [[0, R], [yC / Lg, rt], [1 - (b.nose * 0.45) / Lg, rt * 0.55], [1, 0.04]].map(([t, r]) => ({ t, points: circle(r) })), C.paint)];
+  const lathes = [], extrudes = [];
+  for (const [k, [x, z]] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]].entries()) lathes.push(lathe(`bell_${k}`, [x * R * 0.9, 0.1, z * R * 0.9], [x * R * 0.9, -1.3, z * R * 0.9], [[0, 0.16], [0.2, 0.2], [1, R * 0.27]], C.chrome, { samples: 14 }));
+  for (const [k, z] of [-0.6, 0.6].entries()) lathes.push(lathe(`bell_v${k}`, [R * 0.85, 0.2, z * R], [R * 0.85, -0.7, z * R], [[0, 0.08], [1, 0.16]], C.chrome, { samples: 10 }));
+  extrudes.push(extrudeWorld('vane', [0, 0, -0.04], [0, 0, 0.04], [[R - 0.05, 0.2, 0], [R + 0.7, 0.4, 0], [R + 0.7, 1.4, 0], [R - 0.05, 1.8, 0]], C.trim));
+  return { lofts, lathes, extrudes, hardpoints: { mount: [0, 0, 0], top: [0, Lg, 0] } };
+}
+
 // ── engines ─────────────────────────────────────────────────────────────────────────────
 // (each bell's centre [x, z] under the mount, its radius and its length)
 function bellsOf(b, D) {
@@ -138,6 +175,8 @@ function bellsOf(b, D) {
   if (b.pattern === 'single') out.push([0, 0, r, len]);
   else if (b.pattern === 'octaweb') { out.push([0, 0, r, len]); at(8, b.ring); }
   else if (b.pattern === 'square4') at(4, b.ring, Math.PI / 4);
+  else if (b.pattern === 'quincunx') { out.push([0, 0, r, len]); at(4, b.ring, Math.PI / 4); }
+  else if (b.pattern === 'pair') at(2, b.ring, 0);
   else if (b.pattern === 'rings33') { at(3, 0.9); at(10, 2.45, 0.2); at(20, 3.82, 0.1, r * 0.95); }
   else if (b.pattern === 'ship') { at(3, 1.25); at(3, 3.0, Math.PI / 3, b.vac[0], b.vac[1]); }
   else throw new Error(`Unknown rocket-engine pattern '${b.pattern}'`);
@@ -156,15 +195,26 @@ function buildEngine(row, C) {
 
 // ── a fairing ───────────────────────────────────────────────────────────────────────────
 function buildFairing(row, C) {
-  const b = row.build, R = row.dims.diameter / 2, Lg = row.dims.length, rb = b.base / 2, S = { samples: 36 };
+  const b = row.build, R = row.dims.diameter / 2, Lg = row.dims.length, rb = b.base / 2, S = { samples: 36 }, yO = Lg - (b.tower ?? 0);
   const lathes = [
     lathe('boattail', [0, 0, 0], [0, b.tail, 0], [[0, rb], [1, R]], C.paint, S),
     lathe('barrel', [0, b.tail, 0], [0, b.tail + b.barrel, 0], [[0, R], [1, R]], C.paint, S),
-    lathe('ogive', [0, b.tail + b.barrel, 0], [0, Lg, 0], ogive(R, 0.05, 10), C.paint, S),
+    lathe('ogive', [0, b.tail + b.barrel, 0], [0, yO, 0], ogive(R, 0.05, 10), C.paint, S),
   ];
+  // (an escape tower over it, its motor's nozzles near its head; its grid finlets round its barrel's foot)
+  if (b.tower) {
+    lathes.push(lathe('tower', [0, yO - 0.4, 0], [0, Lg - 1.4, 0], [[0, b.towerR * 1.2], [0.1, b.towerR], [1, b.towerR]], C.paint, { samples: 14 }));
+    lathes.push(lathe('tower_tip', [0, Lg - 1.4, 0], [0, Lg, 0], [[0, b.towerR], [0.6, b.towerR * 0.6], [1, 0.03]], C.paint, { samples: 14 }));
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + Math.PI / 4, p = ring(b.towerR, a, yO + b.tower * 0.55); lathes.push(lathe(`nozzle_tower_${k}`, p, add(p, [Math.cos(a) * 0.3, -0.35, Math.sin(a) * 0.3]), [[0, 0.06], [1, 0.12]], C.chrome, { samples: 8 })); }
+  }
+  const extrudes = [];
+  if (b.finlets) for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * TAU + Math.PI / 4, rad = [Math.cos(a), 0, Math.sin(a)], tan = [-Math.sin(a), 0, Math.cos(a)], y = b.tail + 0.4;
+    extrudes.push(extrudeWorld(`finlet_${k}`, add(mul(tan, -0.45), [0, y, 0]), add(mul(tan, 0.45), [0, y, 0]), [mul(rad, R), mul(rad, R + 0.75), add(mul(rad, R + 0.75), [0, 0.5, 0]), add(mul(rad, R), [0, 0.5, 0])].map((q) => add(q, [0, 0, 0])), C.trim));
+  }
   // (its split line, both sides)
   const sweeps = [1, -1].map((s) => sweep(`split_${s > 0 ? 'r' : 'l'}`, [[s * (rb + 0.01), 0.05, 0], [s * (R + 0.01), b.tail, 0], [s * (R + 0.01), b.tail + b.barrel, 0], [s * R * 0.62, b.tail + b.barrel + (Lg - b.tail - b.barrel) * 0.6, 0]], 0.02, tone(C.paint, -0.25), { sides: 4 }));
-  return { lathes, sweeps, hardpoints: { mount: [0, 0, 0], top: [0, Lg, 0] } };
+  return { lathes, sweeps, ...(extrudes.length ? { extrudes } : {}), hardpoints: { mount: [0, 0, 0], top: [0, Lg, 0] } };
 }
 
 // ── a capsule ───────────────────────────────────────────────────────────────────────────
@@ -172,11 +222,13 @@ function buildCapsule(row, C) {
   const b = row.build, R = row.dims.diameter / 2, rb = b.base / 2, lathes = [], extrudes = [], S = { samples: 36 };
   const yS = b.trunk, yH = yS + 0.28, yC = yH + b.cone;
   // (its trunk or its service module; a crew capsule's trunk's fins at its foot)
-  lathes.push(lathe('trunk', [0, 0, 0], [0, yS, 0], [[0, rb], [1, b.wings ? R : rb * 1.02]], C.paint, S));
-  if (!b.wings) for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + Math.PI / 4; extrudes.push(bar(`trunkfin_${k}`, ring(rb, a, 0.2), ring(rb + 0.45, a, 1.4), 0.08, C.paint)); }
+  // (a trunk tapered to the capsule's own diameter, a deep-space one's or an adapter's; else straight)
+  const taper = b.wings || b.taper;
+  lathes.push(lathe('trunk', [0, 0, 0], [0, yS, 0], [[0, rb], [1, taper ? R : rb * 1.02]], C.paint, S));
+  if (!taper && b.trunkFins !== false) for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + Math.PI / 4; extrudes.push(bar(`trunkfin_${k}`, ring(rb, a, 0.2), ring(rb + 0.45, a, 1.4), 0.08, C.paint)); }
   else lathes.push(lathe('trunkband', [0, yS * 0.55, 0], [0, yS * 0.62, 0], [[0, R * 1.005], [1, R * 1.005]], tone(C.paint, -0.15), S));
   // (its heat shield; its cone, its windows round it; its nose cap or its abort tower)
-  lathes.push(lathe('heatshield', [0, yS, 0], [0, yH, 0], [[0, b.wings ? R : rb * 1.02], [1, R]], C.trim, S));
+  lathes.push(lathe('heatshield', [0, yS, 0], [0, yH, 0], [[0, taper ? R : rb * 1.02], [1, R]], C.trim, S));
   const rTop = R * 0.47;
   lathes.push(lathe('cone', [0, yH, 0], [0, yC, 0], [[0, R], [1, rTop]], C.paint, S));
   const slope = (R - rTop) / b.cone, n = norm([0, slope, 1]);
@@ -189,12 +241,14 @@ function buildCapsule(row, C) {
   let top = yC;
   if (b.nose) { lathes.push(lathe('nosecap', [0, yC, 0], [0, yC + b.nose, 0], [[0, rTop], [0.5, rTop * 0.88], [1, rTop * 0.35]], C.paint, S)); top = yC + b.nose; }
   if (b.tower) {
-    // (the boost cover's ogive over the capsule, the tower above it: its motor's nozzles near its head, its canards)
-    lathes.push(lathe('cover', [0, yC, 0], [0, yC + 1.6, 0], [[0, rTop], [1, 0.55]], C.paint, S));
-    const yt0 = yC + 1.6, yt1 = yt0 + b.tower;
-    lathes.push(lathe('tower', [0, yt0, 0], [0, yt1 - 2.5, 0], [[0, 0.55], [0.15, 0.48], [1, 0.48]], C.paint, { samples: 18 }));
-    lathes.push(lathe('tower_tip', [0, yt1 - 2.5, 0], [0, yt1, 0], [[0, 0.48], [0.6, 0.3], [1, 0.05]], C.paint, { samples: 18 }));
-    for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + Math.PI / 4, p = ring(0.5, a, yt0 + b.tower * 0.62); lathes.push(lathe(`nozzle_abort_${k}`, p, add(p, [Math.cos(a) * 0.55, -0.6, Math.sin(a) * 0.55]), [[0, 0.12], [1, 0.22]], C.chrome, { samples: 10 })); }
+    // (the boost cover's ogive over the capsule, or its nose; the tower above it: its motor's nozzles near its head; a
+    // slim tower its own radius, `towerR`)
+    const tr = b.towerR ?? 0.55, tr2 = b.towerR ? b.towerR * 0.87 : 0.48, tip = b.towerR ? b.towerR * 4.5 : 2.5;
+    if (!b.nose) lathes.push(lathe('cover', [0, yC, 0], [0, yC + 1.6, 0], [[0, rTop], [1, tr]], C.paint, S));
+    const yt0 = b.nose ? top : yC + 1.6, yt1 = yt0 + b.tower;
+    lathes.push(lathe('tower', [0, yt0, 0], [0, yt1 - tip, 0], [[0, tr], [0.15, tr2], [1, tr2]], C.paint, { samples: 18 }));
+    lathes.push(lathe('tower_tip', [0, yt1 - tip, 0], [0, yt1, 0], [[0, tr2], [0.6, tr2 * 0.625], [1, 0.05]], C.paint, { samples: 18 }));
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + Math.PI / 4, p = ring(tr2 * 1.04, a, yt0 + b.tower * 0.62); lathes.push(lathe(`nozzle_abort_${k}`, p, add(p, [Math.cos(a) * tr, -tr * 1.1, Math.sin(a) * tr]), [[0, tr * 0.22], [1, tr * 0.4]], C.chrome, { samples: 10 })); }
     top = yt1;
   }
   return { lathes, extrudes, hardpoints: { mount: [0, 0, 0], top: [0, round3(top), 0] } };
@@ -225,6 +279,20 @@ function buildFins(row, C, opts = {}) {
       const pts = [[s * (R - 0.1), 0, 0], [s * (R + span), chord * (1 - b.taper) * 0.85, 0], [s * (R + span), chord * 0.85, 0], [s * (R - 0.1), chord, 0]];
       extrudes.push(extrudeWorld(`flap_${s > 0 ? 'r' : 'l'}`, [0, 0, -0.18], [0, 0, 0.18], pts, C.trim));
     }
+  } else if (b.family === 'tail') {
+    // (swept tail fins round the base: each a plate in its own radial plane, its root along the hull from its foot, its
+    // tip out at `span`; the engines' fairings behind them where it has them)
+    const lathes = [], [root, tip, sweepBack] = [chord, b.tip, b.sweep ?? 0];
+    for (let k = 0; k < b.n; k++) {
+      const a = (((b.at ?? 45) + (k * 360) / b.n) * Math.PI) / 180, rad = [Math.cos(a), 0, Math.sin(a)], tan = [-Math.sin(a), 0, Math.cos(a)];
+      const P = (u, y) => add(mul(rad, R - 0.05 + u), [0, y + (b.foot ?? 0), 0]);
+      extrudes.push(extrudeWorld(`tailfin_${k}`, mul(tan, -(b.thick ?? 0.2) / 2), mul(tan, (b.thick ?? 0.2) / 2), [P(0, 0), P(span, sweepBack - tip * 0.15), P(span, sweepBack + tip * 0.85), P(0, root)], C.paint));
+      if (b.fairing) {
+        const F = b.fairing, c = mul(rad, F.at);
+        lathes.push(lathe(`fairing_${k}`, add(c, [0, F.y0, 0]), add(c, [0, F.y1, 0]), [[0, F.r0], [0.25, F.r0 * 0.96], [1, F.r1]], C.paint, { samples: 18 }));
+      }
+    }
+    return { extrudes, lathes, hardpoints: { mount: [0, 0, 0] } };
   } else throw new Error(`Unknown rocket-fins family '${b.family}'`);
   return { extrudes, hardpoints: { mount: [0, 0, 0] } };
 }
@@ -288,7 +356,11 @@ function buildOrbiter(row, C, opts = {}) {
     lathes.push(lathe(`pod_${s > 0 ? 'r' : 'l'}`, [s * 1.65, 0.2, zTop - 0.2], [s * 1.65, 9.8, zTop - 0.6], [[0, 0.95], [0.5, 1.0], [0.85, 0.75], [1, 0.15]], white, { samples: 16 }));
     lathes.push(lathe(`bell_oms_${s > 0 ? 'r' : 'l'}`, [s * 1.65, 0.3, zTop - 0.2], [s * 1.65, -1.4, zTop - 0.2], [[0, 0.22], [1, 0.48]], C.chrome, { samples: 14 }));
   }
-  for (const [x, z] of [[0, zTop - 1.5], [1.35, zc - 0.9], [-1.35, zc - 0.9]]) lathes.push(lathe(`bell_main_${x}`, [x, 0.4, z], [x, -2.2, z], [[0, 0.42], [0.12, 0.5], [0.5, 0.86], [1, 1.15]], C.chrome, { samples: 20 }));
+  // (its three main engines, unless it rides to orbit on its core's and has none)
+  if (row.build.mainEngines !== false) for (const [x, z] of [[0, zTop - 1.5], [1.35, zc - 0.9], [-1.35, zc - 0.9]]) lathes.push(lathe(`bell_main_${x}`, [x, 0.4, z], [x, -2.2, z], [[0, 0.42], [0.12, 0.5], [0.5, 0.86], [1, 1.15]], C.chrome, { samples: 20 }));
+  // (a drag chute's housing at its fin's root, where it has one; its tail closed where it has no main engines)
+  if (row.build.dragChute) lathes.push(lathe('chute', [0, 0.2, zTop + 0.35], [0, 2.6, zTop + 0.35], [[0, 0.62], [0.8, 0.62], [1, 0.3]], white, { samples: 16 }));
+  if (row.build.mainEngines === false) lathes.push(lathe('tailcap', [0, 0.02, zc], [0, -0.4, zc], [[0, W * 0.42], [1, W * 0.3]], black, { samples: 16 }));
   extrudes.push(extrudeWorld('bodyflap', [0, 0, zB - 0.02], [0, 0, zB + 0.42], [[-3.0, -2.1, 0], [3.0, -2.1, 0], [3.0, 0.6, 0], [-3.0, 0.6, 0]], black));
   // (its gear when it is down: the nose leg and two mains, each two wheels)
   // (on its tank its gear is stowed, whatever the craft's pose)

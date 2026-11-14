@@ -574,8 +574,20 @@ export const VEHICLES = {
     { craft: 'shuttleStack', tech: 'winged' }),
   orbiter: row('winged orbiter', ['orbiter', 'space shuttle orbiter', 'shuttle orbiter', 'spaceplane orbiter', 'orbiter on its gear'], 'space', 'launch', M, ['parked', 'watched'],
     { craft: 'orbiter', tech: 'winged' }),
-  'moon-rocket': row('heavy-lift crew rocket', ['moon rocket', 'heavy lift rocket', 'deep space rocket', 'lunar rocket', 'heavy-lift rocket', 'rocket with an abort tower'], 'space', 'launch', M, ['parked', 'watched'],
+  'deep-space-rocket': row('heavy-lift crew rocket', ['heavy lift rocket', 'deep space rocket', 'heavy-lift rocket', 'rocket with an abort tower', 'deep space crew rocket'], 'space', 'launch', M, ['parked', 'watched'],
     { craft: 'crewHeavy', tech: 'winged' }),
+  // (the older launchers: the three-stage moon rocket, the early single-seat capsule rocket, the two-seat capsule rocket,
+  // the four-booster cluster rocket, the winged orbiter on a heavy core's side)
+  'moon-rocket': row('three-stage moon rocket', ['moon rocket', 'lunar rocket', 'three stage moon rocket', 'moon landing rocket', 'classic moon rocket', 'sixties moon rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'moonRocket', tech: 'winged' }),
+  'early-capsule-rocket': row('early capsule rocket', ['single seat capsule rocket', 'single-seat capsule rocket', 'first crewed rocket', 'early crewed rocket', 'early space rocket', 'finned capsule rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'earlyCapsule', tech: 'winged' }),
+  'two-seat-capsule-rocket': row('two-seat capsule rocket', ['two seat capsule rocket', 'two man capsule rocket', 'two-man capsule rocket', 'early two stage crew rocket', 'twin chamber capsule rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'twoSeatCapsule', tech: 'winged' }),
+  'cluster-rocket': row('four-booster cluster rocket', ['cluster rocket', 'four booster rocket', 'strap-on cluster rocket', 'tapered booster rocket', 'cluster crew rocket', 'waisted core rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'clusterCrew', tech: 'winged' }),
+  'side-orbiter-stack': row('side-mount orbiter stack', ['orbiter on a heavy core', 'heavy core orbiter stack', 'side mounted orbiter', 'core rocket and orbiter', 'second winged orbiter', 'side-mounted orbiter stack'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'sideOrbiterStack', tech: 'winged' }),
 };
 
 /** The handle tables a row may name, and whether a key in one belongs to exactly one row (`claim: 'one'`) or a row

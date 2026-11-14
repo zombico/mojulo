@@ -36,6 +36,9 @@
  *   - The launch parts joined the shelf (rocket-odm.js): their builder paths pinned (a stage's core, stainless hull and
  *     foam tank; a solid booster; an engine cluster; a fairing; a capsule; grid fins and flaps; folded legs; the winged
  *     orbiter), and the orbiter's stack whole, for a launcher stood on its tail; no existing pin moved.
+ *   - The older launchers: the tapered strap-on's and the tail fins' builder paths pinned; a stage's new options (its
+ *     profile, rings, roll pattern, tapered top, named sides, an orbiter's fittings on any family) add nothing where they
+ *     are absent; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -176,6 +179,8 @@ const PINS = {
   'legs-medium': '5d68f185d4dcf71e',
   'orbiter-winged': 'e19b7b56b3a9caf1',
   'craft:shuttleStack': 'ca9b0882032f5a39',
+  'fins-moon-tail': 'cb4dc361716bbdc6',
+  'booster-cluster': '021f93cae4a4634a',
 };
 const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));
 

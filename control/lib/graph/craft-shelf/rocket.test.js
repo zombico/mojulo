@@ -45,6 +45,32 @@ describe('a launcher, stood on its tail', () => {
   });
 });
 
+describe('the older launchers\' procedures', () => {
+  it('a tapered strap-on keeps its inner edge along the core it leans on, all four round it', () => {
+    const id = of((a) => a.layout.some((e) => CRAFT_ODM[e.sku].build.family === 'conic')), { manifest } = assembleCraft(id), B = boxes(manifest);
+    const core = B.get(CRAFT_ARCHETYPES[id].layout[0].id), straps = [...B.entries()].filter(([k]) => /^booster/.test(k)).map(([, b]) => b);
+    expect(straps).toHaveLength(4);
+    // (each strap-on beside the core, none inside it: its box's middle out past the core's waist)
+    const cx = (core.min[0] + core.max[0]) / 2, cy = (core.min[1] + core.max[1]) / 2;
+    for (const b of straps) expect(Math.hypot((b.min[0] + b.max[0]) / 2 - cx, (b.min[1] + b.max[1]) / 2 - cy)).toBeGreaterThan(1.4);
+  });
+  it('tail fins round a stage\'s foot, out past its skin; a roll pattern\'s panels on its skin', () => {
+    const id = of((a) => a.layout.some((e) => CRAFT_ODM[e.sku].build.family === 'tail' && CRAFT_ODM[e.sku].build.fairing)), { manifest } = assembleCraft(id), B = boxes(manifest);
+    const s1 = B.get('stage1'), fins = B.get('fins');
+    expect(fins.max[0] - fins.min[0]).toBeGreaterThan(s1.max[0] - s1.min[0]);
+    expect(fins.min[2]).toBeLessThan(s1.min[2] + 1);
+    expect(JSON.stringify(manifest.items.find((it) => it.id === 'stage1').source).includes('roll_0_0')).toBe(true);
+  });
+  it('an orbiter without main engines rides on its core\'s', () => {
+    const id = of((a) => a.layout.some((e) => CRAFT_ODM[e.sku].build.mainEngines === false)), { manifest } = assembleCraft(id);
+    const orb = JSON.stringify(manifest.items.find((it) => it.id === 'orbiter').source);
+    expect(orb.includes('bell_main')).toBe(false);
+    expect(orb.includes('chute')).toBe(true);
+    // (its core's engines and its strap-ons' carry it)
+    expect(manifest.items.filter((it) => it.source.garage.kind === 'rocket-engine').length).toBeGreaterThan(1);
+  });
+});
+
 describe('the winged orbiter', () => {
   it('on its tank: its belly to the tank, its fin away, its gear stowed; on its own gear on the ground', () => {
     const stack = of((a) => a.layout.some((e) => CRAFT_ODM[e.sku].kind === 'rocket-orbiter') && a.stand === 'vertical');
@@ -69,6 +95,7 @@ describe('a launcher read and placed', () => {
   it('named by the words people say, its realistic build live, parked in a level on its tail', () => {
     expect(resolveVehicle('space shuttle').row.handles.craft).toBe('shuttleStack');
     expect(resolveVehicle('launch vehicle').row.handles.craft).toBe(tall);
+    expect(resolveVehicle('moon rocket').row.handles.craft).toBe('moonRocket');
     expect(buildOf('rocket', 'realistic', { use: 'parked' }).build).toMatchObject({ via: 'craft', status: 'live' });
     const [p] = readParked([{ vehicle: 'rocket', at: [0, 0, 0] }]);
     expect(p.craft).toBe(tall);

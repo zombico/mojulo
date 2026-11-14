@@ -16,6 +16,14 @@ the vehicle registry. Each is a class, not a replica, and wears no agency's or c
   solid boosters, the orbiter alone on its gear, and a heavy-lift crew rocket with its abort tower. Each stands on its
   tail (an archetype's `stand: 'vertical'`). Their grid fins and legs are stowed until posed out (`pose.fins`,
   `pose.legs`).
+- **The older launchers**: a three-stage moon rocket (its roll pattern, its five engines under their fairings and four
+  fins, its third stage's adapter over its lander, its command module under its escape tower), an early single-seat
+  capsule rocket on its finned stage, a two-seat capsule rocket on its two-chamber stage, a four-booster cluster rocket
+  (its waisted core between four tapered strap-ons, its fairing under its tower and grid finlets) and a winged orbiter
+  without main engines on a heavy core's side among its four strap-ons. A stage takes a radius profile, black rings and
+  a roll pattern, a tapered top, named sides and an orbiter's fittings; a strap-on may be tapered; tail fins and their
+  engine fairings; an escape tower over a fairing or a capsule's nose. Each absent adds nothing.
 - **The registry**: a `launch` role and rows for the rocket, the crew rocket, the heavy rocket, the super heavy rocket,
-  the space shuttle, the winged orbiter and the heavy-lift crew rocket. A level parks one on its tail; nothing flies one
+  the space shuttle, the winged orbiter, the heavy-lift crew rocket, the moon rocket, the early capsule rocket, the
+  two-seat capsule rocket, the cluster rocket and the side-mount orbiter stack. A level parks one on its tail; nothing flies one
   yet. Review: `scripts/render-rockets.mjs`.
