@@ -16,7 +16,7 @@
  *     space      the space every level's sounds are heard in (the SFX mixer's: open, interior, hangar, cavern, vacuum);
  *                absent, each level's own, from its place (sound-sheet.js levelSpace)
  *     ui         the interface's sound set (beats/ui-sounds.js), played in the identity's key
- *     cues       the score's cue sheet (the `score` chapter's): read there
+ *     cues       the score's cue sheet (the `score` chapter's, cue-sheet.js): each a mood that exists, or false
  *
  *   readMusic(M)                       → M, or throws naming what it takes (the world's read)
  *   audioDirection(world, { game? })   → { style, identity, voice, cast, sfx, space, ui, why: { <field>: reason }, own }
@@ -28,7 +28,8 @@
  * TASTE IS ADVICE: nothing here refuses a sound or changes one. Pure.
  */
 import { sceneStyle, sceneFlavour } from '../beats/score-suggest.js';
-import { scoreIdentity } from '../beats/field-score.js';
+import { scoreIdentity, SCORE_MOODS } from '../beats/field-score.js';
+import { CLUB_MOODS } from '../beats/club-score.js';
 import { readCast, castAdvice } from '../beats/casting.js';
 import { UI_SOUND_SET_IDS } from '../beats/ui-sounds.js';
 import { STYLES } from '../sfx-shelf/styles.js';
@@ -57,8 +58,26 @@ export function readMusic(M) {
     if (D.space !== undefined && !MIX_SPACES.includes(D.space)) throw fail(`.direction.space '${D.space}' is one of ${MIX_SPACES.join(', ')}`);
     if (D.ui !== undefined && !UI_SOUND_SET_IDS.includes(D.ui)) throw fail(`.direction.ui '${D.ui}' is a UI sound set: ${UI_SOUND_SET_IDS.join(', ')}`);
   }
-  if (M.cues !== undefined && !isObj(M.cues)) throw fail('.cues is { <request id>: \'<mood>\' | { mood, … } | false } (the score\'s cue sheet)');
+  readCues(M.cues);
   return M;
+}
+
+const failCue = (m) => new Error(`gameworld: music.cues${m}`);
+const isField = (m) => Object.prototype.hasOwnProperty.call(SCORE_MOODS, m), isClub = (m) => Object.prototype.hasOwnProperty.call(CLUB_MOODS, m);
+const CUE_KEYS = ['mood', 'style', 'seed', 'cast'];
+
+/** A game's own `music.cues`, checked: each a mood that exists, an answer of its own, or false. */
+export function readCues(cues) {
+  if (cues === undefined) return {};
+  if (!isObj(cues)) throw failCue(' is { <request id>: \'<mood>\' | { mood, style?, seed?, cast? } | false }');
+  for (const [id, c] of Object.entries(cues)) {
+    if (c === false) continue;
+    const mood = typeof c === 'string' ? c : isObj(c) ? c.mood : undefined;
+    if (isObj(c)) for (const k of Object.keys(c)) if (!CUE_KEYS.includes(k)) throw failCue(`.${id}.${k} is not one of ${CUE_KEYS.join(', ')}`);
+    if (typeof mood !== 'string' || !(isField(mood) || isClub(mood))) throw failCue(`.${id}: '${mood}' is not a mood: a field score's (${Object.keys(SCORE_MOODS).join(', ')}) or a club's (${Object.keys(CLUB_MOODS).join(', ')}), or false for silence`);
+    if (isObj(c) && c.seed !== undefined && !(Number.isInteger(c.seed) && c.seed >= 0)) throw failCue(`.${id}.seed is a non-negative integer`);
+  }
+  return cues;
 }
 
 // the game's words: its name, its prompt, its world's kit and weather (what sceneStyle reads a scene by)
