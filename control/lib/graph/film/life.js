@@ -13,6 +13,8 @@
  *   walkLife(payload, { about, seconds, clock?, reach?, most? })
  *                              → [{ id, figure, hgt, near, keys: [{ t, x, y, z, turn, p }] }]: a city's people (its `walkers`,
  *                                read as a camera follows them, shoot/subjects.js), `p` the gait's cycles walked so far
+ *   carLife(payload, ask)      → [{ id, car, dims, wid, near, keys }]: a planned city's cars (its baked `carMeshes`), the same way
+ *   carFaces(mesh)             → a baked car's faces, facing +y
  *   lifeFaces({ model, extra?, tint })  → the vehicle's faces, its paint the tint's (the page's own model and paint rule)
  *   lifeDims(model)            → [wid, len, hgt] metres
  *
@@ -29,7 +31,7 @@ import { shootSubjects } from '../shoot/subjects.js';
 
 export const LIFE = Object.freeze({ reach: 90, most: 16, key: 0.25, mostAsked: 60, reachAsked: 320 });
 const LIFE_KEYS = ['clock', 'reach', 'most'];
-const WRAP = 100, WALK_WRAP = 6, STRIDE = 0.72;
+const WRAP = 100, WALK_WRAP = 6, CAR_WRAP = 14, STRIDE = 0.72;
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 
 export function lifeErrors(v) {
@@ -44,7 +46,7 @@ export function lifeErrors(v) {
 }
 
 /** Whether a world's payload moves anything a film can read. */
-export const hasLife = (payload) => !!readFlow(payload?.flow) || walkersOf(payload).length > 0;
+export const hasLife = (payload) => !!readFlow(payload?.flow) || walkersOf(payload).length > 0 || carsOf(payload).length > 0;
 
 // a world's ambient walkers as the page lists them (scene-three's filter, the subjects' own), the followed one left out
 function walkersOf(payload) {
@@ -101,38 +103,65 @@ export function flowLife(flow, { about, seconds, clock = 0, reach = LIFE.reach, 
   return found.sort((a, b) => a.near - b.near || (a.id < b.id ? -1 : 1)).slice(0, most);
 }
 
-/** The people who come within `reach` of `about` during the scene, nearest first, each keyed along its way. */
-export function walkLife(payload, { about, seconds, clock = 0, reach = LIFE.reach, most = LIFE.most } = {}) {
-  const list = walkersOf(payload);
-  if (!list.length || !Array.isArray(about) || !(seconds > 0)) return [];
+// what a world moves on a schedule, as a camera follows it (shoot/subjects.js), read about the cast: each subject's keys
+// in metres, facing the way it goes, turned the short way round; `each(i, key, moved)` adds what its kind keys beside
+function followed(payload, ids, { about, seconds, clock = 0, reach = LIFE.reach, most = LIFE.most } = {}, wrap, each = null) {
+  if (!ids.length || !Array.isArray(about) || !(seconds > 0)) return [];
   const k = Number.isFinite(payload.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1, subjects = shootSubjects(payload);
   const [ax, ay] = about, n = Math.max(1, Math.ceil(seconds / LIFE.key)), times = Array.from({ length: n + 1 }, (_, i) => Math.min(seconds, i * LIFE.key));
-  const found = [];
-  for (const { w, i } of list) {
-    const S = subjects.get(`walker:${i}`), fig = payload.figures[w.figure], scale = w.scale > 0 ? w.scale : 1;
-    if (!S) continue;
-    // (one gait cycle a stride of ground: the page's own rule, channels/walkers.js)
-    const stride = (w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * STRIDE * scale)) * k;
-    let near = Infinity, walked = 0, last = null, turn = 0, wraps = false;
-    const keys = times.map((t) => {
-      const { pos, heading } = S.at(clock + t), x = pos[0] * k, y = pos[1] * k;
-      if (last) { const d = Math.hypot(x - last[0], y - last[1]); if (d > WALK_WRAP) wraps = true; walked += d; }
-      // (it faces the way it goes; where it stands, the way it last went)
-      if (!last || Math.hypot(x - last[0], y - last[1]) > 1e-6) {
-        // (turned the short way round from where it faced, so a corner is not spun through)
-        let a = 90 - heading * 180 / Math.PI;
-        if (last) a = turn + ((((a - turn) % 360) + 540) % 360 - 180);
-        turn = r3(a);
+  // (the subjects of one model share its clock: every one is asked at each second in turn, never one through and back)
+  const S = ids.map((id) => subjects.get(id)), keys = ids.map(() => []), near = ids.map(() => Infinity), last = ids.map(() => null), turn = ids.map(() => 0), wraps = ids.map(() => false);
+  for (const t of times) {
+    S.forEach((sub, i) => {
+      if (!sub) return;
+      const { pos, heading } = sub.at(clock + t), x = pos[0] * k, y = pos[1] * k, d = last[i] ? Math.hypot(x - last[i][0], y - last[i][1]) : 0;
+      if (d > wrap) wraps[i] = true;
+      // (it faces the way it goes, turned the short way round from where it faced; where it stands, the way it last went)
+      if (!last[i] || d > 1e-6) {
+        const a = 90 - heading * 180 / Math.PI;
+        turn[i] = r3(last[i] ? turn[i] + ((((a - turn[i]) % 360) + 540) % 360 - 180) : a);
       }
-      last = [x, y];
-      near = Math.min(near, Math.hypot(x - ax, y - ay));
-      return { t: r3(t), x: r3(x), y: r3(y), z: r3((pos[2] || 0) * k), turn, p: r3(walked / stride) };
+      last[i] = [x, y];
+      near[i] = Math.min(near[i], Math.hypot(x - ax, y - ay));
+      keys[i].push({ t: r3(t), x: r3(x), y: r3(y), z: r3((pos[2] || 0) * k), turn: turn[i], ...(each ? each(i, d) : {}) });
     });
-    // (an open way's walker relands at its far end: left out, as a vehicle that rounds its lane's ring is)
-    if (near > reach || wraps) continue;
-    found.push({ id: `walker:${i}`, figure: w.figure, hgt: r3((fig.figH || 1.8) * scale * k), near: r3(near), keys });
   }
-  return found.sort((a, b) => a.near - b.near || (a.id < b.id ? -1 : 1)).slice(0, most);
+  // (a thing that relands at its way's far end during the scene is left out, as a vehicle that rounds its lane's ring is)
+  return ids.map((id, i) => ({ id, i, k, box: S[i]?.box ?? null, near: r3(near[i]), keys: keys[i] })).filter((F, i) => S[i] && near[i] <= reach && !wraps[i])
+    .sort((a, b) => a.near - b.near || (a.id < b.id ? -1 : 1)).slice(0, most);
+}
+
+/** The people who come within `reach` of `about` during the scene, nearest first, each keyed along its way. */
+export function walkLife(payload, ask = {}) {
+  const list = walkersOf(payload), walked = list.map(() => 0);
+  // (one gait cycle a stride of ground: the page's own rule, channels/walkers.js)
+  const k = Number.isFinite(payload?.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1;
+  const stride = list.map(({ w }) => (w.stride > 0 ? w.stride : Math.max(0.05, (payload.figures[w.figure].figH || 1.8) * STRIDE * (w.scale > 0 ? w.scale : 1))) * k);
+  return followed(payload, list.map(({ i }) => `walker:${i}`), ask, WALK_WRAP, (i, d) => ({ p: r3((walked[i] += d) / stride[i]) }))
+    .map((F) => { const { w } = list[F.i]; return { id: F.id, figure: w.figure, hgt: r3((payload.figures[w.figure].figH || 1.8) * (w.scale > 0 ? w.scale : 1) * F.k), near: F.near, keys: F.keys }; });
+}
+
+// a world's driven cars as the page lists them (the subjects' own filter)
+const carsOf = (payload) => (Array.isArray(payload?.cars) ? payload.cars : []).filter((c) => c && typeof c.car === 'string' && payload.carMeshes?.[c.car] && Array.isArray(c.path) && c.path.length > 1);
+
+/** A planned city's cars that come within `reach` of `about` during the scene, nearest first: its baked meshes on its
+ *  lanes, the signalised model the page steps (its turns at the junctions too). */
+export function carLife(payload, ask = {}) {
+  const list = carsOf(payload);
+  return followed(payload, list.map((_, i) => `car:${i}`), ask, CAR_WRAP)
+    .map((F) => ({ id: F.id, car: list[F.i].car, dims: [r3(F.box.wid * F.k), r3(F.box.len * F.k), r3(F.box.hgt * F.k)], wid: r3(F.box.wid * F.k), near: F.near, keys: F.keys }));
+}
+
+/** A baked car's faces (its mesh's triangles, each corner its own colour), turned to face +y as a prop is read. */
+export function carFaces(mesh) {
+  const b = Buffer.from(mesh.pos, 'base64'), P = new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), C = Buffer.from(mesh.col, 'base64');
+  // (the bake's colours are in linear light, as the page's material reads them: a face's fill is sRGB)
+  const hex = (i) => `#${[0, 1, 2].map((j) => Math.round(toS(C[3 * i + j] / 255) * 255).toString(16).padStart(2, '0')).join('')}`, faces = [];
+  for (let v = 0; v + 2 < P.length / 3; v += 3) {
+    const fills = [hex(v), hex(v + 1), hex(v + 2)];
+    faces.push({ corners: [v, v + 1, v + 2].map((q) => [r3(-P[3 * q + 1]), r3(P[3 * q]), r3(P[3 * q + 2])]), fill: fills[0], cornerFills: fills });
+  }
+  return faces;
 }
 
 // a fill under a tint: the page multiplies the pale body's colour by the paint in linear light

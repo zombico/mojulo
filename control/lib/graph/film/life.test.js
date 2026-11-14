@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LIFE, lifeErrors, hasLife, flowLife, walkLife, lifeFaces, lifeDims } from './life.js';
+import { LIFE, lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims } from './life.js';
 import { FLOW } from '../geocity/flow.js';
 import { sceneScreenplay, sceneStamp } from './film.js';
 import { departmentOfPath, ADVICE_HOME } from './departments.js';
@@ -84,6 +84,23 @@ describe('the set\'s life', () => {
     expect(far.at(-1).turn).toBe(0);
     expect(walkLife(P, { about: [500, 500], seconds: 4, reach: 50 })).toEqual([]);
     expect(JSON.stringify(walkLife(P, { about: [0, 0], seconds: 4 }))).toBe(JSON.stringify(walkLife(P, { about: [0, 0], seconds: 4 })));
+  });
+
+  it('reads a planned city\'s cars on their lanes, at their baked size, their mesh turned to face +y', () => {
+    // (one triangle, nose along +x, in linear light: mid grey 0.2159 is sRGB 128)
+    const pos = Buffer.from(new Float32Array([1, 0, 0, -1, 0.4, 0, -1, -0.4, 0.5]).buffer).toString('base64'), col = Buffer.from(new Uint8Array(9).fill(55)).toString('base64');
+    const P = { metersPerUnit: 2, carMeshes: { c: { pos, col, len: 2, wid: 0.8 } }, cars: [{ car: 'c', path: [[0, 5, 0.1], [100, 5, 0.1]], speed: 2 }] };
+    expect(hasLife(P)).toBe(true);
+    const [V] = carLife(P, { about: [0, 10], seconds: 4, reach: 30 });
+    expect(V).toMatchObject({ id: 'car:0', car: 'c', dims: [1.6, 4, 1], wid: 1.6 });
+    expect(V.keys[0]).toMatchObject({ t: 0, x: 0, y: 10, z: 0.2, turn: 90 });
+    expect(V.keys.at(-1).x).toBeCloseTo(16, 1);
+    expect(V.keys.every((k) => k.p === undefined)).toBe(true);
+    const [F] = carFaces(P.carMeshes.c);
+    expect(F.corners[0]).toEqual([0, 1, 0]);
+    expect(F.cornerFills[0]).toBe('#808080');
+    // (a car that relands at its lane's start during the scene is left out)
+    expect(carLife(P, { about: [190, 10], seconds: 12, reach: 60 })).toEqual([]);
   });
 
   it('builds a vehicle as the parked ones are, its paint the tint\'s', () => {

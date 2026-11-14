@@ -113,9 +113,9 @@ forge_motion({ title: 'The key', export: 'storyboard',
 - **`life`: the set's own traffic drives through the scene.** `true`, or `{ clock?, reach?, most? }`. A city made as
   a metro has traffic of its own: lanes, signals, family cars, taxis, vans, trucks and buses. With `life` the Blender
   film has the vehicles that come near the cast, each driving its lane for the scene's length, stopping at a red
-  light and pulling away on green, as the city's page drives them. A planned city (`kind: 'city'`) has people of its
-  own, walking round their blocks and waiting at the crossings: with `life` those who come near the cast walk
-  through the film, each stepping as far as it goes and standing where it waits.
+  light and pulling away on green, as the city's page drives them. A planned city (`kind: 'city'`) has its own cars,
+  turning at its junctions, and people of its own, walking round their blocks and waiting at the crossings: with
+  `life` the cars that come near the cast drive through the film and the people walk through it, each stepping as far as it goes and standing where it waits.
   - `clock`: the second of the city's clock the scene starts at (0 unless given). The lights and the queues differ
     from one second to another, so another `clock` is another moment of the same street.
   - `reach`: how far about the cast the traffic is read, in metres. `most`: how many vehicles at most, the nearest

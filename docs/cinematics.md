@@ -347,7 +347,9 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   `life/<figure>.glb` with its walk clip and ride `props` the same way, each key also carrying `p`, the cycles of
   the gait gone by (ground covered over the stride, the page's rule): `actors.py` reads each of the figure's curves
   again a frame at a time at that phase, so a walker held at a kerb stands. The walker a view follows is left out.
-  The planned city's cars (its baked meshes) are not read yet.
+  The planned city's cars (`carLife`: its `cars` on the same subjects, the signalised model and its turns at the
+  junctions) are written once a baked mesh as `life/<car>.glb` (`carFaces`: the bake's triangles, its linear
+  colours as sRGB fills, turned to face +y) at the size the bake measured.
 - **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
   stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
   keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the

@@ -37,7 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
-import { lifeErrors, hasLife, flowLife, walkLife, lifeFaces, lifeDims } from '@/lib/graph/film/life.js';
+import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims } from '@/lib/graph/film/life.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -261,7 +261,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   // (and its LIFE: what the set's own world moves, read when the film is made; film/life.js)
   if (life !== undefined && life !== false) {
     if (set && alive) set.life = life;
-    else advice.push({ id: 'life-unused', says: set ? `the scene asks for the set's life, but ${set.title ? `'${set.title}'` : 'this set'} moves nothing of its own (a metro has traffic, a planned city its people; a field, a street of houses and a room have none)` : 'the scene asks for the set\'s life, but it has no set', try: 'play the scene in a city (a set asked for as a metro), bring a thing in yourself (a prop with `from` or `to`), or take `life` out' });
+    else advice.push({ id: 'life-unused', says: set ? `the scene asks for the set's life, but ${set.title ? `'${set.title}'` : 'this set'} moves nothing of its own (a metro has traffic, a planned city its cars and people; a field, a street of houses and a room have none)` : 'the scene asks for the set\'s life, but it has no set', try: 'play the scene in a city (a set asked for as a metro), bring a thing in yourself (a prop with `from` or `to`), or take `life` out' });
   }
   if (props && Object.keys(props).length) {
     // ANYTHING mojulo made stood in the scene: its faces join the set's, so it is walked round, seen past and boarded
@@ -655,6 +655,23 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
       if (hit) lifeAdvice.push({ id: 'life-crosses', at: r3(hit.q.t), says: `one of the set's people walks through where a part stands at ${r3(hit.q.t)} s ([${hit.k.x}, ${hit.k.y}]): the cast is on their way`, try: 'stand the cast a step off the walk (a mark), or start the world\'s clock elsewhere (`life: { clock }`)' });
     }
     if (people.length) log(`life: ${people.length} of the set's people, ${cast.size} figures`);
+    // (A PLANNED CITY'S CARS: its baked meshes on its lanes, the page's signalised model, its turns at the junctions)
+    const cars = carLife(living, { about: mid, seconds: S.seconds, ...ask }), baked = new Map();
+    for (const [i, V] of cars.entries()) {
+      if (!baked.has(V.car)) {
+        const glb = facesToGlb({ faces: carFaces(living.carMeshes[V.car]) }, { generator: `mojulo scene film · life ${V.car}`, lit: true });
+        if (!glb) continue;
+        const file = `life/${packTitle(V.car)}.glb`;
+        mkdirSync(path.join(outDir, 'life'), { recursive: true });
+        writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
+        baked.set(V.car, file);
+      }
+      const keys = V.keys.map((k) => ({ ...k, z: r3(k.z - P.set.floor) }));
+      propPack.push({ name: `car-${i + 1}`, life: V.id, glb: baked.get(V.car), at: [keys[0].x, keys[0].y], turn: keys[0].turn, dims: V.dims, z: keys[0].z, keys });
+      const hit = roots.flatMap((R) => R.map((q) => ({ q, k: keys.reduce((b, k) => (Math.abs(k.t - q.t) < Math.abs(b.t - q.t) ? k : b), keys[0]) }))).find(({ q, k }) => Math.hypot(k.x - q.x, k.y - q.y) < V.wid / 2 + 0.4);
+      if (hit) lifeAdvice.push({ id: 'life-crosses', at: r3(hit.q.t), says: `the set's traffic drives through where a part stands at ${r3(hit.q.t)} s ([${hit.k.x}, ${hit.k.y}]): the cast is on a lane`, try: 'stand the cast on the pavement (a mark off the road), or start the world\'s clock elsewhere (`life: { clock }`)' });
+    }
+    if (cars.length) log(`life: ${cars.length} of the set's cars, ${baked.size} models`);
     const driven = flowLife(flow, { about: mid, seconds: S.seconds, ...ask }), made = new Map();
     for (const [i, V] of driven.entries()) {
       const key = `${V.model}|${V.extra ?? ''}|${V.tint.join(',')}`;
@@ -672,7 +689,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
       const hit = roots.flatMap((R) => R.map((q) => ({ q, k: keys.reduce((b, k) => (Math.abs(k.t - q.t) < Math.abs(b.t - q.t) ? k : b), keys[0]) }))).find(({ q, k }) => Math.hypot(k.x - q.x, k.y - q.y) < V.wid / 2 + 0.4);
       if (hit) lifeAdvice.push({ id: 'life-crosses', at: r3(hit.q.t), says: `the set's traffic drives through where a part stands at ${r3(hit.q.t)} s ([${hit.k.x}, ${hit.k.y}]): the cast is on a lane`, try: 'stand the cast on the pavement (a `corner` place, or a mark off the road), or start the world\'s clock elsewhere (`life: { clock }`)' });
     }
-    setPack.life = { vehicles: driven.length, models: made.size, ...(people.length ? { walkers: people.length, figures: cast.size } : {}) };
+    setPack.life = { vehicles: driven.length, models: made.size, ...(people.length ? { walkers: people.length, figures: cast.size } : {}), ...(cars.length ? { cars: cars.length, carModels: baked.size } : {}) };
     if (driven.length) log(`life: ${driven.length} vehicles of the set's traffic, ${made.size} models`);
   }
   const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, props: propPack, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
