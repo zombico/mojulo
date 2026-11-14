@@ -110,6 +110,20 @@ forge_motion({ title: 'The key', export: 'storyboard',
     (`weather-unused`).
   - Not yet: it rains through a roof (a porch, a room's ceiling is not read); wet ground, settled snow, lightning and
     wind in the trees are not made.
+- **`life`: the set's own traffic drives through the scene.** `true`, or `{ clock?, reach?, most? }`. A city made as
+  a metro has traffic of its own: lanes, signals, family cars, taxis, vans, trucks and buses. With `life` the Blender
+  film has the vehicles that come near the cast, each driving its lane for the scene's length, stopping at a red
+  light and pulling away on green, as the city's page drives them.
+  - `clock`: the second of the city's clock the scene starts at (0 unless given). The lights and the queues differ
+    from one second to another, so another `clock` is another moment of the same street.
+  - `reach`: how far about the cast the traffic is read, in metres. `most`: how many vehicles at most, the nearest
+    first.
+  - The lanes are the city's: nothing is steered round the cast. A vehicle driven through where a part stands is
+    advised (`life-crosses`); stand the cast on the pavement (a `corner` place).
+  - A set that moves nothing of its own (a field, a street of houses, a room) is advised (`life-unused`): bring a
+    thing in with a prop's `from` and `to`.
+  - Not yet: people walking, animals, wind in the trees; the storyboard and the animatic do not show the traffic; a
+    vehicle does not turn at a crossing; no sound of it.
 - **`props`: things stood in the scene.** Write `{ <name>: { thing | ref, at, turn?, scale? } }`. `at` is `[x, y]` in
   metres or a mark's name; `turn` is degrees about the vertical; `scale` is how many times larger it stands than it
   was made.

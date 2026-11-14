@@ -175,6 +175,15 @@ game.
   - It combines with the scene's hour: the same street can be a bright noon, a foggy morning and a rainy dusk.
   - **Not yet:** rain falls through a porch roof or a ceiling; the ground does not get wet and snow does not
     settle; no lightning, and the trees do not move in the wind.
+- **A city's traffic in the film.** A scene set in a city can ask for the city's life, and the Blender film has
+  the city's own traffic driving past the cast: family cars, taxis, vans, trucks and buses in their lanes, stopping
+  at a red light and pulling away on green, exactly as the city's own page drives them.
+  - The scene can start at any second of the city's clock, so the same corner can be shot with the lights red or
+    green.
+  - The film says so if a vehicle would drive through where an actor stands, and if the scene's place has no
+    traffic of its own.
+  - **Not yet:** people walking in the street, animals, and vehicles turning at a crossing. The storyboard and the
+    animatic do not show the traffic.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
   notes on what happens in each event.

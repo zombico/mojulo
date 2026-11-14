@@ -37,6 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
+import { lifeErrors, hasLife, flowLife, lifeFaces, lifeDims } from '@/lib/graph/film/life.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -47,7 +48,7 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'life', 'voice', 'dub']);
 /** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
  * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
  * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
@@ -96,6 +97,7 @@ export function screenplayErrors(sp) {
   if (sp.marks !== undefined && !isPlain(sp.marks)) errs.push('marks: { <name>: [x, y] } (metres)');
   if (sp.hour !== undefined) { try { readHour(sp.hour); } catch (e) { errs.push(`hour: the time of day the scene is shot at: ${e.message}`); } }
   if (sp.weather !== undefined && !WEATHER_STATES.includes(sp.weather)) errs.push(`weather: what the sky is doing while the scene is shot, one of ${WEATHER_STATES.join(', ')}`);
+  if (sp.life !== undefined) errs.push(...lifeErrors(sp.life));
   if (sp.props !== undefined) {
     if (!isPlain(sp.props)) errs.push('props: { <name>: { thing | ref, at: [x, y] | <a mark>, turn?, scale? } }: a thing off the shelves by its word, or anything mojulo made by its ref, stood in the scene');
     else for (const [name, Q] of Object.entries(sp.props)) {
@@ -182,8 +184,8 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (errs.length) throw new Error(`screenplay refused:\n - ${errs.join('\n - ')}\n(${MANUAL})`);
   // (the props are the set's: the plan plays the screenplay without them, a recipe keeps them as written)
   // (and its hour is the light's: film/look, read when the film is made)
-  const { props, hour, weather, ...written } = sp;
-  let play = written, set = null;
+  const { props, hour, weather, life, ...written } = sp;
+  let play = written, set = null, alive = false;
   if (sp.world_ref !== undefined) {
     const row = getRow?.(sp.world_ref);
     if (!row?.manifest) throw new Error(`world_ref: '${sp.world_ref}' is ${row ? 'a sketch with no recipe' : 'no sketch'} (a stored world is the set; ${MANUAL})`);
@@ -194,6 +196,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
     const { payload } = held ?? await resolveWorldScene(row);
     if (worlds && !held) worlds.set(sp.world_ref, { payload });
     const places = setPlaces(payload);
+    alive = hasLife(payload);
     if (!payload) throw new Error(`world_ref: '${sp.world_ref}' (${row.manifest.kind}) has no form to stand in (${MANUAL})`);
     // (a world that names no place, an object, a city, a landscape, is a set all the same: the cast is stood on the
     // clear ground nearest its middle, a place called `ground`; actor/ground.js)
@@ -254,6 +257,11 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (weather !== undefined) {
     if (set) set.weather = weather;
     else advice.push({ id: 'weather-unused', says: `the scene is shot in ${weather}, but it has no set: a bare stage has no sky`, try: 'set the scene in a world (world_ref, or a film\'s set), or take the weather out' });
+  }
+  // (and its LIFE: what the set's own world moves, read when the film is made; film/life.js)
+  if (life !== undefined && life !== false) {
+    if (set && alive) set.life = life;
+    else advice.push({ id: 'life-unused', says: set ? `the scene asks for the set's life, but ${set.title ? `'${set.title}'` : 'this set'} moves nothing of its own (a metro has traffic; a field, a street of houses and a room have none)` : 'the scene asks for the set\'s life, but it has no set', try: 'play the scene in a city (a set asked for as a metro), bring a thing in yourself (a prop with `from` or `to`), or take `life` out' });
   }
   if (props && Object.keys(props).length) {
     // ANYTHING mojulo made stood in the scene: its faces join the set's, so it is walked round, seen past and boarded
@@ -579,7 +587,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     log(`actors/${w}.glb: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB, ${minted[w].seconds} s`);
   }
   const sound = await writeSceneSound({ dir: outDir, plan, screenplay: P.screenplay, fps, prefix: 'audio/' });
-  let setPack = null, atmosphere = null;
+  let setPack = null, atmosphere = null, flow = null;
   if (P.set?.ref) {
     const { buildBlenderPack } = await import('@/lib/graph/scene/blender-pack.js');
     await buildBlenderPack({ ref: P.set.ref, outDir: path.join(outDir, 'set'), log });
@@ -590,7 +598,9 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     // (THE SCENE'S HOUR: the light is the hour's. A geocube is asked for its own sky at that hour, its form the same;
     //  any world's rig is lit by the hour's preset)
     const H = P.set.hour, manifest = H !== undefined && world.manifest?.kind === 'geocube' ? { ...world.manifest, hour: H } : world.manifest ?? {};
-    atmosphere = filmAtmosphere({ payload: (await resolveWorldScene(H !== undefined ? { ...world, manifest } : world, { unshaded: true })).payload, manifest });
+    const lit = (await resolveWorldScene(H !== undefined ? { ...world, manifest } : world, { unshaded: true })).payload;
+    atmosphere = filmAtmosphere({ payload: lit, manifest });
+    if (P.set.life !== undefined) flow = lit.flow ?? null;
     // (THE SCENE'S WEATHER: the sun through its cloud, the sky, the air and what falls, about where the cast stands)
     if (P.set.weather !== undefined) {
       const pts = Object.values(S.actors).map((A) => A.root[0]), mid = [pts.reduce((n, k) => n + k.x, 0) / pts.length, pts.reduce((n, k) => n + k.y, 0) / pts.length];
@@ -621,6 +631,32 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     propPack.push({ name: Q.name, ...(Q.thing !== undefined ? { thing: Q.thing } : { ref: Q.ref }), glb: file, at: Q.at, turn: Q.turn ?? 0, dims: Q.dims, ...(P.set.relief ? { z: lift(Q.at[0], Q.at[1]) } : {}), ...(keys ? { keys } : {}) });
     log(`${file}: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB`);
   }
+  // (THE SET'S LIFE: its world's own traffic within reach of the cast, each vehicle its own model keyed along its lane
+  //  on the scene's clock, as a thing that moves is; film/life.js)
+  const lifeAdvice = [];
+  if (flow) {
+    const ask = isPlain(P.set.life) ? P.set.life : {}, roots = Object.values(S.actors).map((A) => A.root);
+    const mid = [roots.reduce((n, R) => n + R[0].x, 0) / roots.length, roots.reduce((n, R) => n + R[0].y, 0) / roots.length];
+    const driven = flowLife(flow, { about: mid, seconds: S.seconds, ...ask }), made = new Map();
+    for (const [i, V] of driven.entries()) {
+      const key = `${V.model}|${V.extra ?? ''}|${V.tint.join(',')}`;
+      if (!made.has(key)) {
+        const glb = facesToGlb({ faces: lifeFaces(V) }, { generator: `mojulo scene film · life ${V.model}`, lit: true });
+        if (!glb) continue;
+        const file = `life/${packTitle(V.model)}-${made.size + 1}.glb`;
+        mkdirSync(path.join(outDir, 'life'), { recursive: true });
+        writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
+        made.set(key, file);
+      }
+      const r3 = (v) => Math.round(v * 1000) / 1000, keys = V.keys.map((k) => ({ t: k.t, x: k.x, y: k.y, z: r3(k.z - P.set.floor), turn: k.turn }));
+      propPack.push({ name: `life-${i + 1}`, life: V.id, glb: made.get(key), at: [keys[0].x, keys[0].y], turn: keys[0].turn, dims: lifeDims(V.model), z: keys[0].z, keys });
+      // (a vehicle driven through where a part stands: said, never moved; the lane is the world's)
+      const hit = roots.flatMap((R) => R.map((q) => ({ q, k: keys.reduce((b, k) => (Math.abs(k.t - q.t) < Math.abs(b.t - q.t) ? k : b), keys[0]) }))).find(({ q, k }) => Math.hypot(k.x - q.x, k.y - q.y) < V.wid / 2 + 0.4);
+      if (hit) lifeAdvice.push({ id: 'life-crosses', at: r3(hit.q.t), says: `the set's traffic drives through where a part stands at ${r3(hit.q.t)} s ([${hit.k.x}, ${hit.k.y}]): the cast is on a lane`, try: 'stand the cast on the pavement (a `corner` place, or a mark off the road), or start the world\'s clock elsewhere (`life: { clock }`)' });
+    }
+    setPack.life = { vehicles: driven.length, models: made.size };
+    log(`life: ${driven.length} vehicles of the set's traffic, ${made.size} models`);
+  }
   const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, props: propPack, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
   for (const f of files) { mkdirSync(path.dirname(path.join(outDir, f.file)), { recursive: true }); writeFileSync(path.join(outDir, f.file), f.text); }
   return {
@@ -635,7 +671,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     grade: graded,
     ...(sound ? { sound } : {}),
     ...(P.set ? { set: (({ faces: _f, ...rest }) => rest)(P.set) } : {}),
-    advice: [...P.advice, ...(prepared ? [] : await setAdvice(plan, P.set)), ...(sound?.advice ?? [])],
+    advice: [...P.advice, ...(prepared ? [] : await setAdvice(plan, P.set)), ...lifeAdvice, ...(sound?.advice ?? [])],
   };
 }
 

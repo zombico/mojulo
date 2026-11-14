@@ -334,6 +334,16 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   fog volume, in metres, unless the world declares a thicker fog; `rain` and `snow` are geometry nodes over one
   plane about the cast (`precip`), each point's height a function of the scene's time alone, so a frame renders the
   same alone or in order and nothing is simulated or baked. Like the hour it is taken out of what the plan plays.
+- **The set's life** (`screenplay.life`, `film/life.js` `flowLife`; a film's `scenes/*/life`, the set
+  department's). A metro's traffic is a plan its page drives (`geocity/flow.js`, `scene/channels/flow.js`): a lane a
+  signalised model (`traffic-model.js`). The film reads the same plan with the same model: each lane within reach of
+  the cast stepped on the world's clock from `clock`, each vehicle that comes within reach keyed every quarter second
+  on the road's height, facing along its lane. A vehicle is built as the parked ones are (`geotown/cars.js`
+  `carModel`, its paint the plan's tint) and written as `life/<model>-<n>.glb`; it rides `scene.json`'s `props` as a
+  thing that moves (its `keys`), so `actors.py` needs nothing new. A vehicle that wraps round its lane's ring during
+  the scene is left out. Advice: `life-unused` (the set has no traffic), `life-crosses` (a vehicle within half its
+  width and 0.4 m of a part's root at the same second). The old `city` kind's cars and walkers (`shoot/subjects.js`)
+  are not read yet.
 - **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
   stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
   keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the

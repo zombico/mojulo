@@ -267,3 +267,19 @@ describe('the scene\'s weather', () => {
   });
 });
 
+describe('the set\'s life', () => {
+  const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
+
+  it('is asked of the set; it is not the plan\'s; a scene with no set is told there is none', async () => {
+    expect(screenplayErrors(sp({ life: true }))).toEqual([]);
+    expect(screenplayErrors(sp({ life: { clock: 30 } }))).toEqual([]);
+    expect(screenplayErrors(sp({ life: 'busy' })).join()).toMatch(/life: true/);
+    const plain = await prepareHour(sp({}), { getRow: () => null }), alive = await prepareHour(sp({ life: true }), { getRow: () => null });
+    expect(alive.screenplay).toEqual(plain.screenplay);
+    expect(alive.kept.life).toBe(true);
+    expect(alive.advice.map((a) => a.id)).toEqual(['life-unused']);
+    // (asked off, it is nothing)
+    expect((await prepareHour(sp({ life: false }), { getRow: () => null })).advice).toEqual([]);
+  });
+});
+
