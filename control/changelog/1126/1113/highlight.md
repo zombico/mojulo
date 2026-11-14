@@ -10,9 +10,12 @@ what to use. The same idea as the rim light the characters wear, on things.
 - A level's switch: `game.highlight` (true, a colour, or `{ color, pulse, power, k }`) lights every thing its
   mechanics lay to be taken (a collect's pickups, coins, supplies, an escape room's keys, a trade) under its float,
   and its exit and its delivery point.
-- Drawn as a shell of the entity's own meshes, added over it; a mesh with no normals is read by its faces. It writes
-  the page's logarithmic depth and stands a hair toward the eye, so it neither hides behind its body nor fights it.
+- It is the game's own rim. Drawn as a status's coat is, from one shared source (`scene/channels/coat-src.js`: the
+  status channel's pages are byte for byte what they were), so it holds the page's logarithmic depth and stands a hair
+  off the surface; a mesh with no normals is given smooth ones. Where its `power` and `k` are unsaid it takes the
+  juice floor's rim, as the characters do: a soft fade under isekai, a hard cel band under cel, a thin line under
+  material, at the game type's strength. A world with no juice keeps a soft rim of its own.
 - Spliced only when a state is a highlight: an fx world without one emits the bytes it did (the `fx` pin holds).
-- Seen in Chrome on a quick collectathon's gems (`scripts/spikes/highlight/level.mjs`). Not done: a skinned body
+- Seen in Chrome on a quick collectathon's gems, with no juice and under each look (`scripts/spikes/highlight/level.mjs`). Not done: a skinned body
   (a character keeps its own rim), a highlight on a level's static scenery (a block, a door: not an entity), and a
   default colour taken from the game's look.

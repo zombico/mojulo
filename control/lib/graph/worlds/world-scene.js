@@ -1678,6 +1678,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // ⇒ untouched. Carries hand-authored fx AND the U5 mechanic decoration merged above.
   if (payload && sketch.manifest.fx && typeof sketch.manifest.fx === 'object') {
     payload.fx = sketch.manifest.fx;
+    // (a HIGHLIGHT, game/highlight.js, wears the game's own rim: the juice floor's, the look's narrowness and band at the
+    // game type's strength, as its characters' rim does. A world with no juice keeps the highlight's own soft rim)
+    { const st = payload.fx && payload.fx.states, fxs = sketch.manifest.fxStyle;
+      if (st && fxs && typeof fxs === 'object' && Object.values(st).some((x) => x && typeof x === 'object' && x.highlight !== undefined)) {
+        const R = (await import('@/lib/graph/scene/juice-style.js')).juiceFloor(fxs).rim;
+        if (R.k > 0) payload.fx = { ...payload.fx, rim: { k: R.k, p: R.p, band: R.band || 0 } };
+      } }
   }
 
   // MECHANICS lowering (M1): if the level's `game` channel declares

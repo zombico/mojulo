@@ -1,13 +1,13 @@
 // SPIKE: THE HIGHLIGHT (game/highlight.js) on a real level. A quick collectathon is designed in memory; its level is
 // emitted twice, as it is and with `game.highlight`, and Chrome shoots both from beside its first gem. What it answers:
 // does the fresnel shell draw on the glyphs the mechanics lay, and is the page without it untouched.
-//   node scripts/spikes/highlight/level.mjs --out /abs/dir [--color '#7df']
+//   node scripts/spikes/highlight/level.mjs --out /abs/dir [--color '#77ddff'] [--juice isekai|cel|material]
 process.env.SQLITE_PATH = ':memory:'; process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { register } from 'node:module';
 const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
-const out = path.resolve(opt('--out', 'highlight-spike')), color = opt('--color', null);
+const out = path.resolve(opt('--out', 'highlight-spike')), color = opt('--color', null), juice = opt('--juice', null);
 await fs.mkdir(out, { recursive: true });
 process.env.MOJULO_OUTCOMES_DIR = out; process.env.MOJULO_DATA_DIR = out;
 register(new URL('../../mcp-stdio-loader.mjs', import.meta.url));
@@ -23,8 +23,8 @@ const gem = M.game.mechanics.find((m) => m.kind === 'collect').pickups[0].at;
 // (the hero stood three metres short of the first gem, facing it)
 const browser = await launchChromium({ executablePath: await resolveChromium(), headless: true, args: CHROMIUM_WEBGL_ARGS });
 const report = {};
-for (const [name, game] of [['plain', M.game], ['lit', { ...M.game, highlight: color ? { color, k: Number(opt('--k', 1.1)), power: Number(opt('--power', 2.2)) } : { pulse: true } }]]) {
-  const { payload } = await resolveWorldScene({ ...row, manifest: { ...M, game } });
+for (const [name, game] of [['plain', M.game], ['lit', { ...M.game, highlight: color ? { color } : true }]]) {
+  const { payload } = await resolveWorldScene({ ...row, manifest: { ...M, game, ...(juice ? { fxStyle: { look: juice, flavor: 'action' } } : {}) } });
   const html = emitThreeWorld({ ...payload, inline: true });
   await fs.writeFile(path.join(out, `${name}.html`), html);
   const page = await browser.newPage(); await page.setViewport({ width: 900, height: 560 });

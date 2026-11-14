@@ -1,5 +1,6 @@
 import { safeJson } from '../emit-util.js';
 import { isHighlight, readHighlight } from '../../game/highlight.js';
+import { coatMatSrc, smoothNormalsSrc } from './coat-src.js';
 
 // fx channel (game-ui-language.plan.md, U2): the game UI LANGUAGE decoration — standing STATES
 // (float / spin / pulse / dim / shimmer, and a HIGHLIGHT: lit at its silhouette, game/highlight.js) and one-shot disappear GESTURES (pop / burst / ghost /
@@ -33,23 +34,24 @@ function __fxInk(m, color, k) { __fxInkC.set(color || '#ffffff'); m.traverse((o)
   // HIGHLIGHT (game/highlight.js) is spliced ONLY when a state is one: an entity lit at its silhouette by a fresnel, so
   // every fx world without one emits the text it did. Its states are read here (every dial filled, a bad word refused).
   const usesHl = Object.values(fx.states || {}).some(isHighlight);
-  if (usesHl) fx = { ...fx, states: Object.fromEntries(Object.entries(fx.states).map(([id, s]) => [id, isHighlight(s) ? readHighlight(s, `fx.states.${id}`) : s])) };
+  if (usesHl) fx = { ...fx, states: Object.fromEntries(Object.entries(fx.states).map(([id, s]) => [id, isHighlight(s) ? readHighlight(s, `fx.states.${id}`, fx.rim) : s])) };
+  const hlBand = usesHl && Object.values(fx.states).some((x) => isHighlight(x) && x.band > 0);
   const hlHelpers = usesHl ? `
-// HIGHLIGHT: the entity wears a shell of its own meshes drawn purely by its fresnel (bright where the surface turns
-// from the eye, nothing face on), added over it in the state's colour. A mesh with no normals is read by its faces.
-// (It writes the page's own depth, logarithmic where the page's is: a shell that did not would lie behind its body;
-// and it stands a hair toward the eye, a part in 250 of its distance, so it never fights the surface it lies on.)
-const __fxHl = {};
-const __fxHlVS = '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vHlW; varying vec3 vHlN;\\nvoid main() { vec4 w = modelMatrix * vec4(position, 1.0); vHlW = w.xyz;\\n#ifdef HL_NORMALS\\nvHlN = normalize(mat3(modelMatrix) * normal);\\n#endif\\nw.xyz += (cameraPosition - w.xyz) * 0.004;\\ngl_Position = projectionMatrix * viewMatrix * w;\\n#include <logdepthbuf_vertex>\\n}';
-const __fxHlFS = '#include <common>\\n#include <logdepthbuf_pars_fragment>\\nuniform vec3 uHlC; uniform float uHlK; uniform float uHlP; varying vec3 vHlW; varying vec3 vHlN;\\nvoid main() {\\n#include <logdepthbuf_fragment>\\n#ifdef HL_NORMALS\\nvec3 N = normalize(vHlN);\\n#else\\nvec3 N = normalize(cross(dFdx(vHlW), dFdy(vHlW)));\\n#endif\\nfloat f = pow(1.0 - abs(dot(N, normalize(cameraPosition - vHlW))), uHlP);\\ngl_FragColor = vec4(uHlC * (f * uHlK), 1.0); }';
+// HIGHLIGHT: the entity wears a COAT, a second draw of each of its own meshes lit at the silhouette in the state's
+// colour (channels/coat-src.js: the status coat's own source, so the page's log depth holds and it stands a hair off
+// the surface), soft or a cel band as the game's juice has its rim. A mesh with no normals is given smooth ones once.
+${coatMatSrc('__fxCoatMat', hlBand)}${smoothNormalsSrc('__fxNormals')}const __fxHl = {};
 function __fxHlShell(id, m, s) {
   if (__fxHl[id]) return __fxHl[id];
-  const own = [], S = { u: { uHlC: { value: new THREE.Color(s.highlight) }, uHlK: { value: s.k }, uHlP: { value: s.power } }, meshes: [] };
-  m.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh && o.geometry && !(o.userData && (o.userData.ink || o.userData.__hl))) own.push(o); });
+  const own = [], c = new THREE.Color(s.highlight), S = { mat: __fxCoatMat([c.r, c.g, c.b], false, s.power${hlBand ? ', s.band' : ''}), meshes: [] };
+  m.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh && o.geometry && !(o.userData && (o.userData.ink || o.userData.coat))) own.push(o); });
   for (const o of own) {
-    const mat = new THREE.ShaderMaterial({ uniforms: S.u, vertexShader: __fxHlVS, fragmentShader: __fxHlFS, defines: o.geometry.attributes.normal ? { HL_NORMALS: 1 } : {}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-    const sh = new THREE.Mesh(o.geometry, mat); sh.userData.__hl = true; sh.renderOrder = 4; sh.raycast = () => {}; sh.visible = false; o.add(sh); S.meshes.push(sh);
+    if (!o.geometry.attributes.normal) __fxNormals(o.geometry);
+    const sh = new THREE.Mesh(o.geometry, S.mat); sh.userData.coat = true; sh.renderOrder = 4; sh.raycast = function () {}; sh.visible = false; o.add(sh); S.meshes.push(sh);
   }
+  // (the coat is a material of the entity's now: its rest is remembered again, the coat's among them, so a reset
+  // restores as many as it finds)
+  delete __fxState[id]; __fxCapture(id, m);
   return (__fxHl[id] = S);
 }
 function __fxHlShow(id, on) { const S = __fxHl[id]; if (S) for (const sh of S.meshes) sh.visible = on; }` : '';
@@ -60,7 +62,7 @@ function __fxHlShow(id, on) { const S = __fxHl[id]; if (S) for (const sh of S.me
     if (s.as) __fxApplyState(m, inner, canMove, s.as, t, id);
     const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     if (s.when && !(V && V[s.when])) return;
-    const S = __fxHlShell(id, m, s); S.u.uHlK.value = s.k * (s.pulse ? 0.65 + 0.35 * Math.sin(t * 3.0) : 1); __fxHlShow(id, true);
+    const S = __fxHlShell(id, m, s); S.mat.userData.uK.value = s.k * (s.pulse ? 0.65 + 0.35 * Math.sin(t * 3.0) : 1); __fxHlShow(id, true);
   }` : '';
   const inkColorArg = usesInk ? ', color' : '';
   const inkQueueColor = usesInk ? ", color: (__b && typeof __b === 'object' && __b.color) ? __b.color : null" : '';

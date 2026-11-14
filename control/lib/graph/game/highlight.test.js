@@ -1,12 +1,15 @@
 // THE HIGHLIGHT: a thing indicated by a rim light (a fresnel at its silhouette), a standing state of the fx channel.
 import { describe, it, expect } from 'vitest';
-import { readHighlight, highlightFor, isHighlight, HIGHLIGHT_COLOR, HIGHLIGHT_MOTIONS } from './highlight.js';
+import { readHighlight, highlightFor, isHighlight, HIGHLIGHT_COLOR, HIGHLIGHT_RIM, HIGHLIGHT_MOTIONS } from './highlight.js';
 import { decorateMechanics } from './mechanic-decor.js';
 import { fxChannelScript } from '../scene/channels/fx.js';
 
 describe('a highlight, as words', () => {
   it('fills every dial; true is the default colour', () => {
-    expect(readHighlight({ highlight: true })).toEqual({ highlight: HIGHLIGHT_COLOR, pulse: false, power: 2.2, k: 1.1 });
+    expect(readHighlight({ highlight: true })).toEqual({ highlight: HIGHLIGHT_COLOR, pulse: false, power: HIGHLIGHT_RIM.p, k: HIGHLIGHT_RIM.k, band: 0 });
+    // (the game's own rim where its dials are unsaid: a cel band, narrower, stronger; a dial said wins)
+    expect(readHighlight({ highlight: true }, 'h', { k: 1.7, p: 1.5, band: 0.45 })).toMatchObject({ power: 1.5, k: 1.7, band: 0.45 });
+    expect(readHighlight({ highlight: true, power: 4 }, 'h', { k: 1.7, p: 1.5, band: 0.45 })).toMatchObject({ power: 4, k: 1.7 });
     expect(readHighlight({ highlight: '#59D8FF', pulse: true, as: HIGHLIGHT_MOTIONS[0], when: 'quest-next' })).toMatchObject({ highlight: '#59d8ff', pulse: true, as: HIGHLIGHT_MOTIONS[0], when: 'quest-next' });
   });
   it('refuses a word it does not know, and says which', () => {
@@ -28,11 +31,18 @@ describe('a highlight, as words', () => {
 describe('the fx channel carries it', () => {
   const plain = { states: { d: 'float' }, on: { 'goal:*': 'burst' } };
   it('a world without one emits not a byte of it', () => { expect(fxChannelScript(plain)).not.toMatch(/Hl|highlight/i); });
-  it('a state that is one: the shell, the page\'s own depth, its dials filled; the script parses', () => {
+  it('a state that is one: a coat from the status coat\'s own source, its dials filled; the script parses', () => {
     const js = fxChannelScript({ states: { d: { highlight: true, as: 'float' }, e: 'spin' } });
     expect(js).toContain('__fxHlShell');
-    expect(js).toContain('logdepthbuf_fragment');
-    expect(js).toContain(`"highlight":"${HIGHLIGHT_COLOR}","pulse":false,"power":2.2,"k":1.1,"as":"float"`);
+    expect(js).toContain('function __fxCoatMat(color, dark, p)');
+    expect(js).not.toContain('uRimBand');
+    expect(js).toContain(`"highlight":"${HIGHLIGHT_COLOR}","pulse":false,"power":2.2,"k":1.1,"band":0,"as":"float"`);
+    expect(() => new Function(`let stepFx; const __BUS = { processEvents() {} }; ${js}`)).not.toThrow();
+  });
+  it('wears the game\'s rim (fx.rim, the juice floor\'s): its band only when the look has one', () => {
+    const js = fxChannelScript({ states: { d: { highlight: true } }, rim: { k: 1.4, p: 1.5, band: 0.45 } });
+    expect(js).toContain('function __fxCoatMat(color, dark, p, band)');
+    expect(js).toContain('"power":1.5,"k":1.4,"band":0.45');
     expect(() => new Function(`let stepFx; const __BUS = { processEvents() {} }; ${js}`)).not.toThrow();
   });
   it('a bad one is refused where the page is emitted', () => { expect(() => fxChannelScript({ states: { d: { highlight: 'red' } } })).toThrow(/fx.states.d/); });
