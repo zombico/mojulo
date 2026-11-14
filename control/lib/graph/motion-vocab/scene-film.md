@@ -98,8 +98,18 @@ forge_motion({ title: 'The key', export: 'storyboard',
   a word: `dawn`, `morning`, `noon`, `afternoon`, `golden`, `dusk`, `night`. The Blender film is lit by it (day, dawn,
   dusk or night light; a set made as a geocube also gives its own sky at that hour), so one street can be shot at
   noon and at night with no second world. The set's form, the blocking and the storyboard are the same at any hour.
-  A scene with no set is advised (`hour-unused`). Not yet: its weather (clouds, rain); lamps a world lights only at
-  night.
+  A scene with no set is advised (`hour-unused`). Not yet: lamps a world lights only at night.
+- **`weather`: what the sky is doing while the scene is shot.** One of `clear`, `haze`, `mist`, `fog`, `dust`,
+  `overcast`, `drizzle`, `rain`, `downpour`, `thunderstorm`, `snow`, `blizzard`, `duststorm`. The Blender film is
+  lit and aired by it, with its `hour`:
+  - **The sky's cover.** Under cloud less sun gets through and its shadow goes soft; an overcast or stormy sky is one
+    grey light from everywhere.
+  - **The air.** A haze, a mist or a fog thins what is far (a world's own fog, where it is thicker, is kept).
+  - **What falls.** Rain or snow about the cast, out to 30 m, falling for the whole scene.
+  - The set's form, the blocking and the storyboard are the same in any weather. A scene with no set is advised
+    (`weather-unused`).
+  - Not yet: it rains through a roof (a porch, a room's ceiling is not read); wet ground, settled snow, lightning and
+    wind in the trees are not made.
 - **`props`: things stood in the scene.** Write `{ <name>: { thing | ref, at, turn?, scale? } }`. `at` is `[x, y]` in
   metres or a mark's name; `turn` is degrees about the vertical; `scale` is how many times larger it stands than it
   was made.

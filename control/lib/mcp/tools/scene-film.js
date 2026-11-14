@@ -36,6 +36,7 @@ import { reliefOf, reliefFrom, heightAt, levelled, landBetween } from '@/lib/gra
 import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
+import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -46,7 +47,7 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'voice', 'dub']);
 /** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
  * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
  * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
@@ -94,6 +95,7 @@ export function screenplayErrors(sp) {
   }
   if (sp.marks !== undefined && !isPlain(sp.marks)) errs.push('marks: { <name>: [x, y] } (metres)');
   if (sp.hour !== undefined) { try { readHour(sp.hour); } catch (e) { errs.push(`hour: the time of day the scene is shot at: ${e.message}`); } }
+  if (sp.weather !== undefined && !WEATHER_STATES.includes(sp.weather)) errs.push(`weather: what the sky is doing while the scene is shot, one of ${WEATHER_STATES.join(', ')}`);
   if (sp.props !== undefined) {
     if (!isPlain(sp.props)) errs.push('props: { <name>: { thing | ref, at: [x, y] | <a mark>, turn?, scale? } }: a thing off the shelves by its word, or anything mojulo made by its ref, stood in the scene');
     else for (const [name, Q] of Object.entries(sp.props)) {
@@ -180,7 +182,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (errs.length) throw new Error(`screenplay refused:\n - ${errs.join('\n - ')}\n(${MANUAL})`);
   // (the props are the set's: the plan plays the screenplay without them, a recipe keeps them as written)
   // (and its hour is the light's: film/look, read when the film is made)
-  const { props, hour, ...written } = sp;
+  const { props, hour, weather, ...written } = sp;
   let play = written, set = null;
   if (sp.world_ref !== undefined) {
     const row = getRow?.(sp.world_ref);
@@ -247,6 +249,11 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (hour !== undefined) {
     if (set) set.hour = hour;
     else advice.push({ id: 'hour-unused', says: `the scene is shot at ${typeof hour === 'string' ? hour : `${hour} h`}, but it has no set: a bare stage is lit the same at any hour`, try: 'set the scene in a world (world_ref, or a film\'s set), or take the hour out' });
+  }
+  // (and its weather: the sky's, read when the film is made; film/weather.js)
+  if (weather !== undefined) {
+    if (set) set.weather = weather;
+    else advice.push({ id: 'weather-unused', says: `the scene is shot in ${weather}, but it has no set: a bare stage has no sky`, try: 'set the scene in a world (world_ref, or a film\'s set), or take the weather out' });
   }
   if (props && Object.keys(props).length) {
     // ANYTHING mojulo made stood in the scene: its faces join the set's, so it is walked round, seen past and boarded
@@ -584,6 +591,12 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     //  any world's rig is lit by the hour's preset)
     const H = P.set.hour, manifest = H !== undefined && world.manifest?.kind === 'geocube' ? { ...world.manifest, hour: H } : world.manifest ?? {};
     atmosphere = filmAtmosphere({ payload: (await resolveWorldScene(H !== undefined ? { ...world, manifest } : world, { unshaded: true })).payload, manifest });
+    // (THE SCENE'S WEATHER: the sun through its cloud, the sky, the air and what falls, about where the cast stands)
+    if (P.set.weather !== undefined) {
+      const pts = Object.values(S.actors).map((A) => A.root[0]), mid = [pts.reduce((n, k) => n + k.x, 0) / pts.length, pts.reduce((n, k) => n + k.y, 0) / pts.length];
+      atmosphere = { ...atmosphere, weather: weatherSpec(P.set.weather, { about: [mid[0], mid[1], P.set.relief ? heightAt(P.set.relief, mid[0], mid[1]) : 0] }) };
+      setPack.weather = P.set.weather;
+    }
     if (H !== undefined) { const preset = hourPreset(H); atmosphere = { ...atmosphere, preset, sky: { ...(atmosphere.sky ?? {}), preset, stars: preset === 'night', moon: preset === 'night' } }; setPack.hour = H; setPack.lit = preset; }
     // (a walled set with no light of its own would render black: its house lights, actor/scene-film.js actors.py house)
     const house = !atmosphere.sky && !atmosphere.lamps.length ? houseLights(P.set.rooms) : [];

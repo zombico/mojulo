@@ -40,8 +40,8 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
  * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
  * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb).
  * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). 8: a moving prop
- * turns along its way (a key's `turn`). */
-export const SCENE_PACK_REV = 8;
+ * turns along its way (a key's `turn`). 9: a scene's weather (atmosphere.json weather, film_light.py). */
+export const SCENE_PACK_REV = 9;
 /** how far apart a walk is keyed on ground that is not flat, metres */
 const WALK_KEY = 0.4;
 

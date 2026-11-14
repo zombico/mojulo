@@ -155,7 +155,7 @@ game.
   - **Street trees and parked cars take the light.** In a world sent to Blender, anything placed by repeating one
     model (a street's trees, its parked cars) is now lit like the rest of the place, and casts its shadow. Before,
     those kept their own flat colour whatever the light, so at night they glowed white against a dark street.
-  - **Not yet:** weather (cloud, rain), and street lamps that a place lights only at night.
+  - **Not yet:** street lamps that a place lights only at night.
 - **The film suggests where a scene should be.** A scene with no place plays on a bare stage. When its words name
   one, the film now suggests it, ready to accept: a street of houses for "outside her house", a city for "a street
   corner downtown", a landscape in the scene's own words for "a field by a lake", and the time of day it mentions.
@@ -166,6 +166,15 @@ game.
   "in the study" or "inside" is offered a room the same way an outdoor scene is offered a street.
 - **Choose how a street is built.** A place asked for as a town or city can name its building style (a Tudor market
   town, art deco, brutalist, a brick streetcar suburb and others) and how its streets are laid.
+- **Weather.** Give a scene its weather and the Blender film is shot in it: clear, haze, mist, fog, dust, overcast,
+  drizzle, rain, a downpour, a thunderstorm, snow, a blizzard or a dust storm.
+  - **Cloud dims and softens the light.** Under an overcast or stormy sky the sun barely gets through, shadows go
+    soft and the sky is grey.
+  - **Mist and fog fade what is far.**
+  - **Rain and snow fall** round the cast for the whole scene.
+  - It combines with the scene's hour: the same street can be a bright noon, a foggy morning and a rainy dusk.
+  - **Not yet:** rain falls through a porch roof or a ceiling; the ground does not get wet and snow does not
+    settle; no lightning, and the trees do not move in the wind.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
   notes on what happens in each event.

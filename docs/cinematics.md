@@ -326,6 +326,14 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   is resolved at that hour for its own sky (its faces are the same at every hour). `scene.json`'s `set` records
   `hour` and `lit`. The lamps ride the set's own pack, made at the set's own hour, so a night's street lamps are
   only there if the world was made with them.
+- **The scene's weather** (`screenplay.weather`, `film/weather.js` `weatherSpec`; a film's `scenes/*/weather`, the
+  look and light department's). One of the world's weather states (`matte-paint/sky.js` `CLOUDS_OF_WEATHER`, less the
+  two that are things on the wind), lowered to `{ cover, sun, soften, sky?, air?, rain?, snow?, about, reach }` and
+  written into the set's `atmosphere.json` as `weather`. `film_light.py` performs it: the sun's energy times `sun`
+  and its angle `soften`; under cloud the world's background is the cover's grey, not the sky model; `air` is the
+  fog volume, in metres, unless the world declares a thicker fog; `rain` and `snow` are geometry nodes over one
+  plane about the cast (`precip`), each point's height a function of the scene's time alone, so a frame renders the
+  same alone or in order and nothing is simulated or baked. Like the hour it is taken out of what the plan plays.
 - **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
   stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
   keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the

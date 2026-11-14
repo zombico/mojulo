@@ -254,3 +254,16 @@ describe('the scene\'s hour', () => {
   });
 });
 
+describe('the scene\'s weather', () => {
+  const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
+
+  it('is one of the weather states; it is the sky\'s, not the plan\'s; a scene with no set is told it has no sky', async () => {
+    expect(screenplayErrors(sp({ weather: 'rain' }))).toEqual([]);
+    expect(screenplayErrors(sp({ weather: 'sunny' })).join()).toMatch(/weather: what the sky is doing.*clear,.*rain/);
+    const plain = await prepareHour(sp({}), { getRow: () => null }), wet = await prepareHour(sp({ weather: 'rain' }), { getRow: () => null });
+    expect(wet.screenplay).toEqual(plain.screenplay);
+    expect(wet.kept.weather).toBe('rain');
+    expect(wet.advice.map((a) => a.id)).toEqual(['weather-unused']);
+  });
+});
+

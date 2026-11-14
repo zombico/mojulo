@@ -362,6 +362,8 @@ Reads atmosphere.json beside it - the world's sky preset, fog and water - and pe
   interior     no sun, a faint fill; the world's own lights carry it
   lamps        mojulo's lamps arrive in model.glb as point lights; each is set to its intensity x --lamp-gain watts
   fog          a ground-hugging volume to the recipe's fog height, thinning with height (EEVEE and Cycles)
+  weather      a scene's own (atmosphere.json weather): the sun through cloud and its soft shadow, a grey sky, a haze,
+               a mist or a fog, rain or snow falling about the cast
   water        the water surfaces the pack leaves out, rebuilt as a reflective water mesh
 plus a ground to the horizon and AgX.
 
@@ -439,18 +441,19 @@ def scene_box():
             Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts))))
 
 
-def sun(name, elevation, azimuth, energy, color):
+def sun(name, elevation, azimuth, energy, color, soften=0.6):
     sd = bpy.data.lights.new(name, 'SUN')
     sd.energy = energy
     sd.color = color
-    sd.angle = math.radians(0.6)
+    # (its disc: a clear sun is small and its shadow hard; under cloud the light comes from everywhere)
+    sd.angle = math.radians(soften)
     ob = rig(bpy.data.objects.new(name, sd))
     d = Vector((math.sin(azimuth) * math.cos(elevation), math.cos(azimuth) * math.cos(elevation), math.sin(elevation)))
     ob.rotation_euler = (-d).to_track_quat('-Z', 'Y').to_euler()
     return ob
 
 
-def world(preset, el, az):
+def world(preset, el, az, cover=None):
     sc = bpy.context.scene
     w = bpy.data.worlds.new('film-world')
     sc.world = w
@@ -463,6 +466,12 @@ def world(preset, el, az):
     if preset in ('night', 'interior'):
         bg.inputs['Color'].default_value = (0.004, 0.006, 0.014, 1) if preset == 'night' else (0.02, 0.02, 0.02, 1)
         bg.inputs['Strength'].default_value = 1.0
+        return
+    # (the weather's sky: under cloud the sky is the cloud, one grey light from everywhere, dimmer at a low sun)
+    if cover:
+        dim = 0.45 if preset in ('dawn', 'dusk') else 1.0
+        bg.inputs['Color'].default_value = (*[float(v) * dim for v in cover['color']], 1)
+        bg.inputs['Strength'].default_value = float(cover.get('strength', 0.85))
         return
     sky = nt.nodes.new('ShaderNodeTexSky')
     for t in ('MULTIPLE_SCATTERING', 'NISHITA', 'SINGLE_SCATTERING'):
@@ -572,6 +581,110 @@ def water(faces, M):
     log('water: %d surfaces' % len(polys))
 
 
+def precip(W, kind):
+    """What FALLS (atmosphere.json weather rain | snow, 0..1): streaks of rain or flakes of snow about the cast, out to
+    its reach, falling on the scene's clock. Made of geometry nodes over one plane, each point's height a function of
+    the frame alone: any frame renders alone, in any order, the same (no simulation, nothing to bake)."""
+    amount = float(W.get(kind) or 0)
+    if amount <= 0:
+        return
+    rain = kind == 'rain'
+    ax, ay, az = [float(v) for v in (W.get('about') or [0, 0, 0])]
+    reach = float(W.get('reach', 22))
+    H = 14.0 if rain else 10.0                      # the height it falls through, metres
+    speed = 9.0 if rain else 1.3                    # metres a second
+    per_m2 = (9.0 if rain else 14.0) * amount       # how many are in the air over a square metre
+    ng = bpy.data.node_groups.new('film-%s' % kind, 'GeometryNodeTree')
+    if hasattr(ng, 'interface'):
+        ng.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+    else:
+        ng.outputs.new('NodeSocketGeometry', 'Geometry')
+    N, L = ng.nodes, ng.links
+    out = N.new('NodeGroupOutput')
+    grid = N.new('GeometryNodeMeshGrid')
+    grid.inputs['Size X'].default_value = reach * 2
+    grid.inputs['Size Y'].default_value = reach * 2
+    grid.inputs['Vertices X'].default_value = 2
+    grid.inputs['Vertices Y'].default_value = 2
+    pts = N.new('GeometryNodeDistributePointsOnFaces')
+    pts.inputs['Density'].default_value = per_m2
+    pts.inputs['Seed'].default_value = 7
+    L.new(grid.outputs['Mesh'], pts.inputs['Mesh'])
+    # each point's own phase, 0..1 (a float by its index: the same every run)
+    rnd = N.new('FunctionNodeRandomValue')
+    rnd.data_type = 'FLOAT'
+    phase = [o for o in rnd.outputs if o.type == 'VALUE' and o.enabled][0]
+    time = N.new('GeometryNodeInputSceneTime')
+    def math_node(op, a, b):
+        m = N.new('ShaderNodeMath')
+        m.operation = op
+        for i, v in enumerate((a, b)):
+            if isinstance(v, (int, float)):
+                m.inputs[i].default_value = float(v)
+            else:
+                L.new(v, m.inputs[i])
+        return m.outputs[0]
+    # its height: H at the top of its fall, down to 0, and round again
+    fallen = math_node('ADD', math_node('MULTIPLY', time.outputs['Seconds'], speed), math_node('MULTIPLY', phase, H))
+    z = math_node('SUBTRACT', H, math_node('FLOORED_MODULO', fallen, H))
+    xyz = N.new('ShaderNodeCombineXYZ')
+    L.new(z, xyz.inputs['Z'])
+    if not rain:
+        # (a flake drifts as it falls)
+        sway = math_node('MULTIPLY', math_node('SINE', math_node('ADD', math_node('MULTIPLY', time.outputs['Seconds'], 1.3), math_node('MULTIPLY', phase, 40.0)), 0.0), 0.35)
+        L.new(sway, xyz.inputs['X'])
+    setp = N.new('GeometryNodeSetPosition')
+    L.new(pts.outputs['Points'], setp.inputs['Geometry'])
+    L.new(xyz.outputs['Vector'], setp.inputs['Offset'])
+    if rain:
+        drop = N.new('GeometryNodeMeshCylinder')
+        drop.inputs['Vertices'].default_value = 3
+        drop.inputs['Radius'].default_value = 0.0045
+        drop.inputs['Depth'].default_value = 0.5
+    else:
+        drop = N.new('GeometryNodeMeshIcoSphere')
+        drop.inputs['Radius'].default_value = 0.02
+        drop.inputs['Subdivisions'].default_value = 1
+    inst = N.new('GeometryNodeInstanceOnPoints')
+    L.new(setp.outputs['Geometry'], inst.inputs['Points'])
+    L.new(drop.outputs['Mesh'], inst.inputs['Instance'])
+    m = bpy.data.materials.new('film-%s' % kind)
+    m.use_nodes = True
+    p = m.node_tree.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0.78, 0.83, 0.9, 1) if rain else (0.95, 0.96, 1.0, 1)
+    p.inputs['Roughness'].default_value = 0.2 if rain else 0.9
+    # (it shows against a dark sky: a little of its own light)
+    for name in ('Emission Color', 'Emission'):
+        if name in p.inputs:
+            p.inputs[name].default_value = (0.8, 0.85, 0.92, 1)
+            break
+    if 'Emission Strength' in p.inputs:
+        p.inputs['Emission Strength'].default_value = 0.35 if rain else 0.25
+    if rain:
+        p.inputs['Alpha'].default_value = 0.55
+        for attr, v in (('blend_method', 'BLEND'), ('surface_render_method', 'BLENDED')):
+            try:
+                setattr(m, attr, v)
+            except (AttributeError, TypeError):
+                pass
+    setm = N.new('GeometryNodeSetMaterial')
+    setm.inputs['Material'].default_value = m
+    L.new(inst.outputs['Instances'], setm.inputs['Geometry'])
+    L.new(setm.outputs['Geometry'], out.inputs[0])
+    me = bpy.data.meshes.new('film-%s' % kind)
+    me.from_pydata([(0, 0, 0)], [], [])
+    ob = rig(bpy.data.objects.new('film-%s' % kind, me))
+    ob.location = (ax, ay, az)
+    ob.modifiers.new('fall', 'NODES').node_group = ng
+    # (what falls casts no shadow worth its cost)
+    for attr in ('visible_shadow',):
+        try:
+            setattr(ob, attr, False)
+        except AttributeError:
+            pass
+    log('%s: %.2f, about [%.1f, %.1f, %.1f] out to %.0f m' % (kind, amount, ax, ay, az, reach))
+
+
 def main():
     sc = bpy.context.scene
     path = os.path.join(_here(), 'atmosphere.json')
@@ -579,6 +692,10 @@ def main():
     M = root_matrix()
     unit = M.to_scale()[0]
     preset = _opt('--preset') or atm.get('preset') or 'day'
+    # THE WEATHER (atmosphere.json weather: a scene's own, lib/graph/film/weather.js): how much sun gets through and how
+    # soft it is, the sky under cloud, the air, and what falls. Absent: the light as it was
+    W = atm.get('weather') or {}
+    through, soften = float(W.get('sun', 1.0)), float(W.get('soften', 0.6))
     force = _flag('--force')
 
     lamps = [o for o in sc.objects if o.type == 'LIGHT' and o.name.startswith('light:')]
@@ -594,13 +711,13 @@ def main():
         default_el = {'night': 40, 'dawn': 12, 'dusk': 12}.get(preset, 35)
         el = math.radians(float(_opt('--sun-elevation', default_el)))
         az = math.radians(float(_opt('--sun-azimuth', 215)))
-        world(preset, el, az)
+        world(preset, el, az, W.get('sky'))
         if preset == 'night':
-            sun('film-moon', el, az, float(_opt('--sun', 0.12)), (0.65, 0.75, 1.0))
+            sun('film-moon', el, az, float(_opt('--sun', 0.12)) * through, (0.65, 0.75, 1.0), soften)
         elif preset in ('dawn', 'dusk'):
-            sun('film-sun', el, az, float(_opt('--sun', 2.0)), (1.0, 0.72, 0.48))
+            sun('film-sun', el, az, float(_opt('--sun', 2.0)) * through, (1.0, 0.72, 0.48), soften)
         elif preset != 'interior':
-            sun('film-sun', el, az, float(_opt('--sun', 2.6)), (1.0, 1.0, 1.0))
+            sun('film-sun', el, az, float(_opt('--sun', 2.6)) * through, (1.0, 1.0, 1.0), soften)
         # mojulo lamp intensity -> watts; the glTF importer's own conversion leaves a street lamp near-dark
         gain = float(_opt('--lamp-gain', 3.0))
         table = {l['name']: l['intensity'] for l in atm.get('lamps', [])}
@@ -611,8 +728,16 @@ def main():
                 o.data.shadow_soft_size = 0.1 * unit
         if not _flag('--no-ground'):
             ground(scene_box()[0].z - 0.05)
-        if atm.get('fog') and not _flag('--no-fog'):
-            fog(atm['fog'], unit)
+        # (the weather's air: a haze, a mist or a fog, where the world declares none thicker; in metres, the scene's)
+        air = W.get('air')
+        own = atm.get('fog')
+        if air and not _flag('--no-fog') and (not own or float(air['density']) > float(own['density'])):
+            fog({'height': air['height'], 'density': air['density'], 'color': air['color'], 'reach': 150}, 1.0)
+        elif own and not _flag('--no-fog'):
+            fog(own, unit)
+        if preset != 'interior':
+            precip(W, 'rain')
+            precip(W, 'snow')
         sc.view_settings.view_transform = 'AgX'
         try:
             sc.view_settings.look = 'AgX - Medium High Contrast'
