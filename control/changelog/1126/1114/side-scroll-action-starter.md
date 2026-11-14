@@ -86,6 +86,22 @@ screen) is now played on a page; before, only its practice yard was.
   step), its shutters' form or none, its roof (the tiled hip, a steep slate one, a flat parapet), and on some narrow
   balconies from the second floor up (a front's `balconies` may now say its own size, and may hang over a shop's door).
   The brawl's town street asks for it.
+- Alleys and setbacks: a shop row broken up (`fronts`) now breaks in plan too, by the row's `breaks`
+  (`geotown/pattern.js`): an alley beside some buildings (as wide as its plot can spare, never two running, never on a
+  corner) and some set back from the walk behind a paved forecourt, on their own dice, so a row not broken up is laid
+  as it was.
+- A rough quarter: `fronts: 'rough'` is the same row gone to a working street (the row's `rough` table): red, brown,
+  yellow and dark brick tenements and walk-ups on the main street's brick with sash lights and flat roofs, between
+  renders gone grey and grimy, shutters missing, a concrete front. The brawl's town street is rough unless its level
+  says `fronts: 'broken'`.
+- The dress gone urban (`brawl/brawl-dress.js`): new pieces (rubbish bags, dumped cardboard, a vending machine, a fire
+  in an oil drum, litter and a stain on the walk; on the wall a steel shutter rolled down and sprayed, a big sprayed
+  piece, a boarded window, an air conditioner, a drainpipe, a lit blade sign, a fire escape with its landings and
+  ladders), a new set `strip` (a shuttered strip), rubbish and marks in the other sets, and the turn a street takes
+  unsaid: the way in a strip, the held screens a market, a strip, a yard, the boss's the crew's corner (a cafe terrace
+  is said, never fallen to). A dress may be told its `fronts` (the buildings' own lines along the belt): a wall's mark
+  then stands on one building, at that building's line, and a gap between two is an alley with something left in it.
+  A town street says them from its shops.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

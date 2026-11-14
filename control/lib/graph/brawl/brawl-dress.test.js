@@ -68,6 +68,20 @@ describe('the layout', () => {
       expect(n[0] * f.outNormal[0] + n[1] * f.outNormal[1] + n[2] * f.outNormal[2]).toBeGreaterThanOrEqual(0);
     }
   });
+  it('a mark stands on a building: on a front wide enough for it, at that front\'s own line; an alley is dressed as one', () => {
+    const fronts = [{ from: 0, to: 20, wall: 6.1 }, { from: 22.5, to: 40, wall: 7.4 }, { from: 40, to: belt.length, wall: 6.1 }];
+    const P = dressPlan({ ...D, fronts }, belt), marks = P.filter((p) => p.side === 'wall'), alley = P.filter((p) => p.side === 'alley');
+    expect(marks.length).toBeGreaterThan(3);
+    for (const m of marks) {
+      const half = DRESS_PIECES[m.piece].size[0] / 2, F = fronts.find((f) => m.s - half >= f.from && m.s + half <= f.to);
+      expect(F, `${m.piece} at ${m.s}`).toBeTruthy();
+      expect(m.n).toBeLessThan(F.wall); expect(m.n).toBeGreaterThan(F.wall - 0.5);
+    }
+    expect(alley.length).toBeGreaterThan(0);
+    for (const a of alley) { expect(a.s).toBeGreaterThan(20); expect(a.s).toBeLessThan(22.5); expect(a.n).toBeGreaterThan(7.4); }
+    // (no fronts said: no alley, as before)
+    expect(dressPlan(D, belt).some((p) => p.side === 'alley')).toBe(false);
+  });
   it('a fault is said', () => {
     expect(() => readDress({ ...D, far: [2, 6] }, belt)).toThrow(/outside the band/);
     expect(() => readDress({ ...D, sets: ['market'] }, belt)).toThrow(/a set a screen/);
@@ -85,5 +99,9 @@ describe('on a level', () => {
     expect(brawlLevel({ kind: 'town', dress: { colour: '#b3261e', sets: ['plain', 'yard', 'market', 'turf'] } }).brawl.dress).toMatchObject({ colour: '#b3261e', sets: ['plain', 'yard', 'market', 'turf'] });
     expect(() => brawlLevel({ kind: 'town', dress: { far: [0, 9] } })).toThrow(/not its word/);
     expect(brawlLevel({ kind: 'greybox', preset: 'street' }).brawl.dress).toBeUndefined();
+    // (its town's shops are its dress's fronts; its fronts rough unless it says)
+    expect(T.geotown.fronts).toBe('rough');
+    expect(T.brawl.dress.fronts.length).toBeGreaterThan(2);
+    expect(brawlLevel({ kind: 'town', fronts: 'broken' }).geotown.fronts).toBe('broken');
   });
 });

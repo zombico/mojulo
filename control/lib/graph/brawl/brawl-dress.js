@@ -35,6 +35,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const C = Object.freeze({
   timber: '#9a7448', timberDark: '#6e5132', slat: '#b08a5a', iron: '#3a3d42', steel: '#7d848c', tyre: '#1f2023', sack: '#c9b58c', sackDark: '#a8946c',
   canvas: ['#b8442e', '#2f6a8a', '#d9b44a', '#3f7a4f', '#e9e2d0'], stripe: '#f1ead8', leaf: '#3f6e3a', leafDark: '#2f5530', soil: '#4a3a2c', terracotta: '#b5683f',
+  bag: '#17181b', bagTie: '#2c2e33', card: ['#a98758', '#8f7148', '#b89868'], steel: '#8b9198', steelDark: '#6b7178', rust: '#7a4a32', lit: '#f2e9c4', fire: '#f08a2a', ember: '#c8451e',
+  machine: ['#c8322a', '#2a62b8', '#e8e4d8'], neon: ['#ff4f8a', '#35e0d0', '#ffd23a', '#7a5cff'], spray: ['#f2f0e8', '#111214', '#ffd23a', '#35e0d0', '#ff4f8a'], wood: '#8a6a44', asphalt: '#2a2b2e', scrap: ['#e8dfc8', '#c9d4d8', '#d8b4a8'],
   goods: ['#d2452f', '#e0a030', '#6a9a3a', '#e8d9a0', '#8a4a7a'], paper: ['#e8dfc8', '#c9d4d8', '#e6c9a0', '#d8b4a8'], ink: '#24262b', chalk: '#ece8dc', skip: '#2f5d4a', paperBox: ['#b3261e', '#1f4fa8', '#d9b44a'],
 });
 
@@ -95,7 +97,36 @@ export const DRESS_PIECES = Object.freeze({
   tyres: { says: 'tyres stacked', size: [0.8, 0.8], tall: 0.9, build: (R) => { const out = [], n = 3 + Math.floor(R() * 2); for (let k = 0; k < n; k++) out.push(...drum((R() - 0.5) * 0.06, (R() - 0.5) * 0.06, 0.34, k * 0.22, k * 0.22 + 0.2, C.tyre, C.iron)); return out; } },
   cart: { says: 'a hand cart, its handles up', size: [1.7, 0.9], tall: 1, build: () => [...box(-0.6, -0.38, 0.6, 0.38, 0.4, 0.75, C.slat, C.timberDark), ...drum(-0.2, -0.42, 0.28, 0.12, 0.2, C.iron).map(tipWheel(-0.2, -0.42)), ...box(0.6, -0.36, 1.05, -0.3, 0.7, 0.76, C.timberDark), ...box(0.6, 0.3, 1.05, 0.36, 0.7, 0.76, C.timberDark), ...post(0.45, 0, 0, 0.4, C.timberDark, 0.04)] },
   bollard: { says: 'an iron bollard', size: [0.3, 0.3], tall: 0.8, build: () => [...drum(0, 0, 0.09, 0, 0.72, C.iron), ...drum(0, 0, 0.12, 0.72, 0.8, C.iron)] },
+  // (the street gone rough)
+  bags: { says: 'rubbish bags heaped', size: [1.3, 0.8], tall: 0.7, build: (R) => { const out = []; for (const [a, b, r, h] of [[-0.36, 0, 0.3, 0.5], [0.22, 0.06, 0.32, 0.58], [-0.04, -0.2, 0.24, 0.4]]) out.push(...drum(a + (R() - 0.5) * 0.08, b, r, 0, h, C.bag, C.bagTie), ...drum(a, b, 0.07, h, h + 0.1, C.bagTie)); return out; } },
+  boxes: { says: 'cardboard boxes dumped, some flat', size: [1.4, 0.9], tall: 0.9, build: (R) => { const h = () => C.card[Math.floor(R() * C.card.length)]; return [...box(-0.65, -0.3, -0.05, 0.3, 0, 0.45, h()), ...box(0, -0.35, 0.6, 0.25, 0, 0.36, h()), ...box(-0.45, -0.22, 0.08, 0.24, 0.45, 0.82, h()), ...box(0.1, -0.42, 0.68, -0.36, 0, 0.5, h())]; } },
+  vending: { says: 'a vending machine, its front lit', size: [1, 0.8], tall: 1.9, build: (R) => { const h = C.machine[Math.floor(R() * C.machine.length)]; return [...box(-0.45, -0.35, 0.45, 0.35, 0, 1.85, h), ...box(-0.36, -0.36, 0.16, -0.35, 0.7, 1.7, C.lit).slice(0, 1), ...box(0.22, -0.36, 0.38, -0.35, 0.9, 1.4, C.ink).slice(0, 1), ...box(-0.36, -0.36, 0.38, -0.35, 0.18, 0.42, C.ink).slice(0, 1)]; } },
+  drumfire: { says: 'an oil drum with a fire in it', size: [0.7, 0.7], tall: 1.2, build: () => [...drum(0, 0, 0.3, 0, 0.88, C.rust, C.ember), ...drum(0, 0, 0.31, 0.3, 0.34, C.iron).slice(0, 8), ...drum(0, 0, 0.2, 0.88, 1.02, C.fire, C.fire), ...drum(0, 0, 0.1, 1.02, 1.18, '#ffd23a', '#ffd23a')] },
+  litter: { says: 'litter on the walk: papers and a stain', size: [1.6, 1], tall: 0.02, build: (R) => { const out = [{ corners: Array.from({ length: 8 }, (_, k) => [0.2 + 0.5 * Math.cos((k * Math.PI) / 4), 0.1 + 0.32 * Math.sin((k * Math.PI) / 4), 0.012]), out: [0, 0, 1], hex: C.asphalt }]; for (let k = 0; k < 4; k++) { const a = -0.7 + R() * 1.2, b = -0.4 + R() * 0.7, w = 0.16 + R() * 0.14; out.push(quad([a, b, 0.018], [a + w, b + 0.04, 0.018], [a + w - 0.05, b + w, 0.018], [a - 0.04, b + w - 0.03, 0.018], [0, 0, 1], C.scrap[Math.floor(R() * C.scrap.length)])); } return out; } },
   // (on the wall: flat, a hand proud of it; its back is the wall's line)
+  shutter: { says: 'a steel shutter rolled down over a shopfront, sprayed', size: [3, 0.05], tall: 2.7, wall: true, crew: true,
+    build: (R, crew) => { const out = []; for (let k = 0; k < 12; k++) out.push(quad([-1.45, 0, 0.1 + k * 0.21], [1.45, 0, 0.1 + k * 0.21], [1.45, 0, 0.31 + k * 0.21], [-1.45, 0, 0.31 + k * 0.21], [0, -1, 0], k % 2 ? C.steel : C.steelDark)); out.push(...box(-1.5, -0.05, 1.5, 0, 2.62, 2.74, C.iron).slice(0, 1)); const h = crew ?? C.spray[2 + Math.floor(R() * 3)], z = 0.6 + R() * 0.3; out.push(quad([-0.9, -0.006, z], [-0.6, -0.006, z], [-0.1, -0.006, z + 1.1], [-0.4, -0.006, z + 1.1], [0, -1, 0], h), quad([-0.3, -0.006, z + 1.1], [0, -0.006, z + 1.1], [0.5, -0.006, z], [0.2, -0.006, z], [0, -1, 0], h), quad([0.45, -0.006, z + 0.2], [1.1, -0.006, z + 0.2], [1.1, -0.006, z + 0.45], [0.45, -0.006, z + 0.45], [0, -1, 0], C.spray[Math.floor(R() * 2)])); return out; } },
+  piece: { says: 'a big piece sprayed along the wall: blocks of colour, outlined', size: [3.6, 0.05], tall: 2.2, wall: true, crew: true,
+    build: (R, crew) => { const out = [], main = crew ?? C.spray[2 + Math.floor(R() * 3)], hi = C.spray[2 + Math.floor(R() * 3)]; let a = -1.7; for (let k = 0; k < 5; k++) { const w = 0.5 + R() * 0.25, lean = (R() - 0.5) * 0.3, z = 0.45 + R() * 0.2, h = 1.1 + R() * 0.4; out.push(quad([a - 0.05, 0, z - 0.05], [a + w + 0.05, 0, z - 0.05], [a + w + lean + 0.05, 0, z + h + 0.05], [a + lean - 0.05, 0, z + h + 0.05], [0, -1, 0], C.spray[1]), quad([a, -0.004, z], [a + w, -0.004, z], [a + w + lean, -0.004, z + h], [a + lean, -0.004, z + h], [0, -1, 0], k % 2 ? hi : main), quad([a + 0.08, -0.008, z + h * 0.62], [a + w - 0.08, -0.008, z + h * 0.62], [a + w - 0.08 + lean * 0.2, -0.008, z + h * 0.8], [a + 0.08 + lean * 0.2, -0.008, z + h * 0.8], [0, -1, 0], C.spray[0])); a += w + 0.12; } return out; } },
+  boards: { says: 'a window boarded up', size: [1.5, 0.05], tall: 2.5, wall: true, build: () => { const out = []; for (let k = 0; k < 5; k++) out.push(quad([-0.7, 0, 1 + k * 0.28], [0.7, 0, 1.04 + k * 0.28], [0.7, 0, 1.26 + k * 0.28], [-0.7, 0, 1.22 + k * 0.28], [0, -1, 0], k % 2 ? C.wood : C.timberDark)); out.push(quad([-0.6, -0.004, 1.05], [-0.42, -0.004, 1.05], [0.6, -0.004, 2.3], [0.42, -0.004, 2.3], [0, -1, 0], C.wood)); return out; } },
+  aircon: { says: 'an air conditioner\'s box on the wall, its pipe down', size: [0.9, 0.5], tall: 4.2, wall: true, build: () => [...box(-0.42, -0.42, 0.42, 0, 3.5, 4.1, C.chalk, C.steel), ...box(-0.34, -0.43, 0.1, -0.42, 3.58, 4.02, C.steelDark).slice(0, 1), ...box(0.3, -0.08, 0.36, -0.02, 0.3, 3.5, C.steelDark).slice(0, 4)] },
+  pipe: { says: 'a drainpipe down the wall, rust under it', size: [0.4, 0.2], tall: 9, wall: true, build: () => [...box(-0.07, -0.14, 0.07, 0, 0.1, 9, C.iron).slice(0, 4), ...box(-0.12, -0.18, 0.12, 0, 2.9, 3.05, C.iron).slice(0, 4), quad([-0.2, 0, 0.1], [0.24, 0, 0.1], [0.12, 0, 1.3], [-0.1, 0, 1.3], [0, -1, 0], C.rust)] },
+  neon: { says: 'a blade sign out from the wall, lit', size: [0.4, 1], tall: 5, wall: true, build: (R) => { const h = C.neon[Math.floor(R() * C.neon.length)], z = 3.1 + R() * 0.5; return [...box(-0.07, -0.95, 0.07, -0.1, z, z + 1.7, C.ink), quad([-0.075, -0.88, z + 0.1], [-0.075, -0.17, z + 0.1], [-0.075, -0.17, z + 1.6], [-0.075, -0.88, z + 1.6], [-1, 0, 0], h), quad([0.075, -0.17, z + 0.1], [0.075, -0.88, z + 0.1], [0.075, -0.88, z + 1.6], [0.075, -0.17, z + 1.6], [1, 0, 0], h), ...box(-0.03, -0.1, 0.03, 0, z + 0.3, z + 0.36, C.iron).slice(0, 4), ...box(-0.03, -0.1, 0.03, 0, z + 1.3, z + 1.36, C.iron).slice(0, 4)]; } },
+  escape: { says: 'a fire escape up the wall: landings on brackets, railed, a ladder between them and one hung over the walk', size: [2.8, 1], tall: 10, wall: true,
+    build: () => {
+      const out = [], I = C.iron;
+      for (const [k, z] of [[0, 3.3], [1, 6.3], [2, 9.3]]) {
+        // a landing: its grating, its rail round three sides on posts
+        out.push(...box(-1.3, -0.95, 1.3, 0, z - 0.06, z, C.steelDark, I));
+        for (const a of [-1.3, -0.45, 0.45, 1.3]) out.push(...post(a, -0.93, z, z + 1, I, 0.025));
+        out.push(...box(-1.3, -0.95, 1.3, -0.91, z + 0.96, z + 1.02, I), ...box(-1.3, -0.95, 1.3, -0.91, z + 0.48, z + 0.52, I), ...box(-1.32, -0.95, -1.28, 0, z + 0.96, z + 1.02, I), ...box(1.28, -0.95, 1.32, 0, z + 0.96, z + 1.02, I));
+        // the ladder down from it (the lowest hung short of the walk), leaning along the wall
+        const z0 = k === 0 ? 2.3 : z - 3, s0 = k % 2 ? 0.9 : -0.9, s1 = k === 0 ? s0 : -s0;
+        for (const dn of [-0.75, -0.35]) out.push(quad([s0 - 0.03, dn, z0], [s0 + 0.03, dn, z0], [s1 + 0.03, dn, z], [s1 - 0.03, dn, z], [0, -1, 0], I));
+        for (let r = 0; r <= 8; r++) { const t = r / 8, a = s0 + (s1 - s0) * t, zz = z0 + (z - z0) * t; out.push(quad([a - 0.02, -0.75, zz], [a + 0.02, -0.75, zz], [a + 0.02, -0.35, zz + 0.03], [a - 0.02, -0.35, zz + 0.03], [0, -0.3, 0.95], I)); }
+      }
+      return out;
+    } },
   poster: { says: 'posters pasted on the wall', size: [1.4, 0.05], tall: 2.2, wall: true, build: (R) => { const out = []; let a = -0.65; for (let k = 0; k < 3 && a < 0.4; k++) { const w = 0.38 + R() * 0.12, h = 0.5 + R() * 0.2, z = 1 + R() * 0.5; out.push(quad([a, 0, z], [a + w, 0, z], [a + w, 0, z + h], [a, 0, z + h], [0, -1, 0], C.paper[Math.floor(R() * C.paper.length)]), quad([a + 0.05, -0.004, z + h * 0.55], [a + w - 0.05, -0.004, z + h * 0.55], [a + w - 0.05, -0.004, z + h * 0.88], [a + 0.05, -0.004, z + h * 0.88], [0, -1, 0], C.goods[Math.floor(R() * C.goods.length)])); a += w + 0.04; } return out; } },
   tag: { says: 'the crew\'s mark painted on the wall: a slash and a bar in its colour', size: [1.8, 0.05], tall: 1.9, wall: true, crew: true,
     build: (R, crew) => { const h = crew ?? C.goods[0], z = 0.7 + R() * 0.3; return [quad([-0.8, 0, z], [-0.55, 0, z], [0.1, 0, z + 1], [-0.15, 0, z + 1], [0, -1, 0], h), quad([-0.2, 0, z], [0.05, 0, z], [0.7, 0, z + 1], [0.45, 0, z + 1], [0, -1, 0], h), quad([-0.85, 0, z + 0.4], [0.8, 0, z + 0.4], [0.8, 0, z + 0.56], [-0.85, 0, z + 0.56], [0, -1, 0], C.chalk)]; } },
@@ -108,23 +139,25 @@ function tipWheel(s0, n0) { return (f) => ({ ...f, corners: f.corners.map(([s, n
 export const DRESS_PIECE_IDS = Object.freeze(Object.keys(DRESS_PIECES));
 
 // ── the sets: a screen's theme ──
-const set = (says, far, gap, wall, near) => Object.freeze({ says, far: Object.freeze(far), gap: Object.freeze(gap), wall: Object.freeze(wall), near: Object.freeze(near) });
+// (`marks`: the stride of its wall's marks, m)
+const set = (says, far, gap, wall, near, marks = [4.5, 9.5]) => Object.freeze({ says, far: Object.freeze(far), gap: Object.freeze(gap), wall: Object.freeze(wall), near: Object.freeze(near), marks: Object.freeze(marks) });
 export const DRESS_SETS = Object.freeze({
-  market: set('a street market: stalls under their canopies, crates, barrels and sacks between them, a hand cart', { stall: 5, crates: 2, crate: 1, barrels: 2, sacks: 2, cart: 1 }, [0.5, 1.6], { poster: 1 }, { crate: 2, barrel: 2, sacks: 1 }),
+  market: set('a street market: stalls under their canopies, crates, barrels and sacks between them, a hand cart, its boxes and rubbish dumped beside it', { stall: 5, crates: 2, crate: 1, barrels: 2, sacks: 2, cart: 1, boxes: 2, bags: 1, litter: 2 }, [0.5, 1.6], { poster: 3, aircon: 1, neon: 1, pipe: 1 }, { crate: 2, barrel: 2, sacks: 1 }, [4, 8]),
+  strip: set('a shuttered strip: steel shutters down and sprayed, a vending machine, rubbish bags and cardboard on the walk, blade signs lit, a fire escape overhead', { bags: 3, boxes: 3, vending: 2, litter: 3, paperbox: 1, tyres: 1, crate: 1 }, [0.8, 2.6], { shutter: 4, neon: 2, aircon: 2, poster: 2, tag: 1, escape: 2, pipe: 1, boards: 1 }, { bollard: 2, tyres: 1 }, [2.5, 5]),
   cafe: set('a cafe terrace: tables under parasols, planters, a sandwich board, a bench', { cafe: 5, planter: 3, pot: 2, board: 2, bench: 1, paperbox: 1 }, [0.7, 2], { poster: 1, banner: 1 }, { pot: 2, planter: 1, bollard: 2 }),
-  yard: set('a back street\'s load-in: pallets and stacked crates, a skip, tyres, barrels', { pallet: 3, crates: 3, skip: 1, tyres: 2, barrels: 2, crate: 1, cart: 1 }, [0.8, 2.4], { poster: 2, tag: 1 }, { tyres: 1, crate: 1, bollard: 2 }),
-  turf: set('the crew\'s own corner: its marks on every wall, its banners out, tyres, barrels and crates where it sits', { tyres: 3, barrels: 3, crates: 2, bench: 1, crate: 1 }, [1, 2.6], { tag: 3, banner: 2, poster: 1 }, { tyres: 1, barrel: 1, bollard: 1 }),
-  plain: set('a quiet stretch: a planter, a bench, a paper box, far apart', { planter: 2, bench: 2, paperbox: 1, pot: 2, board: 1 }, [3, 6], { poster: 1 }, { bollard: 1 }),
+  yard: set('a back street\'s load-in: pallets and stacked crates, a skip, tyres, barrels, rubbish, a fire in a drum', { pallet: 3, crates: 3, skip: 1, tyres: 2, barrels: 2, crate: 1, cart: 1, bags: 2, boxes: 1, drumfire: 1, litter: 2 }, [0.8, 2.4], { poster: 2, tag: 2, piece: 2, escape: 2, pipe: 2, aircon: 1, boards: 1, shutter: 1 }, { tyres: 1, crate: 1, bollard: 2 }, [3, 6]),
+  turf: set('the crew\'s own corner: its pieces and its marks on every wall, its banners out, fires in drums, tyres, barrels and crates where it sits', { tyres: 3, barrels: 2, crates: 2, drumfire: 3, bags: 2, bench: 1, crate: 1, litter: 2 }, [1, 2.6], { tag: 3, piece: 3, banner: 2, shutter: 2, poster: 1, escape: 1, boards: 1 }, { tyres: 1, barrel: 1, bollard: 1 }, [2.5, 5]),
+  plain: set('a quiet stretch: a bench, a paper box, a planter, a little rubbish, far apart', { planter: 1, bench: 2, paperbox: 1, pot: 1, board: 1, bags: 1, litter: 2 }, [3, 6], { poster: 2, pipe: 1, aircon: 1 }, { bollard: 1 }),
 });
 export const DRESS_SET_IDS = Object.freeze(Object.keys(DRESS_SETS));
-// the set a screen takes when none is said, by its place: the way in quiet, the held screens a market, a cafe, a yard in
-// turn, the boss's the crew's corner
-const TURN = ['market', 'cafe', 'yard'];
-export function dressSets(belt) { let k = 0; return belt.screens.map((sc) => (sc.boss ? 'turf' : sc.gate ? TURN[k++ % TURN.length] : k ? 'plain' : 'cafe')); }
+// the set a screen takes when none is said, by its place: the way in a shuttered strip, the held screens a market, a
+// strip, a yard in turn, a walk between them quiet, the boss's the crew's corner (a cafe terrace is said, never fallen to)
+const TURN = ['market', 'strip', 'yard'];
+export function dressSets(belt) { let k = 0; return belt.screens.map((sc) => (sc.boss ? 'turf' : sc.gate ? TURN[k++ % TURN.length] : k ? 'plain' : 'strip')); }
 
 // how far a wall's mark stands off the fronts' line (m): past a shopfront's shutters, sills and plinth
 const PROUD = 0.16;
-const KEYS = ['seed', 'sets', 'colour', 'far', 'near', 'wall'];
+const KEYS = ['seed', 'sets', 'colour', 'far', 'near', 'wall', 'fronts'];
 const strip = (v, where) => { if (!(Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && Math.abs(v[1] - v[0]) >= 0.6)) throw new Error(`brawl: ${where} is a strip across the belt [n0, n1] m, at least 0.6 m deep`); return [Math.min(...v), Math.max(...v)]; };
 /** A dress, settled against its belt. `far` is the strip between the band's far edge and the fronts ([n0, n1]), `wall`
  * the fronts' line (the far strip's far edge unless said), `near` the strip between the camera and the band (optional:
@@ -138,13 +171,20 @@ export function readDress(dress, belt, where = 'dress') {
   if (dress.wall !== undefined && !(Number.isFinite(dress.wall) && dress.wall >= far[0])) throw new Error(`brawl: ${where}.wall is the fronts' line across the belt (m), at or past the far strip's start`);
   if (dress.seed !== undefined && !Number.isInteger(dress.seed)) throw new Error(`brawl: ${where}.seed is a whole number`);
   if (dress.colour !== undefined && !HEX.test(dress.colour)) throw new Error(`brawl: ${where}.colour is the crew's colour, #rrggbb`);
+  // (`fronts`: the buildings' own lines along the belt, [{ from, to, wall }] in its frame: a wall's mark stands on a
+  // front wide enough for it, at that front's line, a set-back building's behind its forecourt; a gap between two is
+  // an ALLEY, dressed as one. Unsaid, one front the belt's length at `wall`)
+  if (dress.fronts !== undefined && !(Array.isArray(dress.fronts) && dress.fronts.every((f) => isObj(f) && [f.from, f.to, f.wall].every(Number.isFinite) && f.to > f.from))) throw new Error(`brawl: ${where}.fronts is the buildings along the belt [{ from, to, wall }] (m along it, the front's line across it)`);
+  const fronts = dress.fronts ? dress.fronts.map((f) => ({ from: r3(f.from), to: r3(f.to), wall: r3(f.wall) })).sort((a, b) => a.from - b.from) : null;
   const sets = dress.sets ?? dressSets(belt);
   if (!Array.isArray(sets) || sets.length !== belt.screens.length || sets.some((s) => s !== null && !DRESS_SETS[s])) throw new Error(`brawl: ${where}.sets is a set a screen (${belt.screens.length}): ${DRESS_SET_IDS.join(', ')}, or null for a bare one`);
-  return { seed: dress.seed ?? 1, sets: [...sets], ...(dress.colour ? { colour: dress.colour.toLowerCase() } : {}), far, ...(near ? { near } : {}), wall: dress.wall ?? far[1] };
+  return { seed: dress.seed ?? 1, sets: [...sets], ...(dress.colour ? { colour: dress.colour.toLowerCase() } : {}), far, ...(near ? { near } : {}), wall: dress.wall ?? far[1], ...(fronts ? { fronts } : {}) };
 }
 
+// what an alley holds (each narrow enough for one)
+const ALLEY = Object.freeze({ bags: 4, tyres: 2, barrel: 2, crate: 2, boxes: 2, drumfire: 1, litter: 2 });
 const pick = (weights, R) => { const E = Object.entries(weights), sum = E.reduce((a, [, w]) => a + w, 0); let t = R() * sum; for (const [k, w] of E) { t -= w; if (t <= 0) return k; } return E[E.length - 1][0]; };
-/** The dress laid: → [{ piece, set, s, n, side: 'far' | 'wall' | 'near', turn }] in the belt's frame, in order. */
+/** The dress laid: → [{ piece, set, s, n, side: 'far' | 'wall' | 'alley' | 'near', turn }] in the belt's frame, in order. */
 export function dressPlan(dress, belt) {
   const D = readDress(dress, belt), out = [];
   belt.screens.forEach((sc, i) => {
@@ -161,7 +201,23 @@ export function dressPlan(dress, belt) {
       s += P.size[0] + S.gap[0] + R() * (S.gap[1] - S.gap[0]);
     }
     // its wall: the set's marks at their stride, proud of the fronts' own relief
-    for (let s = sc.from + 1.5 + R() * 3; s < sc.to - 1.5; s += 4.5 + R() * 5) { const piece = pick(S.wall, R); out.push({ piece, set: id, s: r3(s), n: r3(D.wall - PROUD), side: 'wall', turn: 1 }); }
+    for (let s = sc.from + 1 + R() * 2; s < sc.to - 1; s += S.marks[0] + R() * (S.marks[1] - S.marks[0])) {
+      const piece = pick(S.wall, R), half = DRESS_PIECES[piece].size[0] / 2;
+      // (on the building it falls on, where that front is wide enough for it; over an alley's mouth, none)
+      const F = D.fronts ? D.fronts.find((f) => s - half >= f.from + 0.15 && s + half <= f.to - 0.15) : { wall: D.wall };
+      if (F) out.push({ piece, set: id, s: r3(s), n: r3(F.wall - PROUD), side: 'wall', turn: 1 });
+    }
+    // its alleys (the gaps between its fronts): what is left in one, a little way in
+    if (D.fronts) for (let k = 0; k + 1 < D.fronts.length; k++) {
+      const a = D.fronts[k].to, b = D.fronts[k + 1].from, mid = (a + b) / 2;
+      if (b - a < 1.2 || mid < sc.from || mid >= sc.to) continue;
+      const Ra = streamOf(D.seed, 'brawl-dress-alley', `${k}`), back = Math.max(D.fronts[k].wall, D.fronts[k + 1].wall);
+      for (let j = 0, n = back + 0.6 + Ra(); j < 3; j++, n += 1 + Ra() * 1.2) {
+        const piece = pick(ALLEY, Ra), P = DRESS_PIECES[piece];
+        if (P.size[0] > b - a - 0.2) continue;
+        out.push({ piece, set: id, s: r3(a + P.size[0] / 2 + 0.1 + Ra() * Math.max(0, b - a - P.size[0] - 0.2)), n: r3(n), side: 'alley', turn: 1 });
+      }
+    }
     // the near side: sparse and low, well clear of the band (between the camera and the fight)
     if (D.near) for (let s = sc.from + 2 + R() * 5; s < sc.to - 1; s += 6 + R() * 7) {
       const piece = pick(S.near, R), P = DRESS_PIECES[piece], room = D.near[1] - D.near[0] - P.size[1];

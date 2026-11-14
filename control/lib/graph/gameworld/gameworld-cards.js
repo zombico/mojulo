@@ -759,7 +759,7 @@ const QUICK_LEVERS = {
     '  streets (1..8): its levels, each { id, name?, level?: { kind: \'greybox\', preset: \'street\' } | { kind: \'stage\',',
     '    kit }, waves?: [{ screen, crowd: [{ type, n }], boss?: { recipe, plays, cpu, hp? } }] }; a wave holds a gated',
     '    screen; absent: the town\'s street, dressed ({ kind: \'town\', dress?: false | { sets } }: a set a screen,',
-    '    market | cafe | yard | turf | plain), its waves its crew\'s, a boss on the last',
+    '    market | strip | yard | turf | plain | cafe), its waves its crew\'s, a boss on the last',
     '  crowd: who is fought, a comic-pack crew in one colourway: a faction (streetGang | crimeFamily | shadowClan |',
     '    motorcycleClub | privateMilitary | cult | punks | corporateSecurity) or { faction, colourway?, size? };',
     '    absent: the street gang',

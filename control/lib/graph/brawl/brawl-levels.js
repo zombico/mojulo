@@ -187,11 +187,11 @@ function brawlStage(words) {
 // along the block's south side, the belt down that street between its two cross streets. The shops stand on the far
 // side (north, the block's fronts); the near side is the town's bare margin, open to the camera. The street is the
 // town's own: its road, kerbs, verges and walks, its lamps and trees, its fronts by its streetscape.
-const TOWN = Object.freeze({ cube: 'valley-morning', pattern: 'old-town', streetscape: 'old-centre', seed: 3, clear: 2, depth: [-2.6, 3.4], angle: 'street' });
+const TOWN = Object.freeze({ cube: 'valley-morning', pattern: 'old-town', streetscape: 'old-centre', seed: 3, clear: 2, depth: [-2.6, 3.4], angle: 'street', fronts: 'rough' });
 function brawlTown(words) {
   const seed = words.seed ?? TOWN.seed;
   if (!Number.isInteger(seed)) throw new Error('brawl: a town street\'s seed is a whole number');
-  const geotown = { pattern: words.pattern ?? TOWN.pattern, streetscape: words.streetscape ?? TOWN.streetscape, segment: 'main-street', hills: false, fronts: 'broken' };
+  const geotown = { pattern: words.pattern ?? TOWN.pattern, streetscape: words.streetscape ?? TOWN.streetscape, segment: 'main-street', hills: false, fronts: words.fronts ?? TOWN.fronts };
   const D = designGeotown(geotown, { seed });
   const main = D.streets.find((s) => s.rank === 'main' && s.axis === 'x');
   if (!main) throw new Error('brawl: the town\'s segment has no main street to fight down');
@@ -207,7 +207,9 @@ function brawlTown(words) {
   if (isObj(words.dress)) for (const k of Object.keys(words.dress)) if (!['sets', 'colour', 'seed'].includes(k)) throw new Error(`brawl: a town street's dress.${k} is not its word (sets, colour, seed)`);
   // (no near dress: the street's angle frames the band at the frame's foot, the near walk under it)
   const far = [r3(belt.depth[1] + 0.25), r3(wall - 0.05)];
-  const dress = words.dress === false || far[1] - far[0] < 0.6 ? null : readDress({ seed, ...(words.dress ?? {}), far, wall }, belt, 'level.dress');
+  // (the shops' own lines along the belt, so a mark stands on its building and an alley is dressed as one)
+  const fronts = D.plots.filter((pl) => pl.kind === 'shops' && pl.side === 's' && pl.built !== false).map((pl) => ({ from: r3(pl.A[0] + pl.house.env[0] - x0), to: r3(pl.A[0] + pl.house.env[2] - x0), wall: r3(wall + pl.house.env[1]) })).filter((f) => f.to > 0 && f.from < belt.length);
+  const dress = words.dress === false || far[1] - far[0] < 0.6 ? null : readDress({ seed, ...(words.dress ?? {}), far, wall, ...(fronts.length ? { fronts } : {}) }, belt, 'level.dress');
   return {
     manifest: { kind: 'geocube', cube: words.cube ?? TOWN.cube, show: 'geotown', seed, ...(words.title ? { title: words.title } : {}), geotown },
     belt, ...(dress ? { dress } : {}),
@@ -231,7 +233,7 @@ export const BRAWL_LEVELS = Object.freeze({
   }),
   town: Object.freeze({
     reads: 'a street of the geotown: a block of the town\'s pattern, the belt down its main street between its cross streets, the shops on the far side, the town\'s margin open to the camera',
-    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'title'],
+    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'fronts', 'title'],
     build: brawlTown,
   }),
 });
