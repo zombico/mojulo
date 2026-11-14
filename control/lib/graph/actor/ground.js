@@ -15,6 +15,8 @@
  * What counts: a face that passes between STEP (a rug, a kerb, a threshold are stepped over) and HEAD (a lintel, a
  * ceiling, a bough above a head are walked under) above the floor. The floor is one height (a scene's marks are
  * stood on one floor: actor/set.js): rising ground reads as standing in the way, as it would to a walker on the flat.
+ * A set whose land rises and falls is given here with its ground laid level (actor/relief.js), so only what stands on
+ * the land is read.
  *
  * The ground is read on a grid of `cell` metres and its taken cells gathered into boxes; where they are more than
  * `most`, the grid is coarsened until they are not (a walk's search and a board's drawing are both by the box).

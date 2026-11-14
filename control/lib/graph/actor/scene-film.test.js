@@ -72,6 +72,24 @@ describe('the scene film pack', () => {
     expect(actorsPy()).toMatch(/'prop:%s' % Q\['name'\]/);
   });
 
+  it('on ground that is not flat, lifts each actor, camera and prop onto the ground under it; a level set adds nothing', () => {
+    // a slope rising 1 in 4 along x, as a set's relief carries it (actor/relief.js)
+    const nx = 80, ny = 80, relief = { x0: -20, y0: -20, cell: 0.5, nx, ny, z: Array.from({ length: nx * ny }, (_, k) => ((k % nx) + 0.5) * 0.5 * 0.25 - 5) };
+    const on = Object.fromEntries(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked', set: { ref: 'sk_hill', floor: 2, pack: 'set/', relief } }).map((f) => [f.file, f.text]));
+    const flat = JSON.parse(files.find((f) => f.file === 'scene.json').text), sc = JSON.parse(on['scene.json']);
+    for (const who of ['mara', 'jon']) {
+      for (const k of sc.actors[who].root) expect(k.z).toBeCloseTo(k.x * 0.25, 2);
+      expect(flat.actors[who].root.every((k) => k.z === undefined)).toBe(true);
+      // (a walk is keyed along its way, so the feet keep to the ground between the plan's keys)
+      expect(sc.actors[who].root.length).toBeGreaterThanOrEqual(flat.actors[who].root.length);
+    }
+    expect(sc.set.relief).toBeUndefined();
+    const cam = (text) => JSON.parse(text).cameras[0], a = cam(files.find((f) => f.file === 'shot.json').text), b = cam(on['shot.json']);
+    expect(JSON.stringify(b)).not.toBe(JSON.stringify(a));
+    expect(actorsPy()).toMatch(/k\.get\('z', 0\.0\)/);
+    expect(actorsPy()).toMatch(/Q\.get\('z', 0\.0\)/);
+  });
+
   it('is deterministic', () => {
     expect(JSON.stringify(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked' }))).toBe(JSON.stringify(files));
   });

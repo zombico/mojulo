@@ -101,8 +101,26 @@ game.
   - **Props are in the Blender film.** Each prop comes into the film as itself (the car is a car, not a block),
     standing where the storyboard drew it and at the same size. Before, a prop was in the plan and the storyboard
     only.
-  - **Not yet:** an object made without a real size (a vehicle, for one) needs its scale given. A house does not
-    name its rooms, so its cast stands outside it.
+  - **Dress a scene by naming things.** Say "a sedan", "a city bus", "a motorcycle", "a chesterfield", "a crate" or
+    "a barrel" and where it stands, and it is in the scene at its real size. Nothing has to be made first: the
+    vehicles, the furniture and the props mojulo already has are all there to be named. Before, every prop had to
+    be an object you had made, and a vehicle needed its scale given. A word mojulo has nothing for is refused, with
+    what it does have.
+  - **Not yet:** a house does not name its rooms, so its cast stands outside it.
+- **Film outdoors: hills, fields and streets.** A scene can be set on land that rises and falls, and in a town.
+  - **The cast stands on the ground.** On a hillside each actor, camera and prop stands at the height of the ground
+    under it, and a walk keeps its feet on the land. Before, everyone stood at one height, so on a slope they floated
+    or sank.
+  - **A hill is not a wall.** Rising land is no longer treated as something in the way. Before, a storyboard on a
+    field drew the land as stacked slabs round the cast.
+  - **A house is a place to stand in front of.** Send the cast to a town's house and they stand before its front
+    door. Before, they were stood inside it and the first shot was a blank wall.
+  - **Nobody is stood inside a thing.** A place a scene uses that is inside a rock or a building is moved to the
+    clear ground beside it.
+  - **Not yet:** the storyboard draws the ground level, so a slope shows only in the Blender film.
+- **The written build steps keep the cast.** The steps a scene's Blender folder gives for building it by hand now
+  save the actors into the film. Before, followed as written, they left the film with its set and cameras and no
+  actors (rendering with the one command was not affected).
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
   place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that

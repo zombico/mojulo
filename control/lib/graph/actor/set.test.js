@@ -51,3 +51,14 @@ describe('a set', () => {
     expect(setPlaces({ rooms: [{ id: 'hall', box: { min: [0, 0, 0], max: [4, 4, 3] }, h: 3 }] }).rooms).toEqual([{ id: 'hall', min: [0, 0], max: [4, 4] }]);
   });
 });
+
+describe('a building as a place', () => {
+  it('is stood before its front, on the ground it stands on, not in its middle', () => {
+    const P = setPlaces({ anchors: [{ id: 'house-1', kind: 'house', at: [24.6, 47, 4.7], N: [-1, 0, 0], floor: 4.7, box: { min: [22.5, 42, 4.7], max: [38.5, 49, 15] } }, { id: 'well', kind: 'spot', at: [3, 3, 0], N: [0, 1, 0] }] });
+    expect(P.marks['house-1'][0]).toBeLessThan(22.5 - 1);
+    expect(P.marks['house-1'][1]).toBe(47);
+    expect(P.floors['house-1']).toBe(4.7);
+    // (a place with no box is where it says)
+    expect(P.marks.well).toEqual([3, 3]);
+  });
+});

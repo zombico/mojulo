@@ -8,6 +8,7 @@
  *       point's ground, a fifth of a metre a step: the tallest step it took up or down, how many walls it crossed (and
  *       `crossed`, each wall's group and where), where it found no floor under it (`gaps`), which boxes it stood in, the
  *       height it ended at
+ *     walk.ground(x, y, from) → the highest top under (x, y) no higher than `from`, or null: the probe itself
  *
  * Pure. Not on the page: what the page's walk does, measured.
  */
@@ -70,7 +71,7 @@ export function walker(P) {
   const boxed = (x, y, z, r = 0.25) => (P.colliders || []).find((c) => x > c.min[0] - r && x < c.max[0] + r && y > c.min[1] - r && y < c.max[1] + r && z + 0.5 > c.min[2] && z + 0.5 < c.max[2]);
   /** Walk a polyline from its first point's ground: each step a fifth of a metre, the feet stood on the highest top a
    *  riser and a hand over them; → { steepest, walls, boxes, end } */
-  return (pts) => {
+  const walk = (pts) => {
     let z = ground(pts[0][0], pts[0][1], pts[0][2] + 0.45), steepest = 0, wallsHit = 0;
     const crossed = [], gaps = [];
     const boxes = [];
@@ -88,4 +89,7 @@ export function walker(P) {
     }
     return { steepest, walls: wallsHit, crossed, gaps, boxes: [...new Set(boxes)], end: z };
   };
+  // (the probe itself, for a reader that asks the ground under a point: actor/relief.js)
+  walk.ground = ground;
+  return walk;
 }

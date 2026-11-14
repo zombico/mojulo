@@ -61,6 +61,13 @@ forge_motion({ title: 'The key', export: 'storyboard',
     A kerb or a rug is stepped over; a lintel or a bough above a head is walked under.
   - **A set that names no place** (an object, a city) still takes a cast: they stand on the clear ground nearest its
     middle, under the open sky where there is any, at a place called `ground`.
+  - **Land that rises and falls** (a field, a hillside, a street on a slope) is walked as the world's own walk walks
+    it. The cast, the cameras and the props stand on the ground under them in the Blender film, and a walk keeps its
+    feet on it. Rising land is not read as something in the way; a bank too steep to step up, a wall or a cliff
+    still is. The storyboard draws the ground level.
+  - **A place that is a building** (a town's `house-…`) is the ground before its front, a step off the wall. A
+    place the scene uses that is inside a thing is moved to the clear ground nearest it, and parts with no mark stand
+    in their line on clear ground.
   - **Its named places are marks.** Each room's middle is `room-<id>`, there is a stand on each side of a door
     (`<door>-<room>`), and its anchors (a pocket, a landmark) are marks too. Write them in the script as they are
     named: "Ana crosses to the room-reveal-1."
@@ -76,9 +83,15 @@ forge_motion({ title: 'The key', export: 'storyboard',
     - With no lamps of its own it is lit by a soft light under the ceiling.
     - A cross goes round the furniture and round the others, a body's width off each, by the shortest way. With no
       way round, it is walked straight, as on any other set.
-- **`props`: things stood in the scene.** Write `{ <name>: { ref, at, turn?, scale? } }`. `ref` is anything mojulo
-  made; `at` is `[x, y]` in metres or a mark's name; `turn` is degrees about the vertical; `scale` is how many times
-  larger it stands than it was made.
+- **`props`: things stood in the scene.** Write `{ <name>: { thing | ref, at, turn?, scale? } }`. `at` is `[x, y]` in
+  metres or a mark's name; `turn` is degrees about the vertical; `scale` is how many times larger it stands than it
+  was made.
+  - **`thing`: a word off the shelves, nothing minted.** A vehicle the registry names (`sedan`, `city bus`,
+    `motorcycle`, `helicopter`), a piece of furniture (`sofa`, `chesterfield`, `dining table`, `bookcase`) or a prop
+    (`crate`, `barrel`, `planks`, `amphora`, `coffin`, `stones`, `boulder`). It stands at the size its shelf measures,
+    so a vehicle needs no `scale`. A word no shelf has is refused with what the shelves have. Dress a set this way
+    first: `props: { car: { thing: 'sedan', at: [3, 2], turn: 30 } }`.
+  - **`ref`: anything mojulo made**, for a thing no shelf has.
   - It stands with its lowest point on the floor and its middle at `at`, at its real size where its recipe has a
     unit. A thing made in no real unit is read as metres: give it a `scale`.
   - **Its name is a place**: the clear ground beside it. "Ada crosses to the car."

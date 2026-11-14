@@ -31,7 +31,8 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { actScene } from '@/lib/graph/actor/scene.js';
 import { coverScene } from '@/lib/graph/actor/coverage.js';
-import { standingOf, openGround, floorUnder, middleOf, EASE } from '@/lib/graph/actor/ground.js';
+import { standingOf, openGround, floorUnder, middleOf, EASE, STEP, REACH } from '@/lib/graph/actor/ground.js';
+import { reliefOf, reliefFrom, heightAt, levelled } from '@/lib/graph/actor/relief.js';
 import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
@@ -47,7 +48,7 @@ export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'st
 export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'voice', 'dub']);
 /** what a prop takes: what it is, where it stands (metres or a mark), how it is turned (degrees), and how much larger
  * it stands than it was made (a thing made in no real unit is read as metres) */
-export const PROP_KEYS = Object.freeze(['ref', 'at', 'turn', 'scale']);
+export const PROP_KEYS = Object.freeze(['ref', 'thing', 'at', 'turn', 'scale']);
 /** the grain words: the scene shown on ones, twos or threes (shoot/time.js), the camera on ones */
 export const GRAINS = Object.freeze({ ones: 1, twos: 2, threes: 3 });
 
@@ -81,14 +82,16 @@ export function screenplayErrors(sp) {
   }
   if (sp.marks !== undefined && !isPlain(sp.marks)) errs.push('marks: { <name>: [x, y] } (metres)');
   if (sp.props !== undefined) {
-    if (!isPlain(sp.props)) errs.push('props: { <name>: { ref, at: [x, y] | <a mark>, turn?, scale? } }: anything mojulo made, stood in the scene');
+    if (!isPlain(sp.props)) errs.push('props: { <name>: { thing | ref, at: [x, y] | <a mark>, turn?, scale? } }: a thing off the shelves by its word, or anything mojulo made by its ref, stood in the scene');
     else for (const [name, Q] of Object.entries(sp.props)) {
       const at = `props.${name}`;
       if (!/^[a-z0-9][a-z0-9_-]*$/.test(name)) errs.push(`${at}: a prop is named as a mark is (lower-case letters, digits, - and _)`);
-      if (!isPlain(Q)) { errs.push(`${at}: { ref, at: [x, y] | <a mark>, turn?, scale? }`); continue; }
+      if (!isPlain(Q)) { errs.push(`${at}: { thing | ref, at: [x, y] | <a mark>, turn?, scale? }`); continue; }
       const bad = Object.keys(Q).filter((k) => !PROP_KEYS.includes(k));
       if (bad.length) errs.push(`${at}: a prop takes ${PROP_KEYS.join(', ')} (not ${bad.join(', ')})`);
-      if (typeof Q.ref !== 'string' || !Q.ref) errs.push(`${at}.ref: the ref of anything mojulo made (a solid, a building, a vehicle, a world)`);
+      if (Q.thing !== undefined && Q.ref !== undefined) errs.push(`${at}: a thing by its word or a ref, not both`);
+      else if (Q.thing !== undefined) { if (typeof Q.thing !== 'string' || !Q.thing.trim()) errs.push(`${at}.thing: a word a shelf knows (a vehicle, a piece of furniture, a prop: sedan, sofa, crate)`); }
+      else if (typeof Q.ref !== 'string' || !Q.ref) errs.push(`${at}: thing, a word a shelf knows (sedan, sofa, crate), or ref, the ref of anything mojulo made (a solid, a building, a vehicle, a world)`);
       if (!(typeof Q.at === 'string' && Q.at) && !(Array.isArray(Q.at) && Q.at.length >= 2 && Q.at.slice(0, 2).every(Number.isFinite))) errs.push(`${at}.at: where it stands, [x, y] in metres or a mark's name`);
       if (Q.turn !== undefined && !Number.isFinite(Q.turn)) errs.push(`${at}.turn: degrees it is turned about the vertical`);
       if (Q.scale !== undefined && !(Number.isFinite(Q.scale) && Q.scale > 0)) errs.push(`${at}.scale: how many times larger it stands than it was made (above 0)`);
@@ -176,11 +179,31 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
     }
     const on = castOnSet(written, places);
     play = on.screenplay;
-    const faces = setFaces(payload, on.floor);
+    let faces = setFaces(payload, on.floor), relief = null;
+    if (!places.rooms.some((R) => R.walled) && faces.length) {
+      // GROUND THAT IS NOT FLAT (actor/relief.js): the land about the scene's marks walked as the world's own walk walks
+      // it. Where it rises or falls, the set is read with its ground laid level (a hillside is not a thing in the way)
+      // and the film lifts each actor, camera and prop back onto the ground under it (`relief`). A level set reads as it did.
+      const own = written.marks ?? {}, used = usedMarks(play);
+      const R = reliefOf(setFaces(payload, 0, true), used.map((id) => [...play.marks[id], Object.hasOwn(own, id) ? on.floor : places.floors[id] ?? on.floor]));
+      if (R && uneven(R, used.map((id) => play.marks[id]))) { relief = reliefFrom(R, on.floor); faces = levelled(setFaces(payload, 0), R); }
+    }
+    if (!places.rooms.length && faces.length) {
+      // STANDING PLACES in a world with no rooms: a place the scene uses that is inside a thing, or hard against one, is
+      // moved to the clear ground nearest it; the parts with no mark of their own stand in their line on clear ground
+      const own = written.marks ?? {}, marks = { ...play.marks }, free = Object.keys(play.cast).filter((w) => written.cast[w].mark === undefined && !Object.hasOwn(own, `${w}-mark`));
+      for (const id of usedMarks(play)) if (!Object.hasOwn(own, id) && !free.some((w) => `${w}-mark` === id)) marks[id] = openGround(faces, marks[id], { seek: 6 });
+      if (free.length) {
+        const ids = free.map((w) => `${w}-mark`), mid = [ids.reduce((n, id) => n + marks[id][0], 0) / ids.length, ids.reduce((n, id) => n + marks[id][1], 0) / ids.length];
+        const at = openGround(faces, mid, { width: Math.max(0, free.length - 1) * PAIR });
+        for (const id of ids) marks[id] = [Math.round((marks[id][0] + at[0] - mid[0]) * 1000) / 1000, Math.round((marks[id][1] + at[1] - mid[1]) * 1000) / 1000];
+      }
+      play = { ...play, marks };
+    }
     // (what stands on the set's floor: a world that says so is taken at its word (a decorated room's pieces); any
     // other is read from its faces, about where the scene is played: actor/ground.js)
     const plan = on.floor_plan ?? groundPlan(faces, play);
-    set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, ...(plan ? { floor_plan: plan } : {}), places: Object.keys(places.marks).length, faces };
+    set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, ...(plan ? { floor_plan: plan } : {}), places: Object.keys(places.marks).length, faces, ...(relief ? { relief } : {}) };
   }
   const advice = [];
   if (props && Object.keys(props).length) {
@@ -190,16 +213,27 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
     set = set ?? { ref: null, title: null, kind: 'props', floor: 0, rooms: [], places: 0, faces: [] };
     const marks = { ...play.marks }, stood = [];
     for (const [name, Q] of Object.entries(props)) {
-      const row = getRow?.(Q.ref);
-      if (!row?.manifest) throw new Error(`props.${name}.ref: '${Q.ref}' is ${row ? 'a sketch with no recipe' : 'no sketch'} (${MANUAL})`);
-      const { payload } = await resolveWorldScene(row);
+      // (a thing by its word comes off a shelf, never minted: tools/set-things.js; a ref is anything mojulo made)
+      let payload, T = null, what;
+      if (Q.thing !== undefined) {
+        const { readThing, thingPayload } = await import('@/lib/mcp/tools/set-things.js');
+        try { T = readThing(Q.thing); } catch (e) { throw new Error(`props.${name}.thing: ${e.message}`); }
+        payload = await thingPayload(T); what = `props.${name}.thing: '${Q.thing}' (${T.shelf})`;
+      } else {
+        const row = getRow?.(Q.ref);
+        if (!row?.manifest) throw new Error(`props.${name}.ref: '${Q.ref}' is ${row ? 'a sketch with no recipe' : 'no sketch'} (${MANUAL})`);
+        ({ payload } = await resolveWorldScene(row)); what = `props.${name}.ref: '${Q.ref}' (${row.manifest.kind})`;
+      }
       const raw = payload ? setFaces(payload, 0) : [];
-      if (!raw.length) throw new Error(`props.${name}.ref: '${Q.ref}' (${row.manifest.kind}) has no form to stand in a scene (${MANUAL})`);
+      if (!raw.length) throw new Error(`${what} has no form to stand in a scene (${MANUAL})`);
       const at = Array.isArray(Q.at) ? Q.at : marks[Q.at];
       if (!at) throw new Error(`props.${name}.at: no mark '${Q.at}' (${Object.keys(marks).join(', ') || 'the scene has none'})`);
-      const k = Q.scale ?? 1, placed = placeProp(k === 1 ? raw : raw.map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]) })), at, Q.turn ?? 0);
+      // (a thing its shelf measures stands at that measure, unless the scene scales it itself)
+      let k = Q.scale ?? 1;
+      if (T && Q.scale === undefined) { const { thingScale } = await import('@/lib/mcp/tools/set-things.js'); k = thingScale(T, placeProp(raw, [0, 0]).dims); }
+      const placed = placeProp(k === 1 ? raw : raw.map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]) })), at, Q.turn ?? 0);
       set.faces.push(...placed.faces);
-      stood.push({ name, ...placed });
+      stood.push({ name, ...placed, ...(T ? { shelf: T.shelf, is: T.label } : {}) });
     }
     for (const P of stood) if (!Object.hasOwn(marks, P.name)) marks[P.name] = openGround(set.faces, [P.at[0], P.at[1] - P.half[1] - EASE], { seek: 4 });
     // (with no world under them the cast would be stood on the first places named, the props' own: a part with no mark
@@ -211,7 +245,7 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
       free.forEach((w, i) => { const id = `${w}-mark`; if (!Object.hasOwn(marks, id)) marks[id] = [Math.round((mid[0] + (i - (free.length - 1) / 2) * PAIR) * 1000) / 1000, mid[1]]; cast = { ...cast, [w]: { ...cast[w], mark: id } }; });
     }
     play = { ...play, marks, cast };
-    set.props = stood.map((P) => ({ name: P.name, ref: props[P.name].ref, at: P.at, size: P.size, dims: P.dims, ...(props[P.name].turn ? { turn: props[P.name].turn } : {}) }));
+    set.props = stood.map((P) => ({ name: P.name, ...(props[P.name].thing !== undefined ? { thing: props[P.name].thing, shelf: P.shelf, is: P.is } : { ref: props[P.name].ref }), at: P.at, size: P.size, dims: P.dims, ...(props[P.name].turn ? { turn: props[P.name].turn } : {}) }));
     set.places += stood.length;
     const own = groundPlan(stood.flatMap((P) => P.faces), play);
     // (in a room that says its own pieces, the props' ground is added to them; anywhere else the whole ground is read again)
@@ -243,17 +277,34 @@ export function placeProp(faces, at, turn = 0) {
 /** What stands on a set's floor, read from its faces about the marks the scene uses (the cast's, and each the script
  * names); null where nothing stands there */
 function groundPlan(faces, play) {
-  const script = String(play.script ?? '').toLowerCase(), cast = Object.values(play.cast ?? {}).map((C) => C.mark);
-  const about = Object.entries(play.marks ?? {}).filter(([id]) => cast.includes(id) || script.includes(id.replace(/-/g, ' ')) || script.includes(id)).map(([, p]) => p);
+  const about = usedMarks(play).map((id) => play.marks[id]);
   const { blocks } = standingOf(faces, { about });
   return blocks.length ? { blocks, rooms: [] } : null;
 }
 
-/** A set's faces in the scene's frame: metres, its floor at z 0 (what the coverage's cameras are framed in) */
-function setFaces(payload, floor) {
+/** The marks a scene uses: the cast's, and each the script names */
+function usedMarks(play) {
+  const script = String(play.script ?? '').toLowerCase(), cast = Object.values(play.cast ?? {}).map((C) => C.mark);
+  return Object.keys(play.marks ?? {}).filter((id) => cast.includes(id) || script.includes(id.replace(/-/g, ' ')) || script.includes(id));
+}
+
+/** Whether the ground about a scene's marks rises or falls by more than a step (within the reach its ground is read to) */
+function uneven(R, about) {
+  let lo = Infinity, hi = -Infinity;
+  for (let j = 0; j < R.ny; j++) for (let i = 0; i < R.nx; i++) {
+    const x = R.x0 + (i + 0.5) * R.cell, y = R.y0 + (j + 0.5) * R.cell;
+    if (!about.some((p) => Math.hypot(p[0] - x, p[1] - y) <= REACH)) continue;
+    const z = R.z[j * R.nx + i]; lo = Math.min(lo, z); hi = Math.max(hi, z);
+  }
+  return hi - lo >= STEP;
+}
+
+/** A set's faces in the scene's frame: metres, its floor at z 0 (what the coverage's cameras are framed in); `normals`
+ * keeps each face's own (the walk's ground probe reads which way a face faces: actor/relief.js) */
+function setFaces(payload, floor, normals = false) {
   const k = Number.isFinite(payload?.metersPerUnit) && payload.metersPerUnit > 0 ? payload.metersPerUnit : 1;
   // (an object's own page stands it on a studio floor, `studio`: that is the page's, not the thing's)
-  return (payload?.faces ?? []).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3 && !f.studio).map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k - floor]) }));
+  return (payload?.faces ?? []).filter((f) => Array.isArray(f?.corners) && f.corners.length >= 3 && !f.studio).map((f) => ({ corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k - floor]), ...(normals && Array.isArray(f.normal) ? { normal: f.normal } : {}) }));
 }
 
 /** how bright a room's house lights are (W of a Blender area light per m² of floor), and how far under the ceiling */
@@ -372,7 +423,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   if (P.set?.ref) {
     const { buildBlenderPack } = await import('@/lib/graph/scene/blender-pack.js');
     await buildBlenderPack({ ref: P.set.ref, outDir: path.join(outDir, 'set'), log });
-    setPack = { ref: P.set.ref, ...(P.set.title ? { title: P.set.title } : {}), floor: P.set.floor, pack: 'set/' };
+    setPack = { ref: P.set.ref, ...(P.set.title ? { title: P.set.title } : {}), floor: P.set.floor, pack: 'set/', ...(P.set.relief ? { relief: P.set.relief } : {}) };
     // (the set's light is its world's: the sky, the lamps and the fog it declares, read as the world's own film reads them)
     const { filmAtmosphere } = await import('@/lib/motion/blender-film.js');
     const world = getRow(P.set.ref);
@@ -385,15 +436,16 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   //  at, so what the storyboard drew is what the film has)
   const propPack = [];
   for (const Q of P.set?.props ?? []) {
-    const row = getRow(Q.ref);
-    const { payload } = await resolveWorldScene(row, { unshaded: true });
+    let payload;
+    if (Q.thing !== undefined) { const { readThing, thingPayload } = await import('@/lib/mcp/tools/set-things.js'); payload = await thingPayload(readThing(Q.thing), { unshaded: true }); }
+    else ({ payload } = await resolveWorldScene(getRow(Q.ref), { unshaded: true }));
     // (an object's own page stands it on a studio floor: the page's, not the thing's)
     const glb = facesToGlb({ ...payload, faces: (payload.faces ?? []).filter((f) => !f?.studio) }, { generator: `mojulo scene film · prop ${Q.name}`, lit: true });
     if (!glb) continue;
     const file = `props/${packTitle(Q.name)}.glb`;
     mkdirSync(path.join(outDir, 'props'), { recursive: true });
     writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
-    propPack.push({ name: Q.name, ref: Q.ref, glb: file, at: Q.at, turn: Q.turn ?? 0, dims: Q.dims });
+    propPack.push({ name: Q.name, ...(Q.thing !== undefined ? { thing: Q.thing } : { ref: Q.ref }), glb: file, at: Q.at, turn: Q.turn ?? 0, dims: Q.dims, ...(P.set.relief ? { z: Math.round(heightAt(P.set.relief, Q.at[0], Q.at[1]) * 1000) / 1000 } : {}) });
     log(`${file}: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB`);
   }
   const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, props: propPack, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });

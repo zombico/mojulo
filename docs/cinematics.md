@@ -230,6 +230,26 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
   - A world that names no place gets one, `ground`: `openGround` finds the clear ground nearest the world's middle,
     under the open sky first, and the floor is the ground under that spot (`floorUnder`).
   - An object's own page stands it on a studio floor (faces marked `studio`); the scene leaves those out.
+- **Ground that is not flat** (`actor/relief.js`). A scene is planned on a level floor; where the land about its marks
+  rises or falls by more than a step, the film keeps that plan and carries the land beside it.
+  - The land is walked outward from the scene's marks with the world's own ground probe (`network/walk-gate.js`
+    `walk.ground`): a cell at a time, a step taken within a riser up or a drop down. What the walk never reaches (the
+    inside of a house, a roof, past a cliff) takes the height of the nearest ground it did.
+  - The set is then read with that ground laid level (`levelled`), so a hillside is clear ground to `standingOf`,
+    the routes and the cameras, and what stands on it still stands.
+  - The set carries the lift as `relief` (heights over its `floor`). The Blender pack keys each actor's root in `z`,
+    keys a walk along its way, and lifts each camera, its point of interest, each setup's lights and each prop by the
+    ground under it. A level set has no `relief` and is written as before.
+  - Not yet: the storyboard draws the ground level; a ridge between a camera and the cast is not checked.
+- **Standing places in an open world** (`actor/set.js`, `mcp/tools/scene-film.js`). An anchor with a `box` and a
+  front (`N`), a town's house, is stood before its front. In a world with no rooms, a mark the scene uses that is
+  not on clear ground is moved to the nearest that is, and the parts with no mark stand in their line on clear ground.
+- **Dressing by word** (`mcp/tools/set-things.js`). A prop's `thing` is a word read on the shelves in order: the
+  corner props (`era/props.js`), the furniture styles and kinds (`furnishings/forms.js`, and a room piece's word
+  through `furnishings/roster.js`), the vehicle registry (`vehicle-registry/roster.js`, lowered as the vehicle door
+  shows it parked, its realistic build first). `thingPayload` resolves a recipe held in memory, never stored, and
+  `thingScale` stands it at the shelf's measure (`dimsOf`). A thing a film wants that no shelf has is a row on that
+  shelf, not a film's own object. The Sets department owns `/scenes/*/props`.
 - **Props** (`screenplay.props`, `mcp/tools/scene-film.js` `placeProp`): anything mojulo made, resolved to faces the
   same way, stood with its lowest point on the floor and its middle at `at`, turned and scaled. Its faces join the
   set's, so the ground, the cameras and the board treat it like the rest. Its name becomes a mark on the clear ground

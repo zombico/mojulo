@@ -18,6 +18,8 @@ import { PAIR } from './scene.js';
 
 /** what hangs on a wall: a place to light or to look at, not to stand */
 export const WALL_KINDS = Object.freeze(['torch', 'niche', 'sign', 'window']);
+/** how far before a building's front its place to stand is, metres */
+const FRONT = 1.6;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 /** a place's name as a screenplay writes it (screenplay.js reads a mark as lower-case letters, digits, - and _) */
 export const placeName = (id) => String(id ?? '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
@@ -42,7 +44,18 @@ export function setPlaces(payload) {
     put(`room-${R.id}`, [stand[0], stand[1], lo[2] ?? 0]);
   }
   const anchors = (Array.isArray(payload?.anchors) ? payload.anchors : []).filter((a) => a && !WALL_KINDS.includes(a.kind));
-  for (const a of anchors) put(a.id, a.at);
+  // (a place that is a building, its `box` and the way its front faces, `N`: the place to stand is before its front,
+  //  a step off the wall, on the ground the building stands on, not the middle of it)
+  const before = (a) => {
+    const b = a.box, n = a.N;
+    if (!b?.min || !b?.max || !Array.isArray(n) || !Array.isArray(a.at) || !(Math.hypot(n[0], n[1]) > 1e-6)) return a.at;
+    const l = Math.hypot(n[0], n[1]), d = [n[0] / l, n[1] / l];
+    // how far along the front's way the box's edge is from the place, and FRONT metres past it
+    const tx = d[0] > 1e-6 ? (b.max[0] - a.at[0]) / d[0] : d[0] < -1e-6 ? (b.min[0] - a.at[0]) / d[0] : Infinity, ty = d[1] > 1e-6 ? (b.max[1] - a.at[1]) / d[1] : d[1] < -1e-6 ? (b.min[1] - a.at[1]) / d[1] : Infinity;
+    const t = Math.max(0, Math.min(tx, ty)) + FRONT / k;
+    return [a.at[0] + d[0] * t, a.at[1] + d[1] * t, Number.isFinite(a.floor) ? a.floor : a.at[2]];
+  };
+  for (const a of anchors) put(a.id, before(a));
   for (const s of standPoints(anchors)) put(s.id, s.at);
   return { marks, floors, rooms };
 }

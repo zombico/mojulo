@@ -193,7 +193,7 @@ describe('a scene in anything mojulo makes', () => {
   it('refuses a prop it cannot read, saying what a prop takes', async () => {
     const { screenplayErrors, prepareScreenplay } = await import('./scene-film.js');
     expect(screenplayErrors({ cast, script: 'ADA: Hi.', props: { 'The Car': { ref: 'sk_table', at: [0, 0] } } }).join(' ')).toMatch(/named as a mark is/);
-    expect(screenplayErrors({ cast, script: 'ADA: Hi.', props: { car: { at: [0, 0], size: 2 } } }).join(' ')).toMatch(/takes ref, at, turn, scale.*props\.car\.ref/s);
+    expect(screenplayErrors({ cast, script: 'ADA: Hi.', props: { car: { at: [0, 0], size: 2 } } }).join(' ')).toMatch(/takes ref, thing, at, turn, scale.*props\.car: thing, a word a shelf knows/s);
     await expect(prepareScreenplay({ cast, script: 'ADA: Hi.', props: { car: { ref: 'sk_none', at: [0, 0] } } }, { getRow: made })).rejects.toThrow(/props\.car\.ref: 'sk_none' is no sketch/);
     await expect(prepareScreenplay({ cast, script: 'ADA: Hi.', props: { car: { ref: 'sk_table', at: 'porch' } } }, { getRow: made })).rejects.toThrow(/no mark 'porch'/);
   }, 60000);

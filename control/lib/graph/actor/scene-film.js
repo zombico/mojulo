@@ -32,13 +32,17 @@ import { directorsNotes } from './notes.js';
 import { programOf, shotAt } from '../shoot/sample.js';
 import { warped } from '../shoot/time.js';
 import { placeOn } from './scene.js';
+import { heightAt } from './relief.js';
 import { setupLights } from '../film/setup-light.js';
 import { EMPTY_BLEND } from '../film/render-plan.js';
 
 /** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
  * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
- * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb). */
-export const SCENE_PACK_REV = 5;
+ * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb).
+ * 6: ground that is not flat (a root's `z`, a prop's). */
+export const SCENE_PACK_REV = 6;
+/** how far apart a walk is keyed on ground that is not flat, metres */
+const WALK_KEY = 0.4;
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -59,21 +63,34 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
   const clock = program ? Array.from({ length: frames }, (_, f) => shotAt(program, f / fps)) : null;
+  // (on ground that is not flat, `set.relief`: the plan is level, so each camera is lifted by the ground under it and
+  //  looks at its subject on the ground under that)
+  const relief = set?.relief ?? null, lift = (x, y) => (relief ? heightAt(relief, x, y) : 0);
+  const onGround = (F) => (relief ? { ...F, cameraPosition: [F.cameraPosition[0], F.cameraPosition[1], F.cameraPosition[2] + lift(F.cameraPosition[0], F.cameraPosition[1])], lookAt: [F.lookAt[0], F.lookAt[1], F.lookAt[2] + lift(F.lookAt[0], F.lookAt[1])] } : F);
   // (each shot of the coverage a film shot, its camera keyed every frame it holds)
   const shots = coverage.shots.map((s, k) => {
     const cameras = [];
     if (program) {
       const P = program.shots[k], f0 = Math.round(P.start * fps), f1 = Math.max(f0 + 1, Math.round((P.start + P.length) * fps));
-      for (let f = f0; f < f1; f++) { const at = clock[Math.min(frames - 1, f)]; cameras.push(coverageCameraAt(coverage, at.camera_t ?? at.t, s).framing); }
+      for (let f = f0; f < f1; f++) { const at = clock[Math.min(frames - 1, f)]; cameras.push(onGround(coverageCameraAt(coverage, at.camera_t ?? at.t, s).framing)); }
     } else {
       const f0 = Math.round(s.span[0] * fps), f1 = Math.max(f0 + 1, Math.round(s.span[1] * fps));
-      for (let f = f0; f < f1; f++) cameras.push(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing);
+      for (let f = f0; f < f1; f++) cameras.push(onGround(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing));
     }
     return filmShot({ motionRef: `${title}-${String(k + 1).padStart(2, '0')}`, worldRef: title, title: s.name, motion: 'scene', fps, width, height, cameras, ...(render?.dof ? { dof: { fstop: render.dof } } : {}) });
   });
   // (an actor's place: its root keys on the scene's clock, or, under a time map, sampled every screen frame)
-  const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : S.actors[who].root)
-    .map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), yaw: r6(k.yaw) }));
+  // (on ground that is not flat, `set.relief`: its height where it stands, and a walk keyed along its way so the feet
+  //  keep to the ground between the plan's keys)
+  const walked = (root) => root.flatMap((k, i) => {
+    const n = root[i + 1];
+    if (!n || (Math.abs(n.x - k.x) < 1e-6 && Math.abs(n.y - k.y) < 1e-6)) return [k];
+    const steps = Math.max(1, Math.ceil(Math.hypot(n.x - k.x, n.y - k.y) / WALK_KEY));
+    return Array.from({ length: steps }, (_, s) => (s ? { ...placeOn(root, k.t + ((n.t - k.t) * s) / steps), t: k.t + ((n.t - k.t) * s) / steps } : k));
+  });
+  const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : relief ? walked(S.actors[who].root) : S.actors[who].root)
+    .map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), ...(relief ? { z: r6(lift(k.x, k.y)) } : {}), yaw: r6(k.yaw) }));
+
   // (a set's atmosphere, blender-film.js filmAtmosphere: film_light.py lights the set by it)
   const film = emitBlenderFilm({ shot: shots[0], shots, title, ...(set && atmosphere ? { atmosphere } : {}) });
   const scene = {
@@ -82,10 +99,12 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...(grade ? { grade } : {}),
     ...(sound?.audio ? { audio: sound.audio, captions: sound.captions } : {}),
     ...(sound?.dubs ? { dubs: sound.dubs } : {}),
-    ...(set ? { set } : {}),
+    // (the land's heights ride each root, camera and prop: the pack does not carry the grid itself)
+    ...(set ? { set: Object.fromEntries(Object.entries(set).filter(([k]) => k !== 'relief')) } : {}),
     ...(props.length ? { props } : {}),
     ...(render ? { render: Object.fromEntries(Object.entries({ samples: render.samples, motion_blur: render.motion_blur, dof: render.dof }).filter(([, v]) => v !== undefined && v !== null && v !== false)) } : {}),
-    ...(render?.light === 'setups' ? { lights: setupLights({ S, coverage, shots }) } : {}),
+    // (each setup's lights stand about its subject: on ground that is not flat they rise with it)
+    ...(render?.light === 'setups' ? { lights: setupLights({ S, coverage, shots }).map((L) => { const dz = lift(L.subject[0], L.subject[1]), up = (p) => [p[0], p[1], r6(p[2] + dz)]; return relief ? { ...L, subject: up(L.subject), key: { ...L.key, pos: up(L.key.pos) }, fill: { ...L.fill, pos: up(L.fill.pos) }, rim: { ...L.rim, pos: up(L.rim.pos) } } : L; }) } : {}),
     actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
     turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text, ...(T.recording ? { recording: T.recording } : {}) })),
     coverage,
@@ -512,7 +531,7 @@ def props(S):
         cx, cy = k * (lo[0] + hi[0]) / 2.0, k * (lo[1] + hi[1]) / 2.0
         holder.scale = (k, k, k)
         holder.rotation_euler = (0.0, 0.0, a)
-        holder.location = (float(Q['at'][0]) - (cx * math.cos(a) - cy * math.sin(a)), float(Q['at'][1]) - (cx * math.sin(a) + cy * math.cos(a)), -k * lo[2])
+        holder.location = (float(Q['at'][0]) - (cx * math.cos(a) - cy * math.sin(a)), float(Q['at'][1]) - (cx * math.sin(a) + cy * math.cos(a)), float(Q.get('z', 0.0)) - k * lo[2])
         log('%s: %.2f x %.2f x %.2f m at [%.2f, %.2f]' % (name, k * ext[0], k * ext[1], k * ext[2], float(Q['at'][0]), float(Q['at'][1])))
 
 
@@ -555,7 +574,7 @@ def build(S):
         # the place and the facing: the empty keyed every frame the root names, linear between
         for k in A['root']:
             frame = 1 + k['t'] * fps
-            holder.location = (k['x'], k['y'], 0.0)
+            holder.location = (k['x'], k['y'], float(k.get('z', 0.0)))
             holder.rotation_euler = (0.0, 0.0, -math.radians(k['yaw']))
             holder.keyframe_insert('location', frame=frame)
             holder.keyframe_insert('rotation_euler', frame=frame)
@@ -905,7 +924,7 @@ The scene plays on a time map (its slow motion, its freezes${coverage.shots.some
 ${set ? `    <blender> -b --python set/import_mojulo.py -- --mode run --blend film.blend
     <blender> -b film.blend --python set.py
     <blender> -b film.blend --python film_light.py -- --root set:root` : `    <blender> -b --python-expr "${EMPTY_BLEND}"`}
-    <blender> -b film.blend --python actors.py -- && <blender> -b film.blend --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
+    <blender> -b film.blend --python actors.py --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
     <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}${render?.light === 'setups' ? `
     <blender> -b film.blend --python light.py` : ''}
     <blender> -b film.blend --python look.py -- --look film      # or --look anime
