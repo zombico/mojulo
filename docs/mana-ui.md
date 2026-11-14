@@ -906,6 +906,30 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### One HUD for every level
+
+A world that says a `ui` has its levels' own HUD rows drawn here too. The level keeps writing the widget language it
+always wrote (`events.hud`: readouts, bars, counters, clocks, banners, toasts, legends); `game/hud-mana.js` lowers
+those rows to one composition, and the page's HUD host (`scene/channels/mana-hud.js`) draws it in the game's look,
+reading the level's bus each frame. So a level's readouts, its moments and the game's menus are one look.
+
+| a row | is drawn as |
+|---|---|
+| readout `text` | `stat` |
+| readout `counter` | `counter`, with its label's pictogram where the icon shelf has one |
+| readout `bar` | `bar`, its meaning read off its name (hp, mp, xp, stamina, shield, boss) |
+| readout `clock` | `timer` |
+| banner | a moment: one on screen at a time, by weight |
+| toast | a line of its slot's feed, gone after its ttl |
+| legend | words in its slot, for its ttl |
+| title | the carved letters, as before (`game/title-carve.js`) |
+
+A row's `id` and `when` gate it as they did. The pilot's own gauges (its health, its sprint) lead the top-left corner,
+read off the runtime; the runtime's own gauges and the old widget columns are hidden, not removed. A row's colour is
+not carried: the theme owns the look. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
+(`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
+same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
+
 ## What is next
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to

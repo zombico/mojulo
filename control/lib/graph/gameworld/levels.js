@@ -22,6 +22,8 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { levelHud } from '../game/hud-mana.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
 import { PARTY_CHASE } from '../playscape/hero-chase.js';
@@ -979,7 +981,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
-  const manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
+  // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
+  if (G.ui !== undefined && !manifest.manaHud) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];

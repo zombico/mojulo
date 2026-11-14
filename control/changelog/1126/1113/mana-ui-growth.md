@@ -24,3 +24,10 @@ the parts every game composes by hand, more motion, a layout law, and a handoff 
   theme reckons reads on it. `iconSwap: { coin: 'ticket' }` is a look's own picture for a word.
 - The cards say theirs: matchday stencil, picnic and dread sketch, orbit glow, knit badge, floodlight and lightdeck
   line, static solid, toybox chunky; matchday, picnic, knit, lightdeck, static and toybox in the colours of meaning.
+- One HUD host for every level. A world that says a `ui` has its levels' own HUD rows (`events.hud`) drawn by the game
+  UI runtime, in the game's look: `game/hud-mana.js` lowers readouts, bars, counters, clocks, banners, toasts and
+  legends to one composition, and the page's host (`scene/channels/mana-hud.js`, the course's, made general) reads the
+  level's bus into it each frame, gates a row by its part and its phase as before, and draws the pilot's health and
+  sprint beside them. The host is laid over the scene's own frame. A world without a `ui` emits the bytes it did;
+  carved titles stay the title channel's. A level whose pages change: one of a world with a `ui`.
+
