@@ -1,6 +1,9 @@
 import { pageLight, shadowToLight } from '../scene/page-light.js';
 import { describe, it, expect } from 'vitest';
 import { resolveWorldScene } from '../worlds/world-scene.js';
+import { castRig } from '../color-theorist/cast-rig.js';
+import { castRigInput } from '../scene/channels/cast-rig.js';
+import { readGeocube } from '../era/geocube.js';
 
 // A GLYPH MAP built whole through the kit's own builder (the map world kind): a crossing, a bend, an end and a building
 // on one page, and its laws, measured on the page as built, say it is one walkable level.
@@ -61,7 +64,7 @@ describe('a glyph map, built', () => {
     expect(P6.faces.some((f) => f.group === 'isekai:ridge')).toBe(true);
     // (a map no cube paints, read in gen-7: paint under the live light, and it says why)
     // (THE HERO ON IT: the body a player pilots is read lit and carries the cast rig solved from the land's cube, the
-    // land's one sun its key; in gen-6, and a body nobody pilots, as they were)
+    // land's one sun its key; a body nobody pilots, as it was)
     const piloted = (era, pilotable = true) => ({ kind: 'map', level: level(era), figures: { hero: { hero: { cast: 'male', head: 'none', register: 'lowpoly' } } },
       entities: [{ id: 'p1', ...(pilotable ? { pilotable: true } : {}), rule: { type: pilotable ? 'walk' : 'static' }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [12, -12, 2], heading: 0 } }] });
     const { payload: H7 } = await resolveWorldScene({ ref: 'glyph-hero7', manifest: piloted('gen-7') });
@@ -71,7 +74,10 @@ describe('a glyph map, built', () => {
     const PLR = pageLight(H7);
     expect([PLR.from, PLR.toLight]).toEqual(['land', H7.form.land.sun]);
     expect(shadowToLight(PLR, H7.shadows)).toEqual(H7.form.land.sun);
-    expect((await resolveWorldScene({ ref: 'glyph-hero6', manifest: piloted('gen-6') })).payload.figures.hero.cast).toBeUndefined();
+    // (in gen-6 the hero is under the rig all the same, every page draws it so: solved from the land's own cube, drawn as
+    // paint, the body toning itself and the page's kit making its key)
+    const C6 = (await resolveWorldScene({ ref: 'glyph-hero6', manifest: piloted('gen-6') })).payload.figures.hero.cast;
+    expect(C6).toEqual({ ...castRigInput(castRig(readGeocube({ from: 'valley-morning', era: 'gen-6' }), { register: 'western' })), surface: 'paint', sun: false });
     expect((await resolveWorldScene({ ref: 'glyph-extra7', manifest: piloted('gen-7', false) })).payload.figures.hero.cast).toBeUndefined();
     const { payload: Pk } = await resolveWorldScene({ ref: 'glyph-kit7', manifest: { kind: 'map', level: { seed: 5, kit: 'isekai-meadow', grid: { tile: 24, rows: ['# # #'] } } } }, { era: 'gen-7' });
     expect(Pk.form).toBeUndefined();

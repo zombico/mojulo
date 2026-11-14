@@ -851,6 +851,10 @@ function __updateGearLines() {
   // parts carry their normals where its form writes them, else its mesh's own) and carrying a rig is drawn with the cast
   // material, lit by the page's one sun, its sky and its rim its own; no baked rim over it. Absent, the page carries none
   const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
+  // (a body under the rig on a page with no sun a body can take, `cast.sun === false`: a painted page, unlit, or a form
+  // room's or town's, lit in its own shader; the kit's key, castKit.key, takes the page's shadow-casting light, or adds one
+  // along the rig's key, once, after the page's lights are made. A form land owns the sun: nothing added there)
+  const figCastKey = figHasCast && Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts) && f.cast.sun === false);
   const rigRimHook = figHasRim ? `\n    if (Array.isArray(fig.rim)${figHasCast ? ' && !fig.cast' : ''}) __rimPatch(mesh, fig.rim);` : '';
   // toon ink (toon-shading Phase 4b): outline every rig PART when the world's toon dial asks for
   // ink — the hull + crease lines are children of the bone mesh, so they pose with the bone and
@@ -1327,9 +1331,10 @@ function __makeSkinGroup(fig, b, group) {
 }
 ` : ''}${figHasCast ? `// the cast rig's material for a figure's parts: one set of the rig's uniforms a figure (../cast-rig.js)
 ${figHasForm ? '' : `const castKit = ${castKitSource()};
-`}const __castU = new Map();
+`}const __castU = new Map();${figCastKey ? '\nlet __castKeyed = false;' : ''}
 function __castMat(fig, o) {
-  let U = __castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }
+  let U = __castU.get(fig); if (!U) { U = castKit.uniforms(fig.cast); __castU.set(fig, U); }${figCastKey ? `
+  if (fig.cast.sun === false && !__castKeyed) { __castKeyed = true; const R = fig.cast; setTimeout(() => castKit.key(scene, R), 0); }` : ''}
   const m = castKit.material(fig.cast, Object.assign({ surface: fig.cast.surface || 'paint', uniforms: U }, o));
   m.userData.cast = true;
   return m;

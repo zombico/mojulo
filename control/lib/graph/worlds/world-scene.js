@@ -185,6 +185,24 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
+/**
+ * The cube a piloted hero's cast rig is solved from on a page whose land is not drawn as form (a form land's own cube
+ * and hour come first, in resolveWorldScene): the land's own cube though it is drawn as paint (a geocube's, a map's
+ * `level.geocube`) at the recipe's hour; else the hero's own `geocube` (its door spec's, or its stored row's); else none,
+ * the rig's card (cast-rig-core.js CAST_CARD). A cube that does not read falls through to the next. → { cube, hour? }
+ */
+export async function heroCastSource(manifest, spec) {
+  const M = manifest.kind === 'geocube' ? manifest : manifest.kind === 'map' && manifest.level && manifest.level.geocube !== undefined && manifest.level.geocube !== null ? { ...manifest.level, cube: manifest.level.geocube } : null;
+  if (M) { try { return { cube: readGeocube(M.cube), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) }; } catch { /* the next */ } }
+  let own = spec.hero && typeof spec.hero === 'object' ? spec.hero.geocube : undefined;
+  if ((own === undefined || own === null) && typeof spec.heroRef === 'string') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    own = SketchRepository.getByRef(spec.heroRef)?.manifest?.hero?.geocube;
+  }
+  if (own !== undefined && own !== null) { try { return { cube: readGeocube(own) }; } catch { /* the card */ } }
+  return { cube: null };
+}
+
 export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
@@ -1265,17 +1283,25 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
           const takes = takesOf?.[name] ?? null;
-          // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on a page whose
-          // land is drawn as form, the body a player pilots is read lit (its colour under no light, its normals) and carries
-          // the rig solved from the land's own cube at its hour, so the page lights it by the land's one sun; its clips and
-          // its playback are as they were. Every other figure (a walker, a foe, a crowd), and every page without a form
-          // land, as it was: nothing added
-          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
+          // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on every World
+          // page that draws it, the body a player pilots is read lit (its colour under no light, its normals) and carries the
+          // rig, so the page lights it and no bake is stacked under the light; its clips and its playback are as they were.
+          // The rig's cube (heroCastSource): a form land's, else the land's own drawn as paint, else the hero's own, else the
+          // card. Its surface: 'form' where the land is drawn as form (the renderer tones the body with it), else 'paint'
+          // (the body tones itself). Every other figure (a walker, a foe, a crowd, a model made elsewhere), and the exports
+          // and unshaded reads (`paint`, `unshaded`), as they were: nothing added
+          const piloted = typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
+          const castFig = piloted && (!!formCast || (!unshaded && viewOpts.paint !== true));
           const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
-            figure.cast = { ...castRigInput(castRig(formCast.cube, { ...(formCast.hour !== undefined ? { hour: formCast.hour } : {}), register: reg })), surface: 'form' };
+            // (off a form land: `surface` 'form' where the renderer tones the page all the same, a form room's or town's
+            // (channels/form.js), else 'paint'; and `sun: false`, the page has no sun a body can take, so the page's kit
+            // makes the rig's key, castKit.key. On a form land, the land's sun: the figure's rig as it was)
+            const C = formCast || await heroCastSource(sketch.manifest, rawSpec);
+            const toned = !formCast && !!(payload.form && ((payload.form.room && Array.isArray(payload.form.room.lights)) || (payload.form.town && Array.isArray(payload.form.town.lights))));
+            figure.cast = { ...castRigInput(castRig(C.cube, { ...(C.hour !== undefined ? { hour: C.hour } : {}), register: reg })), surface: formCast || toned ? 'form' : 'paint', ...(formCast ? {} : { sun: false }) };
           }
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
