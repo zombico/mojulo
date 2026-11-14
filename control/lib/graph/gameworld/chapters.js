@@ -59,6 +59,9 @@ export const CHAPTERS = Object.freeze([
   C('battles', 'play', 'The battles', { paths: ['/battles', '/minigames'], steps: ['keeper'], cards: ['gameworld-battles'], reads: ['systems', 'levels'] }),
   C('cast', 'characters', 'The cast', { paths: ['/characters/cast', '/characters/casting', '/characters/folk'], parts: ['cast', 'characters:cast'], steps: ['casting', 'cast-*', 'folk-*', 'farmhand', 'athlete', 'fighter-*'], cards: ['gameworld-folk'], reads: ['direction', 'levels'], outcome: 'characters' }),
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
+  // the game's sounds (sound-sheet.js): solved from its weapon, its ground and its foes, each a shelf word, the newest
+  // voices first; a level hears it when its quick game says `sfx: 'sheet'`
+  C('sound', 'play', 'The sound', { paths: ['/sound'], reads: ['intent', 'feel', 'equipment', 'foes', 'levels'] }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   // (a block's play layer: `/levels/<id>/glyphs/play`, a block a unit, `play:<level>/<segment>`)
   C('play-layer', 'level-design', 'The level design', { paths: ['/levels/*/glyphs/play'], parts: ['play:*'], reads: ['levels', 'foes', 'cast', 'motion', 'actions'] }),
@@ -69,7 +72,7 @@ export const CHAPTERS = Object.freeze([
   // the game's flow, what plays when from the first screen to the credits: the game director's page, the main agent's own
   // (never a subagent's), reading the spine, the levels, the story's cinematics and the interface's screens (game-flow.js)
   C('flow', 'production', 'The flow', { paths: ['/flow'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
-  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'flow', 'play-layer'], outcome: 'play' }),
+  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'flow', 'play-layer', 'sound'], outcome: 'play' }),
 ]);
 
 const BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));

@@ -67,8 +67,10 @@
  *     music?: '<mood>' | 'auto',            // rhythm: the field score whose beat it runs to (wayfarer). Any other goal:
  *                                           // a field score under each level, one identity across the game ('auto':
  *                                           // the mood each level's place and play call for, beats/score-suggest.js)
- *     sfx?: 'auto' | '<palette>',           // action sounds wired to the goal's events, in the music's key ('auto': the
- *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
+ *     sfx?: 'sheet' | 'auto' | '<palette>', // action sounds wired to the goal's events: 'sheet' the SFX shelf's, solved from
+ *                                           // the game (gameworld/sound-sheet.js: its weapon, its ground, its foes; the
+ *                                           // newest voices first); 'auto' the palette the score implies, in the music's
+ *                                           // key; or a palette: arcade, foley, orchestral, synth (beats/sfx-palettes.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     xr?: true | false | { move?, turn?, hud? },   // played in a headset (scene/channels/xr.js), written to the world's
  *                                           // own `xr` (each level carries it)
@@ -521,7 +523,7 @@ export function readQuick(Q) {
   if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
   if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
   if (Q.xr !== undefined && Q.xr !== true && Q.xr !== false && !isObj(Q.xr)) throw fail('.xr is true (played in a headset), false, or { move?: seated | standing, turn?: smooth | snap }');
-  if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
+  if (Q.sfx !== undefined && Q.sfx !== 'auto' && Q.sfx !== 'sheet' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'sheet' (the SFX shelf's sounds, solved from the game), 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
   if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
@@ -1525,11 +1527,13 @@ export function bagPlay(quick) {
  * A level's audio (null: none). A rhythm game's music, its beat said on the bus. Any other goal with `music`: a field
  * score under the level, every level sharing the game's identity (`game`, a seed); 'auto' asks score-suggest for the
  * mood the level's place (`manifest`) and play (the goal, `final`) call for, quiet when its place calls for none.
- * `sfx`: the level's action sounds (beats-world resolves 'auto' against the level's own mechanics).
+ * `sfx`: the level's action sounds (beats-world resolves 'auto' and the sheet against the level's own mechanics); for
+ * 'sheet', `sheet` is the game's (sound-sheet.js sheetAudio, the runner's: it reads the whole game).
  */
-export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
-  const sfx = quick.sfx === undefined ? null : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
-  const withSfx = (a) => (sfx ? { ...(a || {}), sfx } : a);
+export function goalAudio(quick, { manifest = {}, final = false, game, sheet = null, bed = null } = {}) {
+  const sfx = quick.sfx === undefined ? null : quick.sfx === 'sheet' ? sheet : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
+  // (a sheet game's level lays its environment's bed under the score: sound-sheet.js sheetBed, the runner's)
+  const withSfx = (a) => (sfx || bed ? { ...(a || {}), ...(sfx ? { sfx } : {}), ...(bed ? { bed } : {}) } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
   if (quick.music === undefined) return withSfx(null);
   const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;

@@ -161,6 +161,7 @@ import { readFeel } from './feel/lower.js';
 import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
 import { readGameArsenal } from './arsenal.js';
+import { readSound } from './sound-sheet.js';
 import { readGameGrade } from './grade.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
@@ -245,7 +246,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'sound', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -839,6 +840,8 @@ export function readGameworld(W) {
   }
   // its weapons and strings (arsenal.js): the practice room's arsenal, laid on every level's hero that strikes
   readGameArsenal(W.arsenal);
+  // its sound (sound-sheet.js): the sheet's style and any slot or cue it names by shelf word, over what the game solves
+  readSound(W.sound);
   // its world clock (tempo.js): moments that slow or hold its live levels on what happens in play
   readGameTempo(W.tempo);
   // its grade (grade.js): the look laid over every frame of its levels, the base its moments' looks push from

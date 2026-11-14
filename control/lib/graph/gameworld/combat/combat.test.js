@@ -131,6 +131,10 @@ describe('the firing range, heard', () => {
     expect(Math.max(...cue.map((x) => x.at ?? 0))).toBeGreaterThanOrEqual(r * 0.8 - 1e-3);
     expect(cue.filter((x) => (x.at ?? 0) >= r * 0.55 - 1e-3).length).toBe(g('mag in').length + g('rack').length);
   });
+  it('every shot and swing a variant when the game\'s hits vary (the sound sheet\'s); a range without it as it was', () => {
+    expect(rangeBody({ ...spec, vary: true }).payload.audio.vary).toBe(true);
+    expect(rangeBody(spec).payload.audio.vary).toBeUndefined();
+  });
   it('the range\'s audio: hits, the blade, the feet, the rocket\'s blast, on a mix in the open; every cue in its book of cues', () => {
     const { payload, pilot } = rangeBody(spec), A = payload.audio;
     expect(A.mix).toEqual({ space: 'open', voices: 16, distance: true });

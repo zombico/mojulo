@@ -38,6 +38,7 @@ import { heartbeat, breath, horror } from './families/horror.js';
 import { build, siege, flight, brawl } from './families/war.js';
 import { katana } from './families/blades.js';
 import { gunshot } from './families/gunshot.js';
+import { voice } from './families/voice.js';
 import { freeze } from './layers.js';
 
 export const FAMILIES = Object.freeze({
@@ -50,6 +51,8 @@ export const FAMILIES = Object.freeze({
   heartbeat, breath, horror, build, siege, flight, brawl,
   // blades
   katana,
+  // the voice protoform: a person's efforts for any voice (families/voice.js)
+  voice,
 });
 export const FAMILY_NAMES = Object.freeze(Object.keys(FAMILIES));
 

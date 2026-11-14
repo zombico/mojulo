@@ -26,6 +26,7 @@
 import { POLES, STAGES } from './feel/cards.js';
 import { readFeel, feelRule } from './feel/lower.js';
 import { arsenalOfGame, armLevel, heroStrikes } from './arsenal.js';
+import { variesHits } from './sound-sheet.js';
 import { arsenalFor, BASIC_ARSENAL } from './combos.js';
 import { standFoe, bestiaryOf } from './foes.js';
 import { FIGURE_LIBRARY } from './stage-figures.js';
@@ -95,7 +96,7 @@ const SOUND_WORDS = Object.freeze({ 'blade-light': 'blade-swing', 'blade-heavy':
   'arrow-hit': 'arrow-target', felled: 'down', cycle: 'weapon-switch', 'foe-swing': 'blade-swing', hurt: 'flesh-impact' });
 // (a blade's swing is a swish; the slash itself sounds only when it connects, from its cut on, laid over the blow's hit)
 const SLASHES = Object.freeze({ 'blade-hit': 'katana-swing', 'finisher-hit': 'katana-heavy-swing' });
-export function roomAudio(arsenal, style = 'realistic') {
+export function roomAudio(arsenal, style = 'realistic', { vary = false } = {}) {
   if (style === 'none') return null;
   const soundOf = (word) => { const v = sfxSound(word, { style }); return v && v.gestures ? v.gestures : null; };
   const fromCut = (g) => { const kept = g.filter((x) => (x.at ?? 0) >= 0.05); if (!kept.length) return g; const t0 = Math.min(...kept.map((x) => x.at)); return kept.map((x) => ({ ...x, at: Math.round((x.at - t0) * 1e4) / 1e4 })); };
@@ -106,7 +107,7 @@ export function roomAudio(arsenal, style = 'realistic') {
   const swing = Object.fromEntries(arsenal.weapons.map((W) => [W.id, blade(W) ? clean({ light: has('blade-light'), heavy: has('blade-heavy'), finisher: has('blade-heavy') }) : clean({ light: has('fist-swing') })]));
   const hit = Object.fromEntries(arsenal.weapons.map((W) => [W.id, blade(W) ? clean({ light: has('blade-hit'), heavy: has('blade-hit'), finisher: has('finisher-hit') }) : clean({ light: has('punch'), heavy: has('uppercut'), finisher: has('finisher-hit') })]));
   const step = soundOf('step-concrete'), jump = soundOf('jump'), land = soundOf('land'), dodge = soundOf('dodge');
-  return { sfx: { cues, ...(style === 'realistic' ? { mix: { space: 'interior' } } : {}) },
+  return { sfx: { cues, ...(vary ? { vary: true } : {}), ...(style === 'realistic' ? { mix: { space: 'interior' } } : {}) },
     ...(step ? { footsteps: clean({ step, jump: jump ?? undefined, land: land ?? undefined }) } : {}), ...(dodge ? { dodge } : {}),
     moves: clean({ swing, hit, block: has('block'), parry: has('parry'), break: has('guard-break'), draw: has('bow-draw'), loose: has('bow-shot'), arrow: has('arrow-hit'),
       felled: has('felled'), cycle: has('cycle'), foeSwing: has('foe-swing'), hurt: has('hurt') }) };
@@ -163,7 +164,7 @@ export function practiceRoom(G, { refs = {}, cast = 'male', pack = 1, sound = 'r
   }
 
   const { faces, colliders } = floorOf(S);
-  const audio = roomAudio(arsenal, sound);
+  const audio = roomAudio(arsenal, sound, { vary: variesHits(G) });
   const camera = { ...P.camera, ...ACTION_ORBIT };
   const manifest = armLevel({ arsenal }, {
     kind: 'controllable', title: `Practice room · ${G.name ?? G.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures: part.figures, entities: part.entities, camera, lock: true,
