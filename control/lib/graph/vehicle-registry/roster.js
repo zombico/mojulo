@@ -79,6 +79,7 @@ export const ROLES = Object.freeze({
   carrier: 'flown from a carrier',
   stealth: 'it is not seen coming',
   survey: 'a drone that films, maps or watches from above',
+  launch: 'it lifts a payload or a crew from a pad to orbit',
 });
 
 /** The world ages a vehicle belongs to (gameworld/cast-setting.js ERA_OF_KIT's words). */
@@ -558,6 +559,23 @@ export const VEHICLES = {
     { craft: 'starliner', tech: 'winged' }),
   'space-trainer': row('two-seat flight trainer', ['space trainer', 'flight trainer'], 'space', 'trainer', F, AIR,
     { craft: 'spaceTrainer', tech: 'winged' }),
+  // ── to orbit: today's launch vehicles, classes and not replicas, in no agency's or company's markings (the craft shelf's
+  // launch realm, craft-shelf/rocket-archetypes.js: stood on their tails on their pads, parked and watched, never flown
+  // yet; their concept the crafter's nearest flying craft, `winged`, until it draws a rocket of its own) ─────────────
+  rocket: row('rocket', ['launch vehicle', 'orbital rocket', 'reusable rocket', 'space rocket', 'medium launcher', 'two stage rocket', 'two-stage rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'mediumLauncher', tech: 'winged' }),
+  'crew-rocket': row('crew rocket', ['crewed rocket', 'crew launcher', 'capsule rocket', 'rocket with a capsule', 'crew capsule rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'crewLauncher', tech: 'winged' }),
+  'heavy-rocket': row('heavy rocket', ['heavy launcher', 'three core rocket', 'triple core rocket', 'three-core rocket', 'heavy launch vehicle'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'heavyLauncher', tech: 'winged' }),
+  'super-heavy-rocket': row('super heavy rocket', ['super-heavy rocket', 'super heavy', 'stainless rocket', 'megarocket', 'fully reusable rocket', 'super heavy launcher'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'superHeavy', tech: 'winged' }),
+  'space-shuttle': row('space shuttle', ['shuttle stack', 'orbiter stack', 'space shuttle stack', 'winged orbiter stack', 'shuttle on the pad'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'shuttleStack', tech: 'winged' }),
+  orbiter: row('winged orbiter', ['orbiter', 'space shuttle orbiter', 'shuttle orbiter', 'spaceplane orbiter', 'orbiter on its gear'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'orbiter', tech: 'winged' }),
+  'moon-rocket': row('heavy-lift crew rocket', ['moon rocket', 'heavy lift rocket', 'deep space rocket', 'lunar rocket', 'heavy-lift rocket', 'rocket with an abort tower'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'crewHeavy', tech: 'winged' }),
 };
 
 /** The handle tables a row may name, and whether a key in one belongs to exactly one row (`claim: 'one'`) or a row

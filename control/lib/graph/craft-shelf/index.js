@@ -31,7 +31,7 @@ export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALE
 
 // the water a boat floats in, its density in kg/m³
 const WATER = Object.freeze({ fresh: 1000, salt: 1025 });
-const REALM_PALETTE = { earth: 'airlinerWhite', space: 'scoutIvory', water: 'skiffGreen' };
+const REALM_PALETTE = { earth: 'airlinerWhite', space: 'scoutIvory', water: 'skiffGreen', launch: 'launchWhite' };
 
 // What each colour role is made of, by realm: painted skins satin on an aircraft and matte on a
 // starship's plating, bare metal brushed aluminium or blasted steel, and every hot section (a nozzle,
@@ -45,6 +45,8 @@ const FINISH = {
   space: { paint: PLATE, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'steel', finish: 'blasted' }, light: 'neon' },
   // (a boat's: a marine enamel's sheen over its hull, its bare metal marine aluminium, brushed)
   water: { paint: GLOSS, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'aluminium', finish: 'brushed' }, light: 'neon' },
+  // (a launcher's: its paint a satin over its tanks, its tiles and its interstage matte, its bells' metal blasted)
+  launch: { paint: GLOSS, trim: PLATE, glass: 'glass', rubber: 'rubber', chrome: { metal: 'steel', finish: 'blasted' }, light: 'neon' },
 };
 const HOT = { metal: 'titanium', film: { temper: 330 } };
 const HOT_ID = /^(plug|nozzle|bell|exhaust|stack_)/;
@@ -301,7 +303,12 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
     });
   let pitch = 0;
   let lift;
-  if (contacts.length) {
+  // (a launcher stands on its tail: its +y up, on its lowest point)
+  if (row.stand === 'vertical') {
+    pitch = Math.PI / 2;
+    const probe = resolveAssemblerPlacements(toManifest(row, order, { pitch, lift: 0, title }));
+    lift = -Math.min(...probe.map((p) => p.bounds.min[2]));
+  } else if (contacts.length) {
     if (attitude === 'ground') {
       const yMax = Math.max(...contacts.map((c) => c[1]));
       const yMin = Math.min(...contacts.map((c) => c[1]));

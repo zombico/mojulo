@@ -33,6 +33,9 @@
  *     pilothouse, the gun tub; the bow ramp, the shaft drive; the bridge, the naval gun, the davit; the destroyer's
  *     superstructure, funnel, hangar, pyramid mast, turret, close-in weapon and launch cells; the carrier's flight deck; the submarine's round hull)
  *     when they joined; no existing pin moved.
+ *   - The launch parts joined the shelf (rocket-odm.js): their builder paths pinned (a stage's core, stainless hull and
+ *     foam tank; a solid booster; an engine cluster; a fairing; a capsule; grid fins and flaps; folded legs; the winged
+ *     orbiter), and the orbiter's stack whole, for a launcher stood on its tail; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -161,6 +164,18 @@ const PINS = {
   'craft:lightSingle': 'cbbad5fe3c255c1d',
   'craft:attackHeli': '8df85083c0bfc386',
   'craft:tandemHeli': 'c60d052a6cc7f82c',
+  'stage-medium-1': 'eb3fa6772dad214d',
+  'stage-super-booster': '5c97c8fa49ee89e2',
+  'stage-external-tank': '8b11618789bf59eb',
+  'srb-four': '71f1b184630e0e84',
+  'eng-octaweb-9': 'a2052aca8c3a57c7',
+  'fairing-medium': 'f201330b61aafbb1',
+  'capsule-crew': '035df029edfab6b4',
+  'gridfins-medium': 'dc8e4b2158cd3406',
+  'flaps-ship-fore': '7d23de3bcbdb4b42',
+  'legs-medium': '5d68f185d4dcf71e',
+  'orbiter-winged': 'e19b7b56b3a9caf1',
+  'craft:shuttleStack': 'ca9b0882032f5a39',
 };
 const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));
 

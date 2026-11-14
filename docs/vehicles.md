@@ -110,6 +110,17 @@ gun fixed along its nose: `gameworld/combat/aircraft.js`.
 Its helicopters and multirotor drones fly the range on the hover rule (`worlds/controllable/rules-hover.js`) at their
 types' figures (`skyscape/rotor.js`), armed as such machines are: `gameworld/combat/rotorcraft.js`.
 
+Launch vehicles are on the same shelf, in their own realm (`launch`): `rocket-odm.js`, `rocket-parts.js` and
+`rocket-archetypes.js`.
+
+- A launcher is built along its own axis from its tail, its stages on their tops, and stood on its tail
+  (`stand: 'vertical'`). Its reference is its figures on the pad.
+- The classes: a reusable two-stage medium launcher, the same carrying a crew capsule, a three-core heavy, a stainless
+  super-heavy and its ship, a winged orbiter's stack on its tank and two solid boosters, the orbiter alone on its gear,
+  and a heavy-lift crew rocket with its abort tower. No agency's or company's markings.
+- Its grid fins and its legs are stowed against it until posed out (`pose.fins`, `pose.legs`).
+- A level parks one on its tail; nothing flies one yet. Review renders: `scripts/render-rockets.mjs`.
+
 Boats are on the same shelf: `boat-odm.js`, `boat-parts.js` and `boat-archetypes.js`.
 
 - A boat's hull is drawn from its lines and floated by its weight, then given its drive and its fittings.

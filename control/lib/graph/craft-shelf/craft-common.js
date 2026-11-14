@@ -67,6 +67,11 @@ export const CRAFT_PALETTES = {
   // a military helicopter's matte olive drab, its dark fittings
   heliMilitary: { paint: '#525a45', trim: '#2b2f29', glass: '#1f2a30', rubber: '#1a1b1a', chrome: '#767b72', light: '#ff4a3a' },
   polishedAlu: { paint: '#c6ccd2', trim: '#20242a', glass: '#7ea8c4', rubber: '#181a1c', chrome: '#e3e7eb', light: '#e94b3c' },
+  // launch: a launcher's white over its black interstage, bare metal bells; stainless steel and its black tiles; an
+  // orbiter's white over its black tiles
+  launchWhite: { paint: '#eceeef', trim: '#1c1d1f', glass: '#1f272d', rubber: '#141516', chrome: '#a2a6aa', light: '#ff8a3c' },
+  stainlessSteel: { paint: '#c4c8cb', trim: '#1a1b1d', glass: '#1f272d', rubber: '#141516', chrome: '#8f9498', light: '#ff8a3c' },
+  orbiterWhite: { paint: '#efefec', trim: '#1b1c1e', glass: '#1d252b', rubber: '#141516', chrome: '#9aa0a5', light: '#ff8a3c' },
   // space
   scoutIvory: { paint: '#d9d4c7', trim: '#a8473a', glass: '#2b3a44', rubber: '#3b3d40', chrome: '#8d9196', light: '#ff7a4a' },
   interceptorSlate: { paint: '#6f767e', trim: '#2d3238', glass: '#1d2a33', rubber: '#24272b', chrome: '#9aa1a8', light: '#7fd3ff' },

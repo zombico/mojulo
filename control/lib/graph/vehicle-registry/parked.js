@@ -80,8 +80,8 @@ export function parkable(word, at = 'parked') {
   const hit = typeof word === 'string' ? resolveVehicle(word) : null;
   if (!hit) throw new Error(`${at}: '${word}' is no vehicle; ${suggestVehicles(String(word ?? ''))}`);
   const h = handlesOf(hit.id);
-  // (a craft off the shelf: a helicopter, an aircraft, a drone, standing on its gear)
-  const craft = (h.craft ?? []).find((k) => CRAFT_ARCHETYPES[k]?.realm === 'earth');
+  // (a craft off the shelf: a helicopter, an aircraft, a drone, standing on its gear; a launcher standing on its tail)
+  const craft = (h.craft ?? []).find((k) => ['earth', 'launch'].includes(CRAFT_ARCHETYPES[k]?.realm));
   if (craft && hit.row.uses.includes('parked')) return { vehicle: hit.id, craft };
   // (a personal or family car stands as its row's own card, car-shelf/; a row the highway fleet lofts (the sedan, the
   // compact, the crossover) parked its class's plain loft before, and keeps it unless its entry names a `car`)
