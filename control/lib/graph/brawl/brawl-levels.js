@@ -191,7 +191,7 @@ const TOWN = Object.freeze({ cube: 'valley-morning', pattern: 'old-town', street
 function brawlTown(words) {
   const seed = words.seed ?? TOWN.seed;
   if (!Number.isInteger(seed)) throw new Error('brawl: a town street\'s seed is a whole number');
-  const geotown = { pattern: words.pattern ?? TOWN.pattern, streetscape: words.streetscape ?? TOWN.streetscape, segment: 'main-street', hills: false };
+  const geotown = { pattern: words.pattern ?? TOWN.pattern, streetscape: words.streetscape ?? TOWN.streetscape, segment: 'main-street', hills: false, fronts: 'broken' };
   const D = designGeotown(geotown, { seed });
   const main = D.streets.find((s) => s.rank === 'main' && s.axis === 'x');
   if (!main) throw new Error('brawl: the town\'s segment has no main street to fight down');

@@ -80,6 +80,12 @@ screen) is now played on a page; before, only its practice yard was.
   An angle carries the height it looks at (`look`; a body's chest for the others, as before).
 - The street spike tours: `scripts/spikes/brawler/street.mjs --tour` walks the camera down an empty street and takes a
   still every 12 m, so a dress is seen in a couple of minutes without a fight.
+- The street's fronts broken up: a geotown's `fronts: 'broken'` (opt-in; unsaid, a shop row as it was) gives each shop
+  of a row its own house over the shop, from the row's `broken` table (`geotown/pattern.js`; the old town's: nine
+  fronts): its render and its shutters' paint, each at its own lightness, its height (two to four storeys, so the eaves
+  step), its shutters' form or none, its roof (the tiled hip, a steep slate one, a flat parapet), and on some narrow
+  balconies from the second floor up (a front's `balconies` may now say its own size, and may hang over a shop's door).
+  The brawl's town street asks for it.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

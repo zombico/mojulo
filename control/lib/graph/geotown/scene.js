@@ -286,7 +286,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   const litV = formB ? () => 1 : (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
   const [sLo, sHi] = P.house.storeys, spoken = new Map();
   // an EVOCATION's buildings each a kit of their row's kind (houses.js), no two neighbours alike; each yard its own
-  const evoked = !!d.evoked, kits = evoked ? buildingKits(P, m.style ?? P.style, cube, kitId, seed) : null, types = new Map();
+  const evoked = !!d.evoked, kits = evoked ? buildingKits(P, m.style ?? P.style, cube, kitId, seed, { broken: d.spec.fronts === 'broken' }) : null, types = new Map();
   if (kits) for (const B of d.blocks) for (const r of B.rows ?? []) {
     const R = streamOf(seed, 'types', `${B.id}:${r.side}`);
     let prev = null;
