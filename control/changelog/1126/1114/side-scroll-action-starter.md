@@ -17,7 +17,16 @@ screen) is now played on a page; before, only its practice yard was.
   native kit. On the page: `scripts/spikes/brawler/street.mjs` (a virtual clock, the keyboard): a lighter street is
   cleared through its boss to its end screen, a full one beats a button-masher on its second screen; fight it again
   returns to the start; no page errors.
+- Its sound, from the SFX shelf by word (`brawl-sfx.js` BRAWL_SOUNDS, brawlAudio): the brawler's sound sheet. The
+  cues a blow already played (a fist by its weight, a foot, a blade, a grab, a throw, a body landing, a knockout) are
+  voiced by shelf word in the sheet's style, the newest voices first (`mouth`, falling back to realistic where the
+  mouth voices none; `brawl.sound.style` says another), over the fight's family cues. And what a brawl never
+  sounded: a blow thrown (a fist's swing, a strong blow's whoosh, a blade's), a jump, a thug's shout as it attacks
+  (one in three, so a crowd is not a chorus), its grunt on a heavy blow and its cry as it goes down. The practice
+  yard hears the same sheet. A probe reads what was asked for (`window.__mojBrawl.heard`): on a street played
+  through, every cue asked for has a sound on the page.
 - `brawl` re-pinned: the one fixture whose page inlines the brawl's client.
+- Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a world that is a brawler in `design_game` (a level kind, the shell and its result, export), characters
   of the world's own in place of the stick figures, the street's dress, lives and continues, two players checked on
   a page.

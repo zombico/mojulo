@@ -642,7 +642,37 @@ function cueOf(e) {
 function sound(e) {
   if (typeof __beatsCue !== 'function' || typeof __AUDIO === 'undefined' || !__AUDIO || !__AUDIO.cues) return;
   const [c, gain] = gunCue(e) ?? [cueOf(e), 0.8];
+  if (c) HEARD[c] = (HEARD[c] || 0) + 1;
   if (c && __AUDIO.cues[c]) __beatsCue(__AUDIO.cues[c], gain);
+}
+// THE BODIES' OWN SOUNDS (brawl-sfx.js BRAWL_SOUNDS), heard off the street's state, not its events: a blow THROWN (a
+// move begun: a fist's swing, a strong blow's or a kick's whoosh, a blade's), a jump taken, and a thug's shout as it
+// attacks (one in three, by its own hash, so a crowd is not a chorus). A cue the page carries none of plays nothing.
+const SAID = new Map();
+// (HEARD: each cue asked for and how often, with or without a sound to play it: a probe's, window.__mojBrawl.heard)
+const HEARD = {};
+const cue = (c, gain) => { HEARD[c] = (HEARD[c] || 0) + 1; if (typeof __beatsCue === 'function' && typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues && __AUDIO.cues[c]) __beatsCue(__AUDIO.cues[c], gain); };
+function bodySounds() {
+  for (const p of room.s.bodies) {
+    if (p.gone) continue;
+    const was = SAID.get(p.id) || { mv: null, mf: 0, st: null }, F = room.ctx.fighters[p.fi];
+    const began = p.st === 'move' && p.mv && (was.mv !== p.mv || p.mf < was.mf || was.st !== 'move');
+    if (began) {
+      const strong = p.mv.startsWith('strong') || p.mv === 'desperate' || p.mv.startsWith('special');
+      cue(F.weapon ? 'swing-blade' : strong ? 'swing-heavy' : 'swing', p.side === 'player' ? 0.5 : 0.3);
+      if (p.side === 'crowd' && (p.id * 7 + room.s.f) % 3 === 0) cue('shout', 0.4);
+    }
+    if (p.st === 'jump' && was.st !== 'jump') cue('jump', 0.4);
+    SAID.set(p.id, { mv: p.mv, mf: p.mf, st: p.st });
+  }
+}
+// (and on a blow: a thug's grunt on a heavy one, its cry as it goes down)
+function voiceOf(e) {
+  // (a blow's `d` is the body it landed on; a knockout's `p` the body that fell)
+  const id = e.t === 'ko' ? e.p : e.t === 'hit' ? e.d : undefined, b = id !== undefined ? room.s.bodies[id] : null;
+  if (!b || b.side !== 'crowd') return;
+  if (e.t === 'ko') cue('cry', 0.6);
+  else if ((e.w ?? 1) >= 2) cue('grunt', 0.45);
 }
 /** the range's sounds: a gun's shot and landing its own, a gun run dry, a magazine seated (null: the fight's) */
 function gunCue(e) {
@@ -803,7 +833,9 @@ function tick() {
     // (a heavy landing's impact frames: a burst, a round that makes its body flinch)
     if (e.t === 'burst' || (e.t === 'hit' && e.flinch)) impactFrames(gunOf(e.gun)?.impact ?? 0);
     sound(e);
+    voiceOf(e);
   }
+  bodySounds();
   if (IMPACT.left > 0) IMPACT.left--;
   flybys();
   const next = inputRun(runs, buttons[0]);
@@ -845,4 +877,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; } };
+window.__mojBrawl = { get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

@@ -2069,7 +2069,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // the run & gun's range: every gun's shot and landing (the shelf's and those passed in), the range's own sounds;
     // without one, the street's own (a mount's crash, a wreck's metal, the ground dug out of)
-    const { gunAudio, streetAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    const { gunAudio, streetAudio, brawlAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    // the brawler's sound sheet (brawl-sfx.js BRAWL_SOUNDS): its blows thrown and landed and its bodies' voices, by shelf
+    // word in the sheet's style (`brawl.sound.style`; the newest voices first), over the fight's family cues
+    { const BA = resolveWorldAudio(brawlAudio({ ...(sketch.manifest.brawl.sound?.style ? { style: sketch.manifest.brawl.sound.style } : {}) }), { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...BA.cues }, mix: BA.mix ?? payload.audio.mix } : BA; }
     if (!practice.range) {
       const A = resolveWorldAudio(streetAudio(), { time, ref: sketch.ref });
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...A.cues } } : A;

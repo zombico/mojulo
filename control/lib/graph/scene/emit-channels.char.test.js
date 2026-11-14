@@ -738,6 +738,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 (a street fought down, brawl/brawl-street.js): `brawl`, the one fixture whose page inlines the
 // brawl's client and modules. The page may now play a STREET in the yard's place (`brawl.street`: its waves a held
 // screen, read by the brawler's own reader, its screen and its read inlined beside the yard's); a yard plays as it did.
+// And again the same day (the brawler's sound sheet, brawl/brawl-sfx.js BRAWL_SOUNDS): `brawl`. The client sounds a blow
+// thrown, a jump and the bodies' voices off the street's state, and counts what it asked for (window.__mojBrawl.heard).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

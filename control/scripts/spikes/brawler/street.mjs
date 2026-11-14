@@ -87,6 +87,9 @@ for (; f < frames; f += 2) {
 await play(40);
 await shot('end');
 const last = await read();
+// (what it sounded: each cue asked for, and which of them the page carries a sound for)
+const sound = await tab.evaluate(() => { const B = window.__mojBrawl, has = new Set(B.cues); return { heard: B.heard, silent: Object.keys(B.heard).filter((c) => !has.has(c)), carried: B.cues.length }; });
+log.push(['sound', sound]);
 log.push(['end', { over: last.over, screen: last.screen, t: +(f / 60).toFixed(1), hp: last.R.hp, of: last.R.hpMax, cleared: `${last.R.cleared}/${last.R.of}`, hud: last.hud }]);
 // (its end's button fights it again: accept, and the street is at its start)
 if (last.over) { await play(2, ['KeyK']); await play(20); const again = await read(); log.push(['again', { over: again.over, screen: again.screen, cleared: again.R.cleared, hp: again.R.hp }]); }
