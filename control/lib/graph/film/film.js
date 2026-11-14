@@ -4,7 +4,8 @@
  * filmed by the same core as one screenplay forged alone (lib/mcp/tools/scene-film.js): `sceneScreenplay` is the seam.
  *
  *   THE RECIPE: { title?, cast: { <who>: { persona? | hero?, register?, style?, role?, height? } },
- *     sets?: { <id>: <a stored world's ref> }, look?: 'film' | 'anime', grade?, grain?, style?,
+ *     sets?: { <id>: <a stored world's ref> | { words, seed? } | { cube, show, seed? } } (a place asked for is made
+ *       into a geocube once by the door, its `ref` kept beside the words), look?: 'film' | 'anime', grade?, grain?, style?,
  *     render?: { light?: 'setups' | 'world', dof?: <an f-stop>, motion_blur?, samples? } (film/render-plan.js),
  *     scenes: [{ id, set?, cast: { <who>: { mark?, register?, style?, role?, height? } }, marks?, script, voice?, dub?,
  *       seed? }],
@@ -39,6 +40,30 @@ const WORD = /^[a-z][a-z0-9_-]{0,31}$/;
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export const FILM_MANUAL = "manual: get_motion_vocab({ id: 'film-studio' })";
 
+/** what a set asked for in words takes: a sentence (a land), or a geocube preset and the kind of place it is laid as */
+export const SET_KEYS = Object.freeze(['words', 'cube', 'show', 'seed', 'hour', 'clouds', 'ref']);
+/** the world a set is played in: its ref, or the ref of the place its words were made into (null: not made yet) */
+export const setRef = (V) => (typeof V === 'string' ? V : isPlain(V) && typeof V.ref === 'string' && V.ref ? V.ref : null);
+/** what a set asks a geocube for, as that kind's recipe keys (no `ref`: that is the film's) */
+export const setAsk = (V) => Object.fromEntries(Object.entries(V).filter(([k]) => k !== 'ref'));
+
+/** Error lines for one set: a stored world's ref, or a place asked for (see the header) */
+export function setErrors(id, V) {
+  const at = `sets.${id}`;
+  if (!WORD.test(id)) return [`${at}: a set is named by a word (lower case letters, digits, - and _)`];
+  if (typeof V === 'string') return V ? [] : [`${at}: a stored world's ref`];
+  if (!isPlain(V)) return [`${at}: a stored world's ref, or a place asked for: { words: 'a grassy field by a lake at dusk' } or { cube: '<a geocube preset>', show: 'geotown' | 'geocity' | 'path' | … }`];
+  const errs = [], bad = Object.keys(V).filter((k) => !SET_KEYS.includes(k));
+  if (bad.length) errs.push(`${at}: a place asked for takes ${SET_KEYS.join(', ')} (not ${bad.join(', ')})`);
+  if (V.words === undefined && V.cube === undefined) errs.push(`${at}: say the place in words ({ words }), or name a geocube preset and how it is laid ({ cube, show })`);
+  if (V.words !== undefined && (typeof V.words !== 'string' || !V.words.trim())) errs.push(`${at}.words: a few words about the place`);
+  if (V.cube !== undefined && !(typeof V.cube === 'string' && V.cube) && !isPlain(V.cube)) errs.push(`${at}.cube: a geocube preset's name, or a cube`);
+  if (V.show !== undefined && (typeof V.show !== 'string' || !V.show)) errs.push(`${at}.show: how the place is laid (path, trail, town, geotown, geocity, hall)`);
+  if (V.seed !== undefined && !Number.isInteger(V.seed)) errs.push(`${at}.seed: a whole number (the same words and seed are the same place)`);
+  if (V.ref !== undefined && (typeof V.ref !== 'string' || !V.ref)) errs.push(`${at}.ref: the ref of the place the film made (the film writes it)`);
+  return errs;
+}
+
 /** Error lines for a film's recipe (see the header) */
 export function filmErrors(F) {
   if (!isPlain(F)) return ['a film is { cast: { <who>: { persona | hero } }, scenes: [{ id, cast: { <who>: {} }, script }], sets?, look?, edit? }'];
@@ -53,8 +78,8 @@ export function filmErrors(F) {
     if (C.persona !== undefined && C.hero !== undefined) errs.push(`cast.${w}: a persona or a hero, not both`);
   }
   if (F.sets !== undefined) {
-    if (!isPlain(F.sets)) errs.push('sets: { <id>: <a stored world\'s ref> }');
-    else for (const [id, ref] of Object.entries(F.sets)) if (!WORD.test(id) || typeof ref !== 'string' || !ref) errs.push(`sets.${id}: a set is a word naming a stored world's ref`);
+    if (!isPlain(F.sets)) errs.push('sets: { <id>: <a stored world\'s ref> | { words } | { cube, show } }');
+    else for (const [id, V] of Object.entries(F.sets)) errs.push(...setErrors(id, V));
   }
   if (F.look !== undefined && !FILM_LOOKS.includes(F.look)) errs.push(`look: ${FILM_LOOKS.join(' | ')}`);
   errs.push(...renderErrors(F.render));
@@ -115,7 +140,8 @@ export function sceneScreenplay(F, id) {
     ...(S.marks ? { marks: S.marks } : {}),
     ...(S.props ? { props: S.props } : {}),
     ...(S.seed !== undefined ? { seed: S.seed } : {}),
-    ...(S.set !== undefined ? { world_ref: F.sets[S.set] } : {}),
+    // (a set asked for in words plays in the place the film made of it; one not made yet has no world)
+    ...(S.set !== undefined && setRef(F.sets[S.set]) ? { world_ref: setRef(F.sets[S.set]) } : {}),
     ...(S.voice ? { voice: S.voice } : {}),
     ...(S.dub ? { dub: S.dub } : {}),
   };

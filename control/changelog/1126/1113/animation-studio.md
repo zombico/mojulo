@@ -129,6 +129,14 @@ game.
 - **The written build steps keep the cast.** The steps a scene's Blender folder gives for building it by hand now
   save the actors into the film. Before, followed as written, they left the film with its set and cameras and no
   actors (rendering with the one command was not affected).
+- **Say where a scene is, in words.** A film's set no longer has to be a world you made first. Say "a grassy field
+  by a lake at dusk" and the film makes that place and plays the scene there. Or name a style of town or city and
+  it makes the street.
+  - **Made once, and kept.** The same words give the same place every time. Edit the film and the place stays as
+    it is. Change the words and the place changes with them.
+  - **It says what it understood.** The film lists which of your words shaped the place and points out any it
+    could not use, such as a thing or a person, which belong in the scene's props.
+  - **An ordered cutscene can ask the same way,** so whoever orders it need not hand over a world for every place.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
   notes on what happens in each event.

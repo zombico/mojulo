@@ -303,6 +303,13 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   - `blender` writes each scene's pack and `cut.py`, which joins their renders. It is resumable: a run works until its
     budget and leaves the rest `pending`.
 - **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+- **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
+  stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
+  keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the
+  recipe, and on a later write compares the ask with the film as it was last written: the same ask keeps the place,
+  another changes the same world in place (`updateSketchHandler`). `sceneScreenplay` plays the scene on that ref. The
+  readout's `sets` carries the geocube's own `brief` (what its words read, which nothing read); an unread word is
+  advised as `words-unread` in the set department. An order's `places` take the same.
 - **A film made to order** (`film/order.js`, the door's `order`, `deliver` and `ordered_by`): a client studio's
   characters, places and event notes written as a film (`filmOfOrder`), the brief kept in the recipe's `order`. An
   event with notes and no script holds the notes in its scene (`draftScript`) and reads `unwritten`, advised in the

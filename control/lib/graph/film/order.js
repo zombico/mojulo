@@ -7,7 +7,8 @@
  *   THE ASK (film door: `film: { order }`):
  *     { title?, from?: <the client's ref: a game, a gameworld>, for?: '<what it is for: the prologue, a moment's id>',
  *       cast:   { <who>: <ref> | { persona? | hero?, register?, style?, role?, height? } },   the client's characters
- *       places: { <id>: <a stored world's ref> },                    its geocubes, levels, rooms: the sets
+ *       places: { <id>: <a stored world's ref> | { words } | { cube, show } },   its geocubes, levels, rooms, or a
+ *                                                                    place asked for in words: the sets
  *       events: [{ id, notes: '<what happens>', place?: <a place's id>, who?: [<who>], props?, script? }],
  *       look?: 'film' | 'anime', deliver?: 'animatic' | 'film' }
  *     An event is one scene. Its `notes` are the client's words for what happens; its `script`, where the client wrote
@@ -47,7 +48,8 @@ export function orderErrors(O) {
     if (!WORD.test(w)) errs.push(`cast.${w}: a part's name is the name the script writes, lower case (a word)`);
     if (typeof C === 'string' ? !C : !isPlain(C) || Object.keys(C).some((k) => !PART_KEYS.includes(k))) errs.push(`cast.${w}: a character's ref, or { ${PART_KEYS.join('?, ')}? }`);
   }
-  if (O.places !== undefined && (!isPlain(O.places) || Object.entries(O.places).some(([id, ref]) => !WORD.test(id) || typeof ref !== 'string' || !ref))) errs.push('places: { <id>: <a stored world\'s ref> }: the client\'s geocubes, levels and rooms, each named by a word');
+  // (a place is a world the client has, by ref, or one asked for in words: film.js setErrors reads it as a film's set)
+  if (O.places !== undefined && (!isPlain(O.places) || Object.entries(O.places).some(([id, V]) => !WORD.test(id) || !(typeof V === 'string' ? V : isPlain(V))))) errs.push('places: { <id>: <a stored world\'s ref> | { words } | { cube, show } }: the client\'s geocubes, levels and rooms, or a place asked for, each named by a word');
   if (O.deliver !== undefined && !DELIVERIES.includes(O.deliver)) errs.push(`deliver: ${DELIVERIES.join(' | ')} (what the client wants back: the boards cut as a video, or the film rendered in Blender)`);
   for (const k of ['from', 'for', 'title']) if (O[k] !== undefined && (typeof O[k] !== 'string' || !O[k].trim())) errs.push(`${k}: words`);
   if (!Array.isArray(O.events) || !O.events.length) errs.push('events: [{ id, notes: \'<what happens>\', place?, who? }], one at least: each is a scene of the cutscene');

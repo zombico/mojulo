@@ -32,6 +32,17 @@ forge_motion({ film: { write: {
 - A scene names who is in it. `cast: { <who>: { mark?, style?, role?, register? } }` gives the scene's words over the
   film's.
 - A set is a stored world, named once in `sets` and used by any scene's `set`.
+- **A set can be asked for, with no world made first.** `sets: { lake: { words: 'a grassy field by a lake at dusk',
+  seed? } }` says a land in words; `sets: { street: { cube: 'valley-morning', show: 'geotown', seed? } }` names a
+  geocube preset and how it is laid (`path`, `trail`, `town`, `geotown`, `geocity`, `hall`; the presets and words are
+  the geocube's: `get_sketch_vocab({ id: 'geocube' })`).
+  - The film makes the place once, when it is written, and keeps its ref beside the words. The same words and seed
+    are the same place.
+  - Edit the film and the place is kept. Change the words and the same world is changed in place.
+  - The readout's `sets` says what the words read; a word nothing read is advised (`words-unread`). A place is made
+    of the land, what grows, the water, the sky and the hour: a thing or a person is not read (dress the scene with
+    it, `props`).
+  - A town or a city takes longer to make than a land, a city minutes.
 - `look`: `film` | `anime`. `grade`, and `grain` (`twos`), cover the whole film.
 - `render: { light: 'setups', dof, motion_blur, samples }` sets the Blender render for every scene (the `scene-film`
   card). The Look and light department owns it.
@@ -67,7 +78,8 @@ Another studio (the game studio, for one) hands over what it already has and get
 film: { order: {
   title: 'The meeting at the lake', from: '<the game\'s ref>', for: 'the prologue',
   cast:   { ada: 'sk_…', jon: 'sk_…' },            // its characters: a persona's or a hero's ref (or { persona | hero })
-  places: { lake: 'sk_…', street: 'sk_…' },        // its geocubes, levels, rooms: the sets
+  places: { lake: 'sk_…', street: 'sk_…' },        // its geocubes, levels, rooms: the sets (or a place asked for:
+                                                    //   { words } | { cube, show }, as a film's `sets`)
   events: [{ id: 'arrival', place: 'lake', who: ['ada', 'jon'], notes: 'Ada finds Jon waiting. He has bad news.' },
            { id: 'parting', place: 'street', notes: '…', script: 'ADA: …', props: { car: { thing: 'sedan', at: [3, 2] } } }],
   deliver: 'animatic' } }                            // or 'film': the scenes rendered in Blender

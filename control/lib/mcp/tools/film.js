@@ -29,7 +29,7 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { readFilm, sceneScreenplay, sceneOrder, sceneStamp, FILM_KIND, isFilmKind, FILM_MANUAL } from '@/lib/graph/film/film.js';
+import { readFilm, sceneScreenplay, sceneOrder, sceneStamp, setRef, setAsk, FILM_KIND, isFilmKind, FILM_MANUAL } from '@/lib/graph/film/film.js';
 import { filmReadout, orderStamp } from '@/lib/graph/film/readout.js';
 import { filmOfOrder } from '@/lib/graph/film/order.js';
 import { filmBookHtml } from '@/lib/graph/film/book.js';
@@ -60,6 +60,19 @@ async function bindFilmVoices(F) {
     }
   });
   return { ...F, scenes };
+}
+
+/** A film's sets as the readout says them: each one's world, and for a place asked for what its words decided and
+ * which of them nothing read (the geocube's own `brief`, kept on the world the film made) */
+function setsOf(F, getRow) {
+  return Object.entries(F.sets ?? {}).map(([id, V]) => {
+    const ref = setRef(V), M = ref ? getRow(ref)?.manifest : null, B = M?.brief;
+    return {
+      id, ref, ...(M ? { kind: M.kind, ...(M.show ? { show: M.show } : {}) } : {}),
+      ...(typeof V === 'object' ? { asked: V.words ?? `${typeof V.cube === 'string' ? V.cube : 'a cube'} as ${V.show ?? 'a place'}` } : {}),
+      ...(B && typeof V === 'object' && V.words !== undefined ? { read: (B.read ?? []).map((r) => r.word), unread: B.unread ?? [] } : {}),
+    };
+  });
 }
 
 /** each scene played: its set read, its recordings checked, its plan; an error kept by scene, never thrown */
@@ -133,7 +146,7 @@ export async function flowFilmVideos(manifest, getRow) {
 export async function filmBook(row) {
   const { getRow, outcomeUrlFor } = await store();
   const F = row.manifest.film, played = await playFilm(F, { getRow });
-  const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress: await renderProgressOf(row.manifest.made) });
+  const readout = filmReadout(F, played, { sets: setsOf(F, getRow), approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress: await renderProgressOf(row.manifest.made) });
   return filmBookHtml({ film: { ...F, title: F.title ?? row.title }, readout, boards: boardsOf(row.manifest.made, outcomeUrlFor) });
 }
 
@@ -328,7 +341,7 @@ export async function filmHandler(arg) {
     if (typeof arg.ordered_by !== 'string' || !arg.ordered_by) throw new Error('film: ordered_by is the client\'s ref (the game or gameworld that ordered)');
     const films = [];
     for (const R of SketchRepository.listByKinds({ kinds: [FILM_KIND] }).filter((x) => x.manifest?.film?.order?.from === arg.ordered_by)) {
-      const F = R.manifest.film, made = R.manifest.made ?? {}, read = filmReadout(F, await playFilm(F, { getRow }), { approvals: R.manifest.approvals ?? {}, made, ref: R.ref, progress: await renderProgressOf(made) });
+      const F = R.manifest.film, made = R.manifest.made ?? {}, read = filmReadout(F, await playFilm(F, { getRow }), { sets: setsOf(F, getRow), approvals: R.manifest.approvals ?? {}, made, ref: R.ref, progress: await renderProgressOf(made) });
       films.push({ ref: R.ref, title: F.title ?? R.title, ...read.order, ...(made.delivered ? { returned: made.delivered } : {}) });
     }
     return { ok: true, ordered_by: arg.ordered_by, films, message: films.length ? `${films.length} film(s) ordered by ${arg.ordered_by}: ${films.map((f) => `${f.ref} (${f.ready ? (f.returned ? 'handed back' : 'ready') : `${f.waiting.length} event(s) to go`})`).join(', ')}.` : `No film was ordered by ${arg.ordered_by}.` };
@@ -351,7 +364,23 @@ export async function filmHandler(arg) {
   if (arg.write !== undefined || arg.patch !== undefined) {
     let F = arg.write !== undefined ? arg.write : applyManifestPatch(row.manifest.film, arg.patch).manifest;
     readFilm(F);
-    for (const [id, ref] of Object.entries(F.sets ?? {})) if (!getRow(ref)?.manifest) throw new Error(`film: set ${id} names '${ref}', which is no stored world`);
+    // A LOCATION IN WORDS: a set asked for (a sentence, or a geocube preset and how it is laid) is made into a geocube
+    // here, once, and its ref kept beside the words; asked for differently later, the same world is changed in place
+    for (const [id, V] of Object.entries(F.sets ?? {})) {
+      if (typeof V === 'string') { if (!getRow(V)?.manifest) throw new Error(`film: set ${id} names '${V}', which is no stored world`); continue; }
+      const { createSketchHandler, updateSketchHandler } = await import('@/lib/mcp/tools/sketch-mint.js');
+      // (asked for as it was when the film was last written: the place it made then is the place)
+      const ask = setAsk(V), before = row?.manifest?.film?.sets?.[id], was = before && typeof before === 'object' ? before : null;
+      const ref = V.ref ?? was?.ref ?? null, had = ref ? getRow(ref) : null;
+      if (had?.manifest?.kind === 'geocube' && was && JSON.stringify(setAsk(was)) === JSON.stringify(ask)) { F = { ...F, sets: { ...F.sets, [id]: { ...ask, ref } } }; continue; }
+      try {
+        const out = had?.manifest?.kind === 'geocube'
+          ? await updateSketchHandler({ ref: had.ref, manifest: { kind: 'geocube', ...ask } })
+          : await createSketchHandler({ title: `${F.title ?? arg.title ?? 'film'} · ${id}`, manifest: { kind: 'geocube', ...ask } });
+        F = { ...F, sets: { ...F.sets, [id]: { ...ask, ref: out.ref ?? had.ref } } };
+        did.push(`${had?.manifest?.kind === 'geocube' ? 'remade' : 'made'} the set ${id}`);
+      } catch (e) { throw new Error(`film: set ${id}: ${e.message}`); }
+    }
     for (const [w, C] of Object.entries(F.cast)) {
       if (typeof C.persona === 'string' && getRow(C.persona)?.manifest?.kind !== 'persona') throw new Error(`film: cast.${w}.persona '${C.persona}' is not a persona (create_character as 'persona')`);
       if (typeof C.hero === 'string' && !getRow(C.hero)?.manifest?.hero) throw new Error(`film: cast.${w}.hero '${C.hero}' is not a hero (create_character as 'hero')`);
@@ -394,7 +423,7 @@ export async function filmHandler(arg) {
       const R = await runBoards(row, F, played, ids, { animatic: arg.run === 'animatic' });
       made.storyboard = R.made;
       if (arg.run === 'animatic') made.animatic = { motion_ref: R.run.ref, at: R.made.at };
-      const readoutNow = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made, ref: row.ref });
+      const readoutNow = filmReadout(F, played, { sets: setsOf(F, getRow), approvals: row.manifest.approvals ?? {}, made, ref: row.ref });
       writeFileSync(path.join(R.run.dir, 'index.html'), filmBookHtml({ film: { ...F, title: F.title ?? row.title }, readout: readoutNow, boards: R.boards }));
       ran = { run: arg.run, motion_ref: R.run.ref, page: `${R.run.url}index.html`, scenes: R.out.scenes, ...(R.out.cut ? { cut: R.out.cut } : {}) };
     }
@@ -407,7 +436,7 @@ export async function filmHandler(arg) {
   if (arg.deliver !== undefined) {
     if (arg.deliver !== true) throw new Error('film: deliver is true (hand the cutscene back to who ordered it)');
     if (!F.order) throw new Error('film: this film was not made to an order (film: { order } makes one); its runs are its own');
-    const made = row.manifest.made ?? {}, now = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made, ref: row.ref, progress });
+    const made = row.manifest.made ?? {}, now = filmReadout(F, played, { sets: setsOf(F, getRow), approvals: row.manifest.approvals ?? {}, made, ref: row.ref, progress });
     const cutUrl = made.animatic?.motion_ref ? `${outcomeUrlFor(made.animatic.motion_ref)}motion.mp4` : null;
     const rendered = progress?.cut ? path.join(progress.dir, progress.cut) : null;
     delivery = {
@@ -424,7 +453,7 @@ export async function filmHandler(arg) {
     did.push(delivery.ready ? 'delivered' : 'delivered as it stands');
     progress = await renderProgressOf(row.manifest.made);
   }
-  const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress });
+  const readout = filmReadout(F, played, { sets: setsOf(F, getRow), approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress });
   return {
     ...(progress ? { render: progress } : {}),
     ok: true, ref: row.ref, url: `/sketches/${encodeURIComponent(row.ref)}`, ...(did.length ? { did } : {}), ...(ran ? { ran } : {}), ...(delivery ? { delivery } : {}),

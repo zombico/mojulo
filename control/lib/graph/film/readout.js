@@ -7,6 +7,8 @@
  *   filmReadout(F, played, { approvals?, made?, ref? }) → { title, scenes, departments, waves, advice, next, approved }
  *     played  { <scene id>: { plan?: { S, coverage, notes }, set?, advice?: [], error?: <message> } }
  *     approvals  { <scene id>: { board: <stamp>, at } } (the person's, per scene: actor's eyes gate)
+ *     sets    [{ id, ref, kind?, show?, asked?, read?, unread? }]: each set's world, and what a place asked for in words
+ *             read (the door reads the worlds)
  *     made    { storyboard?, animatic?, blender?: { motion_ref, scenes: { <id>: { stamp } }, pending? } }
  *     progress  the render worker's record (scripts/render-film.mjs render.json), read by the door: { dir, scenes:
  *               { <id>: { preset, frames, done, encoded } }, cut }
@@ -23,7 +25,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 export const orderStamp = (F) => sceneOrder(F).map((id) => sceneStamp(F, id)).join('.');
 
 /** The film's readout (see the header) */
-export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, progress = null } = {}) {
+export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, progress = null, sets = null } = {}) {
   const order = sceneOrder(F), advice = [];
   const scenes = order.map((id) => {
     const P = played[id] ?? {}, stamp = sceneStamp(F, id), A = approvals[id];
@@ -48,6 +50,8 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, 
   });
   // (a film made to order: an event the client gave as notes only still plays its holding screenplay)
   for (const E of F.order?.events ?? []) if (isDraft(F, E.id)) advice.push({ id: 'unwritten', scene: E.id, says: `scene ${E.id} is not written yet. The client's notes: ${E.notes}`, try: `write its screenplay from the notes: film: { ref, patch: [{ op: 'set', path: '/scenes/${F.scenes.findIndex((s) => s.id === E.id)}/script', value: 'NAME: the line …' }] }` });
+  // (a set asked for in words: a word nothing read is said, with what was read, so the words can be mended)
+  for (const T of sets ?? []) if (T.unread?.length) advice.push({ id: 'words-unread', set: T.id, says: `the set ${T.id} did not read: ${T.unread.join(', ')} (it read: ${T.read.join(', ') || 'nothing'})`, try: `say it in words a place is made of (the land, what grows, the water, the sky, the hour), or dress the scene with it: film: { ref, patch: [{ op: 'set', path: '/sets/${T.id}/words', value: '…' }] }` });
   // (the cast: a part with no body plays the default hero; a part no scene names)
   for (const [w, C] of Object.entries(F.cast)) {
     if (C.persona === undefined && C.hero === undefined) advice.push({ id: 'no-body', part: w, says: `${w} has no persona or hero: the default realistic hero plays the part`, try: `cast it: cast.${w}.persona (create_character as 'persona') or cast.${w}.hero` });
@@ -75,7 +79,7 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, 
   const brief = orderReadout(F, scenes, { made, progress });
   if (brief?.ready && made.delivered?.stamp !== orderStamp(F)) next.push({ department: 'render', says: `the order is ready to hand back${brief.from ? ` to ${brief.from}` : ''}`, try: 'film: { ref, deliver: true }' });
   return {
-    ...(ref ? { ref } : {}), title: F.title ?? null, ...(brief ? { order: { ...brief, ...(made.delivered ? { delivered: { at: made.delivered.at, current: made.delivered.stamp === orderStamp(F) } } : {}) } } : {}), scenes, departments, waves, advice: advice.map((a) => ({ ...a, department: ADVICE_HOME[a.id] ?? 'script' })),
+    ...(ref ? { ref } : {}), title: F.title ?? null, ...(sets?.length ? { sets } : {}), ...(brief ? { order: { ...brief, ...(made.delivered ? { delivered: { at: made.delivered.at, current: made.delivered.stamp === orderStamp(F) } } : {}) } } : {}), scenes, departments, waves, advice: advice.map((a) => ({ ...a, department: ADVICE_HOME[a.id] ?? 'script' })),
     next, approved, ...(ref ? { book: `/api/sketches/${encodeURIComponent(ref)}/bible?book=film` } : {}),
   };
 }
