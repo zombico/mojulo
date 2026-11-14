@@ -83,6 +83,8 @@ export function buildsOf(id) {
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) {
     // (a boat on the shelf is built and floated, and no door draws one yet: the transformer's craft fly)
+    // (a launcher on the shelf stands on its pad: a level parks it, nothing flies it yet)
+    if (CRAFT_ARCHETYPES[k]?.realm === 'launch') { out.push(B('realistic', 'craft', k, 'live', ['a level\'s parked vehicles'], 'the craft shelf\'s launch vehicle at its class\'s true figures, stood on its tail on its pad', ['parked', 'watched'])); continue; }
     if (CRAFT_ARCHETYPES[k]?.realm === 'water') { out.push(B('realistic', 'craft', k, 'asleep', [], 'the craft shelf\'s boat at its class\'s true figures, floated on the waterline its weight sets: no door draws a boat yet')); continue; }
     out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   }

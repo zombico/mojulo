@@ -8,6 +8,7 @@
  * read a seed: an inventory row is one part number and always makes the same part.
  */
 
+import { ROCKET_BUILDERS } from './rocket-parts.js';
 import { cockpit } from './air-kit-parts.js';
 import { DRONE_BUILDERS } from './drone-parts.js';
 import { HELI_BUILDERS } from './heli-parts.js';
@@ -1305,3 +1306,6 @@ Object.assign(CRAFT_BUILDERS, HELI_BUILDERS);
 
 // the boat parts' builders (boat-parts.js)
 Object.assign(CRAFT_BUILDERS, BOAT_BUILDERS);
+
+// the launch vehicles' builders (rocket-parts.js)
+Object.assign(CRAFT_BUILDERS, ROCKET_BUILDERS);
