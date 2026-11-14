@@ -59,8 +59,10 @@ another mood for a request, or `false` for silence. An id nothing asked is liste
 
 **Where it plays today.** A level's cue is its soundtrack, and its fight or boss cue comes in with the tension
 (`levelScore`, the adaptive music), on every level the game builds. A quick game's own `quick.music` still wins.
-The flow's cues (title, menus, credits, cinematics) and the outcomes are on the sheet and not yet played: the play
-shell scores no flow step.
+The outcomes' stingers play when a level is won or lost: a game's shell plays stored beats sketches, so a run mints
+each as a step of the score's chapter (`cue-victory`, `cue-defeat`, at `<ref>-cue-<id>`) and the game names them
+(`music.victory`, `music.defeat`). A changed answer remakes its cue in place. The flow's cues (title, menus,
+credits, cinematics) are on the sheet and not yet played: the play shell scores no flow step.
 
 **Stand-ins.** The generators have no title theme and no cue that ends. Until they do, the title, the menus, the
 credits and the cinematics are answered by the nearest mood that exists, marked `stand-in` and listed as owed.

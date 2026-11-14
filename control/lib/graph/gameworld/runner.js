@@ -195,6 +195,26 @@ const sheetOf = (G, s, score = null) => {
   const audio = sheet || cue ? { ...(sheet ?? own ?? {}), ...(cue ?? {}) } : null;
   return audio ? { audio } : {};
 };
+// THE SCORE'S CUES A GAME NAMES BY REF (cue-sheet.js): a game's shell plays stored beats sketches, so each cue the game
+// itself plays is a step of the run, a beats-composition minted from the sheet's answer at `<ref>-cue-<id>`, and the
+// game names it. The outcomes' stingers today (the shell's music.victory / music.defeat); a level's own cues ride its
+// audio and are no step. → { steps, music } (music: null where the sheet answers neither)
+const GAME_CUES = Object.freeze(['victory', 'defeat']);
+function gameCues(runScore, G, ref) {
+  if (!runScore) return { steps: [], music: null };
+  const steps = [], music = {};
+  for (const id of GAME_CUES) {
+    const R = runScore.sheet.requests.find((r) => r.id === id);
+    if (!R?.cue) continue;
+    const order = { kind: 'beats-composition', title: `${G.name ?? G.id} · ${id}`, score: R.cue.score };
+    const at = childRef(ref, `cue-${id}`);
+    steps.push({ key: `cue-${id}`, ref: at, ready: true, order, print: fingerprint(order) });
+    music[id] = at;
+  }
+  return { steps, music: Object.keys(music).length ? music : null };
+}
+// (a game order with the run's cues named, their steps laid before it)
+const withCues = (steps, game, runScore, G, ref) => { const C = gameCues(runScore, G, ref); steps.push(...C.steps); return C.music ? { ...game, music: { ...(game.music ?? {}), ...C.music } } : game; };
 // a game's cue sheet for a run (cue-sheet.js), its identity the game's own from its ref; null for a game with no `music`
 const scoreOfRun = (world, G, ref) => (onScore(G) ? { world, sheet: cueSheet(world, { game: seedOfRef(childRef(ref, 'game')) }) } : null);
 
@@ -490,7 +510,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
       if (!m.missing.length) flow = { ...m.flow, steps: Object.fromEntries(Object.entries(m.flow.steps).map(([id, st]) => [id, st.kind === 'cinematic' && boundRef(st.scene) ? { ...st, stage: boundRef(st.scene) } : st])) };
     }
     if (!flow && Object.keys(cinematics).length) flow = defaultFlow({ ...game0, cinematics });
-    const game = flow ? { ...game0, flow } : game0;
+    const game = withCues(steps, flow ? { ...game0, flow } : game0, runScore, G, ref);
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
   }
@@ -673,7 +693,8 @@ function worldSteps(world, G, ref, composite) {
   const C = composedStages(stages, levelRefs, map, composite);
   if (C.stages.length) {
     const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    const gameBare = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    const game = withCues(steps, gameBare, runScore, G, ref);
     // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, composite));
@@ -1035,7 +1056,8 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+  const gameBare = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+  const game = withCues(steps, gameBare, runScore, G, ref);
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   steps.push(...auditSteps(steps, stages));
   return steps;

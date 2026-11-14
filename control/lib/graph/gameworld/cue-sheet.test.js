@@ -112,3 +112,25 @@ describe('a made game is scored from its sheet', () => {
     expect(said.audio.soundtrack.score.mood).toBe('tavern');
   });
 });
+
+describe('the cues a game names by ref (its outcomes\' stingers)', () => {
+  it('a run mints each as a step of the score\'s chapter, before the game, and the game names them; a game with no `music` has none', async () => {
+    const { runSteps } = await import('./index.js');
+    const { chapterOfStep } = await import('./chapters.js');
+    const w = forest();
+    expect(runSteps(w, { ref: 'gw' }).some((s) => s.key.startsWith('cue-'))).toBe(false);
+    expect(runSteps(w, { ref: 'gw' }).find((s) => s.key === 'game').order.music).toBeUndefined();
+    const S = runSteps({ ...w, music: {} }, { ref: 'gw' }), at = (k) => S.findIndex((s) => s.key === k);
+    for (const id of ['victory', 'defeat']) {
+      const step = S[at(`cue-${id}`)];
+      expect(step).toMatchObject({ ref: `gw-cue-${id}`, ready: true, order: { kind: 'beats-composition', score: { mood: id } } });
+      expect(at(`cue-${id}`)).toBeLessThan(at('game'));
+      expect(chapterOfStep(step.key).id).toBe('score');
+    }
+    expect(S[at('game')].order.music).toEqual({ victory: 'gw-cue-victory', defeat: 'gw-cue-defeat' });
+    // a silenced outcome is no step and no key
+    const quiet = runSteps({ ...w, music: { cues: { defeat: false } } }, { ref: 'gw' });
+    expect(quiet.some((s) => s.key === 'cue-defeat')).toBe(false);
+    expect(quiet.find((s) => s.key === 'game').order.music).toEqual({ victory: 'gw-cue-victory' });
+  });
+});

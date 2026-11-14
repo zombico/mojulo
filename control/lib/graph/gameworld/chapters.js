@@ -80,7 +80,7 @@ export const CHAPTERS = Object.freeze([
   C('flow', 'production', 'The flow', { paths: ['/flow'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
   // the score (the cue sheet): each department's request for music answered on the game's one identity. The music
   // department's; it reads the direction, and what asks: the levels, the foes, the story's cinematics, the flow
-  C('score', 'music', 'The score', { paths: ['/music/cues'], reads: ['audio-direction', 'levels', 'foes', 'story', 'flow'] }),
+  C('score', 'music', 'The score', { paths: ['/music/cues'], steps: ['cue-*'], reads: ['audio-direction', 'levels', 'foes', 'story', 'flow'] }),
   C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'flow', 'play-layer', 'sound', 'audio-direction', 'score'], outcome: 'play' }),
 ]);
 

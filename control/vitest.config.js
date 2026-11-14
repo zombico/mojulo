@@ -24,6 +24,8 @@ export const E2E = [
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
   'lib/mcp/tools/design-game.budget.test.js',
+  // a game with a `music` made whole: its cues minted as steps, the game naming them (gameworld/cue-sheet.js)
+  'lib/mcp/tools/design-game.score.e2e.test.js',
   'lib/mcp/tools/design-game.proof.test.js',
   'lib/mcp/tools/design-game.climb.test.js',
   'lib/mcp/tools/design-game.quest.test.js',

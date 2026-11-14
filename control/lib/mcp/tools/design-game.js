@@ -22,6 +22,8 @@ import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
+import { createBeatsHandler, updateBeatsHandler } from './beats.js';
+import { fieldCue, parseFieldSpec } from '../../graph/beats/field-cue.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
 import { createGameHandler, auditGameLevel } from './create-game.js';
@@ -173,6 +175,16 @@ async function realize(step, action) {
     if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: `design_game: ${key === 'hero' ? 'the motion page' : 'a cast member\'s motion'}` });
     return pin ? { pin } : {};
   }
+  if (key.startsWith('cue-')) {
+    // a cue of the game's score (gameworld/cue-sheet.js): a beats-composition from the sheet's answer, minted as
+    // create_beats mints a field score; a changed answer writes its recipe whole in place
+    if (action === 'make') await createBeatsHandler({ title: order.title, score: order.score, ref });
+    else {
+      const { kind: _k, title: _t, ...body } = fieldCue(parseFieldSpec({ score: order.score }));
+      await updateBeatsHandler({ ref, title: order.title, manifest: { kind: 'beats-composition', title: order.title, ...body, score: order.score }, note: 'design_game: the score\'s cue' });
+    }
+    return {};
+  }
   if (key === 'ride') {
     // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
@@ -229,7 +241,7 @@ async function realize(step, action) {
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(order.music ? { music: order.music } : {}) } });
     }
     return {};
   }

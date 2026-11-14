@@ -37,8 +37,9 @@
   and its boss; each cinematic the flow plays; the outcomes) and the music department answers each on the game's
   one score identity, in the direction's style and cast. `music.cues` names another mood for a request, or `false`
   for silence. A game with a `music` has every level it builds scored from the sheet: its place, with its fight or
-  boss coming in on the tension. A quick game's own `quick.music` still wins. The flow's cues and the outcomes are
-  on the sheet and not yet played; the title, menus, credits and cinematics are stand-ins, listed as owed, until
+  boss coming in on the tension. A quick game's own `quick.music` still wins. The outcomes' stingers play: a run
+  mints each as a step of the score's chapter (`cue-victory`, `cue-defeat`) and the game names them, a changed
+  answer remaking its cue in place. The flow's cues are on the sheet and not yet played; the title, menus, credits and cinematics are stand-ins, listed as owed, until
   the title theme and a cue that ends are written.
 - **Fixed: a composed game's ground and bed.** A composed game's stages carry no stage kit (the world's style
   holds it), so the sheet gave a forest stone footsteps and no bed. A level's place is now read from the world's
