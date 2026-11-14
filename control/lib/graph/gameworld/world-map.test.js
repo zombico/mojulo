@@ -14,6 +14,9 @@ import { FOE_CLASSES } from '../foes/index.js';
 import { SIGHTS } from '../mind/vocab.js';
 import { FLOW_IN_PLAY, readFlow, walkFlow } from '../game/flow.js';
 import { runSteps } from './runner.js';
+import { soundSheet } from './sound-sheet.js';
+import { cueSheet } from './cue-sheet.js';
+import { readGameworld } from './world.js';
 
 const lawsOf = (level) => {
   const g = level.glyphs, G = readGrid({ tile: g.tile, plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) }, 'grid');
@@ -93,6 +96,15 @@ describe('the world map', () => {
     // (each place its own light: home's blocks unmoved, every place with a row the world's palette moved by it)
     for (const r of Object.values(W.levels[ids[0]].glyphs.plan.key)) expect(r.palette, r.name).toEqual(PLACE_LIGHT[r.name] ? { shift: PLACE_LIGHT[r.name].shift } : undefined);
     expect(Object.values(W.levels[ids[0]].glyphs.plan.key).some((r) => r.palette)).toBe(true);
+    // (it is HEARD: on the sound sheet and scored, both empty words the game's own to fill; the sheet solves its sword and
+    // its ground, the cue sheet asks for its level, and the brief says so. A game with no map is laid silent as before)
+    expect(W.sound).toEqual({});
+    expect(W.music).toEqual({});
+    expect(W.brief.audio).toMatch(/sound sheet.*cue sheet/);
+    const sheet = soundSheet(readGameworld(W));
+    expect(sheet.slots.swing && sheet.slots.strike && sheet.slots.step).toBeTruthy();
+    expect(cueSheet(W, { ref: 'gw' }).requests.some((r) => r.id.startsWith('level:'))).toBe(true);
+    expect(composeGameworld({ prompt: 'a haunted forest of misty hills', seed: 2 }).sound).toBeUndefined();
     // (it starts in play: its opening a cutscene's slot, then straight into the game; the brief says so)
     expect(W.flow).toBe(FLOW_IN_PLAY);
     expect(W.brief.start).toMatch(/cutscene.*straight into play/);

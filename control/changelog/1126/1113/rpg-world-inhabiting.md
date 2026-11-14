@@ -231,6 +231,10 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     with no buckle of its own, a belt or a sash worn lower (`drop`), a hip belt's `window` and `standoff`.
   - **A plain shoulder cap in any colour** (`plain`), its `size`, `crown` and `standoff`; **anklets** anywhere on the
     shin (`window`: a boot's rim), on a hero's shank as on a creature's shin.
+- **The action RPG is heard** (`gameworld/compose.js`). A world map's game laid from a sentence is put on the sound
+  sheet and given a score (an empty `sound` and an empty `music`): its sword, its ground underfoot, its foes' voices
+  and a bed a place solved from the game, every level scored from the cue sheet. Play's sounds only: the interface
+  keeps its own sound set. The brief says so; a game with no map is laid silent as before.
 - Not here yet: a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
   cloth takes no texture on the anime body; whether the cape and the panels move in play is not checked; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands

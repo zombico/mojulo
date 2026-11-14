@@ -568,6 +568,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // sequence is handed to (the story's opening moment where it has one; empty until then, and passed at once), and from
   // it straight into play; the title only where quitting goes back to. The flow page is the game director's to rewrite.
   world.flow = FLOW_IN_PLAY;
+  // HOW IT SOUNDS (gameworld/sound-sheet.js, cue-sheet.js): a world map's game is heard. It is put on the SOUND SHEET
+  // (an empty `sound`: every sound solved from what the game already is, its arsenal's swings and blows, its foes'
+  // voices, its ground underfoot, a bed a place) and given a SCORE (an empty `music`: the audio direction solved from
+  // its words, every level scored from the cue sheet). Play's sounds only: the interface keeps its own (mana-ui's set,
+  // which the direction names and never replaces). Both are the creator's to rewrite, word by word
+  if (world.brief.worldMap) { world.sound = {}; world.music = {}; world.brief.audio = 'on the sound sheet and scored from the cue sheet: its sounds and its music solved from the game, the interface\'s sounds its own'; }
   world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
   readGameworld(world);
   return world;
