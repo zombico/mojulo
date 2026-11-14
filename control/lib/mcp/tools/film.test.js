@@ -69,4 +69,25 @@ describe("forge_motion's film", () => {
     expect(out.scenes.find((s) => s.id === 'bad').error).toMatch(/moon/);
     expect(out.scenes.find((s) => s.id === 'meet').lines).toBe(2);
   });
+
+  it('takes an order, hands the cutscene back as it stands, and lists what a client ordered', async () => {
+    const ordered = await film({ order: { title: 'Ordered', from: 'sk_client', for: 'the opening', cast: { ana: {}, ben: {} }, events: [{ id: 'one', notes: 'Ana greets Ben.', script: 'ANA: Hello.\nBEN: Hello.' }, { id: 'two', notes: 'Ben is left alone.' }] } });
+    expect(ordered.order).toMatchObject({ from: 'sk_client', for: 'the opening', deliver: 'animatic', ready: false, waiting: ['one', 'two'] });
+    expect(ordered.order.events.map((e) => e.state)).toEqual(['written', 'unwritten']);
+    expect(ordered.advice.filter((a) => a.id === 'unwritten').map((a) => a.scene)).toEqual(['two']);
+    expect(String(await filmBook(SketchRepository.getByRef(ordered.ref)))).toMatch(/The order[\s\S]*Ordered by sk_client[\s\S]*Ben is left alone\./);
+    // written from the notes, then handed back before it is cut: said as it stands, never refused
+    const written = await film({ ref: ordered.ref, patch: [{ op: 'set', path: '/scenes/1/script', value: 'BEN: So.' }], deliver: true });
+    expect(written.did).toEqual(['patched', 'delivered as it stands']);
+    expect(written.delivery).toMatchObject({ to: 'sk_client', for: 'the opening', asked: 'animatic', film: ordered.ref, ready: false, waiting: ['one', 'two'] });
+    expect(written.order.delivered.current).toBe(true);
+    // a change after the hand-back reads as not current
+    expect((await film({ ref: ordered.ref, patch: [{ op: 'set', path: '/scenes/1/script', value: 'BEN: So it goes.' }] })).order.delivered.current).toBe(false);
+    const mine = await film({ ordered_by: 'sk_client' });
+    expect(mine.films.map((f) => f.ref)).toEqual([ordered.ref]);
+    expect((await film({ ordered_by: 'sk_nobody' })).films).toEqual([]);
+    // a film nobody ordered has nothing to hand back
+    await expect(film({ ref: (await film({ write: WRITE })).ref, deliver: true })).rejects.toThrow(/not made to an order/);
+    await expect(film({ order: { cast: { ana: {} } } })).rejects.toThrow(/order refused/);
+  });
 });

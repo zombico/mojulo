@@ -590,6 +590,17 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     }
   }
 
+  // the game's cutscenes that are films (flow-films.js): each film's video copied into assets/cutscenes/ and the SHELL's
+  // copy of the step pointed at it; the recipe keeps the film's ref. A film with no video yet is said, never refused
+  const { flowFilms, withFlowVideos } = await import('@/lib/graph/game/flow-films.js');
+  let cutscenesMissing = [];
+  if (flowFilms(shellManifest.flow).length) {
+    const { flowFilmVideos } = await import('@/lib/mcp/tools/film.js');
+    const videos = await flowFilmVideos(shellManifest, getSketch), rels = {};
+    for (const [film, V] of Object.entries(videos)) { rels[film] = `assets/cutscenes/${film}.mp4`; await write(rels[film], await fs.readFile(V.file)); }
+    const W = withFlowVideos(shellManifest, (film) => rels[film] ?? null);
+    shellManifest = W.manifest; cutscenesMissing = W.missing;
+  }
   await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt }));
   await writeRecipe('recipe/game.json', norm);
 
@@ -667,6 +678,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     ok: true, ref, engine: 'shell', dir, ...(era !== undefined ? { era, era_marks: { approximated: Object.fromEntries([...eraReads].sort(([a], [b]) => a.localeCompare(b))) } } : {}),
     preview_url: `${outcomeUrlFor(ref)}game.html`,
     files, total_bytes: totalBytes,
+    ...(cutscenesMissing.length ? { cutscenes_missing: cutscenesMissing.map((c) => ({ ...c, says: `the film ${c.film} has no video yet: the cutscene '${c.step}' is passed over`, try: `forge_motion({ film: { ref: '${c.film}', run: 'animatic' } }), then export again` })) } : {}),
     ...(figureFiles.size ? { figure_bank: { files: figureFiles.size, note: 'shared rigged-figure bank hoisted out of every page into assets/figures/ (deduped by content) — serve the folder over HTTP; file:// no longer loads levels' } } : {}),
     ...(geometryFiles.size ? { geometry_bank: { files: geometryFiles.size, note: 'shared world-geometry bank hoisted into assets/geometry/ (content-deduped — mode variants of one map ship its terrain once); same HTTP-server requirement as the figure bank' } } : {}),
     ...(heavy.length ? {

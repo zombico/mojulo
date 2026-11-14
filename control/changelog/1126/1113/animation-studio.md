@@ -121,6 +121,24 @@ game.
 - **The written build steps keep the cast.** The steps a scene's Blender folder gives for building it by hand now
   save the actors into the film. Before, followed as written, they left the film with its set and cameras and no
   actors (rendering with the one command was not affected).
+- **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
+  studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
+  notes on what happens in each event.
+  - **The order becomes a film.** The characters are the cast, each place is a set, and each event is a scene, in the
+    order given. The film's book opens with the order: who asked, what for, and each event's notes.
+  - **Notes are enough to start.** An event given as notes with no dialogue is marked as not written yet, with the
+    notes beside it, until its scene is written. An event that came with its dialogue plays it as given.
+  - **It says how far the order has got:** each event as not written, written, storyboarded, approved, cut into the
+    video, or rendered, and which events are still to go.
+  - **The cutscene is handed back** to whoever ordered it: the video, the film and each event's storyboard. Handed
+    back early, it says what is still missing. Changed afterwards, it says the hand-back is out of date.
+  - **Whoever ordered can ask what it ordered** and gets every cutscene with its progress.
+  - **The game plays it.** A game can name the returned film as its opening, its prologue, its ending or any
+    cutscene in its flow. The video plays over the game and can be skipped. The game points at the film, so when
+    the cutscene is made again the game plays the new one, and an exported game carries the video with it. A film
+    with no video yet is passed over, and the export says which.
+  - **Not yet:** the game studio fills the order in by hand (naming a story moment does not fill it in), and a
+    cutscene cannot yet take the place of a story moment by its name.
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
   place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that

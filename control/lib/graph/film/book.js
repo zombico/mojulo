@@ -22,7 +22,7 @@ export function filmBookHtml({ film, readout, boards = {} }) {
     const parts = Object.keys(S.cast).map((w) => w.toUpperCase()).join(', ');
     return `<section class="scene" id="scene-${esc(s.id)}">
 <h3>${esc(s.id)} <span class="badge ${esc(s.board)}">${s.board === 'approved' ? 'board approved' : s.board === 'stale' ? 'changed since approved' : 'board not approved'}</span></h3>
-<p class="meta">${s.error ? 'does not play' : `${s.seconds.toFixed(1)} s · ${s.shots} shot${s.shots === 1 ? '' : 's'} · ${s.lines} line${s.lines === 1 ? '' : 's'}${s.recorded ? ` (${s.recorded} recorded)` : ''}${s.dubs ? ` · dubbed: ${s.dubs.join(', ')}` : ''}`} · ${esc(parts)}${s.place ? ` · on ${esc(s.place.title ?? s.place.world)}` : S.set ? ` · set ${esc(S.set)}` : ''}</p>
+<p class="meta">${s.unwritten ? 'not written yet' : s.error ? 'does not play' : `${s.seconds.toFixed(1)} s · ${s.shots} shot${s.shots === 1 ? '' : 's'} · ${s.lines} line${s.lines === 1 ? '' : 's'}${s.recorded ? ` (${s.recorded} recorded)` : ''}${s.dubs ? ` · dubbed: ${s.dubs.join(', ')}` : ''}`} · ${esc(parts)}${s.place ? ` · on ${esc(s.place.title ?? s.place.world)}` : S.set ? ` · set ${esc(S.set)}` : ''}</p>
 ${s.render ? `<p class="meta">Blender (${esc(s.render.preset)}): ${s.render.done} of ${s.render.frames} frames${s.render.encoded ? ` · encoded ${esc(s.render.encoded)}` : ''}</p>` : ''}
 ${B ? `<div class="strip">${B.panels.map((u, k) => `<a href="${esc(B.page)}"><img src="${esc(u)}" alt="panel ${k + 1}" loading="lazy"></a>`).join('')}</div><p class="meta"><a href="${esc(B.page)}">the board</a></p>` : '<p class="meta">No board yet.</p>'}
 <pre>${esc(S.script)}</pre>
@@ -52,6 +52,11 @@ ul{margin:4px 0 0;padding-left:18px}.advice li{margin:2px 0}a{color:var(--accent
 </style></head><body><main>
 <h1>${esc(film.title ?? 'Film')}</h1>
 <p class="meta">${R.scenes.length} scene${R.scenes.length === 1 ? '' : 's'} · ${seconds.toFixed(1)} s · ${R.approved ? 'every board approved' : `${R.scenes.filter((s) => s.board === 'approved').length} of ${R.scenes.length} boards approved`}${film.look ? ` · the ${esc(film.look)} look` : ''}</p>
+${R.order ? `<h2>The order</h2>
+<p class="meta">${R.order.from ? `Ordered by ${esc(R.order.from)}` : 'Made to order'}${R.order.for ? ` for ${esc(R.order.for)}` : ''} · to hand back: ${R.order.deliver === 'film' ? 'the film rendered in Blender' : 'the animatic (the boards cut as a video)'} · ${R.order.ready ? 'ready' : `${R.order.waiting.length} of ${R.order.events.length} event${R.order.events.length === 1 ? '' : 's'} to go`}${R.order.delivered ? ` · handed back ${esc(R.order.delivered.at)}${R.order.delivered.current ? '' : ' (changed since)'}` : ''}</p>
+<div class="table-wrap"><table><thead><tr><th>Event</th><th>The client's notes</th><th>Where</th><th>Who</th><th>State</th></tr></thead><tbody>
+${R.order.events.map((E) => `<tr><td><a href="#scene-${esc(E.id)}">${esc(E.id)}</a></td><td>${esc(E.notes)}</td><td>${esc(E.place ?? '')}</td><td>${esc(E.who.map((w) => w.toUpperCase()).join(', '))}</td><td class="state ${E.state === 'unwritten' ? 'advised' : ''}">${esc(E.state)}</td></tr>`).join('\n')}
+</tbody></table></div>` : ''}
 <h2>The departments</h2>
 <div class="table-wrap"><table><thead><tr><th>Department</th><th>State</th><th>Advice</th><th>Owns</th></tr></thead><tbody>
 ${R.departments.map((D) => `<tr><td>${esc(D.name)}${D.owner === 'main' ? ' <span class="meta">(the main agent\'s)</span>' : ''}</td><td class="state ${esc(D.state)}">${esc(STATE[D.state] ?? D.state)}</td><td>${D.advice || ''}</td><td>${esc(D.does)}</td></tr>`).join('\n')}

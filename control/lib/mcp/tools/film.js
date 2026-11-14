@@ -6,6 +6,10 @@
  * what to do next. It advises; it refuses only a recipe that is not a film.
  *
  *   film: { write: <a film>, title? }                 a new film row (kind `film`), or the row `ref` names replaced
+ *   film: { order: <a client's characters, places and events> }   a film made to ORDER (film/order.js): its cast the
+ *                                                     client's, a scene an event, the brief kept in the recipe
+ *   film: { ref, deliver: true }                      the cutscene handed back to who ordered it, as it stands
+ *   film: { ordered_by: <the client's ref> }          every film that client ordered, and how far each has got
  *   film: { ref, patch: [{ op: 'set' | 'remove', path, value? }] }   edited at JSON Pointers ('/scenes/1/script')
  *   film: { ref, approve: { <scene id>: 'board' | null } }   the person's approval of a scene's board, stamped by what
  *                                                     the board is drawn from (film.js sceneStamp); null withdraws it
@@ -26,7 +30,8 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { readFilm, sceneScreenplay, sceneOrder, sceneStamp, FILM_KIND, isFilmKind, FILM_MANUAL } from '@/lib/graph/film/film.js';
-import { filmReadout } from '@/lib/graph/film/readout.js';
+import { filmReadout, orderStamp } from '@/lib/graph/film/readout.js';
+import { filmOfOrder } from '@/lib/graph/film/order.js';
 import { filmBookHtml } from '@/lib/graph/film/book.js';
 import { packStamp } from '@/lib/graph/film/pack-stamp.js';
 
@@ -101,6 +106,27 @@ export async function renderProgressOf(made) {
   }
   const cut = remade ? null : ['final', 'draft'].map((p) => `cut-${p}.mp4`).find((c) => existsSync(path.join(dir, c))) ?? null;
   return { dir, scenes, cut };
+}
+
+/**
+ * A film's VIDEO, for whoever plays it (a game's cutscene: game/flow-films.js): the scenes rendered in Blender and cut
+ * where there is one, else the animatic. → { url, file, what: 'rendered' | 'animatic' } or null (no video made yet)
+ */
+export async function filmVideoOf(row) {
+  if (!isFilmKind(row?.manifest?.kind)) return null;
+  const { outcomeDirFor, outcomeUrlFor } = await store();
+  const made = row.manifest.made ?? {}, progress = await renderProgressOf(made);
+  if (progress?.cut) return { url: `${outcomeUrlFor(made.blender.motion_ref)}${progress.cut}`, file: path.join(progress.dir, progress.cut), what: 'rendered' };
+  const A = made.animatic?.motion_ref, file = A ? path.join(outcomeDirFor(A), 'motion.mp4') : null;
+  return file && existsSync(file) ? { url: `${outcomeUrlFor(A)}motion.mp4`, file, what: 'animatic' } : null;
+}
+
+/** The videos of the films a game's flow names: { <film ref>: { url, file, what } } (a film with none is left out) */
+export async function flowFilmVideos(manifest, getRow) {
+  const { flowFilms } = await import('@/lib/graph/game/flow-films.js');
+  const out = {};
+  for (const { film } of flowFilms(manifest?.flow)) if (!(film in out)) { const V = await filmVideoOf(getRow(film)); if (V) out[film] = V; }
+  return out;
 }
 
 /** The film's book, read live (the bible route's `book=film`) */
@@ -295,11 +321,27 @@ async function runBlender(row, F, played, ids) {
 
 /** forge_motion's `film` argument (see the header) */
 export async function filmHandler(arg) {
-  if (!isPlain(arg)) throw new Error(`film: { write } | { ref, patch } | { ref, approve } | { ref, run } | { ref } (${FILM_MANUAL})`);
-  const { SketchRepository, getRow } = await store();
+  if (!isPlain(arg)) throw new Error(`film: { write } | { order } | { ref, patch } | { ref, approve } | { ref, run } | { ref, deliver } | { ordered_by } | { ref } (${FILM_MANUAL})`);
+  const { SketchRepository, getRow, outcomeUrlFor, outcomeDirFor } = await store();
+  // ── a client asking what it has ordered: every film made to its order, and how far each has got ──
+  if (arg.ordered_by !== undefined) {
+    if (typeof arg.ordered_by !== 'string' || !arg.ordered_by) throw new Error('film: ordered_by is the client\'s ref (the game or gameworld that ordered)');
+    const films = [];
+    for (const R of SketchRepository.listByKinds({ kinds: [FILM_KIND] }).filter((x) => x.manifest?.film?.order?.from === arg.ordered_by)) {
+      const F = R.manifest.film, made = R.manifest.made ?? {}, read = filmReadout(F, await playFilm(F, { getRow }), { approvals: R.manifest.approvals ?? {}, made, ref: R.ref, progress: await renderProgressOf(made) });
+      films.push({ ref: R.ref, title: F.title ?? R.title, ...read.order, ...(made.delivered ? { returned: made.delivered } : {}) });
+    }
+    return { ok: true, ordered_by: arg.ordered_by, films, message: films.length ? `${films.length} film(s) ordered by ${arg.ordered_by}: ${films.map((f) => `${f.ref} (${f.ready ? (f.returned ? 'handed back' : 'ready') : `${f.waiting.length} event(s) to go`})`).join(', ')}.` : `No film was ordered by ${arg.ordered_by}.` };
+  }
+  // ── an order: a client's characters, places and events, written as a film (film/order.js) ──
+  if (arg.order !== undefined) {
+    if (arg.write !== undefined || arg.patch !== undefined) throw new Error('film: an order writes the film: order, not with write or patch');
+    arg = { ...arg, write: filmOfOrder(arg.order, { kindOf: (ref) => (getRow(ref)?.manifest?.kind === 'persona' ? 'persona' : 'hero') }) };
+    delete arg.order;
+  }
   const { applyManifestPatch } = await import('@/lib/mcp/tools/manifest-patch.js');
-  const extra = Object.keys(arg).filter((k) => !['ref', 'write', 'patch', 'approve', 'run', 'scenes', 'title'].includes(k));
-  if (extra.length) throw new Error(`film takes ref, write, patch, approve, run, scenes, title (not ${extra.join(', ')}; ${FILM_MANUAL})`);
+  const extra = Object.keys(arg).filter((k) => !['ref', 'write', 'patch', 'approve', 'run', 'scenes', 'title', 'deliver'].includes(k));
+  if (extra.length) throw new Error(`film takes ref, write, order, patch, approve, run, deliver, ordered_by, scenes, title (not ${extra.join(', ')}; ${FILM_MANUAL})`);
   if (arg.write !== undefined && arg.patch !== undefined) throw new Error('film: write or patch, not both');
   let row = arg.ref ? getRow(arg.ref) : null;
   if (arg.ref && (!row || !isFilmKind(row.manifest?.kind))) throw new Error(`film: '${arg.ref}' is ${row ? `a ${row.manifest?.kind ?? 'sketch'}` : 'no sketch'}, not a film (film: { write } makes one)`);
@@ -359,11 +401,33 @@ export async function filmHandler(arg) {
     SketchRepository.update({ ref: row.ref, manifest: { ...row.manifest, made } });
     row = getRow(row.ref);
   }
-  const progress = await renderProgressOf(row.manifest.made);
+  let progress = await renderProgressOf(row.manifest.made);
+  // ── deliver: the cutscene handed back to who ordered it ──
+  let delivery = null;
+  if (arg.deliver !== undefined) {
+    if (arg.deliver !== true) throw new Error('film: deliver is true (hand the cutscene back to who ordered it)');
+    if (!F.order) throw new Error('film: this film was not made to an order (film: { order } makes one); its runs are its own');
+    const made = row.manifest.made ?? {}, now = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made, ref: row.ref, progress });
+    const cutUrl = made.animatic?.motion_ref ? `${outcomeUrlFor(made.animatic.motion_ref)}motion.mp4` : null;
+    const rendered = progress?.cut ? path.join(progress.dir, progress.cut) : null;
+    delivery = {
+      to: F.order.from ?? null, ...(F.order.for ? { for: F.order.for } : {}), asked: F.order.deliver, film: row.ref, book: now.book,
+      // (the video as a page reads it, and as a file the client copies into its own build)
+      ...(cutUrl ? { animatic: cutUrl, animatic_file: path.join(outcomeDirFor(made.animatic.motion_ref), 'motion.mp4') } : {}), ...(rendered ? { rendered } : {}),
+      events: now.order.events.map((E) => ({ id: E.id, state: E.state, ...(boardsOf(made, outcomeUrlFor)[E.id] ? { board: boardsOf(made, outcomeUrlFor)[E.id].page } : {}) })),
+      ready: now.order.ready, ...(now.order.waiting.length ? { waiting: now.order.waiting } : {}),
+      at: new Date().toISOString(), stamp: orderStamp(F),
+    };
+    // (handed back as it stands: an order not ready yet is said so, never refused)
+    SketchRepository.update({ ref: row.ref, manifest: { ...row.manifest, made: { ...made, delivered: delivery } } });
+    row = getRow(row.ref);
+    did.push(delivery.ready ? 'delivered' : 'delivered as it stands');
+    progress = await renderProgressOf(row.manifest.made);
+  }
   const readout = filmReadout(F, played, { approvals: row.manifest.approvals ?? {}, made: row.manifest.made ?? {}, ref: row.ref, progress });
   return {
     ...(progress ? { render: progress } : {}),
-    ok: true, ref: row.ref, url: `/sketches/${encodeURIComponent(row.ref)}`, ...(did.length ? { did } : {}), ...(ran ? { ran } : {}),
+    ok: true, ref: row.ref, url: `/sketches/${encodeURIComponent(row.ref)}`, ...(did.length ? { did } : {}), ...(ran ? { ran } : {}), ...(delivery ? { delivery } : {}),
     ...readout,
     message: `Film ${row.ref}${did.length ? ` (${did.join(', ')})` : ''}: ${readout.scenes.length} scenes, ${readout.departments.filter((D) => D.state === 'advised').length} departments with advice.`
       + (ran ? ` Ran ${ran.run}${ran.cut ? `: the cut ${ran.cut.mp4} (${ran.cut.seconds} s)` : ran.page ? `: ${ran.page}` : `: ${ran.film_md}`}${ran.pending ? `; ${ran.pending.length} scene(s) pending (run again)` : ''}.` : '')

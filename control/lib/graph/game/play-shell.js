@@ -41,6 +41,7 @@ import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { readScreen } from './screen.js';
 import { buildFlowKernel, defaultFlow } from './flow.js';
+import { playCineRuntime } from './play-cine.js';
 import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
 
 const CTL = buildControlsKernel();
@@ -129,6 +130,9 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
+  // A CUTSCENE PLAYED AS A VIDEO (flow.js: a cinematic's `film` or `video`, play-cine.js): its player is inlined only in
+  // a game whose flow has one. Absent: not a byte of it
+  const cine = Object.values(cfg.flow.steps || {}).some((s) => s && s.kind === 'cinematic' && (s.film !== undefined || s.video !== undefined));
   // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
   // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
   // Absent: no attribute, no rule, the page as it was
@@ -205,7 +209,8 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
 <div id="toast" role="status"></div>
 <script>${front ? `
 const __mojFront = (${playFrontRuntime.toString()});` : ''}${mana ? `
-${shellManaScript()}` : ''}
+${shellManaScript()}` : ''}${cine ? `
+const __mojCine = (${playCineRuntime.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
 const __mojFlowK = (${buildFlowKernel.toString()})();
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
@@ -226,6 +231,8 @@ export function playShellRuntime(cfg, K) {
   // THE FLOW (flow.js): what plays when. Every screen's buttons and every level's end are events the flow steps on;
   // `at` is the step the game is on and the level last played
   const FK = __mojFlowK, FLOW = cfg.flow;
+  // (a game whose flow plays a video has its player inlined, play-cine.js; any other has none)
+  const CINE = typeof __mojCine === 'function' ? __mojCine({ go: (e) => go(e), show: (n) => show(n), app, here: () => at }) : null;
   let at = { step: null, level: null }, holdTimer = 0, holdUntil = null, idleTimer = 0, idleAfter = 0, lastOutcome = null, waitCard = null;
 
   function el(tag, props, kids) {
@@ -847,6 +854,7 @@ export function playShellRuntime(cfg, K) {
   // a step entered: a level plays, a screen is drawn, a hold waits, a cinematic plays on its stage
   function enter(next, more) {
     const m = more || {}, s = FLOW.steps[next.step];
+    if (CINE) next = CINE.arrive(next, s, at);
     at = next;
     clearTimeout(holdTimer); clearTimeout(idleTimer); holdUntil = null; idleAfter = 0;
     if (s.kind === 'level') {
@@ -864,6 +872,8 @@ export function playShellRuntime(cfg, K) {
     // a cinematic: seen from now on (an opening plays on a first boot)
     seenSteps[next.step] = 1;
     try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
+    // a cutscene played as a video (play-cine.js): over the game, on no level's page
+    if (CINE && CINE.play(next, s)) return;
     // played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
     // the level says when it ends. A level that never answers (a page from before stages) is given two minutes
     const stage = LEVELS.find((l) => l.ref === s.stage);

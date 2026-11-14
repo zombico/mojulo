@@ -295,6 +295,20 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   - `blender` writes each scene's pack and `cut.py`, which joins their renders. It is resumable: a run works until its
     budget and leaves the rest `pending`.
 - **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+- **A film made to order** (`film/order.js`, the door's `order`, `deliver` and `ordered_by`): a client studio's
+  characters, places and event notes written as a film (`filmOfOrder`), the brief kept in the recipe's `order`. An
+  event with notes and no script holds the notes in its scene (`draftScript`) and reads `unwritten`, advised in the
+  script department, until it is written. `orderReadout` derives each event's state from the film's stamps and runs.
+  `deliver` records the hand-back in the row's `made.delivered` (the film, its book, the animatic and its file, the
+  rendered cut where there is one), stamped by every scene's stamp so a later change reads as not current.
+  `ordered_by` finds a client's films by `order.from`.
+- **A game plays a film as a cutscene** (`game/flow.js`, `game/flow-films.js`, `game/play-cine.js`). A flow's
+  cinematic step takes `film` (a film's ref) or `video` (an address) in place of a scene on a stage. The recipe keeps
+  the ref; `withFlowVideos` gives the step its video when the game is served (the `/game` route) or exported
+  (`export_game` copies it to `assets/cutscenes/<ref>.mp4`), from `filmVideoOf` (`tools/film.js`: the rendered cut,
+  else the animatic). The play shell inlines the player only where a flow has such a step; a game with none carries
+  not a byte of it. It plays over the game, is skipped with Esc, Enter, Space or its button unless `skip: false`,
+  and a step with no video or one that will not play goes straight on.
 - **Light per setup** (`film/setup-light.js`, opt-in with `render.light: 'setups'`): each shot is lit as a crew relights
   a setup, in the cast rig's colours and ratios.
   - The key goes on the short side of the face: in front of where it is turned, away from the lens.

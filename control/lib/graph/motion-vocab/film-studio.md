@@ -59,6 +59,41 @@ with only `{ ref }` reads.
 
 The waves are script and look, then casting, set and edit, then performance and voice, then camera, then render.
 
+## A cutscene made to order
+
+Another studio (the game studio, for one) hands over what it already has and gets a cutscene back.
+
+```
+film: { order: {
+  title: 'The meeting at the lake', from: '<the game\'s ref>', for: 'the prologue',
+  cast:   { ada: 'sk_…', jon: 'sk_…' },            // its characters: a persona's or a hero's ref (or { persona | hero })
+  places: { lake: 'sk_…', street: 'sk_…' },        // its geocubes, levels, rooms: the sets
+  events: [{ id: 'arrival', place: 'lake', who: ['ada', 'jon'], notes: 'Ada finds Jon waiting. He has bad news.' },
+           { id: 'parting', place: 'street', notes: '…', script: 'ADA: …', props: { car: { thing: 'sedan', at: [3, 2] } } }],
+  deliver: 'animatic' } }                            // or 'film': the scenes rendered in Blender
+```
+
+- **It writes a film**, kept like any other: the cast is the client's characters, each place a set, each event a
+  scene in the order given. The brief is kept in the film (`order`) and shown at the top of its book.
+- **An event is the client's notes on what happens.** Where the client wrote a `script`, the scene plays it as given.
+  An event with notes only is `unwritten`: the script department is advised to write its screenplay from the notes
+  (`film: { ref, patch: [{ op: 'set', path: '/scenes/<n>/script', value }] }`). It does not play until then.
+- **The readout's `order`** says each event's state (`unwritten`, `written`, `boarded`, `approved`, `cut`, `filmed`,
+  `rendered`), which events the client is still `waiting` for, and whether it is `ready`: every event cut into the
+  animatic, or rendered where the order asked for the film.
+- **`film: { ref, deliver: true }`** hands it back: the film's ref and book, the animatic (`animatic`, and
+  `animatic_file` to copy), the rendered cut where there is one, and each event's state and board. An order not ready
+  is handed back as it stands and says what is `waiting`. A change after the hand-back reads as not current.
+- **`film: { ordered_by: '<the client\'s ref>' }`** lists every film that client ordered and how far each has got.
+  This is how the client finds its cutscenes.
+- **A game plays it.** A game's flow takes the film as a cutscene: a cinematic step `{ kind: 'cinematic', film:
+  '<the film\'s ref>', next }`, or a slot of the default flow, `cinematics: { opening | prologue | ending: { film } }`.
+  The game keeps the ref; the video is found each time the game is served or exported (the scenes rendered in Blender
+  where they are, else the animatic), so a cutscene made again is the one that plays. `export_game` copies it into
+  `assets/cutscenes/`. A film with no video yet is passed over and named in `cutscenes_missing`.
+- Everything else is the film's own: its departments advise, its boards are approved by the person, its runs are the
+  same.
+
 ## Approve, then run
 
 - **`film: { ref, run: 'storyboard' }`**: every scene's board in seconds, with no actor minted. The run's page is the

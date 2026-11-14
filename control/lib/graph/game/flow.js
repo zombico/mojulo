@@ -19,6 +19,11 @@
  *                (`stage`, asked of it by game-init params.__stage) with control held, left as the level says it
  *                ends (game-scene-end; at once when it has no such scene); `keep` hands the stage on to the level step after it, the page kept (the game-start
  *                animation: the prologue ends and the player has control); `skip: false` makes it unskippable
+ *     cinematic  { film | video, next, skip? }
+ *                a CUTSCENE played as a video over the game, in place of a scene on a stage: `film` a film's ref (the
+ *                animation studio's, made to the game's order: its video is found when the game is served or
+ *                exported, game/flow-films.js), or `video` a video's address as the page loads it. Left as it ends,
+ *                or as the player skips it; one whose video cannot be found or played goes straight on
  *     level      { level: '<level ref>' | '$any', on: { won?, lost?, left?, door? } }
  *                a level, left by its outcome (won, lost, left) or a door; `$any` is the step any level plays in
  *     hold       { for?: seconds, until?: '<event>', next }   a beat, or a wait for an event
@@ -72,7 +77,7 @@ export const FLOW_CINEMATICS = Object.freeze(['opening', 'prologue', 'ending']);
 
 const KEYS = {
   screen: ['kind', 'screen', 'on', 'next', 'idle'],
-  cinematic: ['kind', 'scene', 'stage', 'next', 'keep', 'skip'],
+  cinematic: ['kind', 'scene', 'stage', 'film', 'video', 'next', 'keep', 'skip'],
   level: ['kind', 'level', 'on'],
   hold: ['kind', 'for', 'until', 'next'],
 };
@@ -134,6 +139,13 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
       if (s.next !== undefined && evs.length > 1 && !isObj(s.on)) errors.push(`${at}.next stands for a screen's one event; the ${s.screen} screen has ${evs.length} (${evs.join(', ')}): say them in on`);
       if (s.idle !== undefined && !(isObj(s.idle) && num(s.idle.after, 5, 600) && s.idle.go !== undefined && Object.keys(s.idle).every((k) => k === 'after' || k === 'go'))) errors.push(`${at}.idle is { after: 5 to 600 seconds, go: target }: where the screen goes when the player leaves it alone`);
       if (s.on === undefined && s.next === undefined) errors.push(`${at}: a screen needs a way out (on, or next for its one event)`);
+    } else if (s.kind === 'cinematic' && (s.film !== undefined || s.video !== undefined)) {
+      // a cutscene played as a video: a film's ref, or a video's address
+      if (s.film !== undefined && s.video !== undefined && !isStr(s.film)) errors.push(`${at}.film is a film's ref`);
+      for (const k of ['film', 'video']) if (s[k] !== undefined && !isStr(s[k])) errors.push(`${at}.${k} is ${k === 'film' ? "a film's ref (the animation studio's)" : "a video's address"}`);
+      for (const k of ['scene', 'stage', 'keep']) if (s[k] !== undefined) errors.push(`${at}.${k}: a cutscene played as a video has no ${k} (it plays over the game, on no level's page)`);
+      if (s.next === undefined) errors.push(`${at}.next: where it goes as it ends`);
+      if (s.skip !== undefined && typeof s.skip !== 'boolean') errors.push(`${at}.skip is true or false`);
     } else if (s.kind === 'cinematic') {
       if (!isStr(s.scene)) errors.push(`${at}.scene names the scene it plays (a story moment's id)`);
       else if (scenes && !scenes.includes(s.scene)) errors.push(`${at}.scene: no scene '${s.scene}' (${scenes.join(', ') || 'none'})`);
@@ -235,27 +247,29 @@ export function defaultFlow(game) {
     steps.result = { kind: 'screen', screen: 'result', on: { next: '$next', again: '$again', home } };
     if (end) steps.end = { kind: 'screen', screen: 'end', on: { done: end.credits ? 'credits' : 'title' } };
   }
-  // THE STORY's cinematics (game.cinematics: { opening?, prologue?, ending?: { scene, stage } }, gameworld/story.js
-  // GAME_SLOTS), each where a game plays it
+  // THE STORY's cinematics (game.cinematics: { opening?, prologue?, ending?: { scene, stage } | { film } | { video } },
+  // gameworld/story.js GAME_SLOTS), each where a game plays it
   const C = isObj(game.cinematics) ? game.cinematics : {}, first = steps.attract ? 'attract' : home;
+  // (a slot given a film or a video plays that, over the game; else its scene on its stage)
+  const cine = (c) => (c.film !== undefined ? { film: c.film } : c.video !== undefined ? { video: c.video } : { scene: c.scene, stage: c.stage });
   let start = first;
   // the opening: before the first screen on a first boot (unseen), and again as the attract loop when the first screen
   // is left alone
   if (C.opening) {
-    steps.opening = { kind: 'cinematic', scene: C.opening.scene, stage: C.opening.stage, next: first };
+    steps.opening = { kind: 'cinematic', ...cine(C.opening), next: first };
     start = [{ when: 'unseen', go: 'opening' }, first];
     steps[first] = { ...steps[first], idle: { after: 45, go: 'opening' } };
   }
   // the prologue: after New Game (the title's play), before control; on the first level's own page it hands that page
   // straight on to the level (keep), elsewhere the first level follows it
   if (C.prologue && !run && steps.title && steps.title.on && steps.title.on.play === '$first') {
-    const keep = C.prologue.stage === levels[0];
-    steps.prologue = { kind: 'cinematic', scene: C.prologue.scene, stage: C.prologue.stage, next: keep ? 'play' : '$first', ...(keep ? { keep: true } : {}) };
+    const keep = C.prologue.stage !== undefined && C.prologue.film === undefined && C.prologue.video === undefined && C.prologue.stage === levels[0];
+    steps.prologue = { kind: 'cinematic', ...cine(C.prologue), next: keep ? 'play' : '$first', ...(keep ? { keep: true } : {}) };
     steps.title = { ...steps.title, on: { ...steps.title.on, play: 'prologue' } };
   }
   // the ending: after the game's first full clear, before the end card (a game with no end card: before its result)
   if (C.ending && !run && ((F && F.end) || game.final)) {
-    steps.ending = { kind: 'cinematic', scene: C.ending.scene, stage: C.ending.stage, next: F && F.end ? 'end' : 'result' };
+    steps.ending = { kind: 'cinematic', ...cine(C.ending), next: F && F.end ? 'end' : 'result' };
     const won = steps.play.on.won.filter((a) => !(isObj(a) && a.when === 'complete'));
     steps.play = { ...steps.play, on: { ...steps.play.on, won: [{ when: 'complete', go: 'ending' }, ...won] } };
   }

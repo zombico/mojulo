@@ -108,6 +108,13 @@ export async function GET(request, { params }) {
       // A level was deleted or its contract drifted after the game was minted — teach, don't 500.
       return NextResponse.json({ error: err.message }, { status: 422 });
     }
+    // (a cutscene that is a film, flow-films.js: its video found now, so the film as it stands is the one that plays)
+    const { flowFilms, withFlowVideos } = await import('@/lib/graph/game/flow-films.js');
+    if (flowFilms(resolved.manifest.flow).length) {
+      const { flowFilmVideos } = await import('@/lib/mcp/tools/film.js');
+      const videos = await flowFilmVideos(resolved.manifest, (r) => SketchRepository.getByRef(r));
+      resolved = { ...resolved, manifest: withFlowVideos(resolved.manifest, (film) => videos[film]?.url ?? null).manifest };
+    }
     const html = emitShellFor(resolved);   // the play shell when the manifest says shell: 'play', else the arena's
     return new Response(html, {
       status: 200,

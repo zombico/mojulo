@@ -18,7 +18,7 @@
 import { NOTE_IDS } from '../actor/notes.js';
 
 export const DEPARTMENTS = Object.freeze([
-  { id: 'script', name: 'Script', owner: 'main', paths: ['/title', '/scenes/*/id', '/scenes/*/script'], reads: [], advice: ['scene-refused', 'static', 'slowed-line'], does: 'the scenes and their words: who says what, crosses and turns, the time the film takes' },
+  { id: 'script', name: 'Script', owner: 'main', paths: ['/title', '/order', '/scenes/*/id', '/scenes/*/script'], reads: [], advice: ['scene-refused', 'static', 'slowed-line', 'unwritten'], does: 'the scenes and their words: who says what, crosses and turns, the time the film takes' },
   { id: 'casting', name: 'Casting', owner: 'any', paths: ['/cast', '/cast/*/persona', '/cast/*/hero', '/scenes/*/cast'], reads: ['script'], advice: ['no-body', 'idle-part'], does: 'who plays each part: a persona (its hero, its voice, its playing) or a hero' },
   { id: 'set', name: 'Sets', owner: 'any', paths: ['/sets', '/scenes/*/set', '/scenes/*/marks', '/scenes/*/props', '/scenes/*/cast/*/mark'], reads: ['script'], advice: ['set-blocks', 'distance'], does: 'where each scene is played: its world, its marks, where each part stands, and what it is dressed with (things off the shelves by their word: a vehicle, furniture, a prop)' },
   { id: 'performance', name: 'Performance', owner: 'any', paths: ['/style', '/cast/*/style', '/cast/*/role', '/cast/*/register', '/scenes/*/cast/*/style', '/scenes/*/cast/*/role', '/scenes/*/cast/*/register'], reads: ['casting'], advice: ['back-turned', 'extra-speaks'], does: 'how each part plays: its style, its role, its register' },

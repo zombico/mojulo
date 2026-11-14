@@ -8,7 +8,8 @@
  *     render?: { light?: 'setups' | 'world', dof?: <an f-stop>, motion_blur?, samples? } (film/render-plan.js),
  *     scenes: [{ id, set?, cast: { <who>: { mark?, register?, style?, role?, height? } }, marks?, script, voice?, dub?,
  *       seed? }],
- *     edit?: { order?: [<scene id>], cuts?: { <scene id>: 'cut' | 'fade' } } }
+ *     edit?: { order?: [<scene id>], cuts?: { <scene id>: 'cut' | 'fade' } },
+ *     order?: a client's brief, where the film was made to order (film/order.js) }
  *   A scene names who is in it (its `cast`'s keys, each the film's part), the film's words for each part under the
  *   scene's own. `who` is the name the script writes, lower case; a scene's id a word.
  *
@@ -24,10 +25,11 @@
  */
 import { createHash } from 'node:crypto';
 import { renderErrors } from './render-plan.js';
+import { orderBriefErrors } from './order.js';
 
 export const FILM_KIND = 'film';
 export const isFilmKind = (kind) => kind === FILM_KIND;
-export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit']);
+export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit', 'order']);
 export const FILM_PART_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'height']);
 export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'script', 'voice', 'dub', 'seed']);
 export const SCENE_PART_KEYS = Object.freeze(['mark', 'register', 'style', 'role', 'height']);
@@ -78,6 +80,8 @@ export function filmErrors(F) {
       if (S.set !== undefined && !(isPlain(F.sets) && Object.hasOwn(F.sets, S.set))) errs.push(`${at}.set: '${S.set}' is not one of the film's sets (${isPlain(F.sets) ? Object.keys(F.sets).join(', ') || 'none' : 'none'})`);
     });
   }
+  // (a film made to a client's order keeps its brief: film/order.js)
+  if (F.order !== undefined) errs.push(...orderBriefErrors(F.order, F));
   if (F.edit !== undefined) {
     if (!isPlain(F.edit)) errs.push('edit: { order?: [<scene id>], cuts?: { <scene id>: cut | fade } }');
     else {

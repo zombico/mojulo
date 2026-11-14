@@ -919,7 +919,7 @@ export function registerMotionTools() {
             note: { type: 'string', description: 'Revision note.' },
           },
         },
-        film: { type: 'object', additionalProperties: true, description: "A FILM of scenes (the animation studio): { write } | { ref, patch | approve | run: storyboard|animatic|blender }; get_motion_vocab({ id: 'film-studio' })." },
+        film: { type: 'object', additionalProperties: true, description: "A FILM of scenes (the animation studio): { write } | { order: a client's characters, places, events } | { ref, patch | approve | run: storyboard|animatic|blender | deliver } | { ordered_by }; get_motion_vocab({ id: 'film-studio' })." },
         title: { type: 'string', description: 'Title for the motion project + artifact (defaults from the recipe when re-forging).' },
         recipe: { type: 'object', description: 'RE-FORGE: a stored recipe.json, optionally edited — replaces subject+shot. Both ticks and waypoints present replays the ticks; delete shot.ticks to recompile edited waypoints.' },
         recipe_ref: { type: 'string', description: 'RE-FORGE: an existing motion ref (mo_…) — re-renders its recipe.json as a NEW shot.' },

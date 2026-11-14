@@ -38,7 +38,10 @@ flow: {
 ```
 
 - **Steps.** A `screen` is left by what the player picks there (each screen's events are `SCREEN_EVENTS`), or by its
-  `idle` when it is left alone. A `cinematic` plays a scene on a level's page with control held and is left as the
+  `idle` when it is left alone. A `cinematic` may instead be a video: `{ kind: 'cinematic', film: '<a film's ref>',
+  next }` (the animation studio's film, made to the game's order: its video is found when the game is served or
+  exported) or `{ video: '<address>' }`; it plays over the game and is left as it ends or is skipped. Otherwise a
+  `cinematic` plays a scene on a level's page with control held and is left as the
   scene ends. A `level` is left by its outcome (`won`, `lost`, `left`) or a door. A `hold` waits some seconds or for an
   event.
 - **Targets.** A step, a special that resolves to a level (`$first`, `$next`, `$again`, `$continue`, `$picked`,
