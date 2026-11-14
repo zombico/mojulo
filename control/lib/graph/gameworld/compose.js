@@ -155,6 +155,8 @@ export const BIOMES = Object.freeze({
   desert: Object.freeze({ biocube: 'desert', palette: 'desert-haze', skin: 'sandstone' }),
 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** What a world map grows where its cube names no flora: the meadow kit's own card flora (era/biocube.js). */
+export const MAP_FLORA = Object.freeze({ kit: 'isekai-meadow', biocube: 'meadow' });
 /** A cube (a preset id or { from, …changes }) with the land the words name laid on it: open (`outside.cliff: false`),
  * wildflowers in its grass (its biocube's, else the meadow's, with `flowers.share`), its snow, its water (`outside.water`),
  * its dunes (`outside.dunes`),
@@ -531,6 +533,14 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (direction) { palette = { ...direction.words, ...(palette ?? {}) }; world.brief.colour = { direction: direction.direction }; }
   if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || dunes !== null || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, dunes, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));
+  // WHAT GROWS ON A WORLD MAP: a cube's land is polygons, and grass stands on it only where a biocube brings it back
+  // (era/isekai.js), so a map painted in a cube that names no flora was bare ground from edge to edge. A meadow kit's map
+  // takes the meadow's own (the kit's card flora, era/biocube.js: its groves, its tufts and the live field), unless the
+  // cube or a word of the sentence names what grows (a desert, an alpine, a coast keep theirs)
+  if (world.brief.worldMap && style.kit === MAP_FLORA.kit && style.geocube !== undefined && !readGeocube(style.geocube).biocube) {
+    style.geocube = cubeWithLand(style.geocube, { biocube: MAP_FLORA.biocube });
+    world.brief.worldMap.grows = `the ${MAP_FLORA.biocube}'s flora (its cube names none): grass on the land, groves beside the ways`;
+  }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {
     const r = world.brief.read.find((x) => x.word === w);

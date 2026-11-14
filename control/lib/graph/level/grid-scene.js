@@ -411,7 +411,7 @@ function rimFaces(W, H, faces, firstPayload, box = [0, -H, W, 0]) {
 }
 
 // THE SKETCH'S MARKS on the page: a post and a cap a mark, its kind's colour, on the land where its tile stands (a zone's
-// own and its apron's), each a tooltip
+// own and its apron's), each a tooltip (drawn on a page that is looked at, never on one a player pilots: below)
 const MARK_COLOUR = Object.freeze({ encounter: '#b04a3a', loot: '#c8962a', landmark: '#3a6aa8', secret: '#7a4a9a', rest: '#3a8a5a', hazard: '#d0702a', npc: '#2a8a8a' });
 function sketchMarks(G, Z, seed) {
   const T = G.tile, L = { seed, ...(G.rise ? { rise: G.rise } : {}) }, faces = [], signs = [], marks = [];
@@ -619,9 +619,12 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
     if (!range) ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
   }
-  // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover
-  const SK = G.sketch ? sketchMarks(G, Z, seed) : null;
-  if (SK) out.faces.push(...SK.faces);
+  // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover. They are the sketch's review,
+  // a page that is looked at: a page a player pilots stands none and says none (a designer's post is not the world's,
+  // and its beats are said by the guide as they are reached); the marks themselves are read as before (map.sketch.marks:
+  // the fights stand by them)
+  const SK = G.sketch ? sketchMarks(G, Z, seed) : null, played = (m.entities || []).some((e) => e && e.pilotable);
+  if (SK && !played) out.faces.push(...SK.faces);
   const guidance = guideOf(lv, G, Z, { seed });
   // THE PLAY LAYER (play-layer.js, level design's): this page's blocks' pieces in the world's own wood and stone (the
   // tiles' fills), the solid ones colliders; each held to the land it stands on now (`pieces-fit`)
@@ -642,7 +645,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(FA ? { fauna: FA } : {}),
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
-    ...(SK?.signs.length ? { signs: SK.signs } : {}),
+    ...(SK?.signs.length && !played ? { signs: SK.signs } : {}),
     // (a sketched level's intro and way on, guide.js: drawn by the page's guide channel)
     ...(guidance ? { guide: guidance } : {}),
     // (a map is walked: its trees' crowns and leaves are no footing, their trunks and boulders the tiles' colliders)

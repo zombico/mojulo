@@ -100,6 +100,12 @@ describe('a sketched segment built', () => {
     expect(P.map.sketch.marks.map((m) => m.kind)).toEqual(['npc', 'rest']);
     expect(P.signs.map((s) => s.text)).toEqual(['npc: The captain sends you out', 'rest: Home: save here']);
     expect(P.faces.filter((f) => f.group === 'map:mark')).toHaveLength(2 * 10);
+    // (a page a player pilots stands no post and says no tooltip: the marks are the sketch's review, read as before)
+    const played = await assembleGridScene({ level: level(g.sketch), entities: [{ id: 'hero', pilotable: true }] }, {}, { buildStage: tileStage });
+    expect(played.map.sketch.marks).toEqual(P.map.sketch.marks);
+    expect(played.signs).toBeUndefined();
+    expect(played.faces.filter((f) => f.group === 'map:mark')).toHaveLength(0);
+    expect(played.faces).toHaveLength(P.faces.length - 2 * 10);
     for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
   });
 

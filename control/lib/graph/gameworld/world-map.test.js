@@ -4,7 +4,8 @@
 // per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
 import { worldMapLevel, WORLD_MAP } from './world-map.js';
-import { composeGameworld } from './compose.js';
+import { composeGameworld, MAP_FLORA } from './compose.js';
+import { readGeocube } from '../era/geocube.js';
 import { castingCall } from './foe-casting.js';
 import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
@@ -80,6 +81,15 @@ describe('the world map', () => {
     expect(W.levels[ids[0]].walk).toBeUndefined();
     expect(W.levels[ids[0]].glyphs.plan.route.length).toBe(WORLD_MAP.first + 2);
     expect(W.brief.worldMap.level).toBe(ids[0]);
+    // (it GROWS: its cube names no flora, so the map takes the meadow kit's own, and the brief says so; a sentence that
+    // names what grows keeps its own)
+    const plain = composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 });
+    expect(readGeocube(plain.style.geocube).biocube).toBe(MAP_FLORA.biocube);
+    expect(plain.brief.worldMap.grows).toMatch(/meadow/);
+    // (this one's forests are its sentence's: its cube's flora is theirs, and the brief claims nothing)
+    expect(readGeocube(W.style.geocube).biocube).toBeTruthy();
+    expect(readGeocube(W.style.geocube).biocube).not.toBe(MAP_FLORA.biocube);
+    expect(W.brief.worldMap.grows).toBeUndefined();
     // (it starts in play: its opening a cutscene's slot, then straight into the game; the brief says so)
     expect(W.flow).toBe(FLOW_IN_PLAY);
     expect(W.brief.start).toMatch(/cutscene.*straight into play/);

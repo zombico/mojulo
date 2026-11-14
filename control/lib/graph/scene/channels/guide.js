@@ -10,8 +10,9 @@ import { safeJson } from '../emit-util.js';
 //   at a held way (`held`) while a foe stands on the page: that it is held
 //   near a beat that teaches (`keys`), or in its fight (wherever its foes have come to the hero): its keys, each a cap
 //   else the way on: an arrow turned the way the beat lies from where the camera looks, its words, the metres to it
-// Never two at once. A pillar of light stands where the beat is (the world's own marker, not the screen's). A beat is
-// reached within its radius (a fight once its foes about it are down); the last one reached, the way is the page's.
+// Never two at once. A pillar of light stands where the beat is (the world's own marker, not the screen's), a place to
+// go to: a FIGHT has none (its foes are what is looked at, and they move: a light on a foe is a marker on a body). A beat
+// is reached within its radius (a fight once its foes about it are down); the last one reached, the way is the page's.
 // Its words sit on the scene, outlined, never on a card. It reads the pilot and the cast through window.__mojCtrl (the
 // controllable channel's), so it waits for it. Emitted only when the page has a guide: every other page byte-identical.
 export function guideScript(guide) {
@@ -43,7 +44,7 @@ export function guideScript(guide) {
   function plant() {
     if (!T3 || !S3) return;
     if (pillar) { S3.remove(pillar); pillar = null; }
-    const s = GD.steps[k]; if (!s) return;
+    const s = GD.steps[k]; if (!s || s.fight) return;
     pillar = new T3.Mesh(new T3.CylinderGeometry(0.5, 0.5, 60, 12, 1, true), new T3.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.28, depthWrite: false, side: T3.DoubleSide }));
     pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
     S3.add(pillar);

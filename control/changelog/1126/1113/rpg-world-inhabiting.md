@@ -197,6 +197,13 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     ordered a game with its flow (its own, the story's cinematics placed in the default, now the start in play) and the
     door made the game without it, so a made game always played the default. The flow and the front go with the
     game, made or remade; `create_game` carries a `flow` it is handed (unlisted: the flow is the gameworld's page).
+- **The opening level as a place** (`level/grid-scene.js`, `scene/channels/guide.js`, `gameworld/compose.js`).
+  - **No designer's posts in a played level.** A sketch's marks (a post and a tooltip a beat: "encounter: …") were drawn
+    on every page; on one a player pilots they are left out, the marks themselves read as before.
+  - **No pillar of light on a fight.** The guide's pillar marks a place to go to; a fight's stood on its foe.
+  - **A world map grows.** A cube's land takes grass only where a biocube brings it, and the map's cube named none, so
+    it was bare ground. A meadow kit's map takes the meadow's own flora unless the cube or the sentence names what
+    grows; the brief says so.
 - Not here yet: a cutscene's video has no file carried into the export by the game's own door (it names a path the
   page can reach); the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
   opens on a win is not in the level kit); a pursuer gives up a hero it can no longer see (it hunts by sight, not by

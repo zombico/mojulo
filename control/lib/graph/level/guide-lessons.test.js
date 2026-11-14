@@ -18,10 +18,13 @@ function page(guide) {
   const hero = { id: 'hero', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 }, rule: { speed: 4, boostSpeed: 8 }, grounded: true, vel: [0, 0, 0] };
   const el = () => ({ className: '', innerHTML: '', textContent: '', appendChild() {} }), frames = [];
   const window = { __mojCtrl: { world: { pilotId: 'hero', byId: { hero }, entities: [hero] } } }, clock = { t: 0 };
-  new Function('window', 'document', 'performance', 'requestAnimationFrame', 'setTimeout', guideScript(guide))(window, { body: el(), head: el(), createElement: el }, { now: () => clock.t }, (f) => frames.push(f), () => {});
+  // (the page's three.js and its scene, as much as the guide's pillar asks of them: what stands in the scene is counted)
+  const stood = [], Mesh = function () { this.rotation = {}; this.position = { set: (...p) => { this.at = p; } }; };
+  const THREE = { Mesh, Vector3: function () {}, CylinderGeometry: function () {}, MeshBasicMaterial: function () {}, DoubleSide: 2 }, scene = { add: (o) => stood.push(o), remove: (o) => stood.splice(stood.indexOf(o), 1) };
+  new Function('window', 'document', 'performance', 'requestAnimationFrame', 'setTimeout', 'THREE', 'scene', guideScript(guide))(window, { body: el(), head: el(), createElement: el }, { now: () => clock.t }, (f) => frames.push(f), () => {}, THREE, scene);
   // (seconds of frames, the pilot changed a little each frame by `each`)
   const run = (seconds, each = () => {}) => { for (let i = 0; i < Math.round(seconds * 30); i++) { clock.t += 1000 / 30; each(hero, 1 / 30); frames.shift()(); } };
-  return { hero, run, guide: window.__mojGuide, world: window.__mojCtrl.world };
+  return { hero, run, guide: window.__mojGuide, world: window.__mojCtrl.world, stood };
 }
 
 describe('the guide\'s lessons', () => {
@@ -114,5 +117,17 @@ describe('the guide\'s lessons', () => {
     pair[1].hp = 0;
     P.run(0.2);
     expect(P.guide.step()).toBe(2);
+  });
+  it('a pillar of light stands at a place to go to, never on a fight: its foes are what is looked at', () => {
+    // (the opening's steps are its two fights: nothing stands in the scene; a page whose next step is a place has one)
+    const fights = page(guideAt(A));
+    fights.run(1);
+    expect(fights.stood).toHaveLength(0);
+    const D = guideAt([B, C]), k = D.steps.findIndex((s) => !s.fight);
+    expect(k).toBeGreaterThanOrEqual(0);
+    const place = page({ ...D, steps: D.steps.slice(k) });
+    place.run(1);
+    expect(place.stood).toHaveLength(1);
+    expect(place.stood[0].at.slice(0, 2)).toEqual(D.steps[k].at.slice(0, 2));
   });
 });
