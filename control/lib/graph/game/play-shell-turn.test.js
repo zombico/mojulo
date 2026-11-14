@@ -100,8 +100,13 @@ describe('the play shell runs a turn', () => {
     P.say({ moj: MSG_SHOWN });
     await wait(150);
     // the pause, then restart: the same picks, no pick screen
-    P.d.getElementById('pauseBtn').click(); await wait(30);
+    // (the pause button is mana-ui's, in the HUD's corner while the level is the player's; the shell's own is never seen)
+    const btn = () => [...P.d.querySelectorAll('#mana .mana-hud .mana-button')].find((n) => n.textContent.includes('☰'));
+    expect(btn()).toBeTruthy();
+    expect(P.w.getComputedStyle(P.d.getElementById('pauseBtn')).visibility).toBe('hidden');
+    P.w.__mojManaUi.hudTap(Number(btn().getAttribute('data-tap'))); await wait(30);
     expect(P.screen()).toBe('pause');
+    expect(btn()).toBeFalsy();                              // not drawn over a held level
     await P.key('ArrowDown'); await P.key('Enter');
     expect(P.screen()).toBe('loading');
     expect(P.init().params.__picks).toEqual({ difficulty: 'hard' });

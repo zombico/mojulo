@@ -137,6 +137,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
     flow,
     ...(hasTurns ? { turns } : {}),
+    // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
+    ...(bareHud && ui ? { bareHud: '(hover:hover) and (pointer:fine)' } : {}),
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
     ...(ui ? { mana: hasPicks ? shellManaConfig(ui, { picks: true }) : shellManaConfig(ui) } : {}),
   };
@@ -874,7 +876,10 @@ export function playShellRuntime(cfg, K) {
     runTitle: () => { if (!RUN) return null; const deep = num(DEEP_KEY), runs = num(RUNS_KEY); return { rules: RUN.repeat ? RUN.length + ' maps, rolled anew each run. Fall, and it ends.' : RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each run. Fall, and it ends.', best: runs ? 'best ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') : '', runs }; },
     // the pause, as mana-ui's pause menu drives it
     turn: { pick: turnPick, confirm: () => turnStep({ pick: (turn.draft || []).slice() }), back: () => turnStep('back') },
+    // (a level is the player's: in play, not paused, no trigger on; a bare HUD draws no button under a mouse)
+    playing: () => screen === 'level' && pauseBtn.style.display === 'block' && !paused && !(cfg.bareHud && window.matchMedia && window.matchMedia(cfg.bareHud).matches),
     pause: {
+      open: () => setPaused(true),
       resume: () => setPaused(false), restart: relaunch, quit: () => { setPaused(false); session = null; home(); },
       sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
       rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],

@@ -16,7 +16,7 @@
  *                                  moment(text, sub?) }: the shell's api is
  *                                  { go, onOf, show, app, title, front, levels(), result(), run(), settings(),
  *                                  saveSettings, pushPrefs, reset, continueTo, runTitle(), pause: { resume, restart,
- *                                  quit, sound, rows(), owner(), homeWord() } }
+ *                                  quit, sound, rows(), owner(), homeWord(), open }, playing() }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '../../mana-ui/index.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
@@ -73,7 +73,12 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
   // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
   if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
-  const hud = { use: 'hud', children: [{ use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] }] };
+  // and the way into the pause while a level is the player's: a button in the corner, tapped or clicked (it takes no
+  // focus: a key or a pad pauses on its own binding); not drawn over a screen, a trigger or a held level
+  const hud = { use: 'hud', children: [
+    { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] },
+    { use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('playing'), children: [{ use: 'button', props: { label: '☰' }, on: { accept: { emit: 'pause:open' } } }] },
+  ] };
   const full = withIdioms({ screens, hud, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
   full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k) || (picks && k === PICK)));
   manaUi.readSpec(full);
@@ -82,7 +87,9 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
 
 // (the image component draws a placeholder until it takes a picture: a game's screens show none of its marks, where a
 // wireframe would; a backdrop keeps its ground, the theme's own)
-export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
+// (and the shell's own pause button gives way to mana-ui's: it stays in the page as the shell's word for whether a level
+// is the player's, never seen or pressed)
+export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
 export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
   return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
@@ -99,6 +106,8 @@ const __mojMana = (${playShellManaRuntime.toString()});`;
  */
 export function playShellManaRuntime(cfg, api) {
   const M = cfg.mana, UI = { ui: { title: api.title, version: '', settings: { sound: api.settings().sfxOn ? 1 : 0 }, load: { place: '', ready: false }, moments: [], pause: { title: 'paused', controlsTitle: 'controls', items: [], rows: [] } } };
+  // (whether a level is the player's now, asked of the shell each time it is read: the pause button's)
+  Object.defineProperty(UI.ui, 'playing', { enumerable: true, get: () => !!api.playing() });
   const root = document.createElement('div');
   root.id = 'mana';
   document.body.appendChild(root);
@@ -127,6 +136,7 @@ export function playShellManaRuntime(cfg, api) {
     }
     if (e.emit === 'turn:pick') { api.turn.pick(e.id); return; }
     if (e.emit === 'turn:confirm') { api.turn.confirm(); return; }
+    if (e.emit === 'pause:open') { api.pause.open(); return; }
     if (e.emit === 'pause:resume') { api.pause.resume(); return; }
     if (e.emit === 'pause:restart') { api.pause.restart(); return; }
     if (e.emit === 'pause:quit') { api.pause.quit(); return; }

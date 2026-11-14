@@ -33,6 +33,10 @@ the theme will hold.
   - A level's title that is only an id is said in words on the shell's screens (`sayTitle`).
   - The results screen draws no rank row without a rank, and no window with neither figures nor a rank
     (`results-screen`'s `bare`).
+- **The pause button is mana-ui's.** A game whose shell screens are mana-ui's draws its pause button in the HUD's
+  top-right corner, in the game's look and inside its frame, only while a level is the player's (not over a screen,
+  a trigger or a held level); a tap or a click opens the pause. The shell's own button stays in the page, unseen, as
+  the shell's word for whether a level is in play. A bare HUD look still draws none under a mouse.
 - **Fixed in mana-ui's defs:** a `when` or an `unless` on a param a def was not given was no condition at all, so
   the play shell's loading screen drew its failure's Retry and Quit buttons while a level loaded (and Enter landed on
   Retry). A param not given is now a condition not met. Found by playing a made game through a whole turn. The brawl
