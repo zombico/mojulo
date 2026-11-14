@@ -751,6 +751,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // not on a clock; the arena plays as it did.
 // Re-pinned 2026-11-14 (the street's own angle, brawl/brawl-belt.js): `brawl`. Its page inlines the belt, whose angles
 // gain `street` and each the height it looks at (`look`); the fixture's `classic` looks at a body's chest as before.
+// Re-pinned 2026-11-14 (the street's breakables as skandart's vessels, brawl/brawl-yard.client.js): `brawl`. Its page
+// inlines the yard's client (a box drawn as its vessel where the page carries one, its wreck left where it broke) and
+// the things' table (a steel drum); the fixture lays no box, so its page carries no model.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

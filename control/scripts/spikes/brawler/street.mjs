@@ -31,8 +31,12 @@ const me = Math.max(0, BRAWL_ROSTER.findIndex((r) => r.id === opt.style));
 const boss = { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'Big Rig' };
 // (--level: the street's level, a brawl level's words as JSON: '{"kind":"town"}' the geotown's main street)
 const LV = opt.level ? JSON.parse(opt.level) : { kind: 'greybox', preset: 'street' };
-const manifest = brawlLevel(opt.tour ? { ...LV, screens: [{ length: 30 }, { length: 30, gate: true }] } : LV, { title: 'street', ...(opt.register ? { register: opt.register } : {}), street: {
+const { defaultThings } = await import('@/lib/graph/gameworld/quick.js');
+const LVT = opt.tour ? { ...LV, screens: [{ length: 30 }, { length: 30, gate: true }] } : LV;
+const manifest = brawlLevel(LVT, { title: 'street', ...(opt.register ? { register: opt.register } : {}), street: {
   players: [me],
+  // (what stands on it to be broken: the quick brawl's own, skandart's vessels)
+  things: defaultThings(brawlLevel(LVT).brawl.belt),
   // (--light: a street a masher can finish, to see its end)
   waves: opt.tour ? [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }] : opt.light ? [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [], boss: { recipe: boss, plays: ['chain'], cpu: Object.keys(CPU_LEVELS)[0], hp: 150 } }]
     : [{ screen: 1, crowd: [{ type: 'thug', n: 4 }] }, { screen: 2, crowd: [{ type: 'thug', n: 3 }, { type: 'knife', n: 2 }] },
@@ -71,6 +75,8 @@ await play(30);
 await play(2, ['KeyK']); await play(10);   // (the keyboard sits down: attack, K)
 await shot('start');
 if (opt.tour) {
+  // (one of the street's boxes broken where it stands, to see what it leaves)
+  await tab.evaluate(() => { const B = window.__mojBrawl, T = (B.room.s.things || []).filter((t) => t.kind === 'box')[1]; if (T) B.wreck({ what: T.what, x: T.x + 1500, z: T.z }); });
   for (let x = 6; x < 60; x += 12) { await tab.evaluate((x) => { const me = window.__mojBrawl.room.s.bodies[0]; me.x = x * 1000; }, x); await play(24); await shot(`tour-${String(x).padStart(2, '0')}`); }
   console.log('errors', JSON.stringify(errs.slice(0, 8))); await browser.close(); process.exit(0);
 }

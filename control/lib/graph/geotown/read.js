@@ -278,6 +278,6 @@ export function readGeotown(spec = {}) {
   }
   // ITS FRONTS: 'broken' breaks a shop row up (pattern.js a shops row's `broken`): each shop's house its own render,
   // paint, height and roof; unsaid, the row as it was
-  if (spec.fronts !== undefined && !FRONTS.includes(spec.fronts)) no(`fronts is ${FRONTS.map((f) => `'${f}'`).join(' | ')} (a shop row broken up: 'broken' each building its own render, shutters, height and roof; 'rough' the same gone to brick, grime and flat roofs; either way an alley or a setback between some)`);
+  if (spec.fronts !== undefined && !FRONTS.includes(spec.fronts)) no(`fronts is ${FRONTS.map((f) => `'${f}'`).join(' | ')} (a shop row broken up: 'broken' each building its own render, shutters, height and roof; 'rough' the same gone to brick, grime and flat roofs, its road asphalt and its walks concrete; either way an alley or a setback between some)`);
   return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}), ...(slope ? { slope } : {}), ...(spec.fronts ? { fronts: spec.fronts } : {}) };
 }

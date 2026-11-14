@@ -18,6 +18,7 @@
  *   readDress(dress, belt, where)   → the settled dress { seed, sets: [a set a screen], colour?, far, near?, wall }
  *   dressFaces(dress, belt)         → [{ corners: [[x, y, z]…] world metres, out: [x, y, z], hex }] its faces, unshaded
  *   dressSceneFaces(dress, belt, light?) → the same as a World page's faces (wound to their `out`, shaded by the level's light)
+ *   boxModels(whats)                → the street's breakables as skandart's vessels, and what each leaves broken
  *   dressCount(dress, belt)         → { pieces, faces, bySet }
  *
  * `colour` is the crew's (the faction the street is held by): its tags, its banners and one canopy in a market wear it.
@@ -26,6 +27,9 @@
 import { beltPoint } from './brawl-belt.js';
 import { streamOf } from '../city/plan/dice.js';
 import { shadeHex } from '../polygonizer/vexar.js';
+import { skandartVessels } from '../era/skandart-vessels.js';
+import { skandartRead } from '../era/skandart.js';
+import { debrisPiece, DEBRIS } from '../era/debris-shelf.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -39,6 +43,41 @@ const C = Object.freeze({
   machine: ['#c8322a', '#2a62b8', '#e8e4d8'], neon: ['#ff4f8a', '#35e0d0', '#ffd23a', '#7a5cff'], spray: ['#f2f0e8', '#111214', '#ffd23a', '#35e0d0', '#ff4f8a'], wood: '#8a6a44', asphalt: '#2a2b2e', scrap: ['#e8dfc8', '#c9d4d8', '#d8b4a8'],
   goods: ['#d2452f', '#e0a030', '#6a9a3a', '#e8d9a0', '#8a4a7a'], paper: ['#e8dfc8', '#c9d4d8', '#e6c9a0', '#d8b4a8'], ink: '#24262b', chalk: '#ece8dc', skip: '#2f5d4a', paperBox: ['#b3261e', '#1f4fa8', '#d9b44a'],
 });
+
+// ── SKANDART on the street (era/skandart.js): a place's debris and what it kept. Two of its shelves are used as they
+// are: its VESSELS (era/skandart-vessels.js: crates, barrels, steel drums, footlockers standing in a group, some tipped,
+// some already broken where they stood, by how far gone the place is) and its DEBRIS SHELF (era/debris-shelf.js: what
+// piles up when a place comes down, each piece built by its row). A piece too small to be read from where the street is
+// seen is left out, as skandart's law has it. ──
+const hex2 = (v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0');
+const tintHex = (t) => `#${hex2(t[0])}${hex2(t[1])}${hex2(t[2])}`;
+// (the street is seen from further off than a room's filler: the least piece read, a little over a 1080-line frame's)
+const LEAST = Math.round(skandartRead(1080).least * 1.4 * 1000) / 1000;
+// each matter's colour as debris (a piece's tone is its source's)
+const MATTER_HEX = Object.freeze({ brick: '#8c4a3a', concrete: '#8d8f8e', stone: '#9a968c', render: '#cfc4a8', paper: '#e8dfc8', glass: '#9fc6c9', wood: '#8a6a44', board: '#d8d2c2', steel: '#6b7178', slate: '#4a5058', terracotta: '#b5683f' });
+/** A group of skandart's vessels in the piece's frame, its back to the wall: `kinds` the roles and their shares, `look`
+ * old (wood and clay) or industrial (painted steel), `amount` how far gone (more tipped, more broken). */
+function vessels(kinds, look, amount, len, R) {
+  const V = skandartVessels({ kit: {} }, [{ x: 0, y: 0, len, N: [0, -1, 0], U: [1, 0, 0], out: 0 }], { amount, seed: 1 + Math.floor(R() * 1e6), card: { kinds, look }, read: { least: LEAST } });
+  // (its group stands from the wall's line out: set back so its back is the piece's back)
+  const back = Math.max(0, ...V.faces.flatMap((f) => f.corners.map((c) => c[1])));
+  return V.faces.map((f) => ({ corners: f.corners.map(([x, y, z]) => [x, y - back, Math.max(0, z)]), out: f.outNormal ?? f.normal, hex: tintHex(f.tint ?? [0.5, 0.45, 0.4]) }));
+}
+/** Debris off the shelf scattered over a patch (a × b m, the piece's own frame): `mix` { id: how many }, the bigger
+ * farther from the wall (a fall sorts what comes down it). */
+function debris(mix, a, b, R) {
+  const out = [];
+  for (const [id, n] of Object.entries(mix)) for (let k = 0; k < n; k++) {
+    // (never under what the street's frame reads: a small thing is built at the least size it is seen at, or left out)
+    const D = DEBRIS[id], w0 = D.size[0] + (D.size[1] - D.size[0]) * R();
+    if (D.size[1] < LEAST) continue;
+    const w = Math.max(w0, LEAST * 1.4);
+    const P = debrisPiece(id, w, Math.floor(R() * 1e6)), t = R() * Math.PI * 2, c = Math.cos(t), si = Math.sin(t);
+    const big = (w - D.size[0]) / Math.max(1e-6, D.size[1] - D.size[0]), s = (R() - 0.5) * a, n = b / 2 - (0.1 + big * 0.6 + R() * 0.3) * b;
+    for (const f of P.faces) out.push({ corners: f.corners.map(([x, y, z]) => [s + x * c - y * si, n + x * si + y * c, z + 0.004]), out: [f.normal[0] * c - f.normal[1] * si, f.normal[0] * si + f.normal[1] * c, f.normal[2]], hex: MATTER_HEX[f.matter ?? D.matter] ?? '#8a8a86' });
+  }
+  return out;
+}
 
 // ── the primitives (a piece's own frame: s along, n across, z up; `out` in the same frame) ──
 const quad = (a, b, c, d, out, hex) => ({ corners: [a, b, c, d], out, hex });
@@ -65,10 +104,10 @@ const post = (s, n, z0, z1, hex, r = 0.03) => box(s - r, n - r, s + r, n + r, z0
 // the origin, its back at +across/2 } ──
 const crate = (s, n, z, w, R) => { const h = R() < 0.5 ? C.timber : C.slat; return [...box(s - w / 2, n - w / 2, s + w / 2, n + w / 2, z, z + w, h), ...box(s - w / 2 - 0.01, n - w / 2 - 0.01, s + w / 2 + 0.01, n - w / 2, z + w * 0.42, z + w * 0.58, C.timberDark).slice(0, 1)]; };
 export const DRESS_PIECES = Object.freeze({
-  crate: { says: 'a timber crate', size: [0.8, 0.8], tall: 0.8, build: (R) => crate(0, 0, 0, 0.8, R) },
-  crates: { says: 'crates stacked, two under one', size: [1.8, 0.9], tall: 1.5, build: (R) => [...crate(-0.45, 0, 0, 0.8, R), ...crate(0.45, 0.02, 0, 0.8, R), ...crate(R() < 0.5 ? -0.2 : 0.25, 0, 0.8, 0.7, R)] },
+  crate: { says: 'a crate or a barrel left standing (skandart\'s vessels)', size: [0.9, 0.9], tall: 1, build: (R) => vessels({ crate: 2, barrel: 1 }, 'old', 0.2, 1, R) },
+  crates: { says: 'crates and barrels in a group, one on another, one tipped or broken (skandart\'s vessels)', size: [2.6, 1.1], tall: 1.6, build: (R) => vessels({ crate: 3, barrel: 1, chest: 1 }, 'old', 0.55, 2.6, R) },
   barrel: { says: 'a barrel on its end', size: [0.7, 0.7], tall: 0.95, build: () => [...drum(0, 0, 0.33, 0, 0.95, C.timberDark, C.timber), ...drum(0, 0, 0.345, 0.2, 0.26, C.iron).slice(0, 8), ...drum(0, 0, 0.345, 0.68, 0.74, C.iron).slice(0, 8)] },
-  barrels: { says: 'two barrels, one beside the other', size: [1.5, 0.7], tall: 0.95, build: () => [...DRESS_PIECES.barrel.build().map((f) => shift(f, -0.38, 0)), ...DRESS_PIECES.barrel.build().map((f) => shift(f, 0.38, 0.03))] },
+  barrels: { says: 'barrels and kegs in a group (skandart\'s vessels)', size: [2.2, 1], tall: 1.1, build: (R) => vessels({ barrel: 3, keg: 2 }, 'old', 0.45, 2.2, R) },
   pallet: { says: 'a pallet with a few boxes on it', size: [1.3, 1.1], tall: 0.7, build: (R) => [...box(-0.6, -0.5, 0.6, 0.5, 0.02, 0.14, C.slat), ...box(-0.5, -0.4, 0.05, 0.3, 0.14, 0.5 + R() * 0.2, C.paper[0]), ...box(0.1, -0.35, 0.52, 0.35, 0.14, 0.42, C.paper[2])] },
   sacks: { says: 'sacks heaped', size: [1.2, 0.8], tall: 0.6, build: () => [...box(-0.55, -0.3, 0, 0.3, 0, 0.26, C.sack), ...box(0.03, -0.32, 0.56, 0.28, 0, 0.26, C.sackDark), ...box(-0.3, -0.26, 0.3, 0.26, 0.26, 0.5, C.sack)] },
   stall: { says: 'a market stall: a table of goods under a striped canopy on four posts', size: [2.4, 1.3], tall: 2.5, crew: true,
@@ -98,6 +137,10 @@ export const DRESS_PIECES = Object.freeze({
   cart: { says: 'a hand cart, its handles up', size: [1.7, 0.9], tall: 1, build: () => [...box(-0.6, -0.38, 0.6, 0.38, 0.4, 0.75, C.slat, C.timberDark), ...drum(-0.2, -0.42, 0.28, 0.12, 0.2, C.iron).map(tipWheel(-0.2, -0.42)), ...box(0.6, -0.36, 1.05, -0.3, 0.7, 0.76, C.timberDark), ...box(0.6, 0.3, 1.05, 0.36, 0.7, 0.76, C.timberDark), ...post(0.45, 0, 0, 0.4, C.timberDark, 0.04)] },
   bollard: { says: 'an iron bollard', size: [0.3, 0.3], tall: 0.8, build: () => [...drum(0, 0, 0.09, 0, 0.72, C.iron), ...drum(0, 0, 0.12, 0.72, 0.8, C.iron)] },
   // (the street gone rough)
+  drums: { says: 'steel drums and steel crates in a group, some tipped (skandart\'s vessels, the industrial look)', size: [2.6, 1.1], tall: 1.3, build: (R) => vessels({ barrel: 3, crate: 2, chest: 1 }, 'industrial', 0.6, 2.6, R) },
+  rubble: { says: 'what the wall sheds, at its foot: bricks, spall, flakes of render (the debris shelf)', size: [2.4, 1.1], tall: 0.3, build: (R) => debris({ brick: 22, spall: 12, 'render-flake': 10, 'concrete-chunk': 5 }, 2.2, 1, R) },
+  wreckage: { says: 'a heap of what came down: broken concrete, bricks, planks, a sheet of roof (the debris shelf)', size: [2.6, 1.4], tall: 0.6, build: (R) => debris({ 'concrete-chunk': 12, 'slab-chunk': 3, brick: 16, plank: 4, splinter: 6, 'deck-sheet': 1, spall: 8 }, 2.4, 1.3, R) },
+  shards: { says: 'broken glass and papers on the walk (the debris shelf)', size: [1.8, 1], tall: 0.05, build: (R) => debris({ 'glass-shard': 18, paper: 8 }, 1.6, 0.9, R) },
   bags: { says: 'rubbish bags heaped', size: [1.3, 0.8], tall: 0.7, build: (R) => { const out = []; for (const [a, b, r, h] of [[-0.36, 0, 0.3, 0.5], [0.22, 0.06, 0.32, 0.58], [-0.04, -0.2, 0.24, 0.4]]) out.push(...drum(a + (R() - 0.5) * 0.08, b, r, 0, h, C.bag, C.bagTie), ...drum(a, b, 0.07, h, h + 0.1, C.bagTie)); return out; } },
   boxes: { says: 'cardboard boxes dumped, some flat', size: [1.4, 0.9], tall: 0.9, build: (R) => { const h = () => C.card[Math.floor(R() * C.card.length)]; return [...box(-0.65, -0.3, -0.05, 0.3, 0, 0.45, h()), ...box(0, -0.35, 0.6, 0.25, 0, 0.36, h()), ...box(-0.45, -0.22, 0.08, 0.24, 0.45, 0.82, h()), ...box(0.1, -0.42, 0.68, -0.36, 0, 0.5, h())]; } },
   vending: { says: 'a vending machine, its front lit', size: [1, 0.8], tall: 1.9, build: (R) => { const h = C.machine[Math.floor(R() * C.machine.length)]; return [...box(-0.45, -0.35, 0.45, 0.35, 0, 1.85, h), ...box(-0.36, -0.36, 0.16, -0.35, 0.7, 1.7, C.lit).slice(0, 1), ...box(0.22, -0.36, 0.38, -0.35, 0.9, 1.4, C.ink).slice(0, 1), ...box(-0.36, -0.36, 0.38, -0.35, 0.18, 0.42, C.ink).slice(0, 1)]; } },
@@ -142,12 +185,12 @@ export const DRESS_PIECE_IDS = Object.freeze(Object.keys(DRESS_PIECES));
 // (`marks`: the stride of its wall's marks, m)
 const set = (says, far, gap, wall, near, marks = [4.5, 9.5]) => Object.freeze({ says, far: Object.freeze(far), gap: Object.freeze(gap), wall: Object.freeze(wall), near: Object.freeze(near), marks: Object.freeze(marks) });
 export const DRESS_SETS = Object.freeze({
-  market: set('a street market: stalls under their canopies, crates, barrels and sacks between them, a hand cart, its boxes and rubbish dumped beside it', { stall: 5, crates: 2, crate: 1, barrels: 2, sacks: 2, cart: 1, boxes: 2, bags: 1, litter: 2 }, [0.5, 1.6], { poster: 3, aircon: 1, neon: 1, pipe: 1 }, { crate: 2, barrel: 2, sacks: 1 }, [4, 8]),
-  strip: set('a shuttered strip: steel shutters down and sprayed, a vending machine, rubbish bags and cardboard on the walk, blade signs lit, a fire escape overhead', { bags: 3, boxes: 3, vending: 2, litter: 3, paperbox: 1, tyres: 1, crate: 1 }, [0.8, 2.6], { shutter: 4, neon: 2, aircon: 2, poster: 2, tag: 1, escape: 2, pipe: 1, boards: 1 }, { bollard: 2, tyres: 1 }, [2.5, 5]),
+  market: set('a street market: stalls under their canopies, crates, barrels and sacks between them, a hand cart, its boxes and rubbish dumped beside it', { rubble: 1, stall: 5, crates: 2, crate: 1, barrels: 2, sacks: 2, cart: 1, boxes: 2, bags: 1, litter: 2 }, [0.5, 1.6], { poster: 3, aircon: 1, neon: 1, pipe: 1 }, { crate: 2, barrel: 2, sacks: 1 }, [4, 8]),
+  strip: set('a shuttered strip: steel shutters down and sprayed, a vending machine, rubbish bags and cardboard on the walk, blade signs lit, a fire escape overhead', { rubble: 3, shards: 3, drums: 1, bags: 3, boxes: 3, vending: 2, litter: 3, paperbox: 1, tyres: 1, crate: 1 }, [0.8, 2.6], { shutter: 4, neon: 2, aircon: 2, poster: 2, tag: 1, escape: 2, pipe: 1, boards: 1 }, { bollard: 2, tyres: 1 }, [2.5, 5]),
   cafe: set('a cafe terrace: tables under parasols, planters, a sandwich board, a bench', { cafe: 5, planter: 3, pot: 2, board: 2, bench: 1, paperbox: 1 }, [0.7, 2], { poster: 1, banner: 1 }, { pot: 2, planter: 1, bollard: 2 }),
-  yard: set('a back street\'s load-in: pallets and stacked crates, a skip, tyres, barrels, rubbish, a fire in a drum', { pallet: 3, crates: 3, skip: 1, tyres: 2, barrels: 2, crate: 1, cart: 1, bags: 2, boxes: 1, drumfire: 1, litter: 2 }, [0.8, 2.4], { poster: 2, tag: 2, piece: 2, escape: 2, pipe: 2, aircon: 1, boards: 1, shutter: 1 }, { tyres: 1, crate: 1, bollard: 2 }, [3, 6]),
-  turf: set('the crew\'s own corner: its pieces and its marks on every wall, its banners out, fires in drums, tyres, barrels and crates where it sits', { tyres: 3, barrels: 2, crates: 2, drumfire: 3, bags: 2, bench: 1, crate: 1, litter: 2 }, [1, 2.6], { tag: 3, piece: 3, banner: 2, shutter: 2, poster: 1, escape: 1, boards: 1 }, { tyres: 1, barrel: 1, bollard: 1 }, [2.5, 5]),
-  plain: set('a quiet stretch: a bench, a paper box, a planter, a little rubbish, far apart', { planter: 1, bench: 2, paperbox: 1, pot: 1, board: 1, bags: 1, litter: 2 }, [3, 6], { poster: 2, pipe: 1, aircon: 1 }, { bollard: 1 }),
+  yard: set('a back street\'s load-in: pallets and stacked crates, a skip, tyres, barrels, rubbish, a fire in a drum', { drums: 4, rubble: 3, wreckage: 2, shards: 1, pallet: 3, crates: 3, skip: 1, tyres: 2, barrels: 2, crate: 1, cart: 1, bags: 2, boxes: 1, drumfire: 1, litter: 2 }, [0.8, 2.4], { poster: 2, tag: 2, piece: 2, escape: 2, pipe: 2, aircon: 1, boards: 1, shutter: 1 }, { tyres: 1, crate: 1, bollard: 2 }, [3, 6]),
+  turf: set('the crew\'s own corner: its pieces and its marks on every wall, its banners out, fires in drums, tyres, barrels and crates where it sits', { drums: 3, rubble: 3, wreckage: 2, shards: 2, tyres: 3, barrels: 2, crates: 2, drumfire: 3, bags: 2, bench: 1, crate: 1, litter: 2 }, [1, 2.6], { tag: 3, piece: 3, banner: 2, shutter: 2, poster: 1, escape: 1, boards: 1 }, { tyres: 1, barrel: 1, bollard: 1 }, [2.5, 5]),
+  plain: set('a quiet stretch: a bench, a paper box, a planter, a little rubbish, far apart', { rubble: 2, shards: 1, planter: 1, bench: 2, paperbox: 1, pot: 1, board: 1, bags: 1, litter: 2 }, [3, 6], { poster: 2, pipe: 1, aircon: 1 }, { bollard: 1 }),
 });
 export const DRESS_SET_IDS = Object.freeze(Object.keys(DRESS_SETS));
 // the set a screen takes when none is said, by its place: the way in a shuttered strip, the held screens a market, a
@@ -182,7 +225,7 @@ export function readDress(dress, belt, where = 'dress') {
 }
 
 // what an alley holds (each narrow enough for one)
-const ALLEY = Object.freeze({ bags: 4, tyres: 2, barrel: 2, crate: 2, boxes: 2, drumfire: 1, litter: 2 });
+const ALLEY = Object.freeze({ bags: 4, tyres: 2, barrel: 2, crate: 2, boxes: 2, drumfire: 1, litter: 2, rubble: 3, wreckage: 2 });
 const pick = (weights, R) => { const E = Object.entries(weights), sum = E.reduce((a, [, w]) => a + w, 0); let t = R() * sum; for (const [k, w] of E) { t -= w; if (t <= 0) return k; } return E[E.length - 1][0]; };
 /** The dress laid: → [{ piece, set, s, n, side: 'far' | 'wall' | 'alley' | 'near', turn }] in the belt's frame, in order. */
 export function dressPlan(dress, belt) {
@@ -252,6 +295,32 @@ export function dressSceneFaces(dress, belt, light = undefined) {
     const l = Math.hypot(...f.out) || 1, o = f.out.map((v) => r3(v / l)), fill = shadeHex(f.hex, o, light);
     return { corners: c, normal: o, outNormal: o, group: 'brawl:dress', fill, cornerFills: c.map(() => fill) };
   });
+}
+
+// ── THE STREET'S BREAKABLES (brawl-things.js THINGS.box) as skandart's vessels: what a box is drawn as while it stands
+// and what it leaves where it broke (its form's pieces off the debris shelf). Triangles in the thing's own frame (its
+// foot at the origin, z up), a colour a corner, baked under a light from above so it reads unlit. ──
+const BOX_VESSEL = Object.freeze({ barrel: [{ barrel: 1 }, 'old', { plank: 5, splinter: 6 }], crate: [{ crate: 1 }, 'old', { plank: 6, splinter: 8 }], drum: [{ barrel: 1 }, 'industrial', { 'deck-sheet': 2, splinter: 3 }] });
+const tris = (faces) => {
+  const pos = [], col = [];
+  for (const f of faces) {
+    const l = Math.hypot(...f.out) || 1, k = 0.55 + 0.45 * Math.max(0, (f.out[0] * -0.35 + f.out[1] * -0.55 + f.out[2] * 0.76) / l), rgb = [1, 3, 5].map((i) => Math.round(parseInt(f.hex.slice(i, i + 2), 16) * k));
+    for (let i = 1; i + 1 < f.corners.length; i++) for (const c of [f.corners[0], f.corners[i], f.corners[i + 1]]) { pos.push(...c.map(r3)); col.push(...rgb); }
+  }
+  return { pos, col };
+};
+/** The models of the boxes a street lays: { [what]: { whole: { pos, col }, wreck: { pos, col } } } (a box with no
+ * vessel, a phone booth, has none: the page draws its block). Seeded by its name. */
+export function boxModels(whats) {
+  const out = {};
+  for (const what of [...new Set(whats)].sort()) {
+    const B = BOX_VESSEL[what]; if (!B) continue;
+    const R = streamOf(1, 'brawl-box', what), whole = vessels(B[0], B[1], 0, 1.2, R);
+    // (stood on its own middle: the group's bay centred it along, its back at 0 across)
+    const ys = whole.flatMap((f) => f.corners.map((c) => c[1])), mid = (Math.min(...ys) + Math.max(...ys)) / 2;
+    out[what] = { whole: tris(whole.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x, y - mid, z]) }))), wreck: tris(debris(B[2], 1.1, 1.1, R)) };
+  }
+  return out;
 }
 
 export function dressCount(dress, belt) {

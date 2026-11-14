@@ -244,7 +244,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air;
-  const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(P, cube);
+  const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(d.spec.fronts && P.grounds?.[d.spec.fronts] ? { ...P, finishes: { ...P.finishes, ...P.grounds[d.spec.fronts] } } : P, cube);
   // a face, wound to `want` (else up), shaded by the cube's light, its ground's finish laid where it has one (a floor's
   // on a face that lies flat)
   const put = (corners, group, hex, want = null) => {

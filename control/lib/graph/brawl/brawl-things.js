@@ -39,6 +39,7 @@ export const THINGS = Object.freeze({
   box: Object.freeze({
     barrel: row({ hp: 40, w: 0.7, h: 1.0, says: 'a barrel: a blow or two' }),
     crate: row({ hp: 70, w: 0.9, h: 0.9, says: 'a crate: a few blows' }),
+    drum: row({ hp: 90, w: 0.7, h: 0.95, says: 'a steel drum: it rings, and gives on the third' }),
     booth: row({ hp: 160, w: 1.1, h: 2.3, says: 'a phone booth: a chain to break' }),
   }),
   cover: Object.freeze({

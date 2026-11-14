@@ -102,6 +102,19 @@ screen) is now played on a page; before, only its practice yard was.
   is said, never fallen to). A dress may be told its `fronts` (the buildings' own lines along the belt): a wall's mark
   then stands on one building, at that building's line, and a gap between two is an alley with something left in it.
   A town street says them from its shops.
+- The rough quarter's ground: under `fronts: 'rough'` the old town's setts are tarred over and its flags replaced in
+  poured concrete (the pattern's `grounds.rough`: the road, lanes, drives and yards asphalt; the walks, the furnishing
+  strip, paths and steps pavement).
+- Skandart on the street (`era/skandart.js`'s shelves, used as they are). Its VESSELS (`era/skandart-vessels.js`) are
+  the dress's crates, barrels and kegs (the old look) and its steel drums, steel crates and footlockers (the
+  industrial look, a new piece `drums`), standing in groups, some tipped, some already broken, by how far gone the set
+  is. Its DEBRIS SHELF (`era/debris-shelf.js`) is the street's debris: `rubble` at a wall's foot (bricks, spall,
+  flakes of render, concrete), `wreckage` (broken concrete, bricks, planks, a roof sheet), `shards` (glass and
+  papers), in the rough sets and in the alleys; a piece too small to be read from the street's camera is left out.
+- The street's breakables: a street that names no `things` now has two boxes on each held screen (a barrel, a crate,
+  a steel drum in turn: `quick.js` defaultThings; a new box `drum`), every other one holding food. A box is drawn as
+  its skandart vessel (`brawl-dress.js` boxModels, carried by the page only when a box is laid) and, broken, leaves its
+  wreck where it stood (its form's planks and splinters, a drum's sheet).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

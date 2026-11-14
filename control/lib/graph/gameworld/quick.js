@@ -869,6 +869,18 @@ export function defaultWaves(belt, types = null) {
   });
   return out;
 }
+/** What a street has standing on it to be broken when it names none (brawl-things.js THINGS.box, drawn as skandart's
+ * vessels): two on each held screen, toward its far side, a barrel, a crate and a steel drum in turn; every other one
+ * holds something to eat, the boss's screen a roast chicken. */
+export function defaultThings(belt) {
+  const out = [], BOX = ['barrel', 'crate', 'drum'], far = belt.depth[1] - 0.7, r2 = (v) => Math.round(v * 100) / 100;
+  let k = 0;
+  belt.screens.forEach((sc) => {
+    if (!sc.gate && !sc.boss) return;
+    for (const f of [0.3, 0.72]) { out.push({ kind: 'box', what: BOX[k % BOX.length], at: r2(sc.from + f * sc.length), n: r2(far - (k % 2) * 0.5), ...(k % 2 === 0 ? { holds: { kind: 'food', what: sc.boss ? 'chicken' : 'apple' } } : {}) }); k++; }
+  });
+  return out;
+}
 // the brawler's body by pole: the anime frame's muscular bodies (the base pair, the hulking pair for a heavy) in their
 // muscular form, under the western head
 const BRAWLER_BODY = (pole, heavy) => ({ head: 'landmark', animeBody: (heavy ? { male: 'armstrong', female: 'kale' } : { male: 'toji', female: 'mizuki' })[pole], muscleShirt: { definition: 1 } });
@@ -884,11 +896,11 @@ export function brawlBody(created, heavy = false) {
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
 export function brawlStreets(Q, { title, roster, cast, types, colour } = {}) {
-  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves }) => {
+  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves, things }) => {
     // (a town street's dress wears the crew's colour, unless the street says its own)
     const L0 = level ?? BRAWL_STREET.level, L = colour && L0.kind === 'town' && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(L0.dress ?? {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const belt = brawlLevel(L, { title: t }).brawl.belt;
-    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
@@ -908,7 +920,7 @@ function readBrawl(Q) {
       if (!isObj(s) || typeof s.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(s.id)) throw fail(`.streets[${i}] needs an id (a short lower-case name)`);
       if (ids.has(s.id)) throw fail(`.streets[${i}].id '${s.id}' is taken`);
       ids.add(s.id);
-      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves)`);
+      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves', 'things'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves, things)`);
       if (s.level !== undefined) { try { readBrawlLevel(s.level); } catch (e) { throw fail(`.streets[${i}].level: ${e.message.replace(/^brawl: /, '')}`); } }
     });
   }

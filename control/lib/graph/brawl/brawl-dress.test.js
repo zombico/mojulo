@@ -1,7 +1,9 @@
 // THE STREET'S DRESS (brawl-dress.js): what stands along a belt beside the band. The concepts: it is laid outside the
 // band, a set a screen, seeded, in the crew's colour where it is the crew's; absent it is nothing.
 import { describe, it, expect } from 'vitest';
-import { DRESS_PIECES, DRESS_SETS, readDress, dressPlan, dressFaces, dressSceneFaces, dressSets, dressCount } from './brawl-dress.js';
+import { DRESS_PIECES, DRESS_SETS, readDress, dressPlan, dressFaces, dressSceneFaces, dressSets, dressCount, boxModels } from './brawl-dress.js';
+import { THINGS } from './brawl-things.js';
+import { brawlYardData } from './brawl-page.js';
 import { brawlLevel } from './brawl-levels.js';
 import { readBelt } from './brawl-belt.js';
 
@@ -103,5 +105,36 @@ describe('on a level', () => {
     expect(T.geotown.fronts).toBe('rough');
     expect(T.brawl.dress.fronts.length).toBeGreaterThan(2);
     expect(brawlLevel({ kind: 'town', fronts: 'broken' }).geotown.fronts).toBe('broken');
+  });
+});
+
+describe('skandart on the street', () => {
+  it('a group of vessels and a patch of debris are built on the ground, inside their piece, the same again', () => {
+    // (one piece per shelf used: the vessels' old look, their industrial look, the debris shelf)
+    for (const id of ['crates', 'drums', 'rubble']) {
+      const P = DRESS_PIECES[id], dice = () => { let k = 7; return () => { k = (k * 16807) % 2147483647; return k / 2147483647; }; };
+      const F = P.build(dice(), null), pts = F.flatMap((f) => f.corners);
+      expect(F.length, id).toBeGreaterThan(10);
+      expect(Math.min(...pts.map((p) => p[2])), id).toBeGreaterThanOrEqual(0);
+      expect(Math.max(...pts.map((p) => p[2])), id).toBeLessThanOrEqual(P.tall + 0.4);
+      for (const f of F.slice(0, 20)) expect(f.hex).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(P.build(dice(), null)).toEqual(F);
+    }
+  });
+  it('a breakable is drawn as its vessel and leaves a wreck; one with no vessel has no model; none laid, not a byte', () => {
+    const M = boxModels(Object.keys(THINGS.box));
+    const drawn = Object.keys(M);
+    expect(drawn.length).toBeGreaterThan(1);
+    expect(drawn.length).toBeLessThan(Object.keys(THINGS.box).length);      // (a phone booth is the page's block)
+    for (const m of Object.values(M)) for (const part of [m.whole, m.wreck]) {
+      expect(part.pos.length).toBeGreaterThan(0); expect(part.pos.length % 9).toBe(0); expect(part.col.length).toBe(part.pos.length);
+    }
+    // (it stands on its own middle, within its row's breadth)
+    const what = drawn[0], xs = M[what].whole.pos.filter((_, i) => i % 3 === 0);
+    expect(Math.max(...xs.map(Math.abs))).toBeLessThanOrEqual(THINGS.box[what].w);
+    expect(boxModels(drawn)).toEqual(M);
+    const block = { belt, street: { players: [0], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }] } };
+    expect(brawlYardData(block).boxes).toBeUndefined();
+    expect(Object.keys(brawlYardData({ ...block, street: { ...block.street, things: [{ kind: 'box', what, at: 20 }] } }).boxes)).toEqual([what]);
   });
 });

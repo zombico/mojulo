@@ -1,7 +1,7 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, brawlStreets, defaultWaves, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
+import { quickWorld, brawlStreets, defaultWaves, defaultThings, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
 import { runSteps } from './runner.js';
 import { brawlPreset } from '../brawl/brawl-levels.js';
 import { GENRES } from '../egocube/setting.js';
@@ -30,6 +30,14 @@ describe('its streets', () => {
     const sizes = W.filter((w) => !w.boss).map((w) => w.crowd.reduce((n, c) => n + c.n, 0));
     for (let k = 1; k < sizes.length; k++) expect(sizes[k]).toBeGreaterThan(sizes[k - 1]);
     expect(W[W.length - 1].boss).toBeTruthy();
+  });
+  it('unsaid, things stand on it to be broken: two a held screen, in the band, some holding food; its own are kept', () => {
+    const belt = brawlPreset('street').belt, T = defaultThings(belt);
+    expect(T.length).toBe(2 * belt.screens.filter((s) => s.gate || s.boss).length);
+    for (const t of T) { expect(t.kind).toBe('box'); expect(t.n).toBeGreaterThanOrEqual(belt.depth[0]); expect(t.n).toBeLessThanOrEqual(belt.depth[1]); }
+    expect(T.some((t) => t.holds?.kind === 'food')).toBe(true);
+    const [own] = brawlStreets({ goal: 'brawl', streets: [{ id: 's', things: [] }] });
+    expect(own.manifest.brawl.street.things).toEqual([]);
   });
   it('each is a level the shell can host: the street on its brawl block, the level\'s contract beside it', () => {
     const [S] = brawlStreets({ goal: 'brawl' }, { title: 'Brawl' });

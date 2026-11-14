@@ -59,3 +59,11 @@ describe('alleys and setbacks', () => {
     for (const p of shops({}, seed)) { expect(p.alleyBeside).toBeUndefined(); expect(p.house.env[1]).toBe(p.setback); expect(p.house.env[2]).toBe(p.w); }
   });
 });
+
+describe('the rough quarter\'s ground', () => {
+  it('names the finishes it changes, each a finish the pattern already has', () => {
+    const G = P.grounds?.rough;
+    expect(G).toBeTruthy();
+    for (const k of Object.keys(G)) { expect(P.finishes[k], k).toBeTruthy(); expect(G[k]).not.toBe(P.finishes[k]); }
+  });
+});

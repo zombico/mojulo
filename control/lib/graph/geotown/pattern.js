@@ -286,6 +286,9 @@ const OLD_TOWN = {
   alley: { w: 3 },
   access: { ...BG.access, lane: 0, mutual: 0, drives: 0, garages: 0 },
   finishes: { ...BG.finishes, road: 'setts', walk: 'flags', furnish: 'flags', path: 'flags', side: 'flags', service: 'setts', step: 'flags', drive: 'setts', lane: 'setts', piazza: 'flags' },
+  // ITS GROUND where its fronts have gone rough (a geotown's `fronts: 'rough'`): the setts tarred over, the flags
+  // replaced in poured concrete; unsaid, the finishes above
+  grounds: { rough: { road: 'asphalt', walk: 'pavement', furnish: 'pavement', path: 'pavement', side: 'asphalt', service: 'asphalt', step: 'pavement', drive: 'asphalt', lane: 'asphalt' } },
   block: { long: [90, 130], depth: [26, 32] },
   plot: { semi: [6, 8], detached: [7, 9.5], mansion: [12, 14], corner: 0 },
   mix: { semi: 1, detached: 0 },
