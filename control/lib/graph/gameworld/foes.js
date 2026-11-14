@@ -70,6 +70,7 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
+import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair', 'becomes'];
@@ -378,8 +379,10 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
   };
-  part.entities.push(e);
-  return e;
+  // (its genre's row: how hard a game's foes are, hero-rows.js rowFoe)
+  const made = rowFoe(G, e);
+  part.entities.push(made);
+  return made;
 }
 
 /** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL): each waits on the land behind the lane

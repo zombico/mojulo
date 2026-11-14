@@ -2,7 +2,7 @@
 // sentence opens on it, and a creator's own pages take it away. And the row's outfit as the hero door builds it: the
 // clothing words it is made of, each on its concept (outfit-plan.js, body-garment.js, outfit/styles.js).
 import { describe, it, expect } from 'vitest';
-import { GENRE_HERO, genreHero, rowGaits, carriedBlade } from './hero-rows.js';
+import { GENRE_HERO, genreHero, rowGaits, carriedBlade, rowFoe } from './hero-rows.js';
 import { arsenalOfGame } from './arsenal.js';
 import { sheetAudio, STEP_GAIN } from './sound-sheet.js';
 import { heroDesign } from './hero-design.js';
@@ -136,5 +136,16 @@ describe('how the genre\'s hero plays', () => {
     expect(A.ranged[0].id).toBe('bow');
     expect(sheetAudio(G).sheet.steps.gain).toBe(STEP_GAIN);
     expect(STEP_GAIN).toBeLessThan(1);
+  });
+  it('its foes are harder: never floored, a temper and a skill up, more health, faster; a boss keeps its own mind', () => {
+    const e = { id: 'foe-1', team: 'foes', rule: { speed: 3.6, mind: { rank: 'minion', aggressiveness: 'bold', skill: 'regular' } }, body: { hp: 8 } };
+    const F = GENRE_HERO['action-rpg'].foes, made = rowFoe(G, e);
+    expect(made.rule.topple).toBe(false);
+    expect(made.rule.mind).toMatchObject({ aggressiveness: F.aggressiveness, skill: F.skill, rank: 'minion' });
+    expect(made.rule.speed).toBeGreaterThan(e.rule.speed);
+    expect(made.body.hp).toBeGreaterThan(e.body.hp);
+    const boss = rowFoe(G, { ...e, rule: { ...e.rule, mind: { rank: 'boss', aggressiveness: 'bold' } } });
+    expect(boss.rule.mind.aggressiveness).toBe('bold');
+    expect(rowFoe({ intent: { from: 'no-such-genre' } }, e)).toBe(e);
   });
 });

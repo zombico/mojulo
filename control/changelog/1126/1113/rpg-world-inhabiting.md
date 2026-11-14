@@ -247,6 +247,9 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     the bow as the sidearm, where a game laid from a sentence had the one blow.
   - A game's foe never locks blades with the hero (`rule.clash: false`, `worlds/controllable/combat-melee.js`): a swing
     that meets its swing lands.
+  - Her foes are harder (a genre hero row's `foes`, `hero-rows.js` rowFoe): never floored by a string's finisher
+    (`rule.topple: false`, `worlds/controllable/combat-hit.js`: a knockdown reels a living body), a temper up
+    (relentless), quicker to answer (veteran), half again the health and a little faster. A boss keeps its own mind.
   - A step is played at a share of a cue's level on the sound sheet (`sound-sheet.js` STEP_GAIN; a game's own:
     `sound.steps`): it sounds twice a stride, and at a blow's level it was all a player heard.
   - A zone's page is titled by its places ("The village", "The meadow road and the old ruins"), where it showed the

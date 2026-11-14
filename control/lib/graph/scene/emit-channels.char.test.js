@@ -25,6 +25,8 @@ import { emitThreeWorld } from './scene-three.js';
 // rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one
 // line replaced; no gain, a cue's own level as before). Every fixture that embeds the controllable runtime or the
 // audio channel re-pinned with it.
+// Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
+// (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
 //
 // Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
 // gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
