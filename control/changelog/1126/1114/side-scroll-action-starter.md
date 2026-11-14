@@ -44,7 +44,10 @@ screen) is now played on a page; before, only its practice yard was.
   end and stamped on the shell's result; a result with no rank shows no rank row (the results idiom drew an empty
   one). The boss's bar runs along the foot, clear of the corners' readouts. The keys go back to the shell as a street
   ends, so its result is driven from the keyboard, and "play again" fights the street from its start.
+- The crowd has faces: a street's `cast` (`{ <crowd type> | boss | *: a roster index }`) draws its crowd and its boss
+  as the roster's characters, their fight still their type's. A quick brawl makes two beside its players (a thug,
+  the boss: `quick.js` BRAWL_CROWD), so its street is fought against made characters, not stick figures.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
-- Not yet: the crowd as a world's own bestiary (it is the library's thugs, stick figures), the street's dress (the
+- Not yet: the crowd from a world's own bestiary, and variety in it (every thug is the one character), the street's dress (the
   stage kits), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed
   (non-quick) world.

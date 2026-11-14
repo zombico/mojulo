@@ -36,6 +36,10 @@ describe('a world\'s street, read', () => {
     expect(D.street.waves).toEqual(WAVES);
     expect(D.dummies).toEqual([]);
     expect(Object.keys(D.yard.spec.screens).sort()).toEqual(['lost', 'moves', 'won']);
+    // (its crowd's faces: a type, the boss or the rest → a roster index, checked against the roster)
+    expect(brawlYardData({ belt: BELT, street: { ...STREET, cast: { '*': 1, boss: 2 } } }).street.cast).toEqual({ '*': 1, boss: 2 });
+    expect(() => brawlYardData({ belt: BELT, street: { ...STREET, cast: { boss: 99 } } })).toThrow(/roster index/);
+    expect(() => readStreet({ ...STREET, cast: { boss: 'big' } }, BELT)).toThrow(/cast/);
     // (a practice yard's data is what it was: no street on it)
     expect(brawlYardData({ belt: brawlPreset('yard').belt, practice: {} }).street).toBeUndefined();
   });

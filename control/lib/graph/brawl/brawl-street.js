@@ -6,7 +6,7 @@
  *
  *   streetSpec()        the spec: the HUD and its screens (`won`, `lost`, and `moves`, the brawler's move list)
  *   streetScreenOf()    → { spec, css, theme } for the street's page
- *   readStreet(street, belt, where?) → the settled `{ players, waves, things? }` of a world's `brawl.street` (throws
+ *   readStreet(street, belt, where?) → the settled `{ players, waves, things?, cast? }` of a world's `brawl.street` (throws
  *                       naming the fault before the page is made)
  *
  * The state it reads (the page writes it from brawl-street-read.js streetRead): brawl.street { hp, hpMax, name,
@@ -56,8 +56,10 @@ export function streetScreenOf() {
  * the belt, so a fault is said before the page), the things on it. */
 export function readStreet(street, belt, where = 'brawl.street') {
   if (!street || typeof street !== 'object' || Array.isArray(street)) throw new Error(`brawl: ${where} is { players?, roster?, waves: [{ screen, crowd: [{ type, n }], boss? }], things? }`);
-  for (const k of Object.keys(street)) if (!['players', 'roster', 'waves', 'things'].includes(k)) throw new Error(`brawl: ${where}.${k} is not a street's word (players, roster, waves, things)`);
+  for (const k of Object.keys(street)) if (!['players', 'roster', 'waves', 'things', 'cast'].includes(k)) throw new Error(`brawl: ${where}.${k} is not a street's word (players, roster, waves, things, cast)`);
+  // (`cast`: who the crowd is DRAWN as: a crowd type, `boss`, or `*` for the rest → a roster index, that character's body)
+  if (street.cast !== undefined && (!street.cast || typeof street.cast !== 'object' || Array.isArray(street.cast) || Object.values(street.cast).some((v) => !Number.isInteger(v) || v < 0))) throw new Error(`brawl: ${where}.cast is { <crowd type> | boss | *: a roster index }`);
   if (!Array.isArray(street.waves) || !street.waves.length) throw new Error(`brawl: ${where}.waves is a list of { screen, crowd: [{ type, n }] }, at least one: a street with no wave is a walk`);
   readWaves(street.waves, belt);
-  return { players: street.players ?? [0], waves: street.waves, things: street.things ?? [], ...(street.roster ? { roster: street.roster } : {}) };
+  return { players: street.players ?? [0], waves: street.waves, things: street.things ?? [], ...(street.roster ? { roster: street.roster } : {}), ...(street.cast ? { cast: street.cast } : {}) };
 }

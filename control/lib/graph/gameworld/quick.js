@@ -803,13 +803,16 @@ export function defaultWaves(belt) {
   });
   return out;
 }
+/** THE CROWD'S FACES: the characters a brawl's crowd and its boss are drawn as (each made as a fighter is, after the
+ * players; the crowd's fight stays its type's): a thug, and the boss. */
+export const BRAWL_CROWD = Object.freeze([{ as: '*', entry: { archetype: 'outlaw', role: 'frontline', style: 'all-rounder', name: 'Thug' } }, { as: 'boss', entry: { archetype: 'ruler', build: 'brute', role: 'frontline', style: 'grappler', name: 'The Boss' } }]);
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
-export function brawlStreets(Q, { title, roster } = {}) {
+export function brawlStreets(Q, { title, roster, cast } = {}) {
   return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves }) => {
     const L = level ?? BRAWL_STREET.level, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const belt = brawlLevel(L, { title: t }).brawl.belt;
-    const street = { players: [0], waves: waves ?? defaultWaves(belt), ...(roster ? { roster } : {}) };
+    const street = { players: [0], waves: waves ?? defaultWaves(belt), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
