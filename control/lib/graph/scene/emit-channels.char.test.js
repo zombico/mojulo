@@ -754,6 +754,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 (the street's breakables as skandart's vessels, brawl/brawl-yard.client.js): `brawl`. Its page
 // inlines the yard's client (a box drawn as its vessel where the page carries one, its wreck left where it broke) and
 // the things' table (a steel drum); the fixture lays no box, so its page carries no model.
+// Re-pinned 2026-11-14 (a belt that rises, brawl/brawl-belt.js `rise`): `brawl`. Its page inlines the belt (its floor's
+// height along it, the camera rising with it) and the yard's client (every thing the simulation places drawn that much
+// higher); the fixture's belt is flat, so its floor is 0 everywhere and its page plays as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS } from './brawl-belt.js';
+import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS, beltFloor, RISE_LIMITS } from './brawl-belt.js';
 import { brawlLevel, brawlPreset, readBrawlLevel, BRAWL_PRESETS, BRAWL_STAGE_KITS } from './brawl-levels.js';
 import { STAGE_KITS } from '../era/stage.js';
 import { readGreybox } from '../level/greybox-scene.js';
@@ -162,5 +162,27 @@ describe('brawl levels: the belt in the indoor designer\'s rooms', () => {
   });
   it('refuses a kit it has no rooms for', () => {
     expect(() => readBrawlLevel({ kind: 'stage', kit: 'moon-base' })).toThrow(/kit/);
+  });
+});
+
+describe('a belt that rises', () => {
+  const flat = { at: [0, 0], heading: 0, depth: [-2.5, 2.5], screens: [{ length: 20 }, { length: 20, gate: true }] };
+  const rise = [[0, 0], [10, 0], [14, 1.2], [40, 1.2]];
+  it('its floor is a line through its points, level before the first and past the last; a flat belt\'s is 0', () => {
+    const B = readBelt({ ...flat, rise }, 'belt');
+    expect(beltFloor(B, 5)).toBe(0); expect(beltFloor(B, 12)).toBeCloseTo(0.6, 6); expect(beltFloor(B, 30)).toBe(1.2); expect(beltFloor(B, 99)).toBe(1.2);
+    expect(beltFloor(readBelt(flat, 'belt'), 12)).toBe(0);
+    // (a rise that never leaves the floor is no rise: the belt as it was, not a word more)
+    expect(readBelt({ ...flat, rise: [[0, 0], [40, 0]] }, 'belt')).toEqual(readBelt(flat, 'belt'));
+  });
+  it('the camera rises with the floor it looks at, and looks the same way', () => {
+    const B = readBelt({ ...flat, rise }, 'belt'), F = readBelt(flat, 'belt'), a = beltCamera(B, 30), b = beltCamera(F, 30);
+    expect(a.lookAt[2] - b.lookAt[2]).toBeCloseTo(1.2, 6); expect(a.cameraPosition[2] - b.cameraPosition[2]).toBeCloseTo(1.2, 6);
+    expect(a.cameraPosition.slice(0, 2)).toEqual(b.cameraPosition.slice(0, 2));
+  });
+  it('a fault is said: a point off the belt, out of order, or steeper than a stair', () => {
+    expect(() => readBelt({ ...flat, rise: [[0, 0], [50, 1]] }, 'belt')).toThrow(/along the belt/);
+    expect(() => readBelt({ ...flat, rise: [[10, 0], [5, 1]] }, 'belt')).toThrow(/after the point before/);
+    expect(() => readBelt({ ...flat, rise: [[10, 0], [11, RISE_LIMITS.grade + 0.5]] }, 'belt')).toThrow(/steeper than a stair/);
   });
 });

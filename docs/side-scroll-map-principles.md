@@ -55,6 +55,17 @@ still made, and says which.
 13. **How far gone is one dial.** A set is tidy or rough as a whole: the wear on its walls, the rubbish on its floor
     and how many of its vessels lie broken go together.
 
+## The ground
+
+14. **The ground may rise along the walk, never across it.** A street that climbs, a flight of steps between two
+    screens, a ramp down to a dock: the floor's height changes with how far along the belt a body stands (`rise`), and
+    the camera rises with the floor it looks at, so the picture stays side-on and the band's lines stay true. Across
+    the belt the floor is level: a blow must share a line, and a line that tilts cannot be read.
+15. **A change of level is a change of place.** Put the rise where the map turns a page: between two held screens, or
+    on the way in. A fight on a stair is hard to read; a fight on the landing above it is remembered.
+16. **What stands beside the walk stands on its own ground.** Buildings step up a climbing street, each on its pad;
+    a piece of the dress stands on the floor under its own middle; nothing floats and nothing is buried.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:

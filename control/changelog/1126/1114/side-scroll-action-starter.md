@@ -135,6 +135,14 @@ screen) is now played on a page; before, only its practice yard was.
   `bay-science`, `bay-everyday`) beside the arena kits, a kit with a setting of its own is dressed as it unsaid (its
   `dress` an object: `{ setting, sets, colour, seed, kit }`; true or false is still the kit's own dressing), and a
   dressed stage is framed by the belt's `street` angle. A quick brawl's boxes are its setting's.
+- Vertical motion: a belt may RISE (`brawl-belt.js` `rise`: the floor's height along it, `[[s, z], …]`, no steeper
+  than a stair between two points; `beltFloor`). The map still scrolls side-on: the camera rises with the floor it
+  looks at, and the simulation is untouched (it plays on a level floor; the page draws every body, shadow, round,
+  thing and wreck that much higher, its shadow catcher a ribbon along the floor). Across the belt the floor stays
+  level. A town street CLIMBS by a word (`{ kind: 'town', climb: 0.06 }`, rise over run to 0.1, under 0 it falls): the
+  town's own slope, its main street on a profile and its buildings stepping up beside it, the belt's rise read off its
+  ground. A greybox street that rises is terraced (a ramp cut into steps, the road grown down to the ground). The
+  dress stands on the floor under each piece. Three principles join the doc (the ground).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

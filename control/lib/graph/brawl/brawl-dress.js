@@ -26,7 +26,7 @@
  * `colour` is the crew's (the faction the street is held by): its tags, its banners and one canopy in a market wear it.
  * A dress collides with nothing: it stands outside the band, by its strips. Pure and deterministic (seeded dice only).
  */
-import { beltPoint } from './brawl-belt.js';
+import { beltPoint, beltFloor } from './brawl-belt.js';
 import { streamOf } from '../city/plan/dice.js';
 import { shadeHex } from '../polygonizer/vexar.js';
 import { skandartVessels } from '../era/skandart-vessels.js';
@@ -394,9 +394,11 @@ export function dressFaces(dress, belt) {
   const D = readDress(dress, belt), t = (belt.heading * Math.PI) / 180, c = Math.cos(t), si = Math.sin(t), out = [];
   dressPlan(D, belt).forEach((p, k) => {
     const P = DRESS_PIECES[p.piece], R = streamOf(D.seed, 'brawl-dress-piece', `${k}:${p.piece}`);
+    // (on a belt that rises, a piece stands on the floor under its own middle)
+    const lift = beltFloor(belt, p.s);
     for (const f of P.build(R, P.crew && (p.boss || p.piece === 'tag' || p.piece === 'banner' || R() < 0.34) ? D.colour ?? null : null)) {
       const o = [f.out[0], f.out[1] * p.turn, f.out[2]];
-      out.push({ corners: f.corners.map(([s, n, z]) => beltPoint(belt, p.s + s, p.n + n * p.turn, z)), out: [r3(o[0] * c - o[1] * si), r3(o[0] * si + o[1] * c), r3(o[2])], hex: f.hex });
+      out.push({ corners: f.corners.map(([s, n, z]) => beltPoint(belt, p.s + s, p.n + n * p.turn, z + lift)), out: [r3(o[0] * c - o[1] * si), r3(o[0] * si + o[1] * c), r3(o[2])], hex: f.hex });
     }
   });
   return out;

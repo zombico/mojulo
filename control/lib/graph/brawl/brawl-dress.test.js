@@ -205,3 +205,26 @@ describe('the laws of a side-scrolling map', () => {
     expect(law({ ...D, sets: ['strip', { far: { bench: 1 }, wall: { clock: 1 }, gap: [12, 14], marks: [20, 22] }, 'yard', 'turf'] }, 'no-bare-run').ok).toBe(false);
   });
 });
+
+describe('on ground that rises', () => {
+  it('a piece stands on the floor under its own middle; a town street climbs by its word and its belt follows its ground', () => {
+    const up = readBelt({ at: [10, 5], heading: 0, floor: 0.2, depth: [-2.5, 3], screens: belt.screens.map(({ length, gate, boss }) => ({ length, ...(boss ? { boss } : gate ? { gate } : {}) })), rise: [[0, 0], [20, 0], [30, 2], [62, 2]] }, 'belt');
+    const low = (b, from, to) => Math.min(...dressFaces(D, b).filter((f) => f.corners.every((c) => c[0] - 10 > from && c[0] - 10 < to)).flatMap((f) => f.corners.map((c) => c[2])));
+    expect(low(up, 40, 60) - low(belt, 40, 60)).toBeCloseTo(2, 1);
+    expect(low(up, 0, 18)).toBeCloseTo(low(belt, 0, 18), 3);
+    const T = brawlLevel({ kind: 'town', climb: 0.06 }), B = T.brawl.belt;
+    expect(B.rise.length).toBeGreaterThan(5);
+    expect(B.rise[B.rise.length - 1][1]).toBeGreaterThan(1.5);
+    expect(Object.keys(T.geotown.slope.streets)).toHaveLength(1);
+    expect(brawlLevel({ kind: 'town' }).brawl.belt.rise).toBeUndefined();
+    expect(() => brawlLevel({ kind: 'town', climb: 0.4 })).toThrow(/grade/);
+  });
+  it('a greybox street that rises is terraced: a ramp cut into steps, the road grown down to the ground, none floating', () => {
+    const riseW = [[0, 0], [11, 0], [15, 1.4], [62, 1.4]];
+    const G = brawlLevel({ kind: 'greybox', preset: 'street', belt: { rise: riseW } }), F = brawlLevel({ kind: 'greybox', preset: 'street' });
+    expect(G.blocks.length).toBeGreaterThan(F.blocks.length);
+    const tops = G.blocks.filter((b) => b.tone === 'floor').map((b) => b.at[2] + b.size[2]);
+    expect(Math.max(...tops) - Math.min(...tops)).toBeCloseTo(1.4, 1);
+    for (const b of G.blocks.filter((q) => q.tone === 'floor')) expect(b.at[2]).toBeLessThanOrEqual(0);
+  });
+});

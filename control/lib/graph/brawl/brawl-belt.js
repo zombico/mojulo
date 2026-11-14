@@ -13,6 +13,7 @@
  *              camera stands on the near side, −n); [-2.5, 2.5] by default
  *     screens  the run, in order, each `length` m along it; `gate` holds the camera at its end until its wave is beaten;
  *              `boss` (the last screen only) is the boss's, and held
+ *     rise     the floor's height along it, [[s, z], …]: a street that climbs, steps between screens (absent: flat)
  *     angle    the camera's locked angle (BELT_ANGLES), one a stage, chosen when the game is made; it never orbits
  *
  * A belt is straight: a street that turns is two belts (a stage's next street), never a bent one, so a body's s and n are
@@ -21,6 +22,7 @@
  *   readBelt(belt, where)          → the settled belt: its words and `length`, each screen's `from` and `to` (throws
  *                                    naming the fault)
  *   beltPoint(belt, s, n, z)       → [x, y, z] world metres of a belt-local point
+ *   beltFloor(belt, s)             → m, the floor's height at s over the belt's floor (its `rise`; 0 on a flat belt)
  *   screenAt(belt, s)              → the index of the screen s is in
  *   heldAt(belt, cleared)          → the s the camera may not show past: the end of the first held screen whose wave is
  *                                    not in `cleared` (a set or a list of screen indices), else the belt's end
@@ -67,14 +69,16 @@ const PUSH = 1 / 3;
 /** how near a screen's edge a body may stand (m): the edge is a wall it cannot walk through, a body's width in */
 const EDGE = 0.5;
 
-const KEYS = ['at', 'heading', 'floor', 'depth', 'screens', 'angle'];
+const KEYS = ['at', 'heading', 'floor', 'depth', 'screens', 'angle', 'rise'];
+/** a belt's rise: how steep the floor may run between two of its points (rise over run: a stair), how far it may rise */
+export const RISE_LIMITS = Object.freeze({ grade: 0.7, height: 30, points: 200 });
 const SCREEN_KEYS = ['length', 'gate', 'boss'];
 
 /** Read a belt; → { at, heading, floor, depth, screens: [{ length, from, to, gate, boss }], angle, length }. */
 export function readBelt(belt, where = 'belt') {
   if (!belt || typeof belt !== 'object' || Array.isArray(belt)) no(`${where} is { at: [x, y], heading, floor?, depth?: [near, far], screens: [{ length, gate?, boss? }], angle? }`);
   for (const k of Object.keys(belt)) if (!KEYS.includes(k)) no(`${where}.${k} is not a belt's word (${KEYS.join(', ')})`);
-  const { at = [0, 0], heading = 0, floor = 0, depth = BELT_DEPTH, screens, angle: angleId = 'classic' } = belt;
+  const { at = [0, 0], heading = 0, floor = 0, depth = BELT_DEPTH, screens, angle: angleId = 'classic', rise } = belt;
   if (!Array.isArray(at) || at.length !== 2 || !at.every(isNum) || at.some((v) => Math.abs(v) > BELT_LIMITS.at)) no(`${where}.at is [x, y], metres on the level's plan (within ${BELT_LIMITS.at} m)`);
   if (!isNum(heading)) no(`${where}.heading is degrees, the way the belt runs (0 along +x)`);
   const [fLo, fHi] = BELT_LIMITS.floor;
@@ -97,6 +101,19 @@ export function readBelt(belt, where = 'belt') {
     return { length: r4(sc.length), from: r4(from), to: r4(s), gate: !!(sc.gate || sc.boss), boss: !!sc.boss };
   });
   const B = { at: [r4(at[0]), r4(at[1])], heading: r4(((heading % 360) + 360) % 360), floor: r4(floor), depth: [r4(depth[0]), r4(depth[1])], screens: out, angle: angleId, length: r4(s) };
+  // ITS RISE: the floor's height along the belt over `floor`, a line through [s, z] points (m along, m up): a street
+  // that climbs, a flight of steps between two screens. Along the belt only: across it the floor is level, so the
+  // band's lines stay true. Absent, the belt is flat.
+  if (rise !== undefined) {
+    if (!Array.isArray(rise) || rise.length < 2 || rise.length > RISE_LIMITS.points || !rise.every((p) => Array.isArray(p) && p.length === 2 && p.every(isNum))) no(`${where}.rise is the floor's height along the belt: [[s, z], …] (m along it, m over its floor), 2 to ${RISE_LIMITS.points} points`);
+    for (const [i, [ps, pz]] of rise.entries()) {
+      if (ps < -1e-6 || ps > B.length + 1e-6) no(`${where}.rise[${i}] is at ${ps} m: along the belt, 0 to ${B.length}`);
+      if (Math.abs(pz) > RISE_LIMITS.height) no(`${where}.rise[${i}] is ${pz} m up: within ${RISE_LIMITS.height} m of the belt's floor`);
+      if (i && !(ps > rise[i - 1][0])) no(`${where}.rise[${i}] comes after the point before it along the belt`);
+      if (i && Math.abs(pz - rise[i - 1][1]) / (ps - rise[i - 1][0]) > RISE_LIMITS.grade + 1e-9) no(`${where}.rise[${i}] is steeper than a stair (${RISE_LIMITS.grade} rise over run) from the point before it`);
+    }
+    if (rise.some(([, z]) => Math.abs(z) > 1e-9)) B.rise = rise.map(([ps, pz]) => [r4(ps), r4(pz)]);
+  }
   // (the camera, held at a screen's end, stands its view's half before it: a screen held before the camera's first view
   // is filled would hold it behind its start)
   const half = viewHalf(B);
@@ -110,6 +127,16 @@ export function readBelt(belt, where = 'belt') {
 export function beltPoint(belt, s, n = 0, z = 0) {
   const t = (belt.heading * Math.PI) / 180, c = Math.cos(t), si = Math.sin(t);
   return [r4(belt.at[0] + s * c - n * si), r4(belt.at[1] + s * si + n * c), r4(belt.floor + z)];
+}
+
+/** The floor's height at s over the belt's `floor` (m): its rise's line through its points, level before the first and
+ * past the last; 0 on a flat belt. */
+export function beltFloor(belt, s) {
+  const R = belt.rise;
+  if (!R) return 0;
+  if (s <= R[0][0]) return R[0][1];
+  for (let i = 1; i < R.length; i++) if (s <= R[i][0]) { const [a, za] = R[i - 1], [b, zb] = R[i]; return r4(za + ((zb - za) * (s - a)) / (b - a)); }
+  return R[R.length - 1][1];
 }
 
 /** The index of the screen s is in (the first at its start, the last past the belt's end). */
@@ -156,5 +183,7 @@ export function beltCamera(belt, cam) {
   // (in the belt's frame: the camera stands back toward −n, turned by the yaw so it looks a little along +s)
   const back = A.distance * Math.cos(p), up = A.distance * Math.sin(p);
   const ds = -back * Math.sin(y), dn = -back * Math.cos(y);
-  return { cameraPosition: beltPoint(belt, cam + ds, mid + dn, A.look + up), lookAt: beltPoint(belt, cam, mid, A.look), horizontalFov: A.fov };
+  // (on a belt that rises, the camera rises with the floor it looks at)
+  const f = beltFloor(belt, cam);
+  return { cameraPosition: beltPoint(belt, cam + ds, mid + dn, f + A.look + up), lookAt: beltPoint(belt, cam, mid, f + A.look), horizontalFov: A.fov };
 }
