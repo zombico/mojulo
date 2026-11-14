@@ -4,7 +4,7 @@
  * (chapters.js `sound`). Pure.
  *
  *   soundSheet(G, { manifest? })  → { style, slots: { step, jump, land, dodge, swing, strike }, on: { <palette cue id>:
- *                       <shelf word> }, foes: { <id>: <shelf word> }, why: { <slot | cue | foe>: reason }, owed: [reason] }
+ *                       <shelf word> }, moves?, foes: { <id>: <shelf word> }, foeSounds: { <id>: { attack?, hurt?, down? } }, why: { <slot | cue | foe>: reason }, owed: [reason] }
  *                       (a level's `manifest` sets its ground: a stage grown on a nature or jungle kit is grass underfoot)
  *   sheetAudio(G, { manifest? })  → the level's `audio.sfx` word for the sheet: { sheet: { style, slots, on, moves? } }
  *                       (beats-world.js voices it)
@@ -21,6 +21,11 @@
  * firing range's procedure, combat/range-sound.js: a shot by its cartridge, a reload over the gun's own reload time,
  * a round landing, the draw), in the shelf's realistic style whatever the sheet's (the mouth voices no gunshot). A
  * game overrides a gun with `sound.guns: { <gun's name>: { shot?, reload?, hit?, draw? } }`.
+ *
+ * ITS FOES: each foe of the bestiary sounds on what it does (`foeSounds`: { <foe id>: { attack?, hurt?, down? } }, the
+ * page's foe channel, scene/channels/audio.js): a beast attacks with its species' voice (and a big cat grunts when
+ * struck); a foe drawn as a person shouts on its attack, grunts on a blow and cries out as it falls (the voice
+ * family's efforts). A game overrides a foe with `sound.foes: { <foe id>: { attack?, hurt?, down? } }`.
  *
  * NEW VOICES FIRST (the operator's rule, 2026-11-10): the sheet's style is `mouth` unless the game writes another
  * (`sound.style`), so every event the mouth voices (mouth foley: the swings, the strikes, the staff, the steps on grass,
@@ -138,6 +143,26 @@ function stepOf(manifest) {
   return { step: 'step-concrete', why: manifest?.kit ? `a ${shell ?? manifest.kit} stage: stone underfoot` : 'stone underfoot' };
 }
 
+// a beast struck: the short voice the shelf has for its kind (a big cat's short roar); the rest take the blow's own sound
+const BEAST_HURT = Object.freeze({ 'roar-lion': 'roar-lion-short' });
+// a foe drawn as a person (`skin.people`): the voice family's efforts
+const PERSON_SOUNDS = Object.freeze({ attack: 'attack-shout', hurt: 'hurt-grunt', down: 'hurt-heavy' });
+const FOE_KEYS = Object.freeze(['attack', 'hurt', 'down']);
+
+/** What each foe of the bestiary sounds like on its attack, on a blow taken and as it falls: { <id>: { attack?, hurt?, down? } }. */
+function foeSoundsOf(G, voices, own) {
+  const out = {}, why = {};
+  for (const [id, e] of Object.entries(isObj(G?.foes) ? G.foes : {})) {
+    const o = own.foes?.[id] ?? {};
+    const base = voices[id] ? { attack: voices[id], ...(BEAST_HURT[voices[id]] ? { hurt: BEAST_HURT[voices[id]] } : {}) } : e?.skin?.people ? { ...PERSON_SOUNDS } : {};
+    const S = { ...base, ...o };
+    if (!Object.keys(S).length) continue;
+    out[id] = S;
+    why[`foe:${id}:sounds`] = Object.keys(o).length ? 'the game says so' : voices[id] ? `its attack in its own voice (${SOUNDS[voices[id]].label})` : 'drawn as a person: a shout, a grunt, a cry';
+  }
+  return { foeSounds: out, why };
+}
+
 /** Each fielded beast's voice, by its skin's species. */
 function foeVoices(G) {
   const out = {}, why = {};
@@ -152,7 +177,7 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, bed?, vary? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, bed?, vary? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
@@ -167,6 +192,13 @@ export function readSound(S) {
     for (const [id, o] of Object.entries(S.guns)) {
       if (!isObj(o)) throw fail(`.guns.${id} is { ${GUN_KEYS.join('?, ')}? }, each a shelf word`);
       for (const [k, w] of Object.entries(o)) { if (!GUN_KEYS.includes(k)) throw fail(`.guns.${id}.${k}: a gun's sounds are ${GUN_KEYS.join(', ')}`); word(`.guns.${id}.${k}`, w); }
+    }
+  }
+  if (S.foes !== undefined) {
+    if (!isObj(S.foes)) throw fail(`.foes is { <foe id>: { ${FOE_KEYS.join('?, ')}? } }, each a shelf word`);
+    for (const [id, o] of Object.entries(S.foes)) {
+      if (!isObj(o)) throw fail(`.foes.${id} is { ${FOE_KEYS.join('?, ')}? }, each a shelf word`);
+      for (const [k, w] of Object.entries(o)) { if (!FOE_KEYS.includes(k)) throw fail(`.foes.${id}.${k}: a foe's sounds are ${FOE_KEYS.join(', ')}`); word(`.foes.${id}.${k}`, w); }
     }
   }
   if (S.weapons !== undefined) {
@@ -185,9 +217,10 @@ export function soundSheet(G, { manifest = null } = {}) {
   const style = own.style ?? 'mouth';
   const st = strikeOf(G), sp = stepOf(manifest), fv = foeVoices(G);
   const mv = movesOf(G, own);
+  const fs = foeSoundsOf(G, fv.foes, own);
   const slots = { step: sp.step, jump: 'jump', land: 'land', dodge: 'dodge', swing: st.swing, strike: st.strike, ...(own.slots ?? {}) };
   const on = { ...ON_FRESH, ...(Object.values(fv.foes).length ? { alarm: Object.values(fv.foes)[0] } : {}), ...(own.on ?? {}) };
-  const why = { step: sp.why, swing: st.why, strike: st.why, door: 'a door opening: the latch (a new voice)', ...fv.why, ...(mv?.why ?? {}),
+  const why = { step: sp.why, swing: st.why, strike: st.why, door: 'a door opening: the latch (a new voice)', ...fv.why, ...fs.why, ...(mv?.why ?? {}),
     ...(on.alarm && !own.on?.alarm ? { alarm: `spotted: the ${Object.keys(fv.foes)[0]}'s voice` } : {}) };
   for (const k of Object.keys(own.slots ?? {})) why[k] = 'the game says so';
   for (const k of Object.keys(own.on ?? {})) why[k] = 'the game says so';
@@ -195,8 +228,9 @@ export function soundSheet(G, { manifest = null } = {}) {
   const fresh = (w) => !!SOUNDS[id(w)]?.voices?.mouth;
   const owed = [];
   if (style === 'mouth') for (const [k, w] of Object.entries(slots)) if (!fresh(w)) owed.push(`${k}: '${id(w)}' has no new voice yet (it plays realistic)`);
-  if (Object.keys(fv.foes).length) owed.push(`the foes' voices (${Object.entries(fv.foes).map(([f, w]) => `${f}: ${w}`).join(', ')}) play only when a foe is spotted: no event voices a foe's attack yet`);
-  return { style, slots, on, ...(mv ? { moves: mv.moves } : {}), foes: fv.foes, why, owed };
+  const mute = Object.keys(isObj(G?.foes) ? G.foes : {}).filter((id) => !fs.foeSounds[id]);
+  if (mute.length) owed.push(`${mute.join(', ')}: no voice of its own (neither a beast the shelf voices nor drawn as a person): it sounds only by the blows it gives and takes`);
+  return { style, slots, on, ...(mv ? { moves: mv.moves } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
 // a stage's environment by its kit's words, its weather and its hour: the bed it lays under the score
@@ -234,7 +268,7 @@ export function variesHits(G) {
 /** The level's audio word for the sheet (beats-world.js resolves `sfx: { sheet }`): what the shelf plays each slot and cue by. */
 export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
-  return { sheet: { style: S.style, slots: S.slots, on: S.on, ...(S.moves ? { moves: S.moves } : {}) } };
+  return { sheet: { style: S.style, slots: S.slots, on: S.on, ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}) } };
 }
 
 /**

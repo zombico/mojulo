@@ -10,6 +10,7 @@
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
+ *     (a sheet level also carries `foes`: { <foe id>: { attack?, hurt?, down? } } cue ids, from sfx.sheet.foes)
  *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
  *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
  *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
@@ -201,6 +202,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   // else by the shelf's row of that id (every palette cue id is a row); the gait, weapon, melee and dodge by its slots.
   // What the spec writes wins.
   const sheet = audioSpec.sfx && typeof audioSpec.sfx === 'object' && audioSpec.sfx.sheet ? audioSpec.sfx.sheet : null;
+  let sheetFoes = null;
   if (sheet) {
     const style = sheet.style ?? 'mouth';
     const cueOf = (word) => { const v = sfxSound(word, { style }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
@@ -215,6 +217,14 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     }
     const slot = (k, row) => cueOf(sheet.slots?.[k] ?? row) ?? undefined;
     const kept = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
+    // its foes (`sheet.foes`, sound-sheet.js foeSounds): what each foe of the bestiary sounds like on its attack, on a
+    // blow taken and as it falls, each word a cue of the level's (`foe-<word>`); the page's foe channel plays them
+    if (sheet.foes && audioSpec.foes === undefined) {
+      const idOf = (word) => { const id = `foe-${word}`; if (!(id in cues)) cues[id] = cueOf(word); return cues[id] ? id : null; };
+      const F = Object.fromEntries(Object.entries(sheet.foes).map(([f, S]) => [f, kept(Object.fromEntries(Object.entries(S).map(([k, word]) => [k, idOf(word)])))]).filter(([, S]) => Object.keys(S).length));
+      for (const id of Object.keys(cues)) if (!cues[id]) delete cues[id];
+      if (Object.keys(F).length) sheetFoes = F;
+    }
     // the whole arsenal (`sheet.moves`, sound-sheet.js): the moveset's events by shelf word, each word a cue of the
     // level's (`mv-<word>`), wired as the practice room wires them (audio.moves). It stands in the strike's place: the
     // moveset's channel sounds the pilot's swing and blow by its weapon and weight, and the foes' own
@@ -399,6 +409,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   // one of the level's sfx cues; the swing and the hit by the weapon in hand and the move's weight. A cue it names that
   // the level has not is refused, saying which
   if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
+  // a sheet level's FOES (above): { <foe id>: { attack?, hurt?, down? } }, each a cue id of the level's
+  if (sheetFoes && out.cues) out.foes = sheetFoes;
 
   return Object.keys(out).length ? out : null;
 }

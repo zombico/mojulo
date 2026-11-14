@@ -379,6 +379,33 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     }
   })();
 })();
+` : ''}${audio.foes ? `// a sheet level's FOES (audio.foes, beats-world.js; gameworld/sound-sheet.js): each foe of the bestiary by its id
+// (a body's id is foe-<its id>-<n>) sounds on its attack (a swing begun), on a blow taken and as it falls, each a cue
+// of the level's, placed where it stands. A kind's attacks are held apart (a pack never says one sound at once).
+// Read-only, as the moveset's above. (No backticks: inside an emitted template literal.)
+(function () {
+  const F = __AUDIO.foes, C = __AUDIO.cues || {}, L = {}, keys = Object.keys(F).sort(function (a, b) { return b.length - a.length; }), said = {};
+  const kindOf = (id) => { for (const k of keys) if (id.indexOf('foe-' + k + '-') === 0) return k; return null; };
+  (function __beatsFoes() {
+    requestAnimationFrame(__beatsFoes);
+    if (!__beatsEng || __beatsMuted) return;
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world;
+    if (!ctrl) return;
+    const now = performance.now() / 1000;
+    for (const e of ctrl.entities) {
+      if (e.team !== 'foes' || typeof e.id !== 'string') continue;
+      const l = L[e.id] || (L[e.id] = { k: kindOf(e.id), swing: e.swingCount || 0, hits: e.hits || 0, down: !!e.downed });
+      const S = l.k ? F[l.k] : null;
+      if (S) {
+        const play = (what, gap) => { const id = S[what], key = l.k + ':' + what; if (!id || !C[id] || (gap && now - (said[key] || -1e9) < gap)) return; said[key] = now; __beatsCue(C[id], __proxGain(e.transform.pos)); };
+        if (e.downed && !l.down) play('down', 0);
+        else if ((e.hits || 0) > l.hits && !e.downed) play('hurt', 0.12);
+        if ((e.swingCount || 0) > l.swing) play('attack', 0.3);
+      }
+      l.swing = e.swingCount || 0; l.hits = e.hits || 0; l.down = !!e.downed;
+    }
+  })();
+})();
 ` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
 // visual jets. Unlike the one-shot cues above it is a continuous, gain-modulated noise bed that
 // SWELLS with e.thrust (the same 0..1 the platform rule flags on boost and the jets read) and dies

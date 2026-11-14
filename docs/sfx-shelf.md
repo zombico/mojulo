@@ -234,13 +234,17 @@ A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, th
   shotgun; a launcher's round away), a reload spread over the gun's own reload time, a round landing, the draw.
   Guns play realistic whatever the sheet's style, since no other style voices a gunshot by its cartridge.
 - **Its ground:** grass on a nature or jungle stage, else stone.
-- **Its foes:** a beast's voice by its species, heard when it spots the hero.
+- **Its foes:** a beast's voice by its species, heard when it spots the hero and each time it attacks; a big cat
+  also grunts when struck. A foe drawn as a person shouts on its attack, grunts on a blow and cries out as it falls.
+  A pack's attacks are held apart, so five wolves never say one snarl at once. A foe that is neither is listed as
+  owed: it sounds only by the blows it gives and takes.
 - **Its doors:** a door opens on a latch.
 
 **The newest voices come first.** The sheet's style is `mouth` unless the game says otherwise, so a sound the mouth
-doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on?, weapons?, moves?, guns? }`, each a shelf word: `weapons` is
+doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on?, weapons?, moves?, guns?, foes? }`, each a shelf word: `weapons` is
 `{ <weapon id>: { swing?, heavy?, hit?, finisher? } }` `moves` is `{ block?, parry?, break?, draw?, loose?, arrow?,
-felled?, cycle?, foeSwing?, hurt? }`, and `guns` is `{ <gun's name>: { shot?, reload?, hit?, draw? } }`.
+felled?, cycle?, foeSwing?, hurt? }`, `guns` is `{ <gun's name>: { shot?, reload?, hit?, draw? } }`, and `foes` is
+`{ <foe id>: { attack?, hurt?, down? } }`.
 A game that writes a `sound` of its own, even an empty one, hears the sheet on every level it builds; a quick game's
 levels also hear it with `sfx: 'sheet'`, and a quick game that names another `sfx` keeps that. A game with neither
 builds its levels as it did. A stage that wrote its own `audio` keeps it under the sheet. `beats-world.js` voices `sfx: { sheet }`, wiring each event

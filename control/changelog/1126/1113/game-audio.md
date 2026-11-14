@@ -14,9 +14,13 @@
   carries sounds as what it is, by the firing range's procedure: its shot by its cartridge, its reload over its own
   reload time, a round landing, the draw. A game overrides a gun with `sound.guns`. Not on the sheet yet: a
   dogfight's craft, guns picked up off the floor, the bots' guns, and a rocket's blast.
+- **Foes sound on what they do.** Each foe of a sheet game's bestiary sounds on its attack, on a blow taken and as
+  it falls, placed where it stands: a beast in its species' voice (a big cat grunts when struck), a foe drawn as a
+  person with a shout, a grunt and a cry. A pack's attacks are held apart. A game overrides a foe with `sound.foes`;
+  a foe with no voice of its own is listed as owed. Before this a foe's voice played only when it spotted the hero.
 - **Fixed: a game's `sound` reached no level.** The world reader checked `sound` and did not carry it, so a quick
   game on the sheet played the solved sheet and ignored the game's own style, slots and cues.
-- Planned, not built yet: the sheet covering foes' attacks and rides; a music department
+- Planned, not built yet: the sheet covering rides and the ground block by block; a music department
   that sets the game's audio direction (play keeps the SFX and reads it) and whose cue sheet answers each
   department's request for music (the flow's screens, the levels, the fights, the cinematics, the outcomes) on the
   game's one score identity; a title theme (the menu and the credits the same tune at another energy) and a cue

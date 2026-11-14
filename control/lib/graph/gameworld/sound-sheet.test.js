@@ -238,3 +238,30 @@ describe('a sheet game\'s guns (each by what it is, the firing range\'s procedur
     expect(heard.audio.sfx.sheet.cues['shotgun:shot']).toEqual(kit[0].weapon.sfx.shot);
   });
 });
+
+describe('a sheet game\'s foes sound on what they do', () => {
+  // one foe per way a foe is voiced: a beast the shelf voices, a big cat (a hurt of its own), a person, one with no voice
+  const FOES = { foes: { alpha: { class: 'brute', skin: { species: 'wolf' } }, simba: { class: 'brute', skin: { species: 'lion' } }, thug: { class: 'brute', skin: { people: 'bandits' } }, blob: { class: 'brute' } } };
+
+  it('a beast attacks in its voice, a person shouts, grunts and cries out; the game\'s word wins; a voiceless foe is owed', () => {
+    const S = soundSheet(FOES);
+    expect(S.foeSounds).toEqual({ alpha: { attack: 'snarl' }, simba: { attack: 'roar-lion', hurt: 'roar-lion-short' }, thug: { attack: 'attack-shout', hurt: 'hurt-grunt', down: 'hurt-heavy' } });
+    expect(S.owed.some((l) => /^blob: no voice/.test(l))).toBe(true);
+    for (const o of Object.values(S.foeSounds)) for (const w of Object.values(o)) expect(SOUNDS[w] ?? null, w).not.toBeNull();
+    expect(soundSheet({ ...FOES, sound: { foes: { blob: { down: 'down' }, alpha: { attack: 'growl' } } } }).foeSounds).toMatchObject({ blob: { down: 'down' }, alpha: { attack: 'growl' } });
+    expect(() => readSound({ foes: { alpha: { bark: 'snarl' } } })).toThrow(/a foe's sounds/);
+    expect(() => readSound({ foes: { alpha: { attack: 'nope nope' } } })).toThrow(/not a sound on the shelf/);
+  });
+
+  it('a level carries them as cues and the page\'s foe channel; a level whose game fields none carries not a byte of it', () => {
+    const audio = resolveWorldAudio({ sfx: sheetAudio(FOES) }, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(audio.foes).toEqual({ alpha: { attack: 'foe-snarl' }, simba: { attack: 'foe-roar-lion', hurt: 'foe-roar-lion-short' }, thug: { attack: 'foe-attack-shout', hurt: 'foe-hurt-grunt', down: 'foe-hurt-heavy' } });
+    for (const S of Object.values(audio.foes)) for (const id of Object.values(S)) expect(audio.cues[id]).toBeDefined();
+    const js = audioChannelScript(audio);
+    expect(js).toContain('__beatsFoes');
+    expect(() => new Function(js)).not.toThrow();
+    const plain = resolveWorldAudio({ sfx: sheetAudio({}) }, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(plain.foes).toBeUndefined();
+    expect(audioChannelScript(plain)).not.toContain('__beatsFoes');
+  });
+});
