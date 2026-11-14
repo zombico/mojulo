@@ -109,16 +109,16 @@ forge_motion({ title: 'The key', export: 'storyboard',
     so a vehicle needs no `scale`. A word no shelf has is refused with what the shelves have. Dress a set this way
     first: `props: { car: { thing: 'sedan', at: [3, 2], turn: 30 } }`.
   - **`ref`: anything mojulo made**, for a thing no shelf has.
-  - **A thing that arrives:** `from` (`[x, y]` or a mark's name), `start?` (the second it sets off, 0) and `speed?`
-    (metres a second: a vehicle 6, anything else 1.4). It comes in a straight line to its `at` and rests there: `car:
-    { thing: 'sedan', at: [12.5, 48], from: [12.5, 5], start: 1 }` is a car that pulls up. With no `turn` it faces
-    the way it came. The plan, the walks and the storyboard read it where it rests; it moves in the Blender film.
-    Not yet: a thing that leaves, a way that bends, the script saying when (it is timed in seconds).
-  - It stands with its lowest point on the floor and its middle at `at`, at its real size where its recipe has a
-    unit. A thing made in no real unit is read as metres: give it a `scale`.
-  - **Its name is a place**: the clear ground beside it. "Ada crosses to the car."
-  - It is walked round, seen past and drawn on the board like the rest of the set. A scene needs no `world_ref` to
-    take props: they stand on the bare stage.
+  - **A thing that moves.** It ARRIVES: `from` (`[x, y]` or a mark's name) and `start?` (when it sets off; 0). It
+    LEAVES: `to` and `leave?` (when; with none, as the last line begins, never before it has arrived). Both: it
+    pulls up, waits, and goes. `speed?` is metres a second (a vehicle 6, anything else 1.4).
+    - **A time is a second of the scene, or a line:** `{ line: 2 }` is as line 2 starts, `{ line: 2, at: 'end' }` as it
+      ends. `car: { thing: 'sedan', at: [9.3, 50], from: [9.3, 6], start: { line: 1 }, to: [9.3, 68], leave: { line:
+      4 } }` pulls up on the first line and drives on at the fourth.
+    - Each leg is a straight line. With no `turn` it faces the way it came (or, only leaving, the way it goes), and
+      keeps that facing: a thing that leaves back the way it came reverses out.
+    - The plan, the walks and the storyboard read it at its `at`; it moves in the Blender film, on the ground.
+    - Not yet: a way that bends or follows a street; a turn on the way.
 - **`voice`: recorded lines.** Write `{ <line number>: '<path>.wav' | { audio, text? } }`. The number counts spoken
   lines, 1 the first, in script order.
   - **They set the clock.** A recorded line lasts its recording. The read is fitted to it, so the face, the gestures on

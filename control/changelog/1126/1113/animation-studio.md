@@ -106,10 +106,12 @@ game.
     vehicles, the furniture and the props mojulo already has are all there to be named. Before, every prop had to
     be an object you had made, and a vehicle needed its scale given. A word mojulo has nothing for is refused, with
     what it does have.
-  - **A thing can arrive.** Say where a prop comes from and it drives or moves in to its place during the scene:
-    a car that pulls up at the kerb. It faces the way it came. In the storyboard it is drawn where it stops.
-  - **Not yet:** a house does not name its rooms, so its cast stands outside it. A thing cannot yet leave, or
-    follow a bend.
+  - **A thing can arrive, and leave.** Say where a prop comes from and it drives or moves in to its place during
+    the scene: a car that pulls up at the kerb. Say where it goes and it drives off. Say both and it pulls up,
+    waits, and goes. Time it by the script ("as line 2 starts", "when line 4 ends") or in seconds. It faces the way
+    it came, and stays on the ground along its way. In the storyboard it is drawn where it stops.
+  - **Not yet:** a house does not name its rooms, so its cast stands outside it. A moving thing goes in straight
+    lines: it cannot yet follow a bend or turn round.
 - **Film outdoors: hills, fields and streets.** A scene can be set on land that rises and falls, and in a town.
   - **The cast stands on the ground.** On a hillside each actor, camera and prop stands at the height of the ground
     under it, and a walk keeps its feet on the land. Before, everyone stood at one height, so on a slope they floated
