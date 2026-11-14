@@ -804,7 +804,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics)
       && sketch.manifest.game.mechanics.length && sketch.manifest.game.decorate !== false) {
     const { decorateMechanics, mergeDecorFx } = await import('@/lib/graph/game/mechanic-decor');
-    const decor = decorateMechanics(sketch.manifest.game.mechanics);
+    // (`game.highlight`: what its mechanics lay to be taken is indicated, lit at its silhouette: game/highlight.js)
+    const { highlightFor, readHighlight } = await import('@/lib/graph/game/highlight');
+    const hl = highlightFor(sketch.manifest.game);
+    if (hl) readHighlight(hl, 'game.highlight');
+    const decor = decorateMechanics(sketch.manifest.game.mechanics, hl ? { highlight: hl } : {});
     decorReactions = decor.reactions;
     decorSuppress = new Set(decor.suppress);
     const m = sketch.manifest;
