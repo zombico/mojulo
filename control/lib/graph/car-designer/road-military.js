@@ -79,12 +79,15 @@ import { readLivery, paintLivery, stencilMarks, liveryBase } from './livery-cut.
 import { mulberry32 } from '../vegetation/grow.js';
 import { AIRSIDE_CLASSES, AIRSIDE_BODIES, AIRSIDE_KITS, AIRSIDE_LIVERY, airsideAxles } from './road-airside.js';
 import { CIVIC_CLASSES, CIVIC_BODIES, CIVIC_KITS, CIVIC_LIVERY, civicAxles } from './road-civic.js';
+import { HAUL_CLASSES, HAUL_BODIES, HAUL_KITS, HAUL_LIVERY, haulAxles } from './road-haul.js';
+import { FARM_CLASSES, FARM_BODIES, FARM_KITS, FARM_LIVERY, farmAxles } from './road-farm.js';
 
-// (and the airfield's ground crew, road-airside.js, and the city's utility vehicles, road-civic.js: the hull kit's too,
-// drawn, worn and painted as the field's are)
-export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', heavy4x4: 'heavyUtility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier', launcher8x8: 'launcher', ...AIRSIDE_CLASSES, ...CIVIC_CLASSES });
-/** A road worker (the airside's or the city's): smooth road tyres, kept clean unless a wear is asked. */
-export const roadWorker = (cls) => !!(AIRSIDE_CLASSES[cls] || CIVIC_CLASSES[cls]);
+// (and the airfield's ground crew, road-airside.js, the city's utility vehicles, road-civic.js, the highway's haulers,
+// road-haul.js, and the farm's machines, road-farm.js: the hull kit's too, drawn, worn and painted as the field's are)
+export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', heavy4x4: 'heavyUtility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier', launcher8x8: 'launcher', ...AIRSIDE_CLASSES, ...CIVIC_CLASSES, ...HAUL_CLASSES, ...FARM_CLASSES });
+/** A civil worker (the airside's, the city's, the highway's or the farm's): kept clean unless a wear is asked, on smooth
+ *  road tyres unless its body says its own (a farm machine's lugs: road-farm.js `wheelSet`). */
+export const roadWorker = (cls) => !!(AIRSIDE_CLASSES[cls] || CIVIC_CLASSES[cls] || HAUL_CLASSES[cls] || FARM_CLASSES[cls]);
 
 /** A field vehicle's size for its surface: its camo's blotches and its mud's heights by it (a wheel's radius over a
  *  4x4's; a tracked class by its wheeled peer's, its road wheels being small). */
@@ -130,6 +133,8 @@ export function militaryAxles(cls) {
   if (MILITARY_CLASSES[cls] === 'launcher') { const y1 = v.L / 2 - 1.7, p = 1.55; return [y1, y1 - p, y1 - v.wheelbase + p, y1 - v.wheelbase]; }
   if (AIRSIDE_CLASSES[cls]) return airsideAxles(cls);
   if (CIVIC_CLASSES[cls]) return civicAxles(cls);
+  if (HAUL_CLASSES[cls]) return haulAxles(cls);
+  if (FARM_CLASSES[cls]) return farmAxles(cls);
   throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
 }
 
@@ -1332,6 +1337,8 @@ export const KITS = Object.freeze({
   ]),
   ...AIRSIDE_KITS,
   ...CIVIC_KITS,
+  ...HAUL_KITS,
+  ...FARM_KITS,
   carrier: Object.freeze([
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['slope.R', 'pioneerTools'],
     ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle', { width: 0.4 }], ['grab.R', 'grabHandle', { width: 0.4 }],
@@ -1342,7 +1349,7 @@ export const KITS = Object.freeze({
 });
 const CAN_TONES = Object.freeze(['#4f5726', '#4f5726', '#8a7a55']);
 // the bodies built here, by their kind
-const BODIES = Object.freeze({ utility, heavyUtility, cargo, carrier, lightTank, trackedCarrier, launcher, ...AIRSIDE_BODIES, ...CIVIC_BODIES });
+const BODIES = Object.freeze({ utility, heavyUtility, cargo, carrier, lightTank, trackedCarrier, launcher, ...AIRSIDE_BODIES, ...CIVIC_BODIES, ...HAUL_BODIES, ...FARM_BODIES });
 
 /** A military class's body (its hull, every face with its corner normals: a plate's own, worked out; a fitting's flat)
  *  and its fittings, its kit's cards on its anchors, rolled from the seed; its livery (livery-cut.js) cut into the paint
@@ -1351,9 +1358,9 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery, words = [], pose
   const kind = MILITARY_CLASSES[cls];
   if (!BODIES[kind]) throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
   // (an airside vehicle unpainted wears the airside's white and its fleet number: road-airside.js; a city's vehicle its
-  // kind's own, road-civic.js)
-  const L = readLivery(livery ?? (AIRSIDE_CLASSES[cls] ? AIRSIDE_LIVERY : CIVIC_CLASSES[cls] ? CIVIC_LIVERY[kind] : undefined));
-  const { faces: own, anchors, zones, gear, bones } = BODIES[kind](cls, { seed, words, ...(pose ? { pose } : {}) }), byId = new Map(anchors.map((a) => [a.id, a]));
+  // kind's own, road-civic.js; a hauler its tractor's, road-haul.js; a farm machine its own, road-farm.js)
+  const L = readLivery(livery ?? (AIRSIDE_CLASSES[cls] ? AIRSIDE_LIVERY : CIVIC_CLASSES[cls] ? CIVIC_LIVERY[kind] : HAUL_CLASSES[cls] ? HAUL_LIVERY[kind] : FARM_CLASSES[cls] ? FARM_LIVERY[kind] : undefined));
+  const { faces: own, anchors, zones, gear, bones, wheelSet, axles } = BODIES[kind](cls, { seed, words, ...(pose ? { pose } : {}) }), byId = new Map(anchors.map((a) => [a.id, a]));
   // (a tracked body's running gear, each side: what stands still joins the hull, what turns its spinners, their discs in
   // the livery's base as a wheel's rim is)
   const sides = gear ? [-1, 1].map((side) => ({ side, ...runningGear({ side, ...gear, paint: L ? liveryBase(L) : C.olive }) })) : [];
@@ -1374,7 +1381,9 @@ export function militaryBody(cls, { seed = 1, r, tyreW, livery, words = [], pose
     fittings.push(...fit(A, card, ctx).map((f) => ({ ...f, fitting: card, ...(A.bone ? { bone: A.bone } : {}) })));
   }
   const all = flatNormals([...faces, ...fittings]);
-  const turning = { ...(spinners.length ? { spinners } : {}), ...(bones ? { bones } : {}) };
+  // (a body's own wheels, axle by axle, when they are not all its class's: a tractor's small fronts, a truck's duals)
+  // (and its own axles when its words drop some: a tractor without its trailer)
+  const turning = { ...(spinners.length ? { spinners } : {}), ...(bones ? { bones } : {}), ...(wheelSet ? { wheelSet } : {}), ...(axles ? { axles } : {}) };
   if (!L) return { hull: all.filter((f) => !f.fitting), fittings: all.filter((f) => f.fitting), anchors, zones, ...turning };
   // (the frame and the running gear in the livery's base, a shade down: a sand body is not carried on an olive frame)
   const shade = `#${[1, 3, 5].map((i) => Math.round(parseInt(liveryBase(L).slice(i, i + 2), 16) * 0.62).toString(16).padStart(2, '0')).join('')}`;

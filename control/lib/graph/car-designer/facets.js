@@ -81,12 +81,22 @@ export const CLASS_TRAITS = Object.freeze({
   stepVan:       { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   lightTruck:    { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   keiTruck:      { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  // (the highway's haulers: the hull kit's too, road-haul.js)
+  semiSleeper:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  semiCabover:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  straightBox:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  flatbedTruck: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  logTruck:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  // (the farm's machines: the hull kit's too, road-farm.js)
+  farmTractor:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  combineHarvester: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'front', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  cropSprayer:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   lightTank:     { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
   trackedCarrier: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'faceted', drive: 'all', derives: { frame: ['bodyplan = apc'] } },
 });
 export const CLASS_IDS = Object.freeze(Object.keys(CLASS_TRAITS));
 /** The heavy classes: a cab, never an open seat. */
-export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded', 'heavy4x4', 'cargo6x6', 'apc8x8', 'lightTank', 'trackedCarrier', 'launcher8x8', 'cateringTruck', 'stairTruck', 'pushbackTug', 'fuelTruck', 'refuseTruck', 'snowPlow', 'streetSweeper', 'fireEngine', 'ambulance', 'paramedicVan', 'ladderTruck', 'bucketTruck', 'frontLoader', 'sideLoader', 'rollOff', 'skipLoader', 'mailTruck', 'courierVan', 'stepVan', 'lightTruck', 'keiTruck']);
+export const HEAVY = Object.freeze(['straightTruck', 'bus', 'tractorTrailer', 'tractorTrailerLoaded', 'heavy4x4', 'cargo6x6', 'apc8x8', 'lightTank', 'trackedCarrier', 'launcher8x8', 'cateringTruck', 'stairTruck', 'pushbackTug', 'fuelTruck', 'refuseTruck', 'snowPlow', 'streetSweeper', 'fireEngine', 'ambulance', 'paramedicVan', 'ladderTruck', 'bucketTruck', 'frontLoader', 'sideLoader', 'rollOff', 'skipLoader', 'mailTruck', 'courierVan', 'stepVan', 'lightTruck', 'keiTruck', 'semiSleeper', 'semiCabover', 'straightBox', 'flatbedTruck', 'logTruck', 'farmTractor', 'combineHarvester', 'cropSprayer']);
 
 export const SILHOUETTES = Object.freeze({
   wedge:  v('a wedge: low at the nose, rising to the tail', { silhouette: 'the nose at the road, the line climbing back' }, { silhouette: ['proportion.height -', 'proportion.bonnet +'], handling: ['physics.CdA -'], frame: ['body = coupeThree'] }),

@@ -220,8 +220,9 @@ export const VEHICLES = {
     { physics: 'pickup', fleet: 'pickup', tech: 'truck' }),
   'cargo-van': row('cargo van', ['van', 'panel van', 'delivery van', 'box van', 'work van'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxVan', physics: 'van', fleet: 'van', tech: 'truck' }),
-  'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck'], 'road', 'hauler', M, ROAD,
-    { scenery: 'boxTruck', physics: 'straightTruck', fleet: 'straightTruck', tech: 'truck' }),
+  // (its realistic build the hull kit's straight box truck, road-haul.js; the plain loft stays the recipes minted before)
+  'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck', 'cube truck', 'box van truck', 'rigid truck', 'straight box truck'], 'road', 'hauler', M, ROAD,
+    { scenery: 'boxTruck', physics: ['straightBox', 'straightTruck'], fleet: 'straightTruck', tech: 'truck' }),
   // (the city's delivery fleet, classes and not replicas, in no carrier's livery: the walk-in step van the delivery truck
   // is, a postal delivery van, a courier's high-roofed van, a light box truck with a tail lift, a kei truck; their
   // realistic bodies the hull kit's, road-civic.js)
@@ -235,10 +236,18 @@ export const VEHICLES = {
     { physics: 'lightTruck', tech: 'truck' }),
   'kei-truck': row('kei truck', ['mini truck', 'micro truck', 'kei van', 'japanese mini truck', 'tiny truck', 'mini delivery truck', 'microtruck'], 'road', 'hauler', M, ROAD,
     { physics: 'keiTruck', tech: 'truck' }),
-  'semi-truck': row('semi truck', ['semi', 'tractor trailer', 'tractor-trailer', 'eighteen wheeler', 'articulated lorry', 'big rig'], 'road', 'hauler', M, ROAD,
-    { physics: ['tractorTrailer', 'tractorTrailerLoaded'], fleet: 'tractorTrailer', tech: 'truck' }),
-  flatbed: row('flatbed truck', ['flatbed', 'flat deck'], 'road', 'hauler', M, ROAD,
-    { assembly: 'flatbed', tech: 'truck' }),
+  // (the highway's haulers, classes and not replicas, in no carrier's livery: the eighteen-wheeler a long-nosed sleeper
+  // tractor and its trailer, its trailer by word (a van, a reefer, a flatbed, a tanker, a container, a curtain-sider, or
+  // none); a European cab-over and its curtain-sider; the flatbed and the log truck; their realistic bodies the hull kit's,
+  // road-haul.js. The tractor-trailer's plain loft stays the fleet's traffic and the build of the recipes minted before)
+  'semi-truck': row('semi truck', ['semi', 'tractor trailer', 'tractor-trailer', 'eighteen wheeler', '18 wheeler', 'eighteen-wheeler', 'articulated lorry', 'big rig', 'sleeper truck', 'long haul truck', 'semi trailer truck', 'tanker truck', 'reefer semi', 'container semi'], 'road', 'hauler', M, ROAD,
+    { physics: ['semiSleeper', 'tractorTrailer', 'tractorTrailerLoaded'], fleet: 'tractorTrailer', tech: 'truck' }),
+  'cabover-lorry': row('cab-over lorry', ['cab-over semi', 'cabover truck', 'cab over truck', 'cabover', 'european lorry', 'euro truck', 'curtainsider', 'curtain sider', 'tautliner', 'artic lorry', 'cab-over tractor', 'european semi'], 'road', 'hauler', M, ROAD,
+    { physics: 'semiCabover', tech: 'truck' }),
+  flatbed: row('flatbed truck', ['flatbed', 'flat deck', 'flatbed lorry', 'stake bed truck', 'platform truck'], 'road', 'hauler', M, ROAD,
+    { assembly: 'flatbed', physics: 'flatbedTruck', tech: 'truck' }),
+  'log-truck': row('log truck', ['logging truck', 'timber truck', 'timber lorry', 'log hauler', 'logger truck', 'pulpwood truck', 'log trailer'], 'road', 'hauler', M, ROAD.concat('watched'),
+    { physics: 'logTruck', tech: 'truck' }),
   trailer: row('trailer', ['towed trailer', 'utility trailer'], 'road', 'hauler', M, ['parked'],
     { assembly: 'trailer', tech: 'cart' }),
   'tow-truck': row('tow truck', ['wrecker', 'breakdown truck', 'recovery truck'], 'road', 'service', M, ROAD,
@@ -290,8 +299,15 @@ export const VEHICLES = {
   'fuel-truck': row('fuel truck', ['refueller', 'refueler', 'aviation fuel truck', 'jet fuel truck', 'fuel bowser', 'aircraft refueller'], 'road', 'ground-crew', M, ['driven', 'parked'],
     { physics: 'fuelTruck', tech: 'truck' }),
   // ── work and war on the ground ──────────────────────────────────────────────
-  tractor: row('tractor', ['farm tractor'], 'offroad', 'work', M, ['driven', 'parked'],
-    { tech: 'car' }),
+  // (the farm's machines, classes and not replicas, in no maker's colours: a row-crop tractor (its front loader and its
+  // plough by word), a combine harvester (a grain platform or a corn head; its unloading auger swung out), a
+  // self-propelled sprayer (its booms folded or out); their realistic bodies the hull kit's, road-farm.js)
+  tractor: row('tractor', ['farm tractor', 'row crop tractor', 'row-crop tractor', 'ag tractor', 'agricultural tractor', 'tractor with loader', 'loader tractor', 'ploughing tractor', 'plowing tractor'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
+    { physics: 'farmTractor', tech: 'car' }),
+  'combine-harvester': row('combine harvester', ['combine', 'harvester', 'grain harvester', 'combine harvesting', 'thresher', 'corn combine', 'wheat harvester'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
+    { physics: 'combineHarvester', tech: 'truck' }),
+  'field-sprayer': row('self-propelled sprayer', ['self propelled sprayer', 'sprayer', 'field sprayer', 'boom sprayer', 'high clearance sprayer', 'farm sprayer', 'tractor sprayer', 'row crop sprayer'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
+    { physics: 'cropSprayer', tech: 'truck' }),
   forklift: row('forklift', ['fork lift', 'lift truck', 'counterbalance forklift', 'fork truck'], 'road', 'work', M, ['driven', 'parked'],
     { physics: 'forklift', construction: 'forklift', tech: 'car' }),
   // ── the site's machines (the construction shelf's, construction-shelf/: each a carrier, an upper, a front and a tool;

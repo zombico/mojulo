@@ -37,6 +37,17 @@ The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds ro
 - The airfield's ground crew (the catering truck, belt loader and stairs) is `road-airside.js`.
 - The city's utility vehicles (works, the refuse fleet, emergency, aerial lifts, delivery) are `road-civic.js` over
   `civic-kit.js`; review: `scripts/render-civic.mjs`.
+- The highway's haulers are `road-haul.js` over `haul-kit.js`: a long-nosed sleeper tractor and its 53 ft trailer (the
+  eighteen-wheeler; its trailer by word: van, reefer, flatbed, tanker, container, curtain-sider, or `bobtail`), a
+  European cab-over and its curtain-sider, a straight box truck (the box truck row's realistic build), a flatbed truck and
+  a log truck. The tractor-trailer's plain loft stays the fleet's traffic and the build of what was minted before it.
+- The farm's machines are `road-farm.js` over `farm-kit.js`: a row-crop tractor (its front loader and its plough by
+  word), a combine harvester (a grain platform or a corn head; its unloading auger swung out) and a self-propelled
+  sprayer (its booms folded or out). A parked tractor takes its loader's `reach`.
+- A body may say its own wheels axle by axle (`wheelSet`: a radius, a tyre's width, duals, lugs, a rim's colour) and its
+  own axles when its words drop some (a tractor bobtailing); the compiler (`military.js`) draws them, and a body that
+  says neither is drawn as it always was. Every wheel still turns at one rate in the `roll` clip, so a tractor's small
+  fronts turn as its rears do. Review: `scripts/render-haul.mjs`.
 
 ## Cars: the car shelf
 

@@ -54,6 +54,7 @@ import { lookCard as cycleLookCard } from '../cycle-shelf/cycle-looks.js';
 import { wheelLayout } from '../roads/vehicles.js';
 import { AIRSIDE_REACH } from '../car-designer/road-airside.js';
 import { CIVIC_REACH, CIVIC_CLASSES } from '../car-designer/road-civic.js';
+import { FARM_REACH, FARM_CLASSES } from '../car-designer/road-farm.js';
 import { crewFor, turnaround } from './turnaround.js';
 import { conFootprint, readConSpec } from '../construction-shelf/con-figure.js';
 import { CAR_CARDS, readCarSpec } from '../car-shelf/car-library.js';
@@ -159,8 +160,9 @@ export function readParked(list, at = 'parked') {
     // (a reach lifts an airside body: its galley, its belt, its platform, a pushback's cradle; metres, clamped to its range)
     // (or a city's body that deploys: a refuse truck's tailgate, a plough's blade, a sweeper's brooms, a ladder's tip, a
     // bucket's floor; its range its own)
-    const civic = field && CIVIC_REACH[CIVIC_CLASSES[cls]];
-    if (p.reach !== undefined && !(field && (AIRSIDE_REACH[MILITARY_CLASSES[cls]] || civic))) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's, or a city vehicle's that deploys (a garbage truck, a snowplow, a street sweeper, a ladder truck, a bucket truck)`);
+    // (or a tractor's front loader: its bucket's pin, the loader fitted by the reach)
+    const civic = field && (CIVIC_REACH[CIVIC_CLASSES[cls]] ?? (FARM_CLASSES[cls] === 'tractor' ? FARM_REACH.loader : undefined));
+    if (p.reach !== undefined && !(field && (AIRSIDE_REACH[MILITARY_CLASSES[cls]] || civic))) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's, a city vehicle's that deploys (a garbage truck, a snowplow, a street sweeper, a ladder truck, a bucket truck), or a tractor's loader`);
     const top = civic ? civic.range[1] : 10;
     if (p.reach !== undefined && !(Number.isFinite(p.reach) && p.reach >= 0 && p.reach <= top)) throw new Error(`${w}.reach is metres from the ground, 0 to ${top}`);
     // (a pose, a tool, a height and a palette are a site machine's: read as its shelf reads them)
