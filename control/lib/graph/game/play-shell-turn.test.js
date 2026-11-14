@@ -15,7 +15,7 @@ const flowOf = (turn) => ({ start: 'title', steps: {
   play: { kind: 'level', level: '$any', on: { won: 'result', lost: 'result', left: 'result' }, ...turn },
   result: { kind: 'screen', screen: 'result', on: { again: '$again', home: 'title' } },
 } });
-const PICKS = [{ id: 'difficulty', from: { options: ['easy', 'hard'] } }, { id: 'squad', from: { slice: 'party' }, max: 2 }];
+const PICKS = [{ id: 'difficulty', ask: 'Choose a difficulty', from: { options: [{ id: 'easy', name: 'Easy', about: 'Foes forgive a slow guard.' }, 'hard'] } }, { id: 'squad', ask: 'Choose your squad', hint: 'Two go in.', from: { slice: 'party' }, max: 2 }];
 const game = (turn, more = {}) => normalizeGameManifest({ kind: 'game', title: 'Lantern Keep', shell: 'play', store: STORE, levels: [{ ref: 'vale', title: 'Vale' }], flow: flowOf(turn), ...more });
 const emit = (turn, more) => emitPlayShell(game(turn, more), [{ ref: 'vale', contract }]);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -56,15 +56,18 @@ describe('the play shell runs a turn', () => {
     await P.key('Enter');                                   // the title's start
     expect(P.screen()).toBe('pick');
     expect(P.loaded()).toBe(false);                         // nothing loads until the picks are made
-    expect(P.text()).toMatch(/difficulty · 1 of 2.*easy.*hard/);
+    // the question, how far along, the rows, and the one in focus beside them with what it means
+    expect(P.text()).toMatch(/Vale.*Choose a difficulty.*Easy.*hard.*Easy.*Foes forgive a slow guard\./);
     await P.key('ArrowDown'); await P.key('Enter');         // hard
-    expect(P.text()).toMatch(/squad · up to 2 · 2 of 2.*Ash.*Bryn.*Cole/);
+    // the squad: what was chosen before it, the roster as faces, the one in focus with its level
+    expect(P.text()).toMatch(/Choose your squad.*Two go in\..*difficulty · hard.*Ash.*Bryn.*Cole.*Ash.*Lv 1/);
     await P.key('Escape');                                  // back: the first pick again, its choice let go
-    expect(P.text()).toMatch(/difficulty · 1 of 2/);
+    expect(P.text()).toMatch(/Choose a difficulty/);
+    expect(P.text()).not.toMatch(/Choose your squad/);
     await P.key('Enter');                                   // easy
     await P.key('Enter');                                   // Ash
     expect(P.text()).toMatch(/Ash\s*picked/);
-    await P.key('ArrowDown'); await P.key('ArrowDown'); await P.key('Enter');   // Cole
+    await P.key('ArrowRight'); await P.key('ArrowRight'); await P.key('Enter');   // Cole
     await P.key('ArrowDown'); await P.key('Enter');         // continue
     expect(P.loaded()).toBe(true);
     expect(P.screen()).toBe('loading');

@@ -738,6 +738,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 (the holo arena's `ready`, tabletop/holo-arena.client.js): `holo`. Its probe says whether a
 // person's click would be taken now (in play, their turn, no beat on stage or waiting), so a driver waits on the page and
 // not on a clock; the arena plays as it did.
+// Re-pinned 2026-11-14 (the game turn's pick screen, mana-ui/idioms-front.js): `brawl` and `holo`, the two whose page
+// inlines the game UI kernel. A mount on an element with no box of its own (a bare div its root is laid out of) measures
+// its root's, so the frame is known there too, and the runtime's words gain `choose` and `choices`; a page that mounts
+// on a sized element and says neither word draws as it did, and every other fixture holds byte for byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

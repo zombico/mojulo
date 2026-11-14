@@ -39,6 +39,17 @@ export const SAMPLE_STATE = Object.freeze({
     { id: 'trials', name: 'Trials', about: 'Timed runs through cleared levels.', players: '1', then: { emit: 'mode:trials' } },
     { id: 'online', name: 'Online', about: 'Not in this game.', players: '—', disabled: true },
   ],
+  // a choice before a level (pick-screen): a squad of two from the roster, one taken, one who cannot go and says why
+  pick: {
+    short: false,
+    rows: [
+      { id: 'ayla', name: 'Ayla', tag: 'Knight · Lv 7', about: 'Holds a line. Slow to turn.', mark: 'Picked', stats: [{ label: 'Power', value: 4, max: 5 }, { label: 'Speed', value: 2, max: 5 }, { label: 'Range', value: 1, max: 5 }], then: { emit: 'pick', id: 'ayla' } },
+      { id: 'rook', name: 'Rook', tag: 'Mage · Lv 6', about: 'Hits from across the room. Folds when reached.', stats: [{ label: 'Power', value: 3, max: 5 }, { label: 'Speed', value: 2, max: 5 }, { label: 'Range', value: 5, max: 5 }], then: { emit: 'pick', id: 'rook' } },
+      { id: 'wren', name: 'Wren', tag: 'Thief · Lv 7', about: 'First through any door.', stats: [{ label: 'Power', value: 2, max: 5 }, { label: 'Speed', value: 5, max: 5 }, { label: 'Range', value: 2, max: 5 }], then: { emit: 'pick', id: 'wren' } },
+      { id: 'bram', name: 'Bram', tag: 'Brute · Lv 5', about: 'Joins after the keep.', disabled: true, why: 'Bram joins after the keep', stats: [{ label: 'Power', value: 5, max: 5 }, { label: 'Speed', value: 1, max: 5 }, { label: 'Range', value: 1, max: 5 }] },
+      { id: 'isa', name: 'Isa', tag: 'Ranger · Lv 6', about: 'Keeps her distance and her count.', stats: [{ label: 'Power', value: 3, max: 5 }, { label: 'Speed', value: 4, max: 5 }, { label: 'Range', value: 4, max: 5 }], then: { emit: 'pick', id: 'isa' } },
+    ],
+  },
   roster: [
     { id: 'ayla', name: 'Ayla', role: 'Knight', stats: [{ label: 'Power', value: 4, max: 5 }, { label: 'Speed', value: 2, max: 5 }, { label: 'Range', value: 1, max: 5 }] },
     { id: 'rook', name: 'Rook', role: 'Mage', stats: [{ label: 'Power', value: 3, max: 5 }, { label: 'Speed', value: 2, max: 5 }, { label: 'Range', value: 5, max: 5 }] },

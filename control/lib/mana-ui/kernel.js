@@ -138,7 +138,7 @@ export function buildManaUi() {
     resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail', language: 'Language',
     nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
     keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', tips: 'Tips', continue: 'Continue', gettingReady: 'Getting the world ready…', stillLoading: 'Still loading…', retry: 'Retry', quitToTitle: 'Quit to title',
-    modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
+    modes: 'Modes', choose: 'Choose', choices: 'Choices', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
@@ -1377,14 +1377,19 @@ export function buildManaUi() {
     // THE FRAME: the view's own box, measured now and whenever it changes (a phone turned, a window dragged), said to the
     // runtime so a spec that branches on it is laid again; held in the hand where the pointer is a finger
     const measure = () => {
-      const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      let r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      // (an element with no box of its own, a bare div its root is laid out of: the root's box is the frame)
+      const root = el.firstElementChild;
+      if (r && !(r.width && r.height) && root && root.getBoundingClientRect) r = root.getBoundingClientRect();
       if (!r || !r.width || !r.height) return;
       const was = rt.frame(), now = rt.frame({ w: Math.round(r.width), h: Math.round(r.height), hand: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches });
       if (now !== was) paint();
     };
     measure();
-    if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(el);   // (its own box only: a view listens to no window)
     paint();
+    // (its own box only, and its root's where it has none: a view listens to no window)
+    if (typeof ResizeObserver === 'function') { const ro = new ResizeObserver(measure); ro.observe(el); if (el.firstElementChild) ro.observe(el.firstElementChild); }
+    measure();
     return { paint };
   }
 

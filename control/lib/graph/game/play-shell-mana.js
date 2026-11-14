@@ -22,6 +22,7 @@ import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const PICK = 'pick-screen';
 const USED = ['attract-screen', 'title-screen', 'mode-select', 'options-screen', 'results-screen', 'loading-screen', 'pause-menu'];
 const B = (p) => ({ bind: `ui.${p}` });
 
@@ -68,18 +69,13 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
     // over a level's frame while it loads: no number to claim, ready on its first frame, gone by itself (a quick load never shows)
     loading: { use: 'loading-screen', props: { place: B('load.place'), ready: B('load.ready'), auto: true, then: { emit: 'loaded' } } },
   };
-  // UNTAP (turn.js): one pick of a level's turn, the rows the store says can be picked beside the one in focus; a row
-  // taken is marked, a locked one says why; one pick at a time, back unwinds one (the shell's, by the stack closing)
-  if (picks) screens.pick = { use: 'screen', props: { title: B('pick.title'), place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
-    { use: 'text', props: { value: B('pick.ask'), role: 'label' } },
-    { use: 'text', props: { value: B('pick.why'), role: 'caption' }, when: B('pick.why') },
-    { use: 'list', id: 'pick', props: { rows: B('pick.rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [{ use: 'text', props: { value: { item: 'name' }, role: 'heading' } }, { use: 'badge', props: { value: { item: 'mark' } }, when: { item: 'mark' } }] } }, on: { accept: { emit: 'turn:pick', id: { item: 'id' } } } },
-    { use: 'button', props: { label: { word: 'continue' }, disabled: B('pick.short'), why: B('pick.shortWhy') }, when: B('pick.many'), on: { accept: { emit: 'turn:confirm' } } },
-  ] }] }] };
+  // UNTAP (turn.js): one pick of a level's turn, the pick-screen idiom over what the shell says of it (the store's
+  // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
+  if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
   const hud = { use: 'hud', children: [{ use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] }] };
   const full = withIdioms({ screens, hud, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
-  full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k)));
+  full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k) || (picks && k === PICK)));
   manaUi.readSpec(full);
   return full;
 }
@@ -186,9 +182,9 @@ export function playShellManaRuntime(cfg, api) {
     close() { hush(() => rt.close()); up = null; view.paint(); },
     loading(place) { UI.ui.load = { place: place || '', ready: false }; open('loading'); },
     loaded() { UI.ui.load = Object.assign({}, UI.ui.load, { ready: true }); view.paint(); },
-    // untap: one pick of the turn, as the shell stands ({ title, ask, why, rows, many, short, shortWhy })
+    // untap: one pick of the turn, as the shell stands (what the pick-screen idiom reads)
     // (`fresh`: another pick than the one up, so the cursor starts at its first row)
-    pick(view, fresh) { UI.ui.pick = view; api.app.textContent = ''; api.show('title'); if (up === 'pick' && !fresh) view.paint(); else { open('pick'); rt.focusAt(0); view.paint(); } },
+    pick(what, fresh) { UI.ui.pick = what; api.app.textContent = ''; api.show('title'); if (up === 'pick' && !fresh) view.paint(); else { open('pick'); rt.focusAt(0); view.paint(); } },
     // the pause over a held level, and off again; a moment over the play (a run's map cleared)
     pause() { fillPause(); open('pause'); },
     unpause() { if (up === 'pause' || up === 'controls') { hush(() => rt.close()); up = null; view.paint(); } },

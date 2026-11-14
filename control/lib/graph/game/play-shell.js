@@ -975,22 +975,31 @@ export function playShellRuntime(cfg, K) {
   }
 
   // ---- the turn (turn.js): one level session in phases; the kernel steps it, the shell does what each phase is ----
-  // what can be picked now: the game's own options, or the members of the slice as the store holds it
+  // what can be picked now, as the pick screen shows it: the game's own options (a name, what each means), or the
+  // members of the slice as the store holds it (a party member's tags, level and figures, each figure against the
+  // most anyone in the roster has; a carried thing's count)
   function turnRows(p) {
-    if (p.from.options) return p.from.options.map((id) => ({ id, name: id }));
-    const sl = state[p.from.slice] || {}, bag = sl.roster || sl.items || {};
-    return Object.keys(bag).map((id) => ({ id, name: (bag[id] && bag[id].name) || id }));
+    if (p.from.options) return p.from.options.map((o) => ({ id: o.id, name: o.name, about: o.about || '' }));
+    const sl = state[p.from.slice] || {};
+    if (sl.roster) {
+      const most = {};
+      for (const id in sl.roster) for (const k in sl.roster[id].stats || {}) most[k] = Math.max(most[k] || 1, Number(sl.roster[id].stats[k]) || 0);
+      return Object.keys(sl.roster).map((id) => { const m = sl.roster[id]; return { id, name: m.name || id, tag: (m.tags || []).concat(['Lv ' + m.level]).join(' · '), stats: Object.keys(m.stats || {}).map((k) => ({ label: k, value: Number(m.stats[k]) || 0, max: most[k] })) }; });
+    }
+    return Object.keys(sl.items || {}).map((id) => ({ id, name: id, tag: '× ' + sl.items[id] }));
   }
   const turnCtx = () => ({ rows: turnRows, seen: () => !!seenSteps[at.step + ':start'] });
   // untap: the pick being asked, drawn by mana-ui (a pick of several is a draft here until it is confirmed)
   function drawPick() {
     const T = turn.T, s = turn.s, p = T.picks[s.at], many = p.max > 1, draft = turn.draft || (turn.draft = []);
-    const short = draft.length < p.min, fresh = turn.shown !== s.at;
+    const short = draft.length < p.min, fresh = turn.shown !== s.at, rows = turnRows(p);
     turn.shown = s.at;
+    // (what was chosen before this pick, by the names the rows had)
+    const chosen = T.picks.slice(0, s.at).filter((q) => s.picks[q.id] !== undefined).map((q) => { const rs = turnRows(q), v = [].concat(s.picks[q.id]); return { label: q.id, value: v.map((id) => (rs.find((r) => r.id === id) || { name: id }).name).join(', ') }; });
     MANA.pick({
-      title: turn.lv.title, why: s.why || '', many, short, shortWhy: short ? 'pick at least ' + p.min : '',
-      ask: p.id + (many ? ' · up to ' + p.max : '') + (T.picks.length > 1 ? ' · ' + (s.at + 1) + ' of ' + T.picks.length : ''),
-      rows: turnRows(p).map((r) => ({ id: r.id, name: r.name, mark: draft.indexOf(r.id) >= 0 ? 'picked' : '' })),
+      title: turn.lv.title, ask: p.ask || p.id, hint: p.hint || (many ? 'up to ' + p.max : ''), step: s.at + 1, steps: T.picks.length > 1 ? T.picks.length : 0, chosen,
+      faces: !p.from.options && !!(state[p.from.slice] || {}).roster, many, short, shortWhy: short ? 'pick at least ' + p.min : '', why: s.why || '',
+      rows: rows.map((r) => Object.assign({ tag: '', about: '', stats: [], mark: draft.indexOf(r.id) >= 0 ? 'picked' : '', then: { emit: 'turn:pick', id: r.id } }, r)),
     }, fresh);
   }
   function turnPick(id) {

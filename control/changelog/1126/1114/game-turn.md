@@ -11,6 +11,15 @@ the theme will hold.
   the level's page, or its video plays over the held level, once a save, with no pause while it plays. An end
   trigger's video plays after the level's end card. Not yet: an end trigger that is a scene, a locked row, a quit
   from the pause recorded.
+- **Built: the pick screen** (`mana-ui/idioms-front.js` `pick-screen`), an idiom on the board, and what the play
+  shell draws a pick with. The question and a line under it, how far along the choices it is, what was chosen
+  before, and the rows beside the one in focus: options as a list with what each means, a party slice as a grid of
+  faces with each member's tags, level and figures, a carried thing with its count. A row that cannot be taken says
+  why; a pick of several marks its rows and is confirmed. On a tall frame the face is drawn once and the figures
+  give way to the words. A pick says `ask` and `hint`; an option may be `{ id, name?, about? }`.
+- **Fixed in mana-ui's mount:** a view mounted on an element with no box of its own (the play shell's, the preview
+  page's) never measured its frame, so a spec that branches on the frame always drew wide. It measures its root's
+  box there now. The brawl and holo pages, which inline the kernel, are re-pinned for it and for two new words.
 - The play shell's cutscene video and the triggers' share one player; every play shell page's inlined code changes
   by that and by the turn's hooks.
 

@@ -531,7 +531,9 @@ The screens and HUD parts games share, as defs. Each one says what it reads, wha
 into the sample state (`samples.js`).
 
 - `idioms-front.js` — the front and the menus: attract (key art behind, a press-start that takes any button), title
-  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, character select (couch seats),
+  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, a choice
+  before a level (`pick-screen`: what is asked and how far along, what was chosen before, a list or a grid of faces
+  beside the one in focus; the play shell's turn draws its picks with it, [game-flow.md](game-flow.md)), character select (couch seats),
   arena select, pause, options (sections of fields), controls (keybinds; accept asks the host to capture), confirm,
   results (in sequence: the outcome slams in, the figures count, the rank is stamped), save slots.
 - `idioms-rpg.js` — the deep menus, each a list or grid beside the detail of what it has picked: party, skill tree,

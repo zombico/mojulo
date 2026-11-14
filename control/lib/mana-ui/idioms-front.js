@@ -1,6 +1,6 @@
 /**
  * THE FRONT AND THE MENUS — the screens around play every game shares: the attract screen and the title, loading, mode,
- * character and arena select, pause, options, controls, a confirm, results and save slots. Each is a def (data) over
+ * a choice before a level, character and arena select, pause, options, controls, a confirm, results and save slots. Each is a def (data) over
  * the components; its `example` binds into the sample state (samples.js). A row's `then` is its effect: the game says
  * what a pick does, the idiom only where it sits.
  */
@@ -69,6 +69,45 @@ export const FRONT_IDIOMS = {
       { use: 'window', children: [{ use: 'stack', children: [{ use: 'image', props: { label: { pick: 'modes.name' } } }, txt({ pick: 'modes.name' }, 'title'), txt({ pick: 'modes.about' }), { use: 'stat', props: { label: { word: 'players' }, value: { pick: 'modes.players' } } }] }] },
     ] }, back]),
     example: { title: 'Play', modes: { bind: 'modes' } },
+  },
+  'pick-screen': {
+    kind: 'screen', about: 'one choice before a level (a difficulty, a character, a squad, a kit), one screen a choice: what is asked and how far along the choices it is, what was chosen before it, the rows beside the one in focus (its words, its figures); `faces` lays the rows as a grid of faces; a row that cannot be taken says why; a choice of several marks its rows and is confirmed',
+    reads: 'title, ask, hint, step, steps, chosen: [{ label, value }], rows: [{ id, name, tag?, about?, stats?: [{ label, value, max }], mark?, disabled?, why?, then }], faces, many, short, shortWhy, why, confirm', emits: 'a row\'s then; confirm on continue (a choice of several)',
+    params: ['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why', 'confirm'],
+    node: screen({ title: P('title'), place: 'full' }, [{ use: 'stack', props: { gap: 'loose' }, children: [
+      // what is asked, and how far along the choices this one is
+      { use: 'stack', props: { dir: 'row', align: 'apart', fit: 'wrap' }, children: [
+        { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(P('ask'), 'title'), { use: 'text', props: { value: P('hint'), role: 'label' }, when: P('hint') }] },
+        { use: 'pips', props: { value: P('step'), max: P('steps'), label: { word: 'choices' } }, when: P('steps') },
+      ] },
+      // what was chosen before it
+      { use: 'each', props: { dir: 'row', rows: P('chosen'), row: { use: 'badge', props: { value: { format: '{label} · {value}' }, variant: 'muted' } } } },
+      // why the game sent the player back here (a load that failed, a choice that cannot stand)
+      { use: 'text', props: { value: P('why'), role: 'label', tone: 'miss' }, when: P('why') },
+      { use: 'split', props: { ratio: 'even' }, children: [
+        { use: 'window', props: { title: { word: 'choose' } }, children: [
+          { use: 'list', id: 'rows', unless: P('faces'), props: { rows: P('rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [
+            { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(I('name'), 'heading'), { use: 'text', props: { value: I('tag'), role: 'caption' }, when: I('tag') }] },
+            { use: 'badge', props: { value: I('mark'), variant: 'strong' }, when: I('mark') },
+          ] } }, on: { accept: I('then') } },
+          { use: 'grid', id: 'rows', when: P('faces'), props: { cells: P('rows'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [
+            { use: 'portrait', props: { name: I('name'), size: 'm' } },
+            { use: 'badge', props: { value: I('mark'), variant: 'strong' }, when: I('mark') },
+          ] } }, on: { accept: I('then') } },
+        ] },
+        // the one in focus: who or what it is, its words, its figures
+        { use: 'window', children: [{ use: 'stack', children: [
+          // (a tall frame has no room for the face twice, nor for the figures: the grid's is the face, the words say it)
+          { use: 'portrait', props: { name: { pick: 'rows.name' }, size: 'l', caption: false }, when: P('faces'), unless: { frame: 'portrait' } },
+          txt({ pick: 'rows.name' }, 'title'),
+          { use: 'text', props: { value: { pick: 'rows.tag' }, role: 'label' }, when: { pick: 'rows.tag' } },
+          { use: 'text', props: { value: { pick: 'rows.about' } }, when: { pick: 'rows.about' } },
+          { use: 'each', props: { rows: { pick: 'rows.stats' }, row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max') } } }, when: { pick: 'rows.stats' }, unless: { frame: 'portrait' } },
+        ] }] },
+      ] },
+      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: { word: 'continue' }, disabled: P('short'), why: P('shortWhy') }, when: P('many'), on: { accept: P('confirm') } }, back] },
+    ] }]),
+    example: { title: 'The Vale', ask: 'Choose your squad', hint: 'Two go in. The rest hold the gate.', step: 2, steps: 3, chosen: [{ label: 'Difficulty', value: 'Hard' }], rows: { bind: 'pick.rows' }, faces: true, many: true, short: { bind: 'pick.short' }, shortWhy: 'Pick at least one', why: '', confirm: { emit: 'pick:confirm' } },
   },
   'character-select': {
     kind: 'screen', about: 'pick a fighter: the roster as a grid, each couch seat with its own cursor (P1, P2…) and its own panel showing the fighter it is on',

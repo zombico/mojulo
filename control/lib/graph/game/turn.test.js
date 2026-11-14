@@ -27,6 +27,14 @@ describe('a turn, read', () => {
     expect(T.start).toEqual({ scene: 'arrival', skip: true, once: true });
     expect(T.end).toEqual({ scene: 'farewell', skip: true, when: ['won'] });
   });
+  it('an option may say its name and what it means; a pick its question and a line under it', () => {
+    const step = { kind: 'level', picks: [{ id: 'difficulty', ask: 'Choose a difficulty', hint: 'It can be changed.', from: { options: ['easy', { id: 'hard', name: 'Hard', about: 'Two at a time.' }] } }] };
+    expect(readTurn(step)).toEqual([]);
+    expect(turnOf(step).picks[0]).toMatchObject({ ask: 'Choose a difficulty', hint: 'It can be changed.', from: { options: [{ id: 'easy', name: 'easy' }, { id: 'hard', name: 'Hard', about: 'Two at a time.' }] } });
+    expect(pickErrors(turnOf(step).picks[0], 'hard')).toEqual([]);
+    expect(readTurn({ kind: 'level', picks: [{ id: 'a', from: { options: ['x', { id: 'x' }] } }] }).join('\n')).toMatch(/each once/);
+    expect(readTurn({ kind: 'level', picks: [{ id: 'a', ask: 3, from: { options: ['x', 'y'] } }] }).join('\n')).toMatch(/ask is words/);
+  });
   it('each fault is taught', () => {
     const bad = (step, opts) => readTurn({ kind: 'level', ...step }, opts).join('\n');
     expect(bad({ picks: [] })).toMatch(/at least one/);

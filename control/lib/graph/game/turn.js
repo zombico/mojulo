@@ -12,10 +12,13 @@
  *
  * What a level step says of its turn (all optional; a step that says none plays as it always has):
  *
- *   picks: [{ id, from: { slice: '<a slice the level consumes>' } | { options: ['<id>', …] }, min?, max? }]
+ *   picks: [{ id, from: { slice: '<a slice the level consumes>' } | { options: ['<id>' | { id, name?, about? }, …] },
+ *            min?, max?, ask?, hint? }]
  *          what the player chooses before the level loads, in order; `id` is the name the choice lands under in the
  *          session; from a slice the choice is which of its members go in (the contract's consumes pick), from
- *          options it is the game's own words (a difficulty, a mode); min (1; 0: may be passed) to max (1)
+ *          options it is the game's own words (a difficulty, a mode; an option may say its name and what it means);
+ *          min (1; 0: may be passed) to max (1); ask: the question as the screen says it (its id when not said),
+ *          hint: a line under it
  *   start: { scene | video, skip?, once? }
  *          MAIN'S START TRIGGER: a scene the level has (scripted motion, talking) or a video, played as the level's
  *          first frame shows, control held; once (true): never again in this save, and never on a retry
@@ -58,7 +61,11 @@ export const TURN_PHASES = Object.freeze(['untap', 'upkeep', 'main', 'cleanup', 
 export const TURN_OUTCOMES = Object.freeze(['won', 'lost', 'left']);
 export const TURN_KEYS = Object.freeze(['picks', 'start', 'end']);
 
-const PICK_KEYS = ['id', 'from', 'min', 'max'];
+const PICK_KEYS = ['id', 'from', 'min', 'max', 'ask', 'hint'];
+const OPTION_KEYS = ['id', 'name', 'about'];
+// an option as written: a word, or { id, name?, about? }
+const optionId = (o) => (isObj(o) ? o.id : o);
+const optionOk = (o) => isStr(o) || (isObj(o) && isStr(o.id) && Object.keys(o).every((k) => OPTION_KEYS.includes(k) && isStr(o[k])));
 const TRIGGER_KEYS = { start: ['scene', 'video', 'skip', 'once'], end: ['scene', 'video', 'skip', 'when'] };
 const ID = /^[a-z][a-z0-9-]{0,40}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -87,7 +94,8 @@ export function readTurn(step, { consumes = null, scenes = null, where = 'step' 
         if (!isObj(f) || Object.keys(f).length !== 1 || !(isStr(f.slice) || Array.isArray(f.options))) errors.push(`${at}.from is { slice: '<a slice the level consumes>' } or { options: ['<id>', …] }: where the choices come from`);
         else if (f.slice !== undefined) {
           if (consumes && !consumes.includes(f.slice)) errors.push(`${at}.from.slice '${f.slice}' is not a slice the level consumes (${consumes.join(', ') || 'it consumes none'}): the level would never hear the choice`);
-        } else if (f.options.length < 2 || !f.options.every(isStr) || new Set(f.options).size !== f.options.length) errors.push(`${at}.from.options is two or more words, each once: with one there is nothing to pick`);
+        } else if (f.options.length < 2 || !f.options.every(optionOk) || new Set(f.options.map(optionId)).size !== f.options.length) errors.push(`${at}.from.options is two or more words, each once (a word, or { id, name?, about? }): with one there is nothing to pick`);
+        for (const k of ['ask', 'hint']) if (p[k] !== undefined && !isStr(p[k])) errors.push(`${at}.${k} is words: ${k === 'ask' ? 'the question as the screen says it' : 'a line under the question'}`);
         const min = p.min === undefined ? 1 : p.min, max = p.max === undefined ? 1 : p.max;
         if (p.min !== undefined && !whole(p.min, 0)) errors.push(`${at}.min is how few may be picked, 0 or more (0: the pick may be passed)`);
         if (p.max !== undefined && !whole(p.max, 1)) errors.push(`${at}.max is how many may be picked, 1 or more`);
@@ -123,7 +131,11 @@ export function turnOf(step) {
   const s = isObj(step) ? step : {};
   const trigger = (t, more) => (isObj(t) ? { ...(t.scene !== undefined ? { scene: t.scene } : { video: t.video }), skip: t.skip !== false, ...more(t) } : null);
   return {
-    picks: (Array.isArray(s.picks) ? s.picks : []).map((p) => ({ id: p.id, from: p.from, min: p.min === undefined ? 1 : p.min, max: p.max === undefined ? 1 : p.max })),
+    picks: (Array.isArray(s.picks) ? s.picks : []).map((p) => ({
+      id: p.id, min: p.min === undefined ? 1 : p.min, max: p.max === undefined ? 1 : p.max, ...(p.ask !== undefined ? { ask: p.ask } : {}), ...(p.hint !== undefined ? { hint: p.hint } : {}),
+      // (an option said in full: its id, its name, what it means)
+      from: isObj(p.from) && Array.isArray(p.from.options) ? { options: p.from.options.map((o) => (isObj(o) ? { name: o.id, ...o } : { id: o, name: o })) } : p.from,
+    })),
     start: trigger(s.start, (t) => ({ once: t.once !== false })),
     end: trigger(s.end, (t) => ({ when: t.when === undefined ? ['won', 'lost'] : Array.isArray(t.when) ? t.when.slice() : [t.when] })),
   };
@@ -142,7 +154,7 @@ export function buildTurnKernel() {
   // what can be picked now: the store's answer (ctx.rows), else the pick's own options
   function rowsOf(pick, ctx) {
     if (ctx && ctx.rows) { const r = ctx.rows(pick); if (Array.isArray(r)) return r; }
-    return pick.from && Array.isArray(pick.from.options) ? pick.from.options.map((id) => ({ id })) : [];
+    return pick.from && Array.isArray(pick.from.options) ? pick.from.options.map((o) => (isObj(o) ? o : { id: o })) : [];
   }
   // why a choice cannot stand ([]: it can): how many, each one there, none locked, none twice
   function pickErrors(pick, value, ctx) {

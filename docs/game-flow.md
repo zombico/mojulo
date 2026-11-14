@@ -70,14 +70,15 @@ A level step says its turn in three optional keys; a step that says none plays a
 
 ```js
 play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
-  picks: [{ id: 'difficulty', from: { options: ['easy', 'normal', 'hard'] } },
-          { id: 'squad', from: { slice: 'party' }, max: 2 }],
+  picks: [{ id: 'difficulty', ask: 'Choose a difficulty', from: { options: ['easy', { id: 'hard', name: 'Hard', about: 'Foes come two at a time.' }] } },
+          { id: 'squad', ask: 'Choose your squad', hint: 'Two go in.', from: { slice: 'party' }, max: 2 }],
   start: { scene: 'arrival' },                 // as play starts, control held; once a save, never on a retry
   end:   { scene: 'farewell', when: 'won' } }  // once the outcome is known, before cleanup
 ```
 
-- **Picks.** Each lands in the turn's session under its `id`. From `options` it is the game's own words (a
-  difficulty, a mode). From a `slice` it is which members of a slice the level consumes go in; what is there, and
+- **Picks.** Each lands in the turn's session under its `id`; `ask` is the question as the screen says it and `hint`
+  a line under it. From `options` it is the game's own words (a difficulty, a mode), each a word or `{ id, name?,
+  about? }`. From a `slice` it is which members of a slice the level consumes go in; what is there, and
   what is locked and why, is the store's answer, never the screen's.
 - **Triggers.** A `scene` the level has (scripted motion, talking) or a `video`. `skip: false` makes one
   unskippable. The end trigger plays on the outcomes its `when` names (won and lost when not said).
@@ -87,8 +88,12 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
 
 **The play shell runs it** (`play-shell.js`). A game whose steps say no turn carries no key and none of the kernel.
 
-- The picks are drawn by mana-ui, one screen a pick, in the game's `ui` (the greybox when it says none). Back unwinds
-  one pick, then leaves the turn the way it was come into. A pick of several is marked row by row and confirmed.
+- The picks are drawn by mana-ui's `pick-screen` idiom, one screen a pick, in the game's `ui` (the greybox when it
+  says none): the question and how far along the choices it is, what was chosen before, the rows beside the one in
+  focus. Options are a list, each with what it means; a party slice is a grid of faces, each member with its tags,
+  level and figures (a figure against the most anyone in the roster has); a carried thing says its count. Back
+  unwinds one pick, then leaves the turn the way it was come into. A pick of several is marked row by row and
+  confirmed.
 - The level is handed the game's own words as `params.__picks`, and of a consumed slice the members picked and no
   others.
 - A retry (`$again`) and the pause's restart load again with the same picks.
@@ -98,7 +103,8 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
   already made by then, so closing the page mid-video loses nothing.
 
 Not yet: an end trigger that is a scene is passed (a level cannot be told to play a scene after it has started); a
-row is never locked (the store has no word for it yet); a quit from the pause is not recorded.
+row is never locked (the store has no word for it yet); a face is a placeholder until mana-ui draws pictures; one
+cursor, not one a seat; a quit from the pause is not recorded.
 
 ## How a game starts
 
