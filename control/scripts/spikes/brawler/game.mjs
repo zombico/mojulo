@@ -28,6 +28,12 @@ const roster = Array.from({ length: Number(opt.roster) }, (_, k) => ({ archetype
 const streets = opt.light ? [{ id: 'street', name: 'The street', waves: [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [{ type: 'thug', n: 1 }] }] }] : undefined;
 const D = body(await designGameHandler({ quick: { goal: 'brawl', roster, ...(streets ? { streets } : {}), world: { id: 'brawl', name: 'Brawl' } }, ref: 'b' }));
 say('design_game', { ok: D.ok, error: D.error, next: (D.next ?? []).map((n) => n.step), made: Object.keys(D.made ?? {}) });
+// (a run makes what its time allows: run it on until nothing is left to make)
+for (let k = 0, N = D; k < 6 && (N.next ?? []).some((n) => n.step === 'run'); k++) {
+  N = body(await designGameHandler({ ref: 'b', run: true }));
+  say('run', { ok: N.ok, error: N.error, next: (N.next ?? []).map((n) => n.step), made: Object.keys(N.made ?? {}) });
+  if (!N.ok) break;
+}
 const refs = SketchRepository.list({ limit: 80 }).map((x) => x.ref);
 say('sketches', refs);
 const gameRef = refs.find((r) => /game$/.test(r)), G = gameRef ? SketchRepository.getByRef(gameRef).manifest : null;

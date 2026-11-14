@@ -220,6 +220,8 @@ import { readArena } from '../versus/versus-arena.js';
 import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { brawlLevel, readBrawlLevel } from '../brawl/brawl-levels.js';
 import { readStreet } from '../brawl/brawl-street.js';
+import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
+import { GRUNT_STYLES, GRUNT_STYLE_IDS, gruntOrders } from '../cosmos/packs/comic-hero/grunts.js';
 import { CPU_LEVELS } from '../versus/versus-cpu.js';
 import { settingOfGame } from './cast-setting.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
@@ -288,7 +290,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -599,6 +601,7 @@ export function readQuick(Q) {
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && !(Q.goal === 'brawl' && k === 'roster') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.streets !== undefined && Q.goal !== 'brawl') throw fail('.streets belongs to the brawl goal');
+  if (Q.crowd !== undefined && Q.goal !== 'brawl') throw fail('.crowd belongs to the brawl goal');
   if (Q.goal === 'fight') readFight(Q);
   if (Q.goal === 'brawl') readBrawl(Q);
   // (a fight's register is its own word: its one look, versus-levels.js FIGHT_REGISTERS)
@@ -790,31 +793,83 @@ export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
 // A BRAWL (lib/graph/brawl): a beat 'em up, its own simulation over the fight's fighters. Its roster is the fight's (each
 // a character); its STREETS are its levels, each a brawl level (brawl-levels.js: a greybox street, a stage on a kit)
 // with the waves that hold its screens (brawl-crowd.js: a crowd by type, a boss on the boss's screen).
-const BRAWL_KEYS = ['goal', 'roster', 'streets', 'register', 'theme', 'camera', 'screen'];
+const BRAWL_KEYS = ['goal', 'roster', 'streets', 'crowd', 'register', 'theme', 'camera', 'screen'];
 // (the street a brawl is fought down when it names none: the GEOTOWN's main street, brawl-levels.js the town kind: a
 // block of the town with its shops on the far side and its margin open to the camera, the road, the walks, the lamps
 // and the fronts the town's own; a stage kit's rooms and the greybox street are named)
 export const BRAWL_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'town' }) });
-/** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, a knife
- * among them from the second; the boss's screen its boss (a grappler on the fight's easiest mind) with two beside it. */
-export function defaultWaves(belt) {
-  const out = [];
+/** THE CROWD, a crew of the comic pack's (cosmos/packs/comic-hero/grunts.js GRUNT_STYLES: a street gang, a crime
+ * family, a shadow clan, a motorcycle club, a private military, a cult, punks, corporate security): a brawl's `crowd` is
+ * a faction's name or { faction, colourway?, size? }; none said, the street gang. One crew in ONE colourway (the
+ * seed's, unless said), a grunt of each of its kinds and more in turn up to its size, and its boss (its heaviest kind). */
+export const BRAWL_FACTION = 'streetGang';
+const CROWD_WORDS = ['faction', 'colourway', 'size'];
+export function readCrowd(c, at = '.crowd') {
+  const C = c === undefined ? { faction: BRAWL_FACTION } : typeof c === 'string' ? { faction: c } : c;
+  if (!isObj(C)) throw fail(`${at} is a faction (${GRUNT_STYLE_IDS.join(', ')}) or { faction, colourway?, size? }`);
+  for (const k of Object.keys(C)) if (!CROWD_WORDS.includes(k)) throw fail(`${at}.${k} is not a crowd's word (${CROWD_WORDS.join(', ')})`);
+  const S = GRUNT_STYLES[C.faction];
+  if (!S) throw fail(`${at}.faction: no faction '${C.faction}' (${GRUNT_STYLE_IDS.join(', ')})`);
+  if (C.colourway !== undefined && !S.colourways[C.colourway]) throw fail(`${at}.colourway: the ${S.name.toLowerCase()} wears ${Object.keys(S.colourways).join(', ')}`);
+  if (C.size !== undefined && !(Number.isInteger(C.size) && C.size >= 1 && C.size <= 8)) throw fail(`${at}.size is how many grunts are made, 1 to 8 (each is drawn many times over)`);
+  return { faction: C.faction, ...(C.colourway !== undefined ? { colourway: C.colourway } : {}), ...(C.size !== undefined ? { size: C.size } : {}) };
+}
+// HOW A GRUNT FIGHTS is read off what it carries (brawl-crowd.js CROWD_TYPES): the first of these in its hands; with
+// nothing drawn, a big body grabs (heavy) and any other is the street's own (thug)
+const CARRIED = [['drawnPistol', 'gunner'], ['carbine', 'rifleman'], ['shotgun', 'rifleman'], ['katana', 'sword'], ['machete', 'sword'], ['boStaff', 'staff'], ['sceptre', 'staff'], ['drawnKnife', 'knife']];
+const BIG = new Set(['brute', 'stout']);
+const SHOOTS = (type) => !!CROWD_TYPES[type].gun;
+export function crowdTypeOf(grunt) {
+  for (const [item, type] of CARRIED) if ((grunt.items ?? []).includes(item)) return type;
+  return BIG.has(grunt.build) ? 'heavy' : 'thug';
+}
+/** A grunt as a brawler: the pack's western grunt (its cloth, its hair, its head's cover, its colours) out of the pack's
+ * own light, on the brawler's body (brawlBody's words). What it holds is the street's to draw (a blade along the line the
+ * simulation strikes with), so only a gun stays in its hand. */
+function gruntBrawler(O, type, heavy) {
+  const { geocube: _cube, gear, ...spec } = O.mint.args.spec;
+  const pole = (typeof spec.cast === 'string' ? spec.cast : spec.cast?.pole) === 'female' ? 'female' : 'male';
+  return { ...spec, ...(SHOOTS(type) && gear ? { gear } : {}), ...BRAWLER_BODY(pole, heavy) };
+}
+/** A brawl's crowd, cast: → { faction, colourway, members: [{ id, name, as: a crowd type | 'boss', heavy, grunt, mint }] },
+ * each member a character the hero door mints (mint: { kind: 'layered', via: 'hero', title, spec }). */
+export function brawlCrowd(Q, seed = 1, title = 'brawl') {
+  const C = readCrowd(Q.crowd), S = GRUNT_STYLES[C.faction], kinds = Object.keys(S.kinds), ways = Object.keys(S.colourways);
+  const colourway = C.colourway ?? ways[Math.abs(seed) % ways.length], n = C.size ?? Math.max(4, kinds.length);
+  const roll = (index, kind) => gruntOrders(C.faction, 'dcau-golden', { seed, index, kind, colourway });
+  const member = (O, id, as, heavy, name) => ({ id, name, as, heavy, grunt: O.grunt, mint: { kind: 'layered', via: 'hero', title: `${title} · ${name}`, spec: gruntBrawler(O, as === 'boss' ? 'heavy' : as, heavy) } });
+  const members = Array.from({ length: n }, (_, i) => {
+    const O = roll(i, kinds[i % kinds.length]);
+    return member(O, `crowd-${i + 1}`, crowdTypeOf(O.grunt), BIG.has(O.grunt.build), `${S.name} ${O.grunt.kind} ${i + 1}`);
+  });
+  // (its boss: its heaviest kind, on the hulking body)
+  const top = kinds.find((k) => S.kinds[k].builds.includes('brute')) ?? kinds.find((k) => S.kinds[k].builds.some((b) => BIG.has(b) || b === 'heroic')) ?? kinds[kinds.length - 1];
+  members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
+  return { faction: C.faction, colourway, members };
+}
+/** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, drawn from
+ * how its crew fights (`types`: the crowd types its grunts are, in their order; a knife among thugs with none said), no
+ * more than two of a wave shooting (the rest walk in as the street's own); the boss's screen its boss (a grappler on
+ * the fight's easiest mind) with two beside it. */
+export function defaultWaves(belt, types = null) {
+  const out = [], T = types?.length ? types : null;
   let k = 0;
+  const wave = (n) => {
+    if (!T) return [{ type: 'thug', n: n - Math.min(k, n - 1) }, ...(k ? [{ type: 'knife', n: Math.min(k, n - 1) }] : [])];
+    const count = new Map();
+    let shots = 0;
+    for (let i = 0; i < n; i++) { let t = T[(i + k) % T.length]; if (SHOOTS(t) && ++shots > 2) t = 'thug'; count.set(t, (count.get(t) ?? 0) + 1); }
+    return [...count].map(([type, m]) => ({ type, n: m }));
+  };
   belt.screens.forEach((sc, screen) => {
-    if (sc.boss) out.push({ screen, crowd: [{ type: 'thug', n: 2 }], boss: { recipe: { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'The Boss' }, plays: ['chain', 'strong'], cpu: Object.keys(CPU_LEVELS)[0], hp: 400 } });
-    else if (sc.gate) { out.push({ screen, crowd: [{ type: 'thug', n: 3 + k }, ...(k ? [{ type: 'knife', n: k }] : [])] }); k++; }
+    if (sc.boss) out.push({ screen, crowd: wave(2), boss: { recipe: { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'The Boss' }, plays: ['chain', 'strong'], cpu: Object.keys(CPU_LEVELS)[0], hp: 400 } });
+    else if (sc.gate) { out.push({ screen, crowd: wave(3 + k) }); k++; }
   });
   return out;
 }
-/** THE CROWD'S FACES: the characters a brawl's crowd and its boss are drawn as (each made as a fighter is, after the
- * players; the crowd's fight stays its type's). `as` what it draws: `*` any of the crowd (several: taken in turn, body by
- * body, so a wave is not one face), `boss` the boss; `heavy` the hulking body. */
-export const BRAWL_CROWD = Object.freeze([
-  { id: 'thug-1', as: '*', entry: { archetype: 'outlaw', role: 'frontline', build: 'heroic', style: 'all-rounder', name: 'Thug' } },
-  { id: 'thug-2', as: '*', heavy: true, entry: { archetype: 'everyman', role: 'frontline', build: 'brute', style: 'grappler', name: 'Bruiser' } },
-  { id: 'thug-3', as: '*', entry: { archetype: 'jester', role: 'flanker', build: 'lithe', style: 'rushdown', name: 'Punk' } },
-  { id: 'boss', as: 'boss', heavy: true, entry: { archetype: 'ruler', role: 'frontline', build: 'brute', style: 'grappler', name: 'The Boss' } },
-]);
+// the brawler's body by pole: the anime frame's muscular bodies (the base pair, the hulking pair for a heavy) in their
+// muscular form, under the western head
+const BRAWLER_BODY = (pole, heavy) => ({ head: 'landmark', animeBody: (heavy ? { male: 'armstrong', female: 'kale' } : { male: 'toji', female: 'mizuki' })[pole], muscleShirt: { definition: 1 } });
 /** A BRAWLER'S BODY over its sheet's person (the hero door's words): the anime frame's muscular bodies (anime-bodies.js:
  * the base pair, the hulking pair for a heavy) in their muscular form (the muscle shirt, every muscle drawn), under the
  * WESTERN head (the landmark head: styled, never the anime head and never the realistic one). `created` is the sheet's
@@ -822,16 +877,15 @@ export const BRAWL_CROWD = Object.freeze([
 export function brawlBody(created, heavy = false) {
   if (created?.create?.as !== 'hero') return null;
   const base = created.create.spec ?? {}, pole = (typeof base.cast === 'string' ? base.cast : base.cast?.pole) === 'female' ? 'female' : 'male';
-  const body = heavy ? { male: 'armstrong', female: 'kale' } : { male: 'toji', female: 'mizuki' };
-  return { head: 'landmark', animeBody: body[pole], muscleShirt: { definition: 1 } };
+  return BRAWLER_BODY(pole, heavy);
 }
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
-export function brawlStreets(Q, { title, roster, cast } = {}) {
+export function brawlStreets(Q, { title, roster, cast, types } = {}) {
   return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves }) => {
     const L = level ?? BRAWL_STREET.level, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const belt = brawlLevel(L, { title: t }).brawl.belt;
-    const street = { players: [0], waves: waves ?? defaultWaves(belt), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
@@ -843,6 +897,7 @@ function readBrawl(Q) {
   if (Q.register !== undefined && !FIGHT_REGISTERS.includes(Q.register)) throw fail(`.register is the game's one look: ${FIGHT_REGISTERS.join(' (cel) | ')} (lit)`);
   // (its roster is the fight's, read as the fight reads it)
   if (Q.roster !== undefined) readFight({ goal: 'fight', roster: Q.roster });
+  readCrowd(Q.crowd);
   if (Q.streets !== undefined) {
     if (!Array.isArray(Q.streets) || Q.streets.length < 1 || Q.streets.length > 8) throw fail('.streets is 1 to 8 streets { id, name?, level?: { kind, … }, waves?: [{ screen, crowd: [{ type, n }], boss? }] }');
     const ids = new Set();

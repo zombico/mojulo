@@ -62,7 +62,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, BRAWL_CROWD, brawlBody, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -894,10 +894,8 @@ function quickSteps(world, G, ref, lookup) {
     // throws its own way; every other fighter keeps its style's or its tradition's moves, played on its own body as
     // well; its own `moves` win)
     const strikesOf = (m, over) => (m !== undefined ? { moves: m } : Q.strikes === 'own' && over?.tradition === 'boxing' ? { moves: 'hero' } : {});
-    // (a brawl's crowd is drawn as characters too, quick.js BRAWL_CROWD: made after the players, never played)
-    const players = fightFighters(Q, seed), faces = Q.goal === 'brawl' ? BRAWL_CROWD.map((c, j) => fighterSpec({ ...c.entry, id: `crowd-${c.id}` }, players.length + j, seed)) : [];
-    const heavies = new Set(Q.goal === 'brawl' ? BRAWL_CROWD.filter((c) => c.heavy).map((c) => `crowd-${c.id}`) : []);
-    for (const { over, roll: own0, hero, moves, ...own } of [...players, ...faces]) {
+    const players = fightFighters(Q, seed);
+    for (const { over, roll: own0, hero, moves, ...own } of players) {
       if (hero) { roster.push({ ...own, hero, ...over, ...strikesOf(moves, over) }); continue; }
       const roll = { ...own0, setting };
       const sheet = rollEgocube(roll);
@@ -907,9 +905,9 @@ function quickSteps(world, G, ref, lookup) {
       const sheetKey = `fighter-${own.id}-sheet`, key = `fighter-${own.id}`, sheetRef = childRef(ref, sheetKey), charRef = childRef(ref, key);
       const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
-      // (a BRAWLER's bodies, quick.js brawlBody: the anime frame's muscular bodies under the western head, the heavies
-      // the hulking pair; laid over the sheet's person as a foe's body words are)
-      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest)), heavies.has(own.id)) : null;
+      // (a BRAWLER's body, quick.js brawlBody: the anime frame's muscular body under the western head, laid over the
+      // sheet's person as a foe's body words are)
+      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest))) : null;
       steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}`, ...(bodyOf ? { spec: bodyOf } : {}) }, print: fingerprint({ roll, ...(bodyOf ? { spec: bodyOf } : {}) }) });
       roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
     }
@@ -917,10 +915,18 @@ function quickSteps(world, G, ref, lookup) {
       // each street a level the brawl is fought down (quick.js brawlStreets: a brawl level with its waves and the hosted
       // level's contract), then the game that runs them one after another in the play shell, its screens the game UI
       // runtime's in the brawler's look unless the world says its own
-      // (who the crowd is drawn as: each crowd character's index under what it draws, a kind's several taken in turn)
-      const cast = {};
-      BRAWL_CROWD.forEach((c, j) => { (cast[c.as] ??= []).push(players.length + j); });
-      const streets = brawlStreets(Q, { title, roster, cast }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
+      // THE CROWD: a crew of the comic pack's (quick.js brawlCrowd), each grunt a character the hero door mints as a
+      // dressed foe is, drawn many times over and never played; who draws what: a grunt's index under how it fights
+      // (several of a type taken in turn, body by body), all of them under `*`, its boss under `boss`
+      const crowd = brawlCrowd(Q, seed, title), cast = {}, types = [];
+      for (const m of crowd.members) {
+        const key = `foes-${m.id}`, charRef = childRef(ref, key), k = roster.length;
+        steps.push({ key, ref: charRef, ready: true, order: { spec: m.mint.spec, mint: m.mint, motion: null }, print: fingerprint({ spec: m.mint.spec, crowd: crowd.faction }) });
+        roster.push({ id: m.id, name: m.name, hero: { ref: charRef } });
+        (cast[m.as] ??= []).push(k);
+        if (m.as !== 'boss') { (cast['*'] ??= []).push(k); types.push(m.as); }
+      }
+      const streets = brawlStreets(Q, { title, roster, cast, types }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
       const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));
       const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-yard') };
       const game = { title, store: quickStore(Q), levels: streets.map((s) => ({ ref: s.ref, title: s.name })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };

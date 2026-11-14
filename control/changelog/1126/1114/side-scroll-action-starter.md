@@ -56,10 +56,18 @@ screen) is now played on a page; before, only its practice yard was.
   one of the anime frame's muscular bodies in its muscular form (the muscle shirt) under the WESTERN head (`quick.js`
   brawlBody): the base pair for the players and the crowd, the hulking pair for the heavies and the boss. Never the
   anime head, never the realistic one.
-- The crowd varies: a cast's kind may name several characters, taken in turn body by body, and a quick brawl makes
-  three thugs (a thug, a bruiser on the hulking body, a punk) and the boss beside its players.
+- The crowd is a crew of the comic pack's: a brawl's `crowd` is a faction (`cosmos/packs/comic-hero/grunts.js`: the
+  street gang, the crime family, the shadow clan, the motorcycle club, the private military, the cult, the punks,
+  corporate security) or `{ faction, colourway?, size? }`, the street gang when none is said. `quick.js` brawlCrowd
+  casts a grunt of each of the faction's kinds in ONE colourway and its boss (its heaviest kind, on the hulking body),
+  each minted by the hero door as a dressed foe is, out of the pack's own light, on the brawler's body under the
+  western head. A grunt fights as what it carries (crowdTypeOf: a drawn knife the knife, a machete or a katana the
+  sword, a staff or a sceptre the staff, a pistol the gunner, a long gun the rifleman; bare-handed, a big body the
+  heavy and any other the thug); a blade is the street's to draw, so only a gun stays in the hand. A street that names
+  no waves draws them from those types, no more than two of a wave shooting. A cast's kind may name several
+  characters, taken in turn body by body.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
-- Not yet: the crowd from the comic pack's factions (a crew in its colours: the next step), a street of more than one
+- Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
   software), the realistic jacked body's wrist (its forearm ends wider than its hand), the street's dress (the
   stage kits), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed
