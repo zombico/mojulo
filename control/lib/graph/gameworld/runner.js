@@ -59,7 +59,7 @@ import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
-import { sheetAudio, sheetBed, onSheet, levelSheet } from './sound-sheet.js';
+import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -1000,8 +1000,10 @@ function quickSteps(world, G, ref, lookup) {
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   // (a sheet game's carried guns, each by what it is: quick.js quickGuns; laid on the kit by the casts, their cues in the level's audio)
   const guns = quickGuns(G, Q);
+  // (and its ride's engine, by what is ridden and how fast it goes: sound-sheet.js rideSound; a transformer's forms are not on the sheet)
+  const engine = ride && !Q.transformer && ride.rule ? rideSound(G, { quick: Q, words: [Q.ride, Q.vehicle, rode?.class, rode?.archetype, rode?.kind].filter((w) => typeof w === 'string').join(' '), top: rideTop(ride.rule) }) : null;
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef),
-    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }), ...(guns ? { cues: guns.cues } : {}) } : {}) });
+    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }), ...(guns ? { cues: guns.cues } : {}), ...(engine ? { engine: engine.engine } : {}) } : {}) });
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     // a tower defence or a skirmish on the stage's spots (board-levels.js): no hero, the level the board's

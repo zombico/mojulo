@@ -265,3 +265,45 @@ describe('a sheet game\'s foes sound on what they do', () => {
     expect(audioChannelScript(plain)).not.toContain('__beatsFoes');
   });
 });
+
+describe('a sheet game\'s ride (its engine, a held voice by its speed)', () => {
+  it('the engine by what is ridden, its top from its rule; the game\'s word wins, false is silence; off the sheet, none', async () => {
+    const { rideSound, rideTop } = await import('./sound-sheet.js');
+    expect(rideSound({}, { words: 'coupe', top: 40 })).toBeNull();
+    expect(rideSound({ sound: {} }, { words: 'coupe sports', top: 40 })).toMatchObject({ engine: { voice: 'car-engine', top: 40 } });
+    expect(rideSound({ sound: {} }, { words: 'a superbike cycle', top: 60 }).engine.voice).toBe('motorbike-engine');
+    expect(rideSound({ sound: {} }, { words: 'van', top: 30 }).engine.voice).toBe('diesel-engine');
+    expect(rideSound({ sound: { ride: 'kart' } }, { words: 'coupe', top: 40 }).engine.voice).toBe('kart-engine');
+    expect(rideSound({ sound: { ride: false } }, { words: 'coupe', top: 40 })).toBeNull();
+    expect(rideSound({ sound: {} }, { words: 'coupe' })).toBeNull();
+    expect(() => readSound({ ride: 'punch' })).toThrow(/held voice/);
+    // a top speed: what the rule says, else where its power meets its drag
+    expect(rideTop({ topSpeed: 50, horsepower: 100, drag: 0.4 })).toBe(50);
+    expect(rideTop({ speed: 12 })).toBe(12);
+    expect(rideTop({ horsepower: 100, drag: 0.4 })).toBeCloseTo(Math.cbrt(74570 / 0.4), 6);
+    expect(rideTop({ type: 'static' })).toBeNull();
+  });
+
+  it('a level carries the held voice and the page\'s engine channel; a level with no ride carries not a byte of it', () => {
+    const audio = resolveWorldAudio({ engine: { voice: 'car-engine', top: 40 } }, { ref: 'lv' });
+    expect(audio.engine).toMatchObject({ top: 40, level: 0.3, idle: 0.12 });
+    expect(audio.engine.voice).toEqual(sfxSound('car-engine').sustain);
+    const js = audioChannelScript(audio);
+    expect(js).toContain('__beatsEngine');
+    expect(() => new Function(js)).not.toThrow();
+    expect(audioChannelScript(resolveWorldAudio({ sfx: 'auto' }, { ref: 'lv' }))).not.toContain('__beatsEngine');
+    expect(() => resolveWorldAudio({ engine: { voice: 'punch', top: 40 } }, { ref: 'lv' })).toThrow(/held voice/);
+    expect(() => resolveWorldAudio({ engine: { voice: 'car-engine' } }, { ref: 'lv' })).toThrow(/audio.engine is/);
+  });
+
+  it('a made driving level on the sheet carries its ride\'s engine; with no `sound`, the level it was', async () => {
+    const { runSteps } = await import('./index.js');
+    const { quickWorld } = await import('./quick.js');
+    const level = (W) => runSteps(W, { ref: 'gw' }).find((s) => s.key.startsWith('level-')).order.manifest;
+    const quick = { goal: 'race', ride: 'coupe' };
+    expect(level(quickWorld({ id: 'qr', quick })).audio?.engine).toBeUndefined();
+    const heard = level({ ...quickWorld({ id: 'qr', quick }), sound: {} });
+    expect(heard.audio.engine.voice).toBe('car-engine');
+    expect(heard.audio.engine.top).toBeGreaterThan(5);
+  });
+});

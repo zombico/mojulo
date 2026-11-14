@@ -11,6 +11,7 @@
  *     wind?:       true | { level (dB), freq (Hz) },
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
  *     (a sheet level also carries `foes`: { <foe id>: { attack?, hurt?, down? } } cue ids, from sfx.sheet.foes)
+ *     engine?:     { voice, top, level?, idle? }   a ride's engine: a held voice following the pilot's speed up to `top`
  *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
  *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
  *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
@@ -353,6 +354,15 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (errors.length) throw new Error(`${where}:\n - ${errors.join('\n - ')}`);
     return v;
   };
+  // a ride's ENGINE (`engine`: { voice, top, level?, idle? }): a held voice (a sustain spec, or a held row of the SFX
+  // shelf by its word) the audio channel drives by the pilot's speed over `top` (units/s), from `idle` (0..1) up
+  if (audioSpec.engine !== undefined) {
+    const en = audioSpec.engine;
+    if (!en || typeof en !== 'object' || !(en.top > 0)) throw new Error('audio.engine is { voice: <a held voice: a sustain spec or a shelf word>, top: <the speed it is flat out at, units/s>, level?, idle? }');
+    const spec = typeof en.voice === 'string' ? sfxSound(en.voice)?.sustain : en.voice;
+    if (!spec) throw new Error(`audio.engine.voice: '${en.voice}' is not a held voice on the SFX shelf`);
+    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12 };
+  }
   if (audioSpec.thruster) {
     const th = audioSpec.thruster === true ? {} : audioSpec.thruster;
     out.thruster = { level: Number.isFinite(th.level) ? th.level : 0.5 };

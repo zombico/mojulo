@@ -406,6 +406,27 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     }
   })();
 })();
+` : ''}${audio.engine ? `// a ride's ENGINE (audio.engine, beats-world.js; gameworld/sound-sheet.js rideSound): a held voice driven by the
+// pilot's own travel speed over the ride's top, from its idle up, smoothed so a stop winds down. Built lazily on
+// unlock; silent while muted or with no pilot. Read-only and presentation-only. (No backticks.)
+(function () {
+  const E = __AUDIO.engine, K = { pos: null, t: 0, speed: 0 };
+  let H = null;
+  (function __beatsEngine() {
+    requestAnimationFrame(__beatsEngine);
+    if (!__beatsEng) return;
+    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
+    const now = performance.now() / 1000;
+    if (P && P.transform && P.transform.pos) {
+      const p = P.transform.pos, dt = now - K.t;
+      if (K.pos && dt > 0 && dt < 0.5) { const d = Math.hypot(p[0] - K.pos[0], p[1] - K.pos[1], (p[2] || 0) - (K.pos[2] || 0)); K.speed += (d / dt - K.speed) * 0.12; }
+      K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
+    } else K.speed *= 0.9;
+    const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
+    H.set(__beatsMuted || !P ? 0 : x);
+  })();
+})();
 ` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
 // visual jets. Unlike the one-shot cues above it is a continuous, gain-modulated noise bed that
 // SWELLS with e.thrust (the same 0..1 the platform rule flags on boost and the jets read) and dies

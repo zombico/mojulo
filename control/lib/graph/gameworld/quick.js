@@ -1546,15 +1546,16 @@ const heardGun = (weapon, guns) => (guns?.sfx.rifle ? { ...weapon, sfx: guns.sfx
  * mood the level's place (`manifest`) and play (the goal, `final`) call for, quiet when its place calls for none.
  * `sfx`: the level's action sounds (beats-world resolves 'auto' and the sheet against the level's own mechanics); for
  * 'sheet', `sheet` is the game's (sound-sheet.js sheetAudio, the runner's: it reads the whole game).
- * `cues`: more cues for a sheet level's book (its guns': quickGuns below).
+ * `cues`: more cues for a sheet level's book (its guns': quickGuns below). `engine`: its ride's engine (rideSound).
  */
-export function goalAudio(quick, { manifest = {}, final = false, game, sheet: sheet0 = null, bed = null, cues = null } = {}) {
+export function goalAudio(quick, { manifest = {}, final = false, game, sheet: sheet0 = null, bed = null, cues = null, engine = null } = {}) {
   // (a sheet game's guns: each gun's own cues in the level's book of cues, so the page's kernel carries their gestures)
   const sheet = sheet0 && cues ? { sheet: { ...sheet0.sheet, cues } } : sheet0;
   // (no `sfx` said and a sheet handed over: the game has a `sound` of its own, so its levels hear it: sound-sheet.js onSheet)
   const sfx = quick.sfx === undefined || quick.sfx === 'sheet' ? sheet : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
   // (a sheet game's level lays its environment's bed under the score: sound-sheet.js sheetBed, the runner's)
-  const withSfx = (a) => (sfx || bed ? { ...(a || {}), ...(sfx ? { sfx } : {}), ...(bed ? { bed } : {}) } : a);
+  // (and its ride's engine, a held voice by its speed: sound-sheet.js rideSound)
+  const withSfx = (a) => (sfx || bed || engine ? { ...(a || {}), ...(sfx ? { sfx } : {}), ...(bed ? { bed } : {}), ...(engine ? { engine } : {}) } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
   if (quick.music === undefined) return withSfx(null);
   const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;

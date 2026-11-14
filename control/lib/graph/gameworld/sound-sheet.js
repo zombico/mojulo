@@ -27,6 +27,10 @@
  * struck); a foe drawn as a person shouts on its attack, grunts on a blow and cries out as it falls (the voice
  * family's efforts). A game overrides a foe with `sound.foes: { <foe id>: { attack?, hurt?, down? } }`.
  *
+ * ITS RIDE: a level driven in a vehicle hears its engine (rideSound below): a held voice of the shelf by the words of
+ * what is ridden (a motorbike, a kart, a truck's diesel, a tank, a boat; else a car), following the ride's speed up
+ * to its top (the page's engine channel, scene/channels/audio.js). `sound.ride` is the game's own word, or false.
+ *
  * NEW VOICES FIRST (the operator's rule, 2026-11-10): the sheet's style is `mouth` unless the game writes another
  * (`sound.style`), so every event the mouth voices (mouth foley: the swings, the strikes, the staff, the steps on grass,
  * the latch, the creatures) plays that voice, and the rest are realistic as the overlay falls back (styles.js); and
@@ -49,6 +53,7 @@ import { BASIC_ARSENAL } from './combos.js';
 import { stageKit } from '../era/stage.js';
 import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { gunCues } from './combat/range-sound.js';
+import { sfxSound } from '../sfx-shelf/resolve.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -60,6 +65,15 @@ export const MOVE_SOUND_WORDS = Object.freeze({ 'blade-light': 'blade-swing', 'b
 // a moveset's one-cue events (beats-world.js MOVE_SOUNDS.one) → the table's row
 const MOVE_EVENTS = Object.freeze({ block: 'block', parry: 'parry', break: 'guard-break', draw: 'bow-draw', loose: 'bow-shot', arrow: 'arrow-hit', felled: 'felled', cycle: 'cycle', foeSwing: 'foe-swing', hurt: 'hurt' });
 const WEAPON_KEYS = Object.freeze(['swing', 'heavy', 'hit', 'finisher']);
+// a ride by its words: the engine it is heard by (the first that matches; a car's where none does)
+const ENGINES = Object.freeze([
+  { test: /motor ?(bike|cycle)|\b(bike|cycle|scooter|chopper|cruiser|superbike|dirt ?bike|moped)\b/, voice: 'motorbike-engine' },
+  { test: /\b(kart|go-?kart|buggy)\b/, voice: 'kart-engine' },
+  { test: /\b(tank|tracked|apc|halftrack)\b/, voice: 'tank-engine' },
+  { test: /\b(truck|lorry|bus|van|minivan|carrier|tractor|pickup|jeep|humvee|diesel)\b/, voice: 'diesel-engine' },
+  { test: /\b(boat|speedboat|skiff|launch|jet ?ski)\b/, voice: 'boat-engine' },
+  { test: /./, voice: 'car-engine' },
+]);
 const GUN_KEYS = Object.freeze(['shot', 'reload', 'hit', 'draw']);
 const fail = (m) => new Error(`gameworld: sound${m}`);
 
@@ -177,7 +191,7 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, bed?, vary? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
@@ -200,6 +214,10 @@ export function readSound(S) {
       if (!isObj(o)) throw fail(`.foes.${id} is { ${FOE_KEYS.join('?, ')}? }, each a shelf word`);
       for (const [k, w] of Object.entries(o)) { if (!FOE_KEYS.includes(k)) throw fail(`.foes.${id}.${k}: a foe's sounds are ${FOE_KEYS.join(', ')}`); word(`.foes.${id}.${k}`, w); }
     }
+  }
+  if (S.ride !== undefined && S.ride !== false) {
+    const v = typeof S.ride === 'string' && resolveSoundId(S.ride) ? sfxSound(S.ride) : null;
+    if (!v?.sustain) throw fail(`.ride '${S.ride}' is a held voice of the shelf (an engine: ${ENGINES.map((e) => e.voice).join(', ')}) or false`);
   }
   if (S.weapons !== undefined) {
     if (!isObj(S.weapons)) throw fail(`.weapons is { <weapon id>: { ${WEAPON_KEYS.join('?, ')}? } }, each a shelf word`);
@@ -301,4 +319,30 @@ export function levelSheet(G, { manifest = null, quick = G?.quick } = {}) {
 export function gunSounds(G, slots, { quick = G?.quick } = {}) {
   if (!onSheet(G, quick) || !Array.isArray(slots) || !slots.length) return null;
   try { return gunCues({ slots, sounds: readSound(G?.sound).guns ?? {} }); } catch (e) { throw fail(`.guns: ${e.message}`); }
+}
+
+/**
+ * A ride's top speed (units/s) from its rule: what it says (`topSpeed`, a governed car's; `speed`, a simple ride's),
+ * else where its power meets its drag (a `drive` rule's horsepower and drag: P = drag · v³). Null where none can be read.
+ */
+export function rideTop(rule) {
+  if (!isObj(rule)) return null;
+  if (rule.topSpeed > 0) return rule.topSpeed;
+  if (rule.speed > 0) return rule.speed;
+  return rule.horsepower > 0 && rule.drag > 0 ? Math.cbrt((rule.horsepower * 745.7) / rule.drag) : null;
+}
+
+/**
+ * A sheet game's ride, heard: the engine a driven level plays, a held voice following the ride's speed. `words` say
+ * what is ridden (the ride's word, its class, its archetype), `top` its top speed (units/s). → { engine: { voice:
+ * <shelf word>, top }, why } for the level's audio (beats-world.js `audio.engine`), or null: a game on no sheet, a
+ * game that says `sound.ride: false`, a ride with no top speed.
+ */
+export function rideSound(G, { words = '', top = null, quick = G?.quick } = {}) {
+  if (!onSheet(G, quick) || !(top > 0)) return null;
+  const own = readSound(G?.sound).ride;
+  if (own === false) return null;
+  const hit = own ? null : ENGINES.find((e) => e.test.test(String(words).toLowerCase()));
+  const voice = own ? resolveSoundId(own) : hit.voice;
+  return { engine: { voice, top: Math.round(top * 100) / 100 }, why: own ? 'the game says so' : `${SOUNDS[voice].label}${words ? ` (${String(words).trim()})` : ''}` };
 }

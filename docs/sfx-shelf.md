@@ -144,6 +144,9 @@ Held voices are the kernel feature `sustain`: `engine.sustain(spec)` gives `set(
 `audio.jump.charge.voice` drive one from the pilot's thrust and jump charge. The shelf's `booster` `jet` and `servo`
 are ports of the channel's own synth for those slots, range for range.
 
+A level's `audio.engine` (`{ voice, top, level?, idle? }`) drives a held voice from the pilot's travel speed over
+`top`: a ride's engine.
+
 A page that uses none of this is byte-identical to what it was.
 
 ## How a sound is held to account
@@ -233,6 +236,10 @@ A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, th
   it is, by the firing range's procedure: a shot by its cartridge (pistol, submachine gun, magnum, rifle, sniper,
   shotgun; a launcher's round away), a reload spread over the gun's own reload time, a round landing, the draw.
   Guns play realistic whatever the sheet's style, since no other style voices a gunshot by its cartridge.
+- **Its ride:** a level driven in a vehicle hears its engine, a held voice by the words of what is ridden (a
+  motorbike, a kart, a truck's diesel, a tank, a boat; else a car). It follows the ride's own speed from an idle up
+  to its top speed, which is read from the ride's rule (its governed speed, or where its power meets its drag).
+  `sound.ride` is the game's own held voice, or `false` for none.
 - **Its ground:** grass on a nature or jungle stage, else stone.
 - **Its foes:** a beast's voice by its species, heard when it spots the hero and each time it attacks; a big cat
   also grunts when struck. A foe drawn as a person shouts on its attack, grunts on a blow and cries out as it falls.

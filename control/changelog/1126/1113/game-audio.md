@@ -18,9 +18,12 @@
   it falls, placed where it stands: a beast in its species' voice (a big cat grunts when struck), a foe drawn as a
   person with a shout, a grunt and a cry. A pack's attacks are held apart. A game overrides a foe with `sound.foes`;
   a foe with no voice of its own is listed as owed. Before this a foe's voice played only when it spotted the hero.
+- **A ride's engine.** A sheet game's driven level hears its vehicle: a held voice of the shelf by what is ridden,
+  following the ride's speed from an idle up to its top (a level's new `audio.engine`, and the page's engine
+  channel). `sound.ride` names another held voice, or `false`. A transformer's forms are not on the sheet yet.
 - **Fixed: a game's `sound` reached no level.** The world reader checked `sound` and did not carry it, so a quick
   game on the sheet played the solved sheet and ignored the game's own style, slots and cues.
-- Planned, not built yet: the sheet covering rides and the ground block by block; a music department
+- Planned, not built yet: the sheet's ground block by block; a music department
   that sets the game's audio direction (play keeps the SFX and reads it) and whose cue sheet answers each
   department's request for music (the flow's screens, the levels, the fights, the cinematics, the outcomes) on the
   game's one score identity; a title theme (the menu and the credits the same tune at another energy) and a cue
