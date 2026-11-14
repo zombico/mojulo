@@ -1,6 +1,14 @@
 ### The game turn: one level session in named phases
 
-Planned; nothing is built yet. This file is written before the code and says what the theme will hold.
+In progress. Built so far: the turn's shape, its reader and its kernel, read by the flow and walked headless
+(`lib/graph/game/turn.js`; [docs/game-flow.md](../../../../docs/game-flow.md), "A level step is a turn"). No shell
+runs a turn yet, so nothing a game emits has changed. The rest below is what the theme will hold.
+
+- **Built: a level step's turn.** A level step takes `picks` (what the player chooses before it loads, from the
+  game's own options or from a slice the level consumes), `start` and `end` (a scene or a video as play starts and
+  as it ends). `readFlow` teaches each fault, a pick's slice checked against what the level consumes. The kernel
+  steps the phases: a choice that cannot stand keeps the pick and says why, back unwinds one pick, a failed load
+  goes back with its reason, a retry keeps the picks and never replays the start, the pause is legal in play only.
 
 A game's level session becomes a turn with named phases, so that setting up, loading, playing, pausing and the
 results are one path every game shares, where today the play shell, the arena shell and versus each keep their own.

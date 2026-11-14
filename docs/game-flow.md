@@ -51,6 +51,42 @@ flow: {
   followed by its level, a cutscene that says both a video and a scene, and a loop of cinematics, cutscenes and holds
   with nothing for the player to press.
 
+## A level step is a turn
+
+One level session is a turn, in named phases (`control/lib/graph/game/turn.js`). The names are internal; the agent and
+the person read set up, loading, play, pause and results.
+
+| Phase | Who acts | What happens |
+|---|---|---|
+| untap | the player | the picks the level asks for, one at a time; back unwinds one |
+| upkeep | the app | the picks checked, the seed, the load, the level started; its only screen is the loading one |
+| main | the game | an optional start trigger, play, an optional end trigger |
+| cleanup | the app | the outcome applied to the store, the save written, the unlocks worked out |
+| end | the player | the results, and what next |
+
+The pause is an interrupt: legal in play only, never a phase. A quit from it is a level left, through cleanup.
+
+A level step says its turn in three optional keys; a step that says none plays as it always has:
+
+```js
+play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
+  picks: [{ id: 'difficulty', from: { options: ['easy', 'normal', 'hard'] } },
+          { id: 'squad', from: { slice: 'party' }, max: 2 }],
+  start: { scene: 'arrival' },                 // as play starts, control held; once a save, never on a retry
+  end:   { scene: 'farewell', when: 'won' } }  // once the outcome is known, before cleanup
+```
+
+- **Picks.** Each lands in the turn's session under its `id`. From `options` it is the game's own words (a
+  difficulty, a mode). From a `slice` it is which members of a slice the level consumes go in; what is there, and
+  what is locked and why, is the store's answer, never the screen's.
+- **Triggers.** A `scene` the level has (scripted motion, talking) or a `video`. `skip: false` makes one
+  unskippable. The end trigger plays on the outcomes its `when` names (won and lost when not said).
+- **Exits.** A retry loads again with the same picks. A load that fails goes back to the last pick with its reason.
+- **The kernel** (`buildTurnKernel`: `beginTurn`, `stepTurn`, `walkTurn`) is self-contained, to be inlined in a shell
+  beside the flow kernel. It draws nothing: a shell draws each phase.
+
+Read and walked today; no shell runs it yet (below).
+
 ## How a game starts
 
 Three things, in this order, each in its own place:
@@ -117,6 +153,8 @@ cinematics a save has seen beside it, so an opening plays on a first boot, and f
 
 - Holding the world through a scene: the world freeze stops the clock the scene itself runs on, so a hold needs a
   narrower freeze (foes and hazards still, the scene's cast and camera moving).
+- The turn (above) is read by the flow and walked headless; the play shell does not run it yet, so a level step's
+  picks and triggers are not played.
 - The arena shell, versus, tabletop, table-rpg and pixelizer keep their own screen machines.
 - The play shell's screens are drawn by mana-ui only for a game with a `ui` (play-shell-mana.js: the look resolved,
   the game's languages; design_game writes it from a world's `ui`); without one they stay the shell's own DOM and the
