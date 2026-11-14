@@ -802,7 +802,7 @@ export function playShellRuntime(cfg, K) {
     if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
     if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
     const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
-    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : '', items };
+    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : (env.stats && typeof env.stats.rank === 'string' ? env.stats.rank : ''), items };
   }
   // a run's end as data (the run is over once it is said)
   function runInfo() {

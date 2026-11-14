@@ -2,7 +2,7 @@
  * brawl street read — what a street being fought down says of itself, for its screen (brawl-street.js) and for a probe:
  * pure, off the street's own state (brawl-crowd.js streetOf / stepStreet).
  *
- *   streetRead(street, hp0)  → { hp, hpMax, name, cleared, of, screen, left, boss: { on, name, hp, hpMax }, won, lost, f }
+ *   streetRead(street, hp0)  → { hp, hpMax, name, cleared, of, screen, left, boss: { on, name, hp, hpMax }, won, lost, f, rank }
  *     hp0      each body's health as the street began (its bar's whole), by id
  *     cleared  how many of its held screens are beaten, `of` how many there are; `screen` the one being fought (1…)
  *     left     the crowd on the street now, still standing
@@ -11,6 +11,7 @@
  *
  * Pure: no clock, no dice.
  */
+export const streetRank = (share) => (share >= 0.75 ? 'S' : share >= 0.5 ? 'A' : share >= 0.25 ? 'B' : 'C');
 export function streetRead(street, hp0 = []) {
   const { s, ctx, mind } = street, belt = ctx.belt;
   const held = belt.screens.map((sc, i) => (sc.gate || sc.boss ? i : -1)).filter((i) => i >= 0);
@@ -24,5 +25,7 @@ export function streetRead(street, hp0 = []) {
     cleared, of: held.length, screen: Math.min(held.length, cleared + 1), left: on.length,
     boss: B && !B.ko ? { on: true, name: mind.bosses[bossId].name, hp: Math.max(0, B.hp), hpMax: hp0[bossId] || B.hp || 1 } : { on: false, name: '', hp: 0, hpMax: 1 },
     won: held.length > 0 && cleared === held.length, lost: players.every((b) => b.ko), f: s.f,
+    // a street's RANK, by the health it was cleared with: S three quarters or more, A a half, B a quarter, else C
+    rank: streetRank(Math.max(0, me.hp) / (hp0[me.id] || me.hp || 1)),
   };
 }

@@ -144,7 +144,7 @@ export const FRONT_IDIOMS = {
     params: ['outcome', 'stats', 'rank', 'items'],
     node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
       { use: 'banner', props: { value: P('outcome') } },
-      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt({ word: 'rank' }, 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
+      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider', when: P('rank') }, { use: 'stack', props: { dir: 'row', align: 'apart' }, when: P('rank'), children: [txt({ word: 'rank' }, 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
       { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
     ] }]),
     example: { outcome: { bind: 'results.outcome' }, stats: { bind: 'results.stats' }, rank: { bind: 'results.rank' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'Retry', then: { emit: 'retry' } }, { label: 'Quit', then: { emit: 'quit' } }] },

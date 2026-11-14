@@ -71,6 +71,10 @@ if (F) {
   for (const k of ['KeyD', 'KeyA', 'KeyW', 'KeyS']) await page.keyboard.up(k);
   say('street end', { over, read: last && { cleared: last.R.cleared, of: last.R.of, hp: last.R.hp } });
   await wait(4000); await shot('after'); say('shell after', await words());
+  // (the result's first row fights it again: the street back at its start, in the shell)
+  await page.keyboard.press('Enter'); await wait(5000);
+  const again = frameOf() ? await frameOf().evaluate(() => { const B = window.__mojBrawl; return B && B.room ? { over: B.over, cleared: B.read.cleared, hp: B.read.hp, f: B.room.s.f } : null; }).catch(() => null) : null;
+  await shot('again'); say('again', { street: again, shell: await words() });
 }
 say('errors', errs.slice(0, 6));
 await browser.close(); server.close(); process.exit(0);

@@ -40,6 +40,10 @@ screen) is now played on a page; before, only its practice yard was.
   street and the game; export_game writes it; in the shell the title starts the street, the keyboard plays it, a
   masher beaten on its second screen is shown the shell's FAILED with try again, and a street cleared its CLEARED
   with the time and the health; no page errors.
+- A street's rank: S, A, B or C by the health it is cleared with (three quarters, a half, a quarter), sent with its
+  end and stamped on the shell's result; a result with no rank shows no rank row (the results idiom drew an empty
+  one). The boss's bar runs along the foot, clear of the corners' readouts. The keys go back to the shell as a street
+  ends, so its result is driven from the keyboard, and "play again" fights the street from its start.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: the crowd as a world's own bestiary (it is the library's thugs, stick figures), the street's dress (the
   stage kits), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed

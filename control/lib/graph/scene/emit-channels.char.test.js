@@ -742,6 +742,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // thrown, a jump and the bodies' voices off the street's state, and counts what it asked for (window.__mojBrawl.heard).
 // And once more (a street in a game's shell): `brawl`. A hosted street says it is ready, takes the focus, and sends its
 // end up the level wire in place of its own end screen.
+// And for its rank and the keys handed back (`brawl`): a cleared street is ranked by the health left, sent with its end;
+// the frame gives the focus back to the shell as it ends, and takes it again when the shell says go.
 // Re-pinned 2026-11-14 (the holo arena's `ready`, tabletop/holo-arena.client.js): `holo`. Its probe says whether a
 // person's click would be taken now (in play, their turn, no beat on stage or waiting), so a driver waits on the page and
 // not on a clock; the arena plays as it did.

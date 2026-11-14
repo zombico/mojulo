@@ -3,7 +3,7 @@
 // screens beaten, the crowd left, the boss's bar, the two ends.
 import { describe, it, expect } from 'vitest';
 import { streetSpec, streetScreenOf, readStreet } from './brawl-street.js';
-import { streetRead } from './brawl-street-read.js';
+import { streetRead, streetRank } from './brawl-street-read.js';
 import { brawlPreset, brawlLevel } from './brawl-levels.js';
 import { brawlYardData, BRAWL_ROSTER } from './brawl-page.js';
 import { streetOf, stepStreet, CROWD_TYPE_IDS } from './brawl-crowd.js';
@@ -67,6 +67,11 @@ describe('what a street says of itself', () => {
     const S = mk(), hp0 = S.s.bodies.map((b) => b.hp);
     expect(streetRead({ ...S, s: { ...S.s, cleared: held } }, hp0)).toMatchObject({ won: true, cleared: held.length });
     expect(streetRead({ ...S, s: { ...S.s, bodies: S.s.bodies.map((b, i) => (i ? b : { ...b, ko: 1, hp: 0 })) } }, hp0)).toMatchObject({ lost: true, hp: 0 });
+  });
+  it('ranks a street by the health it is cleared with', () => {
+    expect([1, 0.75, 0.6, 0.3, 0.1].map(streetRank)).toEqual(['S', 'S', 'A', 'B', 'C']);
+    const S = mk(), hp0 = S.s.bodies.map((b) => b.hp);
+    expect(streetRead(S, hp0).rank).toBe('S');
   });
   it('walked down on its own sim, the first held screen\'s crowd comes on and is counted', () => {
     let S = mk(); const hp0 = S.s.bodies.map((b) => b.hp);

@@ -23,7 +23,7 @@ import { readWaves } from './brawl-crowd.js';
 const b = (path) => ({ bind: `brawl.street.${path}` });
 const end = (title, sub) => ({ use: 'screen', props: { layer: 'overlay', place: 'center', title }, children: [{ use: 'stack', props: { dir: 'column', gap: 'normal', align: 'center' }, children: [
   { use: 'text', props: { value: sub, role: 'label' } },
-  { use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [{ use: 'stat', props: { label: 'time', value: b('time') } }, { use: 'stat', props: { label: 'health', value: b('hp'), max: b('hpMax') } }] },
+  { use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [{ use: 'stat', props: { label: 'time', value: b('time') } }, { use: 'stat', props: { label: 'health', value: b('hp'), max: b('hpMax') } }, { use: 'stat', props: { label: 'rank', value: b('rank') } }] },
   { use: 'button', props: { label: 'Fight it again' }, on: { accept: { emit: 'street:again' } } },
 ] }] });
 
@@ -35,8 +35,9 @@ export function streetSpec() {
         { use: 'text', props: { value: b('name'), role: 'label' } },
         { use: 'bar', props: { value: b('hp'), max: b('hpMax'), variant: 'hp', size: 'large', figures: false } }] }] },
       { use: 'region', props: { at: 'top' }, children: [{ use: 'pips', props: { value: b('cleared'), max: b('of'), shape: 'square', label: 'street' } }] },
-      { use: 'region', props: { at: 'top-right' }, unless: b('boss.on'), children: [{ use: 'counter', props: { label: 'left', value: b('left'), icon: 'skull' } }] },
-      { use: 'region', props: { at: 'top-right' }, when: b('boss.on'), children: [{ use: 'bar', props: { value: b('boss.hp'), max: b('boss.hpMax'), variant: 'boss', label: b('boss.name'), dir: 'rtl', figures: false } }] },
+      { use: 'region', props: { at: 'top-right' }, children: [{ use: 'counter', props: { label: 'left', value: b('left'), icon: 'skull' } }] },
+      // (the boss's bar along the foot, clear of the corners' readouts)
+      { use: 'region', props: { at: 'bottom' }, when: b('boss.on'), children: [{ use: 'bar', props: { value: b('boss.hp'), max: b('boss.hpMax'), variant: 'boss', size: 'large', label: b('boss.name'), figures: false } }] },
       { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: b('moments'), as: 'banner', hold: 1.1, read: 0.4 } }] },
     ] },
     screens: {
