@@ -228,3 +228,13 @@ describe('on ground that rises', () => {
     for (const b of G.blocks.filter((q) => q.tone === 'floor')) expect(b.at[2]).toBeLessThanOrEqual(0);
   });
 });
+
+describe('a level that turns', () => {
+  it('a town street and a building\'s bays take a turn by word; a level that says none has none', () => {
+    const turn = [[0, 0], [16, 0], [30, 35], [60, 35]];
+    expect(brawlLevel({ kind: 'town', turn }).brawl.belt.turn).toEqual(turn);
+    expect(brawlLevel({ kind: 'stage', kit: 'gothic-stone', turn }).brawl.belt.turn).toEqual(turn);
+    expect(brawlLevel({ kind: 'town' }).brawl.belt.turn).toBeUndefined();
+    expect(() => brawlLevel({ kind: 'town', turn: [[0, 0], [1, 50]] })).toThrow(/walked round/);
+  });
+});

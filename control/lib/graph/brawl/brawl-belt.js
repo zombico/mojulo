@@ -14,6 +14,7 @@
  *     screens  the run, in order, each `length` m along it; `gate` holds the camera at its end until its wave is beaten;
  *              `boss` (the last screen only) is the boss's, and held
  *     rise     the floor's height along it, [[s, z], …]: a street that climbs, steps between screens (absent: flat)
+ *     turn     the road's swing on the screen along it, [[s, degrees], …]: it heads up the screen as it goes on
  *     angle    the camera's locked angle (BELT_ANGLES), one a stage, chosen when the game is made; it never orbits
  *
  * A belt is straight: a street that turns is two belts (a stage's next street), never a bent one, so a body's s and n are
@@ -23,6 +24,7 @@
  *                                    naming the fault)
  *   beltPoint(belt, s, n, z)       → [x, y, z] world metres of a belt-local point
  *   beltFloor(belt, s)             → m, the floor's height at s over the belt's floor (its `rise`; 0 on a flat belt)
+ *   beltTurn(belt, s)              → degrees, how far the road is turned on the screen at s (its `turn`; 0 unturned)
  *   screenAt(belt, s)              → the index of the screen s is in
  *   heldAt(belt, cleared)          → the s the camera may not show past: the end of the first held screen whose wave is
  *                                    not in `cleared` (a set or a list of screen indices), else the belt's end
@@ -69,7 +71,9 @@ const PUSH = 1 / 3;
 /** how near a screen's edge a body may stand (m): the edge is a wall it cannot walk through, a body's width in */
 const EDGE = 0.5;
 
-const KEYS = ['at', 'heading', 'floor', 'depth', 'screens', 'angle', 'rise'];
+const KEYS = ['at', 'heading', 'floor', 'depth', 'screens', 'angle', 'rise', 'turn'];
+/** a belt's turn: how far the road may swing on the screen (degrees either way), how fast (degrees a metre walked) */
+export const TURN_LIMITS = Object.freeze({ yaw: 55, rate: 12, points: 60 });
 /** a belt's rise: how steep the floor may run between two of its points (rise over run: a stair), how far it may rise */
 export const RISE_LIMITS = Object.freeze({ grade: 0.7, height: 30, points: 200 });
 const SCREEN_KEYS = ['length', 'gate', 'boss'];
@@ -78,7 +82,7 @@ const SCREEN_KEYS = ['length', 'gate', 'boss'];
 export function readBelt(belt, where = 'belt') {
   if (!belt || typeof belt !== 'object' || Array.isArray(belt)) no(`${where} is { at: [x, y], heading, floor?, depth?: [near, far], screens: [{ length, gate?, boss? }], angle? }`);
   for (const k of Object.keys(belt)) if (!KEYS.includes(k)) no(`${where}.${k} is not a belt's word (${KEYS.join(', ')})`);
-  const { at = [0, 0], heading = 0, floor = 0, depth = BELT_DEPTH, screens, angle: angleId = 'classic', rise } = belt;
+  const { at = [0, 0], heading = 0, floor = 0, depth = BELT_DEPTH, screens, angle: angleId = 'classic', rise, turn } = belt;
   if (!Array.isArray(at) || at.length !== 2 || !at.every(isNum) || at.some((v) => Math.abs(v) > BELT_LIMITS.at)) no(`${where}.at is [x, y], metres on the level's plan (within ${BELT_LIMITS.at} m)`);
   if (!isNum(heading)) no(`${where}.heading is degrees, the way the belt runs (0 along +x)`);
   const [fLo, fHi] = BELT_LIMITS.floor;
@@ -114,6 +118,20 @@ export function readBelt(belt, where = 'belt') {
     }
     if (rise.some(([, z]) => Math.abs(z) > 1e-9)) B.rise = rise.map(([ps, pz]) => [r4(ps), r4(pz)]);
   }
+  // ITS TURN: the road swinging on the screen as it is walked, [[s, degrees], …]: at each point how far the camera is
+  // turned to look down the street the way it runs (over its angle's own yaw). 0 is square to the street, the walk
+  // crossing the screen; more than 0 the road heads UP the screen as it goes on, less than 0 down it. The walk is
+  // still along the belt and the band still across it: the map scrolls sideways, and goes up. Absent, it never turns.
+  if (turn !== undefined) {
+    if (!Array.isArray(turn) || turn.length < 2 || turn.length > TURN_LIMITS.points || !turn.every((p) => Array.isArray(p) && p.length === 2 && p.every(isNum))) no(`${where}.turn is the road's swing along the belt: [[s, degrees], …] (m along it, how far it heads up the screen), 2 to ${TURN_LIMITS.points} points`);
+    for (const [i, [ps, deg]] of turn.entries()) {
+      if (ps < -1e-6 || ps > B.length + 1e-6) no(`${where}.turn[${i}] is at ${ps} m: along the belt, 0 to ${B.length}`);
+      if (Math.abs(deg) > TURN_LIMITS.yaw) no(`${where}.turn[${i}] is ${deg}°: within ${TURN_LIMITS.yaw}° either way (past it the walk runs into the screen, and is no longer read from the side)`);
+      if (i && !(ps > turn[i - 1][0])) no(`${where}.turn[${i}] comes after the point before it along the belt`);
+      if (i && Math.abs(deg - turn[i - 1][1]) / (ps - turn[i - 1][0]) > TURN_LIMITS.rate + 1e-9) no(`${where}.turn[${i}] swings faster than ${TURN_LIMITS.rate}° a metre from the point before it: a turn is walked round, not snapped`);
+    }
+    if (turn.some(([, d]) => Math.abs(d) > 1e-9)) B.turn = turn.map(([ps, d]) => [r4(ps), r4(d)]);
+  }
   // (the camera, held at a screen's end, stands its view's half before it: a screen held before the camera's first view
   // is filled would hold it behind its start)
   const half = viewHalf(B);
@@ -137,6 +155,16 @@ export function beltFloor(belt, s) {
   if (s <= R[0][0]) return R[0][1];
   for (let i = 1; i < R.length; i++) if (s <= R[i][0]) { const [a, za] = R[i - 1], [b, zb] = R[i]; return r4(za + ((zb - za) * (s - a)) / (b - a)); }
   return R[R.length - 1][1];
+}
+
+/** How far the road is turned on the screen at s (degrees over its angle's yaw): its turn's line through its points,
+ * eased between them (so the swing starts and ends gently), held before the first and past the last; 0 unturned. */
+export function beltTurn(belt, s) {
+  const T = belt.turn;
+  if (!T) return 0;
+  if (s <= T[0][0]) return T[0][1];
+  for (let i = 1; i < T.length; i++) if (s <= T[i][0]) { const [a, da] = T[i - 1], [b, db] = T[i], u = (s - a) / (b - a), e = u * u * (3 - 2 * u); return r4(da + (db - da) * e); }
+  return T[T.length - 1][1];
 }
 
 /** The index of the screen s is in (the first at its start, the last past the belt's end). */
@@ -179,7 +207,8 @@ export function beltBounds(belt, cam) {
  * yawed toward the way the belt runs as the angle says (a camera's framing, as a world's cameras carry it). */
 export function beltCamera(belt, cam) {
   const A = BELT_ANGLES[belt.angle], mid = (belt.depth[0] + belt.depth[1]) / 2;
-  const p = (A.pitch * Math.PI) / 180, y = (A.yaw * Math.PI) / 180;
+  // (a belt that turns: the camera turned that much more down the street where it stands)
+  const p = (A.pitch * Math.PI) / 180, y = ((A.yaw + beltTurn(belt, cam)) * Math.PI) / 180;
   // (in the belt's frame: the camera stands back toward −n, turned by the yaw so it looks a little along +s)
   const back = A.distance * Math.cos(p), up = A.distance * Math.sin(p);
   const ds = -back * Math.sin(y), dn = -back * Math.cos(y);

@@ -66,6 +66,18 @@ still made, and says which.
 16. **What stands beside the walk stands on its own ground.** Buildings step up a climbing street, each on its pad;
     a piece of the dress stands on the floor under its own middle; nothing floats and nothing is buried.
 
+## The turn
+
+17. **A road that turns still scrolls sideways.** The walk is always along the belt and the band always across it. When
+    the road turns, what changes is where the walk points on the screen: it runs across it, then heads up it (or down
+    it), as the old arcade stages did. The camera swings round the point it looks at (`turn`), so the bodies never
+    leave the middle of the frame and the controls never change: along is still along.
+18. **A turn is walked round, not snapped.** The swing eases in and out over a stretch of the walk, and never goes so
+    far that the walk runs into the screen: past about half a right angle the fight is no longer read from the side.
+19. **A turn opens the way on.** Turned down the street, the frame shows what is coming: the next screen's set, the
+    boss's corner at the end. Use it where the map wants the player to look ahead; keep the fight's own screens
+    nearer square, where the lines across the band read best.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:

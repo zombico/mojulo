@@ -163,7 +163,7 @@ export const BRAWL_PRESET_IDS = Object.freeze(Object.keys(BRAWL_PRESETS));
 export function brawlPreset(id, beltOver = {}) {
   const P = BRAWL_PRESETS[id];
   if (!P) throw new Error(`brawl: a greybox street's preset is one of ${BRAWL_PRESET_IDS.join(', ')}`);
-  if (!isObj(beltOver)) throw new Error('brawl: a level\'s belt is { at?, heading?, floor?, depth?, screens?, angle?, rise? } over its preset\'s');
+  if (!isObj(beltOver)) throw new Error('brawl: a level\'s belt is { at?, heading?, floor?, depth?, screens?, angle?, rise?, turn? } over its preset\'s');
   const belt = readBelt({ ...P.belt, ...beltOver }, 'level.belt');
   if (belt.depth[0] < P.room[0] || belt.depth[1] > P.room[1]) throw new Error(`brawl: the ${id} street's band lies within [${P.room.join(', ')}] across its belt (the kerb to what stands on the pavement)`);
   return { reads: P.reads, belt, blocks: terraced(belt, P.blocks(belt)) };
@@ -200,7 +200,7 @@ function brawlStage(words) {
   const D = Math.ceil((band + 2 * front) / g) * g;
   // (a kit dressed as a place of its own is framed as the street is: the band low, its backdrop over it)
   const dressedKit = words.dress !== false && (isObj(words.dress) || !!settingOfKit(kit));
-  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? (dressedKit ? 'street' : 'classic') }, 'level');
+  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? (dressedKit ? 'street' : 'classic'), ...(words.turn ? { turn: words.turn } : {}) }, 'level');
   const rooms = open
     ? [{ id: 'street', x: 0, y: 0, w: belt.length, d: D, h: height, open: ['-y'] }]
     : belt.screens.map((sc, i) => ({ id: `screen-${i + 1}`, x: sc.from, y: 0, w: sc.length, d: D, h: height, open: ['-y'] }));
@@ -252,7 +252,7 @@ function brawlTown(words) {
   const flatBelt = readBelt({ at: [x0, r3(main.at)], heading: 0, floor: r3(D.land.S(x0, main.at)), depth: words.depth ?? TOWN.depth, screens, angle: words.angle ?? TOWN.angle }, 'level');
   // (its rise read off the town's own ground along the street, a point every two metres)
   const rise = climb ? Array.from({ length: Math.floor(flatBelt.length / 2) + 1 }, (_, i) => { const sv = Math.min(flatBelt.length, i * 2); return [r3(sv), r3(D.land.S(x0 + sv, main.at) - flatBelt.floor)]; }).filter((p, i, a) => !i || p[0] > a[i - 1][0]) : null;
-  const belt = rise ? readBelt({ at: flatBelt.at, heading: 0, floor: flatBelt.floor, depth: flatBelt.depth, screens, angle: flatBelt.angle, rise }, 'level') : flatBelt;
+  const belt = rise || words.turn ? readBelt({ at: flatBelt.at, heading: 0, floor: flatBelt.floor, depth: flatBelt.depth, screens, angle: flatBelt.angle, ...(rise ? { rise } : {}), ...(words.turn ? { turn: words.turn } : {}) }, 'level') : flatBelt;
   if (belt.length > x1 - x0 + 1e-6) throw new Error(`brawl: the town's block holds a street of ${Math.floor(x1 - x0)} m between its cross streets (the screens run ${r3(belt.length)} m): fewer or shorter screens`);
   // ITS DRESS (brawl-dress.js): on the far walk between the band and the fronts, and on the fronts themselves; a set
   // a screen. `dress: false` leaves the street the town's own
@@ -282,12 +282,12 @@ export const BRAWL_LEVELS = Object.freeze({
   }),
   stage: Object.freeze({
     reads: `the belt laid in the indoor level's rooms (a kit: ${BRAWL_STAGE_KITS.join(', ')}), a room a screen through doorways as wide as the band, its camera side open; the plaza one long street`,
-    words: ['kit', 'look', 'height', 'screens', 'depth', 'angle', 'dress', 'title'],
+    words: ['kit', 'look', 'height', 'screens', 'depth', 'angle', 'dress', 'turn', 'title'],
     build: brawlStage,
   }),
   town: Object.freeze({
     reads: 'a street of the geotown: a block of the town\'s pattern, the belt down its main street between its cross streets, the shops on the far side, the town\'s margin open to the camera',
-    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'fronts', 'climb', 'title'],
+    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'fronts', 'climb', 'turn', 'title'],
     build: brawlTown,
   }),
 });

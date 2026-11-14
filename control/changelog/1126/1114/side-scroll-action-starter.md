@@ -143,6 +143,12 @@ screen) is now played on a page; before, only its practice yard was.
   town's own slope, its main street on a profile and its buildings stepping up beside it, the belt's rise read off its
   ground. A greybox street that rises is terraced (a ramp cut into steps, the road grown down to the ground). The
   dress stands on the floor under each piece. Three principles join the doc (the ground).
+- The road turns: a belt may TURN (`brawl-belt.js` `turn`: `[[s, degrees], …]`, how far the camera is turned down the
+  street at each point, to 55° either way, eased between points, no faster than 12° a metre; `beltTurn`). The walk is
+  still along the belt and the band still across it, so the map scrolls sideways and heads up the screen (or down it),
+  as an arcade brawler's diagonal stretch does; the camera swings round the point it looks at, and the simulation and
+  the controls are untouched. A town street and a building's bays take it by word (`turn`), a greybox street on its
+  belt. Three principles join the doc (the turn).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
