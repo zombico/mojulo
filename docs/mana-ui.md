@@ -906,6 +906,25 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### Layout that adapts
+
+The frame a view is drawn in is state. A mount measures its own box, and measures it again when it changes (a phone
+turned, a window dragged); a host with no DOM says its own (`host.frame`, `rt.frame({ w, h, hand })`); unsaid, it is a
+desk at 1920 by 1080. A spec branches on it with a binding of its own, in any `when` or `unless`:
+
+| `{ frame: … }` | is true when |
+|---|---|
+| `portrait` / `landscape` | the frame is taller than wide / not |
+| `narrow` | it is under 640 wide (where splits already stack) |
+| `short` | it is under 420 high |
+| `hand` | the pointer is a finger |
+
+So one composition holds its wide and its tall layouts, and the frame says which stands; nothing is decided when
+the page is emitted. A row says what it does when it runs out of width with `fit` on its `stack`: `wrap` onto a
+second line, or `stack` as a column in a narrow frame (`fixed`, the default, writes nothing). The runner's HUD is
+laid this way: its corners in a wide frame, one plate in the top's middle in a tall one. Not yet live: a theme's
+`distance` (how large a unit is) is still chosen when the page is emitted.
+
 ### One HUD for every level
 
 A world that says a `ui` has its levels' own HUD rows drawn here too. The level keeps writing the widget language it

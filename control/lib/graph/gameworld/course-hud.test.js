@@ -13,22 +13,34 @@ import { runSteps } from './index.js';
 const MOMENTUM = Object.keys(POLES).find((p) => POLES[p].base === 'pinball');
 const C = courseOf({ feel: MOMENTUM }, { slots: 6 });
 const regions = (hud) => hud.children.filter((n) => n.use === 'region').map((n) => n.props.at);
-const draw = (H, state, open) => { const rt = manaUi.runtime(H.spec, { read: (p) => manaUi.readPath(state, p), act() {}, now: () => 1 }); if (open) rt.open(open); return rt.view(); };
+const draw = (H, state, open, frame) => { const rt = manaUi.runtime(H.spec, { read: (p) => manaUi.readPath(state, p), act() {}, now: () => 1, ...(frame ? { frame } : {}) }); if (open) rt.open(open); return rt.view(); };
+// the regions a frame draws (the composition is one: which of it stands is the frame's)
+const drawn = (H, frame) => [...draw(H, { ...COURSE_HUD_STATE, hint: { show: true }, moments: [] }, null, frame).matchAll(/class="mana-region" data-at="([a-z-]+)"/g)].map((m) => m[1]).sort();
+const TALL = { w: 450, h: 800 }, WIDE = { w: 1120, h: 780 };
 
 describe('the composition: laid by the course\'s thirds', () => {
   it('reads as a mana-ui spec and draws on its state; nothing is laid in the bottom band, wide or tall', () => {
-    for (const screen of [null, 'phone']) {
-      const H = courseHud(C, { screen });
-      expect(regions(H.spec.hud).filter((at) => at.startsWith('bottom'))).toEqual([]);
-      const html = draw(H, { ...COURSE_HUD_STATE, moments: [] });
-      expect(html).toContain('128 m');
-      expect(H.spec.screens.ready.props).toMatchObject({ layer: 'overlay', legend: 'none' });
-    }
-    expect(regions(courseHud(C).spec.hud)).toEqual(['top-left', 'top', 'top-right', 'right', 'center']);
+    const H = courseHud(C);
+    expect(regions(H.spec.hud).filter((at) => at.startsWith('bottom'))).toEqual([]);
+    expect(draw(H, { ...COURSE_HUD_STATE, moments: [] })).toContain('128 m to go');
+    expect(H.spec.screens.ready.props).toMatchObject({ layer: 'overlay', legend: 'none' });
     // (the coins taken, read off the level's bus)
-    expect(draw(courseHud(C), { ...COURSE_HUD_STATE, moments: [], coins: { count: 37 } })).toContain('37');
-    // (a tall frame: one plate in the top's middle, clear of the shell's menu button in the corner)
-    expect(regions(courseHud(C, { screen: 'phone' }).spec.hud)).toEqual(['top', 'right', 'center']);
+    expect(draw(H, { ...COURSE_HUD_STATE, moments: [], coins: { count: 37 } })).toContain('37');
+  });
+
+  it('is ONE composition laid by the frame it is drawn in: a wide frame its corners, a tall one a plate in the top\'s middle', () => {
+    const H = courseHud(C);
+    expect(drawn(H, WIDE)).toEqual(['center', 'right', 'top', 'top-left', 'top-right']);
+    // (clear of the shell's menu button in the corner)
+    expect(drawn(H, TALL)).toEqual(['center', 'right', 'top']);
+    const tall = draw(H, { ...COURSE_HUD_STATE, hint: { show: true }, moments: [] }, null, TALL);
+    expect(tall).not.toContain('128 m to go');
+    expect(tall).toContain('128 m');
+    // (a frame that turns is laid again: the runtime says so)
+    const rt = manaUi.runtime(H.spec, { read: (p) => manaUi.readPath(COURSE_HUD_STATE, p), act() {}, now: () => 1 });
+    const before = rt.view(); rt.frame(TALL);
+    expect(rt.view()).not.toBe(before);
+    expect(rt.frame().portrait).toBe(true);
   });
 
   it('the run\'s maps show only in a run, the hint only while it is asked for, stamina only for a hero that sprints', () => {

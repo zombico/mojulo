@@ -191,6 +191,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-window[data-variant=ghost]{background:transparent;border-color:transparent;padding:0}`,
     `${s} .mana-stack{display:flex;flex-direction:column;gap:${u(12)};min-width:0}`,
     `${s} .mana-stack[data-dir=row]{flex-direction:row;align-items:center}`,
+    `${s} .mana-stack[data-fit=wrap]{flex-wrap:wrap}`, `@container (max-width:640px){${s} .mana-stack[data-dir=row][data-fit=stack]{flex-direction:column;align-items:stretch}}`,
     `${s} .mana-stack[data-gap=tight]{gap:${u(4)}}`, `${s} .mana-stack[data-gap=loose]{gap:${u(28)}}`,
     `${s} .mana-stack[data-align=start]{align-items:flex-start}`, `${s} .mana-stack[data-align=center]{align-items:center}`,
     `${s} .mana-stack[data-align=end]{align-items:flex-end}`, `${s} .mana-stack[data-align=apart]{justify-content:space-between}`,

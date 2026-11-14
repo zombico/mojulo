@@ -77,6 +77,9 @@
  *     .input(mode, layout?)  what the player is using: keys | pad | xr (the focus shows as a cursor) | touch | mouse (it
  *                         does not: what is tapped is selected, and a touch screen's lists scroll and its targets grow);
  *                         a pad's printed layout (xbox | playstation | nintendo) picks its glyphs
+ *     .frame({ w, h, hand? })  the frame the view is drawn in (a mount measures it and says it: no host call needed in a
+ *                         page); a spec branches on it with { frame: 'portrait' | 'landscape' | 'narrow' | 'short' |
+ *                         'hand' } in a `when` / `unless`; unsaid, a 1920 by 1080 desk
  *     .glyphs(table)      what each action's control is called, per family: { keys: { <action>: 'Enter' }, pad: {
  *                         <layout>: { <action>: 'A' } }, xr?: { … }, touch?: { … } } (controls/mana-controls.js builds
  *                         it from the control schemes); a prompt and a legend print the one the player is holding
@@ -165,7 +168,7 @@ export function buildManaUi() {
     // layout
     screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor; its legend bar is drawn from what it holds unless it names one (`legend: none` for none); `press: any` takes any face or shoulder button as accept (press start)', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom', 'sheet'], 'center'], seats: [N, 1], legend: [['auto', 'none'], 'auto'], press: [['focus', 'any'], 'focus'] }, children: true, verbs: ['back'] },
     window: { group: 'layout', about: 'a framed panel', props: { title: [T], variant: [['plain', 'inset', 'ghost'], 'plain'] }, children: true },
-    stack: { group: 'layout', about: 'children in a column or a row; `fill` a row that takes its place\'s width, its children sharing it (two fighters\' bars)', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'], fill: [B, false] }, children: true },
+    stack: { group: 'layout', about: 'children in a column or a row; `fill` a row that takes its place\'s width, its children sharing it (two fighters\' bars); `fit` what a row does when it runs out of width: wrap onto a second line, or stack as a column in a narrow frame', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'], fill: [B, false], fit: [['fixed', 'wrap', 'stack'], 'fixed'] }, children: true },
     split: { group: 'layout', about: 'two panes: the first a list, the second its detail', props: { ratio: [['narrow', 'even', 'wide'], 'narrow'] }, children: true },
     tabs: { group: 'layout', about: 'tabs, one open, [ and ] turn them: tab children, or `pages` (a list) drawn by `page` and named by their `label` field', props: { pages: [L], page: [ND], label: [T, 'label'] }, children: 'tab' },
     tab: { group: 'layout', about: 'one tab of tabs', props: { label: [T, undefined, true] }, children: true },
@@ -228,7 +231,11 @@ export function buildManaUi() {
     textentry: { group: 'input', about: 'a name typed from a grid of letters (a pad can type): a draft until done', props: { label: [T], value: [T, ''], max: [N, 12], charset: [['letters', 'alnum'], 'letters'] }, verbs: ['done'] },
   };
   const COMPONENT_IDS = Object.keys(COMPONENTS);
-  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param', 'word'];
+  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param', 'word', 'frame'];
+  // THE FRAME a view is drawn in, as words a spec branches on ({ frame: 'portrait' } in a `when` / `unless`): its shape
+  // (portrait | landscape), its room (narrow: under 640 wide; short: under 420 high), and whether it is held (hand)
+  const FRAME_WORDS = ['portrait', 'landscape', 'narrow', 'short', 'hand', 'w', 'h'];
+  const frameOf = (f) => { const w = Number(f && f.w) > 0 ? Number(f.w) : 1920, h = Number(f && f.h) > 0 ? Number(f.h) : 1080; return { w, h, portrait: h > w, landscape: h <= w, narrow: w < 640, short: h < 420, hand: !!(f && f.hand) }; };
   const isBinding = (v) => isObj(v) && Object.keys(v).length === 1 && BINDS.includes(Object.keys(v)[0]);
   const CHARSETS = { letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ', alnum: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ' };
 
@@ -384,7 +391,7 @@ export function buildManaUi() {
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), loads: new Map(), later: [], guard: -Infinity, held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), loads: new Map(), later: [], guard: -Infinity, held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in', frame: frameOf(H.frame) };
     // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
     // (a cursor's sound says the way it went, a stepper's the step it took, so a sound set can pitch them)
     const cue = (name, seat = 0, more) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name, ...(more || {}) }, { screen: top(), key: null, verb: 'cue', seat }); };
@@ -529,6 +536,7 @@ export function buildManaUi() {
       if (k === 'input') return scope.input;
       if (k === 'seat') return scope.seat === undefined ? 0 : scope.seat;
       if (k === 'word') return W(a);
+      if (k === 'frame') return S.frame[a];
       // a format's {field} reads the row, its {@key} the runtime's words
       if (k === 'format') return String(a).replace(/\{(@?)([a-zA-Z0-9_.]+)\}/g, (_, at, f) => (at ? W(f) : words(readPath(scope.item, f))));
       if (k === 'pick') {
@@ -656,7 +664,7 @@ export function buildManaUi() {
           // a window's layers, under what it holds: the plate, the thing it sits on, the crest over its edge (drawn when
           // the theme lays a window in layers; a ghost window, words over the world, has none)
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.variant === 'ghost' ? null : ['i', { class: 'mana-layers', 'aria-hidden': 'true' }, ['b', null]], p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
-          case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null }, ...kids()];
+          case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null, 'data-fit': p.fit !== 'fixed' ? p.fit : null }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
           case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null, 'data-variant': n.use === 'region' && p.variant !== 'plain' ? p.variant : null }, ...kids()];
           case 'each': return ['div', { class: cls, 'data-dir': p.dir }, ...p.rows.map((item, i) => draw(n.props.row, `${key}.${i}`, { ...scope, item }))];
@@ -1185,6 +1193,13 @@ export function buildManaUi() {
       const L = typeof layout === 'string' && layout ? layout : S.layout;
       if (S.input !== mode || S.layout !== L) { S.input = mode; S.layout = L; render(); }
     }
+    // the frame the view is drawn in (a mount measures its own and says it here; a host with no DOM says its own)
+    function frame(f) {
+      if (f === undefined) return S.frame;
+      const n = frameOf({ hand: S.frame.hand, ...f });
+      if (FRAME_WORDS.some((k) => n[k] !== S.frame[k])) { S.frame = n; render(); }
+      return S.frame;
+    }
     function glyphs(table) {
       if (table !== null && !isObj(table)) throw new Error('glyphs: { keys?, pad?: { <layout>: { <action>: label } }, xr?, touch? }');
       S.glyphs = table;
@@ -1225,7 +1240,7 @@ export function buildManaUi() {
     if (start) open(start); else render();
     S.booting = false;
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, reduceFlash, textScale, subtitlePlate, language, typing, type, erase, submit,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, frame, hold, reduceMotion, reduceFlash, textScale, subtitlePlate, language, typing, type, erase, submit,
       languages: () => codesOf(),
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
@@ -1359,11 +1374,21 @@ export function buildManaUi() {
     el.addEventListener('pointercancel', () => { down = null; });
     // a frame: a value the screen read changed, or the game opened or closed a screen itself
     if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; const loop = () => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    // THE FRAME: the view's own box, measured now and whenever it changes (a phone turned, a window dragged), said to the
+    // runtime so a spec that branches on it is laid again; held in the hand where the pointer is a finger
+    const measure = () => {
+      const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      if (!r || !r.width || !r.height) return;
+      const was = rt.frame(), now = rt.frame({ w: Math.round(r.width), h: Math.round(r.height), hand: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches });
+      if (now !== was) paint();
+    };
+    measure();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(el);   // (its own box only: a view listens to no window)
     paint();
     return { paint };
   }
 
-  return { WORDS, COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { WORDS, COMPONENTS, COMPONENT_IDS, FRAME_WORDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();

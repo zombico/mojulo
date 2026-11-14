@@ -43,7 +43,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null 
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
+  const st = { course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: function () {}, now: function () { return clock; } });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
@@ -107,7 +107,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null 
     const W = window.__mojCtrl && window.__mojCtrl.world, me = W && W.pilotId && W.byId[W.pilotId];
     if (me && me.transform) {
       const m = Math.max(0, Math.min(of, me.transform.pos[1] - (F.from || 0)));
-      st.course.metres = Math.round(m); st.course.left = of - Math.round(m); st.course.says = st.course.left + ' ' + (F.left || 'm');
+      st.course.metres = Math.round(m); st.course.left = of - Math.round(m); st.course.says = st.course.left + ' ' + (F.left || 'm'); st.course.short = st.course.left + ' ' + (F.leftShort || 'm');
       if (F.stamina && me.rule) { const max = me.rule.boostMax || 1; st.hero.staminaMax = max; st.hero.stamina = Math.max(0, Math.min(max, me.boost == null ? max : me.boost)); }
     }
     // the pilot's own gauges (a level's rows, feed.hero): its health where it has one, its sprint where its rule has one

@@ -30,4 +30,9 @@ the parts every game composes by hand, more motion, a layout law, and a handoff 
   level's bus into it each frame, gates a row by its part and its phase as before, and draws the pilot's health and
   sprint beside them. The host is laid over the scene's own frame. A world without a `ui` emits the bytes it did;
   carved titles stay the title channel's. A level whose pages change: one of a world with a `ui`.
+- Layout that adapts. The frame a view is drawn in is state the runtime holds (`rt.frame`, measured by a mount from
+  its own box and again when it changes), and a spec branches on it: `{ frame: 'portrait' | 'landscape' | 'narrow' |
+  'short' | 'hand' }` in a `when` or an `unless`. A `stack` says what it does out of width (`fit: 'wrap' | 'stack'`).
+  The runner's HUD is one composition for both frames now, laid again when a phone is turned, where it was two specs
+  chosen at emit. A page with a course HUD emits different bytes; a spec that names no frame draws as it did.
 

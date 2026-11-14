@@ -728,6 +728,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 (mana-ui's pictograms, mana-ui/icons.js): `brawl` and `holo`, the two whose page inlines the game
 // UI runtime's kernel. An icon, a counter's icon and a prompt's glyph now carry `data-icon` (the name a theme's sheet
 // finds its pictogram by); every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 again (mana-ui's layout that adapts): `brawl` and `holo`, for the same reason. The kernel holds
+// the frame it is drawn in (`rt.frame`, the `frame` binding, a mount's own measure) and a stack's `fit`; a spec that
+// names neither draws as it did, and every other fixture holds byte for byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
