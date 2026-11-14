@@ -20,6 +20,7 @@
  */
 import { hexLch, lchHex } from './station-loft-shade.js';
 import { expandOutfit } from '../outfit/expand.js';
+import { HOOD_WORDS } from './body-garment.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
@@ -393,14 +394,16 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none', material }) {
   // SLEEVES (`sleeve`): 'long' to the wrist on the arm's own rings; 'bell' the same, widening from the elbow to an open
   // mouth at the wrist (a wizard's); 'none' bare. Worn over the cut, so they stand off the sleeves beneath
   const bell = sleeve === 'bell' ? r3((p.bell ?? 0.08) * B.k) : 0, elbow = bell ? r3(0.012 * B.k) : 0;
+  // (outfit laws 2: a sleeve lies smooth down the arm, `lie`, as the bodice does, never a stack of rings)
+  const sleeveLie = B.laws >= 2 ? { lie: 0 } : {};
   const sleeves = sleeve === 'none' || !B.names.has('upperArm') ? [] : [
-    { id: `${id}Sleeve`, part: 'upperArm', run: [0, 1], ease: r3(e), ...(elbow ? { flare: [0, elbow] } : {}), proportional: ref, dense: true, group: G(p) },
-    ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: 'foreArm', run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p) }] : [])];
+    { id: `${id}Sleeve`, part: 'upperArm', run: [0, 1], ease: r3(e), ...(elbow ? { flare: [0, elbow] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie },
+    ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: 'foreArm', run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie }] : [])];
   const trim = trimOf(p, B, G, { hem: B.names.has('pelvis') ? `${id}Skirt_skirt` : null, cuffs: sleeves.length && B.names.has('foreArm') ? [`${id}Cuff_foreArmR`, `${id}Cuff_foreArmL`] : [], bodice: `${id}Bodice_torso` });
   return {
     garments: [{ id: `${id}Bodice`, part: 'torso', ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B) }, ...sleeves,
       ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p), ...clothOf(p, material) }] : []),
-      ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6))],
+      ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6), material)],
     ...trim,
   };
 }
@@ -450,12 +453,23 @@ function bowOf(p, B, G) {
   return { adorn: knot(id, { mode: 'shell', part: 'torso', side: 'R', s: [r3(Math.max(0, s - 0.15)), r3(s + 0.1)], t: [3.65, 4] }, -1, { k: 2, j: 1 }) };
 }
 
-/** a HOOD on a piece (`hood: true` or `{ open }`): the garment kernel's `fit: 'hood'`, rising from the shoulders over the
- * head's volume (bodyMap `head`), its foot on `around`, open at the face, locked to the head; none without a head */
-function hoodOf(p, B, G, id, around, ease) {
+/** a HOOD on a piece (`hood: true` or `{ open, worn, point, depth }`): the garment kernel's `fit: 'hood'`, rising from the
+ * shoulders over the head, its foot on `around`, open at the face; none without a head. Under outfit laws 2 it is DRAPED
+ * (body-garment.js drapedHood): fitted to the head and the hair this figure has, its cloth the piece's `material` (soft
+ * wool collapses, stiff leather stands), `worn` up (the default) or down on the shoulders, `point` none | short (the
+ * default) | long (a liripipe that flows), `depth` deep (the default) | shallow, at the register's budget (the box's
+ * planes, the low-poly's facets). Laws 1 keep the smooth bell over the head's ellipsoid, a stored row's look. */
+export const HOOD_FIELDS = Object.freeze(['open', 'worn', 'point', 'depth']);
+function hoodOf(p, B, G, id, around, ease, material) {
   if (!p.hood || !B.head) return [];
+  const h = typeof p.hood === 'object' ? p.hood : {};
+  if (B.laws >= 2) for (const k of Object.keys(h)) {
+    if (!HOOD_FIELDS.includes(k)) throw new Error(`hood.${k}: not a hood word (${HOOD_FIELDS.join(', ')})`);
+    if (k !== 'open' && !HOOD_WORDS[k].includes(h[k])) throw new Error(`hood.${k}: '${h[k]}' is not a hood word (${HOOD_WORDS[k].join(', ')})`);
+  }
+  const draped = B.laws >= 2 ? { worn: h.worn ?? 'up', point: h.point ?? 'short', depth: h.depth ?? 'deep', budget: B.budget, ...(p.rigidity !== undefined ? { rigidity: p.rigidity } : {}), material: p.material ?? material } : {};
   return [{ id: `${id}Hood`, fit: 'hood', part: ['torso', 'upperArm', 'neck'].filter((n) => B.names.has(n)), from: { part: 'torso', run: 1 }, head: B.head, around,
-    ...(typeof p.hood === 'object' && p.hood.open !== undefined ? { open: p.hood.open } : {}), ease, thick: r3(0.006 * B.k), group: G(p) }];
+    ...(h.open !== undefined ? { open: h.open } : {}), ease, thick: r3(0.006 * B.k), group: G(p), ...draped }];
 }
 
 /** A CLOAK: hung from the shoulders down the back and round the sides (`wrap`, the share of a turn it covers, 0.6 by
@@ -472,7 +486,7 @@ function cloakOf(p, B, G) {
   const arc = 360 * Math.max(0.2, Math.min(0.95, p.wrap ?? 0.6)), part = ['torso', 'upperArm', ...legsTo(B, to)].filter((n) => B.names.has(n)), id = p.id ?? 'cloak';
   const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3(((p.ease ?? 0.02) + (B.round ?? 0)) * B.k), thick = r3(0.006 * B.k);
   return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), ...(p.rigidity !== undefined || p.material === undefined ? { rigidity: p.rigidity ?? 'soft' } : {}), material: p.material ?? 'wool' },
-    ...hoodOf(p, B, G, id, around, r3(ease * 1.2))], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
+    ...hoodOf(p, B, G, id, around, r3(ease * 1.2), 'wool')], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
 }
 
 /** THE CUT on a creature: the outfit grammar the hero wears (outfit/expand.js: a top, a bottom, an outer layer, their
@@ -528,13 +542,16 @@ function armourMotif(p, B, G) {
     : { kind: 'motif', name, mode: 'emblem', size: r3(0.06 * B.k), w: r3(0.0025 * B.k), lift: r3(0.0004 * B.k), group: G({ colour: 'shade' }) };
 }
 
+/** the hood's budget by the hero's register (hero-form.js REGISTERS, a plan's `style`): the box's few planes, the low-poly's
+ * facets, else smooth */
+const budgetOf = (style) => (style?.e >= 12 ? 'planes' : style?.slots === 'ring6' ? 'facets' : 'smooth');
 export function compileOutfit(plan, { rounds = 0 } = {}) {
   const O = plan.outfit; if (!O) return plan;
   // (`rounds`: the body rounded after it is built, body-smooth.js; its skin and the close cloth over it bulge out between
   // their rings, so the loose layers over them take ROUND_EASE more ease a round)
   // (`laws`: the outfit laws the pieces are compiled under, outfit/principles.js; absent ⇒ 1, a creature's and a row's from
   // before the stamp)
-  const B = { ...bodyMap(plan), round: rounds ? r3(ROUND_EASE * rounds) : 0, laws: O.laws ?? 1 }, I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
+  const B = { ...bodyMap(plan), round: rounds ? r3(ROUND_EASE * rounds) : 0, laws: O.laws ?? 1, budget: budgetOf(plan.style) }, I = { symmetry: 'symmetric', side: 'R', ...(O.intent || {}) }, pal = I.palette || {};
   const G = (p) => { const role = p.colour ?? OUTFIT_KINDS[p.kind]?.colour ?? 'base'; return /^#/.test(role) ? role : COLOUR_GROUPS[role] ?? COLOUR_GROUPS.base; };
   const pieces = [...O.pieces].map((p, i) => ({ p, i, layer: OUTFIT_KINDS[p.kind]?.layer ?? 9 })).sort((a, b) => a.layer - b.layer || a.i - b.i);
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];

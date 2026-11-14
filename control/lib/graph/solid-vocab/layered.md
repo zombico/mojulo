@@ -170,8 +170,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   hangs from the shoulders round the back and over the arms to the calf (`wrap` 0.2–0.95 of a turn, 0.6 by default;
   `hem`; `rigidity`, `soft` by default), round where a flat board was, and DRAPES ON THE ARMS: the cloth over an arm
   goes with it, so a swing does not pass through it. A `bow` (`at`: back | collar | wrists; `tails` m; `loops: false`
-  a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open }`, degrees each side of the face) raises
-  a hood from the shoulders over the head, open at the face, turning with the head. Robes, gowns, tunics and cloaks take
+  a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open, worn, point, depth }`) raises
+  a hood draped from the shoulders over the head as cloth: close on the skull and hair, the face framed by a rolled
+  brim (`depth` deep | shallow; `open` degrees each side), a `point` behind the crown (none | short | long, a liripipe
+  that flows), its foot gathered on the collar; `worn: 'down'` lies it collapsed on the back, the head bare. Robes, gowns, tunics and cloaks take
   `trim: { hem?: 'binding' | 'embroidery', cuffs?: 'binding', chest?: 'emblem', motif? }` (a band of the secondary
   cloth; the motif in the trim's thread). PLATE (`pauldron`, `chestPlate`, `bracers`, the metal bands) is drawn as games
   draw armour: a hollow plate (a thin wall, a rolled edge in the trim, its inside in shade), within the figure's own width

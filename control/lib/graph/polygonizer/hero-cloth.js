@@ -4,8 +4,9 @@
  * own flow solver (hero-flow.js).
  *
  *   • WHAT FLOWS: every part that says how it moves (a `rigidity` below 1 or a `material`, cloth-law.js): the cloak, a
- *     robe's or a gown's skirt, a card's drape panels, a bow's tails. The hair stays as it is (its own sections are the
- *     solver's too; not yet baked here), a hood is locked to the head, and a card's panels under a flowing cloak keep
+ *     robe's or a gown's skirt, a card's drape panels, a bow's tails, a hood's liripipe (its long point, a strand of the
+ *     hood's cloth). The hair stays as it is (its own sections are the solver's too; not yet baked here), a hood's body
+ *     is locked to the head (or, worn down, to the shoulders), and a card's panels under a flowing cloak keep
  *     their skin (the layers do not collide with each other yet). What is worked on the cloth (a hem's embroidery, a
  *     trim) rides the flowing vertex nearest it.
  *   • THE BUDGET is the register's (cloth-law.js CLOTH_REGISTERS: strings round each curtain, links along each); the

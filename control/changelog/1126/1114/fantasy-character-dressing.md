@@ -3,7 +3,8 @@
 Fantasy clothing on a hero, then armour: the breaks mended, one cloth law (a material's rigidity read at rest, in
 motion and in the drawing), the flow wired into the clips, and a fantasy wardrobe on every body.
 
-Built so far: the mends (phase 1).
+Built so far: the mends, the cloth law as data, the flow in the clips, and the first drape at rest (the chest, the
+sleeves, the hood).
 
 - **A robe's skirt no longer tears down its centre on the World page.** The rig preview moved each bone's triangles
   rigidly with its bone, and a triangle rides the bone its corners vote for; a skirt's centre seam (its corners half on
@@ -60,3 +61,32 @@ Built so far: the mends (phase 1).
   and the realistic body's tailored skirt (the tailor's `robe_pelvis` declares no material, so it rides its weights as
   before; the realistic cloak, a cape, flows). A heel still shows out of an ankle-length hem's back mid-stride (the
   foot is not in the collision form), and the bake adds a few seconds to a flowing hero's page.
+- **The chest and the sleeves lie as one surface (outfit laws 2, refined).** The bodice still showed ledges from the bust
+  to the shoulders after the first pass. Its rings were bridged off each ring's own middle, and on the game body those
+  middles jump forward at the bust and back at the shoulder blades, so a straight line in that frame was no straight
+  line on the figure. The cloth is now read off one straight axis from the band to the collar. Each slot's line is
+  bridged, rounded a little (never closer to what lies beneath than a third of its ease), and bridged again. The
+  yoke's sideways cap, which holds the cloth in at the shoulder, now comes on over the rise from the armpit to the
+  collar rather than at one ring, so it no longer steps in round the chest. A robe's, gown's or tunic's sleeves lie the
+  same way down the arm, so the upper arm is no longer a stack of rings. A bell cuff keeps its widening to the wrist. On
+  the tiered body, the box and the anime hero, the deepest roll the drawn bodice shows from the front or the back is
+  now under 3 mm, where laws 1 drew up to 12 mm. The yoke's sides above the armpit, under the sleeve, still dip where
+  the cap holds them, and the realistic body's bodice still stands in under its bust. Laws 1 are byte for byte as they
+  were.
+- **The hood is cut and falls as cloth (outfit laws 2).** It was a smooth bell over an ellipsoid sized from the head's
+  joints. That ellipsoid was too big on the landmark head and far too small on a chibi, whose hood vanished inside its
+  hair. The hood is now fitted to the head this figure has, read from its own parts: the skull, the face, the ears and
+  the hair, on the landmark, anime, realistic and chibi heads alike. Its crown lies on the skull and the hair with a
+  little slack, more as the cloth stiffens: soft wool lies close and stiff leather stands off. It never passes through
+  either. From the head the cloth falls straight onto the shoulders, as a tent rather than a tube dropped onto them,
+  and gathers into a few large folds at the neck. Its foot sits on the cloak's or the robe's collar. The opening frames
+  the face from the chin to a rolled brim that clears the cheeks. The brim stands above the brow as far as the cloth
+  is stiff, and `depth` sets how far it comes forward of the face. The back of the hood draws out to a `point` behind
+  the crown. A short point is a peak with a seam ridge down the back. A long point is a liripipe hanging down the back,
+  its own part, which flows on a strand of the hood's cloth in the clips. None keeps the back round. `worn: 'down'` lays
+  the hood collapsed on the back as a loose ring at the collar over a soft sack, narrowing to its point, with the head
+  and the hair bare. The words are `hood: { worn, point, depth, open }`. An unknown word is said and the piece left
+  off, as a hem word is. The register sets the budget: a few planes on the box, facets on the low-poly body, smooth
+  elsewhere. On the hair I chose clearance over tucking. A ponytail or long hair under the hood is enclosed, so the back
+  of the hood stands out over it. The hood's body stays locked: up, to the head and the neck; down, to the shoulders.
+  Laws 1 keep the bell byte for byte.

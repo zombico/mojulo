@@ -45,8 +45,9 @@
  * `fit: 'cape'` is open cloth hung from the SHOULDERS (`from`, an address high on the torso) over an arc (`around`) of the
  * hull round everything in `part` (the trunk, the arms, the legs) to its hem (`to`): a cloak, round where a board is flat;
  * `<id>_cape`, draping on the arms and flowing as a curtain (capePart). `fit: 'hood'` rises from the shoulders over
- * the head's volume (`head: { at, r }`, an ellipsoid: the anime head and hair are drawn on the mesh, not in the parts),
- * open at the face (`open`), locked to the neck and the head: `<id>_hood` (hoodPart).
+ * the head's volume (`head: { at, r }`, an ellipsoid), open at the face (`open`), locked to the neck and the head:
+ * `<id>_hood` (hoodPart); with `worn` (outfit laws 2) it is DRAPED instead (drapedHood: fitted to the head's own parts,
+ * its words `worn`, `point`, `depth`, `budget`, its cloth `material`), a long point its own part `<id>_hoodTail`.
  * `over` on a hull piece (a skirt, a panel, a cape, a hood): more parts it hangs over beside the pieces worn on its body
  * parts (the realistic body's cloth, which the tailor makes and this kernel never wore). Absent, as before.
  * `proportional` (a copy piece's: the radius at which its ease is as given): each ring's ease scales with its own radius,
@@ -61,22 +62,28 @@
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
 import { rigidityErrors } from './rigidity.js';
-import { materialErrors } from './cloth-law.js';
+import { materialErrors, clothRigidity } from './cloth-law.js';
+import { compileLayered } from './station-loft.js';
 
 /** THE YOKE's share of a layer's ease it may stand out sideways over the shoulder (body-garment's yokeOf) */
 export const YOKE_SIDE = 0.25;
 /** per ring of a piece on the trunk: true where it lies above the armpit (the lowest point of the shoulder balls) on a
  * body that has them; every ring false elsewhere (a classic body, a limb), so those pieces are cut as before */
-function yokeOf(parts, src, C) {
+function yokeOf(parts, src, C, ramp = false) {
   const balls = src === 'torso' ? Object.keys(parts).filter((nm) => /^shoulderBall[RL]$/.test(nm)) : [];
-  if (!balls.length) return C.map(() => false);
+  if (!balls.length) return C.map(() => (ramp ? 0 : false));
   const armpit = Math.min(...balls.flatMap((nm) => parts[nm].stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))));
-  return C.map((c) => c[2] > armpit);
+  if (!ramp) return C.map((c) => c[2] > armpit);
+  // (a piece that lies smooth, `lie`: the cap comes on over YOKE_RAMP of the rise from the armpit to the collar, so the
+  // cloth eases in to the shoulder instead of stepping in at one ring, a ledge round the chest)
+  const top = Math.max(...C.map((c) => c[2])), w = Math.max(1e-6, YOKE_RAMP * (top - armpit));
+  return C.map((c) => { const t = Math.max(0, Math.min(1, (c[2] - armpit) / w)); return c[2] > armpit ? t * t * (3 - 2 * t) : 0; });
 }
+const YOKE_RAMP = 0.5;
 
 /** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
 const HULL_FIT = /_(skirt|panel|cape|hood)$/;
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'material', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell', 'lie'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'material', 'proportional', 'dense', 'around', 'girth', 'head', 'open', 'waistband', 'collar', 'swell', 'lie', 'worn', 'point', 'depth', 'budget'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -118,6 +125,7 @@ export function validateGarments(G) {
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
     if (P.proportional !== undefined && !(Number.isFinite(P.proportional) && P.proportional > 0)) errs.push(`${at}.proportional: the radius (m) at which the ease is as given; each ring's ease scales with its own radius, so the body's taper survives (> 0)`);
     if (P.waistband !== undefined && !Number.isFinite(P.waistband)) errs.push(`${at}.waistband: the station parameter its waistband starts at (the band sits on what it is worn over, no ease)`);
+    for (const [k, W] of Object.entries(HOOD_WORDS)) if (P[k] !== undefined && !(P.fit === 'hood' && W.includes(P[k]))) errs.push(`${at}.${k}: a hood's (fit 'hood'), ${W.map((w) => `'${w}'`).join(' | ')}`);
     if (P.lie !== undefined && !Number.isFinite(P.lie)) errs.push(`${at}.lie: the station parameter from which the cloth lies smooth (its dents between rings bridged)`);
     if (P.girth !== undefined && !(P.girth && typeof P.girth === 'object' && !Array.isArray(P.girth) && Object.entries(P.girth).every(([k, v]) => GIRTH_LANDMARKS.includes(k) && Number.isFinite(v) && v >= 0))) errs.push(`${at}.girth: { landmark: metres of girth over the body (≥ 0) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`);
     if (P.dense !== undefined && typeof P.dense !== 'boolean') errs.push(`${at}.dense: true (the cloth's rings resampled to at least twelve points, rounded) or false`);
@@ -201,7 +209,10 @@ export function garmentParts(parts, garments, dials = {}) {
     // `rigidity` (hero-flow.js) rides the piece's part: how it moves when the figure moves (absent: locked, a shell); and
     // `material` (cloth-law.js: what it is made of, a rigidity and a weight), when it names one
     const stiff = (part) => Object.assign(part, P.rigidity !== undefined ? { rigidity: P.rigidity } : {}, P.material !== undefined ? { material: P.material } : {});
-    if (['skirt', 'panel', 'cape', 'hood'].includes(P.fit)) { const name = `${P.id}_${P.fit}`; parts[name] = stiff({ skirt: skirtPart, panel: panelPart, cape: capePart, hood: hoodPart }[P.fit](parts, names, P, worn));
+    if (['skirt', 'panel', 'cape', 'hood'].includes(P.fit)) { const name = `${P.id}_${P.fit}`, built = { skirt: skirtPart, panel: panelPart, cape: capePart, hood: hoodPart }[P.fit](parts, names, P, worn);
+      // (a draped hood, outfit laws 2: its body stays on the head and the shoulders, its tail, when it has one, flows on
+      // its own; drapedHood)
+      if (built.tail) { const { tail, ...piece } = built; parts[name] = piece; parts[`${P.id}_hoodTail`] = tail; } else parts[name] = P.fit === 'hood' && P.worn !== undefined ? built : stiff(built);
       for (const src of names) (worn[src] ??= []).push(name);
       for (const d of Object.values(dials)) if (Array.isArray(d.parts) && names.some((n) => d.parts.includes(n))) d.parts = [...d.parts, name];
       return; }
@@ -221,7 +232,7 @@ export function garmentParts(parts, garments, dials = {}) {
       const C = rings.map((r) => mean(part.slots.map((sl) => r.points[sl])));
       // THE YOKE: on a trunk with shoulder balls (the tiered body), its rings above the armpit run out into the shoulder;
       // cloth lies close over it (its armhole at the arm's root) and hangs from the chest, never from the shoulder point
-      const yoke = yokeOf(parts, src, C);
+      const yoke = yokeOf(parts, src, C), yokeW = Number.isFinite(P.lie) ? yokeOf(parts, src, C, true) : yoke.map((y) => (y ? 1 : 0));
       const N = rings.map((r, j) => part.slots.map((sl) => unit(sub(r.points[sl], C[j]))));
       // the lift over what lies beneath: per point along its outward normal, over what lies within a hand's breadth round
       // the ring and within the ring's own SLAB along the part (halfway to the rings either side), so a ring is never
@@ -306,10 +317,15 @@ export function garmentParts(parts, garments, dials = {}) {
         const e = band ? Math.max(SKIN_HAIR, e0 * band[j]) : e0, h = (k) => (band ? H0[j][k] + (H[j][k] - H0[j][k]) * band[j] : H[j][k]);
         // (over the yoke the cloth stands out sideways by YOKE_SIDE of its ease at most: it lies on the shoulder, the shoulder
         // point its edge, where a copy of the yoke's ring carried out along its normal stood off past the arm's root, a box)
-        const off = (k) => { const o = mul(N[j][k], e + h(k)); if (!yoke[j]) return o; const x = r.points[part.slots[k]][0], sx = Math.sign(x) || 1, cap = YOKE_SIDE * e;
-          return sx * o[0] > cap ? [sx * cap, o[1], o[2]] : o; };
+        const off = (k) => { const o = mul(N[j][k], e + h(k)); if (!yoke[j]) return o; const x = r.points[part.slots[k]][0], sx = Math.sign(x) || 1, cap = YOKE_SIDE * e, w = yokeW[j];
+          return sx * o[0] > cap ? [sx * (w === 1 ? cap : cap + (sx * o[0] - cap) * (1 - w)), o[1], o[2]] : o; };
         return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], off(k)).map(r6)])) }; });
-      if (Number.isFinite(P.lie)) lieSmooth(stations, rings, C, part.slots, P.lie);
+      if (Number.isFinite(P.lie)) lieSmooth(stations, rings, C, part.slots, P.lie, {
+        // (its floor: the layers beneath and a share of the ease, LIE_FLOOR, along the point's own normal; the yoke's cap
+        // kept, so the hull never stands the cloth out sideways past the arm's root)
+        floor: (j, k) => add(rings[j].points[part.slots[k]], mul(N[j][k], H0[j][k] + LIE_FLOOR * easeAt(j))),
+        cap: (j, k, p) => { if (!yoke[j]) return p; const b = rings[j].points[part.slots[k]], sx = Math.sign(b[0]) || 1, c = YOKE_SIDE * easeAt(j), o = sx * (p[0] - b[0]);
+          return o > c ? [b[0] + sx * (c + (o - c) * (1 - yokeW[j])), p[1], p[2]] : p; } });
       const name = `${P.id}_${src}`;
       // the caps pinched on the axis a little beyond the end rings (a cap in its ring's plane has no outward side)
       const axis = unit(sub(C[n - 1], C[0])), rad = (j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(stations[j].points[sl], C[j])), 0, 0]))[0];
@@ -339,21 +355,37 @@ export function garmentParts(parts, garments, dials = {}) {
   return parts;
 }
 
-/** LYING SMOOTH (`lie`, a copy piece's: the station parameter from which it lies): from that ring up, each slot's line
- * along the piece bridges the dents between its rings (its distance off the ring's middle raised to the upper hull of
- * the line, by the run between the rings' middles), so no ring stands proud of its neighbours as a roll and the cloth
- * lies straight from the bust to the shoulder, as cloth does over a chest; below it, where the cloth is held (a sash, a
- * belt), it gathers as it did. Only ever out (nothing worn beneath is let through), the first and last rings as they
- * were. In place. */
-function lieSmooth(stations, rings, C, slots, from) {
+/** LYING SMOOTH (`lie`, a copy piece's: the station parameter from which it lies; outfit laws 2): from that ring up, the
+ * cloth is one surface. Read in ONE frame, off the straight axis from the first of those rings' middles to the last (the
+ * body's own ring middles jump forward at the bust and back at the shoulder blades, so a line bridged off each ring's
+ * middle was no line in space, and the rings stood as rolls), each slot's line up the piece, read by its own length, has
+ * its dents bridged (the upper hull), then rounded (LIE_ROUND passes of a neighbours' mean, never under its floor: the
+ * layers beneath and LIE_FLOOR of the ease), and bridged again, so no ring stands proud of its neighbours as a roll or a
+ * ledge and the cloth lies straight from the bust to the shoulder. Below it, where the cloth is held (a sash, a belt), it
+ * gathers as it did. The first and last rings as they were; `cap` keeps a point where the piece's own cut holds it (the
+ * yoke, its cap eased in over the rise above the armpit), the line laid again over what the cap left. A sleeve lies the
+ * same way down the arm. In place. */
+const LIE_FLOOR = 0.35, LIE_ROUND = 12, LIE_PASSES = 4;
+function lieSmooth(stations, rings, C, slots, from, { floor = null, cap = null } = {}) {
   const J = rings.map((r, j) => j).filter((j) => rings[j].u >= from - 1e-9);
   if (J.length < 3) return;
-  const L = [0]; for (let q = 1; q < J.length; q++) L.push(L[q - 1] + dmath.hypot(...sub(C[J[q]], C[J[q - 1]])));
-  for (const sl of slots) {
-    const d = J.map((j) => { const p = stations[j].points[sl]; return [p[0] - C[j][0], p[1] - C[j][1]]; }), r = d.map((v) => dmath.hypot(v[0], v[1])), line = upperHull(L, r);
-    for (let q = 1; q + 1 < J.length; q++) { if (line[q] <= r[q] + 1e-7 || r[q] < 1e-9) continue;
-      const p = stations[J[q]].points[sl], f = line[q] / r[q]; stations[J[q]].points[sl] = [C[J[q]][0] + d[q][0] * f, C[J[q]][1] + d[q][1] * f, p[2]].map(r6); }
-  }
+  // (the axis: a straight line from the first ring's middle to the last's; each point read off its foot on it)
+  const a = C[J[0]], ax = sub(C[J[J.length - 1]], a), L2 = dot3(ax, ax) || 1e-12;
+  const foot = (p) => add(a, mul(ax, dot3(sub(p, a), ax) / L2)), n = J.length;
+  // (bridged, held by its cut, bridged again: the cut's cap trims a point the hull lifted, so the line is laid again
+  // over what the cap left, LIE_PASSES times, the rounding on the first)
+  for (let it = 0; it < (cap ? LIE_PASSES : 1); it++) slots.forEach((sl, k) => {
+    const P = J.map((j) => stations[j].points[sl]);
+    // (the line read by its own length up the slot: a ring tipped at the neckline lies in its place along it)
+    const x = [0]; for (let q = 1; q < n; q++) x.push(x[q - 1] + Math.max(1e-6, dmath.hypot(...sub(P[q], P[q - 1]))));
+    const A = P.map(foot), D = P.map((p, q) => sub(p, A[q])), r = D.map((v) => dmath.hypot(...v)), U = D.map((v, q) => mul(v, 1 / (r[q] || 1e-9)));
+    const fl = floor ? J.map((j, q) => Math.min(r[q], dot3(sub(floor(j, k), A[q]), U[q]))) : r.map(() => -Infinity);
+    let y = upperHull(x, r);
+    for (let pass = 0; pass < (it ? 0 : LIE_ROUND); pass++) y = y.map((v, q) => (q === 0 || q === n - 1 ? v : Math.max(fl[q], (y[q - 1] + 2 * v + y[q + 1]) / 4)));
+    y = upperHull(x, y);
+    for (let q = 1; q + 1 < n; q++) { const p = add(A[q], mul(U[q], y[q]));
+      stations[J[q]].points[sl] = (cap ? cap(J[q], k, p) : p).map(r6); }
+  });
 }
 /** the upper hull of the line (x, y) (x increasing) read at each x: every y raised to the least concave line over them */
 function upperHull(x, y) {
@@ -376,6 +408,7 @@ function upperHull(x, y) {
  * shoulders) … st11 (the crown). */
 const HOOD_SLOTS = 13, HOOD_RINGS = 12;
 function hoodPart(parts, names, P, worn) {
+  if (P.worn !== undefined) return drapedHood(parts, names, P, worn);
   const n = SLOT_FAMILIES.ring20.length, N = HOOD_RINGS, e = P.ease, thick = P.thick ?? 0.005, { at: hc, r: hr } = P.head;
   const zb = heightAt(parts, P.from), zTop = hc[2] + hr[2] + e;
   const beneath = [...names, ...(P.over || []), ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_hood$/.test(nm));
@@ -418,6 +451,189 @@ function hoodPart(parts, names, P, worn) {
   return { layer: 1, closure: 'closed', garment: true, slots, stations, caps: { back: [bot[0], bot[1], bot[2] - 0.004].map(r6), tip: [crown[0], crown[1], crown[2] + 0.004].map(r6) }, group: P.group,
     bind: { bone: Object.keys(headB)[0], blend: { ...blend, back: foot, tip: headB } } };
 }
+
+/** THE DRAPED HOOD's words (outfit laws 2; a hood piece's, validateGarments): `worn` up over the head or down on the
+ * shoulders; `point` the back's peak (none: round; short: a peak at the back of the crown; long: a liripipe, a tail
+ * hanging down the back); `depth` how far the brim comes forward of the face; `budget` the register's (planes the box's,
+ * facets the low-poly's, smooth the rest) */
+export const HOOD_WORDS = Object.freeze({ worn: ['up', 'down'], point: ['none', 'short', 'long'], depth: ['shallow', 'deep'], budget: ['planes', 'facets', 'smooth'] });
+/** per budget: the slots a side of the opening and the rings from the shoulders to the crown */
+/** the least the hood stands off the skull and the hair (m, at an adult's head) */
+const HOOD_CLEAR = 0.008;
+const HOOD_BUDGET = Object.freeze({ planes: { m: 4, N: 7 }, facets: { m: 7, N: 10 }, smooth: { m: 13, N: 16 } });
+/** THE HEAD AS IT IS WORN: the head's own parts compiled where they sit (the cranium or the realistic head's skin, the jaw,
+ * and every part pinned to them: the face, the hair, the ears), so a hood fits the head and the hair this figure has,
+ * the landmark head, the anime head's big skull and hair, the realistic head, a child's or a chibi's, never a stretched
+ * ellipsoid. → { all, hair, face, brow } points, or null when the parts name no head */
+function headCloud(parts) {
+  const seeds = new Set(Object.keys(parts).filter((n) => /^(cranium|jaw|headSkin)$/.test(n)));
+  for (let grew = true; grew;) { grew = false; for (const [n, p] of Object.entries(parts)) if (!seeds.has(n) && p.pin?.parent && seeds.has(p.pin.parent)) { seeds.add(n); grew = true; } }
+  for (const n of ['earR', 'earL']) if (parts[n] && !parts[n].pin && seeds.size) seeds.add(n);
+  if (!seeds.size) return null;
+  const mesh = compileLayered({ schema: 'layered-v1', dials: {}, parts: Object.fromEntries([...seeds].map((n) => [n, parts[n]])) }, {}, { details: true, creases: false });
+  const out = { all: [], hair: [], face: [], brow: [] };
+  mesh.vertices.forEach((p, i) => { const n = mesh.provenance[i].part; out.all.push(p);
+    if (/^hair(?!Brows|Lashes|Beard)/.test(n)) out.hair.push(p); else if (!/^ear/.test(n)) out.face.push(p);
+    if (/^(brow[RL]|hairBrows)$/.test(n)) out.brow.push(p); });
+  return out.all.length ? out : null;
+}
+/** an ellipsoid's surface as points (a head with no parts of its own: `head: { at, r }`) */
+const ellipsoidCloud = ({ at, r }) => { const all = [];
+  for (let i = 0; i <= 12; i++) for (let k = 0; k < 24; k++) { const v = Math.PI * i / 12, u = 2 * Math.PI * k / 24; all.push([at[0] + r[0] * Math.sin(v) * Math.sin(u), at[1] + r[1] * Math.sin(v) * Math.cos(u), at[2] + r[2] * Math.cos(v)]); }
+  return { all, hair: [], face: all.filter((p) => p[1] > at[1]), brow: [] }; };
+const smooth01 = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
+/**
+ * A DRAPED HOOD (`fit: 'hood'` with `worn`, outfit laws 2): cut and fallen as cloth, from the head it is worn over (headCloud)
+ * and the cloth's own stiffness (`material` / `rigidity`, cloth-law.js: soft wool collapses, stiff leather stands).
+ *
+ * WORN UP. Each ring, from just below the shoulder line (`from`) to over the crown, is the support in twenty directions of
+ * the head and hair at its height and of what lies beneath at the shoulders (the cloak it rises from), made symmetric and
+ * its dents filled; the CROWN lies on the skull and the hair with a little slack (more as the cloth stands), and each
+ * direction's line from the shoulders to the crown is bridged (the upper hull): the cloth falls from the head onto the
+ * shoulders as a tent, never a cylinder dropped to them, and never tucks in under the jaw. The BACK falls from the crown to
+ * its `point`: a peak at the back of the crown, a ridge down the seam (short), or a liripipe (long: a tail hung from that
+ * peak down the back, its own part `<id>_hoodTail`, which flows as a strand of the hood's cloth); none keeps it round. The
+ * OPENING frames the face: from the chin to the brim its edge stands clear of the cheeks (`open`, degrees each side of the
+ * front, narrows it), its top, the BRIM, set above the brow by the cloth's stiffness (soft cloth comes down to the brow,
+ * stiff stands at the hairline), brought forward of the face by `depth`, and rolled (its edge a fold standing proud); below
+ * the chin it opens out to the cloak's own arc (`around`). Where the cloth is held at the neck it gathers in a few LARGE
+ * FOLDS, none at the shoulders, so its lower edge lies on the cloak's collar with no gap or step.
+ *
+ * WORN DOWN. The hood lies collapsed on the upper back: a loose ring of its opening round the neck at the collar, the
+ * cloth beneath it a soft sack on the back, narrowing to its point down the spine (a liripipe hangs on from it). The head
+ * and the hair are bare.
+ *
+ * Its `budget` (the register's) sets the slots and the rings, the same shape at every budget. A closed slab `thick` deep,
+ * its rings st0 (the foot) … up, skinning as the old hood did (the shoulders at its foot, the neck, the head over the head's
+ * base; down, the shoulders and the neck alone). The body is locked; the tail, when there is one, flows.
+ */
+function drapedHood(parts, names, P, worn) {
+  const up = P.worn !== 'down', B = HOOD_BUDGET[P.budget ?? 'smooth'], m = B.m, N = B.N, n = SLOT_FAMILIES.ring20.length;
+  const e = P.ease, thick = P.thick ?? 0.005, rg = clothRigidity(P) ?? 0.4, point = P.point ?? 'short', deep = (P.depth ?? 'deep') === 'deep';
+  const zb = heightAt(parts, P.from);
+  const beneath = [...names, ...(P.over || []), ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_hood$/.test(nm) && parts[nm].stations);
+  const under = beneath.flatMap((nm) => [...parts[nm].stations.flatMap((st) => Object.values(st.points)), parts[nm].caps.back, parts[nm].caps.tip]);
+  const H = headCloud(parts) ?? ellipsoidCloud(P.head);
+  // the head's landmarks off its own points: the crown, the chin, the brow, the cheeks, the skull's middle front to back
+  const zTopH = Math.max(...H.all.map((p) => p[2]));
+  const skullY = H.all.filter((p) => p[2] > zTopH - 0.35 * (zTopH - zb)), cy = (Math.min(...skullY.map((p) => p[1])) + Math.max(...skullY.map((p) => p[1]))) / 2;
+  const front = H.face.filter((p) => p[1] > cy), chin = Math.max(zb + 0.02, Math.min(...(front.length ? front : H.all).map((p) => p[2])));
+  const hs = Math.max(0.05, zTopH - chin), brow = H.brow.length ? Math.max(...H.brow.map((p) => p[2])) : chin + 0.62 * hs;
+  const cheekPts = front.filter((p) => p[2] >= chin + 0.15 * (brow - chin) && p[2] <= brow);
+  const cheek = cheekPts.length ? Math.max(...cheekPts.map((p) => Math.abs(p[0]))) : 0.08 * hs / 0.24;
+  const k = hs / 0.24;   // the head's own scale against an adult's crown-to-chin
+  const dirs = Array.from({ length: n }, (_, q) => [Math.sin(2 * Math.PI * q / n), Math.cos(2 * Math.PI * q / n)]);
+  const support = (pts) => dirs.map(([dx, dy]) => pts.reduce((t, p) => Math.max(t, p[0] * dx + (p[1] - cy) * dy), 0.005));
+  const fill = (r) => { r = r.map((x, q) => Math.max(x, r[(n - q) % n])); for (let pass = 0; pass < 3; pass++) r = r.map((x, q) => Math.max(x, (r[(q + 1) % n] + r[(q + n - 1) % n]) / 2)); return r; };
+  const rAt = (R, deg) => { const x = ((deg % 360) + 360) % 360 / (360 / n), q = Math.floor(x) % n, f = x - Math.floor(x); return R[q] + (R[(q + 1) % n] - R[q]) * f; };
+  const L = 2 * m, slots = Array.from({ length: L }, (_, q) => (q === 0 || q === m ? `p${q}` : q < m ? `p${q}R` : `p${L - q}L`));
+  // how it skins: the shoulders' blend at its foot, the neck's up to the head's base, the head's above (as hoodPart's)
+  const nearestBlend = (part, z) => { if (!part) return null; let best = part.stations[0], bd = Infinity;
+    for (const st of part.stations) { const d = Math.abs(mean(Object.values(st.points))[2] - z); if (d < bd) { bd = d; best = st; } } return blendOf(part.bind, best.id); };
+  const foot = nearestBlend(parts.torso, zb) ?? { [parts.neck?.bind?.bone ?? 'neck']: 1 }, neckB = nearestBlend(parts.neck, (zb + chin) / 2) ?? foot;
+  const carrier = parts.cranium ?? parts.headSkin, headB = carrier?.bind ? (blendOf(carrier.bind, carrier.stations?.[0]?.id) ?? { head: 1 }) : { head: 1 };
+  const blendAt = (z) => (z < chin ? mixBlend(foot, neckB, smooth01((z - zb) / Math.max(1e-6, chin - zb))) : mixBlend(neckB, headB, smooth01((z - chin) / Math.max(1e-6, 0.35 * hs))));
+  const slab = (zs, i) => [i < zs.length - 1 ? Math.max(0.006, (zs[i + 1] - zs[i]) / 2) : 0.01, i > 0 ? Math.max(0.006, (zs[i] - zs[i - 1]) / 2) : 0.02];
+  const [b0] = P.around, foldN = Math.max(2, Math.round(m / 4)), foldA = (0.012 + 0.012 * (1 - rg)) * k;
+  // the folds a cloth makes where it is held (at the neck): `nf` of them across an arc from a to 360 − a, outward only
+  const folds = (deg, a, amp) => { const t = (deg - a) / Math.max(1e-6, 360 - 2 * a); return amp * (1 - Math.cos(2 * Math.PI * (2 * foldN + 1) * t)) / 2; };
+  const stations = [], blend = {};
+  const ring = (i, z, a0, rOf, inner = (deg, r) => r - thick, bl = blendAt(z)) => { const id = `st${i}`, points = {};
+    slots.forEach((sl, q) => { const isIn = q >= m, j = isIn ? 2 * m - 1 - q : q, deg = a0 + (360 - 2 * a0) * j / (m - 1), th = deg * Math.PI / 180;
+      const ro = rOf(deg, j), r = isIn ? inner(deg, ro, j) : ro, p = [Math.sin(th) * r, cy + Math.cos(th) * r, z]; points[sl] = p.map(r6); blend[`${id}.${sl}`] = bl; });
+    stations.push({ id, u: i, points }); };
+  let tailRoot = null, tailBack = null;
+  if (up) {
+    const zTop = zTopH + e * (0.35 + 0.8 * rg), z0 = zb;
+    const zs = Array.from({ length: N }, (_, i) => z0 + (zTop - z0) * Math.sin(Math.PI / 2 * i / (N - 1)));
+    let prev = null;
+    const R = zs.map((z, i) => { const [hi, lo] = i === 0 ? [0.004, 0.004] : slab(zs, i), inS = (p) => p[2] <= z + hi && p[2] >= z - lo;   // (the foot: what lies at its own height, the collar it sits on)
+      const hp = H.all.filter(inS), bp = under.filter(inS);
+      let r = hp.length || bp.length ? support([...hp, ...bp]) : prev.map((x) => x * 0.6); prev = r; r = fill(r);
+      // the crown's slack (stiff cloth stands off the skull, soft lies on it); the cowl's ease below the chin
+      // (the cowl's ease between: room to gather at the neck, none spare where it lies on the collar)
+      const sl = e * (0.35 + 0.8 * rg), ez = z >= chin || z <= zb ? sl : sl + (e - sl) * Math.sin(Math.PI * smooth01((z - zb) / Math.max(1e-6, chin - zb)));
+      return r.map((x) => x + ez); });
+    // the crown closes over the top: the last ring a small one round the top's middle
+    R[N - 1] = R[N - 1].map((x) => Math.min(x, 0.18 * hs));
+    // THE POINT: the back of the crown drawn out to a peak (a ridge down the back seam, fading round to the sides)
+    const pk = { none: 0, short: 0.22, long: 0.26 }[point] * hs, zp = zTopH - 0.18 * hs;
+    if (pk > 0) { const ip = zs.reduce((b, z, i) => (Math.abs(z - zp) < Math.abs(zs[b] - zp) ? i : b), 0), rp = rAt(R[ip], 180) + pk;
+      R[ip] = R[ip].map((x, q) => { const d = Math.abs(((q * 360 / n) - 180 + 540) % 360 - 180); return Math.max(x, rp - (rp - x) * Math.min(1, (d / 70) ** 1.4) - 0.001); });
+      tailRoot = [0, cy - rp, zs[ip]]; }
+    // THE FALL: each direction's line from the shoulders to the crown bridged (cloth hangs from the head and lies on the
+    // shoulders, a tent; it never tucks in under the jaw or round the neck)
+    const hull = () => { for (let q = 0; q < n; q++) { const y = upperHull(zs, R.map((r) => r[q])); y.forEach((v, i) => { R[i][q] = v; }); } };
+    hull();
+    // CLEARANCE: the cloth runs straight between its rings and its directions, so the skull and the hair bulging between
+    // them are met there: each point of them (but the face's own, which the opening shows) outside that patch raises its
+    // four corners by the least that clears it, by HOOD_CLEAR, each corner's share by its nearness; twice over
+    const clear = HOOD_CLEAR * k, faceSet = new Set(H.face), hood = H.all.filter((p) => !(p[1] > cy && p[2] < brow && faceSet.has(p)));
+    for (let pass = 0; pass < 3; pass++) { const need = R.map((r) => r.map(() => 0));
+      for (const p of hood) { const z = p[2]; let i = zs.findIndex((x) => x > z); if (i <= 0) continue; i -= 1; const f = (z - zs[i]) / (zs[i + 1] - zs[i]);
+        const dx = p[0], dy = p[1] - cy, rp = Math.hypot(dx, dy); if (rp < 1e-6) continue; let th = Math.atan2(dx, dy) * 180 / Math.PI; if (th < 0) th += 360;
+        const x = th / (360 / n), q0 = Math.floor(x) % n, q1 = (q0 + 1) % n, g = x - Math.floor(x), chord = 1 / Math.cos(Math.PI / n);
+        const W = [[i, q0, (1 - f) * (1 - g)], [i, q1, (1 - f) * g], [i + 1, q0, f * (1 - g)], [i + 1, q1, f * g]];
+        const dl = (rp + clear) * chord - W.reduce((t, [a, b, w]) => t + w * R[a][b], 0); if (dl <= 0) continue;
+        const zz = W.reduce((t, [, , w]) => t + w * w, 0); for (const [a, b, w] of W) need[a][b] = Math.max(need[a][b], dl * w / zz); }
+      R.forEach((r, i) => r.forEach((_, q) => { r[q] += need[i][q]; })); R.forEach((r, i) => { R[i] = fill(r); }); hull(); }
+    // the opening's half-angle at a height: past the cheeks (or `open`) from the chin to the brim, an arch over the brow
+    // closing at the brim's top, out to the cloak's arc below the chin
+    const zBrim = brow + (0.12 + 0.3 * rg) * (zTopH - brow), zArch = brow - 0.15 * (brow - chin);
+    const faceA = (i) => { if (Number.isFinite(P.open)) return P.open; let a = 20; while (a < 85 && rAt(R[i], a) * Math.sin(a * Math.PI / 180) < cheek + 0.012 * k) a += 1; return a; };
+    const aOpen = zs.map((z, i) => { const f = faceA(i);
+      if (z <= chin) return b0 + (f - b0) * smooth01((z - z0) / Math.max(1e-6, chin - z0));
+      if (z <= zArch) return f; if (z >= zBrim) return 0; return f * Math.sqrt(Math.max(0, 1 - ((z - zArch) / (zBrim - zArch)) ** 2)); });
+    // the brim forward of the face (`depth`), rolled at its edge; less forward the stiffer it stands
+    const fwd = (deep ? 0.16 : 0.03) * hs * (1 - 0.4 * rg), roll = 0.045 * hs;
+    zs.forEach((z, i) => { const a0 = aOpen[i], band = z >= chin ? smooth01((z - chin) / Math.max(1e-6, 0.5 * (brow - chin))) * (z <= zBrim + 0.1 * hs ? 1 : smooth01(1 - (z - zBrim - 0.1 * hs) / (0.15 * hs))) : 0;
+      // (the folds at the neck: none at the foot, where it lies on the collar, none over the cheeks)
+      const fz = z < chin ? Math.sin(Math.PI * smooth01((z - zb) / Math.max(1e-6, chin - zb))) : 0;
+      const rOf = (deg, j) => { const d = Math.min(deg, 360 - deg); let r = rAt(R[i], deg);
+        r += fwd * band * Math.max(0, Math.cos(d * Math.PI / 180)) ** 2;   // the brim forward
+        if (a0 > 0.5 && z > chin - 0.05 * hs && (j === 0 || j === m - 1)) r += roll * band; else if (a0 > 0.5 && z > chin - 0.05 * hs && (j === 1 || j === m - 2)) r += 0.4 * roll * band;
+        else if (a0 <= 0.5 && z >= zBrim - 0.02 * hs && z <= zBrim + 0.12 * hs) r += roll * Math.max(0, Math.cos(d * Math.PI / 180)) ** 3;
+        return r + folds(deg, a0, foldA * fz); };
+      ring(i, z, a0, rOf, (deg, r) => Math.max(r - thick, rAt(R[i], deg) - thick)); });
+    tailBack = (z) => { if (z < zs[0]) return null; const i = zs.findIndex((x) => x >= z); if (i < 0) return null; if (i === 0) return rAt(R[0], 180);
+      const f = (z - zs[i - 1]) / (zs[i] - zs[i - 1]); return rAt(R[i - 1], 180) + (rAt(R[i], 180) - rAt(R[i - 1], 180)) * f; };
+  } else {
+    // DOWN: from the collar's ring round the neck to the point down the back, the cloth of the hood lying collapsed on
+    // what is beneath (the cloak, the back): each ring the support there, a soft sack standing off it most at its middle
+    const zc = zb + 0.38 * Math.max(0.02, chin - zb), zd = zb - (point === 'none' ? 0.9 : 1.1) * hs;
+    const zs = Array.from({ length: N }, (_, i) => zc + (zd - zc) * (i / (N - 1)) ** 0.9);
+    let prev = null;
+    const R = zs.map((z, i) => { const lo = i > 0 ? Math.max(0.006, (zs[i - 1] - z) / 2) : 0.02, hi = i < N - 1 ? Math.max(0.006, (z - zs[i + 1]) / 2) : 0.02;
+      const bp = under.filter((p) => p[2] <= z + hi && p[2] >= z - lo); let r = bp.length ? support(bp) : prev; prev = r; return fill(r); });
+    // (its line down the back bridged as the cloth lies, the sack's bulk and the collar's roll on it)
+    for (let q = 0; q < n; q++) { const y = upperHull(zs.map((z) => -z), R.map((r) => r[q])); y.forEach((v, i) => { R[i][q] = v; }); }
+    const bulk = (0.07 + 0.04 * (1 - rg)) * hs, roll = 0.06 * hs;
+    zs.forEach((z, i) => { const t = i / (N - 1), a0 = b0 + (180 - Math.max(6, 14 * (1 - rg)) - b0) * smooth01(t) ** 0.7;
+      const sack = Math.sin(Math.PI * (0.12 + 0.88 * t) ** 0.8) * bulk, rl = roll * (1 - smooth01(t * 3));
+      const rOf = (deg, j) => { const w = Math.sin(Math.PI * j / (m - 1)) ** 0.6; return rAt(R[i], deg) + e + rl + sack * w; };
+      ring(i, z, Math.min(a0, 179), rOf, (deg, r) => Math.max(rAt(R[i], deg) + 0.4 * e, r - Math.max(thick, 0.7 * (r - rAt(R[i], deg) - e))), mixBlend(foot, neckB, i === 0 ? 0.5 : 0)); });
+    const last = mean(Object.values(stations[N - 1].points)); tailRoot = [0, last[1], last[2]];
+    tailBack = (z) => { const i = zs.findIndex((x) => x <= z); return i < 0 ? null : rAt(R[i], 180) + e + bulk; };
+  }
+  const mid = (i) => mean(Object.values(stations[i].points)), bot = mid(0), topC = mid(stations.length - 1);
+  const piece = { layer: 1, closure: 'closed', garment: true, slots, stations, caps: up ? { back: [bot[0], bot[1], bot[2] - 0.004].map(r6), tip: [topC[0], topC[1], topC[2] + 0.004].map(r6) } : { back: [bot[0], bot[1], bot[2] + 0.004].map(r6), tip: [topC[0], topC[1], topC[2] - 0.004].map(r6) }, group: P.group,
+    bind: { bone: up ? Object.keys(headB)[0] : Object.keys(foot)[0], blend: { ...blend, back: up ? foot : mixBlend(foot, neckB, 0.5), tip: up ? headB : foot } } };
+  if (point !== 'long' || !tailRoot) return piece;
+  // THE LIRIPIPE: a tail from the point hanging down the back, tapering, laid just off what it hangs over (the hood's
+  // back, the cloak), a strand of the hood's cloth (`root`: it flows from where it is sewn)
+  const tl = (up ? 1.4 : 0.6) * hs, K = 7, r0 = 0.07 * hs, tslots = SLOT_FAMILIES.ring8;
+  let lastBack = 0; const backAt = (z) => { const h = tailBack(z); if (h !== null) return h; const bp = under.filter((p) => Math.abs(p[2] - z) < 0.03 && Math.abs(p[0]) < 0.06); return bp.length ? (lastBack = Math.max(lastBack, Math.max(...bp.map((p) => cy - p[1])) + 0.3 * e)) : lastBack; };   // (it falls: never in under what it hung over above)
+  const tStations = [], tBlend = {};
+  for (let i = 0; i < K; i++) { const t = i / (K - 1), z = tailRoot[2] - tl * t, rr = r0 * (1 - 0.75 * t), y = tailRoot[1] + (cy - backAt(z) - 0.7 * rr - tailRoot[1]) * smooth01(t / 0.3);
+    const id = `st${i}`, points = {}; tslots.forEach((sl, q) => { const a = 2 * Math.PI * q / tslots.length; points[sl] = [Math.sin(a) * rr, y + Math.cos(a) * rr, z].map(r6); tBlend[`${id}.${sl}`] = up ? blendAt(Math.max(z, chin)) : foot; });
+    tStations.push({ id, u: i, points }); }
+  const tTop = mean(Object.values(tStations[0].points)), tEnd = mean(Object.values(tStations[K - 1].points));
+  const tail = { layer: 1, closure: 'closed', garment: true, slots: tslots, stations: tStations, caps: { back: [tTop[0], tTop[1], tTop[2] + 0.004].map(r6), tip: [tEnd[0], tEnd[1], tEnd[2] - rr0(r0)].map(r6) }, group: P.group, root: tTop.map(r6),
+    ...(P.rigidity !== undefined ? { rigidity: P.rigidity } : {}), ...(P.material !== undefined ? { material: P.material } : {}),
+    bind: { bone: up ? Object.keys(headB)[0] : Object.keys(foot)[0], blend: { ...tBlend, back: up ? headB : foot, tip: up ? blendAt(chin) : foot } } };
+  return { ...piece, tail };
+}
+const rr0 = (r0) => 0.25 * r0;
 
 // ─── footwear: two sections superposed on a flat sole ───
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

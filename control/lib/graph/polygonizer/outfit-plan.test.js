@@ -34,8 +34,9 @@ describe('a half-cape to the hip, hooded, on the landmark head', () => {
 });
 
 describe('a hooded cloak', () => {
-  const P = partsOf('female', 'traveler', [{ kind: 'cloak', hood: true }]);
-  it('the hood rises from the cloak over the head, round, open at the face, turning with the head', () => {
+  // (the bell a row stamped with outfit laws 1 keeps; under laws 2 the hood is draped: mcp/tools/hero-hood.test.js)
+  const P = expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', head: 'anime', outfit: { type: 'outfit', style: 'traveler', laws: 1, pieces: [{ kind: 'cloak', hood: true }] } }) }).recipe.parts;
+  it('outfit laws 1: the hood rises from the cloak over the head, round, open at the face, turning with the head', () => {
     const H = P.cloakHood_hood, C = P.cloak_cape; expect(H && C).toBeTruthy();
     const z = (st) => centre(st)[2], crown = z(H.stations.at(-1)), foot = z(H.stations[0]);
     expect(Math.abs(foot - z(C.stations[0]))).toBeLessThan(0.02);   // it starts where the cloak hangs from
