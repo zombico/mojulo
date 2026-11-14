@@ -7,6 +7,7 @@
  *                    DOM backend)
  *   css.js           the structure, its look in `--mana-*` variables whose defaults are the greybox (values only)
  *   theme.js         the style layer: a theme of closed words and colours (and fonts you own) over the greybox
+ *   icons.js         the pictograms: one outline an icon, drawn in the theme's style (a mask in its sheet)
  *   idioms*.js       the shared screens and HUD parts as compositions; samples.js the sample state they bind into
  *   board.js         the wireframe board: every idiom live on the sample state
  *
@@ -26,6 +27,7 @@ import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey } from './board.js';
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
 export { manaCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
 export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast, gameHudCss } from './theme.js';
+export { ICONS, ICON_IDS, ICON_STYLES, ICON_ALIASES, ICON_MEANING, ICON_TONES, iconOf, iconSvg, iconCss } from './icons.js';
 export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms, coverageOverlap } from './idioms.js';
 export { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
 export { manaUiBoard, boardFrames, BOARD_HUDS, PREVIEW_KEYS, previewKey } from './board.js';

@@ -127,7 +127,15 @@ export async function GET(request, { params }) {
         const link = (q) => `?${new URLSearchParams({ book: 'practice', room, ...Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) })}`;
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${feel ?? ''}:${dressAsked ?? ''}:${areaAsked ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(room === 'work' || room === 'room' ? { feel, link, dress, area } : {}) })).html);
+        // (`view=map`: the roll room's course as the book's course map, gameworld/course-map.js; `view=sheet`: its
+        // course sheet, gameworld/course-sheet.js)
+        const view = request.nextUrl.searchParams.get('view');
+        if (view !== null && view !== 'map' && view !== 'sheet') return NextResponse.json({ error: "view is 'map' (the roll room's course map) or 'sheet' (its course sheet: the way, the asks, the walls and the backdrop as one)" }, { status: 400 });
+        // (`level=<id>`: the course level whose dress the room wears; the world's first course level unsaid)
+        const level = request.nextUrl.searchParams.get('level');
+        try {
+          html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${view ?? ''}:${level ?? ''}:${feel ?? ''}:${dressAsked ?? ''}:${areaAsked ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(view ? { view } : {}), ...(level ? { level } : {}), ...(room === 'work' || room === 'room' ? { feel, link, dress, area } : {}) })).html);
+        } catch (e) { if (view || level) return NextResponse.json({ eligible: false, reason: e.message.replace(/^practice: /, '') }, { status: 422 }); throw e; }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one

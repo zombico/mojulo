@@ -94,6 +94,45 @@ export function themeOf(theme, palette, ref) {
   return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
 }
 
+// ── a level with a ROLL (game/roll.js): many maps, so its proof is in two parts ──────────────────────────────────────
+// The browser's walk goes in straight legs, and proves the REFERENCE roll (seed 1): its plan is led round what that
+// roll stands (roll-audit.js referenceRoute). The other seeds are walked in Node, a sample of them, by the seeds audit
+// (rollAudit): advice with the game, never a refusal. Both imported only when a level rolls.
+const rolledPayload = async (levelRef) => {
+  const row = SketchRepository.getByRef(levelRef);
+  if (!row?.manifest?.roll) return null;
+  const { payload } = await (await import('@/lib/graph/worlds/world-scene')).resolveWorldScene(row);
+  return payload?.roll ? payload : null;
+};
+/** A level's audit plan, led round its reference roll: a one-leg walk becomes the nav grid's corners to its end. */
+export async function rolledPlan(levelRef, plan, { payloadOf = rolledPayload } = {}) {
+  if (!Array.isArray(plan?.waypoints) || plan.waypoints.length !== 1) return plan;
+  const payload = await payloadOf(levelRef);
+  const route = payload ? (await import('@/lib/graph/game/roll-audit')).referenceRoute(payload) : null;
+  return route && route.length ? { ...plan, waypoints: route } : plan;
+}
+/** The seeds audit of every level that rolls: [{ ref, seeds, ways, distinct, ok, laws, failed }] (none: []). */
+const rolledCourse = async (levelRef) => { const m = SketchRepository.getByRef(levelRef)?.manifest; return m?.obstacles ? (await import('@/lib/graph/gameworld/roll-course')).courseOfLevel(m) : null; };
+export async function rollReports(levelRefs, { payloadOf = rolledPayload, courseOf = payloadOf === rolledPayload ? rolledCourse : null, seeds, plays } = {}) {
+  const out = [];
+  for (const ref of levelRefs) {
+    // a level that is an obstacle course (gameworld/roll-course.js): its things are jumped and steered round, never
+    // walked round, so it is the reaction bot that plays it, not the walk
+    const course = courseOf ? await courseOf(ref) : null;
+    if (course) {
+      const A = (await import('@/lib/graph/gameworld/roll-course')).courseAudit(course, { ...(seeds ? { seeds } : {}) });
+      out.push({ ref, seeds: A.seeds, ways: course.ways, ok: A.ok, laws: A.laws, course: { gap: course.gap, sight: course.sight, react: course.react }, gate: 'machine: a sample of seeds played in Node by the reaction bot (it sees only so far ahead and acts a reaction time after); whether the course reads as designed is the eyes gate' });
+      continue;
+    }
+    let payload = null;
+    try { payload = await payloadOf(ref); } catch (e) { out.push({ ref, ok: false, note: `its roll could not be read: ${e.message}` }); continue; }
+    if (!payload) continue;
+    const A = (await import('@/lib/graph/game/roll-audit')).rollAudit(payload, { ...(seeds ? { seeds } : {}), ...(plays ? { plays } : {}) });
+    out.push({ ref, seeds: A.seeds, ways: A.ways, distinct: A.distinct, ok: A.ok, laws: A.laws, ...(A.failed.length ? { failed: A.failed.slice(0, 8) } : {}), gate: 'machine: a sample of seeds walked in Node, the reference roll (seed 1) in the browser when auto_audit ran; whether a roll reads as designed is the eyes gate' });
+  }
+  return out;
+}
+
 /**
  * One level of a made game walked by its mechanic-derived audit, the step a design_game run checks a level with
  * (gameworld/runner.js auditSteps): the level's contract as the game resolves it, dry-run against the game's store, then
@@ -120,7 +159,7 @@ export async function auditGameLevel({ gameRef, levelRef, runTraversal = null, f
   const routed = (plan) => (route.length && plan.waypoints?.length === 1 ? { ...plan, waypoints: [...route, plan.waypoints[0]] } : plan);
   let legs = null, target = null;
   const autoRun = async ({ levelRef: at, plan }) => {
-    const P = routed(plan);
+    const P = await rolledPlan(at, routed(plan));
     target = P.waypoints?.at(-1) ?? null;
     if (runTraversal) return runTraversal({ levelRef: at, plan: P });
     const out = await walk({ levelRef: at, plan: P });
@@ -130,7 +169,10 @@ export async function auditGameLevel({ gameRef, levelRef, runTraversal = null, f
   const a = await auditLevel({ ref: levelRef, store: game.store, contract: lv.contract, allowUnaudited: true, autoRun });
   if (!a.dryRun.ok) return { completable: false, note: `its contract does not dry-run: ${a.dryRun.errors.join('; ')}` };
   const pilot = pilotRule(SketchRepository.getByRef(levelRef)?.manifest);
-  return { completable: a.completable, note: a.completable === true || !legs ? a.reason : `${a.reason}; ${walkSays(legs, target, pilot)}` };
+  // a level that rolls: the walk above proved its reference roll; a sample of its other seeds is walked in Node
+  const [roll] = await rollReports([levelRef]);
+  const rollSays = roll ? `; its roll, ${roll.seeds ?? 0} seeds walked: ${roll.laws ? roll.laws.filter((l) => !l.holds).map((l) => l.says).join('; ') || 'every law holds' : roll.note}` : '';
+  return { completable: a.completable, note: (a.completable === true || !legs ? a.reason : `${a.reason}; ${walkSays(legs, target, pilot)}`) + rollSays, ...(roll ? { roll } : {}) };
 }
 
 // the rule the level's pilot moves by (its pilotable entity, else its first): only a platform body climbs a ladder
@@ -153,7 +195,7 @@ function walkSays(legs, target, pilot = null) {
   return `every leg arrived; it stood at ${at3(end)}${target ? ` under or beside ${at3(target)}, where the exit is not reached` : ''}`;
 }
 
-export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, flow, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, flow, ui, screen, hud, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -174,7 +216,10 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   }
 
   const { theme, palette: solved } = themeOf(themeIn, palette, ref);
-  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}), ...(final !== undefined ? { final } : {}), ...(flow !== undefined ? { flow } : {}) };
+  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}), ...(final !== undefined ? { final } : {}),
+    // (the play shell's screens in the game UI runtime, the screen the game is made for, its HUD's look: the game's own
+    // words, as a gameworld's run hands them over, game/game-manifest.js)
+    ...(flow !== undefined ? { flow } : {}), ...(ui !== undefined ? { ui } : {}), ...(screen !== undefined ? { screen } : {}), ...(hud !== undefined ? { hud } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -206,7 +251,8 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   const traverse = autoAudit && !autoSkipped ? (runTraversal || (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal) : null;
   const autoRun = traverse
     ? async (arg) => {
-        const { value, fetched } = await withChromiumFetch(() => traverse(arg));
+        const led = { ...arg, plan: await rolledPlan(arg.levelRef, arg.plan) };   // (a level that rolls: round its reference roll)
+        const { value, fetched } = await withChromiumFetch(() => traverse(led));
         if (fetched) browserDownload = fetched.notice;
         return value;
       }
@@ -246,6 +292,11 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     ? await (firstFrame || (await import('@/lib/graph/game/first-frame-check')).firstFrameCheck)(finalized.levels.map((l) => l.ref))
     : null;
 
+  // the seeds audit of each level that rolls (advice: it is said, never a refusal)
+  const rolls = await rollReports(finalized.levels.map((l) => l.ref));
+  // (a run that draws a level more than once wants levels that roll: one that does not is said)
+  const flat = finalized.run?.repeat ? finalized.levels.map((l) => l.ref).filter((r) => !SketchRepository.getByRef(r)?.manifest?.roll) : [];
+
   const levelMusic = suggestLevelMusic(finalized.levels.map((l) => l.ref), sketch.ref);
   // advice (level-dress.js): a level that is plain mesh bodies on the stage's default checkerboard is a greybox
   const undressed = undressedReadout(finalized.levels.map((l) => l.ref), (r) => SketchRepository.getByRef(r));
@@ -257,6 +308,8 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     playtestUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/playtest`,
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: autoSkipped && a.autoAuditPlan && a.completable === null ? `${a.reason}; auto-audit skipped: ${autoSkipped}` : a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
+    ...(rolls.length ? { rolls } : {}),
+    ...(flat.length ? { run_note: `run.repeat draws a level more than once, and ${flat.join(', ')} ${flat.length === 1 ? 'has' : 'have'} no roll: each draw of it is the same map (give the level a roll, or its world roll: true)` } : {}),
     ...(eyes ? { first_frame: eyes } : {}),
     ...(levelMusic ? { music: levelMusic } : {}),
     ...(undressed ? { undressed } : {}),
@@ -334,11 +387,11 @@ export async function createGameHandler(input, context = {}) {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
   // (`flow`, game/flow.js: what plays when; the gameworld's page, carried from its run, design-game.js, and unlisted here)
-  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, flow, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, flow, ui, screen, hud, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   if (input.tabletop !== undefined) return mintTabletop(input, context);
   if (input.table_rpg !== undefined) return mintTableRpg(input, context);
   try {
-    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, flow, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, flow, ui, screen, hud, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
     // the game is complete: now is when the operator is asked how to share it (share-offer.js)
     return { ...out, share: shareForContext(context, { ref: out.ref, playUrl: out.playUrl }) };
   } catch (err) {

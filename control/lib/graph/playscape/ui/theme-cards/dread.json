@@ -1,0 +1,33 @@
+{
+  "id": "dread",
+  "name": "Dread",
+  "about": "A horror game's restraint: black, bone, and one dried red. A serif, hairlines, grain over everything, nothing that moves fast. What is not shown does the work.",
+  "family": "dread",
+  "tags": [
+    "horror",
+    "survival-horror",
+    "mystery",
+    "slow"
+  ],
+  "author": "mojulo",
+  "from": "grim",
+  "tokens": {
+    "ink": "#d8d0c2",
+    "panel": "#0a0909",
+    "line": "#4a3f3a",
+    "accent": "#a3141c",
+    "accent2": "#6b6258",
+    "harm": "#c2241c"
+  },
+  "frame": "hairline",
+  "corner": "square",
+  "plate": "flat",
+  "overlay": "grain",
+  "case": "none",
+  "motion": "ease",
+  "transition": "fade",
+  "backdrop": "dim",
+  "stage": "none",
+  "icons": "sketch",
+  "sounds": "crypt"
+}

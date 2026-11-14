@@ -1,0 +1,40 @@
+{
+  "id": "lightdeck",
+  "name": "Lightdeck",
+  "about": "A bright ship's console: white glass, hairline rules, one clear cyan and an orange for alerts. Calm, exact, a lot of air.",
+  "family": "clean",
+  "tags": [
+    "sci-fi",
+    "clean",
+    "space",
+    "puzzle",
+    "strategy"
+  ],
+  "author": "mojulo",
+  "from": "modern",
+  "tokens": {
+    "ink": "#10202e",
+    "panel": "#f4f8fb",
+    "line": "#8fb9d4",
+    "accent": "#0789a3",
+    "accent2": "#e0621f",
+    "harm": "#c8321e",
+    "stamina": "#1f9d6b"
+  },
+  "frame": "hairline",
+  "corner": "soft",
+  "plate": "flat",
+  "material": "glass",
+  "case": "none",
+  "motion": "ease",
+  "stage": [
+    "rings",
+    "none",
+    "tunnel",
+    "rings",
+    "none"
+  ],
+  "icons": "line",
+  "sounds": "glass",
+  "iconTone": "meaning"
+}

@@ -7,6 +7,7 @@ import { FLOW_GLYPHS_SRC } from './moment-channel.js';
 import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
 import { AURA_SRC } from './aura-src.js';
 import { NOISE_GLSL } from '../../noise/noise-glsl.js';
+import { coatMatSrc, smoothNormalsSrc } from './coat-src.js';
 
 /**
  * status-channel — the page's side of the cast's STATUSES: each status a character carries (e.statuses, held by the
@@ -503,31 +504,10 @@ function __elShieldStep(d, e, age, fade, show) {
   }
   for (let i = n; i < 4; i++) U.uRip.value[i].w = -1;
 }
-` : ''}function __elCoatMat(color, dark, p${band ? ', band' : ''}) {
-  const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color[0], color[1], color[2]), transparent: true, depthWrite: false, blending: dark ? THREE.NormalBlending : THREE.AdditiveBlending });
-  m.userData.uK = { value: 0 }; m.userData.__fire = true;   // its own light: the fire channel leaves it unlit
-  m.onBeforeCompile = (sh) => {
-    sh.uniforms.uRimK = m.userData.uK; sh.uniforms.uRimP = { value: p }; sh.uniforms.uRimDark = { value: dark ? 1 : 0 };${band ? `
-    sh.uniforms.uRimBand = { value: band || 0 };` : ''}
-    sh.vertexShader = 'varying vec3 vRimN;\\nvarying vec3 vRimV;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\ntransformed += normal * 0.015;').replace('#include <project_vertex>', '#include <project_vertex>\\nvRimN = normalize(normalMatrix * normal);\\nvRimV = normalize(-mvPosition.xyz);');
-    sh.fragmentShader = 'uniform float uRimK;\\nuniform float uRimP;\\nuniform float uRimDark;\\n${band ? 'uniform float uRimBand;\\n' : ''}varying vec3 vRimN;\\nvarying vec3 vRimV;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\\n${band ? `float rimF = pow(1.0 - abs(dot(normalize(vRimN), normalize(vRimV))), uRimP);\\nfloat rim = clamp((uRimBand > 0.0 ? step(uRimBand, rimF) : rimF) * uRimK, 0.0, 1.0);` : 'float rim = clamp(pow(1.0 - abs(dot(normalize(vRimN), normalize(vRimV))), uRimP) * uRimK, 0.0, 1.0);'}\\ngl_FragColor = uRimDark > 0.5 ? vec4(0.0, 0.0, 0.0, rim) : vec4(gl_FragColor.rgb * rim, 1.0);');
-  };
-  return m;
-}
-const __elSeed = (id) => { let h = 7; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973; return h / 97; };
+` : ''}${coatMatSrc('__elCoatMat', band)}const __elSeed = (id) => { let h = 7; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973; return h / 97; };
 ${layer0 ? `// LAYER 0 (docs/foes.md): a look is laid on the body a foe is drawn as NOW. A rig body's bone meshes carry no normals:
 // each is given smooth ones once (its corners averaged where they meet), so a coat and a surface mark sit on it
-function __elNormals(geo) {
-  const P = geo.attributes.position.array, N = new Float32Array(P.length), acc = new Map(), key = (i) => Math.round(P[i] * 1e4) + ',' + Math.round(P[i + 1] * 1e4) + ',' + Math.round(P[i + 2] * 1e4);
-  for (let t = 0; t + 8 < P.length; t += 9) {
-    const ax = P[t + 3] - P[t], ay = P[t + 4] - P[t + 1], az = P[t + 5] - P[t + 2], bx = P[t + 6] - P[t], by = P[t + 7] - P[t + 1], bz = P[t + 8] - P[t + 2];
-    const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
-    for (let k = 0; k < 9; k += 3) { const q = key(t + k), a = acc.get(q) || [0, 0, 0]; a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; acc.set(q, a); }
-  }
-  for (let i = 0; i < P.length; i += 3) { const a = acc.get(key(i)) || [0, 0, 1], l = Math.hypot(a[0], a[1], a[2]) || 1; N[i] = a[0] / l; N[i + 1] = a[1] / l; N[i + 2] = a[2] / l; }
-  geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
-}
-` : ''}function __elMake(e, is, st) {
+${smoothNormalsSrc('__elNormals')}` : ''}function __elMake(e, is, st) {
   const K = __LOOK[is], base = st.color != null ? __rgb(st.color) : __rgb(K.color), body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id];
   const D = { coats: [], mat: null, waves: [], drifts: [], cloud: [], ribbon: null, glow: null, surf: [], encase: null, who: e.id, K, t0: st.t0, meshes: []${layer0 ? ', body' : ''} };
   const meshes = [];${layer0 ? `
