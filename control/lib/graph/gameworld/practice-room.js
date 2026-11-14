@@ -26,7 +26,7 @@
 import { POLES, STAGES } from './feel/cards.js';
 import { readFeel, feelRule } from './feel/lower.js';
 import { arsenalOfGame, armLevel, heroStrikes } from './arsenal.js';
-import { variesHits } from './sound-sheet.js';
+import { variesHits, MOVE_SOUND_WORDS } from './sound-sheet.js';
 import { arsenalFor, BASIC_ARSENAL } from './combos.js';
 import { standFoe, bestiaryOf } from './foes.js';
 import { FIGURE_LIBRARY } from './stage-figures.js';
@@ -91,9 +91,7 @@ export function floorOf(S) {
 // THE SOUNDS: the SFX shelf's by the words people say (sfx-shelf/resolve.js), each a cue, the moveset's events wired to
 // them (audio.moves, beats-world.js): a blade's cuts and its blow, the fist's, the finisher's knockout, the guard's block,
 // parry and break, the sidearm, the weapon cycle, the foe's swing and its fall, a blow taken; steps, the dodge, the jump
-const SOUND_WORDS = Object.freeze({ 'blade-light': 'blade-swing', 'blade-heavy': 'blunt-swing', 'fist-swing': 'swing', 'blade-hit': 'blade-hit', 'finisher-hit': 'knockout-blow',
-  punch: 'punch', uppercut: 'uppercut', block: 'block', parry: 'blade-clash', 'guard-break': 'wood-break', 'bow-draw': 'bow-draw', 'bow-shot': 'bow-shot',
-  'arrow-hit': 'arrow-target', felled: 'down', cycle: 'weapon-switch', 'foe-swing': 'blade-swing', hurt: 'flesh-impact' });
+const SOUND_WORDS = MOVE_SOUND_WORDS;
 // (a blade's swing is a swish; the slash itself sounds only when it connects, from its cut on, laid over the blow's hit)
 const SLASHES = Object.freeze({ 'blade-hit': 'katana-swing', 'finisher-hit': 'katana-heavy-swing' });
 export function roomAudio(arsenal, style = 'realistic', { vary = false } = {}) {

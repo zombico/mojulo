@@ -214,12 +214,23 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     }
     const slot = (k, row) => cueOf(sheet.slots?.[k] ?? row) ?? undefined;
     const kept = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
+    // the whole arsenal (`sheet.moves`, sound-sheet.js): the moveset's events by shelf word, each word a cue of the
+    // level's (`mv-<word>`), wired as the practice room wires them (audio.moves). It stands in the strike's place: the
+    // moveset's channel sounds the pilot's swing and blow by its weapon and weight, and the foes' own
+    let moves = null;
+    if (sheet.moves && audioSpec.moves === undefined) {
+      const idOf = (word) => { const id = `mv-${word}`; if (!(id in cues)) cues[id] = cueOf(word); return cues[id] ? id : null; };
+      const byWeight = (m) => Object.fromEntries(Object.entries(m ?? {}).map(([w, W]) => [w, kept(Object.fromEntries(Object.entries(W).map(([x, word]) => [x, idOf(word)])))]).filter(([, W]) => Object.keys(W).length));
+      const { swing, hit, ...one } = sheet.moves;
+      moves = kept({ swing: byWeight(swing), hit: byWeight(hit), ...Object.fromEntries(Object.entries(one).map(([ev, word]) => [ev, idOf(word)])) });
+      for (const id of Object.keys(cues)) if (!cues[id]) delete cues[id];
+    }
     audioSpec = {
       ...audioSpec,
       sfx: { cues, ...(Object.keys(on).length ? { on } : {}), vary: sheet.vary !== false, ...(sheet.mix !== undefined ? { mix: sheet.mix } : {}) },
       footsteps: audioSpec.footsteps ?? kept({ step: slot('step', 'step'), jump: slot('jump', 'jump'), land: slot('land', 'land') }),
       weapon: audioSpec.weapon ?? kept({ shot: slot('shot', 'shoot'), hit: slot('hit', 'hit'), reload: slot('reload', 'reload') }),
-      strike: audioSpec.strike ?? kept({ swing: slot('swing', 'swing'), hit: slot('strike', 'strike') }),
+      ...(moves ? { moves } : { strike: audioSpec.strike ?? kept({ swing: slot('swing', 'swing'), hit: slot('strike', 'strike') }) }),
       dodge: audioSpec.dodge ?? slot('dodge', 'dodge'),
     };
     out.sheet = style;

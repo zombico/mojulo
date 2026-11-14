@@ -42,7 +42,8 @@ describe('a level hears it (beats-world sfx: { sheet })', () => {
     expect(audio.on).toMatchObject({ 'door:*': 'door', 'goal:reached*': 'goal' });
     expect(audio.cues.door).toEqual(sfxSound('latch', { style: 'mouth' }).gestures);
     expect(audio.cues.goal).toEqual(sfxSound('goal', { style: 'mouth' }).gestures);
-    expect(audio.strike.swing).toEqual(sfxSound('staff-swing', { style: 'mouth' }).gestures);
+    // (a game with an arsenal: the staff's swing is its moveset's, in the strike's place)
+    expect(audio.cues[audio.moves.swing.bo.light]).toEqual(sfxSound('staff-swing', { style: 'mouth' }).gestures);
   });
 });
 
@@ -133,5 +134,57 @@ describe('a game on the sheet hears it on every level it builds', () => {
     const audio = resolveWorldAudio(L.order.manifest.audio, { ref: L.ref, mechanics: kinds });
     expect(audio.sheet).toBe('realistic');
     expect(Object.keys(audio.cues).length).toBeGreaterThan(0);
+  });
+});
+
+describe('the whole arsenal on the sheet (a moveset\'s events by shelf word)', () => {
+  // an arsenal of a weapon read by its words, a plain blade and a fist: one case per way a weapon is read
+  const base = structuredClone(BASIC_ARSENAL), sword = base.weapons[0], fist = base.weapons.find((W) => (W.figure ?? 'drawn') !== 'drawn');
+  const KIT = { arsenal: { ...base, weapons: [{ ...structuredClone(sword), id: 'kat', name: 'Katana' }, sword, fist] } };
+
+  it('a game with an arsenal: each weapon\'s swing and blow by weight, the guard, the bow, the foes; without one, the two slots', () => {
+    expect(soundSheet({}).moves).toBeUndefined();
+    const S = soundSheet(KIT);
+    expect(S.moves.swing).toMatchObject({ kat: { light: 'katana-swing', heavy: 'katana-heavy-swing' }, [sword.id]: { light: 'blade-swing', heavy: 'blunt-swing' }, [fist.id]: { light: 'swing' } });
+    expect(S.moves.hit).toMatchObject({ kat: { light: 'blade-hit' }, [fist.id]: { light: 'punch', heavy: 'uppercut', finisher: 'knockout-blow' } });
+    expect(S.moves).toMatchObject({ block: 'block', parry: 'blade-clash', foeSwing: 'blade-swing', hurt: 'flesh-impact' });
+    expect(S.why[`weapon:kat`]).toMatch(/katana/);
+    // every word it names is a row of the shelf
+    const words = [...Object.values(S.moves.swing), ...Object.values(S.moves.hit)].flatMap((W) => Object.values(W)).concat(Object.values(S.moves).filter((v) => typeof v === 'string'));
+    for (const w of words) expect(SOUNDS[w] ?? null, w).not.toBeNull();
+  });
+
+  it('the game\'s own words win: a weapon\'s, an event\'s; a word off the shelf or an unknown event is refused', () => {
+    const S = soundSheet({ ...KIT, sound: { weapons: { kat: { swing: 'staff-swing', finisher: 'uppercut' } }, moves: { parry: 'metal-impact' } } });
+    expect(S.moves.swing.kat).toEqual({ light: 'staff-swing', heavy: 'staff-swing', finisher: 'staff-swing' });
+    expect(S.moves.hit.kat.finisher).toBe('uppercut');
+    expect(S.moves.parry).toBe('metal-impact');
+    expect(S.why['weapon:kat']).toBe('the game says so');
+    expect(() => readSound({ moves: { shout: 'punch' } })).toThrow(/moveset's event/);
+    expect(() => readSound({ weapons: { kat: { swing: 'nope nope' } } })).toThrow(/not a sound on the shelf/);
+    expect(() => readSound({ weapons: { kat: { twirl: 'punch' } } })).toThrow(/a weapon's sounds/);
+  });
+
+  it('a level voices them: each word one cue, the moveset wired in the strike\'s place; a level with no arsenal as it was', () => {
+    const audio = resolveWorldAudio({ sfx: sheetAudio(KIT) }, { ref: 'lv', mechanics: ['door'] });
+    expect(audio.strike).toBeUndefined();
+    expect(audio.moves.swing.kat.light).toBe('mv-katana-swing');
+    expect(audio.cues['mv-katana-swing']).toEqual(sfxSound('katana-swing', { style: 'mouth' }).gestures);
+    expect(audio.moves.hit[fist.id]).toEqual({ light: 'mv-punch', heavy: 'mv-uppercut', finisher: 'mv-knockout-blow' });
+    for (const id of [audio.moves.block, audio.moves.foeSwing, audio.moves.hurt]) expect(audio.cues[id]).toBeDefined();
+    const js = audioChannelScript(audio);
+    expect(js).toContain('__beatsMoves');
+    expect(() => new Function(js)).not.toThrow();
+    const plain = resolveWorldAudio({ sfx: sheetAudio({}) }, { ref: 'lv', mechanics: ['door'] });
+    expect(plain.moves).toBeUndefined();
+    expect(plain.strike.swing).toBeDefined();
+    expect(audioChannelScript(plain)).not.toContain('__beatsMoves');
+  });
+
+  it('the practice room reads the same table', async () => {
+    const { MOVE_SOUND_WORDS } = await import('./sound-sheet.js');
+    const { roomAudio } = await import('./practice-room.js');
+    const room = roomAudio(structuredClone(BASIC_ARSENAL), 'foley');
+    expect(room.sfx.cues.block).toEqual(sfxSound(MOVE_SOUND_WORDS.block, { style: 'foley' }).gestures);
   });
 });

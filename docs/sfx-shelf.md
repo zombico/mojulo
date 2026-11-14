@@ -225,12 +225,18 @@ or written on a row where neither says it. A row's `say` holds its sound words, 
 A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, the game book's `sound` chapter):
 
 - **Its weapon:** the first weapon of its arsenal, by its words: a staff, nunchaku, a katana, a blade or a fist.
+- **Its whole arsenal**, where the game has one (its own, or its feel's kit): every weapon's swing and blow by the
+  move's weight (light, heavy, finisher), the guard's block, parry and break, the bow's draw and loose, the weapon
+  cycle, a foe's swing and fall, a blow taken. These are the practice room's words (`MOVE_SOUND_WORDS`), so a level
+  plays what the room played, with a weapon read by its words where the shelf has its own (a katana's heavy cut).
 - **Its ground:** grass on a nature or jungle stage, else stone.
 - **Its foes:** a beast's voice by its species, heard when it spots the hero.
 - **Its doors:** a door opens on a latch.
 
 **The newest voices come first.** The sheet's style is `mouth` unless the game says otherwise, so a sound the mouth
-doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on? }`, each a shelf word.
+doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on?, weapons?, moves? }`, each a shelf word: `weapons` is
+`{ <weapon id>: { swing?, heavy?, hit?, finisher? } }` and `moves` is `{ block?, parry?, break?, draw?, loose?, arrow?,
+felled?, cycle?, foeSwing?, hurt? }`.
 A game that writes a `sound` of its own, even an empty one, hears the sheet on every level it builds; a quick game's
 levels also hear it with `sfx: 'sheet'`, and a quick game that names another `sfx` keeps that. A game with neither
 builds its levels as it did. A stage that wrote its own `audio` keeps it under the sheet. `beats-world.js` voices `sfx: { sheet }`, wiring each event
