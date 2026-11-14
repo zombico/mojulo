@@ -95,3 +95,43 @@ describe('a level\'s bed (its environment, under the score)', () => {
     expect(() => resolveWorldAudio({ bed: 'nowhere' }, { ref: 'lv' })).toThrow(/is a bed/);
   });
 });
+
+describe('a game on the sheet hears it on every level it builds', () => {
+  it('a `sound` of its own or a quick `sfx: \'sheet\'` puts it on; another quick sfx keeps its own; the stage\'s own audio is kept', async () => {
+    const { onSheet, levelSheet } = await import('./sound-sheet.js');
+    expect(onSheet({})).toBe(false);
+    expect(onSheet({ sound: {} })).toBe(true);
+    expect(onSheet({ quick: { sfx: 'sheet' } })).toBe(true);
+    expect(onSheet({ sound: {}, quick: { sfx: 'arcade' } })).toBe(false);
+    expect(levelSheet({}, { manifest: { kit: nature } })).toBeNull();
+    const A = levelSheet({ ...STAFF, sound: {} }, { manifest: { kit: nature } });
+    expect(A).toEqual({ sfx: sheetAudio({ ...STAFF, sound: {} }, { manifest: { kit: nature } }), bed: 'forest' });
+    // a stage that wrote its own soundtrack, sfx or bed keeps each
+    const own = { soundtrack: 'field:forest', sfx: 'auto', bed: 'cave' };
+    expect(levelSheet({ sound: {} }, { manifest: { kit: nature, audio: own } })).toEqual(own);
+    expect(levelSheet({ sound: {} }, { manifest: { kit: nature, audio: { soundtrack: 'field:forest' } } })).toMatchObject({ soundtrack: 'field:forest', sfx: { sheet: expect.any(Object) }, bed: 'forest' });
+  });
+
+  it('a designed game\'s levels carry it and resolve; the same game with no `sound` builds the levels it built', async () => {
+    const { composeGameworld, runSteps, fingerprint } = await import('./index.js');
+    const w = composeGameworld({ prompt: 'a haunted forest with relics to collect', seed: 1 });
+    const levels = (W) => runSteps(W, { ref: 'gw' }).filter((s) => s.key.startsWith('level-') && s.order?.manifest);
+    const plain = levels(w), heard = levels({ ...w, sound: { style: 'realistic' } });
+    expect(plain.length).toBeGreaterThan(0);
+    for (const s of plain) expect(s.order.manifest.audio).toBeUndefined();
+    expect(heard.length).toBe(plain.length);
+    for (const s of heard) expect(s.order.manifest.audio.sfx.sheet.style).toBe('realistic');
+    // (the read world carries the game's `sound`: its style reaches a quick game's levels too)
+    const { readGameworld } = await import('./index.js');
+    expect(readGameworld({ ...w, sound: { style: 'realistic' } }).sound).toEqual({ style: 'realistic' });
+    expect(readGameworld(w).sound).toBeUndefined();
+    // apart from its audio, a heard level is the level it was
+    const bare = ({ audio: _a, ...m }) => m;
+    expect(fingerprint(heard.map((s) => bare(s.order.manifest)))).toBe(fingerprint(plain.map((s) => s.order.manifest)));
+    // and the level's own mechanics voice it
+    const L = heard[0], kinds = (L.order.manifest.game?.mechanics ?? []).map((m) => m.kind);
+    const audio = resolveWorldAudio(L.order.manifest.audio, { ref: L.ref, mechanics: kinds });
+    expect(audio.sheet).toBe('realistic');
+    expect(Object.keys(audio.cues).length).toBeGreaterThan(0);
+  });
+});

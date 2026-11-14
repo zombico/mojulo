@@ -17,7 +17,11 @@
  * The level's mechanics decide which events sound (beats-world reads them as the palette's `auto` does): the sheet only
  * says what each palette cue id is played by. A game overrides any of it by writing it: `sound: { style?, slots?: {…},
  * on?: {…} }`, each a shelf word (sfx-shelf/roster.js). A sheet is suggested where a game has none, never laid behind
- * its back: a level hears it when its quick game says `sfx: 'sheet'`.
+ * its back: a level hears it when its game has a `sound` of its own (even an empty one: every level the game builds,
+ * levelSheet below) or its quick game says `sfx: 'sheet'`.
+ *
+ *   levelSheet(G, { manifest?, quick? })  → the audio a level of this game is built with ({ sfx: { sheet }, bed? } over
+ *                       the stage's own `audio`), or null: a game on no sheet, whose levels are built as they were
  */
 import { SOUNDS, resolveSoundId } from '../sfx-shelf/roster.js';
 import { STYLES } from '../sfx-shelf/styles.js';
@@ -166,4 +170,25 @@ export function variesHits(G) {
 export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
   return { sheet: { style: S.style, slots: S.slots, on: S.on } };
+}
+
+/**
+ * Whether a game is on the sheet: it writes a `sound` of its own, or its quick game asks (`sfx: 'sheet'`). A quick
+ * game that names another `sfx` (a palette, 'auto') keeps that: what it says of its levels wins over the default.
+ */
+export function onSheet(G, quick = G?.quick) {
+  if (quick?.sfx !== undefined) return quick.sfx === 'sheet';
+  return G?.sound !== undefined;
+}
+
+/**
+ * The audio a level of the game is built with (levels.js levelOrder's `audio`), or null where the game is on no sheet
+ * (the level then carries what it carried). The stage's own audio is kept under it: the sheet adds the sounds and the
+ * bed, and replaces neither a soundtrack nor an `sfx` the stage wrote itself.
+ */
+export function levelSheet(G, { manifest = null, quick = G?.quick } = {}) {
+  if (!onSheet(G, quick)) return null;
+  const own = isObj(manifest?.audio) ? manifest.audio : {};
+  const bed = own.bed === undefined ? sheetBed(G, { manifest }) : null;
+  return { ...own, ...(own.sfx === undefined ? { sfx: sheetAudio(G, { manifest }) } : {}), ...(bed ? { bed } : {}) };
 }

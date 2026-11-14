@@ -1531,7 +1531,8 @@ export function bagPlay(quick) {
  * 'sheet', `sheet` is the game's (sound-sheet.js sheetAudio, the runner's: it reads the whole game).
  */
 export function goalAudio(quick, { manifest = {}, final = false, game, sheet = null, bed = null } = {}) {
-  const sfx = quick.sfx === undefined ? null : quick.sfx === 'sheet' ? sheet : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
+  // (no `sfx` said and a sheet handed over: the game has a `sound` of its own, so its levels hear it: sound-sheet.js onSheet)
+  const sfx = quick.sfx === undefined || quick.sfx === 'sheet' ? sheet : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
   // (a sheet game's level lays its environment's bed under the score: sound-sheet.js sheetBed, the runner's)
   const withSfx = (a) => (sfx || bed ? { ...(a || {}), ...(sfx ? { sfx } : {}), ...(bed ? { bed } : {}) } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });

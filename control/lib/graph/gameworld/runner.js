@@ -59,7 +59,7 @@ import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
-import { sheetAudio, sheetBed } from './sound-sheet.js';
+import { sheetAudio, sheetBed, onSheet, levelSheet } from './sound-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -184,6 +184,10 @@ function shellUi(G) {
   if (G.ui === undefined) return {};
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
 }
+// a level's sounds where the game is on the sound sheet (sound-sheet.js levelSheet): a game with a `sound` of its own
+// hears it on every level it builds; one without builds its levels as it did
+const sheetOf = (G, s) => { const audio = levelSheet(G, { manifest: s.manifest ?? null }); return audio ? { audio } : {}; };
+
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
   if (plain.length <= REF_MAX) return plain;
@@ -447,7 +451,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
@@ -651,7 +655,7 @@ function worldSteps(world, G, ref, composite) {
     if (s.building?.ref) return;
     // (its foes stand beside its goal's cast; the walker is first person, so it is hit under its eye)
     const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, false, lastOf[s.level] === s.index);
-    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const C = composedStages(stages, levelRefs, map, composite);
@@ -995,7 +999,7 @@ function quickSteps(world, G, ref, lookup) {
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef),
-    ...(Q.sfx === 'sheet' ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }) } : {}) });
+    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }) } : {}) });
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     // a tower defence or a skirmish on the stage's spots (board-levels.js): no hero, the level the board's

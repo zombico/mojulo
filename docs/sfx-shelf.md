@@ -231,7 +231,9 @@ A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, th
 
 **The newest voices come first.** The sheet's style is `mouth` unless the game says otherwise, so a sound the mouth
 doesn't voice plays realistic. A game overrides any of it with `sound: { style?, slots?, on? }`, each a shelf word.
-A quick game's levels hear the sheet with `sfx: 'sheet'`. `beats-world.js` voices `sfx: { sheet }`, wiring each event
+A game that writes a `sound` of its own, even an empty one, hears the sheet on every level it builds; a quick game's
+levels also hear it with `sfx: 'sheet'`, and a quick game that names another `sfx` keeps that. A game with neither
+builds its levels as it did. A stage that wrote its own `audio` keeps it under the sheet. `beats-world.js` voices `sfx: { sheet }`, wiring each event
 the level's mechanics emit as `auto` wires a palette. `auto` and the palettes are as they were.
 
 ## Who plays it

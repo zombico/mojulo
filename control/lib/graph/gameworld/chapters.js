@@ -60,7 +60,7 @@ export const CHAPTERS = Object.freeze([
   C('cast', 'characters', 'The cast', { paths: ['/characters/cast', '/characters/casting', '/characters/folk'], parts: ['cast', 'characters:cast'], steps: ['casting', 'cast-*', 'folk-*', 'farmhand', 'athlete', 'fighter-*'], cards: ['gameworld-folk'], reads: ['direction', 'levels'], outcome: 'characters' }),
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
   // the game's sounds (sound-sheet.js): solved from its weapon, its ground and its foes, each a shelf word, the newest
-  // voices first; a level hears it when its quick game says `sfx: 'sheet'`
+  // voices first; every level of a game with a `sound` of its own hears it (a quick game's too, with `sfx: 'sheet'`)
   C('sound', 'play', 'The sound', { paths: ['/sound'], reads: ['intent', 'feel', 'equipment', 'foes', 'levels'] }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   // (a block's play layer: `/levels/<id>/glyphs/play`, a block a unit, `play:<level>/<segment>`)
