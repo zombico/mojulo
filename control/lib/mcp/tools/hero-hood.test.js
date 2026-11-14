@@ -112,6 +112,20 @@ describe('the hood, outfit laws 2', () => {
     const slots = (register) => recipeOf({ cast: 'male', register, outfit: ranger(2) }).parts.cloakHood_hood.slots.length;
     expect(slots('box')).toBeLessThan(slots('lowpoly')); expect(slots('lowpoly')).toBeLessThan(slots('round'));
   });
+  it('worn up it tucks the hair: what the opening shows stays, the back is pressed to the skull; worn down the hair is as it was', { timeout: 120000 }, () => {
+    // (2026-11-14: the hood was cut round the full head of hair, so the anime's long back hair boxed its back out and the
+    // chibi's hair stood the hood off its skull; body-garment.js tuckHair presses what lies behind the brim to the skull)
+    const hair = (hood) => Object.fromEntries(Object.entries(recipeOf({ ...PATHS.anime, outfit: ranger(2, hood) }).parts).filter(([n]) => /^hair(?!Brows|Lashes)/.test(n)));
+    const up = hair(true), down = hair({ worn: 'down' }), bare = Object.fromEntries(Object.entries(recipeOf({ ...PATHS.anime, outfit: { ...ranger(2), pieces: [{ kind: 'cloak', hem: 'calf' }] } }).parts).filter(([n]) => /^hair(?!Brows|Lashes)/.test(n)));
+    expect(JSON.stringify(down)).toBe(JSON.stringify(bare));
+    const changed = Object.keys(up).filter((n) => JSON.stringify(up[n]) !== JSON.stringify(down[n]));
+    expect(changed.some((n) => /Back/.test(n)), 'the back hair tucked').toBe(true);
+    expect(changed.filter((n) => /Fringe/.test(n)), 'the fringe as it was').toEqual([]);
+    // the tucked head: behind the skull's middle, the hair lies within a little of the skull
+    const head = (R) => { const back = (re) => Math.min(...R.head.filter((p, i) => re(p)).map((p) => p[1])); return back(() => true); };
+    const U = read(recipeOf({ ...PATHS.anime, outfit: ranger(2) })), D = read(recipeOf({ ...PATHS.anime, outfit: ranger(2, { worn: 'down' }) }));
+    expect(head(U), 'the hair\'s reach behind').toBeGreaterThan(head(D) + 0.005);
+  });
   it('deterministic, and laws 1 keep the bell a stored row has, byte for byte', { timeout: 120000 }, () => {
     const a = recipeOf({ ...PATHS.landmark, outfit: ranger(2) }).parts.cloakHood_hood, b = recipeOf({ ...PATHS.landmark, outfit: ranger(2) }).parts.cloakHood_hood;
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));

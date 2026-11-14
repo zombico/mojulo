@@ -3,8 +3,9 @@
 // a baked clip is deterministic, keeps its links and keeps out of the body's capsules through a walk; a hero minted
 // before the hero laws 23, or with nothing that flows, packs as it did, byte for byte.
 import { describe, expect, it } from 'vitest';
-import { validateRig, rigNodesAt, layeredClip } from './station-loft-rig.js';
-import { flowSimulation } from './hero-flow.js';
+import { validateRig, rigNodesAt, layeredClip, boneFrames } from './station-loft-rig.js';
+import { flowSimulation, flowRig } from './hero-flow.js';
+import { locomotionClips } from './hero-motion.js';
 import { REGISTERS, HERO_LAWS_VERSION } from './hero-form.js';
 import { MATERIALS, MATERIAL_NAMES, CLOTH_REGISTERS, materialParams, materialErrors, clothRegisterOf, clothRigidity } from './cloth-law.js';
 import { RIGIDITY_WORDS, rigidityParams } from './rigidity.js';
@@ -87,6 +88,52 @@ describe('hero-cloth: the bake', () => {
         for (const [, ci] of limbs) expect(segD(nodes[j], caps[ci].a, caps[ci].b), `key ${k} ${j} in ${H.form[ci].bone}`).toBeGreaterThan(Math.min(rAt(caps[ci], nodes[j]), restD[si][q][ci]) - 0.02);
       }));
     }
+  });
+});
+
+describe('hero-cloth: a skirt\'s ring is carried by the legs', () => {
+  // (2026-11-14: the solver kept the strings' JOINTS out of the legs, never the cloth between them, so a heel kicked up
+  // behind in the stride came out through the back of an ankle-length robe between the knee's joint and the hem's. Now the
+  // ring's target and what is shown of it are pushed out round the shins and the feet as posed, as shipped games carry a
+  // skirt on the trailing leg.) The narrow case: the round robe in its own walk, the clip the page plays.
+  const W = heroOf({ cast: 'female', register: 'round', motion: { walk: {} }, outfit: { type: 'outfit', style: 'adventurer', pieces: [{ kind: 'robe' }] } });
+  const H = heroClothRig(W.mesh, W.recipe, W.hero), R = validateRig(W.recipe.rig), L = locomotionClips(W.recipe.locomotion, R);
+  const walk = bakeClothClips(H, { walk: L.clips.walk }, R, { seconds: L.seconds, speeds: L.speeds }).walk, K = walk.keys;
+  const skirt = new Set(H.strings.filter((s) => s.ring).map((s) => s.part)), V = W.mesh.vertices, prov = W.mesh.provenance;
+  const posedAt = (k) => { const { nodes } = rigNodesAt(H.R, walk(k / K)), F = boneFrames(H.R, H.R.joints, nodes);
+    const ride = (j, v) => { const f = F[j], d = [0, 1, 2].map((a) => v[a] - f.restHead[a]); return [0, 1, 2].map((a) => f.head[a] + f.m[a][0] * d[0] + f.m[a][1] * d[1] + f.m[a][2] * d[2]); };
+    return { nodes, P: V.map((v, i) => H.skin.joints[i].reduce((o, j, q) => { const w = H.skin.weights[i][q]; if (!w) return o; const p = ride(j, v); return [o[0] + w * p[0], o[1] + w * p[1], o[2] + w * p[2]]; }, [0, 0, 0])) }; };
+  it('the robe\'s skirt is a ring the legs carry: its strings know the shins and the feet', () => {
+    expect(skirt.size).toBe(1); expect(H.legs.length).toBeGreaterThan(50);
+    expect(new Set(H.legs.map(({ b }) => H.R.bones[b].id.replace(/[LR]$/, '')))).toEqual(new Set(['shank', 'foot', 'toes']));
+  });
+  it('through the walk no shin or foot point above the hem stands outside the skirt\'s surface, between its strings too; the ring keeps its order', () => {
+    const hit = (o, d, [A, B, C]) => { const e1 = [0, 1, 2].map((a) => B[a] - A[a]), e2 = [0, 1, 2].map((a) => C[a] - A[a]), h = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]], det = e1[0] * h[0] + e1[1] * h[1] + e1[2] * h[2]; if (Math.abs(det) < 1e-12) return false;
+      const s = [0, 1, 2].map((a) => o[a] - A[a]), u = (s[0] * h[0] + s[1] * h[1] + s[2] * h[2]) / det; if (u < 0 || u > 1) return false; const q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]], v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) / det; if (v < 0 || u + v > 1) return false; return (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det > 0; };
+    const feet = prov.map((p, i) => [p.part, i]).filter(([n]) => /^(foot|toes|shank)[RL]$|_(foot|toes|shank)[RL]$/.test(n) && !skirt.has(n)).map(([, i]) => i);
+    const ring = H.strings.filter((s) => s.ring);
+    let out = 0, seen = 0;
+    for (let k = 0; k < K; k += 2) {
+      const { nodes, P } = posedAt(k), tris = [];
+      W.mesh.faces.forEach((f) => { if (skirt.has(prov[f[0]].part)) for (let q = 1; q + 1 < f.length; q++) tris.push([P[f[0]], P[f[q]], P[f[q + 1]]]); });
+      const ax = ring.reduce((a, s) => [a[0] + nodes[s.joints[0]][0] / ring.length, a[1] + nodes[s.joints[0]][1] / ring.length], [0, 0]);
+      // (the hem's own height round the ring: a foot below it is under the skirt, not through it)
+      const hem = Math.max(...ring.map((s) => nodes[s.joints.at(-1)][2]));
+      for (let j = 0; j < feet.length; j += 3) { const p = P[feet[j]]; if (p[2] < hem + 0.02 || p[2] > nodes[ring[0].joints[1]][2]) continue; seen += 1;
+        const dx = p[0] - ax[0], dy = p[1] - ax[1], l = Math.hypot(dx, dy) || 1; if (!tris.some((T) => hit(p, [dx / l, dy / l, 0], T))) out += 1; }
+      // the ring's order round its axis, joint level by joint level: no string crosses its neighbour (no quad turned inside out)
+      for (let q = 1; q < ring[0].joints.length; q++) {
+        const a = ring.map((s) => Math.atan2(nodes[s.joints[q]][0] - ax[0], nodes[s.joints[q]][1] - ax[1])), steps = a.map((x, i) => ((a[(i + 1) % a.length] - x) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
+        expect(steps.reduce((t, x) => t + x, 0), `key ${k} level ${q}: one turn round`).toBeCloseTo(2 * Math.PI, 6);
+      }
+    }
+    expect(seen, 'the shins and the feet rise into the skirt in the stride').toBeGreaterThan(50);
+    expect(out, 'shin and foot points outside the skirt').toBeLessThanOrEqual(Math.ceil(0.01 * seen));
+  });
+  it('a ring flows as before where no leg reaches it: the hair\'s and a hero\'s with no ring carry no legs', () => {
+    expect(heroClothRig(ROBED.mesh, ROBED.recipe, ROBED.hero).legs).toBeDefined();
+    const F = flowRig(ROBED.mesh, ROBED.recipe, { hair: false, pieces: { cloak_cape: { strings: 6, links: 3 } } });
+    expect(F.legs).toBeUndefined(); expect(F.strings.some((s) => s.ring)).toBe(false);
   });
 });
 

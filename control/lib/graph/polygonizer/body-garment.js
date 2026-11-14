@@ -64,6 +64,7 @@ import * as dmath from '../../util/dmath.js';
 import { rigidityErrors } from './rigidity.js';
 import { materialErrors, clothRigidity } from './cloth-law.js';
 import { compileLayered } from './station-loft.js';
+import { surfaceLocalOffset } from './surface-pin.js';
 
 /** THE YOKE's share of a layer's ease it may stand out sideways over the shoulder (body-garment's yokeOf) */
 export const YOKE_SIDE = 0.25;
@@ -209,6 +210,8 @@ export function garmentParts(parts, garments, dials = {}) {
     // `rigidity` (hero-flow.js) rides the piece's part: how it moves when the figure moves (absent: locked, a shell); and
     // `material` (cloth-law.js: what it is made of, a rigidity and a weight), when it names one
     const stiff = (part) => Object.assign(part, P.rigidity !== undefined ? { rigidity: P.rigidity } : {}, P.material !== undefined ? { material: P.material } : {});
+    // (a draped hood worn UP tucks the hair it is worn over first, so it is cut to the skull and the tucked hair: tuckHair)
+    if (P.fit === 'hood' && P.worn !== undefined && P.worn !== 'down') tuckHair(parts);
     if (['skirt', 'panel', 'cape', 'hood'].includes(P.fit)) { const name = `${P.id}_${P.fit}`, built = { skirt: skirtPart, panel: panelPart, cape: capePart, hood: hoodPart }[P.fit](parts, names, P, worn);
       // (a draped hood, outfit laws 2: its body stays on the head and the shoulders, its tail, when it has one, flows on
       // its own; drapedHood)
@@ -476,6 +479,54 @@ function headCloud(parts) {
     if (/^hair(?!Brows|Lashes|Beard)/.test(n)) out.hair.push(p); else if (!/^ear/.test(n)) out.face.push(p);
     if (/^(brow[RL]|hairBrows)$/.test(n)) out.brow.push(p); });
   return out.all.length ? out : null;
+}
+/** the hair a hood is worn over: what the opening shows, out to TUCK.keep degrees each side of the front (fading out by
+ * TUCK.fade more) and below TUCK.brim of the way from the brow to the crown; the rest pressed to within TUCK.slack of the
+ * skull (at the head's scale), straight in toward the skull's middle */
+const TUCK = Object.freeze({ keep: 65, fade: 20, brim: 0.35, slack: 0.01, cone: 25 });
+const FACE_LOCKS = /Fringe|Bang|Temple|Sideburn/;
+/**
+ * HAIR TUCKED UNDER A HOOD (outfit laws 2, a draped hood worn up): the fringe and the locks that frame the face, which the
+ * opening shows, stay as they are; the crown, the back, a tail and long back hair, behind the brim, are pressed in toward
+ * the skull to lie within a little slack of it, as hair gathered under a hood does, so the hood is cut to the skull and
+ * never to a full head of hair standing out behind (a chibi's hood the size of its hair, an anime hood's back boxed out
+ * by it). Each hair part pinned to the head is rewritten in its own pin's frame (`offsets`); a part that stretches with a
+ * dial or follows its parent is left as it is. In place on `parts`. Worn down, or no hair: nothing changes.
+ */
+function tuckHair(parts) {
+  const seeds = new Set(Object.keys(parts).filter((n) => /^(cranium|jaw|headSkin)$/.test(n)));
+  for (let grew = true; grew;) { grew = false; for (const [n, p] of Object.entries(parts)) if (!seeds.has(n) && p.pin?.parent && seeds.has(p.pin.parent)) { seeds.add(n); grew = true; } }
+  // (the locks that frame the face, the fringe, the temples' and the sideburns, are kept whole: their roots lie under the
+  // brim, and a lock half pressed in would tear at the brim's line)
+  const hairNames = [...seeds].filter((n) => /^hair(?!Brows|Lashes|Beard)/.test(n) && !FACE_LOCKS.test(n) && parts[n].layer > 1 && parts[n].offsets && !parts[n].stretch && !parts[n].follow);
+  if (!hairNames.length) return;
+  for (const n of ['earR', 'earL']) if (parts[n] && !parts[n].pin) seeds.add(n);
+  const mesh = compileLayered({ schema: 'layered-v1', dials: {}, parts: Object.fromEntries([...seeds].map((n) => [n, parts[n]])) }, {}, { details: true, creases: false });
+  const skull = [], brows = [];
+  mesh.vertices.forEach((p, i) => { const n = mesh.provenance[i].part; if (!/^hair/.test(n) && !/^ear/.test(n)) skull.push(p); if (/^(brow[RL]|hairBrows)$/.test(n)) brows.push(p); });
+  if (skull.length < 8) return;
+  const lo = [0, 1, 2].map((k) => Math.min(...skull.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...skull.map((p) => p[k]))), c = lo.map((v, k) => (v + hi[k]) / 2);
+  const hs = hi[2] - lo[2], top = hi[2], brow = brows.length ? Math.max(...brows.map((p) => p[2])) : lo[2] + 0.62 * hs, zKeep = brow + TUCK.brim * (top - brow);
+  const slack = TUCK.slack * hs / 0.24, cosCone = dmath.cos(TUCK.cone * Math.PI / 180);
+  const rel = skull.map((p) => sub(p, c)), relLen = rel.map((v) => Math.sqrt(dot3(v, v)));
+  // the skull's reach toward a direction: the furthest of its points within the cone round it, along it
+  const reach = (u) => { let r = 0; rel.forEach((v, j) => { const l = relLen[j]; if (l > 1e-9) { const a = dot3(v, u); if (a >= cosCone * l && a > r) r = a; } }); return r; };
+  const smooth = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
+  for (const name of hairNames) {
+    const frame = mesh.pins[name], placed = mesh.parts[name]?.points; if (!frame || !placed) continue;
+    let moved = false; const offsets = {};
+    for (const [id, o] of Object.entries(parts[name].offsets)) {
+      const p = placed[id]; if (!p) { offsets[id] = o; continue; }
+      const v = sub(p, c), d = Math.sqrt(dot3(v, v)), th = Math.abs(dmath.atan2(v[0], v[1])) * 180 / Math.PI;
+      // what the opening shows stays: w 1 in front below the brim, 0 behind it
+      const w = (1 - smooth((th - TUCK.keep) / TUCK.fade)) * (1 - smooth((p[2] - zKeep) / (0.1 * hs)));
+      const u = d > 1e-9 ? mul(v, 1 / d) : [0, 0, 1], room = reach(u) + slack;
+      if (w >= 1 || d <= room) { offsets[id] = o; continue; }
+      const q = add(c, mul(u, room)), np = add(mul(p, w), mul(q, 1 - w));
+      offsets[id] = surfaceLocalOffset(frame, np).map(r6); moved = true;
+    }
+    if (moved) parts[name] = { ...parts[name], offsets };
+  }
 }
 /** an ellipsoid's surface as points (a head with no parts of its own: `head: { at, r }`) */
 const ellipsoidCloud = ({ at, r }) => { const all = [];

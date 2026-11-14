@@ -131,3 +131,40 @@ sleeves, the hood).
     little because two long links follow the skin closely. The hood still clears big hair rather than tucking it, so the
     chibi's hood stays large and the anime hood's back stays boxy over long hair. The chamfer noble's green shirt still
     shows at the back waist at mid-stride, where the skirt's top swings off it.
+- **The open items, second pass (outfit laws 2, hero laws 23).**
+  - A long skirt is carried by the legs. The strings kept their joints out of the legs, never the cloth between them, so
+    a heel kicked up behind in the stride came out through the back of an ankle-length robe. Now a skirt that hangs as a
+    ring of strings knows the shins, the feet and the toes as their outermost points, carried by their bones; each pose
+    its target is pushed out round them, and what is shown of it is pushed out too: each string straight out from the
+    ring's axis by what the cloth between it and its neighbour needs to pass outside every shin or foot point at that
+    height, the push shared with the neighbours so the ring bulges instead of creasing, the links' lengths kept, so the
+    trailing leg lifts the back of the skirt. The simulation's own state is untouched by that last pass, which is what
+    flung the cloth when the push was made a constraint inside the solve; the last link runs on a little past its joint
+    to the cloth's own edge. Through the walk the shin and foot points outside the skirt's surface fell from thousands
+    to a few dozen on the round, anime and low-poly robes and the round noble's (the chamfer's eight strings leave a few
+    hundred mid-chord at the back), and the ring keeps its order. The bake is two to three times slower. The realistic body's robe skirt is the tailor's shell on the legs' weights, not
+    strings: hung on strings it tore and creased, so it was left as it was and its heel still shows.
+  - Work on a flowing cloth rides it by the cloth's surface. It took the skin of the nearest cloth vertex, and on a coarse
+    register the hem work lay farther from any vertex than it may lie to ride, so it stayed put while the skirt moved and
+    was hidden or floated. It now takes the blend of the nearest triangle of the cloth's outer face (never the hem turned
+    up inside a skirt).
+  - A skirt's hem work lies on its hem. Its window was read as shares of every ring of the skirt, the turn-up inside
+    counted too, so it landed on the lining at the knees, two to twenty centimetres off the cloth that shows. Under outfit
+    laws 2 it is addressed on the skirt's outer rings, waist to hem, in the skirt's own measure, and lies within a
+    centimetre of the cloth near the hem. On the realistic body, which read any band on a skirt as a belt at its waist,
+    the hem work is a band of the trim's thread at that height of the tailor's skirt.
+  - A hood worn up tucks the hair. The hood was cut round the whole head of hair. Now the hair behind its brim (the crown,
+    the back, long back hair) is pressed in toward the skull to within a centimetre of it before the hood is cut, and
+    the fringe and the locks that frame the face are kept whole; worn down, the hair is as it was. The anime hood's back
+    is rounder and a little smaller. The chibi's hood is only a little smaller: its hair stood little off its head, and
+    the hood's size there comes from its own ease, the brim drawn forward and the point behind the crown, scaled to the
+    head, which this does not change.
+  - A medallion hangs over the bodice. The chain was laid on the body's own chest, so a tunic's or a robe's bodice hid
+    the pendant. Under outfit laws 2 it clears the close cloth already worn on the chest, and lies low and close round
+    the neck's root behind, where it stood off the nape over a mantle. Over a mantle's shoulders the chain still shows on
+    top of the mantle rather than under it.
+  - Not changed. The tiered body's tunic and robe shoulders keep their bulbous caps and the shelf neckline: no different
+    approach was tried in this pass. The chamfer noble's green sliver at the back waist mid-stride is the shirt's tail,
+    skinned to the thighs, passing out between the skirt's strings at the top of the thighs; the legs' clearance covers
+    the shins and the feet only. The light sliver at one shoulder with the hood down and the shirt's cuff at the
+    realistic noble's forearm are as they were.

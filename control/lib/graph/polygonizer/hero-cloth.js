@@ -57,7 +57,7 @@ export function heroClothRig(mesh, recipe, hero) {
   const pieces = Object.fromEntries(flows.filter((n) => !locked.has(n)).map((n) => [n, Array.isArray(recipe.parts[n].root) ? { links: reg.links } : { strings: reg.strings, links: reg.links }]));
   if (!Object.keys(pieces).length) return null;
   const rec = locked.size ? { ...recipe, parts: Object.fromEntries(Object.entries(recipe.parts).map(([n, p]) => [n, locked.has(n) ? (({ rigidity: _r, material: _m, ...q }) => q)(p) : p])) } : recipe;
-  const H = flowRig(mesh, rec, { hair: false, pieces });
+  const H = flowRig(mesh, rec, { hair: false, pieces, legs: true });
   if (!H.strings.length || H.R.bones.length > MAX_BONES) return null;
   ridersOf(mesh, rec, H, new Set(Object.keys(pieces)));
   return { ...H, register: clothRegisterOf(hero) };
@@ -71,17 +71,45 @@ const RIDE = 0.025;
  * swings with the cloth instead of floating where the cloth was. In place on H.skin.
  */
 function ridersOf(mesh, recipe, H, flowing) {
-  const V = mesh.vertices, cell = RIDE, key = (p) => `${Math.floor(p[0] / cell)},${Math.floor(p[1] / cell)},${Math.floor(p[2] / cell)}`, grid = new Map();
-  mesh.provenance.forEach((p, i) => { if (flowing.has(p.part)) { const k = key(V[i]); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(i); } });
-  const nearest = (p) => { let best = -1, bd = Infinity; const c = [0, 1, 2].map((a) => Math.floor(p[a] / cell));
-    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) for (const j of grid.get(`${c[0] + x},${c[1] + y},${c[2] + z}`) || []) { const d = Math.hypot(V[j][0] - p[0], V[j][1] - p[1], V[j][2] - p[2]); if (d < bd || (d === bd && j < best)) { bd = d; best = j; } }
+  const V = mesh.vertices, P = mesh.provenance, cell = RIDE_CELL, key = (x, y, z) => `${x},${y},${z}`, grid = new Map();
+  // (a skirt's own rings only, never the hem turned up inside it (body-garment.js skirtPart: its second half of rings), so
+  // the work on its outer face rides the outer face where the two part in a stride)
+  const stOf = (p) => Number(/^st(\d+)$/.exec(p.station ?? '')?.[1] ?? -1), last = {};
+  P.forEach((p) => { if (flowing.has(p.part) && /_skirt$/.test(p.part)) last[p.part] = Math.max(last[p.part] ?? 0, stOf(p)); });
+  const outer = (i) => last[P[i].part] === undefined || stOf(P[i]) <= last[P[i].part] / 2;
+  // THE CLOTH'S SURFACE, its triangles by the cells they span (a coarse register's faces are wider than a vertex's reach:
+  // read off the nearest vertex, the low-poly robe's hem work lay 3–6 cm from one and never rode the skirt)
+  const tris = [];
+  mesh.faces.forEach((f) => { if (!flowing.has(P[f[0]].part) || !f.every(outer)) return; for (let q = 1; q + 1 < f.length; q++) tris.push([f[0], f[q], f[q + 1]]); });
+  tris.forEach((t, ti) => { const lo = [0, 1, 2].map((a) => Math.floor(Math.min(...t.map((v) => V[v][a])) / cell)), hi = [0, 1, 2].map((a) => Math.floor(Math.max(...t.map((v) => V[v][a])) / cell));
+    for (let x = lo[0]; x <= hi[0]; x++) for (let y = lo[1]; y <= hi[1]; y++) for (let z = lo[2]; z <= hi[2]; z++) { const k = key(x, y, z); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(ti); } });
+  const nearest = (p) => { let best = null, bd = Infinity; const c = [0, 1, 2].map((a) => Math.floor(p[a] / cell));
+    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) for (const ti of grid.get(key(c[0] + x, c[1] + y, c[2] + z)) || []) { const r = closest(p, tris[ti].map((v) => V[v])); if (r.d < bd || (r.d === bd && ti < best.ti)) { bd = r.d; best = { ti, w: r.w }; } }
     return [best, bd]; };
-  const byPart = {}; mesh.provenance.forEach((p, i) => { if (/^adorn\./.test(p.part) && !flowing.has(p.part) && !recipe.parts[p.part]?.rigid) (byPart[p.part] ??= []).push(i); });
+  const byPart = {}; P.forEach((p, i) => { if (/^adorn\./.test(p.part) && !flowing.has(p.part) && !recipe.parts[p.part]?.rigid) (byPart[p.part] ??= []).push(i); });
+  const blend = (t, w) => { const acc = {}; t.forEach((v, k) => H.skin.joints[v].forEach((j, q) => { const x = H.skin.weights[v][q] * w[k]; if (x) acc[j] = (acc[j] || 0) + x; }));
+    const e = Object.entries(acc).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 4), tot = e.reduce((s, [, x]) => s + x, 0), J = [0, 0, 0, 0], W = [0, 0, 0, 0];
+    e.forEach(([j, x], k) => { J[k] = Number(j); W[k] = x / tot; }); return [J, W]; };
   for (const ids of Object.values(byPart)) {
     const near = ids.map((i) => nearest(V[i])), d = near.map(([, x]) => x).sort((a, b) => a - b);
     if (!(d[Math.floor(d.length / 2)] < RIDE)) continue;
-    ids.forEach((i, q) => { const j = near[q][0]; if (j < 0) return; H.skin.joints[i] = [...H.skin.joints[j]]; H.skin.weights[i] = [...H.skin.weights[j]]; H.skin.dominant[i] = H.skin.dominant[j]; });
+    ids.forEach((i, q) => { const hit = near[q][0]; if (!hit) return; const [J, W] = blend(tris[hit.ti], hit.w); H.skin.joints[i] = J; H.skin.weights[i] = W; H.skin.dominant[i] = J[0]; });
   }
+}
+/** the cell (m) the cloth's triangles are filed by, for a worked vertex's nearest */
+const RIDE_CELL = 0.06;
+/** the nearest point of triangle [a, b, c] to p: its distance and its barycentric weights (Ericson's regions) */
+function closest(p, [a, b, c]) {
+  const sb = (u, v) => [u[0] - v[0], u[1] - v[1], u[2] - v[2]], dt = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  const ab = sb(b, a), ac = sb(c, a), ap = sb(p, a), d1 = dt(ab, ap), d2 = dt(ac, ap);
+  const at = (w) => { const q = [0, 1, 2].map((k) => a[k] * w[0] + b[k] * w[1] + c[k] * w[2]); return { d: Math.sqrt(dt(sb(p, q), sb(p, q))), w }; };
+  if (d1 <= 0 && d2 <= 0) return at([1, 0, 0]);
+  const bp = sb(p, b), d3 = dt(ab, bp), d4 = dt(ac, bp); if (d3 >= 0 && d4 <= d3) return at([0, 1, 0]);
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return at([1 - v, v, 0]); }
+  const cp = sb(p, c), d5 = dt(ab, cp), d6 = dt(ac, cp); if (d6 >= 0 && d5 <= d6) return at([0, 0, 1]);
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return at([1 - w, 0, w]); }
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + d5 - d6); return at([0, 1 - w, w]); }
+  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return at([1 - v - w, v, w]);
 }
 
 /**

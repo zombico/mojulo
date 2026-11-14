@@ -60,6 +60,10 @@ const ROLE = /(Tail|Sleeve|Cuff|Collar|Rib|Seat|Leg|Shin|Hem|Shaft|Skirt)$/;
 const SEGS = new Set(['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shank']);
 /** a layer over the one before it */
 const LAYER = 0.0035;
+/** a carried skirt's rings from its waist to its hem (`u` 0 … 11, as the garment kernel's skirt: body-garment.js) */
+const SKIRT_SPAN = 11;
+/** a skirt's hem work on the tailor's skirt: a narrow band of thread lying on the cloth, never a belt's width */
+const HEM_WORK_BAND = Object.freeze({ width: 0.016, lift: 0.0015 });
 /** the ease past which cloth hangs rather than swells (m) */
 const LOOSE = 0.014;
 /** THE WEARING EASE a realistic garment keeps, per role: the expander's ease (tuned on the authored game body and its
@@ -242,7 +246,7 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       ...['pelvis', 'thighR', 'thighL', 'shankR', 'shankL'].map((k) => recipe.parts[k]).filter(Boolean)].flatMap((P) => P.stations.flatMap((x) => Object.values(x.points))).filter((q) => q[2] < z0 + 0.03);
     // (what is under it read within 1 cm of each ring's height: the hips widen fast below the waist, and a wider window
     // let the skirt out to them too soon, a shelf under a jacket)
-    parts[host] = carrySkirt(H, { zHem, flare: skirtFlare(g.flare?.[1] ?? 0, z0 - zHem), clear: 0.008 + LAYER, needAt: clearanceOver(below, 0.01), span: 11, zTurn });
+    parts[host] = carrySkirt(H, { zHem, flare: skirtFlare(g.flare?.[1] ?? 0, z0 - zHem), clear: 0.008 + LAYER, needAt: clearanceOver(below, 0.01), span: SKIRT_SPAN, zTurn });
     worn.add(g.id); skirtTop.set(g.id, { name: host, z: z0 });
     // (and the garments worn over it carried out over it: a jacket's tail over a skirt's hips)
     // (its rings filled in between, every 6 mm or so, so a ring of the garment over it reads the skirt at its own height)
@@ -266,10 +270,17 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     const top = named && s === 'skirt' ? skirtTop.get(pid) : null;
     if (!top && (!skin || !/^(torso|pelvis)$/.test(s) || (named && !worn.has(pid)))) continue;
     const u = (A.s[0] + A.s[1]) / 2, st = top ? null : skin.stations.reduce((b, x) => (Math.abs((x.u ?? 0) - u) < Math.abs((b.u ?? 0) - u) ? x : b));
-    let z = top ? top.z - 0.015 : mean(Object.values(st.points))[2];
+    // (outfit laws 2: a skirt's HEM WORK, a motif addressed in the skirt's own `u` (outfit-plan.js trimOf, `share: false`),
+    // is a band of its thread at that ring of the tube the skirt was carried down, near the hem; before, every wrapped
+    // shell on a skirt was read as a belt at its waist)
+    // (its `u` a share of the fall from the waist to the hem, SKIRT_SPAN rings, read as the same share of the carried skirt's
+    // fall from its waist to its lowest ring)
+    const hemWork = top && A.share === false && A.signature?.kind === 'motif' ? (() => { const zs = parts[top.name].stations.map((x) => mean(Object.values(x.points))[2]), f = Math.min(1, (A.s[0] + A.s[1]) / 2 / SKIRT_SPAN);
+      return top.z - f * (top.z - Math.min(...zs)); })() : null;
+    let z = hemWork ?? (top ? top.z - 0.015 : mean(Object.values(st.points))[2]);
     // (hugging: a belt within a hand's width of one already made shares its height, cinched over it; a duty belt rides
     // over the trousers' belt, never a band of its own above it)
-    if (hug) { const by = beltZones.map(([lo, hi]) => (lo + hi) / 2).find((m) => Math.abs(m - z) < 0.1); if (by !== undefined) z = by; }
+    if (hug && hemWork === null) { const by = beltZones.map(([lo, hi]) => (lo + hi) / 2).find((m) => Math.abs(m - z) < 0.1); if (by !== undefined) z = by; }
     const G = top ? null : named ? garmentOf(pid) : null, own = top ? parts[top.name] : G ? parts[`${G}_${s}`] ?? parts[`${G}_body`] : null;
     const outer = trunkParts().map(([k, P]) => [k, P, radiusAt(P, z)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2])[0];
     const [onName, on] = A.onTop || !own ? (outer ? [outer[0], outer[1]] : [null, null]) : [top ? top.name : `${G}_${s}`, own];
@@ -283,10 +294,10 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     const rOn0 = hug ? radiusAt(on, z) : 0;
     const under = (k, P) => k === onName || (P.garment ? /_(body|torso|pelvis)$/.test(k) && !(radiusAt(P, z) > rOn0) : belts.has(k.split('_')[0]) || /^\w*[Bb]elt\w*_/.test(k));
     const cinched = hug ? [...Object.entries(parts).filter(([k, P]) => under(k, P)).map(([, P]) => P), ...['torso', 'pelvis'].map((k) => recipe.parts[k]).filter(Boolean)].flatMap((P) => P.stations.flatMap((x) => Object.values(x.points))) : null;
-    const band = hug ? beltOn(on, cinched, z, { width: A.mode === 'shell' ? 0.045 : 0.038, thick: Math.max(0.003, Math.min(0.005, A.thick ?? 0.004)) })
-      : bandAt(on, at, { width: A.mode === 'shell' ? 0.05 : 0.035, lift: Math.min(0.008, (A.thick ?? 0.008) * 0.6) }); if (!band) continue;
+    const band = hug && hemWork === null ? beltOn(on, cinched, z, { width: A.mode === 'shell' ? 0.045 : 0.038, thick: Math.max(0.003, Math.min(0.005, A.thick ?? 0.004)) })
+      : bandAt(on, at, hemWork !== null ? HEM_WORK_BAND : { width: A.mode === 'shell' ? 0.05 : 0.035, lift: Math.min(0.008, (A.thick ?? 0.008) * 0.6) }); if (!band) continue;
     const tag = onName.split('_')[0];
-    parts[`${A.id}_${tag}`] = { ...band, group: A.group ?? 'Leather' };
+    parts[`${A.id}_${tag}`] = { ...band, group: hemWork !== null ? A.signature.group ?? A.group : A.group ?? 'Leather' };
     const sig = A.signature;
     let buckle = null;
     if (hug && (sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) {

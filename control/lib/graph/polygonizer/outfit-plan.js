@@ -311,9 +311,15 @@ function necklaceOf(p, B, G, { r, heavy = 1 }) {
   // laws 1 found no radius there and left the necklace off)
   const rn = n ? (n.rA === undefined && B.laws >= 2 && n.stations?.length ? rad(n.stations[0].r) : rad(n.rA)) : 0.1 * k;
   const T = B.top, top = T.z, tr = Array.isArray(T.r) ? T.r : [T.r, T.r], tyc = T.yc ?? 0;
-  const bead = 0.011 * heavy * k, link = 0.0055 * heavy * k, clear = 0.01 * k + bead, N = 40;
-  const zNape = Math.max(nb[2], top) + 0.05 * k, zFront = top - (p.drop ?? 0.17) * k * (0.9 + 0.1 * heavy);
-  const yBack = nb[1] - rn * 1.15, yFront = B.front(zFront, top + 1) + clear, Rx = rn * 1.45 + 0.015 * k;
+  // (outfit laws 2: WORN OVER THE BODICE, under a cloak or a mantle: it clears the close cloth already on the chest (each
+  // layer's ease, the cut's shirt and a robe's bodice stacked, B.worn), so the pendant hangs on the outermost bodice
+  // instead of on the skin under it, and it lies at the NECK'S ROOT behind, close round the neck, where laws 1 hung it
+  // high on the neck and wide of it, standing off the nape over a mantle)
+  const L2 = B.laws >= 2, onChest = L2 ? (B.worn || []).filter((g) => !g.fit && (Array.isArray(g.part) ? g.part : [g.part]).includes('torso')) : [];
+  const over = onChest.length ? onChest.reduce((t, g) => t + (g.ease ?? 0), 0) + (B.round ?? 0) : 0;
+  const bead = 0.011 * heavy * k, link = 0.0055 * heavy * k, clear = 0.01 * k + bead + over, N = 40;
+  const zNape = Math.max(nb[2], top) + (L2 ? 0.02 : 0.05) * k, zFront = top - (p.drop ?? 0.17) * k * (0.9 + 0.1 * heavy);
+  const yBack = nb[1] - rn * (L2 ? 1.05 : 1.15), yFront = B.front(zFront, top + 1) + clear, Rx = L2 ? rn * 1.25 + 0.01 * k + over : rn * 1.45 + 0.015 * k;
   // the loop in its tilted plane: a = 0 the front (lowest), a = π the nape (highest)
   let P = Array.from({ length: N }, (_, i) => { const a = 2 * Math.PI * i / N, c = Math.cos(a);
     return [Math.sin(a) * Rx, (yBack + yFront) / 2 + c * (yFront - yBack) / 2, (zNape + zFront) / 2 - c * (zNape - zFront) / 2]; });
@@ -378,12 +384,19 @@ const legsTo = (B, to) => ['pelvis', 'thigh', ...(to.part !== 'thigh' ? [to.part
  * painted on the edge; EMBROIDERY the motif worked along the hem in the trim's thread; an EMBLEM the motif on the
  * bodice's front (as the outfit's own: outfit/expand.js). `parts` names the piece's hem part, its cuff parts and its
  * bodice part. Absent ⇒ nothing. */
+/** a skirt's hem ring in its own `u` (body-garment.js: st0 the waist … st11 the hem, the turn-up inside after it), and the
+ * band its hem work runs in, as shares of the waist-to-hem fall */
+const SKIRT_HEM_U = 11, SKIRT_HEM_WORK = Object.freeze([0.82, 0.97]);
 function trimOf(p, B, G, parts) {
   const T = p.trim; if (!T || typeof T !== 'object') return {};
   const k = B.k, paint = [], adorn = [], cloth = G(p), band = G({ colour: 'secondary' }), thread = G({ colour: 'trim' }), motif = T.motif ?? 'vine';
   const worked = (id, part, s, mode, at) => ({ id, mode: 'shell', part, share: true, side: 'R', s, t: 'wrap', nt: 16, ns: mode === 'emblem' ? 6 : 2, mugen: 0, thick: r3(0.001 * k), rad: r3(0.01 * k), group: cloth, stack: false, ghost: true,
     signature: { kind: 'motif', name: motif, mode, ...(at ? { at } : {}), size: r3(0.1 * k), w: r3(0.006 * k), lift: r3(0.003 * k), group: thread } });
-  if (T.hem && parts.hem) { if (T.hem === 'binding') paint.push({ part: parts.hem, run: [0.94, 1], group: band }); else adorn.push(worked(`${p.id ?? p.kind}HemWork`, parts.hem, [0.82, 0.97], 'border')); }
+  // (outfit laws 2: a skirt's hem work addressed on its OUTER rings, st0 the waist … st11 the hem (body-garment.js), in
+  // the kernel's own `u`; laws 1 read its window as shares of every ring, the hem turned up inside counted too, so the work
+  // landed on the lining at the knees, off the cloth that shows)
+  const hemWin = B.laws >= 2 && /_skirt$/.test(parts.hem ?? '') ? { s: SKIRT_HEM_WORK.map((f) => r3(f * SKIRT_HEM_U)), share: false } : null;
+  if (T.hem && parts.hem) { if (T.hem === 'binding') paint.push({ part: parts.hem, run: [0.94, 1], group: band }); else adorn.push({ ...worked(`${p.id ?? p.kind}HemWork`, parts.hem, [0.82, 0.97], 'border'), ...(hemWin || {}) }); }
   if (T.cuffs === 'binding') for (const c of parts.cuffs || []) paint.push({ part: c, run: [0.9, 1], group: band });
   if (T.chest === 'emblem' && parts.bodice) adorn.push(worked(`${p.id ?? p.kind}Emblem`, parts.bodice, [0.5, 0.85], 'emblem', 'front'));
   return { ...(paint.length ? { paint } : {}), ...(adorn.length ? { adorn } : {}) };
@@ -562,6 +575,8 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
   const G = (p) => { const role = p.colour ?? OUTFIT_KINDS[p.kind]?.colour ?? 'base'; return /^#/.test(role) ? role : COLOUR_GROUPS[role] ?? COLOUR_GROUPS.base; };
   const pieces = [...O.pieces].map((p, i) => ({ p, i, layer: OUTFIT_KINDS[p.kind]?.layer ?? 9 })).sort((a, b) => a.layer - b.layer || a.i - b.i);
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];
+  // (what is already worn, as each piece is compiled: a necklace reads the close cloth on the chest it hangs over)
+  if (B.laws >= 2) B.worn = garments;
   for (const { p } of pieces) { const K = OUTFIT_KINDS[p.kind]; if (!K) throw new Error(`outfit: '${p.kind}' is not a piece kind (have ${OUTFIT_KIND_NAMES.join(', ')})`);
     // a designed piece is worn ON TOP of the frame: it clears the fur, locks and scales pinned to its carrier
     const out = K.compile(p, B, G, I); garments.push(...(out.garments || [])); if (out.paint) piecePaint.push(...out.paint); adorn.push(...(out.adorn || []).map((A) => ({ ...distorted(A, p, I.distort), onTop: true }))); segments.push(...(out.segments || [])); }
