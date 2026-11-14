@@ -47,3 +47,12 @@ phone, and a theme that comes from the dress's premise.
 - Played by touch alone in headless Chrome (`scripts/spikes/roll/touch.mjs`): a bot whose hands are the touch
   layer's own pointer events (swipes and taps, never a key) clears three maps with no hit, in about the seconds the
   keyboard bot takes, taking the same coins.
+- More than one kind of excitement behind a screen (`mana-ui/theme.js`). A theme's `stage` had one lively shape, the
+  burst, so every screen of a lively game wore the same rays. Six more: `chevrons` (speed: bars leaning in to meet
+  down the middle), `dots` (print pop, two grids), `confetti` (scattered pills and dots), `tunnel` (wide rings
+  opening from a point), `streaks` (thin and thick lines on a slant), `zigzag` (rows of teeth). And a `stage` may be
+  a LIST, a show: each kind of screen takes its own in order (the title, a screen in the middle, a full one, a
+  result, a count over the play), round again when the list is short, `none` leaving a kind bare. A theme that names
+  one stage is as it was.
+- The toybox is a show: chevrons behind the title, dots behind the pause, streaks while it loads, confetti on a
+  result, nothing over the start count.

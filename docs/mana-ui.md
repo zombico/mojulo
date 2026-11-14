@@ -876,6 +876,14 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
   laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
   the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
 
+### Stages: a show, not one pattern
+
+A theme's `stage` is the shape behind everything a screen holds. Beside the calm ones (`band`, `stripes`, `rings`,
+`shards`) the lively ones are `burst`, `chevrons`, `dots`, `confetti`, `tunnel`, `streaks` and `zigzag`: each a
+different kind of energy. A `stage` written as a list is a show, so a game's screens do not all wear one pattern:
+the title takes the first, a screen in the middle (a pause, a menu) the second, a full screen (loading) the third, a
+result the fourth, a count over the play the fifth; a short list goes round again and `none` leaves a kind bare.
+
 ### A running game's shell and HUD
 
 A game of obstacle courses (`docs/course-dress-principles.md`) has its screens drawn here without asking: its

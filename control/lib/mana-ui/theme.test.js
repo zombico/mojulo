@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readTheme, themeCss, themeAdvice, contrast, THEMES, THEME_IDS, MOTIONS } from './theme.js';
+import { readTheme, themeCss, themeAdvice, contrast, THEMES, THEME_IDS, THEME_WORDS, MOTIONS } from './theme.js';
 import { GREYBOX_VARS, manaCss } from './css.js';
 import { manaUiBoard } from './board.js';
 
@@ -90,3 +90,31 @@ describe('mana-ui themes: motion and keylines', () => {
     expect(css).toContain('--mana-side-1-key:transparent');
   });
 });
+
+describe('the stage: more than one kind of excitement, and a show of them', () => {
+  it('the exciting stages beside the burst are shapes of their own, in the theme\'s colours', () => {
+    const css = (stage) => themeCss({ from: 'idol', stage }), of = (stage) => css(stage).match(/--mana-stage:([^;}]*(?:\([^)]*\)[^;}]*)*)/)[1];
+    const shapes = ['chevrons', 'dots', 'confetti', 'tunnel', 'streaks', 'zigzag'].map(of);
+    expect(new Set([...shapes, of('burst')]).size).toBe(7);
+    for (const x of shapes) expect(x).toMatch(/gradient\(/);
+    expect(THEME_WORDS.stage).toEqual(expect.arrayContaining(['burst', 'chevrons', 'dots', 'confetti', 'tunnel', 'streaks', 'zigzag']));
+    // (a theme that names none of them is as it was)
+    expect(themeCss('idol')).toBe(themeCss({ from: 'idol' }));
+    expect(themeCss('idol')).not.toMatch(/\.mana-screen\[data-place=left\]\{--mana-stage/);
+  });
+
+  it('a list is a show: each kind of screen its own shape, round again when the list is short; the malformed teach', () => {
+    const T = readTheme({ from: 'idol', stage: ['chevrons', 'dots', 'none'] });
+    expect(T.stage).toEqual(['chevrons', 'dots', 'none']);
+    const css = themeCss({ from: 'idol', stage: ['chevrons', 'dots', 'none'] });
+    const rule = (sel) => css.split(`.mana-screen${sel}{--mana-stage:`)[1].split('}')[0];
+    expect(rule('[data-place=left]')).toMatch(/-58deg/);                 // the title: chevrons
+    expect(rule('[data-place=center]')).toMatch(/radial-gradient\(circle/);   // a menu: dots
+    expect(rule('[data-place=full]')).toBe('none');                       // a loading screen: bare
+    expect(rule(':has(.mana-banner)')).toMatch(/-58deg/);                 // a result: round again
+    expect(() => readTheme({ stage: ['chevrons', 'sparkles'] })).toThrow(/or a list of them \(a show/);
+    expect(() => readTheme({ stage: [] })).toThrow(/or a list of them/);
+    expect(() => readTheme({ stage: 'sparkles' })).toThrow(/theme\.stage is one of: none, band, burst.*or a list of them/);
+  });
+});
+

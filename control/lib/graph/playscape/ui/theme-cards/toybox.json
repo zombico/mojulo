@@ -1,7 +1,7 @@
 {
   "id": "toybox",
   "name": "Toybox",
-  "about": "Glossy toy plastic for a light, quick game with a mascot hero: round blue plates with a pale rim on a little plinth, white rounded letters, yellow for what matters, green for what is going well. Sized for the hand.",
+  "about": "Glossy toy plastic for a light, quick game with a mascot hero: round blue plates with a pale rim on a little plinth, white rounded letters, yellow for what matters, green for what is going well. Sized for the hand. A show of stages: speed chevrons behind the title, dots behind a menu, streaks while it loads, confetti on a result, nothing over a count.",
   "family": "toy",
   "tags": ["casual", "mascot", "runner", "platformer", "collectathon", "phone"],
   "author": "mojulo",
@@ -16,5 +16,6 @@
   "case": "none",
   "backing": "plinth",
   "halo": "shadow",
-  "motion": "ease"
+  "motion": "ease",
+  "stage": ["chevrons", "dots", "streaks", "confetti", "none"]
 }
