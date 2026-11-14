@@ -47,7 +47,20 @@ screen) is now played on a page; before, only its practice yard was.
 - The crowd has faces: a street's `cast` (`{ <crowd type> | boss | *: a roster index }`) draws its crowd and its boss
   as the roster's characters, their fight still their type's. A quick brawl makes two beside its players (a thug,
   the boss: `quick.js` BRAWL_CROWD), so its street is fought against made characters, not stick figures.
+- A street of the GEOTOWN (`brawl-levels.js` the `town` kind): a block of the town's pattern with its main street along
+  one side and the belt down it between its cross streets. The shops stand on the far side, the town's bare margin is
+  open to the camera, and the road, the kerbs, the walks, the lamps and the fronts are the town's own. A quick brawl
+  is fought down it unless it names another level (a stage kit's rooms, the greybox street). A street longer than
+  the block is refused, saying how long the block is.
+- The brawler's look: a brawl's one register is the western (lit) unless it names another, and every body it makes is
+  one of the anime frame's muscular bodies in its muscular form (the muscle shirt) under the WESTERN head (`quick.js`
+  brawlBody): the base pair for the players and the crowd, the hulking pair for the heavies and the boss. Never the
+  anime head, never the realistic one.
+- The crowd varies: a cast's kind may name several characters, taken in turn body by body, and a quick brawl makes
+  three thugs (a thug, a bruiser on the hulking body, a punk) and the boss beside its players.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
-- Not yet: the crowd from a world's own bestiary, and variety in it (every thug is the one character), the street's dress (the
+- Not yet: the crowd from the comic pack's factions (a crew in its colours: the next step), a street of more than one
+  block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
+  software), the realistic jacked body's wrist (its forearm ends wider than its hand), the street's dress (the
   stage kits), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed
   (non-quick) world.

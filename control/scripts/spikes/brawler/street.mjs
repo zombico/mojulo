@@ -5,7 +5,7 @@
 // does the brawler's native kit play a street from its start to its end on a page, and does its screen say so (the
 // health, the screens, GO, the boss, the end). The eyes gate is the operator's: the shots.
 //
-//   node control/scripts/spikes/brawler/street.mjs [--out dir] [--register anime|western] [--style all-rounder] [--secs 200] [--boss-hp 300] [--light]
+//   node control/scripts/spikes/brawler/street.mjs [--out dir] [--register anime|western] [--style all-rounder] [--secs 200] [--boss-hp 300] [--light] [--level '{"kind":"town"}']
 import { register as registerLoader, createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-street') }, register: { type: 'string' }, style: { type: 'string', default: 'all-rounder' }, secs: { type: 'string', default: '200' }, 'boss-hp': { type: 'string', default: '300' }, light: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-street') }, register: { type: 'string' }, style: { type: 'string', default: 'all-rounder' }, secs: { type: 'string', default: '200' }, 'boss-hp': { type: 'string', default: '300' }, light: { type: 'boolean', default: false }, level: { type: 'string' } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -28,7 +28,8 @@ const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three.js');
 const me = Math.max(0, BRAWL_ROSTER.findIndex((r) => r.id === opt.style));
 const boss = { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'Big Rig' };
-const manifest = brawlLevel({ kind: 'greybox', preset: 'street' }, { title: 'street', ...(opt.register ? { register: opt.register } : {}), street: {
+// (--level: the street's level, a brawl level's words as JSON: '{"kind":"town"}' the geotown's main street)
+const manifest = brawlLevel(opt.level ? JSON.parse(opt.level) : { kind: 'greybox', preset: 'street' }, { title: 'street', ...(opt.register ? { register: opt.register } : {}), street: {
   players: [me],
   // (--light: a street a masher can finish, to see its end)
   waves: opt.light ? [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [], boss: { recipe: boss, plays: ['chain'], cpu: Object.keys(CPU_LEVELS)[0], hp: 150 } }]
@@ -62,7 +63,7 @@ const read = () => tab.evaluate(() => {
   const on = s.bodies.filter((b) => b.side === 'crowd' && !b.gone && !b.ko).sort((a, b) => Math.abs(a.x - me.x) + Math.abs(a.z - me.z) - Math.abs(b.x - me.x) - Math.abs(b.z - me.z));
   return { me: [me.x, me.z], st: me.st, near: on[0] ? [on[0].x, on[0].z] : null, R, over: B.over, screen: B.ui.rt.state().screen, hud: document.querySelector('.mana-root') ? document.querySelector('.mana-root').innerText.replace(/\s+/g, ' ').slice(0, 160) : '' };
 });
-const shot = async (name) => { await tab.waitForTimeout(900); await tab.screenshot({ path: path.join(out, `${name}.png`) }); };
+const shot = async (name) => { await tab.waitForTimeout(900); await tab.screenshot({ path: path.join(out, `${name}.png`), timeout: 240000 }); };
 const log = [];
 await play(30);
 await play(2, ['KeyK']); await play(10);   // (the keyboard sits down: attack, K)

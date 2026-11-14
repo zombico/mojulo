@@ -126,7 +126,7 @@ export function brawlYardData(block, bodies = null) {
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
       ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
-    ...(ST ? { street: { waves: ST.waves, ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, pick(k, `street.cast.${t}`)])) } : {}) }, wire: STREET_WIRE } : {}),
+    ...(ST ? { street: { waves: ST.waves, ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: ST ? [] : YARD_SETTINGS },
   };
 }

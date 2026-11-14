@@ -125,7 +125,7 @@ function build() {
   rounds.clear();
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
   // (a street's crowd is drawn as its `cast` says: a body's type, the boss, or `*` for the rest → a roster's character)
-  const castOf = (i) => { const C = STREET && STREET.cast, t = C && room.mind.type[i], k = C ? (C[t] ?? C['*']) : undefined; return Number.isInteger(k) ? BY.roster[k] : null; };
+  const castOf = (i) => { const C = STREET && STREET.cast, t = C && room.mind.type[i], L = C ? (C[t] ?? C['*']) : null; return L && L.length ? BY.roster[L[i % L.length]] : null; };
   const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : STREET ? castOf(i) : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
   bodies = room.s.bodies.map((b, i) => {
     const E = entryOf(i), skin = skinOf(E && E.character), player = i < picks.length;

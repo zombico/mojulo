@@ -791,9 +791,10 @@ export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
 // a character); its STREETS are its levels, each a brawl level (brawl-levels.js: a greybox street, a stage on a kit)
 // with the waves that hold its screens (brawl-crowd.js: a crowd by type, a boss on the boss's screen).
 const BRAWL_KEYS = ['goal', 'roster', 'streets', 'register', 'theme', 'camera', 'screen'];
-// (the street a brawl is fought down when it names none: the open-air plaza's, dressed and lit by its kit, brawl-levels.js
-// the stage kind: painted fronts on the far side, its paving, the kit's own dressing; the greybox street is a blockout's)
-export const BRAWL_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'stage', kit: 'island-plaza' }) });
+// (the street a brawl is fought down when it names none: the GEOTOWN's main street, brawl-levels.js the town kind: a
+// block of the town with its shops on the far side and its margin open to the camera, the road, the walks, the lamps
+// and the fronts the town's own; a stage kit's rooms and the greybox street are named)
+export const BRAWL_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'town' }) });
 /** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, a knife
  * among them from the second; the boss's screen its boss (a grappler on the fight's easiest mind) with two beside it. */
 export function defaultWaves(belt) {
@@ -806,8 +807,24 @@ export function defaultWaves(belt) {
   return out;
 }
 /** THE CROWD'S FACES: the characters a brawl's crowd and its boss are drawn as (each made as a fighter is, after the
- * players; the crowd's fight stays its type's): a thug, and the boss. */
-export const BRAWL_CROWD = Object.freeze([{ as: '*', entry: { archetype: 'outlaw', role: 'frontline', style: 'all-rounder', name: 'Thug' } }, { as: 'boss', entry: { archetype: 'ruler', build: 'brute', role: 'frontline', style: 'grappler', name: 'The Boss' } }]);
+ * players; the crowd's fight stays its type's). `as` what it draws: `*` any of the crowd (several: taken in turn, body by
+ * body, so a wave is not one face), `boss` the boss; `heavy` the hulking body. */
+export const BRAWL_CROWD = Object.freeze([
+  { id: 'thug-1', as: '*', entry: { archetype: 'outlaw', role: 'frontline', build: 'heroic', style: 'all-rounder', name: 'Thug' } },
+  { id: 'thug-2', as: '*', heavy: true, entry: { archetype: 'everyman', role: 'frontline', build: 'brute', style: 'grappler', name: 'Bruiser' } },
+  { id: 'thug-3', as: '*', entry: { archetype: 'jester', role: 'flanker', build: 'lithe', style: 'rushdown', name: 'Punk' } },
+  { id: 'boss', as: 'boss', heavy: true, entry: { archetype: 'ruler', role: 'frontline', build: 'brute', style: 'grappler', name: 'The Boss' } },
+]);
+/** A BRAWLER'S BODY over its sheet's person (the hero door's words): the anime frame's muscular bodies (anime-bodies.js:
+ * the base pair, the hulking pair for a heavy) in their muscular form (the muscle shirt, every muscle drawn), under the
+ * WESTERN head (the landmark head: styled, never the anime head and never the realistic one). `created` is the sheet's
+ * own create order (egocube/kind.js egocubeCreate); null for one that is not a person. */
+export function brawlBody(created, heavy = false) {
+  if (created?.create?.as !== 'hero') return null;
+  const base = created.create.spec ?? {}, pole = (typeof base.cast === 'string' ? base.cast : base.cast?.pole) === 'female' ? 'female' : 'male';
+  const body = heavy ? { male: 'armstrong', female: 'kale' } : { male: 'toji', female: 'mizuki' };
+  return { head: 'landmark', animeBody: body[pole], muscleShirt: { definition: 1 } };
+}
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
 export function brawlStreets(Q, { title, roster, cast } = {}) {
@@ -953,7 +970,10 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // none: a fight minted before carries none and draws each body as it always did
   const fight = isObj(tiered) && tiered.goal === 'fight';
   const register = fight && tiered.register === undefined ? (settingOfGame({ style, characters: rest.characters }, tiered).tradition ?? 'western') : null;
-  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : register && Array.isArray(tiered.arenas) && !tiered.arenas.some((a) => isLab(a?.level)) ? { arenas: [...tiered.arenas, { ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}), ...(register ? { register } : {}) } : tiered;
+  // (a BRAWL's one look is the western, lit, unless it names another: its bodies are the muscular ones under the western
+  // head, quick.js brawlBody, never the anime head's)
+  const brawl = isObj(tiered) && tiered.goal === 'brawl' && tiered.register === undefined ? { ...tiered, register: 'western' } : null;
+  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : register && Array.isArray(tiered.arenas) && !tiered.arenas.some((a) => isLab(a?.level)) ? { arenas: [...tiered.arenas, { ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}), ...(register ? { register } : {}) } : brawl ?? tiered;
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)

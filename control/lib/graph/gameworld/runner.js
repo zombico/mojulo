@@ -62,7 +62,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, BRAWL_CROWD, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, BRAWL_CROWD, brawlBody, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -895,7 +895,8 @@ function quickSteps(world, G, ref, lookup) {
     // well; its own `moves` win)
     const strikesOf = (m, over) => (m !== undefined ? { moves: m } : Q.strikes === 'own' && over?.tradition === 'boxing' ? { moves: 'hero' } : {});
     // (a brawl's crowd is drawn as characters too, quick.js BRAWL_CROWD: made after the players, never played)
-    const players = fightFighters(Q, seed), faces = Q.goal === 'brawl' ? BRAWL_CROWD.map((c, j) => fighterSpec({ ...c.entry, id: `crowd-${c.as === '*' ? 'thug' : c.as}` }, players.length + j, seed)) : [];
+    const players = fightFighters(Q, seed), faces = Q.goal === 'brawl' ? BRAWL_CROWD.map((c, j) => fighterSpec({ ...c.entry, id: `crowd-${c.id}` }, players.length + j, seed)) : [];
+    const heavies = new Set(Q.goal === 'brawl' ? BRAWL_CROWD.filter((c) => c.heavy).map((c) => `crowd-${c.id}`) : []);
     for (const { over, roll: own0, hero, moves, ...own } of [...players, ...faces]) {
       if (hero) { roster.push({ ...own, hero, ...over, ...strikesOf(moves, over) }); continue; }
       const roll = { ...own0, setting };
@@ -906,14 +907,19 @@ function quickSteps(world, G, ref, lookup) {
       const sheetKey = `fighter-${own.id}-sheet`, key = `fighter-${own.id}`, sheetRef = childRef(ref, sheetKey), charRef = childRef(ref, key);
       const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
-      steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
+      // (a BRAWLER's bodies, quick.js brawlBody: the anime frame's muscular bodies under the western head, the heavies
+      // the hulking pair; laid over the sheet's person as a foe's body words are)
+      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest)), heavies.has(own.id)) : null;
+      steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}`, ...(bodyOf ? { spec: bodyOf } : {}) }, print: fingerprint({ roll, ...(bodyOf ? { spec: bodyOf } : {}) }) });
       roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
     }
     if (Q.goal === 'brawl') {
       // each street a level the brawl is fought down (quick.js brawlStreets: a brawl level with its waves and the hosted
       // level's contract), then the game that runs them one after another in the play shell, its screens the game UI
       // runtime's in the brawler's look unless the world says its own
-      const cast = Object.fromEntries(BRAWL_CROWD.map((c, j) => [c.as, players.length + j]));
+      // (who the crowd is drawn as: each crowd character's index under what it draws, a kind's several taken in turn)
+      const cast = {};
+      BRAWL_CROWD.forEach((c, j) => { (cast[c.as] ??= []).push(players.length + j); });
       const streets = brawlStreets(Q, { title, roster, cast }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
       const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));
       const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-yard') };

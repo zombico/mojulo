@@ -37,11 +37,30 @@ describe('a world\'s street, read', () => {
     expect(D.dummies).toEqual([]);
     expect(Object.keys(D.yard.spec.screens).sort()).toEqual(['lost', 'moves', 'won']);
     // (its crowd's faces: a type, the boss or the rest → a roster index, checked against the roster)
-    expect(brawlYardData({ belt: BELT, street: { ...STREET, cast: { '*': 1, boss: 2 } } }).street.cast).toEqual({ '*': 1, boss: 2 });
+    expect(brawlYardData({ belt: BELT, street: { ...STREET, cast: { '*': 1, boss: 2 } } }).street.cast).toEqual({ '*': [1], boss: [2] });
+    expect(brawlYardData({ belt: BELT, street: { ...STREET, cast: { '*': [1, 2, 0] } } }).street.cast).toEqual({ '*': [1, 2, 0] });
     expect(() => brawlYardData({ belt: BELT, street: { ...STREET, cast: { boss: 99 } } })).toThrow(/roster index/);
     expect(() => readStreet({ ...STREET, cast: { boss: 'big' } }, BELT)).toThrow(/cast/);
     // (a practice yard's data is what it was: no street on it)
     expect(brawlYardData({ belt: brawlPreset('yard').belt, practice: {} }).street).toBeUndefined();
+  });
+});
+
+describe('a street of the geotown', () => {
+  const M = brawlLevel({ kind: 'town' }, { street: STREET });
+  it('is the town\'s own recipe with the belt down its main street, between its cross streets', () => {
+    expect(M).toMatchObject({ kind: 'geocube', show: 'geotown', geotown: { segment: 'main-street', hills: false } });
+    const B = M.brawl.belt;
+    expect(B.heading).toBe(0);
+    expect(B.screens.some((s) => s.gate)).toBe(true);
+    expect(B.depth[0]).toBeLessThan(0);                      // (the camera's side, toward the margin)
+    expect(B.depth[1]).toBeGreaterThan(0);                   // (the far side, toward the shops)
+  });
+  it('a street longer than its block is refused, and says how long the block is', () => {
+    expect(() => brawlLevel({ kind: 'town', screens: Array.from({ length: 8 }, () => ({ length: 16, gate: true })) })).toThrow(/between its cross streets/);
+  });
+  it('is seeded: the same words lay the same street', () => {
+    expect(JSON.stringify(brawlLevel({ kind: 'town' }).brawl.belt)).toBe(JSON.stringify(brawlLevel({ kind: 'town' }).brawl.belt));
   });
 });
 

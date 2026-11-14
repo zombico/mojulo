@@ -10,6 +10,9 @@
  *              booth, crates), the near side open to the camera, each held screen's line marked across the band, the
  *              street closed at its start and at its end; `yard`, the practice room's (brawl-practice.js): one long open
  *              screen ruled a metre along and every half metre across the band, a back wall and a rack
+ *     town     a street of the GEOTOWN (lib/graph/geotown): a block of the town's pattern with its main street along one
+ *              side, the belt down it between the cross streets; its fronts the town's own (shops, by its streetscape) on
+ *              the far side, the town's bare margin on the camera's; the street's road, walks, lamps and trees the town's
  *     stage    the belt laid in the indoor level's designer (era/stage.js, the stage kind a building level is built in:
  *              rooms on a kit's grid joined by doorways, dressed and lit by the kit): each screen a room in a row along
  *              the belt, its camera side open, the next screen through a doorway as wide as the band (the band runs on
@@ -31,6 +34,7 @@ import { readGreybox, GREYBOX_SUN } from '../level/greybox-scene.js';
 import { FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { STAGE_KITS } from '../era/stage.js';
+import { designGeotown } from '../geotown/design.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -178,6 +182,29 @@ function brawlStage(words) {
   };
 }
 
+// THE TOWN'S STREET (the geotown, lib/graph/geotown): a block segment of the town's pattern laid with its MAIN STREET
+// along the block's south side, the belt down that street between its two cross streets. The shops stand on the far
+// side (north, the block's fronts); the near side is the town's bare margin, open to the camera. The street is the
+// town's own: its road, kerbs, verges and walks, its lamps and trees, its fronts by its streetscape.
+const TOWN = Object.freeze({ cube: 'valley-morning', pattern: 'old-town', streetscape: 'old-centre', seed: 3, clear: 2, depth: [-2.6, 3.4] });
+function brawlTown(words) {
+  const seed = words.seed ?? TOWN.seed;
+  if (!Number.isInteger(seed)) throw new Error('brawl: a town street\'s seed is a whole number');
+  const geotown = { pattern: words.pattern ?? TOWN.pattern, streetscape: words.streetscape ?? TOWN.streetscape, segment: 'main-street', hills: false };
+  const D = designGeotown(geotown, { seed });
+  const main = D.streets.find((s) => s.rank === 'main' && s.axis === 'x');
+  if (!main) throw new Error('brawl: the town\'s segment has no main street to fight down');
+  const cross = D.streets.filter((s) => s.axis === 'y').map((s, k) => ({ at: s.at, half: D.sections.x[k].half })).sort((a, b) => a.at - b.at);
+  const x0 = r3(cross[0].at + cross[0].half + TOWN.clear), x1 = r3(cross[cross.length - 1].at - cross[cross.length - 1].half - TOWN.clear);
+  const screens = words.screens ?? STAGE_SCREENS;
+  const belt = readBelt({ at: [x0, r3(main.at)], heading: 0, floor: r3(D.land.S(x0, main.at)), depth: words.depth ?? TOWN.depth, screens, angle: words.angle ?? 'classic' }, 'level');
+  if (belt.length > x1 - x0 + 1e-6) throw new Error(`brawl: the town's block holds a street of ${Math.floor(x1 - x0)} m between its cross streets (the screens run ${r3(belt.length)} m): fewer or shorter screens`);
+  return {
+    manifest: { kind: 'geocube', cube: words.cube ?? TOWN.cube, show: 'geotown', seed, ...(words.title ? { title: words.title } : {}), geotown },
+    belt,
+  };
+}
+
 export const BRAWL_LEVELS = Object.freeze({
   greybox: Object.freeze({
     reads: `a street blocked out in boxes, from a preset (${BRAWL_PRESET_IDS.join(', ')}), its belt's words over the preset's`,
@@ -192,6 +219,11 @@ export const BRAWL_LEVELS = Object.freeze({
     reads: `the belt laid in the indoor level's rooms (a kit: ${BRAWL_STAGE_KITS.join(', ')}), a room a screen through doorways as wide as the band, its camera side open; the plaza one long street`,
     words: ['kit', 'look', 'height', 'screens', 'depth', 'angle', 'dress', 'title'],
     build: brawlStage,
+  }),
+  town: Object.freeze({
+    reads: 'a street of the geotown: a block of the town\'s pattern, the belt down its main street between its cross streets, the shops on the far side, the town\'s margin open to the camera',
+    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'title'],
+    build: brawlTown,
   }),
 });
 export const BRAWL_LEVEL_KINDS = Object.freeze(Object.keys(BRAWL_LEVELS));
