@@ -725,6 +725,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // carries the game channel. The 1.5 s a hosted level waits for its shell is counted in time the shell could have
 // answered in (channels/game.js awaitShell, inlined in place of the one-line timer), so an answer queued behind the
 // level's own build is never beaten by the presets. Every other fixture stays as it was.
+// Re-pinned 2026-11-14 (mana-ui's pictograms, mana-ui/icons.js): `brawl` and `holo`, the two whose page inlines the game
+// UI runtime's kernel. An icon, a counter's icon and a prompt's glyph now carry `data-icon` (the name a theme's sheet
+// finds its pictogram by); every other fixture holds byte for byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

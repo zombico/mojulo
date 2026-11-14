@@ -876,6 +876,15 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
   laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
   the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
 
+### Pictograms
+
+`icons.js` holds the pictures a UI says things with in place of words: a coin, a heart, a clock, a lock, a gesture.
+Each is one outline on a 24 grid. A theme's `icons` word is the style they are all drawn in (`solid`, `line`,
+`chunky`, `badge`, `duo`; `none`, the default, keeps a name's initials), so a look changes its pictograms as it
+changes its frames. Nothing is loaded: the theme's sheet carries each as a mask, cut out of the ink of the words
+beside it. The runtime only names one (`data-icon` on an `icon`, a counter's `icon`, a prompt's glyph); a game's other
+words for it (`coins`, `time`, `hp`) are aliases in the library.
+
 ### Stages: a show, not one pattern
 
 A theme's `stage` is the shape behind everything a screen holds. Beside the calm ones (`band`, `stripes`, `rings`,

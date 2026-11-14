@@ -61,6 +61,8 @@
  *               | zigzag, or a LIST of them                          A list is a show: each kind of screen its own shape
  *                                                                    (the title, a middle screen, a full one, a result, a
  *                                                                    count over the play), so a game is not one pattern
+ *     icons     none | solid | line | chunky | badge | duo            the style its pictograms are drawn in (icons.js): a
+ *                                                                    coin, a heart, a clock in place of words; none: initials
  *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
  *               | hydraulic | clack | crypt | jackpot                  (beats/ui-sounds.js: one interval plan, each set a
  *                                                                    voice; the last four the heavy ones);
@@ -89,6 +91,7 @@
  *   themeAdvice(t)         → [{ law, at, advice }]: contrast measured (WCAG), never refused
  *   contrast(a, b)         → the WCAG contrast ratio of two hex colours
  */
+import { iconCss } from './icons.js';
 export const FACE_STACKS = Object.freeze({
   system: 'system-ui,-apple-system,"Segoe UI",sans-serif',
   serif: 'Georgia,"Times New Roman",serif',
@@ -120,10 +123,12 @@ export const THEME_WORDS = Object.freeze({
   sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party', 'hydraulic', 'clack', 'crypt', 'jackpot'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
   hud: ['panel', 'bare'],
+  // the style its pictograms are drawn in (icons.js); none: an icon is its name's initials
+  icons: ['none', 'solid', 'line', 'chunky', 'badge', 'duo'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides', 'icons'];
 export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay', 'stage']);
 // how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
 // and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
@@ -224,7 +229,8 @@ export function readTheme(t) {
   }
   const out = { name: typeof t.name === 'string' ? t.name : base.name, from };
   for (const k of Object.keys(THEME_WORDS)) {
-    const x = t[k] === undefined ? base[k] : t[k];
+    // (a word a preset does not say is its quietest: no pictograms)
+    const x = t[k] === undefined ? (base[k] === undefined && k === 'icons' ? 'none' : base[k]) : t[k];
     if (k === 'ornaments') {
       if (!Array.isArray(x) || x.some((o) => !THEME_WORDS.ornaments.includes(o))) throw new Error(`theme.ornaments is a list of: ${THEME_WORDS.ornaments.join(', ')}`);
       out.ornaments = [...new Set(x)];
@@ -512,6 +518,8 @@ export function themeCss(theme, scope = '.mana-root') {
   // a plate behind text that has no window: the ghost windows and a screen's own title sit on the panel, the halo off
   if (T.halo === 'plate') out.push(`${s} .mana-window[data-variant=ghost]{background:${alpha(k.panel, 0.82)};padding:calc(9 * var(--mana-du)) calc(15 * var(--mana-du))}`, `${s} .mana-screen>.mana-title{width:fit-content;background:${alpha(k.panel, 0.82)};padding:0 calc(15 * var(--mana-du))}`);
   if (T.ornaments.includes('glow')) out.push(`${win}{box-shadow:0 0 0 1px ${alpha(k.accent, 0.5)},0 0 18px ${alpha(k.accent, 0.35)}}`);
+  // the pictograms, in the theme's style (icons.js): none adds nothing
+  if (T.icons !== 'none') out.push(iconCss(T.icons, s));
   return out.join('\n');
 }
 

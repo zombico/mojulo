@@ -1,0 +1,46 @@
+{
+  "id": "knit",
+  "name": "Knit",
+  "about": "Wool and thread: a lilac ground, plum ink, a stitched edge round every plate and an amber button. Quiet, patterned, made by hand.",
+  "family": "cosy",
+  "tags": [
+    "cosy",
+    "craft",
+    "casual",
+    "handmade"
+  ],
+  "author": "mojulo",
+  "from": "storybook",
+  "tokens": {
+    "ink": "#3b3a52",
+    "panel": "#f1ecf7",
+    "line": "#a895cc",
+    "accent": "#7a5cb8",
+    "accent2": "#c9821c",
+    "harm": "#b8402e",
+    "stamina": "#4f9a6a"
+  },
+  "type": {
+    "body": "rounded",
+    "display": "rounded",
+    "mono": "mono"
+  },
+  "frame": "rule",
+  "corner": "soft",
+  "plate": "flat",
+  "case": "none",
+  "motion": "ease",
+  "scale": "large",
+  "ornaments": [
+    "stitch"
+  ],
+  "stage": [
+    "zigzag",
+    "none",
+    "dots",
+    "zigzag",
+    "none"
+  ],
+  "icons": "duo",
+  "sounds": "paper"
+}

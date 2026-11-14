@@ -1,0 +1,39 @@
+{
+  "id": "matchday",
+  "name": "Matchday",
+  "about": "A sport broadcast on a big afternoon: navy plates cut on the slant, white capitals, the yellow of a scoreline and a red for what just happened. Loud, fast, read from across a room.",
+  "family": "broadcast",
+  "tags": [
+    "sport",
+    "arcade",
+    "racing",
+    "versus",
+    "broadcast"
+  ],
+  "author": "mojulo",
+  "from": "rebel",
+  "tokens": {
+    "ink": "#ffffff",
+    "panel": "#0c1f3f",
+    "line": "#ffffff",
+    "accent": "#ffd400",
+    "accent2": "#e3192d",
+    "harm": "#ff5a4a"
+  },
+  "frame": "heavy",
+  "corner": "cut",
+  "plate": "solid",
+  "case": "upper",
+  "slant": "hard",
+  "motion": "snap",
+  "scale": "large",
+  "stage": [
+    "shards",
+    "band",
+    "streaks",
+    "shards",
+    "none"
+  ],
+  "icons": "solid",
+  "sounds": "hydraulic"
+}

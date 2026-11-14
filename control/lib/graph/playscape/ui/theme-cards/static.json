@@ -1,0 +1,38 @@
+{
+  "id": "static",
+  "name": "Static",
+  "about": "Found footage: a dead channel's green on black, scanlines and a tube's bloom, a red that means stop. It flickers in steps; it never eases.",
+  "family": "dread",
+  "tags": [
+    "horror",
+    "analog",
+    "found-footage",
+    "sci-fi-horror"
+  ],
+  "author": "mojulo",
+  "from": "terminal",
+  "tokens": {
+    "ink": "#cfe3cf",
+    "panel": "#070a08",
+    "line": "#39503b",
+    "accent": "#c8ff6a",
+    "accent2": "#ff3b30",
+    "harm": "#ff3b30"
+  },
+  "frame": "hairline",
+  "corner": "square",
+  "plate": "solid",
+  "overlay": "crt",
+  "halo": "glow",
+  "case": "upper",
+  "motion": "stepped",
+  "stage": [
+    "none",
+    "stripes",
+    "none",
+    "none",
+    "none"
+  ],
+  "icons": "solid",
+  "sounds": "terminal"
+}

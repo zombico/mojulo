@@ -38,7 +38,7 @@ export function courseHud(course, { theme = null, screen = null, words = {} } = 
   const pips = { use: 'pips', props: { value: B('run.at'), max: B('run.of'), shape: 'square', ...(portrait ? {} : { label: w.map }) }, when: B('run.show') };
   const bar = { use: 'bar', props: { value: B('course.metres'), max: B('course.of'), figures: false, size: 'thin' } }, left = { use: 'text', props: { value: B('course.says'), role: 'label' } };
   const progress = { use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [bar, left] };
-  const coins = { use: 'counter', props: { label: w.coins, value: B('coins.count'), icon: '●' } };
+  const coins = { use: 'counter', props: { label: w.coins, value: B('coins.count'), icon: 'coin' } };
   const stamina = { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false, ...(portrait ? {} : { label: w.stamina }) } };
   const hint = { use: 'region', props: { at: 'right' }, when: B('hint.show'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'end' }, children: [
     { use: 'prompt', props: { action: 'jump', label: w.over } }, { use: 'prompt', props: { action: 'steer', label: w.round } }] }] };

@@ -48,3 +48,21 @@ No code. The loader (`loader.js`) reads every card when it loads and checks it w
 
 A game uses a card by name (`ui: { theme: '<id>' }`), or writes the same words inline as its own child theme
 (`ui: { theme: { from: '<id>', stage: 'band' } }`) when the look is for that game alone.
+
+## The families
+
+A card's `family` places it beside looks that share its principles. A new card joins one, or starts one and says what
+it holds to.
+
+| Family | Its principles | Cards |
+|---|---|---|
+| `party` | everything leans at one angle; planes stack; two colours punch against one neutral; motion slams | neon-rebel |
+| `toy` | round and chunky, as the hero is; bright plates; pictures before words; sized for the hand | toybox |
+| `broadcast` | read from across a room: capitals, hard cuts on the slant, a scoreline's one loud colour, fast | matchday, floodlight |
+| `cosy` | made by hand: paper or wool, soft corners, warm ink, nothing in a hurry, pattern in place of shine | picnic, knit |
+| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit |
+| `dread` | restraint: near black, one bad colour, texture over everything, nothing that moves fast | dread, static |
+| `machine`, `grave`, `fight`, `brawl`, `table` | (see their cards) | blueprint, departure-board, ink-and-gold, … |
+
+A look also says its pictograms (`icons`: solid, line, chunky, badge, duo; `mana-ui/icons.js`) and may give each kind
+of screen its own stage (`stage` as a list).

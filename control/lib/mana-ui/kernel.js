@@ -345,6 +345,8 @@ export function buildManaUi() {
   const numOf = (x) => (typeof x === 'number' && isFinite(x) ? x : typeof x === 'string' && x.trim() !== '' && isFinite(Number(x)) ? Number(x) : null);
   // why a disabled thing cannot be done: its reason, drawn with it (the sheet shows it under the focus, the pointer or a press)
   const whyOf = (off, why) => (off && why !== undefined && why !== null && why !== '' ? ['span', { class: 'mana-why' }, words(why)] : null);
+  // an icon's name as the theme's sheet finds it (icons.js): lower case, its words joined by a dash; null for none
+  const iconName = (s) => String(s === undefined || s === null ? '' : s).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || null;
   const initials = (s) => words(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
   // a tree's tiers: a node one past the deepest it requires
   function tiersOf(nodes) {
@@ -712,13 +714,13 @@ export function buildManaUi() {
             const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
             return ['div', { class: cls, 'data-shape': p.shape }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-glyphs', ...chOf(changeOf(key, v)) }, on.repeat(v) + offc.repeat(max - v)]];
           }
-          case 'counter': { const c = changeOf(key, p.value); return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's' }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, words(counting(key, p.value, c, false)), p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null, gainOf(c)]]; }
+          case 'counter': { const c = changeOf(key, p.value); return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's', 'data-icon': iconName(p.icon) }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, words(counting(key, p.value, c, false)), p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null, gainOf(c)]]; }
           case 'timer': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-num' }, clock(p.seconds, p.format)]];
           case 'compare': {
             const d = p.to - p.from, good = p.better === 'up' ? d > 0 : d < 0;
             return ['div', { class: cls, 'data-way': d === 0 ? 'same' : good ? 'better' : 'worse' }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, String(p.from)], ['span', { class: 'mana-mark' }, d === 0 ? '=' : good ? '▲' : '▼'], ['span', { class: 'mana-num' }, String(p.to)]];
           }
-          case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
+          case 'icon': return ['span', { class: cls, 'data-size': p.size, 'data-icon': iconName(p.name), title: p.name }, initials(p.name)];
           case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name && p.caption ? ['span', { class: 'mana-caption' }, p.name] : null];
           case 'loader': {
             const L = loadOf(key, p, n, scope, ctx), G = L.G, state = L.failed ? 'failed' : G.ready !== null ? 'ready' : 'loading';
@@ -796,7 +798,7 @@ export function buildManaUi() {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
             return ['span', { class: 'mana-pad', 'data-control': control }, label];
           })]];
-          case 'prompt': return ['div', { class: cls }, ['span', { class: 'mana-key' }, p.glyph || glyphOf(p.action) || p.action], ['span', null, p.label]];
+          case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
           case 'minimap': return ['div', { class: cls, 'data-shape': p.shape }, ...p.markers.map((m) => {
