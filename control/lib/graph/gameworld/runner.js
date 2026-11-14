@@ -60,6 +60,7 @@ import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
+import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -186,7 +187,16 @@ function shellUi(G) {
 }
 // a level's sounds where the game is on the sound sheet (sound-sheet.js levelSheet): a game with a `sound` of its own
 // hears it on every level it builds; one without builds its levels as it did
-const sheetOf = (G, s) => { const audio = levelSheet(G, { manifest: s.manifest ?? null }); return audio ? { audio } : {}; };
+const sheetOf = (G, s, score = null) => {
+  const sheet = levelSheet(G, { manifest: s.manifest ?? null });
+  // (and its score where the game has a `music`: its place under it, its fights coming in: cue-sheet.js levelScore; a
+  // stage that wrote its own soundtrack keeps it)
+  const own = s.manifest?.audio, cue = score && own?.soundtrack === undefined ? levelScore(score.world, s.level, { sheet: score.sheet }) : null;
+  const audio = sheet || cue ? { ...(sheet ?? own ?? {}), ...(cue ?? {}) } : null;
+  return audio ? { audio } : {};
+};
+// a game's cue sheet for a run (cue-sheet.js), its identity the game's own from its ref; null for a game with no `music`
+const scoreOfRun = (world, G, ref) => (onScore(G) ? { world, sheet: cueSheet(world, { game: seedOfRef(childRef(ref, 'game')) }) } : null);
 
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
@@ -336,6 +346,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
+  const runScore = scoreOfRun(world, G, ref);
   // the towns' folk (characters.folk, folk-cast.js): each body a step, minted as a hero is, once per town however many
   // stages meet it; none when the world asks for none
   const folks = stages.map((s) => (s.building?.ref ? null : stageFolk(G, s))), folkRef = {};
@@ -451,7 +462,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
@@ -641,6 +652,7 @@ function worldSteps(world, G, ref, composite) {
   const settled = (ids) => { const waiting = ids.filter(at).map((id) => ({ id, status: at(id).status })).filter((x) => !['approved', 'auto'].includes(x.status)); return waiting.length ? { ready: false, waiting } : { ready: true }; };
   const ground = ['world', 'nature', 'civilizations', 'key'];
   const steps = [], stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
+  const runScore = scoreOfRun(world, G, ref);
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   // a camera that watches a hero waits for one (the form's hero, resonance.js): before its people the world is walked
   // first person, its camera kept for the run that has its hero
@@ -655,7 +667,7 @@ function worldSteps(world, G, ref, composite) {
     if (s.building?.ref) return;
     // (its foes stand beside its goal's cast; the walker is first person, so it is hit under its eye)
     const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, false, lastOf[s.level] === s.index);
-    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s) });
+    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s, runScore) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const C = composedStages(stages, levelRefs, map, composite);
@@ -1000,10 +1012,12 @@ function quickSteps(world, G, ref, lookup) {
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   // (a sheet game's carried guns, each by what it is: quick.js quickGuns; laid on the kit by the casts, their cues in the level's audio)
   const guns = quickGuns(G, Q);
+  const runScore = scoreOfRun(world, G, ref);
   // (and its ride's engine, by what is ridden and how fast it goes: sound-sheet.js rideSound; a transformer's forms are not on the sheet)
   const engine = ride && !Q.transformer && ride.rule ? rideSound(G, { quick: Q, words: [Q.ride, Q.vehicle, rode?.class, rode?.archetype, rode?.kind].filter((w) => typeof w === 'string').join(' '), top: rideTop(ride.rule) }) : null;
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef),
-    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }), ...(guns ? { cues: guns.cues } : {}), ...(engine ? { engine: engine.engine } : {}) } : {}) });
+    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }), ...(guns ? { cues: guns.cues } : {}), ...(engine ? { engine: engine.engine } : {}) } : {}),
+    ...(runScore ? { score: levelScore(world, s.level, { sheet: runScore.sheet }) } : {}) });
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     // a tower defence or a skirmish on the stage's spots (board-levels.js): no hero, the level the board's

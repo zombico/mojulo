@@ -1548,7 +1548,7 @@ const heardGun = (weapon, guns) => (guns?.sfx.rifle ? { ...weapon, sfx: guns.sfx
  * 'sheet', `sheet` is the game's (sound-sheet.js sheetAudio, the runner's: it reads the whole game).
  * `cues`: more cues for a sheet level's book (its guns': quickGuns below). `engine`: its ride's engine (rideSound).
  */
-export function goalAudio(quick, { manifest = {}, final = false, game, sheet: sheet0 = null, bed = null, cues = null, engine = null } = {}) {
+export function goalAudio(quick, { manifest = {}, final = false, game, sheet: sheet0 = null, bed = null, cues = null, engine = null, score: cueScore = null } = {}) {
   // (a sheet game's guns: each gun's own cues in the level's book of cues, so the page's kernel carries their gestures)
   const sheet = sheet0 && cues ? { sheet: { ...sheet0.sheet, cues } } : sheet0;
   // (no `sfx` said and a sheet handed over: the game has a `sound` of its own, so its levels hear it: sound-sheet.js onSheet)
@@ -1557,7 +1557,8 @@ export function goalAudio(quick, { manifest = {}, final = false, game, sheet: sh
   // (and its ride's engine, a held voice by its speed: sound-sheet.js rideSound)
   const withSfx = (a) => (sfx || bed || engine ? { ...(a || {}), ...(sfx ? { sfx } : {}), ...(bed ? { bed } : {}), ...(engine ? { engine } : {}) } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
-  if (quick.music === undefined) return withSfx(null);
+  // (no `music` said: the level's score from the game's cue sheet, where the game has one: cue-sheet.js levelScore)
+  if (quick.music === undefined) return withSfx(cueScore);
   const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;
   const mood = quick.music === 'auto' ? s?.mood : quick.music;
   const club = s?.style === 'club' || Object.prototype.hasOwnProperty.call(CLUB_MOODS, mood ?? '');

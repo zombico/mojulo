@@ -32,13 +32,20 @@
   says none, and each level of a game with a `music` is heard in a space (the direction's, else its place: a cave a
   cavern). Taste is advice: the department says where the sheet sits badly with the score (the sound book shows
   it) and changes nothing. A game with no `music` builds what it built.
+- **The cue sheet** (`gameworld/cue-sheet.js`, [docs/game-audio.md](../../../../docs/game-audio.md)). Every
+  department that needs music asks for it (the flow's title, menus and credits; each level's place; a level's fights
+  and its boss; each cinematic the flow plays; the outcomes) and the music department answers each on the game's
+  one score identity, in the direction's style and cast. `music.cues` names another mood for a request, or `false`
+  for silence. A game with a `music` has every level it builds scored from the sheet: its place, with its fight or
+  boss coming in on the tension. A quick game's own `quick.music` still wins. The flow's cues and the outcomes are
+  on the sheet and not yet played; the title, menus, credits and cinematics are stand-ins, listed as owed, until
+  the title theme and a cue that ends are written.
 - **Fixed: a composed game's ground and bed.** A composed game's stages carry no stage kit (the world's style
   holds it), so the sheet gave a forest stone footsteps and no bed. A level's place is now read from the world's
   kit and weather, the level's climate and its look's title: grass in a grove, sand in a desert, snow in the alps,
   the night or the wood as its bed.
 - **Fixed: a game's `sound` reached no level.** The world reader checked `sound` and did not carry it, so a quick
   game on the sheet played the solved sheet and ignored the game's own style, slots and cues.
-- Planned, not built yet: the ground changing within a level; the music department's score, a cue sheet that answers each
-  department's request for music (the flow's screens, the levels, the fights, the cinematics, the outcomes) on the
-  game's one score identity; a title theme (the menu and the credits the same tune at another energy) and a cue
-  that ends, written to a cinematic's length.
+- Planned, not built yet: the flow playing its cues (the play shell scores no screen or cinematic); a title theme
+  (the menu and the credits the same tune at another energy) and a cue that ends, written to a cinematic's length;
+  the score page in the game book; the ground changing within a level.

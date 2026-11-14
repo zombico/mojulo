@@ -82,3 +82,33 @@ describe('a level\'s score from the sheet', () => {
     expect(audio.combat).toBeTruthy();
   });
 });
+
+describe('a made game is scored from its sheet', () => {
+  it('a designed game with a `music`: every level carries its cue on the game\'s identity; with none, the levels it built', async () => {
+    const { runSteps, fingerprint } = await import('./index.js');
+    const w = forest();
+    const levels = (W) => runSteps(W, { ref: 'gw' }).filter((s) => s.key.startsWith('level-') && s.order?.manifest);
+    const plain = levels(w), scored = levels({ ...w, music: {} });
+    for (const s of plain) expect(s.order.manifest.audio).toBeUndefined();
+    const games = new Set();
+    for (const s of scored) { expect(s.order.manifest.audio.soundtrack.score.mood, s.key).toBeTruthy(); games.add(s.order.manifest.audio.soundtrack.score.game); }
+    expect(games.size).toBe(1);
+    expect(scored.some((s) => s.order.manifest.audio.combat?.score.mood === 'boss')).toBe(true);
+    const bare = ({ audio: _a, ...m }) => m;
+    expect(fingerprint(scored.map((s) => bare(s.order.manifest)))).toBe(fingerprint(plain.map((s) => s.order.manifest)));
+    // the sheet and the score lie together: a game with both hears both
+    const both = levels({ ...w, music: {}, sound: {} })[0].order.manifest.audio;
+    expect(both.soundtrack && both.sfx?.sheet).toBeTruthy();
+  });
+
+  it('a quick game with a `music` and no quick.music is scored from the sheet; what quick.music says still wins', async () => {
+    const { runSteps } = await import('./index.js');
+    const { quickWorld } = await import('./quick.js');
+    const level = (W) => runSteps(W, { ref: 'gw' }).find((s) => s.key.startsWith('level-')).order.manifest;
+    expect(level(quickWorld({ id: 'qm', quick: { goal: 'reach' } })).audio).toBeUndefined();
+    const scored = level({ ...quickWorld({ id: 'qm', quick: { goal: 'reach' } }), music: { cues: {} } });
+    expect(scored.audio?.soundtrack?.score?.mood ?? null).not.toBeNull();
+    const said = level({ ...quickWorld({ id: 'qm', quick: { goal: 'reach', music: 'tavern' } }), music: {} });
+    expect(said.audio.soundtrack.score.mood).toBe('tavern');
+  });
+});
