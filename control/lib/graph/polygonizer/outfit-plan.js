@@ -424,7 +424,7 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none', material }) {
     ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: on('foreArm'), run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p), ...sleeveLie }] : [])];
   const trim = trimOf(p, B, G, { hem: B.names.has('pelvis') ? `${id}Skirt_skirt` : null, cuffs: sleeves.length && B.names.has('foreArm') ? [`${id}Cuff_foreArmR`, `${id}Cuff_foreArmL`] : [], bodice: `${id}Bodice_torso` });
   return {
-    garments: [{ id: `${id}Bodice`, part: on('torso'), ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B) }, ...sleeves,
+    garments: [{ id: `${id}Bodice`, part: on('torso'), ease: r3(e), proportional: ref, dense: true, group: G(p), ...lieOf(B), ...shoulderOf(B, sleeves.length > 0) }, ...sleeves,
       ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p), ...clothOf(p, material) }] : []),
       ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6), material)],
     ...trim,
@@ -436,6 +436,9 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none', material }) {
  * `lie`); laws 1 stood a roll at each of its rings from the waist to the shoulders */
 const BLOUSE_BAND = 0.07;
 const lieOf = (B) => (B.laws >= 2 && B.waist != null ? { lie: r3(B.ringAt(B.torso, B.waist + BLOUSE_BAND * B.k).s) } : {});
+/** THE SHOULDER UNDER A BODICE (outfit laws 2, on a body with shoulder forms, the tiered body's): its cloth carried over
+ * the shoulder into the sleeve's head, or to an armhole on the shoulder point (body-garment.js `shoulder`, layShoulders) */
+const shoulderOf = (B, sleeved) => (B.laws >= 2 && B.names.has('shoulderCone') ? { shoulder: sleeved ? 'sleeved' : 'sleeveless' } : {});
 /** A MANTLE (outfit laws 2): a short cape hung from the neck's root over the shoulders and the arms' tops to `drop` (m, at
  * the body's scale) below the shoulder line, round the whole figure but a slit at the front (`open`, degrees each side),
  * over everything worn there (the garment kernel's `fit: 'cape'`); closed at the throat by a round CLASP in the trim's

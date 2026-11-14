@@ -192,3 +192,20 @@ sleeves, the hood).
 - **A skirt's hem binding lies on its hem.** Under outfit laws 2 a robe's, a gown's or a tunic's `trim.hem: 'binding'`
   is painted on the skirt's last outer band. Before, it was painted on the last share of every ring, the turn-up inside
   counted, so it showed as a band at the waist. Laws 1 keep their band.
+- **The shoulder under cloth (the tiered body).** A top worn on the game body ended in a flat shelf at the shoulders,
+  and the body's own shoulder forms (the ball, its cone and its web, painted as the shirt) stood over it as balls: at a
+  sleeveless tunic's armholes, through a cloak at the side and the back, beside a robe's sleeve. Under outfit laws 2
+  every piece on the trunk (the cut's shirt, coat and waistcoat, a robe's, a gown's or a tunic's bodice) names its
+  `shoulder`, sleeved or sleeveless (`body-garment.js`), and on a body with shoulder forms:
+  - the forms are laid under the shoulder's line, from the neck's root down to the shoulder point and rounding over the
+    arm's root; they keep their weights, so they move as before, under the cloth;
+  - the piece's cloth runs on over them as pieces of its own, copies of the forms that skin as they do: over the
+    trapezius from inside the neck to the shoulder point, then into the sleeve's head when sleeved, or ending there as
+    the armhole's edge when not;
+  - each layer stands off the cloth another layer wears there, so a shirt's shoulder lies inside a sleeveless tunic's,
+    and a cloak, a mantle or a hood hangs over it.
+  On the round, low-poly, chamfer, box and anime bodies the shirt's shoulders stood 3–5 cm over the over-garment's top;
+  they now lie inside it, and the outline's rise at the shoulder (the ball on the shelf) went from about 2.5 cm to a few
+  millimetres. With the arm raised, a shirt's sleeve head still comes up through a sleeveless armhole with the arm.
+  Still open: the bodice's front still turns into its top at a level line across the upper chest, and the peasant's
+  tunic is still boxy below the shoulders. Outfit laws 1 and the realistic body are unchanged.

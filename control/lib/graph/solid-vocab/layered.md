@@ -166,7 +166,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   bracers …) and their `intent` palette: worn over the cut on the hero's landmarks, a piece with no place on a person's
   body said in `warnings`. A `robe`, `gown` or `tunic` is a bodice on rounded rings and a skirt that is one round hull
   over the hips and legs (`hem`: thigh | knee | shin | ankle, `flare` m per m of fall, `sleeve`: none | long | bell,
-  `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). A `cloak`
+  `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). On the tiered body (outfit laws 2) every top's cloth, the
+  cut's shirt and coat and a piece's bodice alike, runs from its neckline over the shoulder: into its sleeve's head when
+  sleeved, to an armhole on the shoulder point when not, the shoulder's ball and web laid under it, the shirt's shoulder
+  inside a sleeveless tunic's. A `cloak`
   hangs from the shoulders round the back and over the arms to the calf (`wrap` 0.2–0.95 of a turn, 0.6 by default;
   `hem`; `rigidity`, `soft` by default), round where a flat board was, and DRAPES ON THE ARMS: the cloth over an arm
   goes with it, so a swing does not pass through it. A `bow` (`at`: back | collar | wrists; `tails` m; `loops: false`
