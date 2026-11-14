@@ -27,8 +27,8 @@ export const PACKAGES = Object.freeze({
   brawler: { name: 'The brawler from a gameworld: a world that says it is a beat-em-up or a run & gun laid down a belt, its crowd, waves and boss', effort: 'M' },
   // the scrolling screen (11-10): built in the brawler's belt, waiting on the shared camera every group level plays under
   scroll: { name: 'The scrolling screen: the belt\'s camera (on with the players, never back, held at a gate) for every level a group plays', effort: 'M' },
-  // sound (11-10): a quick game says its music and effects, and the SFX shelf is read by the rooms; a designed gameworld
-  // has no sound word, and no level reads the shelf by word
+  // sound (11-10): a quick game says its music and effects, and the SFX shelf is read by the rooms; (11-13) a gameworld's
+  // `sound` lays the sound sheet on every level, the shelf read by word; a designed gameworld's score has no word yet
   sound: { name: 'Sound from a gameworld: a world says its score and its effects, a level reads the SFX shelf by word, the mixer placing each cue', effort: 'M' },
   // the game UI (11-10): the shell, the RPG, the brawler and the fighter run on mana-ui; a level's own HUD does not
   'game-ui': { name: 'The level\'s HUD on mana-ui: the HUD, talk menus, quest log and pause as compositions of the one runtime, so a theme, a language and a headset reach them', effort: 'L' },

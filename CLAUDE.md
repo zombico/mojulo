@@ -364,6 +364,9 @@ Pointers only; each target carries its own design notes.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).
+- Game audio: the play department's sound sheet (which shelf sound plays each thing the game does, `gameworld/sound-sheet.js`,
+  its book `/bible?book=sound`) and the music department's audio direction and cue sheet (the score by request, on one
+  identity: `gameworld/audio-direction.js`, `gameworld/cue-sheet.js`; the recipe's `sound` and `music`): [docs/game-audio.md](docs/game-audio.md).
 - Game sounds: [sfx-shelf/](control/lib/graph/sfx-shelf/) (the SFX library: one row per sound under the words people
   say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
   build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new

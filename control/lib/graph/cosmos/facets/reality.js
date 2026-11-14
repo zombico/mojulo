@@ -80,15 +80,15 @@ export const REALITY = Object.freeze({
         'in-game': { status: 'partial', effort: 'L', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus; a level\'s HUD, its talk menus, quest log and pause are still the page\'s own DOM, so a headset gets them as lines' },
       },
     },
-    // what a game sounds like. A quick game says its music and its effects; a designed gameworld has no sound word of
-    // its own yet, and the SFX shelf (11-08, sfx-shelf/) is read by the rooms, not by a level
+    // what a game sounds like. A quick game says its music and its effects; a gameworld's `sound` (11-13) lays the sound
+    // sheet on every level it builds, the SFX shelf read by word; a designed gameworld has no word for its score yet
     sound: {
       multi: true,
       values: {
         none: { status: 'built', note: 'silent, as a world is until it says otherwise' },
         score: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/score-suggest.js', note: 'a field score by the level\'s place and play, an explore and a combat score crossfaded on the fight (auto), a rhythm run on its beat: a quick game\'s music; a designed gameworld\'s levels have no word for it' },
-        sfx: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/sfx-palettes.js', note: 'action sounds wired to the goal\'s events in the music\'s key, in a palette (arcade, foley, orchestral, synth): a quick game\'s sfx; a designed gameworld\'s levels have no word for it' },
-        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the mount lane and the fighter only: no level reads it by word' },
+        sfx: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/sfx-palettes.js', note: 'action sounds wired to the goal\'s events in the music\'s key, in a palette (arcade, foley, orchestral, synth): a quick game\'s sfx; a designed gameworld\'s levels take the sound sheet (shelf) and no palette' },
+        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the mount lane and the fighter, and by the levels of a game on the sound sheet (a `sound` of its own, or a quick game\'s sfx: sheet): its first weapon, its ground, its doors, a foe spotting the hero; a level\'s guns, rides and its foes\' attacks are not on the sheet yet' },
       },
     },
   },
