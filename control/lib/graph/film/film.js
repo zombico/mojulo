@@ -41,7 +41,7 @@ const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export const FILM_MANUAL = "manual: get_motion_vocab({ id: 'film-studio' })";
 
 /** what a set asked for in words takes: a sentence (a land), or a geocube preset and the kind of place it is laid as */
-export const SET_KEYS = Object.freeze(['words', 'cube', 'show', 'seed', 'hour', 'clouds', 'ref']);
+export const SET_KEYS = Object.freeze(['words', 'cube', 'show', 'seed', 'hour', 'clouds', 'style', 'geotown', 'geocity', 'town', 'ref']);
 /** the world a set is played in: its ref, or the ref of the place its words were made into (null: not made yet) */
 export const setRef = (V) => (typeof V === 'string' ? V : isPlain(V) && typeof V.ref === 'string' && V.ref ? V.ref : null);
 /** what a set asks a geocube for, as that kind's recipe keys (no `ref`: that is the film's) */
@@ -59,6 +59,9 @@ export function setErrors(id, V) {
   if (V.words !== undefined && (typeof V.words !== 'string' || !V.words.trim())) errs.push(`${at}.words: a few words about the place`);
   if (V.cube !== undefined && !(typeof V.cube === 'string' && V.cube) && !isPlain(V.cube)) errs.push(`${at}.cube: a geocube preset's name, or a cube`);
   if (V.show !== undefined && (typeof V.show !== 'string' || !V.show)) errs.push(`${at}.show: how the place is laid (path, trail, town, geotown, geocity, hall)`);
+  // (CONSTRUCTION: what the builders build, and how a town or a city is laid, are the geocube's own keys, read by it)
+  if (V.style !== undefined && !(typeof V.style === 'string' && V.style) && !isPlain(V.style)) errs.push(`${at}.style: what its builders build: a style starter's name (tudor-market, art-deco, bay-and-gable, main-street…), or a style`);
+  for (const k of ['geotown', 'geocity', 'town']) if (V[k] !== undefined && !isPlain(V[k])) errs.push(`${at}.${k}: how the ${k === 'town' ? 'town' : k === 'geotown' ? 'neighbourhood' : 'city'} is laid (the geocube's own ${k} keys)`);
   if (V.seed !== undefined && !Number.isInteger(V.seed)) errs.push(`${at}.seed: a whole number (the same words and seed are the same place)`);
   if (V.ref !== undefined && (typeof V.ref !== 'string' || !V.ref)) errs.push(`${at}.ref: the ref of the place the film made (the film writes it)`);
   return errs;

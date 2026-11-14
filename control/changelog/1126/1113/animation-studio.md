@@ -149,6 +149,12 @@ game.
     model (a street's trees, its parked cars) is now lit like the rest of the place, and casts its shadow. Before,
     those kept their own flat colour whatever the light, so at night they glowed white against a dark street.
   - **Not yet:** weather (cloud, rain), and street lamps that a place lights only at night.
+- **The film suggests where a scene should be.** A scene with no place plays on a bare stage. When its words name
+  one, the film now suggests it, ready to accept: a street of houses for "outside her house", a city for "a street
+  corner downtown", a landscape in the scene's own words for "a field by a lake", and the time of day it mentions.
+  For an ordered cutscene it reads the notes on each event, so an order can arrive with no places at all.
+- **Choose how a street is built.** A place asked for as a town or city can name its building style (a Tudor market
+  town, art deco, brutalist, a brick streetcar suburb and others) and how its streets are laid.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
   notes on what happens in each event.

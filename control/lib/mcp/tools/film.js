@@ -68,7 +68,7 @@ function setsOf(F, getRow) {
   return Object.entries(F.sets ?? {}).map(([id, V]) => {
     const ref = setRef(V), M = ref ? getRow(ref)?.manifest : null, B = M?.brief;
     return {
-      id, ref, ...(M ? { kind: M.kind, ...(M.show ? { show: M.show } : {}) } : {}),
+      id, ref, ...(M ? { kind: M.kind, ...(M.show ? { show: M.show } : {}), ...(M.style !== undefined ? { style: typeof M.style === 'string' ? M.style : M.style?.from ?? 'its own' } : {}) } : {}),
       ...(typeof V === 'object' ? { asked: V.words ?? `${typeof V.cube === 'string' ? V.cube : 'a cube'} as ${V.show ?? 'a place'}` } : {}),
       ...(B && typeof V === 'object' && V.words !== undefined ? { read: (B.read ?? []).map((r) => r.word), unread: B.unread ?? [] } : {}),
     };

@@ -324,6 +324,13 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   another changes the same world in place (`updateSketchHandler`). `sceneScreenplay` plays the scene on that ref. The
   readout's `sets` carries the geocube's own `brief` (what its words read, which nothing read); an unread word is
   advised as `words-unread` in the set department. An order's `places` take the same.
+- **The set department's jobs** (`film/location.js`, `film/readout.js`, `film/film.js` `SET_KEYS`). LOCATION:
+  `proposeLocation(text)` reads a scene's words (an order's event notes, else its script) by two small tables
+  (`SHOW_WORDS`: what asks for a neighbourhood or a metro; `LAND_HINTS`: land words the geocube's table does not
+  read) and the geocube's own (`sceneOfWords`), and gives a set ask, the hour and the words that decided. A scene
+  with no set whose words name a place is advised `no-set` with the patch that takes the proposal. CONSTRUCTION: a
+  set ask carries the geocube's `style`, `geotown`, `geocity` and `town` to the geocube as given; the readout's
+  `sets` says the style. DRESSING: a prop's `thing` (above).
 - **A film made to order** (`film/order.js`, the door's `order`, `deliver` and `ordered_by`): a client studio's
   characters, places and event notes written as a film (`filmOfOrder`), the brief kept in the recipe's `order`. An
   event with notes and no script holds the notes in its scene (`draftScript`) and reads `unwritten`, advised in the

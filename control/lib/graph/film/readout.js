@@ -18,6 +18,7 @@
 import { DEPARTMENTS, ADVICE_HOME, departmentWaves, departmentStates } from './departments.js';
 import { sceneOrder, sceneStamp } from './film.js';
 import { orderReadout, isDraft } from './order.js';
+import { proposeLocation } from './location.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -50,6 +51,16 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, 
   });
   // (a film made to order: an event the client gave as notes only still plays its holding screenplay)
   for (const E of F.order?.events ?? []) if (isDraft(F, E.id)) advice.push({ id: 'unwritten', scene: E.id, says: `scene ${E.id} is not written yet. The client's notes: ${E.notes}`, try: `write its screenplay from the notes: film: { ref, patch: [{ op: 'set', path: '/scenes/${F.scenes.findIndex((s) => s.id === E.id)}/script', value: 'NAME: the line …' }] }` });
+  // THE SET DEPARTMENT'S LOCATION JOB (film/location.js): a scene with no set plays on a bare stage; where its words
+  // name a place (a client's notes on the event, else its script), the place is proposed, with the hour they name
+  F.scenes.forEach((S, i) => {
+    if (S.set !== undefined) return;
+    const P = proposeLocation(F.order?.events?.find((e) => e.id === S.id)?.notes ?? S.script);
+    if (!P) return;
+    const id = Object.hasOwn(F.sets ?? {}, S.id) ? `${S.id}-set` : S.id;
+    const patch = [{ op: 'set', path: `/sets/${id}`, value: P.ask }, { op: 'set', path: `/scenes/${i}/set`, value: id }, ...(P.hour && S.hour === undefined ? [{ op: 'set', path: `/scenes/${i}/hour`, value: P.hour }] : [])];
+    advice.push({ id: 'no-set', scene: S.id, says: `scene ${S.id} has no set and plays on a bare stage. Its words (${P.from.join(', ')}) ask for ${P.kind === 'geotown' ? 'a street of houses' : P.kind === 'geocity' ? 'a city' : 'a land'}${P.hour && S.hour === undefined ? `, at ${P.hour}` : ''}`, try: `film: { ref, patch: ${JSON.stringify(patch)} }`, proposal: P });
+  });
   // (a set asked for in words: a word nothing read is said, with what was read, so the words can be mended)
   for (const T of sets ?? []) if (T.unread?.length) advice.push({ id: 'words-unread', set: T.id, says: `the set ${T.id} did not read: ${T.unread.join(', ')} (it read: ${T.read.join(', ') || 'nothing'})`, try: `say it in words a place is made of (the land, what grows, the water, the sky, the hour), or dress the scene with it: film: { ref, patch: [{ op: 'set', path: '/sets/${T.id}/words', value: '…' }] }` });
   // (the cast: a part with no body plays the default hero; a part no scene names)
