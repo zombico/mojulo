@@ -218,6 +218,9 @@ import { readSportConcept, sportTeams } from './sport-concept.js';
 import { SIDE_KITS as BROADCAST_SIDE_KITS } from '../broadcast/broadcast-package.js';
 import { readArena } from '../versus/versus-arena.js';
 import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-levels.js';
+import { brawlLevel, readBrawlLevel } from '../brawl/brawl-levels.js';
+import { readStreet } from '../brawl/brawl-street.js';
+import { CPU_LEVELS } from '../versus/versus-cpu.js';
 import { settingOfGame } from './cast-setting.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 import { SCENARIOS } from '../worksim/scenarios.js';
@@ -241,6 +244,7 @@ export const QUICK_GOALS = Object.freeze({
   work: 'a work shift by the start: take from the crates, work the stations by standing at them (E), take off what cooks or grows alone before it burns, shelve what waits, hand in the orders: serve enough by the bell. A kitchen, a farm, a building site, a roof\'s leaves, or a card of your own, tuned to a challenge',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   fight: 'a 1v1 fighter from the side, every fighter a character the character loop designs: roster, arenas, rounds, timer, rules',
+  brawl: 'a beat \'em up from the side, on the brawler\'s own kit (the chain, the strong blows, grabs and throws, the running blow): a street walked along and across, its screens held until their crowd is beaten, a boss at the end; every player a character the character loop designs: roster, streets',
   meet: 'an athletic meet in an arena (the contest kernel the referee): a sprint, the hurdles or the long jump in lanes, up to four local players on one keyboard, the rest the computer\'s; the gun, a false start, the clock or the measure, the placings',
   tabletop: 'a board game lifted into a hologram arena, the tabletop kernel the referee: chess, checkers or a game of moves written out, its pieces summoned as holograms, a capture an attack and a piece destroyed, the life points on the overlay; you against the computer, hot-seat, or an exhibition',
   contest: 'a sport in an arena, the contest kernel the referee: a net game on two pads, a turn sport hot-seat on one, a team goal game on two, a bat-and-ball game on two; the computer takes what nobody holds; an arcade card\'s variant is its modules\' words, a rulebook beyond them written out (the distilled-rulebook catalyst)',
@@ -284,7 +288,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -593,10 +597,12 @@ export function readQuick(Q) {
   if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
-  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
+  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && !(Q.goal === 'brawl' && k === 'roster') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
+  if (Q.streets !== undefined && Q.goal !== 'brawl') throw fail('.streets belongs to the brawl goal');
   if (Q.goal === 'fight') readFight(Q);
+  if (Q.goal === 'brawl') readBrawl(Q);
   // (a fight's register is its own word: its one look, versus-levels.js FIGHT_REGISTERS)
-  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && !(Q.goal === 'fight' && k === 'register') && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && !((Q.goal === 'fight' || Q.goal === 'brawl') && k === 'register') && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
   for (const k of ['game', 'human', 'lift']) if (Q.goal !== 'tabletop' && Q[k] !== undefined) throw fail(`.${k} belongs to the tabletop goal`);
   if (Q.venue !== undefined && !['meet', 'contest', 'tabletop'].includes(Q.goal)) throw fail('.venue belongs to the meet, contest and tabletop goals (the stadium round the arena)');
   if (Q.goal === 'meet' || Q.goal === 'contest') readSport(Q);
@@ -779,6 +785,54 @@ export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
   const m = holoManifest({ ...pick(Q, ['game', 'human', 'players', 'level']), seed, ...(title ? { title } : {}), ...(venue ? { venue } : {}), ...(ui ? { ui } : {}) });
   const contract = { levelRef: 'holo', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the duel' } };
   return [{ id: 'arena', name: m.title, manifest: { ...m, game: contract } }];
+}
+
+// A BRAWL (lib/graph/brawl): a beat 'em up, its own simulation over the fight's fighters. Its roster is the fight's (each
+// a character); its STREETS are its levels, each a brawl level (brawl-levels.js: a greybox street, a stage on a kit)
+// with the waves that hold its screens (brawl-crowd.js: a crowd by type, a boss on the boss's screen).
+const BRAWL_KEYS = ['goal', 'roster', 'streets', 'register', 'theme', 'camera', 'screen'];
+export const BRAWL_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'greybox', preset: 'street' }) });
+/** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, a knife
+ * among them from the second; the boss's screen its boss (a grappler on the fight's easiest mind) with two beside it. */
+export function defaultWaves(belt) {
+  const out = [];
+  let k = 0;
+  belt.screens.forEach((sc, screen) => {
+    if (sc.boss) out.push({ screen, crowd: [{ type: 'thug', n: 2 }], boss: { recipe: { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'The Boss' }, plays: ['chain', 'strong'], cpu: Object.keys(CPU_LEVELS)[0], hp: 400 } });
+    else if (sc.gate) { out.push({ screen, crowd: [{ type: 'thug', n: 3 + k }, ...(k ? [{ type: 'knife', n: k }] : [])] }); k++; }
+  });
+  return out;
+}
+/** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
+ * the hosted level's contract, so the play shell runs them one after another. */
+export function brawlStreets(Q, { title, roster } = {}) {
+  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves }) => {
+    const L = level ?? BRAWL_STREET.level, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
+    const belt = brawlLevel(L, { title: t }).brawl.belt;
+    const street = { players: [0], waves: waves ?? defaultWaves(belt), ...(roster ? { roster } : {}) };
+    readStreet(street, belt, `streets.${id}`);
+    const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
+    return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
+  });
+}
+function readBrawl(Q) {
+  for (const k of Object.keys(Q)) if (!BRAWL_KEYS.includes(k)) throw fail(`.${k}: a brawl takes ${BRAWL_KEYS.join(', ')} (its players are its roster, its levels its streets)`);
+  if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.brawl is seen from the side (camera side)');
+  if (Q.register !== undefined && !FIGHT_REGISTERS.includes(Q.register)) throw fail(`.register is the game's one look: ${FIGHT_REGISTERS.join(' (cel) | ')} (lit)`);
+  // (its roster is the fight's, read as the fight reads it)
+  if (Q.roster !== undefined) readFight({ goal: 'fight', roster: Q.roster });
+  if (Q.streets !== undefined) {
+    if (!Array.isArray(Q.streets) || Q.streets.length < 1 || Q.streets.length > 8) throw fail('.streets is 1 to 8 streets { id, name?, level?: { kind, … }, waves?: [{ screen, crowd: [{ type, n }], boss? }] }');
+    const ids = new Set();
+    Q.streets.forEach((s, i) => {
+      if (!isObj(s) || typeof s.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(s.id)) throw fail(`.streets[${i}] needs an id (a short lower-case name)`);
+      if (ids.has(s.id)) throw fail(`.streets[${i}].id '${s.id}' is taken`);
+      ids.add(s.id);
+      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves)`);
+      if (s.level !== undefined) { try { readBrawlLevel(s.level); } catch (e) { throw fail(`.streets[${i}].level: ${e.message.replace(/^brawl: /, '')}`); } }
+    });
+  }
+  try { brawlStreets(Q); } catch (e) { throw fail(`.${e.message.replace(/^brawl: /, '')}`); }
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)

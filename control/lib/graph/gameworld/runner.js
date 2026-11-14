@@ -61,7 +61,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -878,7 +878,8 @@ function sportLaws(Q, A, manifest) {
 function quickSteps(world, G, ref, lookup) {
   const Q = world.quick, steps = [];
   // a fight is its own simulation (versus/): one game row, its roster solved where it plays
-  if (Q.goal === 'fight') {
+  // (a BRAWL's players are made the same way: the fight's roster; its levels its streets, in the play shell)
+  if (Q.goal === 'fight' || Q.goal === 'brawl') {
     // every fighter a character: a sheet (an egocube) made into one through the character loop, or one already made;
     // then each arena a stage world the fight runs on (a level), then the game that picks among them
     const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
@@ -904,6 +905,16 @@ function quickSteps(world, G, ref, lookup) {
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
       steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
       roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
+    }
+    if (Q.goal === 'brawl') {
+      // each street a level the brawl is fought down (quick.js brawlStreets: a brawl level with its waves and the hosted
+      // level's contract), then the game that runs them one after another in the play shell, its screens the game UI
+      // runtime's in the brawler's look unless the world says its own
+      const streets = brawlStreets(Q, { title, roster }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
+      const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));
+      const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-yard') };
+      const game = { title, store: quickStore(Q), levels: streets.map((s) => ({ ref: s.ref, title: s.name })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
+      return [...steps, ...lv, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
     }
     const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));

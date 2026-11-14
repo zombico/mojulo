@@ -30,6 +30,10 @@ import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
 import { streetScreenOf, readStreet } from './brawl-street.js';
+import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+
+// the level wire a street hosted in a game's shell speaks (the shell's own handshake: ready → init → outcome)
+export const STREET_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -122,7 +126,7 @@ export function brawlYardData(block, bodies = null) {
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
       ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
-    ...(ST ? { street: { waves: ST.waves } } : {}),
+    ...(ST ? { street: { waves: ST.waves }, wire: STREET_WIRE } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: ST ? [] : YARD_SETTINGS },
   };
 }

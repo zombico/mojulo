@@ -750,6 +750,17 @@ const QUICK_LEVERS = {
     '  seen from overhead and worked by a mascot unless camera or hero says otherwise (hero: false: first person); the work shown in pips',
     '  its work room: bible?book=practice&room=work (&cast=orb|sprout|toon&feel=<template>): the recipe on the floor, a mascot and a movement from the presets'],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  brawl: () => [
+    '  a beat \'em up from the side, on the brawler\'s own kit (lib/graph/brawl): the chain and its finisher, the strong',
+    '    blows, grabs and throws, the running blow, the desperation; a street walked along and across, its screens held',
+    '    until their crowd is beaten, a boss at the end; its end goes to the game\'s result',
+    '  roster (1..12): every player a CHARACTER, as a fight\'s is: { archetype | brief, style: all-rounder | rushdown |',
+    '    grappler | zoner, weapon? } or { hero: { ref } }; the first plays. Absent: four sheets, one per style',
+    '  streets (1..8): its levels, each { id, name?, level?: { kind: \'greybox\', preset: \'street\' } | { kind: \'stage\',',
+    '    kit }, waves?: [{ screen, crowd: [{ type, n }], boss?: { recipe, plays, cpu, hp? } }] }; a wave holds a gated',
+    '    screen; absent: one greybox street, a crowd a held screen growing, a boss on the last',
+    '  register: anime | western (its one look); sound: the brawler\'s sheet from the SFX shelf, mouth first',
+    '  measure a street before it is played: node scripts/spikes/brawler/street-sim.mjs'],
   fight: () => [
     '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',
     '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',

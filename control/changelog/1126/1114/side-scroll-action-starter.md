@@ -26,7 +26,21 @@ screen) is now played on a page; before, only its practice yard was.
   yard hears the same sheet. A probe reads what was asked for (`window.__mojBrawl.heard`): on a street played
   through, every cue asked for has a sound on the page.
 - `brawl` re-pinned: the one fixture whose page inlines the brawl's client.
+- A world that is a brawler: the quick goal `brawl` (`design_game({ quick: { goal: 'brawl', roster?, streets?, register? } })`).
+  Its players are made as a fight's are (each a character through the character loop; the first plays), its streets
+  are its levels (`quick.js` brawlStreets: a brawl level with its waves, and the hosted level's contract), and the
+  game runs them in the play shell, its screens the game UI runtime's in the brawler's look unless the world says
+  its own. Unsaid, one greybox street: a crowd a held screen, each a body more than the last, a knife among them from
+  the second, a boss on the boss's screen. The agent's card for the goal says its levers; the character roll has a
+  `brawl` genre (street fighters, never a bystander).
+- A street in a game's shell: it says it is ready, takes the keyboard's focus as it starts, and sends its end up the
+  level wire (cleared or down, the seconds and the health kept) in place of its own end screen, so the shell shows
+  the result and what comes next. The greybox kind takes the level's contract (`game`).
+- Through the doors and Chrome (`scripts/spikes/brawler/game.mjs`): design_game makes the player's character, the
+  street and the game; export_game writes it; in the shell the title starts the street, the keyboard plays it, a
+  masher beaten on its second screen is shown the shell's FAILED with try again, and a street cleared its CLEARED
+  with the time and the health; no page errors.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
-- Not yet: a world that is a brawler in `design_game` (a level kind, the shell and its result, export), characters
-  of the world's own in place of the stick figures, the street's dress, lives and continues, two players checked on
-  a page.
+- Not yet: the crowd as a world's own bestiary (it is the library's thugs, stick figures), the street's dress (the
+  stage kits), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed
+  (non-quick) world.

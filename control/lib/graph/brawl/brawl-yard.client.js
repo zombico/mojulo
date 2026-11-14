@@ -862,7 +862,24 @@ function streetScreen() {
   if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
   Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: R.boss });
   if (!over) S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
-  if (!over && (R.won || R.lost)) { over = R.won ? 'won' : 'lost'; UI.rt.open(over); UI.view.paint(); }
+  if (!over && (R.won || R.lost)) {
+    over = R.won ? 'won' : 'lost';
+    // (in a game's shell the street's end is the shell's: the outcome goes up the wire, with what the street kept, and
+    // the shell shows what comes next; on its own page the street shows its own end)
+    if (HOSTED) window.parent.postMessage({ moj: BY.wire.outcome, envelope: { contractVersion: BY.wire.version, levelRef: 'street', result: R.won ? 'success' : 'fail', events: [], stats: { street: { cleared: R.cleared, of: R.of, seconds: secs, health: R.hp, healthOf: R.hpMax }, kept: [{ label: 'time', value: secs, unit: ' s', best: 'low' }, { label: 'health', value: R.hp, best: 'high' }] } } }, '*');
+    else { UI.rt.open(over); UI.view.paint(); }
+  }
+}
+// A STREET IN A GAME'S SHELL: it says it is ready, and begins again from its start when the shell says go (a retry is a
+// new session of the same page)
+const HOSTED = !!(STREET && BY.wire && window.parent !== window);
+if (HOSTED) {
+  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version && over) build(); });
+  window.parent.postMessage({ moj: BY.wire.ready, contractVersion: BY.wire.version, levelRef: 'street' }, '*');
+  // (the keys are read in this frame: it takes the focus as it starts and whenever it is pressed on, so a player who
+  // started the game on the shell's screen plays without a click)
+  const take = () => { try { window.focus(); } catch (e) { /* a frame that may not */ } };
+  take(); window.addEventListener('pointerdown', take); window.addEventListener('message', take);
 }
 
 build();
