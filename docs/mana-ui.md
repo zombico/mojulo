@@ -807,6 +807,31 @@ default; `tabletop: { …, ui: { theme?, languages?, language? } }` names anothe
 - **The look** is `tableUiTheme`: the game's, else `table-wood` or `table-felt`, its sides the broadcast's kits.
 - A round game played on a board still draws its own panel.
 
+### The practice rooms' menu
+
+The work room and the game room (the practice door's `work` and `room`) put their readout and their choices on
+mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by the page.
+
+- **It is the game shell's pause, kept on the page.** The pilot scheme's `pause` (its keys and its pad button, read
+  from `controls/schemes.js`) opens it. The scene is held on the shell's own sidecar (`MSG_PAUSE`: the sim and its
+  clocks frozen), and it answers with its live control rows, which the controls screen lists. The foes are woken on the
+  shell's AI switch (`MSG_AI`), the path the pilot's own `aiToggle` takes. It opens as the page loads, as the room's
+  briefing, over the held room.
+- **The screen keeps to the game.** What the page once explained on the screen (the keys, how the work runs, how to
+  read the floor) is the menu's How to play, a tutorial in tabs, each key a `prompt` in the glyph of the device in hand.
+  In play, the screen shows the counters, the use prompt and one chip in the corner that names the menu's key.
+- **The screens:** `pause-menu` (resume, how to play, the room, set up, controls); the room, its readout in tabs; set up, the
+  movement, the worker, the dress and the area as cyclers and the foes as a switch, the room reopened with them (the
+  studio's query, so a page saved to disk says it cannot); controls.
+- **The hint line** at the page's foot names each action by the key the scheme binds it to (`practiceLegend`).
+- **Input** is mana-host's while a screen is up; with none up, play has it, and only the pause opens the menu.
+- **The look** is the shift family's card for where the room stands (`theme-cards/shift-*.json`: a kitchen, a farm, a
+  site, a garden, a hall; `shift` itself for the plane). It is a couch co-op work sim's look: chunky order tickets on
+  paper over a slab offset in the accent, rounded faces, a heavy outline, and the floor's own two colours as the accents
+  (shovel work warm, bucket work cool), each trade tinting them. It bounces in and never slams. The play around the menu
+  takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
+  and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by
@@ -875,6 +900,79 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
   `data-world`). In a headset such anchors leave the panel and stand over their points instead: the view's anchors are
   laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
   the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
+
+### Pictograms
+
+`icons.js` holds the pictures a UI says things with in place of words: a coin, a heart, a clock, a lock, a gesture.
+Each is one outline on a 24 grid. A theme's `icons` word is the style they are all drawn in (`solid`, `line`,
+`chunky`, `badge`, `duo`; `none`, the default, keeps a name's initials), so a look changes its pictograms as it
+changes its frames. Nothing is loaded: the theme's sheet carries each as a mask, cut out of the ink of the words
+beside it. The runtime only names one (`data-icon` on an `icon`, a counter's `icon`, a prompt's glyph); a game's other
+words for it (`coins`, `time`, `hp`) are aliases in the library.
+
+A theme dresses them further. `icons` has eight styles: `solid`, `line`, `chunky`, `badge`, `duo`, `sketch` (drawn by
+hand), `stencil` (cut and sprayed) and `glow` (a lit tube). `iconTone: 'meaning'` colours each by what it means in the
+theme's own tokens (a heart the health's, a bolt the stamina's, a skull the harm's, what is won the accent). A badge's
+plate takes the theme's corner. `iconSwap` gives a look its own picture for a word (`{ coin: 'ticket' }`).
+
+### Stages: a show, not one pattern
+
+A theme's `stage` is the shape behind everything a screen holds. Beside the calm ones (`band`, `stripes`, `rings`,
+`shards`) the lively ones are `burst`, `chevrons`, `dots`, `confetti`, `tunnel`, `streaks` and `zigzag`: each a
+different kind of energy. A `stage` written as a list is a show, so a game's screens do not all wear one pattern:
+the title takes the first, a screen in the middle (a pause, a menu) the second, a full screen (loading) the third, a
+result the fourth, a count over the play the fifth; a short list goes round again and `none` leaves a kind bare.
+
+### A running game's shell and HUD
+
+A game of obstacle courses (`docs/course-dress-principles.md`) has its screens drawn here without asking: its
+title with the run's rules and best, its pause (the pause menu, the level's controls), a moment as a map is cleared,
+a loading screen that says which map is next, and a result with the map, the seconds, the coins and a rank. In play
+its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
+look the course's dress names (`toybox`, the toy family's first card).
+
+### Layout that adapts
+
+The frame a view is drawn in is state. A mount measures its own box, and measures it again when it changes (a phone
+turned, a window dragged); a host with no DOM says its own (`host.frame`, `rt.frame({ w, h, hand })`); unsaid, it is a
+desk at 1920 by 1080. A spec branches on it with a binding of its own, in any `when` or `unless`:
+
+| `{ frame: … }` | is true when |
+|---|---|
+| `portrait` / `landscape` | the frame is taller than wide / not |
+| `narrow` | it is under 640 wide (where splits already stack) |
+| `short` | it is under 420 high |
+| `hand` | the pointer is a finger |
+
+So one composition holds its wide and its tall layouts, and the frame says which stands; nothing is decided when
+the page is emitted. A row says what it does when it runs out of width with `fit` on its `stack`: `wrap` onto a
+second line, or `stack` as a column in a narrow frame (`fixed`, the default, writes nothing). The runner's HUD is
+laid this way: its corners in a wide frame, one plate in the top's middle in a tall one. Not yet live: a theme's
+`distance` (how large a unit is) is still chosen when the page is emitted.
+
+### One HUD for every level
+
+A world that says a `ui` has its levels' own HUD rows drawn here too. The level keeps writing the widget language it
+always wrote (`events.hud`: readouts, bars, counters, clocks, banners, toasts, legends); `game/hud-mana.js` lowers
+those rows to one composition, and the page's HUD host (`scene/channels/mana-hud.js`) draws it in the game's look,
+reading the level's bus each frame. So a level's readouts, its moments and the game's menus are one look.
+
+| a row | is drawn as |
+|---|---|
+| readout `text` | `stat` |
+| readout `counter` | `counter`, with its label's pictogram where the icon shelf has one |
+| readout `bar` | `bar`, its meaning read off its name (hp, mp, xp, stamina, shield, boss) |
+| readout `clock` | `timer` |
+| banner | a moment: one on screen at a time, by weight |
+| toast | a line of its slot's feed, gone after its ttl |
+| legend | words in its slot, for its ttl |
+| title | the carved letters, as before (`game/title-carve.js`) |
+
+A row's `id` and `when` gate it as they did. The pilot's own gauges (its health, its sprint) lead the top-left corner,
+read off the runtime; the runtime's own gauges and the old widget columns are hidden, not removed. A row's colour is
+not carried: the theme owns the look. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
+(`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
+same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
 
 ## What is next
 

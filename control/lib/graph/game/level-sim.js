@@ -4,7 +4,10 @@
  * timers and sagas run, the character intents it queued reach the world, then the world steps. For laws that play a
  * level through (a defence held, a race run) where the page would take minutes and a hidden tab barely ticks.
  *
- *   simLevel({ entities, events, colliders?, camera? }, { ground?, surface?, beat?, powers? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
+ *   simLevel({ entities, events, colliders?, camera?, roll?, world? }, { ground?, surface?, beat?, powers?, seed? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
+ *     `roll`, `seed`: a level's roll (payload.roll) applied as the page applies it at its start, by the session's seed
+ *     `world`: the page's world options (WORLD_OPTIONS: the lock, the minds' tuning, a match…), as a payload carries
+ *     them; absent, the world has none of them
  *     `beat`: { every, lead } (audio.beat): the music's pulse on the bus from the level's own clock, as the page says it
  *     from its music's (beats/beat-clock.js); absent, no beat
  *     `at`: { <second>: [events] } pushed into the frame that reaches that time (an interact press: { type: 'use-<id>' })
@@ -23,21 +26,41 @@
  * zero dt would not do, stepWorld reads it as 1/60), from the step right after the bus that opened it, and the next
  * frame's clock is 0 for the bus's timers and sagas.
  *
+ * STATS (events.stats, play.stats: playscape/stats/kernel.js) run as the page runs them (channels/events.js __watchFix):
+ * in each pass of the watch loop the stats kernel takes its ops off the bus's queue before the watches are read, and the
+ * stats bound to bodies (the hero's hp, its speed) reach the world before the bus's intents do. Absent, nothing of it.
+ *
  * Deterministic: a fixed dt (1/30 s), the bus's own content order, the world's seeded rules.
  */
 import { composeLive } from '../worlds/controllable/compose.js';
 import { buildBus } from '../worlds/event-bus.js';
 import { beatsDue } from '../beats/beat-clock.js';
 import { buildSceneRunner } from '../playscape/ui/scene-runner.js';
+import { stepStats, applyStatBodies } from '../playscape/stats/kernel.js';
 
 let E = null;
 const B = buildBus();
 
-export function simLevel({ entities = [], events = {}, colliders, camera } = {}, { ground = () => 0, surface = null, beat = null, powers = null } = {}) {
+/** A roll's picks for a seed (worlds/controllable/roll.js rollOf), for a reader that needs them before a world is made. */
+export function rollOf(roll, seed = 1) { E ??= composeLive(); return E.rollOf(roll, seed); }
+
+// the world's own options the page hands its runtime beside the entities (channels/controllable createWorld): the lock,
+// the minds' tuning, a match, the seats, the tempo, the knock. (rupa's ground and the vayo air need more than the world:
+// not carried.)
+export const WORLD_OPTIONS = Object.freeze(['pilot', 'spectate', 'seats', 'ai', 'breakables', 'match', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'runner', 'tempo', 'knock']);
+
+export function simLevel({ entities = [], events = {}, colliders, camera, roll, world: options = null } = {}, { ground = () => 0, surface = null, beat = null, powers = null, seed = 1 } = {}) {
   E ??= composeLive();
   // the page's camera (payload.camera: { rule, target, … }), stepped last as the page steps it; a key never carries it
-  const world = E.createWorld({ entities, ...(colliders ? { colliders } : {}), ...(camera && typeof camera.rule === 'string' ? { camera } : {}) });
+  const own = options ? Object.fromEntries(WORLD_OPTIONS.filter((k) => options[k] != null && options[k] !== false).map((k) => [k, options[k]])) : {};
+  const world = E.createWorld({ entities, ...(colliders ? { colliders } : {}), ...(camera && typeof camera.rule === 'string' ? { camera } : {}), ...(roll ? { roll } : {}), ...own });
+  // a level's ROLL (worlds/controllable/roll.js), as the page applies it at its start: `seed` the session's (1: the reference roll)
+  const rolled = roll ? E.applyRoll(world, seed) : null;
   const bus = B.createBusState(events, events.entities);
+  // the items the roll left out (the page's __mojUnlay): their zones are no source and their markers are off
+  const unlaid = rolled && rolled.unlaid.length ? new Set(rolled.unlaid) : null;
+  const sources = unlaid ? (events.sources || []).filter((s) => !(s && s.type === 'zone' && unlaid.has(s.zone))) : events.sources;
+  if (unlaid) for (const e of bus.entities) if (unlaid.has(e.id)) e.on = false;
   const hooks = { ground, ...(surface ? { surface } : {}) };
   let zonePrev, castPrev, t = 0;
   const pulse = beat && beat.every > 0 ? { n: 0 } : null;
@@ -60,7 +83,18 @@ export function simLevel({ entities = [], events = {}, colliders, camera } = {},
     }
   };
   const process = (list) => { const n0 = bus.log.length; B.processEvents(bus, list); grant(n0); };
-  const pump = (list) => {
+  const stats = events.stats && typeof events.stats === 'object' ? events.stats : null;
+  // (the page's watch loop: with stats, each pass the kernel's ops first, then the watches, to a fixed point)
+  const pump = stats ? (list) => {
+    if (list.length) process(list);
+    for (let k = 0; k < 8; k++) {
+      const st = stepStats(stats, bus);
+      if (st.length) process(st);
+      const w = B.watchEvents(bus);
+      if (!w.length && !st.length) break;
+      if (w.length) process(w);
+    }
+  } : (list) => {
     if (list.length) process(list);
     let w = B.watchEvents(bus);
     for (let k = 0; w.length && k < 8; k++) { process(w); w = B.watchEvents(bus); }
@@ -70,12 +104,13 @@ export function simLevel({ entities = [], events = {}, colliders, camera } = {},
     // the beat reads the music, which plays on under a menu: its own clock, never frozen
     const incoming = [...extra, ...(pulse ? beatsDue(pulse, mt + (beat.lead || 0), beat.every) : [])];
     mt += dt;
-    const z = B.deriveZoneEvents(world.entities, zonePrev, events.sources); zonePrev = z.prev; incoming.push(...z.events);
+    const z = B.deriveZoneEvents(world.entities, zonePrev, sources); zonePrev = z.prev; incoming.push(...z.events);
     const c = E.castFacts(world, castPrev); castPrev = c.prev; incoming.push(...c.events);
     pump(incoming);
     const live = frozen ? 0 : dt;
     pump(B.tickTimers(bus, live));
     pump(B.stepTime(bus, live));
+    if (stats) applyStatBodies(bus, world);
     B.syncToCtrl(bus, world.entities, (ops) => E.castOps(world, ops));
     let held = false;
     if (scn) {

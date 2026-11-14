@@ -51,7 +51,7 @@ import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
-import { practiceFor, mountSuggestion, rangeMeasured } from '@/lib/graph/gameworld/practice.js';
+import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
@@ -70,6 +70,7 @@ import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit,
 import { segmentUnits, checkSegment, segmentRemit } from '@/lib/graph/gameworld/segments.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
+import { paintedCast, colourOfGame } from '@/lib/graph/gameworld/colour.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 import { gauntletLaws } from '@/lib/graph/gameworld/gauntlet.js';
@@ -198,10 +199,11 @@ async function realize(step, action) {
     // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so
     // the ref and its history stay
     // (a people foe's body its game puts in its henchmen: the words laid over the sheet's person, gameworld/runner.js)
-    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, title: order.title, ref, ...(order.spec ? { spec: order.spec } : {}) });
+    // (and a kin that stands bare, the wild: its order's `dress`, in place of the adornment the cube gives a kin)
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, title: order.title, ref, ...(order.spec ? { spec: order.spec } : {}), ...(order.dress ? { dress: order.dress } : {}) });
     else {
       const beside = childRef(ref, 'remake');
-      await createCharacterHandler({ egocube: order.egocube, title: order.title, ref: beside, ...(order.spec ? { spec: order.spec } : {}) });
+      await createCharacterHandler({ egocube: order.egocube, title: order.title, ref: beside, ...(order.spec ? { spec: order.spec } : {}), ...(order.dress ? { dress: order.dress } : {}) });
       try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: the fighter remade from its sheet' }); }
       finally { SketchRepository.deleteByRef(beside); }
     }
@@ -221,15 +223,16 @@ async function realize(step, action) {
   }
   if (key === 'game') {
     // the game over the levels: create_game (its levels dry-run and recorded unaudited: the run's audit steps walk them
-    // after, one a step, runner.js auditSteps), its manifest whole in place
-    const { title, store, levels, links, theme, shell, final, hud } = order;
+    // after, one a step, runner.js auditSteps), its manifest whole in place; its flow (what plays when: game/flow.js)
+    // and its front go with it, made or remade
+    const { title, store, levels, links, theme, shell, final, hud, ui, screen, front, run, flow } = order;
     if (action === 'make') {
       await createGameHandler({ ...order, ref });
       return {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(ui ? { ui } : {}), ...(screen ? { screen } : {}), ...(front ? { front } : {}), ...(run ? { run } : {}), ...(flow ? { flow } : {}) } });
     }
     return {};
   }
@@ -523,6 +526,17 @@ function readout(ref, world, context = {}) {
   // gate beside the feel's; a law lost is advised as a feel step
   const rangeM = door.rooms.includes('range') ? rangeMeasured(world) : null;
   if (rangeM?.lost) next.push({ step: 'feel', range: rangeM.worst, card: 'gameworld-feel' });
+  // the roll room measured (roll-room.js: the seeds audit of its yard, the cover forms that stop this hero, before any
+  // level): a law lost, or a hero no form of cover stops, is advised; never a refusal
+  const rollM = door.rooms.includes('roll') ? rollMeasured(world) : null;
+  if (rollM?.dress?.lost.length) next.push({ step: 'roll', dress: rollM.dress.theme, lost: rollM.dress.lost, why: 'the course\'s dress loses a law of its own: an ask is read against the way, the walls and the backdrop, told from the other kind and told ahead; the walls and the backdrop recede behind it', sheet: rollM.dress.sheet, card: 'gameworld-course-dress' });
+  if (rollM && (rollM.lost.length || (rollM.forms && !rollM.forms.stops.length))) next.push({ step: 'roll', ...(rollM.lost.length ? { lost: rollM.lost, worst: rollM.worst } : {}), ...(rollM.forms && !rollM.forms.stops.length ? { why: 'no form of cover stops this hero: its feel clears a high wall, so a roll of walls changes little; roll what it cannot go over, or what lies and where it starts' } : {}), card: 'gameworld-roll' });
+  // THE FIRST SLICE: the combat room, then the first level. A hero that fights hand to hand plays its room before any
+  // level is made: said until one is (the creator's to play; its kit tuned on their notes)
+  if (door.rooms.includes('practice') && !Object.keys(world.made ?? {}).some((k) => k.startsWith('level-'))) next.push({ step: 'room', room: 'practice', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=practice`, card: 'gameworld-next' });
+  // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
+  // each block's sketch is its author's, then level design's play layer, block by block
+  for (const [id, L] of Object.entries(world.levels ?? {})) if (L?.glyphs?.plan && L.glyphs.sketch?.scenario && L.glyphs.play === undefined) next.push({ step: 'worldmap', level: id, blocks: L.glyphs.plan.route, req: { unit: `level:${id}`, segments: true }, card: 'gameworld-next' });
   if (mountsSuggest) next.push({ step: 'mounts', suggest: mountsSuggest.suggest, why: mountsSuggest.why, patch: [{ op: 'set', path: '/mounts', value: mountsSuggest.suggest }], card: 'gameworld-mounts' });
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);
@@ -531,6 +545,10 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // ITS COLOUR (gameworld/colour.js): a figure that sinks into the land it stands on is said, with the colour book that
+  // lays out what it is now and the ways it could be oriented, each one a patch (the theorist's aid, the same for any game)
+  const colour = (() => { try { const { kind: _k, ...W } = world; return colourOfGame(readGameworld(W)); } catch { return null; } })();
+  if (colour?.sinks.length) next.push({ step: 'colour', sinks: colour.sinks, book: `/api/sketches/${encodeURIComponent(ref)}/bible?book=colour`, card: 'gameworld-colour' });
   // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
   // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
   const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
@@ -570,7 +588,7 @@ function readout(ref, world, context = {}) {
   // a book that stands on an intent with no ask on the ledger (gameworld/routing.js): said, and the ask leads
   const unasked = askAdvice(world, { asked: GameworldAskRepository.list(ref).length > 0 });
   if (unasked) { advice.intent = [unasked.says]; next.unshift(unasked.next); }
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM ? { measured: { range: rangeM } } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -697,7 +715,11 @@ export async function designGameHandler(input, context = {}) {
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
   // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
   const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
-  const world = withNamedHero(compose !== undefined ? composedWorld(compose) : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
+  // (a composed world's cast is PAINTED against its ground (gameworld/colour.js paintedCast): its palette stamped here,
+  // as the write would stamp it, so the cast is solved against the colours the world is stored with)
+  const painted = compose !== undefined ? paintedCast(stampWorldPalette(stampGeocubes(composedWorld(compose)))) : null;
+  const composed = painted ? (painted.painted.length ? { ...painted.world, brief: { ...painted.world.brief, colour: { ...(painted.world.brief.colour ?? {}), cast: painted.painted } } } : painted.world) : undefined;
+  const world = withNamedHero(compose !== undefined ? composed : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
   const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {
@@ -1301,6 +1323,24 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
     // a check that walks none says why (the plan's findings, the stages the walk cannot prove), never nothing
     if (check === true && !full.audits && full.compile.walk) { const { levels: of, ...why } = full.compile.walk; full.audits = { gate: 'machine', proved: 0, of, ...why }; }
+    // a check plays each fight level through (the playthrough): a level its basic player loses is a `playthrough` step
+    if (run && check === true) {
+      const playthrough = await playReadout(W);
+      if (playthrough) {
+        full.playthrough = playthrough;
+        // (each level's verdict kept in the run's record beside the row it judged, as its opening frame's is: the
+        // world's bible says how each fight level played; a level remade drops it with its record)
+        const kept = playthrough.levels.filter((l) => !l.error && W.made?.[l.level]);
+        if (kept.length) {
+          const made = { ...W.made }, base = W;
+          for (const l of kept) made[l.level] = { ...made[l.level], play: { stored: made[l.level].stored, pass: l.pass, says: [l.basic, l.still] } };
+          W = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), base, { ...W, made });
+          await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+        }
+        const lost = playthrough.levels.filter((l) => !l.pass).map((l) => l.level);
+        if (lost.length) full.next = [...full.next, { step: 'playthrough', lost, card: 'gameworld-next' }];
+      }
+    }
   }
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
@@ -1403,13 +1443,39 @@ async function fightReadout(W) {
   return { fight: { fighters: fighters.map((f) => ({ ...f, laws: stamp[f.id] })) } };
 }
 
+/** THE PLAYTHROUGH (gameworld/playthrough.js), a check's: each made level where foes stand and the hero plays a moveset
+ * (an action game's), resolved as its page resolves it and played by the basic player and the still one. A level passes
+ * when the basic player wins it and the still one does not. Resolving a level is the cost (seconds to minutes), so the
+ * levels are played in order while the run's budget lasts, the first always; the rest are named `unplayed` (the shell's
+ * scripts/playthrough.mjs plays them all). Machine gate only; advice, never a refusal. */
+export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.now } = {}) {
+  const made = Object.entries(W.made ?? {}).filter(([k, v]) => k.startsWith('level-') && v?.ref);
+  const fights = made.map(([key, v]) => ({ key, ref: v.ref, row: SketchRepository.getByRef(v.ref) })).filter(({ row }) => {
+    const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
+    return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
+  });
+  if (!fights.length) return null;
+  const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js');
+  const { playLevel, playthroughSummary } = await import('@/lib/graph/gameworld/playthrough.js');
+  const levels = [], unplayed = [], t0 = clock();
+  for (const { key, row } of fights) {
+    if (levels.length && budgetMs > 0 && clock() - t0 >= budgetMs) { unplayed.push(key); continue; }
+    try {
+      const { payload } = await resolveWorldScene(row);
+      const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });
+      levels.push({ level: key, pass: basic.won && !still.won, basic: playthroughSummary(basic), still: playthroughSummary(still), hitsBy: basic.hitsBy });
+    } catch (e) { levels.push({ level: key, pass: false, error: String(e?.message ?? e).slice(0, 200) }); }
+  }
+  return { gate: 'machine', won: levels.filter((l) => l.pass).length, of: levels.length, levels, ...(unplayed.length ? { unplayed } : {}) };
+}
+
 // readout: 'changed': the parts whose stamp moved since the call began, any other section that differs, and the next
 // moves (always: they are what to do now). A new world has no before, so every part is new.
 function changedOnly(full, prev) {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const prevParts = new Map((prev?.parts ?? []).map((p) => [p.id, p]));
   const out = { ref: full.ref, url: full.url, parts: full.parts.filter((p) => !same(p, prevParts.get(p.id))) };
-  for (const k of ['intent', 'advice', 'numbers', 'steps', 'chapters', 'made', 'audits', 'mode', 'fight']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
+  for (const k of ['intent', 'advice', 'numbers', 'steps', 'chapters', 'made', 'audits', 'mode', 'fight', 'playthrough']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
   return { ...out, next: full.next };
 }
 

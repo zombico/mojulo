@@ -212,7 +212,7 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events0, { fxDay = null } = {}) {
+export function eventsChannelScript(events0, { fxDay = null, rollItems = false } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
@@ -277,7 +277,16 @@ const EVENTS = ${safeJson(titles ? evPage : events)};
 const __BUS = (${buildBus.toString()})();
 const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);${stats ? `
 const __STATS = (${buildStats.toString()})();   // levels, resources, purchases, epochs, tech ranks; scalings on the cast's ops` : ''}
-const __SOURCES = EVENTS.sources || [];
+const __SOURCES = EVENTS.sources || [];${rollItems ? `
+// a level's ROLL may leave some of its pickups out (worlds/controllable/roll.js items): an unlaid one's zone leaves the
+// sources (nothing is found where it would have lain) and its marker is off. Taken at once if the roll came first.
+window.__mojUnlay = function (zones) {
+  const gone = {};
+  for (const z of zones || []) gone[z] = true;
+  for (let k = __SOURCES.length - 1; k >= 0; k--) if (__SOURCES[k] && __SOURCES[k].type === 'zone' && gone[__SOURCES[k].zone]) __SOURCES.splice(k, 1);
+  for (const e of __busState.entities) if (gone[e.id]) e.on = false;
+};
+if (window.__mojUnlaid) window.__mojUnlay(window.__mojUnlaid);` : ''}
 // INPUT as a source (the 4th, beside physics facts / timers / watches): bind key/pointer to a bus
 // event. Listeners push onto a queue drained each frame, so a conceptual world is clickable.
 const __inputQueue = [];

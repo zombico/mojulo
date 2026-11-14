@@ -649,7 +649,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              pelvis part, converged legs) or 'streamlined' (the hero before it)
  *   bare       the torso shown bare (the swimsuit's, hero-dress.js): the structured core adds the navel (CHEST_FORM)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1, seat = true, chest = null } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1, seat = true, chest = null, hands = 1 } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
   const structured = core === 'structured';
@@ -729,7 +729,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   J.toeTip = R(add(J.toeBase, [0, 0.08 * XL, -0.005]));
   // the HANDS: a cast may also carry `hands` (their size beyond the extremities) and `puff` (the digits' and the palm's
   // radial scale: the hero robot's big rounded glove); 1 is exact
-  const handSize = (preset?.hands ?? 1) * (CF?.hands ?? 1), handPuff = (preset?.puff ?? 1) * (CF?.puff ?? 1);
+  // (and the plan's own `hands`: the hands' size over the cast's, the palm and the digits whole with their joints, a kin's
+  // card's word, beast/cards.js; 1 is exact)
+  const handSize = (preset?.hands ?? 1) * (CF?.hands ?? 1) * hands, handPuff = (preset?.puff ?? 1) * (CF?.puff ?? 1);
   J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09 * X * handSize)));
   const joints = Object.fromEntries(Object.entries(J).filter(([k]) => !['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop'].includes(k)));
   Object.assign(joints, { neckHub: J.neckHub, headBase: J.headBase });

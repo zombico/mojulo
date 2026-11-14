@@ -1,0 +1,11 @@
+{
+  "id": "shift-farm",
+  "name": "Shift: Farm",
+  "about": "The farm's shift: feed-sack paper stitched at its edge, a field's green and the barn's harvest gold, its brown ink.",
+  "family": "shift",
+  "tags": ["farming", "harvest"],
+  "author": "mojulo",
+  "from": "shift",
+  "tokens": { "ink": "#3a2a1a", "panel": "#f6eed8", "line": "#5e432c", "accent": "#4a6e22", "accent2": "#c98a3a", "harm": "#b8432a" },
+  "ornaments": ["stitch"]
+}

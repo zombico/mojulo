@@ -32,6 +32,7 @@ import { feelBookHtml, BOOK_CASTS } from '@/lib/graph/gameworld/feel/book';
 import { combatBookHtml, BOOK_VIEWS } from '@/lib/graph/gameworld/combat/book';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { gameworldAtlasHtml, ATLAS_LOOK_IDS } from '@/lib/graph/gameworld/atlas-html';
+import { colourBookHtml } from '@/lib/graph/gameworld/colour-book';
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
 import { cityBookHtml } from '@/lib/graph/city/plan/book-html';
@@ -95,7 +96,7 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas' or 'combat'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat' or 'colour'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
         // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
@@ -106,11 +107,35 @@ export async function GET(request, { params }) {
         const room = request.nextUrl.searchParams.get('room') ?? door.rooms[0];
         if (!PRACTICE_ROOMS[room]) return NextResponse.json({ error: `room is ${Object.keys(PRACTICE_ROOMS).join(', ')}` }, { status: 400 });
         if (!door.rooms.includes(room)) return NextResponse.json({ eligible: false, reason: `this world has no ${PRACTICE_ROOMS[room].name.replace(/^The /, '').toLowerCase()} (it has ${door.rooms.join(', ')})` }, { status: 422 });
-        const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
-        if (!['male', 'female'].includes(cast)) return NextResponse.json({ error: 'cast is male or female' }, { status: 400 });
+        // (the work room's and the game room's worker is a mascot, its cast a mascot form: work-room.js WORK_CASTS; the
+        // other rooms' a body)
+        const W = room === 'work' || room === 'room' ? await import('@/lib/graph/gameworld/work-room') : null;
+        const casts = W ? W.WORK_CASTS : ['male', 'female'];
+        const cast = request.nextUrl.searchParams.get('cast') ?? (W ? W.WORK_CAST : 'male');
+        if (!casts.includes(cast)) return NextResponse.json({ error: `cast is ${casts.join(' or ')}` }, { status: 400 });
+        // (the work room's movement: a feel template from the presets, the world's own by default)
+        const feel = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('feel') : null;
+        if (feel !== null) { const { POLES } = await import('@/lib/graph/gameworld/feel/cards'); if (!POLES[feel]) return NextResponse.json({ error: `feel is one of ${Object.keys(POLES).join(', ')}` }, { status: 400 }); }
+        // (and their dress: a trade, gameroom/dress.js DRESSES, or 'none' for the greybox)
+        const dressAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('dress') : null;
+        if (dressAsked !== null && dressAsked !== 'none') { const { DRESSES } = await import('@/lib/graph/gameroom/dress'); if (!DRESSES[dressAsked]) return NextResponse.json({ error: `dress is one of ${Object.keys(DRESSES).join(', ')}, or none` }, { status: 400 }); }
+        const dress = dressAsked === null ? null : dressAsked === 'none' ? false : dressAsked;
+        // (and their area: a trade's, gameroom/area.js AREAS, or 'none' for the conceptual plane)
+        const areaAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('area') : null;
+        if (areaAsked !== null && areaAsked !== 'none') { const { AREAS } = await import('@/lib/graph/gameroom/area'); if (!AREAS[areaAsked]) return NextResponse.json({ error: `area is one of ${Object.keys(AREAS).join(', ')}, or none` }, { status: 400 }); }
+        const area = areaAsked === null ? undefined : areaAsked === 'none' ? false : areaAsked;
+        const link = (q) => `?${new URLSearchParams({ book: 'practice', room, ...Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) })}`;
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast })).html);
+        // (`view=map`: the roll room's course as the book's course map, gameworld/course-map.js; `view=sheet`: its
+        // course sheet, gameworld/course-sheet.js)
+        const view = request.nextUrl.searchParams.get('view');
+        if (view !== null && view !== 'map' && view !== 'sheet') return NextResponse.json({ error: "view is 'map' (the roll room's course map) or 'sheet' (its course sheet: the way, the asks, the walls and the backdrop as one)" }, { status: 400 });
+        // (`level=<id>`: the course level whose dress the room wears; the world's first course level unsaid)
+        const level = request.nextUrl.searchParams.get('level');
+        try {
+          html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${view ?? ''}:${level ?? ''}:${feel ?? ''}:${dressAsked ?? ''}:${areaAsked ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(view ? { view } : {}), ...(level ? { level } : {}), ...(room === 'work' || room === 'room' ? { feel, link, dress, area } : {}) })).html);
+        } catch (e) { if (view || level) return NextResponse.json({ eligible: false, reason: e.message.replace(/^practice: /, '') }, { status: 422 }); throw e; }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one
@@ -132,6 +157,14 @@ export async function GET(request, { params }) {
           throw err;
         }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-combat${view === 'own' ? '' : `-${view}`}`;
+      } else if (book === 'colour') {
+        // the colour book (lib/graph/gameworld/colour-book.js): what the game's colour is now and the ways it could be
+        // oriented, each painted into the same landscape with its cast on its ground, measured, and each a patch
+        try { html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:colour`, () => colourBookHtml(world)); } catch (err) {
+          if (/no ground to read/.test(err.message)) return NextResponse.json({ eligible: false, reason: err.message }, { status: 422 });
+          throw err;
+        }
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-colour`;
       } else if (book === 'atlas') {
       // the atlas (lib/graph/gameworld/atlas-html.js): the world's levels, trails and ways drawn as a map, in a look
         const look = request.nextUrl.searchParams.get('look') ?? 'painted';

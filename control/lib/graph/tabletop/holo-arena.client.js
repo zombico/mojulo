@@ -522,6 +522,9 @@ window.__mojHolo = {
   get state() { return S; }, get phase() { return phase; }, get line() { return line.slice(); },
   // the beat on stage now (summon, attack, destroy, move, promote, convert, check, end), and every beat begun so far
   get beat() { return beat ? beat.kind : null; }, get seen() { return seen.slice(); },
+  // whether a person's click would be taken now: in play, their turn, nothing on stage or waiting to be (a click during a
+  // beat is dropped, so a driver waits on this, never on a clock: a slow frame makes a beat take longer)
+  get ready() { return phase === 'play' && !ended && !queue.length && !beat && !!S && isHuman(S.side); },
   lp: () => lp.slice(),
   // a cell clicked as the pointer would, by its name ('E2')
   click: (name) => click(HL.cells.findIndex((c) => c.name === name)),

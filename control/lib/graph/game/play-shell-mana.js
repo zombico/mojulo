@@ -7,20 +7,22 @@
  *
  *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
  *   shellManaSpec(ui)            → the spec: the screens (attract, title, levels, options, credits, end, result,
- *                                  loading) as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
+ *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
  *   shellManaCss(ui)             → the sheet and the theme, scoped to the mana root
  *   shellManaScript()            → the page's code: the kernel, the controls host, and `__mojMana`
  *   shellManaConfig(ui)          → cfg.mana: { spec, glyphs, controls: { keys, pad } }
- *   playShellManaRuntime(cfg, api) → (inlined) { draw(name), close(), loading(place), loaded() }: the shell's api is
+ *   playShellManaRuntime(cfg, api) → (inlined) { draw(name), close(), loading(place), loaded(), pause(), unpause(),
+ *                                  moment(text, sub?) }: the shell's api is
  *                                  { go, onOf, show, app, title, front, levels(), result(), run(), settings(),
- *                                  saveSettings, pushPrefs, reset, continueTo }
+ *                                  saveSettings, pushPrefs, reset, continueTo, runTitle(), pause: { resume, restart,
+ *                                  quit, sound, rows(), owner(), homeWord() } }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '../../mana-ui/index.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const USED = ['attract-screen', 'title-screen', 'mode-select', 'options-screen', 'results-screen', 'loading-screen'];
+const USED = ['attract-screen', 'title-screen', 'mode-select', 'options-screen', 'results-screen', 'loading-screen', 'pause-menu'];
 const B = (p) => ({ bind: `ui.${p}` });
 
 /** A game's `ui` as the shell takes it: every fault said. */
@@ -56,16 +58,27 @@ export function shellManaSpec(ui = {}) {
       button('continue', 'done'),
     ] }] },
     result: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items') } },
+    // the pause over a held level: resume, restart, the controls, the sound, the way out (back resumes)
+    pause: { use: 'pause-menu', props: { title: B('pause.title'), items: B('pause.items') } },
+    // what the level's controls are, as the level says them (its live bindings): read, and back
+    controls: { use: 'screen', props: { title: B('pause.controlsTitle'), layer: 'modal', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
+      { use: 'each', props: { rows: B('pause.rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart', gap: 'loose' }, children: [{ use: 'text', props: { value: { item: 'does' }, role: 'label' } }, { use: 'text', props: { value: { item: 'keys' } } }] } } },
+      { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } },
+    ] }] }] },
     // over a level's frame while it loads: no number to claim, ready on its first frame, gone by itself (a quick load never shows)
     loading: { use: 'loading-screen', props: { place: B('load.place'), ready: B('load.ready'), auto: true, then: { emit: 'loaded' } } },
   };
-  const full = withIdioms({ screens, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
+  // what passes over the play: a moment, one at a time (a run's map cleared)
+  const hud = { use: 'hud', children: [{ use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] }] };
+  const full = withIdioms({ screens, hud, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
   full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k)));
   manaUi.readSpec(full);
   return full;
 }
 
-export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}`;
+// (the image component draws a placeholder until it takes a picture: a game's screens show none of its marks, where a
+// wireframe would; a backdrop keeps its ground, the theme's own)
+export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
 export function shellManaConfig(ui = {}) {
   const C = manaControls();
   return { spec: shellManaSpec(ui), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
@@ -81,7 +94,7 @@ const __mojMana = (${playShellManaRuntime.toString()});`;
  * stack to it, and closes it for a level. A close the runner makes is never the player's back.
  */
 export function playShellManaRuntime(cfg, api) {
-  const M = cfg.mana, UI = { ui: { title: api.title, version: '', settings: { sound: api.settings().sfxOn ? 1 : 0 }, load: { place: '', ready: false } } };
+  const M = cfg.mana, UI = { ui: { title: api.title, version: '', settings: { sound: api.settings().sfxOn ? 1 : 0 }, load: { place: '', ready: false }, moments: [], pause: { title: 'paused', controlsTitle: 'controls', items: [], rows: [] } } };
   const root = document.createElement('div');
   root.id = 'mana';
   document.body.appendChild(root);
@@ -98,17 +111,31 @@ export function playShellManaRuntime(cfg, api) {
   function act(e) {
     if (e.emit === 'mana:closed') {
       if (quiet) return;
+      // (the pause left by its back: the game resumes)
+      if (up === 'pause' || up === 'controls') { up = null; api.pause.resume(); return; }
       // a back that emptied the stack: the step's back, else the screen it left drawn again
       const was = up;
       up = null;
       if (!(api.onOf('back') && api.go('back'))) draw(was);
       return;
     }
+    if (e.emit === 'pause:resume') { api.pause.resume(); return; }
+    if (e.emit === 'pause:restart') { api.pause.restart(); return; }
+    if (e.emit === 'pause:quit') { api.pause.quit(); return; }
+    if (e.emit === 'pause:sound') { api.pause.sound(); fillPause(); view.paint(); return; }
     if (e.emit === 'loaded') { hush(() => rt.close()); up = null; view.paint(); return; }
     if (e.emit === 'language') { api.settings().language = e.to; api.saveSettings(); return; }
     if (e.emit === 'options:reset') { api.reset(); api.go('back'); return; }
     if (typeof e.emit === 'string') { api.go(e.emit, e.level ? { picked: e.level } : null); return; }
     if (e.set === 'ui.settings.sound') { UI.ui.settings.sound = e.to ? 1 : 0; api.settings().sfxOn = !!e.to; api.saveSettings(); api.pushPrefs(); }
+  }
+  // the pause's rows as the shell stands: whose pause it is, the sound as it is, the level's own controls
+  function fillPause() {
+    const P = api.pause, u = UI.ui.pause, owner = P.owner();
+    u.title = owner ? 'paused · ' + owner : 'paused';
+    u.items = [{ label: 'resume', then: { emit: 'pause:resume' } }, { label: 'restart', then: { emit: 'pause:restart' } }, { label: 'controls', then: { open: 'controls' } },
+      { label: 'sound: ' + (api.settings().sfxOn ? 'on' : 'off'), then: { emit: 'pause:sound' } }, { label: 'quit to ' + P.homeWord(), then: { emit: 'pause:quit' } }];
+    u.rows = P.rows().map((r) => ({ keys: r[0], does: r[1] }));
   }
   function open(id) { hush(() => { rt.close(); rt.open(id); }); up = id; view.paint(); }
 
@@ -119,7 +146,10 @@ export function playShellManaRuntime(cfg, api) {
       u.press = F.press || 'press start';
       u.tagline = F.tagline || '';
       const entries = F.menu || ['play'];
-      const label = { continue: 'continue', play: api.progress() ? 'new game' : 'start', levels: 'levels', options: 'options', credits: 'credits' };
+      // (a RUN: its rules under the title, how deep the best went in the corner, and its own word for play)
+      const R = api.runTitle ? api.runTitle() : null;
+      if (R) { u.tagline = F.tagline || R.rules; u.version = R.best; }
+      const label = { continue: 'continue', play: R ? (R.runs ? 'new run' : 'start a run') : api.progress() ? 'new game' : 'start', levels: 'levels', options: 'options', credits: 'credits' };
       u.menu = entries.filter((k) => api.onOf(k) && (k !== 'continue' || api.continueTo())).map((k) => ({ label: label[k] || k, then: { emit: k } }));
     }
     if (name === 'levels') {
@@ -144,5 +174,9 @@ export function playShellManaRuntime(cfg, api) {
     close() { hush(() => rt.close()); up = null; view.paint(); },
     loading(place) { UI.ui.load = { place: place || '', ready: false }; open('loading'); },
     loaded() { UI.ui.load = Object.assign({}, UI.ui.load, { ready: true }); view.paint(); },
+    // the pause over a held level, and off again; a moment over the play (a run's map cleared)
+    pause() { fillPause(); open('pause'); },
+    unpause() { if (up === 'pause' || up === 'controls') { hush(() => rt.close()); up = null; view.paint(); } },
+    moment(text, sub) { UI.ui.moments = UI.ui.moments.concat([{ id: 'm' + UI.ui.moments.length, text: text, sub: sub || '', weight: 'major' }]); view.paint(); },
   };
 }

@@ -57,7 +57,16 @@
  *                                                                    behind itself; both
  *     overlay   none | scanlines | crt | grid | vignette | grain       a filter over the whole stage while the UI is up
  *     stage     none | band | burst | shards | stripes | rings         one more layer: a shape behind everything a screen
- *                                                                    holds (over its scrim and its key art), sweeping in
+ *               | chevrons | dots | confetti | tunnel | streaks       holds (over its scrim and its key art), sweeping in.
+ *               | zigzag, or a LIST of them                          A list is a show: each kind of screen its own shape
+ *                                                                    (the title, a middle screen, a full one, a result, a
+ *                                                                    count over the play), so a game is not one pattern
+ *     icons     none | solid | line | chunky | badge | duo            the style its pictograms are drawn in (icons.js): a
+ *                                                                    coin, a heart, a clock in place of words; none: initials
+ *               | sketch | stencil | glow
+ *     iconTone  ink | meaning                                        their colour: the words' ink, or each in the theme's
+ *                                                                    colour for what it means (a heart the health's)
+ *     iconSwap  { <icon>: <icon> }                                   a look's own picture for a word (its coins as tickets)
  *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
  *               | hydraulic | clack | crypt | jackpot                  (beats/ui-sounds.js: one interval plan, each set a
  *                                                                    voice; the last four the heavy ones);
@@ -86,6 +95,7 @@
  *   themeAdvice(t)         → [{ law, at, advice }]: contrast measured (WCAG), never refused
  *   contrast(a, b)         → the WCAG contrast ratio of two hex colours
  */
+import { iconCss, ICONS } from './icons.js';
 export const FACE_STACKS = Object.freeze({
   system: 'system-ui,-apple-system,"Segoe UI",sans-serif',
   serif: 'Georgia,"Times New Roman",serif',
@@ -113,14 +123,19 @@ export const THEME_WORDS = Object.freeze({
   crest: ['none', 'victorian', 'tech', 'ribbon'],
   breakout: ['none', 'tab', 'echo', 'full'],
   overlay: ['none', 'scanlines', 'crt', 'grid', 'vignette', 'grain'],
-  stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings'],
+  stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings', 'chevrons', 'dots', 'confetti', 'tunnel', 'streaks', 'zigzag'],
   sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party', 'hydraulic', 'clack', 'crypt', 'jackpot'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
   hud: ['panel', 'bare'],
+  // the style its pictograms are drawn in (icons.js); none: an icon is its name's initials
+  icons: ['none', 'solid', 'line', 'chunky', 'badge', 'duo', 'sketch', 'stencil', 'glow'],
+  // their colour: the ink of the words beside them, or each in the theme's colour for what it means (a heart the
+  // health's, a bolt the stamina's, what is won the accent)
+  iconTone: ['ink', 'meaning'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides', 'icons', 'iconTone', 'iconSwap'];
 export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay', 'stage']);
 // how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
 // and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
@@ -221,13 +236,22 @@ export function readTheme(t) {
   }
   const out = { name: typeof t.name === 'string' ? t.name : base.name, from };
   for (const k of Object.keys(THEME_WORDS)) {
-    const x = t[k] === undefined ? base[k] : t[k];
+    // (a word a preset does not say is its quietest: no pictograms)
+    const x = t[k] === undefined ? (base[k] === undefined && k === 'icons' ? 'none' : base[k] === undefined && k === 'iconTone' ? 'ink' : base[k]) : t[k];
     if (k === 'ornaments') {
       if (!Array.isArray(x) || x.some((o) => !THEME_WORDS.ornaments.includes(o))) throw new Error(`theme.ornaments is a list of: ${THEME_WORDS.ornaments.join(', ')}`);
       out.ornaments = [...new Set(x)];
-    } else if (!THEME_WORDS[k].includes(x)) throw new Error(`theme.${k} is one of: ${THEME_WORDS[k].join(', ')}`);
+    } else if (k === 'stage' && Array.isArray(x)) {
+      // a show: a list of stages, each kind of screen its own (themeCss SHOW)
+      if (!x.length || x.length > 8 || x.some((o) => !THEME_WORDS.stage.includes(o))) throw new Error(`theme.stage is one of: ${THEME_WORDS.stage.join(', ')}, or a list of them (a show: each kind of screen its own)`);
+      out.stage = x.slice();
+    } else if (!THEME_WORDS[k].includes(x)) throw new Error(`theme.${k} is one of: ${THEME_WORDS[k].join(', ')}${k === 'stage' ? ', or a list of them (a show: each kind of screen its own)' : ''}`);
     else out[k] = x;
   }
+  // a look's own pictures for words (icons.js): { <icon>: <icon> }, each an icon there is; a child keeps its parent's
+  const swap = t.iconSwap === undefined ? base.iconSwap ?? {} : t.iconSwap;
+  if (!isObj(swap) || Object.entries(swap).some(([a, b]) => !ICONS[a] || !ICONS[b])) throw new Error(`theme.iconSwap is { <icon>: <icon> }, each one of: ${Object.keys(ICONS).join(', ')}`);
+  out.iconSwap = { ...swap };
   // tokens: a theme's own over its preset's (a theme from another preset keeps that preset's colours it does not name)
   if (t.tokens !== undefined && !isObj(t.tokens)) throw new Error(`theme.tokens is { ${TOKENS.join(', ')} } (hex colours)`);
   // new core colours re-derive the rest (a dark theme over the greybox keeps none of its light greys)
@@ -386,7 +410,26 @@ const STAGES = (k) => ({
   shards: [`linear-gradient(118deg,transparent 0 62%,${k.accent2} 62% 64.5%,transparent 64.5%)`, `linear-gradient(118deg,transparent 0 66%,${alpha(k.accent, 0.92)} 66% 82%,transparent 82%)`, `linear-gradient(-32deg,transparent 0 78%,${alpha('#000000', 0.55)} 78%)`].join(','),
   stripes: `repeating-linear-gradient(-14deg,${alpha(k.accent, 0.14)} 0 ${du(20)},transparent ${du(20)} ${du(60)})`,
   rings: `repeating-radial-gradient(circle at 82% 28%,${alpha(k.accent, 0.16)} 0 ${du(4)},transparent ${du(4)} ${du(44)})`,
+  // THE EXCITING ONES, beside the burst: each a different kind of energy, so a game's screens need not all wear one
+  // chevrons: speed, upward: bars leaning in from both sides to meet down the middle
+  chevrons: [`repeating-linear-gradient(-58deg,${alpha(k.accent, 0.2)} 0 ${du(30)},transparent ${du(30)} ${du(104)}) 0 0/50% 100% no-repeat`, `repeating-linear-gradient(58deg,${alpha(k.accent, 0.2)} 0 ${du(30)},transparent ${du(30)} ${du(104)}) 100% 0/50% 100% no-repeat`].join(','),
+  // dots: print pop: two grids of dots, the second smaller and set between the first
+  dots: [`radial-gradient(circle,${alpha(k.accent, 0.24)} 0 24%,transparent 26%) 0 0/${du(72)} ${du(72)}`, `radial-gradient(circle,${alpha(k.accent2, 0.2)} 0 13%,transparent 15%) ${du(36)} ${du(36)}/${du(72)} ${du(72)}`].join(','),
+  // confetti: a party: scattered bits (pills lying, pills standing, dots) on tiles of sizes that never line up
+  confetti: [['20% 6%', '30% 30%', k.accent, 0.6, 97], ['6% 22%', '70% 60%', k.accent2, 0.55, 131], ['9% 9%', '45% 80%', k.ink, 0.32, 173], ['18% 5%', '80% 20%', k.accent2, 0.45, 211], ['5% 18%', '15% 70%', k.accent, 0.5, 149]]
+    .map(([size, at, c, a, n]) => `radial-gradient(ellipse ${size} at ${at},${alpha(c, a)} 0 96%,transparent 100%) ${du(n % 37)} ${du(n % 53)}/${du(n)} ${du(Math.round(n * 0.8))}`).join(','),
+  // tunnel: rushing in: wide rings opening from a point above the middle
+  tunnel: `repeating-radial-gradient(ellipse at 50% 38%,transparent 0 ${du(54)},${alpha(k.accent, 0.18)} ${du(54)} ${du(78)})`,
+  // streaks: wind: thin and thick lines flying past on a slant, in the two accents
+  streaks: `repeating-linear-gradient(-32deg,${alpha(k.accent, 0.22)} 0 ${du(7)},transparent ${du(7)} ${du(44)},${alpha(k.accent2, 0.18)} ${du(44)} ${du(60)},transparent ${du(60)} ${du(136)})`,
+  // zigzag: a jolt: rows of teeth
+  zigzag: [[135, -1], [225, -1], [315, 0], [45, 0]].map(([deg, off]) => `linear-gradient(${deg}deg,${alpha(k.accent, 0.2)} 25%,transparent 25%) ${off ? du(-40) : '0'} ${du(0)}/${du(80)} ${du(80)}`).join(','),
 });
+// A SHOW: a theme's `stage` as a LIST gives each kind of screen its own shape, in this order (a list shorter than the
+// kinds goes round again; `none` in it leaves that kind bare): the title's (the menu at the left), a screen in the
+// middle (a pause, a menu), a full one (a loading screen), a result (a screen with a banner), an overlay in the middle
+// (a start count over the play)
+const SHOW = ['[data-place=left]', '[data-place=center]', '[data-place=full]', ':has(.mana-banner)', '[data-layer=overlay][data-place=center]'];
 const OVERLAYS = (k) => ({
   none: 'none',
   scanlines: `repeating-linear-gradient(0deg,${alpha('#000000', 0.14)} 0 1px,transparent 1px 3px)`,
@@ -408,7 +451,7 @@ export function themeCss(theme, scope = '.mana-root') {
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
     radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate: plateOf, motion: MOTION[T.motion], ...MOTIONS[T.motion],
     ...DISTANCES[T.distance], halo: HALOS[T.halo], slant: SLANTS[T.slant], 'slant-words': SLANTS[T.slant === 'hard' ? 'light' : T.slant], ...TRANSITIONS[T.transition], veil: VEILS[T.backdrop], 'rule-w': RULES[T.frame],
-    overlay: OVERLAYS(k)[T.overlay], stage: STAGES(k)[T.stage],
+    overlay: OVERLAYS(k)[T.overlay], stage: STAGES(k)[Array.isArray(T.stage) ? T.stage[0] : T.stage],
     // the ▶ is the sheet's own focus; any other focus word takes it (and the room it keeps at an item's left) away
     cursor: T.focus === 'marker' ? '"\\25B6"' : 'none', mark: T.focus === 'marker' ? '1' : '0',
     // a side whose kit would sink into the panel is keylined in the ink
@@ -471,6 +514,8 @@ export function themeCss(theme, scope = '.mana-root') {
   // caption) sit on a band of the panel fading away from them: the stage performs around the words, not under them
   // (a halo of plate already gives a ghost window its plate)
   const bare = [T.halo === 'plate' ? null : '.mana-window[data-variant=ghost]', '.mana-screen>.mana-stack:has(>:is(.mana-bar,.mana-loader,.mana-list,.mana-text[data-role=caption]))'].filter(Boolean).join(',');
+  // (a show: each kind of screen its own shape, the later kinds over the earlier where a screen is both)
+  if (Array.isArray(T.stage)) SHOW.forEach((sel, i) => out.push(`${s} .mana-screen${sel}{--mana-stage:${STAGES(k)[T.stage[i % T.stage.length]]}}`));
   if (T.stage !== 'none') out.push(`${s} .mana-screen :is(${bare}){background:linear-gradient(90deg,${alpha(k.panel, 0.9)},${alpha(k.panel, 0.8)} calc(100% - ${du(90)}),${alpha(k.panel, 0)});padding:${du(12)} ${du(90)} ${du(12)} ${du(26)};margin:${du(-12)} ${du(-90)} ${du(-12)} ${du(-26)}}`);
   // a button standing on the screen itself, over a stage, is filled with the panel (its word is read, not the stripes)
   if (T.stage !== 'none') out.push(`${s} .mana-screen>.mana-button:not([data-st=focus]){background:${alpha(k.panel, 0.9)}}`);
@@ -484,6 +529,8 @@ export function themeCss(theme, scope = '.mana-root') {
   // a plate behind text that has no window: the ghost windows and a screen's own title sit on the panel, the halo off
   if (T.halo === 'plate') out.push(`${s} .mana-window[data-variant=ghost]{background:${alpha(k.panel, 0.82)};padding:calc(9 * var(--mana-du)) calc(15 * var(--mana-du))}`, `${s} .mana-screen>.mana-title{width:fit-content;background:${alpha(k.panel, 0.82)};padding:0 calc(15 * var(--mana-du))}`);
   if (T.ornaments.includes('glow')) out.push(`${win}{box-shadow:0 0 0 1px ${alpha(k.accent, 0.5)},0 0 18px ${alpha(k.accent, 0.35)}}`);
+  // the pictograms, in the theme's style (icons.js): none adds nothing
+  if (T.icons !== 'none') out.push(iconCss(T.icons, s, { tone: T.iconTone, plate: T.corner, swap: T.iconSwap, on: onAccent }));
   return out.join('\n');
 }
 

@@ -37,9 +37,8 @@ describe('an action hero in combat', () => {
 });
 
 describe('the layers and the sheathed hero', () => {
-  it('lays the run\'s legs apart and the guard over the clip; the sheathed hero carries the blade on its back', () => {
-    expect(POSE_LAYERS.run.map((o) => o.pivot)).toEqual(['thighR', 'thighL']);
-    expect(POSE_LAYERS.run[0].deg).toBeLessThan(0);
+  it('lays the guard over the clip and nothing over the run (the engagement run\'s body); the sheathed hero carries the blade on its back', () => {
+    expect(POSE_LAYERS.run).toBeUndefined();
     expect(POSE_LAYERS.combat.find((o) => o.pivot === 'upperArmR').deg).toBeGreaterThan(0);
     const G = { camera: 'orbit', characters: { hero: { adornment: { items: [{ slot: 'right', serves: ['strike'] }] } } } };
     expect(sheathedSpec(G, { gear: { right: { item: 'sword', laws: 2 } }, gesture: 'hold' })).toEqual({ gear: { back: { item: 'sword', laws: 2 } } });

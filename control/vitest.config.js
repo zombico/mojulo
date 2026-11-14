@@ -17,6 +17,7 @@ export const E2E = [
   'lib/graph/exhibit/starters.e2e.test.js',
   // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
   'lib/graph/level/grid-scene.e2e.test.js',
+  'lib/graph/worlds/built-light.e2e.test.js',
   // a whole physical geocity resolved through world-scene (its metro, its ring's blocks, pieces and load audit): minutes
   'lib/graph/rupa/city-ring.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',
@@ -30,6 +31,7 @@ export const E2E = [
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
+  'lib/graph/scene/action-hero.live.test.js',
   'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/graph/cycle-shelf/cycle-ride.live.test.js',

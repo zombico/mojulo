@@ -23,7 +23,8 @@
  *   pageGroundFaces(faces)            → [face]   the faces the page's ground ray meets: the opaque ones as the page meshes
  *                                       them (surface cards realized, de-collided: a face stacked on coplanar others is
  *                                       lifted), then the water and the blend tiles as they are
- *   levelSim(payload)                 → simLevel(...) with the page's ground (faceGround over pageGroundFaces) and colliders
+ *   levelSim(payload, { seed? })      → simLevel(...) with the page's ground (faceGround over pageGroundFaces) and colliders;
+ *                                       a level with a roll as its seed rolls it (1: the reference roll)
  *   keyEntities(payload)              → [id]   the entities a key carries: the pilot first, then every one with a rule
  *   frameKey(sim, ids)                → string
  *   winScript(payload, { seconds })   → { frames: [input], keys: [key], outcome, at }   steered and recorded
@@ -38,7 +39,7 @@
  *
  * Deterministic: a fixed step, the bus's own order, the world's seeded rules, the steering a pure function of state.
  */
-import { simLevel } from './level-sim.js';
+import { simLevel, rollOf } from './level-sim.js';
 import { decollideFaces } from '../figures/face-mesh.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { hashState } from '../worlds/event-bus.js';
@@ -109,8 +110,11 @@ export function pageGroundFaces(faces = []) {
   return out;
 }
 
-export function levelSim(payload) {
-  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders, camera: payload.camera }, { ground: faceGround(pageGroundFaces(payload.faces || [])), beat: payload.audio?.beat || null, powers: payload.game?.powers || null });
+export function levelSim(payload, { seed = 1 } = {}) {
+  // a level's ROLL: its seed's picks stand, and what it left out is no ground either (the page takes it out of the scene)
+  const gone = payload.roll ? new Set(rollOf(payload.roll, seed).gone.map((id) => `roll:${id}`)) : null;
+  const faces = gone && gone.size ? (payload.faces || []).filter((f) => !(f && gone.has(f.group))) : payload.faces || [];
+  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders, camera: payload.camera, ...(payload.roll ? { roll: payload.roll } : {}) }, { ground: faceGround(pageGroundFaces(faces)), beat: payload.audio?.beat || null, powers: payload.game?.powers || null, seed });
 }
 
 // an input frame's `keys` ([the key as the page names it]) are what the page's key listener turns into bus events:

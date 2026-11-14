@@ -379,3 +379,18 @@ describe('the trail blend (nature.js trailRims, the isekai rim and creep)', () =
     expect(assembleStageScene({ kind: 'stage', kit: 'trail-valley' }).faces.some((f) => /:(rim|creep)-/.test(f.texture || ''))).toBe(false);
   });
 });
+
+describe('a stage kept clean', () => {
+  it('hats: false wears no grass cap on a rock and hangs no fringe over a cliff lip; absent, the stage as it was', () => {
+    const M = { kind: 'stage', kit: 'isekai-meadow' }, plain = assembleStageScene(M), clean = assembleStageScene({ ...M, hats: false });
+    const n = (P, g) => P.faces.filter((f) => f.group === g).length;
+    expect(n(plain, 'isekai:hat')).toBeGreaterThan(0); expect(n(plain, 'isekai:lip')).toBeGreaterThan(0);
+    expect(n(clean, 'isekai:hat')).toBe(0); expect(n(clean, 'isekai:lip')).toBe(0);
+    // (the rocks and the cliff stand as they did, and nothing else is taken)
+    expect(n(clean, 'isekai:cliff')).toBe(n(plain, 'isekai:cliff'));
+    expect(n(clean, 'isekai:rock')).toBeGreaterThanOrEqual(n(plain, 'isekai:rock'));
+    expect(n(clean, 'isekai:grass')).toBe(n(plain, 'isekai:grass'));
+    expect(JSON.stringify(assembleStageScene({ ...M, hats: true }).faces)).toBe(JSON.stringify(plain.faces));
+    expect(() => assembleStageScene({ ...M, hats: 'no' })).toThrow(/hats/);
+  });
+});

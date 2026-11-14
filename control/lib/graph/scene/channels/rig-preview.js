@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { MORPH_DECODE } from '../../figures/morph-sparse.js';
 
 // The RIG PREVIEW channel (rig-preview plan): a rigged solid's packed figure (station-loft-rig.js
 // packLayeredRig, or any rig-bake output) playing one of its clips IN PLACE on the World page, so the
@@ -190,10 +191,11 @@ ${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per fig
   return fig.__tex;
 }
 ` : ''}${faced ? `function __rpU32(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Uint32Array(u.buffer); }
+${MORPH_DECODE}
 function __mq(m) { const b = atob(m.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Int16Array(u.buffer), f = new Float32Array(q.length); for (let i = 0; i < q.length; i++) f[i] = q[i] * m.s; return f; }   // the page's 16-bit rows
 function __rpMorph(fig, part, geo) {   // the face's targets on one bone mesh: its corners at the neutral face, each target's offsets
   if (!fig.face || !part.morph) return;
-  const T = fig.face.targets.length, W = (1 + T) * 3, I = __rpU32(part.morph.i), D = part.morph.q ? __mq(part.morph) : decodeF32(part.morph.d);
+  const T = fig.face.targets.length, W = (1 + T) * 3, I = __rpU32(part.morph.i), D = part.morph.z ? __mz(part.morph) : part.morph.q ? __mq(part.morph) : decodeF32(part.morph.d);
   const pos = geo.getAttribute('position').array, tg = Array.from({ length: T }, () => new Float32Array(pos.length));
   for (let k = 0; k < I.length; k++) {
     const v = I[k] * 3, o = k * W;

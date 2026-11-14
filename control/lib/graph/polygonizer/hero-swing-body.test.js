@@ -232,6 +232,16 @@ describe('the run with the blade drawn', () => {
     expect(Math.abs(a.shR.pitch - b.shR.pitch)).toBeLessThanOrEqual(2 * CARRY.sway + 1e-9);
     expect(a.shL.pitch).not.toBeCloseTo(b.shL.pitch, 0);
   });
+  it('an empty hand (the run with the blade sheathed) is held by the hip, the arm untwisted, no blade said', async () => {
+    const { boneFrames } = await import('./station-loft-rig.js');
+    const R = rig('male', 'sword'), arm = carryArm({ R, rigNodesAt, boneFrames, tip: null }), n = rigNodesAt(R, { shR: arm.shR, elbowR: arm.elbowR }).nodes;
+    expect(arm.blade).toBeUndefined();
+    expect(Math.abs(arm.shR.roll)).toBeLessThan(30);                                                      // (never twisted round)
+    expect(n.elbowR[1]).toBeLessThan(R.joints.shoulderR[1]);                                              // (the elbow a little back)
+    expect(n.wristR[1]).toBeGreaterThan(n.elbowR[1]);                                                     // (the forearm bent forward)
+    expect(n.wristR[0]).toBeGreaterThan(R.joints.hipR[0]);                                                // (beside the body)
+    expect(Math.abs(n.wristR[2] - R.joints.hipR[2])).toBeLessThan(0.2);                                   // (by the hip)
+  });
 });
 
 // AN AIR MOVE'S BODY (hero-swing-body.js airBody, a moveset's `air` moves): the arms and the trunk the move's, the feet off

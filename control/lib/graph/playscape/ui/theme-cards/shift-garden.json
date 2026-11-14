@@ -1,0 +1,10 @@
+{
+  "id": "shift-garden",
+  "name": "Shift: Garden",
+  "about": "A chore in the garden: a hedge's green ink on a pale lawn paper, autumn leaf orange, rounded and calm.",
+  "family": "shift",
+  "tags": ["chores", "garden", "yard work"],
+  "author": "mojulo",
+  "from": "shift",
+  "tokens": { "ink": "#26331f", "panel": "#f3f7ea", "line": "#26331f", "accent": "#e08a3a", "accent2": "#4f8f52", "harm": "#c8442a" }
+}

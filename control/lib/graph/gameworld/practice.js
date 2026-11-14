@@ -10,9 +10,17 @@
  *   mount      the mount lane (mount-lane.js): the gaits, the jump's clearance, the fences, the turn; a world with `mounts`
  *   range      the firing range (combat/range.js): the world's guns (loadout.js loadoutOf: a quick shooter's kit, the
  *              hero's carried gun, else its template's loadout) measured and played from the eye, before any level
+ *   roll       the roll room (roll-room.js): a yard whose cover, gems and start a seed picks, on the game's own hero and
+ *              feel; a world whose levels roll (`roll`)
  *   artillery  the artillery range (combat/artillery.js): the big gun on its base; a template that owns a frame
  *              (TEMPLATE_FRAMES: Mech Battle Kai's transforming biped, walking on the walker's gait, folding into its
  *              wheeled form) fires its own mounts there
+ *
+ *   room       the game room (game-room.js): one room composed for the game out of room primitives (gameroom/), the
+ *              practice room that becomes the game's own; a world that fights hand to hand, works a shift or has foes
+ *              (a shooter and a platformer have their own rooms)
+ *   work       the work room (work-room.js): a work shift's card on greybox counters, played by a hero and a movement
+ *              chosen from the presets (the world's hero or a stand-in; a feel template); a quick work game
  *
  * The gun rooms are a shooter's paradigm, not the melee room's: their own controls (the sights, reload, switch, a knife
  * on V; walk, transform, drive and lay the gun), their own measures and their own pages.
@@ -28,6 +36,7 @@
  *                    advice, never a refusal. A few seconds a gun, so kept by the guns it was measured on
  *   TEMPLATE_FRAMES  { <template>: { frame, why } }: the templates whose hero is a frame of the mecha shelf
  *   mountSuggestion(G) → { suggest: 2, why } for a world whose feel template rides and that writes no mounts; else null
+ *   rollMeasured(G)  → the roll room's measures (roll-room.js rollRoomMeasured), or null for a world that does not roll
  *   PRACTICE_ROOMS   { <id>: { name, about } }
  *
  * Pure.
@@ -37,9 +46,12 @@ import { readFeel } from './feel/lower.js';
 import { practiceRoom, roomEligible, FIGHTS_ELSEWHERE } from './practice-room.js';
 import { platformRoom } from './platform-room.js';
 import { mountLane } from './mount-lane.js';
+import { rollRoom, rollRoomMeasured } from './roll-room.js';
 import { loadoutOf } from './loadout.js';
 import { rangeBody } from './combat/range.js';
 import { measureCombat, combatLaws } from './combat/measure.js';
+import { workRoom, workOf } from './work-room.js';
+import { gameRoom, gameRoomOf } from './game-room.js';
 
 export const PRACTICE_ROOMS = Object.freeze({
   practice: { name: 'The practice room', about: 'the arsenal\'s swings, strings, weapons, guard and parry on a foe that falls and comes back' },
@@ -47,6 +59,9 @@ export const PRACTICE_ROOMS = Object.freeze({
   mount: { name: 'The mount lane', about: 'the horse\'s gaits, its jump\'s clearance, the fences and the turn' },
   range: { name: 'The firing range', about: 'the game\'s guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching' },
   artillery: { name: 'The artillery range', about: 'the big gun on its base: its rounds into stands of matter at the bands, laid by hand; a frame walks, transforms and drives' },
+  roll: { name: 'The roll room', about: 'a yard whose cover, gems and start a seed picks, on the game\'s own hero: a different map each time, tried and measured' },
+  room: { name: 'The game room', about: 'one room composed for the game: its needs read from the world, laid from room primitives (cover, screens, decks, counters), held to the room laws, played by its hero with its foes on their spots' },
+  work: { name: 'The work room', about: 'the shift on greybox counters: crates, stations worked by standing at them, shelves, the hand-in, by a hero and a movement chosen from the presets' },
 });
 /** The templates that own a frame of the mecha shelf: their hero is the machine, its bipedal motion the walker's gait
  * (mecha-shelf/mecha-gait.js) and its transform the walker's own (walker and its wheeled form). */
@@ -88,6 +103,12 @@ export function rangeMeasured(G) {
   return out;
 }
 
+// a world whose levels roll (its `roll`)
+const rolls = (G) => G?.roll != null && G.roll !== false;
+/** The roll room's measures (roll-room.js rollRoomMeasured: the seeds audit of its yard, the cover forms that stop this
+ * hero), before any level; null for a world that does not roll. A machine gate: advice, never a refusal. */
+export const rollMeasured = (G) => (rolls(G) ? rollRoomMeasured(G) : null);
+
 /** Which rooms a world has (see the header). */
 export function practiceFor(G) {
   const pole = poleOf(G), rooms = [];
@@ -96,9 +117,12 @@ export function practiceFor(G) {
   if (G?.mounts != null && G.mounts !== false) rooms.push('mount');
   if (rangeFor(G)) rooms.push('range');
   if (artilleryFor(G)) rooms.push('artillery');
+  if (rolls(G)) rooms.push('roll');
+  if (workOf(G)) rooms.push('work');
+  if (gameRoomOf(G)) rooms.push('room');
   const elsewhere = pole && FIGHTS_ELSEWHERE[pole] ? FIGHTS_ELSEWHERE[pole] : null;
   if (rooms.length) return { rooms, ...(elsewhere ? { elsewhere } : {}) };
-  return { rooms, why: elsewhere ?? (pole ? `its feel's template (${POLES[pole].name}) has no practice room yet: it neither fights hand to hand, platforms nor carries a gun, and the world rides no horse` : 'this world writes no feel and rides no horse: a feel (feel: \'<template>\') or mounts open a room') };
+  return { rooms, why: elsewhere ?? (pole ? `its feel's template (${POLES[pole].name}) has no practice room yet: it neither fights hand to hand, platforms nor carries a gun, and the world rides no horse` : 'this world writes no feel, rides no horse and works no shift: a feel (feel: \'<template>\'), mounts or a work goal open a room') };
 }
 
 /** One room's pure build. */
@@ -107,8 +131,8 @@ export function practiceRoomOf(G, id, opts = {}) {
   const { rooms, why } = practiceFor(G);
   if (!rooms.includes(id)) throw new Error(`practice: this world has no ${PRACTICE_ROOMS[id].name.replace(/^The /, '').toLowerCase()}${rooms.length ? ` (it has ${rooms.join(', ')})` : `: ${why}`}`);
   // (a gun room's build is its spec: the range's measures and the frame's assembly are its page's, a few seconds each)
-  return id === 'practice' ? practiceRoom(G, opts) : id === 'platform' ? platformRoom(G, opts) : id === 'mount' ? mountLane(G, opts)
-    : id === 'range' ? { spec: rangeFor(G) } : { spec: artilleryFor(G) };
+  return id === 'practice' ? practiceRoom(G, opts) : id === 'platform' ? platformRoom(G, opts) : id === 'mount' ? mountLane(G, opts) : id === 'roll' ? rollRoom(G, opts)
+    : id === 'range' ? { spec: rangeFor(G) } : id === 'work' ? workRoom(G, opts) : id === 'room' ? gameRoom(G, opts) : { spec: artilleryFor(G) };
 }
 
 /** What `mounts: 2` would lay for a world whose feel template rides and that writes no mounts, or null. */

@@ -11,7 +11,12 @@
  *     jumps, wall kick and stomp beside the live ones (each jump's top, the double jump, wall kicks, stomps, touches)
  *   mountLaneHtml(G, { refs?, cast?, coat?, sound?, cdn? }) → { html, room, card }: the mount lane, each gait's speed, the
  *     jump's clearance and the rein-back beside the live speed, the 100 m split, the jumps and the fences cleared or refused
- *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js)
+ *   rollRoomHtml(G, { refs?, cast?, sound?, cdn? }) → { html, room, measured }: the roll room, the roll being played (its
+ *     seed, what stands, what lies, where it started) beside the seeds audit and the cover forms that stop this hero;
+ *     R rolls the next seed, Shift+R the one before (the page's own ?seed=)
+ *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js); the roll room's course with
+ *     `view: 'map'` is its course map (course-map.js) in place of the room, `view: 'sheet'` its course sheet
+ *     (course-sheet.js); `level` names the course level whose dress it wears (the first, unsaid)
  *   roomRefs(world, ref, exists) → the refs above, by the run's names, each only where its row exists
  *   cardAsked(feel) → what the feel card asks of one swing: { startup, total, cancel, string, lunge, hitstop, stun, dodge,
  *     guard } in frames
@@ -21,6 +26,7 @@
 import { practiceRoom } from './practice-room.js';
 import { platformRoom, COURSE } from './platform-room.js';
 import { mountLane, FENCES } from './mount-lane.js';
+import { rollRoom, rollRoomMeasured, FORMS } from './roll-room.js';
 import { feelReport, readFeel } from './feel/lower.js';
 import { comboList } from './combos.js';
 import { feelCard } from './feel/lower.js';
@@ -286,6 +292,148 @@ export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given =
   return { html, room, card: CARD };
 }
 
+/** The roll room's page (see the header). */
+export async function rollRoomHtml(G, { refs = {}, cast = 'male', sound = 'realistic', cdn = false } = {}) {
+  const room = rollRoom(G, { refs, cast, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-roll-room`);
+  const measured = rollRoomMeasured(G);
+  let html = await emitted(payload, cdn);
+  // the panel: this roll (said live), the measures (a machine gate), and what the room is; a yard's and a course's
+  const C = measured.course ?? null;
+  const gate = measured.lost.length ? `<span class="bad">lost: ${measured.lost.join(', ')}</span><br><span class="k">${(measured.worst ?? []).join('<br>')}</span>` : '<span class="ok">every law holds</span>';
+  const sections = C
+    ? [['measured before any level (a machine gate)', `<b>${measured.seeds}</b> seeds played by the reaction bot, of <b>${measured.ways}</b> courses<br>${gate}<br><span class="k">${measured.says.join('<br>')}</span>`],
+      ['its dress: ' + measured.dress.name, (measured.dress.lost.length ? `<span class="bad">lost: ${measured.dress.lost.join(', ')}</span>` : '<span class="ok">read, told apart and told ahead</span>') + `<br><span class="k">${measured.dress.says.join('<br>')}</span>`],
+      ['where it is read (the screen in thirds)', (measured.view.lost.length ? `<span class="bad">not framed: ${measured.view.lost.join(', ')}</span>` : '<span class="ok">framed</span>') + `<br>top: where stuff comes from, over the vanishing point<br>middle: where it comes to view, from <b>${measured.view.middle.from} m</b> ahead out<br>bottom: where you react, the last <b>${measured.view.bottom.to} m</b> (<b>${measured.view.bottom.seconds} s</b>), and the hero`],
+      ['what the course is sized by', `top speed <b>${C.top} m/s</b> · the neediest ask <b>${C.need} s</b> + a rest of <b>${C.rest} s</b><br>a slot every <b>${C.gap} m</b> · sight for a ${C.react} s reaction <b>${C.sight} m</b><br>${Object.entries(C.windows).map(([id, f]) => `${id}: a window of <b>${f}</b> frames`).join(' · ')}<br>a lane change <b>${C.lane[0]} s</b>, two lanes <b>${C.lane[1]} s</b>`]]
+    : [['measured before any level (a machine gate)', `<b>${measured.seeds}</b> seeds walked: <b>${measured.distinct}</b> different yards, of <b>${measured.ways}</b> there are<br>${gate}`],
+      ['what stops this hero', FORMS.map((f) => `${f.form} (${f.height} m): ${measured.forms.stops.includes(f.form) ? '<b class="ok">stops it</b>' : '<b class="bad">gone over</b>'}`).join('<br>')]];
+  const LIVE = { course: !!C, slots: C ? room.course.slots.map((s) => s.of) : null };
+  const HUD = `<style>#rl{position:fixed;top:52px;left:10px;width:380px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#rl b{color:#fff}#rl .k{color:#9aa0a8}#rl h4{margin:6px 0 2px;font-size:11px;color:#9aa0a8;font-weight:400;text-transform:uppercase;letter-spacing:.06em}#rl .ok{color:#8fd694}#rl .bad{color:#f08a7c}</style>
+<div id="rl"><b>Roll room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')} · ${C ? 'the course' : 'the yard'}</span><h4>this roll</h4><div id="rl-r" class="k">rolling…</div>${sections.map(([h, body]) => `<h4>${h}</h4><div>${body}</div>`).join('')}<h4>${C ? 'the course' : 'the yard'}</h4><div class="k">${room.yard.map(([n, ids]) => (C ? n : `${n}: ${ids.length}`)).join('<br>')}</div><div class="k" style="margin-top:6px">R the next roll · Shift+R the one before · H this panel</div></div>
+<script>
+(() => {
+  const LIVE = ${JSON.stringify(LIVE)};
+  const $ = (id) => document.getElementById(id);
+  let show = true, said = false;
+  const seedNow = () => { const n = Number(new URLSearchParams(location.search).get('seed')); return Number.isInteger(n) && n > 0 ? n : 1; };
+  const go = (n) => { const q = new URLSearchParams(location.search); q.set('seed', String(Math.max(1, n))); location.search = '?' + q.toString(); };
+  addEventListener('keydown', (e) => {
+    if (e.code === 'KeyR') go(seedNow() + (e.shiftKey ? -1 : 1));
+    if (e.code === 'KeyH') { show = !show; $('rl').style.display = show ? '' : 'none'; }
+  });
+  function tick() {
+    const R = window.__mojRoll;
+    if (R && !said) {
+      said = true;
+      // (a course: what stands in each slot, in order; a yard: what stands, the gems laid, the start)
+      $('rl-r').innerHTML = LIVE.course
+        ? 'seed <b>' + R.seed + '</b><br><b>' + LIVE.slots.map((of) => { const id = R.stand.find((s) => of[s]); return id ? of[id] : '—'; }).join(' · ') + '</b>'
+        : 'seed <b>' + R.seed + '</b><br>stands: <b>' + (R.stand.join(', ') || 'none') + '</b><br>gems laid: <b>' + R.lay.length + '</b> of ' + (R.lay.length + R.unlaid.length) + '<br>start: <b>' + (R.start == null ? 'its own' : R.start + 1) + '</b>';
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>`;
+  html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
+  return { html, room, measured };
+}
+
+// THE MENU (practice-mana.js, on mana-ui): the room's readout and its choices, opened by the pilot's pause; the
+// choices as the route reads them (a feel, a mascot's form, a trade or none, an area or none)
+// HOW TO PLAY: the tutorial the screen no longer carries, each key the one the pilot scheme binds
+const MOVE = ['moveForward', 'turnLeft', 'moveBack', 'turnRight'];
+const WORK_TABS = (key, M) => [
+  { label: 'Moving', lines: [{ glyph: key(MOVE), text: 'move: up the screen is up' }, { action: 'boost', text: 'sprint' }, { action: 'interact', text: 'take, work, put down, hand in' }, { action: 'pause', text: 'this menu' }] },
+  { label: 'The work', lines: ['stand at a station and work it; walk off and it waits', 'some run alone once started: come back before they burn', 'shelves keep what is made: put on the left pad, take on the right'] },
+  { label: 'The floor', lines: ['each arrow runs from where a thing comes from to where it goes next', 'warm: hands-on work · cool: carrying, sorting, handing in', 'over a station, pips fill as it is worked, again as it runs alone, then go out toward the burn'] },
+];
+async function workHow(room) {
+  const { keyOf } = await import('./practice-mana.js'), M = room.measured;
+  return [{ label: 'The goal', lines: [`serve ${M.goal} of ${M.arrivals} orders before the bell`, 'an order waits only so long: a lost one is gone'] }, ...WORK_TABS(keyOf, M)];
+}
+async function roomHow(room) {
+  const { keyOf } = await import('./practice-mana.js'), nf = room.room.anchors.foes.length;
+  return [
+    { label: 'Moving', lines: [{ glyph: keyOf(MOVE), text: 'move' }, { glyph: 'mouse', text: 'look' }, { action: 'jump', text: 'jump' }, { action: 'boost', text: 'sprint' }, { action: 'interact', text: 'use' }, { action: 'pause', text: 'this menu' }] },
+    ...(nf ? [{ label: 'The foes', lines: [`${nf} stand on their spots, still until woken`, { action: 'aiToggle', text: 'wake them, or still them' }, 'or the switch in Set up'] }] : []),
+    { label: 'The room', lines: [room.measured ? 'the blue ring is where you start; the shift runs on the counters' : 'the blue ring is where you start, the green the goal'] },
+    ...(room.measured ? WORK_TABS(keyOf).slice(1) : []),
+  ];
+}
+function roomChoices(room, cast) {
+  const C = room.choices, out = [{ id: 'feel', label: 'Movement', now: room.feel, options: C.feels.map((f) => ({ id: f.id, name: `${f.name} (run ${f.run})` })) }];
+  if (room.hero === 'mascot') out.push({ id: 'cast', label: 'Worker', now: cast, options: C.casts.map((c) => ({ id: c, name: c })) });
+  out.push({ id: 'dress', label: 'Dress', now: room.dress ? room.dress.trade : 'none', options: [...C.dresses.map((d) => ({ id: d, name: d })), { id: 'none', name: 'greybox' }] });
+  out.push({ id: 'area', label: 'Area', now: room.area ? room.area.name : 'none', options: [...C.areas.map((a) => ({ id: a, name: a })), { id: 'none', name: 'plane' }] });
+  return out;
+}
+const placeLines = (room) => [
+  room.dress ? `dress: ${room.dress.about}` : 'dress: the blocks as solved, undressed',
+  room.area ? `area: ${room.area.about}` : 'area: the conceptual plane, ruled every two metres',
+  ...(room.area ? [`floor ${room.area.floor} · walls ${room.area.walls}${room.area.cut?.length ? ' (cut away on the camera\'s side)' : ''} · outside: ${room.area.surround.join(', ') || 'nothing'}`] : []),
+];
+// the page's own query, for set up to reopen the room with; none when the page is not the studio's
+const queryOf = (link, q) => (link ? Object.fromEntries(new URLSearchParams(String(link(q)).replace(/^\?/, ''))) : null);
+// the look: the shift family's card for where the room stands (its area, else its dress's trade), else the family's own
+const SHIFT_CARDS = { kitchen: 'shift-kitchen', farm: 'shift-farm', site: 'shift-site', chores: 'shift-garden', hall: 'shift-hall' };
+async function roomTheme(room) {
+  const { cardTheme } = await import('../playscape/ui/theme-cards/loader.js');
+  return cardTheme(SHIFT_CARDS[room.area?.name ?? room.dress?.trade] ?? 'shift');
+}
+async function withMenu(html, cfg, room) {
+  const { practiceMana, practiceManaHtml } = await import('./practice-mana.js');
+  const M = practiceManaHtml(practiceMana({ ...cfg, theme: await roomTheme(room) }));
+  return html.includes('</body>') ? html.replace('</body>', `${M}</body>`) : html + M;
+}
+
+/**
+ * The work room's page: the room on the runtime, and its menu (mana-ui, the pilot's pause opens it; open as the page
+ * loads, the briefing): the shift as tuned (pace, patience, the goal), how to read the room, the work proof at the
+ * template's run, and the presets to choose from (a feel template, a body, the dress, the area), the room reopened with
+ * them.
+ */
+export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { workRoom, WORK_CAST } = await import('./work-room.js');
+  cast = cast ?? WORK_CAST;
+  const room = workRoom(G, { refs, cast, feel, dress, area, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-work-room`);
+  const D = room.card.demand, M = room.measured;
+  const about = [
+    { label: 'The shift', lines: [`${room.card.name ?? room.card.id} · ${room.solved.target}`, `an order every ${D.every} s${D.mode === 'backlog' ? `, ${D.backlog} standing` : `, patience ${D.patience} s`}, ${D.orders.length} on the menu`, `${M.arrivals} orders · the goal ${M.goal}`] },
+    { label: 'Measured', lines: [`a walker who knows the card, at this template's run: ${M.says}`] },
+    { label: 'The place', lines: [room.hero === 'own' ? 'the worker: the world\'s own hero' : `the worker: ${room.mascot.thesis}`, ...placeLines(room)] },
+  ];
+  const html = await withMenu(await emitted(payload, cdn), { title: `Work room · ${room.card.name ?? room.card.id}`, how: await workHow(room), about, choices: roomChoices(room, cast), query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
+  return { html, room };
+}
+
+/**
+ * The game room's page: the room on the runtime, and its menu (mana-ui, as the work room's): the brief (what the game
+ * asked of the room, and why), the primitives laid, the room laws, the shift's proof where there is one, and the presets
+ * to choose from, the room reopened with them; the foes woken on its switch or the pilot's own (still at first).
+ */
+export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
+  const { gameRoom } = await import('./game-room.js');
+  const { WORK_CAST } = await import('./work-room.js');
+  cast = cast ?? WORK_CAST;
+  const room = gameRoom(G, { refs, cast, feel, dress, area, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-game-room`);
+  const N = room.needs, counts = {};
+  for (const p of room.room.primitives) counts[p.kind] = (counts[p.kind] ?? 0) + 1;
+  const nf = room.room.anchors.foes.length;
+  const about = [
+    { label: 'The brief', lines: Object.entries(N.why).map(([k, v]) => `${k}: ${v}`) },
+    { label: 'Laid', lines: [Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ') || 'nothing: an open floor', `${room.room.size} m square · ${nf} foe spot${nf === 1 ? '' : 's'}; the spawn's ring blue, the goal's green`] },
+    { label: 'The laws', lines: room.laws.map((l) => `${l.holds ? 'holds' : 'advise'} · ${l.law}: ${l.says}`) },
+    ...(room.measured ? [{ label: 'The shift', lines: [room.measured.says] }] : []),
+    { label: 'The place', lines: [room.hero === 'own' ? 'the hero: the world\'s own' : `the hero: ${room.mascot.thesis}`, ...placeLines(room)] },
+  ];
+  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, how: await roomHow(room), about, choices: roomChoices(room, cast), foes: nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
+  return { html, room };
+}
+
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
   const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
@@ -299,5 +447,23 @@ export async function practiceHtml(G, id, opts = {}) {
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
   }
-  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : mountLaneHtml(G, opts);
+  // (the roll room's course as its MAP, course-map.js: the book's diagram of a running game's course, `view: 'map'`)
+  if (id === 'roll' && opts.view === 'map') {
+    const room = rollRoom(G, opts);
+    if (room.layout !== 'course') throw new Error('practice: the course map is a running game\'s (a hero that runs on momentum has a course; this world\'s roll room is the yard)');
+    const { courseMapHtml } = await import('./course-map.js');
+    return { html: courseMapHtml(room.course, { title: G.name ?? G.id ?? 'Course' }), room };
+  }
+  // (and as its SHEET, course-sheet.js: the way, the asks, the walls and the backdrop on one page, `view: 'sheet'`; framed
+  // for the game's own screen)
+  if (id === 'roll' && opts.view === 'sheet') {
+    const room = rollRoom(G, opts);
+    if (room.layout !== 'course') throw new Error('practice: the course sheet is a running game\'s (a hero that runs on momentum has a course; this world\'s roll room is the yard)');
+    const [{ courseSheetHtml }, { readScreen, screenPayload }, { courseCamera, COURSE_NEAR, COURSE_TALL_FOV }] = await Promise.all([import('./course-sheet.js'), import('../game/screen.js'), import('./course-view.js')]);
+    const S = G.screen ? readScreen(G.screen) : null, P = S ? screenPayload(S.orientation === 'portrait' ? { ...S, fov: S.fov ?? COURSE_TALL_FOV } : S) : null;
+    // (an upright screen's course is followed by the camera solved for it, as its level's is: levels.js screenLevel)
+    const course = P?.v0 ? { ...room.course, camera: courseCamera({ react: room.course.reactAt, vfov: P.v0, near: COURSE_NEAR.tall }) } : room.course;
+    return { html: courseSheetHtml(course, { title: G.name ?? G.id ?? 'Course', ...(P ? { aspect: P.aspect } : {}), ...(P?.v0 ? { vfov: P.v0 } : {}) }), room };
+  }
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : id === 'room' ? gameRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }
