@@ -20,6 +20,12 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-14 (the action RPG: foes that never lock blades, steps at their own level): the runtime's melee
+// contact reads `rule.clash === false` on either body before a clash (combat-melee.js: one line replaced in place; a
+// rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one
+// line replaced; no gain, a cue's own level as before). Every fixture that embeds the controllable runtime or the
+// audio channel re-pinned with it.
+//
 // Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
 // gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
 // `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added

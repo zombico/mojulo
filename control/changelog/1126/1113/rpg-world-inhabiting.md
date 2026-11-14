@@ -241,8 +241,14 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
 - **The made game reads as a game** (the action RPG's, each change opt-in so no other game's bytes move):
   - Her sword is cut short and worn at the left hip out of combat, never on the back under the cape (a genre hero
     row's `carry`: `gameworld/hero-rows.js`, `levels.js` sheathedSpec).
-  - She runs the hero's own run, steady (`gameworld/genre-forms.js`: the action RPG's vibe is `composed`; the spirited
-    run's flung arms read as a dash).
+  - She runs the move library's run, the hero's standard (a genre hero row's `run: 'library'`: her own calibrated jog
+    is not handed to her levels, `hero-rows.js` rowGaits).
+  - She fights with her feel's kit (`arsenal: 'auto'`, `gameworld/compose.js`): the sword's strings and specials and
+    the bow as the sidearm, where a game laid from a sentence had the one blow.
+  - A game's foe never locks blades with the hero (`rule.clash: false`, `worlds/controllable/combat-melee.js`): a swing
+    that meets its swing lands.
+  - A step is played at a share of a cue's level on the sound sheet (`sound-sheet.js` STEP_GAIN; a game's own:
+    `sound.steps`): it sounds twice a stride, and at a blow's level it was all a player heard.
   - A zone's page is titled by its places ("The village", "The meadow road and the old ruins"), where it showed the
     map's id and the zone's letters (`gameworld/levels.js`).
   - The hero's health is a bar labelled Health, where it was a chip reading "HP 20" (`fail-on-death` `bar: true`,

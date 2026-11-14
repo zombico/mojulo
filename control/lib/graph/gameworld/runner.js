@@ -47,7 +47,7 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
-import { carriedBlade, genreHero } from './hero-rows.js';
+import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
@@ -367,7 +367,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // plays the ones it was made with)
   const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && ownFoe && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
   if (ownMoves && adopted) { const st = reactStatesOf(isObj(lookup?.heroSpec?.motion) ? Object.keys(lookup.heroSpec.motion) : []); if (st) ownMoves[heroRef] = st; }
-  const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
+  const heroGaits = rowGaits(adopted ? null : G, gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) }));
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const runScore = scoreOfRun(world, G, ref);

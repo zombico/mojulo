@@ -35,6 +35,7 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
+import { arsenalFor } from './combos.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
@@ -573,6 +574,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // voices, its ground underfoot, a bed a place) and given a SCORE (an empty `music`: the audio direction solved from
   // its words, every level scored from the cue sheet). Play's sounds only: the interface keeps its own (mana-ui's set,
   // which the direction names and never replaces). Both are the creator's to rewrite, word by word
+  // HOW IT FIGHTS (gameworld/arsenal.js): a world map's game whose feel has a kit plays it (`arsenal: 'auto'`): its
+  // weapons, their strings and specials, and its sidearm (the action-adventure's sword, its three cuts and its spin,
+  // and the bow); a feel with no kit, the hero's one blow as before
+  if (world.brief.worldMap && world.feel !== undefined && world.arsenal === undefined && arsenalFor(world.feel)) world.arsenal = 'auto';
   if (world.brief.worldMap) { world.sound = {}; world.music = {}; world.brief.audio = 'on the sound sheet and scored from the cue sheet: its sounds and its music solved from the game, the interface\'s sounds its own'; }
   world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
   readGameworld(world);

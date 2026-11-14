@@ -368,7 +368,8 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
     id: p.id, team: T.team ?? 'foes',
-    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}) },
+    // (a game's foe never locks blades with the hero: a swing that meets its swing lands, combat-melee.js `clash`)
+    rule: { clash: false, ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}) },
     ...(weapon ? { weapon: { ...weapon } } : {}),
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)

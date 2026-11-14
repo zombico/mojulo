@@ -2,7 +2,9 @@
 // sentence opens on it, and a creator's own pages take it away. And the row's outfit as the hero door builds it: the
 // clothing words it is made of, each on its concept (outfit-plan.js, body-garment.js, outfit/styles.js).
 import { describe, it, expect } from 'vitest';
-import { GENRE_HERO, genreHero } from './hero-rows.js';
+import { GENRE_HERO, genreHero, rowGaits, carriedBlade } from './hero-rows.js';
+import { arsenalOfGame } from './arsenal.js';
+import { sheetAudio, STEP_GAIN } from './sound-sheet.js';
 import { heroDesign } from './hero-design.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
@@ -114,5 +116,25 @@ describe('the clothing words the row is made of', () => {
     const rim = M.plan.adorn.find((a) => a.id === 'bootRimR'), ank = M.plan.adorn.find((a) => a.id === 'ankletR');
     expect(rim.part).toBe(ank.part);
     expect(rim.s[1]).toBeLessThan(ank.s[0]);
+  });
+});
+
+describe('how the genre\'s hero plays', () => {
+  const world = composeGameworld({ prompt: 'an anime action rpg like zelda', name: 'Artesia' }), G = readGameworld(world);
+  it('runs the library\'s run, carries its row\'s blade; a world with no row keeps its gaits and its gear', () => {
+    expect(rowGaits(G, ['walk', 'jog', 'sprint'])).toEqual(['walk', 'sprint']);
+    expect(rowGaits({ intent: { from: 'no-such-genre' } }, ['walk', 'jog'])).toEqual(['walk', 'jog']);
+    expect(rowGaits(G, null)).toBe(null);
+    expect(carriedBlade(G, { right: { item: 'sword', laws: 2 } }).right.parts).toEqual(GENRE_HERO['action-rpg'].carry.blade.parts);
+    const own = { right: { item: 'sword', parts: { endLength: 90 } } };
+    expect(carriedBlade(G, own)).toBe(own);
+  });
+  it('fights with its feel\'s kit (its strings and its bow), and steps quieter than it strikes', () => {
+    expect(world.arsenal).toBe('auto');
+    const A = arsenalOfGame(G).arsenal;
+    expect(A.weapons[0].combos.length).toBeGreaterThan(1);
+    expect(A.ranged[0].id).toBe('bow');
+    expect(sheetAudio(G).sheet.steps.gain).toBe(STEP_GAIN);
+    expect(STEP_GAIN).toBeLessThan(1);
   });
 });
