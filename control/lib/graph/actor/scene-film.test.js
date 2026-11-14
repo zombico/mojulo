@@ -62,6 +62,16 @@ describe('the scene film pack', () => {
     expect(lookPy()).toMatch(/SOLIDIFY/);
   });
 
+  it('carries a scene\'s props: each its model, its place, its turn and its size; none adds nothing', () => {
+    const props = [{ name: 'car', ref: 'sk_car', glb: 'props/car.glb', at: [4.5, 3], turn: 90, dims: [4.5, 2.2, 1.9] }];
+    const withProps = Object.fromEntries(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked', props }).map((f) => [f.file, f.text]));
+    expect(JSON.parse(withProps['scene.json']).props).toEqual(props);
+    expect(JSON.parse(files.find((f) => f.file === 'scene.json').text).props).toBeUndefined();
+    // (the build stands each under its own empty, at the plan's size)
+    expect(actorsPy()).toMatch(/def props\(S\)/);
+    expect(actorsPy()).toMatch(/'prop:%s' % Q\['name'\]/);
+  });
+
   it('is deterministic', () => {
     expect(JSON.stringify(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked' }))).toBe(JSON.stringify(files));
   });

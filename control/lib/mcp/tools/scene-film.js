@@ -211,9 +211,8 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
       free.forEach((w, i) => { const id = `${w}-mark`; if (!Object.hasOwn(marks, id)) marks[id] = [Math.round((mid[0] + (i - (free.length - 1) / 2) * PAIR) * 1000) / 1000, mid[1]]; cast = { ...cast, [w]: { ...cast[w], mark: id } }; });
     }
     play = { ...play, marks, cast };
-    set.props = stood.map((P) => ({ name: P.name, ref: props[P.name].ref, at: P.at, size: P.size }));
+    set.props = stood.map((P) => ({ name: P.name, ref: props[P.name].ref, at: P.at, size: P.size, dims: P.dims, ...(props[P.name].turn ? { turn: props[P.name].turn } : {}) }));
     set.places += stood.length;
-    advice.push(...stood.map((P) => ({ id: 'prop-board-only', says: `prop "${P.name}" stands in the plan and the storyboard; the Blender film does not carry it yet`, try: 'board the scene with it; build it into the set\'s world for the render' })));
     const own = groundPlan(stood.flatMap((P) => P.faces), play);
     // (in a room that says its own pieces, the props' ground is added to them; anywhere else the whole ground is read again)
     if (set.floor_plan && set.rooms.some((R) => R.walled)) { set.floor_plan = { ...set.floor_plan, blocks: [...set.floor_plan.blocks, ...(own?.blocks ?? [])] }; set.blocks = own?.blocks ?? []; }
@@ -227,7 +226,8 @@ export async function prepareScreenplay(sp, { getRow } = {}) {
 
 /**
  * A thing's faces stood in the scene: its middle over `at`, its lowest point on the floor, turned `turn` degrees about
- * the vertical (clockwise from above). → { faces, at, half: [x, y] its half extents as stood, size: [x, y, z] }
+ * the vertical (clockwise from above). → { faces, at, half: [x, y] its half extents as stood, size: [x, y, z] as
+ * stood, dims: [x, y, z] before it was turned }
  */
 export function placeProp(faces, at, turn = 0) {
   let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
@@ -237,7 +237,7 @@ export function placeProp(faces, at, turn = 0) {
   const out = faces.map((f) => ({ corners: f.corners.map(put) }));
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const f of out) for (const c of f.corners) { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
-  return { faces: out, at: [r3(at[0]), r3(at[1])], half: [r3((x1 - x0) / 2), r3((y1 - y0) / 2)], size: [r3(x1 - x0), r3(y1 - y0), r3(hi[2] - lo[2])] };
+  return { faces: out, at: [r3(at[0]), r3(at[1])], dims: [r3(hi[0] - lo[0]), r3(hi[1] - lo[1]), r3(hi[2] - lo[2])], half: [r3((x1 - x0) / 2), r3((y1 - y0) / 2)], size: [r3(x1 - x0), r3(y1 - y0), r3(hi[2] - lo[2])] };
 }
 
 /** What stands on a set's floor, read from its faces about the marks the scene uses (the cast's, and each the script
@@ -317,7 +317,7 @@ async function heroSource(src, { who, getRow, fallback }) {
 }
 
 /** what a pack writes that depends on its scene: cleared before a pack is made again in the same folder */
-const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'shot.json', 'light.py', 'set.py', 'dub.py', 'atmosphere.json']);
+const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'props', 'shot.json', 'light.py', 'set.py', 'dub.py', 'atmosphere.json']);
 
 /**
  * Write the scene film pack into outDir: actors/<who>.glb, then the pack's files (actor/scene-film.js). Returns the
@@ -381,10 +381,25 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     const house = !atmosphere.sky && !atmosphere.lamps.length ? houseLights(P.set.rooms) : [];
     if (house.length) setPack.house = house;
   }
-  const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
+  // (each prop as its own model, props/<name>.glb: actors.py stands it where the plan stood it, at the size it was read
+  //  at, so what the storyboard drew is what the film has)
+  const propPack = [];
+  for (const Q of P.set?.props ?? []) {
+    const row = getRow(Q.ref);
+    const { payload } = await resolveWorldScene(row, { unshaded: true });
+    // (an object's own page stands it on a studio floor: the page's, not the thing's)
+    const glb = facesToGlb({ ...payload, faces: (payload.faces ?? []).filter((f) => !f?.studio) }, { generator: `mojulo scene film · prop ${Q.name}`, lit: true });
+    if (!glb) continue;
+    const file = `props/${packTitle(Q.name)}.glb`;
+    mkdirSync(path.join(outDir, 'props'), { recursive: true });
+    writeFileSync(path.join(outDir, file), Buffer.from(glb.bytes));
+    propPack.push({ name: Q.name, ref: Q.ref, glb: file, at: Q.at, turn: Q.turn ?? 0, dims: Q.dims });
+    log(`${file}: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB`);
+  }
+  const files = sceneFilmFiles({ S, coverage, actors, fps, title, atmosphere, props: propPack, grade: graded, sound: sound ? { audio: sound.audio ?? null, captions: sound.captions, ...(sound.dubs ? { dubs: Object.fromEntries(Object.entries(sound.dubs).map(([L, D]) => [L, { audio: D.audio, captions: D.captions, face: `face:${dubTake(L)}` }])) } : {}) } : null, set: setPack, render });
   for (const f of files) { mkdirSync(path.dirname(path.join(outDir, f.file)), { recursive: true }); writeFileSync(path.join(outDir, f.file), f.text); }
   return {
-    files: [...Object.values(minted).map((m) => m.glb), ...files.map((f) => f.file)],
+    files: [...Object.values(minted).map((m) => m.glb), ...propPack.map((Q) => Q.glb), ...files.map((f) => f.file)],
     shotFiles: files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file),
     actors: minted,
     seconds: S.seconds,

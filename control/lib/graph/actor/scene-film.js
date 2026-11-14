@@ -10,7 +10,7 @@
  *          body's smooth normals, no light baked into its colours), so the bands move with Blender's lights
  *
  *   sceneFilmFiles({ S, coverage, actors, fps, width, height, title }) → [{ file, text }] (no GLBs: the caller writes
- *     each actor's as `actors/<who>.glb`)
+ *     each actor's as `actors/<who>.glb`, each prop's as `props/<name>.glb`)
  *     A coverage with a time map (shoot/time.js: the screenplay's slow motion and freezes, a grain) is laid on the
  *     screen's clock: the film runs its screen frames, each camera keyed at its own clock, scene.json's `clock` the
  *     scene's time each frame shows, each actor's place keyed every frame, and actors.py plays the takes through an NLA
@@ -37,8 +37,8 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
 
 /** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
  * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
- * 3: a set lit as its world declares (atmosphere.json, film_light.py). */
-export const SCENE_PACK_REV = 4;
+ * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb). */
+export const SCENE_PACK_REV = 5;
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -54,7 +54,7 @@ export function coverageCameraAt(coverage, t, shot = null) {
 }
 
 /** The pack's files (see the header) */
-export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null, render = null, atmosphere = null }) {
+export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null, render = null, atmosphere = null, props = [] }) {
   // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
@@ -83,6 +83,7 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...(sound?.audio ? { audio: sound.audio, captions: sound.captions } : {}),
     ...(sound?.dubs ? { dubs: sound.dubs } : {}),
     ...(set ? { set } : {}),
+    ...(props.length ? { props } : {}),
     ...(render ? { render: Object.fromEntries(Object.entries({ samples: render.samples, motion_blur: render.motion_blur, dof: render.dof }).filter(([, v]) => v !== undefined && v !== null && v !== false)) } : {}),
     ...(render?.light === 'setups' ? { lights: setupLights({ S, coverage, shots }) } : {}),
     actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
@@ -317,6 +318,7 @@ import bpy
 import json
 import math
 import os
+from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -468,6 +470,52 @@ def house(S):
         log('%s: %d W under the ceiling' % (name, round(lamp.energy)))
 
 
+def props(S):
+    """The scene's PROPS (scene.json props): each a thing mojulo made, its own model, stood where the plan stood it. Its
+    size is the one it was read at (dims, metres, before its turn), whatever unit its model came in; its middle is over
+    its place, its lowest point on the floor, turned clockwise from above. Made once."""
+    for Q in S.get('props') or []:
+        name = 'prop:%s' % Q['name']
+        if bpy.data.objects.get(name) is not None:
+            continue
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, Q['glb']))
+        new = [o for o in bpy.data.objects if o not in before]
+        # (a thing's page brings its view cameras and its lights: the film has its own)
+        for o in [o for o in new if o.type in ('CAMERA', 'LIGHT')]:
+            new.remove(o)
+            bpy.data.objects.remove(o, do_unlink=True)
+        holder = bpy.data.objects.new(name, None)
+        bpy.context.scene.collection.objects.link(holder)
+        for o in new:
+            if o.parent is None:
+                o.parent = holder
+            if o.name.startswith('mojulo'):
+                o.name = '%s:root' % name
+        bpy.context.view_layer.update()
+        lo, hi = [1e30] * 3, [-1e30] * 3
+        for o in new:
+            if o.type != 'MESH':
+                continue
+            for c in o.bound_box:
+                w = o.matrix_world @ Vector(c)
+                for i in range(3):
+                    lo[i], hi[i] = min(lo[i], w[i]), max(hi[i], w[i])
+        if lo[0] > hi[0]:
+            log('%s: no mesh in %s' % (name, Q['glb']))
+            continue
+        # (the size: by its longest side, so a model in millimetres or with no unit stands at the plan's)
+        ext, dims = [hi[i] - lo[i] for i in range(3)], [float(v) for v in Q['dims']]
+        ax = max(range(3), key=lambda i: dims[i])
+        k = dims[ax] / ext[ax] if ext[ax] > 1e-9 else 1.0
+        a = -math.radians(float(Q.get('turn', 0.0)))
+        cx, cy = k * (lo[0] + hi[0]) / 2.0, k * (lo[1] + hi[1]) / 2.0
+        holder.scale = (k, k, k)
+        holder.rotation_euler = (0.0, 0.0, a)
+        holder.location = (float(Q['at'][0]) - (cx * math.cos(a) - cy * math.sin(a)), float(Q['at'][1]) - (cx * math.sin(a) + cy * math.cos(a)), -k * lo[2])
+        log('%s: %.2f x %.2f x %.2f m at [%.2f, %.2f]' % (name, k * ext[0], k * ext[1], k * ext[2], float(Q['at'][0]), float(Q['at'][1])))
+
+
 def build(S):
     sc = bpy.context.scene
     sc.render.fps = int(S['fps'])
@@ -526,6 +574,7 @@ def build(S):
                 if b:
                     remap(owner, b, S['clock'], fps)
         log('%s: %d objects, bound %s%s' % (name, len(new), [b for _, b in bound if b], ' on the time map' if S.get('clock') else ''))
+    props(S)
     stage(S)
     house(S)
     sc.frame_set(1)
@@ -880,6 +929,8 @@ the film (its \`--audio\` takes another). The captions: \`${sound.captions}\`.${
 - \`actors/<who>.glb\`: each actor's hero, skinned, its body's take \`act:scene\` and its face's \`face:scene\` on the scene's
   clock (the act's \`moj:act\` extras carry its place over time too). \`actors.py\` hangs each under an empty
   \`actor:<who>\` keyed on that place and facing.
+- \`props/<name>.glb\`, where the scene has props: each thing stood in it, its own model. \`actors.py\` stands each under
+  an empty \`prop:<name>\` at its place, its turn and the size the plan read it at (\`scene.json\` \`props\`).
 - \`scene.json\`: the scene (the actors, their places, the lines, the coverage). \`shot.json\` and \`shots/\`: the
   coverage's cameras, each shot keyed every frame, cut at markers by \`film_shots.py\`.
 - \`look.py\`: the look. \`film\` is the production look in Cycles; \`anime\` is the cel look shaded live in EEVEE, the

@@ -98,9 +98,11 @@ game.
     it, walks go round it and the cameras see past it. A scene needs no set to have props.
   - **The storyboard draws it all.** Buildings, furniture and props are drawn as plain blocks round the stand-in
     figures, in each panel and in the plan from above.
-  - **Not yet:** a prop is in the plan and the storyboard, but not in the Blender film. An object made without a
-    real size (a vehicle, for one) needs its scale given. A house does not name its rooms, so its cast stands
-    outside it.
+  - **Props are in the Blender film.** Each prop comes into the film as itself (the car is a car, not a block),
+    standing where the storyboard drew it and at the same size. Before, a prop was in the plan and the storyboard
+    only.
+  - **Not yet:** an object made without a real size (a vehicle, for one) needs its scale given. A house does not
+    name its rooms, so its cast stands outside it.
 - **Walk up to someone.** A script can send a character to another character ("Ada crosses to Jon."), not only to a
   place. They walk up and stop at a conversation's distance.
 - **Lighting each shot like a film crew.** Ask for it and every shot gets its own lights, placed from where that

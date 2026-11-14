@@ -166,7 +166,6 @@ again from the recipe.
 - A dub is to picture only: a locale whose lines need more time cannot re-time the scene yet.
 - The storyboard's frames draw a decorated room as plain blocks: its walls, furniture and bare openings for the doors and
   windows, with no door leaf, glass or finishes. Any other set, and every prop, is drawn as plain blocks at its heights: a car reads as a low box with a cabin, not as a car.
-- A prop stands in the plan and the storyboard only. The Blender film does not carry it yet (advice `prop-board-only`).
 - A thing made in no real unit (a vehicle, for one) states no size: it is read as metres until the prop gives a `scale`.
 - A house names no rooms as places yet: as a set, its cast is stood outside it.
 - Marks are on the floor at the set's height under the lead's mark. A set of many levels is stood on that one floor.

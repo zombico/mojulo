@@ -165,7 +165,9 @@ describe('a scene in anything mojulo makes', () => {
     expect(P.screenplay.cast.ada.mark).toBe('ada-mark');
     const plan = planSceneFilm(P.screenplay, { getRow: made, set: P.set });
     expect(plan.S.actors.ada.walks).toHaveLength(1);
-    expect(P.advice.some((A) => A.id === 'prop-board-only')).toBe(true);
+    // (what the Blender film stands it by: its size before any turn, its place)
+    expect(P.set.props[0].dims).toEqual([1.83, 0.975, 0.76]);
+    expect(P.advice.some((A) => A.id === 'prop-board-only')).toBe(false);
   }, 60000);
 
   it('takes an object as the set itself: the cast is stood on the clear ground beside it, a place called ground', async () => {

@@ -234,7 +234,9 @@ is a shot of the same coverage the Blender pack cuts, so the board and the film 
   same way, stood with its lowest point on the floor and its middle at `at`, turned and scaled. Its faces join the
   set's, so the ground, the cameras and the board treat it like the rest. Its name becomes a mark on the clear ground
   beside it. The plan plays the screenplay without `props`; the recipe keeps them as written. With no `world_ref`
-  the set's kind is `props` and the cast get marks of their own. The Blender pack does not carry props yet.
+  the set's kind is `props` and the cast get marks of their own. The Blender pack carries each as its own
+  model, `props/<name>.glb` (`scene.json` `props`: its place, its turn, its size as read), and `actors.py` stands it
+  under an empty `prop:<name>` at that size, whatever unit the model came in.
 - The storyboard draws every set: `groundForms(blocks)` stands the nearest blocks as boxes in each panel. When a set
   is drawn, `panelStation(framing, { square: true })` turns the world by quarter turns only, so the blocks stay
   axis-aligned boxes (cheap for the plate), and the station takes the rest of the angle.
