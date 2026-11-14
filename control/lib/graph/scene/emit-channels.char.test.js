@@ -742,6 +742,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // thrown, a jump and the bodies' voices off the street's state, and counts what it asked for (window.__mojBrawl.heard).
 // And once more (a street in a game's shell): `brawl`. A hosted street says it is ready, takes the focus, and sends its
 // end up the level wire in place of its own end screen.
+// Re-pinned 2026-11-14 (the holo arena's `ready`, tabletop/holo-arena.client.js): `holo`. Its probe says whether a
+// person's click would be taken now (in play, their turn, no beat on stage or waiting), so a driver waits on the page and
+// not on a clock; the arena plays as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
