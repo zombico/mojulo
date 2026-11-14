@@ -106,6 +106,15 @@ describe('its crowd, a crew of the comic pack\'s', () => {
     expect(() => world({ crowd: { faction: armed, colourway: 'nope' } })).toThrow(/wears/);
     expect(() => quickWorld({ id: 'w', quick: { goal: 'reach', crowd: armed } })).toThrow(/brawl goal/);
   });
+  it('the street it holds wears its colour: a town street\'s dress in the colourway\'s trim, unless the street says its own', () => {
+    const C = brawlCrowd({ goal: 'brawl' }, 1), steps = runSteps(world({ roster: [ME] }), { ref: 'gw' });
+    expect(C.colour).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.dress.colour).toBe(C.colour.toLowerCase());
+    const [own] = brawlStreets({ goal: 'brawl', streets: [{ id: 's', level: { kind: 'town', dress: { colour: '#123456' } } }] }, { colour: C.colour });
+    expect(own.manifest.brawl.dress.colour).toBe('#123456');
+    const [bare] = brawlStreets({ goal: 'brawl', streets: [{ id: 's', level: { kind: 'town', dress: false } }] }, { colour: C.colour });
+    expect(bare.manifest.brawl.dress).toBeUndefined();
+  });
   it('the run casts it: every type a wave names is drawn by a grunt of the crew', () => {
     const steps = runSteps(world({ roster: [ME], crowd: armed }), { ref: 'gw' });
     const street = steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;

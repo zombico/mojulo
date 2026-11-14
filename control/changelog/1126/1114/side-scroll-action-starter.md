@@ -66,9 +66,22 @@ screen) is now played on a page; before, only its practice yard was.
   heavy and any other the thug); a blade is the street's to draw, so only a gun stays in the hand. A street that names
   no waves draws them from those types, no more than two of a wave shooting. A cast's kind may name several
   characters, taken in turn body by body.
+- The street is dressed (`brawl/brawl-dress.js`): what stands along a belt beside the band, laid on the belt and never
+  on the level under it. Three shelves, each a table: the PIECES (a crate, stacked crates, barrels, a pallet, sacks, a
+  market stall under its striped canopy, a cafe table under its parasol, a sandwich board, a planter, a pot, a bench, a
+  paper box, a skip, tyres, a hand cart, a bollard; on the wall posters, the crew's tag and its banner), the SETS (a
+  screen's theme: market, cafe, yard, turf, plain: what its far side draws from and how close, what its wall carries)
+  and the seeded layout (a piece and a gap at a time against the fronts, the wall's marks at their stride). A town
+  street is dressed unless its level says `dress: false`; `dress: { sets, colour, seed }` says a set a screen and the
+  crew's colour (its tags, its banners, the boss's corner). A quick brawl's street wears its crowd's colourway. The
+  dress collides with nothing: it stands outside the band.
+- The street's angle: a belt angle `street` (further back, looking over the bodies' heads: the band in the frame's
+  lower half, the fronts, their awnings and the first floor over it), the town street's own unless it names another.
+  An angle carries the height it looks at (`look`; a body's chest for the others, as before).
+- The street spike tours: `scripts/spikes/brawler/street.mjs --tour` walks the camera down an empty street and takes a
+  still every 12 m, so a dress is seen in a couple of minutes without a fight.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
-  software), the realistic jacked body's wrist (its forearm ends wider than its hand), the street's dress (the
-  stage kits), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed
+  software), the realistic jacked body's wrist (its forearm ends wider than its hand), lives and continues, a rank on the result, two players checked on a page, a brawler from a composed
   (non-quick) world.

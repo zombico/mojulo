@@ -636,6 +636,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
     structureColliders = S.colliders; structureRings = S.rings;
   }
+  // a brawl street's DRESS (brawl/brawl-dress.js): what stands along the belt beside the band, a set a screen. Its
+  // faces join here, before the material / AO / texture passes. Absent ⇒ nothing.
+  if (payload && sketch.manifest.brawl?.dress && sketch.manifest.brawl.belt) {
+    const { dressSceneFaces } = await import('@/lib/graph/brawl/brawl-dress.js');
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...dressSceneFaces(sketch.manifest.brawl.dress, sketch.manifest.brawl.belt, ctx.light ?? undefined)];
+  }
   // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
   // key (unshaded, the view's light), standing on the domain's land
   const domainStructures = payload && (kind === 'stage' || kind === 'geocube') && sketch.manifest.domain !== undefined ? geocubeStructures(sketch.manifest) : null;

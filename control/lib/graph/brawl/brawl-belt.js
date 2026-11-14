@@ -50,11 +50,13 @@ export const BELT_DEPTH = Object.freeze([-2.5, 2.5]);
  *   distance  m from the band's middle at a body's chest
  *   fov       degrees, horizontal
  */
-const angle = (reads, pitch, yaw, distance, fov) => Object.freeze({ reads, pitch, yaw, distance, fov });
+// (`look`: the height the camera looks at above the floor; a body's chest unless the angle frames the street over it)
+const angle = (reads, pitch, yaw, distance, fov, look = 1.1) => Object.freeze({ reads, pitch, yaw, distance, fov, look });
 export const BELT_ANGLES = Object.freeze({
   classic: angle('square to the street, a little above it: the arcade brawler\'s, the band foreshortened', 14, 0, 10, 50),
   high: angle('square and high, looking down onto the band: the crowd\'s lines read, the street a floor', 34, 0, 11, 50),
   low: angle('square and low, near the kerb: the bodies tall against the walls, the band shallow', 5, 0, 9, 54),
+  street: angle('square to the street from further back, looking over the bodies\' heads: the band in the frame\'s lower half, the fronts and what stands against them over it', 10, 0, 12, 50, 1.9),
   ahead: angle('turned down the street the way it runs, a little above: the way on opening ahead', 18, 22, 10, 50),
 });
 export const BELT_ANGLE_IDS = Object.freeze(Object.keys(BELT_ANGLES));
@@ -154,5 +156,5 @@ export function beltCamera(belt, cam) {
   // (in the belt's frame: the camera stands back toward −n, turned by the yaw so it looks a little along +s)
   const back = A.distance * Math.cos(p), up = A.distance * Math.sin(p);
   const ds = -back * Math.sin(y), dn = -back * Math.cos(y);
-  return { cameraPosition: beltPoint(belt, cam + ds, mid + dn, CHEST + up), lookAt: beltPoint(belt, cam, mid, CHEST), horizontalFov: A.fov };
+  return { cameraPosition: beltPoint(belt, cam + ds, mid + dn, A.look + up), lookAt: beltPoint(belt, cam, mid, A.look), horizontalFov: A.fov };
 }

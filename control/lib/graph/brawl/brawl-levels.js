@@ -35,6 +35,7 @@ import { FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
 import { STAGE_KITS } from '../era/stage.js';
 import { designGeotown } from '../geotown/design.js';
+import { readDress } from './brawl-dress.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -186,7 +187,7 @@ function brawlStage(words) {
 // along the block's south side, the belt down that street between its two cross streets. The shops stand on the far
 // side (north, the block's fronts); the near side is the town's bare margin, open to the camera. The street is the
 // town's own: its road, kerbs, verges and walks, its lamps and trees, its fronts by its streetscape.
-const TOWN = Object.freeze({ cube: 'valley-morning', pattern: 'old-town', streetscape: 'old-centre', seed: 3, clear: 2, depth: [-2.6, 3.4] });
+const TOWN = Object.freeze({ cube: 'valley-morning', pattern: 'old-town', streetscape: 'old-centre', seed: 3, clear: 2, depth: [-2.6, 3.4], angle: 'street' });
 function brawlTown(words) {
   const seed = words.seed ?? TOWN.seed;
   if (!Number.isInteger(seed)) throw new Error('brawl: a town street\'s seed is a whole number');
@@ -197,11 +198,19 @@ function brawlTown(words) {
   const cross = D.streets.filter((s) => s.axis === 'y').map((s, k) => ({ at: s.at, half: D.sections.x[k].half })).sort((a, b) => a.at - b.at);
   const x0 = r3(cross[0].at + cross[0].half + TOWN.clear), x1 = r3(cross[cross.length - 1].at - cross[cross.length - 1].half - TOWN.clear);
   const screens = words.screens ?? STAGE_SCREENS;
-  const belt = readBelt({ at: [x0, r3(main.at)], heading: 0, floor: r3(D.land.S(x0, main.at)), depth: words.depth ?? TOWN.depth, screens, angle: words.angle ?? 'classic' }, 'level');
+  const belt = readBelt({ at: [x0, r3(main.at)], heading: 0, floor: r3(D.land.S(x0, main.at)), depth: words.depth ?? TOWN.depth, screens, angle: words.angle ?? TOWN.angle }, 'level');
   if (belt.length > x1 - x0 + 1e-6) throw new Error(`brawl: the town's block holds a street of ${Math.floor(x1 - x0)} m between its cross streets (the screens run ${r3(belt.length)} m): fewer or shorter screens`);
+  // ITS DRESS (brawl-dress.js): on the far walk between the band and the fronts, and on the fronts themselves; a set
+  // a screen. `dress: false` leaves the street the town's own
+  const Sy = D.sections.y.find((q) => q.rank === 'main') ?? D.sections.y[0], wall = r3(Sy.half);
+  if (words.dress !== undefined && words.dress !== false && !isObj(words.dress)) throw new Error('brawl: a town street\'s dress is false (the town\'s own street) or { sets?, colour?, seed? }');
+  if (isObj(words.dress)) for (const k of Object.keys(words.dress)) if (!['sets', 'colour', 'seed'].includes(k)) throw new Error(`brawl: a town street's dress.${k} is not its word (sets, colour, seed)`);
+  // (no near dress: the street's angle frames the band at the frame's foot, the near walk under it)
+  const far = [r3(belt.depth[1] + 0.25), r3(wall - 0.05)];
+  const dress = words.dress === false || far[1] - far[0] < 0.6 ? null : readDress({ seed, ...(words.dress ?? {}), far, wall }, belt, 'level.dress');
   return {
     manifest: { kind: 'geocube', cube: words.cube ?? TOWN.cube, show: 'geotown', seed, ...(words.title ? { title: words.title } : {}), geotown },
-    belt,
+    belt, ...(dress ? { dress } : {}),
   };
 }
 
@@ -222,7 +231,7 @@ export const BRAWL_LEVELS = Object.freeze({
   }),
   town: Object.freeze({
     reads: 'a street of the geotown: a block of the town\'s pattern, the belt down its main street between its cross streets, the shops on the far side, the town\'s margin open to the camera',
-    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'title'],
+    words: ['pattern', 'streetscape', 'cube', 'seed', 'screens', 'depth', 'angle', 'dress', 'title'],
     build: brawlTown,
   }),
 });
@@ -249,6 +258,6 @@ export function brawlLevel(level, { title, register, practice, street, armed } =
   if (practice !== undefined && !isObj(practice)) throw new Error('brawl: a level\'s practice is { players?, dummies?, things?, health? } (brawl-practice.js)');
   if (street !== undefined && !isObj(street)) throw new Error('brawl: a level\'s street is { players?, roster?, waves, things? } (brawl-street.js)');
   if (street && practice) throw new Error('brawl: a level is a practice yard or a street fought down, not both');
-  const { manifest, belt } = BRAWL_LEVELS[kind].build({ ...words, ...(title && !words.title ? { title } : {}) });
-  return { ...manifest, brawl: { belt, ...(armed ? { armed: true } : {}), ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}), ...(practice ? { practice } : {}), ...(street ? { street } : {}) } };
+  const { manifest, belt, dress } = BRAWL_LEVELS[kind].build({ ...words, ...(title && !words.title ? { title } : {}) });
+  return { ...manifest, brawl: { belt, ...(dress ? { dress } : {}), ...(armed ? { armed: true } : {}), ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}), ...(practice ? { practice } : {}), ...(street ? { street } : {}) } };
 }

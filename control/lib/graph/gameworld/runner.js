@@ -926,7 +926,7 @@ function quickSteps(world, G, ref, lookup) {
         (cast[m.as] ??= []).push(k);
         if (m.as !== 'boss') { (cast['*'] ??= []).push(k); types.push(m.as); }
       }
-      const streets = brawlStreets(Q, { title, roster, cast, types }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
+      const streets = brawlStreets(Q, { title, roster, cast, types, colour: crowd.colour }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
       const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));
       const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-yard') };
       const game = { title, store: quickStore(Q), levels: streets.map((s) => ({ ref: s.ref, title: s.name })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };

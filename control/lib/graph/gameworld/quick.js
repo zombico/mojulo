@@ -845,7 +845,9 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
   // (its boss: its heaviest kind, on the hulking body)
   const top = kinds.find((k) => S.kinds[k].builds.includes('brute')) ?? kinds.find((k) => S.kinds[k].builds.some((b) => BIG.has(b) || b === 'heroic')) ?? kinds[kinds.length - 1];
   members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
-  return { faction: C.faction, colourway, members };
+  // (its colour: the colourway's trim, what the street it holds is marked in)
+  const colour = S.colourways[colourway].palette?.Trim ?? null;
+  return { faction: C.faction, colourway, ...(typeof colour === 'string' && /^#[0-9a-f]{6}$/i.test(colour) ? { colour } : {}), members };
 }
 /** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, drawn from
  * how its crew fights (`types`: the crowd types its grunts are, in their order; a knife among thugs with none said), no
@@ -881,9 +883,10 @@ export function brawlBody(created, heavy = false) {
 }
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
-export function brawlStreets(Q, { title, roster, cast, types } = {}) {
+export function brawlStreets(Q, { title, roster, cast, types, colour } = {}) {
   return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves }) => {
-    const L = level ?? BRAWL_STREET.level, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
+    // (a town street's dress wears the crew's colour, unless the street says its own)
+    const L0 = level ?? BRAWL_STREET.level, L = colour && L0.kind === 'town' && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(L0.dress ?? {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const belt = brawlLevel(L, { title: t }).brawl.belt;
     const street = { players: [0], waves: waves ?? defaultWaves(belt, types), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
