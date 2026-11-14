@@ -278,17 +278,7 @@ export function buildRulesBasic(E) {
     // absent, it centres the target everywhere)
     const ends = r.ends > 0 && Array.isArray(lane) && lane.length >= 2 ? laneChord(lane) : null;
     if (ends) p = laneEnds(ends, p, r.ends);
-    // (`keel`: metres — the frame's depth held: the target walks toward and away from the camera and the frame stays,
-    // a belt's; the look point is put on the plane that far along the view from the origin)
     let want = r.yaw ?? HALF_PI;
-    if (Number.isFinite(r.keel)) { const kf = fwdXY(want), d = r.keel - (p[0] * kf[0] + p[1] * kf[1]); p = [p[0] + d * kf[0], p[1] + d * kf[1], p[2]]; }
-    // (a HOLD, cast.js: the frame kept inside the screen's marks, `ends` metres in from each; a screen narrower than the
-    // frame is centred)
-    if (world.hold) {
-      const H = world.hold, m = r.ends > 0 ? r.ends : 0, u = p[0] * H.ux + p[1] * H.uy;
-      const to = Number.isFinite(H.lo) && Number.isFinite(H.hi) && H.hi - H.lo <= 2 * m ? (H.lo + H.hi) / 2 : Math.max(H.lo + m, Math.min(H.hi - m, u));
-      if (to !== u) p = [p[0] + (to - u) * H.ux, p[1] + (to - u) * H.uy, p[2]];
-    }
     if (Array.isArray(lane) && lane.length >= 2) {
       const L = laneNear(lane, p[0], p[1]);
       want = Math.atan2(L.ty, L.tx) + HALF_PI;

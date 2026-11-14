@@ -169,13 +169,6 @@ export function buildCast(E) {
         continue;
       }
       if (o && o.op === 'unshot') { const C = state.camera; if (C && C.heldRule) { C.rule = C.heldRule; C.heldRule = null; } continue; }
-      // a HOLD (a belt's screen, game/belt-mechanic.js): the pilot kept between two marks along the way (`axis`, +y
-      // unsaid) and the side camera inside them, until the next hold moves them; no marks: let go
-      if (o && o.op === 'hold') {
-        const lo = Number.isFinite(o.lo) ? o.lo : null, hi = Number.isFinite(o.hi) ? o.hi : null, ax = Array.isArray(o.axis) && o.axis.length >= 2 ? o.axis : [0, 1], l = Math.hypot(ax[0], ax[1]) || 1;
-        state.hold = lo === null && hi === null ? null : { lo: lo === null ? -Infinity : lo, hi: hi === null ? Infinity : hi, ux: ax[0] / l, uy: ax[1] / l };
-        continue;
-      }
       if (o && o.op === 'shake') { moment(state, { is: 'shake', at: [0, 0, 0], k: Number.isFinite(o.k) ? o.k : 0.5, for: Number.isFinite(o.for) ? o.for : 0.4 }); continue; }
       if (o && o.op === 'puff' && !o.who && Array.isArray(o.at)) { puff(state, o, pt3(o.at, 0)); continue; }   // a puff at a place, no one there
       const e = o && state.byId[o.who];

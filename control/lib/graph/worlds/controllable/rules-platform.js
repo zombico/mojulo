@@ -505,11 +505,6 @@ export function buildRulesPlatform(E) {
         }
       }
     }
-    // a HOLD (cast.js `hold`: a belt's screen) keeps the pilot between its marks along the way, a body's width in
-    if (world && world.hold && world.pilotId === e.id) {
-      const H = world.hold, u = t.pos[0] * H.ux + t.pos[1] * H.uy, m = (r.collideRadius || 0.3) + 0.1, k = u < H.lo + m ? H.lo + m - u : u > H.hi - m ? H.hi - m - u : 0;
-      if (k) { t.pos[0] += k * H.ux; t.pos[1] += k * H.uy; if (accel > 0 && e.drive) { const along = e.drive[0] * H.ux + e.drive[1] * H.uy; if (along * k < 0) { e.drive[0] -= along * H.ux; e.drive[1] -= along * H.uy; } } }
-    }
     // the lane holds: after every horizontal write, the body goes back onto its line (and a drive, onto its tangent)
     if (laneMove) {
       const L = laneNear(r.lane, t.pos[0], t.pos[1]); t.pos[0] = L.px; t.pos[1] = L.py;
