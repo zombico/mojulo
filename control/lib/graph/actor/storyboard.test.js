@@ -4,7 +4,7 @@ import { actScene } from './scene.js';
 import { coverScene } from './coverage.js';
 import { directorsNotes } from './notes.js';
 import { coverageCameraAt } from './scene-film.js';
-import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, groundForms, panelStation, spoken, shotTitle, landForms } from './storyboard.js';
+import { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg, mannequinForms, roomForms, groundForms, panelStation, spoken, shotTitle, landForms, lifeForms, lifeAt } from './storyboard.js';
 import { readPlate, stationRig } from '../book/drawn-plate.js';
 
 // the storyboard: a panel a coverage shot, drawn from the scene, never stored. Tested on the baseline's blocked
@@ -162,3 +162,36 @@ describe('land that rises and falls, on the board', () => {
   });
 });
 
+
+describe('the set\'s own life, on the board', () => {
+  // a car driven north past the cast and a walker going east: each keyed on the scene's clock (film/life.js lifeOf)
+  const life = [
+    { id: 'flow:0:0', kind: 'vehicle', dims: [2, 4.8, 1.5], keys: [{ t: 0, x: 3, y: -20, z: 0.2, turn: 0 }, { t: 4, x: 3, y: 20, z: 0.2, turn: 0 }] },
+    { id: 'walker:0', kind: 'walker', dims: [0.63, 0.63, 1.75], keys: [{ t: 0, x: -4, y: 2, z: 0, turn: 90 }, { t: 4, x: 0, y: 2, z: 0, turn: 90 }] },
+  ];
+
+  it('stands each where it is at the panel\'s moment: a vehicle along its heading, a walker a stand-in of its height', () => {
+    expect(lifeAt(life[0].keys, 1)).toMatchObject({ x: 3, y: -10, turn: 0 });
+    expect(lifeAt(life[0].keys, 9)).toMatchObject({ y: 20 });
+    const [car, walker] = lifeForms(life, 2, {});
+    // (a rounded block as wide as it is tall or wide, its ends half its length either side, at its own height)
+    expect(car.terms).toHaveLength(1);
+    expect(car.terms[0].shape).toMatchObject({ kind: 'capsule', radius: 0.75, a: [3, -1.65, 0.95], b: [3, 1.65, 0.95] });
+    expect(walker.id).toBe('walker:0');
+    expect(walker.terms.at(-2).shape.center[2]).toBeCloseTo(1.585 * 1.75 / 1.7, 2);
+    // (far from what the panel looks at, it is not drawn; a tall one is stacked to its height)
+    expect(lifeForms(life, 2, { about: [500, 500] })).toEqual([]);
+    expect(lifeForms([{ ...life[0], dims: [2, 7, 3.6] }], 2, {})[0].terms).toHaveLength(2);
+    expect(() => readPlate({ forms: lifeForms(life, 2, {}) })).not.toThrow();
+  });
+
+  it('is in the panels, the blocking and the board\'s count, and a board without it keeps its bytes', () => {
+    const lived = storyboardOf(S, C, { notes, title: 'The key', ...small, life });
+    expect(lived.life).toEqual({ vehicles: 1, walkers: 1 });
+    expect(lived.panels.some((p, k) => p.frame !== board.panels[k].frame)).toBe(true);
+    expect(lived.panels.some((p) => p.blocking.includes('class="life"'))).toBe(true);
+    expect(storyboardHtml(lived)).toMatch(/set's own life/);
+    expect(board.life).toBeUndefined();
+    expect(JSON.stringify(storyboardOf(S, C, { notes, title: 'The key', ...small, life: [] }))).toBe(JSON.stringify(board));
+  });
+});

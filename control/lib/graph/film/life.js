@@ -15,6 +15,8 @@
  *                                read as a camera follows them, shoot/subjects.js), `p` the gait's cycles walked so far
  *   carLife(payload, ask)      → [{ id, car, dims, wid, near, keys }]: a planned city's cars (its baked `carMeshes`), the same way
  *   carFaces(mesh)             → a baked car's faces, facing +y
+ *   lifeOf(payload, ask)       → [{ id, kind: 'vehicle' | 'car' | 'walker', dims: [wid, len, hgt], keys }]: all of it, as a
+ *                                storyboard draws it (plain forms where each is at a panel's moment)
  *   lifeFaces({ model, extra?, tint })  → the vehicle's faces, its paint the tint's (the page's own model and paint rule)
  *   lifeDims(model)            → [wid, len, hgt] metres
  *
@@ -162,6 +164,15 @@ export function carFaces(mesh) {
     faces.push({ corners: [v, v + 1, v + 2].map((q) => [r3(-P[3 * q + 1]), r3(P[3 * q]), r3(P[3 * q + 2])]), fill: fills[0], cornerFills: fills });
   }
   return faces;
+}
+
+/** All a set moves about the cast, each as its size and its keys: what a storyboard stands in its panels. */
+export function lifeOf(payload, ask = {}) {
+  return [
+    ...flowLife(payload?.flow, ask).map((V) => ({ id: V.id, kind: 'vehicle', dims: lifeDims(V.model), keys: V.keys })),
+    ...carLife(payload, ask).map((V) => ({ id: V.id, kind: 'car', dims: V.dims, keys: V.keys })),
+    ...walkLife(payload, ask).map((W) => ({ id: W.id, kind: 'walker', dims: [r3(W.hgt * 0.36), r3(W.hgt * 0.36), W.hgt], keys: W.keys })),
+  ];
 }
 
 // a fill under a tint: the page multiplies the pale body's colour by the paint in linear light

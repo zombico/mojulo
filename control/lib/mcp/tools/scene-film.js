@@ -37,7 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
-import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims } from '@/lib/graph/film/life.js';
+import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims, lifeOf } from '@/lib/graph/film/life.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -185,7 +185,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   // (the props are the set's: the plan plays the screenplay without them, a recipe keeps them as written)
   // (and its hour is the light's: film/look, read when the film is made)
   const { props, hour, weather, life, ...written } = sp;
-  let play = written, set = null, alive = false;
+  let play = written, set = null, alive = false, moving = null;
   if (sp.world_ref !== undefined) {
     const row = getRow?.(sp.world_ref);
     if (!row?.manifest) throw new Error(`world_ref: '${sp.world_ref}' is ${row ? 'a sketch with no recipe' : 'no sketch'} (a stored world is the set; ${MANUAL})`);
@@ -197,6 +197,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
     if (worlds && !held) worlds.set(sp.world_ref, { payload });
     const places = setPlaces(payload);
     alive = hasLife(payload);
+    if (alive) moving = payload;
     if (!payload) throw new Error(`world_ref: '${sp.world_ref}' (${row.manifest.kind}) has no form to stand in (${MANUAL})`);
     // (a world that names no place, an object, a city, a landscape, is a set all the same: the cast is stood on the
     // clear ground nearest its middle, a place called `ground`; actor/ground.js)
@@ -260,7 +261,8 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   }
   // (and its LIFE: what the set's own world moves, read when the film is made; film/life.js)
   if (life !== undefined && life !== false) {
-    if (set && alive) set.life = life;
+    // (the world that moves rides the set unlisted: the board reads it, nothing writes it out)
+    if (set && alive) { set.life = life; Object.defineProperty(set, 'living', { value: moving, enumerable: false }); }
     else advice.push({ id: 'life-unused', says: set ? `the scene asks for the set's life, but ${set.title ? `'${set.title}'` : 'this set'} moves nothing of its own (a metro has traffic, a planned city its cars and people; a field, a street of houses and a room have none)` : 'the scene asks for the set\'s life, but it has no set', try: 'play the scene in a city (a set asked for as a metro), bring a thing in yourself (a prop with `from` or `to`), or take `life` out' });
   }
   if (props && Object.keys(props).length) {
@@ -725,7 +727,13 @@ export const SCREENPLAY_EXPORTS = Object.freeze(['storyboard', 'mp4', 'blender']
 export async function writeStoryboard({ dir, plan, title, fps = 24, animatic = false, screenplay = null, set = null, panels = false }) {
   const { storyboardOf, storyboardHtml, storyboardJson, animaticSegments, animaticFrameSvg } = await import('@/lib/graph/actor/storyboard.js');
   const heights = Object.fromEntries(Object.entries(plan.cast).filter(([, C]) => Number.isFinite(C.height)).map(([w, C]) => [w, C.height]));
-  const board = storyboardOf(plan.S, plan.coverage, { notes: plan.notes, title, fps, heights, ...(set ? { rooms: set.rooms, ...(set.blocks?.length ? { blocks: set.blocks } : {}), ...(set.relief ? { relief: set.relief } : {}), set: { ref: set.ref ?? 'props', title: set.title ?? (set.ref ? null : 'its props') } } : {}) });
+  // (THE SET'S LIFE on the board: its traffic and its people where each is at a panel's moment, as plain forms)
+  let life = [];
+  if (set?.living && set.life !== undefined) {
+    const roots = Object.values(plan.S.actors).map((A) => A.root), mid = [roots.reduce((n, R) => n + R[0].x, 0) / roots.length, roots.reduce((n, R) => n + R[0].y, 0) / roots.length];
+    life = lifeOf(set.living, { about: mid, seconds: plan.S.seconds, ...(isPlain(set.life) ? set.life : {}) }).map((L) => ({ ...L, keys: L.keys.map((k) => ({ ...k, z: Math.round((k.z - (set.floor ?? 0)) * 1000) / 1000 })) }));
+  }
+  const board = storyboardOf(plan.S, plan.coverage, { notes: plan.notes, title, fps, heights, ...(life.length ? { life } : {}), ...(set ? { rooms: set.rooms, ...(set.blocks?.length ? { blocks: set.blocks } : {}), ...(set.relief ? { relief: set.relief } : {}), set: { ref: set.ref ?? 'props', title: set.title ?? (set.ref ? null : 'its props') } } : {}) });
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, 'index.html'), storyboardHtml(board));
   writeFileSync(path.join(dir, 'storyboard.json'), `${JSON.stringify(storyboardJson(board), null, 2)}\n`);

@@ -122,6 +122,8 @@ forge_motion({ title: 'The key', export: 'storyboard',
     first (and as many people).
   - The lanes are the city's: nothing is steered round the cast. A vehicle driven through where a part stands is
     advised (`life-crosses`); stand the cast on the pavement (a `corner` place).
+  - The storyboard and its animatic show it too: at each panel's moment the traffic near what the shot looks at is
+    drawn as rounded blocks along its way and the people as grey stand-ins, and the blocking shows them from above.
   - A set that moves nothing of its own (a field, a street of houses, a room) is advised (`life-unused`): bring a
     thing in with a prop's `from` and `to`.
   - Not yet: people walking, animals, wind in the trees; the storyboard and the animatic do not show the traffic; a

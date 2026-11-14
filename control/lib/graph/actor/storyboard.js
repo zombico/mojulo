@@ -29,6 +29,8 @@
  *   mannequinForms(S, t, { tints?, turn? }) → the plate's forms; panelStation(framing) → { turn, station }
  *   landForms(relief, { turn?, about? }) → land that rises and falls as low terraces, and how high it stands under a point
  *   groundForms(blocks, { turn?, about? }) → what stands on any set's ground (actor/ground.js) as the plate's forms
+ *   lifeForms(life, t, { turn?, about?, lift? }) → the set's own life (film/life.js `lifeOf`) where each is at t: a vehicle
+ *     rounded blocks along its heading, a walker a grey stand-in
  *   roomForms(rooms, { turn?, about? }) → a walled room's walls and standing pieces as the plate's forms
  *
  * Pure and deterministic: the same scene and coverage give the same bytes.
@@ -136,6 +138,40 @@ export function roomForms(rooms = [], { turn = 0, about = [0, 0] } = {}) {
   return out;
 }
 
+/** the board's tints for the set's own life, how far from what a panel looks at it is drawn (m), and the most a panel draws */
+export const LIFE_TINTS = Object.freeze({ vehicle: '#7d8794', walker: '#9b958c' });
+const LIFE_REACH = 40, LIFE_MOST = 10;
+
+/** where a keyed thing is at t: between its two keys, its turn with them */
+export function lifeAt(keys, t) {
+  if (t <= keys[0].t) return keys[0];
+  for (let i = 1; i < keys.length; i++) if (t <= keys[i].t) {
+    const a = keys[i - 1], b = keys[i], u = (t - a.t) / ((b.t - a.t) || 1e-9), m = (p, q) => r3(p + (q - p) * u);
+    return { t, x: m(a.x, b.x), y: m(a.y, b.y), z: m(a.z ?? 0, b.z ?? 0), turn: m(a.turn, b.turn) };
+  }
+  return keys.at(-1);
+}
+
+/**
+ * The set's own life as the plate's forms (film/life.js `lifeOf`: its traffic and its people, keyed on the scene's
+ * clock): what is within LIFE_REACH of what the panel looks at, at the panel's moment. A vehicle is rounded blocks along
+ * its heading, as wide as it is and stacked to its height (any heading: a box lies along the axes only); a walker is a
+ * stand-in of its height, grey, facing its way.
+ */
+export function lifeForms(life = [], t, { turn = 0, about = [0, 0], lift = null } = {}) {
+  const T = turner(turn, about);
+  const near = life.map((L, i) => ({ L, i, P: lifeAt(L.keys, t) })).map((N) => ({ ...N, d: Math.hypot(N.P.x - about[0], N.P.y - about[1]) })).filter((N) => N.d <= LIFE_REACH)
+    .sort((a, b) => a.d - b.d || a.i - b.i).slice(0, LIFE_MOST).sort((a, b) => a.i - b.i);
+  return near.map(({ L, P }) => {
+    // (on land that rises and falls it stands on the ground under it, as the cast does; on a flat set at its own height)
+    const up = lift ? lift(P.x, P.y) : (P.z ?? 0);
+    if (L.kind === 'walker') return { id: L.id, tint: LIFE_TINTS.walker, terms: mannequinTerms({ x: P.x, y: P.y, yaw: P.turn }, L.dims[2], T, up) };
+    const [wid, len, hgt] = L.dims, r = Math.min(wid, hgt) / 2, a = rad(P.turn), f = [Math.sin(a), Math.cos(a)], h = Math.max(0, len / 2 - r);
+    const n = Math.max(1, Math.round(hgt / (2 * r))), end = (s, z) => { const [x, y] = T(P.x + f[0] * h * s, P.y + f[1] * h * s); return [x, y, r3(up + z)]; };
+    return { id: L.id, tint: LIFE_TINTS.vehicle, terms: Array.from({ length: n }, (_, k) => { const z = n === 1 ? hgt / 2 : r + (hgt - 2 * r) * (k / (n - 1)); return { op: 'add', shape: { kind: 'capsule', a: end(-1, z), b: end(1, z), radius: r3(r) } }; }) };
+  });
+}
+
 /** how far from what a panel looks at the set's ground is drawn (m), and the most blocks a panel draws */
 const GROUND_REACH = 10, GROUND_MOST = 24;
 
@@ -220,7 +256,7 @@ export function landForms(relief, { turn = 0, about = [0, 0], reach = GROUND_REA
   };
 }
 
-export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {}, rooms = [], blocks = [], set = null, relief = null } = {}) {
+export function storyboardOf(S, coverage, { notes = [], title = 'scene', width = PANEL_SIZE.width, height = PANEL_SIZE.height, res = undefined, fps = 24, heights = {}, rooms = [], blocks = [], set = null, relief = null, life = [] } = {}) {
   const program = programOf({ ...coverage, fps });
   const names = Object.keys(S.actors);
   const tintOf = Object.fromEntries(names.map((w, i) => [w, BOARD_TINTS[i % BOARD_TINTS.length]]));
@@ -240,7 +276,7 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
     const seen = lift ? { ...framing, cameraPosition: [framing.cameraPosition[0], framing.cameraPosition[1], framing.cameraPosition[2] + lift(framing.cameraPosition[0], framing.cameraPosition[1])], lookAt: [framing.lookAt[0], framing.lookAt[1], framing.lookAt[2] + lift(about[0], about[1])] } : framing;
     const { turn, station } = panelStation(seen, { square: drawn });
     // (a walled room is drawn round them: its walls and what stands in it; any other set stays open ground)
-    const forms = [...roomForms(rooms, { turn, about }), ...(relief ? landForms(relief, { turn, about, reach }).forms : []), ...groundForms(blocks, { turn, about, lift }), ...mannequinForms(S, at, { turn, about, heights, lift })];
+    const forms = [...roomForms(rooms, { turn, about }), ...(relief ? landForms(relief, { turn, about, reach }).forms : []), ...groundForms(blocks, { turn, about, lift }), ...lifeForms(life, at, { turn, about, lift }), ...mannequinForms(S, at, { turn, about, heights, lift })];
     const { svg } = renderPlate({ forms, station, finish: 'wash', frame: 'full', width, height, light: { azimuth: -50, elevation: indoors ? INDOOR_LIGHT : 40 } }, { prefix: `sb${k + 1}-`, ...(res ? { res } : {}) });
     const P = program.shots[k];
     placed.push({ framing, a, b });
@@ -263,16 +299,17 @@ export function storyboardOf(S, coverage, { notes = [], title = 'scene', width =
   half[0] = Math.max(half[0], half[1]); half[1] = Math.max(half[1], half[0] / 2);
   const mid = [(bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2];
   const box = { x0: mid[0] - half[0], x1: mid[0] + half[0], y0: mid[1] - half[1], y1: mid[1] + half[1] };
-  panels.forEach((pn, k) => { pn.blocking = blockingSvg(S, pn, placed[k], box, tintOf, rooms, blocks); });
+  panels.forEach((pn, k) => { pn.blocking = blockingSvg(S, pn, placed[k], box, tintOf, rooms, blocks, life); });
   return {
     version: STORYBOARD_VERSION, title, seconds: S.seconds, screen: r3(program.total), cast: names, tints: tintOf,
     ...(set ? { set: { ...set, ...(indoors ? { drawn: true } : blocks.some((B) => B.h > 0) ? { ground: true } : {}) } } : {}),
+    ...(life.length ? { life: { vehicles: life.filter((L) => L.kind !== 'walker').length, walkers: life.filter((L) => L.kind === 'walker').length } } : {}),
     panels, notes: notes.filter((N) => N.at === undefined),
   };
 }
 
 /** The scene from above for one panel: the marks, each actor at the moment and its way through the shot, the camera */
-export function blockingSvg(S, panel, { framing }, box, tintOf, rooms = [], blocks = []) {
+export function blockingSvg(S, panel, { framing }, box, tintOf, rooms = [], blocks = [], life = []) {
   const W = 220, sc = W / (box.x1 - box.x0), H = Math.round((box.y1 - box.y0) * sc);
   const X = (x) => r2((x - box.x0) * sc), Y = (y) => r2((box.y1 - y) * sc);
   const out = [];
@@ -282,6 +319,13 @@ export function blockingSvg(S, panel, { framing }, box, tintOf, rooms = [], bloc
   for (const R of rooms) for (const O of R.openings ?? []) out.push(`<path class="${O.kind === 'door' ? 'door' : 'window'}" d="M${X(O.min[0])} ${Y(O.min[1])}L${X(O.max[0])} ${Y(O.max[1])}"/>`, ...(O.kind === 'door' ? [] : [`<path class="pane" d="M${X(O.min[0])} ${Y(O.min[1])}L${X(O.max[0])} ${Y(O.max[1])}"/>`]));
   // (and what stands on their floors)
   for (const R of [...rooms, { blocks }]) for (const B of R.blocks ?? []) if (B.max[0] > box.x0 && B.min[0] < box.x1 && B.max[1] > box.y0 && B.min[1] < box.y1) out.push(`<rect class="piece" x="${X(B.min[0])}" y="${Y(B.max[1])}" width="${r2((B.max[0] - B.min[0]) * sc)}" height="${r2((B.max[1] - B.min[1]) * sc)}"/>`);
+  // (the set's own life at the panel's moment: a vehicle its footprint along its heading, a walker a small ring)
+  for (const L of life) {
+    const P = lifeAt(L.keys, panel.at), [wid, len] = L.dims, m = Math.max(wid, len);
+    if (P.x < box.x0 - m || P.x > box.x1 + m || P.y < box.y0 - m || P.y > box.y1 + m) continue;
+    out.push(L.kind === 'walker' ? `<circle class="life" cx="${X(P.x)}" cy="${Y(P.y)}" r="3.5"/>`
+      : `<rect class="life" x="${r2(-wid * sc / 2)}" y="${r2(-len * sc / 2)}" width="${r2(wid * sc)}" height="${r2(len * sc)}" rx="2" transform="translate(${X(P.x)} ${Y(P.y)}) rotate(${r2(P.turn)})"/>`);
+  }
   const inBox = (p) => p[0] >= box.x0 && p[0] <= box.x1 && p[1] >= box.y0 && p[1] <= box.y1;
   // (a furnished room names a place by every piece: only the places a cross goes to are written, the pieces are drawn)
   const furnished = rooms.some((R) => R.blocks?.length);
@@ -346,7 +390,7 @@ main{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(au
 .no{position:absolute;top:6px;left:6px;background:var(--ink);color:var(--card);font-weight:700;border-radius:3px;padding:0 6px}
 .side svg{display:block;width:100%;max-width:240px;height:auto;max-height:240px;margin:0 auto}
 .blocking text{font:9px system-ui,sans-serif;fill:var(--dim);text-anchor:middle}.blocking .mark text{text-anchor:start}
-.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .room{fill:none;stroke:var(--rule);stroke-width:3}.blocking .door,.blocking .window{stroke:var(--card);stroke-width:4.5}.blocking .pane{stroke:var(--dim);stroke-width:1}.blocking .piece{fill:var(--rule);fill-opacity:.55;stroke:var(--dim);stroke-width:.6}.blocking .who path{stroke:var(--ink);stroke-width:2}
+.blocking .mark path{stroke:var(--dim);stroke-width:1}.blocking .room{fill:none;stroke:var(--rule);stroke-width:3}.blocking .door,.blocking .window{stroke:var(--card);stroke-width:4.5}.blocking .pane{stroke:var(--dim);stroke-width:1}.blocking .piece{fill:var(--rule);fill-opacity:.55;stroke:var(--dim);stroke-width:.6}.blocking .who path{stroke:var(--ink);stroke-width:2}.blocking .life{fill:none;stroke:var(--dim);stroke-width:1.2}
 .blocking .way{fill:none;stroke-width:2;stroke-dasharray:4 3}.blocking .cam circle{fill:var(--accent)}.blocking .cam.off circle{fill:none;stroke:var(--accent);stroke-width:1.5}.blocking .fov{stroke:var(--accent);stroke-width:1.2;fill:none}
 h2{font-size:15px;margin:0}.meta{margin:2px 0 6px;color:var(--dim);font-size:12px}.words p{margin:3px 0}
 .dir{font-style:italic;color:var(--dim)}.rec{font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;margin-left:4px}.note{border-left:3px solid var(--accent);padding-left:8px;font-size:13px}
@@ -355,7 +399,7 @@ h2{font-size:15px;margin:0}.meta{margin:2px 0 6px;color:var(--dim);font-size:12p
 @media print{body{background:#fff;padding:0}.panel{border-color:#999}}
 </style></head><body>
 <header><h1>${esc(board.title)}</h1>
-${board.set ? `<p>On the set <b>${esc(board.set.title ?? board.set.ref)}</b> (${esc(board.set.ref)}): ${board.set.drawn ? 'the panels draw its walls, doors, windows and furniture as plain blocks round the stand-ins; the blocking shows the room and what stands in it' : board.set.ground ? 'the panels draw what stands on its ground as plain blocks round the stand-ins; the blocking shows it from above' : 'the panels draw the actors as stand-ins on open ground; the blocking shows its rooms'}.</p>\n` : ''}<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
+${board.set ? `<p>On the set <b>${esc(board.set.title ?? board.set.ref)}</b> (${esc(board.set.ref)}): ${board.set.drawn ? 'the panels draw its walls, doors, windows and furniture as plain blocks round the stand-ins; the blocking shows the room and what stands in it' : board.set.ground ? 'the panels draw what stands on its ground as plain blocks round the stand-ins; the blocking shows it from above' : 'the panels draw the actors as stand-ins on open ground; the blocking shows its rooms'}.</p>\n` : ''}${board.life ? `<p>The set's own life is drawn where it is at each panel's moment: ${[board.life.vehicles ? 'its traffic as rounded blocks' : '', board.life.walkers ? 'its people as grey stand-ins' : ''].filter(Boolean).join(', ')}.</p>\n` : ''}<p>A storyboard: ${board.panels.length} shots, ${board.seconds.toFixed(1)} s of the scene, ${board.screen.toFixed(1)} s on screen. Each panel is a shot of the director's coverage, drawn with stand-ins where the actors stand; the film is made from the same plan.</p>
 <p class="cast">${board.cast.map((w) => `<span><i style="background:${board.tints[w]}"></i>${esc(UPPER(w))}</span>`).join('')}</p></header>
 ${board.notes.length ? `<section class="board-notes">${board.notes.map((N) => `<p class="note"><b>Note · ${esc(N.id)}</b> ${esc(N.says)} <i>Try:</i> ${esc(N.try)}</p>`).join('\n')}</section>` : ''}
 <main>

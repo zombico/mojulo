@@ -349,7 +349,9 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   again a frame at a time at that phase, so a walker held at a kerb stands. The walker a view follows is left out.
   The planned city's cars (`carLife`: its `cars` on the same subjects, the signalised model and its turns at the
   junctions) are written once a baked mesh as `life/<car>.glb` (`carFaces`: the bake's triangles, its linear
-  colours as sRGB fills, turned to face +y) at the size the bake measured.
+  colours as sRGB fills, turned to face +y) at the size the bake measured. On the board (`lifeOf`, `actor/storyboard.js`
+  `lifeForms`): the world that moves rides the prepared set unlisted, and each panel stands what is near its look-at
+  at its moment, a vehicle as capsules along its heading (a box lies along the axes only), a walker as a mannequin.
 - **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
   stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
   keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the

@@ -184,6 +184,8 @@ game.
     traffic of its own.
   - A city that has people of its own has them walk through the film too: round their blocks, waiting at the
     crossings, each stepping as far as it goes. Its cars drive through as well, turning at its junctions.
+  - The storyboard and the animatic show the traffic and the people too, as plain stand-ins where they are at
+    each shot's moment, so a car in the back of a shot is seen before the film is made.
   - **Not yet:** people walking in the street, animals, and vehicles turning at a crossing. The storyboard and the
     animatic do not show the traffic.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
