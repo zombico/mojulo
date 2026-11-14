@@ -29,13 +29,14 @@ import { BRAWL_STYLES } from './brawl-moves.js';
 import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
+import { streetScreenOf, readStreet } from './brawl-street.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 // (the order matters: each module only uses names from the ones before it)
 export const BRAWL_VERSUS_MODULES = Object.freeze(['versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-input.js', 'versus-cpu.js', 'versus-solver.js', 'versus-figure.js']);
-export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-pose.js', 'brawl-yard-read.js']);
+export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-pose.js', 'brawl-yard-read.js']);
 
 /** The names a module exports (one per `export function|const|let|class` line). */
 export function exportsOf(src) {
@@ -90,8 +91,11 @@ export const BRAWL_ARMED_ROSTER = Object.freeze(BRAWL_ROSTER.map((r) => {
  * drawn as the fight's stick figure.
  */
 export function brawlYardData(block, bodies = null) {
-  const P = block.practice ?? {};
-  const Y = yardOf();
+  // (A STREET fought down, `block.street` (brawl-street.js): the same page, its room a street: who plays, its waves a held
+  // screen, its things; no dummies, and the street's screen in the yard's place)
+  const ST = block.street ? readStreet(block.street, block.belt) : null;
+  const P = ST ? { roster: ST.roster, players: ST.players, things: ST.things, dummies: [] } : block.practice ?? {};
+  const Y = ST ? streetScreenOf() : yardOf();
   const roster = Array.isArray(P.roster) && P.roster.length
     ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}) }; })
     : block.armed ? BRAWL_ARMED_ROSTER : BRAWL_ROSTER;
@@ -118,6 +122,7 @@ export function brawlYardData(block, bodies = null) {
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
       ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
-    yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
+    ...(ST ? { street: { waves: ST.waves } } : {}),
+    yard: { spec: Y.spec, css: Y.css, settings: ST ? [] : YARD_SETTINGS },
   };
 }

@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -89,10 +89,14 @@ const footShadow = () => new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THR
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
 const FIRST = BY.dummies[0] || {};
 const RANGE = BY.range || null;
+// A STREET fought down (brawl-street.js): the room a street (brawl-crowd.js streetOf), its waves a held screen, the
+// players' buttons read by the brawler's own reader; the yard's readouts and settings are the practice's alone
+const STREET = BY.street || null;
 const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!((RANGE && RANGE.waves) || BY.waves), mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
+let readers = [], hp0 = [], over = null, seenClear = 0, bossSaid = false, said = 0;
 const runs = [];
 function dummiesOf() {
   const n = Number(SET.count) || 1, mode = SET.mode.toLowerCase();
@@ -109,7 +113,14 @@ function build() {
   const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades, ...(RANGE.waves && SET.waves ? { waves: RANGE.waves, loop: RANGE.loop } : {}) } } : {};
   // (the brawler yard's own waves while the settings' Waves is on)
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
-  room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee });
+  const who = picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style }));
+  if (STREET) {
+    room = streetOf({ belt: BELT, players: who, waves: STREET.waves, ...(BY.things.length ? { things: BY.things } : {}) });
+    readers = picks.map(() => newReader());
+    hp0 = room.s.bodies.map((b) => b.hp);
+    over = null; seenClear = 0; bossSaid = false;
+    Object.assign(UI.state.brawl.street, { moments: [], time: '0:00' });
+  } else room = practiceOf({ belt: BELT, players: who, dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee });
   for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
   rounds.clear();
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
@@ -709,13 +720,13 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { street: { hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
   const rt = manaUi.runtime(BY.yard.spec, {
     read: (p) => manaUi.readPath(state, p),
-    act: (e) => { if (e && e.set) setPath(e.set, e.to); if (e && e.emit === 'training:reset') { room = resetYard(room); rt.close(); } },
+    act: (e) => { if (e && e.set) setPath(e.set, e.to); if (e && e.emit === 'training:reset') { room = resetYard(room); rt.close(); } if (e && e.emit === 'street:again') { rt.close(); build(); } },
     now: () => performance.now() / 1000,
   });
   rt.glyphs({ keys: { up: 'W', down: 'S', left: 'A', right: 'D', tabPrev: 'A', tabNext: 'D', back: 'Esc', accept: 'J' }, pad: { xbox: { up: '↑', down: '↓', left: '←', right: '→', tabPrev: '←', tabNext: '→', back: 'B', accept: 'A' } } });
@@ -765,16 +776,20 @@ function tick() {
     // (on the move list the stick's left and right turn its tabs; on the settings they cycle a value)
     const tabs = screen === 'moves';
     for (const a of ['up', 'down', 'left', 'right', 'accept', 'back']) if (edge[a]) UI.press(tabs && a === 'left' ? 'tabPrev' : tabs && a === 'right' ? 'tabNext' : a);
-    if (edge.start) UI.press('back');
-    if (!UI.rt.state().screen) applySettings();
+    // (a street's end is left by its own button; its move list by back, as the yard's)
+    if (edge.start && !(STREET && over)) UI.press('back');
+    if (!STREET && !UI.rt.state().screen) applySettings();
     return;
   }
-  if (edge.start) { UI.rt.open('settings'); UI.view.paint(); return; }
-  if (edge.list) { UI.state.brawl.practice.moves = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
+  if (edge.start && !STREET) { UI.rt.open('settings'); UI.view.paint(); return; }
+  if (edge.list) { const ML = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); if (STREET) UI.state.brawl.street.moves = ML; else UI.state.brawl.practice.moves = ML; UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
   if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
-  room = stepYard(room, buttons);
+  if (STREET) {
+    const pads = buttons.map((bt, i) => { const me = room.s.bodies[i], [pad, r] = readButtons(readers[i], bt, me, room.ctx.fighters[me.fi]); readers[i] = r; return pad; });
+    room = stepStreet(room, pads);
+  } else room = stepYard(room, buttons);
   t++;
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
@@ -802,8 +817,20 @@ function draw() {
   placeRounds();
   stepFlashes();
   IMPACT.el.style.display = IMPACT.left > 0 ? 'block' : 'none';
+  if (STREET) { streetScreen(); return; }
   const read = yardRead(room, 0);
   Object.assign(UI.state.brawl.practice, yardHud(read, room.ctx.fighters[room.s.bodies[0].fi], project, runs.map((x) => ({ text: x.text }))));
+}
+// the street's screen: its read (brawl-street-read.js) into the state the spec binds, the moments said once each (GO as
+// a held screen is beaten, the boss's name as it comes in), and its end opened once
+function streetScreen() {
+  const R = streetRead(room, hp0), S = UI.state.brawl.street, secs = Math.floor(R.f / 60);
+  const say = (text, weight) => { S.moments = S.moments.slice(-4).concat([{ id: 'm' + (said++), text, ...(weight ? { weight } : {}) }]); };
+  if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) say('GO', 'major'); }
+  if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
+  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: R.boss });
+  if (!over) S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+  if (!over && (R.won || R.lost)) { over = R.won ? 'won' : 'lost'; UI.rt.open(over); UI.view.paint(); }
 }
 
 build();
@@ -818,4 +845,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { get room() { return room; }, get ui() { return UI; }, get read() { return yardRead(room, 0); } };
+window.__mojBrawl = { get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; } };

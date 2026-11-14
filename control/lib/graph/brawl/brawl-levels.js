@@ -21,7 +21,8 @@
  *   readBrawlLevel(level)                     → { kind, words } (throws naming the fault)
  *   brawlLevel(level, { title?, register?, practice? }) → the world manifest the brawl is fought on: the level's recipe
  *                                               with its `brawl` block (the belt, the register and, on a greybox, its
- *                                               sun; a practice room's words, brawl-practice.js, when it is one)
+ *                                               sun; a practice room's words, brawl-practice.js, when it is one, or a
+ *                                               STREET's, brawl-street.js: who plays and its waves, fought down)
  *
  * Pure: no clock, no dice.
  */
@@ -209,11 +210,13 @@ export function readBrawlLevel(level, where = 'level') {
 /** The world manifest a brawl is fought on: the level's recipe with its `brawl` block (the belt; the game's register and,
  * on a greybox, the sun the bodies are lit by, as a fight's; `armed`, the ARMED brawler: every hero carries its own
  * weapon the whole game, brawl-page.js). */
-export function brawlLevel(level, { title, register, practice, armed } = {}) {
+export function brawlLevel(level, { title, register, practice, street, armed } = {}) {
   if (armed !== undefined && typeof armed !== 'boolean') throw new Error('brawl: a brawl\'s armed is true (every hero its own weapon) or false');
   const { kind, words } = readBrawlLevel(level);
   if (register !== undefined && !FIGHT_REGISTERS.includes(register)) throw new Error(`brawl: a brawl's register is ${FIGHT_REGISTERS.join(' | ')}`);
   if (practice !== undefined && !isObj(practice)) throw new Error('brawl: a level\'s practice is { players?, dummies?, things?, health? } (brawl-practice.js)');
+  if (street !== undefined && !isObj(street)) throw new Error('brawl: a level\'s street is { players?, roster?, waves, things? } (brawl-street.js)');
+  if (street && practice) throw new Error('brawl: a level is a practice yard or a street fought down, not both');
   const { manifest, belt } = BRAWL_LEVELS[kind].build({ ...words, ...(title && !words.title ? { title } : {}) });
-  return { ...manifest, brawl: { belt, ...(armed ? { armed: true } : {}), ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}), ...(practice ? { practice } : {}) } };
+  return { ...manifest, brawl: { belt, ...(armed ? { armed: true } : {}), ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}), ...(practice ? { practice } : {}), ...(street ? { street } : {}) } };
 }

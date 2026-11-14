@@ -2049,14 +2049,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
-  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
+  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && (sketch.manifest.brawl.practice || sketch.manifest.brawl.street)) {
     const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
     // its roster's characters measured from the store as a fight's are, each played in its own body with its own clips
     // (under a register, its lit export, for the yard to draw every body the register's one way), as a fight's arena does
     const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
-    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    // (a STREET fought down, `brawl.street`, is read as the yard is: its roster's characters, its bodies)
+    const isStreet = !sketch.manifest.brawl.practice;
+    const practice = await withCharacters(isStreet ? sketch.manifest.brawl.street : sketch.manifest.brawl.practice);
     const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
-    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, ...(isStreet ? { street: practice } : { practice }) }, bodies);
     // (under a register its bodies are drawn under the cast rig, as a fight's are: versus/versus-cast.js)
     if (payload.brawl.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.brawl.cast = fightCast(payload.brawl.register); }
     const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
