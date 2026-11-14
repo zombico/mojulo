@@ -581,7 +581,21 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (`lib/graph/outfit/`): a seeded card (`casual`, `office`, `athlete`, `adventurer`; on the female cast `sundress`,
   `blouse`, `athleisure`; the anime silhouette `traveler` (a second-skin top, tapered trousers, an open jacket, split
   coattails) and `warden` (a tabard and tassets); or an inline card: plain JSON) over laws (`principles.js`), stamped
-  with the laws version it was minted under. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
+  with the laws version it was minted under. THE FANTASY WARDROBE: `style: 'ranger' | 'mage' | 'peasant' | 'noble' |
+  'cleric' | 'rogue'` dresses an archetype in its own layers, never a modern card under a robe: its cut is the
+  underlayer (a linen shirt, legs, boots or shoes) and its `pieces` are worn over it in order (the over-garment, a
+  girdle at the natural waist, the outer layer, what hangs over all), each cloth named by its material (silk, linen,
+  wool, leather, fur) so it hangs and flows by the cloth law, values dark at the feet and light at the chest. RANGER: a
+  linen tunic over a shirt and trousers into boots, a wool cloak to the calf with its hood up (a short point, shallow),
+  bracers. MAGE: a silk wizard's robe, belled sleeves, its hood up with a long point, a starred hem, cuffs bound, an
+  emblem on the chest. PEASANT: a sleeveless linen tunic over a shirt, its hood down, a satchel. NOBLE: an open sleeveless
+  wine coat to the knee over a gold silk shirt, band-collared, and trousers into boots, a fur mantle, a gold-buckled girdle. CLERIC: a blue linen
+  scapular to the ankle over a white alb, its hood down, a gold girdle, a medallion. ROGUE: a leather jerkin over a dark
+  shirt and close trousers into boots, a wool half-cloak to the hip with its hood up (a long point, deep), a thigh pouch.
+  Make one your own as an inline card (copy it, change its words); `outfit.pieces` adds to its own, `intent.palette`
+  recolours its pieces' roles, the operator's `palette` its cut. On the realistic body the cloak keeps its skin (it does
+  not flow) and a robe's skirt is the tailor's shell. Hats and a circlet are headgear words (`headgear: 'wizardHat' |
+  'travelerHat' | 'circlet'`); over a card whose hood is up, use an inline card with the hood `worn: 'down'`. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
   the body's ratios (its ease scales with each ring's radius, on a rounded dense ring), so the calf still reads over
   the ankle and the waist under the ribs; a top falls from the bust and returns to the waist; a hem falls away only
   where it is CUT to. Reach for these, not `detail: 'clothed'` (which adds bulk): TIGHT is `fit: 'skin'` (a painted

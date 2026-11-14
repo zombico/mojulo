@@ -168,3 +168,27 @@ sleeves, the hood).
     skinned to the thighs, passing out between the skirt's strings at the top of the thighs; the legs' clearance covers
     the shins and the feet only. The light sliver at one shoulder with the hood down and the shirt's cuff at the
     realistic noble's forearm are as they were.
+
+- **A fantasy wardrobe (phase 5).** Six outfit cards, one per archetype, each a seeded sample the hero door already takes
+  as `outfit: { type: 'outfit', style }`: `ranger`, `mage`, `peasant`, `noble`, `cleric` and `rogue`
+  (`outfit/styles.js` FANTASY_OUTFITS). A fantasy look was the modern `adventurer` card with pieces over it, and that
+  card's green shirt showed at every collar and cuff. Now each card carries its own underlayer (its cut: a linen shirt,
+  legs, boots or shoes) and its designed pieces over it, listed in the order a costume is worn: the over-garment (a
+  tunic, a robe, a wizard's robe, or the cut's own coat or jerkin), a girdle at the natural waist, the outer layer (a
+  cloak or a mantle, hoods by the draped hood's words), then what hangs over all (bracers, a medallion, a satchel, a
+  thigh pouch).
+  - Each card names what its cloth is made of (silk, linen, wool, leather, fur), so it hangs and flows by the cloth
+    law. Its values run dark at the feet and light at the chest, and neighbouring layers differ by a value step or by
+    their cloth.
+  - Every card has a belt at the waist, never on the chest: the girdle piece carries an id of its own, and the cut
+    spends no belt beneath the over-garment.
+  - On the realistic body the cards wear what that body can: the cloak keeps its skin and does not flow, and a robe's
+    skirt is the tailor's shell.
+  - Make one your own as an inline card.
+- **Fantasy headgear.** Three headgear words, each a card over the existing builders: `circlet` (an eyegear cast pushed
+  up to the brow, its strap the band round the head, a gem on its front; it keeps the hair), `travelerHat` (a soft
+  helmet shell with the brim fitting round it) and `wizardHat` (the same with a cone ornament leaning back off the
+  crown). They fit the game body only. On the anime head the circlet is hidden under the hair.
+- **A skirt's hem binding lies on its hem.** Under outfit laws 2 a robe's, a gown's or a tunic's `trim.hem: 'binding'`
+  is painted on the skirt's last outer band. Before, it was painted on the last share of every ring, the turn-up inside
+  counted, so it showed as a band at the waist. Laws 1 keep their band.

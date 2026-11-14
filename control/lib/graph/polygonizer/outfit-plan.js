@@ -396,7 +396,10 @@ function trimOf(p, B, G, parts) {
   // the kernel's own `u`; laws 1 read its window as shares of every ring, the hem turned up inside counted too, so the work
   // landed on the lining at the knees, off the cloth that shows)
   const hemWin = B.laws >= 2 && /_skirt$/.test(parts.hem ?? '') ? { s: SKIRT_HEM_WORK.map((f) => r3(f * SKIRT_HEM_U)), share: false } : null;
-  if (T.hem && parts.hem) { if (T.hem === 'binding') paint.push({ part: parts.hem, run: [0.94, 1], group: band }); else adorn.push({ ...worked(`${p.id ?? p.kind}HemWork`, parts.hem, [0.82, 0.97], 'border'), ...(hemWin || {}) }); }
+  // (and its BINDING on those outer rings' last band, the hem, under outfit laws 2; laws 1 painted the window's last
+  // share of every ring, the turn-up's top inside, so the band showed at the waist)
+  const hemBand = B.laws >= 2 && /_skirt$/.test(parts.hem ?? '') ? { u: [r3(SKIRT_HEM_U - 0.6), SKIRT_HEM_U] } : { run: [0.94, 1] };
+  if (T.hem && parts.hem) { if (T.hem === 'binding') paint.push({ part: parts.hem, ...hemBand, group: band }); else adorn.push({ ...worked(`${p.id ?? p.kind}HemWork`, parts.hem, [0.82, 0.97], 'border'), ...(hemWin || {}) }); }
   if (T.cuffs === 'binding') for (const c of parts.cuffs || []) paint.push({ part: c, run: [0.9, 1], group: band });
   if (T.chest === 'emblem' && parts.bodice) adorn.push(worked(`${p.id ?? p.kind}Emblem`, parts.bodice, [0.5, 0.85], 'emblem', 'front'));
   return { ...(paint.length ? { paint } : {}), ...(adorn.length ? { adorn } : {}) };
