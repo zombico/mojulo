@@ -67,6 +67,16 @@ credits, cinematics) are on the sheet and not yet played: the play shell scores 
 **Stand-ins.** The generators have no title theme and no cue that ends. Until they do, the title, the menus, the
 credits and the cinematics are answered by the nearest mood that exists, marked `stand-in` and listed as owed.
 
+## Where a person listens, and what an agent is told
+
+- **The sound book** (`/api/sketches/<ref>/bible?book=sound`): every sound, its shelf word and why, each playable.
+- **The score book** (`/api/sketches/<ref>/bible?book=score`): the direction, every request, who asked, the cue and
+  why, each playable. A level's cue plays the tune its made level plays.
+- **`design_game`'s readout** suggests a `sound` and a `music` to a game that writes neither (a `next` step each,
+  with its patch, its book and its card). Suggested, never laid: each changes every level's bytes.
+- **The cards** `gameworld-sound` and `gameworld-music` (`get_game_vocab`) are the manuals a department is handed
+  with the `sound` and `audio-direction` chapters.
+
 ## Gates
 
 Machine: every request has an answer, a silence or an owed line; every cue of a game carries one identity; a game

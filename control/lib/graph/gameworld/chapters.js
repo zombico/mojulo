@@ -64,10 +64,10 @@ export const CHAPTERS = Object.freeze([
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
   // the game's taste in sound (audio-direction.js): the score's style, its identity and cast, the SFX style that sits
   // with it, a level's space, the interface's set. The music department's; the sound and the interface read it
-  C('audio-direction', 'music', 'The audio direction', { paths: ['/music/direction'], reads: ['intent', 'world'] }),
+  C('audio-direction', 'music', 'The audio direction', { paths: ['/music/direction'], cards: ['gameworld-music'], reads: ['intent', 'world'] }),
   // the game's sounds (sound-sheet.js): solved from its weapon, its ground and its foes, each a shelf word, the newest
   // voices first; every level of a game with a `sound` of its own hears it (a quick game's too, with `sfx: 'sheet'`)
-  C('sound', 'play', 'The sound', { paths: ['/sound'], reads: ['intent', 'feel', 'equipment', 'foes', 'levels', 'audio-direction'] }),
+  C('sound', 'play', 'The sound', { paths: ['/sound'], cards: ['gameworld-sound'], reads: ['intent', 'feel', 'equipment', 'foes', 'levels', 'audio-direction'] }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   // (a block's play layer: `/levels/<id>/glyphs/play`, a block a unit, `play:<level>/<segment>`)
   C('play-layer', 'level-design', 'The level design', { paths: ['/levels/*/glyphs/play'], parts: ['play:*'], reads: ['levels', 'foes', 'cast', 'motion', 'actions'] }),

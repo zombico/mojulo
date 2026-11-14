@@ -48,6 +48,8 @@ import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
+import { SCORE_MOODS } from '../beats/field-score.js';
+import { CLUB_MOODS } from '../beats/club-score.js';
 import { CAMERAS } from './cameras.js';
 import { TEACH, VERTICALITY } from './course.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
@@ -180,6 +182,74 @@ function studioCard() {
     ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
     '',
     'One level, a simple goal: the quick path (gameworld-quick).',
+  );
+}
+
+// the sound: the play department's sound sheet (sound-sheet.js)
+function soundCard() {
+  return lines(
+    'THE SOUND — which sound plays each thing the game does: the play department\'s page, the SOUND SHEET. Every sound is',
+    'a word on the SFX shelf, solved from what the game already is, so nothing is written twice:',
+    '  the hero     its steps by the level\'s ground (its kit, its weather: grass, sand, snow, stone), jump, land, dodge',
+    '  the arsenal  every weapon\'s swing and blow by the move\'s weight; block, parry, the bow, a blow taken',
+    '  the guns     a shooter\'s carried guns, each by its cartridge: shot, reload over its own time, a round landing',
+    '  the ride     a driven level\'s engine, a held voice following its speed',
+    '  the foes     a beast in its species\' voice, a person\'s shout, grunt and cry: on its attack, a blow, its fall',
+    '  the events   what the level\'s mechanics fire (a door, a pickup, the goal); the bed under the score (rain, a wood)',
+    '',
+    'A game hears it once it writes a `sound`, even an empty one:   patch [{ op: \'set\', path: \'/sound\', value: {} }]',
+    'Every level it builds then carries the sheet. A game with no `sound` builds the levels it built.',
+    '',
+    'sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? }: each value a SHELF WORD, over',
+    'what the sheet solves. A word off the shelf is refused with the shelf\'s nearest.',
+    '  style     mouth (the default: mouth foley, the newest voices) | realistic | foley | arcade | orchestral | synth',
+    '  slots     { step, jump, land, dodge, swing, strike }        on    { <event cue>: word } (door, pickup, goal, alarm …)',
+    '  weapons   { <weapon id>: { swing?, heavy?, hit?, finisher? } }',
+    '  moves     { block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }',
+    '  guns      { <gun>: { shot?, reload?, hit?, draw? } }       foes  { <foe id>: { attack?, hurt?, down? } }',
+    '  ride      a held voice (car-engine, motorbike-engine, kart-engine, diesel-engine, tank-engine, boat-engine) | false',
+    '  bed       rain | night | forest | cave | swamp | farm | false',
+    '',
+    'READ AND HEAR IT: /api/sketches/<ref>/bible?book=sound lists every sound, its word and why, each with a play',
+    'button, what is OWED (a foe with no voice, a slot the style does not voice), and the music department\'s advice.',
+    'Show the creator that page: whether it sounds right is theirs to hear. Never say it passed.',
+    'The style where `sound.style` says none is the audio direction\'s (gameworld-music).',
+  );
+}
+
+// the music: the music department's audio direction and cue sheet (audio-direction.js, cue-sheet.js)
+function musicCard() {
+  return lines(
+    'THE MUSIC — the music department\'s two pages. It owns the soundtrack and the game\'s taste in sound; play owns the',
+    'sound effects (gameworld-sound) and reads its direction.',
+    '',
+    'A game is scored once it writes a `music`, even an empty one:   patch [{ op: \'set\', path: \'/music\', value: {} }]',
+    'Every level it builds then plays its cue, and a run mints the outcomes\' stingers. No `music`: unscored, as it was.',
+    '',
+    'THE AUDIO DIRECTION (chapter audio-direction), music.direction: what the art direction is to the picture.',
+    '  style     field (the orchestra) | club (electronic). Unwritten: the orchestra, unless the game\'s words say electronic',
+    '  identity  a non-negative integer: the seed of the key, hall, motif and palette every cue shares. Unwritten: the game\'s own',
+    '  cast      who plays each job: { colour?, ground?, lead?, brass?, pad?, motion?, kit? }  get_beats_vocab({ id: \'beats-casting\' })',
+    '  sfx       the SFX style the sound sheet speaks where sound.style says none',
+    '  space     open | interior | hangar | cavern | vacuum: where every level is heard. Unwritten: each level\'s place',
+    '  ui        the interface\'s sound set',
+    'Taste is advice: it says where the sound sheet sits badly with the score and changes nothing. Play decides.',
+    '',
+    'THE CUE SHEET (chapter score), music.cues: every department asks for music where it needs it, and each request',
+    'is answered with a cue on the one identity:',
+    '  title · menu · credits     the flow\'s screens            level:<id>          a level\'s place',
+    '  fight:<id> · boss:<id>     a level\'s fights, its boss     cinematic:<scene>   a cinematic the flow plays',
+    '  victory · defeat           a level won, lost (four bars, once)',
+    'music.cues: { \'<request id>\': \'<mood>\' | { mood, style?, seed?, cast? } | false }   (false: a chosen silence)',
+    `  the orchestra\'s moods   ${Object.keys(SCORE_MOODS).join(', ')}`,
+    `  electronic moods         ${Object.keys(CLUB_MOODS).join(', ')}`,
+    'Unwritten, a level\'s place is read from the level (a forest, a desert, a town), a fight is battle, a boss is boss.',
+    '',
+    'WHAT PLAYS: a level\'s cue, its fight or boss coming in with the tension; the stingers when a level ends. The title,',
+    'menus, credits and cinematics are on the sheet and NOT YET PLAYED, answered by stand-ins and listed as owed.',
+    '',
+    'READ AND HEAR IT: /api/sketches/<ref>/bible?book=score: the direction, every request, who asked, the cue and why,',
+    'each with a play button. Show the creator that page: whether a cue fits is theirs to hear. Never say it passed.',
   );
 }
 
@@ -1196,6 +1266,8 @@ const CARDS = [
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
   ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
+  ['gameworld-sound', 'The sound', 'the sound sheet: which SFX shelf sound plays each thing the game does, solved from the game and overridden by word', 'sound effects for my game, footsteps, sword swings, gunshots, a monster\'s roar, an engine, make my game sound, SFX', soundCard],
+  ['gameworld-music', 'The music', 'the audio direction and the cue sheet: the game\'s taste in sound, and a cue for every place that asks for music, on one identity', 'music for my game, a soundtrack, boss music, level music, a score, the game\'s sound direction, orchestral or electronic', musicCard],
   ['gameworld-juice', 'The juice', 'how its effects are drawn and timed: its register (anime | western) and its game type', 'anime-style hit effects, punchier impacts, western explosions, snappier effects, effects on twos, a cartoon boop', juiceCard],
   ['gameworld-interface', 'The interface', 'the menus, the front and the HUD, and their look: a register the art director picks, the colour theorist\'s palette, a theme card or a child theme, the game\'s languages', 'the menus of my game, the UI look, a pause menu like Persona, a souls-like menu, a darker HUD, a language picker, my game in Japanese and Spanish, a theme for my game\'s UI', interfaceCard],
   ['gameworld-actions', 'The actions', 'what the hero can do; it decides the systems', 'my hero\'s powers, a metroidvania, a soulslike', actionsCard],

@@ -41,6 +41,11 @@
   mints each as a step of the score's chapter (`cue-victory`, `cue-defeat`) and the game names them, a changed
   answer remaking its cue in place. The flow's cues are on the sheet and not yet played; the title, menus, credits and cinematics are stand-ins, listed as owed, until
   the title theme and a cue that ends are written.
+- **The score book** (`/bible?book=score`, `gameworld/score-book.js`). The audio direction said once, then every
+  request for music, who asked, the cue and why, each with a button that plays it on the game's kernel.
+- **An agent is told.** `design_game`'s readout suggests a `sound` and a `music` to a game that writes neither (a
+  `next` step each, with its patch, its book and its card), and two cards, `gameworld-sound` and `gameworld-music`,
+  are the manuals of the `sound` and `audio-direction` chapters.
 - **Fixed: a composed game's ground and bed.** A composed game's stages carry no stage kit (the world's style
   holds it), so the sheet gave a forest stone footsteps and no bed. A level's place is now read from the world's
   kit and weather, the level's climate and its look's title: grass in a grove, sand in a desert, snow in the alps,
@@ -49,4 +54,4 @@
   game on the sheet played the solved sheet and ignored the game's own style, slots and cues.
 - Planned, not built yet: the flow playing its cues (the play shell scores no screen or cinematic); a title theme
   (the menu and the credits the same tune at another energy) and a cue that ends, written to a cinematic's length;
-  the score page in the game book; the ground changing within a level.
+  the ground changing within a level.

@@ -543,6 +543,10 @@ function readout(ref, world, context = {}) {
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
   if (juiceSuggest) next.push({ step: 'juice', suggest: juiceSuggest.fxStyle, why: juiceSuggest.why, card: 'gameworld-juice' });
+  // its audio (gameworld/sound-sheet.js, cue-sheet.js): a game on no sound sheet, or with no music, is told what writing
+  // one lays (suggested, never laid: each changes every level's bytes); its books are where the creator listens
+  if (world.sound === undefined && world.quick?.sfx === undefined) next.push({ step: 'sound', suggest: {}, why: 'no sound sheet: its levels are built without sound effects. An empty `sound` lays the sheet solved from the game (its ground, its arsenal, its foes) on every level', patch: [{ op: 'set', path: '/sound', value: {} }], book: 'sound', card: 'gameworld-sound' });
+  if (world.music === undefined && world.quick?.music === undefined) next.push({ step: 'music', suggest: {}, why: 'no music: its levels are built unscored. An empty `music` scores every level from the cue sheet (its place, its fights, its boss) on one identity', patch: [{ op: 'set', path: '/music', value: {} }], book: 'score', card: 'gameworld-music' });
   // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
   // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
   const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
