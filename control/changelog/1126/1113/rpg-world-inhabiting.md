@@ -258,6 +258,12 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     `game/mechanics.js`; set where the genre has a hero row).
   - On a page a player pilots, the rim's near rings stay the land's colour under a far range (`level/grid-scene.js`):
     a hero who starts by the border no longer stands over a slab of far haze.
+- **The input map** (`gameworld/input-map.js`): what each of a hero's actions is on each device, read from the pilot
+  scheme and never written by hand. A hero with an arsenal says its attacks, its sidearm, its specials and its guard in
+  the level's legend (it said "click strike" alone), and the pause sheet lists them (`controls/schemes.js`: a moveset's
+  rows, on keys and on a pad). The wireframe board has an adventure HUD frame (`mana-ui/board.js`): vitals, the action
+  cluster, a compass, the objective, one prompt, one card at a time. The first step of the action RPG's interface,
+  designed from its inputs.
 - Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
   does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
   hangs bare at the hip); the pause menu still says "quit to levels"; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's

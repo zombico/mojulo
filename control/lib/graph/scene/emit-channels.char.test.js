@@ -25,6 +25,9 @@ import { emitThreeWorld } from './scene-three.js';
 // rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one
 // line replaced; no gain, a cue's own level as before). Every fixture that embeds the controllable runtime or the
 // audio channel re-pinned with it.
+// Then (the input map): the pilot scheme's pause legend gained a moveset's rows (schemes.js: its attacks, its
+// sidearm, its specials, its guard; `fire` hidden beside them) and the legend's flags say `moveset` and `sidearm`
+// (controllable/index.js: one line added); the same fixtures re-pinned again.
 // Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
 // (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
 //

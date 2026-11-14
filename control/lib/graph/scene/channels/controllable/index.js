@@ -2939,6 +2939,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
     dash: !!r.dash, sprint: !!r.sprint && !r.dash,             // a feel's F: the dash, or the run button (rules-platform.js)
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
+    moveset: !!r.moveset, sidearm: !!(r.moveset && r.weapon),   // a hero's arsenal (gameworld/arsenal.js): its attacks, its sidearm on the special
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
