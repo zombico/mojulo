@@ -1,6 +1,6 @@
 /**
- * Visual review of the highway's haulers (lib/graph/car-designer/road-haul.js) and the farm's machines
- * (lib/graph/car-designer/road-farm.js): each class compiled realistic, at its class's numbers, in its kind's plain
+ * Visual review of the highway's haulers (lib/graph/car-designer/road-haul.js), the farm's machines
+ * (lib/graph/car-designer/road-farm.js) and the city's working trucks (lib/graph/car-designer/road-city-truck.js): each class compiled realistic, at its class's numbers, in its kind's plain
  * livery, drawn in the vehicle ODM's physically lit review page (car-designer/vehicle-review.js) from the front quarter,
  * the side and the rear quarter, under a brief's words when one is given (a trailer's kind, `empty`, a machine at work).
  * No database writes.
@@ -24,12 +24,12 @@ const { rollVehicleSheet } = await import('../lib/graph/car-designer/sheet.js');
 const { VEHICLES } = await import('../lib/graph/roads/vehicles.js');
 const { emitVehicleReview } = await import('../lib/graph/car-designer/vehicle-review.js');
 const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
-let FARM = {};
-try { FARM = (await import('../lib/graph/car-designer/road-farm.js')).FARM_CLASSES; } catch { /* the farm's not built yet */ }
+const { FARM_CLASSES: FARM } = await import('../lib/graph/car-designer/road-farm.js');
+const { CITY_TRUCK_CLASSES: CITY } = await import('../lib/graph/car-designer/road-city-truck.js');
 
 const [output, classArg, viewArg, brief, liveryArg] = process.argv.slice(2);
 if (!output) { console.error('Usage: node scripts/render-haul.mjs <output-directory> [class,…] [views] [brief] [livery]'); process.exit(2); }
-const classes = classArg ? classArg.split(',') : [...Object.keys(HAUL_CLASSES), ...Object.keys(FARM)], views = (viewArg || 'quarter,side,rear').split(',');
+const classes = classArg ? classArg.split(',') : [...Object.keys(HAUL_CLASSES), ...Object.keys(FARM), ...Object.keys(CITY)], views = (viewArg || 'quarter,side,rear').split(',');
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
 const width = 960, height = 600, report = [], tag = brief ? `-${brief.replace(/[^a-z0-9]+/gi, '_')}` : '';
 let gallery = '';

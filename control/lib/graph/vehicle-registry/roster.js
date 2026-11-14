@@ -221,7 +221,7 @@ export const VEHICLES = {
   'cargo-van': row('cargo van', ['van', 'panel van', 'delivery van', 'box van', 'work van'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxVan', physics: 'van', fleet: 'van', tech: 'truck' }),
   // (its realistic build the hull kit's straight box truck, road-haul.js; the plain loft stays the recipes minted before)
-  'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck', 'cube truck', 'box van truck', 'rigid truck', 'straight box truck'], 'road', 'hauler', M, ROAD,
+  'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck', 'rigid truck', 'straight box truck', 'class 7 box truck'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxTruck', physics: ['straightBox', 'straightTruck'], fleet: 'straightTruck', tech: 'truck' }),
   // (the city's delivery fleet, classes and not replicas, in no carrier's livery: the walk-in step van the delivery truck
   // is, a postal delivery van, a courier's high-roofed van, a light box truck with a tail lift, a kei truck; their
@@ -246,6 +246,22 @@ export const VEHICLES = {
     { physics: 'semiCabover', tech: 'truck' }),
   flatbed: row('flatbed truck', ['flatbed', 'flat deck', 'flatbed lorry', 'stake bed truck', 'platform truck'], 'road', 'hauler', M, ROAD,
     { assembly: 'flatbed', physics: 'flatbedTruck', tech: 'truck' }),
+  // (the city's working trucks, classes and not replicas, in no maker's face or livery: a medium-duty conventional on its
+  // stake bed; the Asian city trucks, a 2-ton cab-over on its drop-side deck and a 4-ton wide cab-over on its wing body,
+  // each by word a wing, a box, a reefer, a dump or a crane; a mini goods carrier; a cube van; a side-bay beverage truck;
+  // their realistic bodies the hull kit's, road-city-truck.js)
+  'medium-truck': row('medium duty truck', ['medium truck', 'medium-duty truck', 'mid size truck', 'midsize truck', 'mid-size truck', 'stake truck', 'stake body truck', 'class 6 truck', 'medium dump truck', 'small dump truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'mediumTruck', tech: 'truck' }),
+  'city-cabover': row('2-ton cab-over truck', ['two ton truck', '2 ton truck', 'asian city truck', 'japanese light truck', 'asian light truck', 'small cab over truck', 'drop side truck', 'dropside truck', 'city truck', 'small crane truck', 'small wing truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'lightCabover', tech: 'truck' }),
+  'wing-truck': row('wing body truck', ['wing truck', 'wing van', 'gullwing truck', '4 ton truck', 'four ton truck', 'wide cab over truck', 'asian medium truck', 'japanese medium truck', 'wing body'], 'road', 'hauler', M, ROAD,
+    { physics: 'wideCabover', tech: 'truck' }),
+  'mini-goods': row('mini goods carrier', ['mini cargo truck', 'goods carrier', 'small goods vehicle', 'mini goods truck', 'light goods carrier', 'small cargo truck', 'mini lorry', 'baby truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'miniGoods', tech: 'truck' }),
+  'cube-van': row('cube van', ['cutaway van', 'cutaway truck', 'cube truck', 'parcel cube van', 'box van truck', 'small moving truck', 'moving van', 'cube box van'], 'road', 'hauler', M, ROAD,
+    { physics: 'cubeVan', tech: 'truck' }),
+  'beverage-truck': row('beverage truck', ['drink truck', 'drinks lorry', 'bay truck', 'side bay truck', 'side loading truck', 'soda truck', 'beer truck', 'dray truck', 'bottle truck', 'drinks delivery truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'beverageTruck', tech: 'truck' }),
   'log-truck': row('log truck', ['logging truck', 'timber truck', 'timber lorry', 'log hauler', 'logger truck', 'pulpwood truck', 'log trailer'], 'road', 'hauler', M, ROAD.concat('watched'),
     { physics: 'logTruck', tech: 'truck' }),
   trailer: row('trailer', ['towed trailer', 'utility trailer'], 'road', 'hauler', M, ['parked'],

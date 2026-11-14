@@ -129,9 +129,10 @@ function cabover(cls, { words = [] } = {}) {
 }
 
 // ── the straight trucks: the box truck and the flatbed ─────────────────────────
-// (the bonneted medium-duty cab and its chassis both share; → { anchors, yb, z0, z1 })
-function straightCab(out, cls) {
-  const v = VEHICLES[cls], r = v.wheelRadius, [yf, yr] = haulAxles(cls), yN = v.L / 2, yT = -v.L / 2, hw = 1.08, zf = 0.95;
+// (the bonneted medium-duty cab and its chassis both share, on its class's axles; → { anchors, yb, z0, z1, … }; the city's
+// medium truck's too, road-city-truck.js)
+export function straightCab(out, cls, [yf, yr] = haulAxles(cls)) {
+  const v = VEHICLES[cls], r = v.wheelRadius, yN = v.L / 2, yT = -v.L / 2, hw = 1.08, zf = 0.95;
   const P = (o) => out.push(...plate(o));
   for (const s of [-1, 1]) P({ axis: 'y', profile: rect(...xs(s, 0.4, 0.5), zf - 0.26, zf), from: yT + 0.15, to: yN - 0.3, r: 0.01, seg: 1, look: dark('frame') });
   for (const y of [yf, yr]) out.push(...tube([[-0.88, y, r], [0.88, y, r]], 0.065, { sides: 10, look: M('axle', 'steel', C.steel) }));
@@ -142,7 +143,7 @@ function straightCab(out, cls) {
   out.push(...tube([[hw - 0.12, yb - 0.1, 0.9], [hw - 0.12, yb - 0.1, z1 + 0.35]], 0.06, { sides: 10, look: chrome('stack') }));
   out.push(...tube([[hw - 0.12, yb - 0.1, 1.6], [hw - 0.12, yb - 0.1, 2.4]], 0.08, { sides: 10, look: M('stack.shield', 'steel', HC.alu) }));
   for (let i = -1; i <= 1; i++) out.push(...lamp([i * 0.3, yw - 0.65, z1 + 0.004], Z, 0.08, 0.05, 'marker', 'cab.lamp'));
-  for (const s of [-1, 1]) out.push(...guard(yr, r, r + 0.08, 0.25, Math.PI - 0.25, ...xs(s, 0.62, 1.29), black('guard.rear')));
+  for (const s of [-1, 1]) out.push(...guard(yr, r, r + 0.08, 0.25, Math.PI - 0.25, ...xs(s, 0.62, Math.min(1.29, v.W / 2 - 0.02)), black('guard.rear')));
   return { anchors: anchors.filter((a) => a.kind !== 'sill'), yb, z0, z1, zf, yr, yT, yN, yf, r };
 }
 function box(cls, { words = [] } = {}) {

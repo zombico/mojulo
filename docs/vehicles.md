@@ -44,6 +44,10 @@ The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds ro
 - The farm's machines are `road-farm.js` over `farm-kit.js`: a row-crop tractor (its front loader and its plough by
   word), a combine harvester (a grain platform or a corn head; its unloading auger swung out) and a self-propelled
   sprayer (its booms folded or out). A parked tractor takes its loader's `reach`.
+- The city's working trucks are `road-city-truck.js` over `city-truck-kit.js`: a medium-duty conventional on its stake
+  bed (`dump`, `flatbed`), the Asian city trucks (a 2-ton cab-over on its drop-side deck and a 4-ton wide cab-over on its
+  wing body, each by word a wing, a box, a reefer, a dump or a crane), a mini goods carrier (`canvas`), a cube van and a
+  side-bay beverage truck (`delivering` rolls its shutters up).
 - A body may say its own wheels axle by axle (`wheelSet`: a radius, a tyre's width, duals, lugs, a rim's colour) and its
   own axles when its words drop some (a tractor bobtailing); the compiler (`military.js`) draws them, and a body that
   says neither is drawn as it always was. Every wheel still turns at one rate in the `roll` clip, so a tractor's small
