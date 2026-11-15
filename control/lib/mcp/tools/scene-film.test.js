@@ -96,7 +96,9 @@ describe("forge_motion's screenplay family", () => {
     expect(out.storyboard.page).toMatch(/index\.html$/);
     expect(out.actors).toBeUndefined();
     expect(out.blender).toBeUndefined();
-    expect(out.message).toMatch(/export 'blender' makes the film from the same plan/);
+    expect(out.film).toBeUndefined();
+    expect(out.message).toMatch(/export 'film' shoots the film in mojulo from the same plan/);
+    expect(out.message).toMatch(/export 'blender' makes it for Blender's renderer/);
   });
   it('boards a scene with its recorded lines: the voice track and the captions beside the board', async () => {
     const { mkdtempSync: mk, writeFileSync: wr } = await import('node:fs');

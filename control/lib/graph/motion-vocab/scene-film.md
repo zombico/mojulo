@@ -1,11 +1,11 @@
 ---
 {
   "id": "scene-film",
-  "name": "Scene film (a screenplay acted, shot by its coverage, storyboarded, filmed in Blender)",
+  "name": "Scene film (a screenplay acted, shot by its coverage, storyboarded, filmed in mojulo or in Blender)",
   "family": "motion",
   "entry": "forge_motion",
-  "summary": "A SCENE written as a screenplay, acted by its cast (personas or heroes) and shot the way a director covers it: first a STORYBOARD (a panel a shot, drawn with stand-ins, in seconds) and its ANIMATIC, then the film from the same plan, handed to Blender as a film pack: each actor a skinned GLB with its performance, the cameras cut together, a film (Cycles) or anime (EEVEE) look.",
-  "when": "Reach for this on 'a short film of my two characters talking / storyboard this scene / an animatic / use my recorded lines / dub it in French / set it in my room / shoot this scene / film the dialogue / an animated short / render the conversation in Blender / a scene with my personas / Cycles render of the scene'."
+  "summary": "A SCENE written as a screenplay, acted by its cast (personas or heroes) and shot the way a director covers it: first a STORYBOARD (a panel a shot, drawn with stand-ins, in seconds) and its ANIMATIC, then the FILM from the same plan: shot in mojulo (the cast acting on the set's own page, a video in minutes), or handed to Blender as a film pack for the high-end render: each actor a skinned GLB with its performance, the cameras cut together, a film (Cycles) or anime (EEVEE) look.",
+  "when": "Reach for this on 'a short film of my two characters talking / storyboard this scene / an animatic / use my recorded lines / dub it in French / set it in my room / shoot this scene / film the dialogue / a video of the scene / an animated short / render the conversation in Blender / a scene with my personas / Cycles render of the scene'."
 }
 ---
 
@@ -199,7 +199,7 @@ Render the pack with the render worker, on a machine with Blender. It works chun
 `node scripts/render-film.mjs <the pack> --preset final [--budget-min 60]`. It writes `render.json`. The tool never
 launches Blender.
 
-## The three forms (`export`), cheapest first
+## The four forms (`export`), cheapest first
 
 - `storyboard` (the default): no mint, no Blender, seconds. `storyboard.page` is one page with a panel for each shot
   of the coverage. Each panel has:
@@ -215,11 +215,40 @@ launches Blender.
   `storyboard.json` holds the panels' data. Approve the cut here before the film is made.
 - `mp4`: the storyboard plus its ANIMATIC (`mp4_path`): each panel held for its shot's length, the spoken line under
   it. It is a motion like any other, so `stitch_motion` cuts several scenes' animatics into one.
-- `blender`: the storyboard plus the film from the same plan, in a Blender pack. Each actor is minted, which takes
-  minutes.
+- `film`: the storyboard plus THE FILM, SHOT IN MOJULO (`mp4_path`, the motion's `motion.mp4`). The scene is played on
+  its set's own World page and shot there by the same coverage. No other program runs. Minutes: about a minute for
+  a hero, then the set's own page sets the pace: a city or a bare stage a few frames a second, a landscape a frame
+  every few seconds (about a minute for each second of film). One forge shoots the whole scene; a film of scenes
+  shoots within a budget and resumes (`film-studio`).
+  - **The cast acts on the set.** Each actor is its hero playing the scene's take (the body's acting, the face on
+    its lines), carried along its blocking. Actors who share a hero share one figure.
+  - **What the world moves is in the picture**, with or without `life`: a city's traffic, its signals and its
+    people, on the world's own clock (`life: { clock }` is the second the scene starts at).
+  - **The sky is the world's own.** `weather` is performed by any world's page (its rain, its fog, its wet ground).
+    `hour` and `clouds` are read by a set made as a geocube. On any other set they are said as advice
+    (`native-unread`) and the set keeps its own light.
+  - **The sound is the scene's:** its recorded lines the first audio track, each dub another, the captions beside
+    them, as the animatic's are.
+  - A scene with no set is played on a bare stage.
+  - It is a motion like any other, so `stitch_motion` cuts several scenes' films into one. A film of scenes does this
+    itself (`film: { ref, run: 'film' }`, the `film-studio` manual).
+- `blender`: the storyboard plus the same film as a Blender pack: the high-end outcome, lit and rendered by
+  Blender. Each actor is minted, which takes minutes, and the render is Blender's.
 
 The stand-ins are drawn with a level eye: a high or low camera's tilt is drawn by moving the horizon, so those
 frames are close but not exact.
+
+## What comes back (film)
+
+- `mp4_path`: the video, 1280 × 720 at the shot's `fps` (24).
+- `film.shots`: each shot with a `still`, one frame of it a moment in. Look at these first.
+- `film.cast`: what each part plays from and the figure it shares.
+- `film.set.reads`: what of the scene's sky the set's page performed (`weather`, `hour`, `clouds`).
+- `film.tracks`: the audio and subtitle tracks laid under it.
+- `film.took`: the seconds each step took.
+- `advice`: `native-unread` (what the scene asks that this film does not perform: its props, its wind, an hour or
+  clouds on a set that is not a geocube) and `native-face` (a face that keeps its own blink: the anime face does not
+  play its lines here yet). Each names the Blender film as what performs it.
 
 ## What comes back (blender)
 
@@ -250,4 +279,6 @@ again from the recipe.
 - A thing made in no real unit (a vehicle, for one) states no size: it is read as metres until the prop gives a `scale`.
 - A house names no rooms as places yet: as a set, its cast is stood outside it.
 - Marks are on the floor at the set's height under the lead's mark. A set of many levels is stood on that one floor.
-- One scene per forge; cut several together in Blender's sequencer.
+- One scene per forge; a film of scenes cuts them (`film-studio`).
+- The film shot in mojulo: the cast is drawn in its own light, not the set's, and casts no shadow on the ground;
+  props are not stood in it; the anime face keeps its blink and does not play its lines; the wind is the world's own.

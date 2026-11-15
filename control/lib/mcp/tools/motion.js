@@ -138,7 +138,7 @@ function resolveSubject(subject) {
   }
 
   if (subject.screenplay !== undefined) {
-    throw new Error("a screenplay is forged whole (export: 'storyboard' | 'mp4' | 'blender'); to stitch one, forge it with export: 'mp4' and stitch that motion ref (its animatic): get_motion_vocab({ id: 'scene-film' })");
+    throw new Error("a screenplay is forged whole (export: 'storyboard' | 'mp4' | 'film' | 'blender'); to stitch one, forge it with export: 'mp4' (its animatic) or 'film' (the film shot in mojulo) and stitch that motion ref: get_motion_vocab({ id: 'scene-film' })");
   }
   // ── deck subjects (charts / infographics / slides as a slideshow) ──
   if (Array.isArray(subject.deck)) {
@@ -919,7 +919,7 @@ export function registerMotionTools() {
             note: { type: 'string', description: 'Revision note.' },
           },
         },
-        film: { type: 'object', additionalProperties: true, description: "A FILM of scenes (the animation studio): { write } | { order: a client's characters, places, events } | { ref, patch | approve | run: storyboard|animatic|blender | deliver } | { ordered_by }; get_motion_vocab({ id: 'film-studio' })." },
+        film: { type: 'object', additionalProperties: true, description: "A FILM of scenes (the animation studio): { write } | { order: a client's characters, places, events } | { ref, patch | approve | run: storyboard|animatic|film|blender | deliver } | { ordered_by }; get_motion_vocab({ id: 'film-studio' })." },
         title: { type: 'string', description: 'Title for the motion project + artifact (defaults from the recipe when re-forging).' },
         recipe: { type: 'object', description: 'RE-FORGE: a stored recipe.json, optionally edited — replaces subject+shot. Both ticks and waypoints present replays the ticks; delete shot.ticks to recompile edited waypoints.' },
         recipe_ref: { type: 'string', description: 'RE-FORGE: an existing motion ref (mo_…) — re-renders its recipe.json as a NEW shot.' },
@@ -941,7 +941,7 @@ export function registerMotionTools() {
               items: { type: ['string', 'object'] },
             },
             stash_ref: { type: 'string', description: 'DECK: a stash (st_…) whose sketch-typed items, in gather order, are the slides (≥2).' },
-            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script, world_ref?, voice?, dub? }; export storyboard (default) | mp4 (animatic) | blender (get_motion_vocab({ id: 'scene-film' }))" },
+            screenplay: { type: 'object', description: "SCENE FILM: { cast: { <who>: { persona | hero } }, marks?, script, world_ref?, voice?, dub? }; export storyboard (default) | mp4 (animatic) | film | blender (get_motion_vocab({ id: 'scene-film' }))" },
           },
         },
         shot: {
@@ -965,7 +965,7 @@ export function registerMotionTools() {
             loop: { type: 'boolean', description: 'Seamless loop (default true).' },
           },
         },
-        export: { type: 'string', enum: ['gif', 'svg', 'mp4', 'both', 'blender', 'storyboard'], description: "Artifact form (default 'both'). SVG families: 'both' = durable flipbook .svg + .gif cache; 'svg' skips the gif; 'mp4' bakes a downloadable H.264 beside the .svg instead of the gif (opt-in — first use resolves/lazy-fetches ffmpeg). WORLD family (raster-native, no svg): 'gif' is the looping preview, 'mp4' the downloadable H.264, 'both' writes both; 'blender' (camera motions) writes the gif plus a Blender film pack — the world + this exact camera, lit and rendered to video in Blender (get_motion_vocab({ id: 'blender-film' }))." },
+        export: { type: 'string', enum: ['gif', 'svg', 'mp4', 'both', 'blender', 'storyboard', 'film'], description: "Artifact form (default 'both'). SVG families: 'both' = durable flipbook .svg + .gif cache; 'svg' skips the gif; 'mp4' bakes a downloadable H.264 beside the .svg instead of the gif (opt-in — first use resolves/lazy-fetches ffmpeg). WORLD family (raster-native, no svg): 'gif' is the looping preview, 'mp4' the downloadable H.264, 'both' writes both; 'blender' (camera motions) writes the gif plus a Blender film pack — the world + this exact camera, lit and rendered to video in Blender (get_motion_vocab({ id: 'blender-film' }))." },
         tag_ref: { type: 'string', description: 'Optional existing Motion Project ops tag (ops_…) to file this shot under, instead of forging a new one.' },
       },
     },

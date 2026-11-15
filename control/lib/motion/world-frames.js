@@ -33,7 +33,13 @@ const BRIDGE = { g: CAPTURE_GLOBAL, ready: CAPTURE_READY, frame: CAPTURE_FRAME, 
  * @param {number} [opts.deviceScaleFactor=1]
  * @param {number} [opts.settleMs=2000]  wait after parse so WebGL init + first paint settle
  * @param {number} [opts.timeoutMs=120000]
- * @returns {Promise<{ pngs: Buffer[], width: number, height: number }>}
+ * @param {string} [opts.file]  write the page here and load it from the file: a page too large to hand the browser as
+ *   one message (a film's cast on its set, tens of megabytes) is read by it from disk instead
+ * @param {(png: Buffer, i: number) => (void|Promise<void>)} [opts.sink]  each frame handed over as it is shot and not
+ *   kept (a long take written to disk as it goes): `pngs` then comes back empty, `frames` says how many were shot
+ * @param {number} [opts.budgetMs]  how long frames are shot for once the page is up; no further frame is started after
+ *   it (a long take shot within a budget; one frame is always shot). `frames` then falls short of the specs given
+ * @returns {Promise<{ pngs: Buffer[], frames: number, width: number, height: number }>}
  */
 export async function renderWorldFrames(html, specs, {
   width = 720,
@@ -41,6 +47,9 @@ export async function renderWorldFrames(html, specs, {
   deviceScaleFactor = 1,
   settleMs = 2000,
   timeoutMs = 120000,
+  file = null,
+  sink = null,
+  budgetMs = null,
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('renderWorldFrames requires World HTML');
   if (!Array.isArray(specs) || !specs.length) throw new Error('renderWorldFrames requires ≥1 camera spec');
@@ -58,7 +67,11 @@ export async function renderWorldFrames(html, specs, {
     });
     const page = await browser.newPage();
     await page.setViewport({ width, height, deviceScaleFactor });
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    if (file) {
+      const { writeFileSync } = await import('node:fs'), { pathToFileURL } = await import('node:url');
+      writeFileSync(file, html);
+      await page.goto(pathToFileURL(file).href, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    } else await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
 
     // Best-effort font readiness, then let the WebGL context create + first paint settle
     // before we start driving frames (the capture hook is published on first render).
@@ -88,8 +101,10 @@ export async function renderWorldFrames(html, specs, {
       window.dispatchEvent(new Event('resize'));
     }, WORLD_ROOT_SELECTOR, width, height);
 
-    const pngs = [];
+    const pngs = [], until = Number.isFinite(budgetMs) ? Date.now() + budgetMs : null;
+    let shots = 0;
     for (const spec of specs) {
+      if (until !== null && shots > 0 && Date.now() > until) break;
       // eslint-disable-next-line no-await-in-loop -- frames are ordered + share one context
       await page.evaluate((s, b) => window[b.g][b.frame](s), spec, BRIDGE);
       // a rAF tick so the just-issued render is presented before the screenshot
@@ -101,10 +116,11 @@ export async function renderWorldFrames(html, specs, {
       const shot = target
         ? await target.screenshot({ type: 'png' })
         : await page.screenshot({ type: 'png', fullPage: false });
-      pngs.push(Buffer.from(shot));
+      // eslint-disable-next-line no-await-in-loop
+      if (sink) await sink(Buffer.from(shot), shots++); else { pngs.push(Buffer.from(shot)); shots++; }
     }
 
-    return { pngs, width, height };
+    return { pngs, frames: shots, width, height };
   } finally {
     if (browser) await browser.close().catch(() => {});
   }

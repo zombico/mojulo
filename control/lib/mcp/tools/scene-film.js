@@ -41,6 +41,7 @@ import { lampsLit, lampPosts } from '@/lib/graph/film/lamps.js';
 import { windErrors, windSpec } from '@/lib/graph/film/wind.js';
 import { cloudsErrors, cloudsSpec, cloudsPng, CLOUDS_FILE } from '@/lib/graph/film/clouds.js';
 import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims, lifeOf } from '@/lib/graph/film/life.js';
+import { NATIVE, nativeShots, castTravel, stageFaces, nativeSet, nativeUnread } from '@/lib/graph/film/native.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
 import { sceneFilmFiles, LOOKS } from '@/lib/graph/actor/scene-film.js';
@@ -253,6 +254,8 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
     // (the ways a walker goes in the world, its trail or its sidewalks: a cross between two places on one follows it)
     if (places.paths && !places.rooms.some((R) => R.walled)) plan = { ...(plan ?? { blocks: [], rooms: [] }), paths: places.paths };
     set = { ref: sp.world_ref, title: row.title ?? null, kind: row.manifest.kind, floor: on.floor, rooms: places.rooms, ...(plan ? { floor_plan: plan } : {}), places: Object.keys(places.marks).length, faces, ...(relief ? { relief } : {}) };
+    // (the world as its page reads it rides the set unlisted: the film shot in mojulo stands the cast on it, film/native.js)
+    Object.defineProperty(set, 'page', { value: payload, enumerable: false });
   }
   const advice = [];
   if (hour !== undefined) {
@@ -753,14 +756,119 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
 }
 
 /** The pack's title as a file-safe word (the shots are written as `shots/<title>-NN.json`) */
+/** what the film shot in mojulo is made by: a scene shot by an older revision is shot again */
+export const NATIVE_REV = 1;
+
+/**
+ * THE FILM SHOT IN MOJULO (film/native.js): one scene played on its set's own World page and shot there by its
+ * coverage. Each actor is its hero's page figure playing the scene's take (worlds/world-scene.js heroFigure `takes`:
+ * the body's act a clip, the face's performance its track), carried along its blocking by the rig preview's travel;
+ * actors who share a hero share one figure. The page is written to `dir` and read from the file (a cast's page is tens
+ * of megabytes), shot a frame at a time through the page's capture, the frames written as they are shot and encoded;
+ * the sound is the scene's own (writeSceneSound), laid under the video where `mux` asks.
+ *   → { file, frames, seconds, fps, width, height, shots, stills, cast, set?, sound?, tracks?, advice, took }
+ * A LONG TAKE, RESUMED (`budgetMs`, `stamp`): a landscape's page draws slowly, so the frames are shot until the budget
+ * is spent and stay on disk under the scene's `stamp`; the same call again goes on from the next frame (the page's
+ * picture at a frame is its clock's alone). Until every frame is shot: → { pending: { frames, of }, cast, advice, took }
+ */
+export async function writeNativeFilm({ dir, prepared: P, plan, getRow, title = 'scene', fps = NATIVE.fps, width = NATIVE.width, height = NATIVE.height, hero = null, file = 'film.mp4', mux = true, budgetMs = null, stamp = null, log = () => {} }) {
+  if (!Number.isFinite(fps) || fps < 1 || fps > 120) throw new Error('fps: a frame rate, 1 to 120');
+  const { S, coverage, heroes, sources } = plan, took = {}, advice = [];
+  const clockOf = (label, t0) => { took[label] = Math.round((Date.now() - t0) / 100) / 10; log(`${label}: ${took[label]} s`); };
+  // (heroes resolved, and refused, before the slow work)
+  const srcs = {};
+  for (const w of Object.keys(S.actors)) srcs[w] = { ...(await heroSource(heroes[w], { who: w, getRow, fallback: hero ?? BASELINE.hero })), spec: heroes[w]?.ref ? { heroRef: heroes[w].ref } : { hero: heroes[w]?.spec ?? hero ?? BASELINE.hero } };
+  const { resolveWorldScene, heroFigure } = await import('@/lib/graph/worlds/world-scene.js');
+  // THE SET: the world as its own page reads it, asked for the scene's weather (any world's) and, a geocube, its hour
+  // and clouds; a scene with no set is played on a bare stage
+  let t0 = Date.now(), page, reads = [];
+  if (P.set?.ref) {
+    const world = getRow(P.set.ref), ask = nativeSet(world.manifest, { hour: P.set.hour, weather: P.set.weather, clouds: P.set.clouds });
+    reads = ask.reads;
+    page = !ask.reads.length && P.set.page ? P.set.page : (await resolveWorldScene(ask.reads.length ? { ...world, manifest: ask.manifest } : world)).payload;
+  } else page = { faces: stageFaces(S), title };
+  advice.push(...nativeUnread(P.set, { props: P.kept?.props ?? null, hour: P.set?.hour, clouds: P.set?.clouds, wind: P.set?.wind }));
+  const units = Number.isFinite(page.metersPerUnit) && page.metersPerUnit > 0 ? page.metersPerUnit : 1, floor = P.set?.floor ?? 0, relief = P.set?.relief ?? null;
+  const lift = (x, y) => (relief ? heightAt(relief, x, y) : 0);
+  // (the world's clock when the scene starts: the life's, so the same street is in the film and on its board)
+  const clock = isPlain(P.set?.life) && Number.isFinite(P.set.life.clock) ? P.set.life.clock : 0;
+  clockOf('set', t0);
+  // THE CAST: a figure a hero, a take an actor
+  const byHero = new Map();
+  for (const w of Object.keys(S.actors)) { const k = srcs[w].key; if (!byHero.has(k)) byHero.set(k, []); byHero.get(k).push(w); }
+  const figures = { ...(page.figures ?? {}) }, cast = {};
+  let n = 0;
+  for (const [, whos] of byHero) {
+    t0 = Date.now();
+    const takes = Object.fromEntries(whos.map((w) => { const T = sceneActOf(S.actors[w]); return [`take-${w}`, { act: T.acts.scene, perform: T.perform.scene }]; }));
+    const fig = await heroFigure(whos[0], srcs[whos[0]].spec, { takes });
+    const lost = whos.filter((w) => !fig.clips?.[`take-${w}`]);
+    if (lost.length) throw new Error(`cast.${lost[0]}: this hero's rig cannot play a scene's act on the page (its stand finds no arms); cast a hero that acts`);
+    const mute = whos.filter((w) => !fig.face?.tracks?.[`take-${w}`]);
+    if (mute.length) advice.push({ id: 'native-face', says: `${mute.join(', ')}: the face does not play its lines in the film shot in mojulo (the realistic hero's does; this one keeps its own blink)`, try: 'cast a realistic hero in the part, or make the Blender film (run: \'blender\'), where this face performs' });
+    const name = `film-cast-${++n}`;
+    figures[name] = { ...fig, preview: whos.map((w) => ({ clips: [`take-${w}`], period: S.seconds, travel: castTravel(S.actors[w].root, { seconds: S.seconds, units, floor, lift, clock }) })) };
+    for (const w of whos) cast[w] = { plays: sources[w], figure: name };
+    clockOf(`cast ${whos.join(', ')}`, t0);
+  }
+  // THE PAGE, and its frames: the world's own cameras (a shoot it carries) stand down, the coverage shoots
+  t0 = Date.now();
+  const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three.js');
+  const { renderWorldFrames } = await import('@/lib/motion/world-frames');
+  const { encodeFrameDirMp4 } = await import('@/lib/motion/encode-mp4');
+  // (and the viewer's own stand-in, the walker the page follows, is no one in the scene: film/life.js leaves it out too)
+  const { shoot: _shoot, shootSet: _shootSet, ...world } = page;
+  if (Array.isArray(world.walkers) && world.walkers.some((w) => w?.follow)) world.walkers = world.walkers.filter((w) => !w?.follow);
+  const html = emitThreeWorld({ ...world, figures, inline: true, capture: true, walk: false });
+  const shot = nativeShots(S, coverage, { fps, aspect: width / height, units, floor, lift, clock });
+  const frames = path.join(dir, 'frames'), pageFile = path.join(dir, 'film-page.html'), pad = (i) => String(i + 1).padStart(6, '0');
+  // (frames already shot of this very take are kept: the take's stamp, its size, its frame count)
+  const { existsSync, readFileSync } = await import('node:fs');
+  const take = `${stamp ?? ''}:${NATIVE_REV}:${fps}:${width}x${height}:${shot.frames}`, takeFile = path.join(frames, 'take.json');
+  let done = 0, stills = [], enc = null;
+  if (stamp && existsSync(takeFile) && JSON.parse(readFileSync(takeFile, 'utf8')).take === take) while (done < shot.frames && existsSync(path.join(frames, `f_${pad(done)}.png`))) done++;
+  else { rmSync(frames, { recursive: true, force: true }); mkdirSync(frames, { recursive: true }); writeFileSync(takeFile, JSON.stringify({ take })); }
+  const had = done;
+  try {
+    if (done < shot.frames) done += (await renderWorldFrames(html, shot.specs.slice(done), { width, height, timeoutMs: 1_800_000, file: pageFile, ...(Number.isFinite(budgetMs) ? { budgetMs: Math.max(0, budgetMs) } : {}), sink: (png, i) => writeFileSync(path.join(frames, `f_${pad(had + i)}.png`), png) })).frames;
+    clockOf(`frames (${done - had}${had ? ` after ${had} kept` : ''}, a page of ${(html.length / 1e6).toFixed(0)} MB)`, t0);
+    if (done < shot.frames) { rmSync(pageFile, { force: true }); return { pending: { frames: done, of: shot.frames }, cast, advice, took }; }
+    t0 = Date.now();
+    // (a still a shot, a moment into it: what the eyes look at before the video)
+    mkdirSync(path.join(dir, 'stills'), { recursive: true });
+    const { copyFileSync } = await import('node:fs');
+    stills = shot.cuts.map((c, k) => { const f = c.from + Math.min(c.frames - 1, Math.round(fps / 2)), name = `stills/${String(k + 1).padStart(2, '0')}.png`; copyFileSync(path.join(frames, `f_${pad(f)}.png`), path.join(dir, name)); return name; });
+    enc = await encodeFrameDirMp4(frames, path.join(dir, file), { fps, frames: done });
+  } finally {
+    // (a take cut short keeps its frames for the next call; a take that failed or finished keeps none)
+    if (!(done < shot.frames && done > 0 && stamp)) rmSync(frames, { recursive: true, force: true });
+    rmSync(pageFile, { force: true });
+  }
+  const sound = await writeSceneSound({ dir, plan, screenplay: P.screenplay, fps });
+  let tracks = null;
+  if (sound && mux) {
+    const { muxSound } = await import('@/lib/mcp/tools/scene-voice.js');
+    tracks = await muxSound(path.join(dir, file), sound, { dir, seconds: enc.durationSec });
+  }
+  if (sound?.advice?.length) advice.push(...sound.advice);
+  clockOf('video', t0);
+  return {
+    file, frames: done, seconds: Math.round(enc.durationSec * 1000) / 1000, fps, width, height, bytes: enc.bytes,
+    shots: shot.cuts.map((c, k) => ({ n: k + 1, name: c.shot, from: c.from, frames: c.frames, still: stills[k] })), stills, cast,
+    ...(P.set?.ref ? { set: { ref: P.set.ref, ...(reads.length ? { reads } : {}), ...(clock ? { clock } : {}) } } : {}),
+    ...(sound ? { sound } : {}), ...(tracks ? { tracks } : {}), advice, took,
+  };
+}
+
 export const packTitle = (title) => String(title ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'scene';
 
 /** shot.params a screenplay takes */
 export const SCREENPLAY_PARAMS = Object.freeze(['look', 'style', 'grain', 'grade', 'hero', 'render']);
 
 /** The forms a screenplay is forged to: its storyboard (the default: no mint, seconds), the storyboard and its animatic,
- * or the Blender film (each actor minted: minutes) */
-export const SCREENPLAY_EXPORTS = Object.freeze(['storyboard', 'mp4', 'blender']);
+ * the film shot in mojulo (the cast on the set's own page: minutes), or the Blender film pack (each actor minted: minutes,
+ * then Blender's render) */
+export const SCREENPLAY_EXPORTS = Object.freeze(['storyboard', 'mp4', 'film', 'blender']);
 
 /** The storyboard of a planned scene, written into dir: index.html (the board) and storyboard.json; with `animatic`, the
  * board's panels held on the scene's screen clock as motion.mp4 (actor/storyboard.js) */
@@ -818,7 +926,7 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
   const extraSubject = Object.keys(subject).filter((k) => k !== 'screenplay');
   if (extraSubject.length) throw new Error(`subject.screenplay is a family of its own (not with ${extraSubject.join(', ')}); a set under the scene is to come (${MANUAL})`);
   const form = exportFormat ?? 'storyboard';
-  if (!SCREENPLAY_EXPORTS.includes(form)) throw new Error(`a screenplay is forged to export: 'storyboard' (the board, the default), 'mp4' (the board and its animatic) or 'blender' (the film; not '${form}'; ${MANUAL})`);
+  if (!SCREENPLAY_EXPORTS.includes(form)) throw new Error(`a screenplay is forged to export: 'storyboard' (the board, the default), 'mp4' (the board and its animatic), 'film' (the film shot in mojulo) or 'blender' (the Blender film pack; not '${form}'; ${MANUAL})`);
   const S = shot ?? {};
   if (S.motion !== undefined && S.motion !== 'coverage') throw new Error(`a screenplay is shot by its coverage: shot: { motion: 'coverage' } (not '${S.motion}'; ${MANUAL})`);
   const P = S.params ?? {};
@@ -839,6 +947,9 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
     outDir: filmDir, screenplay: subject.screenplay, getRow, title: packTitle(title), style: P.style ?? null,
     grain: P.grain ?? null, grade: P.grade ?? null, fps, hero: P.hero ?? null, prepared: prep, render: P.render ?? null,
   }) : null;
+  // (the film shot in mojulo: the cast on the set's own page, shot by the same coverage, its sound under it)
+  const native = form === 'film' ? await writeNativeFilm({ dir, prepared: prep, plan, getRow, title: packTitle(title), fps, hero: P.hero ?? null, file: 'motion.mp4' }) : null;
+  if (native) prep.advice.push(...native.advice.filter((a) => !sound?.advice?.includes(a)));
   const recipe = {
     motion_ref: ref, title, subject: { screenplay: prep.kept },
     shot: { motion: 'coverage', params: P, fps }, export: form,
@@ -848,7 +959,7 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
 
   const tag = tagRef ? OpsTagRepository.getByRef(tagRef) : OpsTagRepository.forge({
     title: `Motion: ${title}`,
-    descriptorMd: `A motion project. A screenplay acted by its cast and shot by its coverage: its storyboard${mp4 ? ' and animatic' : ''}${film ? ' and its Blender film pack' : ''} at ${ref}. Members: the recipe stash and the motion.`,
+    descriptorMd: `A motion project. A screenplay acted by its cast and shot by its coverage: its storyboard${mp4 ? ' and animatic' : ''}${native ? ' and its film, shot in mojulo' : ''}${film ? ' and its Blender film pack' : ''} at ${ref}. Members: the recipe stash and the motion.`,
   });
   if (!tag) throw new Error(`tag_ref '${tagRef}' not found`);
   const stash = StashRepository.mint({ title: `Motion: ${title}` });
@@ -873,6 +984,7 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
     frames: recipe.meta.frames,
     storyboard: { page: `${url}index.html`, panels: board.panels.length, json: `${url}storyboard.json` },
     shots: board.panels.map((p) => ({ n: p.n, name: p.name, span: p.span, lens_mm: p.lens_mm, move: p.move, lines: p.lines.length, ...(p.notes.length ? { notes: p.notes.map((N) => N.id) } : {}) })),
+    ...(native ? { mp4_path: `${url}${native.file}`, film: { seconds: native.seconds, frames: native.frames, fps: native.fps, width: native.width, height: native.height, bytes: native.bytes, shots: native.shots.map((s) => ({ n: s.n, name: s.name, still: `${url}${s.still}` })), cast: native.cast, ...(native.set ? { set: native.set } : {}), ...(native.tracks ? { tracks: native.tracks } : {}), took: native.took, note: 'Shot on the set\'s own World page: the cast acting on it, what the world moves in the picture. Looked at by no one yet: the stills are a frame a shot.' } } : {}),
     ...(mp4 ? { mp4_path: `${url}motion.mp4`, animatic: { seconds: mp4.durationSec ?? board.screen, bytes: mp4.bytes ?? null, ...(mp4.tracks ? { tracks: mp4.tracks } : {}) } } : {}),
     ...(sound ? { sound: {
       captions: `${url}${sound.captions}`,
@@ -895,12 +1007,13 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
       },
     } : {}),
     message:
-      `Screenplay ${film ? 'filmed' : 'boarded'}: ${Object.keys(plan.S.actors).length} actors, ${plan.S.seconds} s, ${board.panels.length} shots. The storyboard is at ${url}index.html (a panel a shot, drawn with stand-ins: approve the cut there before the film is made)`
+      `Screenplay ${film || native ? 'filmed' : 'boarded'}: ${Object.keys(plan.S.actors).length} actors, ${plan.S.seconds} s, ${board.panels.length} shots. The storyboard is at ${url}index.html (a panel a shot, drawn with stand-ins: approve the cut there before the film is made)`
       + (mp4 ? `; its animatic at ${url}motion.mp4${mp4.tracks ? ` (sound: ${mp4.tracks.audio.join(', ')})` : ''}` : '')
       + (prep.set ? `; on the set ${prep.set.title ?? prep.set.ref} (${prep.set.places} places to stand)` : '')
       + (sound?.voice ? `; ${sound.voice.lines} recorded line${sound.voice.lines === 1 ? '' : 's'} set the clock and the mouths` : '')
       + (sound?.dubs ? `; dubbed to picture in ${Object.keys(sound.dubs).join(', ')}` : '')
-      + (film ? `; the Blender film pack at ${filmDir} (SCENE.md): build it with blender.command, render with film_render.py` : '; export \'blender\' makes the film from the same plan (each actor minted: minutes)')
+      + (native ? `; the film, shot in mojulo, at ${url}${native.file} (${native.seconds} s, ${native.frames} frames${native.tracks ? `, sound: ${native.tracks.audio.join(', ')}` : ''}); export 'blender' makes the same film for Blender's renderer` : '')
+      + (film ? `; the Blender film pack at ${filmDir} (SCENE.md): build it with blender.command, render with film_render.py` : native ? '' : '; export \'film\' shoots the film in mojulo from the same plan (minutes), export \'blender\' makes it for Blender\'s renderer')
       + `. ${notes.length ? `${notes.length} director's notes (notes): each says what to try in the script; none stops the film.` : 'No director\'s notes.'}`
       + (prep.advice.length || sound?.advice?.length ? ` Advice on the recordings (advice): ${[...prep.advice, ...(sound?.advice ?? [])].length}.` : '')
       + ` Filed under ops tag ${tag.tagRef}.`,

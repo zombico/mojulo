@@ -32,7 +32,8 @@ export const DELIVERIES = Object.freeze(['animatic', 'film']);
 export const ORDER_KEYS = Object.freeze(['title', 'from', 'for', 'cast', 'places', 'events', 'look', 'deliver']);
 export const EVENT_KEYS = Object.freeze(['id', 'notes', 'place', 'who', 'props', 'script']);
 export const BRIEF_KEYS = Object.freeze(['from', 'for', 'deliver', 'events']);
-export const ORDER_STATES = Object.freeze(['unwritten', 'written', 'boarded', 'approved', 'cut', 'filmed', 'rendered']);
+// (`filmed`: its Blender pack is made, no video yet; `shot`: filmed in mojulo, a video; `rendered`: Blender's render)
+export const ORDER_STATES = Object.freeze(['unwritten', 'written', 'boarded', 'approved', 'cut', 'filmed', 'shot', 'rendered']);
 const WORD = /^[a-z][a-z0-9_-]{0,31}$/;
 const PART_KEYS = ['persona', 'hero', 'register', 'style', 'role', 'height'];
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -50,7 +51,7 @@ export function orderErrors(O) {
   }
   // (a place is a world the client has, by ref, or one asked for in words: film.js setErrors reads it as a film's set)
   if (O.places !== undefined && (!isPlain(O.places) || Object.entries(O.places).some(([id, V]) => !WORD.test(id) || !(typeof V === 'string' ? V : isPlain(V))))) errs.push('places: { <id>: <a stored world\'s ref> | { words } | { cube, show } }: the client\'s geocubes, levels and rooms, or a place asked for, each named by a word');
-  if (O.deliver !== undefined && !DELIVERIES.includes(O.deliver)) errs.push(`deliver: ${DELIVERIES.join(' | ')} (what the client wants back: the boards cut as a video, or the film rendered in Blender)`);
+  if (O.deliver !== undefined && !DELIVERIES.includes(O.deliver)) errs.push(`deliver: ${DELIVERIES.join(' | ')} (what the client wants back: the boards cut as a video, or the film, shot in mojulo or rendered in Blender)`);
   for (const k of ['from', 'for', 'title']) if (O[k] !== undefined && (typeof O[k] !== 'string' || !O[k].trim())) errs.push(`${k}: words`);
   if (!Array.isArray(O.events) || !O.events.length) errs.push('events: [{ id, notes: \'<what happens>\', place?, who? }], one at least: each is a scene of the cutscene');
   else {
@@ -118,12 +119,14 @@ export function isDraft(F, id) {
 export function orderReadout(F, scenes, { made = {}, progress = null } = {}) {
   const B = F.order;
   if (!B) return null;
-  const want = B.deliver === 'film' ? 'rendered' : 'cut';
+  // (the film asked for: each event filmed, in mojulo or rendered in Blender)
+  const want = B.deliver === 'film' ? 'shot' : 'cut';
   const events = B.events.map((E) => {
     const row = scenes.find((s) => s.id === E.id), stamp = row?.stamp;
     let state = 'written';
     if (isDraft(F, E.id)) state = 'unwritten';
     else if (progress?.scenes?.[E.id]?.encoded) state = 'rendered';
+    else if (made.native?.scenes?.[E.id]?.stamp === stamp && stamp) state = 'shot';
     else if (made.blender?.scenes?.[E.id]?.stamp === stamp && stamp) state = 'filmed';
     else if (made.animatic && made.storyboard?.scenes?.[E.id]?.stamp === stamp && stamp) state = 'cut';
     else if (row?.board === 'approved') state = 'approved';

@@ -1,5 +1,5 @@
 // Isolate to an in-memory SQLite and a scratch outcomes folder — before any import that pulls in db/index.js.
-import { mkdtempSync, existsSync } from 'node:fs';
+import { mkdtempSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const DIR = mkdtempSync(path.join(tmpdir(), 'film-door-'));
@@ -11,7 +11,9 @@ import { describe, it, expect } from 'vitest';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
 import { forgeMotionHandler } from './motion.js';
-import { filmBook } from './film.js';
+import { filmBook, filmVideoOf, FILM_RUNS } from './film.js';
+import { orderStamp } from '@/lib/graph/film/readout.js';
+import { SCREENPLAY_EXPORTS } from './scene-film.js';
 
 // the animation studio's door: a film written, read, patched, approved and boarded through forge_motion's `film`
 const film = (arg) => forgeMotionHandler({ film: arg });
@@ -89,5 +91,21 @@ describe("forge_motion's film", () => {
     // a film nobody ordered has nothing to hand back
     await expect(film({ ref: (await film({ write: WRITE })).ref, deliver: true })).rejects.toThrow(/not made to an order/);
     await expect(film({ order: { cast: { ana: {} } } })).rejects.toThrow(/order refused/);
+  });
+  it('serves the film shot in mojulo over the animatic, until the film is changed', async () => {
+    expect(FILM_RUNS).toContain('film');
+    expect(SCREENPLAY_EXPORTS).toContain('film');
+    const out = await film({ write: WRITE });
+    const put = (ref) => { const d = path.join(DIR, 'outcomes', ref); mkdirSync(d, { recursive: true }); writeFileSync(path.join(d, 'motion.mp4'), 'x'); };
+    put('mo_anim'); put('mo_shot');
+    const row = SketchRepository.getByRef(out.ref), F = row.manifest.film;
+    const withMade = (made) => ({ ...row, manifest: { ...row.manifest, made } });
+    expect(await filmVideoOf(withMade({ animatic: { motion_ref: 'mo_anim' } }))).toMatchObject({ what: 'animatic' });
+    const shot = { animatic: { motion_ref: 'mo_anim' }, native: { motion_ref: 'mo_shot', scenes: {}, cut: { stamp: orderStamp(F) } } };
+    expect(await filmVideoOf(withMade(shot))).toMatchObject({ what: 'film', url: expect.stringContaining('mo_shot') });
+    // (a cut of the film as it was is not the film's video: the animatic is served until it is shot again)
+    expect(await filmVideoOf(withMade({ ...shot, native: { ...shot.native, cut: { stamp: 'old' } } }))).toMatchObject({ what: 'animatic' });
+    // (and the run is refused by name where it is not a run)
+    await expect(film({ ref: out.ref, run: 'cinema' })).rejects.toThrow(/storyboard \| animatic \| film \| blender/);
   });
 });

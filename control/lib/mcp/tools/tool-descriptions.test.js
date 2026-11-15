@@ -469,7 +469,10 @@ const DESCRIPTION_ALLOWLIST = {
 // forge_motion's `film` argument (a film of scenes written, approved and run: storyboard, animatic, blender) and the
 // screenplay's world_ref / voice / dub named in its subject. Arguments on the door that owns the film intent, not a new
 // tool (a direct_film door waits on gate 2b); the manuals are the `scene-film` and `film-studio` motion-vocab cards.
-const PAYLOAD_CEILING = 180_400;
+// Raised 2026-11-14 on 1113-animation-studio-infra (180_400 -> 180_500; measured 180,403) for the film shot in mojulo:
+// `film` as a screenplay's export and a film's run (the scene played on its set's own World page, a video with no other
+// program). Three words on the door that owns the film intent; the manuals carry the rest.
+const PAYLOAD_CEILING = 180_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

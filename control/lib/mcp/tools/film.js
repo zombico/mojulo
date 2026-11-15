@@ -13,12 +13,16 @@
  *   film: { ref, patch: [{ op: 'set' | 'remove', path, value? }] }   edited at JSON Pointers ('/scenes/1/script')
  *   film: { ref, approve: { <scene id>: 'board' | null } }   the person's approval of a scene's board, stamped by what
  *                                                     the board is drawn from (film.js sceneStamp); null withdraws it
- *   film: { ref, run: 'storyboard' | 'animatic' | 'blender', scenes?: [<id>] }
+ *   film: { ref, run: 'storyboard' | 'animatic' | 'film' | 'blender', scenes?: [<id>] }
  *     storyboard  each scene's board (scene-film.js writeStoryboard) under one motion outcome, its front page the
  *                 film's book; seconds, no actor minted
  *     animatic    the boards and ONE cut (motion.mp4): every scene's panels on one clock, joined by cuts, the film's
  *                 voice and each dub's laid end to end (a scene without a dub speaks its own voice; one without voice
  *                 is silent), the captions joined the same way, muxed as tagged tracks
+ *     film        THE FILM, SHOT IN MOJULO (scene-film.js writeNativeFilm): each scene played on its set's own World
+ *                 page by its cast and shot by its coverage (scenes/<id>/film.mp4), then ONE cut (motion.mp4): the
+ *                 scenes joined in order, the sound laid as the animatic's is. No other program. RESUMABLE as the
+ *                 Blender run is (a scene shot at its current stamp is kept; the cut is made once every scene is)
  *     blender     each scene's Blender film pack (scene-film.js writeSceneFilm) under scenes/<id>/blender/, each hero
  *                 minted once a call, and cut.py joining the scenes' renders in order; RESUMABLE: the call works
  *                 until its budget (MOJULO_RUN_BUDGET_MS, else 300 s), records what it made in the row (`made`) and
@@ -35,8 +39,10 @@ import { filmOfOrder } from '@/lib/graph/film/order.js';
 import { filmBookHtml } from '@/lib/graph/film/book.js';
 import { packStamp } from '@/lib/graph/film/pack-stamp.js';
 
-export const FILM_RUNS = Object.freeze(['storyboard', 'animatic', 'blender']);
+export const FILM_RUNS = Object.freeze(['storyboard', 'animatic', 'film', 'blender']);
 export const FILM_BUDGET_MS = 300_000;
+/** the least a scene's frames are shot for in a call, once its page is up: a slow page still gets on */
+const NATIVE_FLOOR_MS = 60_000;
 /** the floor of a room asked for with no size: width east to west, depth north to south */
 const ROOM_SIZE = Object.freeze(['14ft', '18ft']);
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -127,13 +133,16 @@ export async function renderProgressOf(made) {
 
 /**
  * A film's VIDEO, for whoever plays it (a game's cutscene: game/flow-films.js): the scenes rendered in Blender and cut
- * where there is one, else the animatic. → { url, file, what: 'rendered' | 'animatic' } or null (no video made yet)
+ * where there is one, else the film shot in mojulo (its cut, of the film as it is now written), else the animatic.
+ * → { url, file, what: 'rendered' | 'film' | 'animatic' } or null (no video made yet)
  */
 export async function filmVideoOf(row) {
   if (!isFilmKind(row?.manifest?.kind)) return null;
   const { outcomeDirFor, outcomeUrlFor } = await store();
   const made = row.manifest.made ?? {}, progress = await renderProgressOf(made);
   if (progress?.cut) return { url: `${outcomeUrlFor(made.blender.motion_ref)}${progress.cut}`, file: path.join(progress.dir, progress.cut), what: 'rendered' };
+  const N = made.native?.cut?.stamp === orderStamp(row.manifest.film) ? made.native.motion_ref : null, shot = N ? path.join(outcomeDirFor(N), 'motion.mp4') : null;
+  if (shot && existsSync(shot)) return { url: `${outcomeUrlFor(N)}motion.mp4`, file: shot, what: 'film' };
   const A = made.animatic?.motion_ref, file = A ? path.join(outcomeDirFor(A), 'motion.mp4') : null;
   return file && existsSync(file) ? { url: `${outcomeUrlFor(A)}motion.mp4`, file, what: 'animatic' } : null;
 }
@@ -197,10 +206,6 @@ async function runBoards(row, F, played, ids, { animatic }) {
 async function writeCut(run, cut, { title, fps, frameAligned }) {
   const { animaticSegments, animaticFrameSvg } = await import('@/lib/graph/actor/storyboard.js');
   const { encodeStitchMp4 } = await import('@/lib/motion/encode-mp4');
-  const { voiceCaptions, screenClock, VOICE_RATE, muxSound } = await import('@/lib/mcp/tools/scene-voice.js');
-  const { decodeWav } = await import('@/lib/graph/face-acting/recordings.js');
-  const { writeWavMono } = await import('@/lib/graph/beats/beats-song-dsp.js');
-  const { srt, vtt } = await import('@/lib/graph/persona/captions.js');
   const clips = [], placed = [];
   let at = 0;
   for (const c of cut) {
@@ -210,7 +215,17 @@ async function writeCut(run, cut, { title, fps, frameAligned }) {
     at += len;
   }
   const mp4 = path.join(run.dir, 'motion.mp4'), enc = await encodeStitchMp4(clips, mp4, { fps, width: 960, bg: '#000000' });
-  // (the sound: each scene's track at its place in the cut; a dub's falls back to the scene's own voice, then silence)
+  const tracks = await cutSound(run, placed, at, mp4, { fps, seconds: enc.durationSec });
+  return { mp4: `${run.url}motion.mp4`, seconds: r3(at), bytes: enc.bytes, scenes: placed.map((p) => ({ id: p.id, at: r3(p.at), seconds: r3(p.len) })), ...(tracks ? { tracks } : {}) };
+}
+
+/** A cut's sound: each scene's track at its place (`placed`: [{ id, at, len, dir, sound, plan, prep }]), a dub's falling
+ * back to the scene's own voice, then silence; the captions joined the same way; muxed into `mp4` as tagged tracks */
+async function cutSound(run, placed, at, mp4, { fps, seconds }) {
+  const { voiceCaptions, screenClock, VOICE_RATE, muxSound } = await import('@/lib/mcp/tools/scene-voice.js');
+  const { decodeWav } = await import('@/lib/graph/face-acting/recordings.js');
+  const { writeWavMono } = await import('@/lib/graph/beats/beats-song-dsp.js');
+  const { srt, vtt } = await import('@/lib/graph/persona/captions.js');
   const locales = [...new Set(placed.flatMap((p) => Object.keys(p.sound?.dubs ?? {})))];
   const anyVoice = placed.some((p) => p.sound?.audio);
   const track = (pick) => {
@@ -239,8 +254,7 @@ async function writeCut(run, cut, { title, fps, frameAligned }) {
     }
     if (!locales.length) delete sound.dubs;
   }
-  const tracks = Object.keys(sound).length ? await muxSound(mp4, sound, { dir: run.dir, seconds: enc.durationSec }) : null;
-  return { mp4: `${run.url}motion.mp4`, seconds: r3(at), bytes: enc.bytes, scenes: placed.map((p) => ({ id: p.id, at: r3(p.at), seconds: r3(p.len) })), ...(tracks ? { tracks } : {}) };
+  return Object.keys(sound).length ? muxSound(mp4, sound, { dir: run.dir, seconds }) : null;
 }
 
 /** cut.py — constant text: the scenes' renders joined in the film's order in Blender's sequencer, their sound with them */
@@ -334,6 +348,50 @@ async function runBlender(row, F, played, ids) {
   writeFileSync(path.join(run.dir, 'FILM.md'), `# ${title} — a mojulo film for Blender\n\n${order.length} scenes, each its own Blender film pack under \`scenes/<id>/blender/\` (its SCENE.md says how to build and render it). Build each, render each (\`film_render.py -- --preset draft\` or \`final\`), then join them:\n\n    <blender> -b --python cut.py -- --preset draft\n\n${order.map((id) => `- ${id}: ${scenes[id] ? `made ${scenes[id].at}` : pending.includes(id) ? 'pending (the next run makes it)' : 'not made'}`).join('\n')}\n\nThe look is ${F.look ?? 'film'}: \`look.py -- --look ${F.look ?? 'film'}\` in each scene.\n`);
   await fileRun(row, run, title, { scenes: order, pending });
   return { run, made: { motion_ref: run.ref, scenes, ...(pending.length ? { pending } : {}) }, out, pending };
+}
+
+/** The film shot in mojulo: each scene on its set's page, within a budget, resumable; then the cut (see the header) */
+async function runNative(row, F, played, ids) {
+  const { writeNativeFilm, packTitle, NATIVE_REV } = await import('@/lib/mcp/tools/scene-film.js');
+  const { getRow } = await store();
+  const prev = row.manifest.made?.native ?? null;
+  const run = await runFolder(row, 'film', prev?.motion_ref ?? null), title = F.title ?? row.title ?? 'film', fps = 24;
+  const budget = Number(process.env.MOJULO_RUN_BUDGET_MS) || FILM_BUDGET_MS, t0 = Date.now();
+  const scenes = { ...(prev?.scenes ?? {}) }, pending = [], out = {}, advice = [];
+  const record = (id) => path.join(run.dir, 'scenes', id, 'film.json');
+  for (const id of ids) {
+    const P = played[id], stamp = sceneStamp(F, id), dir = path.join(run.dir, 'scenes', id);
+    if (P.error) { out[id] = { error: P.error }; continue; }
+    // (kept: the same scene, shot by this revision, its video still there)
+    if (scenes[id]?.stamp === stamp && scenes[id]?.rev === NATIVE_REV && existsSync(path.join(dir, 'film.mp4')) && existsSync(record(id))) { out[id] = { kept: true }; continue; }
+    if (Date.now() - t0 > budget) { pending.push(id); continue; }
+    mkdirSync(dir, { recursive: true });
+    // (each scene's video is silent: the cut lays the film's sound, scene by scene, as the animatic's is laid)
+    // (a take too long for what is left of the budget is shot as far as it goes: its frames stay, the next call goes on)
+    const N = await writeNativeFilm({ dir, prepared: P.prep, plan: P.plan, getRow, title: packTitle(`${title} ${id}`), fps, mux: false, stamp, budgetMs: Math.max(NATIVE_FLOOR_MS, budget - (Date.now() - t0)) });
+    for (const a of N.advice) advice.push({ ...a, scene: id });
+    if (N.pending) { pending.push(id); out[id] = { pending: N.pending, took: N.took }; continue; }
+    writeFileSync(record(id), `${JSON.stringify({ stamp, rev: NATIVE_REV, seconds: N.seconds, frames: N.frames, fps, shots: N.shots, ...(N.sound ? { sound: N.sound } : {}) }, null, 2)}\n`);
+    scenes[id] = { stamp, rev: NATIVE_REV, at: new Date().toISOString(), seconds: N.seconds };
+    out[id] = { video: `${run.url}scenes/${id}/film.mp4`, seconds: N.seconds, frames: N.frames, shots: N.shots.map((s) => ({ n: s.n, name: s.name, still: `${run.url}scenes/${id}/${s.still}` })), cast: N.cast, took: N.took };
+  }
+  // THE CUT: every scene of the film, in its order, as it is now written; made once each is shot
+  const order = sceneOrder(F), shot = (id) => scenes[id]?.stamp === sceneStamp(F, id) && scenes[id]?.rev === NATIVE_REV && existsSync(path.join(run.dir, 'scenes', id, 'film.mp4')) && existsSync(record(id));
+  let cut = null;
+  if (order.length && order.every(shot)) {
+    const { resolveFfmpeg, runFfmpeg } = await import('@/lib/motion/ffmpeg');
+    const placed = [];
+    let at = 0;
+    for (const id of order) { const R = JSON.parse(readFileSync(record(id), 'utf8')); placed.push({ id, at, len: R.seconds, dir: path.join(run.dir, 'scenes', id), sound: R.sound ?? null, plan: played[id].plan, prep: played[id].prep }); at += R.seconds; }
+    const list = path.join(run.dir, 'cut.txt'), mp4 = path.join(run.dir, 'motion.mp4');
+    writeFileSync(list, placed.map((p) => `file '${path.join('scenes', p.id, 'film.mp4')}'`).join('\n') + '\n');
+    // (the scenes are one encode: joined without another)
+    await runFfmpeg(await resolveFfmpeg(), ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', mp4]);
+    const tracks = await cutSound(run, placed, at, mp4, { fps, seconds: at });
+    cut = { mp4: `${run.url}motion.mp4`, file: mp4, seconds: r3(at), scenes: placed.map((p) => ({ id: p.id, at: r3(p.at), seconds: r3(p.len) })), ...(tracks ? { tracks } : {}) };
+  }
+  await fileRun(row, run, title, { scenes: order, pending, ...(cut ? { durationSec: cut.seconds, fps } : {}) });
+  return { run, made: { motion_ref: run.ref, scenes, ...(pending.length ? { pending } : {}), ...(cut ? { cut: { at: new Date().toISOString(), stamp: orderStamp(F), seconds: cut.seconds } } : {}) }, out, pending, cut, advice };
 }
 
 /** forge_motion's `film` argument (see the header) */
@@ -435,7 +493,11 @@ export async function filmHandler(arg) {
     const ids = arg.scenes === undefined ? sceneOrder(F) : arg.scenes;
     if (!Array.isArray(ids) || !ids.every((id) => F.scenes.some((S) => S.id === id))) throw new Error(`film: scenes is a list of the film's scene ids (${F.scenes.map((S) => S.id).join(', ')})`);
     const made = { ...(row.manifest.made ?? {}) };
-    if (arg.run === 'blender') {
+    if (arg.run === 'film') {
+      const R = await runNative(row, F, played, ids);
+      made.native = R.made;
+      ran = { run: 'film', motion_ref: R.run.ref, scenes: R.out, ...(R.cut ? { cut: R.cut } : {}), ...(R.advice.length ? { advice: R.advice } : {}), ...(R.pending.length ? { pending: R.pending, resume: "film: { ref, run: 'film' } again: scenes already shot are kept" } : {}), note: 'Shot on each set\'s own World page: the cast acting on it, what the world moves in the picture. Looked at by no one yet: each shot\'s still is a frame of it.' };
+    } else if (arg.run === 'blender') {
       const R = await runBlender(row, F, played, ids);
       made.blender = R.made;
       ran = { run: 'blender', motion_ref: R.run.ref, dir: R.run.dir, film_md: `${R.run.url}FILM.md`, scenes: R.out, ...(R.pending.length ? { pending: R.pending, resume: "film: { ref, run: 'blender' } again: made scenes are kept" } : {}), note: 'Blender runs on the operator\'s machine; mojulo did not launch it. Build and render each scene as its SCENE.md says, then cut.py joins them.' };
@@ -459,10 +521,13 @@ export async function filmHandler(arg) {
     const made = row.manifest.made ?? {}, now = filmReadout(F, played, { sets: setsOf(F, getRow), approvals: row.manifest.approvals ?? {}, made, ref: row.ref, progress });
     const cutUrl = made.animatic?.motion_ref ? `${outcomeUrlFor(made.animatic.motion_ref)}motion.mp4` : null;
     const rendered = progress?.cut ? path.join(progress.dir, progress.cut) : null;
+    const shotRef = made.native?.cut?.stamp === orderStamp(F) ? made.native.motion_ref : null;
     delivery = {
       to: F.order.from ?? null, ...(F.order.for ? { for: F.order.for } : {}), asked: F.order.deliver, film: row.ref, book: now.book,
       // (the video as a page reads it, and as a file the client copies into its own build)
       ...(cutUrl ? { animatic: cutUrl, animatic_file: path.join(outcomeDirFor(made.animatic.motion_ref), 'motion.mp4') } : {}), ...(rendered ? { rendered } : {}),
+      // (the film shot in mojulo, where its cut is of the film as it is now written)
+      ...(shotRef ? { filmed: `${outcomeUrlFor(shotRef)}motion.mp4`, filmed_file: path.join(outcomeDirFor(shotRef), 'motion.mp4') } : {}),
       events: now.order.events.map((E) => ({ id: E.id, state: E.state, ...(boardsOf(made, outcomeUrlFor)[E.id] ? { board: boardsOf(made, outcomeUrlFor)[E.id].page } : {}) })),
       ready: now.order.ready, ...(now.order.waiting.length ? { waiting: now.order.waiting } : {}),
       at: new Date().toISOString(), stamp: orderStamp(F),
@@ -479,7 +544,7 @@ export async function filmHandler(arg) {
     ok: true, ref: row.ref, url: `/sketches/${encodeURIComponent(row.ref)}`, ...(did.length ? { did } : {}), ...(ran ? { ran } : {}), ...(delivery ? { delivery } : {}),
     ...readout,
     message: `Film ${row.ref}${did.length ? ` (${did.join(', ')})` : ''}: ${readout.scenes.length} scenes, ${readout.departments.filter((D) => D.state === 'advised').length} departments with advice.`
-      + (ran ? ` Ran ${ran.run}${ran.cut ? `: the cut ${ran.cut.mp4} (${ran.cut.seconds} s)` : ran.page ? `: ${ran.page}` : `: ${ran.film_md}`}${ran.pending ? `; ${ran.pending.length} scene(s) pending (run again)` : ''}.` : '')
+      + (ran ? ` Ran ${ran.run}${ran.cut ? `: the cut ${ran.cut.mp4} (${ran.cut.seconds} s)` : ran.page ? `: ${ran.page}` : ran.film_md ? `: ${ran.film_md}` : ''}${ran.pending ? `; ${ran.pending.length} scene(s) pending (run again)` : ''}.` : '')
       + ` The book: ${readout.book}.${readout.next[0] ? ` Next: ${readout.next[0].try}` : ''}`,
   };
 }

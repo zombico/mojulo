@@ -1,11 +1,11 @@
 ---
 {
   "id": "film-studio",
-  "name": "Film studio (a film of scenes: its departments, boards, cut and Blender packs)",
+  "name": "Film studio (a film of scenes: its departments, boards, cut, the film shot in mojulo and its Blender packs)",
   "family": "motion",
   "entry": "forge_motion",
-  "summary": "A FILM of several scenes with one cast, its sets, its look and its edit, made the way an animation studio makes one: in departments and waves, each scene boarded and approved by the person, then cut as an animatic with its voices and dubs, then filmed in Blender scene by scene (resumable).",
-  "when": "Reach for this on 'a short film in three scenes / an animated short with my characters / make the whole film / the edit / approve the boards / the animatic of the film / render every scene in Blender / an episode'. One scene alone is the scene-film card."
+  "summary": "A FILM of several scenes with one cast, its sets, its look and its edit, made the way an animation studio makes one: in departments and waves, each scene boarded and approved by the person, then cut as an animatic with its voices and dubs, then FILMED: shot in mojulo scene by scene and cut into one video (minutes, resumable), and, for the high-end render, in Blender.",
+  "when": "Reach for this on 'a short film in three scenes / an animated short with my characters / make the whole film / the edit / approve the boards / the animatic of the film / film it / the video of the film / render every scene in Blender / an episode'. One scene alone is the scene-film card."
 }
 ---
 
@@ -33,7 +33,8 @@ forge_motion({ film: { write: {
   film's.
 - A set is a stored world, named once in `sets` and used by any scene's `set`. A scene's `hour` is the time of day
   it is shot at there (the `scene-film` manual): one set, any hour. A scene's `clouds` is the sky over it, its `wind` moves the set's trees. A scene's `life: true` has a city's own traffic
-  drive and its own people walk through it in the Blender film (the same manual).
+  drive and its own people walk through it in the Blender film (the same manual). The film shot in mojulo has a
+  world's own life in it always.
 - **A set can be asked for, with no world made first.** `sets: { lake: { words: 'a grassy field by a lake at dusk',
   seed? } }` says a land in words; `sets: { street: { cube: 'valley-morning', show: 'geotown', seed? } }` names a
   geocube preset and how it is laid (`path`, `trail`, `town`, `geotown`, `geocity`, `hall`; the presets and words are
@@ -83,7 +84,7 @@ with only `{ ref }` reads.
 | voice | recordings and dubs | a recording for other words, a dub running over, a half-recorded scene |
 | look | look and grade | |
 | edit | the order | |
-| render | boards, cut, packs | an unapproved board, a scene changed since its approval |
+| render | boards, cut, the film, packs | an unapproved board, a scene changed since its approval, what the film shot in mojulo does not perform |
 
 The waves are script and look, then casting, set and edit, then performance and voice, then camera, then render.
 
@@ -99,7 +100,7 @@ film: { order: {
                                                     //   { words } | { cube, show }, as a film's `sets`)
   events: [{ id: 'arrival', place: 'lake', who: ['ada', 'jon'], notes: 'Ada finds Jon waiting. He has bad news.' },
            { id: 'parting', place: 'street', notes: '…', script: 'ADA: …', props: { car: { thing: 'sedan', at: [3, 2] } } }],
-  deliver: 'animatic' } }                            // or 'film': the scenes rendered in Blender
+  deliver: 'animatic' } }                            // or 'film': the scenes filmed (shot in mojulo, or rendered in Blender)
 ```
 
 - **It writes a film**, kept like any other: the cast is the client's characters, each place a set, each event a
@@ -107,18 +108,20 @@ film: { order: {
 - **An event is the client's notes on what happens.** Where the client wrote a `script`, the scene plays it as given.
   An event with notes only is `unwritten`: the script department is advised to write its screenplay from the notes
   (`film: { ref, patch: [{ op: 'set', path: '/scenes/<n>/script', value }] }`). It does not play until then.
-- **The readout's `order`** says each event's state (`unwritten`, `written`, `boarded`, `approved`, `cut`, `filmed`,
-  `rendered`), which events the client is still `waiting` for, and whether it is `ready`: every event cut into the
-  animatic, or rendered where the order asked for the film.
+- **The readout's `order`** says each event's state (`unwritten`, `written`, `boarded`, `approved`, `cut`, `filmed`:
+  its Blender pack made, `shot`: filmed in mojulo, `rendered`: Blender's render), which events the client is still
+  `waiting` for, and whether it is `ready`: every event cut into the animatic, or, where the order asked for the
+  film, shot in mojulo or rendered.
 - **`film: { ref, deliver: true }`** hands it back: the film's ref and book, the animatic (`animatic`, and
-  `animatic_file` to copy), the rendered cut where there is one, and each event's state and board. An order not ready
+  `animatic_file` to copy), the film shot in mojulo (`filmed`, `filmed_file`), the rendered cut where there is one,
+  and each event's state and board. An order not ready
   is handed back as it stands and says what is `waiting`. A change after the hand-back reads as not current.
 - **`film: { ordered_by: '<the client\'s ref>' }`** lists every film that client ordered and how far each has got.
   This is how the client finds its cutscenes.
 - **A game plays it.** A game's flow takes the film as a cutscene: a cinematic step `{ kind: 'cinematic', film:
   '<the film\'s ref>', next }`, or a slot of the default flow, `cinematics: { opening | prologue | ending: { film } }`.
   The game keeps the ref; the video is found each time the game is served or exported (the scenes rendered in Blender
-  where they are, else the animatic), so a cutscene made again is the one that plays. `export_game` copies it into
+  where they are, else the film shot in mojulo, else the animatic), so a cutscene made again is the one that plays. `export_game` copies it into
   `assets/cutscenes/`. A film with no video yet is passed over and named in `cutscenes_missing`.
 - Everything else is the film's own: its departments advise, its boards are approved by the person, its runs are the
   same.
@@ -133,7 +136,19 @@ film: { order: {
   - Its voice track is the scenes' recordings laid end to end.
   - Each dub is its own track. A scene with no dub falls back to its own voice.
   - Captions are joined the same way, and each language is a tagged audio track and subtitle track.
-- **`film: { ref, run: 'blender' }`**: each scene's Blender film pack under `scenes/<id>/blender/`, plus `cut.py`,
+- **`film: { ref, run: 'film' }`**: THE FILM, SHOT IN MOJULO. Each scene is played on its set's own World page by
+  its cast and shot by its coverage (the `scene-film` manual's `film` form), then joined into ONE cut (`motion.mp4`)
+  with the film's sound, as the animatic's is laid. No other program runs.
+  - Minutes a scene: about a minute for a hero, then the set's own page sets the pace. A city or a bare stage draws
+    a few frames a second; a landscape (grass, trees, its own light) draws a frame every few seconds, about a
+    minute for each second of film.
+  - The call works until its budget (`MOJULO_RUN_BUDGET_MS`, else 300 s) and returns `pending`. Call it again: a
+    scene shot at its current stamp is kept, and a scene cut short keeps its frames and goes on from the next one
+    (`ran.scenes.<id>.pending: { frames, of }`). The cut is made once every scene is shot.
+  - `ran.scenes.<id>.shots` gives each shot a `still`. Nobody has looked at the film yet: look at the stills, then
+    show the person the cut.
+  - `ran.advice` says what a scene asks that this film does not perform (`native-unread`, `native-face`).
+- **`film: { ref, run: 'blender' }`**: the high-end film, where it is wanted: each scene's Blender film pack under `scenes/<id>/blender/`, plus `cut.py`,
   which joins the scenes' renders in order, picture and sound.
   - Minting is minutes per scene, and each hero is minted once a call. The call works until its budget
     (`MOJULO_RUN_BUDGET_MS`, else 300 s) and returns `pending`. Call it again: scenes already made at their current
@@ -153,4 +168,6 @@ gate advises and never refuses.
 ## Not yet
 
 - Cuts only: `edit.cuts` is kept but the cut joins scenes with cuts. There is no music or SFX bed yet.
+- The film shot in mojulo draws the cast in its own light, not the set's, with no shadow on the ground, and stands no
+  props (the `scene-film` manual's list).
 - Panel edits are written as script and coverage changes in words; a panel cannot be dragged.

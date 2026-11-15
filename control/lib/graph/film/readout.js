@@ -9,7 +9,7 @@
  *     approvals  { <scene id>: { board: <stamp>, at } } (the person's, per scene: actor's eyes gate)
  *     sets    [{ id, ref, kind?, show?, asked?, read?, unread? }]: each set's world, and what a place asked for in words
  *             read (the door reads the worlds)
- *     made    { storyboard?, animatic?, blender?: { motion_ref, scenes: { <id>: { stamp } }, pending? } }
+ *     made    { storyboard?, animatic?, native?: { motion_ref, scenes, pending?, cut?: { stamp } }, blender?: { motion_ref, scenes: { <id>: { stamp } }, pending? } }
  *     progress  the render worker's record (scripts/render-film.mjs render.json), read by the door: { dir, scenes:
  *               { <id>: { preset, frames, done, encoded } }, cut }
  *
@@ -81,7 +81,9 @@ export function filmReadout(F, played, { approvals = {}, made = {}, ref = null, 
   if (!made.storyboard) next.push({ department: 'render', says: 'no boards yet', try: "film: { ref, run: 'storyboard' } (seconds: no actor minted)" });
   else if (!approved) next.push({ department: 'render', says: `${scenes.filter((s) => s.board !== 'approved').length} of ${scenes.length} boards to look at`, try: "read the book, then film: { ref, approve: { <scene>: 'board' } }" });
   else if (!made.animatic) next.push({ department: 'render', says: 'the boards are approved', try: "film: { ref, run: 'animatic' } (the cut, with its sound)" });
-  else if (!made.blender || made.blender.pending?.length) next.push({ department: 'render', says: made.blender?.pending?.length ? `${made.blender.pending.length} scene(s) still to film` : 'the cut is made', try: "film: { ref, run: 'blender' } (each actor minted: minutes a scene; resumable)" });
+  // (the film: shot in mojulo; a film already made for Blender is not asked for another)
+  else if ((!made.native && !made.blender) || made.native?.pending?.length || (made.native && !made.blender && made.native.cut?.stamp !== orderStamp(F))) next.push({ department: 'render', says: made.native?.pending?.length ? `${made.native.pending.length} scene(s) still to shoot` : made.native ? 'the film changed since it was shot' : 'the cut is made', try: "film: { ref, run: 'film' } (the film shot in mojulo: the cast on each set, what its world moves in the picture; minutes a scene, resumable)" });
+  else if (!made.blender || made.blender.pending?.length) next.push({ department: 'render', says: made.blender?.pending?.length ? `${made.blender.pending.length} scene(s) still to film` : 'the film is shot', try: "the high-end film, where it is wanted: film: { ref, run: 'blender' } (the same film lit and rendered in Blender; each actor minted: minutes a scene; resumable)" });
   else if (progress && !progress.cut) {
     const left = scenes.filter((s) => !s.render?.encoded);
     next.push({ department: 'render', says: left.length ? `${left.length} scene(s) to render in Blender (${left.map((s) => `${s.id} ${s.render ? `${s.render.done}/${s.render.frames}` : 'not started'}`).join(', ')})` : 'every scene is rendered; the cut is not', try: `on a machine with Blender: node scripts/render-film.mjs ${progress.dir} --preset final (resumable: run it again to go on)` });

@@ -197,6 +197,24 @@ game.
     each shot's moment, so a car in the back of a shot is seen before the film is made.
   - **Not yet:** people walking in the street, animals, and vehicles turning at a crossing. The storyboard and the
     animatic do not show the traffic.
+- **The film, made in mojulo.** Ask for the film and you get a video, with no other program to install or run.
+  The characters act the scene on the place itself, and the camera work is the same as the storyboard's.
+  - **The place is alive without asking.** In a city the traffic drives, the lights change and people walk past
+    behind the cast, because the film is shot in the world as you would walk it.
+  - **The weather is the world's own:** ask for rain and it rains on the street. A landscape or a street of houses
+    made for the film is also shot at the hour and under the clouds the scene asks for.
+  - **It has the scene's sound:** the recorded lines, each dubbed language as its own track, and the captions.
+  - **A whole film is one video.** Each scene is shot and they are joined in order. A long film can be shot over
+    several goes: scenes already shot are kept, a scene stopped halfway goes on from where it stopped, and only a
+    changed scene is shot again.
+  - **It takes minutes:** about a minute to get a character ready. A city street then films quickly; a landscape
+    with grass and trees takes about a minute for each second of film.
+  - **Games play it.** A cutscene ordered as a film is ready once it is shot this way, and a game plays it.
+  - **Blender is now the high-end version** of the same film: the same acting and camera work, lit and rendered by
+    Blender, for when that finish is wanted.
+  - **Not yet:** the characters are not lit by the place's sun and cast no shadow on the ground; things placed in
+    a scene (a parked car, furniture brought in) are missing; anime-style faces blink but do not speak their lines;
+    another hour or sky is only read on a place made for the film as a landscape, a town or a city.
 - **Order a cutscene.** Another part of mojulo (the game studio, for one) can order a cutscene from the animation
   studio by handing over what it already has: its characters, its places (a landscape, a street, a level, a room) and
   notes on what happens in each event.
@@ -205,7 +223,7 @@ game.
   - **Notes are enough to start.** An event given as notes with no dialogue is marked as not written yet, with the
     notes beside it, until its scene is written. An event that came with its dialogue plays it as given.
   - **It says how far the order has got:** each event as not written, written, storyboarded, approved, cut into the
-    video, or rendered, and which events are still to go.
+    video, filmed, or rendered in Blender, and which events are still to go.
   - **The cutscene is handed back** to whoever ordered it: the video, the film and each event's storyboard. Handed
     back early, it says what is still missing. Changed afterwards, it says the hand-back is out of date.
   - **Whoever ordered can ask what it ordered** and gets every cutscene with its progress.

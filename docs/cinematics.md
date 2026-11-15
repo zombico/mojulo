@@ -316,9 +316,31 @@ core as one forged alone (`film.js` `sceneScreenplay`).
 - **The door is `forge_motion`'s `film`** (`lib/mcp/tools/film.js`): write, patch, approve, run.
   - `storyboard` boards every scene.
   - `animatic` cuts them into one MP4 with the film's voice and dub tracks laid end to end.
-  - `blender` writes each scene's pack and `cut.py`, which joins their renders. It is resumable: a run works until its
-    budget and leaves the rest `pending`.
+  - `film` shoots each scene in mojulo and joins them into one MP4 with the film's sound (below). Resumable.
+  - `blender` writes each scene's pack and `cut.py`, which joins their renders: the high-end outcome. It is
+    resumable: a run works until its budget and leaves the rest `pending`.
 - **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+- **The film shot in mojulo** (`film/native.js`, `mcp/tools/scene-film.js` `writeNativeFilm`; a screenplay's
+  `export: 'film'`, a film's `run: 'film'`). The scene is played on its set's own World page and shot by the page's
+  capture (`motion/world-frames.js`), so nothing is written for what the world already does: its traffic, signals
+  and people, its weather, a geocube's hour and clouds (`nativeSet` lays the scene's ask on the set's recipe).
+  - The cast is each hero's page figure with the scene's take packed as a clip (`worlds/world-scene.js` `heroFigure`
+    `takes`, the path a game's cutscene uses), previewed once per actor (`figure.preview` as a list) and carried along
+    its blocking by the rig preview's `travel` (`scene/channels/rig-preview.js`): the place every frame, the take
+    read once on the scene's clock. Actors on one hero share a figure.
+  - The cameras are `nativeShots`: the coverage's program a frame at a time, in the page's units, lifted by the
+    set's floor and ground; the page's clock is the world's at the scene's start plus the scene's time.
+  - The page is tens of megabytes, so it is written to disk and read from the file, and the frames are written as
+    they are shot (`renderWorldFrames` `file`, `sink`), then encoded (`encode-mp4.js` `encodeFrameDirMp4`).
+  - A long take is resumed: `writeNativeFilm`'s `budgetMs` and `stamp` keep the frames shot so far on disk
+    (`frames/take.json`), and the next call shoots from the next frame. The page's picture at a frame is its clock's
+    alone, so a take shot over several calls is the take shot in one.
+  - The viewer's own stand-in (a walker the page follows) is left out, as `film/life.js` leaves it out.
+  - A film's run shoots each scene silent (`scenes/<id>/film.mp4`, its record `film.json`), then joins them without
+    another encode and lays the sound with the animatic's own `cutSound`. `made.native` keeps each scene's stamp and
+    the cut's; `filmVideoOf` serves it over the animatic. An order's event is `shot`.
+  - Known limits: the cast is drawn unlit by the set (its own baked light, no ground shadow), props are not stood,
+    the anime face plays no take on the page, the wind is the world's own.
 - **The scene's hour** (`screenplay.hour`, `mcp/tools/scene-film.js` `hourPreset`; a film's `scenes/*/hour`, the
   look and light department's). Read with `era/geocube-hours.js` `readHour`. It is taken out of what the plan plays
   (`set.hour`), so the blocking, the coverage and the board do not move. When the pack is written the set's

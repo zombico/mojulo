@@ -26,7 +26,7 @@ export const DEPARTMENTS = Object.freeze([
   { id: 'voice', name: 'Voice and dub', owner: 'any', paths: ['/scenes/*/voice', '/scenes/*/dub'], reads: ['script', 'casting'], advice: ['voice-words', 'dub-over', 'part-voiced'], does: 'the recorded lines that set each scene\'s clock and mouths, and the dubs to picture' },
   { id: 'look', name: 'Look and light', owner: 'any', paths: ['/look', '/grade', '/render', '/scenes/*/hour', '/scenes/*/weather', '/scenes/*/clouds', '/scenes/*/wind'], reads: [], advice: ['hour-unused', 'weather-unused', 'clouds-unused', 'wind-unused'], does: 'the film\'s look in Blender (film in Cycles, anime in EEVEE), its grade, its light (each setup lit from the cast rig, or the set\'s own), its focus and its motion blur' },
   { id: 'edit', name: 'Edit', owner: 'main', paths: ['/edit', '/edit/order', '/edit/cuts'], reads: ['script'], advice: [], does: 'the order the scenes play in and how each comes in' },
-  { id: 'render', name: 'Render', owner: 'any', paths: [], reads: ['script', 'casting', 'set', 'performance', 'camera', 'voice', 'look', 'edit'], advice: ['unapproved', 'stale'], does: 'the boards, the cut animatic, the Blender packs and their renders; the person approves each scene\'s board' },
+  { id: 'render', name: 'Render', owner: 'any', paths: [], reads: ['script', 'casting', 'set', 'performance', 'camera', 'voice', 'look', 'edit'], advice: ['unapproved', 'stale', 'native-unread', 'native-face'], does: 'the boards, the cut animatic, the film shot in mojulo, the Blender packs and their renders; the person approves each scene\'s board' },
 ]);
 export const DEPARTMENT_IDS = Object.freeze(DEPARTMENTS.map((D) => D.id));
 
