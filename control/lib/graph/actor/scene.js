@@ -3,7 +3,7 @@
  * is the persona's actor (interpret.js: a register, a style, a role); the scene adds what an actor alone cannot have: a
  * partner to speak to and listen to, a place to stand and to walk to, and a body that faces someone.
  *
- *   actScene({ cast, marks?, script, seed? }) → { seconds, beats, marks, time?, actors: { <who>: { register, style?, read,
+ *   actScene({ cast, marks?, script, seed?, voice? }) → { seconds, beats, marks, time?, actors: { <who>: { register, style?, read,
  *     speaks, listens, root, walks } } }
  *     cast    { <who>: { register?, style?, role?, mark?, height? } } (who: the name the script writes, lower case)
  *     marks   { <name>: [x, y] } metres on the floor (+x right, +y away from the camera's first side); none named, the
@@ -12,10 +12,19 @@
  *             silence; its face's beats as the scene plays them (below), its body's cues with its listening nods
  *     speaks / listens  [[at, end]] its own lines, and every other speaker's
  *     root    [{ t, x, y, yaw }] where it stands and which way it faces (yaw degrees: 0 faces +y, 90 faces +x), eased
- *     walks   [{ start, end, from, to, distance }] its crosses (body.js plays the walk cycle over them)
+ *     walks   [{ start, end, from, to, distance, via? }] its crosses (body.js plays the walk cycle over them); `via`
+ *             the corners of a cross walked round what stands on the set's floor (route.js; `floor_plan`)
  *     time    the screenplay's slow motion and freezes as a time map's moments on the scene's clock (shoot/time.js:
  *             `{ span, speed }`, `{ at, hold }`), which the coverage carries onto its shots; they take no scene time.
  *             Absent when the script says none.
+ *     voice   { <n>: a bound recording } the spoken lines recorded (n the line's number, 1 first, in script order; the
+ *             door binds each WAV, face-acting/recordings.js bindLine: { recording, seconds, timing, phonemes?,
+ *             words?, envelope?, text? }). A recorded line holds the clock its recording's length and the register's
+ *             sentence gap; the actor's read of it is FITTED to the recording (its register's rate tuned until the
+ *             read meets the recording's length; its words the alignment's where they match one to one), so the face,
+ *             the gestures on its stresses and the listener's nods land on the recording, and the line's first beat
+ *             speaks the recording (its mouth from the recording's phonemes). A recorded turn carries `recording`.
+ *             Absent, the scene is as it was, byte for byte.
  *
  * THE CLOCK: the script's beats in order, each after the last. A line takes its read's time in its speaker's register
  * and style and the gap after it; a cross TURN to face the way, then the distance at WALK metres a second; a turn TURN;
@@ -32,6 +41,7 @@
  *
  * Seeded, pure and deterministic.
  */
+import { routeWalk, pathWalk } from './route.js';
 import { actRead } from './interpret.js';
 import { parseScreenplay } from './screenplay.js';
 const TIME_KINDS = ['slow', 'real', 'hold'];
@@ -43,6 +53,8 @@ import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 /** the clock's times (s) and speeds: a turn on the spot, a look, the walk's metres a second (the hero's walk, about
  * hero-gaits.js's), the default apart of two actors with no marks (m), an actor's eye height (m) */
 export const TURN = 0.6, LOOK = 0.3, WALK = 1.05, PAIR = 1.4, EYES = 1.55;
+/** how long a walker takes to turn onto the next leg of a bent walk (s, at most) */
+export const BEND = 0.35;
 /** a listener's nod: how long after the stressed word it starts, and the share of the style's stress gestures it nods */
 export const NOD = Object.freeze({ after: 0.15, share: 0.5, plain: 0.3 });
 /** while anyone crosses, the watchers' gaze is set again every so often (s) */
@@ -75,6 +87,39 @@ function lineSeconds(text, C) {
   return { speak: r3(R.lines.at(-1).end - READ_PAD.lead), hold: r3(R.lines.at(-1).end - READ_PAD.lead + deliveryOf(R.register).gap.sentence) };
 }
 
+/** how long a recorded line holds the clock: its recording, and the gap after in its speaker's register and style */
+function recordedSeconds(text, C, rec) {
+  const R = actRead({ script: text, register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}) });
+  return { speak: r3(rec.seconds), hold: r3(rec.seconds + deliveryOf(R.register).gap.sentence) };
+}
+
+/** a read's speaking length: its last line's end, less the read's lead */
+const spokenOf = (R) => (R.lines.length ? R.lines.at(-1).end - READ_PAD.lead : 0);
+
+/** a recorded line read alone, FITTED to its recording: its register's rate tuned (twice) until the read's length meets the
+ * recording's (the script's [pause] marks left out: a recording has its own); its words, and each sentence's span, the
+ * alignment's where the words match one to one (else the fitted read's) */
+export function fittedRead(text, C, rec, seed = 1) {
+  const reg = C.register ?? 'anchor', base = typeof reg === 'string' ? { from: reg } : { ...reg };
+  // (the recording carries its own pauses: the script's [pause] marks are not read into it)
+  const said = text.replace(/\[pause[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim() || text;
+  const read = (rate) => actRead({ script: said, register: rate === null ? reg : { ...base, rate }, ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}), seed });
+  let R = read(null), rate = deliveryOf(reg).rate;
+  for (let k = 0; k < 2 && spokenOf(R) > 0 && rec.seconds > 0; k++) {
+    rate = Math.min(2, Math.max(0.05, rate * (spokenOf(R) / rec.seconds)));
+    R = read(r3(rate));
+  }
+  const aligned = Array.isArray(rec.words) ? rec.words : null, words = R.lines.flatMap((L) => L.words);
+  if (aligned && aligned.length === words.length) {
+    let k = 0;
+    R = { ...R, lines: R.lines.map((L) => {
+      const words = L.words.map((x) => { const A = aligned[k++]; return { ...x, t: r3(READ_PAD.lead + A.t), dur: r3(A.dur) }; });
+      return words.length ? { ...L, at: words[0].t, end: r3(words.at(-1).t + words.at(-1).dur), words } : L;
+    }) };
+  }
+  return R;
+}
+
 /** The scene played (see the header) */
 export function actScene(scene) {
   const cast = scene.cast ?? {}, names = Object.keys(cast);
@@ -90,22 +135,48 @@ export function actScene(scene) {
   const root = Object.fromEntries(names.map((w) => [w, [{ t: 0, x: at[w][0], y: at[w][1], yaw: yaw[w] }]])), walks = Object.fromEntries(names.map((w) => [w, []]));
   const turnTo = (w, t, y, dur) => { root[w].push({ t: r3(t), x: at[w][0], y: at[w][1], yaw: yaw[w] }); yaw[w] = r3(yaw[w] + wrap(y - yaw[w])); root[w].push({ t: r3(t + dur), x: at[w][0], y: at[w][1], yaw: yaw[w] }); };
 
+  // (what stands on the set's floor, where the set says: { blocks, rooms } in metres, actor/set.js castOnSet)
+  const floor = scene.floor_plan && typeof scene.floor_plan === 'object' ? scene.floor_plan : null;
+  const roomOf = (F, p) => (F.rooms ?? []).find((R) => p[0] >= R.min[0] && p[0] <= R.max[0] && p[1] >= R.min[1] && p[1] <= R.max[1]) ?? null;
+
   // ─── the clock: each beat after the last ───────────────────────────────────────────────────────────────────────────
   const turns = [], moves = [], looks = [], time = [];
-  let t = READ_PAD.lead, slow = null;
+  let t = READ_PAD.lead, slow = null, ln = 0;
+  const voice = scene.voice ?? null;
   beats.forEach((b, i) => {
     if (b.kind === 'line') {
-      const S = lineSeconds(b.text, cast[b.who]);
-      turns.push({ who: b.who, text: b.text, at: r3(t), end: r3(t + S.speak), hold: S.hold, ...(b.face ? { face: b.face } : {}), i });
+      ln += 1;
+      const rec = voice ? voice[ln] ?? voice[String(ln)] ?? null : null;
+      const S = rec ? recordedSeconds(b.text, cast[b.who], rec) : lineSeconds(b.text, cast[b.who]);
+      turns.push({ who: b.who, text: b.text, at: r3(t), end: r3(t + S.speak), hold: S.hold, ...(b.face ? { face: b.face } : {}), ...(rec ? { recording: rec.recording, line: ln } : {}), i });
       t += S.hold;
     } else if (b.kind === 'cross') {
-      const to = marks[b.to.mark], from = [...at[b.who]], d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      // (to a mark; or up to another actor, stopping PAIR short of where they stand, and not at all from nearer)
+      const from = [...at[b.who]], them = b.to.actor ? at[b.to.actor] : null, gap = them ? Math.hypot(them[0] - from[0], them[1] - from[1]) : 0;
+      const to = !them ? marks[b.to.mark] : gap > PAIR + 1e-3 ? [r3(them[0] + ((from[0] - them[0]) * PAIR) / gap), r3(them[1] + ((from[1] - them[1]) * PAIR) / gap), ...from.slice(2)] : from;
+      // (on a set that says what stands on its floor the cross goes round it and round the others: route.js; else,
+      // and with nothing in the way, it is the straight line it always was)
+      // (a cross between two places on a path the world lays, a trail or a sidewalk, follows it: route.js pathWalk)
+      const along = floor?.paths && !them ? pathWalk(from, to, floor.paths) : null;
+      const way = along ?? (floor && Math.hypot(to[0] - from[0], to[1] - from[1]) > 1e-3
+        ? routeWalk(from, to, { blocks: floor.blocks ?? [], room: roomOf(floor, from), people: names.filter((o) => o !== b.who).map((o) => at[o]) }) : [from, to]);
+      const legs = way.slice(1).map((p, k) => Math.hypot(p[0] - way[k][0], p[1] - way[k][1]));
+      const d = legs.reduce((s, l) => s + l, 0);
       if (d > 1e-3) {
-        turnTo(b.who, t, headingTo(from, to), TURN);
+        turnTo(b.who, t, headingTo(way[0], way[1]), TURN);
         const start = t + TURN, end = start + d / WALK;
+        // (a bent walk: a key at each corner still facing the way it came, the turn onto the next leg in its first steps)
+        let s = start;
+        for (let k = 1; k < way.length - 1; k++) {
+          s += legs[k - 1] / WALK;
+          const p = way[k], q = way[k + 1], lead = Math.min(BEND, legs[k] / WALK / 2), u = (lead * WALK) / legs[k];
+          root[b.who].push({ t: r3(s), x: p[0], y: p[1], yaw: yaw[b.who] });
+          yaw[b.who] = r3(yaw[b.who] + wrap(headingTo(p, q) - yaw[b.who]));
+          root[b.who].push({ t: r3(s + lead), x: r3(p[0] + (q[0] - p[0]) * u), y: r3(p[1] + (q[1] - p[1]) * u), yaw: yaw[b.who] });
+        }
         at[b.who] = [...to];
         root[b.who].push({ t: r3(end), x: to[0], y: to[1], yaw: yaw[b.who] });
-        walks[b.who].push({ start: r3(start), end: r3(end), from, to: [...to], distance: r3(d) });
+        walks[b.who].push({ start: r3(start), end: r3(end), from, to: [...to], distance: r3(d), ...(way.length > 2 ? { via: way.slice(1, -1) } : {}), ...(b.to.actor ? { toward: b.to.actor } : {}) });
         moves.push({ who: b.who, start: r3(t), end: r3(end) });
         t = end;
       }
@@ -157,11 +228,19 @@ export function actScene(scene) {
     let cursor = READ_PAD.lead;
     for (const T of turns) {
       if (T.at > cursor + 1e-6) parts.push(`[pause ${r3(T.at - cursor)}]`);
-      if (T.who === w) { parts.push(T.text); cursor = T.at + T.hold; }
+      if (T.who === w) { parts.push(T.recording ? `[pause ${r3(T.hold)}]` : T.text); cursor = T.at + T.hold; }
       else { parts.push(`[pause ${r3(T.hold)}]`); cursor = T.at + T.hold; }
     }
     if (!turns.some((T) => T.who === w)) { actors[w] = silentActor(w, C, seconds, root[w], walks[w], gazeOf, turns); continue; }
-    const read = actRead({ script: parts.join(' '), register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}), seed: scene.seed ?? 1 });
+    const vOf = (T) => voice[T.line] ?? voice[String(T.line)];
+    // (every line of its recorded: no words left to read, so its read is the first line's fitted read with nothing spoken
+    // but its opening, each recorded line then laid in)
+    const allRecorded = turns.every((T) => T.who !== w || T.recording);
+    let read;
+    if (allRecorded) { const T0 = turns.find((T) => T.who === w), F0 = fittedRead(T0.text, C, vOf(T0), scene.seed ?? 1); read = { ...F0, lines: [], body: [], beats: F0.beats.filter((b) => b.at < READ_PAD.lead - 1e-6 && b.say === undefined) }; }
+    else read = actRead({ script: parts.join(' '), register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}), ...(C.role ? { role: C.role } : {}), seed: scene.seed ?? 1 });
+    // (a recorded line: its placeholder's silence given over to its read, fitted to the recording, its first beat speaking it)
+    for (const T of turns) if (T.who === w && T.recording) read = withRecorded(read, T, fittedRead(T.text, C, vOf(T), scene.seed ?? 1), vOf(T));
     const speaks = read.lines.map((L) => [L.at, L.end]), listens = turns.filter((T) => T.who !== w).map((T) => [T.at, T.end]);
     // (the face: each beat's gaze where the scene puts it, the style's glances kept; a listening beat at each other
     // speaker's line; the gaze set again while anyone crosses; a line's parenthetical face on its own words)
@@ -192,7 +271,34 @@ export function actScene(scene) {
 /** a speaker's stressed words' times into its line (s): its words read alone in its register and style */
 function stressedWords(T, cast) {
   const C = cast[T.who], R = actRead({ script: T.text, register: C.register ?? 'anchor', ...(C.style ? { style: C.style } : {}) });
-  return R.lines.flatMap((L) => L.words.filter((x) => x.emph).map((x) => x.t - READ_PAD.lead));
+  // (a recorded line's stresses where its recording puts them: the natural read scaled to the recording's length)
+  const k = T.recording && spokenOf(R) > 0 ? (T.end - T.at) / spokenOf(R) : 1;
+  return R.lines.flatMap((L) => L.words.filter((x) => x.emph).map((x) => (x.t - READ_PAD.lead) * k));
+}
+
+/** the actor's read with a recorded turn's span given over to the line's fitted read (F), shifted onto the turn: its lines,
+ * its beats (the placeholder's own dropped), its body's cues; the first speaking beat's say the recording, the others
+ * silent (the recording speaks the whole line) */
+function withRecorded(read, T, F, rec) {
+  const off = T.at - READ_PAD.lead, a = T.at - 1e-6, e = T.at + T.hold - 1e-6;
+  const inF = (s) => s >= READ_PAD.lead - 1e-6 && s < READ_PAD.lead + T.hold - 1e-6;
+  const shift = (s) => r3(s + off);
+  const lines = F.lines.map((L) => ({ ...L, at: shift(L.at), end: shift(L.end), words: L.words.map((x) => ({ ...x, t: shift(x.t) })) }));
+  let first = true;
+  const say = { text: rec.text ?? T.text, recording: rec.recording, seconds: rec.seconds, ...(rec.timing ? { timing: rec.timing } : {}), ...(rec.phonemes ? { phonemes: rec.phonemes } : {}), ...(rec.words ? { words: rec.words } : {}), ...(rec.envelope ? { envelope: rec.envelope } : {}) };
+  const beats = F.beats.filter((b) => inF(b.at)).map((b) => {
+    if (b.say === undefined) return { ...b, at: shift(b.at) };
+    const { say: _s, ...rest } = b;
+    if (first) { first = false; return { ...rest, at: r3(T.at), say }; }
+    return { ...rest, at: shift(b.at) };
+  });
+  const body = F.body.filter((c) => inF(c.t)).map((c) => ({ ...c, t: shift(c.t) }));
+  return {
+    ...read,
+    lines: [...read.lines, ...lines].sort((x, y) => x.at - y.at),
+    beats: [...read.beats.filter((b) => b.at < a || b.at >= e), ...beats].sort((x, y) => x.at - y.at),
+    body: [...read.body.filter((c) => c.t < a || c.t >= e), ...body].sort((x, y) => x.t - y.t),
+  };
 }
 
 /** an actor with no line: a held read of the scene's length, listening throughout, watching */

@@ -204,6 +204,19 @@ export async function encodeFramesMp4(pngBuffers, outPath, opts = {}) {
 }
 
 /**
+ * Frames already on disk (`<dir>/f_000001.png` on, as a long take is shot: world-frames.js `sink`) encoded as an H.264
+ * MP4, the same encode as encodeFramesMp4's. → { outPath, totalFrames, fps, durationSec, bytes }
+ */
+export async function encodeFrameDirMp4(dir, outPath, { fps = 24, frames = null } = {}) {
+  const totalFrames = frames ?? (await fs.readdir(dir)).filter((n) => /^f_\d{6}\.png$/.test(n)).length;
+  if (!totalFrames) throw new Error('encodeFrameDirMp4: no frames');
+  const bin = await resolveFfmpeg();
+  await runFfmpeg(bin, ['-y', '-framerate', String(fps), '-i', path.join(dir, 'f_%06d.png'), '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', outPath]);
+  const { size } = await fs.stat(outPath);
+  return { outPath, totalFrames, fps, durationSec: totalFrames / fps, bytes: size };
+}
+
+/**
  * Decode an MP4 back to its frames as PNG buffers, in order: how a stitch takes a World clip that was already baked
  * to video, instead of rendering every frame through headless WebGL again (one H.264 pass more, at the clip's own size).
  */
