@@ -31,6 +31,8 @@
  *     pieces   [{ kind, role?, why }]: what it wears over the cut and why
  *     laws     the outfit's visual-interest laws read over it (advisory: outfit-plan.js outfitLaws)
  *     read     what was decided, in lines a brief or a book says
+ *   A genre with a row in hero-rows.js (a protagonist designed at the eyes gate) is given that row, whole: `sheet`
+ *   { row: id }, no roll.
  *   null where the game designs its hero another way: a body rail the game reads (game-bodies.js: a comic hero, a
  *   fighter, a mascot), an adopted hero, looks pages the creator has written, or a roll that is not a person.
  *
@@ -44,6 +46,7 @@ import { accentOf } from './world-palette.js';
 import { castingOf } from './casting.js';
 import { bodyOfGame } from './hero-looks.js';
 import { LOOKS_ELEMENTS } from './characters.js';
+import { genreHero } from './hero-rows.js';
 
 /** Who a game's protagonist is, before its world says more: the hero of its own story, young. */
 export const PROTAGONIST = Object.freeze({ archetype: 'hero', age: 'youth' });
@@ -57,6 +60,10 @@ export function heroDesign(G) {
   // (a base pinned is not a page written: it is the made hero's revision)
   const written = Object.keys(hero?.looks ?? {}).some((k) => k !== 'base');
   if (!G?.characters || hero?.ref || written || bodyOfGame(G)) return null;
+  // (a genre whose protagonist was designed at the eyes gate, hero-rows.js: the row is the hero, its pages whole)
+  const row = genreHero(G);
+  if (row) return { looks: structuredClone(row.looks), sheet: { row: row.id }, garment: row.garment, pieces: row.looks.underlayer.pieces.map(({ kind }) => ({ kind })), laws: [],
+    read: [`the protagonist of its genre, designed at the eyes gate (${row.id}): ${row.says}`, ...row.reads] };
   const verbs = (hero?.adornment?.items ?? []).flatMap((it) => it.serves ?? []);
   const role = Object.entries(ROLE_OF_VERB).find(([v]) => verbs.includes(v))?.[1] ?? NO_FIGHT;
   const roll = { facets: { ...PROTAGONIST, role }, seed: Number.isInteger(G.seed) ? G.seed : 1, path: 'hero' };

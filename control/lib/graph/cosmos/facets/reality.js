@@ -80,15 +80,15 @@ export const REALITY = Object.freeze({
         'in-game': { status: 'partial', effort: 'M', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, the strategy boards, the board-game tables and the holo arena (11-10), the practice, work and game rooms\' menu (the shell\'s pause, 11-13); since 11-13 a level\'s own HUD rows on a world that says `ui` (game/hud-mana.js, one host a level page), a course\'s HUD, the pause button and the touch pad (11-14), a turn\'s picks; a level\'s talk menus and its quest log are still the page\'s own DOM, and a world with no `ui` keeps the page\'s HUD' },
       },
     },
-    // what a game sounds like. A quick game says its music and its effects; a designed gameworld has no sound word of
-    // its own yet, and the SFX shelf (11-08, sfx-shelf/) is read by the rooms, not by a level
+    // what a game sounds like. A quick game says its music and its effects; a gameworld's `sound` (11-13) lays the sound
+    // sheet on every level it builds, the SFX shelf read by word; a designed gameworld has no word for its score yet
     sound: {
       multi: true,
       values: {
         none: { status: 'built', note: 'silent, as a world is until it says otherwise' },
         score: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/score-suggest.js', note: 'a field score by the level\'s place and play, an explore and a combat score crossfaded on the fight (auto), a rhythm run on its beat: a quick game\'s music; a designed gameworld\'s levels have no word for it' },
-        sfx: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/sfx-palettes.js', note: 'action sounds wired to the goal\'s events in the music\'s key, in a palette (arcade, foley, orchestral, synth): a quick game\'s sfx; a designed gameworld\'s levels have no word for it' },
-        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the work room and the game room, the mount lane and the fighter only: no level reads it by word' },
+        sfx: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/sfx-palettes.js', note: 'action sounds wired to the goal\'s events in the music\'s key, in a palette (arcade, foley, orchestral, synth): a quick game\'s sfx; a designed gameworld\'s levels take the sound sheet (shelf) and no palette' },
+        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the mount lane and the fighter, and by the levels of a game on the sound sheet (a `sound` of its own, or a quick game\'s sfx: sheet): its first weapon, its ground, its doors, a foe spotting the hero; a level\'s guns, rides and its foes\' attacks are not on the sheet yet' },
       },
     },
     // the game's colour (11-13, gameworld/colour.js, docs/colour.md): the bridge from a game to the colour theorist. The
@@ -103,6 +103,7 @@ export const REALITY = Object.freeze({
       values: {
         figures: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/gameworld/colour.js', note: 'the cast painted clear of the ground it stands on and of each other, for every eye: the hero\'s garment in the world\'s accent, a kin foe\'s coat moved in value and chroma inside its hue family, a pack\'s mark in the second accent; measured for any gameworld (design_game\'s colour step), written as a patch, laid once when the sentence door stores a game; a crew\'s dress, a beast\'s coat and a quick game\'s rolled people are not read yet' },
         'quiet-land': { status: 'built', since: '2026-11-13', lowers: 'lib/graph/color-theorist/directions.js', note: 'a colour direction: the land grouped into three bands of value and taken down in chroma, so colour is spent on who walks it, the cast solved against the land that makes; a patch on the palette\'s spec, never a hue; the action RPG\'s from a sentence' },
+        'kit-card': { status: 'built', since: '2026-11-14', lowers: 'lib/graph/color-theorist/directions.js', note: 'a colour direction: the land given back to its kit\'s card, the card\'s own colours as the palette the theorist solves the cast against; a patch on the palette\'s spec; a world whose kit has a card' },
         dusk: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/color-theorist/directions.js', note: 'a colour direction: a colour script across the levels, day into night, each place its own light and the last the darkest; a world of two levels or more' },
       },
     },

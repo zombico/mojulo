@@ -40,6 +40,8 @@ export const BOARD_HUDS = Object.freeze({
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
   'shooter HUD': ['crosshair', 'damage-direction', 'offscreen-markers', 'lock-on', 'ammo-counter', 'event-feed', 'score-timer'],
   'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'achievement-toast', 'world-labels'],
+  // (the action-adventure's: its vitals, what each button does now, where to go, one prompt, one card at a time)
+  'adventure HUD': ['vitals', 'ability-bar', 'compass-strip', 'objective-tracker', 'interact-prompt', 'moment-banner', 'enemy-plates', 'lock-on'],
   'survival HUD': ['vitals', 'hotbar', 'world-labels', 'interact-prompt'],
   'board game table': ['seat-plates', 'card-row', 'game-log', 'card-hand', 'action-bar'],
   'tactics HUD': ['turn-order', 'unit-card', 'combat-forecast'],

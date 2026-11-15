@@ -28,6 +28,7 @@
  *                                             worth of world: the opening (one block), the first zone (two) and
  *                                             n − 1 zones more; `zoned` its pages of several blocks
  *   WORLD_MAP                                → its numbers (the block's size and tile, the first zone's blocks)
+ *   PLACE_LIGHT                              → each place's light, a shift on the world's palette (a row a place)
  * Pure: numbers and words in, a recipe out.
  */
 import { readPlan, fillSegment, gateTile, MID } from '../level/plan.js';
@@ -35,6 +36,19 @@ import { readPlan, fillSegment, gateTile, MID } from '../level/plan.js';
 export const WORLD_MAP = Object.freeze({ size: 3, tile: 24, opening: 1, first: 3, wide: 3 });
 // (the blocks' names, by their place on the walk: the first zone's three, the zones between, the goal's)
 const MIDDLE_NAMES = ['the river town', 'the high pass', 'the old outpost', 'the marsh crossing', 'the watchtower'];
+/** EACH PLACE ITS OWN LIGHT, DERIVED: the world's palette is home's (the village and its road, unmoved), and every
+ * other block is that palette MOVED (a region's `palette: { shift }`, color-theorist/solve.js: the same seed and hue
+ * relations, its values, chroma and warmth moved), so the map reads as one world and each place as itself. A row a
+ * place, said in a sentence; a block with no row is home's. The cast is painted clear of every one (gameworld/colour.js). */
+export const PLACE_LIGHT = Object.freeze({
+  'the old ruins': Object.freeze({ says: 'older and quieter: the green greyed, the light cooler', shift: Object.freeze({ chroma: 0.7, warm: -0.3, light: -0.15 }) }),
+  'the river town': Object.freeze({ says: 'by the water: a little cooler, the colour held', shift: Object.freeze({ warm: -0.2, chroma: 0.9 }) }),
+  'the high pass': Object.freeze({ says: 'high and thin: pale, cold, the colour washed', shift: Object.freeze({ warm: -0.5, light: 0.2, chroma: 0.6 }) }),
+  'the old outpost': Object.freeze({ says: 'abandoned: darker, the colour drained', shift: Object.freeze({ chroma: 0.7, light: -0.2 }) }),
+  'the marsh crossing': Object.freeze({ says: 'low and wet: dim, greyed, the greens turned toward teal', shift: Object.freeze({ warm: -0.2, chroma: 0.6, light: -0.3, turn: -15 }) }),
+  'the watchtower': Object.freeze({ says: 'late light: warm and lowering', shift: Object.freeze({ warm: 0.3, light: -0.2 }) }),
+  'the castle heights': Object.freeze({ says: 'the end reads as the end: darker and colder than anywhere before it', shift: Object.freeze({ light: -0.45, warm: -0.4, chroma: 0.75 }) }),
+});
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 /** The blocks laid out as a snake WORLD_MAP.wide abreast: east along the first row, back west along the next. */
@@ -66,6 +80,8 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   const key = { [A]: { name: 'the village' }, [B]: { name: `the ${landscape} road` }, [C]: { name: 'the old ruins' } };
   middles.forEach((S, i) => { key[S] = { name: MIDDLE_NAMES[i % MIDDLE_NAMES.length] }; });
   key[last] = { ...(key[last] ?? {}), name: last === C ? 'the old ruins' : 'the castle heights', goal: { use: 'keep' } };
+  // (each place's light: its row's shift on the world's palette, a region's word)
+  for (const S of letters) { const L = PLACE_LIGHT[key[S].name]; if (L) key[S] = { ...key[S], palette: { shift: { ...L.shift } } }; }
   const plan = { size, rows: layout(k), route: letters, key }, P = readPlan(plan);
   // THE BLOCKS' ROWS: the default fill's ways, the village's street run across it with its hall and a house beside it,
   // a town's houses and its tavern round its ways; the rest the default fill (their authors' to write)
