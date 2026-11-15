@@ -170,7 +170,7 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
     camera: overhead ? { ...OVERHEAD } : { ...P.camera, ...ORBIT }, ...(fought ? { lock: true } : {}), events,
   };
   // (a fight's hero plays the kit and its foes are numbered by it: the world's arsenal, else its feel template's)
-  const manifest = fought ? armLevel({ arsenal: roomArsenal({ ...(G ?? {}), feel: F }).arsenal }, manifest0) : manifest0;
+  const manifest = fought ? armLevel({ arsenal: roomArsenal({ ...(G ?? {}), feel: F }).arsenal, ...(G?.loadout ? { loadout: G.loadout } : {}) }, manifest0) : manifest0;
   const feels = POLE_IDS.map((id) => ({ id, name: POLES[id].name, base: POLES[id].base, run: feelRule(id).speed }));
   return {
     manifest, needs, room, laws, ...(measured ? { measured } : {}), hero: own ? 'own' : AH ? 'stand-in' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}),

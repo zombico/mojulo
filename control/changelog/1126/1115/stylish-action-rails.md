@@ -20,6 +20,14 @@ In progress. Built so far, all in the practice door's game room
 - **Built: a game's own fights.** `fights: { <name>: { kind, seed?, waves? } }` keeps a fight on the world by name;
   the room plays it by that name, and `design_game` says what is kept, the laws each loses and whether together
   they answer everything the kit asks. A world that keeps none is offered one of each kind, never laid unasked.
+- **Built: the loadout's first part** (`gameworld/carried.js`). `loadout: { slots?: { melee }, start?: { melee,
+  sidearm } }` says what the hero carries of the game's weapons: two melee weapons at once unsaid, in the order
+  the weapon switch steps through them, and the sidearm or none. It is laid on every level's hero and in the game
+  room's fights. A world that writes none carries its whole kit, as before. Choosing it at points in the game and
+  switching mid-string are not built yet.
+- **Fixed: a swing trail from a weapon that is put away.** A hero that switches to the fist keeps its other figure,
+  blade in hand, animated out of sight, and that hidden blade still left its trail. A body that is not drawn leaves
+  none now. Every page that carries swing trails has that one line more.
 - Not yet: urns that pay and fonts that heal in play, a fight approved on its own or edited piece by piece, and
   everything below.
 

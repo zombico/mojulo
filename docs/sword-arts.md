@@ -67,3 +67,12 @@ forearm (25 cm) over it. `freestyle` keeps no elbow law.
   edits), `'auto'` (the feel template's kit) or a whole arsenal, laid on every level's hero that strikes.
 - A new register is a style in `SWING_STYLES` with a `timing`, and its row in this table. Whether it reads as intended
   is the eyes gate: these are machine gates only.
+
+## What is carried
+
+The arsenal is what the game has; the loadout is what the hero carries of it (`gameworld/carried.js`):
+`loadout: { slots?: { melee }, start?: { melee: [weapon ids], sidearm? } }`. Two melee weapons at once unless it
+says otherwise, in the order the weapon switch steps through them, and the sidearm, or `false` for none. It is laid
+on every level's hero and in the game room's fights; the foes stay numbered by the whole kit. A world that writes
+none carries every weapon of its arsenal. Choosing the loadout at points in the game (before a level, at a rest,
+when a weapon is earned) and a switch taken mid-string are to come.
