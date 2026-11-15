@@ -36,7 +36,7 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const FIGHT_KINDS = Object.freeze({
   duel: { about: 'one foe in a small ring, cover off each flank', teaches: 'the string, on one foe that stands and comes back', answers: ['ring', 'air', 'lock'], waves: [{ grunt: 1 }] },
   melee: { about: 'the ring at the centre, rifts round its far side, urns at the walls, a font by the way on', teaches: 'the string and the launcher on a pack, wave after wave', answers: ['ring', 'air', 'lock'], waves: [{ grunt: 3 }, { grunt: 3, elite: 1 }] },
-  gallery: { about: 'shooters on perches down both flanks, a deck short of the first, a run-up down the spine', teaches: 'the sidearm on a shooter out of reach, the dashing blow down a lane, the air to a perch', answers: ['ring', 'air', 'run-up', 'perch', 'gap', 'lock'], waves: [{ grunt: 1, shooter: 2 }, { grunt: 2, shooter: 2 }] },
+  gallery: { about: 'shooters on perches down both flanks, a deck short of the first, a run-up down the spine', teaches: 'the sidearm on a shooter out of reach, the dashing blow down a lane, the air to a perch', answers: ['ring', 'air', 'run-up', 'perch', 'gap', 'lock'], waves: [{ grunt: 1, shooter: 1 }, { grunt: 2, shooter: 2 }] },
   boss: { about: 'the widest ring, the boss on its dais, pillars in pairs outside the ring', teaches: 'everything at once, on one that does not fall to a string', answers: ['ring', 'air', 'lock'], waves: [{ boss: 1 }] },
 });
 export const FIGHT_KIND_IDS = Object.freeze(Object.keys(FIGHT_KINDS));
@@ -56,7 +56,7 @@ export function composeFight(needs, { kind = 'melee', seed = 1 } = {}) {
   const size = kind === 'duel' ? Math.max(14, even(2 * (R + 4))) : kind === 'gallery' ? Math.max(20, even(needs.size ?? 20), even((runUp.length + 2 * R + 11))) : even(2 * (R + (kind === 'boss' ? 8 : 7)));
   const half = size / 2;
   const spawn = [0, r3(-half + 2), 0], goal = [0, r3(half - 2), 0];
-  const ways = [{ id: 'back', side: 's', at: [0, -half, 0], back: spawn.slice() }, { id: 'on', side: 'n', at: [0, half, 0], back: [0, r3(half - 3.4), 0] }];
+  const ways = [{ id: 'back', side: 's', at: [0, -half, 0], back: spawn.slice() }, { id: 'on', side: 'n', at: [0, half, 0], back: [0, r3(half - 4.2), 0] }];
   const prims = [], taken = [boxOf(spawn, 1.2), boxOf(goal, 1.2)], keep = [];
   const place = (p) => {
     const f = footprint(p);

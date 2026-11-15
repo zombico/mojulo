@@ -5,8 +5,10 @@ door. This is not a geocube and not a roguelike's rooms rolled for each run: it 
 The practice room reconfigures itself into the game's room, a training room that becomes the game.
 
 Status: the brief, the primitives, the composition, the laws, the dress, the area and the practice room are built
-(`control/lib/graph/gameroom/`, `gameworld/game-room.js`). A room as a level (`levels.<id>.room`) and the interior
-designer's style cards as dresses are next.
+(`control/lib/graph/gameroom/`, `gameworld/game-room.js`), and the room composes and plays one fight (below). The
+room is where a game's combat is settled; it is never a level. A game's levels are made by the geocube (a
+building's rooms, a walk on its terrain), and a fight settled here is laid into them by these same rules: that,
+approved fights kept on the world, and the interior designer's style cards as dresses are next.
 
 ## Composable primitives
 
@@ -125,3 +127,63 @@ Its menu is mana-ui's ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)), opened
 open as the page loads, as the briefing: the brief, what was laid, the laws and the shift's proof where there is one;
 set up (the movement, the worker, the dress, the area, the foes), the room reopened with them; and the controls this
 world answers to.
+
+## A fight
+
+The room composed for one fight and played (`gameroom/fight.js`, `gameworld/fights.js`), at
+`bible?book=practice&room=room&fight=<kind>` (`&seed=<n>` another composition), or from the menu's Fight choice.
+
+### What the kit asks
+
+The brief reads the hero's kit (`needs.js` `kitAsks`): each move asks something of the place it is used in, and
+says why. A kit without the move asks nothing, and a world with no kit has the brief it had.
+
+| ask | asked by | what it is |
+|---|---|---|
+| `ring` | the longest ground string | open floor: its travel, the blade's reach, room for the pack |
+| `air` | a launcher, the air strings | headroom: the launch's apex over a standing foe, the hero's jump beside it |
+| `run-up` | a dashing blow | a clear lane of its travel and a foe's depth |
+| `perch` | the sidearm | a shooter above the blade's reach from the floor |
+| `gap` | the air dash | a deck that far from a perch reaches it through the air |
+| `lock` | the lock | nothing tall between the ring and where foes come in |
+
+### Its pieces
+
+More rows of the same table. `rift`: a mark where a wave comes in, foe spots round it (it stands nothing).
+`perch`: a high narrow deck a shooter stands on. `urn`: struck, it breaks and pays. `font`: it heals, a breath
+between fights. `dais`: a low step a boss stands on. The ring and the run-up are reserves: floor kept clear. A
+fight's anchors add its ways (given by the place: sealed while it stands), its rifts, its ring and the boss's spot.
+
+### Its kinds
+
+| kind | laid | for |
+|---|---|---|
+| `duel` | one foe in a small ring, cover off each flank | the string, learned on one foe |
+| `melee` | the ring, rifts round its far side, urns at the walls, a font by the way on | the string on a pack, wave after wave |
+| `gallery` | shooters on perches down both flanks, a deck an air dash short of the first, a run-up down the spine | the sidearm, the dashing blow, the air |
+| `boss` | the widest ring, the boss on its dais, pillars in pairs outside the ring | everything at once |
+
+A new kind is a row and its bands.
+
+### Its laws
+
+The room's, and (`laws.js` `fightLaws`): `ring` (nothing stands in it), `headroom` (the place is as high as the
+launch asks; open above, it holds), `run-up` (the lane clear and long enough), `seen` (every rift and the dais
+seen from the ring), `lock` (nothing tall between the ring and a foe's spot), `put-back` (a walker turned back from
+a sealed way lands on free floor). Over a game's fights together, `asked` (`askedBy`): every ask of the kit is
+answered by one of them.
+
+### Played
+
+A wave is written by role (`grunt`, `shooter`, `elite`, `boss`, each read off what the bestiary's entries are) or by
+a foe's own id; a role stands its entry at the role's rank where the bestiary holds none. The foes stand asleep on
+their spots: a boss on the dais, shooters on the perches, the rest at the rifts in turn. The hero is the action
+room's, armed with the kit, and the foes are numbered by it.
+
+The fight is the wave gauntlet (`game/wave-gauntlet.js`) with two settings added for it: its arena waits for the
+hero to step into the ring, and every way but the way on is sealed beside it. Each wave comes when the last is
+down; a death begins it again at the spawn; the last wave down, the ways open.
+
+Its machine gate is the playthrough: the floor player wins a duel, a melee and a boss fight on the stand-in
+bestiary, and one who does nothing wins none. It does not win the gallery: it has no answer to a shooter on a
+perch, which is what the gallery is for. Nobody has played any of them: the eyes gate is the operator's.

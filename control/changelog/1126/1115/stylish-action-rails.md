@@ -1,6 +1,26 @@
 ### Stylish action: fights settled in the room, laid into levels
 
-Planned, nothing built yet. What the theme will hold:
+In progress. Built so far, all in the practice door's game room
+([docs/game-room.md](../../../../docs/game-room.md), "A fight"):
+
+- **Built: the brief reads the kit** (`gameroom/needs.js` `kitAsks`). Each move asks something of the place and
+  says why: a ring, headroom, a run-up, a perch, a gap, the lock. A kit without the move asks nothing.
+- **Built: a fight composed** (`gameroom/fight.js`), in four kinds (a duel, a melee, a gallery, a boss fight), from
+  new room pieces (a rift, a perch, an urn, a font, a dais), with its ways, rifts and ring named, and held to its
+  own laws beside the room's (ring, headroom, run-up, seen, lock, put-back, asked).
+- **Built: a fight played.** The room's menu has a Fight choice (`&fight=<kind>`, `&seed=<n>`). Waves are written
+  by role or by a foe's id; the foes stand asleep at the rifts, on the perches and on the dais; the hero is armed
+  with the kit. The fight begins when the hero steps into the ring, every way is sealed until the last wave is
+  down, and a death begins it again.
+- **The wave gauntlet takes two more settings**, each adding nothing where it is not said: an arena that waits to
+  be walked into (`enter`) and other ways sealed beside the way out (`seals`).
+- **Measured:** the scripted floor player wins a duel, a melee and a boss fight on the stand-in bestiary; one who
+  does nothing wins none. It does not win the gallery (it has no answer to a shooter on a perch). Nobody has played
+  them yet.
+- Not yet: urns that pay and fonts that heal in play, fights kept on the world by name and approved, and
+  everything below.
+
+What the theme will hold:
 
 - **The room settles the fight.** The practice door's game room reads the hero's kit: a launcher asks for
   headroom, a pack of foes for open floor, a dashing thrust for a run-up, the pistols for a foe out of the blade's

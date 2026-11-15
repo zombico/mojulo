@@ -22,10 +22,16 @@
  *                survive the night); the seal on the way out lifts at the win
  *   hold         '<entity id>': what must not fall (a generator, a payload, a gate): its `down` loses the level
  *
+ * A FIGHT LAID IN A PLACE (gameroom/fight.js): two more settings, each absent adding nothing.
+ *   an arena's `enter`   { at, radius? }: its first wave waits for the player to walk in (the fight's ring), not for a
+ *                        clock; the first arena's waits from the start, a later one's from the clear before it
+ *   seals                [{ at, radius?, back? }]: the other ways held while the gauntlet stands (the way back), each a
+ *                        seal and a zone that turns a walker away (`gauntlet:held:<id>`, put `back`); they lift with the way out's
+ *
  * Params:
- *   { id?: 'gauntlet', arenas: [{ waves: [{ foes: ['<entity id>' | { id, at }], after? }], after? }],
+ *   { id?: 'gauntlet', arenas: [{ waves: [{ foes: ['<entity id>' | { id, at }], after? }], after?, enter? }],
  *     at?, radius?, planar?, back?, start?, hp?, hits?, checkpoint?, death?: 'arena' | 'fail',
- *     pace?: 'clear' | 'timed', every?, win?: 'clear' | { outlast }, hold? }
+ *     pace?: 'clear' | 'timed', every?, win?: 'clear' | { outlast }, hold?, seals? }
  *   `after` (a wave's, s): its pause before its spawns (2; an arena's first wave the arena's `after`, 4; the very first 1)
  *   a foe `{ id, at }`: where it is spawned (a reset stands it there again); a bare id spawns where it stands
  *
@@ -74,6 +80,12 @@ export function lowerWaveGauntlet(p, ctx) {
   const win = p.win ?? 'clear', outlast = win === 'clear' ? null : win?.outlast;
   if (win !== 'clear' && !(win && Object.keys(win).join() === 'outlast' && Number.isFinite(outlast) && outlast > 0)) fail("win is 'clear' (every wave down) or { outlast: <seconds> } (still standing when the clock runs out)");
   if (p.hold !== undefined && !(typeof p.hold === 'string' && p.hold)) fail("hold is the id of what must not fall (a generator, a payload)");
+  // a fight laid in a place: an arena entered, the other ways sealed
+  const enters = p.arenas.map((A) => A.enter ?? null), entered = enters.some(Boolean);
+  enters.forEach((e, a) => { if (e !== null && !(e && isVec(e.at) && (e.radius === undefined || (Number.isFinite(e.radius) && e.radius > 0)))) fail(`arenas[${a}].enter is { at: [x, y, z], radius? }: where the player walks in to begin it`); });
+  if (entered && pace === 'timed') fail('a timed gauntlet\'s waves come on the clock: no arena waits to be entered');
+  const seals = p.seals === undefined ? [] : p.seals;
+  if (!Array.isArray(seals) || seals.some((q) => !(q && isVec(q.at) && (q.back === undefined || isVec(q.back)) && (q.radius === undefined || (Number.isFinite(q.radius) && q.radius > 0))))) fail('seals is [{ at: [x, y, z], radius?, back? }]: the other ways held while it stands');
   const endure = pace === 'timed' || outlast !== null;
   const death = p.death ?? (endure ? 'fail' : 'arena');
   if (!['arena', 'fail'].includes(death)) fail("death is 'arena' (begin it again) or 'fail' (the level is lost)");
@@ -83,6 +95,19 @@ export function lowerWaveGauntlet(p, ctx) {
   const waveE = (k) => `gauntlet:wave:${id}:${k}`, clearedE = (k) => `${pre}:cleared:${k}`, clearE = `gauntlet:clear:${id}`;
   const world = { vars: { [at]: 0, [`${pre}_open`]: 0, [`${pre}_down`]: 0, hp: hp0 }, reactions: [], watches: [], sequences: [], hud: [], entities: [], sources: [], initial: [{ type: `${pre}:go` }] };
   const first = Number.isFinite(W[0].after) ? W[0].after : 1;
+  // an arena ENTERED: `arm` names the arena waiting to be walked into (-1: none); its zone, armed, begins it
+  const arm = `${pre}_arm`, inE = (a) => `${pre}:in:${a}`, firstOf = (a) => W.findIndex((x) => x.arena === a);
+  if (entered) {
+    world.vars[arm] = enters[0] ? 0 : -1;
+    enters.forEach((e, a) => {
+      if (!e) return;
+      const zone = `${id}-enter-${a}`;
+      world.sources.push({ type: 'zone', zone, at: e.at.slice(), radius: Number.isFinite(e.radius) ? e.radius : 3, planar: true, watch: ctx.player });
+      world.reactions.push({ on: 'enter', match: { zone }, if: { var: arm, eq: a }, do: 'emit', type: inE(a) }, { on: inE(a), do: 'set', var: arm, to: -1 },
+        { on: inE(a), do: 'emit', type: a ? waveE(firstOf(a)) : `${pre}:go` });
+    });
+    if (enters[0]) delete world.initial;
+  }
   // the waves' clock: cleared-paced, the first after a breath (each next on its clear, below); timed, every wave on it
   if (pace === 'clear') world.sequences.push({ id: `${pre}:go`, trigger: { on: `${pre}:go` }, steps: [{ await: { timer: first } }, { do: 'emit', type: waveE(0) }] });
   else world.sequences.push({ id: `${pre}:go`, trigger: { on: `${pre}:go` }, steps: W.flatMap((x, k) => [{ await: { timer: k ? (Number.isFinite(x.after) ? x.after : every) : first } }, { do: 'emit', type: waveE(k) }]) });
@@ -105,7 +130,9 @@ export function lowerWaveGauntlet(p, ctx) {
       if (next.arena !== x.arena) world.reactions.push({ on: clearedE(k), do: 'emit', type: 'gauntlet:arena', arena: x.arena + 1, of: A });
       // (after the pause, only if it is still cleared: a death in the pause zeroed it, and the arena begins again instead)
       world.sequences.push({ id: `${pre}:next:${k}`, trigger: { on: clearedE(k) }, steps: [{ await: { timer: pause } }, { do: 'emit', type: `${pre}:on:${k}` }] });
-      world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'emit', type: waveE(k + 1) });
+      // (the next arena entered: it is armed, and its zone brings its first wave)
+      if (next.arena !== x.arena && enters[next.arena]) world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'set', var: arm, to: next.arena });
+      else world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'emit', type: waveE(k + 1) });
     } else world.reactions.push({ on: clearedE(k), do: 'emit', type: clearE });
   });
   // timed: cleared when every foe of every wave is down (waves overlap; no one wave's clear is the end)
@@ -155,6 +182,15 @@ export function lowerWaveGauntlet(p, ctx) {
     world.hud.push({ on: sealedE, text: outlast !== null ? 'sealed: hold out' : 'sealed: clear the arena', as: 'toast', ttl: 1.4 });
     out.on[outE] = { end: 'success' };
   } else out.on[endE] = { end: 'success' };
+  // the other ways, sealed while it stands: a seal each, a walker turned away; lifted at the end
+  seals.forEach((q, j) => {
+    const sid = `${id}-seal-${j + 1}`, zone = `${id}-way-${j + 1}`, sealedE = `gauntlet:held:${id}`, open = `${pre}_open`;
+    world.entities.push({ id: sid, type: 'seal', on: true, position: q.at.slice(), radius: 0.9, color: '#7a1f1a' });
+    world.sources.push({ type: 'zone', zone, at: q.at.slice(), radius: Number.isFinite(q.radius) ? q.radius : 2, planar: true, watch: ctx.player });
+    world.reactions.push({ on: endE, do: 'toggle', target: sid, to: false }, { on: 'enter', match: { zone }, if: { var: open, lt: 1 }, do: 'emit', type: sealedE, way: j + 1 },
+      ...(q.back ? [{ on: 'enter', match: { zone }, if: { var: open, lt: 1 }, do: 'move', target: ctx.player, to: q.back.slice() }] : []));
+    if (!j) { if (!p.at) world.reactions.push({ on: endE, do: 'set', var: open, to: 1 }); world.hud.push({ on: sealedE, text: 'sealed: clear the arena', as: 'toast', ttl: 1.4 }); }
+  });
   world.hud.push(
     { var: 'hp', label: 'HP', as: 'bar', max: hp0 },
     { on: 'wave', text: 'Arena {event.arena} of {event.arenas} · Wave {event.n} of {event.of}', ttl: 2 },

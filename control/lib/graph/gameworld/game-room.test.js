@@ -64,3 +64,73 @@ describe('the game room\'s area', () => {
     expect(() => readGameworld(W({ walls: 'stone' }))).toThrow(/room has no 'walls'/);
   });
 });
+
+// A FIGHT in the room (gameroom/fight.js, fights.js): composed for the kit, its foes asleep until their wave, its ways
+// sealed. One kind laid with rifts and one with perches, chosen from the table in code.
+import { FIGHT_KINDS, FIGHT_KIND_IDS, composeFight } from '../gameroom/fight.js';
+import { castRoles, fightWaves, fightCast, fightPlacements, fightMechanic, FIGHT_ROLES } from './fights.js';
+import { roomNeeds } from '../gameroom/needs.js';
+import { TEMPLATE_ARSENALS } from './combos.js';
+import { playLevel } from './playthrough.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
+
+const KIT = Object.keys(TEMPLATE_ARSENALS).find((id) => (TEMPLATE_ARSENALS[id].ranged ?? []).length && TEMPLATE_ARSENALS[id].weapons.some((W) => Object.values(W.moves).some((m) => m.launch > 0)));
+const RIFTED = FIGHT_KIND_IDS.find((k) => composeFight(roomNeeds({ feel: KIT }), { kind: k }).anchors.rifts.length > 1);
+const PERCHED = FIGHT_KIND_IDS.find((k) => composeFight(roomNeeds({ feel: KIT }), { kind: k }).primitives.some((p) => p.kind === 'perch'));
+
+describe('a fight\'s waves', () => {
+  it('are read by role or by the bestiary\'s id, and say what a wave takes', () => {
+    const R = castRoles({});
+    for (const role of Object.keys(FIGHT_ROLES)) expect(R[role]).toBeTruthy();
+    expect(R.shooter).not.toBe(R.grunt);
+    const W = fightWaves({}, RIFTED);
+    expect(W.length).toBe(FIGHT_KINDS[RIFTED].waves.length);
+    expect(fightWaves({}, RIFTED, [{ [R.grunt]: 2, grunt: 1 }])).toEqual([{ [R.grunt]: 3 }]);
+    expect(() => fightWaves({}, RIFTED, [{ dragon: 1 }])).toThrow(/no role .* and no foe of the bestiary/);
+    expect(() => fightWaves({}, RIFTED, [{ grunt: 0 }])).toThrow(/a count/);
+  });
+  it('stand at the rifts in turn, shooters on the perches, every foe once, facing the ring', () => {
+    const N = roomNeeds({ feel: KIT });
+    const m = composeFight(N, { kind: RIFTED }), pm = fightPlacements({}, m, fightWaves({}, RIFTED));
+    const spots = m.anchors.rifts.flatMap((q) => q.spots.map((s) => s.join()));
+    expect(spots).toContain(pm[0][0].at.join());
+    const ids = pm.flat().map((f) => f.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const g = composeFight(N, { kind: PERCHED }), pg = fightPlacements({}, g, fightCast({}, PERCHED)), R = castRoles({});
+    expect(pg[0].filter((f) => f.eid === R.shooter).every((f) => f.at[2] > 1)).toBe(true);
+    // a wave larger than its spots is ringed round the ring, never stacked
+    const big = fightPlacements({}, m, [{ [R.grunt]: 12 }])[0].map((f) => f.at.join());
+    expect(new Set(big).size).toBe(12);
+    // a role stands its entry at the role's rank where the bestiary holds none
+    expect(fightPlacements({}, m, fightCast({}, RIFTED, [{ boss: 1 }]))[0][0].rank).toBe('boss');
+    expect(fightPlacements({}, m, fightCast({}, RIFTED, [{ grunt: 1 }]))[0][0].rank).toBeUndefined();
+    const M = fightMechanic(m, pm);
+    expect(M.arenas[0].enter.radius).toBe(m.anchors.ring.r);
+    expect(M.seals.length).toBe(m.anchors.ways.length - 1);
+  });
+});
+
+describe('the game room playing a fight', () => {
+  const G = { id: 'f', feel: KIT };
+  it('composes it for the kit, arms the hero with it, stands its foes asleep and wires the gauntlet', () => {
+    const r = gameRoom(G, { fight: RIFTED }), M = r.manifest;
+    expect(r.laws.filter((l) => !l.holds)).toEqual([]);
+    expect(r.laws.map((l) => l.law)).toEqual(expect.arrayContaining(['ring', 'seen', 'put-back']));
+    const hero = M.entities.find((e) => e.pilotable), foes = M.entities.filter((e) => e.team === 'foes');
+    expect(hero.rule.moveset).toBeTruthy();
+    expect(hero.body.hittable).toBe(true);
+    expect(foes.length).toBe(r.fight.placed.flat().length);
+    expect(foes.every((e) => e.dormant)).toBe(true);
+    expect(M.events.sources.some((s) => s.zone === 'fight-enter-0')).toBe(true);
+    expect(M.events.entities.filter((e) => e.type === 'seal').length).toBe(r.room.anchors.ways.length);
+    expect(M.events.initial ?? []).toEqual([]);
+    expect(r.choices.fights).toEqual(FIGHT_KIND_IDS);
+  });
+  it('leaves the room as it was where no fight is asked, and refuses one for a world that does not fight', () => {
+    const plain = gameRoom(G), again = gameRoom(G, { fight: null });
+    expect(JSON.stringify(again.manifest)).toBe(JSON.stringify(plain.manifest));
+    expect(plain.fight).toBeUndefined();
+    expect(JSON.stringify(plain.manifest)).not.toMatch(/fight-enter|room:ring/);
+    expect(() => gameRoom({ id: 'c', feel: POLE_IDS.find((id) => !POLES[id].demo.includes('attack')) }, { fight: RIFTED })).toThrow(/fights hand to hand/);
+  });
+});

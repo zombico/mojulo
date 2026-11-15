@@ -31,6 +31,8 @@ export const E2E = [
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
+  // a fight composed in the game room, resolved whole and played headless by the playthrough's players
+  'lib/graph/gameworld/fight-play.test.js',
   'lib/graph/scene/action-hero.live.test.js',
   'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',

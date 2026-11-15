@@ -137,3 +137,34 @@ describe('a wave gauntlet to endure', () => {
     expect(composeMechanics([cleared], ctx).on['__wg_hold:fell']).toBeUndefined();
   });
 });
+
+// A FIGHT LAID IN A PLACE: an arena waits to be walked into, the other ways are sealed with the way out
+describe('a gauntlet entered, its other ways sealed', () => {
+  const HALL = { ...LIFT, arenas: [{ ...LIFT.arenas[0], enter: { at: [4, 0, 0], radius: 2 } }, { ...LIFT.arenas[1], enter: { at: [20, 0, 0], radius: 2 } }], seals: [{ at: [-6, 0, 0], back: [-3, 0, 0] }] };
+  it('wakes nothing until the player walks in, the first arena and the next', () => {
+    expect(run([HALL], [{ secs: 5 }]).spawned).toEqual([]);
+    const r = run([HALL], [{ at: [-20, 0, 0] }, { at: [4, 0, 0] }, { secs: 1.5 }, { down: ['g1', 'g2'] }, { secs: 2.5 }, { down: ['g3'] }, { secs: 6 }]);
+    expect(r.spawned).toEqual(['g1', 'g2', 'g3']);   // the second arena is armed, not begun
+    expect(r.s.vars.__wg_lift_arm).toBe(1);
+    const r2 = run([HALL], [{ at: [-20, 0, 0] }, { at: [4, 0, 0] }, { secs: 1.5 }, { down: ['g1', 'g2'] }, { secs: 2.5 }, { down: ['g3'] }, { secs: 6 }, { at: [20, 0, 0] }, { secs: 0.5 }]);
+    expect(r2.spawned).toEqual(['g1', 'g2', 'g3', 'b1', 'b2']);
+    // walked into twice, begun once
+    const r3 = run([HALL], [{ at: [-20, 0, 0] }, { at: [4, 0, 0] }, { at: [-20, 0, 0] }, { at: [4, 0, 0] }, { secs: 1.5 }]);
+    expect(r3.spawned).toEqual(['g1', 'g2']);
+  });
+  it('turns a walker back from the other way until the end, then lets it by', () => {
+    const shut = run([HALL], [{ at: [-20, 0, 0] }, { at: [-6, 0, 0] }]);
+    expect(shut.log).toContain('gauntlet:held:lift');
+    expect(shut.warps).toEqual([[-3, 0, 0]]);
+    const open = run([HALL], [{ at: [-20, 0, 0] }, { at: [4, 0, 0] }, { secs: 1.5 }, { down: ['g1', 'g2'] }, { secs: 2.5 }, { down: ['g3'] }, { secs: 6 }, { at: [20, 0, 0] }, { secs: 0.5 }, { down: ['b1', 'b2'] }, { at: [0, 0, 0] }, { at: [-6, 0, 0] }]);
+    expect(open.s.byId['lift-seal-1'].on).toBe(false);
+    expect(open.warps).toEqual([]);
+  });
+  it('adds nothing to a gauntlet that says neither, and says what each takes', () => {
+    const plain = composeMechanics([LIFT], ctx).events;
+    expect(JSON.stringify(plain)).not.toMatch(/_arm|enter-|seal-1/);
+    expect(plain.initial).toEqual([{ type: '__wg_lift:go' }]);
+    expect(() => composeMechanics([{ ...LIFT, seals: [{ back: [0, 0, 0] }] }], ctx)).toThrow(/seals is/);
+    expect(() => composeMechanics([{ ...HALL, pace: 'timed', death: 'fail' }], ctx)).toThrow(/no arena waits to be entered/);
+  });
+});

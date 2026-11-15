@@ -367,6 +367,8 @@ function roomChoices(room, cast) {
   if (room.hero === 'mascot') out.push({ id: 'cast', label: 'Worker', now: cast, options: C.casts.map((c) => ({ id: c, name: c })) });
   out.push({ id: 'dress', label: 'Dress', now: room.dress ? room.dress.trade : 'none', options: [...C.dresses.map((d) => ({ id: d, name: d })), { id: 'none', name: 'greybox' }] });
   out.push({ id: 'area', label: 'Area', now: room.area ? room.area.name : 'none', options: [...C.areas.map((a) => ({ id: a, name: a })), { id: 'none', name: 'plane' }] });
+  // (a world that fights: the room as it is, or composed for one fight of a kind)
+  if (C.fights) out.push({ id: 'fight', label: 'Fight', now: room.fight ? room.fight.kind : 'none', options: [{ id: 'none', name: 'the room' }, ...C.fights.map((k) => ({ id: k, name: k }))] });
   return out;
 }
 const placeLines = (room) => [
@@ -414,25 +416,33 @@ export async function workRoomHtml(G, { refs = {}, cast = null, feel = null, dre
  * asked of the room, and why), the primitives laid, the room laws, the shift's proof where there is one, and the presets
  * to choose from, the room reopened with them; the foes woken on its switch or the pilot's own (still at first).
  */
-export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null } = {}) {
+export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dress = null, area = undefined, sound = 'realistic', cdn = false, link = null, fight = null, seed = null } = {}) {
   const { gameRoom } = await import('./game-room.js');
   const { WORK_CAST } = await import('./work-room.js');
   cast = cast ?? WORK_CAST;
-  const room = gameRoom(G, { refs, cast, feel, dress, area, sound });
+  const room = gameRoom(G, { refs, cast, feel, dress, area, sound, fight, seed });
   const payload = await resolved(room.manifest, `${G.id ?? 'game'}-game-room`);
+  // (a fight: what the kit asks of the place, by move; who comes in each wave)
+  const F = room.fight ?? null, asks = Object.entries(N0(room).asks ?? {});
+  const fightAbout = F ? [
+    { label: 'The fight', lines: [`${F.kind}: ${(await import('../gameroom/fight.js')).FIGHT_KINDS[F.kind].about}`, ...F.waves.map((w, k) => `wave ${k + 1}: ${Object.entries(w).map(([id, n]) => `${n} ${id}`).join(', ')}`), 'step into the ring and it begins: every way is sealed until the last wave is down'] },
+    { label: 'The kit asks', lines: asks.length ? asks.map(([k, a]) => `${k} (${a.by.join(', ')}): ${a.why}`) : ['nothing: this kit asks nothing of the place'] },
+  ] : [];
   const N = room.needs, counts = {};
   for (const p of room.room.primitives) counts[p.kind] = (counts[p.kind] ?? 0) + 1;
   const nf = room.room.anchors.foes.length;
   const about = [
+    ...fightAbout,
     { label: 'The brief', lines: Object.entries(N.why).map(([k, v]) => `${k}: ${v}`) },
-    { label: 'Laid', lines: [Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ') || 'nothing: an open floor', `${room.room.size} m square · ${nf} foe spot${nf === 1 ? '' : 's'}; the spawn's ring blue, the goal's green`] },
+    { label: 'Laid', lines: [Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(' · ') || 'nothing: an open floor', `${room.room.size} m square · ${nf} foe spot${nf === 1 ? '' : 's'}; the spawn's ring blue, the goal's green${F ? ', the fight\'s ring gold, its rifts red' : ''}`] },
     { label: 'The laws', lines: room.laws.map((l) => `${l.holds ? 'holds' : 'advise'} · ${l.law}: ${l.says}`) },
     ...(room.measured ? [{ label: 'The shift', lines: [room.measured.says] }] : []),
-    { label: 'The place', lines: [room.hero === 'own' ? 'the hero: the world\'s own' : `the hero: ${room.mascot.thesis}`, ...placeLines(room)] },
+    { label: 'The place', lines: [room.hero === 'own' ? 'the hero: the world\'s own' : room.mascot ? `the hero: ${room.mascot.thesis}` : 'the hero: a stand-in holding the world\'s blade, armed with its kit', ...placeLines(room)] },
   ];
-  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, how: await roomHow(room), about, choices: roomChoices(room, cast), foes: nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}) }) }, room);
+  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, how: await roomHow(room), about, choices: roomChoices(room, cast), foes: !F && nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}), ...(F ? { fight: F.kind } : {}), ...(seed != null ? { seed } : {}) }) }, room);
   return { html, room };
 }
+const N0 = (room) => room.needs;
 
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
