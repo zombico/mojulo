@@ -40,7 +40,7 @@ export const INTAKE_KINDS = Object.freeze({
   map: Object.freeze({ name: 'a map or a level sketch', door: 'the level\'s own page: its walk, or a written map (gameworld-world: glyphs)', answers: Object.freeze(['first-plan']) }),
   design: Object.freeze({ name: 'a design document or a pitch', door: 'intent, the main quest, the feel and the actions, a page at a time', answers: Object.freeze(['game', 'shape', 'play']) }),
   lore: Object.freeze({ name: 'a setting\'s lore or a story', door: 'the world\'s `backdrop` (extracted, never authored), then the main quest', answers: Object.freeze(['shape']) }),
-  rules: Object.freeze({ name: 'rules, stats, a bestiary or a power system', door: 'the actions, the systems, the foes; a bestiary of a party game → battles.manual (gameworld-battles); a power system no page takes yet is set aside', answers: Object.freeze(['play']) }),
+  rules: Object.freeze({ name: 'rules, stats, a bestiary or a power system', door: 'the actions, the systems, the foes; a party game\'s bestiary → battles.manual, its school of techniques → battles.tree (gameworld-battles); a power system no page takes yet is set aside', answers: Object.freeze(['play']) }),
   art: Object.freeze({ name: 'concept art or a mood board', door: 'reference_protocol → capture_reference, then the direction and the world\'s look', answers: Object.freeze(['look']) }),
   plan: Object.freeze({ name: 'a production plan or a level list', door: 'the main quest\'s beats and the levels they are played on', answers: Object.freeze(['plan']) }),
 });

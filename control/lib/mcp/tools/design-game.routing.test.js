@@ -79,6 +79,11 @@ describe('design_game: the routing', () => {
     expect(out.lore.manual).toMatchObject({ rung: 'numbered', open: [] });
     expect(out.advice.lore).toBeUndefined();
     expect(out.next.some((n) => n.step === 'lore')).toBe(false);
+    // a school beside it: a tree at its premise is said the same way, by its id
+    out = await designGameHandler({ ref: 'lore', patch: [{ op: 'set', path: '/battles/tree', value: { id: 'pyre', element: 'fire', techniques: [{ id: 'spark', does: 'bolt' }, { id: 'brand', does: 'blade' }] } }] });
+    expect(out.lore.trees).toEqual([{ id: 'pyre', rung: 'premise', open: ['order', 'costs'], techniques: 2 }]);
+    expect(out.next.find((n) => n.step === 'lore')).toEqual({ step: 'lore', part: 'tree', id: 'pyre', at: 'premise', open: ['order', 'costs'], chapter: 'battles', card: 'gameworld-battles' });
+    expect(out.advice.lore).toHaveLength(1);
   });
 
   it('leaves a world that stands on no intent as it was: no advice, no move', async () => {

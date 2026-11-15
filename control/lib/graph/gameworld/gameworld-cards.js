@@ -41,6 +41,7 @@ import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, SHAPES, LAWS as MAIN_QUEST_LAWS 
 import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
 import { GOALPOSTS } from './goalposts.js';
 import { INTAKE_KINDS } from './intake.js';
+import { DOES_IDS } from '../lorecube/tree.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -807,7 +808,7 @@ const quickShared = () => [
 function battlesCard() {
   return lines(
     'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, looks?,',
-    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules?, manual? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
+    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules?, manual?, tree? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
@@ -836,6 +837,8 @@ function battlesCard() {
     'manual  a setting\'s creatures, fielded: { polarity, creatures: [{ id, element, role }], affinity?, levels? } (a',
     '        lorecube manual at any depth): its foes, their skills, a ladder of packs by role and level, its boss; the',
     '        page\'s own foes, packs and boss win. What it lacks is derived and said (`lore`): write it to own it.',
+    'tree    a school\'s techniques, a class the party can be in: { id, element, techniques: [{ id, does }], order?, costs? }',
+    `        (does: ${DOES_IDS.join(', ')}), one or a list; a technique a skill, learned by rank or bought.`,
     'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
     '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
     'juice   what the moments feel like: { on: { <happening>: juice }, also?, <name>: [steps] } over the defaults (false:',

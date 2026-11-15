@@ -188,7 +188,9 @@ export const POWER = Object.freeze({
         // at any depth): its creatures the foes, their skills, a ladder of packs by role and level, its boss, each a floor
         // under the page's own words; the rungs it lacks derived and said (the readout's `lore`)
         manual: { status: 'built', since: '2026-11-15', requires: ['power.combat=turn-based'], lowers: 'lib/graph/gameworld/battles-manual.js', note: 'a monster manual fielded by a book\'s party battles (battles.manual): creatures by element and role, their weaknesses and resistances following from the polarity it names, their numbers from their role and how far in they are met, the packs laid by level and the boss last; its open rungs derived and said, deepened a pass at a time; printed as a bestiary; an action game\'s foes still carry no element' },
-        tree: { status: 'partial', effort: 'L', pkg: 'lorecube', requires: ['power.combat=turn-based'], lowers: 'lib/graph/lorecube/tree.js', note: 'a skill tree from a school\'s techniques: what each does, learned at a rank or bought after the ones it builds on, costs by depth; lowered to a party RPG class and its skills, printed as a grimoire; no gameworld key takes one, so a book\'s party does not learn it' },
+        // built 11-15 (gameworld/battles-tree.js): a tree on a gameworld's battles page (`battles.tree`, one or a list, at any
+        // depth): each school a class the party can be in, its techniques skills; its order and costs derived and said
+        tree: { status: 'built', since: '2026-11-15', requires: ['power.combat=turn-based'], lowers: 'lib/graph/gameworld/battles-tree.js', note: 'a skill tree a book\'s party can be in (battles.tree): a school a class beside the presets, each technique a skill of its element, learned at a rank or bought after the ones it builds on, dearer and stronger the deeper; with no order said, learned rank by rank as written; its open rungs derived and said, deepened a pass at a time; printed as a grimoire' },
       },
     },
   },
