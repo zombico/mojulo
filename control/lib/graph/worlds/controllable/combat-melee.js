@@ -482,6 +482,11 @@ export function buildCombatMelee(E) {
   // the weapon cycle (R, a pad's right shoulder, the mouse's back button) steps to the next when no swing is live, its
   // string cleared; each weapon its own moves, reach and damage, and the figure it shows (`sheathed`: the blade on the
   // back, the fist's). `r.moveset` stays the current weapon's (the page reads its blend and its clips by it).
+  // THE SWITCH CANCEL (opt-in, a moveset's `swap`: an arsenal's `switch: 'cancel'`): the cycle pressed mid-swing is HELD
+  // (`S.swap`) and taken at the live move's switch point: its cancel, or, a move with none (a finisher), the end of its
+  // blow. The rest of the move is cut with no rest and no cooldown, the next weapon is in hand, a press already buffered
+  // opens ITS string at once, and the string's count carries on (`S.carry`, for the late window): one weapon's string
+  // chained into the other's. Absent, the cycle mid-swing is dropped, as it was.
   // THE GUARD (opt-in `rule.guard`, a feel card's lowered: gameworld/feel/lower.js): { move, push, stun, parry, riposte,
   // stamina? } in seconds and metres. Held (`input.guard`) on the ground, out of a swing, a dodge, a reaction and a draw,
   // it is up (`e.guarding`, raised at `e.guardAt`); let go it comes down, unless blockstun holds it. A blow from the front
@@ -538,8 +543,20 @@ export function buildCombatMelee(E) {
     let boosting = boosting0;
     const S = e.mv || (e.mv = { node: null, move: null, buf: null, endT: -1e9, k: 0, seq: 0 });
     const say = (beat, verdict, why) => { S.seq++; e.mvPress = { seq: S.seq, beat, verdict, why, t: now }; };
+    if (Ws && S.swap != null) {
+      const M0 = Ws[e.weaponIdx || 0].moveset, cur = e.swingT != null && S.move ? M0.moves[S.move] : null;
+      const at = cur ? (cur.cancel < 1 ? cur.cancel : cur.contact ? cur.contact[1] : e.strikeParams && e.strikeParams.to != null ? e.strikeParams.to : 1) : 0;
+      if (!cur || e.swingT >= at) {
+        if (cur) { e.swingT = null; e.mvTravel = null; e.mvSpin = null; S.carry = S.k; S.carryT = now + M0.late + M0.buffer; S.endT = now; }
+        else S.k = 0;
+        e.weaponIdx = ((e.weaponIdx || 0) + 1) % Ws.length;
+        S.node = null; S.move = null; S.swap = null;
+        say('cycle', 'taken', cur ? `a switch cancel: the ${Ws[e.weaponIdx].name}` : `the ${Ws[e.weaponIdx].name}`);
+      }
+    }
     if (Ws && input.cycle) {
-      if (e.swingT != null) say('cycle', 'dropped', 'mid-swing: the weapon changes between moves');
+      if (e.swingT != null && Ws.length > 1 && Ws[e.weaponIdx || 0].moveset.swap) { if (S.swap == null) { S.swap = now; say('cycle', 'held', 'mid-swing: taken at the move\'s switch point'); } }
+      else if (e.swingT != null) say('cycle', 'dropped', 'mid-swing: the weapon changes between moves');
       else if (Ws.length > 1) {
         e.weaponIdx = ((e.weaponIdx || 0) + 1) % Ws.length;
         S.node = null; S.move = null; S.buf = null; S.k = 0; e.mvTravel = null;
@@ -661,7 +678,8 @@ export function buildCombatMelee(E) {
       let next = null, how = null, wait = false;
       if (e.swingT != null) {
         const cur = M.moves[S.move];
-        if (N && N.next && N.next[b]) { if (e.swingT >= cur.cancel) { next = N.next[b]; how = 'chained at the cancel'; } else wait = true; }
+        if (S.swap != null) wait = true;   // (a switch held: the press waits for the next weapon, where it opens its string)
+        else if (N && N.next && N.next[b]) { if (e.swingT >= cur.cancel) { next = N.next[b]; how = 'chained at the cancel'; } else wait = true; }
         else wait = true;   // (no move on this beat from here: taken as an opener once the move has ended)
       } else {
         const since = now - S.endT;
@@ -707,7 +725,8 @@ export function buildCombatMelee(E) {
         // (the travel waits out the blend into the move, at most half its way to the blow: hero-swing-body.js travelAt)
         const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' || mv.travel.kind === 'dash' ? P.from : P.to) : 0;
         e.mvTravel = travels ? { dir: [fw[0], fw[1]], kind: mv.travel.kind, m: mv.travel.m, from: Math.min(mv.travel.wait || 0, tTo * 0.5), to: tTo, done: 0 } : null;
-        S.k = how === 'an opener' || how === 'an air opener' ? 1 : S.k + 1;
+        // (an opener out of a switch cancel carries the string's count on: S.carry)
+        S.k = how === 'an opener' || how === 'an air opener' ? (S.carryT != null && now <= S.carryT ? S.carry + 1 : 1) : S.k + 1; S.carryT = null;
         S.node = next; S.move = next.move;
         say(b, 'taken', `${how}: ${next.move}${next.ends ? ` (ends ${next.ends.join(', ')})` : ''}`);
         S.buf = null;
@@ -715,7 +734,7 @@ export function buildCombatMelee(E) {
     }
     // a press waiting on the live move's cancel, where the tree chains on its beat, is held until it; any other ages out
     // of the buffer (a press too early with nothing to chain into)
-    const chains = S.buf && e.swingT != null && S.node && S.node.next && S.node.next[S.buf.beat];
+    const chains = S.buf && e.swingT != null && (S.swap != null || (S.node && S.node.next && S.node.next[S.buf.beat]));
     if (S.buf && !chains && now - S.buf.t > M.buffer + 1e-9) { say(S.buf.beat, 'dropped', 'too early: the move has nothing on that beat to chain into'); S.buf = null; }
     e.mvMove = S.move; e.mvRole = S.move ? M.moves[S.move].role : null; e.mvHit = S.k; e.mvCombos = S.node ? S.node.combos : null;
     return { swinging: e.swingT != null, boosting };
