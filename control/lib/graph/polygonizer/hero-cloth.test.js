@@ -9,7 +9,7 @@ import { locomotionClips } from './hero-motion.js';
 import { REGISTERS, HERO_LAWS_VERSION } from './hero-form.js';
 import { MATERIALS, MATERIAL_NAMES, CLOTH_REGISTERS, materialParams, materialErrors, clothRegisterOf, clothRigidity } from './cloth-law.js';
 import { RIGIDITY_WORDS, rigidityParams } from './rigidity.js';
-import { CLOTH_LAWS, clothFlows, heroClothRig, bakeClothClips } from './hero-cloth.js';
+import { CLOTH_LAWS, clothFlows, heroClothRig, bakeClothClips, tailoredSkirts, CAPE_SWAY, CAPE_FROM, CAPE_STRINGS } from './hero-cloth.js';
 import { heroRecord, heroPlanOf, planLayered, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { clothClipSeconds, ANIME_CLIP_SECONDS } from './hero-gesture.js';
 
@@ -158,13 +158,53 @@ describe('hero-cloth: one duration for the page and the export', () => {
 });
 const H0 = () => heroClothRig(ROBED.mesh, ROBED.recipe, ROBED.hero);
 
-describe('hero-cloth: the realistic cape keeps its skin', () => {
+describe('hero-cloth: the realistic cape', () => {
   // (2026-11-14: hung on strings, the realistic body's cape sheared into flaps at its open edges where the arm carries
   // it; the lane is read off the hero, so the narrow case's mesh stands in for the realistic body's)
-  it('on the realistic lane the cape has no strings; what else flows still does', () => {
-    const H = heroClothRig(ROBED.mesh, ROBED.recipe, { ...ROBED.hero, form: 'realistic' });
+  const laws1 = { ...ROBED.hero, form: 'realistic', outfit: { ...ROBED.hero.outfit, laws: 1 } }, laws2 = { ...ROBED.hero, form: 'realistic', outfit: { ...ROBED.hero.outfit, laws: 2 } };
+  it('under outfit laws 1 the cape has no strings; what else flows still does', () => {
+    const H = heroClothRig(ROBED.mesh, ROBED.recipe, laws1);
     expect(H.strings.some((s) => s.part === 'cloak_cape')).toBe(false);
     expect(H.strings.some((s) => s.part === 'robeSkirt_skirt')).toBe(true);
+  });
+  // (2026-11-15: under outfit laws 2 it SWAYS: hung below the hanging hand's reach on stiff strings, its shoulders and
+  // its sides where the arm carries it kept on their skin, so no edge the arm carries is sheared)
+  it('under outfit laws 2 it sways from below the hand: stiff strings rooted under CAPE_FROM, its cloth above keeps its skin', () => {
+    const H = heroClothRig(ROBED.mesh, ROBED.recipe, laws2), R0 = validateRig(ROBED.recipe.rig);
+    const knee = R0.joints[R0.bones[R0.boneIndex.shankR].head][2], hip = R0.joints[R0.bones[R0.boneIndex.thighR].head][2], top = knee + CAPE_FROM * (hip - knee);
+    const cape = H.strings.filter((s) => s.part === 'cloak_cape');
+    expect(cape.length).toBeGreaterThan(0); expect(cape.length).toBeLessThanOrEqual(CAPE_STRINGS);
+    for (const st of cape) { expect(st.rest[0][2]).toBeLessThanOrEqual(top + 1e-6); expect(st.params.stiffness).toBeGreaterThan(materialParams({ material: 'wool' }).stiffness); }
+    // (above the root the cape's vertices keep the body's own skin, weight for weight)
+    const own = flowRig(ROBED.mesh, { ...ROBED.recipe, parts: Object.fromEntries(Object.entries(ROBED.recipe.parts).map(([n, p]) => [n, (({ rigidity: _r, material: _m, ...q }) => q)(p)])) }, { hair: false }).skin;
+    const bone = (S, i) => S.joints[i].map((j, k) => [H.R.bones[j]?.id, S.weights[i][k]]).filter(([, w]) => w > 0).map(([b, w]) => `${b}:${w.toFixed(6)}`).sort().join();
+    const above = ROBED.mesh.provenance.map((p, i) => i).filter((i) => ROBED.mesh.provenance[i].part === 'cloak_cape' && ROBED.mesh.vertices[i][2] > top + 0.01);
+    expect(above.length).toBeGreaterThan(0);
+    for (const i of above) expect(bone(H.skin, i)).toBe(bone(own, i));
+  });
+});
+
+describe('hero-cloth: the realistic tailored skirt', () => {
+  // (2026-11-15: the realistic robe's skirt is the tailor's rings carried down from its body, skinned to the legs, and the
+  // shin and the heel came through it mid-stride; under outfit laws 2 it hangs on the register's strings from its first
+  // ring, its bodice and hips the tailor's)
+  const ring = (z, r, id) => ({ id, points: Object.fromEntries(['front', 's01R', 'back', 's01L'].map((sl, k) => [sl, [r * Math.sin(k * Math.PI / 2), r * Math.cos(k * Math.PI / 2), z]])) });
+  const host = { closure: 'closed', garment: true, slots: ['front', 's01R', 'back', 's01L'], stations: [ring(1.0, 0.16, 'st6'), ring(0.9, 0.18, 'st4'), ring(0.85, 0.19, 'stSkirt9'), ring(0.4, 0.26, 'stSkirt0'), ring(0.75, 0.05, 'stSkirtLining')] };
+  const recipe = { parts: { robe_pelvis: host } }, plan = { garments: [{ id: 'robeSkirt', fit: 'skirt', material: 'linen' }] };
+  it('a closed tailored skirt that names its cloth hangs from its first ring; laws 1, the game body, an open coat and an unnamed cloth do not', () => {
+    expect(tailoredSkirts(recipe, { form: 'realistic', outfit: { laws: 2 } }, plan)).toEqual({ robe_pelvis: { material: 'linen', carrier: 'pelvis', top: 0.854 } });
+    expect(tailoredSkirts(recipe, { form: 'realistic', outfit: { laws: 1 } }, plan)).toEqual({});
+    expect(tailoredSkirts(recipe, { register: 'round', outfit: { laws: 2 } }, plan)).toEqual({});
+    expect(tailoredSkirts({ parts: { robe_pelvis: { ...host, fronts: [] } } }, { form: 'realistic', outfit: { laws: 2 } }, plan)).toEqual({});
+    expect(tailoredSkirts(recipe, { form: 'realistic', outfit: { laws: 2 } }, { garments: [{ id: 'robeSkirt', fit: 'skirt' }] })).toEqual({});
+  });
+  it('a curtain hung from `top`: its part\'s vertices above keep their skin, those below ride its strings', () => {
+    const P = ROBED.mesh.provenance, V = ROBED.mesh.vertices, ids = P.map((p, i) => i).filter((i) => P[i].part === 'robeSkirt_skirt'), zs = ids.map((i) => V[i][2]);
+    const top = (Math.max(...zs) + Math.min(...zs)) / 2, H = flowRig(ROBED.mesh, ROBED.recipe, { hair: false, pieces: { robeSkirt_skirt: { top, strings: 10, links: 3 } } });
+    const strung = new Set(H.strings.filter((s) => s.part === 'robeSkirt_skirt').flatMap((s) => s.bones.map((b) => H.R.boneIndex[b])));
+    expect(strung.size).toBeGreaterThan(0);
+    for (const s of H.strings.filter((x) => x.part === 'robeSkirt_skirt')) expect(s.rest[0][2]).toBeLessThanOrEqual(top + 1e-6);
+    for (const i of ids) { const rides = H.skin.joints[i].some((j, k) => H.skin.weights[i][k] > 0 && strung.has(j)); if (V[i][2] > top + 1e-9) expect(rides).toBe(false); else if (V[i][2] < top - 0.05) expect(rides).toBe(true); }
   });
 });
 

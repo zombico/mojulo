@@ -236,3 +236,23 @@ sleeves, the hood).
   with an arm raised, the shoulder's cloth that follows the arm still meets the chest at an edge at mid-clavicle; the
   neckline rides 1–2 cm up the neck on some casts; the peasant's hood worn down still covers the shoulders; on the box
   and low-poly registers a small chip of the shirt shows at the top of a sleeveless armhole.
+- **The fantasy wardrobe on the realistic body (gen-7).** The six cards were minted on the realistic body under the
+  gen-7 cube, both sexes, and shot still, in the walk and with an arm raised. Under outfit laws 2 (the hero laws 23):
+  - a tailored robe's skirt (the tailor's rings carried down from its body) that names its cloth hangs on the realistic
+    register's strings from its first ring below the hips, its bodice and hips kept on their skin (`hero-cloth.js`
+    `tailoredSkirts`, a curtain's new `top` in `hero-flow.js`), so the legs' clearing carries it: the shin and heel
+    points above the hem that stood outside the mage's and the cleric's skirts through the walk went from 48–55 % to
+    0.1–0.6 %. The tunics' short skirts hang on them too;
+  - the cape sways instead of riding its skin: six stiff strings rooted below the hanging hand (`CAPE_FROM` of the way
+    from the knee to the hip), its shoulders and sides on their skin, so the edges the arm carries are never sheared;
+    its hem swings about 7 cm behind the stride and its turns down the cloth are as on its skin (95th percentile 45°);
+  - a skirt's hem work is a motif: a thread of its colour in peaks over a plain rule, lying on the skirt where it flares,
+    each a thread along its path rather than a band (whose ends were a disc across the open skirt) (`hemMotif`);
+  - a medallion is worn: its chain, bail and pendant were each read as a belt round the waist (three gold bands over the
+    girdle); they are laid on what is worn instead (`layNecklaces`), the chain on the cloth at the front and out of it
+    elsewhere, round the neck's root, the pendant on the chest.
+  Outfit laws 1 and the game and anime bodies are unchanged. Still open on the realistic body: the fur mantle stands
+  off the shoulders as a stiff box and a raised arm tears its side; the arm swinging back comes through the cloak's side
+  (as before); the hood is faceted, and worn down it stands proud of the back in the robe's own colour; the shirt's
+  shoulder pokes white through a sleeveless robe's armhole; the hats and the circlet still fit the game body only (the
+  relational head has no cranium kit to carry them).

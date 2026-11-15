@@ -1055,7 +1055,7 @@ export const WORLD_KINDS = {
         // card's panels) hung on strings, bones appended after the body's, and every clip's swing baked into their keys, so
         // the page and the skinned GLB play it as bones. A row minted before, or nothing that flows ⇒ the rig, the skin and
         // the clips as they were, byte for byte
-        const cloth = m.hero && clothFlows(m.hero) ? heroClothRig(mesh, m.recipe, m.hero) : null;
+        const cloth = m.hero && clothFlows(m.hero) ? heroClothRig(mesh, m.recipe, m.hero, m.plan) : null;
         const packR = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
         if (typeof ctx.ride === 'function') clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
         // (a hero whose cloth flows plays every clip over ONE duration on the page and in an export, the one its cloth's

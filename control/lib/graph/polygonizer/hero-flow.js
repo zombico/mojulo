@@ -120,7 +120,9 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {}, legs 
     return strings.length - 1;
   };
   for (const W of want) {
-    const ids = byPart[W.part]; if (ids.length < 8) continue;
+    // (a piece hung from `top` (z, m): its vertices above keep their skin, the curtain hung from there: the realistic
+    // body's tailored robe, its bodice and hips the tailor's, its skirt below the hips on strings)
+    const ids = Number.isFinite(W.top) ? byPart[W.part].filter((i) => V[i][2] <= W.top) : byPart[W.part]; if (ids.length < 8) continue;
     const params = { ...materialParams({ rigidity: W.rigidity, material: W.material }), ...Object.fromEntries(['stiffness', 'damping', 'sail', 'gravity'].filter((k) => W[k] !== undefined).map((k) => [k, W[k]])) };
     const pts = ids.map((i) => V[i]);
     // the carrier: what holds the attached edge (the head for hair; for a garment the bone its top rides most)

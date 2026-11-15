@@ -54,6 +54,7 @@ import { beltOn, frameBuckle } from './body-relational-kit.js';
 import { foldCloth } from './body-relational-folds.js';
 import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
 import { tailorFronts } from './tailored-front.js';
+import { sub, unit as unitv } from './body-relational-vec.js';
 
 /** a piece's role after its garment's name */
 const ROLE = /(Tail|Sleeve|Cuff|Collar|Rib|Seat|Leg|Shin|Hem|Shaft|Skirt)$/;
@@ -64,6 +65,9 @@ const LAYER = 0.0035;
 const SKIRT_SPAN = 11;
 /** a skirt's hem work on the tailor's skirt: a narrow band of thread lying on the cloth, never a belt's width */
 const HEM_WORK_BAND = Object.freeze({ width: 0.016, lift: 0.0015 });
+/** the hem work's motif on the tailor's skirt: its border's peaks (`amp` up and down, one every `period` slots), the
+ * ribbon's `h`, the rule's `h` under it and the `gap` between, the lift off the cloth (m) */
+const HEM_MOTIF = Object.freeze({ amp: 0.011, period: 4, h: 0.0065, rule: 0.005, gap: 0.02, lift: 0.0015 });
 /** the ease past which cloth hangs rather than swells (m) */
 const LOOSE = 0.014;
 /** THE WEARING EASE a realistic garment keeps, per role: the expander's ease (tuned on the authored game body and its
@@ -259,12 +263,17 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
   // the height of its `s` on the skin, on the cloth of the piece it names, or on the outermost cloth there when it is
   // worn on top or names the skin itself (a sash built for the authored body's girth would cut through a heavy figure's
   // coat); its buckle or its boss at the front
+  // A NECKLACE (outfit laws 2: a medallion's chain, its bail and its pendant, outfit-plan.js necklaceOf, each a ghost shell
+  // carrying its `polyline` or `disc` in the authored body's frame): never a belt round the trunk. Its chain LAID ON WHAT
+  // IS WORN here (`layNecklace`): over the chest out in front of the outermost cloth, behind and over the shoulders lifted
+  // onto it, the bail and the pendant carried with the chain's lowest point and stood out on the cloth; the kernel draws them
+  const necklaces = layNecklaces(kit, [...Object.values(parts), ...['torso', 'neck', 'upperArmR', 'upperArmL', 'pelvis'].map((k) => recipe.parts[k])].filter(Boolean).flatMap((P) => P.stations.flatMap((x) => Object.values(x.points))), recipe.parts.torso);
   const beltZones = [], beltPts = [];
   const trunkParts = () => Object.entries(parts).filter(([k, P]) => P.garment && /_(body|torso|pelvis)$/.test(k));
   const radiusAt = (P, z) => { const st = P.stations.reduce((b, x) => (Math.abs(mean(Object.values(x.points))[2] - z) < Math.abs(mean(Object.values(b.points))[2] - z) ? x : b)); const c = mean(Object.values(st.points)); return Math.abs(c[2] - z) > 0.03 ? -1 : Object.values(st.points).reduce((t, q) => t + Math.hypot(q[0] - c[0], q[1] - c[1]), 0) / P.slots.length; };
   for (const A of kit) {
     const wrap = A?.mode === 'band' || (A?.mode === 'shell' && A.t === 'wrap');
-    if (!wrap || typeof A.part !== 'string' || !Array.isArray(A.s)) continue;
+    if (!wrap || typeof A.part !== 'string' || !Array.isArray(A.s) || necklaces.has(A.id)) continue;
     const named = A.part.includes('_'), [pid, s] = named ? A.part.split('_') : [null, A.part], skin = segPart(s);
     // (a belt on a skirt worn here: at its waist, on the tube it was carried down from)
     const top = named && s === 'skirt' ? skirtTop.get(pid) : null;
@@ -297,7 +306,11 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     const band = hug && hemWork === null ? beltOn(on, cinched, z, { width: A.mode === 'shell' ? 0.045 : 0.038, thick: Math.max(0.003, Math.min(0.005, A.thick ?? 0.004)) })
       : bandAt(on, at, hemWork !== null ? HEM_WORK_BAND : { width: A.mode === 'shell' ? 0.05 : 0.035, lift: Math.min(0.008, (A.thick ?? 0.008) * 0.6) }); if (!band) continue;
     const tag = onName.split('_')[0];
-    parts[`${A.id}_${tag}`] = { ...band, group: hemWork !== null ? A.signature.group ?? A.group : A.group ?? 'Leather' };
+    // (the hem work WORKED as a motif: a border of peaks along the hem and a rule under it, each a ribbon of its thread
+    // lying on the skirt's cloth, `hemMotif`; a band of plain thread where the skirt has too few rings for it)
+    const motif = hemWork !== null ? hemMotif(on, z, HEM_MOTIF) : null;
+    if (motif) { parts[`${A.id}_${tag}`] = { ...motif.work, group: A.signature.group ?? A.group }; parts[`${A.id}Rule_${tag}`] = { ...motif.rule, group: A.signature.group ?? A.group }; }
+    else parts[`${A.id}_${tag}`] = { ...band, group: hemWork !== null ? A.signature.group ?? A.group : A.group ?? 'Leather' };
     const sig = A.signature;
     let buckle = null;
     if (hug && (sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) {
@@ -362,5 +375,89 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     }
     foldCloth(parts, { joints, belts: beltZones, beltPts, boots, order, gathered });
   }
-  return { parts, worn, belts, painted, alias, tones };
+  return { parts, worn, belts, painted, alias, tones, necklaces };
+}
+
+/** a necklace's pieces in a kit: the chain (a ghost shell's `polyline` signature on the torso) and its `Bail` and
+ * `Pendant` (outfit-plan.js necklaceOf) */
+/** how far a necklace's loop is let out across the shoulders on the realistic body */
+const NECKLACE_SPREAD = 1.25;
+const isNecklace = (A) => A?.ghost === true && A.part === 'torso' && (A.signature?.kind === 'polyline' || A.signature?.kind === 'disc');
+/**
+ * NECKLACES LAID ON WHAT IS WORN (the realistic body): each chain's points, in the authored body's frame, moved out of the
+ * cloth and the skin (`pts`: every point worn and the body's trunk, neck and arms) a bead and a hair clear: in front of the
+ * chest straight out from the trunk's axis, elsewhere (the shoulders, the nape) lifted until clear; smoothed and laid
+ * again, so it drapes with no corner. Its bail runs from the chain's new lowest point, and its pendant hangs there, stood
+ * out from the cloth by half its thickness. → Map id → the laid signature (the chain, the bail and the pendant).
+ */
+export function layNecklaces(kit, pts, torso) {
+  const out = new Map(); if (!torso || !pts.length) return out;
+  const chains = (kit || []).filter((A) => isNecklace(A) && A.signature.kind === 'polyline' && !/Bail$/.test(A.id));
+  if (!chains.length) return out;
+  const axis = torso.stations.map((st) => mean(Object.values(st.points))), at = (z) => axis.reduce((b, c) => (Math.abs(c[2] - z) < Math.abs(b[2] - z) ? c : b));
+  const near = clearanceOver(pts, 0.012);
+  for (const A of chains) {
+    const sig = A.signature, P0 = sig.pts.slice(0, -1), N = P0.length, r = Array.isArray(sig.r) ? Math.max(...sig.r) : sig.r ?? 0.008, clear = r + 0.003;
+    const fy = Math.sign(P0[0][1] - at(P0[0][2])[1]) || 1;
+    // (in front of the chest it lies ON the cloth, pulled in or pushed out to it; elsewhere it is moved out of what it is
+    // inside by the shorter way, straight out (round a collar at the nape) or up (onto the shoulders' top))
+    const out1 = (x, y, z) => { const c = at(z), h = [x - c[0], y - c[1]], d = Math.hypot(...h) || 1e-9, dh = [h[0] / d, h[1] / d, 0]; return { c, d, dh, need: near([c[0], c[1], z])(dh) + clear }; };
+    const lay = (q) => { const [x, y, z] = q, o = out1(x, y, z);
+      if (o.dh[1] * fy > 0.55) return [o.c[0] + o.dh[0] * o.need, o.c[1] + o.dh[1] * o.need, z];
+      if (o.d >= o.need) return q;
+      let dz = 0; while (dz < 0.2 && out1(x, y, z + dz).d < out1(x, y, z + dz).need) dz += 0.005;
+      return o.need - o.d < dz ? [o.c[0] + o.dh[0] * o.need, o.c[1] + o.dh[1] * o.need, z] : [x, y, z + dz]; };
+    // (the loop let out across the shoulders, NECKLACE_SPREAD: the realistic neck's root and its trapezius are broader than
+    // the authored body's it was hung on, and laid as it was the chain climbed the neck to the jaw)
+    let P = P0.map((q) => [q[0] * NECKLACE_SPREAD, q[1], q[2]]).map(lay);
+    for (let pass = 0; pass < 4; pass++) P = P.map((q, i) => lay(q.map((v, k) => (P[(i + N - 1) % N][k] + 2 * v + P[(i + 1) % N][k]) / 4)));
+    const pts2 = [...P, P[0]].map((q) => q.map((v) => Math.round(v * 1e6) / 1e6)), bottom = pts2[0], dv = bottom.map((v, k) => v - sig.pts[0][k]);
+    out.set(A.id, { ...sig, pts: pts2 });
+    const D = (kit || []).find((x) => x.id === `${A.id}Pendant` && isNecklace(x)), Bl = (kit || []).find((x) => x.id === `${A.id}Bail` && isNecklace(x));
+    if (D) {
+      const S = D.signature, rp = S.r ?? 0.03, h = S.h ?? 0.014; let c = S.c.map((v, k) => v + dv[k]);
+      // (stood out on the cloth under it: its back face a hair off the outermost point in front of the chest at its height)
+      const a = at(c[2]), need = near([a[0], a[1], c[2]])([0, fy, 0]) + h / 2 + 0.003; c = [c[0], a[1] + fy * need, c[2]];
+      c = c.map((v) => Math.round(v * 1e6) / 1e6);
+      out.set(D.id, { ...S, c });
+      if (Bl) out.set(Bl.id, { ...Bl.signature, pts: [bottom, [c[0], c[1], Math.round((c[2] + rp * 0.95) * 1e6) / 1e6]] });
+    } else if (Bl) out.set(Bl.id, { ...Bl.signature, pts: Bl.signature.pts.map((q) => q.map((v, k) => Math.round((v + dv[k]) * 1e6) / 1e6)) });
+  }
+  return out;
+}
+
+/**
+ * THE HEM WORK AS A MOTIF on a tailor's skirt `P` (the work's height `z`): a thread of its colour running round the skirt
+ * in peaks (up `amp` and down, one every `period` of the skirt's slots: the border's points) and a plain rule `gap` under
+ * it, each a flat thread `h` high lying `lift` off the cloth, its path read off the skirt's own rings at its heights so it
+ * lies on the cloth where the skirt flares. Each thread is a tube ALONG its path (a ring of four round its section), so
+ * its ends are a thread's, never a disc across the skirt; each point carried as the skirt's nearest ring and slot are.
+ * → { work, rule }, or null when the skirt has no ring above and below the border.
+ */
+export function hemMotif(P, z, { amp, period, h, rule, gap, lift, thick = 0.0015 }) {
+  const mid = P.stations.map((st) => mean(P.slots.map((sl) => st.points[sl])));
+  // (the skirt's own rings, its outer face: the turned-up lining runs back up inside it)
+  const outer = P.stations.map((st, i) => i).filter((i) => !/Lining/.test(P.stations[i].id)).sort((a, b) => mid[b][2] - mid[a][2]);
+  const zs = outer.map((i) => mid[i][2]), lo = z - gap - rule - amp, hi = z + amp + h;
+  if (!(zs[0] > hi && zs[zs.length - 1] < lo) || P.slots.length < 2 * period) return null;
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const onCloth = (sl, zz) => { let k = 0; while (k < outer.length - 2 && zs[k + 1] > zz) k++; const A = P.stations[outer[k]], B = P.stations[outer[k + 1]], t = (zs[k] - zz) / (zs[k] - zs[k + 1] || 1);
+    const ca = mid[outer[k]], cb = mid[outer[k + 1]], c = ca.map((v, q) => v + (cb[q] - v) * t), p = A.points[sl].map((v, q) => v + (B.points[sl][q] - v) * t), d = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...d) || 1;
+    return { p: [p[0] + (d[0] / r) * lift, p[1] + (d[1] / r) * lift, zz], n: [d[0] / r, d[1] / r, 0], w: (t < 0.5 ? A : B).id }; };
+  const peak = (j) => { const f = (j % period) / period; return amp * (1 - 4 * Math.abs(f - 0.5)); };
+  const own = { [P.bind.bone]: 1 }, wOf = (st, sl) => P.bind.blend?.[`${st}.${sl}`] ?? P.bind.blend?.[st] ?? own;
+  const SL = ['front', 's01R', 'back', 's01L'];
+  const thread = (zAt, hh) => {
+    const path = [...P.slots, P.slots[0]].map((sl, j) => ({ ...onCloth(sl, zAt(j % P.slots.length)), sl }));
+    const stations = [], blend = {};
+    path.forEach((q, k) => { const id = `st${k}`, up = [0, 0, 1];
+      // (its section: `hh` up the cloth and `thick` off it, lying on its face)
+      const pts = { front: q.p.map((v, a) => v + q.n[a] * thick), s01R: q.p.map((v, a) => v + up[a] * hh / 2), back: q.p.map((v, a) => v - q.n[a] * thick * 0.25), s01L: q.p.map((v, a) => v - up[a] * hh / 2) };
+      stations.push({ id, u: k, points: Object.fromEntries(SL.map((s2) => [s2, pts[s2].map(r6)])) });
+      for (const s2 of SL) blend[`${id}.${s2}`] = wOf(q.w, q.sl); });
+    const a = stations[0], b = stations[stations.length - 1], ca = mean(Object.values(a.points)), cb = mean(Object.values(b.points)), ta = sub(mean(Object.values(stations[1].points)), ca), tb = sub(cb, mean(Object.values(stations[stations.length - 2].points)));
+    blend.back = blend[`${a.id}.front`]; blend.tip = blend[`${b.id}.front`];
+    return { layer: 1, closure: 'closed', slots: SL, stations, caps: { back: ca.map((v, q) => r6(v - unitv(ta)[q] * 0.001)), tip: cb.map((v, q) => r6(v + unitv(tb)[q] * 0.001)) }, bind: { ...P.bind, blend } };
+  };
+  return { work: thread((j) => z + peak(j), h), rule: thread(() => z - amp - gap, rule) };
 }

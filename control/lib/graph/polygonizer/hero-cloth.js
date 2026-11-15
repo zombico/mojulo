@@ -23,7 +23,7 @@
  *   bakeClothClips(H, clips, R, opts)        → the clips, each a function clip carrying its baked `flow` per key
  */
 import { flowRig, simulateClip } from './hero-flow.js';
-import { layeredClip } from './station-loft-rig.js';
+import { layeredClip, validateRig } from './station-loft-rig.js';
 import { CLOTH_REGISTERS, clothRegisterOf, clothRigidity } from './cloth-law.js';
 
 /** the hero laws from which a hero's loose cloth flows */
@@ -44,17 +44,27 @@ export const clothFlows = (hero) => !!hero && (hero.laws ?? 1) >= CLOTH_LAWS;
  * The cloth's rig: each part that flows hung on the register's strings, the hair locked. Null when nothing flows, when a
  * strand or a curtain finds no hold on the mesh, or when the strings would carry the pack past its bones.
  */
-export function heroClothRig(mesh, recipe, hero) {
+export function heroClothRig(mesh, recipe, hero, plan = null) {
   const reg = CLOTH_REGISTERS[clothRegisterOf(hero)];
+  // (the REALISTIC body's tailored robe (outfit laws 2): its skirt below the hips hung on the register's strings, the
+  // tailor's own rings their rest, so the trailing leg carries the cloth back and the forward leg pushes it out)
+  const skirts = tailoredSkirts(recipe, hero, plan);
   // (the REALISTIC body's cape keeps its skin: hung on strings, its open side edges sheared into angular flaps where the
   // arm carries the cloth draped on it and the strings swing the rest, and the shirt showed through between them; it
   // rides its weights as it did before the hero laws 23, until the strings and the arm share one drape there)
-  const kept = (n) => clothRegisterOf(hero) === 'realistic' && /_cape$/.test(n);
+  // (under outfit laws 2 it SWAYS instead: hung on stiff strings below the hanging hand's reach (`top`, CAPE_FROM of the
+  // way up from the knee to the hip), its shoulders and its sides, where the arms carry it, kept on their skin, so the
+  // edges the arm carries never shear and the swinging hand never comes through it; its lower skirt swings a little)
+  const realistic = clothRegisterOf(hero) === 'realistic', sways = realistic && (hero?.outfit?.laws ?? 1) >= 2;
+  const kept = (n) => realistic && !sways && /_cape$/.test(n);
   const flows = Object.entries(recipe.parts || {}).filter(([n, p]) => { const r = clothRigidity(p); return r !== null && r < 1 && !kept(n); }).map(([n]) => n);
   // cloth under a flowing cloak (a card's drape panels) keeps its skin: the two layers do not collide with each other
   // yet, so a panel swung on its own strand comes out through the cloak over it
   const caped = flows.some((n) => /_cape$/.test(n)), locked = new Set([...(caped ? flows.filter((n) => /_panel$/.test(n)) : []), ...Object.keys(recipe.parts || {}).filter(kept)]);
   const pieces = Object.fromEntries(flows.filter((n) => !locked.has(n)).map((n) => [n, Array.isArray(recipe.parts[n].root) ? { links: reg.links } : { strings: reg.strings, links: reg.links }]));
+  for (const [n, S] of Object.entries(skirts)) pieces[n] = { strings: reg.strings, links: reg.links, ...S };
+  if (sways) { const R0 = validateRig(recipe.rig), knee = R0.joints[R0.bones[R0.boneIndex.shankR]?.head]?.[2], hip = R0.joints[R0.bones[R0.boneIndex.thighR]?.head]?.[2], top = knee + CAPE_FROM * (hip - knee);
+    for (const n of Object.keys(pieces)) if (/_cape$/.test(n) && Number.isFinite(top)) pieces[n] = { ...pieces[n], top, strings: CAPE_STRINGS, links: 2, rigidity: CAPE_SWAY, carrier: 'pelvis' }; }
   if (!Object.keys(pieces).length) return null;
   const rec = locked.size ? { ...recipe, parts: Object.fromEntries(Object.entries(recipe.parts).map(([n, p]) => [n, locked.has(n) ? (({ rigidity: _r, material: _m, ...q }) => q)(p) : p])) } : recipe;
   const H = flowRig(mesh, rec, { hair: false, pieces, legs: true });
@@ -62,6 +72,33 @@ export function heroClothRig(mesh, recipe, hero) {
   ridersOf(mesh, rec, H, new Set(Object.keys(pieces)));
   return { ...H, register: clothRegisterOf(hero) };
 }
+
+/**
+ * THE TAILORED SKIRTS (the realistic body, outfit laws 2): each skirt garment of the plan that names its cloth (`material`
+ * or `rigidity`), worn by the tailor as rings carried down from its garment's body (body-relational-tailor.js carrySkirt,
+ * stations `stSkirt…`), closed round the legs: its host part → { material, rigidity?, carrier: 'pelvis', top } (`top` the
+ * skirt's first ring, the hips: above it the tailor's bodice keeps its skin). An open coat's skirt is left on its skin.
+ */
+export function tailoredSkirts(recipe, hero, plan) {
+  const out = {};
+  if (clothRegisterOf(hero) !== 'realistic' || !((hero?.outfit?.laws ?? 1) >= 2) || !Array.isArray(plan?.garments)) return out;
+  for (const g of plan.garments) {
+    if (g.fit !== 'skirt' || (g.material === undefined && g.rigidity === undefined)) continue;
+    const G = g.id.replace(/Skirt$/, ''), host = [`${G}_body`, `${G}_torso`, `${G}_pelvis`].find((k) => recipe.parts?.[k]?.stations?.some((st) => /^stSkirt\d/.test(st.id)));
+    if (!host || recipe.parts[host].closure !== 'closed' || recipe.parts[host].fronts) continue;
+    const P = recipe.parts[host], first = P.stations.filter((st) => /^stSkirt\d/.test(st.id)), zs = first.map((st) => Object.values(st.points).reduce((t, p) => t + p[2], 0) / Object.keys(st.points).length);
+    out[host] = { ...(g.material !== undefined ? { material: g.material } : {}), ...(g.rigidity !== undefined ? { rigidity: g.rigidity } : {}), carrier: 'pelvis', top: Math.max(...zs) + 0.004 };
+  }
+  return out;
+}
+
+/** the realistic cape's rigidity as it sways from the hips (cloth-law.js: stiff), whatever its cloth: a mild swing */
+export const CAPE_SWAY = 0.8;
+/** where the realistic cape's sway starts: this share of the way up from the knee to the hip (below the hand's reach) */
+export const CAPE_FROM = 0.6;
+/** the strings round the realistic cape's sway: its rings are coarse (the authored cape's), and at the register's twelve most
+ * strings found too few of its points to hang from */
+export const CAPE_STRINGS = 6;
 
 /** how near (m) an adornment's vertices lie to the cloth it is worked on, at the median, for it to ride that cloth */
 const RIDE = 0.025;
@@ -86,7 +123,7 @@ function ridersOf(mesh, recipe, H, flowing) {
   const nearest = (p) => { let best = null, bd = Infinity; const c = [0, 1, 2].map((a) => Math.floor(p[a] / cell));
     for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) for (const ti of grid.get(key(c[0] + x, c[1] + y, c[2] + z)) || []) { const r = closest(p, tris[ti].map((v) => V[v])); if (r.d < bd || (r.d === bd && ti < best.ti)) { bd = r.d; best = { ti, w: r.w }; } }
     return [best, bd]; };
-  const byPart = {}; P.forEach((p, i) => { if (/^adorn\./.test(p.part) && !flowing.has(p.part) && !recipe.parts[p.part]?.rigid) (byPart[p.part] ??= []).push(i); });
+  const byPart = {}; P.forEach((p, i) => { if ((/^adorn\./.test(p.part) || /HemWork\w*_/.test(p.part)) && !flowing.has(p.part) && !recipe.parts[p.part]?.rigid) (byPart[p.part] ??= []).push(i); });
   const blend = (t, w) => { const acc = {}; t.forEach((v, k) => H.skin.joints[v].forEach((j, q) => { const x = H.skin.weights[v][q] * w[k]; if (x) acc[j] = (acc[j] || 0) + x; }));
     const e = Object.entries(acc).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 4), tot = e.reduce((s, [, x]) => s + x, 0), J = [0, 0, 0, 0], W = [0, 0, 0, 0];
     e.forEach(([j, x], k) => { J[k] = Number(j); W[k] = x / tot; }); return [J, W]; };

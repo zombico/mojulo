@@ -629,7 +629,7 @@ function realisticExpand(plan, hero) {
     // and the legs' cloth, a cape's and a hood's the sleeves' too)
     const cloth = Object.keys(wear.parts), trunkCloth = cloth.filter((k) => /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL])$/.test(k)), allCloth = cloth.filter((k) => /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL]|arm[RL]|upperArm[RL]|foreArm[RL]|neck)$/.test(k));
     const hangs = (g) => (/^(panel|cape|hood)$/.test(g.fit) ? { ...g, over: [...(g.over || []), ...(g.fit === 'panel' ? trunkCloth : allCloth)] } : g);
-    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
+    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).map((A) => (wear.necklaces?.has(A.id) ? { ...A, signature: wear.necklaces.get(A.id) } : A)).flatMap(moved) } : {}),
       ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
   }
   // THE KIT'S PIECES (realistic laws 8, body-relational-kit.js): a pouch, a strap and a leg's band made as the things they
