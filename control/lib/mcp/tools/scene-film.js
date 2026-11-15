@@ -37,6 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
+import { cloudsErrors, cloudsSpec, cloudsPng, CLOUDS_FILE } from '@/lib/graph/film/clouds.js';
 import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims, lifeOf } from '@/lib/graph/film/life.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
 import { directorsNotes } from '@/lib/graph/actor/notes.js';
@@ -48,7 +49,7 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'life', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'life', 'voice', 'dub']);
 /** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
  * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
  * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
@@ -97,6 +98,7 @@ export function screenplayErrors(sp) {
   if (sp.marks !== undefined && !isPlain(sp.marks)) errs.push('marks: { <name>: [x, y] } (metres)');
   if (sp.hour !== undefined) { try { readHour(sp.hour); } catch (e) { errs.push(`hour: the time of day the scene is shot at: ${e.message}`); } }
   if (sp.weather !== undefined && !WEATHER_STATES.includes(sp.weather)) errs.push(`weather: what the sky is doing while the scene is shot, one of ${WEATHER_STATES.join(', ')}`);
+  if (sp.clouds !== undefined) errs.push(...cloudsErrors(sp.clouds));
   if (sp.life !== undefined) errs.push(...lifeErrors(sp.life));
   if (sp.props !== undefined) {
     if (!isPlain(sp.props)) errs.push('props: { <name>: { thing | ref, at: [x, y] | <a mark>, turn?, scale? } }: a thing off the shelves by its word, or anything mojulo made by its ref, stood in the scene');
@@ -184,7 +186,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (errs.length) throw new Error(`screenplay refused:\n - ${errs.join('\n - ')}\n(${MANUAL})`);
   // (the props are the set's: the plan plays the screenplay without them, a recipe keeps them as written)
   // (and its hour is the light's: film/look, read when the film is made)
-  const { props, hour, weather, life, ...written } = sp;
+  const { props, hour, weather, clouds, life, ...written } = sp;
   let play = written, set = null, alive = false, moving = null;
   if (sp.world_ref !== undefined) {
     const row = getRow?.(sp.world_ref);
@@ -258,6 +260,11 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (weather !== undefined) {
     if (set) set.weather = weather;
     else advice.push({ id: 'weather-unused', says: `the scene is shot in ${weather}, but it has no set: a bare stage has no sky`, try: 'set the scene in a world (world_ref, or a film\'s set), or take the weather out' });
+  }
+  // (and its clouds: the sky over it, read when the film is made; film/clouds.js)
+  if (clouds !== undefined) {
+    if (set) set.clouds = clouds;
+    else advice.push({ id: 'clouds-unused', says: 'the scene is shot under clouds, but it has no set: a bare stage has no sky', try: 'set the scene in a world (world_ref, or a film\'s set), or take the clouds out' });
   }
   // (and its LIFE: what the set's own world moves, read when the film is made; film/life.js)
   if (life !== undefined && life !== false) {
@@ -538,7 +545,7 @@ async function heroSource(src, { who, getRow, fallback }) {
 }
 
 /** what a pack writes that depends on its scene: cleared before a pack is made again in the same folder */
-const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'props', 'shot.json', 'light.py', 'set.py', 'dub.py', 'atmosphere.json']);
+const PACK_SOURCES = Object.freeze(['shots', 'actors', 'audio', 'set', 'props', 'shot.json', 'light.py', 'set.py', 'dub.py', 'atmosphere.json', CLOUDS_FILE]);
 
 /**
  * Write the scene film pack into outDir: actors/<who>.glb, then the pack's files (actor/scene-film.js). Returns the
@@ -590,6 +597,7 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   }
   const sound = await writeSceneSound({ dir: outDir, plan, screenplay: P.screenplay, fps, prefix: 'audio/' });
   let setPack = null, atmosphere = null, flow = null, living = null;
+  const lifeAdvice = [];
   if (P.set?.ref) {
     const { buildBlenderPack } = await import('@/lib/graph/scene/blender-pack.js');
     await buildBlenderPack({ ref: P.set.ref, outDir: path.join(outDir, 'set'), log });
@@ -603,6 +611,17 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     const lit = (await resolveWorldScene(H !== undefined ? { ...world, manifest } : world, { unshaded: true })).payload;
     atmosphere = filmAtmosphere({ payload: lit, manifest });
     if (P.set.life !== undefined) { flow = lit.flow ?? null; living = lit; }
+    // (THE SCENE'S CLOUDS: the sun through them, and the world's painted band round the film's sky at the scene's hour.
+    //  A room has no sky: said, nothing written)
+    if (P.set.clouds !== undefined) {
+      if (atmosphere.preset === 'interior') lifeAdvice.push({ id: 'clouds-unused', says: 'the scene is shot under clouds, but its set is indoors: a room has no sky', try: 'take the clouds out, or play the scene outside' });
+      else {
+        const C = cloudsSpec(P.set.clouds, { preset: atmosphere.preset ?? 'day' });
+        writeFileSync(path.join(outDir, CLOUDS_FILE), cloudsPng(C, { preset: atmosphere.preset ?? 'day' }));
+        atmosphere = { ...atmosphere, clouds: C };
+        setPack.clouds = { kind: C.kind, cover: C.cover };
+      }
+    }
     // (THE SCENE'S WEATHER: the sun through its cloud, the sky, the air and what falls, about where the cast stands)
     if (P.set.weather !== undefined) {
       const pts = Object.values(S.actors).map((A) => A.root[0]), mid = [pts.reduce((n, k) => n + k.x, 0) / pts.length, pts.reduce((n, k) => n + k.y, 0) / pts.length];
@@ -635,7 +654,6 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
   }
   // (THE SET'S LIFE: its world's own traffic within reach of the cast, each vehicle its own model keyed along its lane
   //  on the scene's clock, as a thing that moves is; film/life.js)
-  const lifeAdvice = [];
   if (living) {
     const ask = isPlain(P.set.life) ? P.set.life : {}, roots = Object.values(S.actors).map((A) => A.root);
     const mid = [roots.reduce((n, R) => n + R[0].x, 0) / roots.length, roots.reduce((n, R) => n + R[0].y, 0) / roots.length];

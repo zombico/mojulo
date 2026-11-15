@@ -267,6 +267,20 @@ describe('the scene\'s weather', () => {
   });
 });
 
+describe('the scene\'s clouds', () => {
+  const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
+
+  it('are one of the world\'s skies; they are the sky\'s, not the plan\'s; a scene with no set is told it has no sky', async () => {
+    expect(screenplayErrors(sp({ clouds: 'fair' }))).toEqual([]);
+    expect(screenplayErrors(sp({ clouds: { kind: 'overcast', cover: 0.8 } }))).toEqual([]);
+    expect(screenplayErrors(sp({ clouds: 'fluffy' })).join()).toMatch(/clouds: the sky over the scene/);
+    const plain = await prepareHour(sp({}), { getRow: () => null }), under = await prepareHour(sp({ clouds: 'fair' }), { getRow: () => null });
+    expect(under.screenplay).toEqual(plain.screenplay);
+    expect(under.kept.clouds).toBe('fair');
+    expect(under.advice.map((a) => a.id)).toEqual(['clouds-unused']);
+  });
+});
+
 describe('the set\'s life', () => {
   const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
 

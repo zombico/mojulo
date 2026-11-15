@@ -110,6 +110,13 @@ forge_motion({ title: 'The key', export: 'storyboard',
     (`weather-unused`).
   - Not yet: it rains through a roof (a porch, a room's ceiling is not read); wet ground, settled snow, lightning and
     wind in the trees are not made.
+- **`clouds`: the sky over the scene.** One of `clear`, `fair`, `overcast`, `storm`, `haze`, `high`, or
+  `{ kind, cover?, seed? }` (`cover` 0 to 1, the sky's own at 0.5; another `seed` is another sky of the same kind).
+  The Blender film's sky wears the world's own painted clouds, lit for the film's sun at the scene's `hour`, and the
+  sun comes through them: fair cloud barely dims it, an overcast lets little through and softens every shadow.
+  - It is the sky alone. `weather` is what the air does and what falls (fog, rain, snow); a scene may have both, and
+    the darker and softer light of the two is the one it is shot in.
+  - A scene with no set, or one set indoors, is advised (`clouds-unused`).
 - **`life`: the set's own traffic drives through the scene.** `true`, or `{ clock?, reach?, most? }`. A city made as
   a metro has traffic of its own: lanes, signals, family cars, taxis, vans, trucks and buses. With `life` the Blender
   film has the vehicles that come near the cast, each driving its lane for the scene's length, stopping at a red

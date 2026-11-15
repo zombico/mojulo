@@ -21,10 +21,11 @@
 import { CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
 
 /** the sky's cover → the sun through it, its softness, and the sky under cloud */
-const COVER = Object.freeze({
+export const COVER = Object.freeze({
   clear: { sun: 1, soften: 0.6 },
   fair: { sun: 0.9, soften: 2 },
   haze: { sun: 0.6, soften: 8 },
+  high: { sun: 0.95, soften: 1.5 },
   overcast: { sun: 0.14, soften: 40, sky: { color: [0.56, 0.59, 0.63], strength: 0.85 } },
   storm: { sun: 0.05, soften: 50, sky: { color: [0.2, 0.22, 0.26], strength: 0.75 } },
 });

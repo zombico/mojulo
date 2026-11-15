@@ -334,6 +334,14 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   fog volume, in metres, unless the world declares a thicker fog; `rain` and `snow` are geometry nodes over one
   plane about the cast (`precip`), each point's height a function of the scene's time alone, so a frame renders the
   same alone or in order and nothing is simulated or baked. Like the hour it is taken out of what the plan plays.
+- **The scene's clouds** (`screenplay.clouds`, `film/clouds.js` `cloudsSpec`, `cloudsPng`; a film's
+  `scenes/*/clouds`, the look and light department's). One of the world's skies (`matte-paint/sky.js` `WEATHERS`, read
+  by `readClouds`). Two things reach the pack: `atmosphere.json`'s `clouds` (the weather's own cover table slid by
+  `cover`: `sun`, `soften`, a grey `sky` at a full cover, and the band's `top` and `gain`) and `clouds.png`, the band a
+  geocube's dome wears (`paintCloudBand`), painted for the film's sun (its bearing, its height at the hour's preset).
+  `film_light.py` `clouded` lays it round the world's background over the sky model or the cover's grey: azimuth from
+  +x toward +y, the horizon up to `top` degrees, its alpha the mix; `gain` stands a painted colour against a physical
+  sky. With `weather` the light is the darker and softer of the two. An interior preset has no sky: advised.
 - **The set's life** (`screenplay.life`, `film/life.js` `flowLife`; a film's `scenes/*/life`, the set
   department's). A metro's traffic is a plan its page drives (`geocity/flow.js`, `scene/channels/flow.js`): a lane a
   signalised model (`traffic-model.js`). The film reads the same plan with the same model: each lane within reach of

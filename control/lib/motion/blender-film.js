@@ -453,7 +453,54 @@ def sun(name, elevation, azimuth, energy, color, soften=0.6):
     return ob
 
 
-def world(preset, el, az, cover=None):
+def clouded(nt, base, C):
+    """THE CLOUDS SEEN (atmosphere.json clouds: a scene's own, lib/graph/film/clouds.js): the world's painted cloud band
+    laid round the sky over base (a colour socket), from the horizon up to its top. Round the dome the band runs from
+    +x toward +y; up it, row 0 is its top. Returns the socket the background takes."""
+    path = os.path.join(_here(), C.get('band') or 'clouds.png')
+    if not os.path.exists(path):
+        return base
+    img = nt.nodes.new('ShaderNodeTexImage')
+    img.image = bpy.data.images.load(path, check_existing=True)
+    img.extension = 'REPEAT'
+    img.interpolation = 'Linear'
+    co = nt.nodes.new('ShaderNodeTexCoord')
+    xyz = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(co.outputs['Generated'], xyz.inputs['Vector'])
+    def math_node(op, a, b=None):
+        n = nt.nodes.new('ShaderNodeMath')
+        n.operation = op
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = float(v)
+            else:
+                nt.links.new(v, n.inputs[i])
+        return n.outputs[0]
+    u = math_node('DIVIDE', math_node('ARCTAN2', xyz.outputs['Y'], xyz.outputs['X']), 2.0 * math.pi)
+    v = math_node('DIVIDE', math_node('ARCSINE', xyz.outputs['Z']), math.radians(float(C.get('top', 62))))
+    uv = nt.nodes.new('ShaderNodeCombineXYZ')
+    nt.links.new(u, uv.inputs['X'])
+    nt.links.new(v, uv.inputs['Y'])
+    nt.links.new(uv.outputs['Vector'], img.inputs['Vector'])
+    # (only between the horizon and the band's top: above it the sky is clear, below it the ground's)
+    mask = math_node('MULTIPLY', math_node('GREATER_THAN', v, 0.0), math_node('LESS_THAN', v, 1.0))
+    fac = math_node('MULTIPLY', img.outputs['Alpha'], mask)
+    lit = nt.nodes.new('ShaderNodeMixRGB')
+    lit.blend_type = 'MULTIPLY'
+    lit.inputs['Fac'].default_value = 1.0
+    nt.links.new(img.outputs['Color'], lit.inputs['Color1'])
+    g = float(_opt('--clouds', C.get('gain', 1.0)))
+    lit.inputs['Color2'].default_value = (g, g, g, 1)
+    mix = nt.nodes.new('ShaderNodeMixRGB')
+    nt.links.new(fac, mix.inputs['Fac'])
+    nt.links.new(base, mix.inputs['Color1'])
+    nt.links.new(lit.outputs['Color'], mix.inputs['Color2'])
+    return mix.outputs['Color']
+
+
+def world(preset, el, az, cover=None, clouds=None):
     sc = bpy.context.scene
     w = bpy.data.worlds.new('film-world')
     sc.world = w
@@ -463,14 +510,22 @@ def world(preset, el, az, cover=None):
     bg = nt.nodes.new('ShaderNodeBackground')
     out = nt.nodes.new('ShaderNodeOutputWorld')
     nt.links.new(bg.outputs['Background'], out.inputs['Surface'])
+    def flat(color):
+        # (a sky of one colour: under the clouds seen it is a node, so the band is laid over it)
+        if not clouds or preset == 'interior':
+            bg.inputs['Color'].default_value = color
+            return
+        rgb = nt.nodes.new('ShaderNodeRGB')
+        rgb.outputs[0].default_value = color
+        nt.links.new(clouded(nt, rgb.outputs[0], clouds), bg.inputs['Color'])
     if preset in ('night', 'interior'):
-        bg.inputs['Color'].default_value = (0.004, 0.006, 0.014, 1) if preset == 'night' else (0.02, 0.02, 0.02, 1)
+        flat((0.004, 0.006, 0.014, 1) if preset == 'night' else (0.02, 0.02, 0.02, 1))
         bg.inputs['Strength'].default_value = 1.0
         return
     # (the weather's sky: under cloud the sky is the cloud, one grey light from everywhere, dimmer at a low sun)
     if cover:
         dim = 0.45 if preset in ('dawn', 'dusk') else 1.0
-        bg.inputs['Color'].default_value = (*[float(v) * dim for v in cover['color']], 1)
+        flat((*[float(v) * dim for v in cover['color']], 1))
         bg.inputs['Strength'].default_value = float(cover.get('strength', 0.85))
         return
     sky = nt.nodes.new('ShaderNodeTexSky')
@@ -482,7 +537,7 @@ def world(preset, el, az, cover=None):
             continue
     sky.sun_elevation = el
     sky.sun_rotation = az
-    nt.links.new(sky.outputs['Color'], bg.inputs['Color'])
+    nt.links.new(clouded(nt, sky.outputs['Color'], clouds) if clouds else sky.outputs['Color'], bg.inputs['Color'])
     bg.inputs['Strength'].default_value = float(_opt('--sky', 0.35))
 
 
@@ -695,7 +750,10 @@ def main():
     # THE WEATHER (atmosphere.json weather: a scene's own, lib/graph/film/weather.js): how much sun gets through and how
     # soft it is, the sky under cloud, the air, and what falls. Absent: the light as it was
     W = atm.get('weather') or {}
-    through, soften = float(W.get('sun', 1.0)), float(W.get('soften', 0.6))
+    # THE CLOUDS (atmosphere.json clouds: a scene's own, lib/graph/film/clouds.js): the sun through them, the darker and
+    # the softer of the two where the scene has weather too, and the band seen round the sky
+    K = atm.get('clouds') or {}
+    through, soften = min(float(W.get('sun', 1.0)), float(K.get('sun', 1.0))), max(float(W.get('soften', 0.6)), float(K.get('soften', 0.6)))
     force = _flag('--force')
 
     lamps = [o for o in sc.objects if o.type == 'LIGHT' and o.name.startswith('light:')]
@@ -711,7 +769,7 @@ def main():
         default_el = {'night': 40, 'dawn': 12, 'dusk': 12}.get(preset, 35)
         el = math.radians(float(_opt('--sun-elevation', default_el)))
         az = math.radians(float(_opt('--sun-azimuth', 215)))
-        world(preset, el, az, W.get('sky'))
+        world(preset, el, az, W.get('sky') or K.get('sky'), K or None)
         if preset == 'night':
             sun('film-moon', el, az, float(_opt('--sun', 0.12)) * through, (0.65, 0.75, 1.0), soften)
         elif preset in ('dawn', 'dusk'):
