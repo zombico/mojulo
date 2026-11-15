@@ -78,6 +78,13 @@ mechanic card.
 
 - **The body:** the range's own (`combat/range-body.js` `rangeBody`): its slots, its sights and its knife. With no hero
   it is aimed from the eye; a hero seen from behind aims over its shoulder, its rounds converging on the crosshair.
+- **The guns in the hands:** each drawn as the arms library builds it (`equipment/arms`: every part's own faces, its
+  rail, its controls, its muzzle), not as its parts' boxes. A slot asks by its view (`gunplay.view.detail: 'arm'`,
+  `arms-kit.js` `armDetailed`); the recipe carries the ask and the arm's build words, and the page's resolve builds the
+  mesh (`withArmMeshes`), so a level stays its recipe. The stations, the sights, the hands, the stock that leaves at the
+  sights and the magazine a reload moves are the same; the optic is drawn from the hip and gives way to its hood at the
+  sights. The firing range's page asks the same way. A quick shooter's own level still draws the boxes: it does not
+  ask yet.
 - **The foes:** hunters, each a body of the range's own health, so the rounds the range counted to drop a body are the
   rounds a foe takes. Dormant on their spots until their section is walked into.
 - **The hp and the floor:** the level's own hp (`fail-on-death`), rounds and health to walk over (`supplies`).
@@ -152,5 +159,8 @@ Eyes: nobody has played one. Whether a mission is a good first level is the crea
   on a page that also carries the gunplay view, and getting on and off.
 - **A machine as the hero.** A template that owns a frame (`practice.js` `TEMPLATE_FRAMES`) has the artillery range
   and no mission: its bands are a machine's (hundreds of metres), not a person's.
+- **The arm everywhere it is carried.** The mission and the firing range ask for the library's arm in the hands. A
+  quick shooter's trail, a deathmatch, the knife in the free hand and a hero's gun seen over the shoulder still draw the
+  proxy; each is one ask (`armDetailed`) away, with its page's pins.
 - **Dress.** The mission is greybox. The game room's trades and areas, or the world's kit, could dress it.
 - **Cover used.** There is no crouch, so half cover hides nothing; the gunner stands in the open.

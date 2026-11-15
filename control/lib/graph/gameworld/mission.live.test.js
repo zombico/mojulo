@@ -1,6 +1,7 @@
 // THE FIRST MISSION in a browser (the e2e tier: it launches Chrome, and passes saying nothing when none is installed):
 // opened by the practice door from a world alone. Up with no error, its briefing on mana-ui over the held scene; Begin
-// plays; the HUD reads the scene (the gun in hand, the level's hp); a way on still sealed puts the body back; the rounds
+// plays; the HUD reads the scene (the gun in hand, the level's hp), the gun drawn as the arms library builds it; a way on
+// still sealed puts the body back; the rounds
 // taken, the tracker moves on to the next task; the pilot's pause opens the menu and holds the scene; a level lost opens
 // the debrief.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -45,6 +46,9 @@ describe('the first mission, from a world', () => {
     await wait(600);
     expect((await st()).t).toBeGreaterThan(p0.t);
     expect(p0.weapon).toBe(TEMPLATE_LOADOUTS[SHOOTER].weapons[0]);
+    // (the gun in the hands is the arms library's own arm: its parts' faces, handed to the page at its resolve)
+    const parts = await page.evaluate(() => { const me = window.__mojCtrl.world.entities.find((e) => e.pilotable), M = me.rule.loadout[0].gunplay.view.mesh; return M ? M.parts.length : 0; });
+    expect(parts).toBeGreaterThan(8);
     expect(p0.title).toBe(level.mission.sections[0].task.text);
     // a way on still sealed puts the body back
     const S0 = level.mission.sections[0];

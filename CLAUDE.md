@@ -231,7 +231,9 @@ Pointers only; each target carries its own design notes.
   `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
 - Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
   model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
-  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`.
+  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`. In a
+  shooter's hands a gun is its parts' boxes unless its slot asks for the arm itself (`gameworld/arms-kit.js` `armDetailed`;
+  the mission and the firing range ask).
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

@@ -41,6 +41,13 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   - played: the level stepped headless on the runtime by a gunner that walks the laws' grid, aims, raises the sights,
     fires in bursts, takes the gun the range asks for and reloads; a still player must not win. A mission the gunner
     loses says where, with the dials that move it.
+- **The arms library's guns in the hands.** The first-person view drew a gun as its parts' boxes, on every shooter
+  page. A slot may now ask for the arm itself (`gunplay.view.detail: 'arm'`, `gameworld/arms-kit.js` `armDetailed`): the
+  page's resolve builds the arm as the arms library builds it (`equipment/arms/handling.js` `armMesh`: every part's
+  quads, each wound outward, in its lit colours) and the view draws it on the same stations, sights and hands, each face
+  shaded by the way it looks. The optic is drawn from the hip and gives way to its hood at the sights; the magazine
+  still leaves through a reload. The recipe carries the ask and the build words, never the mesh. The mission and the
+  firing range ask; a page that does not ask draws as before (no page pin moved). A skin's arm goes with its skin.
 - **Fixed: a world's `ui` never reached its made game.** The runner wrote it and `create_game` dropped it, on a make
   and on a remake, so no game made through `design_game` had its shell on mana-ui. It is carried now, as `flow` is.
 - The range's body is its own module (`combat/range-body.js`, re-exported by `range.js`), so what carries the same guns

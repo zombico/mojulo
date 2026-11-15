@@ -80,13 +80,49 @@ function __gpBuild(g, held) {
     V.arrow = slab([0.006, 0.006, 0.74], [0, 0, 0], '#b8965f', bow); V.bow = bow;
     V.hip = [-0.12, -0.04, -0.62]; V.ads = [-0.03, 0.005, -0.62]; V.brace = 0.16;
   } else {
+    // THE ARM ITSELF (opt-in, view.mesh: gameworld/arms-kit.js withArmMeshes): each part the arms library's own faces
+    // (its quads, in the item's centimetres, each its own lit colour lifted to read against a wall), a mesh a part about
+    // the part's middle, so what moves a part's box moves its mesh (the magazine through a reload). The optic is drawn
+    // from the hip and gives way to its hood at the sights (a solid optic would blind the eye behind it)
+    const MS = g.view.mesh || null, drawn = {};
+    if (MS) {
+      const pal = MS.cols.map((c) => { const k = new THREE.Color(c); return [Math.min(1, k.r * 1.7 + 0.07), Math.min(1, k.g * 1.7 + 0.07), Math.min(1, k.b * 1.7 + 0.08)]; });
+      const armMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      for (const P of MS.parts) {
+        const n = P.ci.length, pos = new Float32Array(n * 18), col = new Float32Array(n * 18), lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+        for (let i = 0; i < P.q.length; i += 3) for (let a = 0; a < 3; a++) { if (P.q[i + a] < lo[a]) lo[a] = P.q[i + a]; if (P.q[i + a] > hi[a]) hi[a] = P.q[i + a]; }
+        const mid = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], TRI = [0, 1, 2, 0, 2, 3];
+        for (let j = 0; j < n; j++) {
+          const c = pal[P.ci[j]];
+          for (let t = 0; t < 6; t++) {
+            const s = j * 12 + TRI[t] * 3, o = j * 18 + t * 3;
+            pos[o] = f * (P.q[s] - mid[0]) / 100; pos[o + 1] = (P.q[s + 1] - mid[1]) / 100; pos[o + 2] = f * (P.q[s + 2] - mid[2]) / 100;
+          }
+          // (shaded by which way the face looks, as a box of the proxy is: a key from above and the eye's side, so the
+          // rail's flats, the receiver's chamfers and the handguard's facets read apart)
+          const o = j * 18, ux = pos[o + 3] - pos[o], uy = pos[o + 4] - pos[o + 1], uz = pos[o + 5] - pos[o + 2], vx = pos[o + 6] - pos[o], vy = pos[o + 7] - pos[o + 1], vz = pos[o + 8] - pos[o + 2];
+          let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+          const k = 0.6 + 0.55 * Math.max(0, -0.37 * nx + 0.74 * ny + 0.56 * nz) + 0.14 * Math.max(0, ny);
+          for (let t = 0; t < 6; t++) { col[o + t * 3] = Math.min(1, c[0] * k); col[o + t * 3 + 1] = Math.min(1, c[1] * k); col[o + t * 3 + 2] = Math.min(1, c[2] * k); }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        const m = new THREE.Mesh(geo, armMat);
+        m.position.set(f * mid[0] / 100, mid[1] / 100, f * mid[2] / 100); grp.add(m); drawn[P.part] = m;
+        if (P.part === 'stock' || P.part === 'buttpad' || P.part === 'cheek' || P.part === 'optic') V.behind.push(m);
+        if (P.part === 'magazine') V.mag = m;
+      }
+    }
     for (const [lo, hi, c, part] of g.view.boxes) {
       let m;
+      // (a part the arm's own mesh draws needs no box; the optic's hood stands for it at the sights)
+      if (drawn[part] && part !== 'optic') continue;
       if (part === 'optic') {
         // an optic is a hood round its window, open along the sight line (a solid box would blind the eye behind it)
         const t = 0.25, o = new THREE.Group(); grp.add(o); m = o;
         box([lo[0], lo[1], lo[2]], [lo[0] + t, hi[1], hi[2]], c, o); box([hi[0] - t, lo[1], lo[2]], [hi[0], hi[1], hi[2]], c, o);
         box([lo[0], hi[1] - t, lo[2]], [hi[0], hi[1], hi[2]], c, o); box([lo[0], lo[1], lo[2]], [hi[0], lo[1] + t, hi[2]], c, o);
+        if (drawn.optic) { V.hood = o; o.visible = false; }
       } else m = box(lo, hi, c);
       // (the stock and its pad run back past the eye to the shoulder: drawn from the hip, gone at the sights)
       if (part === 'stock' || part === 'buttpad' || part === 'cheek') V.behind.push(m);
@@ -286,6 +322,7 @@ function __gpFrame(dt) {
   V.grp.rotation.set(-0.9 * low + 0.05 * __GP.kick + (V.kind === 'bow' ? 0.35 * re : 0.12 * rl) + 0.25 * kn, -__GP.lag[0] * 2 * hipK - 0.3 * kn + 0.15 * rl, (V.kind === 'bow' ? 0.45 * re : -0.55 * rl) + 0.05 * Math.sin(__GP.bob) * mv * hipK - 0.35 * kn);
   __gpHandsPose(p, w, V, SG, dt);
   for (const m of V.behind) m.visible = a < 0.3;
+  if (V.hood) V.hood.visible = a >= 0.3;
   if (V.kind === 'bow') {
     // the string drawn back by the draw, the arrow on it while one is nocked
     const d = G.draw || 0, nockZ = V.brace + 0.5 * d;

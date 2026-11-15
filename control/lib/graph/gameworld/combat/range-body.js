@@ -94,7 +94,7 @@ export function rangeBody({ weapons, skins = {}, sounds = {}, foe = {}, name = n
   const slots = [];
   let knife = null;
   for (const w of weapons) {
-    if (typeof w === 'string') { const s = kitSlot(w, base); const look = lookOf(skins[w], base); slots.push({ ...s, ...(look ? { gunplay: { ...s.gunplay, view: look.view, kind: look.kind } } : {}) }); continue; }
+    if (typeof w === 'string') { const s = kitSlot(w, base); const look = lookOf(skins[w], base); slots.push({ ...s, ...(look ? { gunplay: { ...s.gunplay, view: look.view, kind: look.kind, ...(look.arm ? { arm: look.arm } : {}) } } : {}) }); continue; }
     if (w.fire === 'melee') {
       const { name: _n, fire: _f, ...num } = w, K = { ...FIRE.melee, ...num };
       knife = { reach: K.reach, cone: K.cone, dur: K.dur, window: [...KNIFE.window], cooldown: K.cooldown, impact: KNIFE.impact, damage: K.damage, name: w.name, view: bladeLook(skins[w.name] ?? null) };
@@ -110,7 +110,7 @@ export function rangeBody({ weapons, skins = {}, sounds = {}, foe = {}, name = n
     }
     const look = lookOf(skins[w.name], base);
     const view = look ? look.view : weapon.fireClass === 'lob' ? TUBE : kitSlot('rifle', base).gunplay.view;
-    slots.push({ name: w.name, weapon, switchReady: 0.65, gunplay: look ? { ...GUNPLAY(view), ads: look.ads, sway: look.sway, swap: look.swap } : GUNPLAY(view) });
+    slots.push({ name: w.name, weapon, switchReady: 0.65, gunplay: look ? { ...GUNPLAY(view), ads: look.ads, sway: look.sway, swap: look.swap, ...(look.arm ? { arm: look.arm } : {}) } : GUNPLAY(view) });
   }
   // its sounds (range-sound.js): each weapon's own, by what it is or the game's word; the range's on a mix in the open
   const heard = quiet ? null : rangeAudio({ slots, knife, sounds });

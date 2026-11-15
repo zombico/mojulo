@@ -46,6 +46,9 @@ A world's guns are read from what it already carries (`gameworld/loadout.js` `lo
 
 A world that writes none of these and whose template shoots none has no firing range.
 
+On the range's page, and in the first mission, each gun is drawn in the hands as the arms library builds it, not as
+its parts' boxes ([missions.md](missions.md#the-level)).
+
 ## Measured
 
 Both kinds of room carry a machine gate before any level, read by `design_game`:

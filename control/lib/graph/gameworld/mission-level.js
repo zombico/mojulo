@@ -5,7 +5,8 @@
  * It is offered to every world the practice door gives a firing range (practice.js), so every game the range makes has
  * a level 1; and it is a level's own form (`levels.<id>.mission`, world.js), laid by levels.js.
  *
- *   the guns     the world's (loadout.js loadoutOf), as the range carries them: its slots, its sights, its knife
+ *   the guns     the world's (loadout.js loadoutOf), as the range carries them: its slots, its sights, its knife; each
+ *                drawn in the hands as the arms library builds it (arms-kit.js armDetailed), not as its parts' boxes
  *   the body     the range's person from the eye; a feel written, on the platform rule its card is lowered onto (as a
  *                level's hero-less first person stands, levels.js)
  *   the foes     hunters (quick.js SHOOT_FOE), a body of the range's own health (100: the rounds the range counted to
@@ -35,7 +36,7 @@
 import { loadoutOf } from './loadout.js';
 import { rangeBody } from './combat/range-body.js';
 import { SHOOT, SHOOT_FOE, SHOOT_TUNE, PERSON, shoulderOf } from './quick.js';
-import { ARMS_LEGEND } from './arms-kit.js';
+import { ARMS_LEGEND, armDetailed } from './arms-kit.js';
 import { standFoe } from './foes.js';
 import { libraryFigure, FIGURE_LIBRARY } from './stage-figures.js';
 import { playerStates } from '../playscape/player.js';
@@ -139,7 +140,8 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   // own placing, arms-kit.js kitSlot)
   const over = shoulderOf(camera ?? 'third-person', hero) && camera !== 'first-person' ? shoulderOf(camera ?? 'third-person', hero) : null;
   const place = (w) => (hero ? { ...w, eye: 1.5, ...(over ? { converge: true } : {}) } : w);
-  const loadout = R.pilot.rule.loadout ? R.pilot.rule.loadout.map((slot) => ({ ...slot, weapon: place(slot.weapon) })) : null, knife = R.pilot.rule.knife ?? null;
+  // (and each gun is drawn in the hands as the arms library builds it, not as its boxes: arms-kit.js armDetailed)
+  const loadout = R.pilot.rule.loadout ? R.pilot.rule.loadout.map((slot) => armDetailed({ ...slot, weapon: place(slot.weapon) })) : null, knife = R.pilot.rule.knife ?? null;
   const pilot = {
     rule: { collideRadius: 0.3, collideHeight: 1.7, ...(loadout ? { loadout, gunplay: true } : {}), ...(knife ? { knife } : {}) },
     ...(loadout ? { weapon: loadout[0].weapon } : {}),

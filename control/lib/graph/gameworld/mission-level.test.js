@@ -35,6 +35,8 @@ describe('the level', () => {
   it('is the range\'s body and guns on the mission\'s ground, its foes asleep on their spots', () => {
     const me = m.entities.find((e) => e.pilotable), foes = m.entities.filter((e) => e.team === 'foes');
     expect(me.rule.loadout.map((s) => s.name)).toEqual(TEMPLATE_LOADOUTS[SHOOTER].weapons.filter((w) => typeof w === 'string'));
+    // (each gun asks to be drawn as the arms library builds it; the recipe carries the ask, never the mesh)
+    expect(me.rule.loadout.every((s) => s.gunplay.view.detail === 'arm' && s.gunplay.view.mesh === undefined)).toBe(true);
     expect(me.transform.pos.slice(0, 2)).toEqual(L.mission.anchors.spawn.slice(0, 2));
     expect(foes.length).toBe(L.mission.sections.reduce((n, s) => n + s.foes.length, 0));
     expect(foes.every((e) => e.dormant === true && e.body.hp === MISSION_HP.foe)).toBe(true);

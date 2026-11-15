@@ -28,6 +28,7 @@
 import { measureCombat, combatLaws } from './measure.js';
 import { gymOf, gymPageHtml } from './gym.js';
 import { rangeBody } from './range-body.js';
+import { armDetailed, withArmMeshes } from '../arms-kit.js';
 
 // (the range's body: its fire types, its spec's reader and the person that carries it: range-body.js)
 export { FIRE, FIRE_TYPES, validateRange, rangeBody, RANGE_MAX } from './range-body.js';
@@ -43,6 +44,8 @@ export function rangeOf(spec = {}) {
 /** The range's page: its gym, played from the eye. */
 export function rangeHtml(spec = {}) {
   const S = rangeOf(spec);
-  return gymPageHtml(S.minted, S.m, S.gym, S.gate, { kind: 'firing range', tag: `${spec.weapons.length} weapon${spec.weapons.length > 1 ? 's' : ''}` });
+  // (each gun drawn in the hands as the arms library builds it, where it is an arm of the library: arms-kit.js)
+  const P0 = S.minted.pilot, pilot = Array.isArray(P0.rule.loadout) ? withArmMeshes([{ ...P0, rule: { ...P0.rule, loadout: P0.rule.loadout.map(armDetailed) } }])[0] : P0;
+  return gymPageHtml({ ...S.minted, pilot }, S.m, S.gym, S.gate, { kind: 'firing range', tag: `${spec.weapons.length} weapon${spec.weapons.length > 1 ? 's' : ''}` });
 }
 
