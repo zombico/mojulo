@@ -25,6 +25,7 @@
  */
 import { steer, outcomeIn, SIM_DT, auditPath, faceGround, pageGroundFaces } from '../game/level-equivalence.js';
 import { simLevel } from '../game/level-sim.js';
+import { styleOf } from '../worlds/controllable-world.js';
 
 /** The level as the page runs it: its world with the page's own world options (the lock, the minds' tuning…), its bus,
  * its colliders and the page's ground. */
@@ -223,7 +224,9 @@ export function playLevel(payload, { player = 'basic', seconds = 180 } = {}) {
   const downs = foes.filter((f) => f.down).length, hpLeft = hpOf(sim, hero);
   const stuck = [...M.stuck];
   const reason = outcome === 'success' ? 'won' : outcome === 'fail' ? 'the hero went down' : `not ended in ${seconds} s${stuck.length ? ` (could not reach ${stuck.join(', ')})` : ''}`;
-  return { player, outcome, won: outcome === 'success', t: r1(t), hp: { start: hp0, left: r1(hpLeft) }, presses: M.presses, shots: M.shots, hitsBy, foes, downs, ...(stuck.length ? { stuck } : {}), reason };
+  // (how it fought, where the level carries a style meter: worlds/controllable/style.js)
+  const style = styleOf(W);
+  return { player, outcome, won: outcome === 'success', t: r1(t), hp: { start: hp0, left: r1(hpLeft) }, presses: M.presses, shots: M.shots, hitsBy, foes, downs, ...(stuck.length ? { stuck } : {}), ...(style ? { style: { peak: style.peakName, earned: style.earned, best: style.best, hurt: style.hurt } } : {}), reason };
 }
 
 /** One line for a report: won or lost, how long, the hp left, the foes downed and who hit the hero most. */
@@ -231,5 +234,5 @@ export function playthroughSummary(R) {
   if (!R) return null;
   const worst = Object.entries(R.hitsBy ?? {}).sort((a, b) => b[1] - a[1])[0];
   return `${R.player}: ${R.reason} at ${R.t} s, hp ${R.hp?.left ?? '?'}/${R.hp?.start ?? '?'}, ${R.downs}/${R.foes?.length ?? 0} foes down`
-    + `${R.presses ? `, ${R.presses} presses` : ''}${R.shots ? `, ${R.shots} shots` : ''}${worst ? `, hit most by ${worst[0]} (${worst[1]})` : ''}`;
+    + `${R.presses ? `, ${R.presses} presses` : ''}${R.shots ? `, ${R.shots} shots` : ''}${worst ? `, hit most by ${worst[0]} (${worst[1]})` : ''}${R.style ? `, style peaked at ${R.style.peak} (longest combo ${R.style.best})` : ''}`;
 }

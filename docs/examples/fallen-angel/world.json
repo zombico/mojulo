@@ -207,5 +207,6 @@
     }
   },
   "camera": "orbit",
-  "screen": "screen"
+  "screen": "screen",
+  "styleMeter": "auto"
 }

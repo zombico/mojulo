@@ -63,6 +63,13 @@ In progress. Built so far, all in the practice door's game room
   kit is Fallen Angel's swung in it.
 - **Fallen Angel in the seventh generation:** its citadel is dressed by a gothic night cube read in `gen-7` on the
   ashlar bones, and Lucien's coat is pale so he reads against the dark.
+- **Built: the style meter's runtime** (`worlds/controllable/style.js`, a game's `styleMeter`). How well the hero
+  fights, read off the world each step: it rises on blows landed, more for a move not just used, a blow in the
+  air, a launch, a switch mid-string, a parry and a foe felled; it falls with time once nothing lands and drops a
+  whole tier on a hit taken. Tiers are letters (D to S) unless the game says its own words. `styleMeter: 'auto'`
+  lays it on a game whose feel is the stylish template; a game that writes none carries none, and its pages keep
+  every byte. The page says where it stands (`window.__mojStyle`), and the scripted player's readout says the tier
+  it peaked at and its longest combo. Not yet: the meter on the HUD, and the rank on a level's results.
 - **A building level has its action hero.** A world played under the orbit camera with a hero that strikes now
   gets, in a building as on a trail, the orbit that locks on, movement in the camera's frame and its sheathed
   twin, so the fist is in its hands and the weapon switch has two weapons to switch between. Before, a building

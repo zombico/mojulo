@@ -34,6 +34,8 @@ node scripts/mcp-stdio.mjs call export_game --json '{"ref":"<the ref>-game"}'   
   their sheets, the sword, the level, the game.
 - The machine gate's playthrough: the floor player won the level in 122 s with 20 of 100 hp left, all 18 foes
   down; one who does nothing did not win.
+- With the style meter on (`styleMeter: 'auto'`), the floor player, who repeats one light string, peaked at C of
+  D to S with a longest combo of 27; one who does nothing stayed at D.
 - The first frame's check warns that the hero is close to the camera (35% of the frame across).
 - The level's page is about 39 MB in `gen-7` (26 MB before the cube) and loaded in headless Chromium with no page
   error.

@@ -232,3 +232,20 @@ knight).
 
 Its machine gate is the playthrough (the e2e tier): the floor player walks the rooms in order, fells every wave of
 all four fights and ends the level; one who does nothing wins nothing. Nobody has played it.
+
+## The style meter
+
+A game's `styleMeter` (`gameworld/style-meter.js`; `'auto'` on a game whose feel is the stylish template, `true`,
+or its own numbers and tier words) lays the runtime's meter (`worlds/controllable/style.js`) on every level. It is
+read off the world after each step:
+
+| what happens | what the meter does |
+|---|---|
+| a blow lands | its worth, halved for each time its move stands in the last few moves, more off the ground, more again if it launches |
+| a weapon switched mid-string | a switch's worth |
+| a parry, a foe felled, a round landed | each its own |
+| nothing lands for a while | it falls, and at nothing the combo is over |
+| the hero is hit | a whole tier lost, the combo gone |
+
+`window.__mojStyle.now()` on a level's page says the tier, how far through it, the combo, the peak and what was
+earned. The meter on the HUD and the rank on a level's results are not built yet.
