@@ -40,7 +40,7 @@ import { readGrid } from '../level/grid.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
 import { withGeocube } from '../era/geocube.js';
-import { playerWorld, traversalStates, HERO_WALK_RUN, GEAR_STATES } from '../playscape/player.js';
+import { playerWorld, traversalStates, HERO_WALK_RUN, moveStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
@@ -306,9 +306,10 @@ function laterGrants(G) {
 }
 function withMoves(P, moves, grants = []) {
   if (!moves && !grants.length) return P;
-  // (a hero with the line plays the gear's own clips where it carries them, player.js GEAR_CLIPS: its `moves`, a state to
-  // a clip of its own; one minted without them keeps the fallback)
-  const own = (f) => (moves.gear && (f.heroRef || f.hero) ? { moves: { ...GEAR_STATES, ...(f.moves ?? {}) } } : {});
+  // (a hero plays its moves' own clips where it carries them, player.js MOVE_CLIPS: its `moves`, a state to a clip of
+  // its own; one minted without them keeps the fallback)
+  const st = moves ? moveStates([...(moves.gear ? ['swinger'] : []), ...(moves.wall ? ['wall'] : [])]) : null;
+  const own = (f) => (st && (f.heroRef || f.hero) ? { moves: { ...st, ...(f.moves ?? {}) } } : {});
   const figures = moves ? Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}), ...own(f) }])) : P.figures;
   // (each grant over the rule as it stands: a high jump the hero's own half as high again, a second jump at least one)
   const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m.move ?? m].rule(r, m); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);

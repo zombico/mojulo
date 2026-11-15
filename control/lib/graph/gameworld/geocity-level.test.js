@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { readGameworld, resolveLevel, GEOCITY_EVOKE } from './world.js';
 import { heroOrders } from './hero-looks.js';
-import { GEAR_CLIPS, GEAR_STATES } from '../playscape/player.js';
+import { GEAR_CLIPS, WALL_CLIPS, moveStates } from '../playscape/player.js';
 import { gameStages, stageEnds, stageLevelOrder } from './levels.js';
 import { MEADOWMARK_HERO } from './examples.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
@@ -50,9 +50,9 @@ describe('a geocity level', () => {
     expect(hero.rule).toMatchObject({ type: 'platform', wall: true, gear: 'swinger' });
     // the gear's own clips (player.js GEAR_CLIPS): on the hero's mint, as its motion page's, and played by the figure
     // where the hero carries them; a hero without the line carries none
-    expect(m.figures.hero.moves).toMatchObject(GEAR_STATES);
+    expect(m.figures.hero.moves).toMatchObject(moveStates(['wall', 'swinger']));
     const clipsOf = (world) => heroOrders(readGameworld(world)).motion?.args.patch.find((op) => op.path === '/hero/clips')?.value;
-    expect(Object.keys(clipsOf(W))).toEqual(expect.arrayContaining(Object.keys(GEAR_CLIPS)));
+    expect(Object.keys(clipsOf(W))).toEqual(expect.arrayContaining([...Object.keys(GEAR_CLIPS), ...Object.keys(WALL_CLIPS)]));
     expect(clipsOf({ ...W, characters: { ...W.characters, hero: { ...W.characters.hero, actions: { none: true } } } })).toBeUndefined();
     expect(m.game.mechanics.map((x) => x.kind)).toContain('reach-exit');
     // the page draws the metro under the level's pilot and game (the keys a level lays over it are the page's, never

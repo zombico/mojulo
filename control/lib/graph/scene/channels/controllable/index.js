@@ -815,7 +815,7 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const vayoOn = vayoGranted || (entities || []).some((e) => e && ((e.rule && e.rule.vayo) || (e.pilotRule && e.pilotRule.vayo)));
   const gearBlock = gearUsed ? `
 // ---- the gear's line (swing.js): hand to anchor while a body swings or zips ----
-const __gearLines = {};
+const __gearLines = {}, __gearV = new THREE.Vector3();
 function __updateGearLines() {
   for (const e of __world.entities) {
     const S = e.swinging || (e.zipping ? { anchor: e.zipping.anchor } : null);
@@ -830,6 +830,19 @@ function __updateGearLines() {
     a[0] = e.transform.pos[0]; a[1] = e.transform.pos[1]; a[2] = e.transform.pos[2] - (r.eye || 0) + H * 0.9;
     // (a body hung along its line is turned about its middle, swing.js e.tumble: the line leaves the hand where it is drawn)
     if (e.tumble && e.tumble.angle) { const ax = e.tumble.axis, sn = Math.sin(e.tumble.angle) * H * 0.48; a[0] += ax[1] * sn; a[1] -= ax[0] * sn; a[2] = e.transform.pos[2] - (r.eye || 0) + H * (0.42 + 0.48 * Math.cos(e.tumble.angle)); }
+    // a rigged body casts it from its HAND: the right hand's far end as the body is posed and turned this frame (the
+    // clip holds that arm up the line); a body with no such bone keeps the point over its head
+    const bm = __bodies[e.id], rg = bm && bm.userData && bm.userData.rigFig;
+    if (rg && rg.fig && rg.boneMeshes) {
+      if (rg.__gearHand === undefined) rg.__gearHand = rg.fig.bones.findIndex((b) => b.id === 'handR');
+      const hb = rg.__gearHand >= 0 ? rg.fig.bones[rg.__gearHand] : null, hm = hb ? rg.boneMeshes[rg.__gearHand] : null;
+      if (hm && hb.head) {
+        const at = hb.tail || hb.head;
+        bm.updateMatrixWorld();
+        __gearV.set(at[0], at[1], at[2]).applyMatrix4(hm.matrix).applyMatrix4(bm.matrixWorld);
+        a[0] = __gearV.x; a[1] = __gearV.y; a[2] = __gearV.z;
+      }
+    }
     a[3] = S.anchor[0]; a[4] = S.anchor[1]; a[5] = S.anchor[2];
     ln.geometry.attributes.position.needsUpdate = true; ln.visible = true;
   }
@@ -2661,8 +2674,17 @@ function __driveCamera(dt) {
     const full = Math.hypot(dx, dy, dz);
     if (full > 1e-3) {
       const ux = dx / full, uy = dy / full, uz = dz / full;
-      __camRay.set(new THREE.Vector3(look[0], look[1], look[2]), new THREE.Vector3(ux, uy, uz));
-      __camRay.far = full; __camRay.camera = camera;   // sprite-safe traverse (see __ground's E8 note)
+      // (a body HOLDING A WALL, wall.js e.walling, faces into it: the look point led ahead of it stands inside the
+      // building, and a ray from there meets the wall's own face at once. The ray is cast from the body's chest to the
+      // eye instead, and what it meets is measured back along the look's own line)
+      const wt = __world.byId[c.rule.target], onWall = !!(wt && wt.walling && wt.rule);
+      let ox = look[0], oy = look[1], oz = look[2], rx = ux, ry = uy, rz = uz, far = full;
+      if (onWall) {
+        ox = wt.transform.pos[0]; oy = wt.transform.pos[1]; oz = wt.transform.pos[2] - (wt.rule.eye || 0) + (wt.rule.collideHeight || 1.7) * 0.6;
+        const ex = p[0] - ox, ey = p[1] - oy, ez = p[2] - oz; far = Math.hypot(ex, ey, ez) || 1e-3; rx = ex / far; ry = ey / far; rz = ez / far;
+      }
+      __camRay.set(new THREE.Vector3(ox, oy, oz), new THREE.Vector3(rx, ry, rz));
+      __camRay.far = far; __camRay.camera = camera;   // sprite-safe traverse (see __ground's E8 note)
       const own = __bodySet();
       let hitD = full;
       for (const hit of __camRay.intersectObjects(scene.children, true)) {
@@ -2670,7 +2692,7 @@ function __driveCamera(dt) {
         if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;   // meshes only; skip overlay quads (fog/effects)
         let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
         if (isOwn) continue;   // never pull in on an entity body (suits) — world geometry only
-        hitD = hit.distance; break;   // nearest world surface between subject and eye
+        hitD = onWall ? Math.max(0, full - (far - hit.distance)) : hit.distance; break;   // nearest world surface between subject and eye
       }
       // the stand-off and the floor are the subject's own (follow-pull-in.js): its far side across the ground from the
       // look point (its collide volume, capsule or body radius), its capsule height, and the near plane kept off it

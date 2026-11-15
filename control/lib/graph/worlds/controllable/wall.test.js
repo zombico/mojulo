@@ -107,3 +107,43 @@ describe('the wall: a face taken hold of', () => {
     expect(go()).toBe(go());
   });
 });
+
+describe('the wall: the rest', () => {
+  it('held still on a face, the body settles onto it: its own state, leant out from the wall, until it moves or lets go', () => {
+    const W = world([TOWER]);
+    const h = run(W, { forward: 1 }, 90);
+    expect(h.walling).toBeTruthy();
+    expect(h.locomotion).toBe('wall_crawl');
+    run(W, {}, 10);
+    expect(h.locomotion).toBe('wall_crawl');      // (not at once: a pause in a climb is not a rest)
+    expect(h.tumble ?? null).toBeNull();
+    run(W, {}, 60);
+    expect(h.locomotion).toBe('wall_rest');
+    expect(h.moving).toBe(true);                  // (so the page plays the state's clip, not the stand)
+    // leant back from a wall it faces (east: +x), about its own left (+y)
+    expect(h.tumble.angle).toBeCloseTo(-0.3, 6);
+    expect(h.tumble.axis[1]).toBeCloseTo(1, 6);
+    expect(h.gaitPhase).toBeGreaterThanOrEqual(0);
+    expect(h.gaitPhase).toBeLessThan(1);
+    const z = h.transform.pos[2];
+    run(W, { forward: 1 }, 2);
+    expect(h.locomotion).toBe('wall_crawl');
+    expect(h.tumble).toBeNull();
+    expect(h.transform.pos[2]).toBeGreaterThan(z);
+    // let go from a rest (a jump off the face): upright again
+    run(W, {}, 60);
+    expect(h.locomotion).toBe('wall_rest');
+    run(W, (i) => ({ jump: i < 2 ? 1 : 0 }), 6);
+    expect(h.walling).toBeNull();
+    expect(h.tumble ?? null).toBeNull();
+  });
+
+  it('rest: 0 keeps the body as it was held', () => {
+    const W = world([TOWER], hero({ wall: { rest: 0 } }));
+    const h = run(W, { forward: 1 }, 90);
+    run(W, {}, 90);
+    expect(h.locomotion).toBe('wall_crawl');
+    expect(h.moving).toBe(false);
+    expect(h.tumble ?? null).toBeNull();
+  });
+});

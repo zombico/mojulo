@@ -11,3 +11,10 @@
   Let go high and fast and the hero turns a somersault the way the swing was carrying it, tucked through the turn and
   open to land; let go low and it simply rights itself. A hero who starts with the swing line is given these moves
   when it is made; one without the line is unchanged.
+- **The line leaves the hand.** A hero's swing line is now drawn from its raised hand, wherever the body is in its
+  swing or its turn, where before it left a point above the head.
+- **A rest on the wall.** A hero holding still on a wall settles onto it after a moment: feet planted on the wall
+  with the knees up, one hand on it above, leaning out, the head turned over the shoulder to look down at the street.
+  Moving or jumping ends the rest.
+- **The camera no longer dives into a hero on a wall.** When a hero faced a wall it was holding, the chase camera
+  could be pushed inside the hero and fill the screen with its back. It now keeps its distance.

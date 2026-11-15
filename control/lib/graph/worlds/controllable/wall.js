@@ -17,15 +17,17 @@
  *   jump        released off the face: a tap is a WALL-JUMP (out and up); held for `chargeT` or longer it is a
  *               WALL-LAUNCH, its speed growing to `launch` × the jump's at `chargeMax`, forward held throwing it higher,
  *               A / D along the face; the body turns away from the wall
+ *   rest        held still on a face for `restT`: the body settles onto it (`wall_rest`: feet and a hand on the wall,
+ *               leant out from it by `rest`, the head turned to look down at the street), until it moves again
  *   perch       standing still on a roof, within `lip` of its edge: the body crouches there (`perch`)
  *   dive        falling faster than `dive` off a wall's hero: head first (`dive`)
  *
- * Locomotion: wall_crawl, mantle, perch, dive (a figure without the clip plays its fallback: playscape/player.js
+ * Locomotion: wall_crawl, wall_rest, mantle, perch, dive (a figure without the clip plays its fallback: playscape/player.js
  * TRAVERSAL_FALLBACK). Lengths in the world's units; the defaults are metres, scaled by the rule's `metre` (world units
  * per metre, 1 by default: a city level's hero carries 1 / 3.66), so a power that grants `wall: true` holds anywhere.
  *
  *   wall: { speed 3 m/s, reach 0.5 m, minFace 1 m, lip 0.6 m, dive 9 m/s, mantleT 0.3 s, chargeT 0.25 s,
- *           chargeMax 0.8 s, launch 2, ground true }
+ *           chargeMax 0.8 s, launch 2, ground true, rest 0.3 rad, restT 0.35 s }
  */
 export function buildWall(E) {
   const { clamp, fwdXY } = E;
@@ -34,7 +36,7 @@ export function buildWall(E) {
     const w = r.wall === true ? {} : r.wall, m = r.metre ?? 1;
     return {
       speed: w.speed ?? 3 * m, reach: w.reach ?? 0.5 * m, minFace: w.minFace ?? 1 * m, lip: w.lip ?? 0.6 * m, dive: w.dive ?? 9 * m,
-      mantleT: w.mantleT ?? 0.3, chargeT: w.chargeT ?? 0.25, chargeMax: w.chargeMax ?? 0.8, launch: w.launch ?? 2, ground: w.ground !== false,
+      mantleT: w.mantleT ?? 0.3, chargeT: w.chargeT ?? 0.25, chargeMax: w.chargeMax ?? 0.8, launch: w.launch ?? 2, ground: w.ground !== false, rest: w.rest ?? 0.3, restT: w.restT ?? 0.35,
     };
   };
   E.wallDials = dials;   // the wall's dials off a rule, for the reach (game/reach.js): what the solver reaches, the wall holds
@@ -191,6 +193,17 @@ export function buildWall(E) {
     still();
     e.locomotion = 'wall_crawl'; e.gaitPhase = (e.gaitPhase || 0) + (Math.abs(du) + Math.abs(dl)) / (0.6 * (r.metre ?? 1));
     e.moving = Math.abs(du) > 1e-9 || Math.abs(dl) > 1e-9;
+    // THE REST: held still, the body settles onto the face and looks down the street: its own clip, read slowly round
+    // (a breath), and the whole body leant out from the wall about its own left (e.tumble, eased in). Moving ends it
+    if (e.moving || !(D.rest > 0)) { e._wallRest = 0; if (e._wallLean) { e.tumble = null; e._wallLean = false; } }
+    else {
+      e._wallRest = (e._wallRest || 0) + dt;
+      if (e._wallRest >= D.restT) {
+        const u = Math.min(1, (e._wallRest - D.restT) / 0.4), k = u * u * (3 - 2 * u), f = fwdXY(t.heading);
+        e.locomotion = 'wall_rest'; e.moving = true; e.gaitPhase = ((e._wallRest - D.restT) / 4) % 1;
+        e.tumble = { axis: [-f[1], f[0], 0], angle: -D.rest * k }; e._wallLean = true;
+      }
+    }
     return true;
   }, 55);
 
@@ -198,6 +211,8 @@ export function buildWall(E) {
   // falling fast off one is head first. After the entity loop, so the label is the step's last word.
   E.registerWorldPass('wall-pose', (state) => {
     for (const e of state.entities) {
+      // (off the wall, however it was left: the rest's lean goes with it)
+      if (e._wallLean && !e.walling) { e.tumble = null; e._wallLean = false; e._wallRest = 0; }
       if (!holds(e) || e.walling || e.gone || e.downed) continue;
       const D = dials(e.rule), cs = state.colliders;
       e.perched = false;
