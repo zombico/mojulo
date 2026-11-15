@@ -63,6 +63,8 @@ export const SPACE = Object.freeze({
         course: { status: 'built', since: '2026-11-05', requires: ['power.rules=platform'], lowers: 'lib/graph/gameworld/course.js', note: 'a platformer\'s level (levels.<id>.course): floors, gaps and climbs sized by what the hero\'s tuned jump and run reach, laid over a trail, or as one side strip when every trail is a course under a side camera; coins along it, lives on its falls' },
         // a town on its cube, walked from its streets (geotown/); a roadway built for driving (roads/track.js)
         town: { status: 'built', lowers: 'lib/graph/geotown/scene.js', note: 'a geotown (levels.<id>.geotown): a town laid on its cube, its streets, lots and houses walked as a level' },
+        // built 11-15 (the city stalker on the geocity): a metro's neighbourhood in metres, played from its streets and roofs
+        metro: { status: 'built', since: '2026-11-15', lowers: 'lib/graph/geocity/scene.js', note: 'a geocity (levels.<id>.geocity): a metro on its cube in metres, a neighbourhood of it at a building\'s detail unless it names what it evokes; played by the world\'s hero from its streets and its roofs, every mass a box its wall and its line take' },
         roadway: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a level that is a road built for driving (levels.<id>.roadway): a lap or a stage by a course preset or spec, its land dressed, a scape beyond it' },
         meru: { status: 'built', lowers: 'lib/graph/local-meru/plan.js' },
         arena: { status: 'built', lowers: 'lib/graph/worlds/match-modes.js' },
