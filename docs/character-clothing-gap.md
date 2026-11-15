@@ -138,7 +138,8 @@ the sourced VRoid and VRM practice. It is not a documented miHoYo rule.
    the page and in an export; the hair is not baked yet. On the realistic body (outfit laws 2) a robe's skirt, the
    tailor's rings, hangs on the register's strings from its first ring below the hips, and the cape sways on a few stiff
    strings only below the hanging hand, its shoulders and sides kept on their skin (hung whole it sheared into flaps
-   where the arm carries it).
+   where the arm carries it); its cloth takes the nearer arm out to 24 cm from it, so a swinging arm carries the cloth
+   behind it rather than passing through (skinning, not collision: a raised arm still draws a mantle's side out with it).
 5. **The silhouette comes from a few deliberate pieces, and the body line stays tight.** In BotW, art
    director Takizawa described a style that "makes it easy to lie" while keeping a feeling of reality, and
    Link's hat was cut for not reading well [snippet: GDC 2017 coverage]. Putting the silhouette in

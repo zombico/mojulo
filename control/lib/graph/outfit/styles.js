@@ -356,7 +356,7 @@ export const SEEDED_OUTFITS = Object.freeze({
     "dials": { "stylize": 0.3, "fit": 0.6, "coverage": 1, "ornament": 1 },
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" }, "feet": "shoes", "tuck": true, "focal": "collar" },
     "pieces": [{ "kind": "tunic", "material": "linen", "sleeve": "none", "hood": { "worn": "down", "point": "short" } }, { "kind": "belt", "id": "girdle", "at": "waist" }, { "kind": "satchel" }],
-    "tones": { "Top": "#d8ccb0", "Bottom": "#5a4a38", "Shoes": "#3b2c1e", "OutfitBase": "#9c8a66", "OutfitSecond": "#6b5a44", "OutfitTrim": "#6b5a40", "OutfitAccent": "#8a3a2a", "Leather": "#4a3423", "Buckle": "#8a7a5a" }
+    "tones": { "Top": "#e4dccb", "Bottom": "#5a4a38", "Shoes": "#3b2c1e", "OutfitBase": "#7a6440", "OutfitSecond": "#6b5a44", "OutfitTrim": "#6b5a40", "OutfitAccent": "#8a3a2a", "Leather": "#4a3423", "Buckle": "#8a7a5a" }
   },
   noble: {
     "id": "noble",

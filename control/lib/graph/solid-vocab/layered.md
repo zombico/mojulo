@@ -601,9 +601,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   shirt and close trousers into boots, a wool half-cloak to the hip with its hood up (a long point, deep), a thigh pouch.
   Make one your own as an inline card (copy it, change its words); `outfit.pieces` adds to its own, `intent.palette`
   recolours its pieces' roles, the operator's `palette` its cut. On the realistic body the cloak sways only below the
-  hanging hand and a robe's skirt is the tailor's shell hung on strings from the hips; the hats and the circlet fit the
-  game body only. Hats and a circlet are headgear words (`headgear: 'wizardHat' |
-  'travelerHat' | 'circlet'`); over a card whose hood is up, use an inline card with the hood `worn: 'down'`. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
+  hanging hand, its cloth near an arm going where the arm goes, and a robe's skirt is the tailor's shell hung on strings
+  from the hips; a hood is eased round (worn down, a cowl gathered at the nape in its lining's shade), the mantle's shoulder
+  rounded and its hem rolled. Hats and a circlet are headgear words (`headgear: 'wizardHat' |
+  'travelerHat' | 'circlet'`), on both bodies: on the realistic body they are built over the hair it has, which they keep;
+  over a card whose hood is up, use an inline card with the hood `worn: 'down'`. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
   the body's ratios (its ease scales with each ring's radius, on a rounded dense ring), so the calf still reads over
   the ankle and the waist under the ribs; a top falls from the bust and returns to the waist; a hem falls away only
   where it is CUT to. Reach for these, not `detail: 'clothed'` (which adds bulk): TIGHT is `fit: 'skin'` (a painted
@@ -909,8 +911,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   THE HEADGEAR. `headgear: '<word>'`: a mask, a cowl, eyegear, a mouthpiece, a helmet, a respirator or a visor, each a
   word from the headgear library; the words, by family, with the bodies each fits: get_solid_vocab({ id: 'headgear' }).
   The word is kept on the hero and lowered on every read, so `update_character { spec: { headgear: '<another>' } }`
-  swaps it in place and `null` takes it off. Every word fits the game body; the realistic body wears the domino and the
-  cowl, and refuses another by name. A helmet drops the hair; a cowl rides an outfit build's cloak. The card's colours
+  swaps it in place and `null` takes it off. Every word fits the game body; the realistic body wears the domino, the
+  cowl, the circlet and the hats (built on its head over its hair, which they keep), and refuses another by name. A
+  helmet drops the hair on the game body; a cowl rides an outfit build's cloak. The card's colours
   sit beneath `palette`: name a group (Helmet, HelmetVisor, HelmetTrim, Mask, MaskLens, EyeLens, EyeGlow …) to recolour
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
