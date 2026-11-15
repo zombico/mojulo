@@ -90,3 +90,42 @@ describe('buildings on a yard', () => {
     expect(readSiteMap({ buildings: [{ id: a, plan: A, at: [0, 0] }, { id: b, plan: { use: b, seed: 1 }, at: [w + 12, 0] }] })).toEqual(M);
   });
 });
+
+// a building designed as a fighting map (era/programs.js FIGHT): the dials the plan carries, read
+describe('a building designed as a fighting map, read', () => {
+  // (a hall tall enough to be overlooked, off a single-loaded wing: the first in the table)
+  const use = PROGRAM_IDS.find((id) => PROGRAMS[id].shape === 'core' && PROGRAMS[id].annex && PROGRAMS[id].core.storeys >= 2 && PROGRAMS[id].core.loading === 'single');
+  const held = (M) => new Map(mapLaws(M).laws.map((l) => [l.law, l.holds]));
+
+  it('reads nothing new where no dial is asked', () => {
+    expect(readBuildingMap({ use, seed: 1, fight: false })).toEqual(readBuildingMap({ use, seed: 1 }));
+  });
+
+  it('reads a gallery as its deck at the upper level, railed, its doorway open and its stairs walked', () => {
+    const M = readBuildingMap({ use, seed: 1, fight: { gallery: true } }), G = M.read.galleries?.[0];
+    expect(G?.read).toBe('deck');
+    const floor = new Set(M.floors.map((c) => key(...c))), I = indexMap(M);
+    // (its deck at the level of the room it opens from, a column of cells railed by low walls on its open side)
+    const deck = M.floors.filter((c) => c[2] === G.level && I.standable(...c) && M.walls.some((w) => w.kind === 'low' && w.at[2] === G.level && cellsOf(w).some((q) => q.join() === c.join())));
+    expect(deck.length).toBeGreaterThan(1);
+    // (its doorway: an open edge from the upper room onto it)
+    const d = M.read.doors.find((x) => x.to.endsWith('/gallery'));
+    expect(d).toBeTruthy();
+    expect(wallSet(M).has(`${d.at},${d.side}`)).toBe(false);
+    for (const c of cellsOf(d)) expect(floor.has(key(...c))).toBe(true);
+    // (its stairs ramps the laws walk, up from the hall's floor to the deck)
+    expect(G.stairs.length).toBeGreaterThan(0);
+    for (const s of G.stairs) {
+      const n = M.ramps.findIndex((r) => r.at.join() === s.at.join()), C = I.connectors.find((c) => c.kind === 'ramp' && c.n === n);
+      expect(C.faults).toEqual([]);
+      expect(C.to[2]).toBe(G.level);
+    }
+  });
+
+  it('turns the circuit\'s laws: the loop and the second way up, where the bare plan fails them', () => {
+    const before = held(readBuildingMap({ use, seed: 1 })), after = held(readBuildingMap({ use, seed: 1, fight: true }));
+    for (const law of ['loops', 'levels-twice']) { expect(before.get(law), law).toBe(false); expect(after.get(law), law).toBe(true); }
+    // (and keeps what held)
+    for (const [law, ok] of before) if (ok) expect(after.get(law), law).toBe(true);
+  });
+});

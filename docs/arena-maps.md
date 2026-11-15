@@ -118,12 +118,32 @@ ramp of 1:2 or gentler (the switchback is about 1:1.5, the keep's flight 1:1). T
 joins, not its slope. A real trail's placed buildings are not read yet: their anchors carry rooms but not doorways,
 stairs or turns, and the land is not flat.
 
+## Geocube plans designed as fighting maps
+
+A building's `fight: true | { rings?, stagger?, stairs?, gallery?, cover? }` (`era/programs.js` `FIGHT`, opt-in: absent,
+the plan's bytes are as they were) is the plan's answer to the laws it fails.
+
+- **rings:** every room along a wing opens onto its neighbour (the doorways at alternate ends of their wall), the first
+  rooms onto the lobby, the lobby a second door into the core.
+- **stagger:** of two opposite wings one leaves the core from its back, so the core's side doorways do not face.
+- **stairs:** a stair room past each wing's far end with no annex, climbed by the building's switchback.
+- **gallery:** the tall annex's catwalk on the wall the wing meets, at the upper storey's floor, entered from that
+  storey and climbed to from the hall.
+- **cover:** the hall's own stock (`stocking.js` `HALL_COVER`), a baffle off each doorway and blocks on a seeded lattice
+  of the arena's cells, the doorways, stairs and a lane kept clear.
+
+On house-shape plans only rings and cover apply. The reader reads a gallery as its deck at the upper level, railed, its
+stairs as ramps. Machine gate only: with every dial the warehouse holds two laws short of all for a kit of close and mid
+guns, one short for a long gun. Still failing: `height-paid`, because the law averages the whole upper storey and the
+gallery is one railed column of it; `line-cap` for close and mid guns, because a corridor runs straight into the core;
+and no stair is gentler than about 1:1.5. A keep gains nothing: its packer cannot lay a second stair.
+
 ## Next
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
   somewhere, so a bigger court or a yard.
 - **Built into a scene.** `mapPieces` is the hand-off; nothing lays its panels, ramps and ladders as a level yet.
-- **Geocube plans that hold the laws.** The reading says what a building lacks; the plan's own dials (a second door, a
-  staggered core, a second stair, a gallery) are not built.
+- **Geocube plans that hold every law.** The fight dials close most of the gap; a gallery round several walls, cover in
+  the core, and a gentler stair are not built.
 - **The mission on it.** The firing range's phases (arm up, clear by band, hold the heart, get out) placed on a map that
   holds the laws.

@@ -104,3 +104,9 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
     cell, up its ramps and ladders, off an edge where the way drops) and finishes a climb before it fights. Machine gate:
     with the shooter feel it wins the practice room on every template; as a level on two seeds it won six of eight (it
     stalls on a ladder taken from above, and once went down in the lane), said, not tuned away. Nobody has played one.
+- **Buildings designed as fighting maps** (`building.fight: true | { rings?, stagger?, stairs?, gallery?, cover? }`,
+  opt-in; an unasked building is byte-identical). Five dials on the plan, each the answer to an arena law the geocube's
+  buildings fail: rings (a second doorway for every room), stagger (the core's side doorways offset), stairs (a stair
+  room at each wing's far end), gallery (the tall annex overlooked from the upper storey), cover (the hall broken by its
+  own stock). The arena reader reads the gallery. Read against the laws, every core building but one improves; what
+  still fails is said in the design notes.

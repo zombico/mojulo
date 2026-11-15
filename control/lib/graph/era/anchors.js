@@ -89,6 +89,7 @@ export function stageColliders(plan, geom, anchors, { ceilings = false } = {}) {
       for (const op of r.openings[side]) {
         slab(u, op.lo, 0, r.h);
         slab(op.lo, op.hi, op.top, r.h);   // the lintel (an arched head's crown: the way through stays clear)
+        if (op.sill) slab(op.lo, op.hi, 0, op.sill);   // (a doorway at a gallery's height: the wall whole under it)
         u = op.hi;
       }
       slab(u, a1, 0, r.h);

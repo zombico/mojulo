@@ -175,6 +175,50 @@ function readRooms(buildings, opts) {
     }
   }
   if (!yard && exits.length) notes.push(`${exits.length} way${exits.length === 1 ? '' : 's'} out (${exits.map((x) => `${x.room} ${x.side}`).join(', ')}) ${(opts.exits ?? 'closed') === 'open' ? 'left open: the map is not bounded there' : 'read as walls: the inside is the arena'}`);
+  // GALLERIES (a hall's catwalk at the upper storey's floor, era/programs.js FIGHT `gallery`): its deck the column of the
+  // hall's cells along its wall, at the level of the room it opens from, railed (a low wall) on its open side but at its
+  // stairs' heads; its doorway one open edge in the wall; its near stair a ramp along the wall to the deck's first cell,
+  // a long one's second a ramp square to the wall up to its gap
+  const galleries = [], galRamps = [], galUsed = new Set();
+  for (const b of buildings) for (const g of b.plan.galleries ?? []) {
+    const H = byPlan.get(`${b.id}|${g.hall}`), Fm = byPlan.get(`${b.id}|${g.from}`), G = { hall: H?.id ?? g.hall, from: Fm?.id ?? g.from };
+    galleries.push(G);
+    if (g.lost) { G.read = 'none'; G.why = g.lost; continue; }
+    if (!H || !Fm || H.lost || Fm.lost || Fm.k !== H.k + 1) { G.read = 'none'; G.why = !H || !Fm || H.lost || Fm.lost ? 'a room it joins is lost' : 'its deck is not a level over the hall\'s floor'; continue; }
+    const X = g.side.endsWith('x'), k = Fm.k, at = X ? b.at[1] : b.at[0], cellOf = X ? fy : fx;
+    const col = g.side === '-x' ? H.i0 : g.side === '+x' ? H.i1 - 1 : g.side === '-y' ? H.j0 : H.j1 - 1, inward = g.side.startsWith('-') ? 1 : -1;
+    const lo = X ? H.j0 : H.i0, hi = X ? H.j1 : H.i1, clamp = (t) => Math.min(hi - 1, Math.max(lo, t));
+    const cc = (t, c = col) => (X ? [c, t] : [t, c]);
+    // (the deck's cells: those whose middles it runs past, from the near stair's head on, the near end the one its foot
+    // is at)
+    const o = X ? oy : ox, mid = (t) => o + (t + 0.5) * c - at, cells = [];
+    for (let t = lo; t < hi; t++) if (mid(t) >= g.deck[0] - 1e-9 && mid(t) <= g.deck[1] + 1e-9) cells.push(t);
+    if (!cells.length) { G.read = 'none'; G.why = 'its deck is under a cell long on the grid'; continue; }
+    const fromHigh = Math.abs(g.foot - g.near[1]) < Math.abs(g.foot - g.near[0]), deck = fromHigh ? [...cells].reverse() : cells, d0 = deck[0], d1 = deck[deck.length - 1], step = fromHigh ? -1 : 1;
+    for (const t of deck) { const [i, j] = cc(t); floors.set(k3(i, j, k), [i, j, k]); floorRoom.set(k3(i, j, k), H); galUsed.add(k3(i, j, k)); }
+    // its rail along the open side and across the far end; the heads its stairs come up to left open
+    const gaps = new Set(), rail = (a, bb) => setWall(edgeOf(a, bb, k), 'low');
+    const frontAt = g.front ? clamp(cellOf((g.front[0] + g.front[1]) / 2 + at)) : null;
+    if (frontAt !== null && deck.includes(frontAt)) gaps.add(frontAt);
+    for (const t of deck) if (!gaps.has(t)) rail(cc(t), cc(t, col + inward));
+    rail(cc(d1), cc(d1 + step));
+    // its doorway: the room it opens from onto the deck, through the wall they share
+    const dt = clamp(cellOf((g.lo + g.hi) / 2 + at)), outside = cc(dt, col - inward), e = edgeOf(outside, cc(dt), k);
+    if (deck.includes(dt) && floorRoom.get(k3(outside[0], outside[1], k)) === Fm) { walls.delete(eKey(e)); doors.push({ from: Fm.id, to: `${H.id}/gallery`, ...e }); G.door = e.at; } else notes.push(`${H.id}'s gallery: its doorway from ${Fm.id} falls off its deck on the grid and is not read`);
+    // its stairs: along the wall to the deck's first cell (the near), square to it up to the gap (the front)
+    const RUN0 = Math.ceil(RISE / (SLOPE * CELL) - 1e-9), along = X ? [0, step] : [step, 0], square = X ? [-inward, 0] : [0, -inward];
+    const tryRamp = (head, dir, label) => {
+      const run = Array.from({ length: RUN0 }, (_, q) => [head[0] - dir[0] * (RUN0 - q), head[1] - dir[1] * (RUN0 - q)]), foot = [run[0][0] - dir[0], run[0][1] - dir[1]];
+      const ok = [foot, ...run].every((c0) => floorRoom.get(k3(c0[0], c0[1], H.k)) === H && !floors.has(k3(c0[0], c0[1], k)));
+      if (!ok) { notes.push(`${H.id}'s gallery: its ${label} stair finds no straight ${RUN0}-cell run in the hall on the grid`); return null; }
+      galRamps.push({ at: [run[0][0], run[0][1], H.k], dir: [...dir], run: RUN0 });
+      for (const c0 of [foot, ...run]) galUsed.add(k3(c0[0], c0[1], H.k));
+      return { at: [run[0][0], run[0][1], H.k], dir: [...dir] };
+    };
+    G.stairs = [tryRamp(cc(d0), along, 'near'), ...(frontAt !== null && gaps.has(frontAt) ? [tryRamp(cc(frontAt), square, 'front')] : [])].filter(Boolean);
+    G.read = 'deck'; G.level = k; G.cells = deck.length; G.slope = g.slope;
+    G.why = `its ${r2(g.depth[1] - g.depth[0])} m deck read as the hall's column of cells along its ${g.side} wall at level ${k}, railed, ${G.stairs.length} stair${G.stairs.length === 1 ? '' : 's'} (1:${r2(1 / g.slope)}, read as ramps)`;
+  }
   // PROPS: tall pieces fill cells, low ones along an edge are low walls
   const solids = new Map(), lost = {}, propRead = { solids: 0, low: 0, lost };
   if (opts.props !== false) {
@@ -220,7 +264,7 @@ function readRooms(buildings, opts) {
   const isFloor = (i, j, k) => floors.has(k3(i, j, k)) && !solids.has(k3(i, j, k));
   // (a stair's well is never cut through a doorway's cell: the doorway would open onto nothing)
   const doorCells = new Set(doors.flatMap((d) => { const [i, j, k] = d.at; return [k3(i, j, k), d.side === 'e' ? k3(i + 1, j, k) : k3(i, j + 1, k)]; }));
-  const used = new Set(), wallAt = (a, b, k) => walls.has(eKey(edgeOf(a, b, k)));
+  const used = new Set(galUsed), wallAt = (a, b, k) => walls.has(eKey(edgeOf(a, b, k)));
   const wayOn = (cc, not, k) => DIRS.some(([di, dj]) => { const b = [cc[0] + di, cc[1] + dj]; return !not.some((n) => n[0] === b[0] && n[1] === b[1]) && isFloor(b[0], b[1], k) && !used.has(k3(b[0], b[1], k)) && !wallAt(cc, b, k); });
   for (const b of buildings) {
     for (const s of b.plan.stairs ?? []) {
@@ -281,6 +325,7 @@ function readRooms(buildings, opts) {
       Object.assign(S, { read: 'none', why: 'neither a straight run nor a ladder fits on the grid: the storeys it joins are not joined in the reading' });
     }
   }
+  ramps.push(...galRamps);
   const steep = stairs.filter((s) => s.slope > SLOPE);
   if (steep.length) notes.push(`${steep.length} stair${steep.length === 1 ? '' : 's'} steeper than a ramp (${[...new Set(steep.map((s) => `${s.profile} 1:${r2(1 / s.slope)}`))].join(', ')}, a ramp walks 1:${r2(1 / SLOPE)} at most): read as the nearest straight run, the slope not kept`);
   // the map's own edge: a wall wherever a floor meets it (a building's rooms are walled already; the yard's edge is not)
@@ -298,6 +343,6 @@ function readRooms(buildings, opts) {
     walls: [...walls.values()].sort((a, b) => sortC(a.at, b.at) || (a.side < b.side ? -1 : a.side > b.side ? 1 : 0)),
     ramps, ladders,
     read: { cell: c, origin: [r2(ox), r2(oy)], levels: levels.map((L, k) => ({ level: k, storeys: L ?? [] })), rooms: rooms.map(({ id, k, top, i0, j0, i1, j1, w, d, lost: l }) => ({ id, level: k, top, cells: l ? 0 : (i1 - i0) * (j1 - j0), box: [i0, j0, i1, j1], metres: [w, d], ...(l ? { lost: true } : {}) })),
-      doors, exits, stairs, props: propRead, notes },
+      doors, exits, stairs, ...(galleries.length ? { galleries } : {}), props: propRead, notes },
   };
 }
