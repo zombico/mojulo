@@ -311,7 +311,7 @@ const FA_SPECIALS = {
   ],
 };
 // (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
-export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 },
+export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 }, switch: 'cancel',
   weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
   ranged: [{ id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true }] });
 export const TEMPLATE_ARSENALS = Object.freeze({ 'fallen-angel': FALLEN_ANGEL_ARSENAL, 'fable-of-artesia': ARTESIA_ARSENAL });
@@ -386,9 +386,13 @@ export function lowerJuggle(J0) {
     air: { hang: J.hang ?? 0.15, kick: J.kick ?? 1.2 },
   };
 }
+export const SWITCHES = Object.freeze(['between', 'cancel']);
 export function readArsenal(A) {
   if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp)`);
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch)`);
+  // (how the weapon is switched: `between` moves only, as it always was, or `cancel`: taken mid-string at the move's
+  // switch point, the next weapon's string chained on, combat-melee.js)
+  if (A.switch !== undefined && !SWITCHES.includes(A.switch)) no(`switch is how the weapon is changed: ${SWITCHES.join(' | ')}`);
   // (the MP pool the specials draw on: `max`, `regen` a second, `onHit` gained for each blow that lands)
   if (A.mp !== undefined && !(isObj(A.mp) && num(A.mp.max, 1, 1000) && (A.mp.regen === undefined || num(A.mp.regen, 0, 100)) && (A.mp.onHit === undefined || num(A.mp.onHit, 0, 100)) && Object.keys(A.mp).every((k) => ['max', 'regen', 'onHit'].includes(k)))) no('mp is { max, regen? (a second), onHit? (a blow landed) }');
   if (A.juggle !== undefined) readJuggle(A.juggle);
@@ -434,6 +438,6 @@ export function lowerArsenal(A0) {
     ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
-    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}), ...(A.mp ? { mp: { max: A.mp.max, regen: A.mp.regen ?? 0, onHit: A.mp.onHit ?? 0 } } : {}) } }));
+    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}), ...(A.mp ? { mp: { max: A.mp.max, regen: A.mp.regen ?? 0, onHit: A.mp.onHit ?? 0 } } : {}), ...(A.switch === 'cancel' ? { swap: true } : {}) } }));
 }
 export const strikesOf = (A) => [...new Set(readArsenal(A).weapons.flatMap((W) => Object.values(W.moves).filter((m) => m.strike).map((m) => m.strike)))];

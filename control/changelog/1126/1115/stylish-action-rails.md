@@ -23,8 +23,14 @@ In progress. Built so far, all in the practice door's game room
 - **Built: the loadout's first part** (`gameworld/carried.js`). `loadout: { slots?: { melee }, start?: { melee,
   sidearm } }` says what the hero carries of the game's weapons: two melee weapons at once unsaid, in the order
   the weapon switch steps through them, and the sidearm or none. It is laid on every level's hero and in the game
-  room's fights. A world that writes none carries its whole kit, as before. Choosing it at points in the game and
-  switching mid-string are not built yet.
+  room's fights. A world that writes none carries its whole kit, as before. Choosing it at points in the game is
+  not built yet.
+- **Built: the switch cancel.** An arsenal says `switch: 'cancel'` (the stylish kit does): the weapon switch
+  pressed mid-swing is held to the move's switch point (its cancel, or the end of its blow for a move with none, a
+  finisher), the rest of the move is cut with no rest and no cooldown, the next weapon is in hand, a press that was
+  waiting opens its string at once, and the string's count carries on. One weapon's string chains into the
+  other's. An arsenal that does not say it switches between moves only, as before. Every page that embeds the
+  runtime is re-pinned for the lines this adds.
 - **Fixed: a swing trail from a weapon that is put away.** A hero that switches to the fist keeps its other figure,
   blade in hand, animated out of sight, and that hidden blade still left its trail. A body that is not drawn leaves
   none now. Every page that carries swing trails has that one line more.

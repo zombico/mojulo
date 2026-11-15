@@ -102,8 +102,8 @@ function editedKit(raw) {
   const { from, ...E } = raw;
   if (!TEMPLATE_ARSENALS[from]) no(`.from is a template with a kit (${TEMPLATES.join(', ')}), not '${from}'`);
   const K = structuredClone(TEMPLATE_ARSENALS[from]);
-  for (const k of Object.keys(E)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp'].includes(k)) no(`edit '${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp)`);
-  const out = { ...K, ...(E.art !== undefined ? { art: E.art } : {}), ...(E.ranged !== undefined ? { ranged: E.ranged } : {}) };
+  for (const k of Object.keys(E)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch'].includes(k)) no(`edit '${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch)`);
+  const out = { ...K, ...(E.art !== undefined ? { art: E.art } : {}), ...(E.ranged !== undefined ? { ranged: E.ranged } : {}), ...(E.switch !== undefined ? { switch: E.switch } : {}) };
   // (timing, mp and the juggle merged over the kit's; null drops the kit's)
   for (const k of ['timing', 'mp', 'juggle']) {
     if (E[k] === undefined) continue;

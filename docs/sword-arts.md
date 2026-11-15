@@ -75,4 +75,13 @@ The arsenal is what the game has; the loadout is what the hero carries of it (`g
 says otherwise, in the order the weapon switch steps through them, and the sidearm, or `false` for none. It is laid
 on every level's hero and in the game room's fights; the foes stay numbered by the whole kit. A world that writes
 none carries every weapon of its arsenal. Choosing the loadout at points in the game (before a level, at a rest,
-when a weapon is earned) and a switch taken mid-string are to come.
+when a weapon is earned) is to come.
+
+## The switch
+
+`switch: 'between' | 'cancel'` on an arsenal says how the weapon is changed. `between` (unsaid) is between moves
+only: the press mid-swing is dropped. `cancel` (the stylish kit's) is the switch cancel: the press mid-swing is
+held to the move's switch point, which is its cancel, or the end of its blow for a move with none (a finisher).
+There the rest of the move is cut, with no rest and no cooldown, the next weapon is in hand, a press that was
+waiting opens that weapon's string at once, and the string's count carries on. So three cuts of the sword can end
+in the fist's hook, and a launcher's recovery can be cut into the other weapon's air string.
