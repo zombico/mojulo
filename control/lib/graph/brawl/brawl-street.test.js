@@ -121,10 +121,12 @@ describe('a street\'s session: what a game\'s turn hands it', () => {
     expect(streetSession({}, roster, [0])).toEqual({ players: [0], difficulty: null });
     expect(streetSession(undefined, roster, [0, 1])).toEqual({ players: [0, 1], difficulty: null });
   });
-  it('how hard is the engine\'s tier, a row each: the middle one the street as written, the others a crowd\'s rules over it', () => {
+  it('how hard is the engine\'s tier, a row each: a crowd\'s rules over the street\'s, gentler below, the crowd\'s own pace at the top', () => {
     expect(streetSession({ difficulty: 'max' }, roster, [0]).difficulty).toBe('max');
     expect(streetSession({ difficulty: 'nightmare' }, roster, [0]).difficulty).toBeNull();
-    expect(Object.keys(STREET_DIFFICULTY.medium.crowd)).toHaveLength(0);
+    // (each tier's breath between a body's attacks no shorter than the tier above's: measured, brawl-measure.js)
+    expect(STREET_DIFFICULTY.easy.crowd.cool[0]).toBeGreaterThan(STREET_DIFFICULTY.medium.crowd.cool[0]);
+    expect(STREET_DIFFICULTY.max.crowd.cool).toBeUndefined();
     const keys = Object.keys(typeof RULES_OF_CROWD === 'undefined' ? { tokens: 1, cool: 1, limit: 1 } : RULES_OF_CROWD);
     for (const T of Object.values(STREET_DIFFICULTY)) for (const k of Object.keys(T.crowd)) expect(keys).toContain(k);
     expect(STREET_DIFFICULTY.easy.crowd.tokens).toBeLessThan(STREET_DIFFICULTY.max.crowd.tokens);

@@ -222,8 +222,25 @@ screen) is now played on a page; before, only its practice yard was.
 - A wave on an OPEN screen (one with no gate) is fought on the move, in either play: it comes in as the player walks
   in, the camera is not held, and it is let go once a player is on the next wave's screen (those still standing left
   behind). A wave on such a screen was refused before.
-- Not yet (run & gun): cover placed from the dress's own pieces, lives and one-hit play, a gunner's boss, two
-  gunners checked on a page, the fight measured (a first wave of shooters is not yet tuned against a player).
+- THE FIGHT, MEASURED (`brawl/brawl-measure.js`): a map's encounters have a machine gate. A street is fought down on
+  the brawl's own simulation, no page, by a bot that plays the player's kit through its buttons (the masher, the floor:
+  it walks up and attacks; the careful one: off a round's line, food when hurt, crates opened, a roll away from a
+  brawler when it holds a gun), at each difficulty, over several takes (the middle one is the run), and each wave says
+  how long it lasted, what share of the health bar it took and how many fell. The runs are read against the FIGHT LAWS
+  (the floor finishes on easy, care is rewarded as written, max can be won, no spike, no slog, it opens gently, it
+  ends); a law lost names the wave and what to change. `design_game`'s readout measures each sideways map (a quick
+  brawl's streets, a composed world's sideways levels: `gameworld/fight-measure.js`) and adds a `fight` step where a
+  law is lost. The whole table: `node scripts/spikes/brawler/measure.mjs`. It advises; the bots and the player are
+  stand-ins, and it is not the eyes gate.
+- The starter's own fights were set against it, and a deep test holds them to it. A brawl: a held screen opens with
+  two bodies (three before), every box holds a roast chicken (an apple in every other before), the boss's screen a
+  joint of meat at its door. A run & gun: two shooters and one rushing in on a held screen (a shooter more each), and
+  its last screen is a LAST STAND, a rocket behind its shooters, with no brawler boss: a gunner had no answer to one,
+  measured. The difficulty tiers (`STREET_DIFFICULTY`): easy and medium send one body at a time (medium with a breath
+  between them; it was the crowd's own two at once), max is the crowd's own pace with a boss on its sharpest mind.
+- A player's round breaks a box open (it stops there): a gunner has no blow to open a crate with.
+- Not yet (run & gun): cover placed from the dress's own pieces, lives and one-hit play, a gunner's boss (a boss that
+  shoots, with its bar), two gunners checked on a page.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

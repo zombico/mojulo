@@ -83,6 +83,7 @@
  *   • HIDING: a body HIDES (`pad.hide`: ducked down, its crouch's hurtboxes at 60% of their height, so a round at the
  *     chest passes over it) until a
  *     command brings it up (a blow, a shot, an aim, a step, `pad.pop`).
+ *   • A player's round meeting a BOX stops there and wears it: broken, it leaves what it holds (a gunner's way into a crate).
  *   • COVER (the things' `cover`, brawl-things.js): a round meeting a cover piece is stopped there, wearing it down, unless
  *     its shooter stands right behind it (`coverReach`: a body fires over its own cover); a lobbed grenade goes over it
  *     and a burst reaches behind it and breaks it; blows break it; no body walks through it.
@@ -941,6 +942,17 @@ const BOX_REACH = 1600;
 /** the thing a body stands over (not a box, not one in flight), nearest first */
 /** a round meeting a cover piece is stopped there (unless its shooter stands right behind it), wearing it down */
 function coverStops(s, ctx) {
+  // (a player's ROUND ON A BOX: it stops there and the box takes it, broken open for what it holds: a gunner has no
+  // blow to open a crate with)
+  for (const t of s.shots) {
+    if (t.side !== 'player' || t.lob || t.hits <= 0 || t.done || t.gun === undefined) continue;
+    const c = s.things.find((b) => { if (b.kind !== 'box') return false; const hw = Math.round((THINGS.box[b.what].w * 1000) / 2), was = t.x - t.vx; return Math.abs(t.z - b.z) <= 450 && (Math.sign(was - b.x) !== Math.sign(t.x - b.x) || Math.abs(t.x - b.x) <= hw); });
+    if (!c) continue;
+    c.hp -= t.dmg;
+    s.events.push({ t: c.hp > 0 ? 'thud' : 'break', thing: c.id, what: c.what, p: t.o, x: c.x, z: c.z });
+    if (c.hp <= 0) breakBox(s, c);
+    if (t.area) { t.boom = 1; burst(s, ctx, t); } else { t.hits = 0; t.life = 0; }
+  }
   const covers = s.things.filter((c) => c.kind === 'cover');
   if (!covers.length) return;
   for (const t of s.shots) {

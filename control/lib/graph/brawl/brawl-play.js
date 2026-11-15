@@ -20,8 +20,6 @@
  */
 import { CROWD_TYPES } from './brawl-crowd.js';
 import { THINGS } from './brawl-things.js';
-import { solveFighter } from '../versus/versus-solver.js';
-import { CPU_LEVELS } from '../versus/versus-cpu.js';
 
 const row = (o) => Object.freeze(o);
 export const PLAY_TYPES = Object.freeze({
@@ -40,7 +38,7 @@ export const PLAY_TYPES = Object.freeze({
     asks: Object.freeze(['fighter', 'gun']),
     hud: 'health, the gun held and its rounds, the grenades, the held screens as pips, the crowd left, the boss\'s bar',
     stands: 'cover on every screen (the setting\'s own), a crate holding a gun on the held ones, food before the boss',
-    waves: 'shooters on every screen with a rush between them: on an open screen fought on the move, on a held one until beaten; a boss on the last with shooters beside it',
+    waves: 'shooters on every screen with a rush between them: on an open screen fought on the move, on a held one until beaten; the last screen a last stand, a rocket behind its shooters',
     result: Object.freeze(['time', 'health', 'accuracy', 'rank']),
   }),
 });
@@ -60,8 +58,9 @@ export const CRATE_GUNS = Object.freeze(['spread', 'machine-gun', 'rocket', 'fla
 const SHOOTS = (t) => !!CROWD_TYPES[t]?.gun;
 /**
  * A RUN & GUN'S WAVES when a map names none. Every screen has one: an open screen's is fought on the move (two
- * shooters, then one more a screen), a held one's until it is beaten (three shooters and a rush of the crew's own, a
- * body more each); the boss's screen its boss with two shooters beside it. `types`: how the crew fights (its crowd
+ * shooters, then a third), a held one's until it is beaten (two shooters and one of the crew's own rushing in, a
+ * shooter more each); the boss's screen THE LAST STAND, a rocket behind its shooters. Counts measured against the
+ * fight laws (brawl-measure.js). `types`: how the crew fights (its crowd
  * types): its shooters shoot, its others rush; a crew with no gun gets riflemen and a gunner.
  */
 export function playWaves(play, belt, types = null) {
@@ -73,9 +72,11 @@ export function playWaves(play, belt, types = null) {
   let open = 0, held = 0;
   belt.screens.forEach((sc, screen) => {
     const shooters = (n, from) => Array.from({ length: n }, (_, i) => G[(i + from) % G.length]);
-    if (sc.boss) out.push({ screen, crowd: tally(shooters(2, held)), boss: { recipe: { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'The Boss' }, plays: ['chain', 'strong'], cpu: Object.keys(CPU_LEVELS)[0], hp: 600 } });
-    else if (sc.gate) { out.push({ screen, crowd: tally([...shooters(3 + held, held), ...Array.from({ length: 1 + held }, (_, i) => R[(i + held) % R.length])]) }); held++; }
-    else { out.push({ screen, crowd: tally(shooters(Math.min(4, 2 + open), open)) }); open++; }
+    // (THE LAST STAND, the boss's screen: a rocket behind its shooters, no brawler: a gunner has no answer to a boss
+    // that fights at arm's length, measured (brawl-measure.js); a map's own waves may still name a boss)
+    if (sc.boss) out.push({ screen, crowd: tally(['bazooka', ...shooters(2 + Math.min(1, held), held)]) });
+    else if (sc.gate) { out.push({ screen, crowd: tally([...shooters(2 + held, held), R[held % R.length]]) }); held++; }
+    else { out.push({ screen, crowd: tally(shooters(Math.min(3, 2 + open), open)) }); open++; }
   });
   return out;
 }
@@ -94,7 +95,9 @@ export function playThings(play, belt, { boxes = null, cover = null } = {}) {
     // (the first screen's cover stands clear of where the players start)
     for (const f of i === 0 ? [0.72] : [0.36, 0.72]) { out.push({ kind: 'cover', what: C[k % C.length], at: r2(sc.from + f * sc.length), n: r2(mid + (k % 2 ? 0.9 : -0.9)) }); k++; }
     if (sc.gate && !sc.boss) { out.push({ kind: 'box', what: BOX[g % BOX.length], at: r2(sc.from + 0.2 * sc.length), n: r2(n1 - 0.6), holds: { kind: 'gun', what: CRATE_GUNS[g % CRATE_GUNS.length] } }); g++; }
-    if (sc.boss) out.push({ kind: 'box', what: BOX[g % BOX.length], at: r2(sc.from + 0.15 * sc.length), n: r2(n1 - 0.6), holds: { kind: 'food', what: 'chicken' } });
+    // (food where a fight has been: a roast chicken after the first held screen, a joint before the last stand)
+    if (sc.gate && !sc.boss && g > 1) out.push({ kind: 'box', what: BOX[g % BOX.length], at: r2(sc.from + 0.1 * sc.length), n: r2(n0 + 0.6), holds: { kind: 'food', what: 'chicken' } });
+    if (sc.boss) out.push({ kind: 'box', what: BOX[g % BOX.length], at: r2(sc.from + 0.15 * sc.length), n: r2(n1 - 0.6), holds: { kind: 'food', what: 'meat' } });
   });
   return out;
 }

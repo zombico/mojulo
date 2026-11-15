@@ -160,6 +160,33 @@ levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
   not held, and it is let go once the player is on the next wave's screen. Holds stay for the screens that are gated
   and the boss's.
 
+## The fight, measured
+
+A map's encounters have a machine gate (`control/lib/graph/brawl/brawl-measure.js`). The street is fought down on the
+game's own simulation by a bot that plays the player's kit through its buttons, with no page, in seconds:
+
+- **Two players.** The *masher* is the floor: it walks at the nearest body and attacks, and dodges nothing. The
+  *careful* one steps off a round's line, eats when hurt, opens crates, and backs off a brawler when it holds a gun.
+- **Every difficulty**, as the page lays it (the crowd's rules, a boss's mind).
+- **Several takes.** A fight is not one number: each case is fought from slightly different starts and the middle
+  take is the run. `won` says how many takes were won.
+- **Wave by wave.** Each run says how long each wave lasted, what share of the health bar it took, and how many fell.
+
+The runs are read against the **fight laws** (`FIGHT_LAWS`): the floor player finishes on easy; care is rewarded as
+written; the hardest tier can still be won; no wave is a spike; no held wave is a slog; the map opens gently; every run
+ends. A law lost names the wave and says what to change. It advises and refuses nothing.
+
+`design_game`'s readout measures each sideways map (the two decisive cases) and, where a law is lost, adds a `fight`
+step naming the map, the law and the wave. The whole table:
+
+```bash
+node scripts/spikes/brawler/measure.mjs --play gun --level '{"kind":"stage","kit":"bay-military"}'
+```
+
+What it is not: the eyes gate. The bots are stand-ins, cruder than a person, and the player they play is a stand-in
+all-rounder, not the game's own fighter. It says whether a fight can be got through and where it bites, not whether it
+is fun. The starter's own waves, food and difficulty tiers were set against it, and a deep test holds them to it.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:

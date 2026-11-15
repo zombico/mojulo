@@ -55,6 +55,7 @@ import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gamew
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
+import { fightMeasured } from '@/lib/graph/gameworld/fight-measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
@@ -538,6 +539,10 @@ function readout(ref, world, context = {}) {
   // gate beside the feel's; a law lost is advised as a feel step
   const rangeM = door.rooms.includes('range') ? rangeMeasured(world) : null;
   if (rangeM?.lost) next.push({ step: 'feel', range: rangeM.worst, card: 'gameworld-feel' });
+  // the fight measured (gameworld/fight-measure.js: the fight laws on each sideways map, before anyone plays it): the
+  // encounters' machine gate; a law lost is advised with the wave it names, never a refusal
+  const fightM = fightMeasured(world);
+  if (fightM?.lost) next.push({ step: 'fight', map: fightM.worst.map, law: fightM.worst.law, advice: fightM.worst.advice, maps: fightM.maps.filter((m) => m.lost.length).map((m) => ({ id: m.id, play: m.play, lost: m.lost })), card: 'gameworld-side-scroll' });
   // the roll room measured (roll-room.js: the seeds audit of its yard, the cover forms that stop this hero, before any
   // level): a law lost, or a hero no form of cover stops, is advised; never a refusal
   const rollM = door.rooms.includes('roll') ? rollMeasured(world) : null;

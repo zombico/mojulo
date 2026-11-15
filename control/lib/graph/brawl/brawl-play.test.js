@@ -33,11 +33,12 @@ describe('the play types', () => {
 
 describe('a run & gun\'s map, laid when it names nothing', () => {
   const W = playWaves('gun', belt), T = playThings('gun', belt, { cover: SETTING_COVER.base });
-  it('every screen has a wave of shooters; the held one a rush with them, the boss\'s its boss', () => {
+  it('every screen has a wave of shooters; the held one a rush with them, the last a last stand with a rocket and no brawler', () => {
     expect(W.map((w) => w.screen)).toEqual([0, 1, 2]);
     for (const w of W) expect(w.crowd.some((c) => CROWD_TYPES[c.type].gun)).toBe(true);
     expect(W[1].crowd.some((c) => !CROWD_TYPES[c.type].gun)).toBe(true);
-    expect(W[2].boss).toBeTruthy();
+    expect(W[2].boss).toBeUndefined();
+    expect(W[2].crowd.some((c) => c.type === 'bazooka')).toBe(true);
     expect(() => readWaves(W, belt)).not.toThrow();
     // (a crew's own: its shooters shoot, its others rush)
     const own = playWaves('gun', belt, ['grenadier', 'knife']);

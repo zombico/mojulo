@@ -862,7 +862,7 @@ export function defaultWaves(belt, types = null) {
   const out = [], T = types?.length ? types : null;
   let k = 0;
   const wave = (n) => {
-    if (!T) return [{ type: 'thug', n: n - Math.min(k, n - 1) }, ...(k ? [{ type: 'knife', n: Math.min(k, n - 1) }] : [])];
+    if (!T) return [{ type: 'thug', n: n - Math.min(k, n - 1) }, ...(k && n > 1 ? [{ type: 'knife', n: Math.min(k, n - 1) }] : [])];
     const count = new Map();
     let shots = 0;
     for (let i = 0; i < n; i++) { let t = T[(i + k) % T.length]; if (SHOOTS(t) && ++shots > 2) t = 'thug'; count.set(t, (count.get(t) ?? 0) + 1); }
@@ -870,7 +870,7 @@ export function defaultWaves(belt, types = null) {
   };
   belt.screens.forEach((sc, screen) => {
     if (sc.boss) out.push({ screen, crowd: wave(2), boss: { recipe: { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'The Boss' }, plays: ['chain', 'strong'], cpu: Object.keys(CPU_LEVELS)[0], hp: 400 } });
-    else if (sc.gate) { out.push({ screen, crowd: wave(3 + k) }); k++; }
+    else if (sc.gate) { out.push({ screen, crowd: wave(2 + k) }); k++; }
   });
   return out;
 }
@@ -905,14 +905,16 @@ export function brawlSetup(setup, playable = [], guns = []) {
   return { ...(own ?? { difficulty: true }), ...(picks.length || who.length || armed.length ? { picks: [...picks, ...who, ...armed] } : {}) };
 }
 /** What a street has standing on it to be broken when it names none (brawl-things.js THINGS.box, drawn as skandart's
- * vessels): two on each held screen, toward its far side, a barrel, a crate and a steel drum in turn; every other one
- * holds something to eat, the boss's screen a roast chicken. */
+ * vessels): two on each held screen, toward its far side, a barrel, a crate and a steel drum in turn; each holds
+ * something to eat, a roast chicken, the boss's screen a joint of meat (its first at the screen's door). How much, and
+ * how many stand in a wave, are measured against the fight laws (brawl/brawl-measure.js). */
 export function defaultThings(belt, boxes = null) {
   const out = [], BOX = boxes?.length ? boxes : ['barrel', 'crate', 'drum'], far = belt.depth[1] - 0.7, r2 = (v) => Math.round(v * 100) / 100;
   let k = 0;
   belt.screens.forEach((sc) => {
     if (!sc.gate && !sc.boss) return;
-    for (const f of [0.3, 0.72]) { out.push({ kind: 'box', what: BOX[k % BOX.length], at: r2(sc.from + f * sc.length), n: r2(far - (k % 2) * 0.5), ...(k % 2 === 0 ? { holds: { kind: 'food', what: sc.boss ? 'chicken' : 'apple' } } : {}) }); k++; }
+    // (the boss's first stands at its screen's door: what it holds is taken before the boss comes in)
+    for (const f of sc.boss ? [0.06, 0.72] : [0.3, 0.72]) { out.push({ kind: 'box', what: BOX[k % BOX.length], at: r2(sc.from + f * sc.length), n: r2(far - (k % 2) * 0.5), holds: { kind: 'food', what: sc.boss ? 'meat' : 'chicken' } }); k++; }
   });
   return out;
 }
