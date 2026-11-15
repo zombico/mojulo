@@ -1,47 +1,53 @@
 {
   "_about": "Hand-kept notes for the Cosmos tab: who owns each facet, its stage, the next step, and the work log. Numbers are not kept here; scripts/tool-surface.mjs recomputes them from the cosmos registry and sweep. Seeded 2026-10-11 from the Cosmos Cube Board artifact.",
   "board": "https://claude.ai/artifact/RkWXXYpscsGfk2ZERofwQS",
-  "now": "",
-  "next": "",
+  "now": "The rails, before the shelves. The matrix did not move with 1110 to 1113 because that work was rails (the playthrough, a world's arsenal and its one scale, the casting call, the start in play, the rooms, the colour bridge), and the cube counts values. Where the rails stop is the work: the sentence door reads an action genre, lays its camera and casts its foes, and writes no arsenal, so no level's hero plays strings and no level is played (the `action` door probe holds it at 'not').",
+  "next": "In order, each a join and none a shelf row: the sentence door lays the kit its feel names and gives the action RPG its feel without the word that names a template, and the cast is cast again when the kit changes; one won-gate with a player per kernel family (the walk, the fight, the gun, the shift, the course) behind one verdict in the made record and the bible; a made room as a level (the game room and the work shift laid in the book, exported, drawn in the bible); the level keys that carry a room's condition (skandart, wet, daylight) so what merged for rooms reaches a designed game; sound from a gameworld, the widest recipe the sweep ranks, as a channel every level reads.",
   "facets": {
     "reality": {
       "name": "Reality",
       "owner": "7th-gen agent: the rungs",
       "stage": "mapped",
-      "next": "Gen-7 is priced (the era large, the cast large and needing the era). Sound from a designed gameworld is the widest recipe: a quick game says its music and effects, a designed one has no word, and no level reads the SFX shelf. The level HUD on mana-ui is the interface gap left."
+      "next": "Gen-7 is priced (the era large, the cast large and needing the era); the cast rig lights every body under the land's one sun. Sound from a designed gameworld is still the widest recipe: the SFX shelf is read by the rooms (the work and game rooms now too), never by a level by word, and a world has no sound key. Mana-ui draws the boards, the tables, the holo arena and the rooms' menu; a level's own HUD, talk, quest log and pause are the interface gap left. Debris, wetness, daylight and the ashlar crypt reach a world recipe and no key of a designed game's level."
     },
     "space": {
       "name": "Space",
       "owner": "Claude: gap filling",
       "stage": "designing",
-      "next": "The written map, its zones and the megaworld are built; open still waits on a border crossed anywhere and a page streamed. The headset is partial: the level HUD reaches it as lines, and no eyes gate has run."
+      "next": "The written map, its zones and the megaworld are built; an action RPG's map opens on one block whose way out holds until its fights fall. Open still waits on a border crossed anywhere and a page streamed. The headset is partial. The game room is a practice room, not a level form: a made room laid in the book is the join. Stylish action's cube asks for rooms and the door lays trail walks."
     },
     "power": {
       "name": "Power",
       "owner": "Claude: gap filling",
       "stage": "designing",
-      "next": "Knockback, the destruction degrees and destructible physics, triggered breaks, the vayo moves, the guard and the feel card are built. The throw is the brawler’s alone and the storeys-high leap is in parts: comic-blows. The brawler and the crewed machines wait on a gameworld’s door."
+      "next": "Strings (a world's arsenal, its foes numbered on the kit's scale) and the work mechanic (a shift from the quick door) are built, and a fight level is played by a scripted player. The sentence door writes no arsenal, so a game from a sentence is unarmed and unplayed until the readout's step is taken; only fights are played (no gun level, shift or course). The throw is the brawler's alone and the storeys-high leap is in parts: comic-blows. The practice door opens the firing and artillery ranges from a gameworld, and no level carries a turret: the brawler and the crewed machines wait on a gameworld's door."
     },
     "soul": {
       "name": "Soul",
       "owner": "Claude: gap filling",
       "stage": "mapped",
-      "next": "The mascot pilots; a stored animal or creature still does not. A flight’s body is still a slab while the craft shelf holds real airframes. The seat settings are as they were."
+      "next": "The mascot pilots; a stored animal or creature still does not. A sentence's hero is designed as a person of its world and coloured against its land with its foes. The crewed machines are driven only in the artillery range. A flight's body is still a slab. The seat settings are as they were: a work shift is one cook's."
     },
     "mind": {
       "name": "Mind",
       "owner": "",
       "stage": "",
-      "next": ""
+      "next": "The pursuer joins the foe classes, and a people's foes carry their lineage's arms; the casting call reads the hero's kit, once, when the world is composed: a kit written after it casts nothing again. Found and open in the runtime: a mind's ground snap is cast from its head (a boss climbs out of the blade's reach), and the brute's blow that cannot be blocked is blocked. The agent commander is the one priced gap."
     },
     "time": {
       "name": "Time",
       "owner": "Operator + agent, own branch",
       "stage": "designing",
-      "next": "Held cinematics, replay in play, keying, quest turns and side quests by the main quest are the priced gaps; a moment takes the camera and the look."
+      "next": "A game can start in play: its opening a cutscene, then the first level (the cutscene's video is not yet carried into the export). Held cinematics, replay in play, keying, quest turns and side quests by the main quest are the priced gaps; a moment takes the camera and the look."
     }
   },
   "log": [
+    {
+      "at": "2026-11-15T12:00:00Z",
+      "facet": "power",
+      "milestone": true,
+      "text": "The cube caught up with the merges through 1113 (lorecube to the world's inhabitants). Dated: the ashlar crypt's kit and the pursuer; the notes name the practice door's ranges and rooms, mana-ui on the boards, tables and rooms, and the start in play. Nothing waiting on a gameworld's door moved (the brawler, the crewed machines, sound, the level HUD are as priced), and the totals did not: 69 of 500 random worlds makeable, 294 near the probes. That is the finding: the fortnight built rails the cube does not count. The action games get a door probe, held at 'not': a sentence lays the camera and the cast and no arsenal, so its hero plays no strings and the playthrough plays no level. The co-op kitchen asks for the work mechanic. Now and next say the joins in order."
+    },
     {
       "at": "2026-11-10T12:00:00Z",
       "facet": "power",

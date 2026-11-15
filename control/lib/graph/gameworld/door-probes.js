@@ -59,6 +59,17 @@ export const DOOR_PROBES = Object.freeze([
     now: 'type',
   },
   {
+    // the action games (11-11): the sentence reads the genre, lays its orbit camera and casts its foes, and writes no
+    // arsenal, so no level's hero plays strings and no level is played by the playthrough until an agent takes the
+    // readout's arsenal step. 'not' until the door lays the kit its feel names
+    family: 'action', genre: 'action-rpg', prompt: 'an anime action rpg like zelda',
+    concept: 'a level whose hero plays strings (its world\'s arsenal laid on it as a moveset), with foes to cut',
+    holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some((e) => isObj(e.rule?.moveset) || Array.isArray(e.rule?.moveset)) && (m.entities ?? []).some((e) => !e.pilotable && e.rule?.type === 'ai')),
+    reference: { book: { id: 'ref', feel: 'fable-of-artesia', arsenal: 'auto', foes: { grunt: { class: 'walker' } }, levels: { a: { walk: { nodes: { a: { trail: {} }, b: { trail: {} } } }, foes: { from: ['grunt'] } } },
+      characters: { direction: { tradition: 'anime' }, hero: { motion: { vibe: ['bold'] }, actions: { none: true }, adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] } } } } },
+    now: 'not',
+  },
+  {
     family: 'defend', genre: 'tower-defense', prompt: 'a tower defence game: build towers along the path to stop waves of enemies',
     concept: 'a level that carries a board (the towers, the path, the waves)',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.board) || mechanicsOf(m).includes('board')),
