@@ -23,22 +23,30 @@
  *   the zip      the key pressed on the ground: a pull straight to the anchor at `zipSpeed`, arriving on the face (the
  *                wall holds it there when the rule has `wall`)
  *
+ *   the body     hangs along its line (`hang` of the way: a trapeze artist's body follows the rope, eased in as the line
+ *                takes its weight), the clip's phase the arc's (0 behind the pivot, 1 ahead of it: arched at the back,
+ *                long at the bottom, piked at the front). Let go in the air with room and speed, it turns `flips`
+ *                somersaults the way the swing was carrying it (a back tuck off the front of the arc) over `flipTime`,
+ *                opening upright; low or slow, it only rights itself. `e.tumble` carries both (the page turns the whole
+ *                body about its middle); a new line, a wall or the ground ends it. `hang: 0, flips: 0` is the body upright
+ *
  * Locomotion: swing, swing_release, zip (a figure without the clip plays its fallback: playscape/player.js
- * TRAVERSAL_FALLBACK). `e.swinging` is { anchor, pivot, L, face, v } while a line is out (the page draws it from the hand
+ * TRAVERSAL_FALLBACK; a hero that starts with the line carries its own, player.js GEAR_CLIPS). `e.swinging` is { anchor, pivot, L, face, v } while a line is out (the page draws it from the hand
  * to the anchor).
  * Lengths in the world's units; the defaults are metres × the rule's `metre`, as the wall's.
  *
  *   swinger: { reach 60 m, ideal 0.7, elev 55°, minElev 25°, cone 75°, center 0.75, clear 3 m, pump 6 m/s², steer 1.6 rad/s,
- *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, key 'boost' }
+ *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, hang 0.85, flips 1, flipTime 0.7 s,
+ *              flipRoom 4 m, key 'boost' }
  */
 export function buildSwing(E) {
   const { add, sub, scl, clamp, fwdXY } = E;
   const EPS = 0.05, DEG = Math.PI / 180;
   // the presets: the direction constraints a gear's line keeps (lengths in metres, × metre)
   const GEAR_PRESETS = {
-    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, key: 'boost' },
+    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, key: 'boost' },
   };
-  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel'];
+  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom'];
   const gearOf = (r) => {
     const g = typeof r.gear === 'string' ? { preset: r.gear } : r.gear, P = GEAR_PRESETS[g.preset || 'swinger'];
     if (!P) return null;
@@ -105,7 +113,22 @@ export function buildSwing(E) {
     e._gearAt = [t.pos[0], t.pos[1], t.pos[2]];
     e._gearCool = Math.max(0, (e._gearCool || 0) - dt);
     e._gearRel = Math.max(0, (e._gearRel || 0) - dt);
-    if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; return false; }
+    // the body's turn (e.tumble: the hang along the line, the somersault off it) is the gear's own: anything that takes
+    // the body from it (a blow, a wall, a drop) rights it
+    const upright = () => { if (e._gearTurn) { e._gearTurn = null; e.tumble = null; } };
+    if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; upright(); return false; }
+    // THE SOMERSAULT off a line let go (or the body righting itself): eased from the hang's angle to upright, `flips`
+    // turns on the way; the ground ends it where it is
+    if (e._gearTurn && e._gearTurn.flip) {
+      const F = e._gearTurn.flip;
+      if (e.grounded || e.zipping) upright();
+      else {
+        F.t += dt;
+        const u = Math.min(1, F.t / F.dur), k = u * u * (3 - 2 * u);
+        e._gearTurn.u = u;
+        if (u >= 1) upright(); else e.tumble = { axis: F.axis, angle: F.from + (F.to - F.from) * k };
+      }
+    }
     const cs = state.colliders;
     if (!cs) return false;
     const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : {};
@@ -118,6 +141,16 @@ export function buildSwing(E) {
       e.vel = [0, 0, v[2]]; e.dashVel = [v[0], v[1]]; e.grounded = false; e.coyote = 1; e.jumpBuf = 0;
       e.swung = { end: how };
       if (Math.hypot(v[0], v[1]) > EPS) t.heading = Math.atan2(v[1], v[0]);
+      // let go in the air (the key, a jump): the body turns on the way the swing carried it, `flips` somersaults where
+      // it has the room under it and the speed, and opens upright; anything else rights it at once
+      const T = e._gearTurn, a0 = T ? T.angle : 0;
+      if (T && (how === 'release' || how === 'jump') && (G.flips > 0 || Math.abs(a0) > 1e-3)) {
+        const gz = ground(t.pos), room = gz == null ? Infinity : t.pos[2] - eye - gz;
+        const turns = G.flips > 0 && room >= G.flipRoom && len(v) >= G.maxSpeed * 0.2 ? G.flips : 0;
+        // (the swing's own way round: swinging forward the hang's angle falls, so the turn goes on falling)
+        const dir = T.w < 0 ? -1 : 1, f1 = fwdXY(t.heading);
+        e._gearTurn = { angle: a0, u: 0, flip: { t: 0, dur: turns ? G.flipTime * turns : 0.25, from: a0, to: dir * 2 * Math.PI * turns, axis: [-f1[1], f1[0], 0], turns } };
+      } else upright();
     };
 
     // the ZIP: a pull straight to the anchor, arriving on its face
@@ -147,7 +180,7 @@ export function buildSwing(E) {
         const to = [A.q[0], A.q[1], A.q[2] - H * 0.9 + eye];
         to[A.face.ax] = A.face.at + A.face.s * R;
         e.zipping = { to, face: A.face, anchor: A.q };
-        e.swinging = null;
+        e.swinging = null; upright();
         return true;
       }
       // the PIVOT the body swings about: the anchor drawn `center` of the way in toward the hero's own line across the
@@ -196,18 +229,36 @@ export function buildSwing(E) {
     // the line crossed by a box, the body met by one, or the ground under it: let go
     const feet = p[2] - eye, hit = inBox(cs, p, feet, R, H), gz = ground(p);
     const hp = [p[0], p[1], p[2] + hOff], toA = sub(S.anchor, hp), lineCut = E.nearestWallT(hp, sub(S.anchor, scl(toA, EPS / Math.max(EPS, len(toA)))), cs);
-    if (hit) { e.swinging = null; e._gearCool = G.cool; e.vel = [0, 0, 0]; e.dashVel = null; e.swung = { end: 'met' }; return true; }
+    if (hit) { e.swinging = null; e._gearCool = G.cool; e.vel = [0, 0, 0]; e.dashVel = null; e.swung = { end: 'met' }; upright(); return true; }
     if (gz != null && feet <= gz + EPS) { t.pos = [p[0], p[1], gz + eye]; release([v[0], v[1], 0], 'ground'); return true; }
     if (lineCut != null && lineCut < 1 - 1e-6) { t.pos = p; release(v, 'cut'); return true; }
     t.pos = p; S.v = v;
     if (Math.hypot(v[0], v[1]) > EPS) t.heading = Math.atan2(v[1], v[0]);
     e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = false; e.coyote = 1; e.jumpBuf = 0;
-    e.locomotion = 'swing'; e.moving = true; e.gaitPhase = clamp(0.5 + Math.atan2(d[0] * f[0] + d[1] * f[1], -d[2]) / Math.PI, 0, 0.999);
+    const arc = Math.atan2(d[0] * f[0] + d[1] * f[1], -d[2]);
+    e.locomotion = 'swing'; e.moving = true; e.gaitPhase = clamp(0.5 + arc / Math.PI, 0, 0.999);
+    // THE HANG: the body along its line (up toward the pivot), eased in over a quarter second as the line takes it (from
+    // a somersault's angle where a line is cast in one); the turn about the body's left, so leaning back is negative
+    if (G.hang > 0) {
+      const T0 = e._gearTurn, want = -arc * G.hang;
+      // (cast in a somersault, the line takes the body from where it is, brought within a half turn of upright)
+      const now = e.tumble && e.tumble.angle ? Math.atan2(Math.sin(e.tumble.angle), Math.cos(e.tumble.angle)) : 0;
+      const T = T0 && !T0.flip ? T0 : { base: T0 ? now : 0, in: 0, want };
+      T.in = Math.min(1, T.in + dt / 0.25);
+      T.w = (want - T.want) / Math.max(dt, 1e-6); T.want = want;
+      T.angle = T.base * (1 - T.in) + want * T.in;
+      e._gearTurn = T;
+      e.tumble = Math.abs(T.angle) > 1e-4 ? { axis: [-f[1], f[0], 0], angle: T.angle } : null;
+    }
     return true;
   }, 57);
 
   // SWING RELEASE: the flight after a line is let go, until the body lands or holds again
   E.registerWorldPass('gear-pose', (state) => {
-    for (const e of state.entities) if (geared(e) && !e.swinging && !e.zipping && !e.walling && !e.grounded && e._gearRel > 0) e.locomotion = 'swing_release';
+    for (const e of state.entities) if (geared(e) && !e.swinging && !e.zipping && !e.walling && !e.grounded && (e._gearRel > 0 || (e._gearTurn && e._gearTurn.flip && e._gearTurn.flip.turns))) {
+      e.locomotion = 'swing_release';
+      // (a somersault's clip plays across the turn: the tuck in its middle, the body open as it rights)
+      if (e._gearTurn && e._gearTurn.flip && e._gearTurn.flip.turns) { e.moving = true; e.gaitPhase = Math.min(0.999, e._gearTurn.u || 0); }
+    }
   }, 27);
 }

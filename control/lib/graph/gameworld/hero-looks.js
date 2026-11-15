@@ -19,6 +19,7 @@
  */
 import { resolveDirection, LOOKS_ELEMENTS } from './characters.js';
 import { resolveMotion, motionOrders } from './hero-vibe.js';
+import { GEAR_CLIPS } from '../playscape/player.js';
 import { ELEMENT_TINT } from './element-words.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { skinDirection } from '../color-theorist/adapters.js';
@@ -220,6 +221,10 @@ export function heroOrders(G, { title, composed } = {}) {
       : [{ op: 'set', path: `/hero/${field}`, value }])) },
   })).filter((o) => o.args.patch.length);
   // the feel, once the hero stands: its gaits and stand, then any custom clips, as patches of the same sketch
-  const hero = G.characters.hero ?? {}, motion = hero.motion ? motionOrders(resolveMotion(hero.motion)) : null;
+  // (a hero that starts with the line, actions.js HERO_MOVES `swinger`, carries the gear's own clips, player.js
+  // GEAR_CLIPS: the trapeze swing, the somersault off it, the zip; a clip of its page's by the same name is its own)
+  const hero = G.characters.hero ?? {}, geared = (hero.actions?.moves ?? []).includes('swinger');
+  const R = hero.motion || geared ? resolveMotion(hero.motion ?? {}) : null;
+  const motion = R ? motionOrders(geared ? { ...R, clips: { ...GEAR_CLIPS, ...(R.clips ?? {}) } } : R) : null;
   return { mint, patches, ...(motion ? { motion } : {}), unread: C.unread };
 }

@@ -43,6 +43,34 @@ export const PLAYER_CLIPS = Object.freeze({
   ] },
 });
 
+/** THE GEAR'S CLIPS (worlds/controllable/swing.js): what a hero that starts with the line plays on it, in the hero
+ *  door's pose words, each read across its phase and never looped (no designed seconds: the engine's phase times them). The body is hung along the line by the engine (the
+ *  whole of it turned), so each pose is drawn in the body's own frame, as a flyer's on a trapeze:
+ *    swing          the phase the arc's, 0 behind the pivot to 1 ahead: arched with the legs trailing, long at the
+ *                   bottom, piked with the legs thrown ahead; one arm up the line, the other swept wide
+ *    swing_release  the phase the somersault's: laid out as the line is let go, tucked through the turn, opened wide to land
+ *    zip            pulled up a line to a wall: one arm leading, the other back, the legs trailing together */
+export const GEAR_CLIPS = Object.freeze({
+  swing: { keys: [
+    { spine: { arch: 0.4 }, head: { pitch: -14 }, legL: { x: -0.06, y: -0.5, z: -0.86 }, kneeL: 30, legR: { x: 0.06, y: -0.32, z: -0.94 }, kneeR: 55, armR: { x: 0.12, y: 0.12, z: 0.98 }, elbowR: 6, armL: { x: -0.72, y: -0.4, z: -0.1 }, elbowL: 18 },
+    { spine: { arch: 0.12 }, head: { pitch: -4 }, legL: { x: -0.05, y: 0.06, z: -0.99 }, kneeL: 6, legR: { x: 0.05, y: 0.12, z: -0.99 }, kneeR: 12, armR: { x: 0.1, y: 0.05, z: 0.99 }, elbowR: 4, armL: { x: -0.8, y: 0.05, z: -0.3 }, elbowL: 10 },
+    { spine: { lean: ['forward', 0.32] }, head: { pitch: 10 }, legL: { x: -0.06, y: 0.82, z: -0.56 }, kneeL: 8, legR: { x: 0.06, y: 0.7, z: -0.7 }, kneeR: 40, armR: { x: 0.14, y: -0.1, z: 0.98 }, elbowR: 8, armL: { x: -0.45, y: 0.62, z: 0.45 }, elbowL: 14 },
+  ] },
+  swing_release: { keys: [
+    { spine: { arch: 0.3 }, head: { pitch: -10 }, legL: { x: -0.05, y: -0.2, z: -0.98 }, kneeL: 15, legR: { x: 0.05, y: -0.1, z: -0.99 }, kneeR: 20, armL: { x: -0.4, y: 0.1, z: 0.9 }, elbowL: 10, armR: { x: 0.4, y: 0.1, z: 0.9 }, elbowR: 10 },
+    { spine: { lean: ['forward', 0.55] }, head: { pitch: 22 }, legL: { x: -0.08, y: 0.78, z: -0.62 }, kneeL: 125, legR: { x: 0.08, y: 0.78, z: -0.62 }, kneeR: 125, armL: { x: -0.22, y: 0.62, z: -0.6 }, elbowL: 75, armR: { x: 0.22, y: 0.62, z: -0.6 }, elbowR: 75 },
+    { spine: { lean: ['forward', 0.5] }, head: { pitch: 20 }, legL: { x: -0.08, y: 0.74, z: -0.66 }, kneeL: 120, legR: { x: 0.08, y: 0.74, z: -0.66 }, kneeR: 120, armL: { x: -0.22, y: 0.6, z: -0.62 }, elbowL: 72, armR: { x: 0.22, y: 0.6, z: -0.62 }, elbowR: 72 },
+    { spine: { arch: 0.15 }, head: { pitch: -4 }, legL: { x: -0.14, y: 0.12, z: -0.98 }, kneeL: 22, legR: { x: 0.14, y: 0.22, z: -0.96 }, kneeR: 34, armL: { x: -0.9, y: 0.05, z: 0.3 }, elbowL: 12, armR: { x: 0.9, y: 0.05, z: 0.3 }, elbowR: 12 },
+  ] },
+  zip: { keys: [
+    { spine: { arch: 0.22 }, head: { pitch: -12 }, legL: { x: -0.05, y: -0.3, z: -0.95 }, kneeL: 20, legR: { x: 0.05, y: -0.12, z: -0.99 }, kneeR: 45, armR: { x: 0.15, y: 0.45, z: 0.88 }, elbowR: 6, armL: { x: -0.35, y: -0.55, z: -0.75 }, elbowL: 15 },
+    { spine: { arch: 0.26 }, head: { pitch: -14 }, legL: { x: -0.05, y: -0.34, z: -0.94 }, kneeL: 24, legR: { x: 0.05, y: -0.1, z: -0.99 }, kneeR: 50, armR: { x: 0.15, y: 0.42, z: 0.9 }, elbowR: 8, armL: { x: -0.35, y: -0.6, z: -0.72 }, elbowL: 18 },
+  ] },
+});
+/** The states the gear's clips play, as a figure's own `moves` (state → a clip of its own, over a library's or a
+ *  fallback's; a hero without the clip keeps what the state played). */
+export const GEAR_STATES = Object.freeze(Object.fromEntries(Object.keys(GEAR_CLIPS).map((k) => [k, k])));
+
 /** The hero's spec with the move set's clips added (the hero's own clip of the same name wins). */
 export function playerHero(spec) {
   if (!spec || typeof spec !== 'object') throw new Error('player: give the hero as the hero door takes it ({ cast, head, … })');

@@ -828,6 +828,8 @@ function __updateGearLines() {
     }
     const r = e.rule, H = r.collideHeight != null ? r.collideHeight : 1.7 * (r.metre || 1), a = ln.geometry.attributes.position.array;
     a[0] = e.transform.pos[0]; a[1] = e.transform.pos[1]; a[2] = e.transform.pos[2] - (r.eye || 0) + H * 0.9;
+    // (a body hung along its line is turned about its middle, swing.js e.tumble: the line leaves the hand where it is drawn)
+    if (e.tumble && e.tumble.angle) { const ax = e.tumble.axis, sn = Math.sin(e.tumble.angle) * H * 0.48; a[0] += ax[1] * sn; a[1] -= ax[0] * sn; a[2] = e.transform.pos[2] - (r.eye || 0) + H * (0.42 + 0.48 * Math.cos(e.tumble.angle)); }
     a[3] = S.anchor[0]; a[4] = S.anchor[1]; a[5] = S.anchor[2];
     ln.geometry.attributes.position.needsUpdate = true; ln.visible = true;
   }

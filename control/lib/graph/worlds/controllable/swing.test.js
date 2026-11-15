@@ -104,3 +104,43 @@ describe('the swinger: a line to a face above and ahead', () => {
     expect(page({})).not.toContain('__updateGearLines');
   });
 });
+
+describe('the swinger\'s body: hung along its line, a somersault off it', () => {
+  const lean = (h) => (h.tumble ? h.tumble.angle : 0);
+  it('hangs along its line as it swings: leaning back toward a pivot ahead, eased in, about its own left', () => {
+    const W = make(CANYON), h = step(W, { boost: 1 });
+    expect(Math.abs(lean(h))).toBeLessThan(0.2);   // (eased in: no snap at the cast)
+    step(W, { boost: 1 }, 20);
+    const d = [hand(h)[0] - h.swinging.pivot[0], hand(h)[2] - h.swinging.pivot[2]];
+    // behind and under the pivot the body's head is toward it: tipped forward, by `hang` of the line's own angle
+    expect(lean(h)).toBeCloseTo(-Math.atan2(d[0], -d[1]) * 0.85, 2);
+    // (about its own left: level, square to the way it faces)
+    expect(h.tumble.axis[2]).toBe(0);
+    expect(h.tumble.axis[0] * Math.cos(h.transform.heading) + h.tumble.axis[1] * Math.sin(h.transform.heading)).toBeCloseTo(0, 6);
+    expect(-h.tumble.axis[0] * Math.sin(h.transform.heading) + h.tumble.axis[1] * Math.cos(h.transform.heading)).toBeCloseTo(1, 6);
+  });
+
+  it('let go high and fast, turns a somersault the way the swing carried it and opens upright; on the ground it stands', () => {
+    const W = make(CANYON, hero({}, [5, 0, 40]));
+    step(W, { boost: 1 }, 55);
+    const h = W.w.byId.hero;
+    expect(h.swinging).toBeTruthy();
+    step(W, {});
+    expect(h._gearTurn.flip.turns).toBe(1);
+    let most = 0, played = false;
+    for (let i = 0; i < 60 && h._gearTurn; i++) { step(W, {}); most = Math.max(most, Math.abs(lean(h))); played = played || h.locomotion === 'swing_release'; }
+    expect(most).toBeGreaterThan(Math.PI);          // (past upside down: a whole turn)
+    expect(played).toBe(true);
+    expect(h._gearTurn).toBeNull();
+    expect(h.tumble).toBeNull();
+  });
+
+  it('let go low, only rights itself; with hang and flips at 0 the body is never turned', () => {
+    const W = make(CANYON, hero({}, [5, 0, 6]));
+    step(W, { boost: 1 }, 30);
+    const h = W.w.byId.hero;
+    if (h.swinging) { step(W, {}); expect(h._gearTurn ? h._gearTurn.flip.turns : 0).toBe(0); }
+    const P = make(CANYON, hero({ gear: { preset: 'swinger', hang: 0, flips: 0 } }, [5, 0, 40]));
+    for (let i = 0; i < 80; i++) { step(P, { boost: i < 50 ? 1 : 0 }); expect(P.w.byId.hero.tumble ?? null).toBeNull(); }
+  });
+});
