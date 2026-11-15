@@ -1,8 +1,8 @@
 // A MONSTER MANUAL ON THE BATTLES PAGE: a lore part a game is laid from. The manual is a floor under the page's own
 // words; the rungs it lacks are derived and said; what it lowers is read by the party RPG's own reader.
 import { describe, it, expect } from 'vitest';
-import { manualBattles, manualOrder } from './battles-manual.js';
-import { readBattles, battleBase, battlePlan } from './battles.js';
+import { manualBattles, manualOrder, ROLE_BEASTS } from './battles-manual.js';
+import { readBattles, battleBase, battlePlan, foeLookOf, BATTLE_FOE } from './battles.js';
 import { newManual, intensifyManual } from '../lorecube/manual.js';
 import { readGameworld } from './index.js';
 
@@ -31,6 +31,22 @@ describe('a manual as an order the battles chapter runs', () => {
     expect(B.packs).toEqual([['ember-imp', 'ember-imp'], ['tide-eel', 'ember-imp'], ['ember-imp', 'stone-ward', 'ember-imp']]);
     expect(B.boss).toEqual(['storm-king']);
     expect(B.order.lacks.length).toBeGreaterThan(0);
+  });
+
+  it('gives each creature a look: a body by its role, grown by its element, two of a role told apart', () => {
+    const two = { ...PREMISE, creatures: [...PREMISE.creatures, { id: 'frost-imp', element: 'ice', role: 'grunt' }] };
+    const L = manualBattles(newManual(two)).looks;
+    expect(Object.keys(L)).toEqual(two.creatures.map((c) => c.id));
+    for (const c of two.creatures) expect(ROLE_BEASTS[c.role], c.id).toContain(L[c.id].species);
+    expect(L['ember-imp'].species).not.toBe(L['frost-imp'].species);
+    expect(L['ember-imp'].ooze).toBe('fire');
+    expect(L['ember-imp'].ooze).not.toBe(L['frost-imp'].ooze);
+    // each is a look the battles page itself would take (its own reader), and the page's own look wins
+    expect(() => readBattles({ looks: L })).not.toThrow();
+    const G = { battles: readBattles({ manual: two, looks: { 'ember-imp': { people: 'skeleton' } } }) };
+    expect(foeLookOf(G, 'ember-imp')).toEqual({ people: 'skeleton' });
+    expect(foeLookOf(G, 'storm-king')).toEqual(L['storm-king']);
+    expect(foeLookOf(G, 'storm-king')).not.toBe(BATTLE_FOE);
   });
 
   it('the author\'s own levels move the ladder; the same manual gives the same page', () => {

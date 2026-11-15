@@ -15,11 +15,25 @@
  *     packs          the ladder: the creatures short of a boss in the order they are met (by level, then as written),
  *                    each a pack: a grunt a pair, a harrier beside the grunt met before it, an elite between two of it
  *     boss           the boss's pack, alone (the last, where there are several: the others are packs of the ladder)
+ *     looks          how each stands on the map, in the battles' own words for a beast ({ species, ooze? }): a body by
+ *                    its role (ROLE_BEASTS: the bulk a small beast, a quick threat one that flies, a tougher test a big
+ *                    one, the boss the biggest; two of a role take the next body), grown by its element's ooze where
+ *                    the fauna has one, so a fire grunt and a frost grunt are told apart at a glance
  *
  * Pure. A malformed manual throws as the lorecube says it (readManual), where it was written.
  */
 import { readManual, intensifyManual, lowerManual, MANUAL } from '../lorecube/manual.js';
 import { rungOf } from '../lorecube/passes.js';
+import { elementHandles } from '../lorecube/polarity.js';
+
+/** The beast a creature stands as, by its role: each a species the battles' presets already stand (battles.js FOE_LOOKS).
+ * Two creatures of one role take the next body in its row, round again past its end. A new body is a word in a row. */
+export const ROLE_BEASTS = Object.freeze({
+  grunt: Object.freeze(['wolf', 'rat', 'frog']),
+  harrier: Object.freeze(['fruitBat', 'greatHornedOwl']),
+  elite: Object.freeze(['brownBear']),
+  boss: Object.freeze(['velociraptor']),
+});
 
 /** The manual numbered: the rungs it lacks derived, the ones it holds kept. */
 function numbered(M) {
@@ -47,5 +61,12 @@ export function manualBattles(M) {
     else if (c.role === 'elite') packs.push(grunt ? [grunt, c.id, grunt] : [c.id]);
     else packs.push(grunt ? [c.id, grunt] : [c.id]);
   }
-  return { foes: L.foes, skills: L.skills, ...(packs.length ? { packs } : {}), ...(boss ? { boss: [boss.id] } : {}), order: { ...manualOrder(M), lacks: L.lacks } };
+  // how each stands on the map: its role's body, grown by its element's ooze (as written, so a look never moves when a
+  // level does)
+  const nth = {}, looks = {};
+  for (const c of V.creatures) {
+    const row = ROLE_BEASTS[c.role], k = (nth[c.role] = (nth[c.role] ?? -1) + 1), ooze = elementHandles(c.element)?.ooze;
+    looks[c.id] = { species: row[k % row.length], ...(ooze ? { ooze } : {}) };
+  }
+  return { foes: L.foes, skills: L.skills, looks, ...(packs.length ? { packs } : {}), ...(boss ? { boss: [boss.id] } : {}), order: { ...manualOrder(M), lacks: L.lacks } };
 }

@@ -225,7 +225,7 @@ export function readBattles(v, characters = null, ids = null) {
   // a skill tree on the page (battles-tree.js): each school a class, its techniques skills, the same floor
   const T = v.tree === undefined ? null : (() => { try { return treesBattles(v.tree); } catch (e) { throw err(`.tree${String(e.message).replace(/^lorecube: tree/, '')}`); } })();
   const lore = {
-    ...(M ? { foes: { ...M.foes, ...(v.foes ?? {}) } } : {}),
+    ...(M ? { foes: { ...M.foes, ...(v.foes ?? {}) }, looks: { ...M.looks, ...(v.looks ?? {}) } } : {}),
     ...(M || T ? { skills: { ...(M?.skills ?? {}), ...(T?.skills ?? {}), ...(v.skills ?? {}) } } : {}),
     ...(T ? { classes: { ...T.classes, ...(v.classes ?? {}) } } : {}),
     ...(M && (packs ?? M.packs) ? { packs: packs ?? M.packs } : {}), ...(M && (boss ?? M.boss) ? { boss: boss ?? M.boss } : {}),

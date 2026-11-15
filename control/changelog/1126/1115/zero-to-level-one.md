@@ -20,7 +20,10 @@
   the part it plays: the bulk, a quick threat, a tougher test, the boss) and a party role-playing game now fights
   them: what each is weak to and resists, how strong each is, which groups are met in what order, and the boss last.
   Anything you write yourself wins over what was worked out for you, and the game says which parts were worked out
-  so you can make them your own. An action game's enemies cannot carry elements yet.
+  so you can make them your own. Each creature also stands on the map as a creature: a body by the part it plays
+  (the bulk a small beast, a quick threat one that flies, a tougher test a big one, the boss the biggest), changed by
+  its element, so a fire one and a frost one are told apart at a glance; give any of them your own look and yours is
+  used. An action game's enemies cannot carry elements yet.
 - **A school of techniques becomes a class your party can be in.** Name a school, its element and what each technique
   does (a bolt, a storm, an elemental blade, a ward, a rallying surge, a mend, a hex, a weakening) and a party
   role-playing game now has it as a class beside its own: each technique a skill, learned as the class ranks up or
