@@ -101,8 +101,11 @@ export function crossings(made) {
     const e = fresh ?? exitsOf[at].find((x) => exitsOf[x.to].some((y) => !left.has(`${x.to}>${y.id}`)));
     if (!e) break;
     left.add(`${at}>${e.id}`);
-    const zone = made.zones[at], way = zone.ways.find((w) => `gate-${w.side}` === e.id);
-    out.push({ from: at, exit: e.id, to: e.to, at: way.exit, arrive: made.zones[e.to].ways.find((w) => w.to === zone.id).arrive });
+    // (a page of several segments names a gate by its segment and side, and its ways lead to segments: the way is the
+    // one on the exit's side into a segment of the page it leads to; its arrival the far page's way back, the other side)
+    const zone = made.zones[at], far = made.zones[e.to], segs = (z) => z.segments ?? String(z.id).split('+'), OPP = { n: 's', s: 'n', e: 'w', w: 'e' };
+    const way = zone.ways.find((w) => e.id.endsWith(`-${w.side}`) && segs(far).includes(w.to));
+    out.push({ from: at, exit: e.id, to: e.to, at: way.exit, arrive: far.ways.find((w) => segs(zone).includes(w.to) && w.side === OPP[way.side]).arrive });
     at = e.to;
     if (out.length > 64) break;
   }
