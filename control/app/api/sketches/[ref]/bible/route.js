@@ -1,5 +1,5 @@
 /**
- * GET /api/sketches/[ref]/bible[?book=world|characters|feel|practice|foes|atlas|combat|sound|score] — serve a stored gameworld as its bible: the world bible
+ * GET /api/sketches/[ref]/bible[?book=world|characters|feel|practice|foes|atlas|combat|sound|score|map] — serve a stored gameworld as its bible: the world bible
  * (its map, its land, its civilizations' towns and castles, each level) by default, the character bible with
  * `book=characters` when the world has a character book, the feel book with `book=feel` when it writes a feel (the stick
  * view of its controls to sample, lib/graph/gameworld/feel/book.js; `cast=female` for the other body), the practice room
@@ -26,6 +26,7 @@
  * its book (lib/graph/film/book.js: its departments, its scenes and their boards, its advice), read live.
  */
 
+import { gameworldMapHtml, plannedMaps } from '@/lib/graph/gameworld/map-designer';
 import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -104,7 +105,7 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound' or 'score'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score' or 'map'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
         // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
@@ -181,6 +182,13 @@ export async function GET(request, { params }) {
           throw err;
         }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-colour`;
+      } else if (book === 'map') {
+        // the map designer (lib/graph/gameworld/map-designer.js): a planned map in miniature from its recipe, looked at
+        // before any of it is built; `level` picks one where the world has several
+        const level = request.nextUrl.searchParams.get('level') ?? undefined;
+        if (!plannedMaps(world).length) return NextResponse.json({ eligible: false, reason: 'no level of this world is a planned map (levels.<id>.glyphs.plan)' }, { status: 422 });
+        try { html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:map:${level ?? ''}`, () => gameworldMapHtml(world, { level })); } catch (err) { return NextResponse.json({ error: err.message }, { status: 400 }); }
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-map`;
       // the sound book (lib/graph/gameworld/sound-book.js): the game's sound sheet read and heard, each sound a button
       } else if (book === 'sound') {
         const { soundBookHtml } = await import('@/lib/graph/gameworld/sound-book');

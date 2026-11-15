@@ -18,7 +18,7 @@
  * on a path tile, the hero tree beside one: a pin that moves one off its ground is refused, naming it.
  * Pure.
  */
-import { walkFrom, mapGoal, mapStart } from './grid.js';
+import { walkFrom, mapGoal, mapStart, SIDES } from './grid.js';
 import { MID } from './plan.js';
 
 export const MAP_PIECES = Object.freeze({
@@ -34,12 +34,17 @@ export function mapWay(G) {
   const start = mapStart(G);
   if (!start) return null;
   // (a planned map is walked along its route: a join off it, a loop through a pocket, is never the way on)
-  const onRoute = G.plan ? { ...G, cells: G.cells.filter((x) => G.plan.route.includes(x.region)) } : G;
+  // (nor a join between two segments of the walk, a shortcut: the walk crosses a seam only where its route steps)
+  const R = G.plan?.route, steps = (a, b) => a === b || Math.abs(R.indexOf(a) - R.indexOf(b)) === 1;
+  const across = (x, s) => G.at(x.r + SIDES[s][0], x.c + SIDES[s][1]);
+  const shut = R ? G.cells.some((x) => R.includes(x.region) && (x.open ?? []).some((s) => { const y = across(x, s); return y && R.includes(y.region) && !steps(x.region, y.region); })) : false;
+  const onRoute = !R ? G : { ...G, cells: G.cells.filter((x) => R.includes(x.region)).map((x) => (shut && x.open ? { ...x, open: x.open.filter((s) => { const y = across(x, s); return !y || !R.includes(y.region) || steps(x.region, y.region); }) } : x)) };
   const { dist, prev } = walkFrom(onRoute, start), goal = mapGoal(G);
   const net = G.cells.filter((x) => x.kind === 'path' || (x.kind === 'place' && x.open?.length));
   const ends = net.filter((x) => x.kind === 'path' && x.shape === 'end' && x !== start);
   const last = goal ?? ends.filter((x) => dist.has(id(x))).reduce((m, x) => (!m || dist.get(id(x)) > dist.get(id(m)) ? x : m), null) ?? start;
-  const way = []; for (let x = last; x; x = prev.get(id(x))) way.unshift(x);
+  // (the map's own cells, whatever the walk was read on)
+  const way = []; for (let x = last; x; x = prev.get(id(x))) way.unshift(G.at(x.r, x.c) ?? x);
   return { start, last, way, dist, prev, net, ends };
 }
 
