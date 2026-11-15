@@ -6,7 +6,7 @@ down one line as sections, each with one task; briefed, played and debriefed on 
 gives a firing range has one, so every game the range makes has a level 1.
 
 Status: the composition, the tasks on the bus, the level form, the practice room, the mana-ui channel and both machine
-gates are built. A mounted gun to man and a machine as the hero are next (see the end).
+gates are built. A mounted gun to man and a machine as the hero are designed, not built (see the end).
 
 ## Where it comes from
 
@@ -35,7 +35,7 @@ that ends it. A new kind of mission is a new order of these; a new section is a 
 | `contact` | clear | close | fire from cover, reload behind it |
 | `lane` | clear | mid | move from cover to cover, aim |
 | `overwatch` | clear | long | the high ground, the sights |
-| `emplacement` | man | long | a mounted gun (its gun is not stood yet: see the end) |
+| `emplacement` | man | long | a mounted gun: a gap, designed and not built (see the end) |
 | `holdout` | hold | the kit's | everything at once, on a clock, in waves |
 | `extract` | reach | none | the way out |
 
@@ -88,7 +88,7 @@ Three doors reach it:
 | door | how |
 |---|---|
 | the practice door | `bible?book=practice&room=mission`: played from the world alone, before any level |
-| a level | `levels.<id>.mission: true \| { seed?, sections?, foes?, hold?, waves?, gun? }`, in place of `walk` |
+| a level | `levels.<id>.mission: true \| { seed?, sections?, foes?, hold?, waves? }`, in place of `walk` |
 | a quick shooter | `quick: { goal: 'shoot', arms: [...], mission: true }`: its level in place of the trail |
 
 `design_game` proposes it (a `mission` step in `next`, with its patch) for a world with a firing range and no mission
@@ -145,9 +145,11 @@ Eyes: nobody has played one. Whether a mission is a good first level is the crea
 
 ## Next
 
-- **The mounted gun.** `mission: { gun }` lays the emplacement section and its place, and the task is met by its
-  foes' falls; the gun itself (the artillery range's mount, `combat/artillery.js`, taken with the pilot's swap) is not
-  stood yet.
+- **The mounted gun.** The emplacement section is in the table with its `gap`: asked for (`mission: { gun }`, or named
+  in `sections`), it is refused with what it waits on, never laid half. Prototyped in the headless sim: the pilot's swap
+  takes a static turret entity, but the artillery range's rounds are breech-loaded shells, one round and a reload. It
+  needs an automatic round on a pintle mount (as the motorcycle's fitted gun, `combat/roadsters.js`), the turret's sight
+  on a page that also carries the gunplay view, and getting on and off.
 - **A machine as the hero.** A template that owns a frame (`practice.js` `TEMPLATE_FRAMES`) has the artillery range
   and no mission: its bands are a machine's (hundreds of metres), not a person's.
 - **Dress.** The mission is greybox. The game room's trades and areas, or the world's kit, could dress it.

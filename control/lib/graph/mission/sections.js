@@ -8,7 +8,7 @@
  *   BANDS     the ranges a gun is used at, in metres: where its foes stand from the firing line (`m`), and the reach a
  *             foe may stand in and still be that band's (`reach`)
  *   TASKS     what ends a section: { says, text } (the mechanic that plays them: game/objectives.js)
- *   SECTIONS  { <kind>: { about, teaches, task, band, foes, fight } }
+ *   SECTIONS  { <kind>: { about, teaches, task, band, foes, fight, gap? } }   (gap: designed, not built: what it waits on)
  *   ARCHETYPE_BAND   the band each of the kit's archetypes (arms-kit.js ARMS_KIT `as`) is carried for
  *   FIRE_BAND        the band of a weapon written by its fire type (combat/range.js FIRE)
  *
@@ -53,6 +53,8 @@ export const SECTIONS = Object.freeze({
   emplacement: Object.freeze({
     about: 'the mounted gun: a gun on its mount at the near end, a wave walking up the range to it',
     teaches: 'a machine\'s gun: get on it, lay it, get off', task: 'man', text: 'Man the gun and cut them down', band: 'long', foes: 4, fight: true,
+    // (a GAP, named with what would close it, never laid half: brief.js refuses it until its gun is stood)
+    gap: 'the mounted gun is not built: it needs an automatic round on a pintle mount (the artillery range\'s rounds are breech-loaded shells), the turret\'s sight on a page that also carries the gunplay view, and getting on and off by the pilot\'s swap',
   }),
   holdout: Object.freeze({
     about: 'the yard: cover round its middle, rounds and health in it, waves from the far side on a clock',

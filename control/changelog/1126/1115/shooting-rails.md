@@ -24,8 +24,7 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
 - **Three doors:**
   - the practice door's `mission` room (`bible?book=practice&room=mission`), played from the world alone, with its
     icon on the rail;
-  - a level's own form, `levels.<id>.mission: true | { seed?, sections?, foes?, hold?, waves?, gun? }`, in place of
-    `walk`;
+  - a level's own form, `levels.<id>.mission: true | { seed?, sections?, foes?, hold?, waves? }`, in place of `walk`;
   - a quick shooter's `mission`, its level in place of the trail, laid from its carried `arms`.
 
   `design_game` proposes it (a `mission` step with its patch) for a world with a firing range and no mission level. A
@@ -51,5 +50,6 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   to the shell's result. The gunner wins every feel template that shoots and kits of a rifle, a long gun with a close
   one, and a shotgun with a sidearm, in about a minute; an SMG alone is lost in the yard, and said. Machine gates only:
   nobody has played one.
-- Designed, not built yet: the emplacement's gun (the section, its place and its task are laid; the mount itself is
-  not stood), a machine as the hero for a template that owns a frame, a dressed mission.
+- Designed, not built yet, each named a gap: the emplacement's mounted gun (its section is in the table with what it
+  waits on, and asking for it is refused with that, never laid half), a machine as the hero for a template that owns a
+  frame, a dressed mission.

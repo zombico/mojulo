@@ -36,7 +36,7 @@
  *                                           // are a trail's (reach, collect, survive, avoid, race alone); a flier's the
  *                                           // fly goal, flown from its seat in the air
  *     climb?: true,                         // a climb after the trail, the exit at its top
- *     mission?: true | { seed?, foes?, hold?, waves?, sections?, gun? },   // shoot, on foot: the level is a MISSION in
+ *     mission?: true | { seed?, foes?, hold?, waves?, sections? },   // shoot, on foot: the level is a MISSION in
  *                                           // place of the trail (gameworld/mission-level.js: the firing range stretched
  *                                           // into sections, a task in each, on mana-ui), laid from the carried `arms`
  *     building?: { use, seed?, goal?, … },  // the level is a building in place of the trail (gameworld building levels):

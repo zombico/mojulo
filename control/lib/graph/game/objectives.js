@@ -84,7 +84,8 @@ export function lowerObjectives(p, ctx) {
     if (k && t.zone) {
       const zone = `${id}_in_${k}`;
       world.sources.push({ type: 'zone', zone, at: t.zone.at.slice(), half: t.zone.half.slice(), planar: true, watch: ctx.player });
-      world.reactions.push({ on: 'enter', match: { zone }, if: { var: begun, eq: 0 }, do: 'emit', type: beginE(k) });
+      // (only while it is the task in hand: a section reached out of turn begins nothing)
+      world.reactions.push({ on: 'enter', match: { zone }, if: mine, do: 'emit', type: beginE(k) });
     }
     world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'emit', type: 'objective:begin', n: k + 1, of: N, task: t.id, text: t.text });
     // (its own foes are woken before the mark is set: every reaction of the begin sees it unbegun)

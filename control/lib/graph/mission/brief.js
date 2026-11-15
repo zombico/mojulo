@@ -4,15 +4,15 @@
  * (gameworld/loadout.js loadoutOf), each carried for a band; the bands the kit serves choose the sections, its run sizes
  * them, and each need says why.
  *
- *   readMission(v, at)   a level's `mission` as written → { seed?, sections?, foes?, hold?, waves?, gun? }; throws, teaching
+ *   readMission(v, at)   a level's `mission` as written → { seed?, sections?, foes?, hold?, waves? }; throws, teaching
  *     true                 the mission the brief reads
  *     seed                 the composition's dice (the level's own when absent)
  *     sections             the sections in order (sections.js SECTIONS), in place of the ones the kit's bands choose
  *     foes                 how many the lane stands (1 to 6, 3): every fight section in proportion
  *     hold, waves          the holdout's clock (15 to 180 s, 40) and its waves (1 to 5, 3)
- *     gun                  the emplacement's mount (combat/mount.js MOUNTS: a word, or true for the field gun)
+ *     (gun                 the emplacement's mounted gun: a gap, refused with what it waits on: sections.js)
  *   missionBrief(G, spec) → { guns: [{ name, band }], serves: { close, mid, long }, sections: [kind], yard, run, eye, width,
- *                             scale, hold, waves, gun, camera, why: { <need>: words } } | null (a world with no guns)
+ *                             scale, hold, waves, camera, why: { <need>: words } } | null (a world with no guns)
  *
  * Pure, no dice.
  */
@@ -23,31 +23,33 @@ import { SECTIONS, SECTION_IDS, ARCHETYPE_BAND, FIRE_BAND } from './sections.js'
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['seed', 'sections', 'foes', 'hold', 'waves', 'gun'];
+const KEYS = ['seed', 'sections', 'foes', 'hold', 'waves'];
+// (asked for by name so it can be answered: readMission says what it waits on)
+const GAPS = ['gun'];
 export const MISSION_LIMITS = Object.freeze({ sections: [2, 8], foes: [1, 6], hold: [15, 180], waves: [1, 5] });
-export const MISSION_DEFAULTS = Object.freeze({ foes: 3, hold: 40, waves: 3, gun: 'field-gun' });
-// a mount the emplacement may stand (combat/mount.js MOUNTS, read where the gun is built: mission-level.js)
-const GUN_WORD = /^[a-z][a-z-]{1,31}$/;
+export const MISSION_DEFAULTS = Object.freeze({ foes: 3, hold: 40, waves: 3 });
 
 /** A level's `mission`, read. */
 export function readMission(v, at = 'mission') {
   if (v === true) return {};
   const no = (m) => { throw new Error(`${at}${m}`); };
   if (!isObj(v)) no(` is true (the mission its guns ask for), or { ${KEYS.join('?, ')}? }`);
-  for (const k of Object.keys(v)) if (!KEYS.includes(k)) no(`.${k} is not a mission setting (${KEYS.join(', ')})`);
+  for (const k of Object.keys(v)) if (!KEYS.includes(k) && !GAPS.includes(k)) no(`.${k} is not a mission setting (${KEYS.join(', ')})`);
   const L = MISSION_LIMITS, out = {};
   if (v.seed !== undefined) { if (!Number.isInteger(v.seed)) no('.seed is a whole number'); out.seed = v.seed; }
   if (v.sections !== undefined) {
     const S = v.sections;
     if (!Array.isArray(S) || S.length < L.sections[0] || S.length > L.sections[1]) no(`.sections is ${L.sections[0]} to ${L.sections[1]} of ${SECTION_IDS.join(', ')}, in the order they are played`);
     S.forEach((s, i) => { if (!SECTIONS[s]) no(`.sections[${i}]: '${s}' is not a section (${SECTION_IDS.join(', ')})`); });
+    S.forEach((s, i) => { if (SECTIONS[s].gap) no(`.sections[${i}]: '${s}' is designed, not built: ${SECTIONS[s].gap}`); });
     if (new Set(S).size !== S.length) no('.sections names a section twice: each is laid once');
     if (!S.some((s) => SECTIONS[s].task === 'reach')) no('.sections has no way out: end it with extract');
     out.sections = S.slice();
   }
   for (const k of ['foes', 'waves']) if (v[k] !== undefined) { if (!Number.isInteger(v[k]) || v[k] < L[k][0] || v[k] > L[k][1]) no(`.${k} is ${L[k][0]} to ${L[k][1]}`); out[k] = v[k]; }
   if (v.hold !== undefined) { if (!Number.isFinite(v.hold) || v.hold < L.hold[0] || v.hold > L.hold[1]) no(`.hold is the seconds the yard is held, ${L.hold[0]} to ${L.hold[1]}`); out.hold = v.hold; }
-  if (v.gun !== undefined) { if (v.gun !== true && !(typeof v.gun === 'string' && GUN_WORD.test(v.gun))) no('.gun is true (a field gun) or a mount\'s word (battle-tank, light-tank, field-gun, howitzer, tower)'); out.gun = v.gun === true ? MISSION_DEFAULTS.gun : v.gun; }
+  // (the emplacement and its gun: a gap, said with what would close it; nothing is laid half)
+  if (v.gun !== undefined) no(`.gun asks for the emplacement, which is designed, not built: ${SECTIONS.emplacement.gap}`);
   return out;
 }
 
@@ -72,10 +74,9 @@ export function missionBrief(G, spec = {}) {
   why.run = card ? `the feel's run, ${run} m/s` : 'a person\'s run, 4.5 m/s (no feel written)';
   const width = clamp(2 * Math.round((run * 3.5) / 2), 14, 22);
   why.width = `${width} m across: three and a half seconds of the run, room to flank and none to hide in`;
-  const gun = spec.gun ?? null;
-  const chosen = ['staging', 'contact', ...(serves.mid ? ['lane'] : []), ...(serves.long ? ['overwatch'] : []), ...(gun ? ['emplacement'] : []), 'holdout', 'extract'];
+  const chosen = ['staging', 'contact', ...(serves.mid ? ['lane'] : []), ...(serves.long ? ['overwatch'] : []), 'holdout', 'extract'];
   const sections = spec.sections ?? chosen;
-  why.sections = spec.sections ? 'written on the level' : `${serves.long ? 'a long gun: the long line too' : serves.mid ? 'no long gun: no long line' : 'close guns only: a room and a yard'}${gun ? `; a ${gun} to man` : ''}`;
+  why.sections = spec.sections ? 'written on the level' : serves.long ? 'a long gun: the long line too' : serves.mid ? 'no long gun: no long line' : 'close guns only: a room and a yard';
   // the yard tests what the kit was taught: held at the mid band where a gun reaches it, else across a room
   const yard = serves.mid ? 'mid' : 'close';
   why.yard = yard === 'mid' ? 'the yard is held at the mid band: a gun carried reaches it' : 'the yard is a room\'s length: no gun carried reaches further';
@@ -83,6 +84,6 @@ export function missionBrief(G, spec = {}) {
   why.foes = `${foes} down the lane, every fight in proportion`;
   return {
     guns, serves, sections, yard, run, eye: 1.7, width, scale: foes / MISSION_DEFAULTS.foes,
-    hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, gun, camera: G?.camera ?? null, why,
+    hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, camera: G?.camera ?? null, why,
   };
 }

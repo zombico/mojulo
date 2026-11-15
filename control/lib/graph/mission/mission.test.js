@@ -1,6 +1,6 @@
 // THE MISSION, COMPOSED (lib/graph/mission): a shooter's first level laid from what the world carries. One case a
 // procedure, each chosen from the tables in code: a kit that serves the mid band and no further (a feel template's), a
-// kit with a long gun (the long line too), a mounted gun asked for, sections written by hand. The concepts: the brief
+// kit with a long gun (the long line too), close guns alone, sections written by hand. The concepts: the brief
 // reads the bands; the same seed lays the same mission; another seed another; the laws hold on what is laid and say so
 // when a hand-written order breaks them; a world with no gun has no mission.
 import { describe, expect, it } from 'vitest';
@@ -34,7 +34,12 @@ describe('the brief', () => {
   });
   it('a level\'s `mission` is read, and a wrong one taught', () => {
     expect(readMission(true)).toEqual({});
-    expect(readMission({ foes: 5, hold: 60, gun: true })).toEqual({ foes: 5, hold: 60, gun: 'field-gun' });
+    expect(readMission({ foes: 5, hold: 60 })).toEqual({ foes: 5, hold: 60 });
+    // (a section designed and not built is a gap, said with what it waits on, never laid half)
+    const GAP = SECTION_IDS.find((id) => SECTIONS[id].gap);
+    expect(() => readMission({ gun: true })).toThrow(/designed, not built/);
+    expect(() => readMission({ sections: ['staging', GAP, 'extract'] })).toThrow(/designed, not built/);
+    expect(missionBrief({ feel: TEMPLATE }).sections).not.toContain(GAP);
     expect(() => readMission({ sections: ['staging', 'nave'] })).toThrow(/not a section/);
     expect(() => readMission({ sections: ['staging', 'contact'] })).toThrow(/no way out/);
     expect(() => readMission({ foes: MISSION_LIMITS.foes[1] + 1 })).toThrow(/foes is/);
@@ -71,8 +76,8 @@ describe('the composition', () => {
 });
 
 describe('the laws', () => {
-  it('hold on what the brief lays, a mounted gun its own section\'s gun', () => {
-    for (const [G, spec] of [[{ feel: TEMPLATE }, {}], [quick([LONG, CLOSE]), {}], [quick([CLOSE]), {}], [{ feel: TEMPLATE }, readMission({ gun: true })]]) {
+  it('hold on what the brief lays, for each kind of kit', () => {
+    for (const [G, spec] of [[{ feel: TEMPLATE }, {}], [quick([LONG, CLOSE]), {}], [quick([CLOSE]), {}]]) {
       const B = missionBrief(G, spec), M = composeMission(B, { seed: 2 });
       expect(held(M, B)).toEqual([]);
     }
