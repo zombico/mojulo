@@ -342,6 +342,14 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   `film_light.py` `clouded` lays it round the world's background over the sky model or the cover's grey: azimuth from
   +x toward +y, the horizon up to `top` degrees, its alpha the mix; `gain` stands a painted colour against a physical
   sky. With `weather` the light is the darker and softer of the two. An interior preset has no sky: advised.
+- **The scene's wind** (`screenplay.wind`, `film/wind.js` `windSpec`; a film's `scenes/*/wind`, the look and light
+  department's). A word, a number, the weather's own (`weather/weather.js` `STATES` `wind`, `gust`) or its speed, gust
+  and bearing, lowered into `atmosphere.json`'s `wind`: `lean` and `sway` as shares of a plant's height (by the speed
+  squared), `hz` for an 8 m tree, `flutter` in metres, and `plants`, the whole words a plant's object is known by (the
+  shelves' own and the grower's species, `vegetation/species.js`). `film_light.py` `wind` takes the nearest plants
+  within reach of the cast and gives each a geometry-nodes modifier: a vertex moved by its world height up the plant
+  squared, along the wind, on the scene's time; no simulation, so a frame renders alone. Each plant has a small node
+  group of its own round the shared one, since a modifier's properties are not settable in every Blender.
 - **The set's life** (`screenplay.life`, `film/life.js` `flowLife`; a film's `scenes/*/life`, the set
   department's). A metro's traffic is a plan its page drives (`geocity/flow.js`, `scene/channels/flow.js`): a lane a
   signalised model (`traffic-model.js`). The film reads the same plan with the same model: each lane within reach of

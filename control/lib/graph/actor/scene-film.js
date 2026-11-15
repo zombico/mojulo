@@ -42,8 +42,8 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
  * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). 8: a moving prop
  * turns along its way (a key's `turn`). 9: a scene's weather (atmosphere.json weather, film_light.py).
  * 10: a prop that walks (its keys' `p`, the cycles of its own clip gone by). 11: a scene's clouds (atmosphere.json
- * clouds, clouds.png, film_light.py). */
-export const SCENE_PACK_REV = 11;
+ * clouds, clouds.png, film_light.py). 12: a scene's wind (atmosphere.json wind, film_light.py). */
+export const SCENE_PACK_REV = 12;
 /** how far apart a walk is keyed on ground that is not flat, metres */
 const WALK_KEY = 0.4;
 

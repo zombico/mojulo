@@ -32,7 +32,7 @@ forge_motion({ film: { write: {
 - A scene names who is in it. `cast: { <who>: { mark?, style?, role?, register? } }` gives the scene's words over the
   film's.
 - A set is a stored world, named once in `sets` and used by any scene's `set`. A scene's `hour` is the time of day
-  it is shot at there (the `scene-film` manual): one set, any hour. A scene's `clouds` is the sky over it. A scene's `life: true` has a city's own traffic
+  it is shot at there (the `scene-film` manual): one set, any hour. A scene's `clouds` is the sky over it, its `wind` moves the set's trees. A scene's `life: true` has a city's own traffic
   drive and its own people walk through it in the Blender film (the same manual).
 - **A set can be asked for, with no world made first.** `sets: { lake: { words: 'a grassy field by a lake at dusk',
   seed? } }` says a land in words; `sets: { street: { cube: 'valley-morning', show: 'geotown', seed? } }` names a

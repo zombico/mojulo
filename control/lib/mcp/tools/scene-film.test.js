@@ -281,6 +281,21 @@ describe('the scene\'s clouds', () => {
   });
 });
 
+describe('the scene\'s wind', () => {
+  const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
+
+  it('is the air\'s, not the plan\'s; the weather\'s own needs a weather; a scene with no set is told nothing moves', async () => {
+    expect(screenplayErrors(sp({ wind: 'breeze' }))).toEqual([]);
+    expect(screenplayErrors(sp({ wind: 'weather', weather: 'rain' }))).toEqual([]);
+    expect(screenplayErrors(sp({ wind: 'weather' })).join()).toMatch(/the scene has no weather/);
+    expect(screenplayErrors(sp({ wind: 'howling' })).join()).toMatch(/wind: how hard the air moves/);
+    const plain = await prepareHour(sp({}), { getRow: () => null }), blown = await prepareHour(sp({ wind: 'breeze' }), { getRow: () => null });
+    expect(blown.screenplay).toEqual(plain.screenplay);
+    expect(blown.kept.wind).toBe('breeze');
+    expect(blown.advice.map((a) => a.id)).toEqual(['wind-unused']);
+  });
+});
+
 describe('the set\'s life', () => {
   const sp = (more) => ({ cast: { ada: {}, jon: {} }, script: 'ADA: Hello.\nJON: Hello.', ...more });
 

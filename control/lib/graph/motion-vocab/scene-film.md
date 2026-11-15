@@ -117,6 +117,12 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - It is the sky alone. `weather` is what the air does and what falls (fog, rain, snow); a scene may have both, and
     the darker and softer light of the two is the one it is shot in.
   - A scene with no set, or one set indoors, is advised (`clouds-unused`).
+- **`wind`: how hard the air moves.** `still`, `breeze`, `fresh` or `gale`; a number 0 to 1; `'weather'` (the wind
+  the scene's own `weather` blows); or `{ speed, gust?, from? }` (`from`: the bearing it blows from, degrees clockwise
+  from north). In the Blender film the set's trees, bushes and hedges near the cast lean downwind and sway, more with
+  height, their feet still, the leaves quivering; a gale bends them, a breeze stirs them.
+  - Only plants move: no cloth, hair, rain or dust is blown. A set with no plants near the cast is left as it is.
+  - A scene with no set is advised (`wind-unused`).
 - **`life`: the set's own traffic drives through the scene.** `true`, or `{ clock?, reach?, most? }`. A city made as
   a metro has traffic of its own: lanes, signals, family cars, taxis, vans, trucks and buses. With `life` the Blender
   film has the vehicles that come near the cast, each driving its lane for the scene's length, stopping at a red

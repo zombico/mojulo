@@ -378,6 +378,7 @@ import bpy
 import json
 import math
 import os
+import re
 import sys
 from mathutils import Matrix, Vector
 
@@ -636,6 +637,129 @@ def water(faces, M):
     log('water: %d surfaces' % len(polys))
 
 
+def wind(Wd):
+    """THE WIND (atmosphere.json wind: a scene's own, lib/graph/film/wind.js): the set's plants near the cast lean
+    downwind and sway. A plant is an object known by one of the pack's plant words; the nearest most within reach of
+    the cast each take one geometry-nodes modifier: a vertex is moved by its height up the plant squared (its foot
+    stands), along the wind, by a lean and a swing on the scene's time, a gust that comes and goes, and a quiver of its
+    own. Each frame is a function of the time alone: any frame renders alone."""
+    # (the rig rebuilt, --force: the wind is made again with it)
+    for o in bpy.context.scene.objects:
+        for m in [m for m in o.modifiers if m.name == 'film-wind']:
+            o.modifiers.remove(m)
+    for g in [g for g in bpy.data.node_groups if g.name.startswith('film-wind')]:
+        bpy.data.node_groups.remove(g)
+    if not Wd:
+        return
+    words = set(str(w).lower() for w in Wd.get('plants') or [])
+    ax, ay = [float(v) for v in (Wd.get('about') or [0, 0])]
+    reach, most = float(Wd.get('reach', 60)), int(Wd.get('most', 120))
+    found = []
+    for o in bpy.context.scene.objects:
+        # (a plant's word is a whole word of the object's name: maple-L2:3, geocity:tree-maple-L0:12, form:flora:0:oak)
+        if o.type != 'MESH' or o.get('film_rig') or not (set(re.split('[^a-z]+', o.name.lower())) & words):
+            continue
+        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+        hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+        d = math.hypot(max(lo.x - ax, 0.0, ax - hi.x), max(lo.y - ay, 0.0, ay - hi.y))
+        if d <= reach and hi.z - lo.z > 0.3:
+            found.append((d, o.name, o, lo, hi))
+    found.sort(key=lambda f: (f[0], f[1]))
+    found = found[:most]
+    if not found:
+        log('wind: no plant of the set within %.0f m of the cast' % reach)
+        return
+    ng = bpy.data.node_groups.new('film-wind', 'GeometryNodeTree')
+    for name, kind, io in (('Geometry', 'NodeSocketGeometry', 'INPUT'), ('Push', 'NodeSocketVector', 'INPUT'), ('Up', 'NodeSocketVector', 'INPUT'), ('Foot', 'NodeSocketFloat', 'INPUT'), ('Phase', 'NodeSocketFloat', 'INPUT'),
+                           ('Hz', 'NodeSocketFloat', 'INPUT'), ('Quiver', 'NodeSocketFloat', 'INPUT'), ('Geometry', 'NodeSocketGeometry', 'OUTPUT')):
+        ng.interface.new_socket(name=name, in_out=io, socket_type=kind)
+    N, L = ng.nodes, ng.links
+    gin, gout = N.new('NodeGroupInput'), N.new('NodeGroupOutput')
+    def math_node(op, a, b=None):
+        m = N.new('ShaderNodeMath')
+        m.operation = op
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                m.inputs[i].default_value = float(v)
+            else:
+                L.new(v, m.inputs[i])
+        return m.outputs[0]
+    def vec_scale(v, s):
+        m = N.new('ShaderNodeVectorMath')
+        m.operation = 'SCALE'
+        L.new(v, m.inputs[0])
+        L.new(s, m.inputs['Scale'])
+        return m.outputs['Vector']
+    pos = N.new('GeometryNodeInputPosition')
+    xyz = N.new('ShaderNodeSeparateXYZ')
+    L.new(pos.outputs['Position'], xyz.inputs['Vector'])
+    # (its height up the plant, 0 at its foot to 1 at its top, squared: the trunk's foot stands, the crown goes. Up is
+    #  the world's up in the plant's own space over its height, Foot its foot's share: a model may lie on any axis)
+    dot = N.new('ShaderNodeVectorMath')
+    dot.operation = 'DOT_PRODUCT'
+    L.new(pos.outputs['Position'], dot.inputs[0])
+    L.new(gin.outputs['Up'], dot.inputs[1])
+    up = math_node('ADD', dot.outputs['Value'], gin.outputs['Foot'])
+    w = math_node('POWER', math_node('MINIMUM', math_node('MAXIMUM', up, 0.0), 1.0), 2.0)
+    t = N.new('GeometryNodeInputSceneTime').outputs['Seconds']
+    tau = 2.0 * math.pi
+    # (the swing: its own beat and a faster one over it, a neighbour a little out of step; the gust slow under both)
+    across = math_node('MULTIPLY', math_node('ADD', xyz.outputs['X'], xyz.outputs['Y']), 0.35)
+    beat = math_node('ADD', math_node('ADD', math_node('MULTIPLY', math_node('MULTIPLY', t, gin.outputs['Hz']), tau), gin.outputs['Phase']), across)
+    swing = math_node('ADD', math_node('MULTIPLY', math_node('SINE', beat), 0.7), math_node('MULTIPLY', math_node('SINE', math_node('MULTIPLY', beat, 2.3)), 0.3))
+    gust = math_node('ADD', 1.0, math_node('MULTIPLY', math_node('SINE', math_node('ADD', math_node('MULTIPLY', t, tau * 0.11), math_node('MULTIPLY', gin.outputs['Phase'], 0.3))), float(Wd.get('gust', 0.0))))
+    lean, sway = float(Wd.get('lean', 0.0)), float(Wd.get('sway', 0.02))
+    amount = math_node('MULTIPLY', w, math_node('MULTIPLY', gust, math_node('ADD', lean, math_node('MULTIPLY', swing, sway))))
+    # (the leaves' own quiver: a noise through the plant, moving on the time)
+    noise = N.new('ShaderNodeTexNoise')
+    noise.noise_dimensions = '4D'
+    noise.inputs['Scale'].default_value = 1.7
+    L.new(pos.outputs['Position'], noise.inputs['Vector'])
+    L.new(math_node('MULTIPLY', t, 2.6), noise.inputs['W'])
+    half = N.new('ShaderNodeVectorMath')
+    half.operation = 'SUBTRACT'
+    L.new(noise.outputs['Color'], half.inputs[0])
+    half.inputs[1].default_value = (0.5, 0.5, 0.5)
+    quiver = vec_scale(half.outputs['Vector'], math_node('MULTIPLY', w, gin.outputs['Quiver']))
+    add = N.new('ShaderNodeVectorMath')
+    add.operation = 'ADD'
+    L.new(vec_scale(gin.outputs['Push'], amount), add.inputs[0])
+    L.new(quiver, add.inputs[1])
+    setp = N.new('GeometryNodeSetPosition')
+    L.new(gin.outputs['Geometry'], setp.inputs['Geometry'])
+    L.new(add.outputs['Vector'], setp.inputs['Offset'])
+    L.new(setp.outputs['Geometry'], gout.inputs['Geometry'])
+    # (it blows FROM a bearing, clockwise from north (+y): the plants are pushed the other way)
+    a = math.radians(float(Wd.get('from', 250)))
+    blow = Vector((-math.sin(a), -math.cos(a), 0.0))
+    for d, name, o, lo, hi in found:
+        H = hi.z - lo.z
+        inv = o.matrix_world.to_3x3().inverted_safe()
+        # (each plant its own small group round the one that sways: its push, its beat and its quiver are that group's
+        #  own values, so nothing rides the modifier's properties)
+        own = bpy.data.node_groups.new('film-wind:%s' % name, 'GeometryNodeTree')
+        own.interface.new_socket(name='Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+        own.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+        oi, oo, core = own.nodes.new('NodeGroupInput'), own.nodes.new('NodeGroupOutput'), own.nodes.new('GeometryNodeGroup')
+        core.node_tree = ng
+        own.links.new(oi.outputs['Geometry'], core.inputs['Geometry'])
+        own.links.new(core.outputs['Geometry'], oo.inputs['Geometry'])
+        # (the push in the plant's own space, as long as its height: the lean and the swing are shares of it)
+        core.inputs['Push'].default_value = tuple(inv @ (blow * H))
+        M = o.matrix_world
+        core.inputs['Up'].default_value = (M[2][0] / H, M[2][1] / H, M[2][2] / H)
+        core.inputs['Foot'].default_value = (M[2][3] - lo.z) / H
+        core.inputs['Phase'].default_value = ((lo.x + hi.x) * 0.37 + (lo.y + hi.y) * 0.23) % tau
+        core.inputs['Hz'].default_value = float(Wd.get('hz', 0.4)) * math.sqrt(8.0 / max(H, 0.5))
+        core.inputs['Quiver'].default_value = float(Wd.get('flutter', 0.02)) * inv.to_scale()[2]
+        mod = o.modifiers.new('film-wind', 'NODES')
+        mod.node_group = own
+    log('wind: %d plants of the set within %.0f m of the cast sway (speed %.2f, from %.0f)' % (len(found), reach, float(Wd.get('speed', 0)), float(Wd.get('from', 250))))
+
+
 def precip(W, kind):
     """What FALLS (atmosphere.json weather rain | snow, 0..1): streaks of rain or flakes of snow about the cast, out to
     its reach, falling on the scene's clock. Made of geometry nodes over one plane, each point's height a function of
@@ -796,6 +920,7 @@ def main():
         if preset != 'interior':
             precip(W, 'rain')
             precip(W, 'snow')
+            wind(atm.get('wind'))
         sc.view_settings.view_transform = 'AgX'
         try:
             sc.view_settings.look = 'AgX - Medium High Contrast'

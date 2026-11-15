@@ -32,7 +32,7 @@ export const FILM_KIND = 'film';
 export const isFilmKind = (kind) => kind === FILM_KIND;
 export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit', 'order']);
 export const FILM_PART_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'height']);
-export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'hour', 'weather', 'clouds', 'life', 'script', 'voice', 'dub', 'seed']);
+export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'hour', 'weather', 'clouds', 'wind', 'life', 'script', 'voice', 'dub', 'seed']);
 export const SCENE_PART_KEYS = Object.freeze(['mark', 'register', 'style', 'role', 'height']);
 export const CUTS = Object.freeze(['cut', 'fade']);
 export const FILM_LOOKS = Object.freeze(['film', 'anime']);
@@ -162,6 +162,7 @@ export function sceneScreenplay(F, id) {
     ...(S.hour !== undefined ? { hour: S.hour } : {}),
     ...(S.weather !== undefined ? { weather: S.weather } : {}),
     ...(S.clouds !== undefined ? { clouds: S.clouds } : {}),
+    ...(S.wind !== undefined ? { wind: S.wind } : {}),
     ...(S.life !== undefined ? { life: S.life } : {}),
     ...(S.seed !== undefined ? { seed: S.seed } : {}),
     // (a set asked for in words plays in the place the film made of it; one not made yet has no world)

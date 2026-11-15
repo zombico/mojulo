@@ -37,6 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
+import { windErrors, windSpec } from '@/lib/graph/film/wind.js';
 import { cloudsErrors, cloudsSpec, cloudsPng, CLOUDS_FILE } from '@/lib/graph/film/clouds.js';
 import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims, lifeOf } from '@/lib/graph/film/life.js';
 import { sceneActOf } from '@/lib/graph/actor/act.js';
@@ -49,7 +50,7 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'life', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'wind', 'life', 'voice', 'dub']);
 /** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
  * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
  * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
@@ -99,6 +100,7 @@ export function screenplayErrors(sp) {
   if (sp.hour !== undefined) { try { readHour(sp.hour); } catch (e) { errs.push(`hour: the time of day the scene is shot at: ${e.message}`); } }
   if (sp.weather !== undefined && !WEATHER_STATES.includes(sp.weather)) errs.push(`weather: what the sky is doing while the scene is shot, one of ${WEATHER_STATES.join(', ')}`);
   if (sp.clouds !== undefined) errs.push(...cloudsErrors(sp.clouds));
+  if (sp.wind !== undefined) errs.push(...windErrors(sp.wind), ...(sp.wind === 'weather' && sp.weather === undefined ? ['wind: \'weather\' blows the scene\'s weather\'s own wind, and the scene has no weather'] : []));
   if (sp.life !== undefined) errs.push(...lifeErrors(sp.life));
   if (sp.props !== undefined) {
     if (!isPlain(sp.props)) errs.push('props: { <name>: { thing | ref, at: [x, y] | <a mark>, turn?, scale? } }: a thing off the shelves by its word, or anything mojulo made by its ref, stood in the scene');
@@ -186,7 +188,7 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (errs.length) throw new Error(`screenplay refused:\n - ${errs.join('\n - ')}\n(${MANUAL})`);
   // (the props are the set's: the plan plays the screenplay without them, a recipe keeps them as written)
   // (and its hour is the light's: film/look, read when the film is made)
-  const { props, hour, weather, clouds, life, ...written } = sp;
+  const { props, hour, weather, clouds, wind, life, ...written } = sp;
   let play = written, set = null, alive = false, moving = null;
   if (sp.world_ref !== undefined) {
     const row = getRow?.(sp.world_ref);
@@ -265,6 +267,11 @@ export async function prepareScreenplay(sp, { getRow, worlds = null } = {}) {
   if (clouds !== undefined) {
     if (set) set.clouds = clouds;
     else advice.push({ id: 'clouds-unused', says: 'the scene is shot under clouds, but it has no set: a bare stage has no sky', try: 'set the scene in a world (world_ref, or a film\'s set), or take the clouds out' });
+  }
+  // (and its wind: the air's, moving the set's plants when the film is made; film/wind.js)
+  if (wind !== undefined) {
+    if (set) set.wind = wind;
+    else advice.push({ id: 'wind-unused', says: 'the scene is shot in a wind, but it has no set: a bare stage has nothing for it to move', try: 'set the scene in a world (world_ref, or a film\'s set), or take the wind out' });
   }
   // (and its LIFE: what the set's own world moves, read when the film is made; film/life.js)
   if (life !== undefined && life !== false) {
@@ -621,6 +628,12 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
         atmosphere = { ...atmosphere, clouds: C };
         setPack.clouds = { kind: C.kind, cover: C.cover };
       }
+    }
+    // (THE SCENE'S WIND: the set's plants near the cast lean and sway in it; still air writes nothing)
+    if (P.set.wind !== undefined) {
+      const pts = Object.values(S.actors).map((A) => A.root[0]);
+      const blown = windSpec(P.set.wind, { weather: P.set.weather ?? null, about: [pts.reduce((n, k) => n + k.x, 0) / pts.length, pts.reduce((n, k) => n + k.y, 0) / pts.length] });
+      if (blown) { atmosphere = { ...atmosphere, wind: blown }; setPack.wind = { speed: blown.speed, from: blown.from }; }
     }
     // (THE SCENE'S WEATHER: the sun through its cloud, the sky, the air and what falls, about where the cast stands)
     if (P.set.weather !== undefined) {
