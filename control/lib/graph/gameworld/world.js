@@ -196,7 +196,10 @@ import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 import { readGeotown } from '../geotown/read.js';
+import { readGeocity } from '../geocity/metro.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
+/** What a geocity level evokes unless it says: a neighbourhood at a building's detail, its neighbours massed round it. */
+export const GEOCITY_EVOKE = 'neighbourhood';
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readGrid } from '../level/grid.js';
@@ -267,7 +270,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'obstacles'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -631,7 +634,7 @@ export function readGameworld(W) {
     if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
-      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
       if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
       for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
       try { readGrid(gridOfGlyphs(L.glyphs), 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
@@ -657,6 +660,12 @@ export function readGameworld(W) {
         if (L.glyphs.plan === undefined) throw new Error(`gameworld: ${at}.glyphs.zoned builds a planned map a segment a page: write its plan (glyphs.plan)`);
         if (W.topology !== 'interconnected') throw new Error(`gameworld: ${at}.glyphs.zoned is a world map, travelled zone to zone: set topology: 'interconnected'`);
       } else if (L.glyphs.apron !== undefined) throw new Error(`gameworld: ${at}.glyphs.apron is a zoned map's (glyphs.zoned: true): how many tiles of a zone's neighbours its page shows`);
+    } else if (L.geocity !== undefined) {
+      // a geocity level: a metro (geocity/: its card, its rings, its water, what of it is evoked), stood on the level's
+      // geocube in metres and played from its streets and its roofs; the city is its own ground
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a geocity level is the city alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena`);
+      if (!isObj(L.geocity)) throw new Error(`gameworld: ${at}.geocity is { metro?, extent?, water?, core?, evoke?, geotowns?, … } (the geocube kind's geocity)`);
+      try { readGeocity(L.geocity); } catch (e) { throw new Error(`gameworld: ${at}.geocity: ${e.message.replace(/^geocity:\s*/, '')}`); }
     } else if (L.geotown !== undefined) {
       // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
       // the level's geocube and walked from its streets; the town is its own ground
@@ -967,6 +976,13 @@ export function resolveLevel(world, id) {
     const painted = style.geocube !== undefined && L.glyphs.kit === undefined && words.geocube === undefined;
     const cube = painted ? { geocube: cubeInPalette(style.geocube, style.palette), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.hour !== undefined ? { hour: style.hour } : {}) } : {};
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { ...(painted ? {} : { kit }), seed: seed >>> 0, grid, ...cube, ...words } };
+  }
+  // a geocity level: the metro on the level's geocube (a morning valley unless the style names one), in the cube's own
+  // era; a level plays a neighbourhood of it at a building's detail unless it names what it evokes (the whole metro at
+  // block scale is the open world's, streamed); the style's hour its light
+  if (L.geocity) {
+    const cube = cubeInPalette(style.geocube ?? 'valley-morning', style.palette);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { evoke: GEOCITY_EVOKE, ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light

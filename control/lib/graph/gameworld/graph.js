@@ -67,6 +67,8 @@ export function gameworldGraph(world) {
           : R.airspace ? { ids: ['airspace'], root: 'airspace', edges: [], nodes: { airspace: { section: 'airspace', seed: R.seed, kit: R.style.kit } } }
             // a geotown level: one section, the town (its blocks are the town's own sheet)
             : R.geotown ? { ids: ['town'], root: 'town', edges: [], nodes: { town: { section: 'geotown', seed: R.seed, kit: R.style.kit } } }
+              // a geocity level: one section, the metro (its neighbourhoods are the metro's own sheet)
+              : R.geocity ? { ids: ['metro'], root: 'metro', edges: [], nodes: { metro: { section: 'geocity', seed: R.seed, kit: R.style.kit } } }
               // a glyph-map level: one section, the map (its tiles are the grid's own, level/grid.js)
               : R.glyphs ? { ids: ['map'], root: 'map', edges: [], nodes: { map: { section: 'map', seed: R.seed, kit: R.glyphs.kit ?? R.style.kit } } } : readLevel(R.level);
     node(lv, 'level', R.name, { seed: R.seed, kit: R.style.kit, start: id === G.start });
