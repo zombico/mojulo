@@ -123,6 +123,7 @@ Gaps:
 - There is no ceiling: a jump high enough to reach a slab is not stopped from below (the shooter's jump is not).
 - Zones read a place flat, so things to take and places to reach are laid only in cells with no floor above or below.
 - The headless gunner can stall on a ladder it takes hold of from above.
+- A mind crosses floors by ramps only (`mapFloors`): it climbs no ladder and reaches no floor over a floor.
 
 ## Geocube buildings read against the laws
 

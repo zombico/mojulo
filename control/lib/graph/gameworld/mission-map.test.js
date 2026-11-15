@@ -69,3 +69,20 @@ describe('a mission on a map', () => {
     if (!R[0].won) expect(R[0].advice).toMatch(/the gunner/);
   }, 60000);
 });
+
+// THE MINDS ON A MAP: a hold's wave crosses its floors. One map with an upper floor a ramp reaches, chosen in code.
+import { mapFloors } from '../arena-map/ground.js';
+
+describe('a hold\'s wave on a map with floors', () => {
+  const withFloor = TEMPLATE_IDS.find((id) => mapFloors(TEMPLATES[id].build()).length > 0);
+  const R = missionLevel({ id: 'w', name: 'W', feel: SHOOTER }, { spec: { map: withFloor }, seed: 1 }), by = Object.fromEntries(R.manifest.entities.map((e) => [e.id, e]));
+  it('is given the map\'s floors and their ramps, a path kept to its ground, and the mind that crosses them', () => {
+    expect(R.mission.floors.length).toBeGreaterThan(0);
+    for (const F of R.mission.floors) { expect(F.flights.length).toBeGreaterThan(0); expect(F.area[2]).toBeGreaterThan(F.area[0]); }
+    const hold = R.mission.sections.find((S) => S.task.kind === 'hold');
+    for (const f of hold.foes) expect(by[f.id].rule).toMatchObject({ navLedges: true, floors: R.mission.floors, mind: { motivation: 'frag', perception: 'memory', pathing: 'navmesh' } });
+    // a clear's foes are found where they stand: their class's own mind, no floors
+    const clear = R.mission.sections.find((S) => S.task.kind === 'clear');
+    for (const f of clear.foes) { expect(by[f.id].rule.floors).toBeUndefined(); expect(by[f.id].rule.navLedges).toBeUndefined(); }
+  });
+});

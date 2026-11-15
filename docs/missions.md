@@ -93,8 +93,14 @@ mechanic card.
   sight and memory, so they are found where they stand and hunt what they have seen. The foes a hold wakes are sent to
   the fight: a mind with no perception knows where the body is and paths to it round what stands in its way. A hunter
   woken out of sight has seen no one and stood where it was put: on the court map none of a hold's nine moved, and sent
-  all nine came (up to 28 m), on the headless run. A mind's path is one floor at the body's height unless it is given
-  the floors and their flights (`rule.floors`); a mission gives none yet, so a wave comes on the floor it wakes on.
+  all nine came (up to 28 m), on the headless run.
+- **A wave crosses a map's floors.** On a map with an upper floor a ramp reaches (`arena-map/ground.js` `mapFloors`), a
+  sent wave is the match player's mind: it goes to where its foe is, up a ramp to another floor and down one
+  (`rule.floors`), its path kept to ground it can stand on (`rule.navLedges`: the pathfinder's opt-in `ledges`, a cell
+  with no ground at the body's height shut as a wall is), so it walks round a well and along a gallery and never out
+  over a drop. Measured headless with a still body on the upper floor: on the court two of nine reached it before and
+  all nine came within reach after; on the three rooms none before, all nine after. It keeps to ramps: a mind climbs no
+  ladder, and reaches no floor over a floor. In a building a wave still comes on the floor it wakes on.
 - **The hp and the floor:** the level's own hp (`fail-on-death`), rounds and health to walk over (`supplies`).
 - **The ground:** greybox. Each section's floor in its own value, the firing lines and the exit marked.
 

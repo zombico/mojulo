@@ -54,7 +54,7 @@ import { missionBrief, readMission, composeMission, missionWalls, missionLaws, S
 import { MISSION_LOOK } from './mission-mana.js';
 import { growArenaMap } from '../arena-map/generate.js';
 import { kitOf } from '../arena-map/laws.js';
-import { mapGround } from '../arena-map/ground.js';
+import { mapGround, mapFloors } from '../arena-map/ground.js';
 import { phasesOnMap, phaseLaws } from '../arena-map/phases.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 
@@ -111,6 +111,8 @@ export function missionPlan(G, { seed = null, spec = {}, grown = null } = {}) {
     const kit = kitOf(brief), G2 = grown ? { template: brief.map.template, seed: dice, map: grown, laws: [] } : grownMap(brief.map.template, dice, kit);
     const mission = phasesOnMap(brief, G2.map, { seed: dice });
     mission.climbs = mapGround(G2.map).entities;
+    // (the map's upper floors and the ramps up to them, for the minds a hold sends: arena-map/ground.js mapFloors)
+    mission.floors = mapFloors(G2.map);
     const mapLawsHeld = G2.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }));
     return { brief, mission, laws: [...phaseLaws(mission, G2.map), ...mapLawsHeld], map: { template: G2.template, seed: G2.seed, map: G2.map } };
   }
@@ -181,7 +183,15 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   // brain, worlds/controllable/mind.js) and path to it, where a hunter by sight and memory woken out of sight has seen
   // no one and stands where it was put. The foes of a clear keep their class's sight and memory: they are found
   const sent = new Set(M.sections.filter((S) => S.task.kind === 'hold').flatMap((S) => S.foes.map((f) => f.id)));
-  for (const e of entities) if (sent.has(e.id) && e.rule?.mind?.perception) { const { perception: _p, ...mind } = e.rule.mind; e.rule = { ...e.rule, mind }; }
+  // ON A MAP WITH FLOORS a sent wave crosses them: the match player's mind (it goes to where its foe is, by a ramp to
+  // another floor and down one: `rule.floors`), its path kept to ground it can stand on (`navLedges`: round a well,
+  // along a gallery, never out over a drop). It keeps to ramps: a mind climbs no ladder, and reaches no floor over a floor
+  const floors = M.floors?.length ? M.floors : null;
+  for (const e of entities) {
+    if (!sent.has(e.id) || !e.rule?.mind) continue;
+    if (floors) e.rule = { ...e.rule, mind: { ...e.rule.mind, motivation: 'frag', perception: 'memory' }, floors: structuredClone(floors), navLedges: true };
+    else if (e.rule.mind.perception) { const { perception: _p, ...mind } = e.rule.mind; e.rule = { ...e.rule, mind }; }
+  }
   // (a map's ladders: the runtime's climbs, arena-map/ground.js)
   if (M.climbs?.length) entities.push(...structuredClone(M.climbs));
   // (a hero's guns are fired from its eye over its feet, and over its shoulder they converge on the crosshair: the kit's

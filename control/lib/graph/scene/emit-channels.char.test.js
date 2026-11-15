@@ -772,6 +772,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // opt-in `hold` and `holdReach`: stood under it, holding jump takes hold and goes up while it is held. No fixture
 // carries a climbable that asks, so every one plays as it did (the runtime's trace holds); only the runtime's text
 // moved. Every fixture with no controllable runtime holds byte for byte.
+// Re-pinned 2026-11-15 again (1115-shooting-rails: a mind's path kept to its ground): the same seventeen, for the same
+// reason. The pathfinder (worlds/controllable/nav.js) takes an opt-in `ledges`: a cell with no ground at the body's
+// height is shut as a wall is, asked of the ground a cell at a time as a path reaches it; a mind asks with
+// `rule.navLedges`. No fixture's mind asks, so every path is the colliders' as it was; only the runtime's text moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

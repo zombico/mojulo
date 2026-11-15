@@ -134,3 +134,12 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   It is an opt-in on a climbable (`hold`, `holdReach`; `worlds/controllable/rules-basic.js`), set on an arena map's
   ladders; walking into a ladder still climbs it, and any other ladder is as it was. The seventeen page fixtures that
   inline the controllable runtime are re-pinned for the runtime's text; its trace holds.
+- **A wave crosses a map's floors, and a mind's path keeps to its ground.** The pathfinder takes an opt-in `ledges`
+  (`worlds/controllable/nav.js`; a mind asks with `rule.navLedges`): a cell with no ground at the body's height is shut
+  as a wall is, so a path goes round a well and along a gallery, never out over a drop. A map mission hands a hold's
+  wave the map's upper floors and the ramps up to them (`arena-map/ground.js` `mapFloors`) with the mind that crosses
+  them. Measured headless with a still body on the upper floor: the court two of nine before, all nine after; the three
+  rooms none before, all nine after. Played through, the gunner still wins three of the four maps and now goes down in
+  the three rooms' hold: said, not tuned. Minds keep to ramps (no ladder, no floor over a floor); a building's waves
+  still come on their own floor. The seventeen runtime fixtures are re-pinned for the runtime's text; no path already
+  made changes, since no mind already made asks.

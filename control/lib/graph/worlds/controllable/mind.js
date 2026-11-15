@@ -321,7 +321,8 @@ export function buildMind(E) {
     if (!(r.mind && r.mind.pathing === 'navmesh') || !world || !world.colliders || !navPath) return false;
     const t = e.transform, eye = r.eye ?? 0;
     // `navCell`: the grid's cell (a person among walls wants finer than the default, a metre or its radius)
-    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35, ...(r.navCell > 0 ? { cell: r.navCell } : {}) };
+    // `navLedges` (opt-in): its path keeps to ground it can stand on, round a well and along a gallery (nav.js ledges)
+    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35, ...(r.navCell > 0 ? { cell: r.navCell } : {}), ...(r.navLedges ? { ledges: true } : {}) };
     if (navClear(world, t.pos, goal, opts)) { e.navPath = null; return false; }
     const cell = opts.cell || world.navCell || Math.max(1, opts.radius);
     e.navT = (e.navT || 0) - dt;

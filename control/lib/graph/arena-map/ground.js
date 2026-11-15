@@ -29,6 +29,7 @@
  * Pure, no dice.
  */
 import { CELL, RISE, SLAB, LOW } from './blocks.js';
+import { indexMap } from './map.js';
 import { ladderParams, climbSurface, LADDER } from '../playscape/objects/ladder.js';
 
 export const MAP_GREY = Object.freeze({
@@ -114,5 +115,27 @@ export function mapGround(M, { at = [0, 0, 0] } = {}) {
     for (const s of [-w, w]) out.faces.push(quad(at2(s - 0.03, Z(k)), at2(s + 0.03, Z(k)), at2(s + 0.03, Z(k + 1) + 0.9), at2(s - 0.03, Z(k + 1) + 0.9), MAP_GREY.ladder, 'map:ladder', true));
     for (let s = 1; s <= p.steps; s++) { const z = Z(k) + s * p.pitch; out.faces.push(quad(at2(-w, z - 0.02), at2(w, z - 0.02), at2(w, z + 0.02), at2(-w, z + 0.02), MAP_GREY.ladder, 'map:ladder', true)); }
   });
+  return out;
+}
+
+/**
+ * THE MAP'S FLOORS FOR A MIND (worlds/controllable/mind.js `rule.floors`): each upper floor a body walks to, as the
+ * box round it, with the ramps that reach it (a flight: its foot landing and its head landing). A mind given them goes
+ * to a place on another floor by a ramp, and comes down by one. A mind is on a floor when it stands over its area AT
+ * ITS HEIGHT, so the ground inside a gallery's ring is still the ground; a mind that walks such a floor wants its path
+ * kept to it (`rule.navLedges`). What it does not carry, said: a ladder (a mind does not climb one), a floor no ramp
+ * reaches, and a floor above the first (a mind's way is the ground to a floor and back).
+ *   mapFloors(map, { at? }) → [{ area: [x0, y0, x1, y1], z, flights: [{ bottom: [x, y], top: [x, y] }] }]
+ */
+export function mapFloors(M, { at = [0, 0, 0] } = {}) {
+  const I = indexMap(M), [ox, oy, oz] = at, mid = (c) => [r3(ox + (c[0] + 0.5) * CELL), r3(oy + (c[1] + 0.5) * CELL)], out = [];
+  for (const plat of I.platforms) {
+    if (plat.level !== 1) continue;
+    const cells = plat.cells.map((id) => I.at.get(id)), has = new Set(cells.map((c) => `${c[0]},${c[1]}`));
+    const flights = I.connectors.filter((x) => x.kind === 'ramp' && !x.faults.length && x.to[2] === 1 && has.has(`${x.to[0]},${x.to[1]}`)).map((x) => ({ bottom: mid(x.from), top: mid(x.to) }));
+    if (!flights.length) continue;
+    const xs = cells.map((c) => c[0]), ys = cells.map((c) => c[1]);
+    out.push({ area: [r3(ox + Math.min(...xs) * CELL), r3(oy + Math.min(...ys) * CELL), r3(ox + (Math.max(...xs) + 1) * CELL), r3(oy + (Math.max(...ys) + 1) * CELL)], z: r3(oz + RISE), flights });
+  }
   return out;
 }
