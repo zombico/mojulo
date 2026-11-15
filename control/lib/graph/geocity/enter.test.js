@@ -84,7 +84,7 @@ describe('a shop\'s door, walked through', () => {
   });
   it('is stepped up to from its walk: treads a riser each from the walk to its pad, none where the pad meets the walk', () => {
     const stoops = P.colliders.filter((c) => c.of.endsWith(':stoop'));
-    const raised = shops.filter((a) => a.store.rise > 0.19), level = shops.filter((a) => a.store.rise <= 0.18);
+    const raised = shops.filter((a) => a.store.rise > 0.19 && !a.store.sink), level = shops.filter((a) => a.store.rise <= 0.18);
     expect(raised.length + level.length).toBeGreaterThan(0);
     const at = (a) => stoops.filter((c) => Math.abs((c.min[0] + c.max[0]) / 2 - a.at[0]) < 2.2 && Math.abs((c.min[1] + c.max[1]) / 2 - a.at[1]) < 2.2 && c.max[2] < a.floor + 1e-6 && c.max[2] > a.floor - 1).map((c) => c.max[2]).sort((x, y) => y - x);
     // (one shop a kind: the concept is the stoop)
@@ -95,6 +95,27 @@ describe('a shop\'s door, walked through', () => {
       expect(tops[tops.length - 1] - (a.floor - a.store.rise)).toBeLessThanOrEqual(0.181);
     }
     for (const a of level.slice(0, 1)) expect(at(a)).toHaveLength(0);
-    expect(Math.max(...shops.map((a) => a.store.rise))).toBeLessThanOrEqual(0.9);
+    expect(Math.max(...shops.map((a) => a.store.rise))).toBeLessThanOrEqual(0.541);
+  });
+  it('a shop on a pad high over its walk is sunk under it: its floor under the pad, the pad and its face cut round it', () => {
+    const low = shops.filter((a) => a.store.sink > 0);
+    expect(low.length).toBeGreaterThan(0);
+    expect(E.sunk).toBe(low.length);
+    for (const a of low.slice(0, 1)) {
+      const { inside, door, sink } = a.store, mid = [(inside.min[0] + inside.max[0]) / 2, (inside.min[1] + inside.max[1]) / 2];
+      // (no ground of the metro's over its floor and under its ceiling at its middle; its pad still stands beside it)
+      const over = (x, y) => P.faces.filter((f) => (f.normal?.[2] ?? 0) > 0.5 && Math.min(...f.corners.map((c) => c[0])) < x && Math.max(...f.corners.map((c) => c[0])) > x && Math.min(...f.corners.map((c) => c[1])) < y && Math.max(...f.corners.map((c) => c[1])) > y).map((f) => Math.max(...f.corners.map((c) => c[2])));
+      expect(over(mid[0], mid[1]).filter((z) => z > inside.min[2] - 0.01 && z < inside.max[2] - 0.05)).toHaveLength(0);
+      const k = Math.abs(a.N[0]) > 0.5 ? 1 : 0, beside = [...mid]; beside[k] = inside.min[k] - 0.2;
+      expect(over(beside[0], beside[1]).some((z) => Math.abs(z - (door[2] + sink)) < 0.01)).toBe(true);
+      // (the face holding its pad over its walk is open at its door)
+      const j = 1 - k, plane = door[j] + a.N[j] * 0.15;
+      const across = P.faces.filter((f) => f.group === 'geocity:retain' && f.corners.every((c) => Math.abs(c[j] - plane) < 0.02) && Math.min(...f.corners.map((c) => c[k])) < door[k] && Math.max(...f.corners.map((c) => c[k])) > door[k]);
+      expect(across).toHaveLength(0);
+      // (and no pad lies across its doorway between its wall and its inside: its threshold its own, at its floor)
+      const sill = [door[0] + a.N[0] * 0.08, door[1] + a.N[1] * 0.08];
+      expect(over(sill[0], sill[1]).filter((z) => z > door[2] + 0.05 && z < door[2] + 2)).toHaveLength(0);
+      expect(over(sill[0], sill[1]).some((z) => Math.abs(z - door[2]) < 0.03)).toBe(true);
+    }
   });
 });

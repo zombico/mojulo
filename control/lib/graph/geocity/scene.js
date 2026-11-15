@@ -284,7 +284,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
   // THE FRONTAGE (frontage.js): each building's walls as the street sees them, recorded as it is laid (its boxes, its
   // storeys, its use, the walls inside it), dressed once the cameras say which are near a person's eye
-  const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null, open = null, signs = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house, ...(open ? { open, signs } : {}) }); };
+  const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null, open = null, signs = null, sinks = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house, ...(open ? { open, signs, ...(sinks ? { sinks } : {}) } : {}) }); };
   const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // a site's machines (SITE above): the crane drawn within its district's reach of the camera, the machines inside its
@@ -335,29 +335,32 @@ export function assembleGeocityScene(m, ctx = {}) {
   // cut at each door, its box left open round each inside and through each door, each inside stamped where it stands
   // and drawn near the camera only ──
   const ENTER = d.spec.enter ?? null, cityStores = new Map(), entered = [], steep = { n: 0 };
-  // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most a pad may stand over its
-  // walk and still be stepped up to)
-  const STOOP = { riser: 0.18, tread: 0.28, side: 0.25, most: 0.9 };
+  // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most its door stands over its
+  // walk (three risers), and the most its floor is sunk under its pad to keep it so)
+  const STOOP = { riser: 0.18, tread: 0.28, side: 0.25, most: 0.54, sunk: 2 }, sunk = [];
   // (a composed town's repeats are drawn within the metro's ring, but a shop's inside within its own)
   const storeRing = (rp) => (typeof rp.group === 'string' && rp.group.startsWith('geotown:store-') && rp.near ? rp.near : NEAR);
   const openShops = (b, s, q, z0, z1) => {
     const wl = wallsOf(q)[s], n = FACINGS[s], t = [-n[1], n[0]], T = SLOT.wall, k = s === 's' || s === 'n' ? 0 : 1, deep = k === 0 ? q[3] - q[1] : q[2] - q[0];
-    const D = { ...FRONTAGE.shop.door, ...FRONTAGE.shop.open }, zs = shopRise(STOREY), wi = faces.length - 4 + ['s', 'e', 'n', 'w'].indexOf(s), C = holder !== null ? colliders.pop() : null;
-    let wall = [faces[wi]], held = C ? [[C.min[0], C.min[1], C.max[0], C.max[1]]] : [];
-    // (each bay's tenant by its street's tenancy, never the bay's before it; its sign in its store's own colour)
-    const opened = [], signs = {};
+    const D = { ...FRONTAGE.shop.door, ...FRONTAGE.shop.open }, zs = shopRise(STOREY), wallFace = faces[faces.length - 4 + ['s', 'e', 'n', 'w'].indexOf(s)], C = holder !== null ? colliders.pop() : null;
+    let wall = [wallFace], held = C ? [[C.min[0], C.min[1], C.max[0], C.max[1]]] : [], deepest = 0;
+    // (each bay's tenant by its street's tenancy, never the bay's before it; its sign in its store's own colour; how far
+    // its floor is sunk under its row's pad)
+    const opened = [], signs = {}, sinks = {};
     let prev = null;
     shopBays(wl.L, 'shops', FRONTAGE.shop.enter).bays.forEach(({ u, w }, i) => {
       const su = w / FRONTAGE.shop.w, ud = u + D.u * su, dw = D.w * su;
       const slot = slotOf({ w: w - 2 * T, d: deep - 2 * T, h: STOREY - 0.2, door: { x: ud - (u - w / 2 + T), w: dw } });
       if (!slot) return;
-      // (its STOOP: where its pad stands over its walk, treads down from its door onto the walk, each a riser; a pad too
-      // high over its walk for a stoop the walk has room for keeps its shop shut)
-      const foot = [wl.a[0] + t[0] * ud, wl.a[1] + t[1] * ud], rise = z0 - (S(foot[0] + n[0] * 0.4, foot[1] + n[1] * 0.4) + KERB), nr = Math.max(1, Math.ceil(rise / STOOP.riser - 1e-6));
-      if (rise > STOOP.most) { steep.n++; return; }
-      for (let i = 1; i < nr; i++) {
-        const zt = z0 - (i * rise) / nr, v0 = (i - 1) * STOOP.tread, v1 = i * STOOP.tread, hw = dw / 2 + STOOP.side;
-        const c = (al, v) => [foot[0] + t[0] * al + n[0] * v, foot[1] + t[1] * al + n[1] * v], zb = Math.min(S(...c(-hw, v1)), S(...c(hw, v1))) + KERB - 0.05;
+      // (its FLOOR: its row's pad, or SUNK under it where the pad stands more than a stoop over its walk, so its door is
+      // never more than `STOOP.most` up; a pad past `STOOP.sunk` over its walk keeps its shop shut. Its STOOP: treads
+      // down from its door onto the walk, each a riser, and a riser's face under its threshold)
+      const foot = [wl.a[0] + t[0] * ud, wl.a[1] + t[1] * ud], zw = S(foot[0] + n[0] * 0.4, foot[1] + n[1] * 0.4) + KERB, sink = Math.max(0, z0 - zw - STOOP.most);
+      if (sink > STOOP.sunk) { steep.n++; return; }
+      const zf = z0 - sink, rise = zf - zw, nr = Math.max(1, Math.ceil(rise / STOOP.riser - 1e-6));
+      const c = (al, v) => [foot[0] + t[0] * al + n[0] * v, foot[1] + t[1] * al + n[1] * v];
+      for (let r = 1; r < nr; r++) {
+        const zt = zf - (r * rise) / nr, v0 = (r - 1) * STOOP.tread, v1 = r * STOOP.tread, hw = dw / 2 + STOOP.side, zb = Math.min(S(...c(-hw, v1)), S(...c(hw, v1))) + KERB - 0.05;
         const [A, B, Cc, Dd] = [c(-hw, v0), c(hw, v0), c(hw, v1), c(-hw, v1)];
         put([[...A, zt], [...B, zt], [...Cc, zt], [...Dd, zt]], 'geocity:stoop', col.walk);
         put([[...Dd, zb], [...Cc, zb], [...Cc, zt], [...Dd, zt]], 'geocity:stoop', col.retain, n);
@@ -365,27 +368,34 @@ export function assembleGeocityScene(m, ctx = {}) {
         put([[...Cc, zb], [...B, zb], [...B, zt], [...Cc, zt]], 'geocity:stoop', col.retain, [t[0], t[1], 0]);
         if (holder !== null) colliders.push({ min: P3([Math.min(A[0], Cc[0]), Math.min(A[1], Cc[1]), zb]), max: P3([Math.max(A[0], Cc[0]), Math.max(A[1], Cc[1]), zt]), of: `${b.id}:stoop` });
       }
+      if (rise > 0.02) { const zb = Math.min(S(...c(-dw / 2, 0)), S(...c(dw / 2, 0))) + KERB - 0.05; put([[...c(-dw / 2, 0), zb], [...c(dw / 2, 0), zb], [...c(dw / 2, 0), zf], [...c(-dw / 2, 0), zf]], 'geocity:stoop', col.retain, n); }
+      // (its threshold: a slab from its wall's face in to its floor, where its floor is not its pad's)
+      if (sink > 0) put([[...c(-dw / 2, 0), zf + 0.01], [...c(dw / 2, 0), zf + 0.01], [...c(dw / 2, -0.5), zf + 0.01], [...c(-dw / 2, -0.5), zf + 0.01]], 'geocity:stoop', col.walk);
       const id = `${b.id}:${s}:${Math.round(wl.a[0])},${Math.round(wl.a[1])}:${i}`, card = tenantOf(b.kind === 'edge' ? 'avenue' : 'main-street', streamOf(seed, 'tenant', id), { cards: ENTER.cards, prev }), key = `${card}:${slot.key}`;
       prev = card;
       if (!cityStores.has(key)) cityStores.set(key, { S: storeSlot(card, slot), transforms: [] });
-      const { S: St, transforms } = cityStores.get(key), In = St.inside, o = [wl.a[0] + t[0] * ud - n[0] * 0.15, wl.a[1] + t[1] * ud - n[1] * 0.15, z0];
+      const { S: St, transforms } = cityStores.get(key), In = St.inside, o = [wl.a[0] + t[0] * ud - n[0] * 0.15, wl.a[1] + t[1] * ud - n[1] * 0.15, zf];
       const pt = (x, y) => [o[0] + t[0] * x - n[0] * y, o[1] + t[1] * x - n[1] * y];
       const box2 = (a0, b0, a1, b1) => { const p = pt(a0, b0), r = pt(a1, b1); return [Math.min(p[0], r[0]), Math.min(p[1], r[1]), Math.max(p[0], r[0]), Math.max(p[1], r[1])]; };
       const I = box2(In.x0, In.y0, In.x1, In.y1), way = box2(-dw / 2, -4, dw / 2, 0.01);
-      wall = wall.flatMap((f) => cutFace(f, { axis: k === 0 ? 'x' : 'y', plane: wl.a[1 - k], u0: o[k] - dw / 2, u1: o[k] + dw / 2, z0: z0 + 0.02, z1: z0 + D.h * zs, N: n }));
+      wall = wall.flatMap((f) => cutFace(f, { axis: k === 0 ? 'x' : 'y', plane: wl.a[1 - k], u0: o[k] - dw / 2, u1: o[k] + dw / 2, z0: zf + 0.02, z1: zf + D.h * zs, N: n }));
+      // (sunk: the pad, the land under it and any terrace's face are cut round its inside, and the face that holds
+      // its pad over its walk at its door, once the metro is laid: `sunk`)
+      if (sink > 0) { sunk.push({ I, door: box2(-dw / 2, -0.45, dw / 2, 0.3), sill: box2(-dw / 2, -0.2, dw / 2, 0.02), top: zf + In.h }); sinks[i] = r5(sink); deepest = Math.max(deepest, sink); }
       if (C) {
         held = held.flatMap((r) => rectLess(r, I)).flatMap((r) => rectLess(r, way));
-        for (const bx of St.boxes) { const r = box2(bx.min[0], bx.min[1], bx.max[0], bx.max[1]); colliders.push({ min: P3([r[0], r[1], z0 + bx.min[2]]), max: P3([r[2], r[3], z0 + bx.max[2]]), of: `${b.id}:store:${bx.of}` }); }
-        if (z1 > z0 + In.h) colliders.push({ min: P3([I[0], I[1], z0 + In.h]), max: P3([I[2], I[3], z1]), of: C.of });
+        for (const bx of St.boxes) { const r = box2(bx.min[0], bx.min[1], bx.max[0], bx.max[1]); colliders.push({ min: P3([r[0], r[1], zf + bx.min[2]]), max: P3([r[2], r[3], zf + bx.max[2]]), of: `${b.id}:store:${bx.of}` }); }
+        if (z1 > zf + In.h) colliders.push({ min: P3([I[0], I[1], zf + In.h]), max: P3([I[2], I[3], z1]), of: C.of });
       }
       transforms.push({ pos: P3(o), rotZ: r5(Math.atan2(t[1], t[0])) });
       opened.push(i);
       if (St.sign) signs[i] = St.sign;
-      entered.push({ id, block: b.id, key, S: St, rise: r5(Math.max(0, rise)), door: o, N: n, in: pt(0, 1), out: pt(0, -1), ...(St.till ? { till: P3([...pt(St.till[0], St.till[1]), z0 + St.till[2]]) } : {}), inside: { min: P3([I[0], I[1], z0]), max: P3([I[2], I[3], z0 + In.h]) } });
+      entered.push({ id, block: b.id, key, S: St, rise: r5(Math.max(0, rise)), sink: r5(sink), door: o, N: n, in: pt(0, 1), out: pt(0, -1), ...(St.till ? { till: P3([...pt(St.till[0], St.till[1]), zf + St.till[2]]) } : {}), inside: { min: P3([I[0], I[1], zf]), max: P3([I[2], I[3], zf + In.h]) } });
     });
-    faces.splice(wi, 1, ...wall);
-    if (C) for (const r of held) colliders.push({ ...C, min: P3([r[0], r[1], C.min[2]]), max: P3([r[2], r[3], C.max[2]]) });
-    return { open: opened, signs };
+    faces.splice(faces.indexOf(wallFace), 1, ...wall);
+    // (its box round each inside, down to its deepest floor)
+    if (C) for (const r of held) colliders.push({ ...C, min: P3([r[0], r[1], C.min[2] - deepest]), max: P3([r[2], r[3], C.max[2]]) });
+    return { open: opened, signs, ...(Object.keys(sinks).length ? { sinks } : {}) };
   };
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
     shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, z1 - Math.min(0.3, (z1 - z0) / 4), z1, group, true);
@@ -1497,6 +1507,16 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (cut.length !== 1 || cut[0] !== faces[i]) faces.splice(i, 1, ...cut);
     }
   }
+  // (a shop sunk under its pad: its pad, the land under it and a terrace's face cut round its inside, the face that
+  // holds its pad over its walk cut at its door)
+  for (const K of sunk) {
+    for (const R of [K.I, K.sill]) groundCut(R, (f) => f.group === 'geocity:stoop' || Math.min(...f.corners.map((c) => c[2])) >= K.top);
+    for (let i = faces.length - 1; i >= 0; i--) {
+      if (faces[i].group !== 'geocity:retain') continue;
+      const cut = wallLess(faces[i], K.I).flatMap((f) => wallLess(f, K.door));
+      if (cut.length !== 1 || cut[0] !== faces[i]) faces.splice(i, 1, ...cut);
+    }
+  }
   for (const t of tunnels) for (const R of t.footprint) groundCut(R, (f) => Math.min(...f.corners.map((cc) => cc[2])) >= t.top + 0.2);
   // the subway under its street (geocity/subway.js): its stations, tunnels and entrances, the walk open over each
   // entrance's stairwell
@@ -1660,7 +1680,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   if (ENTER) {
     const inBox = (p) => colliders.some((c) => within(p, c));
     const shut = entered.filter((e) => [e.out, e.door, e.in].some((p) => inBox([p[0], p[1], e.door[2] + 1]))).length, heavy = entered.filter((e) => e.S.faceCount > SLOT.faces).length;
-    laws.push({ law: 'entered', ok: entered.length > 0 && shut === 0 && heavy === 0, value: `${entered.length} shops walked into on ${cityStores.size} templates; ${shut} with a box in the door's way; ${heavy} over ${SLOT.faces} faces; ${steep.n} kept shut, their pads over ${STOOP.most} m above their walks; the highest stoop ${Math.max(0, ...entered.map((e) => e.rise))} m`, want: 'every shop of a row of shops is walked into through its own door, stepped up to from its walk, its inside drawn near the camera only and under its faces' });
+    laws.push({ law: 'entered', ok: entered.length > 0 && shut === 0 && heavy === 0, value: `${entered.length} shops walked into on ${cityStores.size} templates; ${shut} with a box in the door's way; ${heavy} over ${SLOT.faces} faces; ${entered.filter((e) => e.sink > 0).length} sunk under their pads, the deepest ${Math.max(0, ...entered.map((e) => e.sink))} m; ${steep.n} kept shut, their pads over ${r5(STOOP.most + STOOP.sunk)} m above their walks; the highest stoop ${Math.max(0, ...entered.map((e) => e.rise))} m`, want: 'every shop of a row of shops is walked into through its own door, stepped up to from its walk, its inside drawn near the camera only and under its faces' });
   }
   laws.push({ law: 'walk-clear', ok: blocked === 0, value: blocked ? `${blocked} of the walk's points inside a building's box` : `the walk clear of ${colliders.length} boxes`, want: 'the route round the seat\'s block and the spawn outside every box' });
   // the TOWNS' SEAMS (towns.js: a composed town on the metro's own streets' ground): along each town's outline, its own
@@ -1722,7 +1742,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a house its door on its street, windows round it)
       // (a row of shops walked into: its ground its shops, each open)
       const side = F.b.sides?.[f], ground = F.open ? 'shops' : F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
-      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs } : {}) }, R)) {
+      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
         (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
       }
       counts.fronts = (counts.fronts ?? 0) + 1;
@@ -1866,7 +1886,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
     ...(podia.length || SUB || entered.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
-      ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, door: P3(e.door), ...(e.till ? { till: e.till } : {}), inside: e.inside } })),
+      ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till } : {}), inside: e.inside } })),
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),
       ...podia.map((P) => ({ id: `podium-${P.block}`, kind: 'building', use: 'podium', enter: 'walk', at: P.I.door.at, N: P.I.door.N, floor: P.I.door.z0, rise: P.I.rise, storeys: 2, rooms: P.I.rooms, through: P.I.through, down: P.I.down, ports: P.I.ports.map((q) => ({ id: q.id, side: q.side, at: P3(q.side.endsWith('y') ? [q.u, q.plane, q.z0] : [q.plane, q.u, q.z0]), reach: q.reach })) })),
@@ -1888,7 +1908,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
       ...(Object.keys(towns).length ? { geotowns: towns } : {}),
       // (its shops walked into: how many, on how many templates, their cards, the faces their templates hold)
-      ...(ENTER ? { enter: { near: ENTER.near, shops: entered.length, shut: steep.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
+      ...(ENTER ? { enter: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, shut: steep.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
       ...(UN ? { under: inside ? {
         podium: inside.block, plan: inside.I.plan, rise: inside.I.rise,
         podia: podia.map((P) => ({ id: P.block, plan: P.I.plan, ports: P.I.ports.length, findings: P.I.findings })),

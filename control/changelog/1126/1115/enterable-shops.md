@@ -16,4 +16,5 @@
   electronics, convenience stores and pharmacies, an old town to bookshops and clothing. No two neighbours are the same
   kind, and each shop's sign takes its store's colour. You can still name the kinds yourself.
 - **A city shop has a real door and a step up to it.** Its doorway now clears a person's height, and where the shop
-  stands above the pavement a short flight of steps leads up to it. A shop that would need too long a flight stays shut.
+  stands above the pavement a short flight of steps leads up to it. Where the shop stands far above the pavement its floor is set
+  lower than the block around it, so the flight is never more than three steps and every shop on a sloping street opens.

@@ -21,7 +21,8 @@
  *                                  palette: { frame, shop, sign, awning, door, rail } (lists of hex), frames? (the
  *                                  windows' baked paints: a window its frame's variant), open?: true | [a bay's
  *                                  place along it…] (its shops OPEN, each or those named walked into: wider bays, no
- *                                  leaf in an open one's door) }; R its dice
+ *                                  leaf in an open one's door), signs?, sinks? ({ <bay>: … }: an open shop's sign's
+ *                                  colour, and how far its front stands under the wall's foot) }; R its dice
  *   shopBays(L, ground, least?)    → { lob, bays: [{ u, w }] }: a wall's shops as its front lays them
  *   TINT(hex)                      a paint as an instance's tint (linear rgb)
  *
@@ -188,8 +189,10 @@ export function frontsOf(wall, spec, R) {
     for (const [i, { u, w }] of bays.entries()) {
       // (an open shop's sign its store's own colour, `signs`, where it is told one)
       const frame = pick(P.shop), sign0 = pick(P.sign), sign = spec.signs?.[i] ?? sign0;
-      put(pieceOf(i), u, z0, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
-      if (R() < FRONTAGE.shop.awning) put('awning', u, z0, { awning: pick(P.awning) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
+      // (a shop sunk under its row's pad, `sinks`: its front as far down, its door on its floor)
+      const zb = z0 - (spec.sinks?.[i] ?? 0);
+      put(pieceOf(i), u, zb, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
+      if (R() < FRONTAGE.shop.awning) put('awning', u, zb, { awning: pick(P.awning) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
     }
     // (a band over the shops, the storey's floor)
     put('band', 0, z0 + floorH - 0.18, { band: pick(P.shop) }, sc(L, 0.5));
