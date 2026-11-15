@@ -9,14 +9,14 @@ import { brawlLevel, readBrawlLevel } from '../brawl/brawl-levels.js';
 import { readStreet } from '../brawl/brawl-street.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
 
-export const SIDEWAYS_KEYS = Object.freeze(['ground', 'cast', 'waves', 'things', 'scenes']);
+export const SIDEWAYS_KEYS = Object.freeze(['ground', 'play', 'guns', 'grenades', 'cast', 'waves', 'things', 'scenes']);
 const GROUND = Object.freeze({ kind: 'town' });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const list = (v) => (Array.isArray(v) ? v : [v]);
 
 export function readSideways(v, { foes = null, where = 'sideways' } = {}) {
   const S = v === true ? {} : v;
-  if (!isObj(S)) throw new Error(`${where} is true (the town's street, the starter's waves) or { ground?, cast?, waves?, things?, scenes? }: the level walked sideways`);
+  if (!isObj(S)) throw new Error(`${where} is true (the town's street, the starter's waves) or { ground?, play?, guns?, grenades?, cast?, waves?, things?, scenes? }: the level walked sideways`);
   for (const k of Object.keys(S)) if (!SIDEWAYS_KEYS.includes(k)) throw new Error(`${where}.${k} is not a sideways level's word (${SIDEWAYS_KEYS.join(', ')})`);
   const ground = S.ground ?? GROUND;
   try { readBrawlLevel(ground, `${where}.ground`); } catch (e) { throw new Error(e.message.replace(/^brawl: /, '')); }
@@ -31,8 +31,8 @@ export function readSideways(v, { foes = null, where = 'sideways' } = {}) {
   // (its waves, things and scenes are read against its belt, as a street's: a fault is said here, before anything is made)
   // (a street needs a wave to be read: unsaid, the starter's are laid when the level is ordered; one stands in here)
   const belt = brawlLevel(ground).brawl.belt, held = belt.screens.findIndex((sc) => sc.gate);
-  try { readStreet({ waves: S.waves ?? [{ screen: Math.max(0, held), crowd: [{ type: 'thug', n: 1 }] }], ...(S.things ? { things: S.things } : {}), ...(isObj(S.scenes) ? { scenes: S.scenes } : {}) }, belt, where); } catch (e) { throw new Error(e.message.replace(/^brawl: /, '')); }
-  return { ground, ...(S.cast ? { cast: Object.fromEntries(Object.entries(S.cast).map(([k, w]) => [k, list(w)])) } : {}), ...(S.waves ? { waves: S.waves } : {}), ...(S.things ? { things: S.things } : {}), ...(S.scenes !== undefined ? { scenes: S.scenes } : {}) };
+  try { readStreet({ waves: S.waves ?? [{ screen: Math.max(0, held), crowd: [{ type: 'thug', n: 1 }] }], ...(S.things ? { things: S.things } : {}), ...(isObj(S.scenes) ? { scenes: S.scenes } : {}), ...(S.play !== undefined ? { play: S.play } : {}), ...(S.guns !== undefined ? { guns: S.guns } : {}), ...(S.grenades !== undefined ? { grenades: S.grenades } : {}) }, belt, where); } catch (e) { throw new Error(e.message.replace(/^brawl: /, '')); }
+  return { ground, ...(S.play !== undefined && S.play !== 'brawl' ? { play: S.play } : {}), ...(S.guns ? { guns: S.guns } : {}), ...(S.grenades !== undefined ? { grenades: S.grenades } : {}), ...(S.cast ? { cast: Object.fromEntries(Object.entries(S.cast).map(([k, w]) => [k, list(w)])) } : {}), ...(S.waves ? { waves: S.waves } : {}), ...(S.things ? { things: S.things } : {}), ...(S.scenes !== undefined ? { scenes: S.scenes } : {}) };
 }
 
 /** The bestiary ids a world's sideways levels cast, in the bestiary's order. */

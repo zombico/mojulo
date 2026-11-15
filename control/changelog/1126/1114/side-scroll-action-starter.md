@@ -206,6 +206,24 @@ screen) is now played on a page; before, only its practice yard was.
   crowd's faces, in the world's tradition; the level is a hosted level like any other, and the game the world's
   (its store, its links, its own `setup` and `flow` kept). Its turn asks the set-up, who plays when more than one can,
   and calls the street's scenes where every level is one. A world with no sideways level is made as it was.
+- A map is played by a PLAY TYPE (`brawl/brawl-play.js` `PLAY_TYPES`, a row a type: the kit, what the turn asks,
+  the screen, what stands in the band, how the map is held, what the end reads back): the same belt, bends, dress,
+  scenes and turn, another set of idioms. `play: 'brawl' | 'gun'` on a quick brawl, on one street, or on a composed
+  world's `sideways` level. A RUN & GUN (`gun`) plays a street with the gunner's kit, until now the practice range's
+  alone: the players hold a gun over their sidearm with their grenades (`guns`, what they may start with; the turn
+  asks which when there is more than one, the pick reaching the street as `__picks.gun`; `grenades`), the screen
+  shows the gun held, its rounds and the grenades, the end reads accuracy. Unsaid, its map gets shooters on every
+  screen with a rush between them (a crew's own shooters where it has them), cover across the band (the setting's:
+  sandbags on a base, crates in a facility), a crate holding a gun on each held screen and food before the boss.
+  A brawl is made as it was.
+- A gun to take up (`things`: `{ kind: 'gun', what }`, in a box or lying; `brawl-things.js` `THINGS.gun`): a gunner
+  takes what it walks over, in its stride (a gun, food, a power-up), and holds the gun over its sidearm until it is
+  spent; a brawler leaves it lying.
+- A wave on an OPEN screen (one with no gate) is fought on the move, in either play: it comes in as the player walks
+  in, the camera is not held, and it is let go once a player is on the next wave's screen (those still standing left
+  behind). A wave on such a screen was refused before.
+- Not yet (run & gun): cover placed from the dress's own pieces, lives and one-hit play, a gunner's boss, two
+  gunners checked on a page, the fight measured (a first wave of shooters is not yet tuned against a player).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

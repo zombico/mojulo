@@ -5,7 +5,9 @@
 // the shell ask the set-up before each street (how hard, once; who plays, each time), does the street play who was
 // picked at the tier picked, does each street play its arrive scene as play starts and its leave scene once it is won,
 // and does the street's end reach the results and the next street, to the last.
-//   node control/scripts/spikes/brawler/turns.mjs [--out dir] [--town] [--composed]
+//   node control/scripts/spikes/brawler/turns.mjs [--out dir] [--town] [--composed] [--gun]
+//   --gun: the same streets played as a RUN & GUN (brawl/brawl-play.js): the gunner's kit, the starting gun asked, the
+//   play type's own waves and things (none are written here), the rounds fired and the gun read back from each street
 //   --town: the dressed town street as the third · --composed: a COMPOSED world (not the quick path): a hero from the
 //   game book, a crew from its bestiary, two levels walked sideways (gameworld/sideways.js), made by design_game's run
 import { register as registerLoader } from 'node:module';
@@ -16,7 +18,7 @@ import http from 'node:http';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-turns') }, town: { type: 'boolean', default: false }, composed: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-turns') }, town: { type: 'boolean', default: false }, composed: { type: 'boolean', default: false }, gun: { type: 'boolean', default: false } } });
 const out = path.resolve(opt.out); await fs.mkdir(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -45,8 +47,11 @@ const composedWorld = { id: 'dockside', name: 'Dockside', mode: 'autonomous', st
   foes: { punk: { class: Object.keys(FOE_CLASSES)[0], skin: { people: 'human', dress: { faction: 'punks' } } } },
   levels: { dock: { name: 'Dock Road', sideways: { ground: streets[0].level, cast: { '*': 'punk' }, waves } }, yard: { name: 'The Yard', sideways: { ground: streets[2].level, cast: { '*': 'punk' }, waves } } },
   links: [{ from: 'dock', to: 'yard', kind: 'gate' }] };
+// (--gun: each street says nothing of what holds it: the run & gun's own waves and things are laid)
+if (opt.gun) for (const s of streets) delete s.waves;
+if (opt.gun) for (const L of Object.values(composedWorld.levels)) { delete L.sideways.waves; L.sideways.play = 'gun'; }
 if (opt.composed) streets.splice(0, streets.length, { id: 'dock' }, { id: 'yard' });
-let D = body(await designGameHandler(opt.composed ? { world: composedWorld, ref: 't' } : { quick: { goal: 'brawl', roster, streets, crowd: { faction: 'punks', size: 1 }, world: { id: 'turns', name: 'Turns' } }, ref: 't' }));
+let D = body(await designGameHandler(opt.composed ? { world: composedWorld, ref: 't' } : { quick: { goal: 'brawl', ...(opt.gun ? { play: 'gun' } : {}), roster, streets, crowd: { faction: 'punks', size: 1 }, world: { id: 'turns', name: 'Turns' } }, ref: 't' }));
 say('design_game', { ok: D.ok, error: D.error, next: (D.next ?? []).map((n) => n.step) });
 for (let k = 0; k < 8 && D.ok && (D.next ?? []).some((n) => n.step === 'run'); k++) { D = body(await designGameHandler({ ref: 't', run: true })); say('run', { ok: D.ok, error: D.error, made: Object.keys(D.made ?? {}).length }); }
 const gameRef = SketchRepository.list({ limit: 80 }).map((x) => x.ref).find((r) => /game$/.test(r)), G = gameRef ? SketchRepository.getByRef(gameRef).manifest : null;
@@ -66,11 +71,11 @@ const words = async () => (await page.evaluate(() => document.body.innerText.rep
 const frameOf = async () => { for (const f of page.frames()) if (f !== page.mainFrame() && await f.evaluate(() => !!(window.__mojBrawl && window.__mojBrawl.room)).catch(() => false)) return f; return null; };
 // the walk through the shell: each screen it shows said once; a pick answered (the second fighter on the second
 // street, so the pick is seen to change who plays); a street in play felled to its end
-const seen = [], played = [], scenes = [];
+const seen = [], played = [], scenes = [], fired = [], guns = [];
 let last = '', shots = 0, idle = 0;
 for (let step = 0; step < 400 && played.length < streets.length + 0 && idle < 40; step++) {
   const F = await frameOf(), text = await words();
-  const live = F ? await F.evaluate(() => { const B = window.__mojBrawl; return { over: B.over, session: B.session, name: B.read.name, cleared: B.read.cleared, of: B.read.of, scene: B.scene }; }).catch(() => null) : null;
+  const live = F ? await F.evaluate(() => { const B = window.__mojBrawl; return { over: B.over, session: B.session, name: B.read.name, cleared: B.read.cleared, of: B.read.of, scene: B.scene, gun: B.read.gun || null, tally: B.tally, things: (B.room.s.things || []).map((t) => t.kind + ':' + t.what) }; }).catch(() => null) : null;
   // (a scene playing on the street: said once, a still taken, and let play: the fight is held under it)
   if (live && live.scene) {
     const k = `${played.length + (live.over ? 0 : 1)}:${live.scene.id}`;
@@ -81,7 +86,9 @@ for (let step = 0; step < 400 && played.length < streets.length + 0 && idle < 40
     // in play: say who plays and how hard once, then fell the street as it comes
     const key = `play ${played.length + 1}`;
     // (the player sits down at the street with a button, as a person does: attack, once)
-    if (last !== key) { last = key; say(key, { plays: live.name, session: live.session }); await page.keyboard.press('KeyK'); await wait(300); await page.screenshot({ path: path.join(out, `play-${played.length + 1}.png`) }); }
+    if (last !== key) { last = key; say(key, { plays: live.name, session: live.session, ...(opt.gun ? { gun: live.gun, things: live.things } : {}) }); await page.keyboard.press('KeyK'); await wait(300); await page.screenshot({ path: path.join(out, `play-${played.length + 1}.png`) }); }
+    // (a run & gun: the trigger held as it walks, so its rounds are seen to fly and be counted)
+    if (opt.gun) { await page.keyboard.down('KeyK'); await page.keyboard.down('KeyD'); await wait(900); await page.keyboard.up('KeyD'); await page.keyboard.up('KeyK'); if (!fired[played.length]) await page.screenshot({ path: path.join(out, `fire-${played.length + 1}.png`) }); fired[played.length] = (await F.evaluate(() => window.__mojBrawl.tally).catch(() => null))?.fired ?? fired[played.length] ?? 0; guns[played.length] = live.gun?.name ?? null; }
     await F.evaluate(() => { const B = window.__mojBrawl; for (const b of B.room.s.bodies) if (b.side !== 'player' && !b.gone && !b.ko) { b.ko = 1; b.hp = 0; b.st = 'ko'; b.sf = 0; } });
     await page.keyboard.down('KeyD'); await wait(700); await page.keyboard.up('KeyD');
     const end = await F.evaluate(() => window.__mojBrawl.over).catch(() => null);
@@ -94,6 +101,7 @@ for (let step = 0; step < 400 && played.length < streets.length + 0 && idle < 40
     if (shots < 14) await page.screenshot({ path: path.join(out, `shell-${String(++shots).padStart(2, '0')}.png`) });
     // (the fighter asked before the second street: the second one)
     if (/Choose your fighter/i.test(text) && played.length === 1) { await page.keyboard.press('ArrowDown'); await wait(300); }
+    if (/Choose your gun/i.test(text) && played.length === 1) { await page.keyboard.press('ArrowDown'); await wait(300); }
     if (/LOADING/i.test(text)) { await wait(400); continue; }
     await wait(500); await page.keyboard.press('Enter'); await wait(1200);
   } else { idle++; await wait(400); if (idle % 10 === 9 && !/LOADING/i.test(text)) await page.keyboard.press('Enter'); }
@@ -107,8 +115,9 @@ const proof = {
   whoPlayed: played.map((p) => p.session.players[0]), tier: played.map((p) => p.session.difficulty),
   everyStreetWon: played.every((p) => p.over === 'won'),
   scenes,
+  ...(opt.gun ? { gunAsked: asks(/Choose your gun/i), guns, fired } : {}),
 };
 say('proof', proof); say('errors', errs.slice(0, 6));
 await fs.writeFile(path.join(out, 'turns.json'), JSON.stringify({ log, proof, errs }, null, 1));
 await browser.close(); server.close();
-process.exit(proof.streetsPlayed === streets.length && proof.difficultyAsked === 1 && (opt.composed ? proof.fighterAsked === 0 : proof.fighterAsked === streets.length && proof.whoPlayed[1] !== proof.whoPlayed[0]) && proof.tier.every(Boolean) && proof.everyStreetWon && streets.every((_, i) => scenes.includes(`${i + 1}:arrive`) && scenes.includes(`${i + 1}:leave`)) ? 0 : 1);
+process.exit(proof.streetsPlayed === streets.length && proof.difficultyAsked === 1 && (opt.composed ? proof.fighterAsked === 0 : proof.fighterAsked === streets.length && proof.whoPlayed[1] !== proof.whoPlayed[0]) && proof.tier.every(Boolean) && proof.everyStreetWon && streets.every((_, i) => scenes.includes(`${i + 1}:arrive`) && scenes.includes(`${i + 1}:leave`)) && (!opt.gun || (proof.gunAsked === streets.length && guns[1] !== guns[0] && streets.every((_, i) => fired[i] > 0))) ? 0 : 1);

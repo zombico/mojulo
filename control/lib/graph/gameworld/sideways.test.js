@@ -25,7 +25,9 @@ describe('read', () => {
     expect(() => readSideways({ ground: { kind: 'moon' } })).toThrow(/kind is one of/);
     expect(() => readSideways({ cast: { '*': 'nobody' } }, { foes: { punk: {} } })).toThrow(/not in the world's bestiary/);
     expect(() => readSideways({ cast: { wizard: 'punk' } }, { foes: { punk: {} } })).toThrow(/a crowd type/);
-    expect(() => readSideways({ ground: GROUND, waves: [{ screen: 0, crowd: [{ type: 'thug', n: 1 }] }] })).toThrow(/not held/);
+    expect(() => readSideways({ ground: GROUND, waves: [{ screen: 9, crowd: [{ type: 'thug', n: 1 }] }] })).toThrow(/screen of the belt/);
+    expect(readSideways({ ground: GROUND, play: 'gun' }).play).toBe('gun');
+    expect(() => readSideways({ ground: GROUND, play: 'kart' })).toThrow(/play is/);
     expect(SIDEWAYS_KEYS).toContain('scenes');
   });
   it('a world reads it as a level of its own kind: alone on its level, its cast in the bestiary', () => {

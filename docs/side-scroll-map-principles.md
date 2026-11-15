@@ -135,6 +135,31 @@ levels: { dock: { name: 'Dock Road', sideways: { ground: { kind: 'town', drift: 
 - **The game is the world's.** Its levels are stitched by the turn like any other world's; its own `setup` and `flow`
   are kept.
 
+## How it is played
+
+A map is not a game type. One map (its belt, its bends, its dress, its scenes, its place in the turn) is played by a
+**play type**, and the play type brings the idioms; the map does not change. The table is
+`control/lib/graph/brawl/brawl-play.js` `PLAY_TYPES`, a row a type: the player's kit, what the turn asks, what the
+screen shows, what stands in the band, how the map is held, what the end reads back. A new way to play a sideways map
+is a row and its idioms, never a second map.
+
+`play` is said on a quick brawl (every street), on one street, or on a composed world's `sideways` level:
+
+```js
+{ goal: 'brawl', play: 'gun', streets: [{ id: 'gate', level: { kind: 'stage', kit: 'bay-military' } }] }
+levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
+```
+
+- **A brawl** is the brawler's kit: a crowd on each held screen, breakables with food.
+- **A run & gun** (`gun`) is the gunner's kit: fire, aim, plant, roll, jump, grenade. Its `guns` are what the player
+  may start with (the turn asks which when there is more than one) and `grenades` how many it carries. A gunner takes
+  what it walks over: a gun lying on the map (`{ kind: 'gun', what }`, usually in a crate) is held over the sidearm
+  until it is spent. Unsaid, the map gets shooters on every screen with a rush between them, the setting's cover
+  across the band, a gun crate on each held screen and food before the boss. The end reads accuracy too.
+- **A wave on an open screen is fought on the move**, in either play: it comes in as the player walks in, the camera is
+  not held, and it is let go once the player is on the next wave's screen. Holds stay for the screens that are gated
+  and the boss's.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:

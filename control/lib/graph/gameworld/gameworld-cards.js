@@ -94,6 +94,7 @@ import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
 import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
+import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -1416,23 +1417,26 @@ const sideScrollCard = () => {
     '',
     'IN A COMPOSED WORLD (the game book) a level is walked sideways by one key; the world says who is on it:',
     '  levels.<id>.sideways: true | { ground?: <a level, below>, cast?: { <crowd type> | \'*\' | \'boss\': <foe> | [<foe>…] },',
-    '    waves?, things?, scenes? }   the players: the book\'s hero and each of its cast who joins; the crowd: drawn',
+    '    play?, waves?, things?, scenes? }   the players: the book\'s hero and each of its cast who joins; the crowd: drawn',
     '    as the bestiary\'s foes its cast names (a crew\'s grunt: skin.dress); the game is the world\'s',
+    '',
+    `PLAYED by a play type (\`play\`: ${PLAY_IDS.join(' | ')}; on a quick brawl, a street, a sideways level). gun: the gunner\'s`,
+    '  kit, guns? (asked), grenades?; unsaid: shooters, cover, gun crates. An ungated screen\'s wave is fought on the move',
     '',
     'A LEVEL (a quick brawl\'s streets[i].level, or brawlLevel):',
     '  { kind: \'town\', fronts?: \'rough\' | \'broken\', dress?: false | { sets?, colour?, seed? } }   a street',
     '  { kind: \'stage\', kit, dress?: false | { setting?, sets?, colour?, seed?, kit? } }   a building\'s rooms; a kit',
     '    with a setting of its own is dressed as it unsaid; any kit takes a setting said',
     '  THE WALK BENDS, in any place (a room turns as a street does), by three words on a level (a belt\'s own):',
-    '    rise:  [[s, z], …]   the floor\'s height along the walk: a ramp, steps, a climb; the camera rises with it',
-    '           (a town climbs its own way: climb: grade, rise over run to 0.1, its buildings stepping up)',
-    '    turn:  [[s, degrees], …]   the view swings down the walk: it heads up the screen (under 0, down it), to 55°',
+    '    rise:  [[s, z], …]   the floor\'s height along the walk; the camera rises with it',
+    '           (a town: climb: grade, to 0.1)',
+    '    turn:  [[s, degrees], …]   the view swings down the walk (under 0, the other way), to 55°',
     '    drift: [[s, n], …]   the band slides across the walk\'s line, the view square and following: a diagonal',
-    '    the fight is played straight and level and drawn bent: nothing about how it plays changes',
-    '    the place goes with the walk: a blockout laid along it, a place that stands (a town, rooms) sheared by it',
+    '    it plays straight and level, drawn bent',
+    '    the place goes with the walk',
     '  sets: one a screen: a set\'s name, null (bare), or A SET OF ITS OWN:',
     '    { says?, far: { piece: weight }, wall?: { piece: weight }, gap?: [m, m], marks?: [m, m], near?: { piece: weight } }',
-    '  colour: the holder\'s (#rrggbb): its tags, banners, stencils; a quick brawl gives its crowd\'s',
+    '  colour: the holder\'s (#rrggbb): on its marks; a quick brawl gives its crowd\'s',
     '',
     ...wrap('FLOOR PIECES:', floor.map((id, i) => id + (i < floor.length - 1 ? ',' : ''))),
     ...wrap('WALL MARKS:', marks.map((id, i) => id + (i < marks.length - 1 ? ',' : ''))),

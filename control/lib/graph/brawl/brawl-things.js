@@ -8,6 +8,8 @@
  *     weapon   one of the fight's WEAPONS a brawler can pick up (`throw`: the damage it deals flung): held, its chain
  *              swings it (the body's armed fighter, versus-compile.js's blade rules); special throws it; a body knocked
  *              down drops it
+ *     gun      a GUN to take up (the run & gun's: a brawl-guns.js row with a magazine): a gunner that walks over it holds
+ *              it over its sidearm, loaded; spent, it is back on the sidearm. A body with no gun leaves it lying
  *     box      a breakable (`hp` the blows it takes, `w` and `h` its size in m): broken, it leaves what it `holds`
  *     cover    COVER (the run & gun's, any street's): sandbags, a stack of crates, a low wall (`w` along, `d` across, `h`
  *              in m, `hp`): a round meeting it is stopped (unless its shooter stands right behind it: a body fires over
@@ -35,6 +37,12 @@ export const THINGS = Object.freeze({
     pipe: row({ throw: 90, says: WEAPONS.pipe.says }),
     knife: row({ throw: 110, says: WEAPONS.knife.says }),
     katana: row({ throw: 100, says: WEAPONS.katana.says }),
+  }),
+  gun: Object.freeze({
+    'machine-gun': row({ gun: 'machine-gun', says: 'a machine gun: a stream, a full belt' }),
+    spread: row({ gun: 'spread', says: 'a spread gun: a fan of five' }),
+    flame: row({ gun: 'flame', says: 'a flamethrower: a short wide gout' }),
+    rocket: row({ gun: 'rocket', says: 'a rocket launcher: a dozen that burst' }),
   }),
   box: Object.freeze({
     barrel: row({ hp: 40, w: 0.7, h: 1.0, says: 'a barrel: a blow or two' }),
@@ -70,7 +78,7 @@ function readOne(t, at, inBox = false) {
   if (!t || typeof t !== 'object') throw new Error(`brawl: ${at} is { kind, what, at, n?, holds? }`);
   if (!THINGS[t.kind]) throw new Error(`brawl: ${at}.kind is one of ${THING_KINDS.join(', ')}`);
   if (!THINGS[t.kind][t.what]) throw new Error(`brawl: ${at}.what is one of ${Object.keys(THINGS[t.kind]).join(', ')} (a ${t.kind})`);
-  if (inBox && (t.kind === 'box' || t.kind === 'cover')) throw new Error(`brawl: ${at}: a box holds food, a power-up or a weapon, not another box`);
+  if (inBox && (t.kind === 'box' || t.kind === 'cover')) throw new Error(`brawl: ${at}: a box holds food, a power-up, a weapon or a gun, not another box`);
   if (t.holds !== undefined && t.kind !== 'box') throw new Error(`brawl: ${at}.holds: only a box holds a thing`);
   return { kind: t.kind, what: t.what, ...(t.holds ? { holds: readOne(t.holds, `${at}.holds`, true) } : {}) };
 }

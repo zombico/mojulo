@@ -1,7 +1,7 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
+import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
 import { runSteps } from './runner.js';
 import { brawlPreset } from '../brawl/brawl-levels.js';
 import { GENRES } from '../egocube/setting.js';
@@ -19,7 +19,8 @@ describe('the goal, read', () => {
     expect(() => world({ roster: [ME] })).not.toThrow();
     expect(() => world({ arenas: [{ id: 'a' }] })).toThrow(/fight goal|brawl takes/);
     expect(() => quickWorld({ id: 'w', quick: { goal: 'reach', streets: [BRAWL_STREET] } })).toThrow(/brawl goal/);
-    expect(() => world({ streets: [{ id: 's', waves: [{ screen: 0, crowd: [{ type: 'thug', n: 1 }] }] }] })).toThrow(/not held/);
+    expect(() => world({ streets: [{ id: 's', waves: [{ screen: 9, crowd: [{ type: 'thug', n: 1 }] }] }] })).toThrow(/screen of the belt/);
+    expect(() => world({ play: 'kart' })).toThrow(/play is/);
     expect(() => world({ camera: 'top-down' })).toThrow(/side/);
   });
 });
@@ -185,5 +186,28 @@ describe('a street\'s scenes in its turn', () => {
     const none = gameOf({ streets: [{ id: 'a', level: { kind: 'greybox', preset: 'street' }, scenes: false }] });
     expect(none.find((s) => s.key === 'level-street-a').order.manifest.brawl.street.scenes).toBeUndefined();
     expect(Object.values(none.find((s) => s.key === 'game').order.flow.steps).find((s) => s.kind === 'level').start).toBeUndefined();
+  });
+});
+
+describe('a brawl played as a run & gun (brawl/brawl-play.js)', () => {
+  const level = { kind: 'greybox', preset: 'street' };
+  it('its streets say their play, their guns and the play\'s own waves and things; a street may say its own play', () => {
+    const [G, B] = brawlStreets({ goal: 'brawl', play: 'gun', streets: [{ id: 'a', level }, { id: 'b', level, play: 'brawl' }] }).map((s) => s.manifest.brawl.street);
+    expect(G).toMatchObject({ play: 'gun', guns: [...QUICK_GUNS] });
+    expect(G.waves.every((w) => w.crowd.some((c) => CROWD_TYPES[c.type].gun))).toBe(true);
+    expect(G.things.some((t) => t.kind === 'cover')).toBe(true);
+    expect(G.things.some((t) => t.holds?.kind === 'gun')).toBe(true);
+    expect(B.play).toBeUndefined();
+    expect(B.things.some((t) => t.kind === 'cover')).toBe(false);
+    // (a street's own waves and things are kept under either play)
+    const [own] = brawlStreets({ goal: 'brawl', play: 'gun', streets: [{ id: 'a', level, things: [], guns: ['rocket'], grenades: 0 }] });
+    expect(own.manifest.brawl.street).toMatchObject({ things: [], guns: ['rocket'], grenades: 0 });
+  });
+  it('its turn asks the gun to start with, where there is more than one; a brawl\'s asks none', () => {
+    const streets = brawlStreets({ goal: 'brawl', play: 'gun', streets: [{ id: 'a', level }] });
+    expect(brawlSetup(undefined, [], brawlGuns(streets)).picks.map((p) => p.id)).toEqual(['gun']);
+    expect(brawlSetup(undefined, [], brawlGuns(streets)).picks[0].from.options.map((o) => o.id)).toEqual([...QUICK_GUNS]);
+    expect(brawlSetup(undefined, [], ['rocket']).picks).toBeUndefined();
+    expect(brawlGuns(brawlStreets({ goal: 'brawl', streets: [{ id: 'a', level }] }))).toEqual([]);
   });
 });

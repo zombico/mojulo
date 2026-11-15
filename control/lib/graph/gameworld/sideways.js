@@ -32,8 +32,7 @@ import { brawlLevel } from '../brawl/brawl-levels.js';
 import { readSideways } from './sideways-read.js';
 import { readStreet } from '../brawl/brawl-street.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
-import { DRESS_SETTINGS } from '../brawl/brawl-dress.js';
-import { defaultWaves, defaultThings, defaultScenes, brawlSetup, BRAWL_SCENES } from './quick.js';
+import { streetPlay, defaultScenes, brawlSetup, BRAWL_SCENES } from './quick.js';
 import { withSetup } from './setup.js';
 
 export { SIDEWAYS_KEYS, readSideways, sidewaysFoes } from './sideways-read.js';
@@ -64,8 +63,9 @@ export function sidewaysLevelOrder(G, stage, { ref, hero, heroName = null, party
   // (its waves drawn from how its cast fights, where the cast says; its boxes its setting's)
   const types = Object.keys(cast).filter((t) => CROWD_TYPES[t]);
   const street = {
-    players: [0], roster, waves: S.waves ?? defaultWaves(belt, types.length ? types : null),
-    things: S.things ?? defaultThings(belt, dress?.setting ? DRESS_SETTINGS[dress.setting].boxes : null),
+    players: [0], roster,
+    // (how it is played: a brawl, or a run & gun; what holds it and stands on it its play's, where it names neither)
+    ...streetPlay(S.play, belt, { waves: S.waves, things: S.things, types: types.length ? types : null, setting: dress?.setting ?? null, guns: S.guns, grenades: S.grenades }),
     ...(Object.keys(cast).length ? { cast } : {}),
     ...(S.scenes === false ? {} : { scenes: S.scenes ?? defaultScenes(belt, { name: place }) }),
   };
@@ -73,13 +73,13 @@ export function sidewaysLevelOrder(G, stage, { ref, hero, heroName = null, party
   // (the hosted level's contract: it asks nothing of the store, and says how it ended)
   const game = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
   const { brawl, ...world } = stage.manifest;
-  return { tool: 'create_sketch', args: { title: name, manifest: { ...world, title: name, brawl: { ...brawl, ...(register ? { register } : {}), street }, game } }, playable, staged: !!street.scenes };
+  return { tool: 'create_sketch', args: { title: name, manifest: { ...world, title: name, brawl: { ...brawl, ...(register ? { register } : {}), street }, game } }, playable, staged: !!street.scenes, ...(street.play === 'gun' ? { guns: street.guns } : {}) };
 }
 
 /** A sideways world's turn: every level step asks the set-up (the world's own kept; who plays added when more than one
  * can) and, where every level is walked sideways and has scenes, calls them (arrive as play starts, leave once won). */
-export function sidewaysTurn(flow, { setup = null, playable = [], staged = false } = {}) {
-  const asked = withSetup(flow, brawlSetup(setup, playable));
+export function sidewaysTurn(flow, { setup = null, playable = [], staged = false, guns = [] } = {}) {
+  const asked = withSetup(flow, brawlSetup(setup, playable, guns));
   if (!staged) return asked;
   return { ...asked, steps: Object.fromEntries(Object.entries(asked.steps).map(([k, st]) => [k, st.kind === 'level' ? { ...st, ...(st.start ? {} : { start: { scene: BRAWL_SCENES.start, once: false } }), ...(st.end ? {} : { end: { scene: BRAWL_SCENES.end, when: 'won' } }) } : st])) };
 }

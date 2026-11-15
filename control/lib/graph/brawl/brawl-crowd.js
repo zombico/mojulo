@@ -57,7 +57,7 @@ import { brawlFighter, STRONG_SLOTS } from './brawl-moves.js';
 import { readGun, ACROSS } from './brawl-guns.js';
 import { newBrawl, stepBrawl, enterBody } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
-import { readThings, MOUNTS, MOUNT_IDS } from './brawl-things.js';
+import { readThings, THINGS, MOUNTS, MOUNT_IDS } from './brawl-things.js';
 
 /** THE PLAYS: a player's own moves, as the crowd throws them (each a body's command, as a player's buttons make it) */
 export const CROWD_PLAYS = Object.freeze({
@@ -150,7 +150,9 @@ const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
 // a body's own variety: a hash of its id, 0 … 1
 const vary = (id, k = 0) => { let h = (id * 2654435761 + k * 40503) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h = (h ^ (h >>> 13)) >>> 0; return (h % 1000) / 1000; };
 
-/** Read the waves: one a held screen, its crowd by type. */
+/** Read the waves: one a screen, its crowd by type. On a HELD screen (gated, or the boss's) the camera waits until it
+ * is beaten; on an open one it is fought ON THE MOVE: it comes in as the player walks in, and is let go (those still
+ * standing left behind, those not yet in never coming) once the player walks on into the next wave's screen. */
 export function readWaves(waves, belt) {
   if (!Array.isArray(waves)) throw new Error('brawl: waves is a list of { screen, crowd: [{ type, n }] }');
   const seen = new Set();
@@ -160,7 +162,6 @@ export function readWaves(waves, belt) {
     if (!w || typeof w !== 'object') throw new Error(`brawl: ${at} is { screen, crowd: [{ type, n }] }`);
     const sc = belt.screens[w.screen];
     if (!sc) throw new Error(`brawl: ${at}.screen is a screen of the belt (0 to ${belt.screens.length - 1})`);
-    if (!sc.gate) throw new Error(`brawl: ${at}.screen ${w.screen} is not held: a wave holds a gated screen`);
     if (seen.has(w.screen)) throw new Error(`brawl: ${at}.screen ${w.screen} has a wave already`);
     seen.add(w.screen);
     if (!Array.isArray(w.crowd ?? []) || (!(w.crowd ?? []).length && !w.boss)) throw new Error(`brawl: ${at}.crowd is a list of { type, n } (or none, under a boss)`);
@@ -205,7 +206,7 @@ export function readPlays(plays, F, where = 'plays') {
 }
 
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
-export function streetOf({ belt, players, waves = [], things, rules, crowd } = {}) {
+export function streetOf({ belt, players, waves = [], things, rules, crowd, gunner } = {}) {
   if (!belt) throw new Error('brawl: a street needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a street has 1 to 4 players');
   const W = readWaves(waves, belt);
@@ -220,7 +221,14 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
   // (a crowd body's own entrance or ambush, by its id)
   const entries = {};
   // (the shooting crowd's guns, each its index in ctx.guns)
-  const armory = crowdGuns(types);
+  // (A STREET PLAYED AS A RUN & GUN, `gunner` { guns, grenades }: the players' guns first, the sidearm under the one
+  // they start with, the grenade after them; then every gun lying on the street to be taken up, and the crowd's)
+  const T0 = things ? readThings(things, belt) : [];
+  const lying = gunner ? [...new Set(T0.flatMap((t) => [t, t.holds].filter(Boolean)).filter((t) => t.kind === 'gun').map((t) => THINGS.gun[t.what].gun))] : [];
+  const own = gunner ? [readGun('sidearm'), ...gunner.guns.map((g, k) => readGun(g, `gunner.guns[${k}]`))] : [];
+  const mine = gunner ? [...own, readGun('grenade'), ...lying.filter((id) => !own.some((g) => g.id === id)).map((id) => readGun(id))] : [];
+  if (gunner) bodies.forEach((b) => Object.assign(b, { gun: own.length > 1 ? 1 : 0, grenades: gunner.grenades ?? 0, grenadeGun: own.length }));
+  const armory = crowdGuns(types, mine);
   W.forEach((w, k) => {
     // (the boss first of its wave: it comes in as the wave does)
     if (w.boss) {
@@ -233,13 +241,15 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
     for (const c of w.crowd) for (let j = 0; j < c.n; j++) { if (c.entrance || c.ambush) entries[bodies.length] = { how: c.entrance ?? 'walk', ...(c.ambush ? { ambush: 1 } : {}), ...(c.mount ? { mount: c.mount } : {}) }; bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}), ...(CROWD_TYPES[c.type].poise ? { poise: CROWD_TYPES[c.type].poise } : {}) }); kinds.push(c.type); }
   });
   // the street's things, and each player's armed self for every weapon among them (in a box or not)
-  const T = things ? readThings(things, belt) : [];
-  const weapons = [...new Set(T.flatMap((t) => [t, t.holds].filter(Boolean)).filter((t) => t.kind === 'weapon').map((t) => t.what))];
+  const T = T0;
+  const weapons = gunner ? [] : [...new Set(T.flatMap((t) => [t, t.holds].filter(Boolean)).filter((t) => t.kind === 'weapon').map((t) => t.what))];
   const armed = {};
   players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(brawlFighter({ ...pl.recipe, weapon: w }, { style: pl.style })); } });
   const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}), ...(armory.guns.length ? { guns: armory.guns } : {}) };
   const s = newBrawl(ctx, { bodies, rules, ...(T.length ? { things: T } : {}) });
   // (a held screen with no wave holds nothing: its gate is open from the start)
+  // (a gunner's first gun over its sidearm, loaded)
+  if (gunner) for (const p of s.bodies) if (p.side === 'player') { p.sd = 0; if (mine[p.gn].ammo !== null) p.am = mine[p.gn].ammo; }
   s.cleared = belt.screens.map((sc, i) => (sc.gate && !W.some((w) => w.screen === i) ? i : -1)).filter((i) => i >= 0);
   // (each crowd body's type, by its id)
   const type = Object.fromEntries(kinds.map((t, j) => [players.length + j, t]));
@@ -548,6 +558,14 @@ function waves(s, ctx, M) {
     p.gone = 0; p.x = Math.max(0, Math.min(Math.round(belt.length * 1000), x)); p.z = k === 2 ? n1 : Math.round(n0 + (n1 - n0) * vary(p.id, 3));
     p.face = sgn(cam - p.x) || -1; p.st = 'stand'; p.sf = 0;
     s.events.push({ t: 'enter', p: p.id, from: ['right', 'left', 'back'][k], x: p.x, z: p.z });
+  }
+  // (a wave on an open screen, fought on the move: let go once a player is on the next wave's screen)
+  const after = M.waves[M.wave + 1];
+  if (!sc.gate && !sc.boss && after && players.some((p) => p.x >= Math.round((belt.screens[after.screen].from + 2) * 1000))) {
+    for (const p of waiting) { p.ko = 1; }
+    s.events.push({ t: 'passed', screen: W.screen, left: standing.length });
+    M.wave++;
+    return;
   }
   // its boss fallen: the rest of its wave flees, and the stage is clear
   const boss = mine.find((p) => M.bosses[p.id]);

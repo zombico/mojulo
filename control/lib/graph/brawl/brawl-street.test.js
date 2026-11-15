@@ -25,7 +25,14 @@ describe('a world\'s street, read', () => {
     expect(readStreet(STREET, BELT)).toMatchObject({ players: [0], things: [] });
     expect(() => readStreet({ players: [0] }, BELT)).toThrow(/waves/);
     expect(() => readStreet({ ...STREET, dummies: [] }, BELT)).toThrow(/dummies/);
-    expect(() => readStreet({ waves: [{ screen: 0, crowd: [{ type: T, n: 1 }] }] }, BELT)).toThrow(/not held/);
+    // (a wave on an open screen is fought on the move: read as any other)
+    expect(readStreet({ waves: [{ screen: 0, crowd: [{ type: T, n: 1 }] }] }, BELT).waves).toHaveLength(1);
+    // (how it is played: the brawler's kit unless it says the run & gun's, with its guns and grenades)
+    expect(readStreet(STREET, BELT).play).toBeUndefined();
+    expect(readStreet({ ...STREET, play: 'gun' }, BELT)).toMatchObject({ play: 'gun', guns: ['machine-gun'], grenades: 3 });
+    expect(() => readStreet({ ...STREET, play: 'kart' }, BELT)).toThrow(/play is/);
+    expect(() => readStreet({ ...STREET, guns: ['spread'] }, BELT)).toThrow(/played gun/);
+    expect(() => readStreet({ ...STREET, play: 'gun', guns: ['peashooter'] }, BELT)).toThrow(/guns\[0\]/);
   });
   it('a level is a yard or a street, and carries the street on its brawl block', () => {
     const M = brawlLevel({ kind: 'greybox', preset: 'street' }, { street: STREET });

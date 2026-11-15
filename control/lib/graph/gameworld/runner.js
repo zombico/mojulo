@@ -65,7 +65,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, BRAWL_SCENES, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -547,7 +547,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // THE SET-UP (setup.js): what is asked before a level loads, on every level step that asks nothing of its own
     // (a world of levels walked sideways: each level's turn asks who plays too, and calls the street's scenes where
     // every level is one and has them; sideways.js sidewaysTurn)
-    if (sideways.length) flow = sidewaysTurn(flow ?? defaultFlow(game0), { setup: G.setup ?? null, playable: sideways[0].playable, staged: sideways.length === C.stages.length && sideways.every((L) => L.staged) });
+    if (sideways.length) flow = sidewaysTurn(flow ?? defaultFlow(game0), { setup: G.setup ?? null, playable: sideways[0].playable, guns: sideways.find((L) => L.guns)?.guns ?? [], staged: sideways.length === C.stages.length && sideways.every((L) => L.staged) });
     else if (G.setup) flow = withSetup(flow ?? defaultFlow(game0), G.setup);
     const game = withCues(steps, flow ? { ...game0, flow } : game0, runScore, G, ref);
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
@@ -959,7 +959,7 @@ function quickSteps(world, G, ref, lookup) {
       // play, results, the next street. A world's own set-up is kept
       // (and its SCENES, quick.js defaultScenes or the street's own: each street step plays `arrive` as play starts
       // (every street its own: not once a save; never on a retry) and `leave` once it is won; a street that has no such scene plays none)
-      const turned = withSetup(defaultFlow(game0), brawlSetup(G.setup, playable)), staged = streets.some((s) => s.manifest.brawl.street.scenes);
+      const turned = withSetup(defaultFlow(game0), brawlSetup(G.setup, playable, brawlGuns(streets))), staged = streets.some((s) => s.manifest.brawl.street.scenes);
       const flow = staged ? { ...turned, steps: Object.fromEntries(Object.entries(turned.steps).map(([k, st]) => [k, st.kind === 'level' ? { ...st, ...(st.start ? {} : { start: { scene: BRAWL_SCENES.start, once: false } }), ...(st.end ? {} : { end: { scene: BRAWL_SCENES.end, when: 'won' } }) } : st])) } : turned;
       const game = { ...game0, flow };
       return [...steps, ...lv, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];

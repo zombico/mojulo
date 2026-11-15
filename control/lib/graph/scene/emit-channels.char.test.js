@@ -789,6 +789,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-15 (a street's scenes, brawl/brawl-scenes.js): `brawl`. Its page inlines the scenes' kernel and the
 // yard's client (a scene the game's turn stages plays with the fight held, its end told before the outcome); the
 // fixture is a practice yard with no scene, and plays as it did.
+// Re-pinned 2026-11-15 (a street played as a run & gun, brawl/brawl-play.js): `brawl`. Its page inlines the core (a
+// gun to take up, taken in a gunner's stride), the crowd (a street's gunner, a wave fought on the move), the street's
+// read (the gun held, the rounds tallied) and the yard's client (a street's play: the gunner's buttons); the fixture is
+// a brawler's practice yard with no gun on it, and plays as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

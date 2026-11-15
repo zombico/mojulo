@@ -222,6 +222,9 @@ import { brawlLevel, readBrawlLevel } from '../brawl/brawl-levels.js';
 import { readStreet } from '../brawl/brawl-street.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
 import { DRESS_SETTINGS } from '../brawl/brawl-dress.js';
+import { PLAY_IDS, playWaves, playThings, SETTING_COVER } from '../brawl/brawl-play.js';
+import { readGun } from '../brawl/brawl-guns.js';
+import { gunName } from '../brawl/brawl-street-read.js';
 import { GRUNT_STYLES, GRUNT_STYLE_IDS, gruntOrders } from '../cosmos/packs/comic-hero/grunts.js';
 import { CPU_LEVELS } from '../versus/versus-cpu.js';
 import { settingOfGame } from './cast-setting.js';
@@ -291,7 +294,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -603,6 +606,7 @@ export function readQuick(Q) {
   for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && !(Q.goal === 'brawl' && k === 'roster') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.streets !== undefined && Q.goal !== 'brawl') throw fail('.streets belongs to the brawl goal');
   if (Q.crowd !== undefined && Q.goal !== 'brawl') throw fail('.crowd belongs to the brawl goal');
+  if (Q.play !== undefined && Q.goal !== 'brawl') throw fail('.play belongs to the brawl goal');
   if (Q.goal === 'fight') readFight(Q);
   if (Q.goal === 'brawl') readBrawl(Q);
   // (a fight's register is its own word: its one look, versus-levels.js FIGHT_REGISTERS)
@@ -794,7 +798,7 @@ export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
 // A BRAWL (lib/graph/brawl): a beat 'em up, its own simulation over the fight's fighters. Its roster is the fight's (each
 // a character); its STREETS are its levels, each a brawl level (brawl-levels.js: a greybox street, a stage on a kit)
 // with the waves that hold its screens (brawl-crowd.js: a crowd by type, a boss on the boss's screen).
-const BRAWL_KEYS = ['goal', 'roster', 'streets', 'crowd', 'register', 'theme', 'camera', 'screen'];
+const BRAWL_KEYS = ['goal', 'roster', 'streets', 'crowd', 'play', 'register', 'theme', 'camera', 'screen'];
 // (the street a brawl is fought down when it names none: the GEOTOWN's main street, brawl-levels.js the town kind: a
 // block of the town with its shops on the far side and its margin open to the camera, the road, the walks, the lamps
 // and the fronts the town's own; a stage kit's rooms and the greybox street are named)
@@ -891,11 +895,14 @@ export function defaultScenes(belt, { name, holder } = {}) {
  * (brawl-street-read.js streetSession). A world's own `setup` is kept, the fighter pick added to it unless it asks one.
  * `playable`: [{ id, name, about? }] the roster's players, in order.
  */
-export function brawlSetup(setup, playable = []) {
+export function brawlSetup(setup, playable = [], guns = []) {
   const own = isObj(setup) ? setup : null, picks = own?.picks ?? [];
+  // (a run & gun's starting gun, asked where there is more than one to start with)
+  const G = guns.map((g) => readGun(g)), armed = G.length > 1 && !picks.some((p) => p.id === 'gun')
+    ? [{ id: 'gun', ask: 'Choose your gun', hint: 'What you start with; the rest lie in crates along the way.', from: { options: G.map((g) => ({ id: g.id, name: gunName(g), about: g.says })) } }] : [];
   const who = playable.length > 1 && !picks.some((p) => p.id === 'fighter')
     ? [{ id: 'fighter', ask: 'Choose your fighter', hint: 'Asked before every street.', from: { options: playable.map((f) => ({ id: f.id, name: f.name, ...(f.about ? { about: f.about } : {}) })) } }] : [];
-  return { ...(own ?? { difficulty: true }), ...(picks.length || who.length ? { picks: [...picks, ...who] } : {}) };
+  return { ...(own ?? { difficulty: true }), ...(picks.length || who.length || armed.length ? { picks: [...picks, ...who, ...armed] } : {}) };
 }
 /** What a street has standing on it to be broken when it names none (brawl-things.js THINGS.box, drawn as skandart's
  * vessels): two on each held screen, toward its far side, a barrel, a crate and a steel drum in turn; every other one
@@ -921,14 +928,28 @@ export function brawlBody(created, heavy = false) {
   const base = created.create.spec ?? {}, pole = (typeof base.cast === 'string' ? base.cast : base.cast?.pole) === 'female' ? 'female' : 'male';
   return BRAWLER_BODY(pole, heavy);
 }
+/**
+ * HOW A MAP IS PLAYED, laid (brawl/brawl-play.js, the play types): the street's words for its play, and what holds it
+ * and stands on it when it names neither. A brawl: a crowd a held screen, breakables with food. A run & gun (`play:
+ * 'gun'`): its guns to start from (QUICK_GUNS unless said), shooters on every screen, cover (its setting's) and gun
+ * crates. → the words a street takes (`waves`, `things`, and a run & gun's `play`, `guns`, `grenades`).
+ */
+export const QUICK_GUNS = Object.freeze(['machine-gun', 'spread', 'flame']);
+export function streetPlay(play, belt, { waves, things, types = null, setting = null, guns, grenades } = {}) {
+  const boxes = setting ? DRESS_SETTINGS[setting].boxes : null;
+  if ((play ?? 'brawl') !== 'gun') return { waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes) };
+  return { play: 'gun', guns: guns ?? QUICK_GUNS.slice(), ...(grenades !== undefined ? { grenades } : {}), waves: waves ?? playWaves('gun', belt, types), things: things ?? playThings('gun', belt, { boxes, cover: setting ? SETTING_COVER[setting] : null }) };
+}
+/** the guns a game's set-up asks from: the first run & gun street's (none: no street is one) */
+export const brawlGuns = (streets) => streets.map((s) => s.manifest.brawl.street).find((st) => st.play === 'gun')?.guns ?? [];
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
 export function brawlStreets(Q, { title, roster, cast, types, colour, holder } = {}) {
-  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves, things, scenes }) => {
+  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves, things, scenes, play, guns, grenades }) => {
     // (a town street's dress wears the crew's colour, unless the street says its own)
     const L0 = level ?? BRAWL_STREET.level, L = colour && (L0.kind === 'town' || (L0.kind === 'stage' && (isObj(L0.dress) || (L0.dress === undefined && brawlLevel(L0).brawl.dress)))) && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(isObj(L0.dress) ? L0.dress : {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
-    const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt, boxes = B0.dress?.setting ? DRESS_SETTINGS[B0.dress.setting].boxes : null;
-    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder }) }), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt;
+    const street = { players: [0], ...streetPlay(play ?? Q.play, belt, { waves, things, types, setting: B0.dress?.setting ?? null, guns, grenades }), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder }) }), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
@@ -941,6 +962,7 @@ function readBrawl(Q) {
   // (its roster is the fight's, read as the fight reads it)
   if (Q.roster !== undefined) readFight({ goal: 'fight', roster: Q.roster });
   readCrowd(Q.crowd);
+  if (Q.play !== undefined && !PLAY_IDS.includes(Q.play)) throw fail(`.play is how its streets are played: ${PLAY_IDS.join(' | ')}`);
   if (Q.streets !== undefined) {
     if (!Array.isArray(Q.streets) || Q.streets.length < 1 || Q.streets.length > 8) throw fail('.streets is 1 to 8 streets { id, name?, level?: { kind, … }, waves?: [{ screen, crowd: [{ type, n }], boss? }] }');
     const ids = new Set();
@@ -948,7 +970,8 @@ function readBrawl(Q) {
       if (!isObj(s) || typeof s.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(s.id)) throw fail(`.streets[${i}] needs an id (a short lower-case name)`);
       if (ids.has(s.id)) throw fail(`.streets[${i}].id '${s.id}' is taken`);
       ids.add(s.id);
-      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves', 'things', 'scenes'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves, things, scenes)`);
+      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves', 'things', 'scenes', 'play', 'guns', 'grenades'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves, things, scenes, play, guns, grenades)`);
+      if (s.play !== undefined && !PLAY_IDS.includes(s.play)) throw fail(`.streets[${i}].play is ${PLAY_IDS.join(' | ')}`);
       if (s.level !== undefined) { try { readBrawlLevel(s.level); } catch (e) { throw fail(`.streets[${i}].level: ${e.message.replace(/^brawl: /, '')}`); } }
     });
   }

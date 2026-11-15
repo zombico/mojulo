@@ -30,6 +30,7 @@ import { BRAWL_STYLES } from './brawl-moves.js';
 import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
+import { gunName } from './brawl-street-read.js';
 import { streetScreenOf, readStreet } from './brawl-street.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SCENE_END, MSG_SHOWN, CONTRACT_VERSION } from '../game/level-contract.js';
 
@@ -100,7 +101,7 @@ export function brawlYardData(block, bodies = null) {
   // screen, its things; no dummies, and the street's screen in the yard's place)
   const ST = block.street ? readStreet(block.street, block.belt) : null;
   const P = ST ? { roster: ST.roster, players: ST.players, things: ST.things, dummies: [] } : block.practice ?? {};
-  const Y = ST ? streetScreenOf() : yardOf();
+  const Y = ST ? streetScreenOf(ST.play) : yardOf();
   const roster = Array.isArray(P.roster) && P.roster.length
     ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}) }; })
     : block.armed ? BRAWL_ARMED_ROSTER : BRAWL_ROSTER;
@@ -129,7 +130,7 @@ export function brawlYardData(block, bodies = null) {
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
       ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
-    ...(ST ? { street: { waves: ST.waves, ...(ST.scenes ? { scenes: ST.scenes } : {}), ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
+    ...(ST ? { street: { waves: ST.waves, ...(ST.play ? { play: ST.play, guns: ST.guns, grenades: ST.grenades, names: ST.guns.map((g) => gunName(readGun(g))), ids: ST.guns.map((g) => readGun(g).id) } : {}), ...(ST.scenes ? { scenes: ST.scenes } : {}), ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: ST ? [] : YARD_SETTINGS },
   };
 }

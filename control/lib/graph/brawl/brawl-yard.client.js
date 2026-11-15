@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -100,6 +100,9 @@ const RANGE = BY.range || null;
 // A STREET fought down (brawl-street.js): the room a street (brawl-crowd.js streetOf), its waves a held screen, the
 // players' buttons read by the brawler's own reader; the yard's readouts and settings are the practice's alone
 const STREET = BY.street || null;
+// (a street played as a run & gun: the gunner's buttons, its guns, its rounds tallied)
+const GUNPLAY = STREET && STREET.play === 'gun' ? STREET : null;
+let tally = { fired: 0, landed: 0 };
 const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!((RANGE && RANGE.waves) || BY.waves), mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 // (a street in a game's turn: who plays and how hard, as the turn's picks say; none said, as the street is written)
@@ -147,8 +150,12 @@ function build() {
     // (how hard the street fights, by the game's turn: the tier's crowd rules over the street's, its bosses' minds)
     const tier = SESSION.difficulty ? STREET_DIFFICULTY[SESSION.difficulty] : null, minds = Object.keys(CPU_LEVELS);
     const waves = tier && tier.cpu ? STREET.waves.map((w) => (w.boss ? { ...w, boss: { ...w.boss, cpu: tier.cpu === 'first' ? minds[0] : minds[minds.length - 1] } } : w)) : STREET.waves;
-    room = streetOf({ belt: BELT, players: who, waves, ...(BY.things.length ? { things: BY.things } : {}), ...(tier && Object.keys(tier.crowd).length ? { crowd: tier.crowd } : {}) });
-    readers = picks.map(() => newReader());
+    // (a run & gun's guns: the one its turn's pick names held first)
+    const gk = GUNPLAY && SESSION.gun ? GUNPLAY.ids.indexOf(SESSION.gun) : -1;
+    const gunner = GUNPLAY ? { gunner: { guns: gk > 0 ? [GUNPLAY.guns[gk], ...GUNPLAY.guns.filter((_, k) => k !== gk)] : GUNPLAY.guns, grenades: GUNPLAY.grenades } } : {};
+    tally = { fired: 0, landed: 0 };
+    room = streetOf({ belt: BELT, players: who, waves, ...gunner, ...(BY.things.length ? { things: BY.things } : {}), ...(tier && Object.keys(tier.crowd).length ? { crowd: tier.crowd } : {}) });
+    readers = picks.map(() => (GUNPLAY ? newGunReader() : newReader()));
     hp0 = room.s.bodies.map((b) => b.hp);
     over = null; seenClear = 0; bossSaid = false;
     Object.assign(UI.state.brawl.street, { moments: [], time: '0:00', scene: { on: false } });
@@ -611,7 +618,7 @@ function placeRounds() {
 
 // ── the street's things ──────────────────────────────────────────────────────────────────────────────────────
 
-const THING_LOOK = { food: [0.32, 0.32, 0.22, '#e8803a'], power: [0.3, 0.3, 0.3, '#3ad2ff'], weapon: [0.9, 0.07, 0.07, '#9aa0a8'] };
+const THING_LOOK = { gun: [0.8, 0.14, 0.12, '#ffd23a'], food: [0.32, 0.32, 0.22, '#e8803a'], power: [0.3, 0.3, 0.3, '#3ad2ff'], weapon: [0.9, 0.07, 0.07, '#9aa0a8'] };
 const BOX_LOOK = { barrel: '#8a5a32', crate: '#a0783e', drum: '#3d5a44', booth: '#5a6a8a' };
 // cover: sandbags, a stack of crates, a low wall, a mount's wreck (THINGS.cover: its size along, across and up)
 const COVER_LOOK = { sandbags: '#b39a6b', crates: '#9a7444', wall: '#8d8f93' };
@@ -792,7 +799,7 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { street: { hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { street: { gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
@@ -856,13 +863,14 @@ function tick() {
   // (a scene playing: the fight held; accept puts its line away, start skips it where it may be skipped)
   if (CINE) { sceneFrame({ accept: !!edge.accept, skip: !!edge.start && CINE.skip !== false }); streetScreen(); return; }
   if (edge.start && !STREET) { UI.rt.open('settings'); UI.view.paint(); return; }
-  if (edge.list) { const ML = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); if (STREET) UI.state.brawl.street.moves = ML; else UI.state.brawl.practice.moves = ML; UI.rt.open('moves'); UI.view.paint(); return; }
+  if (edge.list) { const ML = GUNPLAY ? gunMoveList(room.ctx.guns.slice(0, GUNPLAY.guns.length + 1), room.s.bodies[0].gr) : RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); if (STREET) UI.state.brawl.street.moves = ML; else UI.state.brawl.practice.moves = ML; UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
   if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
   if (STREET) {
-    const pads = buttons.map((bt, i) => { const me = room.s.bodies[i], [pad, r] = readButtons(readers[i], bt, me, room.ctx.fighters[me.fi]); readers[i] = r; return pad; });
+    const pads = buttons.map((bt, i) => { const me = room.s.bodies[i], [pad, r] = GUNPLAY ? readGunButtons(readers[i], bt, me) : readButtons(readers[i], bt, me, room.ctx.fighters[me.fi]); readers[i] = r; return pad; });
     room = stepStreet(room, pads);
+    if (GUNPLAY) tally = tallyRounds(tally, room.s.events, picks.length);
   } else room = stepYard(room, buttons);
   t++;
   for (const e of room.s.events) {
@@ -910,13 +918,13 @@ function streetScreen() {
   const say = (text, weight) => { S.moments = S.moments.slice(-4).concat([{ id: 'm' + (said++), text, ...(weight ? { weight } : {}) }]); };
   if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) say('GO', 'major'); }
   if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
-  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: R.boss });
+  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: R.boss, ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
   if (!over) { S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); S.rank = R.won ? R.rank : '—'; }
   if (!over && (R.won || R.lost)) {
     over = R.won ? 'won' : 'lost';
     // (in a game's shell the street's end is the shell's: the outcome goes up the wire, with what the street kept, and
     // the shell shows what comes next; on its own page the street shows its own end)
-    const tell = () => { if (HOSTED) window.parent.postMessage({ moj: BY.wire.outcome, envelope: { contractVersion: BY.wire.version, levelRef: 'street', result: R.won ? 'success' : 'fail', events: [], stats: { street: { cleared: R.cleared, of: R.of, seconds: secs, health: R.hp, healthOf: R.hpMax }, ...(R.won ? { rank: R.rank } : {}), kept: [{ label: 'time', value: secs, unit: ' s', best: 'low' }, { label: 'health', value: R.hp, best: 'high' }] } } }, '*');
+    const tell = () => { if (HOSTED) window.parent.postMessage({ moj: BY.wire.outcome, envelope: { contractVersion: BY.wire.version, levelRef: 'street', result: R.won ? 'success' : 'fail', events: [], stats: { street: { cleared: R.cleared, of: R.of, seconds: secs, health: R.hp, healthOf: R.hpMax }, ...(R.won ? { rank: R.rank } : {}), kept: [{ label: 'time', value: secs, unit: ' s', best: 'low' }, { label: 'health', value: R.hp, best: 'high' }, ...(GUNPLAY && accuracyOf(tally) !== null ? [{ label: 'accuracy', value: accuracyOf(tally), unit: '%', best: 'high' }] : [])] } } }, '*');
     // (and the keys go back to the shell: its result is driven from them)
       if (HOSTED) { try { window.parent.focus(); } catch (err) { /* an opaque parent */ } }
       else { UI.rt.open(over); UI.view.paint(); } };
@@ -929,7 +937,7 @@ function streetScreen() {
 // new session of the same page)
 const HOSTED = !!(STREET && BY.wire && window.parent !== window);
 if (HOSTED) {
-  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version) { const S0 = streetSession(d.params, BY.roster, BY.players), changed = S0.difficulty !== SESSION.difficulty || S0.players.join() !== picks.join(); SESSION = S0; picks = S0.players.slice(); const P0 = d.params || {}; STAGED = { start: P0.__stage || null, end: P0.__end || null }; CINE = null; if (over || changed) build(); FRESH = true; try { window.focus(); } catch (err) { /* a frame that may not */ } } });
+  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version) { const S0 = streetSession(d.params, BY.roster, BY.players), changed = S0.difficulty !== SESSION.difficulty || S0.gun !== SESSION.gun || S0.players.join() !== picks.join(); SESSION = S0; picks = S0.players.slice(); const P0 = d.params || {}; STAGED = { start: P0.__stage || null, end: P0.__end || null }; CINE = null; if (over || changed) build(); FRESH = true; try { window.focus(); } catch (err) { /* a frame that may not */ } } });
   window.parent.postMessage({ moj: BY.wire.ready, contractVersion: BY.wire.version, levelRef: 'street' }, '*');
   // (the keys are read in this frame: it takes the focus as it starts and whenever it is pressed on, so a player who
   // started the game on the shell's screen plays without a click)
@@ -949,4 +957,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { wreck: (e) => wreckAt(e), get session() { return { players: picks.slice(), difficulty: SESSION.difficulty }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };
+window.__mojBrawl = { wreck: (e) => wreckAt(e), get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

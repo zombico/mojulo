@@ -12,6 +12,15 @@
  * Pure: no clock, no dice.
  */
 export const streetRank = (share) => (share >= 0.75 ? 'S' : share >= 0.5 ? 'A' : share >= 0.25 ? 'B' : 'C');
+export const gunName = (G) => G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+/** A gunner's ROUNDS, tallied off a frame's events (the range's own count): `tally` { fired, landed } → the same, added to. */
+export function tallyRounds(tally, events, players = 1) {
+  let { fired, landed } = tally;
+  for (const e of events) { if (e.t === 'fire' && e.p < players) fired += e.n; if (e.t === 'hit' && e.kind === 'round' && e.p < players) landed++; }
+  return { fired, landed };
+}
+/** the share of its rounds that landed, as a whole per cent (none fired: null) */
+export const accuracyOf = (tally) => (tally.fired > 0 ? Math.min(100, Math.round((tally.landed * 100) / tally.fired)) : null);
 export function streetRead(street, hp0 = []) {
   const { s, ctx, mind } = street, belt = ctx.belt;
   const held = belt.screens.map((sc, i) => (sc.gate || sc.boss ? i : -1)).filter((i) => i >= 0);
@@ -27,6 +36,8 @@ export function streetRead(street, hp0 = []) {
     won: held.length > 0 && cleared === held.length, lost: players.every((b) => b.ko), f: s.f,
     // a street's RANK, by the health it was cleared with: S three quarters or more, A a half, B a quarter, else C
     rank: streetRank(Math.max(0, me.hp) / (hp0[me.id] || me.hp || 1)),
+    // (a gunner's: the gun held, its rounds left (null: never out), its grenades)
+    ...(me.gn !== undefined ? { gun: { on: true, name: gunName(ctx.guns[me.gn]), ammo: me.am === undefined ? '∞' : String(me.am), grenades: me.gr ?? 0 } } : {}),
   };
 }
 
@@ -35,6 +46,7 @@ export function streetRead(street, hp0 = []) {
  * play shell's `params`): who plays and how hard the street fights. A street played on its own, or by a game that asks
  * nothing, plays as it is written.
  *   params.__picks.fighter   the roster entry (its id), or several (a seat each, to four), the player chose
+ *   params.__picks.gun       a run & gun's starting gun (a street played `gun`): held first, where the street lists it
  *   params.difficulty        the engine's tier (easy | medium | max): STREET_DIFFICULTY's row
  *   streetSession(params, roster, players) → { players: [roster index…], difficulty: tier | null }
  * `roster` [{ id }] the street's roster as its page holds it; `players` the indices it was written with.
@@ -48,5 +60,6 @@ export function streetSession(params, roster, players) {
   const P = params && typeof params === 'object' ? params : {}, picks = P.__picks && typeof P.__picks === 'object' ? P.__picks : {};
   const asked = picks.fighter === undefined ? [] : Array.isArray(picks.fighter) ? picks.fighter : [picks.fighter];
   const chosen = asked.map((id) => roster.findIndex((r) => r && r.id === id)).filter((k) => k >= 0).slice(0, 4);
-  return { players: chosen.length ? chosen : players.slice(0, 4), difficulty: typeof P.difficulty === 'string' && STREET_DIFFICULTY[P.difficulty] ? P.difficulty : null };
+  // (a run & gun's starting gun, where its turn asks one: a brawl-guns.js row's name)
+  return { players: chosen.length ? chosen : players.slice(0, 4), ...(typeof picks.gun === 'string' ? { gun: picks.gun } : {}), difficulty: typeof P.difficulty === 'string' && STREET_DIFFICULTY[P.difficulty] ? P.difficulty : null };
 }

@@ -373,6 +373,8 @@ function think(s, p, pad, ctx) {
     if (pad.toss && p.wpn) { toss(s, p, ctx); return; }
     // (attack over a thing takes it, a player's)
     if (want && p.side === 'player') { const t = underfoot(s, p); if (t && pick(s, p, t, ctx)) return; }
+    // (a gunner has no hand free to stoop: what it walks over it takes, a blade aside)
+    if (p.gn !== undefined && p.side === 'player' && Number.isInteger(p.sd)) { const t = underfoot(s, p); if (t && t.kind !== 'weapon') pick(s, p, t, ctx, true); }
   }
   if (want && F.moves[want].stance !== 'air') { start(s, p, F, want); return; }
   if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = sgn(pad.x); p.jz = sgn(pad.z); delete p.rj; return; }
@@ -972,7 +974,7 @@ function underfoot(s, p) {
   return best;
 }
 const takeThing = (s, t) => { s.things = s.things.filter((u) => u !== t); };
-function pick(s, p, t, ctx) {
+function pick(s, p, t, ctx, stride = false) {
   const F = ctx.fighters[p.fi];
   if (t.kind === 'weapon') {
     // (a body with its own weapon keeps it: it takes no other)
@@ -981,10 +983,16 @@ function pick(s, p, t, ctx) {
     if (armed === undefined) return false;   // (a body with no armed self cannot hold it)
     if (p.wpn) drop(s, p);
     p.fb = p.fb ?? p.fi; p.fi = armed; p.wpn = t.what;
+  } else if (t.kind === 'gun') {
+    // (a gun taken up, the run & gun's: held over the sidearm, loaded; a body with no gun leaves it lying)
+    const gi = p.gn === undefined ? -1 : (ctx.guns ?? []).findIndex((g) => g.id === THINGS.gun[t.what].gun);
+    if (gi < 0) return false;
+    p.gn = gi; p.fc = 0; if (ctx.guns[gi].ammo === null) delete p.am; else p.am = ctx.guns[gi].ammo;
   } else if (t.kind === 'food') p.hp = Math.min(F.hp, p.hp + THINGS.food[t.what].hp);
   else if (t.kind === 'power') grantState(s, p.id, THINGS.power[t.what].state);
   takeThing(s, t);
-  p.st = 'pick'; p.sf = 0; p.mv = null; p.wx = 0; p.wz = 0;
+  // (a gunner takes it in its stride: no stoop)
+  if (!stride) { p.st = 'pick'; p.sf = 0; p.mv = null; p.wx = 0; p.wz = 0; }
   s.events.push({ t: 'pick', p: p.id, kind: t.kind, what: t.what, x: t.x, z: t.z });
   return true;
 }
