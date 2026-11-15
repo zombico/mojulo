@@ -10,6 +10,7 @@ register (`gameworld/combos.js`, an arsenal's `art`), and its moveset's clips ar
 | `realistic` | the game type's own swing (the default): the realistic law, an economical arc, the elbow never over the head |
 | `inspired` | real technique performed for the camera: kenjutsu's and the long sword's chambers, a deep stance, a held finish |
 | `freestyle` | the anime sword: anything goes, the sword's weight and the stance's balance no law |
+| `wild` | a brawler with a blade: the freestyle's reach with none of its composure, nothing held, everything thrown |
 
 ## The study: what the realistic swing holds back
 
@@ -46,6 +47,13 @@ Each art is a style of the body layer (`SWING_STYLES.inspired`, `.freestyle`) an
 
 (Timing values are each segment's weight against the others; a move's own length and contact window stay the game's.)
 
+`wild` against `freestyle`, dial by dial: the wind-up and follow-through 2.5 and 2.3; the stance 2.5, standing
+taller (`crouch` +0.08) and staggered longer; the hips through the follow 118°, the back turned to the target; the
+weight thrown furthest (2.3); the off hand widest (3.0); the arm straightened 90 %; the gaze barely kept (40 %); the
+trunk's bend capped lower (14°), so a blade thrown that far stays off the floor. Its timing: the anticipation held
+0.4 (a normal cut), the cut 0.18, the finish held 0.9, under half the anime sword's. An art holds its cock and its
+finish at least a beat: the laws' floor, and the first tuning (no hold, a deeper bend) lost them.
+
 ## The laws each register keeps
 
 Every register, measured on the rig (`hero-swing-body.test.js`, "the sword arts"):
@@ -56,7 +64,7 @@ Every register, measured on the rig (`hero-swing-body.test.js`, "the sword arts"
 - the trunk's bend is capped (`bend`) so a deep blow's blade stays off the floor.
 
 `realistic` keeps the elbow under the shoulder line. `inspired` keeps a chamber's discipline: the elbow at most a
-forearm (25 cm) over it. `freestyle` keeps no elbow law.
+forearm (25 cm) over it. `freestyle` and `wild` keep no elbow law.
 
 ## Using one
 

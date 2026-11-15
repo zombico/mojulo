@@ -52,7 +52,7 @@ export const TRAVEL = Object.freeze(['none', 'step', 'lunge', 'dash']);
 // THE SWORD ARTS (an arsenal's `art`: how its blades are swung, the clips baked in it; polygonizer/hero-swing-body.js
 // SWING_STYLES, docs/sword-arts.md): realistic (the game type's own swing, the default), inspired (real technique
 // performed for the camera), freestyle (the anime sword: anything goes)
-export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle']);
+export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle', 'wild']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up', 'around']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);

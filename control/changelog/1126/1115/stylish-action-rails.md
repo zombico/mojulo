@@ -56,6 +56,13 @@ In progress. Built so far, all in the practice door's game room
   realistic body (long dark hair, a long dark coat), the five undead, the citadel, the game; the recipe and how
   to rebuild it are in [docs/examples/fallen-angel](../../../../docs/examples/fallen-angel/README.md). The door's
   own check played it: the floor player won, one who does nothing did not.
+- **Built: a fourth sword art, `wild`** (`polygonizer/hero-swing-body.js`): a brawler with a blade. The anime
+  sword's reach with none of its composure: the hips spun until the back is to the target, the weight and the off
+  arm thrown furthest, a taller, looser, longer stance, the anticipation and the finish held least, the cut
+  fastest. Held to the laws every art keeps (the legs reach, the blade clear of the head and the floor). Lucien's
+  kit is Fallen Angel's swung in it.
+- **Fallen Angel in the seventh generation:** its citadel is dressed by a gothic night cube read in `gen-7` on the
+  ashlar bones, and Lucien's coat is pale so he reads against the dark.
 - **A building level has its action hero.** A world played under the orbit camera with a hero that strikes now
   gets, in a building as on a trail, the orbit that locks on, movement in the camera's frame and its sheathed
   twin, so the fist is in its hands and the weapon switch has two weapons to switch between. Before, a building

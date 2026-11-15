@@ -3,9 +3,12 @@
   "name": "Fallen Angel",
   "seed": 7,
   "mode": "autonomous",
-  "brief": "A stylish action game. Lucien, wild and flashy in a fight, long dark hair and a long dark jacket, cuts his way through a citadel of the armed dead: skeletons and zombies, room by room, to the knight in its sanctum.",
+  "brief": "A stylish action game. Lucien, wild and flashy in a fight, long dark hair and a long pale coat that stands out against the dark, cuts his way through a citadel of the armed dead: skeletons and zombies, room by room, to the knight in its sanctum.",
   "feel": "fallen-angel",
-  "arsenal": "auto",
+  "arsenal": {
+    "from": "fallen-angel",
+    "art": "wild"
+  },
   "loadout": {},
   "foes": {
     "zombie": {
@@ -93,7 +96,13 @@
       "name": "The citadel",
       "building": {
         "use": "citadel",
-        "kit": "gothic-ashlar"
+        "geocube": {
+          "from": "gothic-night",
+          "era": "gen-7",
+          "inside": {
+            "bones": "gothic-ashlar"
+          }
+        }
       },
       "goal": {
         "tasks": [
@@ -120,7 +129,7 @@
   "characters": {
     "direction": {
       "tradition": "western",
-      "primary": "shadow",
+      "primary": "moon",
       "secondary": "iron",
       "motif": [
         "feather"
@@ -137,10 +146,11 @@
         "colour": {
           "palette": {
             "Hair": "#17120f",
-            "Top": "#1b1b22",
+            "Top": "#2a2a30",
             "Bottom": "#202026",
-            "Trim": "#5a1f24",
-            "Shoes": "#141416"
+            "Trim": "#8c2a30",
+            "Shoes": "#141416",
+            "Outer": "#d9d0bf"
           }
         },
         "underlayer": {
