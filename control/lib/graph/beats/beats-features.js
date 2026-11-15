@@ -80,6 +80,8 @@ function addGestures(set, list) {
   if (Array.isArray(list) && list.some(gestureNeedsMix)) { set.add('sfxmix'); for (const g of list) if (g && g.chain) layerChainFeatures(g.chain, set); }
   if (Array.isArray(list) && list.some(gestureNeedsSfx)) set.add('sfx');
   if (Array.isArray(list) && list.some((g) => g && PRODUCTION.has(g.type))) set.add('anthem');
+  if (Array.isArray(list) && list.some((g) => g && g.type === 'trace')) set.add('trace');
+  if (Array.isArray(list) && list.some((g) => g && g.type === 'syrinx')) set.add('syrinx');
 }
 
 // the kernel's `scored` test, mirrored: a composition that uses the score
@@ -162,7 +164,7 @@ function addSustains(set, specs) {
   }
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -181,6 +183,7 @@ export function audioFeatures(audio) {
   if (!audio || typeof audio !== 'object') return [];
   collect(expandBeatsManifest(audio.soundtrack), set);
   if (audio.combat) collect(expandBeatsManifest(audio.combat), set);
+  if (audio.bed) collect(expandBeatsManifest(audio.bed), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
   addGestures(set, audio.jump && audio.jump.land);
@@ -190,7 +193,7 @@ export function audioFeatures(audio) {
   if (audio.vary || audio.weather) set.add('sfx');
   if (audio.mix) set.add('sfxmix');
   // (a world's own held voices, `sustains` (opt-in): a base's engine and its hydraulics on the artillery range)
-  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, ...Object.values(audio.sustains || {})]);
+  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {})]);
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
 }

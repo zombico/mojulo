@@ -230,3 +230,40 @@ describe('the yoke: cloth on the tiered trunk hangs from the chest, not the shou
     expect(side('outer_torso', under.id) - side('torso', under.id)).toBeLessThan(0.075);
   }, 60_000);
 });
+
+// THE REALISTIC BODY'S CAPE AND HOOD WORDS (outfit laws 2, set by the realistic expansion, layered.js realisticExpand): a
+// cape's `capeArm` (the arm's reach over it, a mantle's rounded shoulder and rolled hem) and a draped hood's `hoodRound`
+// (worn up, eased round; worn down, a cowl gathered at the nape). Absent, each piece as it was, byte for byte.
+describe('capeArm and hoodRound', () => {
+  const cape = { id: 'cloak', fit: 'cape', part: ['torso', 'upperArm', 'pelvis', 'thigh', 'shank'], from: { part: 'torso', run: 1 }, to: { part: 'shank', run: 0.3 }, around: [70, 290], ease: 0.02, flare: [0, 0.1], rigidity: 'soft', group: 'Outer' };
+  const armW = (P, key) => Object.entries(P.bind.blend[key] || {}).filter(([b]) => /^(upperArm|foreArm)/.test(b)).reduce((t, [, w]) => t + w, 0);
+  it('a cape: absent adds nothing; a wider reach takes the arm in cloth the default left on the trunk; a rolled hem stands out', () => {
+    const base = worn({ preset: 'male', core: 'structured', outfit: [cape] }).recipe.parts.cloak_cape;
+    expect(JSON.stringify(worn({ preset: 'male', core: 'structured', outfit: [{ ...cape, capeArm: undefined }] }).recipe.parts.cloak_cape)).toBe(JSON.stringify(base));
+    const wide = worn({ preset: 'male', core: 'structured', outfit: [{ ...cape, capeArm: { near: 0.05, far: 0.24, share: 1, roll: 0.01 } }] }).recipe.parts.cloak_cape;
+    const keys = Object.keys(base.bind.blend).filter((k) => /^st\d+\.p\d+[RL]?$/.test(k));
+    const more = keys.filter((k) => armW(wide, k) > armW(base, k) + 0.05).length, less = keys.filter((k) => armW(wide, k) < armW(base, k) - 1e-9).length;
+    expect(more).toBeGreaterThan(10); expect(less).toBe(0);
+    const r = (P, i) => Math.max(...Object.values(P.stations[i].points).map((p) => Math.abs(p[0])));
+    const n = base.stations.length - 1; expect(r(wide, n) - r(base, n)).toBeGreaterThan(0.008);
+    // (never inside the line it had: the rounded shoulder only lifts the cloth off what it covers)
+    for (let i = 0; i <= n; i++) expect(r(wide, i)).toBeGreaterThanOrEqual(r(base, i) - 1e-6);
+  });
+  const hb = humanoidPlan({ preset: 'female', detail: 'swimsuit' }).joints.headBase, head = { at: [0, 0, hb[2] + 0.11], r: [0.13, 0.13, 0.11] };
+  const hood = (o) => ({ id: 'cowl', fit: 'hood', part: ['torso', 'upperArm', 'neck'], from: { part: 'torso', run: 1 }, head, around: [70, 290], ease: 0.02, group: 'Outer', worn: 'up', depth: 'deep', point: 'short', ...o });
+  const ring = (st) => Object.entries(st.points).filter(([sl]) => /^p\d+[RL]?$/.test(sl)).map(([, p]) => p);
+  // (the sharpest turn a ring makes between its neighbouring points, in degrees: a flat wall's corner turns hard)
+  const turn = (P) => Math.max(...P.stations.slice(2, -2).map((st) => { const q = ring(st); let m = 0; for (let i = 1; i + 1 < q.length; i++) { const a = [q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]], b = [q[i + 1][0] - q[i][0], q[i + 1][1] - q[i][1]], la = Math.hypot(...a), lb = Math.hypot(...b); if (la < 1e-6 || lb < 1e-6) continue; m = Math.max(m, Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / (la * lb)))) * 180 / Math.PI); } return m; }));
+  it('a hood worn up, rounded: no sharper a turn round its rings than as it was, its crown as high', () => {
+    const plain = worn({ preset: 'female', core: 'structured', outfit: [hood()] }).recipe.parts.cowl_hood, round = worn({ preset: 'female', core: 'structured', outfit: [hood({ hoodRound: true })] }).recipe.parts.cowl_hood;
+    expect(turn(round)).toBeLessThanOrEqual(turn(plain) + 1e-6);
+    const top = (P) => mean3(Object.values(P.stations.at(-1).points))[2];
+    expect(top(round)).toBeGreaterThanOrEqual(top(plain) - 1e-6);
+  });
+  it('a hood worn down, rounded: gathered higher and fuller at the nape, shorter down the back', () => {
+    const plain = worn({ preset: 'female', core: 'structured', outfit: [hood({ worn: 'down' })] }).recipe.parts.cowl_hood, round = worn({ preset: 'female', core: 'structured', outfit: [hood({ worn: 'down', hoodRound: true })] }).recipe.parts.cowl_hood;
+    const back = (st) => -Math.min(...ring(st).map((p) => p[1])), low = (P) => Math.min(...P.stations.flatMap((st) => ring(st).map((p) => p[2])));
+    expect(back(round.stations[1]) - back(plain.stations[1])).toBeGreaterThan(0.005);
+    expect(low(round)).toBeGreaterThan(low(plain) + 0.02);
+  });
+});

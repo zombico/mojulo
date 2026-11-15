@@ -25,12 +25,18 @@ export const E2E = [
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
   'lib/mcp/tools/design-game.budget.test.js',
+  // a game with a `music` made whole: its cues minted as steps, the game naming them (gameworld/cue-sheet.js)
+  'lib/mcp/tools/design-game.score.e2e.test.js',
   'lib/mcp/tools/design-game.proof.test.js',
   'lib/mcp/tools/design-game.climb.test.js',
   'lib/mcp/tools/design-game.quest.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
+  // a fight composed in the game room, resolved whole and played headless by the playthrough's players
+  'lib/graph/gameworld/fight-play.test.js',
+  // the action game's first level, a building of four fights, resolved whole and played through headless
+  'lib/graph/gameworld/citadel-play.test.js',
   'lib/graph/scene/action-hero.live.test.js',
   'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',

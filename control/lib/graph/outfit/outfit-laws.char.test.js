@@ -44,6 +44,19 @@ const PINS = {
     'outer': { laws: '127769bbfdd8e767', rings: '8f4d4ce6c555f2f5' },
     'panels': { laws: 'd114d51d72f13d3b', rings: 'b1b985a1eea41afa' },
   },
+  // (1114: outfit laws 2 moves only the designed pieces, outfit-plan.js: a bodice that lies smooth above the waist's band
+  // and the mantle a shoulder cape; the cut's garment rings, what `rings` hashes, are version 1's byte for byte, and the
+  // expansion moves only by the laws number its trace carries, `laws: 2`; and the laws re-pinned (2026-11-14, unreleased:
+  // outfit laws 2 are this branch's own) for the shoulder under cloth: every piece on the trunk names its `shoulder`,
+  // sleeved or sleeveless (body-garment.js layShoulders), which the kernel reads only on a body with shoulder forms, the
+  // tiered body's; the anime female's rings here have none and are unchanged)
+  2: {
+    'out': { laws: '842fd0e78974805a', rings: '60bedc5fd6405b56' },
+    'tucked': { laws: '572731e24f224cfa', rings: '4441eb37826397f3' },
+    'dress': { laws: '6e0cc6d1bd3cc202', rings: '6ddf4d3aa9afd248' },
+    'outer': { laws: '3299d678ad816abd', rings: '8f4d4ce6c555f2f5' },
+    'panels': { laws: '25431240e03093d5', rings: 'b1b985a1eea41afa' },
+  },
 };
 
 const L = (id) => SEEDED_OUTFITS[id].language;
@@ -61,15 +74,16 @@ describe('outfit laws: the update law pin', () => {
   it(`version ${OUTFIT_LAWS_VERSION} carries a pin for every procedure`, () => {
     expect(Object.keys(PINS[OUTFIT_LAWS_VERSION] || {}).sort()).toEqual(Object.keys(PROCEDURES).sort());
   });
-  for (const [name, test] of Object.entries(PROCEDURES)) {
-    it(`${name}: the laws and the rings are as pinned`, { timeout: 60000 }, () => {
+  // (the current version, and version 1 for the rows stamped with it: its pins kept, its bytes held)
+  for (const version of [...new Set([OUTFIT_LAWS_VERSION, 1])]) for (const [name, test] of Object.entries(PROCEDURES)) {
+    it(`${name}: the laws and the rings are as pinned (laws ${version})`, { timeout: 60000 }, () => {
       const style = Object.keys(SEEDED_OUTFITS).find(test); expect(style, `a seeded card for '${name}'`).toBeTruthy();
-      const build = { type: 'outfit', style };
+      const build = { type: 'outfit', style, ...(version === OUTFIT_LAWS_VERSION ? {} : { laws: version }) };
       const laws = hash(expandOutfit(build, { have: HAVE, scale: 1 }));
       const parts = expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', head: 'anime', outfit: build }) }).recipe.parts;
       const rings = hash(Object.keys(parts).filter((n) => parts[n].garment).sort().map((n) => [n, parts[n]]));
-      if (process.env.REPIN) console.log('PIN', name, laws, rings);
-      expect({ laws, rings }, `${name} (${style})`).toEqual(PINS[OUTFIT_LAWS_VERSION][name]);
+      if (process.env.REPIN) console.log('PIN', version, name, laws, rings);
+      expect({ laws, rings }, `${name} (${style})`).toEqual(PINS[version][name]);
     });
   }
 });

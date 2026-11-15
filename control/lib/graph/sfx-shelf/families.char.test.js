@@ -210,6 +210,13 @@ const PINS = {
   'katana-draw': 'df2ba1e02aa4',
   'katana-sheathe': '8d20976dc5cc',
   'katana-jostle': '9f59235eb705',
+  // the voice protoform (families/voice.js): a person's efforts at the default voice, new rows
+  'jump-effort': '3d6594cc6fe3',
+  'hurt-grunt': 'c436ddbd4350',
+  'hurt-heavy': 'fbc48e985f58',
+  'land-grunt': 'ac1b5646ee99',
+  'attack-shout': 'b376691209c7',
+  'strain-grunt': '919053862b1b',
 };
 
 describe('the families\' builds, pinned', () => {

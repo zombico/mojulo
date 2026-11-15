@@ -169,7 +169,13 @@ import { WEAPON_ROLES } from './weapon-roles.js';
 import { readFeel } from './feel/lower.js';
 import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
-import { readGameArsenal } from './arsenal.js';
+import { readGameArsenal, arsenalOfGame } from './arsenal.js';
+import { readFights } from './fights.js';
+import { readTasks } from './task-read.js';
+import { readLoadout } from './carried.js';
+import { readStyleMeter } from './style-meter.js';
+import { readSound } from './sound-sheet.js';
+import { readMusic } from './audio-direction.js';
 import { readGameGrade } from './grade.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
@@ -257,7 +263,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -607,6 +613,14 @@ export function readGameworld(W) {
         if (L.walk === undefined) throw new Error(`gameworld: ${at}.goal.gauntlet stands on a walk's last stage (a building's arena is to come)`);
       }
     }
+    // its TASKS (tasks.js): its fights in order, each a fight the world keeps, laid in a room of its building; they own
+    // the hero's hp and the last one down ends the level
+    if (L.goal?.tasks !== undefined) {
+      const Gl = L.goal;
+      if (L.building === undefined || L.building?.ref !== undefined || L.building?.complex !== undefined) throw new Error(`gameworld: ${at}.goal.tasks are laid in a building's rooms (building: { use })`);
+      for (const k of ['boss', 'health', 'escape', 'gauntlet']) if (Gl[k] !== undefined) throw new Error(`gameworld: ${at}.goal: its tasks own the hero's hp and end the level when the last is down: no ${k} beside them`);
+      try { readTasks(Gl.tasks, { fights: W.fights ?? {}, at: `${at}.goal.tasks` }); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
+    }
     // the level's platforming COURSE (course.js): floors and gaps over its trails, sized by the hero's reach
     if (L.course !== undefined) {
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.course is laid over a walk's trails`);
@@ -866,6 +880,16 @@ export function readGameworld(W) {
   }
   // its weapons and strings (arsenal.js): the practice room's arsenal, laid on every level's hero that strikes
   readGameArsenal(W.arsenal);
+  // its sound (sound-sheet.js): the sheet's style and any slot or cue it names by shelf word, over what the game solves
+  readSound(W.sound);
+  // its music (audio-direction.js): the audio direction every audio page reads, and the score's cue sheet
+  readMusic(W.music);
+  // the style meter (style-meter.js): how well the hero fights, on every level
+  readStyleMeter(W.styleMeter);
+  // what the hero carries of the arsenal (carried.js): its slots, the weapons it starts with, checked against the kit's
+  if (W.loadout !== undefined) readLoadout(W.loadout, arsenalOfGame({ arsenal: W.arsenal, feel: W.feel })?.arsenal ?? null);
+  // its fights, settled in the game room and kept by name (fights.js): each a kind, a seed, its waves read on the bestiary
+  if (W.fights !== undefined) readFights(W.fights, { foes: foes ?? undefined });
   // its world clock (tempo.js): moments that slow or hold its live levels on what happens in play
   readGameTempo(W.tempo);
   // its grade (grade.js): the look laid over every frame of its levels, the base its moments' looks push from
@@ -894,7 +918,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**

@@ -16,6 +16,9 @@ with `footwear/` (the feet) and `handwear/` (the hands). A suit takes its feet a
   body (the authored hero, a creature) plugs in with an adapter, not a change to the library.
 - **Groups are roles** (Plate, Trim, Alloy, Joint, Light, Suit …), so a colourway recolours any card and the operator's
   own palette stands over all. Every piece takes the weights of the surface it lies on, so it rides the rig.
+- The headgear library (`headgear/`) has the same shape on the head: its cards (`cards.js`) each name a side per body,
+  and the realistic body's adapter for what is worn ON the head rather than cast on the landmark cranium is
+  `headgear/realistic.js` (the circlet and the hats, built over the relational head's hair, held to `headwearGaps`).
 - Every card, panel and piece is checked by name before it is laid (`validatePlating`, `validateFootwear`,
   `validateHandwear`), and the refusals say what would have been accepted.
 

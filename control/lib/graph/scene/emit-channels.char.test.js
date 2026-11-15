@@ -20,6 +20,27 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-14 (the action RPG: foes that never lock blades, steps at their own level): the runtime's melee
+// contact reads `rule.clash === false` on either body before a clash (combat-melee.js: one line replaced in place; a
+// rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one
+// line replaced; no gain, a cue's own level as before). Every fixture that embeds the controllable runtime or the
+// audio channel re-pinned with it.
+// Then (the input map): the pilot scheme's pause legend gained a moveset's rows (schemes.js: its attacks, its
+// sidearm, its specials, its guard; `fire` hidden beside them) and the legend's flags say `moveset` and `sidearm`
+// (controllable/index.js: one line added); the same fixtures re-pinned again.
+// Then (the special on Q): a moveset's special is read on its key beside the mouse and the pad, and its key never
+// strafes (controllable/index.js: two lines replaced on a page with a moveset; any other page as it was); the
+// scheme's legend says so. The same fixtures re-pinned again.
+// Then (the HUD grammar): the radar's wrap carries a class a HUD can hide it by (controllable/index.js: one line
+// replaced; it draws as before). The same fixtures re-pinned again.
+// Then (one card lane): the guide gives what it says as data (guide.js `view()`) and stays down beside a HUD grammar
+// (its `put` gained the data and the check). Any fixture with a guide re-pinned.
+// Then (Esc asks for the menu): a level a shell plays tells it when Esc is pressed there or the captured mouse is
+// let go (scene-three.js: a block added before the pause's listener, inert on a page with no parent). Every fixture
+// re-pinned.
+// Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
+// (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
+//
 // Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
 // gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
 // `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added
@@ -27,6 +48,9 @@ import { emitThreeWorld } from './scene-three.js';
 // Every fixture that embeds the controllable runtime re-pinned with it. Then (the controls): the sprint's own `sprint`
 // clip on its `sprintStride` (the stride's line guarded) and the orbit's swing round a locked foe (`lockTrack`): a few
 // more lines added, one replaced; the same fixtures re-pinned again.
+// Then (2026-11-15, merged with the release candidate's stylish action rails): the candidate's style meter, loadout and
+// switch cancel and this theme's runtime lines (the stagger, the clash opt-out, Esc's menu post) each change what a page
+// embeds; neither side's snapshot holds the sum, so every fixture is re-pinned on the merged runtime.
 //
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
@@ -753,6 +777,13 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
+// stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
+// opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
+// added before the cycle, the cycle's own line guarded on `swap`, a guard on the chain at the cancel, the buffer's
+// hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
+// fixture that embeds the controllable runtime re-pinned with it.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

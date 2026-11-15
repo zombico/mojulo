@@ -751,7 +751,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -1216,8 +1216,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
 ` : ''}${commanderBlock}${flyHudBlock}${(() => {
@@ -2939,6 +2939,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
     dash: !!r.dash, sprint: !!r.sprint && !r.dash,             // a feel's F: the dash, or the run button (rules-platform.js)
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
+    moveset: !!r.moveset, sidearm: !!(r.moveset && r.weapon),   // a hero's arsenal (gameworld/arsenal.js): its attacks, its sidearm on the special
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
@@ -3043,14 +3044,14 @@ function __readInput() {
     // into sideIn there); tank-turn worlds keep left stick X as the turn axis.
     turn: __kx('turnRight', 'turnLeft') || (__MOUSELOOK ? 0 : __pmx),
     // in reach (window.__mojReach, the events channel's) the interact controls interact and don't strafe
-    strafe: (window.__mojReach ? __CTL.value(__BIND, 'strafeRight', 'keyboard', __kbRead, __BIND.bind.keyboard.interact) - __CTL.value(__BIND, 'strafeLeft', 'keyboard', __kbRead, __BIND.bind.keyboard.interact) : __kx('strafeRight', 'strafeLeft')) || (__MOUSELOOK ? __pmx : 0),
+    strafe: (window.__mojReach ? __CTL.value(__BIND, 'strafeRight', 'keyboard', __kbRead, __BIND.bind.keyboard.interact) - __CTL.value(__BIND, 'strafeLeft', 'keyboard', __kbRead, __BIND.bind.keyboard.interact) : ${moveset ? "__CTL.value(__BIND, 'strafeRight', 'keyboard', __kbRead, __BIND.bind.keyboard.special) - __CTL.value(__BIND, 'strafeLeft', 'keyboard', __kbRead, __BIND.bind.keyboard.special)" : "__kx('strafeRight', 'strafeLeft')"}) || (__MOUSELOOK ? __pmx : 0),
     lift: __kx('jump', 'descend') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
     walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && (${moveset ? '__pad.light' : '__pad.fire'}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
-    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats
+    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || __k('special') || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats (the special on its key too)
     mod: __k('modifier') || (__pad && __pad.mod) ? 1 : 0,   // the modifier held (left Ctrl, the right trigger): a moveset's specials` : ''}${guards ? `
     guard: __k('guard') || (__pad && __pad.guard) ? 1 : 0,   // the guard held (Shift, the left shoulder)` : ''}
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
@@ -3535,7 +3536,7 @@ if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.r
   __rWrap.style.cssText = 'position:absolute;right:16px;top:16px;width:' + RSZ + 'px;height:' + RSZ + 'px;border-radius:50%;background:rgba(8,14,22,0.42);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.28),0 2px 10px rgba(0,0,0,0.42);pointer-events:none;z-index:9;overflow:hidden';
   const __rCv = document.createElement('canvas');
   __rCv.width = RSZ * 2; __rCv.height = RSZ * 2; __rCv.style.cssText = 'width:100%;height:100%';
-  __rWrap.appendChild(__rCv); wrap.appendChild(__rWrap);
+  __rWrap.appendChild(__rCv); wrap.appendChild(__rWrap); __rWrap.className = 'moj-c-radar';   // (a HUD's hook: hud-grammar.js stands in for it)
   __radar = { ctx: __rCv.getContext('2d'), sz: RSZ * 2, range: 620, band: 10 };
 }
 function __updateRadar() {
@@ -4724,7 +4725,9 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
+${styleMeter ? `// the style meter (worlds/controllable/style.js): where it stands, for a HUD and a level's results
+window.__mojStyle = { now: () => __CW.styleOf(__world) };
+` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
 // into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena

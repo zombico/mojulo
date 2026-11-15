@@ -222,6 +222,7 @@ function mapLaws(G, cells, faces, colliders, Z = null, MW = null, ranks = null) 
 // the stage words a tile takes from its level, and from its region over them (grid.js REGION_WORDS less the map's own:
 // its name, rise, ways and shore)
 const STAGE_WORDS = REGION_WORDS.filter((w) => !MAP_WORDS.includes(w));
+const isShift = (p) => !!p && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1 && p.shift && typeof p.shift === 'object';
 const hashTile = (seed, r, c) => ((Math.imul((seed | 0) + 17, 2654435761) ^ Math.imul(r + 31, 40503) ^ Math.imul(c + 7, 22541)) >>> 0) % 100000;
 
 // the base64 typed arrays the grass channel reads (era/isekai.js b64)
@@ -390,6 +391,11 @@ function zoneWalls(Z, outer, faces) {
 }
 // the rim: rings of land out from the border, each `step` metres, rising RIM.rise over RIM.deep (eased), from the land's
 // own height at the border, in the land's colour
+// THE RIM UNDER A FAR RANGE: drawn as the range's far land. On a page a player pilots, its near rings stay the land's own
+// (RIM_NEAR m out from the border): a hero who starts by the border has the camera behind it over the rim's foot, and
+// far land underfoot reads as a slab of haze
+const RIM_NEAR = 30;
+const farRim = (rim, played) => { const rings = Math.ceil(RIM.deep / RIM.step), n = rim.length / rings, near = played ? Math.round(RIM_NEAR / RIM.step) * n : 0; return rim.map((f, j) => (j < near ? f : { ...f, group: 'isekai:ridge' })); };
 function rimFaces(W, H, faces, firstPayload, box = [0, -H, W, 0]) {
   const at = borderHeight(faces), fill = (firstPayload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a';
   // the border's points, every `step` metres round it (clockwise from the north-west corner)
@@ -411,7 +417,7 @@ function rimFaces(W, H, faces, firstPayload, box = [0, -H, W, 0]) {
 }
 
 // THE SKETCH'S MARKS on the page: a post and a cap a mark, its kind's colour, on the land where its tile stands (a zone's
-// own and its apron's), each a tooltip
+// own and its apron's), each a tooltip (drawn on a page that is looked at, never on one a player pilots: below)
 const MARK_COLOUR = Object.freeze({ encounter: '#b04a3a', loot: '#c8962a', landmark: '#3a6aa8', secret: '#7a4a9a', rest: '#3a8a5a', hazard: '#d0702a', npc: '#2a8a8a' });
 function sketchMarks(G, Z, seed) {
   const T = G.tile, L = { seed, ...(G.rise ? { rise: G.rise } : {}) }, faces = [], signs = [], marks = [];
@@ -507,6 +513,11 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     // (a sketched ground over them: its flora the kit's preset; rocks, more boulders along its path)
     const sg = G.sketch?.ground.get(`${cell.r},${cell.c}`);
     if (sg && SKETCH_BIOCUBE[sg]) words.biocube = SKETCH_BIOCUBE[sg];
+    // (a region's palette that is a SHIFT alone moves the level's cube for its tiles: the same palette, moved, as a
+    // world's level moves its world's (gameworld/world.js); the cube's own palette must be a spec to be moved)
+    const shifted = cube && isShift(words.palette) && cube.geocube && typeof cube.geocube === 'object' && cube.geocube.palette && typeof cube.geocube.palette === 'object'
+      ? { ...cube, geocube: { ...cube.geocube, palette: { ...cube.geocube.palette, shift: words.palette.shift } } } : null;
+    if (cube && isShift(words.palette)) delete words.palette;
     const rocks = sg === 'r' && cell.kind === 'path' ? { boulders: SKETCH_BOULDERS } : {};
     // (THE MAP'S WATER near it, map-water.js: its bodies and its shore's edges, cut into the tile's land)
     const wt = MW?.near(cell.r, cell.c) ?? null;
@@ -522,7 +533,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const raw = { kind: 'stage', ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
     // (THE GEOCUBE: the map's cube paints every tile as it paints a trail, era/geocube.js withGeocube: its look, its land
     // drawn as the cube's, its flora; lowered here, so the casters handed between tiles read the same tile the build does)
-    return cube ? withGeocube({ ...raw, ...cube }) : raw;
+    return cube ? withGeocube({ ...raw, ...(shifted ?? cube) }) : raw;
   };
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it
@@ -594,6 +605,8 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   for (const f of out.faces) if (f.group && /ground|trail/.test(f.group)) for (const c of f.corners) { const d = Math.hypot(c[0] - sx, c[1] - sy); if (d < gd) { gd = d; gz = c[2]; } }
   // (the first tile's horizon moved to ring the whole map)
   const W = G.cols * T, H = G.rows * T;
+  // (a page a player pilots: no designer's marks, the rim's foot the land's own)
+  const played = (m.entities || []).some((e) => e && e.pilotable);
   // THE EDGES: walls along the border, and a rim of hills rising beyond it from the land's height there (a zone's: its
   // square's walls open at its gates, the rim round its apron)
   let box = null;
@@ -609,19 +622,22 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const rim = rimFaces(ringBox[2] - ringBox[0], ringBox[3] - ringBox[1], out.faces, first.payload, ringBox);
     if (range) out.faces.push(...farRange({ box: ringBox, at: borderHeight(out.faces), seed, fill: ground0, rim: RIM }));
     // (under the range, the rim is its foot: drawn as the same far land, never a painted band between them)
-    out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
+    out.faces.push(...(range ? farRim(rim, played) : rim));
     if (!range) ringTheMap(out.faces, { map: [[ringBox[0], ringBox[3]], [ringBox[2], ringBox[3]], [ringBox[2], ringBox[1]], [ringBox[0], ringBox[1]]] });
   } else {
     out.colliders.push(...edgeWalls(W, H, out.faces));
     const rim = rimFaces(W, H, out.faces, first.payload);
     if (range) out.faces.push(...farRange({ box: [0, -H, W, 0], at: borderHeight(out.faces), seed, fill: (first.payload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a', rim: RIM }));
     // (under the range, the rim is its foot: drawn as the same far land, never a painted band between them)
-    out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
+    out.faces.push(...(range ? farRim(rim, played) : rim));
     if (!range) ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
   }
-  // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover
+  // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover. They are the sketch's review,
+  // a page that is looked at: a page a player pilots stands none and says none (a designer's post is not the world's,
+  // and its beats are said by the guide as they are reached); the marks themselves are read as before (map.sketch.marks:
+  // the fights stand by them)
   const SK = G.sketch ? sketchMarks(G, Z, seed) : null;
-  if (SK) out.faces.push(...SK.faces);
+  if (SK && !played) out.faces.push(...SK.faces);
   const guidance = guideOf(lv, G, Z, { seed });
   // THE PLAY LAYER (play-layer.js, level design's): this page's blocks' pieces in the world's own wood and stone (the
   // tiles' fills), the solid ones colliders; each held to the land it stands on now (`pieces-fit`)
@@ -642,7 +658,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(FA ? { fauna: FA } : {}),
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
-    ...(SK?.signs.length ? { signs: SK.signs } : {}),
+    ...(SK?.signs.length && !played ? { signs: SK.signs } : {}),
     // (a sketched level's intro and way on, guide.js: drawn by the page's guide channel)
     ...(guidance ? { guide: guidance } : {}),
     // (a map is walked: its trees' crowns and leaves are no footing, their trunks and boulders the tiles' colliders)
