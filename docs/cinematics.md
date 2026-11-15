@@ -334,6 +334,12 @@ core as one forged alone (`film.js` `sceneScreenplay`).
   fog volume, in metres, unless the world declares a thicker fog; `rain` and `snow` are geometry nodes over one
   plane about the cast (`precip`), each point's height a function of the scene's time alone, so a frame renders the
   same alone or in order and nothing is simulated or baked. Like the hour it is taken out of what the plan plays.
+- **The set's lamps by the hour** (`film/lamps.js`; no key: the light's preset decides). Most worlds stand their
+  lamps as form only, so `lampHeads` finds them in the lit payload: a face or a repeated thing whose `group` ends in a
+  lamp word, the faces of one lamp those within a step of each other, an instanced lamp's head its template's through
+  the instance's place, scale and turn. At night, dusk and dawn the nearest to the cast ride `scene.json` `set.posts`
+  and `actors.py` `posts` stands a point light under each head. By day a world's declared lamps (`payload.lights`)
+  are put out: `atmosphere.json` `lamps_lit: false`, read by `film_light.py`.
 - **The scene's clouds** (`screenplay.clouds`, `film/clouds.js` `cloudsSpec`, `cloudsPng`; a film's
   `scenes/*/clouds`, the look and light department's). One of the world's skies (`matte-paint/sky.js` `WEATHERS`, read
   by `readClouds`). Two things reach the pack: `atmosphere.json`'s `clouds` (the weather's own cover table slid by

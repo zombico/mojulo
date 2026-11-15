@@ -906,7 +906,8 @@ def main():
         for o in lamps:
             key = o.name[len('light:'):].split('.')[0]
             if key in table:
-                o.data.energy = table[key] * gain
+                # (by day a scene's set has its lamps out: atmosphere.json lamps_lit false, lib/graph/film/lamps.js)
+                o.data.energy = table[key] * gain if atm.get('lamps_lit', True) else 0.0
                 o.data.shadow_soft_size = 0.1 * unit
         if not _flag('--no-ground'):
             ground(scene_box()[0].z - 0.05)

@@ -175,6 +175,9 @@ game.
   - It combines with the scene's hour: the same street can be a bright noon, a foggy morning and a rainy dusk.
   - **Not yet:** rain falls through a porch roof or a ceiling; the ground does not get wet and snow does not
     settle; no lightning, and the trees do not move in the wind.
+- **Street lamps come on at night.** A scene shot at night, dusk or dawn has the set's street lamps near the cast
+  lit in the Blender film, each a warm pool of light under its own head; shot by day they are dark. It follows the
+  scene's hour, whatever hour the place was made at.
 - **Clouds.** Give a scene its clouds and the Blender film's sky has them: clear, fair, overcast, storm, haze or high
   cloud, as thick or thin as asked, lit for the scene's hour, with the sun dimmed and softened by how much they cover.
   - It combines with the hour and the weather: fair cloud at dusk, a storm sky at night, overcast with rain.

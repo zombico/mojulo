@@ -42,8 +42,9 @@ import { EMPTY_BLEND } from '../film/render-plan.js';
  * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). 8: a moving prop
  * turns along its way (a key's `turn`). 9: a scene's weather (atmosphere.json weather, film_light.py).
  * 10: a prop that walks (its keys' `p`, the cycles of its own clip gone by). 11: a scene's clouds (atmosphere.json
- * clouds, clouds.png, film_light.py). 12: a scene's wind (atmosphere.json wind, film_light.py). */
-export const SCENE_PACK_REV = 12;
+ * clouds, clouds.png, film_light.py). 12: a scene's wind (atmosphere.json wind, film_light.py).
+ * 13: the set's lamps lit by the hour (scene.json set.posts, actors.py). */
+export const SCENE_PACK_REV = 13;
 /** how far apart a walk is keyed on ground that is not flat, metres */
 const WALK_KEY = 0.4;
 
@@ -474,6 +475,24 @@ def stage(S):
     log('a bare stage: its floor, its sky%s' % ('' if S.get('lights') else ', its key'))
 
 
+def posts(S):
+    """THE SET'S LAMPS, lit by the scene's hour (scene.json set.posts: lib/graph/film/lamps.js): a point light under the
+    head of each lamp near the cast, at night, dusk and dawn. Made once."""
+    for i, Q in enumerate((S.get('set') or {}).get('posts') or []):
+        name = 'post:%d' % (i + 1)
+        if bpy.data.objects.get(name) is not None:
+            continue
+        L = bpy.data.lights.new(name, 'POINT')
+        L.energy = float(Q.get('watts', 900))
+        L.color = tuple(float(v) for v in (Q.get('color') or (1, 0.78, 0.52)))
+        L.shadow_soft_size = float(Q.get('radius', 0.12))
+        ob = bpy.data.objects.new(name, L)
+        ob.location = tuple(float(v) for v in Q['at'])
+        bpy.context.scene.collection.objects.link(ob)
+    if (S.get('set') or {}).get('posts'):
+        log('posts: %d lamps of the set lit' % len(S['set']['posts']))
+
+
 def house(S):
     """A walled set with no light of its own (a room of a house: no sky reaches it, no lamp is declared) is lit as a
     studio lights a room: one soft panel under each ceiling, the HOUSE LIGHTS (scene.json set.house). Made once."""
@@ -650,6 +669,7 @@ def build(S):
     props(S)
     stage(S)
     house(S)
+    posts(S)
     sc.frame_set(1)
 
 

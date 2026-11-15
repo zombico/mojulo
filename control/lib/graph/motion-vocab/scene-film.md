@@ -110,6 +110,9 @@ forge_motion({ title: 'The key', export: 'storyboard',
     (`weather-unused`).
   - Not yet: it rains through a roof (a porch, a room's ceiling is not read); wet ground, settled snow, lightning and
     wind in the trees are not made.
+- **The set's lamps follow the hour.** Shot at night, at dusk or at dawn, the street lamps near the cast are lit in
+  the Blender film, each a warm light under its own head, whatever hour the set was made at; by day they are dark.
+  Nothing to ask for: it is the scene's `hour` (or the set's own). A set with no lamps near the cast has none lit.
 - **`clouds`: the sky over the scene.** One of `clear`, `fair`, `overcast`, `storm`, `haze`, `high`, or
   `{ kind, cover?, seed? }` (`cover` 0 to 1, the sky's own at 0.5; another `seed` is another sky of the same kind).
   The Blender film's sky wears the world's own painted clouds, lit for the film's sun at the scene's `hour`, and the

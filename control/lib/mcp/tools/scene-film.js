@@ -37,6 +37,7 @@ import { PAIR } from '@/lib/graph/actor/scene.js';
 import { faceSight } from '@/lib/graph/shoot/clearance.js';
 import { readHour } from '@/lib/graph/era/geocube-hours.js';
 import { weatherSpec, WEATHER_STATES } from '@/lib/graph/film/weather.js';
+import { lampsLit, lampPosts } from '@/lib/graph/film/lamps.js';
 import { windErrors, windSpec } from '@/lib/graph/film/wind.js';
 import { cloudsErrors, cloudsSpec, cloudsPng, CLOUDS_FILE } from '@/lib/graph/film/clouds.js';
 import { lifeErrors, hasLife, flowLife, walkLife, carLife, carFaces, lifeFaces, lifeDims, lifeOf } from '@/lib/graph/film/life.js';
@@ -645,6 +646,14 @@ export async function writeSceneFilm({ outDir, screenplay, getRow, title = 'scen
     // (a walled set with no light of its own would render black: its house lights, actor/scene-film.js actors.py house)
     const house = !atmosphere.sky && !atmosphere.lamps.length ? houseLights(P.set.rooms) : [];
     if (house.length) setPack.house = house;
+    // (THE LAMPS BY THE HOUR: at night, dusk and dawn the set's lamps near the cast are lit, each under its own head
+    //  (film/lamps.js); by day a world's declared lamps are put out)
+    const lightAt = atmosphere.preset ?? 'day';
+    if (lampsLit(lightAt)) {
+      const pts = Object.values(S.actors).map((A) => A.root[0]);
+      const posts = lampPosts(lit, { floor: P.set.floor, about: [pts.reduce((n, k) => n + k.x, 0) / pts.length, pts.reduce((n, k) => n + k.y, 0) / pts.length] });
+      if (posts.length) { setPack.posts = posts; log(`lamps: ${posts.length} of the set's lamps lit (${lightAt})`); }
+    } else if (lightAt === 'day' && atmosphere.lamps.length) atmosphere = { ...atmosphere, lamps_lit: false };
   }
   // (each prop as its own model, props/<name>.glb: actors.py stands it where the plan stood it, at the size it was read
   //  at, so what the storyboard drew is what the film has)
