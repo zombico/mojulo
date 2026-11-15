@@ -42,6 +42,8 @@
   cliffs and beats from the recipe alone, no tile built. `design_game`'s `worldmap` step carries it as `look`, and the
   next-moves card says to open it and show the creator first, before a block is written or a page built, and after each
   change; the card's ceiling moves 4864 → 5120.
+- **The world map test bed walks a page of several blocks.** Its gate walk (gameworld/worldmap-bed.js `crossings`)
+  read a page's gates by side alone and stopped at a page of two blocks, whose gates are named by block and side.
 - **Measured:** a zone's page of the world map is heavier for its bigger blocks, as payload: the opening 40 MB, the
   first zone (two blocks) 70 MB, the goal's zone 52 MB (42 tiles, 25 its own, about 162,000 faces), where the goal's
   zone was 34 MB (20 tiles, about 89,000 faces).
