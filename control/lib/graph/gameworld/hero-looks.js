@@ -66,7 +66,9 @@ function rampTones(ramps = []) {
  */
 export function underlayerFor(G, D = resolveDirection(G)) {
   const own = G.characters?.hero?.looks?.underlayer ?? null;
-  const rail = (D?.from === 'world' ? UNDERLAYERS[D.kit] : null) ?? FALLBACK, ledger = [];
+  // (a world its palette or its look repaints stands on a kit id of its own, world.js paletteFor: its setting is still
+  // the stock kit's it was painted from, so its people wear that kit's rail)
+  const rail = (D?.from === 'world' ? UNDERLAYERS[G.style?.colours?.base ?? D.kit] : null) ?? FALLBACK, ledger = [];
   // an inline card is ledgered by its id (an Egocube's designed cut is `designed`), never as the whole card
   const styleName = (st) => (st && typeof st === 'object' ? st.id ?? 'an inline card' : st ?? 'casual');
   if (own) ledger.push({ scope: 'looks', at: 'hero.looks.underlayer', key: 'underlayer', world: rail.style, local: styleName(own.style) });

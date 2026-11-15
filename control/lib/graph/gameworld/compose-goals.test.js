@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { composeGameworld, runSteps, readGameworld, fingerprint, MEADOWMARK, MEADOWMARK_HERO } from './index.js';
 import { LEVEL_GOAL } from './quick.js';
+import { FLOW_IN_PLAY } from '../game/flow.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { readBattle } from '../playscape/ui/battles.js';
 import { withBuildingLevel } from '../structure/level.js';
@@ -69,7 +70,13 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     expect(Object.values(w.levels).every((l) => l.goal === undefined)).toBe(true);
     // (a composed world writes its juice, 'auto', since juice styling: the print is the world's without it)
     expect(w.juice).toBe('auto');
-    const { juice: _j, ...unjuiced } = w;
+    // (and how it starts, since a game laid from a sentence starts in play, 2026-11-13: its flow, 'play', and the line
+    // its brief says it in (gameworld/compose.js). The print is the world's without them too, so the pin below holds as
+    // it was: nothing else in the world moved)
+    expect(w.flow).toBe(FLOW_IN_PLAY);
+    expect(w.brief.start).toMatch(/straight into play/);
+    const { start: _s, ...brief } = w.brief;
+    const unjuiced = Object.fromEntries(Object.keys(w).filter((k) => k !== 'juice' && k !== 'flow').map((k) => [k, k === 'brief' ? brief : w[k]]));
     // (re-pinned 2026-11-02, 1102-book-powers: a composed world's builders are its cube's where the prompt names no
     // language (gameworld/compose.js: the cube's builders become the anchor, so its town is drawn in the art direction it
     // stands in): this haunted forest's gothic-night cube builds tiered, so its civilization is the tiered folk, not a

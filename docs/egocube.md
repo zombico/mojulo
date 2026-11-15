@@ -102,6 +102,13 @@ the kit's underlayer with its era's kit over it, and its racers are rolled in it
 leans to mascots: a mascot racer's driver is the person's mascot, seated in the machine read off the person); the run's
 readout says what was rolled and an adopted hero drawn in another tradition (kept as it is).
 
+A book game's hero is rolled the same way where nothing else designs it (`gameworld/hero-design.js`): a game laid
+from a sentence whose genre reads no body rail has its protagonist rolled in the game's setting (the cast's anchor,
+where it has a casting page) and its sheet's plan written into the hero's looks pages, the designed outfit as its
+underlayer. Its garment is given, not rolled: the world's accent (`outfitFromSheet({ garment })`), so the hero reads
+against the ground its world is painted in, with the rest of the outfit's palette derived from that garment as it is
+from an archetype's. The pages are the creator's to rewrite; `brief.hero.design` keeps the roll and the reasons.
+
 **Era gear.** A myth's or a rustic world's people wear the myth's kit (the stock jerkin and a ranger's kit, or the
 designed outfit's quiver, baldric, pauldron and cloak). A modern or a future world's people roll a LOOK, each person its
 own off its seed and facets, leaned by its archetype and role ([outfit.js](../control/lib/graph/egocube/outfit.js)
@@ -161,8 +168,8 @@ rolling the same ancestry again gives another person of the same people.
   shows at or below its h; cues sharing a slot show only the deepest, so the long dragon snout replaces the short
   one and full scales replace patches. Below about h = 0.5, or once a cue needs a snout, beak or muzzle, the sheet's
   **door** is the creature loop, not the hero door. The built ones: draconic (the dragon head and body, the membrane
-  wing), sylvan, dwarven, orcish, infernal, undead, feline, lupine, ursine (the bear head), avian (the feathered wing)
-  and insectoid. Each says what the creature loop already has for it; the rest is words the loop prints a plan from.
+  wing), sylvan, dwarven, orcish, infernal, undead, feline, lupine, ursine (the bear head), avian (the feathered wing),
+  insectoid, goblin and orc (each its own skull and card; `orcish` stays the near-human on the hero door). Each says what the creature loop already has for it; the rest is words the loop prints a plan from.
 - **A people established once can be rolled for variations.** A custom lineage is the same data as a built one,
   passed in (`rollEgocube({ lineages })`, or `--lineages <file>` on the script), so a race designed for one game
   rolls more of its own people. A blind roll never picks a lineage: a non-human people is the world's decision (a

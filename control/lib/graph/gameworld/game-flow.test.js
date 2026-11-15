@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { storyCinematics, worldFlow, flowToRefs, flowStoryboard } from './game-flow.js';
+import { FLOW_IN_PLAY } from '../game/flow.js';
 import { readGameworld } from './world.js';
 import { chaptersOfPath, chapterOfPart, chapterOfCard } from './chapters.js';
 import { gameworldCards } from './gameworld-cards.js';
@@ -31,6 +32,24 @@ describe('the story\'s cinematics and the flow they make', () => {
     expect(D.source).toBe('default');
     expect(D.flow.steps.opening).toEqual({ kind: 'cinematic', scene: 'dawn', stage: 'gate', next: 'title' });
     expect(worldFlow(G())).toBeNull();
+  });
+  it('a world started in play, said in one word: an opening cutscene (the story\'s opening moment where it has one), then the game', () => {
+    const P = worldFlow(G({ flow: FLOW_IN_PLAY }));
+    expect(P.source).toBe('play');
+    expect(P.flow.start).toBe('opening');
+    expect(P.flow.steps.opening).toEqual({ kind: 'cutscene', next: ['$continue', '$first'] });
+    // the story's opening is what the slot plays; its ending stays where a game plays it, and there is no prologue
+    const S = worldFlow(G({ flow: FLOW_IN_PLAY, story: [moment('dawn', 'gate', 'opening'), moment('setting-out', 'gate', 'prologue')] }));
+    expect(S.flow.steps.opening).toEqual({ kind: 'cutscene', scene: 'dawn', stage: 'gate', next: ['$continue', '$first'] });
+    expect(S.flow.steps.prologue).toBeUndefined();
+    // its storyboard says the slot, whose it is, and that an empty one waits on nothing
+    expect(flowStoryboard(P.flow)[0]).toMatchObject({ step: 'opening', kind: 'cutscene', department: 'cinematics', waits: 'nothing' });
+    expect(flowStoryboard(P.flow)[0].what).toMatch(/its slot, empty/);
+    expect(flowStoryboard(S.flow)[0].what).toMatch(/the scene dawn, on gate/);
+    // read as the world reads it: the one word passes, another is no flow
+    const base = { id: 'w', seed: 8, levels: { gate: { walk: { nodes: { path: { trail: true } } } } } };
+    expect(readGameworld({ ...base, flow: FLOW_IN_PLAY }).flow).toBe(FLOW_IN_PLAY);
+    expect(() => readGameworld({ ...base, flow: 'title' })).toThrow();
   });
   it('maps onto a game\'s refs, and says which levels it could not find', () => {
     const own = { start: 'intro', steps: { intro: { kind: 'cinematic', scene: 'dawn', stage: 'gate', next: 'any' }, any: { kind: 'level', level: '$any', on: { won: 'cave' } }, cave: { kind: 'level', level: 'cave', on: { won: 'intro' } } } };

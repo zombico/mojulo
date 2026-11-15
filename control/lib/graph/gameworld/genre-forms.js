@@ -73,8 +73,9 @@ const MELEE_ITEM = Object.freeze({ id: 'blade', slot: 'right', build: Object.fre
 // the handgun's), by genre where its fiction names one
 const RANGED_ITEM = Object.freeze({ id: 'gun', slot: 'right', serves: Object.freeze(['shoot']) });
 const GENRE_GUN = Object.freeze({ 'survival-horror': 'pistol' });
-// the cameras a world names (cameras.js) that the genre's cube asks of its hero; third person is the hero's own default
-const NAMED_CAMERAS = new Set(['side', 'top-down', 'fixed', 'first-person']);
+// the cameras a world names (cameras.js) that the genre's cube asks of its hero; third person is the hero's own default.
+// (the 3D platformer's chases too: `follow`, and `orbit`, the one an action hero turns by the mouse and locks on with)
+const NAMED_CAMERAS = new Set(['side', 'top-down', 'fixed', 'first-person', 'follow', 'orbit']);
 
 /** The frame a genre's sentence is laid in when its cube asks a hero on foot: the hero the book makes by default (its
  * body the game's, game-bodies.js; it moves by the genre's vibe; no powers, said (`actions.none`), so the book has

@@ -17,6 +17,7 @@
  *   the eyes   each globe its own part (hero-one-skin.js globePart), seen through the socket the skin leaves
  *   the ears   each its own closed part, netted from its own field, bound to the head; its inner face painted (EarInner)
  *   the teeth  a row and a gum along each jaw's arch, the upper the head's and the lower the jaw's (./dentition.js)
+ *   the gear   its headgear, where the word names one (`gear`): a helmet netted from the skin's own field set out (./headgear.js)
  *
  *   creatureHeadOn(recipe, worn)  → the recipe wearing the head (`worn`: the plan's `creatureHead`); absent, as it was
  *   CREATURE_WEAR                  the density and the joins
@@ -24,6 +25,7 @@
  */
 import { relationalCreatureHead } from './relational.js';
 import { dentitionParts } from './dentition.js';
+import { kinHeadgearField } from './headgear.js';
 import { mouthLining } from './mouth.js';
 import { HEAD_V } from '../polygonizer/head-relational.js';
 import { oneSkinHead } from '../polygonizer/hero-one-skin.js';
@@ -36,7 +38,7 @@ import { r6 } from '../polygonizer/body-relational-vec.js';
  * seam ring stands), the seam's points, the skin's net cell and its faces, the ears' cell and faces, the lips' reach and
  * turn-in (m), how broadly the jaw's share eases behind the corners (m) */
 export const CREATURE_WEAR = Object.freeze({
-  join: 0.012, seamSlots: 48, cell: 0.0025, faces: 10000, earCell: 0.0009, earFaces: 900,
+  join: 0.012, seamSlots: 48, cell: 0.0025, faces: 10000, earCell: 0.0009, earFaces: 900, gearCell: 0.003, gearFaces: 1600,
   lipDepth: 0.004, lipWindow: 0.008, jawEase: 0.03,
 });
 
@@ -67,6 +69,16 @@ function earPart(fE, box, facing, axis, C, group) {
     if (n[0] * facing[0] + n[1] * facing[1] + n[2] * facing[2] > 0.55 && off < 0.62 * (axis.r0 + (axis.r1 - axis.r0) * s) && s < 0.92) groups[id] = 'EarInner';
   });
   return { layer: 1, closure: 'closed', group, mesh: { points, faces, groups, normals }, bind: 'head' };
+}
+/** a closed part netted from a field (hero metres), simplified and shaded by the field; `mid` a point inside it */
+function fieldPart(f, box, mid, C, group) {
+  const net = netSkin((p) => f([p.x, p.y, p.z]), box, { cell: C.gearCell });
+  const F0 = soundMesh(net.V, net.F, { out: (q) => [q[0] - mid[0], q[1] - mid[1], q[2] - mid[2]], min: 8 });
+  const S = simplifyMesh(net.V, F0, { target: C.gearFaces, turn: 0.5 });
+  const N = fieldNormals(S.V, (p) => f([p.x, p.y, p.z]), 1e-5), points = {}, normals = {}, faces = {};
+  S.V.forEach((p, v) => { points[`v${v}`] = rp(p); normals[`v${v}`] = n4(N[v]); });
+  S.F.forEach((t, fi) => { faces[`f${fi}`] = t.map((v) => `v${v}`); });
+  return { layer: 1, closure: 'closed', group, mesh: { points, faces, normals }, bind: 'head' };
 }
 /** the left of a mesh part: its points mirrored across the midline, its faces wound back */
 function mirrorMesh(P) {
@@ -131,9 +143,9 @@ function buildHead(neck0, worn, C) {
   };
   const skin = oneSkinHead({ head: { ...head, globes: head.globes }, k, toHero, inHead, S2, fN, join: C.join, seamPts, seamW, O, lipZ, ch, sto, jawW,
     opts: { cell: C.cell, faces: C.faces, lipDepth: C.lipDepth, lipWindow: C.lipWindow, mouthBack: sto[1] - ch[1], lipInward: true, seamNearest: true, globeEdges: 'slot' } });
-  // THE NOSE'S PAD painted on the skin: a face whose middle the head paints the nose
+  // THE NOSE'S PAD painted on the skin: a face whose middle the head paints the nose; a brow ridge's the same way
   const hs = skin.parts.headSkin, mg = hs.mesh.groups;
-  for (const [id, t] of Object.entries(hs.mesh.faces)) { if (mg[id]) continue; const c = mean(t.map((v) => hs.mesh.points[v])); if (head.paint(S2(c)) === 'nose') mg[id] = 'NosePad'; }
+  for (const [id, t] of Object.entries(hs.mesh.faces)) { if (mg[id]) continue; const c = mean(t.map((v) => hs.mesh.points[v])); const tone = head.paint(S2(c)); if (tone === 'nose') mg[id] = 'NosePad'; else if (tone === 'brow') mg[id] = 'BrowRidge'; }
   hs.group = worn.group ?? 'Skin'; hs.coverChart = true;
   // the neck ends on the seam; its tip capped inside the skin
   const kept = new Set(neck.stations.slice(0, seam + 1).map((s) => s.id));
@@ -147,7 +159,7 @@ function buildHead(neck0, worn, C) {
   // THE TEETH AND THE GUMS along the mouth's arch, inside the shut skin (./dentition.js)
   // THE MOUTH'S LINING in place of the one skin's bag (./mouth.js)
   parts.mouth = mouthLining({ mouth: head.mouth.map(toHero), fH, k, zL, lipDepth: C.lipDepth });
-  Object.assign(parts, dentitionParts({ mouth: head.mouth.map(toHero), fH, k, zL, dentition: head.relations.dentition, fang: head.relations.fang }));
+  Object.assign(parts, dentitionParts({ mouth: head.mouth.map(toHero), fH, k, zL, dentition: head.relations.dentition, fang: head.relations.fang, tusk: head.relations.tusk }));
   // THE EARS, each its own part on its own field
   const E = head.earFields.find((e) => e.side === 'R'), w = head.vajras.find((v) => v.name === 'earR');
   if (E && w) {
@@ -157,6 +169,11 @@ function buildHead(neck0, worn, C) {
     const R0 = w.r[0] * sc * k, pad = R0 + 3 * C.earCell, box = { min: P3([0, 1, 2].map((i) => Math.min(a[i], b[i]) - pad)), max: P3([0, 1, 2].map((i) => Math.max(a[i], b[i]) + pad)) };
     const R = earPart(inHead(E.field), box, facing, { a, u, len, mid: lerp3(a, b, 0.4), r0: R0, r1: w.r[2] * sc * k }, C, worn.group ?? 'Skin');
     R.coverChart = true; parts.earR = R; parts.earL = mirrorMesh(R);
+  }
+  // ITS HEADGEAR (the word's `gear`, ./headgear.js): a helmet netted from its own field, the skin set out, on the head's bone
+  if (worn.gear) {
+    const G = kinHeadgearField(head, worn.gear), fG = inHead(G.field), lo = toHero(G.bounds.min), hi = toHero(G.bounds.max);
+    parts.headgear = fieldPart(fG, { min: P3(lo), max: P3(hi) }, toHero(G.mid), C, 'Helm');
   }
   return { parts, joints: { jawHinge: [0, cd[1], cd[2]], jawTip: gn, headTop: toHero(P.crown) }, stats: skin.stats };
 }

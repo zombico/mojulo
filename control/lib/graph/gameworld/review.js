@@ -75,7 +75,7 @@ export function reviewParts(world) {
   // THE FLOW (game-flow.js): what plays when, the game director's, as a storyboard (each step, whose it is, what it waits
   // on, where it goes); a world with no flow of its own and no story cinematics has none to show
   const F = worldFlow(G);
-  if (F) parts.push({ id: 'flow:sequence', name: 'The flow', content: { source: F.source === 'own' ? 'the game\'s own' : 'the default, with the story\'s cinematics', start: F.flow.start, steps: flowStoryboard(F.flow, { scripted: (G.story ?? []).filter((m) => scriptsIn(m.beats).length).map((m) => m.id) }) } });
+  if (F) parts.push({ id: 'flow:sequence', name: 'The flow', content: { source: F.source === 'own' ? 'the game\'s own' : F.source === 'play' ? 'the default, started in play: its opening a cutscene, then straight into the game' : 'the default, with the story\'s cinematics', start: F.flow.start, steps: flowStoryboard(F.flow, { scripted: (G.story ?? []).filter((m) => scriptsIn(m.beats).length).map((m) => m.id) }) } });
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 

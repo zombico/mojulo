@@ -210,8 +210,10 @@ export function buildCombatHit(E) {
   // (the combo's whole point — hit 2 lands while hit 1's lurch still runs). A force
   // never interrupts an in-progress fall/getup (you can't re-floor the floored).
   function armReaction(tg, kind, force, hit) {
-    if (!Number.isFinite(tg.poise)) return;
     const dead = tg.body && Number.isFinite(tg.body.hp) && tg.body.hp <= 0;
+    // a body with no poise has no reaction to arm, but a killing blow still floors it (a hero whose hp the stats bind
+    // carries none: without this, a blade or a round that took it to 0 left it standing, and its level never failed)
+    if (!Number.isFinite(tg.poise)) { if (dead && !tg.downed && !tg.noDestroy) { tg.downed = true; tg.moving = false; } return; }
     if (dead) kind = 'topple';
     const inKnockdown = tg.staggerT != null && (tg.reactClip === 'topple' || tg.reactClip === 'downpause' || tg.reactClip === 'getup');
     // COMBO path (comboCfg): a non-toppling hit on an upright / reeling / airborne target RE-ARMS

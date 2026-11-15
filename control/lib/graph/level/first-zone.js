@@ -1,7 +1,9 @@
 /**
  * AN ACTION QUEST'S FIRST ZONE — a planned map's journey laid in TEACHING ORDER (map-sketch.js concept), as a
  * platformer's first level lays its trails (gameworld/first-level.js): each beat teaches what a later one tests, the land
- * itself the teacher, the controls shown where they are first needed (the guide), never a list up front.
+ * itself the teacher, the controls shown where they are first needed (the guide), never a list up front. (A hand-laid
+ * map's rail. The sentence door's world map starts another way, the controls explained first and then an enemy trail:
+ * gameworld/world-map.js.)
  *
  *   the first look   the arrival sets out facing the walk's goal on the skyline (`faces`): the place the level is about
  *   the lone foe     the first fight is one foe, in the walk's first segment, where the blow is learnt (strike)

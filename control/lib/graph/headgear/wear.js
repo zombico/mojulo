@@ -9,23 +9,29 @@
 // the language already names them), so it needs an outfit build.
 //
 //   HEADGEAR_WORDS              every word the door takes
-//   headgearBody(hero)          'realistic' | 'tiered'
+//   headgearBody(hero)          'realistic' | 'tiered' | 'kin' (a beast-kin on a relational skull: its helmets are cut from
+//                               the skull's own field, creature-heads/headgear.js, and fit no other body)
 //   headgearErrors(word, spec)  error strings (empty: the word is worn)
 //   wearHeadgear(hero)          the hero record with its word lowered (no `headgear` key), or the record as given
 //   headgearOf(word)            { word, family, reads, fits: [bodies], tradition? } or null
 import { HEADGEAR, HEADGEAR_IDS, withHeadgear } from './cards.js';
 import { HELMETS } from './helmets.js';
+import { KIN_HEADGEAR, KIN_HEADGEAR_IDS } from '../creature-heads/headgear.js';
+import { BEAST_KINS } from '../beast/cards.js';
 import { resolveHair } from '../polygonizer/humanoid-hair.js';
 
-export const HEADGEAR_WORDS = Object.freeze([...HEADGEAR_IDS, ...Object.keys(HELMETS)]);
+export const HEADGEAR_WORDS = Object.freeze([...HEADGEAR_IDS, ...Object.keys(HELMETS), ...KIN_HEADGEAR_IDS]);
 const BODIES = ['tiered', 'realistic'];
-export const headgearBody = (hero) => (hero?.form === 'realistic' ? 'realistic' : 'tiered');
+/** a kin's own head word where it is a relational skull (its own, else its card's: beast/cards.js), or null */
+const kinHead = (hero) => { const B = hero?.beast; if (!B || typeof B !== 'object' || Array.isArray(B)) return null; const w = B.head ?? BEAST_KINS[B.kin]?.head; return w && typeof w === 'object' && typeof w.relational === 'string' ? w : null; };
+export const headgearBody = (hero) => (hero?.form === 'realistic' ? 'realistic' : kinHead(hero) ? 'kin' : 'tiered');
 const isOutfitBuild = (O) => !!O && typeof O === 'object' && !Array.isArray(O) && O.type === 'outfit';
 
 /** a word's card as the vocabulary reads it */
 export function headgearOf(word) {
   if (HEADGEAR[word]) return { word, family: HEADGEAR[word].family, reads: HEADGEAR[word].reads, fits: BODIES.filter((b) => typeof HEADGEAR[word].at[b] === 'function') };
   if (HELMETS[word]) return { word, family: 'helmet', reads: HELMETS[word].reads, fits: ['tiered'], tradition: true };
+  if (KIN_HEADGEAR[word]) return { word, family: 'kin helmet', reads: KIN_HEADGEAR[word].reads, fits: ['kin'] };
   return null;
 }
 
@@ -55,6 +61,8 @@ export function headgearErrors(word, spec = {}) {
 export function wearHeadgear(hero) {
   if (!hero || hero.headgear === undefined || hero.headgear === null) return hero;
   const { headgear: word, ...rest } = hero;
+  // (a kin's helmet, cut from its own skull's field: the word rides its head's word, creature-heads/headgear.js)
+  if (KIN_HEADGEAR[word]) { const w = kinHead(rest); if (!w) throw new Error(headgearErrors(word, rest)[0]); return { ...rest, beast: { ...rest.beast, head: { ...w, gear: word } } }; }
   if (HELMETS[word] && !HEADGEAR[word]) {
     const O = rest.outfit;
     if (!isOutfitBuild(O)) throw new Error(headgearErrors(word, rest)[0]);

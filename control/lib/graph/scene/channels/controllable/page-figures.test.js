@@ -44,12 +44,17 @@ describe('the figure bank a level\'s page reads', () => {
     expect(idx.flatMap((i) => col.slice(3 * i, 3 * i + 3))).toEqual(COL);
   });
 
-  it('a skinned figure keeps its weights, and a part laid per corner is left as a soup', () => {
+  it('a skinned figure keeps its weights, and a part with an engine\'s tangent is left as a soup', () => {
     const skinned = pageFigures({ hero: layered({ skin: true }) }).figs.hero.parts[0];
     expect(skinned.wgt).toBeDefined();
+    // (a part laid per corner with what only an export reads, a tangent: left as it came, less its skin; one with its
+    // paint's place alone is welded as the rest are, below)
+    const engine = pageFigures({ hero: { ...layered(), parts: [{ ...layered().parts[0], uv: f32(Array(12).fill(0)), tan: f32(Array(24).fill(0)) }] } }).figs.hero.parts[0];
+    expect(engine.pos).toBeDefined();
+    expect(engine.wgt).toBeUndefined();
     const painted = pageFigures({ hero: { ...layered(), parts: [{ ...layered().parts[0], uv: f32(Array(12).fill(0)) }] } }).figs.hero.parts[0];
-    expect(painted.pos).toBeDefined();
-    expect(painted.wgt).toBeUndefined();
+    expect(painted.full).toBe(1);
+    expect(painted.pos).toBeUndefined();
   });
 
   it('its clips on 16 bits, within the grain of the decimals they were written in', () => {
@@ -98,5 +103,40 @@ describe('the arena\'s clearing', () => {
     const check = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: mod, encoding: 'utf8' });
     expect(check.stderr).toBe('');
     expect(page('live')).not.toContain('window.__mojClip = {');
+  });
+
+  // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's): welded and on a grid as a plain part is, its
+  // paint's places and normals with it, its face's rows named by the welded corners; one with a tangent stays as it came
+  it('a part with its paint, normals and face rows is welded and gridded, and reads back as it was', async () => {
+    const { quantMorph, sparseMorph, denseMorph } = await import('../../../figures/morph-sparse.js');
+    // (the two triangles, one colour, smooth: the shared edge's corners are the same corner)
+    const col = Array(18).fill(120), uv = [0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1], nrm = Array.from({ length: 6 }, () => [0, 0, 1]).flat();
+    // a face of one target: the rebase nowhere, the target lifting the corners at (1,0,0) and (0,1,0)
+    const rows = [0, 1, 2, 3, 4, 5].map((c) => { const x = SOUP[c * 3], y = SOUP[c * 3 + 1]; return [0, 0, 0, 0, 0, (x + y === 1) ? 0.01 : 0]; }).flat();
+    const morph = sparseMorph(quantMorph({ i: Buffer.from(Uint32Array.from([0, 1, 2, 3, 4, 5]).buffer).toString('base64'), d: f32(rows) }));
+    const part = { pos: f32(SOUP), col: u8(col), faces: 2, jnt: u8(Array(24).fill(0)), wgt: f32(Array(24).fill(0.25)), uv: f32(uv), nrm: f32(nrm), morph };
+    const fig = { rig: true, layered: true, bones: [{ id: 'head', head: [0, 0, 0], tail: [0, 0, 1] }], parts: [part], clips: { idle: clip }, figH: 1.7 };
+    const [P] = pageFigures({ hero: fig }).figs.hero.parts;
+    expect(P.full).toBe(1);
+    expect(P.n).toBe(4);
+    for (const k of ['pos', 'uv', 'nrm', 'jnt', 'wgt']) expect(P[k], k).toBeUndefined();
+    const idx = fromU16(P.idx), q = fromU16(P.q), uq = fromU16(P.uq), nq = Array.from(new Int8Array(Buffer.from(P.nq, 'base64')));
+    expect(idx).toHaveLength(6);
+    // (each corner reads back to its place and its paint's place, within a grid step; its normal within a byte's)
+    for (let c = 0; c < 6; c++) {
+      const u = idx[c];
+      for (let k = 0; k < 3; k++) expect(P.o[k] + q[u * 3 + k] * P.s[k]).toBeCloseTo(SOUP[c * 3 + k], 4);
+      for (let k = 0; k < 2; k++) expect(P.uo[k] + uq[u * 2 + k] * P.us[k]).toBeCloseTo(uv[c * 2 + k], 4);
+      expect(nq[u * 3 + 2]).toBe(127);
+    }
+    // (the face: the two welded corners the target lifts, and no other, with their rows as they were)
+    const ab = Buffer.from(P.morph.i, 'base64'), at = Array.from(new Uint32Array(ab.buffer.slice(ab.byteOffset, ab.byteOffset + ab.length)));
+    expect(P.morph.z.r).toBe(at.length);
+    const D = fromI16(denseMorph(P.morph).q), lifted = at.filter((u, r) => D[r * 6 + 5] !== 0);
+    expect(lifted.map((u) => [P.o[0] + q[u * 3] * P.s[0], P.o[1] + q[u * 3 + 1] * P.s[1]].map((v) => Math.round(v))).sort()).toEqual([[0, 1], [1, 0]]);
+    // (a part with a tangent is an engine's: left as it came, less its skin)
+    const [T] = pageFigures({ hero: { ...fig, parts: [{ ...part, tan: f32(Array(24).fill(0)) }] } }).figs.hero.parts;
+    expect(T.full).toBeUndefined();
+    expect(T.pos).toBe(part.pos);
   });
 });

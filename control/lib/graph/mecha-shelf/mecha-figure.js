@@ -30,6 +30,9 @@ import { readRiderHero, riderOn } from '../cycle-shelf/cycle-rider.js';
 import { dressFaces, readMechaDress } from './mecha-military.js';
 import { resolveMechaPalette } from './mecha-common.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
+import { formLight, skyMood } from '../car-designer/form-light.js';
+import { MIL_MATERIALS } from '../car-designer/road-military.js';
+import { wetMaterials } from '../car-designer/mil-wear.js';
 
 
 const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'cabin', 'slits', 'backpack', 'weapons', 'role', 'drones', 'drone', 'livery', 'wear']);
@@ -85,15 +88,27 @@ export async function mechaInstanceFaces(spec) {
   };
 }
 
-/** The frame as a level stands it: one rig figure, the frame its root, centred on what it stands on. */
-export async function mechaFigure(spec) {
+/** The frame as a level stands it: one rig figure, the frame its root, centred on what it stands on. A dressed frame
+ *  asked for its form (`form: true`, a page of the form render) carries its faces' materials too and the light its
+ *  world gives it (`setting`: { sky, wet }: the field vehicles', car-designer/military.js): lit by the world's sky, wet in
+ *  its rain. Absent, its faces baked under the studio's light, as before. */
+export async function mechaFigure(spec, { form = false, setting = null } = {}) {
   const { faces, stats } = await mechaInstanceFaces(spec);
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], c[k]); hi[k] = Math.max(hi[k], c[k]); }
   const r3 = (v) => Math.round(v * 1000) / 1000, cx = (lo[0] + hi[0]) / 2, cy = (lo[1] + hi[1]) / 2;
-  const root = faces.map((f) => ({ ...f, corners: f.corners.map((c) => [r3(c[0] - cx), r3(c[1] - cy), r3(c[2] - lo[2])]) }));
+  const seat = (fs) => fs.map((f) => ({ ...f, corners: f.corners.map((c) => [r3(c[0] - cx), r3(c[1] - cy), r3(c[2] - lo[2])]) }));
+  const root = seat(faces), dressed = form && !!frameRow(spec.archetype).dress && !spec.rider;
+  let formOf = null;
+  if (dressed) {
+    const words = { pose: spec.pose, palette: spec.palette, role: spec.role, cabin: spec.cabin, slits: spec.slits, backpack: spec.backpack, weapons: spec.weapons };
+    const { manifest, readout } = assembleFrame(spec.archetype, { ...words, finish: false });
+    formOf = new Map([['root', seat(dressFaces({ manifest, anchors: readout.anchors, colors: resolveMechaPalette(spec.palette, {}, frameRow(spec.archetype).palette).colors, archetype: spec.archetype }, { livery: spec.livery, wear: spec.wear, form: true }))]]);
+  }
+  const wet = !!(setting && setting.wet);
   return {
-    ...packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', root]]), { keys: 2, rolls: [] }),
+    ...packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', root]]), { keys: 2, rolls: [], ...(formOf ? { form: formOf } : {}) }),
+    ...(formOf ? { form: formLight(skyMood(setting?.sky), wet ? wetMaterials(MIL_MATERIALS) : MIL_MATERIALS, {}) } : {}),
     mecha: { archetype: spec.archetype, label: stats.label, footprint: { L: r3(hi[1] - lo[1]), W: r3(hi[0] - lo[0]), H: r3(hi[2] - lo[2]) } },
   };
 }

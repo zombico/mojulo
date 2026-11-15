@@ -44,5 +44,11 @@ describe('design_game compose', () => {
     expect(out.made.hero).toBeUndefined();
     const L = stored(levels[0][1].ref ?? levels[0][1]);
     expect(JSON.stringify(L)).not.toContain('"heroRef":"isle1-hero"');
+    // the game made of it STARTS IN PLAY: the world's flow reaches the game itself (an opening cutscene's empty slot,
+    // then its first level), so the shell that runs it boots into play
+    const game = stored(out.made.game.ref ?? out.made.game);
+    expect(stored('isle1').flow).toBe('play');
+    expect(game.flow.start).toBe('opening');
+    expect(game.flow.steps.opening).toEqual({ kind: 'cutscene', next: ['$continue', '$first'] });
   }, 600_000);
 });

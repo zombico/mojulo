@@ -79,6 +79,7 @@ export const ROLES = Object.freeze({
   carrier: 'flown from a carrier',
   stealth: 'it is not seen coming',
   survey: 'a drone that films, maps or watches from above',
+  launch: 'it lifts a payload or a crew from a pad to orbit',
 });
 
 /** The world ages a vehicle belongs to (gameworld/cast-setting.js ERA_OF_KIT's words). */
@@ -220,8 +221,9 @@ export const VEHICLES = {
     { physics: 'pickup', fleet: 'pickup', tech: 'truck' }),
   'cargo-van': row('cargo van', ['van', 'panel van', 'delivery van', 'box van', 'work van'], 'road', 'hauler', M, ROAD,
     { scenery: 'boxVan', physics: 'van', fleet: 'van', tech: 'truck' }),
-  'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck'], 'road', 'hauler', M, ROAD,
-    { scenery: 'boxTruck', physics: 'straightTruck', fleet: 'straightTruck', tech: 'truck' }),
+  // (its realistic build the hull kit's straight box truck, road-haul.js; the plain loft stays the recipes minted before)
+  'box-truck': row('box truck', ['straight truck', 'lorry', 'removal truck', 'moving truck', 'rigid truck', 'straight box truck', 'class 7 box truck'], 'road', 'hauler', M, ROAD,
+    { scenery: 'boxTruck', physics: ['straightBox', 'straightTruck'], fleet: 'straightTruck', tech: 'truck' }),
   // (the city's delivery fleet, classes and not replicas, in no carrier's livery: the walk-in step van the delivery truck
   // is, a postal delivery van, a courier's high-roofed van, a light box truck with a tail lift, a kei truck; their
   // realistic bodies the hull kit's, road-civic.js)
@@ -235,10 +237,34 @@ export const VEHICLES = {
     { physics: 'lightTruck', tech: 'truck' }),
   'kei-truck': row('kei truck', ['mini truck', 'micro truck', 'kei van', 'japanese mini truck', 'tiny truck', 'mini delivery truck', 'microtruck'], 'road', 'hauler', M, ROAD,
     { physics: 'keiTruck', tech: 'truck' }),
-  'semi-truck': row('semi truck', ['semi', 'tractor trailer', 'tractor-trailer', 'eighteen wheeler', 'articulated lorry', 'big rig'], 'road', 'hauler', M, ROAD,
-    { physics: ['tractorTrailer', 'tractorTrailerLoaded'], fleet: 'tractorTrailer', tech: 'truck' }),
-  flatbed: row('flatbed truck', ['flatbed', 'flat deck'], 'road', 'hauler', M, ROAD,
-    { assembly: 'flatbed', tech: 'truck' }),
+  // (the highway's haulers, classes and not replicas, in no carrier's livery: the eighteen-wheeler a long-nosed sleeper
+  // tractor and its trailer, its trailer by word (a van, a reefer, a flatbed, a tanker, a container, a curtain-sider, or
+  // none); a European cab-over and its curtain-sider; the flatbed and the log truck; their realistic bodies the hull kit's,
+  // road-haul.js. The tractor-trailer's plain loft stays the fleet's traffic and the build of the recipes minted before)
+  'semi-truck': row('semi truck', ['semi', 'tractor trailer', 'tractor-trailer', 'eighteen wheeler', '18 wheeler', 'eighteen-wheeler', 'articulated lorry', 'big rig', 'sleeper truck', 'long haul truck', 'semi trailer truck', 'tanker truck', 'reefer semi', 'container semi'], 'road', 'hauler', M, ROAD,
+    { physics: ['semiSleeper', 'tractorTrailer', 'tractorTrailerLoaded'], fleet: 'tractorTrailer', tech: 'truck' }),
+  'cabover-lorry': row('cab-over lorry', ['cab-over semi', 'cabover truck', 'cab over truck', 'cabover', 'european lorry', 'euro truck', 'curtainsider', 'curtain sider', 'tautliner', 'artic lorry', 'cab-over tractor', 'european semi'], 'road', 'hauler', M, ROAD,
+    { physics: 'semiCabover', tech: 'truck' }),
+  flatbed: row('flatbed truck', ['flatbed', 'flat deck', 'flatbed lorry', 'stake bed truck', 'platform truck'], 'road', 'hauler', M, ROAD,
+    { assembly: 'flatbed', physics: 'flatbedTruck', tech: 'truck' }),
+  // (the city's working trucks, classes and not replicas, in no maker's face or livery: a medium-duty conventional on its
+  // stake bed; the Asian city trucks, a 2-ton cab-over on its drop-side deck and a 4-ton wide cab-over on its wing body,
+  // each by word a wing, a box, a reefer, a dump or a crane; a mini goods carrier; a cube van; a side-bay beverage truck;
+  // their realistic bodies the hull kit's, road-city-truck.js)
+  'medium-truck': row('medium duty truck', ['medium truck', 'medium-duty truck', 'mid size truck', 'midsize truck', 'mid-size truck', 'stake truck', 'stake body truck', 'class 6 truck', 'medium dump truck', 'small dump truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'mediumTruck', tech: 'truck' }),
+  'city-cabover': row('2-ton cab-over truck', ['two ton truck', '2 ton truck', 'asian city truck', 'japanese light truck', 'asian light truck', 'small cab over truck', 'drop side truck', 'dropside truck', 'city truck', 'small crane truck', 'small wing truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'lightCabover', tech: 'truck' }),
+  'wing-truck': row('wing body truck', ['wing truck', 'wing van', 'gullwing truck', '4 ton truck', 'four ton truck', 'wide cab over truck', 'asian medium truck', 'japanese medium truck', 'wing body'], 'road', 'hauler', M, ROAD,
+    { physics: 'wideCabover', tech: 'truck' }),
+  'mini-goods': row('mini goods carrier', ['mini cargo truck', 'goods carrier', 'small goods vehicle', 'mini goods truck', 'light goods carrier', 'small cargo truck', 'mini lorry', 'baby truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'miniGoods', tech: 'truck' }),
+  'cube-van': row('cube van', ['cutaway van', 'cutaway truck', 'cube truck', 'parcel cube van', 'box van truck', 'small moving truck', 'moving van', 'cube box van'], 'road', 'hauler', M, ROAD,
+    { physics: 'cubeVan', tech: 'truck' }),
+  'beverage-truck': row('beverage truck', ['drink truck', 'drinks lorry', 'bay truck', 'side bay truck', 'side loading truck', 'soda truck', 'beer truck', 'dray truck', 'bottle truck', 'drinks delivery truck'], 'road', 'hauler', M, ROAD,
+    { physics: 'beverageTruck', tech: 'truck' }),
+  'log-truck': row('log truck', ['logging truck', 'timber truck', 'timber lorry', 'log hauler', 'logger truck', 'pulpwood truck', 'log trailer'], 'road', 'hauler', M, ROAD.concat('watched'),
+    { physics: 'logTruck', tech: 'truck' }),
   trailer: row('trailer', ['towed trailer', 'utility trailer'], 'road', 'hauler', M, ['parked'],
     { assembly: 'trailer', tech: 'cart' }),
   'tow-truck': row('tow truck', ['wrecker', 'breakdown truck', 'recovery truck'], 'road', 'service', M, ROAD,
@@ -290,8 +316,15 @@ export const VEHICLES = {
   'fuel-truck': row('fuel truck', ['refueller', 'refueler', 'aviation fuel truck', 'jet fuel truck', 'fuel bowser', 'aircraft refueller'], 'road', 'ground-crew', M, ['driven', 'parked'],
     { physics: 'fuelTruck', tech: 'truck' }),
   // ── work and war on the ground ──────────────────────────────────────────────
-  tractor: row('tractor', ['farm tractor'], 'offroad', 'work', M, ['driven', 'parked'],
-    { tech: 'car' }),
+  // (the farm's machines, classes and not replicas, in no maker's colours: a row-crop tractor (its front loader and its
+  // plough by word), a combine harvester (a grain platform or a corn head; its unloading auger swung out), a
+  // self-propelled sprayer (its booms folded or out); their realistic bodies the hull kit's, road-farm.js)
+  tractor: row('tractor', ['farm tractor', 'row crop tractor', 'row-crop tractor', 'ag tractor', 'agricultural tractor', 'tractor with loader', 'loader tractor', 'ploughing tractor', 'plowing tractor'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
+    { physics: 'farmTractor', tech: 'car' }),
+  'combine-harvester': row('combine harvester', ['combine', 'harvester', 'grain harvester', 'combine harvesting', 'thresher', 'corn combine', 'wheat harvester'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
+    { physics: 'combineHarvester', tech: 'truck' }),
+  'field-sprayer': row('self-propelled sprayer', ['self propelled sprayer', 'sprayer', 'field sprayer', 'boom sprayer', 'high clearance sprayer', 'farm sprayer', 'tractor sprayer', 'row crop sprayer'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
+    { physics: 'cropSprayer', tech: 'truck' }),
   forklift: row('forklift', ['fork lift', 'lift truck', 'counterbalance forklift', 'fork truck'], 'road', 'work', M, ['driven', 'parked'],
     { physics: 'forklift', construction: 'forklift', tech: 'car' }),
   // ── the site's machines (the construction shelf's, construction-shelf/: each a carrier, an upper, a front and a tool;
@@ -558,6 +591,35 @@ export const VEHICLES = {
     { craft: 'starliner', tech: 'winged' }),
   'space-trainer': row('two-seat flight trainer', ['space trainer', 'flight trainer'], 'space', 'trainer', F, AIR,
     { craft: 'spaceTrainer', tech: 'winged' }),
+  // ── to orbit: today's launch vehicles, classes and not replicas, in no agency's or company's markings (the craft shelf's
+  // launch realm, craft-shelf/rocket-archetypes.js: stood on their tails on their pads, parked and watched, never flown
+  // yet; their concept the crafter's nearest flying craft, `winged`, until it draws a rocket of its own) ─────────────
+  rocket: row('rocket', ['launch vehicle', 'orbital rocket', 'reusable rocket', 'space rocket', 'medium launcher', 'two stage rocket', 'two-stage rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'mediumLauncher', tech: 'winged' }),
+  'crew-rocket': row('crew rocket', ['crewed rocket', 'crew launcher', 'capsule rocket', 'rocket with a capsule', 'crew capsule rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'crewLauncher', tech: 'winged' }),
+  'heavy-rocket': row('heavy rocket', ['heavy launcher', 'three core rocket', 'triple core rocket', 'three-core rocket', 'heavy launch vehicle'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'heavyLauncher', tech: 'winged' }),
+  'super-heavy-rocket': row('super heavy rocket', ['super-heavy rocket', 'super heavy', 'stainless rocket', 'megarocket', 'fully reusable rocket', 'super heavy launcher'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'superHeavy', tech: 'winged' }),
+  'space-shuttle': row('space shuttle', ['shuttle stack', 'orbiter stack', 'space shuttle stack', 'winged orbiter stack', 'shuttle on the pad'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'shuttleStack', tech: 'winged' }),
+  orbiter: row('winged orbiter', ['orbiter', 'space shuttle orbiter', 'shuttle orbiter', 'spaceplane orbiter', 'orbiter on its gear'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'orbiter', tech: 'winged' }),
+  'deep-space-rocket': row('heavy-lift crew rocket', ['heavy lift rocket', 'deep space rocket', 'heavy-lift rocket', 'rocket with an abort tower', 'deep space crew rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'crewHeavy', tech: 'winged' }),
+  // (the older launchers: the three-stage moon rocket, the early single-seat capsule rocket, the two-seat capsule rocket,
+  // the four-booster cluster rocket, the winged orbiter on a heavy core's side)
+  'moon-rocket': row('three-stage moon rocket', ['moon rocket', 'lunar rocket', 'three stage moon rocket', 'moon landing rocket', 'classic moon rocket', 'sixties moon rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'moonRocket', tech: 'winged' }),
+  'early-capsule-rocket': row('early capsule rocket', ['single seat capsule rocket', 'single-seat capsule rocket', 'first crewed rocket', 'early crewed rocket', 'early space rocket', 'finned capsule rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'earlyCapsule', tech: 'winged' }),
+  'two-seat-capsule-rocket': row('two-seat capsule rocket', ['two seat capsule rocket', 'two man capsule rocket', 'two-man capsule rocket', 'early two stage crew rocket', 'twin chamber capsule rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'twoSeatCapsule', tech: 'winged' }),
+  'cluster-rocket': row('four-booster cluster rocket', ['cluster rocket', 'four booster rocket', 'strap-on cluster rocket', 'tapered booster rocket', 'cluster crew rocket', 'waisted core rocket'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'clusterCrew', tech: 'winged' }),
+  'side-orbiter-stack': row('side-mount orbiter stack', ['orbiter on a heavy core', 'heavy core orbiter stack', 'side mounted orbiter', 'core rocket and orbiter', 'second winged orbiter', 'side-mounted orbiter stack'], 'space', 'launch', M, ['parked', 'watched'],
+    { craft: 'sideOrbiterStack', tech: 'winged' }),
 };
 
 /** The handle tables a row may name, and whether a key in one belongs to exactly one row (`claim: 'one'`) or a row

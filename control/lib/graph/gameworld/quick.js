@@ -90,6 +90,8 @@
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
  *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
+ *     card?, challenge?, serve?: n,        // work: a starter (kitchen, farm, site, roof) or a Shovels & Buckets card;
+ *                                           // beginner | intermediate | advanced | 0..1 (beginner); orders to serve
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     moves?: true,                         // every person the run makes (the hero, foes, guards, towers, farmhands) is
@@ -215,6 +217,10 @@ import { readArena } from '../versus/versus-arena.js';
 import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { settingOfGame } from './cast-setting.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
+import { SCENARIOS } from '../worksim/scenarios.js';
+import { readCard } from '../worksim/card.js';
+import { solve as solveWork, targetOf } from '../worksim/solve.js';
+import { layWork } from '../game/work-mechanics.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -229,6 +235,7 @@ export const QUICK_GOALS = Object.freeze({
   defend: 'foes walk the trail in waves to your base (its start); build archers\' towers on the pads beside it (E, for gold) and hold',
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
+  work: 'a work shift by the start: take from the crates, work the stations by standing at them (E), take off what cooks or grows alone before it burns, shelve what waits, hand in the orders: serve enough by the bell. A kitchen, a farm, a building site, a roof\'s leaves, or a card of your own, tuned to a challenge',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   fight: 'a 1v1 fighter from the side, every fighter a character the character loop designs: roster, arenas, rounds, timer, rules',
   meet: 'an athletic meet in an arena (the contest kernel the referee): a sprint, the hurdles or the long jump in lanes, up to four local players on one keyboard, the rest the computer\'s; the gun, a false start, the clock or the measure, the placings',
@@ -274,7 +281,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -562,6 +569,12 @@ export function readQuick(Q) {
   if (Q.folk !== undefined && !(Number.isInteger(Q.folk) && Q.folk >= 0 && Q.folk <= 6)) throw fail('.folk is 0 to 6');
   if (Q.farmhand !== undefined && !isObj(Q.farmhand)) throw fail('.farmhand is a hero-door spec, as .hero is');
   if (Q.goal === 'farm' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.farm tills the land by a trail\'s start: no climb, building or ride');
+  for (const k of ['card', 'challenge', 'serve']) if (Q.goal !== 'work' && Q[k] !== undefined) throw fail(`.${k} belongs to the work goal`);
+  if (Q.card !== undefined && !(isObj(Q.card) || Object.prototype.hasOwnProperty.call(SCENARIOS, Q.card))) throw fail(`.card is a starter (${Object.keys(SCENARIOS).join(', ')}) or a Shovels & Buckets card (docs/worksim.md)`);
+  if (isObj(Q.card)) { try { readCard(Q.card); } catch (e) { throw fail(`.card: ${e.message}`); } }
+  if (Q.challenge !== undefined) { try { targetOf(Q.challenge); } catch (e) { throw fail(`.challenge: ${e.message}`); } }
+  if (Q.serve !== undefined && !(Number.isInteger(Q.serve) && Q.serve >= 1 && Q.serve <= 200)) throw fail('.serve is how many orders to serve by the bell, 1 to 200');
+  if (Q.goal === 'work' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.work lays its line by a trail\'s start: no climb, building or ride');
   if (Q.run !== undefined && !(Number.isInteger(Q.run) && Q.run >= 2 && Q.run <= 8)) throw fail('.run is how many trails a run draws, 2 to 8');
   if (Q.goal !== 'battle' && Q.goal !== 'shoot' && Q.foes !== undefined) throw fail('.foes belongs to the battle and shoot goals');
   const most = Q.goal === 'shoot' ? 8 : BATTLE.foeHp.length;
@@ -884,7 +897,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // (and the screen it is made for, beside it: game/screen.js)
   const { camera: named, moves, screen, xr: xrNamed, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
-  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
+  // a work shift is high concept: the work is what is shown, so it is seen from overhead and worked by a mascot (unless
+  // the creator names a camera, a hero, or no hero)
+  const shift = quick.goal === 'work' && quick.hero !== false;
+  if (quick.goal === 'work' && quick.hero === undefined) quick.hero = { mascot: true };
+  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : shift ? 'top-down' : undefined);
   // played in a headset: the world's own setting (each level carries it)
   const xr = xrNamed === false ? undefined : xrNamed;
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -1004,6 +1021,10 @@ export function goalMechanics(quick, ends) {
         { kind: 'crops', plots: plots.map((at) => ({ at })), cost: FARM.cost, price: FARM.price, days: 2, purse: { var: 'gold', start: FARM.gold }, by: quick.days ?? 6 },
         { kind: 'win-when', when: { var: 'gold', gte: target }, event: 'farm:rich', hud: 'Gold' },
       ];
+    }
+    case 'work': {
+      const W = workShift(quick, ends);
+      return [{ kind: 'work', card: W.card, at: W.at, heading: W.heading, show: true, reach: WORK_REACH, counters: true, ...(quick.serve ? { goal: quick.serve } : {}) }];
     }
     case 'shoot': {
       // a dogfight (a craft: skyscape/dogfight.js): every fighter down, each hit on the craft costs hp, a crash costs
@@ -1232,6 +1253,59 @@ export function farmPlots(quick, ends) {
   // the field the intent flattened for them (lay-concerns.js), first
   for (const c of [...(ends.field ? [ends.field] : []), ...sites, [s[0] + Math.cos(h) * 8, s[1] + Math.sin(h) * 8]]) { const got = lay(c); if (got) return got; }
   return lay([s[0] + Math.cos(h) * 8, s[1] + Math.sin(h) * 8]) ?? [[r3(s[0] + Math.cos(h) * 8), r3(s[1] + Math.sin(h) * 8), s[2]]];
+}
+
+/**
+ * A work shift's card and its place: the card (a starter or the creator's) tuned by the solver to the challenge
+ * (beginner by default) for the one player a quick game has, and a flat stretch beside the way for its line (the farm's
+ * sites: off each beat, or ahead of the start), laid facing north, so under the overhead camera the work flows up the
+ * screen (crates at the bottom, the hand-in at the top). The same quick and stage give the same shift, kept, since the
+ * goal and the cast both read it. → { card, at, heading, solved, layout }
+ */
+const SHIFTS = new Map(), SHIFTS_KEEP = 8;
+export function workShift(quick, ends) {
+  const key = JSON.stringify({ card: quick.card ?? null, challenge: quick.challenge ?? null, spawn: ends.spawn, beats: (ends.beats ?? []).map((b) => b.at), field: ends.field ?? null });
+  if (SHIFTS.has(key)) return SHIFTS.get(key);
+  const raw = quick.card === undefined ? SCENARIOS.kitchen : isObj(quick.card) ? quick.card : SCENARIOS[quick.card];
+  const solved = solveWork({ ...raw, crew: { ...(raw.crew ?? {}), workers: 1 } }, quick.challenge ?? 'beginner');
+  const s = ends.spawn, hh = 0;
+  const groundAt = (p) => (ends.ground ? ends.ground(p[0], p[1]) : s[2]);
+  const fit = (c) => {
+    const z0 = groundAt(c);
+    if (z0 == null) return null;
+    const L = layWork(solved.card, [c[0], c[1], z0], hh);
+    const pts = [...Object.values(L.stations).flat(), ...Object.values(L.crates), ...Object.values(L.shelves), L.serve];
+    const zs = pts.map(groundAt);
+    if (zs.some((z) => z == null) || Math.max(...zs, z0) - Math.min(...zs, z0) > 1.5) return null;
+    const at = [r3(c[0]), r3(c[1]), r3(Math.max(...zs, z0))];
+    return { at, heading: hh, layout: layWork(solved.card, at, hh) };
+  };
+  const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead').map((b) => b.at);
+  const sites = along.flatMap((a, k) => { const prev = k ? along[k - 1] : s, h = Math.atan2(a[1] - prev[1], a[0] - prev[0]); return [1, -1].map((side) => [a[0] - Math.sin(h) * 12 * side, a[1] + Math.cos(h) * 12 * side]); });
+  const h0 = ends.heading ?? 0, ahead = [s[0] + Math.cos(h0) * 12, s[1] + Math.sin(h0) * 12];
+  let out = null;
+  for (const c of [...(ends.field ? [ends.field] : []), ...sites, ahead]) { const got = fit(c); if (got) { out = { card: solved.card, ...got, solved }; break; } }
+  if (!out) { const at = [r3(ahead[0]), r3(ahead[1]), s[2]]; out = { card: solved.card, at, heading: hh, layout: layWork(solved.card, at, hh), solved }; }
+  SHIFTS.set(key, out);
+  if (SHIFTS.size > SHIFTS_KEEP) SHIFTS.delete(SHIFTS.keys().next().value);
+  return out;
+}
+/** How far from a counter's middle a work place's E reaches: from its side (the counters stand solid). */
+export const WORK_REACH = 1.6;
+/**
+ * A work shift's counters (stageLevelOrder's `extra`): a solid block under each place of the line, its top a
+ * counter's height over the place, its foot sunk into the ground under it (the line is laid level over ground that
+ * varies), each place's own marker standing on it as a cap in its colour. → { blocks }
+ */
+export function workCast(quick, ends) {
+  const W = workShift(quick, ends), L = W.layout, boxes = [];
+  const groundAt = (p) => (ends.ground ? ends.ground(p[0], p[1]) ?? p[2] : p[2]);
+  const box = (at, w, d, h) => boxes.push({ min: [r3(at[0] - w / 2), r3(at[1] - d / 2), r3(groundAt(at) - 0.3)], max: [r3(at[0] + w / 2), r3(at[1] + d / 2), r3(at[2] + h)] });
+  for (const list of Object.values(L.stations)) for (const at of list) box(at, 1, 1, 0.9);
+  for (const at of Object.values(L.crates)) box(at, 0.8, 0.8, 0.7);
+  for (const at of Object.values(L.shelves)) box(at, 0.6, 0.6, 1.1);
+  box(L.serve, 1.6, 0.8, 1);
+  return { blocks: [{ id: 'work-line', blocks: boxes, course: false, value: 0.8 }] };
 }
 
 /** A farm's farmhands: `folk` (2) standing by the start, each keeping a day (play.routines): out to the plots at seven,

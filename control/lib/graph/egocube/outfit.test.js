@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { outfitFromSheet, adornFromSheet, outfitPalette } from './outfit.js';
-import { planFromSheet as planFromSheetOf, CLOTHED_H } from './plan.js';
+import { outfitFromSheet, adornFromSheet, outfitPalette, heroAdornOf } from './outfit.js';
+import { planFromSheet as planFromSheetOf, CLOTHED_H, beastOnTiered } from './plan.js';
 import { compileOutfit, outfitLaws, OUTFIT_KIND_NAMES } from '../polygonizer/outfit-plan.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
@@ -12,6 +12,20 @@ const planFromSheet = (sheet, opts = {}) => planFromSheetOf(sheet, { gen: 6, ...
 const LINEAGES = ['ursine', 'lupine', 'feline', 'avian', 'draconic', 'insectoid'];
 
 describe('the outfit, designed from the sheet', () => {
+  it('takes a garment colour given it: its hue the base, every other role still by the palette\'s rules; absent, as it was', () => {
+    const sheet = rollEgocube({ seed: 3, facets: { archetype: 'hero', role: 'frontline' } }), given = '#3a80d0';
+    const own = outfitFromSheet(sheet), G = outfitFromSheet(sheet, { garment: given });
+    expect(outfitFromSheet(sheet, { garment: null })).toEqual(own);
+    const P = G.outfit.intent.palette, hue = (h) => hexLch(h)[2];
+    expect(Math.abs(hue(P.base) - hue(given))).toBeLessThan(8);
+    expect(Math.abs(hue(own.outfit.intent.palette.base) - hue(given))).toBeGreaterThan(30);
+    // (the same cut and pieces: only the colour was given; the laws hold on it)
+    expect(G.outfit.pieces).toEqual(own.outfit.pieces);
+    expect(G.outfit.cut).toEqual(own.outfit.cut);
+    expect(G.laws.filter((l) => !l.ok)).toEqual([]);
+    expect(outfitPalette(sheet, sheet.ancestry.colours.Skin, given)).toEqual(P);
+  });
+
   it('every rolled character\'s outfit passes the visual-interest laws, and the outfits vary', () => {
     const sets = new Set();
     for (const a of LINEAGES) for (let seed = 1; seed <= 8; seed++) {
@@ -79,6 +93,32 @@ describe('the outfit, designed from the sheet', () => {
     // cloth carries the mass beneath it: no muscle swell on a part a garment lies over (it would push the skin through)
     const clothed = compileOutfit(kin), parts = new Set(clothed.garments.flatMap((g) => [g.part].flat()).map((n) => n.replace(/[RL]$/, '')));
     for (const V of clothed.body.volume ?? []) expect(parts.has(V[0].replace(/[RL]$/, '')), V[0]).toBe(false);
+  });
+
+  it('the frame adorned takes a station and a room given it; on the tiered body a kin wears its adornment, an outfit with no cut', () => {
+    // (a kin on the tiered body, rolled below the clothed line)
+    const sheet = rollEgocube({ seed: 1, facets: { ancestry: LINEAGES[0], role: 'frontline', humanity: CLOTHED_H - 0.05 } }), own = adornFromSheet(sheet);
+    expect(beastOnTiered(sheet)).toBe(true);
+    // (a room: no more pieces than it, the focal kept; the default five, as before)
+    const few = adornFromSheet(sheet, { room: 2 });
+    expect(few.outfit.pieces.length).toBeLessThanOrEqual(2);
+    expect(few.outfit.pieces.some((p) => p.role === 'focal')).toBe(true);
+    expect(adornFromSheet(sheet, { room: 5 }).outfit.pieces.map((p) => p.kind)).toEqual(own.outfit.pieces.map((p) => p.kind));
+    // (a station: the same sheet low and high differ in what it wears; none given, its own)
+    const low = adornFromSheet(sheet, { station: 0.1, room: 6 }).outfit.pieces.map((p) => p.kind), high = adornFromSheet(sheet, { station: 0.6, room: 6 }).outfit.pieces.map((p) => p.kind);
+    expect(high).not.toEqual(low);
+    // (the tiered body wears it: an outfit build, no garment, the pieces without their reasons, in the intent's palette)
+    const P = planFromSheetOf(sheet, { dress: 'designed' }), worn = P.create.spec.outfit;
+    expect(worn).toMatchObject({ type: 'outfit', style: { language: { feet: 'none' } } });
+    expect(worn.pieces.map((p) => p.kind)).toEqual(own.outfit.pieces.map((p) => p.kind));
+    expect(worn.pieces.every((p) => p.why === undefined)).toBe(true);
+    // (in its palette, read against the coat the body is drawn in)
+    const coated = adornFromSheet(sheet, { coat: P.create.spec.palette.Skin });
+    expect(worn.intent.palette).toEqual(coated.outfit.intent.palette);
+    expect(heroAdornOf(coated.outfit)).toEqual(worn);
+    expect(P.ledger.filter((r) => r.channel === 'dress').every((r) => /its adornment/.test(r.at) && !r.pending)).toBe(true);
+    // (no dress asked: bare, as before)
+    expect(planFromSheetOf(sheet).create.spec.outfit).toBeUndefined();
   });
 
   it('a cut still compiles onto a creature when an author asks: second skin painted, cloth fitted, the worn pieces over it', () => {

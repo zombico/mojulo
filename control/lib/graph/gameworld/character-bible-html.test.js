@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { characterBibleHtml, gameworldBibleHtml, MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, approveCharacter } from './index.js';
+import { characterBibleHtml, gameworldBibleHtml, MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, approveCharacter, composeGameworld } from './index.js';
 
 const rec = (ref) => ({ ref, order: '0000aaaa', stored: '0000bbbb' });
 
@@ -175,5 +175,12 @@ describe('the character bible', () => {
   it('the same hero stands in a world whose kit is a tunnelled look, with no outdoor card to hand down', () => {
     const page = characterBibleHtml({ ...HALDEN_REACH, characters: MEADOWMARK_HERO.characters });
     expect(page).toContain('Character bible');
+  });
+  it('a hero the sentence door designed: the base page says how, in the brief\'s own lines; a hand-made one says nothing', () => {
+    const w = composeGameworld({ prompt: 'an action rpg', seed: 3 }), how = w.brief.hero.design.read;
+    const page = characterBibleHtml(w);
+    expect(page).toContain('How it was designed');
+    expect(page).toContain(how[0].replace(/'/g, '&#39;').split(':')[0]);
+    expect(html).not.toContain('How it was designed');
   });
 });

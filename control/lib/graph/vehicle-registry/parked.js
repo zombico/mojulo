@@ -54,6 +54,7 @@ import { lookCard as cycleLookCard } from '../cycle-shelf/cycle-looks.js';
 import { wheelLayout } from '../roads/vehicles.js';
 import { AIRSIDE_REACH } from '../car-designer/road-airside.js';
 import { CIVIC_REACH, CIVIC_CLASSES } from '../car-designer/road-civic.js';
+import { FARM_REACH, FARM_CLASSES } from '../car-designer/road-farm.js';
 import { crewFor, turnaround } from './turnaround.js';
 import { conFootprint, readConSpec } from '../construction-shelf/con-figure.js';
 import { CAR_CARDS, readCarSpec } from '../car-shelf/car-library.js';
@@ -80,8 +81,8 @@ export function parkable(word, at = 'parked') {
   const hit = typeof word === 'string' ? resolveVehicle(word) : null;
   if (!hit) throw new Error(`${at}: '${word}' is no vehicle; ${suggestVehicles(String(word ?? ''))}`);
   const h = handlesOf(hit.id);
-  // (a craft off the shelf: a helicopter, an aircraft, a drone, standing on its gear)
-  const craft = (h.craft ?? []).find((k) => CRAFT_ARCHETYPES[k]?.realm === 'earth');
+  // (a craft off the shelf: a helicopter, an aircraft, a drone, standing on its gear; a launcher standing on its tail)
+  const craft = (h.craft ?? []).find((k) => ['earth', 'launch'].includes(CRAFT_ARCHETYPES[k]?.realm));
   if (craft && hit.row.uses.includes('parked')) return { vehicle: hit.id, craft };
   // (a personal or family car stands as its row's own card, car-shelf/; a row the highway fleet lofts (the sedan, the
   // compact, the crossover) parked its class's plain loft before, and keeps it unless its entry names a `car`)
@@ -159,8 +160,9 @@ export function readParked(list, at = 'parked') {
     // (a reach lifts an airside body: its galley, its belt, its platform, a pushback's cradle; metres, clamped to its range)
     // (or a city's body that deploys: a refuse truck's tailgate, a plough's blade, a sweeper's brooms, a ladder's tip, a
     // bucket's floor; its range its own)
-    const civic = field && CIVIC_REACH[CIVIC_CLASSES[cls]];
-    if (p.reach !== undefined && !(field && (AIRSIDE_REACH[MILITARY_CLASSES[cls]] || civic))) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's, or a city vehicle's that deploys (a garbage truck, a snowplow, a street sweeper, a ladder truck, a bucket truck)`);
+    // (or a tractor's front loader: its bucket's pin, the loader fitted by the reach)
+    const civic = field && (CIVIC_REACH[CIVIC_CLASSES[cls]] ?? (FARM_CLASSES[cls] === 'tractor' ? FARM_REACH.loader : undefined));
+    if (p.reach !== undefined && !(field && (AIRSIDE_REACH[MILITARY_CLASSES[cls]] || civic))) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's, a city vehicle's that deploys (a garbage truck, a snowplow, a street sweeper, a ladder truck, a bucket truck), or a tractor's loader`);
     const top = civic ? civic.range[1] : 10;
     if (p.reach !== undefined && !(Number.isFinite(p.reach) && p.reach >= 0 && p.reach <= top)) throw new Error(`${w}.reach is metres from the ground, 0 to ${top}`);
     // (a pose, a tool, a height and a palette are a site machine's: read as its shelf reads them)
@@ -257,6 +259,15 @@ export function withParked(manifest) {
     const hx = (Math.abs(c) * v.L + Math.abs(s) * v.W) / 2, hy = (Math.abs(s) * v.L + Math.abs(c) * v.W) / 2;
     colliders.push({ min: [r3(p.at[0] - hx), r3(p.at[1] - hy), p.at[2]], max: [r3(p.at[0] + hx), r3(p.at[1] + hy), r3(p.at[2] + v.H)] });
   });
+  // (SAID ONCE: two parked vehicles that are the same vehicle, in the same dress, are one figure stood twice; the page
+  // carries its body once)
+  const first = new Map();
+  for (const e of entities) {
+    const id = e && e.body && e.body.figure;
+    if (typeof id !== 'string' || !/^parked-\d+$/.test(id) || !figures[id]) continue;
+    const key = JSON.stringify(figures[id]), kept = first.get(key);
+    if (kept === undefined) first.set(key, id); else if (kept !== id) { e.body = { ...e.body, figure: kept }; delete figures[id]; }
+  }
   const { parked: _p, ...rest } = manifest;
   return { manifest: { ...rest, figures, entities }, colliders };
 }

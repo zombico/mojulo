@@ -19,12 +19,54 @@
  *                            feel's template has a kit; else null. Never laid unasked: a kit changes every level's bytes
  *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS)
  *   armLevel(G, manifest)  → the level with the arsenal laid on each pilot that strikes (`rule.strikeContact`): the
- *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules. Without an
- *                            arsenal, or with no hero that strikes, the manifest itself (zero bytes added)
+ *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules and their HEALTH
+ *                            IN THE KIT'S STRINGS (below). Without an arsenal, or with no hero that strikes, the manifest
+ *                            itself (zero bytes added)
+ *
+ * ONE SCALE: a world that writes an arsenal numbers its foes by its own kit, not by the foe shelf's frame (a blow of 20,
+ * foes/vocab.js HERO; a blade deals a tenth of that). A foe's health is the strings its rank takes (STRINGS_BY_RANK: a
+ * grunt one, an elite three and a half, a boss eleven) times what the kit's first light string deals on a blade of the
+ * normal class (stringDamage: its moves' damage × the weapon's × HELD_STRIKE.normal's; a heavier blade fells sooner).
+ *   stringDamage(A) → a number   ·   foeHealth(rank, A) → the hp a foe of that rank carries in a world armed with A
+ *   bossPhases(mind) → the phases a boss's mind is given in such a world, or null (its own, below)
  *
  * Pure.
  */
 import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
+import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
+import { AGGRESSIVENESS } from '../mind/vocab.js';
+
+/** The strings a foe of each rank takes to fall (mind/vocab.js RANKS), the action game's pace: a grunt to one, an elite to
+ * three or four, a boss to ten or twelve. */
+export const STRINGS_BY_RANK = Object.freeze({ minion: 1, elite: 3.5, miniboss: 6, boss: 11 });
+/** What the kit's first light string deals: its first drawn weapon's first ground combo that opens on the light, its
+ * moves' damage × the weapon's, on a blade of the normal class. */
+export function stringDamage(A) {
+  const W = A.weapons.find((x) => (x.figure ?? 'drawn') === 'drawn') ?? A.weapons[0];
+  const c = W.combos.find((x) => !x.air && x.beats[0] === 'L') ?? W.combos.find((x) => !x.air) ?? W.combos[0];
+  const per = c.moves.reduce((s, id) => s + (W.moves[id]?.damage ?? 1), 0);
+  return per * (W.damage ?? 1) * HELD_STRIKE.normal.damage;
+}
+export const foeHealth = (rank, A) => Math.max(1, Math.round((STRINGS_BY_RANK[rank] ?? STRINGS_BY_RANK.minion) * stringDamage(A)));
+
+// the tempers in their order (mind/vocab.js AGGRESSIVENESS levels), and the one that stuffs a raw swing with a charge
+const TEMPERS = Object.keys(AGGRESSIVENESS).sort((a, b) => AGGRESSIVENESS[a].level - AGGRESSIVENESS[b].level);
+const stuffs = (a) => !!AGGRESSIVENESS[a]?.knobs?.tackleGuard;
+/** A BOSS'S PHASES IN A WORLD THAT PLAYS STRINGS. A boss steps its temper up as its health falls (worlds/controllable/
+ * mind.js `phasesOf`: one temper up under two thirds, relentless under a third), and one temper up from `bold` is the
+ * opportunist, whose counter stuffs every swing it sees and is beaten only by a roll: the mind the casting call keeps
+ * away from a hero that plays strings (foe-casting.js `counters`), come back at two thirds of the boss's health. So in a
+ * world armed with a kit the boss's phases are written out, each stepping to the next temper that answers a string by
+ * being cut. Null where the mind writes its own phases, is no boss, or never steps into the counter (its default kept).
+ *   bossPhases(mind) → [{ below, aggressiveness, rule?, shift }] | null */
+export function bossPhases(mind) {
+  if (!isObj(mind) || mind.rank !== 'boss' || Array.isArray(mind.phases)) return null;
+  const at = Math.max(TEMPERS.indexOf(mind.aggressiveness ?? 'bold'), 1), last = TEMPERS.length - 1;
+  const next = TEMPERS[Math.min(at + 1, last)];
+  if (!stuffs(next)) return null;
+  const up = TEMPERS.slice(at + 1).find((a) => !stuffs(a)) ?? TEMPERS[at];
+  return [{ below: 2 / 3, aggressiveness: up, shift: 1 }, { below: 1 / 3, aggressiveness: TEMPERS[last], rule: { meleeSeek: true }, shift: 1.2 }];
+}
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (m) => { throw new Error(`gameworld: arsenal ${m}`); };
@@ -136,6 +178,14 @@ export function armLevel(G, manifest) {
   };
   // (the JUGGLE's rules on each foe's body: its hitstun, its air time, its recovery; a foe that writes its own keeps it)
   const combo = R.arsenal.juggle ? lowerJuggle(R.arsenal.juggle).combo : null;
-  const entities = ents.map((e) => (strikes(e) ? arm(e) : combo && e && e.team === 'foes' && e.body && e.body.combo === undefined ? { ...e, body: { ...e.body, combo } } : e));
+  // (each foe's health in the kit's strings, by its rank: one scale)
+  const foe = (e) => {
+    if (!(e && e.team === 'foes' && e.body && Number.isFinite(e.body.hp))) return e;
+    const body = { ...e.body, hp: foeHealth(e.rule?.mind?.rank ?? 'minion', R.arsenal), ...(combo && e.body.combo === undefined ? { combo } : {}) };
+    // (a boss's phases never step into the counter a string cannot answer: bossPhases)
+    const phases = bossPhases(e.rule?.mind);
+    return { ...e, body, ...(phases ? { rule: { ...e.rule, mind: { ...e.rule.mind, phases } } } : {}) };
+  };
+  const entities = ents.map((e) => (strikes(e) ? arm(e) : foe(e)));
   return { ...manifest, entities };
 }

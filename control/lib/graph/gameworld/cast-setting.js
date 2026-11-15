@@ -113,7 +113,7 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
   let spec = P.create.spec;
   // (a modern or future person dresses as its rolled look, egocube/outfit.js ERA_LOOKS: the look is its world's wardrobe,
   // so the kit's underlayer is not laid over it)
-  const rail = F.kit || KIT_ERAS.includes(setting.era) ? null : UNDERLAYERS[G.style?.kit];
+  const rail = F.kit || KIT_ERAS.includes(setting.era) ? null : UNDERLAYERS[G.style?.kit && stockKit(G.style.kit)];
   if (F.kit) {
     // the sport's kit in place of the world's clothes: the clothes the roll would wear, their kit and gear and the look's
     // silhouette go, and the clothes' colours with them (the kit's are its own); the roll's shirt colour is the kit's

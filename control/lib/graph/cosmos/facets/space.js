@@ -108,6 +108,8 @@ export const SPACE = Object.freeze({
       values: {
         scenario: { status: 'built', since: '2026-11-07', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/pace.js', note: 'a level\'s scenario beat by beat (a fight, a find, a meeting, a climax) on its tiles, each beat doing something in play, and how much happens: the pace measured on the map\'s own paths at the hero\'s run (dead air, the shape of calm, tension, peak and rest, a segment\'s interest)' },
         'play-layer': { status: 'built', since: '2026-11-08', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/play-layer.js', note: 'the play layer a block at a time (glyphs.play): foes cast in place, obstacles and cover in the world\'s style, pickups and gates, each a point in world metres and a yaw, so a terrain rebuilt under it keeps every piece and flags the ones it no longer suits' },
+        // built 11-13 (emergent gameplay): a level's `roll`, and a world's (`roll: true`): the session's seed picks what stands
+        roll: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/game/roll.js', note: 'a level that plays a different map each time: the session\'s seed picks its cover, its pickups, its start and a paced line of obstacles (game/roll.js; the same whole-number dice on the page and in Node), the recipe and the page unchanged; a world says `roll` and its trail levels and its course take one; held by the seeds audit (a sample of seeds walked and played through) and tried in the roll room' },
       },
     },
     // the frame a game is made for (11-05 the screen, game/screen.js; 11-06 the headset, scene/channels/xr.js): the camera
@@ -115,7 +117,7 @@ export const SPACE = Object.freeze({
     screen: {
       values: {
         monitor: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a monitor or a TV (screen: screen, 16:9; a wider one shows more at the sides)' },
-        phone: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a phone held upright (9:16, what design_game starts a game on): the frame, and a virtual pad drawn from the pilot\'s rule and camera, the menus risen to the thumb' },
+        phone: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a phone held upright (9:16, what design_game starts a game on): the frame, and a virtual pad drawn from the pilot\'s rule and camera, the menus risen to the thumb; on a world whose screens are mana-ui\'s the pad is drawn by its HUD (11-14), and a key a thumb cannot press gets a HUD button (game/screen-keys.js)' },
         tablet: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a tablet on its side (4:3), or stood up' },
         // partial 11-06 (mana-xr): a world's `xr` opens each stage level in a WebXR session, the controllers a game pad,
         // mana-ui's screens on a panel; what is left is said in the note

@@ -51,7 +51,7 @@ describe('GET /bible', () => {
     // (a room it has not: 422, saying which it has; one that does not exist: 400)
     const lane = await bible('gw_fight', '?book=practice&room=mount');
     expect(lane.status).toBe(422);
-    expect((await lane.json()).reason).toMatch(/no mount lane \(it has practice\)/);
+    expect((await lane.json()).reason).toMatch(/no mount lane \(it has practice, room\)/);
     expect((await bible('gw_fight', '?book=practice&room=yard')).status).toBe(400);
     expect((await bible('gw_hero', '?download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark\.html"/);
     expect((await bible('gw_hero', '?book=characters&download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark-characters\.html"/);

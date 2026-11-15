@@ -68,16 +68,18 @@ describe('the holo arena on the World page', () => {
     if (!browser) return;
     const data = holoArenaData({ game: 'chess', players: 1, level: 'easy', seed: 5 });
     const { page, errors } = await open(data, 'you');
-    await new Promise((r) => setTimeout(r, 1500));
+    // (the seat is waited for by what the page says, not by a clock: its summon plays in frames, and a slow runner's
+    // frames are long, so a click sent after a fixed wait can land inside a beat and be dropped)
+    await page.waitForFunction(() => window.__mojHolo.ready, { timeout: 90000 });
     expect(await page.evaluate(() => window.__mojHolo.line)).toEqual([]);
     await page.evaluate(() => { window.__mojHolo.click('E2'); window.__mojHolo.click('E4'); });
-    await page.waitForFunction(() => window.__mojHolo.line.length >= 2, { timeout: 30000 });
+    await page.waitForFunction(() => window.__mojHolo.line.length >= 2, { timeout: 90000 });
     const line = await page.evaluate(() => window.__mojHolo.line);
     if (SHOTS) await page.screenshot({ path: join(SHOTS, 'holo-you.png') });
     await page.close();
     expect(errors).toEqual([]);
     expect(line[0]).toBe('E2-E4');
-  }, 120000);
+  }, 240000);
 
   for (const [game, name] of [['checkers', 'checkers'], ['chess', 'chess']]) {
     it(`${name}: the minds' duel in the page is Node's, move for move; every live piece a hologram`, async () => {

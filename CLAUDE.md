@@ -129,6 +129,7 @@ node scripts/reindex-embeddings.js   # text-only without the recall group; vecto
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
 node scripts/runnability.mjs <page.html> --cams cams.json   # what a World page asks of Chrome: docs/runnability.md
 node scripts/hover.mjs <tour.json> [--out dir]   # the hover bot: teleport shots, flights sampled at a speed (docs/hover-bot.md)
+node scripts/pack-page.mjs <page.html> [--parts]   # a World page gzipped, nothing cut: one file, or parts under a host's limit (docs/workshop.md)
 ```
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
@@ -306,6 +307,10 @@ Pointers only; each target carries its own design notes.
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
   manual: the `hud-title` card. A host that cannot carve shows the banner.
+- One room for a game (the game room): [gameroom/](control/lib/graph/gameroom/) (room primitives, the brief read from the
+  world, a seeded composition, the room laws, the dress by trade), played as the practice door's `room`
+  (`gameworld/game-room.js`) and dressing the work room:
+  [docs/game-room.md](docs/game-room.md).
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
@@ -342,6 +347,10 @@ Pointers only; each target carries its own design notes.
   `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
   [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
   its Blender film pack); craft in [docs/cinematics.md](docs/cinematics.md).
+- The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
+  theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
+  could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of
+  figure, direction or genre decision is a row): [docs/colour.md](docs/colour.md).
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).

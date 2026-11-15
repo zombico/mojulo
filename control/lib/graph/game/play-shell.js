@@ -39,8 +39,9 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
-import { readScreen } from './screen.js';
-import { buildFlowKernel, defaultFlow } from './flow.js';
+import { readScreen, screenPayload } from './screen.js';
+import { buildFlowKernel, defaultFlow, readFlow } from './flow.js';
+import { buildTurnKernel, turnOf, TURN_KEYS } from './turn.js';
 import { playCineRuntime } from './play-cine.js';
 import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
 
@@ -83,7 +84,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}) };
+    return { ref: lv.ref, title: sayTitle(lv.title || l.title || lv.ref), gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}), ...(l.rolls ? { rolls: true } : {}) };
   });
 
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
@@ -109,6 +110,18 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   const links = Array.isArray(manifest.links) && manifest.links.length
     ? manifest.links.reduce((m, lk) => { (m[lk.from.ref] ||= {})[lk.from.door] = lk.to; (m[lk.to.ref] ||= {})[lk.to.door] = lk.from; return m; }, {})
     : null;
+  // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
+  const flow = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front });
+  // THE TURNS (turn.js): a level step that says picks or a trigger is run as a turn; a game whose steps say none
+  // carries no key and none of the kernel. Picks are drawn by mana-ui: with no ui said, in the greybox
+  const turns = {};
+  for (const [id, st] of Object.entries(flow.steps)) if (st.kind === 'level' && TURN_KEYS.some((k) => st[k] !== undefined)) turns[id] = turnOf(st);
+  const hasTurns = Object.keys(turns).length > 0, hasPicks = Object.values(turns).some((t) => t.picks.length);
+  if (hasTurns) {
+    const errs = readFlow(flow, { levels: levelTable.map((l) => l.ref), consumes: Object.fromEntries(levelTable.map((l) => [l.ref, (l.contract.consumes || []).map((c) => c.slice)])) });
+    if (errs.length) throw new Error(`emitPlayShell: ${errs.join('; ')}`);
+  }
+  const ui = manifest.ui || (hasPicks ? {} : null);
   const cfg = {
     manifest,
     levels: levelTable,
@@ -116,17 +129,19 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     theme: Object.keys(levelTheme).length ? levelTheme : null,
     playtest: !!playtest,
     startLevel,
-    ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
+    ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
-    // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
-    flow: manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front }),
+    flow,
+    ...(hasTurns ? { turns } : {}),
+    // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
+    ...(bareHud && ui ? { bareHud: '(hover:hover) and (pointer:fine)' } : {}),
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
-    ...(manifest.ui ? { mana: shellManaConfig(manifest.ui) } : {}),
+    ...(ui ? { mana: hasPicks ? shellManaConfig(ui, { picks: true }) : shellManaConfig(ui) } : {}),
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
@@ -195,7 +210,8 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
   #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
   ${SCREEN_CSS}` : ''}${front ? `
   ${FRONT_CSS}` : ''}${mana ? `
-  ${shellManaCss(manifest.ui)}` : ''}
+  ${shellManaCss(ui)}` : ''}${mana && screen ? `
+  ${manaFrameCss(screen)}` : ''}
 </style></head>
 <body>
 <main id="app"></main>${front ? `
@@ -212,10 +228,24 @@ const __mojFront = (${playFrontRuntime.toString()});` : ''}${mana ? `
 ${shellManaScript()}` : ''}${cine ? `
 const __mojCine = (${playCineRuntime.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
-const __mojFlowK = (${buildFlowKernel.toString()})();
+const __mojFlowK = (${buildFlowKernel.toString()})();${hasTurns ? `
+const __mojTurnK = (${buildTurnKernel.toString()})();` : ''}
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
 </script>
 </body></html>`;
+}
+
+// a level's title as a player reads it: one that is only an id (lower case, digits and hyphens, parts joined by ·) is
+// said in words (small-meadow-1 · approach-a → Small Meadow 1 · Approach A); a title written as words is left as it is
+const sayTitle = (t) => (/^[a-z0-9]+(-[a-z0-9]+)*( · [a-z0-9]+(-[a-z0-9]+)*)*$/.test(t) && t.includes('-') ? t.replace(/-/g, ' ').replace(/(^| )([a-z])/g, (m, a, c) => a + c.toUpperCase()) : t);
+
+// THE GAME'S FRAME over its screens (screen.js): a game made for a phone or a monitor has its menus drawn in the box its
+// levels are (the frame's aspect, longer along its long axis up to the reach), centred, the rest of the device barred as
+// a level's is. Only a game with both a screen and mana-ui's screens carries it.
+function manaFrameCss(screen) {
+  const P = screenPayload(screen), lo = P.portrait ? P.aspect / P.reach : P.aspect, hi = P.portrait ? P.aspect : P.aspect * P.reach;
+  const w = `min(100vw, calc(100dvh * ${hi}))`, h = `min(100dvh, calc(100vw / ${lo}))`;
+  return `#mana > .mana-root{left:calc((100vw - ${w}) / 2);top:calc((100dvh - ${h}) / 2);right:auto;bottom:auto;width:${w};height:${h}}`;
 }
 
 /**
@@ -233,6 +263,10 @@ export function playShellRuntime(cfg, K) {
   const FK = __mojFlowK, FLOW = cfg.flow;
   // (a game whose flow plays a video has its player inlined, play-cine.js; any other has none)
   const CINE = typeof __mojCine === 'function' ? __mojCine({ go: (e) => go(e), show: (n) => show(n), app, here: () => at }) : null;
+  // THE TURNS (turn.js): a level step that says picks or a trigger is run as a turn; `turn` is the one being played
+  // ({ T, lv, from, s: the kernel's state, draft: a pick of several, being made })
+  const TK = typeof __mojTurnK === 'object' ? __mojTurnK : null, TURNS = cfg.turns || {};
+  let turn = null, againTurn = false;
   let at = { step: null, level: null }, holdTimer = 0, holdUntil = null, idleTimer = 0, idleAfter = 0, lastOutcome = null, waitCard = null;
 
   function el(tag, props, kids) {
@@ -355,6 +389,8 @@ export function playShellRuntime(cfg, K) {
     let a = (n * 2654435761) >>> 0;
     const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     const pool = LEVELS.slice();
+    // (`repeat`: a level may be drawn again, never twice running when there is another: a run of one rolled level's maps)
+    if (RUN.repeat) { const out = []; let prev = -1; for (let k = 0; k < RUN.length; k++) { let j = Math.floor(rnd() * pool.length); if (pool.length > 1 && j === prev) j = (j + 1) % pool.length; out.push(pool[j]); prev = j; } return out; }
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const x = pool[i]; pool[i] = pool[j]; pool[j] = x; }
     return pool.slice(0, RUN.length);
   }
@@ -372,13 +408,16 @@ export function playShellRuntime(cfg, K) {
     app.appendChild(el('div', { cls: 'screen center' }, [
       PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
       el('h1', { text: M.title }),
-      el('div', { cls: 'muted', text: 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
+      el('div', { cls: 'muted', text: RUN.repeat ? 'a run: ' + RUN.length + ' maps, rolled anew each time; fall, and it ends' : 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
       runs ? el('div', { cls: 'badge', text: 'deepest: ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') }) : null,
       el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: () => go('play') })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
     ]));
   }
   // a run's end: how deep it went, what it gained; a new run, the title, the credits
+  // a level that rolls says which of its maps was played (its seed): the number a player names a map by
+  let againSeed = null, lastSeed = null;
+  const mapSays = (lv, env) => (lv && lv.rolls && env && Number.isFinite(env.seed) ? el('div', { cls: 'muted', text: 'map ' + env.seed }) : null);
   function renderRunResult() {
     if (!run || !lastOutcome) { home(); return; }
     const env = lastOutcome.env, deep = lastOutcome.deep, won = run.at >= run.order.length;
@@ -390,6 +429,7 @@ export function playShellRuntime(cfg, K) {
       el('div', { cls: 'result-mark' + (won ? '' : ' fail'), text: won ? 'run complete' : 'run over' }),
       el('h1', { text: 'run ' + r.n + ': ' + r.at + ' of ' + r.order.length }),
       el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
+      mapSays(r.order[Math.min(r.at, r.order.length - 1)], env),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
       el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: () => go('again') }), el('button', { text: 'title', on: () => go('home') }), onOf('credits') ? el('button', { text: 'credits', on: () => go('credits') }) : null]),
@@ -502,7 +542,7 @@ export function playShellRuntime(cfg, K) {
   }
   // `stage`: a cinematic the flow plays on the level's page ({ scene, skip? }, params.__stage): the level plays it, held,
   // and says when it ends
-  function launch(lv, arrive, carry, stage) {
+  function launch(lv, arrive, carry, stage, picked) {
     if (stingerEl) stingerEl.pause();
     if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
     launches += 1;
@@ -511,12 +551,30 @@ export function playShellRuntime(cfg, K) {
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
     if (stage) params.__stage = stage;
-    session = { level: lv, params, seed: (run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1), ended: false };
+    // (a turn's picks: the game's own words as __picks, and of a consumed slice the members picked and no others)
+    if (picked) {
+      if (Object.keys(picked.picks).length) params.__picks = picked.picks;
+      // (the difficulty picked is the dial the level's foes read: the engine's tier, params.difficulty)
+      if (typeof picked.picks.difficulty === 'string') params.difficulty = picked.picks.difficulty;
+      for (const sl in picked.slices) {
+        const v = state[sl], key = v && v.roster ? 'roster' : 'items', out = {};
+        if (!v || !v[key]) continue;
+        picked.slices[sl].forEach((id) => { if (v[key][id] !== undefined) out[id] = clone(v[key][id]); });
+        params[sl] = { [key]: out };
+      }
+    }
+    // (a run: the level is told its place in it, for a HUD that says which map this is)
+    if (run) params.__run = { at: run.at + 1, of: run.order.length, n: run.n };
+    // (a level that rolls, played again: the same seed, so the same map; anything else, the next seed)
+    const fresh = run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1, seed = lv.rolls && againSeed != null ? againSeed : fresh;
+    againSeed = null; lastSeed = seed;
+    session = { level: lv, params, seed, ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
     // the veil while it loads: mana-ui's loading screen when the game draws its screens with it
-    if (MANA) MANA.loading(lv.title);
+    // (in a run the place it is going is the map's number in the run: what was cleared, and what is next)
+    if (MANA) MANA.loading(run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
@@ -540,10 +598,10 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
-    if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && cs.kind === 'cinematic' && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
+    if (d.moj === W.sceneEnd) { if (turn && turn.s.phase === 'main' && turn.s.sub === 'start' && d.scene === turn.s.trigger.scene) { turnSceneEnd(); return; } const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (d.moj === W.ready) {
@@ -590,15 +648,21 @@ export function playShellRuntime(cfg, K) {
       }
       // the flow steps on the level's end: won, lost or left
       const event = env.result === 'success' ? 'won' : env.result === 'fail' ? 'lost' : 'left';
+      // THE TURN: main is over; its end trigger (a video) plays before the flow goes on
+      const endT = turnOutcome(event, r.ok), after = (fn) => { if (endT) playVideo(endT.video, endT.skip, fn); else fn(); };
       // a RUN: a clear goes on to its next level, else the run's end (how deep it went, kept)
       if (run) {
         if (env.result === 'success') run.at += 1;
+        // (what the run adds up: its seconds of play, and what its maps kept that is counted high: coins)
+        const secs = playedSecs();
+        if (secs !== null) run.secs = (run.secs || 0) + secs;
+        for (const k of (env.stats && Array.isArray(env.stats.kept) ? env.stats.kept : [])) if (k.best === 'high' && Number.isFinite(Number(k.value))) { run.kept = run.kept || {}; run.kept[k.label] = (run.kept[k.label] || 0) + Number(k.value); }
         const deep = num(DEEP_KEY);
         if (run.at > deep) keep(DEEP_KEY, run.at);
         lastOutcome = { lv: session.level, env, ok: r.ok, deep };
-        if (env.result === 'success' && run.at < run.order.length) toast('cleared ' + run.at + ' of ' + run.order.length);
+        if (env.result === 'success' && run.at < run.order.length) { if (MANA) MANA.moment('cleared ' + run.at + ' of ' + run.order.length, secs !== null ? secs.toFixed(1) + ' s' : ''); else toast('cleared ' + run.at + ' of ' + run.order.length); }
         const sess = session;
-        setTimeout(() => { if (session === sess) go(event); }, 1400);
+        setTimeout(() => after(() => { if (session === sess) go(event); }), 1400);
         return;
       }
       // the game first completed (the flow's `complete`): the end, not on through the level's exit
@@ -609,11 +673,11 @@ export function playShellRuntime(cfg, K) {
       const more = { complete: !!fin, travelTo, from: session.level.ref };
       const next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, more, { level: at.level })));
       // straight on to a level (travel): at once
-      if (next && FLOW.steps[next.step].kind === 'level') { enter(next, more); return; }
+      if (next && FLOW.steps[next.step].kind === 'level') { after(() => enter(next, more)); return; }
       if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
       // on to a screen: once the level's own end card has been read (the level says so; a level from before game-card-done
       // is given the time it always had)
-      const sess = session, onward = () => { if (session !== sess) return; if (next) enter(next, more); else home(); };
+      const sess = session, onward = () => { if (session !== sess) return; after(() => { if (next) enter(next, more); else home(); }); };
       waitCard = onward;
       setTimeout(() => { if (waitCard === onward) { waitCard = null; onward(); } }, env.stats ? 2400 : 1600);
     }
@@ -622,13 +686,20 @@ export function playShellRuntime(cfg, K) {
   // ---- pause ----
   // OWNED (docs/local-multiplayer-principles.md): the controller whose start opened the pause owns it; another's start
   // does nothing until it closes. With seats (the level's game-seats) the panel names the owner's seat in its colour.
-  let paused = false, pauseBy = null, seatList = [];
+  let paused = false, pauseBy = null, seatList = [], pausedAt = 0;
+  // (the seconds a level was played: from its first frame shown to now, the time it stood paused taken out)
+  function playedSecs() { return session && session.t0 ? Math.max(0, Math.round((performance.now() - session.t0 - (session.held || 0)) / 100) / 10) : null; }
   function setPaused(on, by) {
+    // (a turn: the pause is an interrupt, legal in play only, never while a trigger plays)
+    if (turn && session && turn.s.phase === 'main') { if (on && turn.s.sub !== 'play') return; const n = TK.stepTurn(turn.T, turn.s, on ? 'interrupt' : 'resume'); if (n) turn.s = n; }
+    if (on !== paused && session) { if (on) pausedAt = performance.now(); else session.held = (session.held || 0) + (performance.now() - pausedAt); }
     paused = on;
     pauseBy = on ? by || null : null;
-    pauseEl.style.display = on ? 'flex' : 'none';
+    // (a game whose screens are mana-ui's pauses on its pause menu; else the shell's own panel)
+    pauseEl.style.display = on && !(MANA && screen === 'level') ? 'flex' : 'none';
     if (screen === 'level') post({ moj: W.pause, on });
-    if (on) renderPause();
+    if (MANA && screen === 'level') { if (on) MANA.pause(); else MANA.unpause(); }
+    else if (on) renderPause();
   }
   function renderPause(view) {
     pauseEl.textContent = '';
@@ -646,7 +717,7 @@ export function playShellRuntime(cfg, K) {
       if (owner) h.style.color = owner.color;
       s.appendChild(h);
       s.appendChild(el('button', { cls: 'primary', text: 'resume', on: () => setPaused(false) }));
-      s.appendChild(el('button', { text: 'restart', on: () => launch(session.level) }));
+      s.appendChild(el('button', { text: 'restart', on: () => { if (turn) relaunch(); else launch(session.level); } }));
       s.appendChild(el('button', { text: 'controls', on: () => renderPause('controls') }));
       s.appendChild(el('button', { text: 'sound: ' + (settings.sfxOn ? 'on' : 'off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderPause(); } }));
       s.appendChild(el('button', { cls: 'link', text: 'quit to ' + homeWord(), on: () => { session = null; home(); } }));
@@ -658,7 +729,7 @@ export function playShellRuntime(cfg, K) {
   const padPrev = {};
   (function padPoll() {
     requestAnimationFrame(padPoll);
-    const cine = FLOW.steps[at.step] && FLOW.steps[at.step].kind === 'cinematic';   // a cinematic has no pause
+    const cine = FLOW.steps[at.step] && (FLOW.steps[at.step].kind === 'cinematic' || FLOW.steps[at.step].kind === 'cutscene');   // a cinematic has no pause
     if (screen !== 'level' || cine || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
     const ps = navigator.getGamepads();
     for (let i = 0; i < ps.length; i++) {
@@ -749,6 +820,7 @@ export function playShellRuntime(cfg, K) {
     const kids = [
       el('div', { cls: 'result-mark' + (env.result === 'success' ? '' : ' fail'), text: res }),
       el('h1', { text: lv.title }),
+      mapSays(lv, env),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
       done && M.final ? el('div', { cls: 'badge', text: 'the game is complete' }) : null,
@@ -795,7 +867,10 @@ export function playShellRuntime(cfg, K) {
     const r = run, deep = lastOutcome.deep, won = r.at >= r.order.length, gains = lastOutcome.ok ? gainsOf(lastOutcome.env.events || []) : [];
     run = null; session = null;
     const items = [{ label: 'new run', then: { emit: 'again' } }, { label: 'title', then: { emit: 'home' } }].concat(onOf('credits') ? [{ label: 'credits', then: { emit: 'credits' } }] : []);
-    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(gains.map((g) => ({ label: g, value: '' }))), rank: '', items };
+    const last = r.order[Math.min(r.at, r.order.length - 1)], env = lastOutcome.env;
+    // (which map it ended on, the seconds it was played, what its maps kept that adds up)
+    const more = [].concat(last && last.rolls && Number.isFinite(env.seed) ? [{ label: 'map', value: String(env.seed) }] : [], r.secs ? [{ label: 'time', value: r.secs.toFixed(1) + ' s' }] : [], Object.keys(r.kept || {}).map((k) => ({ label: k.toLowerCase(), value: String(r.kept[k]) })));
+    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(more, gains.map((g) => ({ label: g, value: '' }))), rank: won ? 'clear' : '', items };
   }
   const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
     go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
@@ -804,6 +879,19 @@ export function playShellRuntime(cfg, K) {
     reset: () => { resetStore(); persist(); },
     levels: () => LEVELS.map((lv) => ({ ref: lv.ref, title: lv.title, open: isOpen(lv), cleared: cleared(lv.ref), lock: isOpen(lv) ? null : lv.gate && !K.evalGate(SCHEMA, state, lv.gate) ? needs(lv.gate) : 'not found yet' })),
     result: resultInfo, run: runInfo,
+    // a run's title: its rules in words, how deep the best went
+    runTitle: () => { if (!RUN) return null; const deep = num(DEEP_KEY), runs = num(RUNS_KEY); return { rules: RUN.repeat ? RUN.length + ' maps, rolled anew each run. Fall, and it ends.' : RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each run. Fall, and it ends.', best: runs ? 'best ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') : '', runs }; },
+    // the pause, as mana-ui's pause menu drives it
+    turn: { pick: turnPick, confirm: () => turnStep({ pick: (turn.draft || []).slice() }), back: () => turnStep('back') },
+    // (a level is the player's: in play, not paused, no trigger on; a bare HUD draws no button under a mouse)
+    playing: () => screen === 'level' && pauseBtn.style.display === 'block' && !paused && !(cfg.bareHud && window.matchMedia && window.matchMedia(cfg.bareHud).matches),
+    pause: {
+      open: () => setPaused(true),
+      resume: () => setPaused(false), restart: relaunch, quit: () => { setPaused(false); session = null; home(); },
+      sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
+      rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],
+      owner: () => { const o = pauseBy && seatList.find((x) => x.controller === pauseBy); return o ? o.label : ''; },
+    },
   }) : null;
 
   // ---- the flow runner ----
@@ -813,7 +901,7 @@ export function playShellRuntime(cfg, K) {
       resolve: (sp, c) => {
         const i = c.level ? LEVELS.findIndex((l) => l.ref === c.level) : -1;
         if (sp === '$first') return LEVELS[0] ? LEVELS[0].ref : null;
-        if (sp === '$again') return c.level || null;
+        if (sp === '$again') { againTurn = true; againSeed = !run && c.level ? lastSeed : null; return c.level || null; }
         if (sp === '$next') { const nx = MAP || i < 0 ? null : LEVELS[i + 1]; return nx && isOpen(nx) ? nx.ref : null; }
         if (sp === '$continue') { const lv = continueTo(); return lv ? lv.ref : null; }
         if (sp === '$picked') return c.picked || null;
@@ -851,9 +939,11 @@ export function playShellRuntime(cfg, K) {
   function poke() { if (idleAfter) { clearTimeout(idleTimer); idleTimer = setTimeout(() => go('idle'), idleAfter * 1000); } }
   window.addEventListener('keydown', poke);
   window.addEventListener('pointerdown', poke);
-  // a step entered: a level plays, a screen is drawn, a hold waits, a cinematic plays on its stage
+  // a step entered: a level plays, a screen is drawn, a hold waits, a cinematic plays on its stage, a cutscene plays
+  // its video or its scene (or, empty, is passed)
   function enter(next, more) {
-    const m = more || {}, s = FLOW.steps[next.step];
+    const m = more || {}, s = FLOW.steps[next.step], was = at, again = againTurn;
+    againTurn = false;
     if (CINE) next = CINE.arrive(next, s, at);
     at = next;
     clearTimeout(holdTimer); clearTimeout(idleTimer); holdUntil = null; idleAfter = 0;
@@ -864,7 +954,17 @@ export function playShellRuntime(cfg, K) {
       if (m.keepPage && session && session.level.ref === lv.ref) { pauseBtn.style.display = 'block'; return; }
       // travel says where it came from, and arrives at that end of the level; a door carries what it brought
       if (m.travelTo === lv.ref && m.from) toast(levelTitle(m.from) + ' → ' + lv.title);
-      launch(lv, m.travelTo === lv.ref ? m.from : null, m.doorTo === lv.ref ? m.carry : null);
+      const arrive = m.travelTo === lv.ref ? m.from : null, carry = m.doorTo === lv.ref ? m.carry : null, T = TK && TURNS[next.step];
+      // A TURN (turn.js): its picks first (untap), unless it is played again, which keeps them; then the load
+      if (T) {
+        const keep = again && turn && turn.lv === lv;
+        // (a pick kept for the game, made in an earlier turn of this save, is held and not asked again)
+        turn = { T, lv, from: was, arrive, carry, draft: null, s: TK.beginTurn(T, { level: lv.ref, picks: keep ? turn.s.picks : undefined, again: keep, held: seenSteps.$picks }) };
+        if (turn.s.phase === 'untap' && MANA) { session = null; drawPick(); } else launchTurn();
+        return;
+      }
+      turn = null;
+      launch(lv, arrive, carry);
       return;
     }
     if (s.kind === 'screen') { drawScreen(s.screen); if (s.idle) { idleAfter = s.idle.after; poke(); } return; }
@@ -874,6 +974,14 @@ export function playShellRuntime(cfg, K) {
     try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
     // a cutscene played as a video (play-cine.js): over the game, on no level's page
     if (CINE && CINE.play(next, s)) return;
+    // A CUTSCENE with no directed scene: its video over the shell, left as it ends, fails or is skipped (a key or a
+    // tap, once it has been up a moment); with no video either the slot is empty, and it is passed at once
+    if (s.kind === 'cutscene' && !s.scene) {
+      if (!s.video) { holdTimer = setTimeout(() => { if (at === next) go('next'); }, 0); return; }
+      session = null; pauseBtn.style.display = 'none';
+      playVideo(s.video, s.skip !== false, () => { if (at === next) go('next'); });
+      return;
+    }
     // played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
     // the level says when it ends. A level that never answers (a page from before stages) is given two minutes
     const stage = LEVELS.find((l) => l.ref === s.stage);
@@ -882,6 +990,113 @@ export function playShellRuntime(cfg, K) {
     pauseBtn.style.display = 'none';
     holdTimer = setTimeout(() => { if (at === next) go('next', { keepPage: !!s.keep }); }, 120000);
   }
+  // a video over the shell, left as it ends, fails or is skipped (a key or a tap, once it has been up a moment: the
+  // key or the tap that started the game is not a skip)
+  function playVideo(src, canSkip, done) {
+    const box = el('div', {}), v = document.createElement('video');
+    box.style.cssText = 'position:fixed;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center';
+    v.src = src; v.autoplay = true; v.playsInline = true; v.style.cssText = 'max-width:100%;max-height:100%';
+    let over = false, up = false;
+    const end = () => { if (over) return; over = true; window.removeEventListener('keydown', skip); box.removeEventListener('pointerdown', skip); box.remove(); done(); };
+    setTimeout(() => { up = true; }, 600);
+    const skip = () => { if (canSkip && up) end(); };
+    v.addEventListener('ended', end); v.addEventListener('error', end);
+    window.addEventListener('keydown', skip); box.addEventListener('pointerdown', skip);
+    box.appendChild(v); document.body.appendChild(box);
+    const p = v.play(); if (p && p.catch) p.catch(() => { /* autoplay held: a tap skips, or it waits to be played */ });
+  }
+
+  // ---- the turn (turn.js): one level session in phases; the kernel steps it, the shell does what each phase is ----
+  // what can be picked now, as the pick screen shows it: the game's own options (a name, what each means), or the
+  // members of the slice as the store holds it (a party member's tags, level and figures, each figure against the
+  // most anyone in the roster has; a carried thing's count)
+  function turnRows(p) {
+    if (p.from.options) return p.from.options.map((o) => ({ id: o.id, name: o.name, about: o.about || '' }));
+    const sl = state[p.from.slice] || {};
+    if (sl.roster) {
+      const most = {};
+      for (const id in sl.roster) for (const k in sl.roster[id].stats || {}) most[k] = Math.max(most[k] || 1, Number(sl.roster[id].stats[k]) || 0);
+      return Object.keys(sl.roster).map((id) => { const m = sl.roster[id]; return { id, name: m.name || id, tag: (m.tags || []).concat(['Lv ' + m.level]).join(' · '), stats: Object.keys(m.stats || {}).map((k) => ({ label: k, value: Number(m.stats[k]) || 0, max: most[k] })) }; });
+    }
+    return Object.keys(sl.items || {}).map((id) => ({ id, name: id, tag: '× ' + sl.items[id] }));
+  }
+  const turnCtx = () => ({ rows: turnRows, seen: () => !!seenSteps[at.step + ':start'] });
+  // untap: the pick being asked, drawn by mana-ui (a pick of several is a draft here until it is confirmed)
+  function drawPick() {
+    const T = turn.T, s = turn.s, p = T.picks[s.at], many = p.max > 1, draft = turn.draft || (turn.draft = []);
+    const short = draft.length < p.min, fresh = turn.shown !== s.at, rows = turnRows(p);
+    turn.shown = s.at;
+    // (what was chosen before this pick, by the names the rows had)
+    const chosen = T.picks.slice(0, s.at).filter((q) => s.picks[q.id] !== undefined).map((q) => { const rs = turnRows(q), v = [].concat(s.picks[q.id]); return { label: q.id, value: v.map((id) => (rs.find((r) => r.id === id) || { name: id }).name).join(', ') }; });
+    MANA.pick({
+      title: turn.lv.title, ask: p.ask || p.id, hint: p.hint || (many ? 'up to ' + p.max : ''), step: s.at + 1, steps: T.picks.length > 1 ? T.picks.length : 0, chosen,
+      faces: !p.from.options && !!(state[p.from.slice] || {}).roster, many, short, shortWhy: short ? 'pick at least ' + p.min : '', why: s.why || '',
+      rows: rows.map((r) => Object.assign({ tag: '', about: '', stats: [], mark: draft.indexOf(r.id) >= 0 ? 'picked' : '', then: { emit: 'turn:pick', id: r.id } }, r)),
+    }, fresh);
+  }
+  function turnPick(id) {
+    const p = turn.T.picks[turn.s.at];
+    if (p.max === 1) return turnStep({ pick: id });
+    const d = turn.draft || (turn.draft = []), i = d.indexOf(id);
+    if (i >= 0) d.splice(i, 1); else if (d.length < p.max) d.push(id);
+    drawPick();
+  }
+  // an event of untap: the next pick, the load, or out of the turn the way it was come into
+  function turnStep(e) {
+    if (!turn || turn.s.phase !== 'untap') return;
+    const n = TK.stepTurn(turn.T, turn.s, e, turnCtx());
+    if (!n) return;
+    if (n.phase !== 'untap' || n.at !== turn.s.at) turn.draft = null;
+    turn.s = n;
+    if (n.phase === 'untap') drawPick();
+    else if (n.phase === 'upkeep') launchTurn();
+    // (out the way it was come into, when that was a screen; a turn come into from a cutscene or a level goes home)
+    else { const from = turn.from; turn = null; if (from && from.step && FLOW.steps[from.step] && FLOW.steps[from.step].kind === 'screen' && from.step !== FK.homeOf(FLOW)) enter(from); else home(); }
+  }
+  // upkeep: the level loaded with what was picked; a start trigger that is a scene is staged on its page (__stage)
+  function launchTurn() {
+    const T = turn.T, me = turn, peek = TK.stepTurn(T, turn.s, 'ready', turnCtx());
+    // (the choices that last the game are the save's from now on, beside what it has seen, forgotten with it)
+    const kept = TK.keptPicks(T, turn.s);
+    if (Object.keys(kept).length) { seenSteps.$picks = Object.assign({}, seenSteps.$picks, kept); try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ } }
+    const t = peek && peek.sub === 'start' ? peek.trigger : null, stage = t && t.scene ? { scene: t.scene, ...(t.skip ? {} : { skip: false }) } : null;
+    launch(turn.lv, turn.arrive, turn.carry, stage, TK.turnParams(T, turn.s));
+    // (a level that never says its scene ended, a page from before stages, is given two minutes)
+    if (stage) { pauseBtn.style.display = 'none'; setTimeout(() => { if (turn === me) turnSceneEnd(); }, 120000); }
+  }
+  // the level's first frame: main begins, its start trigger first when it has one this save has not seen
+  function turnReady() {
+    if (!turn || !session || turn.s.phase !== 'upkeep') return;
+    turn.s = TK.stepTurn(turn.T, turn.s, 'ready', turnCtx());
+    if (turn.s.sub !== 'start') return;
+    seenSteps[at.step + ':start'] = 1;
+    try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
+    const t = turn.s.trigger;
+    // (a video plays over the held level)
+    if (t.video) { pauseBtn.style.display = 'none'; post({ moj: W.pause, on: true }); playVideo(t.video, t.skip, () => { post({ moj: W.pause, on: false }); turnSceneEnd(); }); }
+  }
+  // a trigger over: play is the player's
+  function turnSceneEnd() {
+    if (!turn || turn.s.phase !== 'main' || turn.s.sub !== 'start') return;
+    turn.s = TK.stepTurn(turn.T, turn.s, 'scene-end');
+    pauseBtn.style.display = 'block';
+  }
+  // the level's outcome: main ends (its end trigger named, when it is a video), cleanup is the store's write
+  function turnOutcome(event, ok) {
+    if (!turn || turn.s.phase !== 'main') return null;
+    let n = TK.stepTurn(turn.T, turn.s.paused ? TK.stepTurn(turn.T, turn.s, 'resume') : turn.s, { outcome: event }), t = null;
+    if (!n) return null;
+    if (n.sub === 'end') { t = n.trigger; n = TK.stepTurn(turn.T, n, 'scene-end'); }
+    turn.s = TK.stepTurn(turn.T, n, { applied: ok });
+    return t && t.video ? t : null;
+  }
+  // the level again from the pause: a turn keeps its picks
+  function relaunch() {
+    const n = turn && session && turn.lv === session.level && turn.s.phase === 'main' ? TK.stepTurn(turn.T, turn.s, 'restart') : null;
+    setPaused(false);
+    if (n) { turn.s = n; launchTurn(); } else if (session) launch(session.level);
+  }
+
   function drawScreen(name) {
     session = null;
     if (MANA && MANA.draw(name)) return;

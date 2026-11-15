@@ -755,3 +755,18 @@ describe('mecha shelf: parts and words', () => {
     expect(() => readMechaSpec({ archetype: id, tool: 'breaker' })).toThrow(/not a mecha frame's word/);
   });
 });
+
+// A FRAME AS A LEVEL STANDS IT (mecha-figure.js mechaFigure): a dressed frame asked for its form carries its faces'
+// materials and the light its world gives it; asked nothing, the figure as baked
+describe('a frame standing in a level', () => {
+  it('a dressed frame carries its form only when asked, wet in a wet world', async () => {
+    const { mechaFigure } = await import('./mecha-figure.js'), { frameRow, MECHA_ARCHETYPE_IDS } = await import('./index.js');
+    const id = MECHA_ARCHETYPE_IDS.find((a) => frameRow(a).dress);
+    const baked = await mechaFigure({ archetype: id }), form = await mechaFigure({ archetype: id }, { form: true });
+    expect(baked.form).toBeUndefined();
+    expect(form.form?.materials).toBeTruthy();
+    expect(form.mecha.footprint).toEqual(baked.mecha.footprint);
+    const wet = await mechaFigure({ archetype: id }, { form: true, setting: { wet: true } });
+    expect(JSON.stringify(wet.form.materials)).not.toBe(JSON.stringify(form.form.materials));
+  }, 120000);
+});

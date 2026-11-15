@@ -128,6 +128,7 @@ export function suggestGenres(text, n = 3) {
 // are needed ("towers" or "map" says too little; "tower defence" or "metroidvania" says it)
 const NAMES = Object.freeze({
   'dungeon-crawler': ['crawler'], collectathon: ['collectathon'], shooter: ['fps', 'first-person shooter'],
+  'stylish-action': ['stylish action', 'character action'], 'action-rpg': ['action rpg', 'action-rpg', 'arpg'],
   'arena-shooter': ['deathmatch', 'death match', 'arena shooter'], jrpg: ['rpg', 'jrpg', 'role-playing'], 'long-rpg': ['long rpg', 'open world rpg', 'open-world rpg'], metroidvania: ['metroidvania'],
   'survival-horror': ['survival horror'], 'arena-brawler': ['brawler', 'beat-em-up'], stealth: ['stealth'], racing: ['racing', 'time trial'],
   'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart'], 'flight-sim': ['flight sim'], 'space-shooter': ['space shooter', 'starfighter'],
@@ -148,10 +149,14 @@ const NAMES = Object.freeze({
 });
 
 /** The genre a brief's words clearly name, or null: a genre's own name said once (one genre named, or the one named with
- * the most of its words), else the first genre ahead of the second on two of its words at least. `by` says which. */
+ * the most of its words), else the first genre ahead of the second on two of its words at least. `by` says which. A name
+ * said inside another genre's longer name is that one's: "action rpg" names the action RPG, not the party RPG whose
+ * name is "rpg"; "open world rpg" the long one. */
 export function readGenre(text) {
   const all = suggestGenres(text, Infinity);
-  const named = all.filter((g) => g.matched.some((w) => (NAMES[g.id] ?? []).includes(w)));
+  const names = all.flatMap((g) => g.matched.filter((w) => (NAMES[g.id] ?? []).includes(w)));
+  const inside = (w) => names.some((W) => W !== w && ` ${W.replace(/-/g, ' ')} `.includes(` ${w} `));
+  const named = all.filter((g) => g.matched.some((w) => (NAMES[g.id] ?? []).includes(w) && !inside(w)));
   if (named.length === 1 || (named.length > 1 && named[0].matched.length > named[1].matched.length)) return { ...named[0], by: 'name' };
   if (named.length > 1) return null;
   const [lead, next] = all, words = new Set((lead?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { GESTURE_CLIP, GESTURE_PRESETS, GESTURE_WORDS, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, ANIME_CLIP_SECONDS, heroClipSeconds, heroClipFaces } from './hero-gesture.js';
+import { GESTURE_CLIP, GESTURE_PRESETS, GESTURE_WORDS, heroGesture, heldWeapon, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, ANIME_CLIP_SECONDS, heroClipSeconds, heroClipFaces } from './hero-gesture.js';
 import { resolveAnimeExpression } from './anime-head.js';
 import { resolveWesternExpression } from './humanoid-head.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, layeredClip, auditRig } from './station-loft-rig.js';
@@ -73,7 +73,7 @@ describe('the gesture words', () => {
     expect(chin.head).toEqual({ yaw: 10, pitch: -12 }); expect(chin.elbowR).toBe(40); expect(chin.hipR).toEqual(GESTURE_PRESETS.relaxed.female.hipR);
     expect(Object.isFrozen(chin.spine)).toBe(false); chin.spine.curl = 1; expect(GESTURE_PRESETS.relaxed.female.spine.curl).toBeUndefined();
     expect(gestureWord('relaxed')).toBe('relaxed'); expect(gestureWord(['relaxed', { head: { pitch: -1 } }])).toBe('relaxed+data'); expect(gestureWord(undefined)).toBeNull();
-    expect(GESTURE_WORDS).toEqual(['rest', 'relaxed', 'hand-on-hip', 'guard']);
+    expect(GESTURE_WORDS).toEqual(['rest', 'relaxed', 'hand-on-hip', 'guard', 'engage']);
     // every relaxed entry is one stand: the same body words, only the free leg and the arms' swing differ per cast
     for (const cast of ['male', ...CAST_PRESET_NAMES]) expect(GESTURE_PRESETS.relaxed[cast], cast).toBeTruthy();
   });
@@ -82,6 +82,34 @@ describe('the gesture words', () => {
     const out = withGestureClip(plan, { support: 'L' });
     expect(Object.keys(out.clips)).toEqual([GESTURE_CLIP, 'idle', 'walk']); expect(out.clips.gesture).toEqual([{ support: 'L' }]);
     expect(withGestureClip(plan, null)).toBe(plan); expect(withGestureClip({ clips: {} }, { support: 'L' })).toEqual({ clips: {} });
+  });
+});
+
+describe('a held weapon never takes the fist guard', () => {
+  const blade = { right: { item: 'sword' } }, shield = { left: { item: 'shield' } };
+  it('a hero asked for the guard with a weapon in a hand stands engaged; an empty hand and a shield keep the guard', () => {
+    expect(heldWeapon({ gear: blade })).toBe(true);
+    expect(heldWeapon({ gear: shield })).toBe(false);
+    expect(heldWeapon({ gear: { back: { item: 'sword' } } })).toBe(false);
+    expect(heroGesture({ gesture: 'guard', gear: blade })).toBe('engage');
+    expect(heroGesture({ gesture: ['guard', { crouch: 0.3 }], gear: { left: { item: 'staff' } } })).toEqual(['engage', { crouch: 0.3 }]);
+    expect(heroGesture({ gesture: 'guard' })).toBe('guard');
+    expect(heroGesture({ gesture: 'guard', gear: shield })).toBe('guard');
+    expect(heroGesture({ gesture: 'guard', gear: { back: { item: 'sword' } } })).toBe('guard');
+    // (any other stand is its own, armed or not)
+    expect(heroGesture({ gesture: 'relaxed', gear: blade })).toBe('relaxed');
+    expect(heroGesture({ head: 'anime', gear: blade })).toBe('relaxed');
+  });
+  it('the engaged stand carries the weapon hand low and clear of the head, where the guard raises it before the face', () => {
+    for (const cast of ['female', 'male']) {
+      const G = resolveGesture('guard', cast), E = resolveGesture('engage', cast);
+      // (the weapon arm: the elbow open, the upper arm low, against the guard's folded arm raised to the face)
+      expect(E.elbowR).toBeLessThan(G.elbowR - 60);
+      expect(E.shR.pitch).toBeLessThan(G.shR.pitch);
+      expect(E.elbowR).toBeLessThan(90);
+      // (the off hand open and low too: neither fist before the face)
+      expect(E.elbowL).toBeLessThan(G.elbowL - 60);
+    }
   });
 });
 

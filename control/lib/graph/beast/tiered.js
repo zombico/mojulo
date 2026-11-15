@@ -182,6 +182,8 @@ export function beastRest(card) {
 }
 
 /** the masses a card names and a beast may design (cards.js `mass`) */
+/** a beast-kin's hands' size over its cast's (its card's `hands`: the palm and the digits whole, hero-form.js heroPlan `hands`); 1 a person's */
+export const beastHandsSize = (hero) => beastCard(hero)?.hands ?? 1;
 export const BEAST_MASS_KEYS = Object.freeze(['trunk', 'waist', 'hips', 'neck', 'upperArm', 'foreArm', 'hand', 'thigh', 'shank', 'foot']);
 const isPlain = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function beastWords(hero) {

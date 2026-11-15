@@ -19,6 +19,7 @@ import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
 import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
+import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -1370,6 +1371,9 @@ const MECHANICS = {
   // THE ESCAPE ROOM (a terminal): held in until its locks open, each by a key found inside or a step on the bus; its way
   // out sealed until then (game/escape-room.js, its names recipe-derived for the handoff)
   'escape-room': { role: 'terminal', ends: ['success'], requires: [], lower: lowerEscapeRoom },
+  // WORK (a terminal, game/work-mechanics.js): a Shovels & Buckets card played on the level: crates, stations worked by
+  // standing at them (progress kept when left), what runs alone and burns if left, orders at a hand-in, the bell
+  work: { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWork },
 };
 
 // (a mechanic whose hp is the player's body's own, `of: 'body'`: the only value it takes)

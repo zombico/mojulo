@@ -34,7 +34,9 @@ describe('the metro\'s traffic, planned', () => {
     expect(F.cars.length).toBeGreaterThan(F.lanes.length);
     // (the mix: mostly the family cars, a bus or a van among them)
     expect(F.kinds.some((k) => k.model.startsWith('loft:'))).toBe(true);
-    expect(F.T.CAR_LEN).toBe(Math.max(...F.kinds.map((k) => k.len)));
+    // (the boxes sized to the longest vehicle on a signalled lane: a highway's rig crosses none)
+    const signalled = new Set(F.cars.filter((c) => F.lanes[c[0]].crossings.length).map((c) => c[1]));
+    expect(F.T.CAR_LEN).toBe(Math.max(...[...signalled].map((k) => F.kinds[k].len)));
   });
 
   it('lays each lane on its road: the drape\'s height at its cells, a kerb up over a cross street\'s walk', () => {
@@ -65,6 +67,20 @@ describe('the metro\'s traffic on its highways', () => {
     const h0 = D.highways[0], sides = (dir) => new Set(hw.filter((L) => L.line === h0.id && L.dir === dir).map((L) => Math.sign(L.cross - h0.at)));
     expect(sides(1).size).toBe(1);
     expect([...sides(1)][0]).toBe(-[...sides(-1)][0]);
+  });
+  it('carries the rigs, eighteen-wheelers among them, and never on a signalled street; small trucks on the streets', () => {
+    const rig = (k) => /^loft:(semiSleeper|semiCabover)/.test(F.kinds[k].model), on = (pred) => F.cars.filter((c) => pred(F.lanes[c[0]]));
+    expect(on(onDeck).some((c) => rig(c[1]))).toBe(true);
+    expect(on((L) => L.crossings.length).some((c) => rig(c[1]))).toBe(false);
+    expect(F.kinds.some((k) => /^loft:(cubeVan|lightCabover)/.test(k.model))).toBe(true);
+  });
+  it('gives an arterial along an industrial neighbourhood its working trucks', () => {
+    const ind = D.regions.filter((r) => r.industrial);
+    expect(ind.length).toBeGreaterThan(0);
+    const truck = (k) => /^loft:(wideCabover|flatbedTruck)/.test(F.kinds[k].model);
+    expect(F.cars.some((c) => truck(c[1]))).toBe(true);
+    expect(FLOW.industrialMix.reduce((a, [, w]) => a + w, 0)).toBeCloseTo(1, 6);
+    expect(FLOW.highwayMix.reduce((a, [, w]) => a + w, 0)).toBeCloseTo(1, 6);
   });
 });
 

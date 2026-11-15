@@ -21,6 +21,7 @@ import { formGrassScript } from './form-grass.js';
 import { viewConeScript } from './view-cone.js';
 import { formSkyScript } from './form-sky.js';
 import { farFieldScript, FAR_BLANKET_GLSL, farBlanketUniforms } from './far-field.js';
+import { farLiftScript, readFarLift } from './far-lift.js';
 import { farStructuresScript } from './far-structures.js';
 import { formFloraScript } from './form-flora.js';
 
@@ -511,7 +512,7 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
   }
 
   // (the gen-7 sky over a land that has one: a cavern has none)
-  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript()}
+  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript()}${farLiftScript(readFarLift(form.farLift))}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }

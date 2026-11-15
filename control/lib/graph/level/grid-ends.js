@@ -16,7 +16,7 @@
  *     packs     a planned map's: where its pieces' packs and boss stand (level/map-items.js), in walk order
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
  *               land, the way out of it), what folk stand by
- *     encounters  an approved sketch's encounter marks (map-sketch.js): { at, tile, count, kind?, say, segment }
+ *     encounters  an approved sketch's encounter marks (map-sketch.js): { at, tile, count, kind?, say, segment, beat?, after? }
  *     placed      the play layer's foes (play-layer.js, level design's): { eid, at, heading, id, segment }, each where it was
  *                 placed; a block with placed foes fights only them (its encounter marks' rings stood down)
  *     finds       an approved sketch's loot and secret marks that name their item (a scenario's find): { at, tile, item, beat? }
@@ -85,7 +85,7 @@ export function gridEnds(level) {
   // THE SKETCH'S ENCOUNTERS (map-sketch.js, an approved segment's): where each fight stands, by its tile's middle, its
   // foes' count and kind; the foes stand there (gameworld/foes.js foePlacements)
   if (G.sketch?.marks?.length) {
-    const enc = G.sketch.marks.filter((m) => m.kind === 'encounter').map((m) => { const x = G.at(...m.tile); return { at: mid(x), tile: m.tile, count: m.foes?.count ?? 1, ...(m.foes?.kind ? { kind: m.foes.kind } : {}), say: m.say, segment: m.segment }; });
+    const enc = G.sketch.marks.filter((m) => m.kind === 'encounter').map((m) => { const x = G.at(...m.tile); return { at: mid(x), tile: m.tile, count: m.foes?.count ?? 1, ...(m.foes?.kind ? { kind: m.foes.kind } : {}), say: m.say, segment: m.segment, ...(m.beat ? { beat: m.beat } : {}), ...(m.after ? { after: m.after } : {}) }; });
     if (enc.length) out.encounters = enc;
     // (and its finds: a loot or a secret mark that names its item, picked up there; a scenario's find or secret)
     const finds = G.sketch.marks.filter((m) => (m.kind === 'loot' || m.kind === 'secret') && m.item).map((m) => ({ at: mid(G.at(...m.tile)), tile: m.tile, item: m.item, ...(m.beat ? { beat: m.beat } : {}) }));

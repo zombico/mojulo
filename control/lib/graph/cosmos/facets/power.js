@@ -7,7 +7,8 @@ export const POWER = Object.freeze({
   settings: {
     mechanics: {
       multi: true,
-      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS' },
+      // built 11-13 (Shovels & Buckets): a work card played on a level, game/work-mechanics.js
+      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', since: { work: '2026-11-13' } },
       // built 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
       // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
       // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Three shapes of
@@ -63,7 +64,7 @@ export const POWER = Object.freeze({
         // local 11-08 (1108-realism-combat-tester): a big gun on a mount (worlds/controllable/turret.js), aimed by hand on any
         // base, its rounds' flight and drag (ordnance.js) and what they do to matter (terminal.js: a hole, a breach, a
         // spall, a crater); played on the artillery range, not yet from a gameworld
-        artillery: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'one gun on a mount aimed by hand on any base (a plinth, a tracked hull, a field vehicle, a walker, a fighter, a helicopter, a boat), its rounds flown with drag and answered by matter (ordnance.js, terminal.js); the artillery range only, not yet from a gameworld' },
+        artillery: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'one gun on a mount aimed by hand on any base (a plinth, a tracked hull, a field vehicle, a walker, a fighter, a helicopter, a boat), its rounds flown with drag and answered by matter (ordnance.js, terminal.js); the artillery range only, which the practice door opens from a gameworld whose feel owns a frame (gameworld/practice.js); no level carries a turret' },
       },
     },
     // how much of a world breaks, and by what law (a gameworld's mechanics.destruction, breakability.js DEGREES): counted

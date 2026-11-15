@@ -113,3 +113,112 @@
   none of its cast (a tree outside drew its shadow on the inner face of the wall it stood behind).
 - What lies loose in a wet room is wet with it: the debris's heaps and the vessels join the room's wet surfaces, each
   by its own group, in the form render (its instanced repeats take a surface as its faces do).
+- A parked walker under its world's light: read in the form render, a dressed frame carries its faces' materials and
+  is lit as a field vehicle is, by its world's sky and sun, wet when its weather is. A body that stands still for the
+  whole level is the static world's: it casts into the hour's map wherever it stands, not only near the player.
+- A body under the land's sun stands in its building's shade: the land's sun's map is drawn with the static world in
+  it (at the hour's pass and whenever the land asks for it again), so a hero or a vehicle indoors takes the sun only
+  through an opening (it took it through the roof).
+- The hour's map fitted to the built place: on a land whose own sun shades it, the map covers its buildings' aprons
+  and a margin for what stands by them, not the whole land, so its texels are centimetres: a tree's leaves read in its
+  shadow on a wall, a window's patch has an edge.
+- A floodlight's shadow: a yard's first two floods each carry a map of their own, drawn once with the static world in
+  it, so what stands under a flood (a container, a parked walker, a building's corner) throws its shadow across the
+  slab and up the next thing.
+- A wet yard gives back the place: where a land's buildings are wet, a capture of the yard as it stands lit, taken from
+  the widest strip of slab beside them, is what its wet slab, walls and containers hold (the buildings, the containers,
+  the land), corrected to that strip's box and read along the ray past it. Standing water out of doors gives back more
+  than a film does, so what stands by a puddle reads in it.
+- The light of where a body stands: on a land with buildings, a body under the cast rig (the hero, a parked walker, a
+  foe) carries its own light and takes the light of its place, eased as it walks: a room's lamps overhead and its
+  floor's bounce indoors (lower by day, as the room is), the sky out of doors, a flood it stands under. A form body
+  gives back less of the sky indoors.
+- The whole cast under the land's one sun: on a page whose land is drawn as form, every body an entity wears (a foe, a
+  walker, one that stands still) is read lit and carries the rig solved from the land's cube, as the piloted hero did
+  alone.
+- Fixed: a person's shadow was lost on a land with buildings. The hour's map was fitted to the built place only on a
+  page with no entities (the fit was asked before the land was read), so with a cast it stretched over the whole land
+  again and its bias swallowed anything a person's size; the fit is asked once the land is read. A whole level's test
+  holds it (`worlds/built-light.e2e.test.js`).
+- A yard's floods are dark by day: lit when the sun is down or low, so what stands under a mast by day wears the
+  sun's shadow.
+- The land's own casters (its ground, its trees) stay in the maps drawn with the static world, so its trees shade
+  what is built.
+- The form render takes the finish by default: a page drawn as form (a land, a land's buildings) wears the default
+  `light.finish` (its tone curve, its bloom) where its recipe says nothing of one, so its lamps, its floods and its lit
+  windows spill their light; `light.finish: false` says otherwise.
+- Day and night for a land's buildings are told by the land's light (a sun clear of the horizon under a sky that gives
+  light, or the moon): by night the floods are lit and their heads glow, the rooms' lamps stand at their full level and
+  the moon's patches through the windows are faint; by day the floods' heads are dark.
+- The cast's materials told apart by how they answer the light (`color-theorist/cast-response.js`): a hero read lit
+  says each of its palette's groups' class (skin, hair, an eye, cloth, leather, metal: a roughness and whether it is
+  metal), and under the cast rig each corner takes its class off its own colour: cloth is matte, skin takes a soft
+  highlight, an eye a wet one, leather a worn sheen, a metal the rig's sky in its own colour. No map, no new geometry;
+  a body with a painted texture, and the cel register, are as they were.
+- A realistic hero's relief under the cast rig: the lit read asks for the body as the skinned export gets it, so a
+  realistic hero brings its normal map (its skin's relief, its clothes' creases, seams and grain) and its roughness
+  (each cloth's own, a leather's satin, wool's dullness: `epidermis/cloth-relief.js`), and the page's cast material
+  reads both on the paint's atlas. The tangents, the parallax's depth and the correctives stay the engine export's.
+- A geocube's level takes `fxStyle` (its effects' style and the cast's register: `register: 'anime'` draws its cast in
+  cel), as a stage's does.
+- Page pack (`scene/page-pack.js`, `scripts/pack-page.mjs`): a World page made smaller with nothing cut. Its module
+  script is gzipped and the page carries a few lines that inflate it (the browser's own `DecompressionStream`) and run
+  it as the module it was. One file (the script as base64 in the document) for a page a person opens, or parts (a
+  small `index.html` and the script in binary files beside it, each under a size) for a host that limits a file. The
+  day facility's page goes from 38 MB to 25 MB as one file and 19 MB in parts; with a realistic hero, 129 MB to 40 MB
+  and 30 MB. The packed page was run in a browser both ways and draws as the page it was.
+- Page pack's text form (`bundlePage({ form: 'text' })`, `pack-page.mjs --parts --text`): the script as it is, in
+  `.txt` parts that each end on a whole character, for a host that serves only a web page's file types. A Claude
+  artifact refused the binary parts by their extension (`.bin`, `.gz`) and took the text parts of the CDN build. A
+  packed page whose host refuses a blob as a script now writes the script into the document as an inline module; seen
+  to run that way under a policy that allows only inline and CDN scripts.
+- Said once: two parked vehicles that are the same vehicle in the same dress are one figure stood twice.
+- A face's blend shapes said once and only where they move (`figures/morph-sparse.js`): a faced part carried a row a
+  corner, every target at every corner; now the corners that share a row share it, and each target's column holds only
+  the rows it moves, in the same 16-bit steps, exactly (sparse then dense is the input byte for byte). A dressed
+  realistic hero's face goes from 36 MB to 2.5 MB. The page's two players read it (`__mz`); an export keeps its floats.
+  The lit read's face rows, which came as an export's floats, are written the page's way too: the facility's page with
+  a realistic hero goes from 129 MB to 59 MB, 25 MB packed in parts.
+- A realistic hero's geometry as the page reads it (`pageFigures`, `full: 1`): a part that carries its paint's place,
+  its normals or a face's rows was a corner a triangle, every number a float32; it is now welded (the corners that are
+  the same corner are one), its places and its paint's places on 16-bit grids over their own range, its normals signed
+  bytes, and its face's rows named by the welded corners. A part with an engine's tangent, corrective or metal stays as
+  it came. The facility's page with a realistic hero goes from 59 MB to 48 MB, 22.7 MB packed in parts; the hero itself
+  from about 21 MB to about 10 MB.
+- The far lift, in progress (`scene/channels/far-lift.js`, a land's `farLift`, opt-in): the grass past the view
+  cone's reach given its height. The ground is drawn a second time where grass grows, pushed up to the sward's height
+  × its cover (so it comes down to the ground where the grass ends), in the far field's colour, rising from nothing at
+  the reach. Rendered on the island trail with it on and off: the far grass stands over the bare ground behind it and
+  hides the feet of far trunks. It replaces a first attempt drawn as a wireframe box.
+- The grass's economy, in progress: the tall and medium swards a fifth shorter (their width kept, so the cone's reach
+  is unchanged) and about a fifth denser, thinning sooner (from 0.42 of the reach), so the density is spent near the
+  eye; the far lift stands over the blades' tips (× 1.3). A change to every gen-7 page's grass; its change-reach tests
+  pass.
+- The grass lines, in progress (`GRASS_LINE`, `form-grass.js`): between the thinning and the reach half the clumps
+  stand (`POV_GRASS.keep`); past the reach a share of them stand again on a crest (the ground behind falls below the
+  line of sight) and at a patch's near edge, out to three reaches, wider and taller with distance, on the far lift
+  where there is one: the land's layers and the lift's side read by a line of blades, solved from the camera each
+  frame. A tile's rows are ordered by their dice and it draws only those that can stand at its distance. Not yet seen
+  drawn; its tests not yet run.
+- The far lift's seam, in progress: the lift begins where the blades begin to thin and is whole at the reach, rising
+  among them and filling in as a stipple of blade-sized cells, so there is no stretch where the blades have gone and
+  the lift has not come. The grass lines' patch-edge clumps are removed; the crest lines stay. Not yet seen drawn.
+- The far lift's walls, in progress: a raised plain stands at its full height to a patch's edge and comes down to
+  the ground there as a steep side of the same triangles and material, drawn where no grass is mapped too (the
+  grass's own colour), so it is closed all round; the side's lower part fills in with the seam's stipple. Not yet seen
+  drawn.
+- The grass lines are removed: past the reach the far lift alone stands for the grass, one switch between real blades
+  and the lift. The halved clumps between the thinning and the reach, and a tile drawing only the rows that can stand,
+  stay.
+- The far lift stands where the grass is, in progress: its place and height are read from the far map (a strand a
+  cell where a clump stands, its height its own) as the mean of the strands within a metre, the empty cells counted as
+  nothing, × 1.5: high where the grass is tall and thick, low where it is short or sparse, none on the trail, in a
+  claim or on bare ground. It no longer reads the cover and a height per sward. Not yet seen drawn.
+- The form grass on a gen-6 stage, in progress (`stage-grass.js` FORM_FIELD, a live grass's `form`, opt-in, in the
+  field's place): the form render's grass and its far lift drawn in the stage's look. The grass script takes a `ramp`
+  look (blades unlit, the stop their height picks from the lit or the shade window); the stage's landform and mask are
+  read as its ground map; the lift is a sheet over the landform raised to the mean of the clumps that stand, in the
+  ramp's upper stops. The field, the far clumps and the cards are not drawn; a blade is not pressed by a foot. A first
+  lift written into the old field is removed, and the old field is as it was. Not yet seen drawn; tests not yet run.
+- A stage kept clean (`hats: false`): no grass cap on a rock and no fringe over a cliff lip; absent, the stage as it
+  was.

@@ -114,7 +114,7 @@ export function designAtlas(world) {
   const G = readGameworld(world), seed = G.seed ?? 1;
   const levels = Object.fromEntries(G.ids.map((id) => [id, resolveLevel(world, id)]));
   // each level's stages, in order (its walk's sections; a building, a city, a track one stage of its own)
-  const stagesOf = (R) => (R.building ? [{ node: 'building', section: 'building' }] : R.geotown ? [{ node: 'town', section: 'geotown' }] : R.city ? [{ node: 'city', section: 'city' }] : R.roadway ? [{ node: 'roadway', section: 'roadway' }] : R.runner || R.airspace ? [{ node: 'run', section: 'trail' }]
+  const stagesOf = (R) => (R.building ? [{ node: 'building', section: 'building' }] : R.geotown ? [{ node: 'town', section: 'geotown' }] : R.city ? [{ node: 'city', section: 'city' }] : R.roadway ? [{ node: 'roadway', section: 'roadway' }] : R.runner || R.airspace || R.obstacles ? [{ node: 'run', section: 'trail' }]
     : layLevel(R.level).stages.map((s) => ({ node: s.node, section: s.section })));
   const stages = Object.fromEntries(G.ids.map((id) => [id, stagesOf(levels[id])]));
   const sizes = Object.fromEntries(G.ids.map((id) => [id, 96 + 24 * stages[id].length + (levels[id].town ? 20 : 0) + (G.hub === id ? 16 : 0)]));

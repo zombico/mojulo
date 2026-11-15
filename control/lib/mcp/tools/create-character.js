@@ -99,7 +99,10 @@ async function createFromEgocube({ egocube, years, member, dress, output, as, sp
   const own = Object.fromEntries(Object.entries({ ...C.create.spec, ...(spec || {}), ...(Object.keys(dials).length ? { dials } : {}) }).filter(([, v]) => v !== null));
   const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}), ...(C.node.path ? { member: C.node.path } : {}) };
   // an anime game's person wears the character light (egocube/plan.js), a mint argument beside the spec as a book hero's
-  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, ...(C.create.toon ? { toon: C.create.toon } : {}), title: title ?? C.create.title, ref, folder_ref: folderRef }));
+  // (a BEAST-KIN's rides in its spec, where the hero door reads it (hero-mint.js heroMintArgs): beside the spec the door
+  // drops it, which an anime head's own default hid for a person and nothing hides for a beast)
+  const lit = C.create.toon && own.beast ? { toon: C.create.toon } : {};
+  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, ...lit, egocube: made }, ...(C.create.toon ? { toon: C.create.toon } : {}), title: title ?? C.create.title, ref, folder_ref: folderRef }));
   const landed = (C.ledger || []).filter((r) => r.at).length;
   return { ...out, ...(C.modelSheet ? { modelSheet: C.modelSheet } : {}), ...(C.mascot ? { mascot: C.mascot } : {}), egocube: { ...made, ...(C.output ? { output: C.output } : {}), node: C.node, ...(C.member ? { member: C.member } : {}), ...(C.moves ? { moves: C.moves } : {}), notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
 }

@@ -8,7 +8,9 @@ import { SPRITE_VERBS } from '../../game/glyph-sfx-sprites.js';
 // sprite's position/scale/opacity. Assigns the module-scoped `stepSpriteSfx`, which __mojStep calls
 // every frame (deterministic in every mode, like fx — so it renders in bakes/audits too). Absent
 // sfx ⇒ this block is not emitted (byte-identical). Cost is O(beads) per frame — no fullscreen march.
-export function spriteSfxChannelScript(layers) {
+// `rollItems` (a level whose roll may leave pickups out, worlds/controllable/roll.js): the sparkle over a place where
+// nothing was laid is put out (window.__mojSfxOff, by the place); only then is it emitted.
+export function spriteSfxChannelScript(layers, { rollItems = false } = {}) {
   const verbSrc = Object.entries(SPRITE_VERBS).map(([k, v]) => `${JSON.stringify(k)}: ${v.beads.toString()}`).join(',\n    ');
   const defs = Object.fromEntries(Object.entries(SPRITE_VERBS).map(([k, v]) => [k, v.defaults]));
   return `
@@ -32,7 +34,8 @@ export function spriteSfxChannelScript(layers) {
   });
   stepSpriteSfx = (tMs) => {
     const ph = (tMs || 0) / 1000;
-    for (const pool of __sfxPools) {
+    for (const pool of __sfxPools) {${rollItems ? `
+      if (pool.off) continue;` : ''}
       const bs = __sfxVerb[pool.L.verb](pool.L.cc, ph * (pool.L.rate || 1), pool.p);
       for (let i = 0; i < pool.sprs.length; i++) {
         const b = bs[i], s = pool.sprs[i];
@@ -42,6 +45,15 @@ export function spriteSfxChannelScript(layers) {
         s.scale.set(sz, sz, 1); s.material.opacity = Math.min(1, 0.35 + 0.65 * b.w);
       }
     }
+  };${rollItems ? `
+  window.__mojSfxOff = function (places) {
+    for (const pool of __sfxPools) {
+      const c = pool.L.cc;
+      if (!(places || []).some((q) => q && q[0] === c[0] && q[1] === c[1] && q[2] === c[2])) continue;
+      pool.off = true;
+      for (const s of pool.sprs) s.visible = false;
+    }
   };
+  if (window.__mojUnlaidAt) window.__mojSfxOff(window.__mojUnlaidAt);` : ''}
 }`;
 }

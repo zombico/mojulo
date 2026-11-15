@@ -188,7 +188,10 @@ const __moComic = (n) => __moComics[n] || (__moComics[n] = __moCanvas((x) => {
   x.beginPath(); for (let i = 0; i < n * 2; i++) { const a = (i * Math.PI) / n, r = i % 2 ? 22 + 8 * h(i) : 46 + 15 * h(i); x.lineTo(64 + r * Math.cos(a), 64 + r * Math.sin(a)); } x.closePath();
   x.fillStyle = '#fff'; x.fill(); x.lineJoin = 'miter'; x.lineWidth = 6; x.strokeStyle = '#000'; x.stroke();
 }));
-` : ''}const __moLive = {};
+` : `// a ring of air (a sprite): a styled moment's halo rings in the air (scene/effect-style.js), an explosion or not
+const __moCanvas = (draw) => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; draw(cv.getContext('2d')); return new THREE.CanvasTexture(cv); };
+const __moAir = __moCanvas((x) => { const g = x.createRadialGradient(64, 64, 40, 64, 64, 63); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.75, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); });
+`}const __moLive = {};
 function __moMake(M) {
   const S = M.spec || __MO[M.is], col = M.color != null ? __moRgb(M.color) : null, at = M.at, I = { S, at, t0: M.t0, sc: M.scale || 1, sprays: [], extra: [] };
   S.parts.forEach((p, i) => { const k = col && S.key.includes(i); I.sprays.push(__moSprMake(k && p.ramp ? { ...p, ramp: p.ramp.map((c) => (S.color && c.every((x, j) => x === S.color[j]) ? col : c)) } : p, k ? col : p.color || [1, 1, 1], __moGlyph)); });${flow ? `

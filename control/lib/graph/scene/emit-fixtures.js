@@ -28,6 +28,7 @@ import { holoArenaData } from '../tabletop/holo-arena.js';
 import { broadcastScreens } from '../persona/screen.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
+import { lowerCombos, BASIC_COMBOS } from '../gameworld/combos.js';
 
 const quad = (fill = '#888888', extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
 const floor = (fill = '#445566', extra = {}) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill, ...extra });
@@ -193,6 +194,14 @@ export const EMIT_FIXTURES = [
     { id: 'me', pilotable: true, ambient: { type: 'clock' }, rule: { type: 'platform', turnMode: 'look' }, transform: { pos: [0, 0, 0], heading: 0 }, body: { type: 'figure-rig', hittable: true, radius: 1, hp: 100 } },
     { id: 'foe', rule: { type: 'static' }, transform: { pos: [12, 2, 0] }, body: { type: 'figure-rig', hittable: true, radius: 1, hp: 100 } },
   ] }],
+  // an action hero (1111-design-code-rail-alignment): a moveset's hero under a camera that does not capture the mouse,
+  // its lock on a foe that wears the target rim, on a world whose cast is rimmed by its effects' light. The combination
+  // that threw on load (the target rim and the effect rim each declared a page-level `__rimMat`), and the one whose mouse
+  // never struck (a moveset's beats bound only under a mouse-look camera)
+  ['action-hero', { faces: [floor()], camera: { rule: 'follow', target: 'me', lockTrack: true }, lock: { range: 80, cone: 45 }, entities: [
+    { id: 'me', pilotable: true, rule: { type: 'platform', strike: 'melee', strikeContact: [0.3, 0.6], moveset: lowerCombos(BASIC_COMBOS) }, transform: { pos: [0, 0, 0], heading: 0 }, body: { type: 'figure-rig', hittable: true, radius: 0.5 } },
+    { id: 'foe', team: 'foes', rule: { type: 'static' }, transform: { pos: [4, 0, 0] }, body: { type: 'figure-rig', hittable: true, radius: 0.5, hp: 40, hpBar: 'target', targetRim: [1, 0.86, 0.6] } },
+  ], events: { cast: true, rim: { k: 0.8, p: 2.2 }, reactions: [{ on: 'key:KeyQ', do: 'ctrl', op: 'puff', is: 'smoke', target: 'foe' }] } }],
   // suit contact shadows: the opt-in blob-decal block interpolated into the controllable channel.
   // Every other controllable fixture omits `shadows` ⇒ their bytes are untouched (the opt-in pin).
   ['controllable-shadows', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: true }],

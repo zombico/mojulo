@@ -43,7 +43,7 @@ import { safeJson } from '../emit-util.js';
 // recipe is the same puddles): standing water where the field is over its level, a soaked band at its edge, damp past
 // that; each darkens the colour, smooths the surface and flattens its relief, so the sky lies in a puddle and only
 // sheens on damp ground. Only a page that carries `reflect` carries this code.
-const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec4 uFWet;\nuniform float uFWetW;\nuniform vec4 uFSpot[ 6 ];\nuniform vec2 uFSpotK[ 6 ];\nuniform float uFNow;\n#ifdef FORM_MASK\nuniform sampler2D uFMask;\nuniform vec4 uFMaskRect;\n#endif\nuniform vec4 uFFlood[ 4 ];\nuniform vec3 uFFloodK[ 4 ];\nfloat fCsKeep = 0.0;\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
+const ENV_HEAD = 'uniform vec3 uFEnvZ;\nuniform vec3 uFEnvH;\nuniform vec3 uFEnvG;\nuniform vec4 uFSurf;\nuniform vec4 uFWet;\nuniform float uFWetW;\nuniform vec4 uFSpot[ 6 ];\nuniform vec2 uFSpotK[ 6 ];\nuniform float uFNow;\n#ifdef FORM_MASK\nuniform sampler2D uFMask;\nuniform vec4 uFMaskRect;\n#endif\nuniform vec4 uFFlood[ 4 ];\nuniform vec3 uFFloodK[ 4 ];\n#ifdef FORM_FSHADOW\nuniform highp sampler2DShadow uFFloodS0;\nuniform highp sampler2DShadow uFFloodS1;\nuniform mat4 uFFloodM[ 2 ];\nuniform vec4 uFFloodJ;\n#endif\nfloat fCsKeep = 0.0;\n#ifdef FORM_POOL\nuniform vec4 uFRip[ 8 ];\nuniform float uFTime;\n#endif\n#ifdef FORM_ENVMAP\nuniform samplerCube uFCube;\nuniform vec3 uFProbe;\nuniform vec3 uFBoxA;\nuniform vec3 uFBoxB;\n#endif\n'
   + 'float fH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\n'
   + 'float fVN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( fH2( i ), fH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fH2( i + vec2( 0.0, 1.0 ) ), fH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\n';
 const ENV_BODY = `
@@ -191,12 +191,25 @@ const ENV_BODY = `
     vec3 eT = max( ( uFBoxA - ePw ) * eInv, ( uFBoxB - ePw ) * eInv );
     float eHit = max( min( eT.x, min( eT.y, eT.z ) ), 0.0 );
     vec3 eDir = ePw + eRw * eHit - uFProbe;
+#ifdef FORM_ENVOPEN
+    // (a capture out of doors is taken from one side of the place: inside its box what it holds lies where it stands;
+    // past the box it is read along the ray alone, as a far thing is, faded over a stride, so the rest of the yard still
+    // gives back buildings and sky and not a gradient)
+    { vec3 eOut = max( uFBoxA - ePw, ePw - uFBoxB ); float eIn = 1.0 - smoothstep( 0.0, 1.5, max( eOut.x, eOut.y ) );
+      eEnv = textureLod( uFCube, normalize( mix( eRw, normalize( eDir ), eIn ) ), eR * 6.0 ).rgb; }
+#else
     eEnv = textureLod( uFCube, eDir, eR * 6.0 ).rgb;
+#endif
   }
 #endif
   float eC = clamp( dot( eN, eV ), 0.0, 1.0 );
   vec3 eF0 = mix( vec3( 0.04 ), diffuseColor.rgb, eM ), eF = eF0 + ( max( vec3( 1.0 - eR ), eF0 ) - eF0 ) * pow( 1.0 - eC, 5.0 );
   float eO = clamp( fLum( vFLit ) / max( fLum( uFAmb ), 1e-3 ), 0.25, 1.0 );
+#ifdef FORM_ENVOPEN
+  // (standing water out of doors, under a whole sky: it gives back more than a film's few parts in a hundred at the
+  // angles a yard is seen from, so what stands by a puddle reads in it; a cue, held under a mirror's)
+  eF = mix( eF, max( eF, vec3( 0.34 ) ), ( 1.0 - smoothstep( 0.06, 0.14, eR ) ) * ( 1.0 - eM ) );
+#endif
 #ifdef FORM_FILM
   // (a thin film, a fuel's: what it gives back is coloured by the film's thickness, which wanders over the pool by
   // the world's place, and by how low it is looked along, so its bands of colour slide as the eye moves)
@@ -228,7 +241,7 @@ const ENV_BODY = `
     } }
 #endif
   // (a FLOODLIGHT, a lamp standing out of doors: no bake holds it, so its own light is laid here whole, by its falloff
-  // and the pixel's turn to it, and its highlight; no shadow of its own)
+  // and the pixel's turn to it, and its highlight)
   vec3 eFloodSum = vec3( 0.0 );
   for ( int i = 0; i < 4; i++ ) {
     if ( uFFlood[ i ].w <= 0.0 ) continue;
@@ -236,6 +249,18 @@ const ENV_BODY = `
     float eFt = clamp( 1.0 - max( eFr, 1.1 ) / uFFlood[ i ].w, 0.0, 1.0 ); vec3 eFc = uFFloodK[ i ] * eFt * eFt;
     // (its head is turned down: a cone under it, soft at its edge)
     eFc *= smoothstep( 0.2, 0.62, dot( - eFl, normalize( ( viewMatrix * vec4( 0.0, 0.0, -1.0, 0.0 ) ).xyz ) ) );
+#ifdef FORM_FSHADOW
+    // (and what stands between it and the pixel shades it: the flood's own map, drawn once with the static world in
+    // it; the two floods nearest the level's start carry one each)
+    { float eJ = i == 0 ? uFFloodJ.x : i == 1 ? uFFloodJ.y : i == 2 ? uFFloodJ.z : uFFloodJ.w;
+      if ( eJ > -0.5 ) {
+        vec3 eWp = cameraPosition + ( vec4( vFPos, 0.0 ) * viewMatrix ).xyz + ( vec4( eG, 0.0 ) * viewMatrix ).xyz * 0.06;
+        vec4 eCo = ( eJ < 0.5 ? uFFloodM[ 0 ] : uFFloodM[ 1 ] ) * vec4( eWp, 1.0 ); vec3 eSc = eCo.xyz / max( eCo.w, 1e-5 );
+        if ( eCo.w > 0.0 && eSc.x > 0.0 && eSc.x < 1.0 && eSc.y > 0.0 && eSc.y < 1.0 && eSc.z < 1.0 ) {
+          float eZ = eSc.z - 0.0008;
+          eFc *= eJ < 0.5 ? texture( uFFloodS0, vec3( eSc.xy, eZ ) ) : texture( uFFloodS1, vec3( eSc.xy, eZ ) );
+        } } }
+#endif
     eFloodSum += eFc * max( dot( eN, eFl ), 0.0 ) * ( diffuseColor.rgb * ( 1.0 - eM ) + eF * min( ( eShine + 8.0 ) / 8.0, 64.0 ) * pow( max( dot( eN, normalize( eFl + eV ) ), 0.0 ), eShine ) );
   }
   // (what a flood lays is no part of the sun's or the moon's light: the hour's shadow leaves it standing)
@@ -266,10 +291,15 @@ const __mojForm = (function () {
     uFWet: { value: new THREE.Vector4(F.reflect.wet ? F.reflect.wet.amount : 0, F.reflect.wet ? F.reflect.wet.seed : 0, F.reflect.wet ? F.reflect.wet.pools || 0 : 0, F.reflect.wet ? F.reflect.wet.rain || 0 : 0) },
     uFWetW: { value: F.reflect.wet && F.reflect.wet.walls !== undefined ? F.reflect.wet.walls : 1 }, uFNow: { value: 0 },
     uFFlood: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) }, uFFloodK: { value: Array.from({ length: 4 }, () => new THREE.Vector3()) },
+    uFFloodS0: { value: null }, uFFloodS1: { value: null }, uFFloodM: { value: [new THREE.Matrix4(), new THREE.Matrix4()] }, uFFloodJ: { value: new THREE.Vector4(-1, -1, -1, -1) },
     uFSpot: { value: Array.from({ length: 6 }, (_, i) => { const q = ((F.reflect.wet && F.reflect.wet.spots) || [])[i]; return q ? new THREE.Vector4(q.at[0], q.at[1], q.at[2], q.r) : new THREE.Vector4(0, 0, 0, 0); }) },
     uFSpotK: { value: Array.from({ length: 6 }, (_, i) => { const q = ((F.reflect.wet && F.reflect.wet.spots) || [])[i]; return q ? new THREE.Vector2(q.amount, q.pool ? 1 : 0) : new THREE.Vector2(0, 0); }) } });
   const SURF = F.reflect.surfaces || {}, WETG = new Set(F.reflect.wet ? F.reflect.wet.groups : []);
   const DAMP = !!(F.reflect.wet && F.reflect.wet.damp), SUNLIT = !!F.sun;
+  // THE FLOODS' SHADOWS: the first two floods each a spot of no light whose map three draws once, the static world in
+  // it (channels/cast-shadows.js arms it with the hour's map); read here by the surfaces the flood lights
+  const FSL = (F.reflect.floods || []).slice(0, 2).map((f) => { const l = new THREE.SpotLight(0xffffff, 0, f.radius, 1.05, 0.3); l.position.set(f.at[0], f.at[1], f.at[2]); l.target.position.set(f.at[0], f.at[1], f.at[2] - 1); l.castShadow = true; l.shadow.mapSize.set(1024, 1024); l.shadow.camera.near = 0.4; l.shadow.camera.far = f.radius; l.shadow.autoUpdate = false; l.shadow.needsUpdate = true; scene.add(l); scene.add(l.target); return l; });
+  const FSH = FSL.length > 0; if (FSH) window.__mojFloodShadows = FSL;
   // (the puddles' pattern, a byte a texel over its rect: read as a texture, smoothed between texels)
   const MK = F.reflect.wet && F.reflect.wet.mask, MASK = !!MK;
   if (MK) { const bin = atob(MK.data), px = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) px[i] = bin.charCodeAt(i);
@@ -352,7 +382,7 @@ fDirect += fBeat * diffuseColor.rgb;
   const lit = (params, M${cfg.reflect ? ', S, wet, o_g' : ''}) => {
     const mat = new THREE.MeshBasicMaterial(params);
     const pom = M && M.depth > 0 && F.pom.steps > 0 ? F.pom.steps : 0, relief = !!(M && M.normal);
-    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? (DAMP ? { FORM_DAMP: 1 } : { FORM_WET: 1 }) : {}), ...(S && SUNLIT ? { FORM_SUNLIT: 1 } : {}), ...(S && wet && MASK ? { FORM_MASK: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {}), ...(S && POOLG.has(o_g) ? { FORM_POOL: 1 } : {})' : ''} };
+    mat.defines = { ...(pom ? { FORM_POM: pom } : {}), ...(relief ? { FORM_RELIEF: 1 } : {})${cfg.reflect ? ', ...(S ? { FORM_ENV: 1 } : {}), ...(S && wet ? (DAMP ? { FORM_DAMP: 1 } : { FORM_WET: 1 }) : {}), ...(S && SUNLIT ? { FORM_SUNLIT: 1 } : {}), ...(S && wet && MASK ? { FORM_MASK: 1 } : {}), ...(S && PR ? { FORM_ENVMAP: 1 } : {}), ...(S && S.clear ? { FORM_CLEAR: 1 } : {}), ...(S && S.film ? { FORM_FILM: 1 } : {}), ...(S && POOLG.has(o_g) ? { FORM_POOL: 1 } : {}), ...(S && FSH ? { FORM_FSHADOW: 1 } : {}), ...(S && PR && PR.open ? { FORM_ENVOPEN: 1 } : {})' : ''} };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U, { ${cfg.sun ? 'uFGround: { value: new THREE.Vector3(...F.sun.ground) }, ' : ''}uFMean: { value: new THREE.Vector3(...(M ? M.mean : [1, 1, 1])) }, uFDepth: { value: M && M.depth ? M.depth : 0 }, uFNorm: { value: relief ? M.normal : null }${cfg.reflect ? ', uFSurf: { value: new THREE.Vector4(S ? S.rough : 1, S ? S.metal || 0 : 0, S ? S.clear || 0 : 0, S ? S.film || 0 : 0) }' : ''} });
       sh.vertexShader = VERT + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vFLit = aLit;\\n  vFPos = mvPosition.xyz;');
@@ -360,7 +390,7 @@ fDirect += fBeat * diffuseColor.rgb;
         .replace('#include <aomap_fragment>', LIGHT)
         .replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + fDirect;');
     };
-    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? (DAMP ? 'd' : 'w') : '') + (S && SUNLIT ? 's' : '') + (S && wet && MASK ? 'm' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '') + (S && POOLG.has(o_g) ? 'p' : '')" : ''};${cfg.sun ? `
+    mat.customProgramCacheKey = () => 'form-room' + pom + (relief ? 'r' : '')${cfg.reflect ? " + (S ? 'e' : '') + (S && wet ? (DAMP ? 'd' : 'w') : '') + (S && SUNLIT ? 's' : '') + (S && wet && MASK ? 'm' : '') + (S && PR ? 'c' : '') + (S && S.clear ? 't' : '') + (S && S.film ? 'f' : '') + (S && POOLG.has(o_g) ? 'p' : '') + (S && FSH ? 'h' : '') + (S && PR && PR.open ? 'o' : '')" : ''};${cfg.sun ? `
     // (lit by the day: toned with the land, channels/form-land.js leaves it so)
     mat.userData.cast = true;` : ''}
     return mat;
@@ -436,6 +466,9 @@ ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and dra
     lastT = t;
 ${cfg.reflect ? `    U.uFNow.value = window.__mojClock != null && window.__mojClock > 0 ? window.__mojClock : t / 1000;
 ` : ''}${cfg.reflect && cfg.reflect.floods ? `    (F.reflect.floods || []).map((f) => ({ f, d: tmp.set(...f.at).distanceToSquared(eye) })).sort((a, b) => a.d - b.d).slice(0, 4).forEach(({ f }, k) => { tmp.set(...f.at).applyMatrix4(cam.matrixWorldInverse); U.uFFlood.value[k].set(tmp.x, tmp.y, tmp.z, f.radius); U.uFFloodK.value[k].set(...f.key); });
+    if (FSH) { const J = [-1, -1, -1, -1]; (F.reflect.floods || []).map((f, i) => ({ i, d: tmp.set(...f.at).distanceToSquared(eye) })).sort((a, b) => a.d - b.d).slice(0, 4).forEach(({ i }, k) => { if (i < FSL.length && FSL[i].shadow.map) J[k] = i; });
+      U.uFFloodJ.value.set(J[0], J[1], J[2], J[3]);
+      FSL.forEach((l, i) => { U.uFFloodM.value[i].copy(l.shadow.matrix); if (l.shadow.map && !U['uFFloodS' + i].value) U['uFFloodS' + i].value = l.shadow.map.depthTexture; }); }
 ` : ''}    cam.getWorldPosition(eye);
     // (a toned room's void and its haze are its ramp's darkest colour, as its toned page paints them: set at the first
     // frame, after the page's own haze has laid its colour)

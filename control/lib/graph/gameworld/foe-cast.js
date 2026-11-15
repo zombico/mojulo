@@ -29,6 +29,7 @@ import { readGameworld } from './world.js';
 import { fingerprint, checkReviewEntry, stampPart, MODES, FOE_CAST_PART } from './review.js';
 import { bestiaryOf, fieldedIds, modeChain, readLevelFoes, SUMMON, isModel, isPeople, isDressed } from './foes.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
+import { packSays, bodySays, packStylesOf } from '../foes/packs.js';
 import { vanishOf, VANISHES } from './vanish.js';
 import { juiceOfGame, juiceSuggestion } from './juice.js';
 import { settingOfGame } from './cast-setting.js';
@@ -41,6 +42,8 @@ import { normalizeOozes } from '../mutagen/compose.js';
 import { FOE_STATES } from '../foes/states.js';
 import { MOTIVATIONS, AGGRESSIVENESS, RANKS, SWITCHES, SIGHTS, GAZES, COVER, SITUATIONS } from '../mind/vocab.js';
 import { JUICE_FLAVORS, JUICE_REGISTERS } from '../scene/juice-style.js';
+import { ARMORY_ARMS } from '../equipment/armory.js';
+import { arsenalOfGame, bossPhases, foeHealth, STRINGS_BY_RANK } from './arsenal.js';
 
 const FPS = 60;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -62,8 +65,9 @@ export const STAT_WORDS = Object.freeze({
 const n = (k, [one, many]) => `${k} ${k === 1 ? one : many}`;
 // what a foe takes and what it costs, as a sentence in the flavor's words: its blow by how it hurts (a touch, a shot)
 const HURTS_BY = Object.freeze({ contact: 'a touch', charge: 'its charge', strike: 'its blow', shot: 'a shot', lob: 'a lob', spray: 'its spray' });
-function costsOf(f, W) {
-  const takes = W.health ? `${f.toll.hp} health to down` : `${n(f.toll.downs, W.blow)} to down`;
+function costsOf(f, W, kit = null) {
+  // (in a world armed with a kit: the strings its rank takes, the health that is on the kit's scale)
+  const takes = kit ? `${kit.strings} of the kit's strings to down (${kit.hp} health)` : W.health ? `${f.toll.hp} health to down` : `${n(f.toll.downs, W.blow)} to down`;
   const by = HURTS_BY[f.attack.kind];
   if (!by || !f.toll.harm) return `${takes}; it does not hurt you itself`;
   return `${takes}; ${by} costs you ${W.health ? `${f.toll.damage} health` : n(f.toll.harm, W.cost)}`;
@@ -136,13 +140,29 @@ export function castStyleOf(G) {
   return { register: JUICE_REGISTERS[t] ? t : 'anime', flavor: F.flavor, from: `drawn plainly; ${F.why}` };
 }
 
+/** What a people carries, in words (its skin's `gear`, foes/people.js): each hand's arm by the armory's name where it is
+ * one of its rows (equipment/armory.js), else by its item. */
+const SLOT_WORDS = Object.freeze({ right: 'in the right hand', left: 'in the left hand', back: 'on the back', hip: 'at the hip' });
+function carriesOf(entry) {
+  const gear = entry.skin?.gear; if (!gear) return [];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b), bare = ({ laws: _l, type: _t, armory: _a, ...w }) => w;
+  return Object.entries(gear).filter(([, w]) => w).map(([slot, w]) => {
+    const row = Object.keys(ARMORY_ARMS).find((k) => same(bare(ARMORY_ARMS[k]), bare(w)));
+    return `a ${words(row ?? w.item)} ${SLOT_WORDS[slot] ?? slot}`;
+  });
+}
 function skinOf(entry, f) {
   if (isModel(entry)) return { kind: 'model', says: `a model made elsewhere (${entry.skin.meshRef}), stood ${entry.skin.height ?? 1.8} m` };
   if (isDressed(entry)) {
     const D = entry.skin.dress, S = GRUNT_STYLES[D.faction], cw = D.colourway ?? Object.keys(S.colourways)[0];
     return { kind: 'people', dress: { ...D, colourway: cw }, says: `a person dressed as the ${S.name.toLowerCase()}'s ${D.kind ?? 'crew'}, ${S.colourways[cw].reads}${D.kind ? `: ${S.kinds[D.kind].reads.replace(/^the [a-z ]+: /, '')}` : ''}${entry.skin.facets?.pole ? `, ${entry.skin.facets.pole}` : ''}` };
   }
-  if (isPeople(entry)) return { kind: 'people', says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}` };
+  if (isPeople(entry)) {
+    // (a kin's pack and its body's own words, foes/packs.js: what its band wears alike, its size and its colour)
+    const carries = carriesOf(entry), pack = packSays(entry.skin), body = bodySays(entry.skin);
+    return { kind: 'people', ...(carries.length ? { carries } : {}), ...(pack ? { pack } : {}), ...(body ? { body } : {}),
+      says: `${entry.skin.people === 'human' ? 'a person' : `${entry.skin.people} folk`}${entry.skin.facets ? `, ${Object.entries(entry.skin.facets).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}${body ? `, ${body}` : ''}${pack ? `, ${pack}` : entry.skin.adorned ? ', adorned by its own role and standing' : packStylesOf(entry.skin.people).length ? ', wild (bare)' : ''}` };
+  }
   // (its oozes, each at its strength, and the stylism it is drawn in: mutagen/compose.js)
   const own = entry.skin?.species !== undefined, oozes = f.skin.ooze !== undefined ? normalizeOozes(f.skin.ooze).filter((o) => o.strength > 0) : [];
   const species = words(f.body.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase());
@@ -209,6 +229,11 @@ export function foeCastOf(world) {
   const W = STAT_WORDS[style.flavor] ?? STAT_WORDS.action, R = REGISTER_WORDS[style.register] ?? REGISTER_WORDS.anime;
   const levelsOf = (id) => G.ids.filter((lv) => G.levels[lv].foes !== undefined && readLevelFoes(G.levels[lv].foes, G.foes, `levels.${lv}`).from.includes(id));
   const made = world.made ?? {};
+  // THE KIT'S SCALE (gameworld/arsenal.js): a world that writes an arsenal numbers its foes by its kit on every level
+  // (armLevel), so the book says them so: the strings each rank takes and the health that is, and a boss's phases as
+  // they are written for a hero that plays strings. A world with no arsenal is said in the foe shelf's own frame.
+  const kit = arsenalOfGame(world)?.arsenal ?? null;
+  const kitOf = (f) => (kit ? { strings: STRINGS_BY_RANK[f.rank] ?? STRINGS_BY_RANK.minion, hp: foeHealth(f.rank, kit), ...(bossPhases(f.mind.mind) ? { phases: bossPhases(f.mind.mind).map((p) => ({ below: p.below, aggressiveness: p.aggressiveness })) } : {}) } : null);
   // the fielded first, in the bestiary's order; then the rest of the bestiary (kept, never stood)
   const order = [...fielded, ...Object.keys(B).filter((id) => !fielded.includes(id))];
   const foes = order.map((id) => {
@@ -224,7 +249,7 @@ export function foeCastOf(world) {
       death: { is: V.is, die: V.die, says: `${V.die === 'launch' ? 'thrown back along the blow' : V.die === 'fall' ? 'falls' : V.die === 'dismantle' ? 'comes apart at its joints' : V.die === 'cleave' ? 'is cut through' : 'is destroyed as the blow chooses'}, then ${VANISHES[V.is]}` },
       relations: relationsOf(B, id, e), levels: levelsOf(id), fielded: fielded.includes(id),
       beat: counselOf(B, id, e, f, c, W),
-      costs: costsOf(f, W),
+      costs: costsOf(f, W, kitOf(f)), ...(kitOf(f) ? { kit: kitOf(f) } : {}),
       status: f.status, advisories: f.advisories,
       figure: isModel(e) ? e.skin.meshRef : made[`foes-${id}`]?.ref ?? null,
     };

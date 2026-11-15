@@ -11,7 +11,7 @@ import { OOZES, resolveMutagen } from '../mutagen/index.js';
 import { SPECIES } from '../fauna/species.js';
 import { foeClassValues } from './cosmos.js';
 import { SIZE_CLASS_IDS } from '../fauna/size-class.js';
-import { RANKS, RANK_HP } from '../mind/vocab.js';
+import { RANKS, RANK_HP, SIGHTS } from '../mind/vocab.js';
 import { STATUSES } from '../cosmos/facets/index.js';
 import { PACKAGES } from '../cosmos/packages.js';
 
@@ -165,5 +165,20 @@ describe('foe resolver', () => {
   it('is deterministic: the same foe resolves to the same bytes', () => {
     const spec = { class: PACK.id, rank: 'elite', skill: 'veteran' };
     expect(JSON.stringify(resolveFoe(spec))).toBe(JSON.stringify(resolveFoe(spec)));
+  });
+  it('a class that comes at the hero: it hunts by what it sees, from as far as its sight reaches, at its own pace, with no post to go back to', () => {
+    // (chosen from the shelf: a blade that hunts by sight; and one that holds a post, to stand beside it)
+    const comes = pick('that comes at the hero it sees', (c) => MOVES[c.move].mind?.motivation === 'hunt' && !c.mind.motivation && c.mind.perception === 'sight' && verbOf(c) === 'melee');
+    const holds = pick('that holds a post', (c) => (c.mind.motivation ?? MOVES[c.move].mind?.motivation) === 'guard' && c.mind.sight);
+    const R = resolveFoe({ class: comes.id }).entity.rule, H = resolveFoe({ class: holds.id }).entity.rule;
+    expect(R.mind).toMatchObject({ motivation: 'hunt', perception: 'sight' });
+    expect(R).toMatchObject(SIGHTS[comes.mind.sight].knobs);
+    expect(R.speed).toBeCloseTo(PACES[comes.pace] * HERO.run, 3);
+    expect(R.meleeSeek).toBe(true);
+    // it sees further and wider than a guard's beam, and lays no round or post of its own
+    expect(R.sightRange).toBeGreaterThan(H.sightRange);
+    expect(R.sightCone).toBeGreaterThan(H.sightCone);
+    expect(R.foe ?? null).toBeNull();
+    expect(R.scan).toBeUndefined();
   });
 });

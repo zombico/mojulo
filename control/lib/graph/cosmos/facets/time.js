@@ -84,9 +84,9 @@ export const TIME = Object.freeze({
       multi: true,
       values: {
         screens: { status: 'built', lowers: 'lib/graph/game/play-shell.js', note: 'the order the shell has always made: its title, its levels, a result, the end card (game/flow.js defaultFlow), stepped on events, never timers' },
-        own: { status: 'built', since: '2026-11-09', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen)' },
+        own: { status: 'built', since: '2026-11-09', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen); a game can start in play (flow: \'play\', 11-13): its opening a cutscene, then the first level, which the sentence door writes; a level step is a turn (11-14, game/turn.js): what the player picks before it loads (a world\'s `setup`: difficulty, picks, asked before every level), the load, play, the pause, the results, with a scene or a video at its start and its end' },
         cinematics: { status: 'built', since: '2026-11-09', requires: ['time.shots=staged'], lowers: 'lib/graph/gameworld/story.js', note: 'a cinematic step staged on a level\'s page; the story\'s opening (first boot, the attract), prologue (after New Game, kept into play) and ending (the first full clear) placed in the flow' },
-        held: { status: 'partial', effort: 'M', requires: ['time.sequence=cinematics'], lowers: 'lib/graph/worlds/controllable/world-clock.js', note: 'the world held through a cinematic, its foes and hazards still while the scene\'s cast and camera move: the world freeze stops the clock the scene runs on, so it waits on a narrower freeze' },
+        held: { status: 'partial', effort: 'M', requires: ['time.sequence=cinematics'], lowers: 'lib/graph/worlds/controllable/world-clock.js', note: 'the world held through a cinematic, its foes and hazards still while the scene\'s cast and camera move: the world freeze stops the clock the scene runs on, so it waits on a narrower freeze (the opening cutscene of a game that starts in play runs before play, not over a held world)' },
       },
     },
     chapters: {

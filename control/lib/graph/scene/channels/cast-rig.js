@@ -66,6 +66,8 @@ vec3 castNeutral( vec3 color ) {
 }`;
   function patch(material, U, opts) {
     const cel = opts.register === 'anime', own = opts.surface !== 'form', before = material.onBeforeCompile, beforeKey = material.customProgramCacheKey;
+    // (a body that says how its materials answer, color-theorist/cast-response.js: each corner's roughness and metal)
+    const resp = !!opts.response && !cel;
     material.onBeforeCompile = function (sh, renderer) {
       if (before) before.call(this, sh, renderer);
       Object.assign(sh.uniforms, U);
@@ -80,16 +82,26 @@ vec3 castNeutral( vec3 color ) {
     ${cel ? 'castF = step( 0.42, castF ) * 0.55 + step( 0.7, castF ) * 0.45;' : ''}
     totalEmissiveRadiance += uCastRim * uCastRimK * castF;
   }`, true);
+      if (resp) {
+        sh.vertexShader = 'attribute vec2 aMR;\nvarying vec2 vCastMR;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vCastMR = aMR;');
+        sh.fragmentShader = 'varying vec2 vCastMR;\n' + sh.fragmentShader;
+        put('#include <roughnessmap_fragment>', '  roughnessFactor = clamp( vCastMR.x, 0.05, 1.0 );', true);
+        put('#include <metalnessmap_fragment>', '  metalnessFactor = vCastMR.y;', true);
+      }
       // the hemisphere in the page's ambient's place, and the body's own key gain on its direct light
       put('#include <lights_fragment_begin>', `  {
     vec3 castN = inverseTransformDirection( geometryNormal, viewMatrix );
     irradiance = PI * uCastFill * mix( uCastGround, uCastSky, 0.5 + 0.5 * castN.z );
     reflectedLight.directDiffuse *= uCastKey;
-    reflectedLight.directSpecular *= uCastKey;
+    reflectedLight.directSpecular *= uCastKey;${resp ? `
+    // (and what the surface gives back of the rig's own sky and ground, by its response: a metal is this, in its colour;
+    // skin and an eye a faint sheen; cloth next to nothing)
+    vec3 castRw = inverseTransformDirection( reflect( - normalize( vViewPosition ), normalize( normal ) ), viewMatrix );
+    reflectedLight.indirectSpecular += uCastFill * mix( uCastGround, uCastSky, smoothstep( -0.3, 0.5, castRw.z ) ) * material.specularColor * ( 1.0 - 0.6 * material.roughness ) * 3.0;` : ''}
   }`, true);
       if (own) put('#include <tonemapping_fragment>', '  gl_FragColor.rgb = castNeutral( gl_FragColor.rgb * uCastExposure );', false);
     };
-    material.customProgramCacheKey = function () { return (beforeKey ? beforeKey.call(this) + '+' : '') + 'cast-' + (cel ? 'cel' : 'lit') + (own ? '-own' : '-form'); };
+    material.customProgramCacheKey = function () { return (beforeKey ? beforeKey.call(this) + '+' : '') + 'cast-' + (cel ? 'cel' : 'lit') + (own ? '-own' : '-form') + (resp ? '-resp' : ''); };
     material.needsUpdate = true;
     return material;
   }
@@ -102,11 +114,11 @@ vec3 castNeutral( vec3 color ) {
   }
   function material(R, opts) {
     const o = Object.assign({}, opts), register = o.register || R.register || 'western', surface = o.surface || 'paint', U = o.uniforms || uniforms(R);
-    delete o.register; delete o.surface; delete o.uniforms;
+    const response = !!o.response; delete o.register; delete o.surface; delete o.uniforms; delete o.response;
     const cel = register === 'anime';
     const m = cel ? new THREE.MeshToonMaterial(Object.assign({ gradientMap: ramp(R.bands || { ramp: [0.36, 0.65, 1] }) }, o))
       : new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.62, metalness: 0 }, o));
-    return patch(m, U, { register, surface });
+    return patch(m, U, { register, surface, response });
   }
   function key(scene, R, opts) {
     const sun = opts && opts.sun;

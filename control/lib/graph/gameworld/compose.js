@@ -35,10 +35,14 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
-import { GEOCUBE_PRESETS, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
+import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
+import { worldMapLevel, WORLD_MAP } from './world-map.js';
 import { settingOfGame } from './cast-setting.js';
+import { heroDesign } from './hero-design.js';
+import { genrePaletteWords } from './world-palette.js';
+import { FLOW_IN_PLAY } from '../game/flow.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
@@ -400,7 +404,20 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // a stretch of the wilds; a building, a form or a single level is laid as before
   const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
   const hubId = `${wid}-1`.slice(0, 48);
-  for (let i = 0; i < n; i++) {
+  // a genre whose cube asks for a WORLD MAP (space.worldMap 'zones' on levelForm 'map': the action RPG) is laid as one: a
+  // planned map walked block by block and travelled zone to zone, its first zone laid in teaching order (world-map.js),
+  // never a run of trail walks. A building or a form is laid as before
+  const spaceOf = genre ? cubeOfWorld({ intent: { from: genre.id } }).cube.space ?? {} : {};
+  const mapped = !!genre && !form && !indoors && !hubbed && spaceOf.worldMap === 'zones' && spaceOf.levelForm === 'map';
+  if (mapped) {
+    const mid = `${wid}-map`.slice(0, 48), { level } = worldMapLevel({ n, landscape });
+    world.levels[mid] = { ...level, seed: seed * 100 + 1 };
+    Object.assign(world, { topology: 'interconnected', start: mid });
+    decided.push({ level: mid, seed: seed * 100 + 1, tries: 1, laws: [] });
+    // (how it starts: the opening block a page of its own, the controls and the enemy trail on it; then the first zone)
+    world.brief.worldMap = { level: mid, blocks: level.glyphs.plan.route.length, opening: level.glyphs.plan.route.slice(0, WORLD_MAP.opening), ...(level.glyphs.zoned ? { firstZone: level.glyphs.zoned[0] } : {}) };
+  }
+  for (let i = 0; i < (mapped ? 0 : n); i++) {
     const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
     // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
     // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
@@ -436,7 +453,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // what the levels are played for, and which are buildings: said only when a word decided it
   // (a genre's form: what its levels were laid as, said in the brief)
   if (form) world.brief.levelForm = { genre: genre.id, form: form.form };
-  if (goals && !form) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  if (goals && !form && !mapped) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
   // what the composer filled of the genre's form: said only when it filled something
   if (Object.keys(fills).length) world.brief.form = fills;
   if (indoors && !form) {
@@ -508,6 +525,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const thing = after !== undefined && after !== null && [techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].some((d) => readIntent(d, after).traits.length > 0);
   const open = openWord !== null && !cliffWord && !thing;
   const wet = Object.keys(water).length ? water : null;
+  // (the colour DIRECTION its genre is laid in (world-palette.js GENRE_COLOUR: a choice made at the eyes gate, a row): the
+  // axes it moves on the cube's own palette, written as the cube's palette words under any the sentence's own name)
+  const direction = genre && cubeId ? genrePaletteWords(genre.id, GEOCUBE_PALETTES[cubeId] ?? {}) : null;
+  if (direction) { palette = { ...direction.words, ...(palette ?? {}) }; world.brief.colour = { direction: direction.direction }; }
   if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || dunes !== null || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, dunes, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
@@ -525,7 +546,19 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     // the inn where the world's battles have them)
     world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: true } : {}) };
     if (frame.moves) world.moves = true;
-    world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
+    // (and DESIGNED, where nothing else designs it (hero-design.js: a game that reads no body rail): rolled as a person of
+    // this world, its protagonist, its sheet's plan laid as the looks pages in the pages' own words, its garment the
+    // world's accent; each page is the creator's to rewrite)
+    const design = heroDesign(readGameworld(world));
+    if (design) { world.characters.hero = { ...world.characters.hero, looks: design.looks }; readGameworld(world); }
+    world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition,
+      ...(design ? { design: { roll: design.sheet, ...(design.garment ? { garment: design.garment } : {}), pieces: design.pieces.map((p) => p.kind), read: design.read } } : {}) };
   }
+  // HOW IT STARTS (`flow: 'play'`, game/flow.js startInPlay): its opening is a CUTSCENE, the slot the game's opening
+  // sequence is handed to (the story's opening moment where it has one; empty until then, and passed at once), and from
+  // it straight into play; the title only where quitting goes back to. The flow page is the game director's to rewrite.
+  world.flow = FLOW_IN_PLAY;
+  world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
+  readGameworld(world);
   return world;
 }

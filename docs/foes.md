@@ -46,6 +46,11 @@ the death in the game's register, the base states, the target rim and bar); a ga
 over the class's (a `tune`: a shooter's gun and health, a sneak's unhittable watchers), never a mind of its own. How a
 mind sees is said in words on the class (`mind/vocab.js`): `sight` narrow | wide | keen, `gaze` still | sweep, `cover`.
 
+A foe is met one of two ways, and the class says which. One that HOLDS (a guard at its post, a patrol on its round)
+is met by walking up to it, and can be walked round. One that COMES (`foes/classes/pursuer.js`: it hunts by what it
+sees, from as far as its sight reaches, and holds no post) meets the hero on the way. A game whose minds hunt fields a
+rank and file that comes, by the casting call's own score; one whose minds guard their ground fields one that holds.
+
 An entry reads as a recipe:
 
 ```js
@@ -93,6 +98,79 @@ the realistic body.
 
 Every body an entry stands wears the entry's one figure, so a squad of one entry is one soldier repeated; two entries
 of one faction and colourway are two soldiers of one crew.
+
+### Skin: a people, what it carries and where it stands
+
+`skin: { people, facets?, gear? }` is a person or a non-human people (`foes/people.js`, the lineages of
+`egocube/ancestry.js`). `gear` is what its hands carry, in the hero door's own words (`{ right: { item, … } }`): the
+book's card says it under Who, by the armory's name where the build is one of its rows (`equipment/armory.js`).
+
+A people whose body is not a person's is a KIN: a card of anatomy words on the game's own rig (`beast/cards.js`) and a
+head from the creature library. A kin's card can name a head of its own (`head`: a relational skull,
+`creature-heads/relational.js`, and its size on the body) and where it stands (`stands`: its share of a person's
+height in its rest, which the foe shelf measures it by and the book's lineup draws it at). The goblin is the first
+such kin: a skull with a long nose of its own over a wide mouth, a pointed chin and ears swept back, on a small
+hunched body with its knees forward. The orc is the second: a skull whose jaw is the head (deep, square at its front
+and set ahead of a flat nose, an underbite, two tusks standing up out of its lip: the lower canines drawn out, on the
+jaw's bone) under a brow and a low vault, on a wedge of a body, the head sunk between sloped shoulders, long heavy arms
+and short bowed legs. The near-human `orcish` above it is a person on the hero door, as it was. A new kin is a lineage
+row, a card and, where it needs one, a skull.
+
+### One body, many foes: wild, adorned, pack
+
+A kin is one body. What tells one of its foes from another is what it wears and how big it stands, never another body,
+and what it wears is never designed by hand. It is what the FRAME-ADORNED PRINCIPLES give it (`egocube/outfit.js`
+`adornFromSheet`): a beast is not clothed, its body is the costume, and what it wears accents the frame. They read a
+sheet and answer with pieces, each with its reason:
+
+| principle | what it decides |
+| --- | --- |
+| role | the gear the work asks: a frontline's shoulder plate and bracers, a flanker's baldric and bound wrists, a ranger's quiver, a caster's wrapped hands |
+| station | metal grows with standing: arm rings from the middle, the throat's at the top |
+| archetype | the one focal, exaggerated; the rest kept smaller |
+| anatomy | what the frame offers and refuses: no torc under a ruff, nothing on a winged back, a ring on a tail that must read, a plate only where the body is not its own armour |
+| concept | what the character makes of its own: a people near the beast wears found things, feathers, trophies, paint |
+| restraint | five pieces at most, one focal, the metal twice, a palette whose roles are each a clear step of value |
+
+A kin on the tiered body wears that answer as an outfit with no cut (`egocube/plan.js`: any kin made with a designed
+dress, which is the cube's default). On the foe shelf it is three words on a kin's skin (`foes/packs.js`):
+
+- **wild**: neither word. Bare, the run's order saying so, a rabble told apart by `body: { size?, coat? }`: how big it
+  stands over its card (`WILD_SIZES`: the stature and the frame's words multiplied, so the foe shelf measures it and the
+  lineup draws it at that size) and its own colour, a lineage swatch by word or a `#rrggbb`.
+- **`adorned: true`**: each geared by its own sheet, its own role and standing, as any kin character is.
+- **`pack: { style, colourway?, motif?, accent? }`**: the same principles with what a band SHARES pinned. A pack style
+  (`PACK_STYLES`) names no piece and no geometry. It pins the character every member is read as (its archetype, so its
+  one focal and its concept's found things; its order, so its symmetry), its cloth, its colourways and its marks. A
+  member's CLASS still gives its role's gear and its RANK its station and how many pieces it keeps (`PACK_RANKS`). So
+  two members of one class and rank wear the same whoever they are, a fighter is told from a caster by its gear, and a
+  leader wears everything the rank and file does and more. The pack's adornment is read by the outfit's laws again in
+  the pack's colours, and its colourways keep them. A new pack is a row: a character, a cloth, colours, marks. Its mark takes a colour given it
+  (`accent`), and a body's coat is a colour too (`body.coat`): the two words the game's colour writes when a cast is
+  painted against its ground ([colour.md](colour.md)), so a pack reads against the land it raids and against the hero.
+
+A kin whose card is one body (the goblin, the orc) is rolled at its lineage's one build: the roll takes a lineage's
+builds as advice, and a goblin rolled a brute stood as tall as a person.
+
+A pack's leaders wear a helmet too (`PACK_STYLES.<style>.head`, by rank; its rank and file bare-headed). A kin's
+helmets are their own (`creature-heads/headgear.js`): a person's headgear is drawn on a person's cranium, which a kin
+does not have, so a kin's helmet names no geometry. It is the skull's own surface set out by a pad and a plate's
+thickness, kept above a rim from over the eyes back to the nape, with a hole round each ear's foot and the card's own
+masses joined on (a nasal, horns, a spike). One card therefore fits any skull. It is worn by the hero door's `headgear`
+word, which on a kin lowers to its head's word (`headgear/wear.js`: the `kin` body); a new helmet is a card.
+
+A kin's face is read by its brow: a skull can carry a ridge of its own over each eye (`browRidge`, `browSlant`), a bar
+seated on the skin and standing proud of it, so the light steps on it and the ink finds its edge. And a kin whose arms
+are heavy carries hands to match: a card's `hands` sizes the hand whole, where `mass.hand` only thickens it.
+
+The run lays a pack's and a body's words over the kin's rolled sheet when its figure is made, as it lays its `gear`
+(`gameworld/runner.js`), and a skin changed remakes the figure. The casting call reads which a kin's cast is off the
+game's minds (`gameworld/foe-casting.js`). Where they are creatures of the place (they guard a ground, they wander) the
+cast is WILD, sized by role where its lineage has one build (`KIN_SIZES`). Where they are a force come for the hero
+(the cube's motivation hunts) or hunt as one (its `squad: 'pack'`) the cast is a PACK in one rolled colourway, and a
+band of two kins is led by the bigger one (`KIN_BANDS`: the goblin under the orc): its elite and its boss are that kin,
+where the style is cut for it and the class fits it. So the action RPG made from a sentence fields goblin raiders under
+orc leaders. The foes book says each (`body`, `pack` on a foe's card, and wild or adorned in its line).
 
 ### Relations: a summoner and its summons
 
@@ -192,7 +270,16 @@ cast stays on the stand-in beasts. A cast of people is dressed as one crew (`ERA
 soldier's for a game whose minds are soldiers': a shooter, a stealth game), its colourway rolled, each role the kind its
 class reads as by what the kind carries (a class on watch, a kind whose arms are stowed; one that fires, a long gun at
 the ready; the boss or a heavy class, the heaviest build). The grunt and harrier stand on every walk or building, the elite from the middle
-on, and one boss alone on the last, won by clearing it. `design_game`'s `foes` step carries the proposal and the patch that
+on, and one boss alone on the last, won by clearing it.
+
+A hero that plays strings (the cube's moveset, or a kit its world or its feel's template carries) meets foes that swing
+a blow from the first one on: the grunt, the flanker and the elite are cast from the classes that strike, never one
+that charges down a line or hurts by a touch, and never a mind whose counter a string cannot answer; the elite is such a
+class a rank up. A people's rank and file stands at its lineage's smallest build, its elite and boss at their own
+roll, and a people that swings a blow carries its lineage's arm (`PEOPLE_ARMS`: a cudgel for the rank and file, a
+spiked club for its leaders, from the armory). In a world armed with a kit the book numbers each foe on the kit's
+scale (the strings its rank takes and the health that is, `gameworld/arsenal.js`) and writes a boss's phases as its
+levels carry them. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.
 
 ### Variants: a beast grown by oozes

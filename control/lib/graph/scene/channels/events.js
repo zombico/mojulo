@@ -91,6 +91,7 @@ function hudScript(widgets, style, register, menus = null, titles = null, juice 
   };
   const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? titleRow(w) : {}) }));
   const gated = widgets.some((w) => w.id || w.when);
+  const pressed = widgets.some((w) => w.kind === 'button');   // a level with a button row
   const on = (x) => (gated ? ` && __hudOn(${x})` : '');
   const titled = !!titles && widgets.some((w) => w.kind === 'title');
   return `// HUD: the screen-space widget layer (hud-widgets.js) — a column per slot, a widget per row.
@@ -119,7 +120,12 @@ const __TOAST_CAP = 8, __TOAST_RISE = 28;
     } else if (w.kind === 'banner') { el.textContent = w.text; el.classList.add('moj-hidden'); __hudBanners.push({ w: w, el: el, until: 0 }); }
     else if (w.kind === 'toast') { col(w.slot); __hudToasts.push({ w: w, prev: null, n: 0 }); return; }   // spawns per firing; no standing element${titled ? `
     else if (w.kind === 'title') { __hudTitles.push({ w: w, run: null, seq: 0 }); return; }   // carved letters in the scene; no element` : ''}
-    else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
+${pressed ? `    else if (w.kind === 'button') {   // a thing to press: its event on the bus, or its key pressed; one for a touch screen alone stands while the pad does
+      el.textContent = w.label; el.style.pointerEvents = 'auto'; el.style.cursor = 'pointer';
+      el.addEventListener('pointerdown', function (e) { e.preventDefault(); if (w.key) { ['keydown', 'keyup'].forEach(function (t) { window.dispatchEvent(new KeyboardEvent(t, { key: w.key, code: w.code || w.key, bubbles: true, cancelable: true })); }); } else __inputQueue.push({ type: w.press }); });
+      if (w.touch) { el.style.display = 'none'; setInterval(function () { el.style.display = window.__mojTouch && window.__mojTouch.on() && !window.__mojMenuOpen ? '' : 'none'; }, 400); }
+    }
+` : ''}    else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
 ${gated ? `    if (w.id || w.when) __hudGated.push({ w: w, el: el });
 ` : ''}    col(w.slot).appendChild(el);
   });
@@ -212,7 +218,7 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events0, { fxDay = null } = {}) {
+export function eventsChannelScript(events0, { fxDay = null, rollItems = false } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
@@ -277,7 +283,16 @@ const EVENTS = ${safeJson(titles ? evPage : events)};
 const __BUS = (${buildBus.toString()})();
 const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);${stats ? `
 const __STATS = (${buildStats.toString()})();   // levels, resources, purchases, epochs, tech ranks; scalings on the cast's ops` : ''}
-const __SOURCES = EVENTS.sources || [];
+const __SOURCES = EVENTS.sources || [];${rollItems ? `
+// a level's ROLL may leave some of its pickups out (worlds/controllable/roll.js items): an unlaid one's zone leaves the
+// sources (nothing is found where it would have lain) and its marker is off. Taken at once if the roll came first.
+window.__mojUnlay = function (zones) {
+  const gone = {};
+  for (const z of zones || []) gone[z] = true;
+  for (let k = __SOURCES.length - 1; k >= 0; k--) if (__SOURCES[k] && __SOURCES[k].type === 'zone' && gone[__SOURCES[k].zone]) __SOURCES.splice(k, 1);
+  for (const e of __busState.entities) if (gone[e.id]) e.on = false;
+};
+if (window.__mojUnlaid) window.__mojUnlay(window.__mojUnlaid);` : ''}
 // INPUT as a source (the 4th, beside physics facts / timers / watches): bind key/pointer to a bus
 // event. Listeners push onto a queue drained each frame, so a conceptual world is clickable.
 const __inputQueue = [];
@@ -429,6 +444,8 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${widgets.some((w) => w.kind === 'button' && w.press) ? `
+// a HUD button pressed (a level's button row, drawn here or by the mana-ui HUD): its event on the bus this frame
+window.__mojBus.press = function (type) { __inputQueue.push({ type: String(type) }); };` : ''}${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }
 

@@ -42,6 +42,8 @@ export const GENRE_FEEL = Object.freeze({
   shooter: { pole: 'conscription', why: 'a first-person shooter moves like the contemporary FPS: a soldier\'s run, a short jump' },
   'arena-shooter': { pole: 'infinity-crisis', why: 'an arena shooter is movement first: fast, a high jump and an air jump' },
   'arena-brawler': { pole: 'fallen-angel', why: 'a brawler is offense first: a quick run, a high jump with an air jump, a long string' },
+  'stylish-action': { pole: 'fallen-angel', why: 'stylish action is offense first: long strings, the launcher and the air, the guns between' },
+  'action-rpg': { pole: 'fable-of-artesia', why: 'an action RPG is the sword and shield\'s: a ready run, a three-cut string, the guard, the lock-on' },
   'top-down-adventure': { pole: 'fable-of-artesia', why: 'an adventure is the sword and shield\'s: a ready run, a modest jump, a three-cut string, the lock-on' },
   'dungeon-crawler': { pole: 'ebon-spirits', why: 'a dungeon crawl is deliberate: a slow committed jump, a heavier run' },
   stealth: { pole: 'steel-serpents', why: 'stealth moves carefully: a slow walk, a low jump' },
