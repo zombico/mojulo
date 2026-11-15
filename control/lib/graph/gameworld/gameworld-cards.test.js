@@ -84,7 +84,9 @@ describe('the rail\'s cards', () => {
     // creator brings, the level turn as most games and the open world as the exception, four lines; 4086 bytes before,
     // 4472 with them; 4608 the same day for the seats, one line naming the director, the assistant director and the
     // producer: 4594)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // the battles card too (2026-11-15, zero to level one: `manual`, a lorecube manual fielded by the page, three lines;
+    // 5197 bytes before, 5541 with them; 5888 the same day for `tree`, a school the party can be in, two lines: 5796)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
