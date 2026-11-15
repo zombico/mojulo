@@ -31,6 +31,9 @@ What the theme will hold:
   that heals, a boss's dais), new kinds of fight are composed from them (a duel, a melee, a gallery, a boss
   fight), and the room laws check each. A fight is played there with its waves and its ways sealed, and one the
   creator approves is kept on the world by name.
+- **The loadout.** What the hero carries is chosen from the game's weapons: melee weapons switched in play, a
+  switch chaining one weapon's string into the other's, the choice made at points in the game (before a level, at a
+  rest between fights, when a weapon is earned).
 - **Levels stay the geocube's.** A level's fights are laid by the same rules into a building's rooms (a dungeon,
   sealed at its doorways) and onto a trail's ground, in order, the task said on the HUD, a boss in the goal room.
 - **Style.** A meter in play that rewards varied strings, the air and a clean run, and a rank on a level's
