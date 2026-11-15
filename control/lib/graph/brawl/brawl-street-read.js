@@ -25,7 +25,9 @@ export function streetRead(street, hp0 = []) {
   const { s, ctx, mind } = street, belt = ctx.belt;
   const held = belt.screens.map((sc, i) => (sc.gate || sc.boss ? i : -1)).filter((i) => i >= 0);
   const cleared = held.filter((i) => s.cleared.includes(i)).length;
-  const players = s.bodies.filter((b) => b.side === 'player'), me = players[0];
+  // (a seat not yet taken is no one: it is not read, and does not hold the street's end)
+  const players = s.bodies.filter((b) => b.side === 'player'), me = players[0], sat = players.filter((b) => !b.aw);
+  const hpOf = (b) => hp0[b.id] || ctx.fighters[b.fb ?? b.fi].hp || 1;
   const on = s.bodies.filter((b) => b.side === 'crowd' && !b.gone && !b.ko);
   const bossId = Object.keys(mind.bosses || {}).map(Number).find((id) => { const b = s.bodies[id]; return b && !b.gone; });
   const B = bossId === undefined ? null : s.bodies[bossId];
@@ -33,7 +35,11 @@ export function streetRead(street, hp0 = []) {
     hp: Math.max(0, me.hp), hpMax: hp0[me.id] || me.hp || 1, name: ctx.fighters[me.fi].name || '',
     cleared, of: held.length, screen: Math.min(held.length, cleared + 1), left: on.length,
     boss: B && !B.ko ? { on: true, name: mind.bosses[bossId].name, hp: Math.max(0, B.hp), hpMax: hp0[bossId] || B.hp || 1 } : { on: false, name: '', hp: 0, hpMax: 1 },
-    won: held.length > 0 && cleared === held.length, lost: players.every((b) => b.ko), f: s.f,
+    won: held.length > 0 && cleared === held.length, lost: sat.every((b) => b.ko), f: s.f,
+    // (THE OTHER SEATS, two to four: each its name, its health, its gun where it holds one; `on` once it is taken)
+    mates: players.slice(1).map((b) => ({ on: !b.aw, name: ctx.fighters[b.fb ?? b.fi].name || '', hp: Math.max(0, b.hp), hpMax: hpOf(b), ...(b.gn !== undefined ? { gun: gunName(ctx.guns[b.gn]), ammo: b.am === undefined ? '∞' : String(b.am) } : {}) })),
+    // (a boss with phases: the one it is in, of how many)
+    ...(B && !B.ko && mind.bosses[bossId].phases ? { phase: { at: (mind.phase?.[bossId] ?? 0) + 1, of: mind.bosses[bossId].phases.length + 1 } } : {}),
     // a street's RANK, by the health it was cleared with: S three quarters or more, A a half, B a quarter, else C
     rank: streetRank(Math.max(0, me.hp) / (hp0[me.id] || me.hp || 1)),
     // (a gunner's: the gun held, its rounds left (null: never out), its grenades)

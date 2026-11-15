@@ -66,9 +66,9 @@ export function playWaves(play, belt, types = null) {
   belt.screens.forEach((sc, screen) => {
     const shooters = (n, from) => Array.from({ length: n }, (_, i) => G[(i + from) % G.length]);
     // (THE BOSS, a shooter: the crowd's own rocket as the boss (brawl-crowd.js, a boss of a crowd type), its bar on the
-    // screen, its shooters beside it. Never a brawler: a gunner has no answer to a boss that fights at arm's length,
+    // screen, its shooters beside it; at half its health it throws the rocket down for a burst gun and calls two more. Never a brawler: a gunner has no answer to a boss that fights at arm's length,
     // measured (brawl-measure.js); a map's own waves may still name one)
-    if (sc.boss) out.push({ screen, crowd: tally(shooters(2, held)), boss: { type: 'bazooka', name: 'The Boss', hp: 640 } });
+    if (sc.boss) out.push({ screen, crowd: tally(shooters(2, held)), boss: { type: 'bazooka', name: 'The Boss', hp: 640, phases: [{ at: 0.5, type: 'gunner', volley: 4, calls: [{ type: G[held % G.length], n: 2 }], says: 'Reinforcements' }] } });
     else if (sc.gate) { out.push({ screen, crowd: tally([...shooters(2 + held, held), R[held % R.length]]) }); held++; }
     else { out.push({ screen, crowd: tally(shooters(Math.min(3, 2 + open), open)) }); open++; }
   });

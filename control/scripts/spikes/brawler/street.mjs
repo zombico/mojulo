@@ -5,7 +5,8 @@
 // does the brawler's native kit play a street from its start to its end on a page, and does its screen say so (the
 // health, the screens, GO, the boss, the end). The eyes gate is the operator's: the shots.
 //
-//   node control/scripts/spikes/brawler/street.mjs [--out dir] [--register anime|western] [--style all-rounder] [--secs 200] [--boss-hp 300] [--light] [--level '{"kind":"town"}'] [--tour] [--play gun]
+//   node control/scripts/spikes/brawler/street.mjs [--out dir] [--register anime|western] [--style all-rounder] [--secs 200] [--boss-hp 300] [--light] [--level '{"kind":"town"}'] [--tour] [--play gun] [--coop]
+//   --coop: two on one page: a second player sits down mid-street with a pad and walks in; exit 0 only if it held
 //   --tour: no fight; the street ungated and empty, the player set down every 12 m of it and a still taken (the dress seen)
 import { register as registerLoader, createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -15,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-street') }, register: { type: 'string' }, style: { type: 'string', default: 'all-rounder' }, secs: { type: 'string', default: '200' }, 'boss-hp': { type: 'string', default: '300' }, light: { type: 'boolean', default: false }, level: { type: 'string' }, tour: { type: 'boolean', default: false }, play: { type: 'string' } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-street') }, register: { type: 'string' }, style: { type: 'string', default: 'all-rounder' }, secs: { type: 'string', default: '200' }, 'boss-hp': { type: 'string', default: '300' }, light: { type: 'boolean', default: false }, level: { type: 'string' }, tour: { type: 'boolean', default: false }, coop: { type: 'boolean', default: false }, play: { type: 'string' } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -54,6 +55,11 @@ const CLOCK = () => {
   window.cancelAnimationFrame = () => {};
   performance.now = () => now;
   window.__step = (ms) => { now += ms; const run = next; next = []; for (const cb of run) { try { cb(now); } catch (e) { console.error('frame: ' + e.message + ' @ ' + String(e.stack).split('\n').slice(1, 4).join(' | ')); } } return now; };
+  // (--coop: a second controller, a standard gamepad the page reads as any: its buttons and stick set from here)
+  const pad = { index: 0, id: 'test pad', connected: true, mapping: 'standard', buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })), axes: [0, 0, 0, 0] };
+  let padOn = false;
+  navigator.getGamepads = () => (padOn ? [pad] : []);
+  window.__pad = (buttons, axes) => { padOn = true; pad.buttons.forEach((b, k) => { b.pressed = buttons.includes(k); b.value = b.pressed ? 1 : 0; }); pad.axes = axes || [0, 0, 0, 0]; };
   const held = new Set();
   window.__keys = (codes) => { for (const c of [...held]) if (!codes.includes(c)) { held.delete(c); window.dispatchEvent(new KeyboardEvent('keyup', { code: c })); } for (const c of codes) if (!held.has(c)) { held.add(c); window.dispatchEvent(new KeyboardEvent('keydown', { code: c })); } };
 };
@@ -77,6 +83,21 @@ const log = [];
 await play(30);
 await play(2, ['KeyK']); await play(10);   // (the keyboard sits down: attack, K)
 await shot('start');
+if (opt.coop) {
+  // TWO ON ONE PAGE: the first walks on a while; the second sits down (its pad's attack) and walks in beside it, the
+  // street going on; both fire; what the page says of its seats, its bodies and its screen
+  const state = () => tab.evaluate(() => { const B = window.__mojBrawl, s = B.room.s; return { f: s.f, seats: B.seats, wave: B.room.mind.wave, p: s.bodies.slice(0, 2).map((b) => ({ x: b.x, z: b.z, gone: b.gone, hp: b.hp, am: b.am, st: b.st })), mates: B.read.mates, hud: document.querySelector('.mana-root').innerText.replace(/\s+/g, ' ').slice(0, 220) }; });
+  await play(150, ['KeyD']);
+  const before = await state();
+  await tab.evaluate(() => window.__pad([0])); await play(4); await tab.evaluate(() => window.__pad([])); await play(20);
+  const joined = await state();
+  await tab.evaluate(() => window.__pad([0], [1, 0, 0, 0])); await play(90, ['KeyK', 'KeyD']); await tab.evaluate(() => window.__pad([]));
+  const after = await state();
+  await play(4); await shot('coop');
+  const checks = { secondWaitedOffTheStreet: before.seats.joined === 1 && before.p[1].gone === 1, joinedWithoutARestart: joined.seats.joined === 2 && joined.p[1].gone === 0 && joined.f > before.f && joined.p[0].x >= before.p[0].x, cameInBesideTheFirst: Math.abs(joined.p[1].x - joined.p[0].x) < 2500, secondWalked: after.p[1].x > joined.p[1].x + 500, ...(opt.play === 'gun' ? { bothFired: after.p[0].am < before.p[0].am && after.p[1].am < joined.p[1].am } : {}), secondOnTheScreen: !!(after.mates[0] && after.mates[0].on) };
+  console.log(JSON.stringify({ before, joined, after }, null, 1).slice(0, 2600)); console.log('coop', JSON.stringify(checks)); console.log('errors', JSON.stringify(errs.slice(0, 8)));
+  await browser.close(); process.exit(Object.values(checks).every(Boolean) && !errs.length ? 0 : 1);
+}
 if (opt.tour) {
   // (one of the street's boxes broken where it stands, to see what it leaves)
   await tab.evaluate(() => { const B = window.__mojBrawl, T = (B.room.s.things || []).filter((t) => t.kind === 'box')[1]; if (T) B.wreck({ what: T.what, x: T.x + 1500, z: T.z }); });

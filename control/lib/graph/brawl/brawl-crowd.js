@@ -178,7 +178,25 @@ export function readWaves(waves, belt) {
       // (A BOSS OF THE CROWD'S OWN KIND, `{ type, name?, hp?, volley? }`: a crowd type's body as the boss, on its type's
       // mind, with its bar: a shooter a gunner can fight, a heavy with a name)
       if (w.boss && typeof w.boss === 'object' && w.boss.type !== undefined) {
-        for (const k of Object.keys(w.boss)) if (!['type', 'name', 'hp', 'volley', 'cpu'].includes(k)) throw new Error(`brawl: ${at}.boss.${k}: a boss of a crowd type is { type, name?, hp?, volley? }`);
+        for (const k of Object.keys(w.boss)) if (!['type', 'name', 'hp', 'volley', 'cpu', 'phases'].includes(k)) throw new Error(`brawl: ${at}.boss.${k}: a boss of a crowd type is { type, name?, hp?, volley?, phases? }`);
+        // (ITS PHASES, `[{ at, type?, volley?, calls?, says? }]`: as its health falls to `at` (a share of it, each lower
+        // than the last) it fights as another crowd type (that type's gun and plays), or with more rounds a volley,
+        // and CALLS bodies in; `says` the word the screen shows as it turns)
+        if (w.boss.phases !== undefined) {
+          if (!Array.isArray(w.boss.phases) || !w.boss.phases.length || w.boss.phases.length > 4) throw new Error(`brawl: ${at}.boss.phases is 1 to 4 phases { at, type?, volley?, calls?, says? }`);
+          let last = 1;
+          w.boss.phases.forEach((ph, j) => {
+            const pw = `${at}.boss.phases[${j}]`;
+            if (!ph || typeof ph !== 'object') throw new Error(`brawl: ${pw} is { at, type?, volley?, calls?, says? }`);
+            for (const k of Object.keys(ph)) if (!['at', 'type', 'volley', 'calls', 'says'].includes(k)) throw new Error(`brawl: ${pw}.${k} is not a phase's word (at, type, volley, calls, says)`);
+            if (!(typeof ph.at === 'number' && ph.at > 0 && ph.at < last)) throw new Error(`brawl: ${pw}.at is the share of its health it turns at, under ${last} and over 0, each lower than the last`);
+            last = ph.at;
+            if (ph.type !== undefined && !CROWD_TYPES[ph.type]) throw new Error(`brawl: ${pw}.type is one of ${CROWD_TYPE_IDS.join(', ')}`);
+            if (ph.volley !== undefined && !(Number.isInteger(ph.volley) && ph.volley >= 1 && ph.volley <= 8)) throw new Error(`brawl: ${pw}.volley is 1 to 8 rounds a volley`);
+            if (ph.calls !== undefined && !(Array.isArray(ph.calls) && ph.calls.length && ph.calls.every((c) => c && CROWD_TYPES[c.type] && Number.isInteger(c.n) && c.n >= 1 && c.n <= 8))) throw new Error(`brawl: ${pw}.calls is a list of { type, n } (1 to 8 of a crowd type)`);
+            if (ph.says !== undefined && (typeof ph.says !== 'string' || !ph.says || ph.says.length > 40)) throw new Error(`brawl: ${pw}.says is a short word for the screen`);
+          });
+        }
         if (!CROWD_TYPES[w.boss.type]) throw new Error(`brawl: ${at}.boss.type is one of ${CROWD_TYPE_IDS.join(', ')}`);
         if (w.boss.name !== undefined && (typeof w.boss.name !== 'string' || !w.boss.name || w.boss.name.length > 40)) throw new Error(`brawl: ${at}.boss.name is a short name`);
         if (w.boss.volley !== undefined && !(Number.isInteger(w.boss.volley) && w.boss.volley >= 1 && w.boss.volley <= 8)) throw new Error(`brawl: ${at}.boss.volley is 1 to 8 rounds a volley`);
@@ -189,7 +207,7 @@ export function readWaves(waves, belt) {
       if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
       if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}) })), ...(w.boss && w.boss.type !== undefined ? { boss: { type: w.boss.type, name: w.boss.name ?? 'The Boss', hp: w.boss.hp ?? CROWD_TYPES[w.boss.type].hp * 4, ...(w.boss.volley ? { volley: w.boss.volley } : {}) } } : w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}) })), ...(w.boss && w.boss.type !== undefined ? { boss: { type: w.boss.type, name: w.boss.name ?? 'The Boss', hp: w.boss.hp ?? CROWD_TYPES[w.boss.type].hp * 4, ...(w.boss.volley ? { volley: w.boss.volley } : {}), ...(w.boss.phases ? { phases: w.boss.phases.map((ph) => ({ at: ph.at, ...(ph.type ? { type: ph.type } : {}), ...(ph.volley ? { volley: ph.volley } : {}), ...(ph.calls ? { calls: ph.calls.map((c) => ({ type: c.type, n: c.n })) } : {}), ...(ph.says ? { says: ph.says } : {}) })) } : {}) } } : w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -219,10 +237,11 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, gunn
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a street has 1 to 4 players');
   const W = readWaves(waves, belt);
   const fighters = players.map((p) => brawlFighter(p.recipe, { style: p.style }));
-  const types = [...new Set(W.flatMap((w) => [...w.crowd.map((c) => c.type), ...(w.boss?.type ? [w.boss.type] : [])]))];
+  const types = [...new Set(W.flatMap((w) => [...w.crowd.map((c) => c.type), ...(w.boss?.type ? [w.boss.type, ...(w.boss.phases ?? []).flatMap((ph) => [...(ph.type ? [ph.type] : []), ...(ph.calls ?? []).map((c) => c.type)])] : [])]))];
   const typeAt = {};
   for (const t of types) { typeAt[t] = fighters.length; fighters.push(crowdFighter(t)); }
   const half = viewHalf(belt), [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
+  // (A SEAT NOT YET TAKEN, a player `away: true`: its body made and waiting off the street until it joins, joinStreet)
   const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((i + 1) * (n1 - n0)) / (players.length + 1)) }));
   const kinds = [];
   const bosses = {};
@@ -242,8 +261,14 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, gunn
     if (w.boss && w.boss.type) {
       // (a boss of the crowd's own kind: its type's body and mind, its health and its name its own)
       const BT = CROWD_TYPES[w.boss.type];
-      bosses[bodies.length] = { name: w.boss.name, kind: Object.freeze({ ...BT, ...(w.boss.volley ? { volley: w.boss.volley } : {}) }), hp: w.boss.hp };
+      // (its phases: what it is in each (its type's plays and volley, its gun), who each calls in: bodies of its wave
+      // held back until their phase)
+      const bossId = bodies.length, kindOf = (t, v) => Object.freeze({ ...CROWD_TYPES[t], ...(v ? { volley: v } : {}) });
+      let cur = w.boss.type, vol = w.boss.volley;
+      const phases = (w.boss.phases ?? []).map((ph) => { cur = ph.type ?? cur; vol = ph.volley ?? (ph.type ? undefined : vol); const G = CROWD_TYPES[cur].gun; return { at: ph.at, kind: kindOf(cur, vol), ...(G ? { gun: armory.at[G] } : {}), ...(ph.says ? { says: ph.says } : {}), calls: [] }; });
+      bosses[bossId] = { name: w.boss.name, kind: kindOf(w.boss.type, w.boss.volley), hp: w.boss.hp, ...(phases.length ? { phases } : {}) };
       bodies.push({ fighter: typeAt[w.boss.type], side: 'crowd', x: 0, z: 0, wave: k, ...(BT.plays.includes('grab') ? {} : { grabs: false }), ...(BT.gun ? { gun: armory.at[BT.gun] } : {}), poise: Math.max(BT.poise ?? 0, 120) }); kinds.push('boss');
+      (w.boss.phases ?? []).forEach((ph, j) => { for (const c of ph.calls ?? []) for (let n = 0; n < c.n; n++) { const CT = CROWD_TYPES[c.type]; phases[j].calls.push(bodies.length); bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CT.plays.includes('grab') ? {} : { grabs: false }), ...(CT.gun ? { gun: armory.at[CT.gun] } : {}), ...(CT.poise ? { poise: CT.poise } : {}) }); kinds.push(c.type); } });
     } else if (w.boss) {
       // (a body as every other: a brawler's fighter in its own tune, its plays on it)
       const BF = brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}) }, { tune: w.boss.tune });
@@ -261,19 +286,36 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, gunn
   const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}), ...(armory.guns.length ? { guns: armory.guns } : {}) };
   const s = newBrawl(ctx, { bodies, rules, ...(T.length ? { things: T } : {}) });
   for (const [id, B] of Object.entries(bosses)) if (B.kind) s.bodies[id].hp = B.hp;
+  // (a body a phase calls waits for it; a seat not taken waits to be)
+  for (const B of Object.values(bosses)) for (const [j, ph] of (B.phases ?? []).entries()) for (const id of ph.calls) s.bodies[id].ph = j;
+  players.forEach((p, i) => { if (p.away) { s.bodies[i].gone = 1; s.bodies[i].aw = 1; } });
   // (a held screen with no wave holds nothing: its gate is open from the start)
   // (a gunner's first gun over its sidearm, loaded)
   if (gunner) for (const p of s.bodies) if (p.side === 'player') { p.sd = 0; if (mine[p.gn].ammo !== null) p.am = mine[p.gn].ammo; }
   s.cleared = belt.screens.map((sc, i) => (sc.gate && !W.some((w) => w.screen === i) ? i : -1)).filter((i) => i >= 0);
   // (each crowd body's type, by its id)
   const type = Object.fromEntries(kinds.map((t, j) => [players.length + j, t]));
-  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, cpu: Object.fromEntries(Object.keys(bosses).filter((id) => !bosses[id].kind).map((id) => [id, newCpuMemory()])) } };
+  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, phase: {}, cpu: Object.fromEntries(Object.keys(bosses).filter((id) => !bosses[id].kind).map((id) => [id, newCpuMemory()])) } };
+}
+
+/** A SEAT TAKEN mid-street: a player that was `away` comes in beside the others (where the first one standing is, a
+ * step behind), whole; → the street after. A seat already taken, or no such seat: the street as it was. */
+export function joinStreet(street, i) {
+  const p0 = street.s.bodies[i];
+  if (!p0 || p0.side !== 'player' || !p0.aw) return street;
+  const s = { ...street.s, bodies: street.s.bodies.map((b) => ({ ...b })), events: street.s.events.slice() }, p = s.bodies[i];
+  const by = s.bodies.find((b) => b.side === 'player' && !b.gone && !b.ko) ?? s.bodies.find((b) => b.side === 'player' && !b.gone), [n0, n1] = street.ctx.belt.depth.map((v) => Math.round(v * 1000));
+  delete p.aw;
+  enterBody(s, street.ctx, i, { how: 'walk', x: Math.max(0, (by ? by.x : s.cam) - 700), z: Math.max(n0 + 200, Math.min(n1 - 200, (by ? by.z : 0) + (i % 2 ? 700 : -700))) });
+  p.hp = street.ctx.fighters[p.fb ?? p.fi].hp; p.face = 1;
+  s.events.push({ t: 'join', p: i, x: p.x, z: p.z });
+  return { ...street, s };
 }
 
 /** The street a frame on: the crowd thinks, the core steps, the waves come in and their gates open. */
 export function stepStreet(street, playerPads = []) {
   const { ctx } = street;
-  const mind = { ...street.mind, tok: Object.fromEntries(Object.entries(street.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(street.mind.b).map(([k, v]) => [k, { ...v }])), cpu: { ...street.mind.cpu } };
+  const mind = { ...street.mind, phase: { ...(street.mind.phase ?? {}) }, tok: Object.fromEntries(Object.entries(street.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(street.mind.b).map(([k, v]) => [k, { ...v }])), cpu: { ...street.mind.cpu } };
   const pads = think(street.s, ctx, mind);
   for (const [i, p] of playerPads.entries()) if (p) pads[i] = p;
   const s = stepBrawl(street.s, pads, ctx);
@@ -356,7 +398,7 @@ function think(s, ctx, M) {
     }
     const T = p.tg >= 0 ? B[p.tg] : null;
     // (what it is: a boss's own plays, else its type's)
-    const kind = M.bosses[p.id]?.kind ?? M.bosses[p.id] ?? CROWD_TYPES[M.type[p.id]], F = ctx.fighters[p.fi];
+    const BP = M.bosses[p.id], kind = (BP?.phases && M.phase?.[p.id] ? BP.phases[M.phase[p.id] - 1].kind : BP?.kind) ?? BP ?? CROWD_TYPES[M.type[p.id]], F = ctx.fighters[p.fi];
     if (m.cool > 0) m.cool--;
     // struck: the token given back; once up, back off and wait
     // held, a body with the desperation in its plays breaks out with it (paying its price), a moment in
@@ -534,7 +576,20 @@ function waves(s, ctx, M) {
   const belt = ctx.belt, sc = belt.screens[W.screen], B = s.bodies, R = M.rules;
   const players = B.filter((p) => p.side === 'player' && !p.ko && !p.gone);
   const mine = B.filter((p) => p.side === 'crowd' && p.wv === M.wave);
-  const waiting = mine.filter((p) => p.gone && !p.ko);
+  // (A BOSS'S PHASES: its health fallen to a phase's mark, it turns: what it is now, its gun, who it calls in)
+  for (const p of mine) {
+    const BP = M.bosses[p.id];
+    if (!BP?.phases || p.gone || p.ko) continue;
+    for (let k = M.phase[p.id] ?? 0; k < BP.phases.length && p.hp <= BP.phases[k].at * BP.hp; k++) {
+      const ph = BP.phases[k];
+      M.phase[p.id] = k + 1;
+      if (ph.gun !== undefined && p.gn !== ph.gun) { p.gn = ph.gun; p.sd = ph.gun; p.fc = 0; }
+      delete (M.b[p.id] ?? {}).fire;
+      for (const id of ph.calls) delete B[id].ph;
+      s.events.push({ t: 'phase', p: p.id, k: k + 1, of: BP.phases.length, name: BP.name, ...(ph.says ? { says: ph.says } : {}), x: p.x, z: p.z });
+    }
+  }
+  const waiting = mine.filter((p) => p.gone && !p.ko && p.ph === undefined);
   const standing = mine.filter((p) => !p.gone && !p.ko);
   // (it comes in when a player walks into its screen)
   const begun = M.begun ?? -1;
@@ -589,7 +644,8 @@ function waves(s, ctx, M) {
     s.events.push({ t: 'stageClear', screen: W.screen });
   }
   // the last of it fallen: its gate opens, the next wave waits for its screen
-  if (!waiting.length && mine.every((p) => p.ko)) {
+  if (!waiting.length && mine.every((p) => p.ko || p.ph !== undefined)) {
+    for (const p of mine) if (p.ph !== undefined) { p.ko = 1; delete p.ph; }
     s.cleared = [...s.cleared, W.screen];
     s.events.push({ t: 'cleared', screen: W.screen });
     M.wave++;

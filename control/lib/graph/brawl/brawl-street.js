@@ -40,7 +40,11 @@ export function streetSpec(play = 'brawl') {
     hud: { use: 'hud', children: [
       { use: 'region', props: { at: 'top-left' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, children: [
         { use: 'text', props: { value: b('name'), role: 'label' } },
-        { use: 'bar', props: { value: b('hp'), max: b('hpMax'), variant: 'hp', size: 'large', figures: false } }] }] },
+        { use: 'bar', props: { value: b('hp'), max: b('hpMax'), variant: 'hp', size: 'large', figures: false } },
+        // (THE OTHER SEATS, once taken: each its name, its health, the gun it holds)
+        ...['p2', 'p3', 'p4'].map((k) => ({ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, when: b(`${k}.on`), children: [
+          { use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [{ use: 'text', props: { value: b(`${k}.name`), role: 'label' } }, { use: 'text', props: { value: b(`${k}.gun`), role: 'label' }, when: b(`${k}.gun`) }] },
+          { use: 'bar', props: { value: b(`${k}.hp`), max: b(`${k}.hpMax`), variant: 'hp', figures: false } }] }))] }] },
       { use: 'region', props: { at: 'top' }, children: [{ use: 'pips', props: { value: b('cleared'), max: b('of'), shape: 'square', label: 'street' } }] },
       { use: 'region', props: { at: 'top-right' }, children: [{ use: 'counter', props: { label: 'left', value: b('left'), icon: 'skull' } }] },
       // (A RUN & GUN's: the gun held, its rounds, the grenades, under the health)
@@ -48,7 +52,10 @@ export function streetSpec(play = 'brawl') {
         { use: 'counter', props: { label: b('gun.name'), value: b('gun.ammo'), icon: 'bolt' } },
         { use: 'counter', props: { label: 'grenades', value: b('gun.grenades'), icon: 'flame' } }] }] }] : []),
       // (the boss's bar along the foot, clear of the corners' readouts)
-      { use: 'region', props: { at: 'bottom' }, when: b('boss.on'), children: [{ use: 'bar', props: { value: b('boss.hp'), max: b('boss.hpMax'), variant: 'boss', size: 'large', label: b('boss.name'), figures: false } }] },
+      { use: 'region', props: { at: 'bottom' }, when: b('boss.on'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [
+        // (a boss with phases: the one it is in, as pips over its bar)
+        { use: 'pips', props: { value: b('boss.phase'), max: b('boss.phases'), shape: 'square', label: 'phase' }, when: b('boss.phased') },
+        { use: 'bar', props: { value: b('boss.hp'), max: b('boss.hpMax'), variant: 'boss', size: 'large', label: b('boss.name'), figures: false } }] }] },
       { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: b('moments'), as: 'banner', hold: 1.1, read: 0.4 } }] },
       // A SCENE (brawl-scenes.js): the cinema bars while one plays, its card across the middle, its line along the foot
       { use: 'letterbox', when: b('scene.on') },

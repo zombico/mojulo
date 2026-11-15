@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PLAY_TYPES, PLAY_IDS, CRATE_GUNS, playWaves, playThings } from './brawl-play.js';
-import { streetOf, stepStreet, readWaves, CROWD_TYPES } from './brawl-crowd.js';
+import { streetOf, stepStreet, joinStreet, readWaves, CROWD_TYPES } from './brawl-crowd.js';
 import { STREET_PLAYS, readStreet } from './brawl-street.js';
 import { streetRead, tallyRounds, accuracyOf, streetSession } from './brawl-street-read.js';
 import { newGunReader, readGunButtons } from './brawl-gunner.js';
@@ -171,5 +171,89 @@ describe('cover from the dress: a place\'s cover is of the place', () => {
     expect(Math.min(...at(2))).toBeGreaterThanOrEqual(0);
     expect(M[what].wreck.pos.length).toBeGreaterThan(0);
     expect(coverModels([what])).toEqual({ [what]: M[what] });
+  });
+});
+
+describe('a boss with phases', () => {
+  const boss = { type: 'bazooka', name: 'Big Rocket', hp: 400, phases: [{ at: 0.5, type: 'gunner', volley: 4, calls: [{ type: 'rifleman', n: 2 }], says: 'Reinforcements' }, { at: 0.2, volley: 6 }] };
+  const waves = [{ screen: 2, crowd: [], boss }];
+  it('is read: each phase lower than the last, its type, its calls; a fault is said', () => {
+    expect(readWaves(waves, belt)[0].boss.phases).toEqual(boss.phases);
+    const bad = (ph) => () => readWaves([{ screen: 2, boss: { type: 'bazooka', phases: ph } }], belt);
+    expect(bad([{ at: 0.5 }, { at: 0.6 }])).toThrow(/lower than the last/);
+    expect(bad([{ at: 1.2 }])).toThrow(/phases\[0\].at/);
+    expect(bad([{ at: 0.5, type: 'wizard' }])).toThrow(/type/);
+    expect(bad([{ at: 0.5, calls: [{ type: 'thug', n: 0 }] }])).toThrow(/calls/);
+    expect(bad([{ at: 0.5, sings: 1 }])).toThrow(/not a phase's word/);
+    expect(bad([])).toThrow(/1 to 4 phases/);
+  });
+  it('turns as its health falls: another gun, more rounds, the bodies it calls come in; it is said, and read', () => {
+    let st = streetOf({ belt, players: [hero()], waves, gunner });
+    const id = Number(Object.keys(st.mind.bosses)[0]), called = st.mind.bosses[id].phases[0].calls;
+    expect(called).toHaveLength(2);
+    st.s.bodies[0].x = (belt.screens[2].from + 3) * 1000;
+    const seen = [];
+    const run = (n) => { for (let k = 0; k < n; k++) { st = stepStreet(st, [{}]); for (const e of st.s.events) if (e.t === 'phase') seen.push(e); } };
+    run(120);
+    expect(st.s.bodies[id].gone).toBe(0);
+    expect(streetRead(st, []).phase).toEqual({ at: 1, of: 3 });
+    // (those it calls wait for their phase: not on the street, and not what the wave is waiting for)
+    expect(called.every((c) => st.s.bodies[c].gone)).toBe(true);
+    st.s.bodies[id].hp = 190; run(200);
+    expect(seen.map((e) => [e.k, e.says])).toEqual([[1, 'Reinforcements']]);
+    expect(st.ctx.guns[st.s.bodies[id].gn].id).toBe(CROWD_TYPES.gunner.gun);
+    expect(called.every((c) => !st.s.bodies[c].gone)).toBe(true);
+    expect(streetRead(st, []).phase).toEqual({ at: 2, of: 3 });
+    st.s.bodies[id].hp = 60; run(5);
+    expect(seen.map((e) => e.k)).toEqual([1, 2]);
+    // (a blow that takes it through two marks at once turns it twice)
+    let two = streetOf({ belt, players: [hero()], waves, gunner });
+    two.s.bodies[0].x = (belt.screens[2].from + 3) * 1000;
+    for (let k = 0; k < 120; k++) two = stepStreet(two, [{}]);
+    two.s.bodies[id].hp = 10; two = stepStreet(two, [{}]);
+    expect(two.s.events.filter((e) => e.t === 'phase').map((e) => e.k)).toEqual([1, 2]);
+  });
+  it('felled before it called them, those it would have called never come: the street is won', () => {
+    let st = streetOf({ belt, players: [hero()], waves, gunner });
+    const id = Number(Object.keys(st.mind.bosses)[0]);
+    st.s.bodies[0].x = (belt.screens[2].from + 3) * 1000;
+    for (let k = 0; k < 120; k++) st = stepStreet(st, [{}]);
+    st.s.bodies[id].hp = 0; st.s.bodies[id].ko = 1;
+    for (let k = 0; k < 5; k++) st = stepStreet(st, [{}]);
+    expect(streetRead(st, []).won).toBe(true);
+  });
+});
+
+describe('a second seat taken mid-street', () => {
+  const waves = [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }];
+  const two = () => streetOf({ belt, players: [hero(), { ...hero(), away: true }], waves, gunner });
+  it('waits off the street: not read, not fought, and the street\'s end is the seated players\'', () => {
+    let st = two();
+    expect(st.s.bodies[1]).toMatchObject({ side: 'player', gone: 1, aw: 1 });
+    expect(streetRead(st, []).mates).toMatchObject([{ on: false }]);
+    st.s.bodies[0].ko = 1; st.s.bodies[0].hp = 0;
+    expect(streetRead(st, []).lost).toBe(true);
+  });
+  it('joins where the first stands, whole, armed as it; the street goes on from the frame it was at', () => {
+    let st = two();
+    for (let k = 0; k < 200; k++) st = stepStreet(st, [{ x: 1 }]);
+    const f = st.s.f, before = st.s.bodies[0].x, joined = joinStreet(st, 1);
+    expect(st.s.bodies[1].gone).toBe(1);   // (the street it joined from is as it was)
+    expect(joined.s.f).toBe(f);
+    const p = joined.s.bodies[1];
+    expect(p).toMatchObject({ gone: 0, ko: 0 });
+    expect(p.aw).toBeUndefined();
+    expect(Math.abs(p.x - before)).toBeLessThan(1500);
+    expect(joined.ctx.guns[p.gn].id).toBe('machine-gun');
+    expect(joined.s.events.some((e) => e.t === 'join' && e.p === 1)).toBe(true);
+    expect(streetRead(joined, []).mates[0]).toMatchObject({ on: true, gun: 'Machine Gun' });
+    expect(joinStreet(joined, 1)).toBe(joined);
+    // (both fire, both are tallied; one down does not end it)
+    let s2 = joined, tally = { fired: 0, landed: 0 }, r0 = newGunReader(), r1 = newGunReader(), mine = 0;
+    for (let k = 0; k < 40; k++) { const [a, ra] = readGunButtons(r0, { x: 0, z: 0, a: 1 }, s2.s.bodies[0]), [b, rb] = readGunButtons(r1, { x: 0, z: 0, a: 1 }, s2.s.bodies[1]); r0 = ra; r1 = rb; s2 = stepStreet(s2, [a, b]); tally = tallyRounds(tally, s2.s.events, 2); mine += s2.s.events.filter((e) => e.t === 'fire' && e.p === 1).length; }
+    expect(mine).toBeGreaterThan(2);
+    expect(tally.fired).toBeGreaterThan(mine);
+    s2.s.bodies[0].ko = 1;
+    expect(streetRead(s2, []).lost).toBe(false);
   });
 });

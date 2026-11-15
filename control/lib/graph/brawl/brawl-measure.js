@@ -133,7 +133,7 @@ function oneTake(street, { bot, tier, secs, watch, wait }) {
   const play = street.gunner ? 'gun' : 'brawl', think = B[play], mem = {};
   let st = streetOf(tieredStreet(street, tier)), reader = play === 'gun' ? newGunReader() : newReader();
   const belt = st.ctx.belt, hp0 = st.s.bodies[0].hp, held = belt.screens.map((sc, i) => (sc.gate || sc.boss ? i : -1)).filter((i) => i >= 0);
-  const W = st.mind.waves.map((w) => ({ screen: w.screen, held: !!(belt.screens[w.screen].gate || belt.screens[w.screen].boss), seconds: 0, lost: 0, felled: 0, of: w.crowd.reduce((n, c) => n + c.n, 0) + (w.boss ? 1 : 0), from: null }));
+  const W = st.mind.waves.map((w) => ({ screen: w.screen, held: !!(belt.screens[w.screen].gate || belt.screens[w.screen].boss), seconds: 0, lost: 0, felled: 0, of: w.crowd.reduce((n, c) => n + c.n, 0) + (w.boss ? 1 + (w.boss.phases ?? []).reduce((n, ph) => n + (ph.calls ?? []).reduce((m, c) => m + c.n, 0), 0) : 0), from: null }));
   let tally = { fired: 0, landed: 0 }, result = null, f = 0, hp = hp0, on = -1;
   for (; f < secs * 60 && !result; f++) {
     const me = st.s.bodies[0];

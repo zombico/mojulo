@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global joinStreet, newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -103,10 +103,16 @@ const STREET = BY.street || null;
 // (a street played as a run & gun: the gunner's buttons, its guns, its rounds tallied)
 const GUNPLAY = STREET && STREET.play === 'gun' ? STREET : null;
 let tally = { fired: 0, landed: 0 };
+const TURNS = [];
 const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!((RANGE && RANGE.waves) || BY.waves), mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 // (a street in a game's turn: who plays and how hard, as the turn's picks say; none said, as the street is written)
 let SESSION = { players: picks, difficulty: null };
+// (A STREET'S SPARE SEATS: the playable characters no one has picked (never one the crowd is drawn as), their bodies
+// made and waiting, so a second player sits down mid-street and walks in: no street begun again. Two seats at least)
+let SPARE = [];
+const spareSeats = () => { if (!STREET) return []; const drawn = new Set(Object.values(STREET.cast || {}).flat()), can = BY.roster.map((_, k) => k).filter((k) => !drawn.has(k)); const out = can.filter((k) => picks.indexOf(k) < 0); for (let k = 0; picks.length + out.length < 2 && can.length; k++) out.push(can[k % can.length]); return out.slice(0, Math.max(0, 4 - picks.length)); };
+const seatsOf = () => picks.concat(SPARE);
 // A SCENE PLAYING (brawl-scenes.js): the street's own beats, the fight held under it. `STAGED` what the game's turn asks
 // of this session (the play shell's params: __stage as play starts, __end once the outcome is known); `CINE` the one
 // on now: { id, beats, state, then } (then: what happens when it ends)
@@ -145,7 +151,8 @@ function build() {
   const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades, ...(RANGE.waves && SET.waves ? { waves: RANGE.waves, loop: RANGE.loop } : {}) } } : {};
   // (the brawler yard's own waves while the settings' Waves is on)
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
-  const who = picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style }));
+  SPARE = spareSeats();
+  const who = seatsOf().map((i, k) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style, ...(k >= picks.length ? { away: true } : {}) }));
   if (STREET) {
     // (how hard the street fights, by the game's turn: the tier's crowd rules over the street's, its bosses' minds)
     const tier = SESSION.difficulty ? STREET_DIFFICULTY[SESSION.difficulty] : null, minds = Object.keys(CPU_LEVELS);
@@ -165,9 +172,10 @@ function build() {
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
   // (a street's crowd is drawn as its `cast` says: a body's type, the boss, or `*` for the rest → a roster's character)
   const castOf = (i) => { const C = STREET && STREET.cast, t = C && room.mind.type[i], L = C ? (C[t] ?? C['*']) : null; return L && L.length ? BY.roster[L[i % L.length]] : null; };
-  const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : STREET ? castOf(i) : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
+  const SEATED = seatsOf();
+  const entryOf = (i) => (i < SEATED.length ? BY.roster[SEATED[i]] : STREET ? castOf(i) : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
   bodies = room.s.bodies.map((b, i) => {
-    const E = entryOf(i), skin = skinOf(E && E.character), player = i < picks.length;
+    const E = entryOf(i), skin = skinOf(E && E.character), player = i < SEATED.length;
     const B = skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(E ? E.color : '#9a8f86', room.ctx.fighters[b.fi], false);
     if (player) B.line = lineOf(E.color);
     return B;
@@ -745,7 +753,7 @@ function gunCue(e) {
 const WHIZZED = new Set();
 function flybys() {
   if (!room.s.shots.length) return;
-  const players = room.s.bodies.slice(0, picks.length);
+  const players = room.s.bodies.slice(0, picks.length + SPARE.length);
   for (const r of room.s.shots) {
     if (r.gun === undefined || r.side === 'player' || WHIZZED.has(r.id) || r.life <= 0) continue;
     const near = players.some((p) => !p.gone && Math.abs(r.x - p.x) < Math.abs(r.vx) + 60 && Math.abs(r.z - p.z) > (r.line ?? 300) && Math.abs(r.z - p.z) < 1100);
@@ -804,7 +812,7 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { street: { gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { street: { p2: { on: false, name: '', hp: 0, hpMax: 1, gun: '' }, p3: { on: false, name: '', hp: 0, hpMax: 1, gun: '' }, p4: { on: false, name: '', hp: 0, hpMax: 1, gun: '' }, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
@@ -870,12 +878,15 @@ function tick() {
   if (edge.start && !STREET) { UI.rt.open('settings'); UI.view.paint(); return; }
   if (edge.list) { const ML = GUNPLAY ? gunMoveList(room.ctx.guns.slice(0, GUNPLAY.guns.length + 1), room.s.bodies[0].gr) : RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); if (STREET) UI.state.brawl.street.moves = ML; else UI.state.brawl.practice.moves = ML; UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
-  if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
+  // (on a street: into its waiting seat, the street going on; in the yard, the room made again with it)
+  if (STREET) { if (seated() > picks.length && SPARE.length) { room = joinStreet(room, picks.length); hp0[picks.length] = room.s.bodies[picks.length].hp; picks = picks.concat([SPARE.shift()]); readers.push(GUNPLAY ? newGunReader() : newReader()); } }
+  else if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
   if (STREET) {
     const pads = buttons.map((bt, i) => { const me = room.s.bodies[i], [pad, r] = GUNPLAY ? readGunButtons(readers[i], bt, me) : readButtons(readers[i], bt, me, room.ctx.fighters[me.fi]); readers[i] = r; return pad; });
     room = stepStreet(room, pads);
     if (GUNPLAY) tally = tallyRounds(tally, room.s.events, picks.length);
+    for (const e of room.s.events) if (e.t === 'phase') TURNS.push(e);
   } else room = stepYard(room, buttons);
   t++;
   for (const e of room.s.events) {
@@ -923,7 +934,10 @@ function streetScreen() {
   const say = (text, weight) => { S.moments = S.moments.slice(-4).concat([{ id: 'm' + (said++), text, ...(weight ? { weight } : {}) }]); };
   if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) say('GO', 'major'); }
   if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
-  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: R.boss, ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
+  // (a boss turning: its phase's word, or its number)
+  while (TURNS.length) { const e = TURNS.shift(); say((e.says || 'PHASE ' + (e.k + 1)).toUpperCase(), 'major'); }
+  const M8 = R.mates, mate = (k) => (M8[k] && M8[k].on ? { on: true, name: BY.roster[seatsOf()[k + 1]].name, hp: M8[k].hp, hpMax: M8[k].hpMax, gun: M8[k].gun ? M8[k].gun + ' ' + M8[k].ammo : '' } : { on: false, name: '', hp: 0, hpMax: 1, gun: '' });
+  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: { ...R.boss, phased: !!R.phase, phase: R.phase ? R.phase.at : 0, phases: R.phase ? R.phase.of : 1 }, p2: mate(0), p3: mate(1), p4: mate(2), ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
   if (!over) { S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); S.rank = R.won ? R.rank : '—'; }
   if (!over && (R.won || R.lost)) {
     over = R.won ? 'won' : 'lost';
@@ -962,4 +976,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { wreck: (e) => wreckAt(e), get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };
+window.__mojBrawl = { wreck: (e) => wreckAt(e), get seats() { return { joined: picks.length, spare: SPARE.length, seated: seated() }; }, get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

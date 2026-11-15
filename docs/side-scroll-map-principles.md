@@ -165,6 +165,14 @@ levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
   mind), or `{ type, name?, hp?, volley? }`: a crowd type's body as the boss, on its type's mind, with a boss's health
   and its bar. A run & gun's boss is a shooter (the starter's is the crowd's rocket): a gunner has no answer to a boss
   that fights at arm's length.
+- **A boss has phases.** A boss of a crowd type may say `phases: [{ at, type?, volley?, calls?, says? }]`: as its
+  health falls to `at` (a share of it, each lower than the last) it fights as another crowd type (that type's gun and
+  plays) or with more rounds a volley, calls bodies in, and the screen says its word. Its bar carries a pip a phase.
+  The run & gun's starter boss throws its rocket down for a burst gun at half health and calls two more.
+- **A second player sits down mid-map.** A street makes a body for each spare seat (the playable characters no one
+  picked, never one the crowd is drawn as; two seats at least) and keeps it off the street. A controller that presses
+  attack or start takes the next seat and walks in beside the first, the street going on: no restart. Its name, health
+  and gun stand under the first player's. The street is lost when every seated player is down.
 - **A wave on an open screen is fought on the move**, in either play: it comes in as the player walks in, the camera is
   not held, and it is let go once the player is on the next wave's screen. Holds stay for the screens that are gated
   and the boss's.

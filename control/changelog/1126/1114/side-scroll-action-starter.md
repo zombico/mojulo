@@ -253,8 +253,21 @@ screen) is now played on a page; before, only its practice yard was.
 - Fixed: what stands in the band (a breakable, a piece of cover, what either leaves broken) was drawn paler than the
   same piece against the wall: its colours reached the renderer unconverted. They are brought to linear light on the
   page, and a thing in the band now matches the dress it comes from.
-- Not yet (run & gun): lives and one-hit play, a boss with
-  a fight of its own (phases, its own attacks), two gunners checked on a page.
+- A BOSS'S PHASES: a boss of a crowd type takes `phases: [{ at, type?, volley?, calls?, says? }]`. As its health
+  falls to `at` (a share of it, each lower than the last) it turns: it fights as another crowd type (that type's gun
+  and plays) or with more rounds a volley, the bodies it `calls` come in (held off the street until then; never, if it
+  falls first), and the screen says its word (`says`, or the phase's number). Its bar carries a pip a phase. The run &
+  gun's starter boss throws its rocket down for a burst gun at half its health and calls two more, measured against
+  the fight laws.
+- A SECOND PLAYER SITS DOWN MID-STREET, in either play: a street makes a body for each spare seat (the playable
+  characters no one picked, never one the crowd is drawn as; two seats at least, four at most) and keeps it off the
+  street (`streetOf` a player `away`; `joinStreet`). A controller that presses attack or start takes the next seat and
+  walks in beside the first, whole and armed as it, the street going on. Before, a second controller began the street
+  again, and could be handed a crowd's grunt to play. Its name, health and gun stand under the first player's; the
+  street is lost when every seated player is down. Checked on a page: `node scripts/spikes/brawler/street.mjs --coop
+  --play gun` (a pad the page reads as any sits down, walks in and fires; exit 0 only if it held).
+- Not yet (run & gun): lives and one-hit play, a boss's own attacks (a pattern only it has), the turn asking each
+  seat its fighter and gun (a second player takes the next playable and the first's gun), the fight measured with two.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
