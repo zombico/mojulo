@@ -219,8 +219,8 @@ describe('the studio\'s waves', () => {
     chapterWaves().forEach((ids, i) => expect(lines[i], `wave ${i + 1}`).toBe(`  ${String(i + 1).padStart(2)}  ${ids.map((id) => `${id} (${chapterById(id).department})`).join(' · ')}`));
     // it says the doors a chapter's session uses, and that the eyes gate is the creator's
     for (const word of ['{ ref, chapter }', 'run: true', 'check: true', 'pending', 'ahead', 'never say it passed']) expect(body, word).toContain(word);
-    // (4480 since 2026-11-15, zero to level one: the first session said as 0 to level 1, three lines; 4086 bytes before,
-    // 4383 with them; the same ceiling gameworld-cards.test.js holds it to)
+    // (4480 since 2026-11-15, zero to level one: the first session said as 0 to level 1, four lines; 4086 bytes before,
+    // 4472 with them; the same ceiling gameworld-cards.test.js holds it to)
     expect(Buffer.byteLength(body)).toBeLessThan(4480);
   });
 });

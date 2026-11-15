@@ -6,7 +6,8 @@
 - **A game starts from what you bring.** Choose a game and the agent asks whether you have drawings, plans or
   documents to turn into the game's plan. It uses what they say, sets aside what it cannot place, and asks only about
   what is still missing.
-- **The first session aims at a first level you can play.** The studio's guidance to the agent now says plainly that
+- **The first session aims at a first level, and you decide whether it is the game.** The studio checks the level
+  itself (it loads, it can be won); you approve it by playing it. The studio's guidance to the agent now says plainly that
   the work of a first session runs from the idea to its first level: who is in it, what the player does again and
   again, the level built, how it feels, and a game that loads it and leads to the next one. Most games are made of
   levels played this way; an open world is made differently, and the guidance says so.

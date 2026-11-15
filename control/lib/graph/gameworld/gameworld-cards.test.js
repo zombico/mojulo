@@ -81,8 +81,8 @@ describe('the rail\'s cards', () => {
     // the story card too (2026-11-13, 1113-animation-studio-infra: a cutscene ordered from the animation studio, three
     // lines; 4082 bytes before, 4412 with them)
     // the studio card too (2026-11-15, zero to level one: the first session said as 0 to level 1, starting from what the
-    // creator brings, the level turn as most games and the open world as the exception, three lines; 4086 bytes before,
-    // 4383 with them)
+    // creator brings, the level turn as most games and the open world as the exception, four lines; 4086 bytes before,
+    // 4472 with them)
     const CEIL = { 'gameworld-studio': 4480, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
