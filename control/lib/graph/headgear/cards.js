@@ -9,7 +9,7 @@
  * bounds, not the hair's, which would poke through). Worn by word from the hero door's `headgear` (headgear/wear.js); the
  * helmets by tradition worn from an outfit's `language.head` are helmets.js.
  *
- *   HEADGEAR                     { <id>: { reads, family: 'mask' | 'eyegear' | 'face' | 'mouthpiece' | 'cowl' | 'helmet' | 'respirator' | 'visor', at: { tiered?: (spec) => spec, realistic?: (spec) => spec } } }
+ *   HEADGEAR                     { <id>: { reads, family: 'mask' | 'eyegear' | 'face' | 'mouthpiece' | 'cowl' | 'helmet' | 'respirator' | 'visor' | 'crown' | 'hat', at: { tiered?: (spec) => spec, realistic?: (spec) => spec } } }
  *   HEADGEAR_IDS, fitted(id, body)
  *   withHeadgear(spec, body, id) → the spec wearing it, or throws naming the bodies it fits
  *   withKit(spec, kit)           → the spec with a cranium kit added (over an armour build, its `with`), its kit colours
@@ -414,6 +414,23 @@ export const FACETS = Object.freeze({
 export function structuredKit({ facets = 'iron', nose = true, top = 2.3, w = 1.25, ...words } = {}) {
   return facelessKit({ face: null, eyes: false, blank: false, pad: 0.005, panels: [], ...words, over: { front: { w, top, topSide: top - 0.9 }, facets: typeof facets === 'string' ? FACETS[facets] : facets, nose, shell: 4, cell: 0.03, rim: { w: 0.06, h: 0.0015, group: 'HelmetTrim' }, ...(words.over || {}) } });
 }
+// THE FANTASY HEADGEAR's words: the CIRCLET (an eyegear cast: a band of the frame across the brow, no eyes, its strap round
+// the head at the same height, a gem on its front), and a HAT's soft shell (an open face, cut high over the ears, a brim
+// fitting round its edge; a cone ornament on its crown for the wizard's)
+const CIRCLET = { outline: { shape: 'visor', w: 2.9, h: 0.2, curve: 0.03 }, shift: [0, 1.75], eyes: { treat: 'none', dome: 0 }, group: 'EyeFrame', thick: 0.003, lift: 0.002,
+  strap: { z: 1.75, h: 0.2, group: 'EyeFrame' }, fittings: [{ kind: 'lens', at: [0, 1.75], r: 0.009, h: 0.006, group: 'EyeGlow' }] };
+const HAT_SHELL = ({ brim, cone = null }) => ({ mouth: 'open', opening: 1.3, brow: 1.85, jaw: 0.15, nape: 0, pad: 0.012, shell: 8, thick: 0.004, rim: { w: 0.06, h: 0.0015, group: 'HelmetTrim' },
+  fittings: [{ kind: 'brim', at: [0, 1.7], t: 0.004, lift: 0, group: 'Helmet', ...brim }],
+  ...(cone ? { ornaments: [{ kind: 'spikes', path: 'sagittal', shape: 'cone', at: 0.45, up: 1, thick: 0.006, group: 'Helmet', ...cone }] } : {}) });
+// ON THE REALISTIC HEAD (hero laws 23): the circlet and the hats are not cast on a cranium (the relational head has none) but
+// built on the head the hero has, over its hair (headgear/realistic.js HEADWEAR, read by the realistic expansion): the card
+// lowers to the `headwear` word and its colours; the hair is kept, the crown fitted over it
+const REALISTIC_FROM_LAWS = 23;
+const onRealisticHead = (spec, id, palette) => {
+  if ((spec.laws ?? REALISTIC_FROM_LAWS) < REALISTIC_FROM_LAWS) throw new Error(`headgear: '${id}' is fitted to the realistic body from the hero laws ${REALISTIC_FROM_LAWS} (this hero was minted under ${spec.laws})`);
+  return { ...spec, headwear: id, palette: { ...palette, ...(spec.palette || {}) } };
+};
+const HATTED = (card, id) => ({ ...card, family: 'hat', at: { ...card.at, realistic: (spec) => onRealisticHead(spec, id, card.palette) } });
 const MASKED = (reads, kit, palette) => ({ reads, family: 'mask', palette, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, kit(spec)) } });
 const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', palette, at: { tiered: (spec) => withHelm({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, typeof kit === 'function' ? kit(spec) : helmetKit(kit)) } });
 /** an eyegear's kit from its word (EYEGEAR) or its own data: the cast carried by a ghost shell on the cranium */
@@ -604,6 +621,16 @@ export const HEADGEAR = Object.freeze({
     at: { tiered: (spec) => withHelm(spec, [HELM({ n: 3.2, pad: 0.014, flare: 0.08, muzzle: 0.008, crown: 0.95, visor: 'slits', faceplate: 'Face' })]) } },
   bandHelm: { reads: 'the band helm: a round helm with a visor band across the eyes; the space hero', family: 'helmet',
     at: { tiered: (spec) => withHelm(spec, [HELM({ n: 2.2, pad: 0.02, flare: 0.2, muzzle: 0.01, crown: 0.9, visor: 'band' })]) } },
+  // ── FANTASY (1114): what a fantasy hero wears on the head that is not a hood (a hood is a garment's word: an outfit
+  // piece's `hood`). Each a card over the builders above, no builder of its own: the CIRCLET an eyegear cast pushed up to
+  // the brow with no lenses, its strap the band round the head, a gem on its front; the HATS a soft helmet shell over the
+  // crown (an open face, cut high at the ears) with the brim fitting round it, the wizard's a cone ornament standing off
+  // its crown. The hats drop the hair as a helmet does; the circlet keeps it
+  circlet: { reads: 'the circlet: a thin gold band round the brow, a gem at its front; the noble, the mage, the elf', family: 'crown',
+    at: { tiered: (spec) => withKit({ ...spec, palette: { EyeFrame: '#d4a73a', EyeGlow: '#3f7fd0', ...(spec.palette || {}) } }, eyegearKit(CIRCLET, { id: 'circlet' })),
+      realistic: (spec) => onRealisticHead(spec, 'circlet', { EyeFrame: '#d4a73a', EyeGlow: '#3f7fd0' }) } },
+  travelerHat: HATTED(HELMETED('the traveller\'s hat: a soft felt crown, a broad brim all round dipping at the back; the ranger, the wanderer', () => helmetKit(HAT_SHELL({ brim: { len: 0.075, tilt: 0.12, drop: 0.6 } })), { Helmet: '#4a3b2a', HelmetTrim: '#2e2418' }), 'travelerHat'),
+  wizardHat: HATTED(HELMETED('the wizard\'s hat: a soft crown, a wide brim, a tall cone leaning back off the crown; the mage', () => helmetKit(HAT_SHELL({ brim: { len: 0.09, tilt: 0.08, drop: 0.3 }, cone: { len: 0.3, w: 0.2, lean: -0.35 } })), { Helmet: '#3f5aa0', HelmetTrim: '#e0bd62' }), 'wizardHat'),
 });
 export const HEADGEAR_IDS = Object.freeze(Object.keys(HEADGEAR));
 export const fitted = (id, body) => typeof HEADGEAR[id]?.at[body] === 'function';

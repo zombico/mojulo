@@ -41,7 +41,7 @@ export const jewelGroupOf = (name, metal) => (metal ? `Jewel${JEWEL_METALS[name]
 /** the part the head's layers ride: the ONE SKIN (hero-one-skin.js, realistic laws 2), else the visage → [name, part] */
 const faceSkinOf = (recipe) => (recipe.parts.headSkin ? ['headSkin', recipe.parts.headSkin] : recipe.parts.visage ? ['visage', recipe.parts.visage] : [null, null]);
 /** the face skin's face the bone `bone` alone carries nearest `near` (hero frame): its pin, its point ids' centroid */
-function visagePin(visage, compiled, bone, near, parent = 'visage') {
+export function visagePin(visage, compiled, bone, near, parent = 'visage') {
   const blend = visage.bind?.blend || {}, only = (pid) => { const b = blend[pid.slice(pid.indexOf('/') + 1)] ?? { head: 1 }; return (b[bone] ?? 0) >= 0.999; };
   let best = null, bd = Infinity;
   for (const [id, f] of Object.entries(compiled.faces)) {

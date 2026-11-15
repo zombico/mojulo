@@ -138,7 +138,19 @@ atlas (`heroSkinPaint`, the body's page over the head's, TEXCOORD_0 under the ba
 the footwear, handwear and plating libraries (docs/garment-principles.md, docs/plating.md). It carves as a statue (one
 material, no skin, the realistic head's own parts going with a lost head, a bust without the arms' stumps). `detail`
 is refused: it is the authored body's own clothing, fitted to its rings, and an outfit dresses this body. A panel, a cape and a hood are the authored kernel's, hung
-over the tailor's cloth (their `over`). It depicts adults: a child or chibi cast asked of it is that cast's stylized
+over the tailor's cloth (their `over`). Under outfit laws 2 (and the hero laws 23) a tailored skirt that names its cloth
+hangs on the realistic register's strings from its first ring (`hero-cloth.js` `tailoredSkirts`), its bodice and hips
+on their skin, so a stride carries it clear of the legs; the cape sways on six stiff strings rooted below the hanging
+hand (`CAPE_FROM` of the way from the knee to the hip), its upper part on its skin. A skirt's hem work is a thread in
+peaks over a rule lying on the skirt (`body-relational-wear.js` `hemMotif`), and a medallion's chain, bail and pendant
+are laid on what is worn (`layNecklaces`) instead of being read as belts round the waist. A cloak takes the arm by a
+wider reach (`capeArm`), so the cloth behind a swinging arm goes back with it; a mantle's shoulder is rounded and its hem
+rolled; a draped hood is eased round (`hoodRound`), worn down a cowl gathered at the nape in its lining's shade; a shell
+worn on a body segment (a clasp, a bracer, a satchel) rides the tailor's cloth on it. The circlet and the hats are built
+on the relational head (`headgear/realistic.js`, hero laws 23): a band traced round the skull over the hair with a gem
+pinned at its front, or a crown fitted over the hair (each meridian bridged, then cleared crest by crest) with its ribbon,
+a brim, and the wizard's cone; one part a colour, pinned to the head's skin where the head bone alone carries it. The
+hair is kept under them. It depicts adults: a child or chibi cast asked of it is that cast's stylized
 figure instead, its colours keyed the same.
 
 The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own.
