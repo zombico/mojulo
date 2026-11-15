@@ -155,9 +155,11 @@ screen) is now played on a page; before, only its practice yard was.
   it leaves the straight line; the simulation is untouched (it plays a straight band; the page draws everything that
   much across). A greybox street moves whole with it, smooth: each block cut at the drift's own points
   and the piece on a diagonal TURNED onto it (its length the diagonal's, a little past each end so a bend closes),
-  road, kerbs and fronts along the band's line. A town's street does not move: its band
-  drifts only over the street's own ground (a fault past it), and dress that would stand in the drifted band is left
-  out. Three principles join the doc (the drift).
+  road, kerbs and fronts along the band's line. A town's street runs on it too (`{ kind: 'town', drift: […] }`,
+  `brawl/brawl-warp.js`): the finished town is sheared across its belt by the band's drift where its page is made, a
+  face that crosses a bend cut there first (so a wall and its windows stay together), its instanced things (lamps,
+  trees) moved whole; its dress follows its ground (`follows`: a thing on the floor moved across, a mark on the wall
+  sheared with it). Where a dress's ground stands still, what would be left in the drifted band is left out. Three principles join the doc (the drift).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

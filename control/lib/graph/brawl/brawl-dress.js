@@ -315,7 +315,7 @@ const NEAR_TALL = 1.1;
 
 // how far a wall's mark stands off the fronts' line (m): past a shopfront's shutters, sills and plinth
 const PROUD = 0.16;
-const KEYS = ['seed', 'sets', 'setting', 'colour', 'far', 'near', 'wall', 'fronts'];
+const KEYS = ['seed', 'sets', 'setting', 'colour', 'far', 'near', 'wall', 'fronts', 'follows'];
 const strip = (v, where) => { if (!(Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && Math.abs(v[1] - v[0]) >= 0.6)) throw new Error(`brawl: ${where} is a strip across the belt [n0, n1] m, at least 0.6 m deep`); return [Math.min(...v), Math.max(...v)]; };
 /** A dress, settled against its belt. `far` is the strip between the band's far edge and the fronts ([n0, n1]), `wall`
  * the fronts' line (the far strip's far edge unless said), `near` the strip between the camera and the band (optional:
@@ -337,8 +337,12 @@ export function readDress(dress, belt, where = 'dress') {
   if (dress.setting !== undefined && !DRESS_SETTINGS[dress.setting]) throw new Error(`brawl: ${where}.setting is the kind of place it is: ${DRESS_SETTING_IDS.join(', ')}`);
   const settingId = dress.setting ?? 'street', raw = dress.sets ?? dressSets(belt, settingId);
   if (!Array.isArray(raw) || raw.length !== belt.screens.length) throw new Error(`brawl: ${where}.sets is a set a screen (${belt.screens.length}): a name (${DRESS_SET_IDS.join(', ')}), null for a bare one, or a set of its own { far: { piece: weight }, wall?, gap?, marks?, near? }`);
+  // (`follows`: on a belt whose band drifts, the dress's ground moves with the band (a blockout, a town sheared by it,
+  // brawl-warp.js): its strips and its fronts' lines are the band's own, wherever it has drifted. Unsaid, the ground
+  // stands still and the band drifts over it: what would be left standing in the band is left out)
+  if (dress.follows !== undefined && typeof dress.follows !== 'boolean') throw new Error(`brawl: ${where}.follows is true (its ground moves with a drifting band) or false`);
   const sets = raw.map((v, i) => { if (v === null) return null; if (typeof v === 'string') { if (!DRESS_SETS[v]) throw new Error(`brawl: ${where}.sets[${i}]: no set '${v}' (${DRESS_SET_IDS.join(', ')})`); return v; } if (!isObj(v)) throw new Error(`brawl: ${where}.sets[${i}] is a set's name, null, or a set of its own`); return readOwnSet(v, `${where}.sets[${i}]`); });
-  return { seed: dress.seed ?? 1, ...(dress.setting ? { setting: dress.setting } : {}), sets, ...(dress.colour ? { colour: dress.colour.toLowerCase() } : {}), far, ...(near ? { near } : {}), wall: dress.wall ?? far[1], ...(fronts ? { fronts } : {}) };
+  return { seed: dress.seed ?? 1, ...(dress.setting ? { setting: dress.setting } : {}), sets, ...(dress.colour ? { colour: dress.colour.toLowerCase() } : {}), far, ...(near ? { near } : {}), wall: dress.wall ?? far[1], ...(fronts ? { fronts } : {}), ...(dress.follows === true ? { follows: true } : {}) };
 }
 
 // what an alley holds (each narrow enough for one)
@@ -358,7 +362,7 @@ export function dressPlan(dress, belt) {
       // (its back to the fronts, a hand off them; now and then stood out toward the band, never into it)
       const slack = deep - P.size[1] - 0.1, n = D.far[1] - 0.08 - P.size[1] / 2 - (R() < 0.3 ? R() * Math.min(slack, 0.9) : 0);
       // (where the band has DRIFTED toward the fronts, what would stand in it is left out: the fronts do not move)
-      if (n - P.size[1] / 2 >= belt.depth[1] + beltDrift(belt, s + P.size[0] / 2) + 0.15 - 1e-9) out.push({ piece, set: id, s: r3(s + P.size[0] / 2), n: r3(n), side: 'far', turn: 1, ...(sc.boss ? { boss: true } : {}) });
+      if (D.follows || n - P.size[1] / 2 >= belt.depth[1] + beltDrift(belt, s + P.size[0] / 2) + 0.15 - 1e-9) out.push({ piece, set: id, s: r3(s + P.size[0] / 2), n: r3(n), side: 'far', turn: 1, ...(sc.boss ? { boss: true } : {}) });
       s += P.size[0] + S.gap[0] + R() * (S.gap[1] - S.gap[0]);
     }
     // its wall: the set's marks at their stride, proud of the fronts' own relief
@@ -399,7 +403,10 @@ export function dressFaces(dress, belt) {
     const lift = beltFloor(belt, p.s);
     for (const f of P.build(R, P.crew && (p.boss || p.piece === 'tag' || p.piece === 'banner' || R() < 0.34) ? D.colour ?? null : null)) {
       const o = [f.out[0], f.out[1] * p.turn, f.out[2]];
-      out.push({ corners: f.corners.map(([s, n, z]) => beltPoint(belt, p.s + s, p.n + n * p.turn, z + lift)), out: [r3(o[0] * c - o[1] * si), r3(o[0] * si + o[1] * c), r3(o[2])], hex: f.hex });
+      // (on ground that follows a drifting band: a thing on the floor moved across whole, a mark on the wall sheared
+      // with its wall, corner by corner)
+      const across = (ds) => (D.follows ? beltDrift(belt, p.side === 'wall' ? p.s + ds : p.s) : 0);
+      out.push({ corners: f.corners.map(([s, n, z]) => beltPoint(belt, p.s + s, p.n + n * p.turn + across(s), z + lift)), out: [r3(o[0] * c - o[1] * si), r3(o[0] * si + o[1] * c), r3(o[2])], hex: f.hex });
     }
   });
   return out;
@@ -458,7 +465,8 @@ export const DRESS_LAWS = Object.freeze({ bare: 9, variety: 3 });
 export function dressLaws(dress, belt) {
   const D = readDress(dress, belt), P = dressPlan(D, belt), laws = [], dressed = belt.screens.map((_, i) => !!D.sets[i]);
   const half = (p) => DRESS_PIECES[p.piece].size[1] / 2;
-  const inBand = P.filter((p) => (p.side === 'far' && p.n - half(p) < belt.depth[1] + beltDrift(belt, p.s) - 1e-6) || (p.side === 'near' && p.n + half(p) > belt.depth[0] + beltDrift(belt, p.s) + 1e-6));
+  const slid = (p) => (D.follows ? 0 : beltDrift(belt, p.s));
+  const inBand = P.filter((p) => (p.side === 'far' && p.n - half(p) < belt.depth[1] + slid(p) - 1e-6) || (p.side === 'near' && p.n + half(p) > belt.depth[0] + slid(p) + 1e-6));
   laws.push({ law: 'outside-the-band', ok: !inBand.length, what: inBand.length ? `${inBand.length} of the dress stand in the band (${inBand.slice(0, 3).map((p) => `${p.piece} at ${p.s} m`).join(', ')})` : `all ${P.length} stand outside the band` });
   const names = D.sets.map((v, i) => (v ? setName(v, i) : null)), same = names.map((n, i) => (i && n && n === names[i - 1] ? i : -1)).filter((i) => i >= 0);
   laws.push({ law: 'a-place-a-screen', ok: !same.length, what: same.length ? `screens ${same.map((i) => `${i} and ${i + 1}`).join(', ')} wear the same set (${names[same[0]]}): a screen is a place of its own` : `${names.filter(Boolean).length} dressed screens, no two running alike` });

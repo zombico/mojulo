@@ -87,10 +87,11 @@ still made, and says which.
 21. **Turn or drift, by what should stay still.** A turn swings the view and keeps the street's geometry; a drift keeps
     the view and moves the street. Use a drift where the map should read as a street that really goes somewhere else
     on the plan, a turn where the same street should open ahead.
-22. **The band moves with its ground, or over it.** A street built for the map (a blockout) moves whole with the band:
-    road, kerbs and fronts on the same diagonal. A street that already stands (a town's) does not move: there the band
-    drifts only over ground that is the street's own, from one walk across the road to the other, and anything that
-    would be left standing in it is cleared.
+22. **The street goes with the band.** A street built for the map (a blockout) is laid along the diagonal piece by
+    piece. A street that already stands (a town's) is sheared across by the band's drift: its road, kerbs, walks and
+    fronts lie along the diagonal, its buildings' plans parallelograms with their party walls still square to the
+    walk, as an arcade street draws them; its lamps, trees and dress move whole and are never skewed. Where a ground
+    cannot move, the band may still drift over it, and anything left standing in the band is cleared.
 
 ## Writing a place
 

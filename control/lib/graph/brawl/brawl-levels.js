@@ -266,9 +266,8 @@ function brawlTown(words) {
   // (its rise read off the town's own ground along the street, a point every two metres)
   const rise = climb ? Array.from({ length: Math.floor(flatBelt.length / 2) + 1 }, (_, i) => { const sv = Math.min(flatBelt.length, i * 2); return [r3(sv), r3(D.land.S(x0 + sv, main.at) - flatBelt.floor)]; }).filter((p, i, a) => !i || p[0] > a[i - 1][0]) : null;
   const belt = rise || words.turn || words.drift ? readBelt({ at: flatBelt.at, heading: 0, floor: flatBelt.floor, depth: flatBelt.depth, screens, angle: flatBelt.angle, ...(rise ? { rise } : {}), ...(words.turn ? { turn: words.turn } : {}), ...(words.drift ? { drift: words.drift } : {}) }, 'level') : flatBelt;
-  // (a town's street does not move: its band may DRIFT only over the street's own ground, from the near walk's edge to
-  // the fronts, the road and both walks; a street that runs on a diagonal is a greybox street's)
-  if (belt.drift) { const half0 = (D.sections.y.find((q) => q.rank === 'main') ?? D.sections.y[0]).half, lo = r3(-half0 + 0.3 - belt.depth[0]), hi = r3(half0 - 0.9 - belt.depth[1]); for (const [ps, pn] of belt.drift) if (pn < lo - 1e-6 || pn > hi + 1e-6) throw new Error(`brawl: a town street's drift stays on its own ground: ${lo} to ${hi} m across (at ${ps} m it is ${pn}); a street on a diagonal is a greybox street's`); }
+  // (a town on a band that DRIFTS is sheared across by it where its page is made, brawl-warp.js: its street runs on
+  // the band's diagonal, and its dress follows its ground)
   if (belt.length > x1 - x0 + 1e-6) throw new Error(`brawl: the town's block holds a street of ${Math.floor(x1 - x0)} m between its cross streets (the screens run ${r3(belt.length)} m): fewer or shorter screens`);
   // ITS DRESS (brawl-dress.js): on the far walk between the band and the fronts, and on the fronts themselves; a set
   // a screen. `dress: false` leaves the street the town's own
@@ -279,7 +278,7 @@ function brawlTown(words) {
   const far = [r3(belt.depth[1] + 0.25), r3(wall - 0.05)];
   // (the shops' own lines along the belt, so a mark stands on its building and an alley is dressed as one)
   const fronts = D.plots.filter((pl) => pl.kind === 'shops' && pl.side === 's' && pl.built !== false).map((pl) => ({ from: r3(pl.A[0] + pl.house.env[0] - x0), to: r3(pl.A[0] + pl.house.env[2] - x0), wall: r3(wall + pl.house.env[1]) })).filter((f) => f.to > 0 && f.from < belt.length);
-  const dress = words.dress === false || far[1] - far[0] < 0.6 ? null : readDress({ seed, ...(words.dress ?? {}), far, wall, ...(fronts.length ? { fronts } : {}) }, belt, 'level.dress');
+  const dress = words.dress === false || far[1] - far[0] < 0.6 ? null : readDress({ seed, ...(words.dress ?? {}), far, wall, ...(fronts.length ? { fronts } : {}), ...(belt.drift ? { follows: true } : {}) }, belt, 'level.dress');
   return {
     manifest: { kind: 'geocube', cube: words.cube ?? TOWN.cube, show: 'geotown', seed, ...(words.title ? { title: words.title } : {}), geotown },
     belt, ...(dress ? { dress } : {}),

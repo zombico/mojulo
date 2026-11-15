@@ -638,6 +638,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   }
   // a brawl street's DRESS (brawl/brawl-dress.js): what stands along the belt beside the band, a set a screen. Its
   // faces join here, before the material / AO / texture passes. Absent ⇒ nothing.
+  // a brawl's band that DRIFTS over a town that already stands (brawl/brawl-warp.js): the town sheared across the belt
+  // by the band's drift, so its street runs on the band's diagonal. Before the dress (which stands on the moved
+  // ground) and before the material / AO / texture passes. A straight belt, or another kind of level, warps nothing.
+  if (payload && sketch.manifest.brawl?.belt?.drift && sketch.manifest.kind === 'geocube' && sketch.manifest.show === 'geotown') {
+    const { driftWarp } = await import('@/lib/graph/brawl/brawl-warp.js');
+    driftWarp(payload, sketch.manifest.brawl.belt);
+  }
   if (payload && sketch.manifest.brawl?.dress && sketch.manifest.brawl.belt) {
     const { dressSceneFaces } = await import('@/lib/graph/brawl/brawl-dress.js');
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...dressSceneFaces(sketch.manifest.brawl.dress, sketch.manifest.brawl.belt, ctx.light ?? undefined)];

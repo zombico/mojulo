@@ -256,12 +256,20 @@ describe('a level whose band drifts', () => {
     expect(road.at[0]).toBeCloseTo(19, 1); expect(road.at[1] - floor(F, -100, 200)[0]).toBeCloseTo(4.5, 1);
     expect(road.size[0]).toBeGreaterThanOrEqual(Math.hypot(14, 9));
   });
-  it('a town\'s street does not move: its band drifts only over its own ground, and no dress is left standing in it', () => {
-    const T = brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [30, -2.5], [62, -2.5]] });
-    expect(T.brawl.belt.drift).toBeTruthy();
-    expect(() => brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [40, 9], [62, 9]] })).toThrow(/own ground/);
-    const up = brawlLevel({ kind: 'town', drift: [[0, 0], [20, 0], [30, 2], [62, 2]] });
-    expect(dressLaws(up.brawl.dress, up.brawl.belt).find((l) => l.law === 'outside-the-band').ok).toBe(true);
-    expect(dressPlan(up.brawl.dress, up.brawl.belt).filter((p) => p.side === 'far').length).toBeLessThan(dressPlan(brawlLevel({ kind: 'town' }).brawl.dress, brawlLevel({ kind: 'town' }).brawl.belt).filter((p) => p.side === 'far').length);
+  it('a town\'s street runs on the diagonal too: its dress follows its ground, a thing moved whole, a mark sheared with its wall', () => {
+    const drift = [[0, 0], [14, 0], [30, 10], [62, 10]];
+    const T = brawlLevel({ kind: 'town', drift }), F = brawlLevel({ kind: 'town' });
+    expect(T.brawl.belt.drift).toEqual(drift);
+    expect(T.brawl.dress.follows).toBe(true); expect(F.brawl.dress.follows).toBeUndefined();
+    // (the same dress, laid the same: nothing is left out for the drift, and the laws hold on the moved ground)
+    expect(dressPlan(T.brawl.dress, T.brawl.belt)).toEqual(dressPlan({ ...F.brawl.dress, follows: true }, T.brawl.belt));
+    for (const l of dressLaws(T.brawl.dress, T.brawl.belt)) expect(l.ok, `${l.law}: ${l.what}`).toBe(true);
+    const ys = (L, from) => dressFaces(L.brawl.dress, L.brawl.belt).filter((f) => f.corners.every((c) => c[0] - L.brawl.belt.at[0] > from)).flatMap((f) => f.corners.map((c) => c[1]));
+    expect(Math.min(...ys(T, 34)) - Math.min(...ys(F, 34))).toBeCloseTo(10, 3);
+  });
+  it('a ground that stands still under a drifting band: what would be left standing in the band is left out', () => {
+    const up = readBelt({ at: [10, 5], heading: 0, floor: 0.2, depth: [-2.5, 3], screens: belt.screens.map(({ length, gate, boss }) => ({ length, ...(boss ? { boss } : gate ? { gate } : {}) })), drift: [[0, 0], [20, 0], [26, 2.4], [62, 2.4]] }, 'belt');
+    expect(dressLaws(D, up).find((l) => l.law === 'outside-the-band').ok).toBe(true);
+    expect(dressPlan(D, up).filter((p) => p.side === 'far').length).toBeLessThan(dressPlan(D, belt).filter((p) => p.side === 'far').length);
   });
 });
