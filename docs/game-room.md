@@ -187,3 +187,15 @@ down; a death begins it again at the spawn; the last wave down, the ways open.
 Its machine gate is the playthrough: the floor player wins a duel, a melee and a boss fight on the stand-in
 bestiary, and one who does nothing wins none. It does not win the gallery: it has no answer to a shooter on a
 perch, which is what the gallery is for. Nobody has played any of them: the eyes gate is the operator's.
+
+### Kept
+
+A fight the creator has played and wants is kept on the world by name (`gameworld/fights.js`):
+`fights: { <name>: { kind, seed?, waves? } }`. The kind and the seed are the composition, so nothing rendered is
+stored; the waves are its own, by role or by a foe's id, else the kind's. The room plays one by its name
+(`&fight=<name>`), and its menu lists the kept ones first.
+
+`design_game`'s readout says them under `practice.fights` (`gameworld/fights-readout.js`): each kept fight and the
+laws it loses, and whether together they answer everything the kit asks. A world that fights hand to hand and
+keeps none is offered one of each kind as a patch, on the room's step; it is never laid unasked. Approving a fight
+on its own, and editing a composition piece by piece, are not built yet.

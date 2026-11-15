@@ -124,9 +124,10 @@ export async function GET(request, { params }) {
         const areaAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('area') : null;
         if (areaAsked !== null && areaAsked !== 'none') { const { AREAS } = await import('@/lib/graph/gameroom/area'); if (!AREAS[areaAsked]) return NextResponse.json({ error: `area is one of ${Object.keys(AREAS).join(', ')}, or none` }, { status: 400 }); }
         const area = areaAsked === null ? undefined : areaAsked === 'none' ? false : areaAsked;
-        // (the game room composed for one fight: gameroom/fight.js FIGHT_KINDS, or 'none' for the room as it is; its seed)
+        // (the game room composed for one fight: one the world keeps by name, a kind of gameroom/fight.js FIGHT_KINDS, or
+        // 'none' for the room as it is; its seed)
         const fightAsked = room === 'room' ? request.nextUrl.searchParams.get('fight') : null;
-        if (fightAsked !== null && fightAsked !== 'none') { const { FIGHT_KINDS } = await import('@/lib/graph/gameroom/fight'); if (!FIGHT_KINDS[fightAsked]) return NextResponse.json({ error: `fight is one of ${Object.keys(FIGHT_KINDS).join(', ')}, or none` }, { status: 400 }); }
+        if (fightAsked !== null && fightAsked !== 'none') { const { FIGHT_KINDS } = await import('@/lib/graph/gameroom/fight'); const kept = Object.keys(world.fights ?? {}); if (!FIGHT_KINDS[fightAsked] && !kept.includes(fightAsked)) return NextResponse.json({ error: `fight is one of ${[...kept, ...Object.keys(FIGHT_KINDS)].join(', ')}, or none` }, { status: 400 }); }
         const fight = fightAsked === null || fightAsked === 'none' ? null : fightAsked;
         const seedAsked = room === 'room' ? request.nextUrl.searchParams.get('seed') : null;
         if (seedAsked !== null && !(Number.isInteger(Number(seedAsked)) && Number(seedAsked) > 0)) return NextResponse.json({ error: 'seed is a whole number, from 1' }, { status: 400 });

@@ -20,7 +20,7 @@
  *                leaf piles and bin, a hall's tables and shelves; the shift's own trade, else the hall
  *   the camera   overhead where the world is seen from above or works a shift, else a chase the player turns
  *   measured     the room laws (gameroom/laws.js), and the work proof where a shift is laid
- *   a fight      (`fight`: a kind of gameroom/fight.js, or { kind, waves? }) the room composed for ONE FIGHT and played:
+ *   a fight      (`fight`: a kind of gameroom/fight.js, the name of one the world keeps (`fights`), or { kind, waves? }) the room composed for ONE FIGHT and played:
  *                the place the kit asks for (its ring marked on the floor, its rifts, perches, urns, a font, a dais), its
  *                foes asleep until their wave (fights.js), every way sealed from the moment the hero steps into the ring
  *                until the last wave is down, then the way on; held to the fight's laws. Where combat is settled: a fight
@@ -50,7 +50,7 @@ import { roomNeeds } from '../gameroom/needs.js';
 import { composeRoom } from '../gameroom/compose.js';
 import { composeFight, FIGHT_KIND_IDS } from '../gameroom/fight.js';
 import { roomLaws, fightLaws } from '../gameroom/laws.js';
-import { castRoles, fightWaves, fightCast, fightPlacements, fightMechanic } from './fights.js';
+import { castRoles, fightWaves, fightCast, fightPlacements, fightMechanic, fightOf } from './fights.js';
 import { PERSON } from './quick.js';
 import { blocksOf, footprint, PRIMITIVES } from '../gameroom/primitives.js';
 import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
@@ -74,8 +74,10 @@ export function gameRoomOf(G) {
 
 /** The game room (see the header). */
 export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = null, dress = null, area = undefined, sound = 'realistic', fight = null } = {}) {
-  const needs = roomNeeds(G), theSeed = seed ?? (Number.isInteger(G?.seed) ? G.seed : 1);
-  const FT = fight ? (typeof fight === 'string' ? { kind: fight } : fight) : null;
+  // (a fight asked by the name the world keeps it under, fights.js, is that one: its kind, its seed, its waves)
+  const named = typeof fight === 'string' ? fightOf(G, fight) : null;
+  const needs = roomNeeds(G), theSeed = seed ?? named?.seed ?? (Number.isInteger(G?.seed) ? G.seed : 1);
+  const FT = named ?? (fight ? (typeof fight === 'string' ? { kind: fight } : fight) : null);
   if (FT && !needs.fights) throw new Error('game room: a fight is composed for a world that fights hand to hand (a feel that strikes, or an arsenal)');
   const room = FT ? composeFight(needs, { kind: FT.kind, seed: theSeed }) : composeRoom(needs, { seed: theSeed });
   const laws = FT ? fightLaws(room, needs) : roomLaws(room, needs), A = room.anchors, half = room.half;
@@ -173,7 +175,7 @@ export function gameRoom(G, { refs = {}, cast = WORK_CAST, feel = null, seed = n
   return {
     manifest, needs, room, laws, ...(measured ? { measured } : {}), hero: own ? 'own' : AH ? 'stand-in' : 'mascot', ...(M ? { mascot: { form: cast, thesis: M.thesis } } : {}),
     feel: readFeel(F).pole, dress: trade ? { trade, about: DRESSES[trade].about, laid: D.laid } : null, area: areaOut(AA, AR),
-    choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES), areas: Object.keys(AREAS), ...(needs.fights && !needs.work ? { fights: FIGHT_KIND_IDS } : {}) },
-    ...(fought ? { fight: { kind: fought.kind, waves: fought.waves, placed: fought.placed, roles: fought.roles, contract: fought.contract } } : {}),
+    choices: { feels, casts: WORK_CASTS, dresses: Object.keys(DRESSES), areas: Object.keys(AREAS), ...(needs.fights && !needs.work ? { fights: FIGHT_KIND_IDS, ...(G?.fights ? { kept: Object.keys(G.fights) } : {}) } : {}) },
+    ...(fought ? { fight: { ...(named ? { name: named.name } : {}), seed: theSeed, kind: fought.kind, waves: fought.waves, placed: fought.placed, roles: fought.roles, contract: fought.contract } } : {}),
   };
 }

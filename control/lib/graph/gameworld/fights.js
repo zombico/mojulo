@@ -19,9 +19,17 @@
  *                          sealed way out, every other way sealed, a death begun again at the spawn; a hit costs
  *                          FIGHT_HIT of the hero's hundred (a shooter's rounds land often: ten to a life)
  *
+ * A GAME'S OWN FIGHTS (`gameworld.fights`): the ones settled in the room, kept on the world by name, to be laid in its
+ * levels by the same rules. The kind and the seed are the composition, so nothing rendered is stored.
+ *   fights: { <name>: { kind, seed?, waves? } }   kind: gameroom/fight.js FIGHT_KINDS; seed: its composition's (the
+ *                          world's unsaid); waves: its own, by role or foe id (the kind's unsaid)
+ *   readFights(v, G)       → the fights as written, checked (throws, teaching); G: the world, for its bestiary
+ *   fightOf(G, name)       → { name, kind, seed, waves? } one of the world's, or null
+ *   (composed and read out: fights-readout.js, which reads the brief; this module is the world's read, kept light)
+ *
  * Pure.
  */
-import { FIGHT_KINDS } from '../gameroom/fight.js';
+import { FIGHT_KINDS, FIGHT_KIND_IDS } from '../gameroom/fight.js';
 import { bestiaryOf } from './foes.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { FOE_CLASSES } from '../foes/index.js';
@@ -115,3 +123,19 @@ export function fightMechanic(room, placed, { id = 'fight' } = {}) {
     seals: others.map((w) => ({ at: w.at.slice(), radius: 1.6, back: w.back.slice() })),
   };
 }
+
+const NAME = /^[a-z][a-z0-9-]{0,31}$/;
+/** A world's fights, read (see the header). */
+export function readFights(v, G) {
+  const no = (m) => { throw new Error(`gameworld: fights${m}`); };
+  if (!isObj(v)) no(` is { <name>: { kind, seed?, waves? } } (kind: ${FIGHT_KIND_IDS.join(', ')}): the fights settled in the practice door's game room`);
+  for (const [name, F] of Object.entries(v)) {
+    if (!NAME.test(name)) no(`: '${name}' is no name (lower-case, a letter first)`);
+    if (!isObj(F) || !FIGHT_KINDS[F.kind]) no(`.${name} is { kind, seed?, waves? } (kind: ${FIGHT_KIND_IDS.join(', ')})`);
+    for (const k of Object.keys(F)) if (!['kind', 'seed', 'waves'].includes(k)) no(`.${name} has no '${k}' (kind, seed, waves)`);
+    if (F.seed !== undefined && !(Number.isInteger(F.seed) && F.seed > 0)) no(`.${name}.seed is a whole number, from 1: its composition's`);
+    if (F.waves !== undefined) { try { fightCast(G, F.kind, F.waves); } catch (e) { no(`.${name}: ${e.message.replace(/^fight: /, '')}`); } }
+  }
+  return v;
+}
+export const fightOf = (G, name) => (isObj(G?.fights) && isObj(G.fights[name]) ? { name, seed: Number.isInteger(G.seed) ? G.seed : 1, ...G.fights[name] } : null);

@@ -368,7 +368,7 @@ function roomChoices(room, cast) {
   out.push({ id: 'dress', label: 'Dress', now: room.dress ? room.dress.trade : 'none', options: [...C.dresses.map((d) => ({ id: d, name: d })), { id: 'none', name: 'greybox' }] });
   out.push({ id: 'area', label: 'Area', now: room.area ? room.area.name : 'none', options: [...C.areas.map((a) => ({ id: a, name: a })), { id: 'none', name: 'plane' }] });
   // (a world that fights: the room as it is, or composed for one fight of a kind)
-  if (C.fights) out.push({ id: 'fight', label: 'Fight', now: room.fight ? room.fight.kind : 'none', options: [{ id: 'none', name: 'the room' }, ...C.fights.map((k) => ({ id: k, name: k }))] });
+  if (C.fights) out.push({ id: 'fight', label: 'Fight', now: room.fight ? room.fight.name ?? room.fight.kind : 'none', options: [{ id: 'none', name: 'the room' }, ...(C.kept ?? []).map((n) => ({ id: n, name: `${n} (kept)` })), ...C.fights.filter((k) => !(C.kept ?? []).includes(k)).map((k) => ({ id: k, name: k }))] });
   return out;
 }
 const placeLines = (room) => [
@@ -425,7 +425,7 @@ export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dre
   // (a fight: what the kit asks of the place, by move; who comes in each wave)
   const F = room.fight ?? null, asks = Object.entries(N0(room).asks ?? {});
   const fightAbout = F ? [
-    { label: 'The fight', lines: [`${F.kind}: ${(await import('../gameroom/fight.js')).FIGHT_KINDS[F.kind].about}`, ...F.waves.map((w, k) => `wave ${k + 1}: ${Object.entries(w).map(([id, n]) => `${n} ${id}`).join(', ')}`), 'step into the ring and it begins: every way is sealed until the last wave is down'] },
+    { label: 'The fight', lines: [`${F.name ? `${F.name}, a ` : ''}${F.kind} (seed ${F.seed}): ${(await import('../gameroom/fight.js')).FIGHT_KINDS[F.kind].about}`, ...F.waves.map((w, k) => `wave ${k + 1}: ${Object.entries(w).map(([id, n]) => `${n} ${id}`).join(', ')}`), 'step into the ring and it begins: every way is sealed until the last wave is down'] },
     { label: 'The kit asks', lines: asks.length ? asks.map(([k, a]) => `${k} (${a.by.join(', ')}): ${a.why}`) : ['nothing: this kit asks nothing of the place'] },
   ] : [];
   const N = room.needs, counts = {};
@@ -439,7 +439,7 @@ export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dre
     ...(room.measured ? [{ label: 'The shift', lines: [room.measured.says] }] : []),
     { label: 'The place', lines: [room.hero === 'own' ? 'the hero: the world\'s own' : room.mascot ? `the hero: ${room.mascot.thesis}` : 'the hero: a stand-in holding the world\'s blade, armed with its kit', ...placeLines(room)] },
   ];
-  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, how: await roomHow(room), about, choices: roomChoices(room, cast), foes: !F && nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}), ...(F ? { fight: F.kind } : {}), ...(seed != null ? { seed } : {}) }) }, room);
+  const html = await withMenu(await emitted(payload, cdn), { title: `Game room · ${G.name ?? G.id ?? 'game'}`, how: await roomHow(room), about, choices: roomChoices(room, cast), foes: !F && nf > 0, query: queryOf(link, { cast, feel: room.feel, dress: room.dress ? room.dress.trade : 'none', ...(area !== undefined ? { area: area === false ? 'none' : area } : {}), ...(F ? { fight: F.name ?? F.kind } : {}), ...(seed != null ? { seed } : {}) }) }, room);
   return { html, room };
 }
 const N0 = (room) => room.needs;

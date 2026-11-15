@@ -17,7 +17,10 @@ In progress. Built so far, all in the practice door's game room
 - **Measured:** the scripted floor player wins a duel, a melee and a boss fight on the stand-in bestiary; one who
   does nothing wins none. It does not win the gallery (it has no answer to a shooter on a perch). Nobody has played
   them yet.
-- Not yet: urns that pay and fonts that heal in play, fights kept on the world by name and approved, and
+- **Built: a game's own fights.** `fights: { <name>: { kind, seed?, waves? } }` keeps a fight on the world by name;
+  the room plays it by that name, and `design_game` says what is kept, the laws each loses and whether together
+  they answer everything the kit asks. A world that keeps none is offered one of each kind, never laid unasked.
+- Not yet: urns that pay and fonts that heal in play, a fight approved on its own or edited piece by piece, and
   everything below.
 
 What the theme will hold:

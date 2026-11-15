@@ -134,3 +134,37 @@ describe('the game room playing a fight', () => {
     expect(() => gameRoom({ id: 'c', feel: POLE_IDS.find((id) => !POLES[id].demo.includes('attack')) }, { fight: RIFTED })).toThrow(/fights hand to hand/);
   });
 });
+
+// A GAME'S OWN FIGHTS (`fights`): kept on the world by name, read with it, composed and held to their laws
+import { readFights, fightOf } from './fights.js';
+import { composedFights, fightsReadout } from './fights-readout.js';
+import { GAMEWORLD_KEYS } from './world.js';
+describe('a world\'s fights', () => {
+  const KEPT = { id: 'k', seed: 5, feel: KIT, fights: { gate: { kind: RIFTED, seed: 9, waves: [{ grunt: 2 }, { grunt: 2, elite: 1 }] }, perch: { kind: PERCHED } } };
+  it('are read with the world, each fault taught', () => {
+    expect(GAMEWORLD_KEYS).toContain('fights');
+    expect(readFights(KEPT.fights, KEPT)).toEqual(KEPT.fights);
+    expect(fightOf(KEPT, 'perch').seed).toBe(5);
+    for (const [bad, says] of [[{ Gate: { kind: RIFTED } }, /no name/], [{ gate: { kind: 'siege' } }, /kind:/], [{ gate: { kind: RIFTED, seed: 0 } }, /seed is/], [{ gate: { kind: RIFTED, waves: [{ dragon: 1 }] } }, /no role/], [{ gate: { kind: RIFTED, size: 3 } }, /has no 'size'/]]) expect(() => readFights(bad, {}), JSON.stringify(bad)).toThrow(says);
+  });
+  it('are composed by their kind and seed and played by name in the room', () => {
+    const C = composedFights(KEPT);
+    expect(C.map((f) => f.name)).toEqual(['gate', 'perch']);
+    expect(C[0].room).toEqual(composeFight(roomNeeds(KEPT), { kind: RIFTED, seed: 9 }));
+    const r = gameRoom(KEPT, { fight: 'gate' });
+    expect(r.fight).toMatchObject({ name: 'gate', kind: RIFTED, seed: 9 });
+    expect(r.fight.waves.length).toBe(2);
+    expect(r.choices.kept).toEqual(['gate', 'perch']);
+  });
+  it('are read out: what is kept, what each loses, whether the kit\'s asks are answered; none kept, one of each kind offered', () => {
+    const R = fightsReadout(KEPT);
+    expect(R.kept.map((f) => f.name)).toEqual(['gate', 'perch']);
+    expect(R.kept.every((f) => f.lost.length === 0)).toBe(true);
+    expect(R.asked.holds).toBe(true);
+    const one = fightsReadout({ ...KEPT, fights: { gate: KEPT.fights.gate } });
+    expect(one.asked.holds).toBe(false);
+    const none = fightsReadout({ id: 'n', feel: KIT });
+    expect(Object.keys(none.suggest.patch[0].value)).toEqual(FIGHT_KIND_IDS);
+    expect(fightsReadout({ id: 'c', feel: POLE_IDS.find((id) => !POLES[id].demo.includes('attack')) })).toBeNull();
+  });
+});
