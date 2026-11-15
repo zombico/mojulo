@@ -13,8 +13,8 @@
  *     result   what its end reads back
  *
  *   playWaves(play, belt, types?)            → a run & gun's waves for a map that names none (a brawl's: quick.js defaultWaves)
- *   playThings(play, belt, { boxes?, cover? }) → what stands on it: cover to fight from, a gun to take up, food
- *   SETTING_COVER                            the cover a setting's places have (brawl-dress.js settings), by setting
+ *   playThings(play, belt, { boxes?, cover? }) → what stands on it: cover to fight from (the dress's own, a list a
+ *                                              screen: brawl-dress.js dressCover), a gun to take up, food
  *
  * Pure: no clock, no dice.
  */
@@ -44,13 +44,6 @@ export const PLAY_TYPES = Object.freeze({
 });
 export const PLAY_IDS = Object.freeze(Object.keys(PLAY_TYPES));
 
-/** the cover a setting's places have, in turn along the map (brawl-things.js THINGS.cover) */
-export const SETTING_COVER = Object.freeze({
-  street: Object.freeze(['crates', 'wall']),
-  facility: Object.freeze(['crates', 'wall']),
-  base: Object.freeze(['sandbags', 'wall']),
-  office: Object.freeze(['crates']),
-});
 const COVER = Object.freeze(['sandbags', 'crates']);
 /** the guns a crate holds, in turn (brawl-things.js THINGS.gun) */
 export const CRATE_GUNS = Object.freeze(['spread', 'machine-gun', 'rocket', 'flame']);
@@ -83,18 +76,22 @@ export function playWaves(play, belt, types = null) {
 }
 /**
  * WHAT STANDS ON A RUN & GUN'S MAP when it names nothing: on every screen two pieces of COVER across the band (the
- * setting's own, `cover`; sandbags and crates with none said), a third and two thirds along, on alternate sides of the
+ * place's own: `cover`, a list of cover a screen, what that screen's set stands on its floor, or one list for the
+ * whole map; sandbags and crates with none said), a third and two thirds along, on alternate sides of the
  * band's middle, so a line of fire is always broken somewhere; on a held screen a crate (`boxes`: the setting's) at
  * its far side holding a GUN, a different one each; on the boss's, one holding a roast chicken.
  */
 export function playThings(play, belt, { boxes = null, cover = null } = {}) {
   if (play !== 'gun') throw new Error(`brawl: playThings lays a run & gun's things (play 'gun'); a brawl's are its own`);
-  const C = (cover?.length ? cover : COVER).filter((c) => THINGS.cover[c]), BOX = boxes?.length ? boxes : ['crate'];
+  const each = Array.isArray(cover?.[0]), ofScreen = (i) => { const L = ((each ? cover[i] : cover) ?? []).filter((c) => THINGS.cover[c]); return L.length ? L : COVER; };
+  const BOX = boxes?.length ? boxes : ['crate'];
   const [n0, n1] = belt.depth, mid = (n0 + n1) / 2, r2 = (v) => Math.round(v * 100) / 100, out = [];
   let k = 0, g = 0;
   belt.screens.forEach((sc, i) => {
     // (the first screen's cover stands clear of where the players start)
-    for (const f of i === 0 ? [0.72] : [0.36, 0.72]) { out.push({ kind: 'cover', what: C[k % C.length], at: r2(sc.from + f * sc.length), n: r2(mid + (k % 2 ? 0.9 : -0.9)) }); k++; }
+    const C = ofScreen(i);
+    // (each piece stood clear of the band's edges, whatever its depth)
+    for (const f of i === 0 ? [0.72] : [0.36, 0.72]) { const what = C[k % C.length], half = THINGS.cover[what].d / 2 + 0.3; out.push({ kind: 'cover', what, at: r2(sc.from + f * sc.length), n: r2(Math.max(n0 + half, Math.min(n1 - half, mid + (k % 2 ? 0.9 : -0.9)))) }); k++; }
     if (sc.gate && !sc.boss) { out.push({ kind: 'box', what: BOX[g % BOX.length], at: r2(sc.from + 0.2 * sc.length), n: r2(n1 - 0.6), holds: { kind: 'gun', what: CRATE_GUNS[g % CRATE_GUNS.length] } }); g++; }
     // (food where a fight has been: a roast chicken after the first held screen, a joint before the last stand)
     if (sc.gate && !sc.boss && g > 1) out.push({ kind: 'box', what: BOX[g % BOX.length], at: r2(sc.from + 0.1 * sc.length), n: r2(n0 + 0.6), holds: { kind: 'food', what: 'chicken' } });

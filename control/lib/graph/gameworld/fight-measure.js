@@ -41,7 +41,7 @@ export function fightMeasured(world) {
       if (L?.sideways === undefined || L.sideways === false) continue;
       const S = readSideways(L.sideways, { foes: world.foes ?? null, where: `levels.${id}.sideways` }), B = brawlLevel(S.ground).brawl;
       const types = Object.keys(S.cast ?? {}).filter((t) => CROWD_TYPES[t]);
-      maps.push(measured(id, L.name ?? id, B.belt, streetPlay(S.play, B.belt, { waves: S.waves, things: S.things, types: types.length ? types : null, setting: B.dress?.setting ?? null, guns: S.guns, grenades: S.grenades })));
+      maps.push(measured(id, L.name ?? id, B.belt, streetPlay(S.play, B.belt, { waves: S.waves, things: S.things, types: types.length ? types : null, setting: B.dress?.setting ?? null, dress: B.dress ?? null, guns: S.guns, grenades: S.grenades })));
     }
   } catch { return null; }   // (a world that does not read yet is said by its own reader, not here)
   if (!maps.length) return null;

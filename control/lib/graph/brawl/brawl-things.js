@@ -54,6 +54,22 @@ export const THINGS = Object.freeze({
     sandbags: row({ hp: 320, w: 1.4, d: 0.7, h: 0.9, sound: 'dirt-impact', says: 'sandbags: low and long, they soak a stream' }),
     crates: row({ hp: 180, w: 1.0, d: 1.0, h: 1.3, sound: 'wood-impact', says: 'a stack of crates: tall, splintered by a stream' }),
     wall: row({ hp: 600, w: 2.2, d: 0.4, h: 1.1, sound: 'stone-impact', says: 'a low wall: long, it takes a rocket to bring down' }),
+    // (THE DRESS'S OWN PIECES stood in the band (brawl-dress.js: each named for the piece it is drawn as, so a place's
+    // cover is of the place): a row here is a piece that stops a round)
+    barrier: row({ hp: 500, w: 2.0, d: 0.6, h: 0.85, sound: 'stone-impact', says: 'a concrete barrier: low, long, it takes a rocket' }),
+    ammo: row({ hp: 260, w: 1.8, d: 0.8, h: 1.0, sound: 'metal-impact', says: 'footlockers and steel crates stacked' }),
+    drums: row({ hp: 280, w: 2.0, d: 1.2, h: 1.2, sound: 'metal-impact', says: 'steel drums in a group: deep, they ring' }),
+    barrels: row({ hp: 200, w: 1.9, d: 0.7, h: 0.9, sound: 'wood-impact', says: 'barrels and kegs in a group' }),
+    pallet: row({ hp: 140, w: 1.2, d: 1.0, h: 0.55, sound: 'wood-impact', says: 'a loaded pallet: low, soon splintered' }),
+    sacks: row({ hp: 160, w: 1.1, d: 0.6, h: 0.5, sound: 'dirt-impact', says: 'sacks heaped: low, they soak a few' }),
+    skip: row({ hp: 500, w: 1.85, d: 1.05, h: 1.3, sound: 'metal-impact', says: 'a rubbish skip: tall, steel' }),
+    planter: row({ hp: 200, w: 1.1, d: 0.5, h: 1.1, sound: 'stone-impact', says: 'a planter box and its shrub' }),
+    tyres: row({ hp: 120, w: 0.7, d: 0.7, h: 0.65, sound: 'dirt-impact', says: 'a stack of tyres: a body wide' }),
+    reel: row({ hp: 220, w: 1.1, d: 1.1, h: 0.85, sound: 'wood-impact', says: 'a cable reel on its flange' }),
+    desk: row({ hp: 180, w: 1.5, d: 1.0, h: 1.2, sound: 'wood-impact', says: 'a desk and its screen' }),
+    cabinet: row({ hp: 260, w: 1.4, d: 0.6, h: 1.3, sound: 'metal-impact', says: 'filing cabinets: tall, steel' }),
+    sofa: row({ hp: 200, w: 1.95, d: 0.85, h: 0.85, sound: 'dirt-impact', says: 'a sofa: low and long' }),
+    reception: row({ hp: 320, w: 2.6, d: 0.7, h: 1.15, sound: 'wood-impact', says: 'a reception counter: long, panelled' }),
     // (a mount's wreck, or one parked: left on the street where its rider came off it)
     motorcycle: row({ hp: 160, w: 1.9, d: 0.6, h: 0.8, sound: 'metal-impact', says: 'a motorcycle on its side: low cover, metal' }),
     scooter: row({ hp: 110, w: 1.5, d: 0.6, h: 0.7, sound: 'metal-impact', says: 'a scooter on its side: a little cover' }),

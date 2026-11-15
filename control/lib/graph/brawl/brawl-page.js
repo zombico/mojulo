@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { versusSource, rosterEntry } from '../versus/versus-page.js';
-import { boxModels } from './brawl-dress.js';
+import { boxModels, coverModels } from './brawl-dress.js';
 import { solveFighter, ARCHETYPES } from '../versus/versus-solver.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
@@ -123,6 +123,8 @@ export function brawlYardData(block, bodies = null) {
     things: P.things ?? [], health: P.health ?? 'chains',
     // (its breakables drawn as skandart's vessels, brawl-dress.js boxModels: none laid, not a byte)
     ...((P.things ?? []).some((t) => t.kind === 'box') ? { boxes: boxModels((P.things ?? []).filter((t) => t.kind === 'box').map((t) => t.what)) } : {}),
+    // (its cover drawn as the dress's own pieces, brawl-dress.js coverModels: none that has a piece laid, not a byte)
+    ...(Object.keys(coverModels((P.things ?? []).filter((t) => t.kind === 'cover').map((t) => t.what))).length ? { covers: coverModels((P.things ?? []).filter((t) => t.kind === 'cover').map((t) => t.what)) } : {}),
     // (the brawler yard's own wave tester, read here so a fault is said before the page)
     ...(P.waves && !P.range ? { waves: readRangeWaves(P.waves), loop: P.loop !== false } : {}),
     // (THE RANGE, the run & gun's: the guns passed in to be tried, read here so a fault is said before the page)

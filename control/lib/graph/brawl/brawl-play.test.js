@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PLAY_TYPES, PLAY_IDS, SETTING_COVER, CRATE_GUNS, playWaves, playThings } from './brawl-play.js';
+import { PLAY_TYPES, PLAY_IDS, CRATE_GUNS, playWaves, playThings } from './brawl-play.js';
 import { streetOf, stepStreet, readWaves, CROWD_TYPES } from './brawl-crowd.js';
 import { STREET_PLAYS, readStreet } from './brawl-street.js';
 import { streetRead, tallyRounds, accuracyOf, streetSession } from './brawl-street-read.js';
@@ -7,7 +7,7 @@ import { newGunReader, readGunButtons } from './brawl-gunner.js';
 import { readBelt } from './brawl-belt.js';
 import { THINGS, readThings } from './brawl-things.js';
 import { GUNS } from './brawl-guns.js';
-import { DRESS_SETTING_IDS } from './brawl-dress.js';
+import { DRESS_SETTING_IDS, DRESS_SETTINGS, DRESS_SETS, DRESS_PIECES, dressCover, settingCover, coverModels, coverPiece, dressSets } from './brawl-dress.js';
 import { solveFighter } from '../versus/versus-solver.js';
 
 // a short map: an open screen, a held one, the boss's
@@ -23,16 +23,14 @@ describe('the play types', () => {
     expect(PLAY_TYPES.gun.asks).toContain('gun');
     expect(PLAY_TYPES.gun.result).toContain('accuracy');
   });
-  it('its shelves name real things: a setting\'s cover, a crate\'s guns, a gun to take up', () => {
-    expect(Object.keys(SETTING_COVER).sort()).toEqual([...DRESS_SETTING_IDS].sort());
-    for (const list of Object.values(SETTING_COVER)) for (const c of list) expect(THINGS.cover[c], c).toBeTruthy();
+  it('its shelves name real things: a crate\'s guns, a gun to take up', () => {
     for (const g of CRATE_GUNS) expect(THINGS.gun[g], g).toBeTruthy();
     for (const [id, row] of Object.entries(THINGS.gun)) expect(GUNS[row.gun].ammo, id).toBeGreaterThan(0);
   });
 });
 
 describe('a run & gun\'s map, laid when it names nothing', () => {
-  const W = playWaves('gun', belt), T = playThings('gun', belt, { cover: SETTING_COVER.base });
+  const BASE = settingCover('base'), W = playWaves('gun', belt), T = playThings('gun', belt, { cover: BASE });
   it('every screen has a wave of shooters; the held one a rush with them, the last its boss, a shooter', () => {
     expect(W.map((w) => w.screen)).toEqual([0, 1, 2]);
     for (const w of W) expect(w.crowd.some((c) => CROWD_TYPES[c.type].gun)).toBe(true);
@@ -48,7 +46,7 @@ describe('a run & gun\'s map, laid when it names nothing', () => {
   it('cover on every screen in the band, the setting\'s; a gun in a crate on the held one, food before the boss', () => {
     expect(() => readThings(T, belt)).not.toThrow();
     for (const sc of belt.screens) expect(T.some((t) => t.kind === 'cover' && t.at >= sc.from && t.at <= sc.to)).toBe(true);
-    expect(T.filter((t) => t.kind === 'cover').every((t) => SETTING_COVER.base.includes(t.what))).toBe(true);
+    expect(T.filter((t) => t.kind === 'cover').every((t) => BASE.includes(t.what))).toBe(true);
     expect(T.find((t) => t.holds?.kind === 'gun').at).toBeGreaterThan(belt.screens[1].from);
     expect(T.find((t) => t.holds?.kind === 'food').at).toBeGreaterThan(belt.screens[2].from);
     expect(() => readStreet({ play: 'gun', waves: W, things: T }, belt)).not.toThrow();
@@ -138,5 +136,40 @@ describe('a boss of the crowd\'s own kind', () => {
     st.s.bodies[id].hp = 0; st.s.bodies[id].ko = 1;
     for (let k = 0; k < 5; k++) st = stepStreet(st, [{}]);
     expect(streetRead(st, []).won).toBe(true);
+  });
+});
+
+describe('cover from the dress: a place\'s cover is of the place', () => {
+  it('every setting has cover of its own, each a dress piece that stops a round', () => {
+    for (const id of DRESS_SETTING_IDS) {
+      const L = settingCover(id);
+      expect(L.length, id).toBeGreaterThan(1);
+      for (const c of L) { expect(THINGS.cover[c], c).toBeTruthy(); expect(DRESS_PIECES[coverPiece(c)], c).toBeTruthy(); }
+    }
+    // (no two settings fight from the same things)
+    expect(new Set(DRESS_SETTING_IDS.map((id) => settingCover(id).join())).size).toBe(DRESS_SETTING_IDS.length);
+  });
+  it('a screen\'s cover is what its set stands on its floor; a set with none takes its setting\'s', () => {
+    const setting = DRESS_SETTING_IDS.find((id) => DRESS_SETTINGS[id].kits.length), sets = dressSets(belt, setting), C = dressCover({ setting, sets }, belt);
+    expect(C).toHaveLength(belt.screens.length);
+    C.forEach((list, i) => { for (const c of list) expect(Object.keys(DRESS_SETS[sets[i]].far).includes(c) || settingCover(setting).includes(c)).toBe(true); });
+    expect(dressCover({ setting, sets: sets.map(() => null) }, belt)[0]).toEqual(settingCover(setting));
+    expect(dressCover({ setting, sets: [{ far: { litter: 1 } }, ...sets.slice(1)] }, belt)[0]).toEqual(settingCover(setting));
+    expect(dressCover(null, belt)).toBeNull();
+    // (laid: each screen's cover is its own, in the band, clear of its edges)
+    const T = playThings('gun', belt, { cover: C });
+    belt.screens.forEach((sc, i) => { for (const t of T.filter((x) => x.kind === 'cover' && x.at >= sc.from && x.at < sc.to)) { expect(C[i]).toContain(t.what); expect(t.n - THINGS.cover[t.what].d / 2).toBeGreaterThan(belt.depth[0]); expect(t.n + THINGS.cover[t.what].d / 2).toBeLessThan(belt.depth[1]); } });
+    expect(() => readThings(T, belt)).not.toThrow();
+  });
+  it('is drawn as the dress draws it: its piece fitted to the box that stops a round, and what it leaves broken', () => {
+    const what = settingCover('base')[0], M = coverModels([what, 'wall'])
+    expect(Object.keys(M)).toEqual([what]);
+    const P = M[what].whole.pos, at = (i) => P.filter((_, k) => k % 3 === i), D = THINGS.cover[what];
+    expect(Math.max(...at(0)) - Math.min(...at(0))).toBeCloseTo(D.w, 2);
+    expect(Math.max(...at(1)) - Math.min(...at(1))).toBeCloseTo(D.d, 2);
+    expect(Math.max(...at(2))).toBeCloseTo(D.h, 2);
+    expect(Math.min(...at(2))).toBeGreaterThanOrEqual(0);
+    expect(M[what].wreck.pos.length).toBeGreaterThan(0);
+    expect(coverModels([what])).toEqual({ [what]: M[what] });
   });
 });

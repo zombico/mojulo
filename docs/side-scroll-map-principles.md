@@ -156,6 +156,11 @@ levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
   what it walks over: a gun lying on the map (`{ kind: 'gun', what }`, usually in a crate) is held over the sidearm
   until it is spent. Unsaid, the map gets shooters on every screen with a rush between them, the setting's cover
   across the band, a gun crate on each held screen and food before the boss. The end reads accuracy too.
+- **Cover is of the place.** A cover piece named for a dress piece is that piece stood in the band, drawn by the same
+  builder and fitted to the box that stops a round (`brawl-dress.js` `coverModels`). A run & gun that names no things
+  takes each screen's cover from the set that screen wears (`dressCover`): sandbags and barriers at a gate, pallets and
+  drums on a dock, desks and cabinets on an open floor. A screen whose set has nothing that stops a round takes its
+  setting's. A new piece becomes cover by a row in `THINGS.cover` under its name.
 - **A boss may be one of the crowd's own kind.** A wave's `boss` is a fighter's recipe (a brawler on the fight's
   mind), or `{ type, name?, hp?, volley? }`: a crowd type's body as the boss, on its type's mind, with a boss's health
   and its bar. A run & gun's boss is a shooter (the starter's is the crowd's rocket): a gunner has no answer to a boss

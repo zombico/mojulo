@@ -65,7 +65,7 @@ export function sidewaysLevelOrder(G, stage, { ref, hero, heroName = null, party
   const street = {
     players: [0], roster,
     // (how it is played: a brawl, or a run & gun; what holds it and stands on it its play's, where it names neither)
-    ...streetPlay(S.play, belt, { waves: S.waves, things: S.things, types: types.length ? types : null, setting: dress?.setting ?? null, guns: S.guns, grenades: S.grenades }),
+    ...streetPlay(S.play, belt, { waves: S.waves, things: S.things, types: types.length ? types : null, setting: dress?.setting ?? null, dress: dress ?? null, guns: S.guns, grenades: S.grenades }),
     ...(Object.keys(cast).length ? { cast } : {}),
     ...(S.scenes === false ? {} : { scenes: S.scenes ?? defaultScenes(belt, { name: place }) }),
   };

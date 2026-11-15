@@ -242,7 +242,15 @@ screen) is now played on a page; before, only its practice yard was.
   a boss's health (four times its type's unless said), its bar on the screen and the street won when it falls. A run &
   gun's starter boss is the crowd's rocket with two shooters beside it.
 - A player's round breaks a box open (it stops there): a gunner has no blow to open a crate with.
-- Not yet (run & gun): cover placed from the dress's own pieces, lives and one-hit play, a boss with
+- COVER FROM THE DRESS: a place's cover is of the place. A cover row named for a dress piece (`brawl-things.js`
+  `THINGS.cover`: a barrier, footlockers, steel drums, barrels, a pallet, sacks, a skip, a planter, tyres, a cable
+  reel, a desk, cabinets, a sofa, a reception counter, beside the sandbags and crates there were) is that piece stood
+  in the band: drawn by the dress's own builder, fitted to the box that stops a round, leaving its matter's debris
+  when it breaks (`brawl-dress.js` `coverModels`; the sandbags and crates are drawn so too, a low wall and a mount's
+  wreck as they were). A run & gun that names no things takes each screen's cover from the set that screen wears
+  (`dressCover`), its setting's where the set has none (`settingCover`, read off the sets: the table by setting is
+  gone), each piece stood clear of the band's edges. A map with no dress keeps sandbags and crates.
+- Not yet (run & gun): lives and one-hit play, a boss with
   a fight of its own (phases, its own attacks), two gunners checked on a page.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one

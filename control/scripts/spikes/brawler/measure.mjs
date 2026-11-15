@@ -13,7 +13,7 @@ const { solveFighter } = await import(at('lib/graph/versus/versus-solver.js'));
 const level = JSON.parse(opt('--level', '{"kind":"greybox","preset":"street"}')), play = opt('--play', 'brawl'), style = opt('--style', 'all-rounder');
 const B = brawlLevel(level).brawl, types = opt('--types', null)?.split(',') ?? null;
 const J = (k) => (opt(k, null) ? JSON.parse(opt(k)) : undefined);
-const S = streetPlay(play, B.belt, { types, setting: B.dress?.setting ?? null, waves: J('--waves'), things: J('--things') });
+const S = streetPlay(play, B.belt, { types, setting: B.dress?.setting ?? null, dress: B.dress ?? null, waves: J('--waves'), things: J('--things') });
 const street = { belt: B.belt, players: [{ recipe: { ...solveFighter({ id: style, archetype: style }).recipe, archetype: style }, style }], waves: S.waves, things: S.things, ...(S.play === 'gun' ? { gunner: { guns: [S.guns[0]], grenades: S.grenades ?? 3 } } : {}) };
 const M = measureMap(street, { secs: Number(opt('--secs', 300)) });
 if (argv.includes('--json')) { console.log(JSON.stringify(M, null, 1)); process.exit(0); }

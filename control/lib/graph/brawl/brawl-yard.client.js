@@ -624,9 +624,11 @@ const BOX_LOOK = { barrel: '#8a5a32', crate: '#a0783e', drum: '#3d5a44', booth: 
 const COVER_LOOK = { sandbags: '#b39a6b', crates: '#9a7444', wall: '#8d8f93' };
 // (a box drawn as its vessel, BRAWL_YARD.boxes: its triangles and their baked colours; broken, its wreck lies where it stood)
 const BOXES = BRAWL_YARD.boxes || {};
+// (cover drawn as the dress's own piece, BRAWL_YARD.covers: the thing that stands beside the fight, stood in it)
+const COVERS = BRAWL_YARD.covers || {};
 const modelOf = (M) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(M.col.map((v) => v / 255), 3)); g.computeVertexNormals(); return castOn(new THREE.Mesh(g, RIG ? RIG.material({ color: '#ffffff', vertexColors: true }) : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))); };
 const WRECKS = [];
-function wreckAt(e) { const M = BOXES[e.what]; if (!M || e.cover) return; const m = modelOf(M.wreck); m.position.set(e.x / 1000, e.z / 1000 + DR(e.x), FL(e.x)); m.rotation.z = (e.x % 628) / 100; YARD.add(m); WRECKS.push(m); if (WRECKS.length > 24) YARD.remove(WRECKS.shift()); }
+function wreckAt(e) { const M = e.cover ? COVERS[e.what] : BOXES[e.what]; if (!M) return; const m = modelOf(M.wreck); m.position.set(e.x / 1000, e.z / 1000 + DR(e.x), FL(e.x)); m.rotation.z = (e.x % 628) / 100; YARD.add(m); WRECKS.push(m); if (WRECKS.length > 24) YARD.remove(WRECKS.shift()); }
 function placeThings() {
   const seen = new Set();
   for (const T of room.s.things ?? []) {
@@ -639,6 +641,7 @@ function placeThings() {
       // (a mount's wreck: the mount itself, down on its side)
       if (cover && MOUNTS[T.what]) { m = new THREE.Group(); const w = mountOf(T.what); w.rotation.x = Math.PI / 2; w.position.z = 0.12; m.add(w); }
       else if (box && BOXES[T.what]) m = modelOf(BOXES[T.what].whole);
+      else if (cover && COVERS[T.what]) m = modelOf(COVERS[T.what].whole);
       else m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(cover ? COVER_LOOK[T.what] ?? '#9a8a70' : box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3])));
       m.userData.what = T.what;
       things.set(T.id, m); YARD.add(m);

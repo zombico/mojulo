@@ -221,8 +221,8 @@ import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-le
 import { brawlLevel, readBrawlLevel } from '../brawl/brawl-levels.js';
 import { readStreet } from '../brawl/brawl-street.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
-import { DRESS_SETTINGS } from '../brawl/brawl-dress.js';
-import { PLAY_IDS, playWaves, playThings, SETTING_COVER } from '../brawl/brawl-play.js';
+import { DRESS_SETTINGS, dressCover, settingCover } from '../brawl/brawl-dress.js';
+import { PLAY_IDS, playWaves, playThings } from '../brawl/brawl-play.js';
 import { readGun } from '../brawl/brawl-guns.js';
 import { gunName } from '../brawl/brawl-street-read.js';
 import { GRUNT_STYLES, GRUNT_STYLE_IDS, gruntOrders } from '../cosmos/packs/comic-hero/grunts.js';
@@ -933,14 +933,14 @@ export function brawlBody(created, heavy = false) {
 /**
  * HOW A MAP IS PLAYED, laid (brawl/brawl-play.js, the play types): the street's words for its play, and what holds it
  * and stands on it when it names neither. A brawl: a crowd a held screen, breakables with food. A run & gun (`play:
- * 'gun'`): its guns to start from (QUICK_GUNS unless said), shooters on every screen, cover (its setting's) and gun
- * crates. → the words a street takes (`waves`, `things`, and a run & gun's `play`, `guns`, `grenades`).
+ * 'gun'`): its guns to start from (QUICK_GUNS unless said), shooters on every screen, cover (the dress's own, a
+ * screen at a time: brawl-dress.js dressCover) and gun crates. → the words a street takes (`waves`, `things`, and a run & gun's `play`, `guns`, `grenades`).
  */
 export const QUICK_GUNS = Object.freeze(['machine-gun', 'spread', 'flame']);
-export function streetPlay(play, belt, { waves, things, types = null, setting = null, guns, grenades } = {}) {
+export function streetPlay(play, belt, { waves, things, types = null, setting = null, dress = null, guns, grenades } = {}) {
   const boxes = setting ? DRESS_SETTINGS[setting].boxes : null;
   if ((play ?? 'brawl') !== 'gun') return { waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes) };
-  return { play: 'gun', guns: guns ?? QUICK_GUNS.slice(), ...(grenades !== undefined ? { grenades } : {}), waves: waves ?? playWaves('gun', belt, types), things: things ?? playThings('gun', belt, { boxes, cover: setting ? SETTING_COVER[setting] : null }) };
+  return { play: 'gun', guns: guns ?? QUICK_GUNS.slice(), ...(grenades !== undefined ? { grenades } : {}), waves: waves ?? playWaves('gun', belt, types), things: things ?? playThings('gun', belt, { boxes, cover: dress ? dressCover(dress, belt) : setting ? settingCover(setting) : null }) };
 }
 /** the guns a game's set-up asks from: the first run & gun street's (none: no street is one) */
 export const brawlGuns = (streets) => streets.map((s) => s.manifest.brawl.street).find((st) => st.play === 'gun')?.guns ?? [];
@@ -951,7 +951,7 @@ export function brawlStreets(Q, { title, roster, cast, types, colour, holder } =
     // (a town street's dress wears the crew's colour, unless the street says its own)
     const L0 = level ?? BRAWL_STREET.level, L = colour && (L0.kind === 'town' || (L0.kind === 'stage' && (isObj(L0.dress) || (L0.dress === undefined && brawlLevel(L0).brawl.dress)))) && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(isObj(L0.dress) ? L0.dress : {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt;
-    const street = { players: [0], ...streetPlay(play ?? Q.play, belt, { waves, things, types, setting: B0.dress?.setting ?? null, guns, grenades }), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder }) }), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const street = { players: [0], ...streetPlay(play ?? Q.play, belt, { waves, things, types, setting: B0.dress?.setting ?? null, dress: B0.dress ?? null, guns, grenades }), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder }) }), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };

@@ -27,6 +27,7 @@
  * A dress collides with nothing: it stands outside the band, by its strips. Pure and deterministic (seeded dice only).
  */
 import { beltPoint, beltFloor, beltDrift } from './brawl-belt.js';
+import { THINGS } from './brawl-things.js';
 import { streamOf } from '../city/plan/dice.js';
 import { shadeHex } from '../polygonizer/vexar.js';
 import { skandartVessels } from '../era/skandart-vessels.js';
@@ -448,6 +449,47 @@ export function boxModels(whats) {
     out[what] = { whole: tris(whole.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x, y - mid, z]) }))), wreck: tris(debris(B[2], 1.1, 1.1, R)) };
   }
   return out;
+}
+
+// ── COVER FROM THE DRESS: a place's cover is of the place. A cover row (brawl-things.js THINGS.cover) named for a
+// dress piece is that piece stood in the band: the same thing that stands beside the fight, where it stops a round. ──
+/** the dress piece a cover is drawn as (its own name, or the one said here); null: none (the page draws its block) */
+const COVER_PIECE = Object.freeze({ crates: 'crate' });
+export const coverPiece = (what) => { const p = COVER_PIECE[what] ?? what; return DRESS_PIECES[p] && !DRESS_PIECES[p].wall ? p : null; };
+const COVER_WRECK = Object.freeze({ 'wood-impact': { plank: 5, splinter: 8 }, 'metal-impact': { 'deck-sheet': 2, splinter: 4 }, 'stone-impact': { 'concrete-chunk': 6, spall: 6 }, 'dirt-impact': { spall: 5, paper: 3 } });
+/** The models of the cover a map lays: { [what]: { whole, wreck } }, each its dress piece fitted to its row's box (w
+ * along, d across, h up, its foot at the origin), and what it leaves broken (the debris shelf, by its matter). Seeded
+ * by its name. A cover with no piece (a low wall, a mount's wreck) has none. */
+export function coverModels(whats) {
+  const out = {};
+  for (const what of [...new Set(whats)].sort()) {
+    const piece = coverPiece(what), D = THINGS.cover[what];
+    if (!piece || !D) continue;
+    const R = streamOf(1, 'brawl-cover', what), F = DRESS_PIECES[piece].build(R), C3 = F.flatMap((f) => f.corners);
+    const lo = [0, 1, 2].map((i) => Math.min(...C3.map((c) => c[i]))), hi = [0, 1, 2].map((i) => Math.max(...C3.map((c) => c[i])));
+    const k = [D.w / Math.max(1e-6, hi[0] - lo[0]), D.d / Math.max(1e-6, hi[1] - lo[1]), D.h / Math.max(1e-6, hi[2])], mid = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2];
+    out[what] = { whole: tris(F.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [(x - mid[0]) * k[0], (y - mid[1]) * k[1], z * k[2]]) }))), wreck: tris(debris(COVER_WRECK[D.sound] ?? COVER_WRECK['wood-impact'], Math.max(1, D.w), Math.max(1, D.d), R)) };
+  }
+  return out;
+}
+/** the cover a set has: its floor pieces that stop a round, the commonest first */
+const coverOfSet = (S) => (S ? Object.entries(S.far).filter(([p]) => THINGS.cover[p] && coverPiece(p)).sort((a, b) => b[1] - a[1]).map(([p]) => p) : []);
+/** The cover a SETTING's places have, over all its sets, the commonest first. */
+export function settingCover(settingId) {
+  const w = new Map();
+  for (const id of DRESS_SETTINGS[settingId]?.sets ?? []) for (const [p, n] of Object.entries(DRESS_SETS[id].far)) if (THINGS.cover[p] && coverPiece(p)) w.set(p, (w.get(p) ?? 0) + n);
+  return [...w].sort((a, b) => b[1] - a[1]).map(([p]) => p);
+}
+/**
+ * THE COVER EACH SCREEN OF A DRESSED MAP HAS: a list a screen, what its set stands on its floor that stops a round (a
+ * gate's sandbags and barriers, a dock's pallets and drums, an open floor's desks and cabinets); a set with none (a
+ * bare screen, a set of things too slight) takes its setting's. `dress` a map's dress as read (its setting, its sets),
+ * or null for a map with none: no list (the play's own cover).
+ */
+export function dressCover(dress, belt) {
+  if (!dress) return null;
+  const setting = dress.setting ?? 'street', sets = dress.sets ?? dressSets(belt, setting), all = settingCover(setting);
+  return belt.screens.map((_, i) => { const own = coverOfSet(setOf(sets[i])); return own.length ? own : all; });
 }
 
 /**

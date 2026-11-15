@@ -5,7 +5,7 @@
 // does the brawler's native kit play a street from its start to its end on a page, and does its screen say so (the
 // health, the screens, GO, the boss, the end). The eyes gate is the operator's: the shots.
 //
-//   node control/scripts/spikes/brawler/street.mjs [--out dir] [--register anime|western] [--style all-rounder] [--secs 200] [--boss-hp 300] [--light] [--level '{"kind":"town"}'] [--tour]
+//   node control/scripts/spikes/brawler/street.mjs [--out dir] [--register anime|western] [--style all-rounder] [--secs 200] [--boss-hp 300] [--light] [--level '{"kind":"town"}'] [--tour] [--play gun]
 //   --tour: no fight; the street ungated and empty, the player set down every 12 m of it and a still taken (the dress seen)
 import { register as registerLoader, createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -15,7 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-street') }, register: { type: 'string' }, style: { type: 'string', default: 'all-rounder' }, secs: { type: 'string', default: '200' }, 'boss-hp': { type: 'string', default: '300' }, light: { type: 'boolean', default: false }, level: { type: 'string' }, tour: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-street') }, register: { type: 'string' }, style: { type: 'string', default: 'all-rounder' }, secs: { type: 'string', default: '200' }, 'boss-hp': { type: 'string', default: '300' }, light: { type: 'boolean', default: false }, level: { type: 'string' }, tour: { type: 'boolean', default: false }, play: { type: 'string' } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -31,13 +31,15 @@ const me = Math.max(0, BRAWL_ROSTER.findIndex((r) => r.id === opt.style));
 const boss = { ...solveFighter({ id: 'boss', archetype: 'grappler' }).recipe, archetype: 'grappler', name: 'Big Rig' };
 // (--level: the street's level, a brawl level's words as JSON: '{"kind":"town"}' the geotown's main street)
 const LV = opt.level ? JSON.parse(opt.level) : { kind: 'greybox', preset: 'street' };
-const { defaultThings } = await import('@/lib/graph/gameworld/quick.js');
+const { defaultThings, streetPlay } = await import('@/lib/graph/gameworld/quick.js');
 const { DRESS_SETTINGS } = await import('@/lib/graph/brawl/brawl-dress.js');
 const LVT = opt.tour ? { ...LV, screens: [{ length: 30 }, { length: 30, gate: true }] } : LV;
 const manifest = brawlLevel(LVT, { title: 'street', ...(opt.register ? { register: opt.register } : {}), street: {
   players: [me],
+  // (--play gun: the street played as a run & gun, what stands on it its play's: cover from the dress, gun crates)
+  ...(opt.play === 'gun' ? { play: 'gun' } : {}),
   // (what stands on it to be broken: the quick brawl's own, skandart's vessels)
-  things: (() => { const B = brawlLevel(LVT).brawl; return defaultThings(B.belt, B.dress?.setting ? DRESS_SETTINGS[B.dress.setting].boxes : null); })(),
+  things: (() => { const B = brawlLevel(LVT).brawl; if (opt.play === 'gun') return streetPlay('gun', B.belt, { setting: B.dress?.setting ?? null, dress: B.dress ?? null }).things; return defaultThings(B.belt, B.dress?.setting ? DRESS_SETTINGS[B.dress.setting].boxes : null); })(),
   // (--light: a street a masher can finish, to see its end)
   waves: opt.tour ? [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }] : opt.light ? [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }, { screen: 2, crowd: [{ type: 'thug', n: 2 }] }, { screen: 3, crowd: [], boss: { recipe: boss, plays: ['chain'], cpu: Object.keys(CPU_LEVELS)[0], hp: 150 } }]
     : [{ screen: 1, crowd: [{ type: 'thug', n: 4 }] }, { screen: 2, crowd: [{ type: 'thug', n: 3 }, { type: 'knife', n: 2 }] },
