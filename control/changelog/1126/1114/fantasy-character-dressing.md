@@ -256,3 +256,36 @@ sleeves, the hood).
   (as before); the hood is faceted, and worn down it stands proud of the back in the robe's own colour; the shirt's
   shoulder pokes white through a sleeveless robe's armhole; the hats and the circlet still fit the game body only (the
   relational head has no cranium kit to carry them).
+- **The fantasy wardrobe on the realistic body, second pass (outfit laws 2, hero laws 23).**
+  - The circlet and the hats are worn on the realistic body. They were refused there: the relational head has no
+    cranium kit. Each card now has a realistic side, which lowers to a `headwear` word, and `headgear/realistic.js`
+    builds it on the head the hero has. It reads the head's skin, its hair and a hood worn up, as the draped hood does.
+    The circlet is a band traced round the head on a line from just under the hairline to the back of the skull. It
+    sits over the hair, rides the hair's crests (it never dips into them), and widens to a setting and a cabochon at
+    the front. A hat's crown is fitted over the hair: each meridian is bridged, then cleared crest by crest by half its
+    ease. It has a ribbon at its foot, a brim turned up at the front and let down at the back, and, for the wizard, a
+    cone leaning back off the crown. Each is one part per colour, pinned to the head's skin where the head bone alone
+    carries it. The hair is kept under it. The card's colours sit under the operator's palette. A hero minted under
+    hero laws 22 or earlier still refuses these words, by name. On the six heroes shot, no point of the head or the
+    hair lies outside what covers it (`headwearGaps`).
+  - A cloak on the realistic body takes the nearer arm out to 24 cm from it (`capeArm`). The cloth behind a swinging
+    arm now goes back with it. In the walk's back view, the ranger's forearm and hand had shown through the cloak's
+    side (0.7–0.8 % of their points, in 3–6 of 12 keys); now none do.
+  - The mantle's clasp rides the shirt. Every shell worn on a body segment under outfit laws 2 (a clasp on the torso,
+    a bracer on the forearm, a satchel on the hips) now stands off the tailor's cloth on that segment. Before, it
+    searched for that cloth by the segment's own name and missed it. The noble's clasp points inside the shirt went
+    from 7 of 52 to 0. The mantle's shoulder is rounded (a quarter ellipse from the neck to its widest ring) and its hem
+    is rolled by 1 cm. It still stands about 3 cm off the shoulders, and a raised arm still draws its side out along the
+    arm.
+  - A draped hood on the realistic body is eased round (`hoodRound`). Worn up, each ring is smoothed round its
+    directions and down its rings, then cleared again. The arch springs from the cheekbones, and a deep hood's brim
+    comes forward as a soft fall rather than a visor. Worn down, it is a cowl gathered at the nape: a thicker roll, the
+    cloth heaped under it with folds at the back, shorter down the back, and in its lining's shade (the cloth's colour
+    × 0.72).
+  - The peasant card's shirt is lighter and its tunic darker (`#e4dccb` over `#7a6440`, from `#d8ccb0` over
+    `#9c8a66`).
+  Outfit laws 1, the hero laws up to 22, and the game and anime bodies are unchanged. Still open on the realistic body:
+  the shirt's white sliver at a sleeveless armhole, the skirt's centre-back crease and the facets at the hips, the
+  rogue's pale ring at each boot top (it is the shank's skin seen between the blousing and the boot's cuff; turning the
+  blousing's hem in did not close it, so that change was reverted), the bodice's dip under the bust, and the medallion
+  chain's beads.

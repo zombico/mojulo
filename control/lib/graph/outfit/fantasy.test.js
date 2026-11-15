@@ -114,7 +114,7 @@ describe('the fantasy wardrobe on the hero door', () => {
 // the fantasy headgear (headgear/cards.js): the circlet an eyegear cast that keeps the hair, a hat a helmet shell that
 // drops it; one of each builder, chosen in code by family, worn through the door's word on the game body
 describe('the fantasy headgear', () => {
-  it('a circlet keeps the hair, a hat drops it and carries its brim; neither is fitted to the realistic body', async () => {
+  it('a circlet keeps the hair, a hat drops it and carries its brim; on the realistic body each is built over the hair', async () => {
     const { HEADGEAR, HEADGEAR_IDS } = await import('../headgear/cards.js');
     const { wearHeadgear, headgearErrors } = await import('../headgear/wear.js');
     const circlet = HEADGEAR_IDS.find((id) => HEADGEAR[id].family === 'crown'), hat = HEADGEAR_IDS.find((id) => HEADGEAR[id].family === 'hat');
@@ -122,7 +122,9 @@ describe('the fantasy headgear', () => {
     const c = wearHeadgear({ ...spec, headgear: circlet }), h = wearHeadgear({ ...spec, headgear: hat });
     expect(c.hair).toBe('crop'); expect(c.adorn.map((A) => A.id)).toContain('circlet');
     expect(h.hair).toBe('none'); expect(h.adorn[0].signature.fittings.some((F) => F.kind === 'brim')).toBe(true);
-    expect(headgearErrors(hat, { ...spec, form: 'realistic' })[0]).toMatch(/not fitted to the realistic body/);
+    // (the realistic body: the card lowers to the headwear word, headgear/realistic.js, and the hair is kept)
+    expect(headgearErrors(hat, { ...spec, form: 'realistic' })).toEqual([]);
+    const r = wearHeadgear({ ...spec, form: 'realistic', headgear: hat }); expect(r.headwear).toBe(hat); expect(r.hair).toBe('crop');
     expect(heroPlanOf(heroRecord({ ...spec, headgear: hat })).adorn.some((A) => A.id === 'helmet')).toBe(true);
   });
 });
