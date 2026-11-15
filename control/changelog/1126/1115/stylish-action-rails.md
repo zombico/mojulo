@@ -51,7 +51,15 @@ In progress. Built so far, all in the practice door's game room
   armoured dead, the knight).
 - **Measured:** the scripted floor player walks the citadel's rooms in order and wins all four fights; one who does
   nothing wins nothing. The scripted player now walks a level that ends on its fights point by point. Nobody has
-  played it. Not yet: making it from `design_game` end to end with made figures, the task said on the HUD.
+  played it. Not yet: the task said on the HUD.
+- **Made through `design_game`:** the first level as a whole game, Fallen Angel, with made figures: Lucien on the
+  realistic body (long dark hair, a long dark coat), the five undead, the citadel, the game; the recipe and how
+  to rebuild it are in [docs/examples/fallen-angel](../../../../docs/examples/fallen-angel/README.md). The door's
+  own check played it: the floor player won, one who does nothing did not.
+- **A building level has its action hero.** A world played under the orbit camera with a hero that strikes now
+  gets, in a building as on a trail, the orbit that locks on, movement in the camera's frame and its sheathed
+  twin, so the fist is in its hands and the weapon switch has two weapons to switch between. Before, a building
+  level's hero carried the blade alone.
 - A prop's surface a kit does not carry is painted in the kit's nearest of its own (a pillar in a gothic hall is its
   pilasters' stone); a kit that carries the surface reads as it did.
 - Not yet: urns that pay and fonts that heal in play, a fight approved on its own or edited piece by piece, and

@@ -1,0 +1,201 @@
+{
+  "id": "fallen-angel",
+  "name": "Fallen Angel",
+  "seed": 7,
+  "mode": "autonomous",
+  "brief": "A stylish action game. Lucien, wild and flashy in a fight, long dark hair and a long dark jacket, cuts his way through a citadel of the armed dead: skeletons and zombies, room by room, to the knight in its sanctum.",
+  "feel": "fallen-angel",
+  "arsenal": "auto",
+  "loadout": {},
+  "foes": {
+    "zombie": {
+      "class": "walker",
+      "skin": {
+        "people": "zombie"
+      }
+    },
+    "skeleton": {
+      "class": "pursuer",
+      "skin": {
+        "people": "revenant"
+      }
+    },
+    "archer": {
+      "class": "hunter",
+      "skin": {
+        "people": "revenant"
+      }
+    },
+    "risen": {
+      "class": "brute",
+      "rank": "elite",
+      "skin": {
+        "people": "risen"
+      }
+    },
+    "knight": {
+      "class": "pursuer",
+      "rank": "boss",
+      "skin": {
+        "people": "revenant"
+      }
+    }
+  },
+  "fights": {
+    "gate": {
+      "kind": "duel",
+      "waves": [
+        {
+          "skeleton": 1
+        }
+      ]
+    },
+    "hall": {
+      "kind": "melee",
+      "waves": [
+        {
+          "zombie": 3
+        },
+        {
+          "zombie": 2,
+          "skeleton": 2
+        },
+        {
+          "skeleton": 2,
+          "risen": 1
+        }
+      ]
+    },
+    "gallery": {
+      "kind": "gallery",
+      "waves": [
+        {
+          "skeleton": 1,
+          "archer": 1
+        },
+        {
+          "skeleton": 2,
+          "archer": 2
+        }
+      ]
+    },
+    "sanctum": {
+      "kind": "boss",
+      "waves": [
+        {
+          "knight": 1
+        }
+      ]
+    }
+  },
+  "levels": {
+    "citadel": {
+      "name": "The citadel",
+      "building": {
+        "use": "citadel",
+        "kit": "gothic-ashlar"
+      },
+      "goal": {
+        "tasks": [
+          {
+            "fight": "gate",
+            "at": "gate"
+          },
+          {
+            "fight": "hall",
+            "at": "hall"
+          },
+          {
+            "fight": "gallery",
+            "at": "gallery"
+          },
+          {
+            "fight": "sanctum",
+            "at": "sanctum"
+          }
+        ]
+      }
+    }
+  },
+  "characters": {
+    "direction": {
+      "tradition": "western",
+      "primary": "shadow",
+      "secondary": "iron",
+      "motif": [
+        "feather"
+      ]
+    },
+    "hero": {
+      "looks": {
+        "body": {
+          "cast": "male",
+          "form": "realistic",
+          "physique": "athletic"
+        },
+        "hair": "long",
+        "colour": {
+          "palette": {
+            "Hair": "#17120f",
+            "Top": "#1b1b22",
+            "Bottom": "#202026",
+            "Trim": "#5a1f24",
+            "Shoes": "#141416"
+          }
+        },
+        "underlayer": {
+          "type": "outfit",
+          "style": "casual",
+          "dials": {
+            "fit": 0.3
+          },
+          "language": {
+            "top": {
+              "family": "knit",
+              "sleeve": "long"
+            },
+            "bottom": {
+              "family": "woven",
+              "leg": "long",
+              "cut": "tapered"
+            },
+            "outer": {
+              "family": "woven",
+              "sleeve": "long",
+              "hem": "knee",
+              "open": true
+            },
+            "feet": "boots"
+          }
+        }
+      },
+      "motion": {
+        "vibe": [
+          "cocky",
+          "swagger",
+          "spirited",
+          "loose"
+        ]
+      },
+      "actions": {
+        "none": true
+      },
+      "adornment": {
+        "items": [
+          {
+            "id": "blade",
+            "slot": "right",
+            "build": {
+              "item": "sword"
+            },
+            "serves": [
+              "strike"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "camera": "orbit",
+  "screen": "screen"
+}
