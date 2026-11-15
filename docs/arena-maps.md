@@ -5,8 +5,8 @@ costs. `control/lib/graph/arena-map/` holds that as data: a map is blocks on one
 combat are laws measured on it, and a generator grows a template a block at a time and keeps only what the laws allow.
 The rules of the fight (the run, the bands the guns are for) come from the firing range; the map is sized from them.
 
-Status: the blocks, the reading, the laws, four templates and the generator are built and tested, pure. Nothing builds
-a map into a scene yet, and no geocube building or town is read against the laws yet (see the end).
+Status: the blocks, the reading, the laws, four templates and the generator are built and tested, pure. Geocube buildings are
+read against the laws (below).
 
 ## First principles
 
@@ -105,12 +105,25 @@ Machine gate only; nobody has played one.
   band, and a bridge is two cells wide so panels stagger along it. A template is sized to the kit it is for.
 - The templates as written are too open (their lines run past the band); the growing is what closes them.
 
+## Geocube buildings read against the laws
+
+`arena-map/read-geocube.js` reads a building's plan onto the grid: each room's floor at its storey, its walls snapped to
+the grid, each doorway one open edge, its stock as solids and low walls, each stair as the nearest straight two-cell run
+(else a ladder). `readSiteMap` puts buildings on a flat yard. Read on the machine gate only, every program holds
+`bounded`, `connected`, `ramps`, `ladders` and `drops`, and none holds `loops`: each room has one door. The core
+buildings fail `line-cap` because their core's doors line up across the spine, and `levels-twice` and `height-paid`
+because each has one stair and its storeys look onto nothing. The fixes belong to the plan: a second door per room,
+staggered core doors, a second stair, a gallery over the tall annex, and cover in the middle of the halls. No stair is a
+ramp of 1:2 or gentler (the switchback is about 1:1.5, the keep's flight 1:1). The reading keeps which rooms a stair
+joins, not its slope. A real trail's placed buildings are not read yet: their anchors carry rooms but not doorways,
+stairs or turns, and the land is not flat.
+
 ## Next
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
   somewhere, so a bigger court or a yard.
 - **Built into a scene.** `mapPieces` is the hand-off; nothing lays its panels, ramps and ladders as a level yet.
-- **A geocube map read against the laws.** A building's rooms, doorways and stairs, or a terrain with buildings, read
-  onto this grid so the same laws say what it holds and what a design must change.
+- **Geocube plans that hold the laws.** The reading says what a building lacks; the plan's own dials (a second door, a
+  staggered core, a second stair, a gallery) are not built.
 - **The mission on it.** The firing range's phases (arm up, clear by band, hold the heart, get out) placed on a map that
   holds the laws.
