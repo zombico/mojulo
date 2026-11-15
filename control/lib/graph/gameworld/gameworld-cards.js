@@ -92,7 +92,7 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
-import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS } from '../mission/index.js';
+import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS, MISSION_BUILDINGS } from '../mission/index.js';
 import { TEMPLATE_IDS } from '../arena-map/templates.js';
 
 const lines = (...xs) => xs.flat().join('\n');
@@ -888,6 +888,10 @@ function missionCard() {
     '  sections   the sections in order, in place of the ones the kit\'s bands choose; it ends at a way out',
     `  map    fought on a FIGHTING MAP, not down a line: true (the kit picks: ${Object.entries(MISSION_MAPS).map(([b, m]) => `${b} ${m.template}`).join(', ')}) | a`,
     `         template (${TEMPLATE_IDS.join(', ')}), grown under the arena laws; arm up, a clear a band, hold the heart, get out`,
+    'IN A BUILDING   levels.<id>: { building: { use, fight? }, mission: true | { seed?, foes?, hold?, waves? } } (no map, no',
+    '  sections): fought in its rooms, its fight true unless false, read in the seventh generation (the form render draws',
+    '  it); its plan read as a fighting map, the phases placed in real rooms, from its door to a way out. design_game',
+    `  proposes one by the kit's band (${Object.entries(MISSION_BUILDINGS).map(([b, r]) => `${b} ${r.use}`).join(', ')}): the step's \`building\`.`,
     'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',
     ...Object.entries(SECTIONS).map(([k, v]) => `  ${k.padEnd(12)} ${v.task.padEnd(6)} ${v.band ? `${v.band} band, ${BANDS[v.band].m} m` : 'no fight'}: ${v.teaches}${v.gap ? ' (a GAP: designed, not built; refused with what it waits on)' : ''}`),
     `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,

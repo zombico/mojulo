@@ -6,7 +6,8 @@ down one line as sections, each with one task; briefed, played and debriefed on 
 gives a firing range has one, so every game the range makes has a level 1.
 
 Status: the composition, the tasks on the bus, the level form, the practice room, the mana-ui channel and both machine
-gates are built, down one line and on a fighting map (see "On a map"). A mounted gun to man and a machine as the hero
+gates are built, down one line, on a fighting map (see "On a map") and inside a building (see "In a building"). A
+mounted gun to man and a machine as the hero
 are designed, not built (see the end).
 
 ## Where it comes from
@@ -91,12 +92,13 @@ mechanic card.
 - **The hp and the floor:** the level's own hp (`fail-on-death`), rounds and health to walk over (`supplies`).
 - **The ground:** greybox. Each section's floor in its own value, the firing lines and the exit marked.
 
-Three doors reach it:
+The doors that reach it:
 
 | door | how |
 |---|---|
 | the practice door | `bible?book=practice&room=mission`: played from the world alone, before any level |
 | a level | `levels.<id>.mission: true \| { seed?, sections?, foes?, hold?, waves?, map? }`, in place of `walk` |
+| a building level | `levels.<id>: { building: { use, fight? }, mission }`: the mission in its rooms (see "In a building") |
 | a quick shooter | `quick: { goal: 'shoot', arms: [...], mission: true }`: its level in place of the trail |
 
 `design_game` proposes it (a `mission` step in `next`, with its patch) for a world with a firing range and no mission
@@ -133,6 +135,68 @@ proofs are rebuilt from those blocks, never regrown: growing is the design step 
 generator cannot move a level already made. The headless gunner walks a map on its own graph (the shortest way the map
 gives, cell centre to cell centre, up ramps and ladders, off an edge only where the way drops) and finishes a climb
 before it fights.
+
+## In a building
+
+A first mission can be fought inside a building of the geocube's own, drawn by the seventh generation's form render
+rather than greybox. The form is a building level with the mission beside it:
+
+```
+levels.<id>: { building: { use, fight?, storeys?, … }, mission: true | { seed?, foes?, hold?, waves? } }
+```
+
+There is one way in: the building form with `mission` beside it. The reader (`gameworld/world.js`) gives the building
+`fight: true` when it names none, so its plan is designed as a fighting map ([arena-maps.md](arena-maps.md)); an
+explicit `fight: false` is kept. `mission.map` and `mission.sections` are refused beside a building (the building is
+the map and its plan places the phases), as are a `goal`, `foes`, a `course`, an `arena` or a `ground` of the level's
+own, a complex and a building by ref.
+
+The phases (`gameworld/mission-building.js` `buildingMissionPlan`): the building's plan is read onto the arena grid
+(`arena-map/read-geocube.js` `readBuildingMap`), the phases are placed on it (`arena-map/phases.js` `phasesOnMap`, set
+down at the building's own way in and leaving by one of its doors), and every place is taken back to the building's
+metres and floor heights. The grid snaps a wall by up to half a cell, so each place is held to the real plan: inside
+its room's inner bounds, on that room's floor (or a hall's gallery deck), clear of the walls, the stairs' guards and
+wells and the stocked pieces, and a body's width from a place already set. A place that fails is moved to the nearest
+free spot of the same room (a half-metre lattice, ties broken by the mission's seeded dice), and the move is recorded;
+one with no free spot is left out. The law `placed-in-plan` says both, beside the phases' own (`placed`, `unseen`,
+`two-ways`, `in-order`, `banded`). A take and a reach are met at the body's own height (`planar: false`,
+`game/objectives.js`), so a place on one storey is never taken from the floor over or under it.
+
+The level (`gameworld/levels.js`): the building's own lowering (its walls, its storeys, its way in) with the mission's
+tasks as its goal and no goal room of its own (`level.exit: false`), its result card put away (`level.complete:
+false`), the mission's cast (the armed pilot, the foes asleep on their spots), its page's `mission` channel for the
+briefing, the HUD, the damage ring, the pause and the debrief, and no level HUD of the world's. With no hero the pilot is
+the platform rule at the eye, aimed through an eye camera: its probe looks from the feet and steps 0.3 m, and the
+building's stairs rise 0.19 to 0.2 m a tread, so it climbs them on their own treads.
+
+`design_game`'s `mission` step carries the building beside the greybox patch (`building`: its use, its why and its
+patch), the core building by the kit's longest band (`mission/brief.js` `MISSION_BUILDINGS`, a closed table: close guns
+an armoury, the mid band a warehouse, a long gun a hangar bay).
+
+### Its era
+
+The building is read under the mission's cube (`mission-level.js` `missionBuildingCube`): the world's own, in the
+seventh generation unless it names its era, its bones the room kit the building's use names, so the building is laid
+as it would be and painted by the cube's surfaces. The page carries `form.room`: its lamps placed, their light baked
+into its tiles read as material, its relief maps. The era reading of the page (`era/era-marks.js` `eraReading`) says
+its faces and textures are the form render's, and these are still approximated: the figures, the vertex contrast, the
+occlusion, the glow, the shadows and the light tier. The foes are drawn as paint under the live light: a body under
+the cast rig is only lit on a page whose land is a cube's outside, keyed by its sun, and a room has no sun. It waits on
+a rig solved from a room's own lamps.
+
+### Its gates
+
+Machine. On the bus, as any mission's (`proveMission` lowers the stored stage first). Played, on the resolved page only:
+the stored stage carries no treads and no floors, so `proveMissions` takes the pages at hand (`payloads`) and says the
+play waits on the page where none is given, as a `design_game` run does. The headless gunner walks a building a floor
+at a time on the runtime's own nav and takes a storey's stairs by their own ways (the approach, the flights, the landing,
+the arrival).
+
+What the first runs found (machine gate only): with the shooter feel template, seed 1, the warehouse is won in about 85
+s with half the hp left, and the armoury in about 80 s with most of it. The hold's waves woke out of sight of the heart
+and did not come to it: the hunters do not cross the building's doorways and stairs to come for the body, so a
+building's hold is a clock more than a fight. A pilot steered onto a gallery's stair from its side walks under it:
+nothing stops a body under a stair's flight.
 
 ## The era it is read in
 

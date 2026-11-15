@@ -71,7 +71,11 @@
                                          // it is met; laid from the guns the world carries (loadout.js), so a world
                                          // that carries none has no mission; briefed, played and debriefed on mana-ui.
                                          // `map`: fought on a fighting map grown under the arena laws in place of the
-                                         // line (arena-map/: its phases placed from the map's own measures)
+                                         // line (arena-map/: its phases placed from the map's own measures). Beside a
+                                         // `building` (no map, no sections): the mission in that building, its plan
+                                         // read as a fighting map and the phases placed in its rooms, the building's
+                                         // `fight` true where it names none, read in the seventh generation
+                                         // (mission-building.js)
                                          // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
                                          // rings, its ground laid by scapeshift, a runway (one by default) and a gate
                                          // course (by default); a flight on it flies the course and lands
@@ -638,9 +642,9 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.mission !== undefined) {
+    if (L.mission !== undefined && L.building === undefined) {
       // a mission level: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's
-      // guns; its foes, its tasks and its ground are its own
+      // guns; its foes, its tasks and its ground are its own (a mission in a building: the building's branch, below)
       const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course'].filter((k) => L[k] !== undefined);
       if (beside.length) throw new Error(`gameworld: ${at}: a mission level is the mission alone (its ground, its foes and its tasks are its own): no ${beside.join(', ')} beside it`);
       try { readMission(L.mission, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
@@ -754,6 +758,17 @@ export function readGameworld(W) {
       if (B.kit !== undefined && !(STAGE_KITS[resolveKitId(B.kit)]?.grid)) throw new Error(`gameworld: ${at}.building.kit '${B.kit}' is not a room kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].grid).join(', ')})`);
       if (B.civilization !== undefined) civ(B.civilization, `${at}.building.civilization`);
       if (B.parked !== undefined) readBuildingParked(B.parked, `${at}.building.parked`);
+      if (L.mission !== undefined) {
+        // A MISSION IN THE BUILDING (gameworld/mission-building.js): the firing range's rules, the building's rooms the
+        // ground; its foes and its tasks the mission's, placed from the building's plan read as a fighting map
+        const beside = ['goal', 'foes', 'course', 'arena', 'ground'].filter((k) => L[k] !== undefined);
+        if (beside.length) throw new Error(`gameworld: ${at}: a mission in a building is the building and the mission (its foes and its tasks are the mission's): no ${beside.join(', ')} beside them`);
+        if (B.complex !== undefined || B.ref !== undefined) throw new Error(`gameworld: ${at}.mission is laid in one building planned from its use: not in ${B.complex !== undefined ? 'a complex' : 'a building by ref'} (building: { use, fight? })`);
+        let M;
+        try { M = readMission(L.mission, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+        for (const k of ['map', 'sections']) if (M[k] !== undefined) throw new Error(`gameworld: ${at}.mission.${k}: in a building the building is the map and its plan places the phases (arm up, a clear a band, the hold, the way out); drop ${k}, or lay the mission alone (no building) for ${k === 'map' ? 'a grown map' : 'sections down one line'}`);
+        if (!loadoutOf(W)) throw new Error(`gameworld: ${at}.mission is laid from the guns the world carries, and this world carries none: a quick shooter's arms, a gun in the hero's right hand (an item that serves 'shoot'), or a feel whose template shoots`);
+      }
     } else {
       if (!isObj(L.walk)) throw new Error(`gameworld: ${at}.walk is the level's graph { nodes, edges?, … } (or a building: ${at}.building)`);
       for (const k of ['kit', 'seed']) if (L.walk[k] !== undefined) throw new Error(`gameworld: ${at}.walk.${k}: a level's ${k} is its own (${k === 'kit' ? `${at}.style.kit` : `${at}.seed`}), handed to its sections`);
@@ -993,7 +1008,7 @@ export function resolveLevel(world, id) {
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a mission level: its settings as read, its seed the level's unless it names one (levels.js lays it)
-  if (L.mission) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
+  if (L.mission && !L.building) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   // an obstacle course: its settings (levels.js lays the lane for the world's hero)
   if (L.obstacles) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, obstacles: readObstacles(L.obstacles) };
@@ -1034,9 +1049,13 @@ export function resolveLevel(world, id) {
       return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
     }
     const space = spaces.find((sp) => B.use !== undefined && sp.use === B.use) ?? spaces[0] ?? null;
+    // (a MISSION in it, mission-building.js: the building designed as a fighting map unless it says otherwise, `fight`
+    // true where it names none and an explicit false kept; the mission's settings as read, its seed the level's)
+    const fought = L.mission !== undefined && B.fight === undefined ? { fight: true } : {};
     const building = B.ref !== undefined ? { ref: B.ref, ...(B.goal !== undefined ? { goal: B.goal } : {}) }
-      : { ...B, use: B.use ?? space?.use, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
-    return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
+      : { ...B, ...fought, use: B.use ?? space?.use, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
+    const mission = L.mission !== undefined ? (() => { const spec = readMission(L.mission, 'mission'); return { mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; })() : {};
+    return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building, ...mission };
   }
 
   // the LAND (nature.js landToLevel): the forms the style names (the level's over the world's), lowered onto what the

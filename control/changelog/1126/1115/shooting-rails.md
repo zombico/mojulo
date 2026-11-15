@@ -114,3 +114,14 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   carries its world's cube with the era `gen-7` unless the cube names one: the actors' shadows, the hour's shadow map
   and contact occlusion are on, on the practice room and on a level. Its greybox and its figures are still paint under
   that light, and the era reading says so.
+- **A mission in a building, drawn by the form render** (`levels.<id>: { building: { use, fight? }, mission }`,
+  `gameworld/mission-building.js`). The building's plan, designed as a fighting map unless it says otherwise, is read
+  onto the arena grid, the phases are placed there from its way in to one of its doors, and each place is held to the
+  real plan (in its room, on its floor, clear of the walls, the stairs and the stock: moved where the grid's snap put it
+  in one, left out and said where nothing is free). The level is the building's own lowering with the mission's cast,
+  tasks and page; the pilot climbs its stairs on the platform rule. It is read under the world's cube in the seventh
+  generation, its bones the building's kit, so its rooms are `form.room`; its figures are still paint (no cast rig
+  indoors yet). `design_game`'s `mission` step carries the building by the kit's band beside the greybox. Proved on the
+  bus; played on its resolved page, where the gunner wins a warehouse and an armoury and the hold's waves never come.
+  Fixed on the way: a gallery's doorway over a ground-floor doorway on the same span was walled by the lower one's lintel
+  and walled the lower one with its own sill, so neither could be walked through.

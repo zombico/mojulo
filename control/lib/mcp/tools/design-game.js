@@ -77,6 +77,7 @@ import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 import { gauntletLaws } from '@/lib/graph/gameworld/gauntlet.js';
 import { proveGauntlets } from '@/lib/graph/gameworld/gauntlet-proof.js';
 import { proveMissions, missionStageManifests } from '@/lib/graph/gameworld/mission-proof.js';
+import { missionBuildingFor } from '@/lib/graph/gameworld/mission-building.js';
 import { proveErrands, lastStageManifests } from '@/lib/graph/gameworld/errand-proof.js';
 
 
@@ -540,7 +541,10 @@ function readout(ref, world, context = {}) {
   // mission in the practice door and proposed it as a level, with its patch (suggested, never laid)
   if (door.rooms.includes('mission') && !Object.values(world.levels ?? {}).some((L) => L?.mission !== undefined) && !isObj(world.quick)) {
     const id = Object.keys(world.levels ?? {}).includes('mission-1') ? 'first-mission' : 'mission-1';
-    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], card: 'gameworld-mission' });
+    // (or fought inside a building designed as a fighting map, read in the seventh generation: gameworld/mission-building.js,
+    // the core building by the kit's longest band)
+    const inside = missionBuildingFor(world);
+    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], ...(inside ? { building: { use: inside.use, why: `or inside a building drawn by the seventh generation's form render: ${inside.why}; its plan read as a fighting map, the phases placed in its rooms`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', building: { use: inside.use, fight: true }, mission: true } }] } } : {}), card: 'gameworld-mission' });
   }
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block

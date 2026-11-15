@@ -44,11 +44,21 @@ import { missionPlan, missionMapOf } from './mission-level.js';
 import { indexMap } from '../arena-map/map.js';
 import { mapRoute, nodeAt } from '../arena-map/phases.js';
 import { mapPoint } from '../arena-map/ground.js';
+import { asksLevel, withBuildingLevel } from '../structure/level.js';
+import { buildNav } from '../worlds/controllable/nav.js';
+import { missionBuildingStage } from './levels.js';
+
+// the walkers' own pathfinder (worlds/controllable/nav.js: A* over the colliders on one floor, string-pulled), for a
+// mission in a building: a floor at a time, its storeys joined by its stairs' own ways
+const NAV = {};
+buildNav(NAV);
+// (a building level's stage carries its level unlowered, `level: { … }`: lowered here as the page's read lowers it)
+const lowered = (m) => (m && !m.game && asksLevel(m) ? withBuildingLevel(m, m.game?.levelRef ?? 'proof') : m);
 
 const B = buildBus();
 
-export function proveMission(manifest) {
-  const mechs = manifest?.game?.mechanics ?? [], O = objectivesOf(mechs);
+export function proveMission(manifest0) {
+  const manifest = lowered(manifest0), mechs = manifest?.game?.mechanics ?? [], O = objectivesOf(mechs);
   if (!O) return { proved: false, done: [], woke: [], sealed: 0, says: 'the level lays no objectives', assumed: [] };
   const { player, spawn } = deriveLevelPlayer(manifest);
   const c = composeMechanics(mechs, { player, spawn, fall: 'none' }), ev = c.events, s = B.createBusState(ev, ev.entities);
@@ -108,6 +118,7 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
   if (!MISSION_PLAYERS.includes(player)) throw new Error(`mission: player is ${MISSION_PLAYERS.join(' or ')}`);
   // (a manifest as it is stored carries the recipe: its mechanics lowered here as the page's resolve lowers them, one
   // lowering: game/level-synth.js; a resolved payload carries them lowered already)
+  payload = lowered(payload);
   if (payload?.game && !payload.game.on && Array.isArray(payload.game.mechanics)) {
     const S = synthesizeLevel(payload);
     payload = { ...payload, game: S.game, events: mergeEventManifests(payload.events ?? null, S.mechEvents) ?? {} };
@@ -120,11 +131,39 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
   const foes0 = W.entities.filter((e) => e.team === 'foes' && e.body && Number.isFinite(e.body.hp));
   // (the walk: down one line the laws' grid, a body's width and a little off every box, the doors as they stand when
   // open; on a map the map's own ways, cell to cell, toward the next cell's centre on the way)
-  const onMap = M.on === 'map', blocks = onMap ? map ?? missionMapOf(payload)?.blocks ?? null : null;
+  const onMap = M.on === 'map', inBuilding = M.on === 'building', free = onMap || inBuilding, blocks = onMap ? map ?? missionMapOf(payload)?.blocks ?? null : null;
   if (onMap && !blocks) return { player, outcome: null, won: false, t: 0, reason: 'a mission on a map is walked on its blocks: none given, none carried' };
-  const grid = onMap ? null : missionGrid(M, { pad: 0.5 }), fields = new Map(), I = onMap ? indexMap(blocks) : null, routes = new Map();
+  if (inBuilding && !Array.isArray(payload.faces)) return { player, outcome: null, won: false, t: 0, reason: 'a mission in a building is played on its resolved page (its treads, its floors): the stored stage carries none' };
+  const grid = free ? null : missionGrid(M, { pad: 0.5 }), fields = new Map(), I = onMap ? indexMap(blocks) : null, routes = new Map();
+  // IN A BUILDING: the way to a place, a floor at a time (the runtime's own nav on the page's colliders at that floor),
+  // up or down a stair by its own way (its approach, its flights and landing, its arrival); planned once a goal and again
+  // when the body has not come nearer its next point for a while
+  const F = inBuilding ? M.frame : null, eyeH = hero.rule?.eye ?? 0;
+  const storeyAt = (z) => { let k = 0; (F?.floors ?? [0]).forEach((f, s) => { if (f <= z + 0.6) k = s; }); return k; };
+  let way = null, wayKey = null, best = Infinity, stuck = 0;
+  const floorWay = (a, b, s) => { const p = NAV.navPath({ colliders: payload.colliders }, [a[0], a[1]], [b[0], b[1]], { radius: 0.4, height: 1.6, footZ: F.floors[s], step: 0.35, cell: 0.25 }); return p && p.length ? p.map((q) => [q[0], q[1], F.floors[s]]) : [[b[0], b[1], F.floors[s]]]; };
+  const planWay = (from, goal) => {
+    const s0 = storeyAt(from[2] - eyeH), s1 = storeyAt(goal[2]);
+    if (s0 === s1) return floorWay(from, goal, s0);
+    // (the stair between the two storeys nearest the body: its way up, or down reversed)
+    const up = s1 > s0, z0 = F.floors[Math.min(s0, s1)], z1 = F.floors[Math.max(s0, s1)];
+    const st = F.stairs.filter((x) => Math.abs(x.z0 - z0) < 0.05 && Math.abs(x.z1 - z1) < 0.05).map((x) => (up ? x.way : [...x.way].reverse()))
+      .sort((a, b) => flatD(a[0], from) - flatD(b[0], from))[0];
+    if (!st) return floorWay(from, goal, s0);
+    // (to its foot on this floor, along it, then on from its head on the next: planned again once there)
+    return [...floorWay(from, st[0], s0), ...st.slice(1).map((q, i, arr) => [q[0], q[1], i === arr.length - 1 ? F.floors[s1] : null])];
+  };
   const fieldTo = (at) => { const k = `${r1(at[0])},${r1(at[1])}`; if (!fields.has(k)) fields.set(k, grid.field(at)); return fields.get(k); };
   const stepToward = (goal, pos) => {
+    if (inBuilding) {
+      const k = `${r1(goal[0])},${r1(goal[1])},${r1(goal[2])}`;
+      if (k !== wayKey || !way || !way.length) { way = planWay(pos, goal); wayKey = k; best = Infinity; stuck = 0; }
+      while (way.length > 1 && flatD(way[0], pos) < 0.5) { way.shift(); best = Infinity; stuck = 0; }
+      // (no nearer its next point for two seconds: planned again from where it stands)
+      const d = flatD(way[0], pos);
+      if (d < best - 0.05) { best = d; stuck = 0; } else if (++stuck > 2 / SIM_DT) { way = planWay(pos, goal); best = Infinity; stuck = 0; }
+      return { at: way[0] };
+    }
     if (!onMap) return grid.toward(fieldTo(goal), pos, 6);
     const a = nodeAt(I, pos, hero.rule?.eye ?? 0), b = nodeAt(I, [goal[0], goal[1], goal[2] + 0.5]);
     if (!a || !b || a === b) return { at: goal };
@@ -142,12 +181,12 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
   const goalOf = (n) => {
     const S = M.sections[Math.min(n, M.sections.length - 1)], T = S.task, begun = sim.bus.vars[`__obj_in${Math.min(n, M.sections.length - 1)}`] === 1;
     if (n >= M.sections.length) return M.anchors.exit;
-    if (!begun && !onMap) return [S.x[0] + 2.4, S.entry[1], 0];
+    if (!begun && !free) return [S.x[0] + 2.4, S.entry[1], 0];
     if (T.kind === 'take' || T.kind === 'reach') return T.at;
-    if (T.kind === 'hold') return onMap ? T.at : [S.line - 1, S.entry[1], 0];
+    if (T.kind === 'hold') return free ? T.at : [S.line - 1, S.entry[1], 0];
     // a clear: toward the nearest of its foes still standing
     const left = S.foes.map((f) => W.byId[f.id]).filter(alive).sort((a, b) => flatD(a.transform.pos, hero.transform.pos) - flatD(b.transform.pos, hero.transform.pos));
-    return left.length ? left[0].transform.pos : onMap ? S.entry : [S.x[1] - 2, S.door ? S.door.at[1] : 0, 0];
+    return left.length ? left[0].transform.pos : free ? S.entry : [S.x[1] - 2, S.door ? S.door.at[1] : 0, 0];
   };
   // the carried gun a range asks for, by each slot's band (the kit's archetype: mission/sections.js)
   const slots = (hero.rule?.loadout ?? []).map((sl) => ARCHETYPE_BAND[ARMS_KIT[sl.name]?.as] ?? (sl.weapon?.fireClass === 'lob' ? 'mid' : 'mid'));
@@ -237,13 +276,23 @@ export function missionStageManifests(steps) {
   return { manifests, keys };
 }
 
-/** Each mission level of a world, proved on the bus and played by the gunner, or null for a world with none. */
-export function proveMissions(world, manifests) {
+/** Each mission level of a world, proved on the bus and played by the gunner, or null for a world with none. A mission in
+ * a building is played on its resolved page (`payloads`: { <level id>: the payload resolveWorldScene made of its
+ * manifest }), its treads and its floors being the page's; with none at hand it is proved on the bus and its play said
+ * to wait on the page. */
+export function proveMissions(world, manifests, { payloads = {} } = {}) {
   const G = readGameworld(world), ids = G.ids.filter((id) => G.levels[id].mission !== undefined);
   if (!ids.length) return null;
   return ids.map((id) => {
     const m = manifests[id];
     if (!m) return { level: id, proved: false, says: 'no stage made for it', assumed: [] };
+    if (G.levels[id].building !== undefined) {
+      // (in a building: the phases placed again from its plan, as the level laid them; played on its page where at hand)
+      const P = proveMission(m), plan = missionBuildingStage(G, resolveLevel(G, id), id).mission, page = payloads[id] ?? null;
+      const R = page ? playMission(page, plan.mission) : null;
+      const advice = R && !R.won ? `the gunner ${R.reason}: fewer foes there (mission.foes), a shorter hold (mission.hold, mission.waves), or a gun carried for that section's band` : null;
+      return { level: id, proved: P.proved, says: P.says, play: R ? missionPlaySummary(R) : 'not played: a mission in a building is played on its resolved page (its treads and floors), not at hand here', ...(R ? { won: R.won } : {}), ...(advice ? { advice } : {}), assumed: P.assumed };
+    }
     // (a mission on a map is planned on the blocks its level carries: never regrown)
     const P = proveMission(m), carried = missionMapOf(m), plan = missionPlan(G, { ...resolveLevel(G, id).mission, ...(carried ? { grown: carried.blocks } : {}) }), R = playMission(m, plan.mission);
     // (a level the floor of play loses: where, and the dials that move it; advice, never a refusal)

@@ -31,6 +31,8 @@
  *                              spots and what the pilot carries (levels.js lays it over its own pilot; the practice room
  *                              over the range's person)
  *   missionStage(G, P)       → a mission level's stage manifest: its ground, its sky and its page's `mission`
+ *   missionBuildingCube(G, B, kit) → the cube a mission in a building is read under (gen-7, its bones the building's kit;
+ *                              the phases in the building: mission-building.js)
  *   missionMapOf(manifest)   → the map a laid mission carries ({ template, seed, blocks }), or null
  *   missionUi(G, M, brief, { laws }) → the manifest's `mission`: { title, theme, plan, tasks, briefing }
  *   missionLevel(G, { refs?, seed?, spec?, quiet? }) → { manifest, brief, mission, laws, ui } the practice room's build
@@ -127,7 +129,9 @@ export function missionTasks(M, { lift = 0 } = {}) {
       // (down one line, the section's box; a section with a round zone of its own, that one; none: it begins as the one
       // before is met)
       ...zoneOf(S, M),
-      ...(T.at ? { at: T.at.slice() } : {}), ...(T.foes ? { foes: T.foes.slice() } : {}), ...(T.gun ? { gun: T.gun } : {}),
+      // (a place read at its height, a building's storeys: on its floor, met at the body's eye, never from over or under)
+      ...(T.at ? { at: T.planar === false ? [T.at[0], T.at[1], r2(T.at[2] + lift)] : T.at.slice() } : {}), ...(T.planar === false ? { planar: false } : {}),
+      ...(T.foes ? { foes: T.foes.slice() } : {}), ...(T.gun ? { gun: T.gun } : {}),
       ...(T.kind === 'hold' ? { seconds: T.seconds, every: T.every, waves: T.waves.map((w) => w.slice()) } : {}),
       ...(S.door ? { door: { at: S.door.at.slice(), back: [S.door.back[0], S.door.back[1], r2(S.door.back[2] + lift)], ...(S.door.radius ? { radius: S.door.radius } : {}) } } : {}),
     };
@@ -196,7 +200,11 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
   return {
     title: name,
     theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK,
-    plan: M.on === 'map'
+    plan: M.on === 'building'
+      // (in a building: its anchors, the heart, each phase's entry and the frame its grid is read in, the building itself
+      // the stage's: its plan regenerates from its program)
+      ? { on: 'building', heading: M.heading, anchors: { spawn: M.anchors.spawn.slice(), exit: M.anchors.exit.slice() }, heart: M.heart.slice(), sections: M.sections.map((S) => ({ id: S.id, entry: S.entry.slice() })), frame: structuredClone(M.frame) }
+      : M.on === 'map'
       // (on a map: its anchors, each phase's entry and the map it is fought on, its blocks as grown: the level is rebuilt
       // from them, mapGround, and never regrown)
       ? { on: 'map', heading: M.heading, anchors: { spawn: M.anchors.spawn.slice(), exit: M.anchors.exit.slice() }, heart: M.heart.slice(), sections: M.sections.map((S) => ({ id: S.id, entry: S.entry.slice() })), ...(map ? { map: { template: map.template, seed: map.seed, blocks: structuredClone(map.map) } } : {}) }
@@ -220,6 +228,17 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
 export function missionCube(G) {
   const c = G?.style?.geocube ?? 'valley-morning', cube = typeof c === 'string' ? { from: c } : c;
   return cube.era ? cube : { ...cube, era: 'gen-7' };
+}
+
+/** The cube a mission in a building is read under (levels.js, a building level with a mission beside it): the world's
+ * own, in the seventh generation unless it names its era (missionCube), its bones the building's own kit (the room kit
+ * its use names: era/programs.js), so the building is laid as it would be and drawn by the form render (era/stage.js:
+ * `form.room`, its lamps placed and its tiles read as material). A building that names its own cube keeps it, its era
+ * the seventh generation unless it names one. */
+export function missionBuildingCube(G, B, kit) {
+  if (B.geocube !== undefined) { const c = typeof B.geocube === 'string' ? { from: B.geocube } : B.geocube; return c.era ? c : { ...c, era: 'gen-7' }; }
+  const c = missionCube(G);
+  return { ...c, inside: { ...(c.inside ?? {}), bones: kit } };
 }
 
 export function missionStage(G, P) {

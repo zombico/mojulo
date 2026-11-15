@@ -18,7 +18,10 @@
  *   (what lies on the floor, and a place a take or a reach is met at, stands only in a cell with no floor over or under
  *   it: the runtime's zones read a place flat, so one under a gallery would be taken from the floor below)
  *
- *   phasesOnMap(brief, map, { seed?, at? }) → the composition the mission level consumes (gameworld/mission-level.js):
+ *   phasesOnMap(brief, map, { seed?, at?, start?, exits? }) → the composition the mission level consumes
+ *     (gameworld/mission-level.js; start: the cell the body is set down on, in place of the far spawn, where it stands on
+ *     the map and reaches the heart, as a building's way in; exits: the cells a way out may be, in place of the spawns,
+ *     as a building's doors: gameworld/mission-building.js):
  *     { on: 'map', seed, heading, sections: [{ id, kind, band, entry, foes: [{ id, at, heading }], drops, task, door: null,
  *       zone: null, cells }], primitives: [], anchors: { spawn, exit }, heart, start, cells }   (cells: the map's cells
  *     each place stands in, for the laws and a player that walks the map's own graph)
@@ -78,7 +81,7 @@ export function nodeAt(I, pos, eye = 0, at = [0, 0, 0]) {
 }
 
 /** The phases on the map (see the header). */
-export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
+export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0], start: startAt = null, exits = null } = {}) {
   if (!brief || !Array.isArray(brief.sections)) throw new Error('arena-map: phases want a mission brief (mission/brief.js missionBrief)');
   const rnd = mulberry32(seed | 0), I = indexMap(map), V = visibility(I), kit = kitOf(brief), F = furnish(I, V, kit), n = V.n;
   const idOf = (c) => key(...c), cellOf = (id) => I.at.get(id), pt = (id) => mapPoint(cellOf(id), at);
@@ -94,7 +97,9 @@ export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
   // THE START: a spawn far from the heart (the two farthest, the dice between them)
   const spawns = F.spawns.map(idOf).filter((id) => Number.isFinite(far(id, heart)));
   const byFar = [...(spawns.length ? spawns : V.ids)].sort((a, b) => far(b, heart) - far(a, heart) || (a < b ? -1 : 1));
-  const start = byFar[Math.min(byFar.length - 1, Math.floor(rnd() * Math.min(2, byFar.length)))];
+  const pick = byFar[Math.min(byFar.length - 1, Math.floor(rnd() * Math.min(2, byFar.length)))];
+  // (a start asked for, a building's way in, where it stands and reaches the heart: the body is set down there)
+  const asked = startAt ? idOf(startAt) : null, start = asked && V.index.has(asked) && Number.isFinite(far(asked, heart)) ? asked : pick;
   const used = new Set(), taken = new Set([start, heart]);
   const walked = (a, b) => { for (const id of mapRoute(I, a, b) ?? []) used.add(id); };
   const sections = [];
@@ -171,7 +176,9 @@ export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
     } else {
       // the way out: the spawn farthest from the heart, by a way not walked yet (the start's last)
       const W = walk(here), fresh = (id) => (routeTo(W, id) ?? []).slice(OUT).filter((x) => used.has(x)).length;
-      const pool0 = [...F.spawns.map(idOf).filter((id) => id !== start && W.D.has(id)), ...(W.D.has(start) ? [start] : [])], pool = pool0.some(alone) ? pool0.filter(alone) : pool0;
+      // (the ways out asked for, a building's doors, where any is reached: one of those, by the same measure)
+      const doors = (exits ?? []).map(idOf).filter((id) => W.D.has(id));
+      const pool0 = doors.length ? doors : [...F.spawns.map(idOf).filter((id) => id !== start && W.D.has(id)), ...(W.D.has(start) ? [start] : [])], pool = pool0.some(alone) ? pool0.filter(alone) : pool0;
       const exit = [...pool].sort((a, b) => (W.D.get(b) - CELL * 2 * fresh(b)) - (W.D.get(a) - CELL * 2 * fresh(a)) || (a < b ? -1 : 1))[0] ?? here;
       out.task = { kind: 'reach', text: row.text, at: pt(exit) };
       out.cells = { at: cellOf(exit), fresh: fresh(exit) };

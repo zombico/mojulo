@@ -144,9 +144,12 @@ describe('a gallery', () => {
     expect(L && L.landU).toBeGreaterThan(0);
     // (its stairs: the near one along the wall, its foot off the deck's end; a long deck a second, square to it)
     expect(G.near[1] - G.near[0]).toBeGreaterThan(0);
-    // (the hall's wall stands whole under its sill: a collider there)
-    const cols = stageColliders({ ...P, rooms: [H] }, {}, []);
-    expect(cols.some((c) => c.min[2] === 0 && c.max[2] === G.z && (G.side.endsWith('x') ? c.min[1] <= G.lo + 1e-6 && c.max[1] >= G.hi - 1e-6 : c.min[0] <= G.lo + 1e-6))).toBe(true);
+    // (the hall's wall stands whole under its sill: a collider there, from the floor, or from the head of a doorway on
+    // the same span under it, which stays open: a gallery's doorway over the floor's)
+    const cols = stageColliders({ ...P, rooms: [H] }, {}, []), X = G.side.endsWith('x'), on = (c) => (X ? c.min[1] <= G.lo + 1e-6 && c.max[1] >= G.hi - 1e-6 : c.min[0] <= G.lo + 1e-6);
+    const under = H.openings[G.side].find((o) => !o.sill && o.lo < G.hi && o.hi > G.lo);
+    expect(cols.some((c) => c.min[2] === (under ? under.top : 0) && c.max[2] === G.z && on(c))).toBe(true);
+    if (under) expect(cols.some((c) => c.min[2] < under.top - 1e-6 && c.max[2] > 0.1 && (X ? c.min[1] < under.hi - 1e-6 && c.max[1] > under.lo + 1e-6 : c.min[0] < under.hi - 1e-6 && c.max[0] > under.lo + 1e-6) && Math.abs((X ? c.min[0] : c.min[1]) - (X ? H.box[G.side === '-x' ? 0 : 2] : H.box[G.side === '-y' ? 1 : 3]) + P.kit.wall / 2) < 1e-6)).toBe(false);
   });
 
   it('is said lost, never refused, where its building has no hall to lay it round', () => {

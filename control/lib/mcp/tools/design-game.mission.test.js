@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { TEMPLATE_LOADOUTS } from '@/lib/graph/gameworld/loadout.js';
 import { POLES } from '@/lib/graph/gameworld/feel/cards.js';
+import { MISSION_BUILDINGS } from '@/lib/graph/mission/brief.js';
 
 // A MISSION through the rail (the e2e tier: it makes a whole game through the real doors). A world with a firing range
 // is shown its first mission and proposed it as a level; written, a run makes its foes' figure, the level and the game,
@@ -26,6 +27,9 @@ describe('design_game: a mission', () => {
     expect(Object.keys(out.practice.rooms)).toEqual(expect.arrayContaining(['range', 'mission']));
     const step = out.next.find((n) => n.step === 'mission');
     expect(step.patch).toEqual([{ op: 'set', path: '/levels/mission-1', value: { name: 'First mission', mission: true } }]);
+    // (or inside a building, the core building its kit's band picks, a row of a closed table, drawn by the form render)
+    expect(step.building.patch).toEqual([{ op: 'set', path: '/levels/mission-1', value: { name: 'First mission', building: { use: step.building.use, fight: true }, mission: true } }]);
+    expect(Object.values(MISSION_BUILDINGS).map((r) => r.use)).toContain(step.building.use);
     expect(step.card).toBe('gameworld-mission');
     expect(step.url).toMatch(/book=practice&room=mission/);
   }, 120000);

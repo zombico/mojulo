@@ -16,6 +16,8 @@
  *   roadwayEnds(manifest)                  → the same, read off a roadway's contract (roads/contract.js)
  *   airspaceEnds(manifest)                 → the same, read off an airspace's map and course (skyscape/)
  *   (a mission level's ends are its plan's: mission-level.js missionEnds)
+ *   missionBuildingStage(G, R, level)      → a building level's stage with a mission laid in it (mission-building.js):
+ *                                            the building under the mission's gen-7 cube, `mission` its placed phases
  *   stageLevelOrder(G, stage, { ref, heroRef, pilot?, mechanics, title, goal?, goalCast? }) → the create_sketch call
  *                               that makes it (`pilot` a mascot hero's measures, egocube/mascot-pilot.js; `goal` and
  *                               `goalCast` a goal's mechanics and what it stands, on a trail or in a building's rooms)
@@ -80,7 +82,8 @@ import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.
 import { standFoe, foePlacements } from './foes.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes } from './arsenal.js';
-import { missionPlan, missionStage, missionEnds, missionMechanics, missionCast } from './mission-level.js';
+import { missionPlan, missionStage, missionEnds, missionMechanics, missionCast, missionUi, missionBuildingCube } from './mission-level.js';
+import { buildingMissionPlan } from './mission-building.js';
 
 /** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
  * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
@@ -159,6 +162,9 @@ export function gameStages(world) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
+    // (a MISSION in it, mission-building.js: its phases placed in the building's rooms from its plan read as a fighting
+    // map; the plan rides the stage for the order that lays its pilot, cast and tasks, the page's `mission` its manifest)
+    if (R.building && R.mission) { out.push(missionBuildingStage(G, R, level)); continue; }
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
     // a glyph-map level is one stage: the whole level one world on one page (level/grid-scene.js), walked end to end
     // (a ZONED map, level/zones.js: a stage a segment, each its own page, its walk's first segment first and its last
@@ -694,6 +700,8 @@ function withBookUi(G, play) {
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, gunnerRef = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
+  // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
+  if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
@@ -1534,7 +1542,61 @@ function inPalette(manifest, P, at) {
 
 /** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
  *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
-export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : inPalette(buildingStage(partyScaled(G, R.building)), R.style?.palette ?? G.style?.palette, `${level}/building`));
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : R.mission ? missionBuilding(G, R.building) : inPalette(buildingStage(partyScaled(G, R.building)), R.style?.palette ?? G.style?.palette, `${level}/building`));
+
+/** A building a mission is laid in: its program as a building level's, read under the mission's cube (mission-level.js
+ *  missionBuildingCube: the world's, gen-7, its bones the building's own kit), so the form render draws it. */
+function missionBuilding(G, B) {
+  const { kit, geocube: _g, ...rest } = B, bones = kit ?? PROGRAMS[B.use]?.kit ?? roomKitFor(B.anchor);
+  return buildingStage({ ...rest, geocube: missionBuildingCube(G, B, bones) });
+}
+
+/** A building level's stage with a mission laid in it: the building (missionBuilding), the phases placed in its rooms
+ *  from its way in (mission-building.js), the page's `mission` from them. */
+export function missionBuildingStage(G, R, level) {
+  const manifest0 = missionBuilding(G, R.building), stage = { level, node: 'building', section: 'building', index: 0, building: R.building, manifest: manifest0 };
+  const ends = buildingEnds(stage), P = buildingMissionPlan(G, manifest0, { spec: R.mission.spec, seed: R.mission.seed, spawn: ends.spawn, heading: ends.heading });
+  if (!P) throw new Error(`levels: ${level}.mission is laid from the guns the world carries, and this world carries none`);
+  return { ...stage, label: G.levels[level]?.name ?? level, mission: P, manifest: { ...manifest0, mission: missionUi(G, P.mission, P.brief, { laws: P.laws }) } };
+}
+
+/** A building level with a mission in it (levelOrder): the building's own lowering (its walls, its storeys, its way in),
+ *  its goal the mission's tasks (`level.exit: false`, its result card put away: the debrief is the mission channel's),
+ *  the mission's cast (missionCast: the armed pilot, the foes asleep on their spots), and the pilot on the platform rule
+ *  at the eye with no hero (it climbs the storeys' treads: a step of 0.3 m over the stair's 0.2 m risers), aimed from
+ *  the eye unless the world names a camera; with a hero, the hero armed. Its laws: the phases' and the placing's. */
+function buildingMissionOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, title, gunnerRef = null }) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level}`, P = stage.mission, M = P.mission;
+  const cam = G.camera ?? (heroRef ? null : 'first-person');
+  if (!heroRef && cam !== 'first-person') throw new Error(`levels: a ${cam} camera watches a hero; give the world a hero, or play its mission first-person`);
+  if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it first-person or third-person`);
+  const MX = missionCast(G, M, { refs: { foe: gunnerRef }, hero: !!heroRef, camera: cam, quiet: true });
+  const base = { ...stage.manifest, title: name, level: { ...stage.manifest.level, exit: false, complete: false, mechanics: missionMechanics(M, { lift: heroRef ? 0 : EYE_FALLBACK }) }, ...(MX.audio ? { audio: MX.audio } : {}) };
+  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], spawn = M.anchors.spawn, heading = M.heading;
+  const felt = G.feel != null ? feelRule(G.feel) : null;
+  let pilotPart;
+  if (!heroRef) {
+    // FIRST PERSON: the platform rule at the eye (a feel written, its card lowered onto it), the mouse looking through an
+    // eye camera, the walls the building's colliders; its probe from the feet, its step over a tread
+    const controls = `W / S  walk · A / D  step aside · mouse  look · ${MX.legend}${felt ? ` · Space  jump${felt.sprintSpeed ? ' · Shift  sprint' : ''}` : ''}${MX.pilot.rule.knife ? ' · V  knife' : ''}`;
+    const PW = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });
+    const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE_FALLBACK, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...MX.pilot.rule };
+    const me = { ...walker, rule, ...(MX.pilot.weapon ? { weapon: MX.pilot.weapon } : {}), body: { ...walker.body, ...MX.pilot.body }, transform: { pos: [spawn[0], spawn[1], r3(spawn[2] + EYE_FALLBACK)], heading } };
+    pilotPart = { figures: MX.figures, entities: [me, ...MX.entities], camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true }, events: PW.events || {} };
+  } else {
+    // A HERO: its own walker armed with the mission's guns, over its shoulder where the camera says
+    const controls = `${walkRun(pilot, '')} · A / D  turn · Space  jump · ${MX.legend}`;
+    const PW = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls });
+    const plan = withProgram(stage.manifest), A = armedPilot(G, { ...PW.entities[0], transform: { pos: steppedIn(plan, spawn, heading), heading } }, cam);
+    const p0 = A.entity, me = { ...p0, ...MX.pilot, rule: { ...p0.rule, ...MX.pilot.rule, ...(felt ?? {}) }, body: { ...p0.body, ...MX.pilot.body } };
+    const camera = A.camera ?? PW.camera;
+    pilotPart = { figures: { ...PW.figures, ...MX.figures }, entities: [me, ...MX.entities], camera: MX.camera && camera ? { ...camera, ...MX.camera } : camera, events: PW.events || {} };
+  }
+  const manifest = armLevel(G, { ...base, ...pilotPart, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() });
+  const laws = P.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says }));
+  // (its ends the building's own, read with its goal room: what a story or a link reads of a building level)
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends: buildingEnds(stage), ...(laws.length ? { laws } : {}) };
+}
 
 /** THE PARTY'S DUNGEON IS LAID LARGER (a principle): a world that fights in party battles on its levels lays its
  * building levels' rooms DUNGEON_SCALE times a walker's, so a party and its foes stand in a room with room to spare and

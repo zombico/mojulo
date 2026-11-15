@@ -17,6 +17,7 @@
  *                             scale, hold, waves, camera, map: { template } | null, why: { <need>: words } } | null (a world
  *                             with no guns)
  *   MISSION_MAPS         { <the kit's longest band>: { template, why } }: the map `map: true` picks
+ *   MISSION_BUILDINGS    { <the kit's longest band>: { use, why } }: the core building a mission is proposed in
  *
  * Pure, no dice.
  */
@@ -40,6 +41,14 @@ export const MISSION_MAPS = Object.freeze({
   close: Object.freeze({ template: 'stack', why: 'close guns alone: a tower round a well, every fight across a room or up and down' }),
   mid: Object.freeze({ template: 'courtyard', why: 'the mid band: a court under a gallery, the court the heart both rings see' }),
   long: Object.freeze({ template: 'figure-eight', why: 'a long gun: the figure of eight, the longest lines the templates have (none is sized for the long band yet)' }),
+});
+
+// the building a kit's mission is proposed in (gameworld/mission-building.js), by the longest band it serves: a core
+// building each (era/programs.js), a closed table
+export const MISSION_BUILDINGS = Object.freeze({
+  close: Object.freeze({ use: 'armoury', why: 'close guns alone: an armoury, one storey of cages off a corridor, every fight across a room or round a door' }),
+  mid: Object.freeze({ use: 'warehouse', why: 'the mid band: a warehouse, its offices over the lockers down a corridor, the tall shed and its gallery the long room' }),
+  long: Object.freeze({ use: 'hangar-bay', why: 'a long gun: a hangar bay, the longest floor of the core buildings under a gallery, its wings for the near fights' }),
 });
 
 /** A level's `mission`, read. */

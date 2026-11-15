@@ -35,6 +35,7 @@ export const E2E = [
   'lib/graph/scene/action-hero.live.test.js',
   'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/gameworld/mission.live.test.js',
+  'lib/graph/gameworld/mission-building.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/graph/cycle-shelf/cycle-ride.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',

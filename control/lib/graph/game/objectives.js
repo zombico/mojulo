@@ -16,12 +16,13 @@
  * sealed puts a body that walks into it back (`back`), as the gauntlet's does.
  *
  * Params:
- *   { id?: 'obj', tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, foes?, gun?, seconds?, every?, waves?,
+ *   { id?: 'obj', tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
  *                           door?: { at, back, radius? } }] }
  *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section in an open
  *          place): walking into it begins the task (none: it begins as the one
  *          before is met; the first begins as the level starts)
  *   door   the way on, sealed until the task is met
+ *   planar false: a take or a reach met at its height (a place on a storey: never from the floor over or under it)
  *
  *   objectiveNames(id)      → { task (the var: the index in hand, the count when all are met), seal(k), left(k), downs(k),
  *                             felled, time } the names it gives its things (felled: every foe of its downed; time: seconds)
@@ -93,7 +94,9 @@ export function lowerObjectives(p, ctx) {
     if (t.kind === 'clear' || t.kind === 'man') for (const f of t.foes) world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'ctrl', op: 'spawn', who: f, fresh: true });
     if (t.kind === 'take' || t.kind === 'reach') {
       const zone = `${id}_at_${k}`;
-      world.sources.push({ type: 'zone', zone, at: t.at.slice(), radius: Number.isFinite(t.radius) ? t.radius : t.kind === 'take' ? 1.4 : 2, planar: true, watch: ctx.player });
+      // (planar unless the task says otherwise: a place on a storey, read at the body's own height, is not met from the
+      // floor over or under it)
+      world.sources.push({ type: 'zone', zone, at: t.at.slice(), radius: Number.isFinite(t.radius) ? t.radius : t.kind === 'take' ? 1.4 : 2, planar: t.planar !== false, watch: ctx.player });
       world.reactions.push({ on: 'enter', match: { zone }, if: mine, do: 'emit', type: metE(k) });
     } else if (t.kind === 'clear' || t.kind === 'man') {
       const d = names.downs(k);

@@ -156,6 +156,17 @@ guns, one short for a long gun. Still failing: `height-paid`, because the law av
 gallery is one railed column of it; `line-cap` for close and mid guns, because a corridor runs straight into the core;
 and no stair is gentler than about 1:1.5. A keep gains nothing: its packer cannot lay a second stair.
 
+### A mission inside a building
+
+A building designed as a fighting map can hold a mission: `levels.<id>: { building: { use, fight? }, mission }`
+(`gameworld/mission-building.js`). The plan is read onto the grid (`readBuildingMap`), the phases are placed on it
+(`phasesOnMap`, with `start` the building's way in and `exits` its doors), and every place is taken back to the plan's
+metres. Because the grid snaps walls by up to half a cell, each place is held to the real plan: in its room, on its
+floor, clear of walls, stairs and stock. A place that fails is moved within its room; one with nowhere free is left out
+and said (`placed-in-plan`). The grid's ramps are a reading, not where the stairs are: the gunner takes a stair by its
+own way. The level is a building's stage, so read in the seventh generation it is drawn by the form render
+([docs/missions.md](missions.md), "In a building").
+
 ## Next
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
