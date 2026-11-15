@@ -31,7 +31,8 @@ export const PACKAGES = Object.freeze({
   // has no sound word, and no level reads the shelf by word
   sound: { name: 'Sound from a gameworld: a world says its score and its effects, a level reads the SFX shelf by word, the mixer placing each cue', effort: 'M' },
   // the game UI (11-10): the shell, the RPG, the brawler and the fighter run on mana-ui; a level's own HUD does not
-  'game-ui': { name: 'The level\'s HUD on mana-ui: the HUD, talk menus, quest log and pause as compositions of the one runtime, so a theme, a language and a headset reach them', effort: 'L' },
+  // (11-14: a level's HUD rows, its pause button and its touch pad are mana-ui's on a world that says `ui`; what is left is smaller)
+  'game-ui': { name: 'The rest of play on mana-ui: a level\'s talk menus and quest log as compositions of the one runtime, and the HUD host on a world that says no `ui`, so a theme, a language and a headset reach every screen', effort: 'M' },
   // crewed machines (11-10): the artillery range drives and flies them; a gameworld's hero does not get into one yet
   crewed: { name: 'Crewed machines from a gameworld: the hero gets into a tank, a truck, a walker, a boat, a helicopter or a fighter and drives or flies it, its gun on a turret', effort: 'L' },
   replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },
