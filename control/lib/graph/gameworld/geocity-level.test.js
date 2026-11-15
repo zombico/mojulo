@@ -7,6 +7,7 @@ import { gameStages, stageEnds, stageLevelOrder } from './levels.js';
 import { MEADOWMARK_HERO } from './examples.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { reachOf } from '../game/reach.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
 
 const METRO = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
 const WORLD = { id: 'metro-patrol', name: 'Metro patrol', seed: 2, style: { hour: 'noon' }, levels: { downtown: { name: 'Downtown', geocity: METRO } } };
@@ -37,7 +38,7 @@ describe('a geocity level', () => {
     expect(E.beats.length).toBeGreaterThan(0);
   }, 120_000);
 
-  it('is played by the world\'s hero with the moves it starts with: the wall and the line on its platform rule', () => {
+  it('is played by the world\'s hero with the moves it starts with: the wall and the line on its platform rule', async () => {
     const W = { ...MEADOWMARK_HERO, style: { ...(MEADOWMARK_HERO.style ?? {}), hour: 'noon' }, levels: WORLD.levels, links: undefined, start: undefined };
     for (const k of ['links', 'start']) delete W[k];
     W.characters = { ...W.characters, hero: { ...W.characters.hero, actions: { none: true, moves: ['wall', 'swinger'] } } };
@@ -46,6 +47,12 @@ describe('a geocity level', () => {
     const hero = m.entities.find((e) => e.pilotable);
     expect(hero.rule).toMatchObject({ type: 'platform', wall: true, gear: 'swinger' });
     expect(m.game.mechanics.map((x) => x.kind)).toContain('reach-exit');
+    // the page draws the metro under the level's pilot and game (the keys a level lays over it are the page's, never
+    // refused as the city's own), no stand-in walking it
+    const { figures: _f, ...bare } = m;
+    const { payload } = await resolveWorldScene({ ref: 'gw-level', title: 'Downtown', manifest: { ...bare, entities: m.entities.map(({ figure: _g, ...e }) => e) } });
+    expect(payload.faces.length).toBeGreaterThan(1000);
+    expect((payload.walkers ?? []).length).toBe(0);
   }, 120_000);
 
   it('its towers take the line: a hero in the air over its street finds an anchor on a face and swings, and the moves open roofs', () => {
