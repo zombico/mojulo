@@ -730,6 +730,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.
 // Re-pinned 2026-11-15 (1115-shooting-rails: the damage ring): `mission` only. Its runtime reads the pilot's hits and
 // marks where each came from on mana-ui's ring, its bearing inlined beside it.
+// Re-pinned and pinned 2026-11-15 (1115-shooting-rails: the damage ring as its own concept): `mission` (its runtime
+// steps the shared tracker, inlined beside it) and the new `damage-ring` fixture (the ring's own channel, for a page whose
+// HUD is its own). No other fixture carries either.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

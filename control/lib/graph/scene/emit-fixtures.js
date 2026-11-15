@@ -291,6 +291,8 @@ export const EMIT_FIXTURES = [
   // mission (a shooter's first level, gameworld/mission-level.js): the mission block, mana-ui and the controls host in a
   // scope of its own, its briefing, HUD, pause and debrief read off the scene's probes; the smallest mission (two tasks)
   ['mission', { faces: [floor()], mission: MISSION_UI }],
+  // damage ring (a page with its own HUD: gameworld/damage-ring.js): its block alone, the tracker and the bearing inlined
+  ['damage-ring', { faces: [floor()], damageRing: { life: 1.6, most: 6 } }],
   // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned

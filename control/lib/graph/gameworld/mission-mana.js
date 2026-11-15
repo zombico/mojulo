@@ -29,14 +29,14 @@
  *   missionManaRuntime(cfg)   → the page's code (inlined with toString(): it references only the kernel, the host and the
  *     pad reader inlined beside it, and the scene's own probes)
  *   missionChannelSource(ui)  → the block the page's mission channel splices (scene/channels/mission.js)
- *   hitBearing(pos, heading, from) → degrees clockwise from where a body faces to where a hit came from (0 ahead, 90 its
- *     right, 180 behind, 270 its left), to the whole degree; inlined beside the runtime
- *   RING                      the damage ring's numbers: how long a mark stands, how many at once
+ *   RING, hitBearing          the damage ring's numbers and its bearing (damage-ring.js: the concept, its tracker inlined
+ *                             beside the runtime; a page with its own HUD draws the same ring through its own channel)
  *
  * The look: the theme the manifest names (the world's interface where it writes one, else the `field-brief` theme
  * card), with no overlay across the screen either way.
  *
- * The page's side only: it imports the UI runtime, the controls layer and the theme cards, and nothing of the gameworld
+ * The page's side only: it imports the UI runtime, the controls layer, the theme cards and the damage ring (itself
+ * import-free), and nothing else of the gameworld
  * (the scene's emitter reads it through its mission channel: scene/channels/mission.js).
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '../../mana-ui/index.js';
@@ -46,6 +46,10 @@ import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { MSG_PAUSE, MSG_CONTROLS } from '../game/level-contract.js';
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
+import { RING, hitBearing, ringTracker } from './damage-ring.js';
+
+// (the damage ring is its own concept, drawn here on mana-ui: damage-ring.js)
+export { RING, hitBearing };
 
 const K = buildControlsKernel();
 const B = (p) => ({ bind: `ms.${p}` });
@@ -53,14 +57,6 @@ const I = (f) => ({ item: f });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
 const USES = ['pause-menu', 'results-screen', 'objective-tracker', 'ammo-counter', 'damage-direction'];
-/** The damage ring's numbers: a mark stands `life` seconds of the scene's clock after its last hit; `most` at once. */
-export const RING = Object.freeze({ life: 1.6, most: 6 });
-/** Where a hit came from, as the ring marks it: degrees clockwise from where the body faces (its heading, radians,
- * counter-clockwise from +x) to the place it came from, 0 to 359. */
-export function hitBearing(pos, heading, from) {
-  const rel = Math.atan2(from[1] - pos[1], from[0] - pos[0]) - (heading || 0);
-  return ((Math.round((-rel * 180) / Math.PI) % 360) + 360) % 360;
-}
 /** The look a mission wears where its world writes no interface of its own: the field brief (a theme card). */
 export const MISSION_LOOK = 'field-brief';
 // a mission's theme as mana-ui reads it: a card by its name, else a preset or a theme as written; and nothing of it drawn
@@ -198,9 +194,8 @@ export function missionManaRuntime(cfg) {
   const was = {};
   // THE HUD: read off the scene each frame, painted when what it shows has changed
   let shown = '';
-  // THE DAMAGE RING: who has hit the pilot lately (by id: where it stood, when), from the pilot's own count of hits
-  const ringBy = {};
-  let hits0 = null;
+  // THE DAMAGE RING (damage-ring.js): the marks standing this frame, from the pilot's own count of hits
+  const ring = __msRing(cfg.ring, __msBearing);
   function read() {
     const W = world(), v = vars(), me = W && W.entities.find((x) => x.pilotable), w = me && me.weapon;
     if (Number.isFinite(v.hp)) P.hp = Math.max(0, Math.round(v.hp));
@@ -215,28 +210,8 @@ export function missionManaRuntime(cfg) {
     for (let k = 0; k < cfg.tasks.length; k++) P.objective.steps[k].done = k < n;
     const T = cfg.tasks[n], held = !!T && T.kind === 'hold' && v['__obj_on' + n] === 1;
     P.hold.on = held; P.hold.left = held ? v['__obj_left' + n] : 0;
-    if (me) {
-      const h = me.hits || 0, t = W.time || 0;
-      if (hits0 == null) hits0 = h;
-      if (h > hits0) {
-        const id = me.lastHitBy == null ? null : String(me.lastHitBy), by = id != null && W.byId ? W.byId[id] : null;
-        // (a hit with nobody to name, a hazard's or a blast's, marks nothing: there is no bearing to show)
-        if (by && by !== me && by.transform) ringBy[id] = { at: by.transform.pos.slice(), t };
-      }
-      hits0 = h;
-      const live = [];
-      for (const id of Object.keys(ringBy)) {
-        const r = ringBy[id];
-        if (t - r.t > cfg.ring.life || t < r.t) { delete ringBy[id]; continue; }
-        // (where it stands now while it still stands, so the mark follows it; where it stood when it has gone)
-        const by = W.byId ? W.byId[id] : null;
-        if (by && by.transform && !by.dormant) r.at = by.transform.pos.slice();
-        live.push({ t: r.t, bearing: __msBearing(me.transform.pos, me.transform.heading, r.at) });
-      }
-      live.sort((a, b) => b.t - a.t);
-      P.ring.hits = live.slice(0, cfg.ring.most).map((x) => ({ bearing: x.bearing }));
-      P.ring.on = P.ring.hits.length > 0;
-    }
+    P.ring.hits = me ? ring.step(W, me) : [];
+    P.ring.on = P.ring.hits.length > 0;
     // (a mark is repainted when it has moved five degrees: a turning pilot's ring turns, a still one's is left alone)
     const now = JSON.stringify([P.hp, P.weapon, P.ammo, P.reserve, n, P.hold.on, P.hold.left, P.ring.hits.map((x) => Math.round(x.bearing / 5))]);
     if (now !== shown) { shown = now; view.paint(); }
@@ -285,6 +260,7 @@ const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
 const __msBearing = ${hitBearing.toString()};
+const __msRing = ${ringTracker.toString()};
 const __msCss = document.createElement('style');
 __msCss.textContent = ${json(missionManaCss(theme))};
 document.head.appendChild(__msCss);

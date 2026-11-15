@@ -60,7 +60,8 @@ describe('the mission on mana-ui', () => {
   it('imports nothing of the gameworld but the page\'s own pieces', () => {
     const src = readFileSync(fileURLToPath(new URL('./mission-mana.js', import.meta.url)), 'utf8');
     const from = [...src.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]);
-    expect(from.filter((f) => f.startsWith('./'))).toEqual([]);
+    // (its one neighbour is the damage ring, itself import-free: damage-ring.test.js)
+    expect(from.filter((f) => f.startsWith('./'))).toEqual(['./damage-ring.js']);
     expect(from.filter((f) => /gameworld|mission\//.test(f))).toEqual([]);
   });
 });

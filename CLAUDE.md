@@ -311,7 +311,9 @@ Pointers only; each target carries its own design notes.
   (the level: `levels.<id>.mission`, a quick shooter's `mission`, the practice door's `mission` room; its tasks the
   `objectives` mechanic, `game/objectives.js`; its briefing, HUD, pause and debrief on mana-ui through the page's mission
   channel, `gameworld/mission-mana.js`; proved on the bus and played headless, `gameworld/mission-proof.js`):
-  [docs/missions.md](docs/missions.md).
+  [docs/missions.md](docs/missions.md). The damage ring (where a hit came from, round the aim) is its own concept,
+  `gameworld/damage-ring.js`: a mission draws it on mana-ui, a quick shooter's level and a deathmatch through the page's
+  damage ring channel.
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

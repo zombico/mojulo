@@ -2021,6 +2021,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
     }
   }
+  // the damage ring (gameworld/damage-ring.js): where each hit the pilot takes came from, round the aim, on a page whose
+  // HUD is its own (a quick shooter's level, a deathmatch). Absent ⇒ nothing (scene/channels/damage-ring.js).
+  if (payload && sketch.manifest.damageRing) {
+    const { readDamageRing } = await import('@/lib/graph/gameworld/damage-ring.js');
+    payload.damageRing = readDamageRing(sketch.manifest.damageRing, 'damageRing');
+  }
   // the arm itself in the hands (gameworld/arms-kit.js): a pilot's slot that asks (`gunplay.view.detail: 'arm'`) is handed
   // the arm as the arms library builds it, part by part; the recipe carries the ask and the build words, never the mesh.
   // No slot asks ⇒ nothing (the view draws each arm as its parts' boxes, as before).

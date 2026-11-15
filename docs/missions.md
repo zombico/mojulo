@@ -117,6 +117,9 @@ The page's mission channel (`scene/channels/mission.js`, fed by the manifest's `
   follows its attacker while it stands, and turns with the pilot, so turning until the mark is at the top faces the
   shooter. Read off the scene: the pilot's count of hits taken and who dealt the last. It is mana-ui's
   `damage-direction` idiom, drawn only while a mark stands; a hit nobody dealt (a hazard's) marks nothing.
+  The ring is its own concept (`gameworld/damage-ring.js`: its numbers, its bearing, its tracker, what a world may
+  write). A level whose HUD is the page's own carries it as `damageRing` and draws it through the page's damage ring
+  channel (`scene/channels/damage-ring.js`): a quick shooter's level on foot and a deathmatch do, from `levels.js`.
 - **The pause:** the pilot's `pause` opens it: resume, the briefing, how to play, the live controls, start again.
 - **The debrief:** the level's one outcome envelope read as it lands. Alone, the mission's own (the outcome, the
   time, the tasks met, the foes downed, the health left). Inside a game's shell it stays shut and the shell's own

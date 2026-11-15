@@ -40,6 +40,9 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   ring ahead, the bottom behind. It stands for a moment, follows its attacker and turns with the player, so turning
   until it is at the top faces the shooter. Read off the scene (the pilot's hits and who dealt the last), drawn by
   mana-ui's `damage-direction` idiom only while a mark stands; said in the briefing's How to play (Under fire).
+  It is its own concept (`gameworld/damage-ring.js`), so a level whose HUD is the page's own has it too: a quick
+  shooter's level on foot and a deathmatch carry `damageRing` and draw the same ring through the page's damage ring
+  channel. A level nobody shoots in carries none; a level minted before keeps its bytes until it is made again.
 - **Two machine gates**, read by `design_game` after a run as `mission_proof` (`gameworld/mission-proof.js`):
   - on the bus: every task done in the order written, every sealed way put the walker back, the last task won;
   - played: the level stepped headless on the runtime by a gunner that walks the laws' grid, aims, raises the sights,

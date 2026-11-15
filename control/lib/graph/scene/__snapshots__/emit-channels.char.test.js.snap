@@ -56,6 +56,8 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > crystal-moving emits byte-identically 1`] = `"73020f87bb6507b1f796665f42923caf831eb1feb50235b83fbc1510fd6a1fd4"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > damage-ring emits byte-identically 1`] = `"be61466f835d1970a9cbcc291d91b3f2e0f2504ef6f98ac233435a6f472d76c5"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > deforms emits byte-identically 1`] = `"f79d48db6fac8fb078c4bb40ce79197748c5f71f1bcc26811e7fb2775d79f9a0"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > draw-layers emits byte-identically 1`] = `"ad918d11ca31a98f40b77340b91c1bceea1e320a2a290e5f277a0061bbe3e33d"`;
@@ -106,7 +108,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > metal-damascus emits byte-identically 1`] = `"50eb4e462878ca159fcbe030d74b33e4b58db69f449d23b496f14b51ab71b97f"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > mission emits byte-identically 1`] = `"48ea598d176373b78919f62982c312e31b024af7cd91f59d728609ce4acc5f54"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > mission emits byte-identically 1`] = `"3f4b5fed9f0cda4e2a7d1c1fbfe46bb76e8b1739f06abee1d394a402e2147539"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > movers emits byte-identically 1`] = `"a4b10e4a1ad87d834d2596aace79f6e6a5564c5855c20d64ef6814453b53cdad"`;
 
