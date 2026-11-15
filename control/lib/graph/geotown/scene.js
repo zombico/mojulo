@@ -350,7 +350,12 @@ export function assembleGeotownScene(m, ctx = {}) {
     const rk = `${pl.block}:${pl.side}`, street = pl.kind === 'avenue' ? 'avenue' : P.id === 'old-town' ? 'old-town' : 'main-street';
     const card = tenantOf(street, streamOf(seed, 'tenant', pl.id), { cards: enter.cards, prev: tenantPrev.get(rk) ?? null }), key = `${card}:${slot.key}`;
     tenantPrev.set(rk, card);
-    if (!stores.has(key)) stores.set(key, { S: storeSlot(card, slot), transforms: [] });
+    if (!stores.has(key)) {
+      // (its template: its floor laid in the walk's own tile where its card's floor is stone or plain, a texture the
+      // town's page already carries; the rest its own paint)
+      const S = storeSlot(card, slot), tile = S.finish.floor === 'floorboards' ? null : 'geotown:walk';
+      stores.set(key, { S, transforms: [], template: S.faces.map(({ part, ...f }) => (part === 'floor' && tile && finish[tile] ? dressTownFace({ ...f, cornerFills: f.corners.map(() => f.fill) }, tile, finish) : f)) });
+    }
     return { ...stores.get(key), key, sg };
   };
   for (const pl of d.plots) {
@@ -565,14 +570,18 @@ export function assembleGeotownScene(m, ctx = {}) {
         const S = store.S, In = S.inside, Xd = [pl.ex[0] * store.sg, pl.ex[1] * store.sg], o = W(pl, house.doorU, env[1] + 0.15, pad);
         const pt = (x, y) => [o[0] + Xd[0] * x + pl.ey[0] * y, o[1] + Xd[1] * x + pl.ey[1] * y];
         const box2 = (x0, y0, x1, y1) => { const a = pt(x0, y0), b = pt(x1, y1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]; };
-        const I = box2(In.x0, In.y0, In.x1, In.y1), way = box2(-S.door.w / 2, -4, S.door.w / 2, 0.01);
+        const dW = dz.dims.doorW, I = box2(In.x0, In.y0, In.x1, In.y1), way = box2(-dW / 2, -4, dW / 2, 0.01);
         for (const b of S.boxes) { const q = box2(b.min[0], b.min[1], b.max[0], b.max[1]); colliders.push({ min: P3([q[0], q[1], pad + b.min[2]]), max: P3([q[2], q[3], pad + b.max[2]]), of: `${pl.id}:store:${b.of}` }); }
         if (top > In.h) colliders.push({ min: P3([I[0], I[1], pad + In.h]), max: P3([I[2], I[3], pad + top]), of: `${pl.id}:house` });
         for (const r of rectLess([lo[0], lo[1], hi[0], hi[1]], I).flatMap((q) => rectLess(q, way))) colliders.push({ min: P3([r[0], r[1], pad]), max: P3([r[2], r[3], pad + top]), of: `${pl.id}:house` });
         store.transforms.push({ pos: P3(o), rotZ: r5(Math.atan2(Xd[1], Xd[0])) });
+        // (its CHEEKS: where its unit stands narrower than its front, the gap either side of it closed behind the glass,
+        // from its front's inner ends to its inside's front corners)
+        { const xL = store.sg > 0 ? env[0] - house.doorU : house.doorU - env[2], xR = store.sg > 0 ? env[2] - house.doorU : house.doorU - env[0], fill = shadeHex('#cfcabd', [-pl.ey[0], -pl.ey[1], 0], LIGHT);
+          for (const [a, b] of [[xL + 0.05, In.x0], [In.x1, xR - 0.05]]) if (b - a > 0.05) { const cs = [[...pt(a, 0.02), pad], [...pt(b, 0.02), pad], [...pt(b, 0.02), pad + In.h], [...pt(a, 0.02), pad + In.h]].map(P3), nn = P3([-pl.ey[0], -pl.ey[1], 0]); faces.push({ corners: cs, normal: nn, outNormal: nn, group: 'geotown:cheek', fill, cornerFills: cs.map(() => fill) }); } }
         // (its floor as the town's ground, under its inside's own: what a walker and a game's hero stand on, from its
         // door's sill to its back)
-        for (const q of [box2(In.x0, 0, In.x1, In.y1), box2(-S.door.w / 2, -0.3, S.door.w / 2, 0)]) { const zf = pad + 0.01, fill = shadeHex(col.path, [0, 0, 1], LIGHT), cs = [[q[0], q[1], zf], [q[2], q[1], zf], [q[2], q[3], zf], [q[0], q[3], zf]].map(P3); faces.push({ corners: cs, normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'geotown:floor', fill, cornerFills: cs.map(() => fill) }); }
+        for (const q of [box2(In.x0, 0, In.x1, In.y1), box2(-dW / 2, -0.3, dW / 2, 0)]) { const zf = pad + 0.01, fill = shadeHex(col.path, [0, 0, 1], LIGHT), cs = [[q[0], q[1], zf], [q[2], q[1], zf], [q[2], q[3], zf], [q[0], q[3], zf]].map(P3); faces.push({ corners: cs, normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'geotown:floor', fill, cornerFills: cs.map(() => fill) }); }
         const w3 = (q) => P3([...pt(q[0], q[1]), pad + q[2]]);
         storeAt = { card: S.card, door: P3(o), ...(S.till ? { till: w3(S.till), keeper: w3(S.keeper) } : {}), inside: { min: P3([I[0], I[1], pad]), max: P3([I[2], I[3], pad + In.h]) } };
         entered.push({ id: pl.id, key: store.key, S, door: o, in: pt(0, 1), out: pt(0, -1) });
@@ -1138,7 +1147,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (the shops walked into: each inside a template stamped at its door, drawn within its ring; its door's way clear of
   // every box a body's height up, a metre out and a metre in; each inside under the slot's faces)
   if (enter) {
-    for (const [key, { S, transforms }] of [...stores].sort(([a], [b]) => a.localeCompare(b))) if (transforms.length) repeats.push({ group: `geotown:store-${key}`, template: S.faces, transforms, near: enter.near, occlude: false });
+    for (const [key, { template, transforms }] of [...stores].sort(([a], [b]) => a.localeCompare(b))) if (transforms.length) repeats.push({ group: `geotown:store-${key}`, template, transforms, near: enter.near, occlude: false, compact: true });
     const inBox = (p) => colliders.some((c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2]);
     const shut = entered.filter((e) => [e.out, e.door, e.in].some((p) => inBox([p[0], p[1], e.door[2] + 1]))).length, heavy = entered.filter((e) => e.S.faceCount > SLOT.faces).length;
     laws.push({ law: 'entered', ok: entered.length > 0 && shut === 0 && heavy === 0, value: `${entered.length} shops walked into on ${stores.size} templates; ${shut} with a box in the door's way; ${heavy} over ${SLOT.faces} faces`, want: 'every shop asked for is walked into through its own door, its inside drawn near the camera only and under its faces' });

@@ -26,3 +26,7 @@
 - **A shopkeeper behind the counter.** In a game whose level is a town with open shops and townspeople, each open
   shop's keeper now stands behind its counter facing the till, and you can talk to them there. The town's other
   people stand by their own doors, as they do in other towns.
+- **Shop interiors are standard sizes and much lighter.** Every open shop is now fitted from a small set of standard
+  units, so shops across a town or a city share the same interiors. Parts no one can see are left out, floors and
+  brick walls use the surface textures the street already has, and the interiors are stored in a compact form. In a
+  test district of 88 open shops the interiors went from about 15 MB of the page to about 2.5 MB.

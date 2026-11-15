@@ -7,8 +7,8 @@
  * are one card; the storefront is the client's own (a town's shopfront, a city's front), so none is built here.
  *
  *   SLOT                          the slot's numbers: the least it holds, the wall it keeps inside the building's, its
- *                                 floor's lift over the pad, its ring, the faces an inside is held to, the steps a
- *                                 size is rounded to (so shops of one size share one template)
+ *                                 floor's lift over the pad, its ring, the faces an inside is held to, and the
+ *                                 STANDARD UNITS a store is built to (so every street's shops share their insides)
  *   readEnter, tenantOf, TENANCY  a place's `shops` and the stores a street lets to (store-enter.js)
  *   slotOf({ w, d, h, door: { x, w } }) → the slot rounded to its steps, { w, d, h, door, slack: [x, y], key }, or
  *                                 null when it holds no store. `w` along the front, `d` into the building, `h` the
@@ -36,53 +36,96 @@ const strHash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) 
 
 export const SLOT = Object.freeze({
   least: Object.freeze({ w: 4.2, d: 7, h: 2.6 }),
-  most: Object.freeze({ d: 16, h: 3.7 }),
   // the wall the inside keeps within the building's own; its floor over the pad; how far past its door it is drawn; how far
   // into that wall a slot may slide to stand its door on the client's
   wall: 0.3, lift: 0.03, near: ENTER_NEAR, slide: 0.15,
   // the faces an inside is held to (a law, advice)
   faces: 6000,
-  // a slot's size rounded down to these (m), its door's place to the nearest
-  step: Object.freeze({ w: 0.5, d: 1, h: 0.1, door: 0.25 }),
+  // THE STANDARD UNITS a store is built to, so shops of every street share their insides: a slot takes the widest and
+  // the deepest that fit it, its height the one that fits, its door at the standard place nearest the client's, its
+  // door's way a standard width. A store is then one template a card a unit, whatever the bay it stands in
+  units: Object.freeze({ w: Object.freeze([7.5, 6, 5]), d: Object.freeze([13, 9]), h: Object.freeze([2.7, 2.6]), door: Object.freeze([0.2, 0.3, 0.5, 0.7, 0.8]), doorW: 1.5 }),
   // the pier the store keeps at each end of its front (ft), inside the client's own front
   pier: 0.5,
 });
 
-const down = (v, s) => Math.floor(v / s + 1e-9) * s;
-const near = (v, s) => Math.round(v / s) * s;
-
 export function slotOf({ w, d, h, door }) {
-  const S = SLOT, W = r5(down(w, S.step.w)), D = r5(Math.min(S.most.d, down(d, S.step.d))), H = r5(Math.min(S.most.h, down(h, S.step.h)));
-  if (!(W >= S.least.w && D >= S.least.d && H >= S.least.h) || !door || !(door.w > 0.6)) return null;
-  // (the slack the rounding left, shared either side; the door where it falls in the rounded slot, to its step, kept
-  // clear of the store's own piers; the slot then slid so its door stands on the client's, by the rounding's remainder
-  // and no further than `slide` into the wall it keeps)
-  const sx = (w - W) / 2, dw = r5(Math.ceil(door.w / 0.05 - 1e-9) * 0.05), half = dw / 2 + S.pier * FT + 0.07, st = S.step.door;
-  const dx = r5(Math.max(Math.ceil(half / st - 1e-9) * st, Math.min(down(W - half, st), near(door.x - sx, st))));
-  if (dx < half || dx > W - half) return null;
-  const left = door.x - dx;
-  if (left < -S.slide || left > w - W + S.slide) return null;
-  return { w: W, d: D, h: H, door: { x: dx, w: dw }, slack: [r5(left), 0], key: `${W}x${D}x${H}@${dx}/${dw}` };
+  const S = SLOT, U = S.units;
+  if (!door || !(door.w > 0.6) || door.w > U.doorW + 1e-9) return null;
+  const D = U.d.find((x) => x <= d + 1e-9), H = U.h.find((x) => x <= h + 1e-9);
+  if (D === undefined || H === undefined) return null;
+  // (the widest unit whose door, at one of its standard places, can be stood on the client's by sliding the unit within
+  // the room it has, and no further than `slide` into the wall it keeps; the nearest place to the client's door first)
+  for (const W of U.w) {
+    if (W > w + 1e-9) continue;
+    for (const at of [...U.door].sort((a, b) => Math.abs(a * W - (door.x - (w - W) / 2)) - Math.abs(b * W - (door.x - (w - W) / 2)))) {
+      const left = door.x - at * W;
+      if (left >= -S.slide - 1e-9 && left <= w - W + S.slide + 1e-9) return { w: W, d: D, h: H, door: { x: r5(at * W), w: U.doorW }, slack: [r5(left), 0], key: `${W}x${D}x${H}@${at}` };
+    }
+  }
+  return null;
+}
+
+/** The store's faces a walker could never see left out: a box's face that lies wholly against another box or in the
+ *  shell's wall (a shelf's back, an item's back against its shelf, two boxes' meeting sides). A box is five faces as
+ *  store-box.js lays them (its sides, then its top); in the store's feet, its room [0, W] x [0, D]. */
+function seenFaces(faces, W, D) {
+  const E = 0.02, ORDER = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1]];
+  const isN = (f, n) => f?.normal && Math.abs(f.normal[0] - n[0]) < 1e-6 && Math.abs(f.normal[1] - n[1]) < 1e-6 && Math.abs(f.normal[2] - n[2]) < 1e-6;
+  const boxes = [], boxOf = new Map();
+  for (let i = 0; i + 4 < faces.length; i++) {
+    if (!ORDER.every((n, k) => isN(faces[i + k], n) && faces[i + k].corners.length === 4)) continue;
+    const cs = faces.slice(i, i + 5).flatMap((f) => f.corners), b = [0, 1, 2].map((k) => Math.min(...cs.map((c) => c[k]))).concat([0, 1, 2].map((k) => Math.max(...cs.map((c) => c[k]))));
+    for (let k = 0; k < 5; k++) boxOf.set(faces[i + k], boxes.length);
+    boxes.push(b);
+    i += 4;
+  }
+  const inside = (p, b) => p[0] > b[0] - E && p[0] < b[3] + E && p[1] > b[1] - E && p[1] < b[4] + E && p[2] > b[2] - E && p[2] < b[5] + E;
+  const out = [];
+  for (const f of faces) {
+    const me = boxOf.get(f);
+    if (me === undefined) { out.push(f); continue; }
+    // (its corners drawn in a hair toward its middle and pushed a hair out of it: all in one other box, or all in the wall)
+    const n = f.normal, m = [0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / 4);
+    const pts = [m, ...f.corners.map((c) => c.map((v, k) => v + (m[k] - v) * 0.04))].map((q) => q.map((v, k) => v + n[k] * 0.04));
+    const walled = pts.every((q) => q[0] < 0 || q[0] > W || q[1] > D);
+    if (walled || boxes.some((b, k) => k !== me && pts.every((q) => inside(q, b)))) continue;
+    out.push(f);
+  }
+  return out;
 }
 
 export function storeSlot(cardIn, slot, { seed } = {}) {
   const card0 = resolveCard(cardIn);
   if (!card0) throw new Error(`store-slot: unknown card '${cardIn}'`);
-  const card = { ...card0, entry: { ...(card0.entry ?? {}), at: slot.door.x / slot.w, width: slot.door.w / FT } };
-  const key = `${card0.id}:${slot.key}`, hFt = slot.h / FT;
-  const s = buildStandaloneStore(card, { width: slot.w / FT, depth: slot.d / FT, wallHeight: hFt, doorHeight: Math.min(8.2, hFt - 1), pier: SLOT.pier, seed: seed ?? (strHash(key) % 100000) + 1, degrade: true });
+  // (its shell plain: its floor one face and its walls bare, each told its part and its card's finish, for the client
+  // to lay its own tile on (a texture the client's page already carries) where it has one for that finish)
+  const F = card0.finishes ?? {};
+  const card = { ...card0, finishes: { ...F, floor: 'plain', wall: 'paint' }, entry: { ...(card0.entry ?? {}), at: slot.door.x / slot.w, width: slot.door.w / FT } };
+  const key = `${card0.id}:${slot.key}`, hFt = slot.h / FT, Wf = slot.w / FT, Df = slot.d / FT;
+  const s = buildStandaloneStore(card, { width: Wf, depth: Df, wallHeight: hFt, doorHeight: Math.min(8.2, hFt - 1), pier: SLOT.pier, seed: seed ?? (strHash(key) % 100000) + 1, degrade: true });
   // the slot's frame: the store's (feet, its front on y = 0) about its door, in metres, its floor lifted off the pad
   const ex = s.entry.world[0], at = ([x, y, z]) => [r5((x - ex) * FT), r5(y * FT), r5(z * FT + SLOT.lift)];
   const faces = [];
-  for (const f of [...s.structure.faces, ...s.fitOut.faces]) {
-    if (typeof f.fill !== 'string' || f.fill[0] !== '#') continue;   // (its own glass: the client's front has it)
+  const lay = (f, part) => {
+    if (typeof f.fill !== 'string' || f.fill[0] !== '#') return;   // (its own glass: the client's front has it)
     // (its slab's edge, under the client's pad; its own stoop before its front: the client's walk is there)
-    if (f.corners.some((c) => c[2] < -1e-6 || c[1] < -0.35)) continue;
-    const g = { corners: f.corners.map(at), fill: f.fill };
+    if (f.corners.some((c) => c[2] < -1e-6 || c[1] < -0.35)) return;
+    // (its floor in its card's own tint: the plain floor it is built with knows none)
+    const g = { corners: f.corners.map(at), fill: part === 'floor' && F.floorTint ? F.floorTint : f.fill };
     if (f.normal) g.normal = f.normal.map(r5);
     if (f.outNormal) g.outNormal = f.outNormal.map(r5);
+    // (a part of its shell told, and its normal with it: what a client's tile is laid by)
+    if (part) { g.part = part; if (!g.normal && g.outNormal) g.normal = g.outNormal; }
     faces.push(g);
+  };
+  // (its shell: its outer skin stands inside the client's own wall, never seen; the rest its floor, its ceiling, its walls)
+  for (const f of s.structure.faces) {
+    if (f.group === 'facade:skin') continue;
+    const zs = f.corners.map((c) => c[2]), flat = Math.max(...zs) - Math.min(...zs) < 1e-6;
+    lay(f, flat ? (zs[0] < 0.5 ? 'floor' : 'ceiling') : 'wall');
   }
+  for (const f of seenFaces(s.fitOut.faces, Wf, Df)) lay(f, null);
   // what holds a body: each fixture's box, the partition between the sales floor and its cells (open at each cell's
   // door), the walls between the cells
   const boxes = [], T = 0.2;
@@ -90,7 +133,7 @@ export function storeSlot(cardIn, slot, { seed } = {}) {
   const rectIn = (frame, p) => { const a = frame.toWorld(p.x0, p.y0), b = frame.toWorld(p.x1, p.y1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]; };
   for (const p of s.fitOut.placements) { const q = rectIn(s.salesFrame, p); box(q[0], q[1], q[2], q[3], p.row?.decl?.height ?? 3, p.archetype); }
   for (const p of s.fitOut.cellPlacements ?? []) if (p.frame?.toWorld) { const q = rectIn(p.frame, p); box(q[0], q[1], q[2], q[3], p.row?.decl?.height ?? 3, p.archetype); }
-  const sw = s.sub.salesWorld, cells = s.sub.cells ?? [], Wf = slot.w / FT;
+  const sw = s.sub.salesWorld, cells = s.sub.cells ?? [];
   if (cells.length) {
     const gaps = cells.map((c) => [c.door.world[0] - c.door.width / 2, c.door.world[0] + c.door.width / 2]).sort((a, b) => a[0] - b[0]);
     let x = 0;
@@ -102,6 +145,8 @@ export function storeSlot(cardIn, slot, { seed } = {}) {
   const A = assessStoreConcept(card, s), inv = A.findings.filter((f) => f.severity === 'invariant');
   return {
     card: card0.id, key, faces, boxes, faceCount: faces.length, ...(card0.finishes?.sign ? { sign: card0.finishes.sign } : {}),
+    // (its card's finishes, for the client's tiles: floor floorboards | marble | plain, wall paint | wainscot | wallpaper | brick)
+    finish: { floor: F.floor ?? 'floorboards', wall: F.wall ?? 'paint' },
     inside: { x0: r5(-ex * FT), x1: r5((Wf - ex) * FT), y0: 0, y1: slot.d, h: r5(slot.h + SLOT.lift) },
     door: { x: 0, w: r5(s.entry.width * FT) },
     // (the till: before the counter, on the door's side of it; its keeper's place behind it, facing the till)

@@ -374,7 +374,12 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (sink > 0) put([[...c(-dw / 2, 0), zf + 0.01], [...c(dw / 2, 0), zf + 0.01], [...c(dw / 2, -0.5), zf + 0.01], [...c(-dw / 2, -0.5), zf + 0.01]], 'geocity:stoop', col.walk);
       const id = `${b.id}:${s}:${Math.round(wl.a[0])},${Math.round(wl.a[1])}:${i}`, card = tenantOf(b.kind === 'edge' ? 'avenue' : 'main-street', streamOf(seed, 'tenant', id), { cards: ENTER.cards, prev }), key = `${card}:${slot.key}`;
       prev = card;
-      if (!cityStores.has(key)) cityStores.set(key, { S: storeSlot(card, slot), transforms: [] });
+      if (!cityStores.has(key)) {
+        // (its template: its floor laid in the walk's own tile where its card's floor is stone or plain, its walls in
+        // the row's own brick where its card's are brick: textures the metro's page already carries)
+        const S0 = storeSlot(card, slot), tileOf = (part) => (part === 'floor' ? (S0.finish.floor === 'floorboards' ? null : 'geocity:walk') : part === 'wall' && S0.finish.wall === 'brick' ? 'geocity:shops' : null);
+        cityStores.set(key, { S: S0, transforms: [], template: S0.faces.map(({ part, ...f }) => { const g = tileOf(part); return g && FIN[g] ? dressTownFace({ ...f, cornerFills: f.corners.map(() => f.fill) }, g, FIN) : f; }) });
+      }
       const { S: St, transforms } = cityStores.get(key), In = St.inside, o = [wl.a[0] + t[0] * ud - n[0] * 0.15, wl.a[1] + t[1] * ud - n[1] * 0.15, zf];
       const pt = (x, y) => [o[0] + t[0] * x - n[0] * y, o[1] + t[1] * x - n[1] * y];
       const box2 = (a0, b0, a1, b1) => { const p = pt(a0, b0), r = pt(a1, b1); return [Math.min(p[0], r[0]), Math.min(p[1], r[1]), Math.max(p[0], r[0]), Math.max(p[1], r[1])]; };
@@ -1772,18 +1777,19 @@ export function assembleGeocityScene(m, ctx = {}) {
     beaconAt.push(...beaconsOf(tall));
     if (beaconAt.length) counts.beacons = beaconAt.length;
   }
-  // (the kit's repeats, each drawn near the camera only; the skyline draws none)
+  // (the kit's repeats, each drawn near the camera only; the skyline draws none. Its heavy templates, a vehicle's model,
+  // a site's machine, a crane, a shop's inside, ride COMPACT: scene-three.js `compact`, three eighths of the bytes)
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
   const coned = !!ctx.live && m.cone !== undefined && m.cone !== null, kit = coned ? { cone: 'kit' } : {};
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   if (E?.evoke !== 'skyline') {
     // (the shops' insides, each a template stamped at its doors, within its own ring)
-    for (const [key, { S, transforms }] of [...cityStores].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:store-${key}`, template: S.faces, transforms, near: ENTER.near, occlude: false });
+    for (const [key, { template, transforms }] of [...cityStores].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:store-${key}`, template, transforms, near: ENTER.near, occlude: false, compact: true });
     // (its vehicles: each model's paint and trim and its roof's extras, cars.js; its machines the shelf's assembly)
     // (none of them an occluder in the ambient bake: a parked car, a machine, a window darkens nothing the bake needs)
-    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, ...kit });
-    for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, ...kit });
+    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, compact: true, ...kit });
     // (its industry's pieces, industry.js: the tall ones seen across their district, the rest near the camera)
     if (indStamps.size) {
       const IT = industryTemplates(LIGHT);
@@ -1869,10 +1875,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
   // the site's machines: the shelf's tower cranes (seen across their district), its machines near the camera
   if (E?.evoke !== 'skyline') {
-    for (const [key, transforms] of [...siteStamps].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: 'geocity:tower-crane', template: craneAt(LIGHT, Number(key.split(':')[1])), transforms, near: CRANE_NEAR, ...kit });
+    for (const [key, transforms] of [...siteStamps].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: 'geocity:tower-crane', template: craneAt(LIGHT, Number(key.split(':')[1])), transforms, near: CRANE_NEAR, compact: true, ...kit });
     for (const [key, transforms] of [...siteNears].sort(([a], [b]) => a.localeCompare(b))) {
       const [arch, pose] = SITE[key];
-      repeats.push({ group: `geocity:site-${key}`, template: siteFaces(LIGHT, key, () => assembleMachine(arch, { pose, laws: false })), transforms, near: NEAR, ...kit });
+      repeats.push({ group: `geocity:site-${key}`, template: siteFaces(LIGHT, key, () => assembleMachine(arch, { pose, laws: false })), transforms, near: NEAR, compact: true, ...kit });
     }
   }
   repeats.push(...townRepeats.map((r) => ({ ...r, ...kit })));

@@ -8,19 +8,27 @@ const ASK = { w: 7.3, d: 14.6, h: 2.75, door: { x: 2.6, w: 1.05 } };
 const slot = slotOf(ASK), S = storeSlot('electronics', slot);
 
 describe('a slot', () => {
-  it('is rounded down to its steps, its door kept on the client\'s', () => {
-    expect(slot.w).toBe(7); expect(slot.d).toBe(14); expect(slot.h).toBe(2.7);
-    // (the slot's left edge in the client's frame plus the door in the slot is the client's door)
+  it('is the widest and deepest standard unit that fits it, its door kept on the client\'s', () => {
+    expect(SLOT.units.w).toContain(slot.w); expect(SLOT.units.d).toContain(slot.d); expect(SLOT.units.h).toContain(slot.h);
+    expect(slot.w).toBeLessThanOrEqual(ASK.w); expect(slot.d).toBeLessThanOrEqual(ASK.d); expect(slot.h).toBeLessThanOrEqual(ASK.h);
+    // (the slot's left edge in the client's frame plus the door in the slot is the client's door; the unit inside its room)
     expect(slot.slack[0] + slot.door.x).toBeCloseTo(ASK.door.x, 9);
-    expect(Math.abs(slot.slack[0] - (ASK.w - slot.w) / 2)).toBeLessThanOrEqual(SLOT.step.door / 2 + 1e-9);
+    expect(slot.slack[0]).toBeGreaterThanOrEqual(-SLOT.slide - 1e-9);
+    expect(slot.slack[0] + slot.w).toBeLessThanOrEqual(ASK.w + SLOT.slide + 1e-9);
+    expect(SLOT.units.door).toContain(slot.door.x / slot.w);
   });
-  it('holds no store when it is too small or its door stands in its pier', () => {
+  it('holds no store when it is smaller than every unit or its door is wider than a unit\'s', () => {
     expect(slotOf({ ...ASK, w: 3.9 })).toBeNull();
     expect(slotOf({ ...ASK, d: 5 })).toBeNull();
-    expect(slotOf({ ...ASK, door: { x: 0.3, w: 1.05 } })).toBeNull();
+    expect(slotOf({ ...ASK, h: 2.2 })).toBeNull();
+    expect(slotOf({ ...ASK, door: { x: 2.6, w: 2.4 } })).toBeNull();
   });
-  it('two shops of one size share a key', () => {
+  it('shops of every size within a unit share its key, wherever their doors stand near one place', () => {
     expect(slotOf({ ...ASK, w: 7.2, d: 14.9 }).key).toBe(slot.key);
+    expect(slotOf({ ...ASK, w: 6.6, d: 13.1, door: { x: 2.3, w: 1.2 } }).key).toBe(slot.key);
+    // (a door at the other end of its front: the same unit, its other standard place)
+    const other = slotOf({ ...ASK, door: { x: ASK.w - 2.6, w: 1.05 } });
+    expect(other.w).toBe(slot.w); expect(other.key).not.toBe(slot.key);
   });
 });
 
@@ -40,6 +48,16 @@ describe('a store in a slot', () => {
   it('keeps its door\'s way clear of every box', () => {
     const hit = (x, y) => S.boxes.some((b) => x > b.min[0] && x < b.max[0] && y > b.min[1] && y < b.max[1]);
     for (const y of [0.1, 0.5, 1, 1.4]) expect(hit(0, y)).toBe(false);
+  });
+  it('tells its shell\'s parts and its card\'s finishes, and leaves out what a walker could never see', () => {
+    expect(S.faces.filter((f) => f.part === 'floor').length).toBeGreaterThan(0);
+    expect(S.faces.filter((f) => f.part === 'wall').length).toBeGreaterThan(0);
+    expect(S.faces.filter((f) => f.part === 'ceiling').length).toBeGreaterThan(0);
+    expect(S.faces.filter((f) => f.part).every((f) => f.normal)).toBe(true);
+    expect(S.finish).toEqual({ floor: SEEDED_CARDS.electronics.finishes.floor, wall: SEEDED_CARDS.electronics.finishes.wall });
+    // (no face lies flat against the back or a side wall, facing into it: a shelf's back against its wall is left out)
+    const E = 0.02, against = S.faces.filter((f) => !f.part && f.normal && f.corners.length === 4 && ((f.normal[1] > 0.9 && f.corners.every((c) => c[1] > slot.d - E)) || (f.normal[0] > 0.9 && f.corners.every((c) => c[0] > S.inside.x1 - E)) || (f.normal[0] < -0.9 && f.corners.every((c) => c[0] < S.inside.x0 + E))));
+    expect(against).toHaveLength(0);
   });
   it('carries only paint a template draws, a till, and its grade', () => {
     expect(S.faces.every((f) => /^#[0-9a-f]{6}$/i.test(f.fill))).toBe(true);
