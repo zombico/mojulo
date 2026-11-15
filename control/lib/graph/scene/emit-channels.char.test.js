@@ -48,6 +48,9 @@ import { emitThreeWorld } from './scene-three.js';
 // Every fixture that embeds the controllable runtime re-pinned with it. Then (the controls): the sprint's own `sprint`
 // clip on its `sprintStride` (the stride's line guarded) and the orbit's swing round a locked foe (`lockTrack`): a few
 // more lines added, one replaced; the same fixtures re-pinned again.
+// Then (2026-11-15, merged with the release candidate's stylish action rails): the candidate's style meter, loadout and
+// switch cancel and this theme's runtime lines (the stagger, the clash opt-out, Esc's menu post) each change what a page
+// embeds; neither side's snapshot holds the sum, so every fixture is re-pinned on the merged runtime.
 //
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
@@ -774,6 +777,13 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
+// stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
+// opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
+// added before the cycle, the cycle's own line guarded on `swap`, a guard on the chain at the cancel, the buffer's
+// hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
+// fixture that embeds the controllable runtime re-pinned with it.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -132,6 +132,14 @@ export async function GET(request, { params }) {
         const areaAsked = room === 'work' || room === 'room' ? request.nextUrl.searchParams.get('area') : null;
         if (areaAsked !== null && areaAsked !== 'none') { const { AREAS } = await import('@/lib/graph/gameroom/area'); if (!AREAS[areaAsked]) return NextResponse.json({ error: `area is one of ${Object.keys(AREAS).join(', ')}, or none` }, { status: 400 }); }
         const area = areaAsked === null ? undefined : areaAsked === 'none' ? false : areaAsked;
+        // (the game room composed for one fight: one the world keeps by name, a kind of gameroom/fight.js FIGHT_KINDS, or
+        // 'none' for the room as it is; its seed)
+        const fightAsked = room === 'room' ? request.nextUrl.searchParams.get('fight') : null;
+        if (fightAsked !== null && fightAsked !== 'none') { const { FIGHT_KINDS } = await import('@/lib/graph/gameroom/fight'); const kept = Object.keys(world.fights ?? {}); if (!FIGHT_KINDS[fightAsked] && !kept.includes(fightAsked)) return NextResponse.json({ error: `fight is one of ${[...kept, ...Object.keys(FIGHT_KINDS)].join(', ')}, or none` }, { status: 400 }); }
+        const fight = fightAsked === null || fightAsked === 'none' ? null : fightAsked;
+        const seedAsked = room === 'room' ? request.nextUrl.searchParams.get('seed') : null;
+        if (seedAsked !== null && !(Number.isInteger(Number(seedAsked)) && Number(seedAsked) > 0)) return NextResponse.json({ error: 'seed is a whole number, from 1' }, { status: 400 });
+        const roomSeed = seedAsked === null ? null : Number(seedAsked);
         const link = (q) => `?${new URLSearchParams({ book: 'practice', room, ...Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) })}`;
         const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
@@ -142,7 +150,7 @@ export async function GET(request, { params }) {
         // (`level=<id>`: the course level whose dress the room wears; the world's first course level unsaid)
         const level = request.nextUrl.searchParams.get('level');
         try {
-          html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${view ?? ''}:${level ?? ''}:${feel ?? ''}:${dressAsked ?? ''}:${areaAsked ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(view ? { view } : {}), ...(level ? { level } : {}), ...(room === 'work' || room === 'room' ? { feel, link, dress, area } : {}) })).html);
+          html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${view ?? ''}:${level ?? ''}:${feel ?? ''}:${dressAsked ?? ''}:${areaAsked ?? ''}:${fight ?? ''}:${roomSeed ?? ''}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast, ...(view ? { view } : {}), ...(level ? { level } : {}), ...(room === 'work' || room === 'room' ? { feel, link, dress, area } : {}), ...(fight ? { fight } : {}), ...(roomSeed !== null ? { seed: roomSeed } : {}) })).html);
         } catch (e) { if (view || level) return NextResponse.json({ eligible: false, reason: e.message.replace(/^practice: /, '') }, { status: 422 }); throw e; }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on

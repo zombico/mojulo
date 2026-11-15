@@ -68,9 +68,22 @@ export const SWING_STYLES = Object.freeze({
       backhand: { ready: { facing: -20, w: 0 }, coil: { facing: 26, w: -0.05 }, cock: { facing: 52, w: -0.09 }, load: { facing: 58, w: -0.1 }, strike: { facing: -50, w: 0.13 }, follow: { facing: -82, w: 0.15 }, recover: { facing: -26, w: 0.05 } },
     }),
     timing: Object.freeze({ wind: 1.6, act: 0.22, after: 0.9, settle: 0.7, hold: Object.freeze({ light: 0.35, normal: 0.7, heavy: 1.3 }), finish: 2.0 }) }),
+  // WILD (a brawler with a blade: nothing held, everything thrown): the freestyle's reach with none of its composure. The
+  // blade is hauled furthest back and the whole body goes after it: the hips spun past the pass-through until the back is
+  // to the target, the weight thrown well off the feet, the off arm flung widest. The stance is wide and loose, standing
+  // taller than the anime sword's crouch, staggered long. The head goes with the body (the gaze barely kept). Its timing
+  // is its character: the anticipation barely held (it does not wait), the fastest cut, a long careless follow-through
+  // and the finish held under half as long as the anime sword's: the next swing is already coming. (An art holds its cock
+  // and its finish, the laws' floor; and its trunk bends less than the others', so a blade thrown this far stays off the floor.)
+  wild: Object.freeze({ stance: 2.5, stagger: 0.62, crouch: 0.08, wind: 2.5, after: 2.3, weight: 2.3, off: 3.0, raise: 172, bend: 14, extend: 0.9, gaze: 0.4,
+    turn: Object.freeze({
+      forehand: { ready: { facing: -24, w: 0 }, coil: { facing: -74, w: -0.08 }, cock: { facing: -68, w: -0.12 }, load: { facing: -76, w: -0.13 }, strike: { facing: 64, w: 0.18, heel: 44, pivot: 46 }, follow: { facing: 118, w: 0.21, heel: 56, pivot: 66 }, recover: { facing: 34, w: 0.08, heel: 22, pivot: 20 } },
+      backhand: { ready: { facing: -24, w: 0 }, coil: { facing: 34, w: -0.07 }, cock: { facing: 62, w: -0.11 }, load: { facing: 70, w: -0.12 }, strike: { facing: -62, w: 0.16 }, follow: { facing: -108, w: 0.19 }, recover: { facing: -34, w: 0.07 } },
+    }),
+    timing: Object.freeze({ wind: 1.3, act: 0.18, after: 1.3, settle: 0.6, hold: Object.freeze({ light: 0.15, normal: 0.4, heavy: 0.7 }), finish: 0.9 }) }),
 });
 /** the sword arts by name: `realistic` the game type's own swing (no art), the others the styles above */
-export const SWORD_ARTS = Object.freeze(['realistic', 'inspired', 'freestyle']);
+export const SWORD_ARTS = Object.freeze(['realistic', 'inspired', 'freestyle', 'wild']);
 export const SWING_BODY = Object.freeze({ phases: BODY_PHASES, turn: BODY_TURN, of: BODY_OF, offHand: OFF_HAND, styles: SWING_STYLES });
 /**
  * AN ART'S TIMING (its style's `timing`), as hero-swing.js swingTiming re-times a game type's: each key segment by its role

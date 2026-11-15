@@ -51,6 +51,7 @@ import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
 import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
+import { layTasks, tasksCast } from './tasks.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
@@ -614,6 +615,11 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   if (!goal && !foes) return {};
   const last = lastOf[s.level] === s.index;
   let own = {};
+  // its TASKS (tasks.js): its fights laid in its building's rooms, the wave gauntlet over them the level's end
+  if (goal?.tasks) {
+    const L = layTasks(G, s.level, s);
+    return L.mechanic ? { goal: () => [{ ...L.mechanic, audit: L.audits[0] }] } : {};
+  }
   if (goal) {
     const boss = goal.boss ? childRef(ref, 'foe') : null;
     const guards = goal.guards ? { guards: { ref: childRef(ref, 'guard'), posts: (ends) => guardPosts({}, ends) } } : {};
@@ -677,7 +683,8 @@ const hostileOf = (G, s, refs, hero, last = false, hurt = null) => {
   const rail = s.manifest?.kind === 'geocube' && s.manifest.show === 'side' ? { length: s.manifest.side.length } : null;
   const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}), ...(rail ? { rail } : {}) }) : null;
   const gauntlet = last && G.levels[s.level]?.goal?.gauntlet ? (ends) => gauntletCast(G, s.level, ends, { refs, hero }) : null;
-  return composeExtras(own, gauntlet);
+  const tasks = G.levels[s.level]?.goal?.tasks ? () => tasksCast(G, s.level, s, { refs, hero }) : null;
+  return composeExtras(own, gauntlet, tasks);
 };
 // the base of the stat the systems bind to the hero's body's hp (mechanics.js: bodies.hpMax), or null where none is bound
 const bodyHpBase = (M) => { const S = M?.play?.stats, id = S?.bodies?.hpMax; return id ? S.stats.find((x) => x.id === id)?.base ?? null : null; };

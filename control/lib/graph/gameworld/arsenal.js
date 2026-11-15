@@ -18,7 +18,7 @@
  *   arsenalSuggestion(G)   → { suggest: 'auto', template, why } for a world that writes none, whose hero strikes and whose
  *                            feel's template has a kit; else null. Never laid unasked: a kit changes every level's bytes
  *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS)
- *   armLevel(G, manifest)  → the level with the arsenal laid on each pilot that strikes (`rule.strikeContact`): the
+ *   armLevel(G, manifest)  → the level with the arsenal, as CARRIED (carried.js: the world's `loadout`), laid on each pilot that strikes (`rule.strikeContact`): the
  *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules and their HEALTH
  *                            IN THE KIT'S STRINGS (below). Without an arsenal, or with no hero that strikes, the manifest
  *                            itself (zero bytes added)
@@ -36,6 +36,7 @@ import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle }
 import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
 import { genreHero } from './hero-rows.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
+import { carriedOf } from './carried.js';
 
 /** The strings a foe of each rank takes to fall (mind/vocab.js RANKS), the action game's pace: a grunt to one, an elite to
  * three or four, a boss to ten or twelve. */
@@ -102,8 +103,8 @@ function editedKit(raw) {
   const { from, ...E } = raw;
   if (!TEMPLATE_ARSENALS[from]) no(`.from is a template with a kit (${TEMPLATES.join(', ')}), not '${from}'`);
   const K = structuredClone(TEMPLATE_ARSENALS[from]);
-  for (const k of Object.keys(E)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp'].includes(k)) no(`edit '${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp)`);
-  const out = { ...K, ...(E.art !== undefined ? { art: E.art } : {}), ...(E.ranged !== undefined ? { ranged: E.ranged } : {}) };
+  for (const k of Object.keys(E)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch'].includes(k)) no(`edit '${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch)`);
+  const out = { ...K, ...(E.art !== undefined ? { art: E.art } : {}), ...(E.ranged !== undefined ? { ranged: E.ranged } : {}), ...(E.switch !== undefined ? { switch: E.switch } : {}) };
   // (timing, mp and the juggle merged over the kit's; null drops the kit's)
   for (const k of ['timing', 'mp', 'juggle']) {
     if (E[k] === undefined) continue;
@@ -168,10 +169,13 @@ export function armLevel(G, manifest) {
   if (!ents.some(strikes)) return manifest;
   // (a weapon shows on the figure it names: the sheathed one, the fist's, only on an action hero that sheathes its blade,
   // levels.js actionHero; on any other hero the arsenal's sheathed weapons are left in the rack)
-  const drawnOnly = { ...R.arsenal, weapons: R.arsenal.weapons.filter((W) => (W.figure ?? 'drawn') === 'drawn') };
+  // (what the hero CARRIES of it, carried.js: the world's loadout; none written, all of it, as always. The foes are
+  // numbered by the whole kit, below: one scale whatever is in hand)
+  const carried = carriedOf(G, R.arsenal);
+  const drawnOnly = { ...carried, weapons: carried.weapons.filter((W) => (W.figure ?? 'drawn') === 'drawn') };
   const lowered = new Map();
   const arm = (e) => {
-    const A = e.rule.combat?.sheathed ? R.arsenal : drawnOnly;
+    const A = e.rule.combat?.sheathed ? carried : drawnOnly;
     if (!A.weapons.length) return e;
     if (!lowered.has(A)) lowered.set(A, lowerArsenal(A));
     const weapons = lowered.get(A), side = weapons[0].sidearm;

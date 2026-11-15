@@ -1368,7 +1368,7 @@ function standFoe(figures, entities, id, ref, at, back, look = null) {
  * atk, so a fight fought by attacks alone is won with hp to spare.
  */
 export const LEVEL_GOAL = Object.freeze({ hp: BATTLE.hp, hit: BATTLE.atk, hazard: BATTLE.hp / 4, boss: { hp: BATTLE.foeHp.at(-1), atk: BATTLE.foeAtk.at(-1) - 1 } });
-export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards', 'escape', 'gauntlet']);
+export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards', 'escape', 'gauntlet', 'tasks']);
 
 /** A level goal's mechanics on one stage (`ends`: stageEnds'); `last`: the level's last stage, where its boss stands. */
 export function levelGoalMechanics(goal, ends, { last = false } = {}) {
