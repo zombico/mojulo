@@ -134,6 +134,15 @@ generator cannot move a level already made. The headless gunner walks a map on i
 gives, cell centre to cell centre, up ramps and ladders, off an edge only where the way drops) and finishes a climb
 before it fights.
 
+## The era it is read in
+
+A mission is read in the seventh generation by default (`mission-level.js` `missionCube`: the world's own cube, its era
+`gen-7` unless the cube names one). An era is a render (`era/eras.js`), and a mission is fought among bodies that move:
+the form render's live light (the actors' shadows, the hour's shadow map, contact occlusion) is what parts them from
+the floor. With no cube a mission page had no era and was drawn flat. Its greybox faces and its figures are still drawn
+as paint under that light: the era reading says so (`approximated`), and they are built as form when the form render
+draws them (a figure under the cast rig, a dressed ground).
+
 ## On mana-ui, end to end
 
 The page's mission channel (`scene/channels/mission.js`, fed by the manifest's `mission`) draws it from

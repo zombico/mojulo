@@ -5,7 +5,7 @@
 // and one that gives none does not; the same run twice is the same run.
 import { describe, expect, it } from 'vitest';
 
-import { missionFor, missionPlan, missionLevel, missionMechanics, missionTasks, missionEnds, MISSION_HP } from './mission-level.js';
+import { missionCube, missionFor, missionPlan, missionLevel, missionMechanics, missionTasks, missionEnds, MISSION_HP } from './mission-level.js';
 import { proveMission, playMission, missionPlaySummary, MISSION_PLAYERS } from './mission-proof.js';
 import { practiceFor, practiceRoomOf } from './practice.js';
 import { TEMPLATE_LOADOUTS, loadoutOf } from './loadout.js';
@@ -152,4 +152,18 @@ describe('a mission as a level', () => {
     expect(() => quickWorld({ id: 'q', quick: { goal: 'shoot', mission: true } })).toThrow(/laid from the guns carried/);
     expect(() => quickWorld({ id: 'q', quick: { goal: 'reach', arms: ['rifle'], mission: true } })).toThrow();
   }, 60000);
+});
+
+// THE ERA A MISSION IS READ IN: the seventh generation by default (the form render's live light), the world's own cube
+// when it names one, and a cube that names its era keeps it. One world a case.
+import { geocubeEraOf } from '../era/geocube.js';
+
+describe('the era a mission is read in', () => {
+  it('is the seventh generation unless the world\'s cube names another, on the practice room and on a level', () => {
+    expect(geocubeEraOf(missionLevel(WORLD).manifest)).toBe('gen-7');
+    expect(geocubeEraOf(order(LEVELLED).L.args.manifest)).toBe('gen-7');
+    expect(missionCube({ style: { geocube: 'valley-morning' } })).toEqual({ from: 'valley-morning', era: 'gen-7' });
+    const sixth = { from: 'valley-morning', era: 'gen-6' };
+    expect(missionCube({ style: { geocube: sixth } })).toEqual(sixth);
+  });
 });

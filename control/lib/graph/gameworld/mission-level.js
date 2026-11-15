@@ -213,9 +213,18 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
 
 /** A mission level's stage (levels.js gameStages): its ground and what its page draws from, the pilot and the cast laid
  * over it by levelOrder. `P`: missionPlan's. */
+/** The cube a mission is read under: the world's own (its style's), in the SEVENTH GENERATION unless the cube names its
+ * era (era/eras.js: an era is a render, and the cube's is the read's default). A mission is fought among bodies that
+ * move: the form render's live light (the actors' shadows, the hour's map, contact occlusion) is what parts them from
+ * the floor. Its greybox and its figures are still drawn as paint under that light (era/era-marks.js says which). */
+export function missionCube(G) {
+  const c = G?.style?.geocube ?? 'valley-morning', cube = typeof c === 'string' ? { from: c } : c;
+  return cube.era ? cube : { ...cube, era: 'gen-7' };
+}
+
 export function missionStage(G, P) {
   const ground = P.map ? mapGround(P.map.map) : missionGround(P.mission);
-  return { kind: 'controllable', title: 'mission', bg: BG, faces: ground.faces, colliders: ground.colliders, sky: { ...SKY }, mission: missionUi(G, P.mission, P.brief, { laws: P.laws, map: P.map ?? null }) };
+  return { kind: 'controllable', title: 'mission', geocube: missionCube(G), bg: BG, faces: ground.faces, colliders: ground.colliders, sky: { ...SKY }, mission: missionUi(G, P.mission, P.brief, { laws: P.laws, map: P.map ?? null }) };
 }
 
 /** The blocks a laid mission's map was grown into, carried by its manifest (`mission.plan.map`), or null. */

@@ -110,3 +110,7 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   room at each wing's far end), gallery (the tall annex overlooked from the upper storey), cover (the hall broken by its
   own stock). The arena reader reads the gallery. Read against the laws, every core building but one improves; what
   still fails is said in the design notes.
+- **A mission is read in the seventh generation.** Its page named no cube, so it had no era and was drawn flat. It now
+  carries its world's cube with the era `gen-7` unless the cube names one: the actors' shadows, the hour's shadow map
+  and contact occlusion are on, on the practice room and on a level. Its greybox and its figures are still paint under
+  that light, and the era reading says so.
