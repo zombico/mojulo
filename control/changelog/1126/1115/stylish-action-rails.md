@@ -1,15 +1,19 @@
-### Stylish action: a practice room stretched into a level
+### Stylish action: the room's rules make the level
 
 Planned, nothing built yet. What the theme will hold:
 
-- **A room is a level.** The game room composed for a game and tried in the practice door can be pinned on a level
-  (`levels.<id>.room`): the same room, by its seed and choices, played from the game's own page.
-- **Tasks.** A level's fights in order (`goal.tasks`): each sealed until its waves are down, the way on between
-  them, a boss at the end when asked, the task said on the HUD. A first level that teaches the string on one foe
-  before it tests it.
+- **The room asks what the game's moves ask.** The game room's brief reads the hero's kit: a launcher asks for
+  headroom, a pack of foes for open floor, a dashing thrust for a run-up, the pistols for a foe out of the blade's
+  reach. New room pieces answer them (a door, a place waves come in, a high perch, an urn that breaks and pays, a
+  font that heals, a boss's dais), new kinds of room are composed from them (an antechamber, an arena, a gallery, a
+  sanctum), and the room laws check each. All tried in the practice door first.
+- **A room is a level.** A room approved in the practice door can be pinned on a level, by its kind, seed and
+  choices, with its fights in order: each sealed until its waves are down, the task said on the HUD, a boss when
+  asked.
+- **A mission is rooms in turn.** Each room is played as a turn: picked once, loaded at each door, ranked at the
+  end. A first level that teaches the string on one foe before it tests it.
 - **Style.** A meter in play that rewards varied strings, the air and a clean run, and a rank on the results
-  screen, a level's best kept.
-- **From a sentence, through the turn.** A stylish action game asked for in a sentence gets its kit, its set-up and
-  a first level, played from the title through the pick, the load and the results.
-- **Bigger levels.** The same tasks on a building's rooms, sealed at its doorways, and a walled-core dungeon's
-  spaces as missions in order.
+  screen, a mission's best kept.
+- **From a sentence.** A stylish action game asked for in a sentence gets its kit, its set-up and a first level.
+- **A dungeon of rooms.** A walled-core dungeon's spaces as rooms and its doors as the doors between them, their
+  gates played.
