@@ -1,0 +1,76 @@
+// THE FIRST MISSION in a browser (the e2e tier: it launches Chrome, and passes saying nothing when none is installed):
+// opened by the practice door from a world alone. Up with no error, its briefing on mana-ui over the held scene; Begin
+// plays; the HUD reads the scene (the gun in hand, the level's hp); a way on still sealed puts the body back; the rounds
+// taken, the tracker moves on to the next task; the pilot's pause opens the menu and holds the scene; a level lost opens
+// the debrief.
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { practiceHtml } from './practice-room-page.js';
+import { TEMPLATE_LOADOUTS } from './loadout.js';
+import { POLES } from './feel/cards.js';
+import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
+
+let browser = null;
+beforeAll(async () => {
+  let exe;
+  try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+}, 60000);
+afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
+
+// (a template whose loadout is guns alone)
+const SHOOTER = Object.keys(TEMPLATE_LOADOUTS).find((id) => TEMPLATE_LOADOUTS[id].weapons.every((w) => typeof w === 'string') && !POLES[id].demo.includes('attack'));
+
+describe('the first mission, from a world', () => {
+  it('is briefed, played, paused and debriefed on mana-ui', async () => {
+    const { html, level, proof } = await practiceHtml({ id: 'mission-live', name: 'Mission live', feel: SHOOTER }, 'mission', { sound: 'none' });
+    expect(proof.proved).toBe(true);
+    if (!browser) return;
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojMission && window.__mojMission.up), { timeout: 120000 });
+    const st = () => page.evaluate(() => { const M = window.__mojMission, P = M.state.ms; return { up: M.up, screen: M.rt.state().screen, ended: M.ended, weapon: P.weapon, hp: P.hp, title: P.objective.title, done: P.objective.steps.filter((s) => s.done).length, t: window.__mojCtrl.world.time }; });
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const stand = (at) => page.evaluate((p) => { const me = window.__mojCtrl.world.entities.find((e) => e.pilotable); me.transform.pos[0] = p[0]; me.transform.pos[1] = p[1]; }, at);
+    const where = () => page.evaluate(() => window.__mojCtrl.world.entities.find((e) => e.pilotable).transform.pos.slice(0, 2));
+    // the briefing, the scene held behind it
+    const b0 = await st();
+    expect(b0.screen).toBe('briefing');
+    await wait(500);
+    expect((await st()).t).toBe(b0.t);
+    // Begin: the stack closes and the scene plays
+    for (let i = 0; i < 8 && (await st()).up; i++) { await page.keyboard.press(i % 2 ? 'Enter' : 'ArrowDown'); await wait(200); }
+    const p0 = await st();
+    expect(p0.up).toBe(false);
+    await wait(600);
+    expect((await st()).t).toBeGreaterThan(p0.t);
+    expect(p0.weapon).toBe(TEMPLATE_LOADOUTS[SHOOTER].weapons[0]);
+    expect(p0.title).toBe(level.mission.sections[0].task.text);
+    // a way on still sealed puts the body back
+    const S0 = level.mission.sections[0];
+    await stand(S0.door.at); await wait(700);
+    const back = await where();
+    expect(Math.hypot(back[0] - S0.door.back[0], back[1] - S0.door.back[1])).toBeLessThan(1);
+    // the rounds taken: the first task met, the tracker on the next
+    await stand(S0.task.at); await wait(900);
+    const p1 = await st();
+    expect(p1.done).toBe(1);
+    expect(p1.title).toBe(level.mission.sections[1].task.text);
+    // the pilot's pause: the menu up, the scene held
+    await page.keyboard.press('Escape'); await wait(400);
+    const z = await st();
+    expect(z.screen).toBe('pause');
+    await wait(400);
+    expect((await st()).t).toBe(z.t);
+    await page.keyboard.press('Escape'); await wait(400);
+    expect((await st()).up).toBe(false);
+    // a level lost: its one envelope lands, the debrief opens
+    await page.evaluate(() => { const B = window.__mojBus; B.state.vars.hp = 0; });
+    await page.waitForFunction(() => window.__mojMission.ended && window.__mojMission.rt.state().screen === 'debrief', { timeout: 20000 });
+    const end = await page.evaluate(() => ({ result: window.__mojGame.envelope.result, outcome: window.__mojMission.state.ms.result.outcome }));
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(end.result).toBe('fail');
+    expect(end.outcome).toBe('Mission failed');
+  }, 300000);
+});

@@ -77,7 +77,7 @@ export const REALITY = Object.freeze({
         themed: { status: 'built', since: '2026-11-09', requires: ['reality.interface=front'], lowers: 'lib/graph/game/play-shell-mana.js', note: 'a world\'s ui: the shell\'s attract, title, level list, options, results and loading screens on mana-ui, in the world\'s look (its guide lowered to a theme: type on a frame sized by the screen and the seat, a halo over the world, a legend bar, lean, transitions, sound cues), in its languages' },
         // partial 11-06 (the RPG on mana-ui; 11-09 the brawl yard, the fighter\'s lab): some games\' own screens run on
         // mana-ui; a level\'s HUD, talk, quest log and pause do not yet
-        'in-game': { status: 'partial', effort: 'L', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus; a level\'s HUD, its talk menus, quest log and pause are still the page\'s own DOM, so a headset gets them as lines' },
+        'in-game': { status: 'partial', effort: 'L', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, a mission\'s briefing, HUD, pause and debrief (gameworld/mission-mana.js); any other level\'s HUD, its talk menus, quest log and pause are still the page\'s own DOM, so a headset gets them as lines' },
       },
     },
     // what a game sounds like. A quick game says its music and its effects; a designed gameworld has no sound word of

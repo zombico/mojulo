@@ -725,6 +725,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // inlines the controllable runtime (combat-hit.js armReaction), sixteen. A body that carries no poise (a hero whose hp
 // the stats bind) taken to 0 by a blade or a round is now downed, as the ranged path's own comment meant; before, it was
 // left standing at 0 and its level never failed. No fixture without the runtime moves.
+// Pinned 2026-11-15 (1115-shooting-rails: a mission's briefing, HUD, pause and debrief on mana-ui): the new `mission`
+// fixture only (the mission channel's block: mana-ui, the controls host and the mission's runtime in a scope of their
+// own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

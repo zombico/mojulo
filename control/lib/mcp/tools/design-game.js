@@ -75,6 +75,7 @@ import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 import { gauntletLaws } from '@/lib/graph/gameworld/gauntlet.js';
 import { proveGauntlets } from '@/lib/graph/gameworld/gauntlet-proof.js';
+import { proveMissions } from '@/lib/graph/gameworld/mission-proof.js';
 import { proveErrands, lastStageManifests } from '@/lib/graph/gameworld/errand-proof.js';
 
 
@@ -225,14 +226,14 @@ async function realize(step, action) {
     // the game over the levels: create_game (its levels dry-run and recorded unaudited: the run's audit steps walk them
     // after, one a step, runner.js auditSteps), its manifest whole in place; its flow (what plays when: game/flow.js)
     // and its front go with it, made or remade
-    const { title, store, levels, links, theme, shell, final, hud, front, flow } = order;
+    const { title, store, levels, links, theme, shell, final, hud, front, flow, ui } = order;
     if (action === 'make') {
       await createGameHandler({ ...order, ref });
       return {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(front ? { front } : {}), ...(flow ? { flow } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(front ? { front } : {}), ...(flow ? { flow } : {}), ...(ui ? { ui } : {}) } });
     }
     return {};
   }
@@ -529,6 +530,12 @@ function readout(ref, world, context = {}) {
   // THE FIRST SLICE: the combat room, then the first level. A hero that fights hand to hand plays its room before any
   // level is made: said until one is (the creator's to play; its kit tuned on their notes)
   if (door.rooms.includes('practice') && !Object.keys(world.made ?? {}).some((k) => k.startsWith('level-'))) next.push({ step: 'room', room: 'practice', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=practice`, card: 'gameworld-next' });
+  // THE FIRST MISSION (gameworld/mission-level.js): a world with a firing range and no mission level yet is shown its
+  // mission in the practice door and proposed it as a level, with its patch (suggested, never laid)
+  if (door.rooms.includes('mission') && !Object.values(world.levels ?? {}).some((L) => L?.mission !== undefined) && !isObj(world.quick)) {
+    const id = Object.keys(world.levels ?? {}).includes('mission-1') ? 'first-mission' : 'mission-1';
+    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], card: 'gameworld-mission' });
+  }
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block
   for (const [id, L] of Object.entries(world.levels ?? {})) if (L?.glyphs?.plan && L.glyphs.sketch?.scenario && L.glyphs.play === undefined) next.push({ step: 'worldmap', level: id, blocks: L.glyphs.plan.route, req: { unit: `level:${id}`, segments: true }, card: 'gameworld-next' });
@@ -1402,6 +1409,11 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const gauntletProof = ran && Object.values(W.levels ?? {}).some((L) => L?.goal?.gauntlet) ? (() => {
     try { return { gauntlet_proof: { gate: 'machine', levels: proveGauntlets(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each gauntlet played on the bus, every foe given its fall as it woke; whether a fight can be won is not played (the eyes gate has not run)' } }; } catch (e) { return { gauntlet_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
+  // a run's missions proved on the bus and played by the headless gunner on the levels it made (machine gate,
+  // gameworld/mission-proof.js): the structure holds, and a player that only gives input wins it
+  const missionProof = ran && Object.values(W.levels ?? {}).some((L) => L?.mission !== undefined) ? (() => {
+    try { return { mission_proof: { gate: 'machine', levels: proveMissions(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } }; } catch (e) { return { mission_proof: { gate: 'machine', error: e.message } }; }
+  })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {
     const made = { ...W.made }, base = W;
@@ -1418,12 +1430,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget
     // (a job's seat reads its own req, whatever its status, and only its own job: the rest is the director's)
     const own = seat ? ledger.L.reqs.find((r) => r.id === seat.job.req) : ledger.L.reqs.find((r) => (r.unit === chapter || r.crew?.includes(chapter)) && !TERMINAL_REQ.has(r.status));
-    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
+    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
     const R = own ? reqView(ref, own, ledger.L.reqs, { W, parts: ledgerStamps(ref, W), seat, agents: !seat && clientTakesJobAgents(context?.mcpSessionId ? getClientInfo(context.mcpSessionId) : null) }) : null;
     return { ok: true, readout: 'chapter', ...view, ...(seat ? { as: `${seat.job.req}.${seat.job.id}` } : {}), ...(R ? { req: R } : {}), ...(!seat && req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ticket ? { ask: ticket } : {}), ...share };
   }
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet

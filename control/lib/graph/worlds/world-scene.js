@@ -2021,6 +2021,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
     }
   }
+  // a mission on the world (gameworld/mission-level.js): its plan, its tasks and its briefing; the page's mission channel
+  // draws its briefing, HUD, pause and debrief on mana-ui from them. Absent ⇒ nothing (scene/channels/mission.js).
+  if (payload && sketch.manifest.mission && typeof sketch.manifest.mission === 'object' && Array.isArray(sketch.manifest.mission.tasks)) payload.mission = sketch.manifest.mission;
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).

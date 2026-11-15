@@ -90,6 +90,7 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
+import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS } from '../mission/index.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -826,6 +827,33 @@ function mountsCard() {
   );
 }
 
+function missionCard() {
+  return lines(
+    'THE MISSION — a shooter\'s first level: the firing range stretched into sections, each with one task. The range is',
+    '  where the game\'s guns are written and tried (bible?book=practice&room=range); the mission is the same guns, the same',
+    '  body and the same bands laid down one line, briefed, played and debriefed on mana-ui.',
+    '',
+    'levels.<id>.mission   true (what the guns ask for) | { seed?, sections?, foes?, hold?, waves?, gun? }',
+    '  in place of `walk`: its ground, its foes and its tasks are its own (no goal, foes, course or arena beside it).',
+    '  Laid from the guns the world carries (a quick shooter\'s arms, a gun in the hero\'s right hand, a feel whose',
+    '  template shoots): a world that carries none has no mission.',
+    `  foes   how many the lane stands, ${MISSION_LIMITS.foes[0]} to ${MISSION_LIMITS.foes[1]} (${MISSION_DEFAULTS.foes}): every fight in proportion`,
+    `  hold   the yard's clock, ${MISSION_LIMITS.hold[0]} to ${MISSION_LIMITS.hold[1]} s (${MISSION_DEFAULTS.hold}); waves ${MISSION_LIMITS.waves[0]} to ${MISSION_LIMITS.waves[1]} (${MISSION_DEFAULTS.waves})`,
+    '  gun    true | a mount\'s word: an emplacement section, a mounted gun to man',
+    '  sections   the sections in order, in place of the ones the kit\'s bands choose; it ends at a way out',
+    'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',
+    ...Object.entries(SECTIONS).map(([k, v]) => `  ${k.padEnd(12)} ${v.task.padEnd(6)} ${v.band ? `${v.band} band, ${BANDS[v.band].m} m` : 'no fight'}: ${v.teaches}`),
+    `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,
+    'A kit that serves the mid band gets the lane; a long gun the long line too; close guns alone a room and a yard.',
+    'A room\'s foes are woken as it is walked into. The hp is the level\'s; rounds and health lie on the floor.',
+    'BEFORE IT IS A LEVEL: the practice door\'s first mission (bible?book=practice&room=mission) plays it from the world',
+    '  alone. design_game proposes it (a `mission` step with its patch) for a world with a firing range and none yet.',
+    'GATES (machine): the laws (walkable, sealed, banded, covered, entry-safe, in-order, armed, paced) ride the level\'s',
+    '  step; a run reads `mission_proof`: the tasks done in order on the bus, and the level won headless by a gunner that',
+    '  walks, aims and reloads. Whether it is a good first level is the creator\'s to say in play.',
+  );
+}
+
 function wcdCard() {
   return lines(
     'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
@@ -1243,6 +1271,7 @@ const CARDS = [
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
   ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
+  ['gameworld-mission', 'The mission', 'a shooter\'s first level: the firing range stretched into sections, each with a task, on mana-ui', 'a first level for my shooter, a mission with objectives, an FPS level, clear the room then move on, a tutorial level for the guns, hold the point then extract, level 1 of my shooter', missionCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

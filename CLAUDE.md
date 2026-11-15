@@ -303,6 +303,13 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: realistic, inspired, freestyle): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
+- Missions (a shooter's first level): [mission/](control/lib/graph/mission/) (the firing range stretched into sections,
+  each a band the world's guns are for with a task in it: the section table, the brief read from the guns, the seeded
+  composition, the laws; a new section is a row) and [gameworld/mission-level.js](control/lib/graph/gameworld/mission-level.js)
+  (the level: `levels.<id>.mission`, a quick shooter's `mission`, the practice door's `mission` room; its tasks the
+  `objectives` mechanic, `game/objectives.js`; its briefing, HUD, pause and debrief on mana-ui through the page's mission
+  channel, `gameworld/mission-mana.js`; proved on the bus and played headless, `gameworld/mission-proof.js`):
+  [docs/missions.md](docs/missions.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

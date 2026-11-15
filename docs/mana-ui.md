@@ -832,6 +832,23 @@ mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by 
   takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
   and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
 
+### The first mission
+
+A shooter's first level ([missions.md](missions.md)) is on mana-ui whole, from one spec
+(`gameworld/mission-mana.js`): the briefing over the held scene, the HUD while it plays, the pilot's pause and, on a page
+played alone, the debrief. It is a level's HUD drawn by the runtime, read each frame off the scene's own probes (the
+bus's vars for the level's hp, the task in hand and the yard's clock; the pilot's weapon for the gun, its magazine and
+its reserve), painted when what it shows changes. The page's own readouts and ammo panel are put away where mana-ui
+draws the same thing; the reticle stays the gunplay view's.
+
+- **Hosted as a page channel** (`scene/channels/mission.js`), opt-in on a world's `mission`; absent, it adds nothing.
+  The kernel, the controls host and the runtime sit in a scope of their own.
+- **Input** is the controls layer's (`controls/mana-host.js`), as the practice rooms' menu: the pilot scheme's `pause`
+  opens it, the scene is held on the pause sidecar.
+- **Its look** is the theme its manifest names: the world's interface where it writes one, else the `field-brief`
+  theme card. A look with an overlay across the screen is read without it: the HUD lies over the sights.
+- **In a game's shell** its debrief stays shut: the shell's own result screen is the debrief.
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by

@@ -61,6 +61,12 @@
        runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
+       mission?: true | { seed?, sections?, foes?, hold?, waves?, gun? },
+                                         // in place of `walk`: the level is a MISSION (mission-level.js, lib/graph/mission):
+                                         // the firing range stretched into sections, each a band the world's guns are
+                                         // for with a task in it (take, clear, hold, reach), the way on sealed until
+                                         // it is met; laid from the guns the world carries (loadout.js), so a world
+                                         // that carries none has no mission; briefed, played and debriefed on mana-ui
                                          // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
                                          // rings, its ground laid by scapeshift, a runway (one by default) and a gate
                                          // course (by default); a flight on it flies the course and lands
@@ -195,6 +201,8 @@ import { readPlay } from '../level/play-layer.js';
 import { zoneOf } from '../level/zones.js';
 import { DRESSES } from '../gameroom/dress.js';
 import { readArea } from '../gameroom/area.js';
+import { readMission } from '../mission/brief.js';
+import { loadoutOf } from './loadout.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -257,7 +265,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'mission'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -618,7 +626,14 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.glyphs !== undefined) {
+    if (L.mission !== undefined) {
+      // a mission level: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's
+      // guns; its foes, its tasks and its ground are its own
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course'].filter((k) => L[k] !== undefined);
+      if (beside.length) throw new Error(`gameworld: ${at}: a mission level is the mission alone (its ground, its foes and its tasks are its own): no ${beside.join(', ')} beside it`);
+      try { readMission(L.mission, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+      if (!loadoutOf(W)) throw new Error(`gameworld: ${at}.mission is laid from the guns the world carries, and this world carries none: a quick shooter's arms, a gun in the hero's right hand (an item that serves 'shoot'), or a feel whose template shoots`);
+    } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
@@ -957,6 +972,8 @@ export function resolveLevel(world, id) {
     const { enter = GEOTOWN_ENTER, ...spec } = L.geotown;
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
+  // a mission level: its settings as read, its seed the level's unless it names one (levels.js lays it)
+  if (L.mission) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js

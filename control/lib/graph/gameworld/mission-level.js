@@ -1,0 +1,207 @@
+/**
+ * THE MISSION — a shooter's first level: the firing range (combat/range.js) stretched into sections with tasks
+ * (lib/graph/mission/), played on the runtime the game ships. The range is where the game's guns are written and tried;
+ * the mission is the same guns, the same body and the same bands, laid down one line with something to do at each.
+ * It is offered to every world the practice door gives a firing range (practice.js), so every game the range makes has
+ * a level 1; and it is a level's own form (`levels.<id>.mission`, world.js), laid by levels.js.
+ *
+ *   the guns     the world's (loadout.js loadoutOf), as the range carries them: its slots, its sights, its knife
+ *   the body     the range's person from the eye; a feel written, on the platform rule its card is lowered onto (as a
+ *                level's hero-less first person stands, levels.js)
+ *   the foes     hunters (quick.js SHOOT_FOE), a body of the range's own health (100: the rounds the range counted to
+ *                drop a body are the rounds a foe takes), dormant on their spots until their section is walked into;
+ *                the run's own figure where made (`refs.foe`), a stand-in person where not
+ *   the tasks    the objectives mechanic (game/objectives.js), a section each; the hp the level's own (fail-on-death),
+ *                rounds and health on the floor (supplies)
+ *   the ground   greybox: the walls, the room primitives as blocks, each section's floor in its own value, the firing
+ *                line and the exit marked
+ *
+ *   missionFor(G)            → the practice door's spec: {} for a world with a firing range, else null
+ *   missionPlan(G, { seed?, spec? }) → { brief, mission, laws } | null   (pure: the composition and its laws)
+ *   missionTasks(M)          → the objectives mechanic's tasks, from a composition
+ *   missionMechanics(M)      → the level's mechanics: objectives, fail-on-death, supplies
+ *   missionGround(M)         → { faces, colliders } the greybox
+ *   missionCast(G, M, { refs?, hero?, camera? }) → { figures, entities, pilot, camera?, legend, audio? } the foes on their
+ *                              spots and what the pilot carries (levels.js lays it over its own pilot; the practice room
+ *                              over the range's person)
+ *   missionStage(G, P)       → a mission level's stage manifest: its ground, its sky and its page's `mission`
+ *   missionUi(G, M, brief, { laws }) → the manifest's `mission`: { title, theme, plan, tasks, briefing }
+ *   missionLevel(G, { refs?, seed?, spec?, quiet? }) → { manifest, brief, mission, laws, ui } the practice room's build
+ *   missionEnds(manifest)    → { spawn, heading, exit, beats } read off a laid mission (levels.js)
+ *   MISSION_HP               the player's hp, a hit's cost, what a supply gives
+ *
+ * Pure but for the composition's seeded dice.
+ */
+import { loadoutOf } from './loadout.js';
+import { rangeBody } from './combat/range-body.js';
+import { SHOOT, SHOOT_FOE, SHOOT_TUNE, PERSON, shoulderOf } from './quick.js';
+import { ARMS_LEGEND } from './arms-kit.js';
+import { standFoe } from './foes.js';
+import { libraryFigure, FIGURE_LIBRARY } from './stage-figures.js';
+import { playerStates } from '../playscape/player.js';
+import { feelRule } from './feel/lower.js';
+import { blocksOf, PRIMITIVES } from '../gameroom/primitives.js';
+import { missionBrief, readMission, composeMission, missionWalls, missionLaws, SECTIONS, BANDS } from '../mission/index.js';
+import { MISSION_LOOK } from './mission-mana.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
+
+export const MISSION_HP = Object.freeze({ hp: SHOOT.hp, hit: SHOOT.hit, health: SHOOT.health, rounds: SHOOT.rounds, foe: 100 });
+// each section's floor, two values a cell: what it is read by before a word of it is
+const FLOOR = Object.freeze({
+  staging: ['#8b929a', '#848b93'], contact: ['#96908a', '#8f8983'], lane: ['#93918a', '#8c8a83'], overwatch: ['#8f938a', '#888c83'],
+  emplacement: ['#948f93', '#8d888c'], holdout: ['#99898a', '#928283'], extract: ['#869688', '#7f8f81'],
+});
+const WALL = '#6f7278', CROSS = '#7d8086', LINE = '#d8c26a', EXIT = '#7fc98f', CELL = 2;
+const r2 = (v) => Math.round(v * 100) / 100;
+const flat = (x0, y0, x1, y1, z, fill, group) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], fill, group, doubleSided: true });
+const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group });
+// a box on the floor: its top and four sides (no bottom), and its collider (the gym's own, combat/gym.js `box`)
+function box(x0, y0, x1, y1, h, fill, group) {
+  return {
+    faces: [
+      quad([x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h], fill, group),
+      quad([x0, y0, 0], [x1, y0, 0], [x1, y0, h], [x0, y0, h], fill, group), quad([x1, y1, 0], [x0, y1, 0], [x0, y1, h], [x1, y1, h], fill, group),
+      quad([x0, y1, 0], [x0, y0, 0], [x0, y0, h], [x0, y1, h], fill, group), quad([x1, y0, 0], [x1, y1, 0], [x1, y1, h], [x1, y0, h], fill, group),
+    ],
+    collider: { min: [x0, y0, 0], max: [x1, y1, h] },
+  };
+}
+// the stand-in foe: a person of the figure library, as the practice rooms stand one (practice-room.js dummyFigure)
+const standIn = () => ({ hero: { cast: 'female' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
+const SKY = Object.freeze({ zenith: [120, 140, 170], horizon: [200, 205, 210], day: 1, stars: 0, seed: 1 });
+const BG = '#9aa0a8';
+
+/** The practice door's spec: a world with a firing range has a mission. */
+export function missionFor(G) { return loadoutOf(G) ? {} : null; }
+
+/** The composition and its laws, for a world and a level's own `mission` (true or its settings). */
+export function missionPlan(G, { seed = null, spec = {} } = {}) {
+  const S = spec === true ? {} : spec, brief = missionBrief(G, S);
+  if (!brief) return null;
+  const mission = composeMission(brief, { seed: seed ?? S.seed ?? (Number.isInteger(G?.seed) ? G.seed : 1) });
+  return { brief, mission, laws: missionLaws(mission, brief) };
+}
+
+/** The objectives mechanic's tasks: a section each, its box the zone that begins it, its doorway the way on. */
+export function missionTasks(M) {
+  return M.sections.map((S) => {
+    const [x0, x1] = S.x, T = S.task;
+    return {
+      id: S.id, kind: T.kind, text: T.text,
+      zone: { at: [r2((x0 + x1) / 2), 0, 1], half: [r2((x1 - x0) / 2 - 0.8), M.half, 3] },
+      ...(T.at ? { at: T.at.slice() } : {}), ...(T.foes ? { foes: T.foes.slice() } : {}), ...(T.gun ? { gun: T.gun } : {}),
+      ...(T.kind === 'hold' ? { seconds: T.seconds, every: T.every, waves: T.waves.map((w) => w.slice()) } : {}),
+      ...(S.door ? { door: { at: S.door.at.slice(), back: S.door.back.slice() } } : {}),
+    };
+  });
+}
+
+/** The level's mechanics: the tasks, the level's own hp, what lies on the floor. */
+export function missionMechanics(M) {
+  const drops = M.sections.flatMap((S) => S.drops.map((d) => ({ at: d.at.slice(), gives: d.gives, amount: d.gives === 'health' ? MISSION_HP.health : MISSION_HP.rounds })));
+  return [
+    { kind: 'objectives', id: 'obj', tasks: missionTasks(M) },
+    { kind: 'fail-on-death', startHp: MISSION_HP.hp, hits: MISSION_HP.hit },
+    ...(drops.length ? [{ kind: 'supplies', max: MISSION_HP.hp, drops }] : []),
+  ];
+}
+
+/** The greybox: each section's floor, the firing lines, the exit, the walls, every primitive a block. */
+export function missionGround(M) {
+  const faces = [], colliders = [], H = M.half;
+  for (const S of M.sections) {
+    const [x0, x1] = S.x, tone = FLOOR[S.kind] ?? GREY.floor;
+    for (let x = x0, i = 0; x < x1 - 1e-6; x += CELL, i++) for (let y = -H, j = 0; y < H - 1e-6; y += CELL, j++) faces.push(flat(x, y, Math.min(x + CELL, x1), Math.min(y + CELL, H), 0, tone[(i + j) % 2], `mission:floor:${S.id}`));
+    if (SECTIONS[S.kind].fight) faces.push(flat(S.line - 0.06, -H, S.line + 0.06, H, 0.012, LINE, 'mission:line'));
+  }
+  const E = M.anchors.exit;
+  faces.push(flat(E[0] - 1.2, E[1] - 1.2, E[0] + 1.2, E[1] + 1.2, 0.012, EXIT, 'mission:exit'));
+  const put = (b, fill, group) => { const B = box(b.x[0], b.y[0], b.x[1], b.y[1], b.h, fill, group); faces.push(...B.faces); colliders.push(B.collider); };
+  for (const w of missionWalls(M)) put(w, w.group === 'mission:cross' ? CROSS : WALL, w.group);
+  for (const p of M.primitives) for (const b of blocksOf(p)) put(b, b.fill ?? PRIMITIVES[p.kind].fill, `mission:${p.kind}`);
+  return { faces, colliders };
+}
+
+/** The foes on their spots (dormant, woken by their section's task) and what the pilot carries. `hero`: the pilot has a
+ * body (its eye over its feet); `camera`: the world's, so a hero seen from behind aims over its shoulder (quick.js
+ * SHOULDER: its rounds converge on the crosshair). `refs.foe`: the foes' made figure, or a pool of them cycled. */
+export function missionCast(G, M, { refs = {}, hero = false, camera = null, quiet = false } = {}) {
+  const L = loadoutOf(G);
+  if (!L) throw new Error('mission: this world carries no gun (a quick shooter\'s arms, a hero\'s carried gun, or a feel template that shoots)');
+  // the range's own body: its slots, its sights and its knife, its rounds counted against a body of the range's health
+  const R = rangeBody({ weapons: L.weapons, ...(L.skins ? { skins: L.skins } : {}), foe: { hp: MISSION_HP.foe }, quiet, name: G?.name ?? G?.id ?? 'mission' });
+  const figures = {}, entities = [], part = { figures, entities };
+  const pool = Array.isArray(refs.foe) ? refs.foe : typeof refs.foe === 'string' ? [refs.foe] : null;
+  const tune = { ...SHOOT_TUNE, body: { ...SHOOT_TUNE.body, hp: MISSION_HP.foe } };
+  let n = 0;
+  for (const S of M.sections) for (const f of S.foes) standFoe(null, part, { id: f.id, entry: SHOOT_FOE, at: f.at.slice(), heading: f.heading }, { figure: pool ? libraryFigure(pool[n++ % pool.length]) : standIn(), tune, more: { dormant: true } });
+  // (a hero's guns are fired from its eye over its feet, and over its shoulder they converge on the crosshair: the kit's
+  // own placing, arms-kit.js kitSlot)
+  const over = shoulderOf(camera ?? 'third-person', hero) && camera !== 'first-person' ? shoulderOf(camera ?? 'third-person', hero) : null;
+  const place = (w) => (hero ? { ...w, eye: 1.5, ...(over ? { converge: true } : {}) } : w);
+  const loadout = R.pilot.rule.loadout ? R.pilot.rule.loadout.map((slot) => ({ ...slot, weapon: place(slot.weapon) })) : null, knife = R.pilot.rule.knife ?? null;
+  const pilot = {
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(loadout ? { loadout, gunplay: true } : {}), ...(knife ? { knife } : {}) },
+    ...(loadout ? { weapon: loadout[0].weapon } : {}),
+    body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
+  };
+  return { figures, entities, pilot, ...(over ? { camera: over } : {}), legend: ARMS_LEGEND, body: R.pilot, eyeCamera: R.payload.camera, ...(R.payload.audio ? { audio: R.payload.audio } : {}) };
+}
+
+/** The manifest's `mission`: what the page's mission channel draws from (mission-mana.js: the title, the theme, the
+ * tasks, the briefing's words) and the plan levels.js reads its ends off (missionEnds). */
+export function missionUi(G, M, brief, { laws = [] } = {}) {
+  const name = G?.name ?? G?.id ?? 'game';
+  return {
+    title: name,
+    theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK,
+    plan: { heading: M.heading, half: M.half, length: M.length, anchors: { spawn: M.anchors.spawn.slice(), exit: M.anchors.exit.slice() }, sections: M.sections.map((S) => ({ id: S.id, x: S.x.slice(), entry: S.entry.slice() })) },
+    tasks: M.sections.map((S) => ({ id: S.id, text: S.task.text, kind: S.task.kind, ...(S.task.kind === 'hold' ? { seconds: S.task.seconds } : {}), ...(S.foes.length ? { foes: S.foes.length } : {}) })),
+    briefing: {
+      kit: brief.guns.map((g) => `${g.name}${g.band ? `: the ${g.band} band, ${BANDS[g.band].m} m` : ': the free hand'}`),
+      sections: M.sections.map((S) => `${S.task.text}: ${SECTIONS[S.kind].teaches}`),
+      laws: laws.map((l) => `${l.holds ? 'holds' : 'advise'} · ${l.law}: ${l.says}`),
+    },
+  };
+}
+
+/** A mission level's stage (levels.js gameStages): its ground and what its page draws from, the pilot and the cast laid
+ * over it by levelOrder. `P`: missionPlan's. */
+export function missionStage(G, P) {
+  const ground = missionGround(P.mission);
+  return { kind: 'controllable', title: 'mission', bg: BG, faces: ground.faces, colliders: ground.colliders, sky: { ...SKY }, mission: missionUi(G, P.mission, P.brief, { laws: P.laws }) };
+}
+
+/** The mission as the practice room plays it: the range's person from the eye, on the mission's ground. */
+export function missionLevel(G, { refs = {}, seed = null, spec = true, quiet = false } = {}) {
+  const P = missionPlan(G, { seed, spec: readMission(spec ?? true) });
+  if (!P) throw new Error('mission: this world carries no gun (a quick shooter\'s arms, a hero\'s carried gun, or a feel template that shoots)');
+  const { brief, mission: M, laws } = P, C = missionCast(G, M, { refs, quiet }), stage = missionStage(G, P);
+  // the body: the range's walker, or (a feel written) the platform rule its card is lowered onto, at the eye
+  const felt = G?.feel != null ? feelRule(G.feel) : null, eye = brief.eye;
+  const rule = felt
+    ? { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye, step: 0.3, ...felt, turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule }
+    : { ...C.body.rule };
+  const A = M.anchors;
+  const player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [A.spawn[0], A.spawn[1], A.spawn[2] + eye], heading: M.heading } };
+  const name = G?.name ?? G?.id ?? 'game';
+  const manifest = {
+    ...stage, title: `Mission · ${name}`,
+    figures: C.figures, entities: [player, ...C.entities], camera: C.eyeCamera,
+    events: { hud: [{ text: `W / S  walk · A / D  step aside · mouse  look · ${C.legend}${C.pilot.rule.knife ? ' · V  knife' : ''}`, ttl: 20 }] },
+    ...(C.audio ? { audio: C.audio } : {}),
+    // (played alone, before it is a level of a game: its own name; levels.js names a level's. Its result card is put away:
+    // the debrief is mana-ui's, or the shell's own result screen)
+    game: { levelRef: `${G?.id ?? 'game'}-mission`, mechanics: missionMechanics(M), fall: { mode: 'respawn' }, complete: false },
+  };
+  return { manifest, brief, mission: M, laws };
+}
+
+/** A laid mission's anchors, read off its manifest (the stage levels.js carries: `mission.plan`). */
+export function missionEnds(manifest) {
+  const M = manifest?.mission?.plan;
+  if (!M) throw new Error('mission: the stage carries no mission plan');
+  return { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: [r2(M.anchors.exit[0] - 2), M.anchors.exit[1], 0], beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true };
+}
+
+export { BANDS as MISSION_BANDS };
