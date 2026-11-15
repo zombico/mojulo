@@ -116,6 +116,25 @@ And for all three:
 26. **A map says how it ended, and nothing more.** Won or lost, how long, how much was left: the shell turns that into
     the results, the rank, the next map. A map never names the map after it.
 
+## In a composed world
+
+The sideways map is a level's own in a composed world (the game book), not a game apart
+(`control/lib/graph/gameworld/sideways.js`):
+
+```js
+levels: { dock: { name: 'Dock Road', sideways: { ground: { kind: 'town', drift: [[0, 0], [20, 0], [34, 8]] },
+                                                 cast: { '*': 'punk', boss: 'chief' } } } }
+```
+
+- **The level says its map; the world says who is on it.** `ground` is the place and its belt (its screens, dress,
+  rise, turn and drift); `waves`, `things` and `scenes` are the street's, the starter's when not said.
+- **Who plays is the book's hero, and each of its cast who joins.** They are made as the book makes them; with more
+  than one, the turn asks which before each level.
+- **Who is fought is the book's bestiary.** `cast` says which foe the crowd is drawn as, under how it fights, under `*`
+  for the rest, under `boss` for the boss. A foe dressed as a crew (`skin.dress`) is one of the comic pack's grunts.
+- **The game is the world's.** Its levels are stitched by the turn like any other world's; its own `setup` and `flow`
+  are kept.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:

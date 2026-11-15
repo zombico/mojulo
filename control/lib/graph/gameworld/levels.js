@@ -22,6 +22,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { sidewaysStage } from './sideways.js';
 import { levelHud } from '../game/hud-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
@@ -181,6 +182,8 @@ export function gameStages(world) {
     }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
+    // a level walked sideways is one stage: the place and its belt (sideways.js), its street laid by the run
+    if (R.sideways) { out.push({ level, node: 'street', section: 'sideways', index: 0, manifest: sidewaysStage(R.sideways) }); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
     if (R.runner) { out.push({ level, node: 'runner', section: 'runner', index: 0, manifest: runnerStage(R.runner) }); continue; }
     // an obstacle course is one stage: the lane (roll-course.js), its slots filled by the level's roll, sized for the hero

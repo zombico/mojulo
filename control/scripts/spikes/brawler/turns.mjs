@@ -5,7 +5,9 @@
 // the shell ask the set-up before each street (how hard, once; who plays, each time), does the street play who was
 // picked at the tier picked, does each street play its arrive scene as play starts and its leave scene once it is won,
 // and does the street's end reach the results and the next street, to the last.
-//   node control/scripts/spikes/brawler/turns.mjs [--out dir] [--town] (--town: the dressed town street as the third)
+//   node control/scripts/spikes/brawler/turns.mjs [--out dir] [--town] [--composed]
+//   --town: the dressed town street as the third · --composed: a COMPOSED world (not the quick path): a hero from the
+//   game book, a crew from its bestiary, two levels walked sideways (gameworld/sideways.js), made by design_game's run
 import { register as registerLoader } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -14,7 +16,7 @@ import http from 'node:http';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-turns') }, town: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-turns') }, town: { type: 'boolean', default: false }, composed: { type: 'boolean', default: false } } });
 const out = path.resolve(opt.out); await fs.mkdir(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -36,7 +38,15 @@ const streets = [
     : { id: 'drifting', name: 'Drifting', level: { kind: 'greybox', preset: 'street', belt: { screens, drift: [[0, 0], [20, 0], [34, 8], [62, 8]] } }, waves },
 ];
 const roster = [{ archetype: 'hero', style: 'all-rounder' }, { archetype: 'explorer', style: 'rushdown' }];
-let D = body(await designGameHandler({ quick: { goal: 'brawl', roster, streets, crowd: { faction: 'punks', size: 1 }, world: { id: 'turns', name: 'Turns' } }, ref: 't' }));
+// (--composed: the world written as a game book's: its hero, its bestiary's crew, its levels walked sideways)
+const { MEADOWMARK_HERO } = await import('@/lib/graph/gameworld/examples.js');
+const { FOE_CLASSES } = await import('@/lib/graph/foes/index.js');
+const composedWorld = { id: 'dockside', name: 'Dockside', mode: 'autonomous', style: MEADOWMARK_HERO.style, civilizations: MEADOWMARK_HERO.civilizations, characters: MEADOWMARK_HERO.characters,
+  foes: { punk: { class: Object.keys(FOE_CLASSES)[0], skin: { people: 'human', dress: { faction: 'punks' } } } },
+  levels: { dock: { name: 'Dock Road', sideways: { ground: streets[0].level, cast: { '*': 'punk' }, waves } }, yard: { name: 'The Yard', sideways: { ground: streets[2].level, cast: { '*': 'punk' }, waves } } },
+  links: [{ from: 'dock', to: 'yard', kind: 'gate' }] };
+if (opt.composed) streets.splice(0, streets.length, { id: 'dock' }, { id: 'yard' });
+let D = body(await designGameHandler(opt.composed ? { world: composedWorld, ref: 't' } : { quick: { goal: 'brawl', roster, streets, crowd: { faction: 'punks', size: 1 }, world: { id: 'turns', name: 'Turns' } }, ref: 't' }));
 say('design_game', { ok: D.ok, error: D.error, next: (D.next ?? []).map((n) => n.step) });
 for (let k = 0; k < 8 && D.ok && (D.next ?? []).some((n) => n.step === 'run'); k++) { D = body(await designGameHandler({ ref: 't', run: true })); say('run', { ok: D.ok, error: D.error, made: Object.keys(D.made ?? {}).length }); }
 const gameRef = SketchRepository.list({ limit: 80 }).map((x) => x.ref).find((r) => /game$/.test(r)), G = gameRef ? SketchRepository.getByRef(gameRef).manifest : null;
@@ -101,4 +111,4 @@ const proof = {
 say('proof', proof); say('errors', errs.slice(0, 6));
 await fs.writeFile(path.join(out, 'turns.json'), JSON.stringify({ log, proof, errs }, null, 1));
 await browser.close(); server.close();
-process.exit(proof.streetsPlayed === streets.length && proof.difficultyAsked === 1 && proof.fighterAsked === streets.length && proof.whoPlayed[1] !== proof.whoPlayed[0] && proof.tier.every(Boolean) && proof.everyStreetWon && streets.every((_, i) => scenes.includes(`${i + 1}:arrive`) && scenes.includes(`${i + 1}:leave`)) ? 0 : 1);
+process.exit(proof.streetsPlayed === streets.length && proof.difficultyAsked === 1 && (opt.composed ? proof.fighterAsked === 0 : proof.fighterAsked === streets.length && proof.whoPlayed[1] !== proof.whoPlayed[0]) && proof.tier.every(Boolean) && proof.everyStreetWon && streets.every((_, i) => scenes.includes(`${i + 1}:arrive`) && scenes.includes(`${i + 1}:leave`)) ? 0 : 1);

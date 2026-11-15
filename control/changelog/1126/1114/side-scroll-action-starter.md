@@ -196,6 +196,16 @@ screen) is now played on a page; before, only its practice yard was.
 - The play shell hands a level its end scene (`game/play-shell.js`): an end trigger that is a scene is named to the
   level as it loads (`params.__end: { scene, when, skip? }`) for the level to play on its own page; a video still
   plays over the shell as before ([docs/game-flow.md](../../../../docs/game-flow.md)).
+- A composed world makes a brawler: a level walked SIDEWAYS (`gameworld/sideways.js`, `sideways-read.js`). A level
+  of the game book says `sideways: true | { ground?, cast?, waves?, things?, scenes? }`: `ground` a brawl level's
+  words (the place and its belt: its screens, its dress, its rise, turn and drift; the town's street unsaid), `cast`
+  who of the world's bestiary the crowd is drawn as (a foe under a crowd type, under `*` for the rest, under `boss`),
+  the rest a street's own, the starter's when not said. The level is alone on its level, read where the world is read.
+  The run lays its street with the world's own: the hero (as the book equips it) and each of its cast who joins are
+  its players, its cast's foes (fielded for it, each made as the bestiary makes a person or a crew's grunt) the
+  crowd's faces, in the world's tradition; the level is a hosted level like any other, and the game the world's
+  (its store, its links, its own `setup` and `flow` kept). Its turn asks the set-up, who plays when more than one can,
+  and calls the street's scenes where every level is one. A world with no sideways level is made as it was.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
