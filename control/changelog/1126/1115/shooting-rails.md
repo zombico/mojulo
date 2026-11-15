@@ -67,3 +67,21 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
 - Designed, not built yet, each named a gap: the emplacement's mounted gun (its section is in the table with what it
   waits on, and asking for it is refused with that, never laid half), a machine as the hero for a template that owns a
   frame, a dressed mission.
+- **Arena maps: the principles as laws** (`lib/graph/arena-map/`, pure; design notes
+  [docs/arena-maps.md](../../../../docs/arena-maps.md)). A fighting map is not a trail, so the map is its own thing: a
+  closed table of blocks on one grid (floor, wall, low wall, solid, ramp, ladder; a drop is an open upper edge), the
+  principles of line-of-sight combat as measured laws in four groups (structure, access, sight, economy), sized from
+  the firing range's own numbers (the run, the bands the guns are for), and a generator that grows a template a block
+  at a time and keeps only what the laws hold no worse.
+  - **Ramps and ladders run into nothing.** A ramp wants a landing at each end that leads on, its cells clear of mass,
+    no floor over them, no wall across its line at the height a body is, a slope a body walks; a ladder a floor at its
+    foot, an open shaft, a ledge that leads on and no wall along it. A way with a fault joins nothing and says what it
+    ran into.
+  - Spawns and things are read off the map's own shape, never placed by hand.
+  - Four templates (a court under a gallery, two rings sharing a middle, three rooms with a bridge, a tower round a
+    well). The two rings grow to every law held; the others to twelve or thirteen of fourteen, and say what is left.
+  - Not built yet: laying a map's blocks as a level, a geocube building or town read against the laws, the mission's
+    phases on one.
+- **In progress, not finished: a mission laid along a trail's lane or a town's walk** (`mission/route.js`). The route
+  composition, the reader and the level order are in; its bus proof does not pass since the ways on were moved past
+  each section's end (two tests fail), and a fighting map is the direction taken instead.
