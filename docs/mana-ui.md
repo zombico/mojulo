@@ -838,7 +838,8 @@ A shooter's first level ([missions.md](missions.md)) is on mana-ui whole, from o
 (`gameworld/mission-mana.js`): the briefing over the held scene, the HUD while it plays, the pilot's pause and, on a page
 played alone, the debrief. It is a level's HUD drawn by the runtime, read each frame off the scene's own probes (the
 bus's vars for the level's hp, the task in hand and the yard's clock; the pilot's weapon for the gun, its magazine and
-its reserve), painted when what it shows changes. The page's own readouts and ammo panel are put away where mana-ui
+its reserve; the pilot's hits and who dealt the last for the damage ring, a mark on the `damage-direction` idiom's ring
+where each hit came from), painted when what it shows changes. The page's own readouts and ammo panel are put away where mana-ui
 draws the same thing; the reticle stays the gunplay view's.
 
 - **Hosted as a page channel** (`scene/channels/mission.js`), opt-in on a world's `mission`; absent, it adds nothing.

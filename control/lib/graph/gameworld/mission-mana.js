@@ -10,6 +10,11 @@
  *                  task in hand, every task ticked as it is met), the yard's clock while it is held. Read each frame off
  *                  the scene: the bus's vars (the hp, the objectives' own var, the hold's clock) and the pilot's weapon.
  *                  The reticle stays the gunplay view's own (its cone, its hit flash and its sights are the gun's)
+ *   the damage ring   where the fire is coming from: each hit the pilot takes marks a ring round the aim at its
+ *                  attacker's bearing from where the pilot faces (ahead at the top, behind at the bottom), for a moment
+ *                  (RING.life seconds of the scene's own clock, begun again by another hit from the same one), turning
+ *                  with the pilot as it turns. Read off the scene: the pilot's count of hits taken and who dealt the
+ *                  last (the runtime's own, worlds/controllable). mana-ui's damage-direction idiom; no hit, no ring
  *   the pause      the pilot scheme's `pause` (Esc, a pad's start): resume, the briefing, how to play, the controls this
  *                  world answers to (its live rows), restart
  *   the debrief    the level's one outcome envelope read as it lands (scene/channels/game.js): the outcome, the time,
@@ -24,6 +29,9 @@
  *   missionManaRuntime(cfg)   → the page's code (inlined with toString(): it references only the kernel, the host and the
  *     pad reader inlined beside it, and the scene's own probes)
  *   missionChannelSource(ui)  → the block the page's mission channel splices (scene/channels/mission.js)
+ *   hitBearing(pos, heading, from) → degrees clockwise from where a body faces to where a hit came from (0 ahead, 90 its
+ *     right, 180 behind, 270 its left), to the whole degree; inlined beside the runtime
+ *   RING                      the damage ring's numbers: how long a mark stands, how many at once
  *
  * The look: the theme the manifest names (the world's interface where it writes one, else the `field-brief` theme
  * card), with no overlay across the screen either way.
@@ -44,7 +52,15 @@ const B = (p) => ({ bind: `ms.${p}` });
 const I = (f) => ({ item: f });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
-const USES = ['pause-menu', 'results-screen', 'objective-tracker', 'ammo-counter'];
+const USES = ['pause-menu', 'results-screen', 'objective-tracker', 'ammo-counter', 'damage-direction'];
+/** The damage ring's numbers: a mark stands `life` seconds of the scene's clock after its last hit; `most` at once. */
+export const RING = Object.freeze({ life: 1.6, most: 6 });
+/** Where a hit came from, as the ring marks it: degrees clockwise from where the body faces (its heading, radians,
+ * counter-clockwise from +x) to the place it came from, 0 to 359. */
+export function hitBearing(pos, heading, from) {
+  const rel = Math.atan2(from[1] - pos[1], from[0] - pos[0]) - (heading || 0);
+  return ((Math.round((-rel * 180) / Math.PI) % 360) + 360) % 360;
+}
 /** The look a mission wears where its world writes no interface of its own: the field brief (a theme card). */
 export const MISSION_LOOK = 'field-brief';
 // a mission's theme as mana-ui reads it: a card by its name, else a preset or a theme as written; and nothing of it drawn
@@ -71,6 +87,8 @@ export function missionManaSpec() {
       { use: 'objective-tracker', props: { title: B('objective.title'), steps: B('objective.steps') } },
       { use: 'region', props: { at: 'top-right' }, children: [{ use: 'counter', props: { label: B('hold.label'), value: B('hold.left') } }], when: B('hold.on') },
       { use: 'ammo-counter', props: { weapon: B('weapon'), ammo: B('ammo'), reserve: B('reserve') } },
+      // the damage ring: drawn only while a hit's mark stands
+      { use: 'damage-direction', props: { hits: B('ring.hits') }, when: B('ring.on') },
     ] },
     screens: {
       briefing: tabsScreen(B('title'), B('brief'), [{ use: 'button', props: { label: B('begin') }, on: { accept: { close: true } } }]),
@@ -103,6 +121,7 @@ export function missionMana(ui) {
   const how = [
     { label: 'Moving', lines: [{ glyph: 'W A S D', text: 'move' }, { glyph: 'mouse', text: 'look' }, { action: 'jump', text: 'jump' }, { action: 'pause', text: 'this menu' }] },
     { label: 'The guns', lines: [{ action: 'fire', text: 'fire' }, { glyph: 'right click', text: 'raise the sights' }, { glyph: 'R', text: 'reload (what is left in the magazine is lost)' }, { glyph: '1-5', text: 'switch' }, { glyph: 'V', text: 'the knife, where one is carried' }] },
+    { label: 'Under fire', lines: ['A red mark on the ring round your aim shows where a hit came from.', 'The top of the ring is ahead of you, the bottom behind, the sides your sides.', 'Turn until the mark is at the top: you are facing who is shooting.'] },
     { label: 'The rules', lines: ['Each room has one task. Its way on is sealed until the task is met.', 'A room\'s foes wake as you walk into it, never before.', 'Rounds and health lie on the floor: walk over them.'] },
   ];
   const brief = [
@@ -117,10 +136,11 @@ export function missionMana(ui) {
     hp: 100, hpMax: 100, weapon: '', ammo: 0, reserve: 0,
     objective: { title: ui.tasks[0]?.text ?? '', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
     hold: { on: false, left: 0, label: 'Hold' },
+    ring: { on: false, hits: [] },
     result: { outcome: '', stats: [], rank: '', items: [{ label: 'Play it again', then: { emit: 'mission:restart' } }, { label: 'The briefing', then: { open: 'briefing' } }] },
   } };
   const C = manaControls();
-  return { theme: themeOf(ui.theme), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
+  return { theme: themeOf(ui.theme), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, ring: { life: RING.life, most: RING.most }, msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
 }
 
 /**
@@ -131,6 +151,9 @@ export function missionManaCss(theme) {
   return [manaCss(), themeCss(theme),
     '.moj-hud .moj-w-counter,.moj-hud .moj-w-text,.moj-hud .moj-w-bar,.moj-hud .moj-w-clock{display:none}',
     'div:has(>#__wepIcon){display:none!important}#wrap .hint{display:none}',
+    // the damage ring: no ring drawn, each mark a bar lying along it where the fire comes from
+    '#mana .mana-threat{border-color:transparent;width:min(46vh,46vw);height:min(46vh,46vw)}',
+    '#mana .mana-arc{font-size:0;width:26%;height:3.2%;border-radius:999px;background:var(--mana-harm,#e0533f);box-shadow:0 0 14px 2px var(--mana-harm,#e0533f);opacity:.92}',
   ].join('\n');
 }
 
@@ -175,6 +198,9 @@ export function missionManaRuntime(cfg) {
   const was = {};
   // THE HUD: read off the scene each frame, painted when what it shows has changed
   let shown = '';
+  // THE DAMAGE RING: who has hit the pilot lately (by id: where it stood, when), from the pilot's own count of hits
+  const ringBy = {};
+  let hits0 = null;
   function read() {
     const W = world(), v = vars(), me = W && W.entities.find((x) => x.pilotable), w = me && me.weapon;
     if (Number.isFinite(v.hp)) P.hp = Math.max(0, Math.round(v.hp));
@@ -189,7 +215,30 @@ export function missionManaRuntime(cfg) {
     for (let k = 0; k < cfg.tasks.length; k++) P.objective.steps[k].done = k < n;
     const T = cfg.tasks[n], held = !!T && T.kind === 'hold' && v['__obj_on' + n] === 1;
     P.hold.on = held; P.hold.left = held ? v['__obj_left' + n] : 0;
-    const now = JSON.stringify([P.hp, P.weapon, P.ammo, P.reserve, n, P.hold.on, P.hold.left]);
+    if (me) {
+      const h = me.hits || 0, t = W.time || 0;
+      if (hits0 == null) hits0 = h;
+      if (h > hits0) {
+        const id = me.lastHitBy == null ? null : String(me.lastHitBy), by = id != null && W.byId ? W.byId[id] : null;
+        // (a hit with nobody to name, a hazard's or a blast's, marks nothing: there is no bearing to show)
+        if (by && by !== me && by.transform) ringBy[id] = { at: by.transform.pos.slice(), t };
+      }
+      hits0 = h;
+      const live = [];
+      for (const id of Object.keys(ringBy)) {
+        const r = ringBy[id];
+        if (t - r.t > cfg.ring.life || t < r.t) { delete ringBy[id]; continue; }
+        // (where it stands now while it still stands, so the mark follows it; where it stood when it has gone)
+        const by = W.byId ? W.byId[id] : null;
+        if (by && by.transform && !by.dormant) r.at = by.transform.pos.slice();
+        live.push({ t: r.t, bearing: __msBearing(me.transform.pos, me.transform.heading, r.at) });
+      }
+      live.sort((a, b) => b.t - a.t);
+      P.ring.hits = live.slice(0, cfg.ring.most).map((x) => ({ bearing: x.bearing }));
+      P.ring.on = P.ring.hits.length > 0;
+    }
+    // (a mark is repainted when it has moved five degrees: a turning pilot's ring turns, a still one's is left alone)
+    const now = JSON.stringify([P.hp, P.weapon, P.ammo, P.reserve, n, P.hold.on, P.hold.left, P.ring.hits.map((x) => Math.round(x.bearing / 5))]);
     if (now !== shown) { shown = now; view.paint(); }
     // the end: the level's one envelope; alone, the debrief; in a shell, the shell's own result screen
     const G = window.__mojGame, env = G && G.envelope;
@@ -235,6 +284,7 @@ export function missionChannelSource(ui) {
 const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
+const __msBearing = ${hitBearing.toString()};
 const __msCss = document.createElement('style');
 __msCss.textContent = ${json(missionManaCss(theme))};
 document.head.appendChild(__msCss);

@@ -1,6 +1,7 @@
 // THE FIRST MISSION in a browser (the e2e tier: it launches Chrome, and passes saying nothing when none is installed):
 // opened by the practice door from a world alone. Up with no error, its briefing on mana-ui over the held scene; Begin
-// plays; the HUD reads the scene (the gun in hand, the level's hp), the gun drawn as the arms library builds it; a way on
+// plays; the HUD reads the scene (the gun in hand, the level's hp), the gun drawn as the arms library builds it; a hit
+// marks the damage ring where it came from; a way on
 // still sealed puts the body back; the rounds
 // taken, the tracker moves on to the next task; the pilot's pause opens the menu and holds the scene; a level lost opens
 // the debrief.
@@ -50,6 +51,13 @@ describe('the first mission, from a world', () => {
     const parts = await page.evaluate(() => { const me = window.__mojCtrl.world.entities.find((e) => e.pilotable), M = me.rule.loadout[0].gunplay.view.mesh; return M ? M.parts.length : 0; });
     expect(parts).toBeGreaterThan(8);
     expect(p0.title).toBe(level.mission.sections[0].task.text);
+    // the damage ring: a hit from behind marks the bottom of the ring, and the mark goes when its moment has passed
+    const ring = () => page.evaluate(() => window.__mojMission.state.ms.ring);
+    expect((await ring()).on).toBe(false);
+    await page.evaluate(() => { const W = window.__mojCtrl.world, me = W.entities.find((e) => e.pilotable), f = W.entities.find((e) => e.team === 'foes'); f.transform.pos[0] = me.transform.pos[0] - 6; f.transform.pos[1] = me.transform.pos[1]; me.transform.heading = 0; me.hits = (me.hits || 0) + 1; me.lastHitBy = f.id; });
+    await wait(300);
+    expect(await ring()).toEqual({ on: true, hits: [{ bearing: 180 }] });
+    await page.waitForFunction(() => !window.__mojMission.state.ms.ring.on, { timeout: 10000 });
     // a way on still sealed puts the body back
     const S0 = level.mission.sections[0];
     await stand(S0.door.at); await wait(700);

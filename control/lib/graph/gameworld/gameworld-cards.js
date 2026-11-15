@@ -845,6 +845,8 @@ function missionCard() {
     `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,
     'A kit that serves the mid band gets the lane; a long gun the long line too; close guns alone a room and a yard.',
     'A room\'s foes are woken as it is walked into. The hp is the level\'s; rounds and health lie on the floor.',
+    'Its HUD is mana-ui\'s: the hp, the gun in hand, the objective tracker, and the DAMAGE RING: a mark on a ring round the',
+    '  aim where each hit came from (the top ahead, the bottom behind), for a moment, turning as the player turns.',
     'BEFORE IT IS A LEVEL: the practice door\'s first mission (bible?book=practice&room=mission) plays it from the world',
     '  alone. design_game proposes it (a `mission` step with its patch) for a world with a firing range and none yet.',
     'GATES (machine): the laws (walkable, sealed, banded, covered, entry-safe, in-order, armed, paced) ride the level\'s',

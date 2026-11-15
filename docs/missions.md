@@ -111,6 +111,12 @@ The page's mission channel (`scene/channels/mission.js`, fed by the manifest's `
 - **The HUD:** the level's hp, the gun in hand with its magazine and reserve, the objective tracker, the yard's clock
   while it is held. Read each frame off the scene's own probes. The reticle stays the gunplay view's: its cone, its
   hit flash and its sights are the gun's.
+- **The damage ring:** where the fire is coming from. Each hit the pilot takes marks a ring round the aim at its
+  attacker's bearing from where the pilot faces: the top of the ring is ahead, the bottom behind, the sides its sides.
+  A mark stands for a moment of the scene's own clock (`RING.life`, begun again by another hit from the same one),
+  follows its attacker while it stands, and turns with the pilot, so turning until the mark is at the top faces the
+  shooter. Read off the scene: the pilot's count of hits taken and who dealt the last. It is mana-ui's
+  `damage-direction` idiom, drawn only while a mark stands; a hit nobody dealt (a hazard's) marks nothing.
 - **The pause:** the pilot's `pause` opens it: resume, the briefing, how to play, the live controls, start again.
 - **The debrief:** the level's one outcome envelope read as it lands. Alone, the mission's own (the outcome, the
   time, the tasks met, the foes downed, the health left). Inside a game's shell it stays shut and the shell's own

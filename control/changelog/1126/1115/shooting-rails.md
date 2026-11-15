@@ -36,6 +36,10 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   is the debrief. A world with a mission and no `ui` of its own gets its shell on mana-ui in the mission's look, so the
   front, the briefing, the HUD, the pause and the result are one runtime. The look is a new theme card, `field-brief`; a
   look with an overlay across the screen is read without it.
+- **The damage ring.** Taking fire, a mark stands on a ring round the aim where each hit came from: the top of the
+  ring ahead, the bottom behind. It stands for a moment, follows its attacker and turns with the player, so turning
+  until it is at the top faces the shooter. Read off the scene (the pilot's hits and who dealt the last), drawn by
+  mana-ui's `damage-direction` idiom only while a mark stands; said in the briefing's How to play (Under fire).
 - **Two machine gates**, read by `design_game` after a run as `mission_proof` (`gameworld/mission-proof.js`):
   - on the bus: every task done in the order written, every sealed way put the walker back, the last task won;
   - played: the level stepped headless on the runtime by a gunner that walks the laws' grid, aims, raises the sights,
