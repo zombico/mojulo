@@ -52,6 +52,8 @@ import { readGrid, SIDES } from '../level/grid.js';
 
 // (`fills`: the first zone's two blocks, the zones after in turn, the goal's: level/block-fills.js)
 export const WORLD_MAP = Object.freeze({ size: 5, tile: 24, opening: 1, first: 3, wide: 3,
+  // (the bushes beside a tile's way: a trail's fourteen over its 72 m, by a tile's 24)
+  shrubs: 5,
   // (a shortcut's band: how many hold a side way, against a block's own fight of three)
   shortcut: Object.freeze({ grunt: 5, elite: 2 }),
   fills: Object.freeze({ road: 'loop', ruins: 'crossroads', town: 'crossroads', zones: Object.freeze(['loop', 'round', 'spur']), goal: 'loop' }) });
@@ -191,7 +193,8 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   const zoned = [[B, C]];
   const level = {
     name: `The ${landscape} realm`,
-    glyphs: { tile: WORLD_MAP.tile, plan, ...written, sketch, zoned, far: true },
+    // (`shrubs`: a tile's way is a third of a trail's length, so a third of a trail's bushes stand by it)
+    glyphs: { tile: WORLD_MAP.tile, plan, ...written, sketch, zoned, far: true, shrubs: { count: WORLD_MAP.shrubs } },
   };
   return { level, zoned };
 }

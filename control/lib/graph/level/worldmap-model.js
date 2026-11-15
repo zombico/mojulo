@@ -12,7 +12,7 @@
  *
  * Pure: the land's heights from era/out-tile.js levelHeight, as every tile lays them; no dice.
  */
-import { mapScarps } from './map-cliffs.js';
+import { cliffRise } from './map-cliffs.js';
 import { worldmapView } from './worldmap-view.js';
 import { levelHeight } from '../era/out-tile.js';
 import { readGrid } from './grid.js';
@@ -52,8 +52,8 @@ function ribbon(line, w, up, ground, fill, group) {
 export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
   const V = worldmapView(level, { title }), G = readGrid(level.grid, 'level.grid'), T = V.T, k = MODEL.k, step = T / k;
   // (its cliffs, map-cliffs.js: the land the pages lay, a scarp where the sketched heights step and no way crosses)
-  const K = readSketch(level.sketch, G.plan), rise0 = sketchRise(G, K), scarps = K?.cliffs ? mapScarps(G, rise0) : null;
-  const rise = scarps ? { ...rise0, scarps: { e: scarps.e, s: scarps.s } } : rise0;
+  const K = readSketch(level.sketch, G.plan), rise0 = sketchRise(G, K);
+  const rise = K?.cliffs ? cliffRise(G, rise0) : rise0;
   const L = { seed: level.seed ?? 1, ...(rise ? { rise } : {}) }, ground = (x, y) => levelHeight(x, y, L) * lift;
   const groundOf = (r, c) => V.cells[r * V.cols + c]?.ground ?? null;
   const TINT = { m: '#b9c79a', s: '#cbbb92', c: '#7d7366', f: '#8f9e80', g: '#a8b392' };

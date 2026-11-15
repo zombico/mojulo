@@ -28,7 +28,8 @@ const mix = (a, b, t) => a + (b - a) * t;
 /** The level's land: rolling hills a long stride apart, a gentle roll over them (metres). */
 export const LEVEL_LAND = Object.freeze({ hills: 5, stride: 90, roll: 0.8, rollStride: 18 });
 export function levelHeight(x, y, L = {}) {
-  const s = (L.seed ?? 1) | 0, H = L.hills ?? LEVEL_LAND.hills, R = L.roll ?? LEVEL_LAND.roll;
+  // (`rise.hills`: a terraced map's gentler hills, level/map-cliffs.js)
+  const s = (L.seed ?? 1) | 0, H = L.hills ?? L.rise?.hills ?? LEVEL_LAND.hills, R = L.roll ?? LEVEL_LAND.roll;
   return H * (vnoise(x / LEVEL_LAND.stride, y / LEVEL_LAND.stride, s + 501) - 0.5) * 2 + R * (vnoise(x / LEVEL_LAND.rollStride, y / LEVEL_LAND.rollStride, s + 503) - 0.5) * 2 + (L.rise ? riseAt(x, y, L.rise) : 0);
 }
 

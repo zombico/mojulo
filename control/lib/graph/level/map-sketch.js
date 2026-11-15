@@ -41,7 +41,7 @@
 import { gateTile } from './plan.js';
 import { readGrid, mapStart } from './grid.js';
 import { paceOf, paceLaws } from './pace.js';
-import { mapScarps } from './map-cliffs.js';
+import { mapScarps, cliffRise } from './map-cliffs.js';
 
 const readGridOf = (level, at) => readGrid(level.grid, at);
 
@@ -415,7 +415,7 @@ export function levelGrid(level, at = 'level.grid', read = null) {
   }
   // (THE CLIFFS, map-cliffs.js: where the approved heights step and no way crosses, the land stands as a cliff; the
   // scarps ride in the rise, so every reader of the level's land reads the same one)
-  const rise = sketchRise(base, only), scarps = K.cliffs ? mapScarps(base, rise) : null;
+  const rise0 = sketchRise(base, only), scarps = K.cliffs ? mapScarps(base, rise0) : null, rise = K.cliffs ? cliffRise(base, rise0) : rise0;
   if (scarps) laid.cliffs += scarps.count;
-  return { ...base, rise: scarps ? { ...rise, scarps: { e: scarps.e, s: scarps.s } } : rise, sketch: { approved: approved.map(([k]) => k), ground, marks, laid, unlaid } };
+  return { ...base, rise, sketch: { approved: approved.map(([k]) => k), ground, marks, laid, unlaid } };
 }

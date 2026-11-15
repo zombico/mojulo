@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readGrid } from './grid.js';
 import { levelGrid } from './map-sketch.js';
 import { mapScarps, MAP_CLIFF } from './map-cliffs.js';
-import { riseAt, SCARP } from '../era/out-tile.js';
+import { riseAt, levelHeight, SCARP } from '../era/out-tile.js';
 
 // two blocks of 3 × 3 side by side: the low one and, east of it, one three steps (9 m) up; the walk crosses between them
 const plan = { size: 3, rows: ['A B'], route: ['A', 'B'] };
@@ -44,8 +44,11 @@ describe('a map\'s cliffs', () => {
     const plain = levelGrid(level(false)), asked = levelGrid(level(true));
     expect(plain.rise.scarps).toBeUndefined();
     expect(asked.rise.z).toEqual(plain.rise.z);
-    const flat = levelGrid(level(true, '1'));
-    expect(JSON.stringify(flat.rise)).toBe(JSON.stringify(levelGrid(level(false, '1')).rise));
+    // (a terraced land rolls less, so a terrace is not lost in the hills: only where the cliffs are asked)
+    expect(asked.rise.hills).toBe(MAP_CLIFF.hills);
+    expect(plain.rise.hills).toBeUndefined();
+    const hillsOf = (R) => Math.abs(levelHeight(40, -40, { seed: 3, rise: R }) - riseAt(40, -40, R));
+    expect(hillsOf(asked.rise)).toBeLessThan(hillsOf(plain.rise));
     expect(() => levelGrid({ ...level(false), sketch: { cliffs: 'yes' } })).toThrow(/cliffs is true/);
     expect(mapScarps(readGrid({ tile: 24, plan }), null)).toBeNull();
   });

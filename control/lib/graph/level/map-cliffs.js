@@ -7,11 +7,23 @@
  * place's door, there is no cliff: the way keeps its eased climb, a pass through the scarp, so a cliff never lies across a
  * trail and a trail is where a cliff is passed. Water's own edge is its body's (era/out-tile-water.js), never a scarp.
  *
+ * A TERRACED LAND ROLLS LESS: the level's own hills (era/out-tile.js LEVEL_LAND, about 5 m either way) would lose a 3 m
+ * terrace in their roll, so a map that asks for its cliffs lays its hills at MAP_CLIFF.hills, and a terrace reads as one.
+ *
+ *   cliffRise(G, rise) → the rise a map that asks its cliffs is read with: its scarps (where it has any) and its hills
  *   mapScarps(G, rise) → { e: [0 | 1 per tile: its edge to the east], s: [to the south], count } | null (no cliff)
- *   MAP_CLIFF          the least step a cliff stands (metres)
+ *   MAP_CLIFF          the least step a cliff stands, and a terraced land's hills (metres)
  * Pure: G readGrid's read, rise its tiles' heights ({ tile, cols, rows, z }).
  */
-export const MAP_CLIFF = Object.freeze({ drop: 6 });
+export const MAP_CLIFF = Object.freeze({ drop: 6, hills: 2 });
+
+/** The rise of a map that asks for its cliffs: its scarps and its gentler hills (riding in the rise, so every reader of
+ *  the level's land reads the same one). */
+export function cliffRise(G, rise) {
+  if (!rise) return rise;
+  const S = mapScarps(G, rise);
+  return { ...rise, hills: MAP_CLIFF.hills, ...(S ? { scarps: { e: S.e, s: S.s } } : {}) };
+}
 
 export function mapScarps(G, rise) {
   if (!rise) return null;

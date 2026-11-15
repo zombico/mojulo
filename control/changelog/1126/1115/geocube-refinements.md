@@ -29,6 +29,12 @@
   block to the goal's heights, each way a step a tile at most (cut down into the higher terrace where a side way comes
   up from low ground), and asks for the cliffs. A sketch that does not ask, or whose heights never step that far, is
   read as before.
+- **A terraced land rolls less.** The level's own hills (about 5 m either way) lost a 3 m terrace in their roll: on the
+  world map the ruins' high ground stood over the river town's low ground a step above it. A map that asks for its
+  cliffs lays its hills at 2 m (`MAP_CLIFF.hills`, riding in the rise), so each terrace reads as one: the blocks' land
+  now stands in order with little overlap (ruins 1.2 to 4.6 m, river town 3.7 to 7.2 m, castle heights up to 9.3 m).
+- **Fewer bushes by a tile's way.** The world map asks five bushes a tile (`WORLD_MAP.shrubs`) where the kit's card
+  gave a tile a whole trail's fourteen.
 - **The map designer draws the cliffs.** The world map in miniature and its greybox model (level/worldmap-view.js,
   worldmap-model.js) read the same scarps the pages lay, so a map is looked at with its cliffs before it is built.
 - **A map is looked at before it is made.** A gameworld's planned map is served in miniature as a book
@@ -36,5 +42,6 @@
   cliffs and beats from the recipe alone, no tile built. `design_game`'s `worldmap` step carries it as `look`, and the
   next-moves card says to open it and show the creator first, before a block is written or a page built, and after each
   change; the card's ceiling moves 4864 → 5120.
-- **Measured:** a zone's page of the world map is heavier for its bigger blocks: the goal's zone 42 tiles (25 its own)
-  and about 217,000 faces, where it was 20 tiles and about 89,000.
+- **Measured:** a zone's page of the world map is heavier for its bigger blocks, as payload: the opening 40 MB, the
+  first zone (two blocks) 70 MB, the goal's zone 52 MB (42 tiles, 25 its own, about 162,000 faces), where the goal's
+  zone was 34 MB (20 tiles, about 89,000 faces).
