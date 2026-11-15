@@ -100,7 +100,13 @@ mechanic card.
   with no ground at the body's height shut as a wall is), so it walks round a well and along a gallery and never out
   over a drop. Measured headless with a still body on the upper floor: on the court two of nine reached it before and
   all nine came within reach after; on the three rooms none before, all nine after. It keeps to ramps: a mind climbs no
-  ladder, and reaches no floor over a floor. In a building a wave still comes on the floor it wakes on.
+  ladder, and reaches no floor over a floor.
+- **A wave crosses a building's storeys.** A building mission hands the same mind the storey over the ground and each
+  stair up to it from the ground, a flight walked by its own points (`flights[].way`: a switchback's leg, landing and
+  leg). The building's rooms take their ceilings as colliders (`ceilings: true`), so a storey's floor stops a sight and a
+  round: before, a foe under the pilot saw it through the slab and fought from below. Measured headless in a warehouse
+  with a still body in two upper rooms out of sight of the ground: none of a hold's nine came within 8 m before, all
+  nine after. One storey: the floor over the ground, not one higher.
 - **The hp and the floor:** the level's own hp (`fail-on-death`), rounds and health to walk over (`supplies`).
 - **The ground:** greybox. Each section's floor in its own value, the firing lines and the exit marked.
 
@@ -205,9 +211,8 @@ at a time on the runtime's own nav and takes a storey's stairs by their own ways
 the arrival).
 
 What the first runs found (machine gate only): with the shooter feel template, seed 1, the warehouse is won in about 85
-s with half the hp left, and the armoury in about 80 s with most of it. The hold's waves woke out of sight of the heart
-and did not come to it: the hunters do not cross the building's doorways and stairs to come for the body, so a
-building's hold is a clock more than a fight. A pilot steered onto a gallery's stair from its side walks under it:
+s with half the hp left, and the armoury in about 80 s with most of it. The hold's waves now come to it, up the stairs where
+it is on the storey over the ground (Their minds, above). A pilot steered onto a gallery's stair from its side walks under it:
 nothing stops a body under a stair's flight.
 
 ## The era it is read in

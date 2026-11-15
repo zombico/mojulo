@@ -21,7 +21,8 @@
  *     stage    the level's stage manifest (levels.js levelBuildingStage); spawn: its walker's feet (buildingEnds)
  *     mission  the composition missionCast, missionMechanics and missionUi consume, in the building's metres:
  *              { on: 'building', seed, heading, sections, primitives: [], anchors: { spawn, exit }, heart, cells,
- *                frame: { origin, cell, floors: [z0 a storey], stairs: [{ z0, z1, way: [[x, y], …] (up) }] } }
+ *                frame: { origin, cell, floors: [z0 a storey], stairs: [{ z0, z1, way: [[x, y], …] (up) }] },
+ *                floors?: the storey over the ground and its stairs, a mind's `rule.floors` (a hold's wave crosses) }
  *              (take and reach read at their height: `planar: false`, their `at` on the floor, lifted to the eye by
  *              missionTasks)
  *     laws     the phases' own on the grid (phaseLaws) and `placed-in-plan`: what was moved, what was left out
@@ -183,9 +184,18 @@ export function buildingMissionPlan(G, stage, { spec = {}, seed = null, spawn, h
       : `every place stands in its room on its floor, clear of the walls, the stairs and the stock${moved.length ? `; ${moved.length} moved off the grid's snap (${moved.slice(0, 3).map((m) => `${m.what} ${m.by} m in ${m.room}`).join(', ')}${moved.length > 3 ? ', …' : ''})` : ''}`,
   });
   const exitS = sections.findLast((S) => S.task?.kind === 'reach');
+  // the storey over the ground and the stairs up to it, for the minds a hold sends (missionCast; a mind's `rule.floors`):
+  // its rooms' and decks' reach, each stair from the ground a flight walked by its own points, a switchback's turn and
+  // all. One storey: a mind crosses the ground and the floor over it, and a storey higher is not handed to it
+  const upper = O.floors.length > 1 ? roomsOn(1) : [], ups = frame.stairs.filter((x) => Math.abs(x.z0 - O.floors[0]) < 0.05 && Math.abs(x.z1 - O.floors[1]) < 0.05);
+  const floors = upper.length && ups.length ? [{
+    area: [r2(Math.min(...upper.map((R) => R.box[0]))), r2(Math.min(...upper.map((R) => R.box[1]))), r2(Math.max(...upper.map((R) => R.box[2]))), r2(Math.max(...upper.map((R) => R.box[3])))],
+    z: O.floors[1], flights: ups.map((x) => ({ bottom: x.way[0].slice(), top: x.way.at(-1).slice(), way: x.way.map((q) => q.slice()) })),
+  }] : null;
   const mission = {
     on: 'building', seed: dice, heading: heading ?? G0.heading, sections, primitives: [],
     anchors: { spawn: spawn.slice(), exit: exitS ? exitS.task.at.slice() : spawn.slice() }, heart, cells: G0.cells, frame,
+    ...(floors ? { floors } : {}),
   };
   return { brief, mission, laws, map, moved, dropped };
 }

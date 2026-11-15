@@ -202,6 +202,14 @@ describe('the building still a level', () => {
       const t = d.trigger;
       expect(c.min[0] < t.max[0] && c.max[0] > t.min[0] && c.min[1] < t.max[1] && c.max[1] > t.min[1] && c.min[2] < t.max[2] && c.max[2] > t.min[2], `${c.of} in ${d.id}`).toBe(false);
     }
+    // (the gallery's doorway is floored through the wall's thickness at the deck's height: a body walks through level)
+    const P = planned(ANNEXED, true), Gp = P.galleries.find((g) => !g.lost), H = P.rooms.find((r) => r.id === Gp.hall), X = Gp.side.endsWith('x');
+    const line = X ? H.box[Gp.side === '-x' ? 0 : 2] : H.box[Gp.side === '-y' ? 1 : 3], zf = (H.z0 ?? 0) + Gp.z, mid = (Gp.lo + Gp.hi) / 2;
+    const sill = S.faces.filter((f) => f.normal[2] > 0.99 && f.corners.every((c) => Math.abs(c[2] - zf) < 1e-3)).some((f) => {
+      const a = f.corners.map((c) => c[X ? 0 : 1]), u = f.corners.map((c) => c[X ? 1 : 0]);
+      return Math.min(...a) <= line + 1e-6 && Math.max(...a) >= line - 1e-6 && Math.min(...u) <= mid && Math.max(...u) >= mid;
+    });
+    expect(sill).toBe(true);
     // (the level's route still runs from the way in to the goal room)
     const E = buildingEnds({ manifest: buildingStage(B), building: B });
     expect(E.via.length).toBeGreaterThan(1);

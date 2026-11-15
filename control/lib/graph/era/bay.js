@@ -205,6 +205,8 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       wallBox(out, F, c1, c1 + Dr.frame, sill, top, Dr.out, paint, paint.cell);
       wallBox(out, F, c0 - Dr.frame, c1 + Dr.frame, top, top + Dr.frame, Dr.out, paint, paint.cell, true);
       if (sill) wallBox(out, F, c0 - Dr.frame, c1 + Dr.frame, sill - Dr.frame, sill, Dr.out, paint, paint.cell, true);
+      // (and the wall's thickness round it, its floor through to the storey's: a doorway a body walks through level)
+      if (sill) reveal(out, F, c0, c1, sill, top, kit.wall, field);
       if (!sill) quad(out, [onWall(F, c0 - Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, Dr.sill, LIFT * 2), onWall(F, c0 - Dr.frame, Dr.sill, LIFT * 2)], Z, hz, null, null,
         [[0, 0], [(c1 - c0 + 2 * Dr.frame) / hz.scale, 0], [(c1 - c0 + 2 * Dr.frame) / hz.scale, Dr.sill / hz.scale], [0, Dr.sill / hz.scale]]);
       // (a bunker's door (B.fittings.leaf): its blast door parked over the opening, a slab as wide as the frame between

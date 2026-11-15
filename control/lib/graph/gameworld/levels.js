@@ -1554,7 +1554,9 @@ function missionBuilding(G, B) {
 /** A building level's stage with a mission laid in it: the building (missionBuilding), the phases placed in its rooms
  *  from its way in (mission-building.js), the page's `mission` from them. */
 export function missionBuildingStage(G, R, level) {
-  const manifest0 = missionBuilding(G, R.building), stage = { level, node: 'building', section: 'building', index: 0, building: R.building, manifest: manifest0 };
+  // (its rooms' ceilings laid as colliders, era/anchors.js: a storey's floor stops a sight and a round, so a foe under
+  // the pilot neither sees nor shoots it through the slab and comes up by the stair)
+  const manifest0 = { ...missionBuilding(G, R.building), ceilings: true }, stage = { level, node: 'building', section: 'building', index: 0, building: R.building, manifest: manifest0 };
   const ends = buildingEnds(stage), P = buildingMissionPlan(G, manifest0, { spec: R.mission.spec, seed: R.mission.seed, spawn: ends.spawn, heading: ends.heading });
   if (!P) throw new Error(`levels: ${level}.mission is laid from the guns the world carries, and this world carries none`);
   return { ...stage, label: G.levels[level]?.name ?? level, mission: P, manifest: { ...manifest0, mission: missionUi(G, P.mission, P.brief, { laws: P.laws }) } };

@@ -56,6 +56,27 @@ describe('a mission in a building, on its page', () => {
     }
   }, 400000);
 
+  it('its wave comes up the stairs: a still body on the upper storey, out of sight of the ground, is reached', async () => {
+    const p = await resolved(), F = M.floors[0];
+    // (the body stands on an upper-storey post the mission placed: a real room's floor)
+    const post = M.sections.flatMap((S) => S.foes).map((f) => f.at).find((at) => Math.abs(at[2] - F.z) < 0.05);
+    expect(post).toBeTruthy();
+    const ents = structuredClone(p.entities);
+    for (const e of ents) {
+      if (e.pilotable) e.transform.pos = [post[0], post[1], F.z + (e.rule.eye ?? 0)];
+      if (e.team === 'foes' && e.rule.floors) e.dormant = false;
+    }
+    const sent = ents.filter((e) => e.team === 'foes' && e.rule.floors).map((e) => e.id), low = ents.filter((e) => sent.includes(e.id) && e.transform.pos[2] < F.z - 0.4).length;
+    expect(low).toBeGreaterThan(0);
+    const sim = simLevel({ entities: ents, events: p.events || {}, colliders: p.colliders, camera: p.camera, world: p }, { ground: faceGround(pageGroundFaces(p.faces || [])) });
+    const me = sim.world.byId[sim.world.pilotId], came = new Set();
+    for (let k = 0; k < 50 / SIM_DT; k++) {
+      sim.frame(SIM_DT);
+      for (const id of sent) { const q = sim.world.byId[id].transform.pos; if (q[2] > F.z - 0.4 && Math.hypot(q[0] - me.transform.pos[0], q[1] - me.transform.pos[1]) < 10) came.add(id); }
+    }
+    expect(came.size, `${came.size} of ${sent.length} came`).toBeGreaterThanOrEqual(Math.ceil(sent.length * 0.75));
+  }, 400000);
+
   it('is played headless on its page: the gunner\'s result said, and a still player does not win', async () => {
     const p = await resolved();
     const R = playMission(p, M, { seconds: 240 });

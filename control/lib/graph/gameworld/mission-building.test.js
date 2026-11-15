@@ -89,6 +89,18 @@ describe('a mission in a building: the level', () => {
     expect(m.camera).toMatchObject({ rule: 'eye', mouseLook: true });
     expect(m.entities.filter((e) => e.team === 'foes').every((e) => e.dormant)).toBe(true);
     expect(m.mission.plan.on).toBe('building');
+    // (the storey over the ground handed to the wave a hold sends: its stairs from the ground, each walked by its own
+    // points; the storeys' floors colliders, so nothing is seen or shot through a slab; a sentry keeps its post's mind)
+    expect(st.manifest.ceilings).toBe(true);
+    const plan = planOf(st.manifest), z1 = plan.storeys[1].z0;
+    expect(M.floors).toHaveLength(1);
+    expect(M.floors[0].z).toBe(z1);
+    expect(M.floors[0].flights.length).toBe(plan.stairs.filter((x) => x.z0 === plan.storeys[0].z0 && x.z1 === z1).length);
+    for (const fl of M.floors[0].flights) { expect(fl.way.length).toBeGreaterThan(2); expect(fl.way[0]).toEqual(fl.bottom); expect(fl.way.at(-1)).toEqual(fl.top); }
+    const sent = m.entities.filter((e) => e.team === 'foes' && e.rule.floors);
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.every((e) => e.rule.mind.motivation === 'frag' && e.rule.navLedges === true)).toBe(true);
+    expect(sent.length).toBeLessThan(m.entities.filter((e) => e.team === 'foes').length);
     expect(m.mission.tasks.map((x) => x.kind)).toEqual(M.sections.map((S) => S.task.kind));
     expect(m.manaHud).toBeUndefined();
     expect(O.laws.every((l) => l.concern === 'mission')).toBe(true);

@@ -148,7 +148,7 @@ the plan's bytes are as they were) is the plan's answer to the laws it fails.
 - **stagger:** of two opposite wings one leaves the core from its back, so the core's side doorways do not face.
 - **stairs:** a stair room past each wing's far end with no annex, climbed by the building's switchback.
 - **gallery:** the tall annex's catwalk on the wall the wing meets, at the upper storey's floor, entered from that
-  storey and climbed to from the hall.
+  storey and climbed to from the hall. Its doorway is floored through the wall's thickness at the deck's height.
 - **cover:** the hall's own stock (`stocking.js` `HALL_COVER`), a baffle off each doorway and blocks on a seeded lattice
   of the arena's cells, the doorways, stairs and a lane kept clear.
 

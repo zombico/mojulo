@@ -143,3 +143,13 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   the three rooms' hold: said, not tuned. Minds keep to ramps (no ladder, no floor over a floor); a building's waves
   still come on their own floor. The seventeen runtime fixtures are re-pinned for the runtime's text; no path already
   made changes, since no mind already made asks.
+- **A wave crosses a building's storeys.** Two things kept a building's wave off the storey over the ground, each
+  found by tracing one foe. The gallery's doorway had no floor through the wall's thickness (`era/bay.js`: a sill
+  opening now takes its reveal, its floor at the deck's height), so a body on the gallery stopped at it. And a storey's
+  floor stopped no sight: a foe under the pilot saw it through the slab and fought from below, so a mission's building
+  now lays its rooms' ceilings as colliders (the stage's opt-in `ceilings`). With those, the building mission hands a
+  hold's wave the storey over the ground and each stair up to it, and a mind walks a flight that turns by its own points
+  (`rule.floors` `flights[].way`, `worlds/controllable/mind.js`). Measured headless in a warehouse, a still body in two
+  upper rooms out of sight of the ground: none of nine within 8 m before, all nine after; the gunner still wins the
+  building. One storey only (the floor over the ground). The seventeen runtime fixtures are re-pinned for the runtime's
+  text; no fixture's flight carries a `way`.

@@ -776,6 +776,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // reason. The pathfinder (worlds/controllable/nav.js) takes an opt-in `ledges`: a cell with no ground at the body's
 // height is shut as a wall is, asked of the ground a cell at a time as a path reaches it; a mind asks with
 // `rule.navLedges`. No fixture's mind asks, so every path is the colliders' as it was; only the runtime's text moved.
+// Re-pinned 2026-11-15 a third time (1115-shooting-rails: a wave crosses a building's storeys): the same seventeen,
+// for the same reason. A mind's flight (worlds/controllable/mind.js floorWay) takes an opt-in `way`, its points from the
+// foot up, walked a point at a time (a switchback's legs and landing). No fixture's flight carries one, so every walk
+// is foot to top as it was; only the runtime's text moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
