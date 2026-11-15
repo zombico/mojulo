@@ -245,8 +245,9 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     is not handed to her levels, `hero-rows.js` rowGaits).
   - She fights with her feel's kit (`arsenal: 'auto'`, `gameworld/compose.js`): the sword's strings and specials and
     the bow as the sidearm, where a game laid from a sentence had the one blow.
-  - A game's foe never locks blades with the hero (`rule.clash: false`, `worlds/controllable/combat-melee.js`): a swing
-    that meets its swing lands.
+  - Her foes never lock blades with her (the row's `foes.clash: false` → `rule.clash: false`,
+    `worlds/controllable/combat-melee.js`): a swing that meets their swing lands. The row's alone: every other game's
+    foes clash as they did.
   - Her foes are harder (a genre hero row's `foes`, `hero-rows.js` rowFoe): never floored by a string's finisher
     (`rule.topple: false`, `worlds/controllable/combat-hit.js`: a knockdown reels a living body), a temper up
     (relentless), quicker to answer (veteran), half again the health and a little faster. A boss keeps its own mind.

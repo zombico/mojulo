@@ -133,7 +133,7 @@ export const GENRE_HERO = fz({
     // (her foes: harder than the cast's as rolled. Never floored by a string's finisher (they reel and come on), a
     // temper up (relentless: they close faster and stand nearer), quicker to answer (veteran), half again the health
     // and a little faster on their feet. A boss keeps its own temper and phases)
-    foes: { topple: false, aggressiveness: 'relentless', skill: 'veteran', hp: 1.5, speed: 1.15 },
+    foes: { clash: false, topple: false, aggressiveness: 'relentless', skill: 'veteran', hp: 1.5, speed: 1.15 },
   },
 });
 
@@ -144,7 +144,8 @@ export const genreHero = (G) => GENRE_HERO[G?.intent?.from] ?? null;
  * bouncing run), less the jog where its genre row runs the library's run (`run: 'library'`). */
 export const rowGaits = (G, gaits) => (Array.isArray(gaits) && genreHero(G)?.run === 'library' ? gaits.filter((g) => g !== 'jog') : gaits);
 
-/** A game's foe as its genre row makes it (`foes`: { topple?, aggressiveness?, skill?, hp?, speed? }): never floored,
+/** A game's foe as its genre row makes it (`foes`: { clash?, topple?, aggressiveness?, skill?, hp?, speed? }): never
+ * locking blades with the hero (a swing that meets its swing lands, combat-melee.js `clash`), never floored,
  * its temper and its skill the row's (a boss keeps its own mind), its health and its speed scaled. Any other world's
  * foe, as it is. */
 export function rowFoe(G, e) {
@@ -153,7 +154,7 @@ export function rowFoe(G, e) {
   const boss = e.rule.mind?.rank === 'boss', r1 = (x) => Math.round(x * 10) / 10;
   const mind = e.rule.mind && !boss ? { ...e.rule.mind, ...(F.aggressiveness ? { aggressiveness: F.aggressiveness } : {}), ...(F.skill ? { skill: F.skill } : {}) } : e.rule.mind;
   return { ...e,
-    rule: { ...e.rule, ...(F.topple === false ? { topple: false } : {}), ...(mind ? { mind } : {}), ...(F.speed && Number.isFinite(e.rule.speed) ? { speed: r1(e.rule.speed * F.speed) } : {}) },
+    rule: { ...e.rule, ...(F.clash === false ? { clash: false } : {}), ...(F.topple === false ? { topple: false } : {}), ...(mind ? { mind } : {}), ...(F.speed && Number.isFinite(e.rule.speed) ? { speed: r1(e.rule.speed * F.speed) } : {}) },
     ...(e.body && F.hp && Number.isFinite(e.body.hp) ? { body: { ...e.body, hp: Math.round(e.body.hp * F.hp) } } : {}) };
 }
 

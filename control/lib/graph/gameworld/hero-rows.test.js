@@ -141,6 +141,7 @@ describe('how the genre\'s hero plays', () => {
     const e = { id: 'foe-1', team: 'foes', rule: { speed: 3.6, mind: { rank: 'minion', aggressiveness: 'bold', skill: 'regular' } }, body: { hp: 8 } };
     const F = GENRE_HERO['action-rpg'].foes, made = rowFoe(G, e);
     expect(made.rule.topple).toBe(false);
+    expect(made.rule.clash).toBe(false);
     expect(made.rule.mind).toMatchObject({ aggressiveness: F.aggressiveness, skill: F.skill, rank: 'minion' });
     expect(made.rule.speed).toBeGreaterThan(e.rule.speed);
     expect(made.body.hp).toBeGreaterThan(e.body.hp);
