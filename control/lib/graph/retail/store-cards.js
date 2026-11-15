@@ -1,7 +1,8 @@
 // The seeded concept cards. PURE DATA: every card here is plain JSON (the test round-trips each one),
 // so an agent can read one, copy it, and author its own inline in a `store` or `mall` manifest.
 // The mall's store types (apparel, electronics, cafe, bookstore, homewares, food, and department for
-// the anchors) key into this table by id; `wine-bar` is the card written with no code change.
+// the anchors) key into this table by id; `wine-bar` is the card written with no code change; the
+// street's cards (convenience, pharmacy, diner, pawn, gun-store) are let by a street's tenancy (store-enter.js).
 
 export const SEEDED_CARDS = Object.freeze({
   apparel: {
@@ -508,6 +509,580 @@ export const SEEDED_CARDS = Object.freeze({
           "layers": ["fittedShirt", "vest", "trousersSlim"]
         },
         "form": "#e2ddd3"
+      }
+    ]
+  },
+  // ── the street's cards (a town's and a city's shops walked into, store-slot.js): each light at a street's slot ──
+  "convenience": {
+    "id": "convenience",
+    "label": "Convenience store",
+    "finishes": {
+      "floor": "plain",
+      "floorTint": "#d6d4cc",
+      "wall": "paint",
+      "paint": "#eef0ee",
+      "sign": "#2f7d4f"
+    },
+    "palette": {
+      "merch": [
+        "#d94f3a",
+        "#e8c23a",
+        "#3a78c2",
+        "#4aa35c",
+        "#e07a2e"
+      ]
+    },
+    "entry": {
+      "at": 0.3
+    },
+    "cells": [
+      {
+        "archetype": "stockRoom"
+      }
+    ],
+    "zones": [
+      {
+        "role": "window",
+        "depth": [
+          0.0,
+          0.22
+        ]
+      },
+      {
+        "role": "browse",
+        "depth": [
+          0.22,
+          0.74
+        ]
+      },
+      {
+        "role": "service",
+        "depth": [
+          0.74,
+          1.0
+        ]
+      }
+    ],
+    "fixtures": [
+      {
+        "archetype": "gondola",
+        "zone": "browse",
+        "run": [
+          0.3,
+          0.72
+        ],
+        "rows": 3
+      },
+      {
+        "archetype": "fridgeCase",
+        "zone": "browse",
+        "wall": "right",
+        "run": [
+          0.1,
+          0.96
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "browse",
+        "wall": "left",
+        "run": [
+          0.3,
+          0.96
+        ]
+      },
+      {
+        "archetype": "counter",
+        "zone": "service",
+        "run": [
+          0.06,
+          0.5
+        ],
+        "depth": 0.35,
+        "tint": "#3d4a44"
+      },
+      {
+        "archetype": "fridgeCase",
+        "zone": "service",
+        "wall": "back",
+        "run": [
+          0.56,
+          0.96
+        ]
+      }
+    ]
+  },
+  "pharmacy": {
+    "id": "pharmacy",
+    "label": "Pharmacy",
+    "finishes": {
+      "floor": "marble",
+      "floorTint": "#e2e4e2",
+      "wall": "paint",
+      "paint": "#f1f3f2",
+      "sign": "#3a8f8a"
+    },
+    "palette": {
+      "merch": [
+        "#f0f0ec",
+        "#7fb8b2",
+        "#c9d8e4",
+        "#e39a9a",
+        "#8fa7c7"
+      ]
+    },
+    "entry": {
+      "at": 0.5
+    },
+    "cells": [
+      {
+        "archetype": "stockRoom"
+      }
+    ],
+    "zones": [
+      {
+        "role": "window",
+        "depth": [
+          0.0,
+          0.12
+        ]
+      },
+      {
+        "role": "browse",
+        "depth": [
+          0.12,
+          0.56
+        ]
+      },
+      {
+        "role": "service",
+        "depth": [
+          0.56,
+          0.86
+        ]
+      },
+      {
+        "role": "back",
+        "depth": [
+          0.86,
+          1.0
+        ]
+      }
+    ],
+    "fixtures": [
+      {
+        "archetype": "podium",
+        "zone": "window",
+        "at": [
+          0.18,
+          0.82
+        ]
+      },
+      {
+        "archetype": "gondola",
+        "zone": "browse",
+        "run": [
+          0.12,
+          0.4
+        ],
+        "rows": 2
+      },
+      {
+        "archetype": "gondola",
+        "zone": "browse",
+        "run": [
+          0.6,
+          0.88
+        ],
+        "rows": 2
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "browse",
+        "wall": "left",
+        "run": [
+          0.04,
+          0.96
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "browse",
+        "wall": "right",
+        "run": [
+          0.04,
+          0.96
+        ]
+      },
+      {
+        "archetype": "counter",
+        "zone": "service",
+        "run": [
+          0.2,
+          0.8
+        ],
+        "depth": 0.3,
+        "tint": "#dfe5e3"
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "back",
+        "wall": "back",
+        "run": [
+          0.04,
+          0.36
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "back",
+        "wall": "back",
+        "run": [
+          0.64,
+          0.96
+        ]
+      }
+    ]
+  },
+  "diner": {
+    "id": "diner",
+    "label": "Diner",
+    "finishes": {
+      "floor": "marble",
+      "floorTint": "#c9c2b6",
+      "wall": "wainscot",
+      "sign": "#b23a34"
+    },
+    "palette": {
+      "merch": [
+        "#b23a34",
+        "#e8dcc4",
+        "#3f6f7a"
+      ]
+    },
+    "entry": {
+      "at": 0.2
+    },
+    "cells": [
+      {
+        "archetype": "stockRoom"
+      },
+      {
+        "archetype": "restroom"
+      }
+    ],
+    "zones": [
+      {
+        "role": "window",
+        "depth": [
+          0.0,
+          0.08
+        ]
+      },
+      {
+        "role": "browse",
+        "depth": [
+          0.08,
+          0.84
+        ]
+      },
+      {
+        "role": "service",
+        "depth": [
+          0.84,
+          1.0
+        ]
+      }
+    ],
+    "fixtures": [
+      {
+        "archetype": "banquette",
+        "zone": "browse",
+        "wall": "right",
+        "run": [
+          0.06,
+          0.7
+        ],
+        "tint": "#b23a34"
+      },
+      {
+        "archetype": "tableSet",
+        "zone": "browse",
+        "grid": [
+          1,
+          2
+        ],
+        "run": [
+          0.62,
+          0.86
+        ],
+        "size": "two"
+      },
+      {
+        "archetype": "counter",
+        "zone": "browse",
+        "run": [
+          0.06,
+          0.34
+        ],
+        "depth": 0.5,
+        "bar": true,
+        "tint": "#6b6f73"
+      },
+      {
+        "archetype": "stool",
+        "along": "counter",
+        "pitch": 2.4
+      },
+      {
+        "archetype": "backBar",
+        "zone": "service",
+        "run": [
+          0.5,
+          0.72
+        ]
+      }
+    ]
+  },
+  "pawn": {
+    "id": "pawn",
+    "label": "Pawn shop",
+    "finishes": {
+      "floor": "floorboards",
+      "floorTint": "#6f5a45",
+      "wall": "brick",
+      "sign": "#c9a03a"
+    },
+    "palette": {
+      "merch": [
+        "#c9a03a",
+        "#7a7f86",
+        "#4a3a2e",
+        "#9c4a3a",
+        "#3f5a6a"
+      ]
+    },
+    "entry": {
+      "at": 0.5
+    },
+    "cells": [
+      {
+        "archetype": "stockRoom"
+      }
+    ],
+    "zones": [
+      {
+        "role": "window",
+        "depth": [
+          0.0,
+          0.14
+        ]
+      },
+      {
+        "role": "browse",
+        "depth": [
+          0.14,
+          0.54
+        ]
+      },
+      {
+        "role": "service",
+        "depth": [
+          0.54,
+          0.86
+        ]
+      },
+      {
+        "role": "back",
+        "depth": [
+          0.86,
+          1.0
+        ]
+      }
+    ],
+    "fixtures": [
+      {
+        "archetype": "podium",
+        "zone": "window",
+        "at": [
+          0.15,
+          0.85
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "browse",
+        "wall": "left",
+        "run": [
+          0.04,
+          0.96
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "browse",
+        "wall": "right",
+        "run": [
+          0.04,
+          0.96
+        ]
+      },
+      {
+        "archetype": "podium",
+        "zone": "browse",
+        "grid": [
+          1,
+          2
+        ],
+        "run": [
+          0.4,
+          0.6
+        ]
+      },
+      {
+        "archetype": "counter",
+        "zone": "service",
+        "run": [
+          0.18,
+          0.82
+        ],
+        "depth": 0.3,
+        "tint": "#3a2f28"
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "back",
+        "wall": "back",
+        "run": [
+          0.04,
+          0.36
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "back",
+        "wall": "back",
+        "run": [
+          0.64,
+          0.96
+        ]
+      }
+    ]
+  },
+  "gun-store": {
+    "id": "gun-store",
+    "label": "Gun store",
+    "finishes": {
+      "floor": "plain",
+      "floorTint": "#8a8780",
+      "wall": "paint",
+      "paint": "#c9c4b8",
+      "sign": "#5a5f3a"
+    },
+    "palette": {
+      "merch": [
+        "#2e2f31",
+        "#5a4a3a",
+        "#6a6f5a",
+        "#8a7f6a"
+      ]
+    },
+    "entry": {
+      "at": 0.5
+    },
+    "cells": [
+      {
+        "archetype": "stockRoom"
+      }
+    ],
+    "zones": [
+      {
+        "role": "window",
+        "depth": [
+          0.0,
+          0.1
+        ]
+      },
+      {
+        "role": "browse",
+        "depth": [
+          0.1,
+          0.5
+        ]
+      },
+      {
+        "role": "service",
+        "depth": [
+          0.5,
+          0.84
+        ]
+      },
+      {
+        "role": "back",
+        "depth": [
+          0.84,
+          1.0
+        ]
+      }
+    ],
+    "fixtures": [
+      {
+        "archetype": "hangerRun",
+        "zone": "browse",
+        "wall": "left",
+        "run": [
+          0.1,
+          0.96
+        ]
+      },
+      {
+        "archetype": "podium",
+        "zone": "browse",
+        "grid": [
+          1,
+          2
+        ],
+        "run": [
+          0.55,
+          0.8
+        ]
+      },
+      {
+        "archetype": "counter",
+        "zone": "service",
+        "run": [
+          0.06,
+          0.94
+        ],
+        "depth": 0.3,
+        "tint": "#2f3133"
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "back",
+        "wall": "back",
+        "run": [
+          0.04,
+          0.36
+        ]
+      },
+      {
+        "archetype": "shelfWall",
+        "zone": "back",
+        "wall": "back",
+        "run": [
+          0.64,
+          0.96
+        ]
+      },
+      {
+        "archetype": "wallArt",
+        "zone": "browse",
+        "wall": "right",
+        "run": [
+          0.2,
+          0.7
+        ]
       }
     ]
   },

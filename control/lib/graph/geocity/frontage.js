@@ -186,7 +186,8 @@ export function frontsOf(wall, spec, R) {
     const { lob, bays } = shopBays(L, spec.ground, spec.open ? FRONTAGE.shop.enter : FRONTAGE.shop.least), pieceOf = (i) => (spec.open === true || spec.open?.includes?.(i) ? 'shopopen' : 'shop');
     if (lob) put('lobby', L / 2, z0, { frame: pick(P.frame), canopy: pick(P.rail) }, sc(1, Math.max(0.85, floorH / FRONTAGE.lobby.h)));
     for (const [i, { u, w }] of bays.entries()) {
-      const frame = pick(P.shop), sign = pick(P.sign);
+      // (an open shop's sign its store's own colour, `signs`, where it is told one)
+      const frame = pick(P.shop), sign0 = pick(P.sign), sign = spec.signs?.[i] ?? sign0;
       put(pieceOf(i), u, z0, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
       if (R() < FRONTAGE.shop.awning) put('awning', u, z0, { awning: pick(P.awning) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
     }

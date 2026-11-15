@@ -9,11 +9,11 @@
  *   SLOT                          the slot's numbers: the least it holds, the wall it keeps inside the building's, its
  *                                 floor's lift over the pad, its ring, the faces an inside is held to, the steps a
  *                                 size is rounded to (so shops of one size share one template)
- *   readEnter, ENTER_CARDS        a place's `enter` and the cards a street takes (store-enter.js)
+ *   readEnter, tenantOf, TENANCY  a place's `enter` and the stores a street lets to (store-enter.js)
  *   slotOf({ w, d, h, door: { x, w } }) → the slot rounded to its steps, { w, d, h, door, slack: [x, y], key }, or
  *                                 null when it holds no store. `w` along the front, `d` into the building, `h` the
  *                                 storey's clear height, `door.x` its centre from the slot's left as you walk in; metres
- *   storeSlot(card, slot, { seed? }) → { card, key, faces, boxes, inside, door, till, faceCount, assessment, shed,
+ *   storeSlot(card, slot, { seed? }) → { card, key, sign?, faces, boxes, inside, door, till, faceCount, assessment, shed,
  *                                 degraded } in the SLOT FRAME: the origin the door's centre at the floor on the front
  *                                 line, +x your right hand as you walk in, +y into the store, +z up; metres
  *   openingLess(faces, rect)      a wall's faces less a door's opening ({ x0, x1, z0, z1, y0, y1 }: the opening and
@@ -26,9 +26,9 @@
 import { buildStandaloneStore } from './store-concept.js';
 import { assessStoreConcept } from './store-assess.js';
 import { resolveCard } from './store-cards.js';
-import { ENTER_CARDS, ENTER_NEAR, readEnter } from './store-enter.js';
+import { ENTER_CARDS, ENTER_NEAR, TENANCY, readEnter, tenantOf } from './store-enter.js';
 
-export { ENTER_CARDS, readEnter };
+export { ENTER_CARDS, TENANCY, readEnter, tenantOf };
 
 const FT = 0.3048;
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -101,7 +101,7 @@ export function storeSlot(cardIn, slot, { seed } = {}) {
   const counter = s.fitOut.placements.find((p) => p.archetype === 'counter'), cq = counter ? rectIn(s.salesFrame, counter) : null;
   const A = assessStoreConcept(card, s), inv = A.findings.filter((f) => f.severity === 'invariant');
   return {
-    card: card0.id, key, faces, boxes, faceCount: faces.length,
+    card: card0.id, key, faces, boxes, faceCount: faces.length, ...(card0.finishes?.sign ? { sign: card0.finishes.sign } : {}),
     inside: { x0: r5(-ex * FT), x1: r5((Wf - ex) * FT), y0: 0, y1: slot.d, h: r5(slot.h + SLOT.lift) },
     door: { x: 0, w: r5(s.entry.width * FT) },
     // (the till: before the counter, on the door's side of it)

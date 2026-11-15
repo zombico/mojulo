@@ -36,7 +36,7 @@
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only.
  */
 import { designGeotown, DRIVE_STAND } from './design.js';
-import { SLOT, slotOf, storeSlot, openingLess, rectLess } from '../retail/store-slot.js';
+import { SLOT, slotOf, storeSlot, tenantOf, openingLess, rectLess } from '../retail/store-slot.js';
 import { SURFACES } from './pattern.js';
 import { readGeocube, cubeBuildings, settlementStyle, CUBE_STREET_PAINT, geocubeReadout } from '../era/geocube.js';
 import { readPaint, cubeLookSpec, lookLight, hourSky } from '../city/plan/look.js';
@@ -340,13 +340,16 @@ export function assembleGeotownScene(m, ctx = {}) {
   const builtOf = {};
   // the shops walked into (the town's `enter`, read.js): each shop of a row its card by its own dice, built to its slot once a size
   // (retail/store-slot.js), stamped where it stands and drawn near the camera only
-  const enter = d.spec.enter ?? null, stores = new Map(), entered = [];
+  const enter = d.spec.enter ?? null, stores = new Map(), entered = [], tenantPrev = new Map();
   const storeOf = (pl, house) => {
     if (!enter || !pl.shopfront || house.mirror) return null;
     const dz = house.design, env = pl.house.env, T = SLOT.wall, sg = pl.ex[0] * pl.ey[1] - pl.ex[1] * pl.ey[0] < 0 ? -1 : 1;
     const slot = slotOf({ w: env[2] - env[0] - 2 * T, d: pl.house.depth - 2 * T, h: dz.dims.storeyH - 0.2, door: { x: (sg > 0 ? house.doorU - env[0] : env[2] - house.doorU) - T, w: dz.dims.doorW } });
     if (!slot) return null;
-    const card = enter.cards[Math.floor(streamOf(seed, 'tenant', pl.id)() * enter.cards.length)], key = `${card}:${slot.key}`;
+    // (its tenant by its street's tenancy, never its row neighbour's: a main street's, an avenue's, an old town's)
+    const rk = `${pl.block}:${pl.side}`, street = pl.kind === 'avenue' ? 'avenue' : P.id === 'old-town' ? 'old-town' : 'main-street';
+    const card = tenantOf(street, streamOf(seed, 'tenant', pl.id), { cards: enter.cards, prev: tenantPrev.get(rk) ?? null }), key = `${card}:${slot.key}`;
+    tenantPrev.set(rk, card);
     if (!stores.has(key)) stores.set(key, { S: storeSlot(card, slot), transforms: [] });
     return { ...stores.get(key), key, sg };
   };
@@ -370,7 +373,8 @@ export function assembleGeotownScene(m, ctx = {}) {
       if (pl.duplex) Kf = { ...Kf, doors: 2, porch2: true, porch: Kf?.porch ?? 'door' };
       // (a shop walked into, `enter`: its store, and its front open: its glass seen through)
       const doorU = env[0] + (mirror ? envW - dx : dx), store = storeOf(pl, { design: dz, mirror, doorU });
-      if (store && Kf?.shop) Kf = { ...Kf, shop: { ...Kf.shop, open: true } };
+      // (its sign in its store's own colour: a sign agrees with its inside)
+      if (store && Kf?.shop) Kf = { ...Kf, shop: { ...Kf.shop, open: true, ...(store.S.sign ? { signHex: store.S.sign } : {}) } };
       const front = K ? frontOf(fitFront(Kf, env[1]), { W: dz.dims.W0, n: dz.dims.n, storeyH: dz.dims.storeyH, doorX: dx, doorW: dz.dims.doorW }) : null;
       house = { design: dz, mirror, doorU, kit: K, front, porch: front?.porch ?? 0, store };
     }

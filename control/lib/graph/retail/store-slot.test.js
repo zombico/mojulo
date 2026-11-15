@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { SLOT, ENTER_CARDS, slotOf, storeSlot, openingLess, rectLess } from './store-slot.js';
+import { SLOT, ENTER_CARDS, TENANCY, tenantOf, readEnter, slotOf, storeSlot, openingLess, rectLess } from './store-slot.js';
+import { mulberry32 } from '../city/plan/dice.js';
 import { SEEDED_CARDS } from './store-cards.js';
 
 // one slot a town's shop gives (a 7 m front, its door off its middle), one card: the lightest of the street's
@@ -49,8 +50,31 @@ describe('a store in a slot', () => {
   it('is the same bytes twice', () => {
     expect(JSON.stringify(storeSlot('electronics', slot))).toBe(JSON.stringify(S));
   });
-  it('the street\'s cards are seeded cards', () => {
+  it('every card a street lets to is a seeded card', () => {
     for (const id of ENTER_CARDS) expect(SEEDED_CARDS[id]).toBeTruthy();
+  });
+});
+
+describe('a street\'s tenancy', () => {
+  const street = Object.keys(TENANCY)[0], T = TENANCY[street];
+  it('lets by its shares, the same dice the same tenant', () => {
+    const R = mulberry32(5), n = {};
+    for (let i = 0; i < 2000; i++) { const id = tenantOf(street, R); n[id] = (n[id] ?? 0) + 1; }
+    expect(Object.keys(n).sort()).toEqual(Object.keys(T).sort());
+    const [most] = Object.entries(T).sort((a, b) => b[1] - a[1])[0], [least] = Object.entries(T).sort((a, b) => a[1] - b[1])[0];
+    expect(n[most]).toBeGreaterThan(n[least]);
+    expect(tenantOf(street, mulberry32(9))).toBe(tenantOf(street, mulberry32(9)));
+  });
+  it('never lets to its neighbour\'s tenant where another may be had, and keeps to the cards a place names', () => {
+    const R = mulberry32(3);
+    let prev = null;
+    for (let i = 0; i < 200; i++) { const id = tenantOf(street, R, { prev }); expect(id).not.toBe(prev); prev = id; }
+    for (let i = 0; i < 50; i++) expect(['cafe', 'food']).toContain(tenantOf(street, R, { cards: ['cafe', 'food'] }));
+    expect(tenantOf(street, R, { cards: ['cafe'], prev: 'cafe' })).toBe('cafe');
+  });
+  it('reads a place\'s setting: its own cards, or none (the street\'s)', () => {
+    expect(readEnter(true).cards).toBeNull();
+    expect(readEnter({ cards: ['cafe'] }).cards).toEqual(['cafe']);
   });
 });
 

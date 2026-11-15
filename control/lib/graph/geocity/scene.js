@@ -59,7 +59,7 @@ import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates } from './kit.js';
 import { frontageTemplates, frontsOf, wallsOf, shopBays, shopRise, FRONTAGE, FACINGS } from './frontage.js';
-import { SLOT, slotOf, storeSlot } from '../retail/store-slot.js';
+import { SLOT, slotOf, storeSlot, tenantOf } from '../retail/store-slot.js';
 import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws } from './flow.js';
@@ -284,7 +284,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
   // THE FRONTAGE (frontage.js): each building's walls as the street sees them, recorded as it is laid (its boxes, its
   // storeys, its use, the walls inside it), dressed once the cameras say which are near a person's eye
-  const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null, open = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house, ...(open ? { open } : {}) }); };
+  const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null, open = null, signs = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house, ...(open ? { open, signs } : {}) }); };
   const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // a site's machines (SITE above): the crane drawn within its district's reach of the camera, the machines inside its
@@ -344,7 +344,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     const wl = wallsOf(q)[s], n = FACINGS[s], t = [-n[1], n[0]], T = SLOT.wall, k = s === 's' || s === 'n' ? 0 : 1, deep = k === 0 ? q[3] - q[1] : q[2] - q[0];
     const D = { ...FRONTAGE.shop.door, ...FRONTAGE.shop.open }, zs = shopRise(STOREY), wi = faces.length - 4 + ['s', 'e', 'n', 'w'].indexOf(s), C = holder !== null ? colliders.pop() : null;
     let wall = [faces[wi]], held = C ? [[C.min[0], C.min[1], C.max[0], C.max[1]]] : [];
-    const opened = [];
+    // (each bay's tenant by its street's tenancy, never the bay's before it; its sign in its store's own colour)
+    const opened = [], signs = {};
+    let prev = null;
     shopBays(wl.L, 'shops', FRONTAGE.shop.enter).bays.forEach(({ u, w }, i) => {
       const su = w / FRONTAGE.shop.w, ud = u + D.u * su, dw = D.w * su;
       const slot = slotOf({ w: w - 2 * T, d: deep - 2 * T, h: STOREY - 0.2, door: { x: ud - (u - w / 2 + T), w: dw } });
@@ -363,7 +365,8 @@ export function assembleGeocityScene(m, ctx = {}) {
         put([[...Cc, zb], [...B, zb], [...B, zt], [...Cc, zt]], 'geocity:stoop', col.retain, [t[0], t[1], 0]);
         if (holder !== null) colliders.push({ min: P3([Math.min(A[0], Cc[0]), Math.min(A[1], Cc[1]), zb]), max: P3([Math.max(A[0], Cc[0]), Math.max(A[1], Cc[1]), zt]), of: `${b.id}:stoop` });
       }
-      const id = `${b.id}:${s}:${Math.round(wl.a[0])},${Math.round(wl.a[1])}:${i}`, card = ENTER.cards[Math.floor(streamOf(seed, 'tenant', id)() * ENTER.cards.length)], key = `${card}:${slot.key}`;
+      const id = `${b.id}:${s}:${Math.round(wl.a[0])},${Math.round(wl.a[1])}:${i}`, card = tenantOf(b.kind === 'edge' ? 'avenue' : 'main-street', streamOf(seed, 'tenant', id), { cards: ENTER.cards, prev }), key = `${card}:${slot.key}`;
+      prev = card;
       if (!cityStores.has(key)) cityStores.set(key, { S: storeSlot(card, slot), transforms: [] });
       const { S: St, transforms } = cityStores.get(key), In = St.inside, o = [wl.a[0] + t[0] * ud - n[0] * 0.15, wl.a[1] + t[1] * ud - n[1] * 0.15, z0];
       const pt = (x, y) => [o[0] + t[0] * x - n[0] * y, o[1] + t[1] * x - n[1] * y];
@@ -377,11 +380,12 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       transforms.push({ pos: P3(o), rotZ: r5(Math.atan2(t[1], t[0])) });
       opened.push(i);
+      if (St.sign) signs[i] = St.sign;
       entered.push({ id, block: b.id, key, S: St, rise: r5(Math.max(0, rise)), door: o, N: n, in: pt(0, 1), out: pt(0, -1), ...(St.till ? { till: P3([...pt(St.till[0], St.till[1]), z0 + St.till[2]]) } : {}), inside: { min: P3([I[0], I[1], z0]), max: P3([I[2], I[3], z0 + In.h]) } });
     });
     faces.splice(wi, 1, ...wall);
     if (C) for (const r of held) colliders.push({ ...C, min: P3([r[0], r[1], C.min[2]]), max: P3([r[2], r[3], C.max[2]]) });
-    return opened;
+    return { open: opened, signs };
   };
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
     shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, z1 - Math.min(0.3, (z1 - z0) / 4), z1, group, true);
@@ -1346,7 +1350,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         box(q[0], q[1], q[2], q[3], z0, z0 + st * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
         // (its shops on its street, flats or offices over them)
         // (walked into, `enter`: its bays opened, those its walk can step up to; its front lays them open)
-        frontOf(b, q, z0, st, STOREY, group === 'geocity:avenue' ? 'office' : 'residential', { only: [s], ...(ENTER ? { open: openShops(b, s, q, z0, z0 + st * STOREY + 0.6) } : {}) });
+        frontOf(b, q, z0, st, STOREY, group === 'geocity:avenue' ? 'office' : 'residential', { only: [s], ...(ENTER ? openShops(b, s, q, z0, z0 + st * STOREY + 0.6) : {}) });
       }
     };
     const onLong = (rank) => sides.find((s) => (rank === 'arterial' ? b.sides[s].kind === 'arterial' : b.sides[s].rank === rank));
@@ -1718,7 +1722,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a house its door on its street, windows round it)
       // (a row of shops walked into: its ground its shops, each open)
       const side = F.b.sides?.[f], ground = F.open ? 'shops' : F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
-      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: true } : {}) }, R)) {
+      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs } : {}) }, R)) {
         (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
       }
       counts.fronts = (counts.fronts ?? 0) + 1;

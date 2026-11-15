@@ -25,7 +25,7 @@ result, and a degrade pass scales it down to small units.
 - `mall`: every bay takes the seeded card for its store type (tenants cycle `apparel`, `electronics`, `cafe`,
   `bookstore`, `homewares`; the food court is `food`; both anchors are `department`). `cards` overrides by store
   type or by bay index; `cards: false` leaves the bays bare. `levels: 2` builds the atrium mall.
-- Seeded cards: `apparel`, `electronics`, `cafe`, `bookstore`, `homewares`, `department`, `food`, `wine-bar`.
+- Seeded cards: `apparel`, `electronics`, `cafe`, `bookstore`, `homewares`, `department`, `food`, `wine-bar`. The street's: `convenience`, `pharmacy`, `diner`, `pawn`, `gun-store` (a geotown's or a geocity's `enter` lets its shops to them: the `geocube` card).
   Start from one of these and edit it; that is the fastest route to a new store.
 
 ## The card

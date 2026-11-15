@@ -157,7 +157,7 @@ A cube that names no domains offers one per terrain and one per interior.
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
   `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
   each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
-  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, profile?, slope?, access?, blocks?, margin? }`: `evoke` how
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, profile?, slope?, access?, blocks?, margin?, enter? }`: `enter` (`true`, or `{ cards?: [a store card's id…], near?: metres }`) has its rows of shops WALKED INTO, each a store from a concept card (the `store` card's: its street's tenancy lets clothing, books, homewares, a convenience store, a diner, a pharmacy, a pawn shop, electronics, a gun store; `cards` names its own) behind its own door, its glass seen through, its inside drawn only within `near` (40 m) of the camera, its anchor carrying `store: { card, door, till, inside }`; `evoke` how
   it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
   six or eight, mostly semis, a share of the pairs split into two flats each (`pattern.duplex`: two doors at the porch,
   a porch over the porch, a steel stair up the back), each a type of its pattern with a bay, a porch, its own roof,
@@ -260,7 +260,7 @@ A cube that names no domains offers one per terrain and one per interior.
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
   bins, hydrants, hydro poles, street trees and tiled ground); `lively` the share of each ring's blocks going up
-  (scaffolding, a crane, hoarding, barriers), parked or vacant; `geotowns` the geotown composed in at any grain, anywhere:
+  (scaffolding, a crane, hoarding, barriers), parked or vacant; `enter` (as a geotown's) its rows of shops along its main streets and its neighbourhoods' edges walked into, each bay a store behind its own door and a stoop up from its walk (a `shop` anchor each; shops of one size share one inside; a row too high over its walk stays shut), a geotown composed in taking it too; `geotowns` the geotown composed in at any grain, anywhere:
   `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
   { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;
   `metro` a card (`lakeshore`, a Toronto by
