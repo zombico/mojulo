@@ -10,9 +10,13 @@
  *     sections             the sections in order (sections.js SECTIONS), in place of the ones the kit's bands choose
  *     foes                 how many the lane stands (1 to 6, 3): every fight section in proportion
  *     hold, waves          the holdout's clock (15 to 180 s, 40) and its waves (1 to 5, 3)
+ *     map                  fought on a fighting map in place of the line (arena-map/): true (the map the kit's longest
+ *                          band picks, MISSION_MAPS) or a template's id (arena-map/templates.js TEMPLATE_IDS)
  *     (gun                 the emplacement's mounted gun: a gap, refused with what it waits on: sections.js)
  *   missionBrief(G, spec) → { guns: [{ name, band }], serves: { close, mid, long }, sections: [kind], yard, run, eye, width,
- *                             scale, hold, waves, camera, why: { <need>: words } } | null (a world with no guns)
+ *                             scale, hold, waves, camera, map: { template } | null, why: { <need>: words } } | null (a world
+ *                             with no guns)
+ *   MISSION_MAPS         { <the kit's longest band>: { template, why } }: the map `map: true` picks
  *
  * Pure, no dice.
  */
@@ -20,14 +24,23 @@ import { loadoutOf } from '../gameworld/loadout.js';
 import { ARMS_KIT } from '../gameworld/arms-kit.js';
 import { feelCard } from '../gameworld/feel/lower.js';
 import { SECTIONS, SECTION_IDS, ARCHETYPE_BAND, FIRE_BAND } from './sections.js';
+import { TEMPLATE_IDS } from '../arena-map/templates.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['seed', 'sections', 'foes', 'hold', 'waves'];
+const KEYS = ['seed', 'sections', 'foes', 'hold', 'waves', 'map'];
 // (asked for by name so it can be answered: readMission says what it waits on)
 const GAPS = ['gun'];
 export const MISSION_LIMITS = Object.freeze({ sections: [2, 8], foes: [1, 6], hold: [15, 180], waves: [1, 5] });
 export const MISSION_DEFAULTS = Object.freeze({ foes: 3, hold: 40, waves: 3 });
+// the map a kit is fought on, by the longest band it serves: close guns alone a tower, where every fight is across a
+// room or down a well; the mid band a court under a gallery; a long gun the figure of eight, the longest lines of the
+// templates (none is sized for the long band yet: arena-map's templates are the mid band's)
+export const MISSION_MAPS = Object.freeze({
+  close: Object.freeze({ template: 'stack', why: 'close guns alone: a tower round a well, every fight across a room or up and down' }),
+  mid: Object.freeze({ template: 'courtyard', why: 'the mid band: a court under a gallery, the court the heart both rings see' }),
+  long: Object.freeze({ template: 'figure-eight', why: 'a long gun: the figure of eight, the longest lines the templates have (none is sized for the long band yet)' }),
+});
 
 /** A level's `mission`, read. */
 export function readMission(v, at = 'mission') {
@@ -48,6 +61,7 @@ export function readMission(v, at = 'mission') {
   }
   for (const k of ['foes', 'waves']) if (v[k] !== undefined) { if (!Number.isInteger(v[k]) || v[k] < L[k][0] || v[k] > L[k][1]) no(`.${k} is ${L[k][0]} to ${L[k][1]}`); out[k] = v[k]; }
   if (v.hold !== undefined) { if (!Number.isFinite(v.hold) || v.hold < L.hold[0] || v.hold > L.hold[1]) no(`.hold is the seconds the yard is held, ${L.hold[0]} to ${L.hold[1]}`); out.hold = v.hold; }
+  if (v.map !== undefined) { if (v.map !== true && !TEMPLATE_IDS.includes(v.map)) no(`.map is true (the map the kit picks) or a template: ${TEMPLATE_IDS.join(', ')}`); out.map = v.map; }
   // (the emplacement and its gun: a gap, said with what would close it; nothing is laid half)
   if (v.gun !== undefined) no(`.gun asks for the emplacement, which is designed, not built: ${SECTIONS.emplacement.gap}`);
   return out;
@@ -82,8 +96,10 @@ export function missionBrief(G, spec = {}) {
   why.yard = yard === 'mid' ? 'the yard is held at the mid band: a gun carried reaches it' : 'the yard is a room\'s length: no gun carried reaches further';
   const foes = spec.foes ?? MISSION_DEFAULTS.foes;
   why.foes = `${foes} down the lane, every fight in proportion`;
+  const top = serves.long ? 'long' : serves.mid ? 'mid' : 'close', map = spec.map === undefined ? null : { template: spec.map === true ? MISSION_MAPS[top].template : spec.map };
+  if (map) why.map = spec.map === true ? MISSION_MAPS[top].why : `the ${map.template} map, written on the level`;
   return {
     guns, serves, sections, yard, run, eye: 1.7, width, scale: foes / MISSION_DEFAULTS.foes,
-    hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, camera: G?.camera ?? null, why,
+    hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, camera: G?.camera ?? null, map, why,
   };
 }

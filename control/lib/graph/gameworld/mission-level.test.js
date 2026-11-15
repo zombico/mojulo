@@ -104,10 +104,7 @@ const order = (W, heroRef = null) => { const G = readGameworld(W), st = gameStag
 describe('a mission as a level', () => {
   it('is read with the world, and refused beside another form or in a world with no gun', () => {
     expect(readGameworld(LEVELLED).levels.one.mission).toBe(true);
-    // (beside a walk or a geotown it is laid on that ground: see below; its foes and its tasks are its own either way)
-    expect(readGameworld({ ...LEVELLED, levels: { one: { mission: true, walk: { nodes: { a: { trail: true } } } } } }).levels.one.mission).toBe(true);
-    expect(() => readGameworld({ ...LEVELLED, levels: { one: { mission: true, walk: { nodes: { a: { trail: true } } }, foes: 2 } } })).toThrow(/its foes and its tasks are its own: no foes beside it/);
-    expect(() => readGameworld({ ...LEVELLED, levels: { one: { mission: true, places: {} } } })).toThrow(/holds no places/);
+    expect(() => readGameworld({ ...LEVELLED, levels: { one: { mission: true, walk: { nodes: { a: { trail: true } } } } } })).toThrow(/a mission level is the mission alone/);
     expect(() => readGameworld({ ...LEVELLED, levels: { one: { mission: { pace: 1 } } } })).toThrow(/not a mission setting/);
     expect(() => readGameworld({ ...LEVELLED, feel: UNARMED })).toThrow(/this world carries none/);
   });
@@ -122,6 +119,9 @@ describe('a mission as a level', () => {
     expect(m.game.complete).toBe(false);
     expect(Array.isArray(m.mission.tasks)).toBe(true);
     expect(L.laws.every((l) => l.concern === 'mission' && l.holds)).toBe(true);
+    // a sealed way puts the body back where it is carried: at its eye over the floor, as it was set down
+    const O = m.game.mechanics[0], S = st.mission.mission.sections.find((x) => x.door), T = O.tasks.find((t) => t.id === S.id);
+    expect(T.door.back[2]).toBeCloseTo(S.door.back[2] + me.rule.eye, 2);
     expect(playMission(m, st.mission.mission, { seconds: 240 }).won).toBe(true);
   }, 60000);
   it('with a hero seen from behind it is aimed over the shoulder, its rounds converging on the crosshair, and won', () => {
@@ -138,6 +138,7 @@ describe('a mission as a level', () => {
     expect(Object.values(level.order.manifest.figures)[0].heroRef).toBe(steps.find((s) => s.key === 'foe-gunner').ref);
     expect(game.order.ui.theme.name).toBe(readGameworld(LEVELLED) && 'Field Brief');
     expect(MISSION_LOOK).toBe('field-brief');
+    expect(missionStageManifests(steps)).toEqual({ manifests: { one: level.order.manifest }, keys: { one: 'level-one-0' } });
     const P = proveMissions(LEVELLED, { one: level.order.manifest });
     expect(P.map((x) => [x.level, x.proved, x.won])).toEqual([['one', true, true]]);
     expect(proveMissions({ ...LEVELLED, levels: { one: { walk: { nodes: { a: { trail: true } } } } } }, {})).toBeNull();
@@ -151,50 +152,4 @@ describe('a mission as a level', () => {
     expect(() => quickWorld({ id: 'q', quick: { goal: 'shoot', mission: true } })).toThrow(/laid from the guns carried/);
     expect(() => quickWorld({ id: 'q', quick: { goal: 'reach', arms: ['rifle'], mission: true } })).toThrow();
   }, 60000);
-});
-
-// A MISSION ON A GROUND THAT WAS THERE (mission/route.js through levels.js): one ground a procedure, a trail's lane and a
-// town's walk. The concepts: the mission rides the stage of that ground and no later one; the level stays that ground's
-// kind, the mission's cover its blocks, its cast and tasks the mission's; a way on puts a body back at its eye; its
-// structure is proved on the bus on the recipe; the played gate wants the resolved page (the e2e tier plays it).
-const onGround = (levels) => ({ id: 'g', name: 'G', seed: 5, style: { kit: 'trail-valley' }, feel: SHOOTER, start: 'one', levels });
-const laid = (W) => { const G = readGameworld(W), stages = gameStages(W); return { stages, L: stageLevelOrder(G, stages[0], { ref: 'g-level-one-0', heroRef: null }) }; };
-
-describe('a mission on a ground that was there', () => {
-  it('is laid along a town\'s walk: the town\'s own level, the mission\'s cast, tasks and cover on it', () => {
-    const W = onGround({ one: { name: 'The town', geotown: {}, mission: true } }), { stages, L } = laid(W), m = L.args.manifest, M = m.mission.plan;
-    // (the town's stage carries it; a house entered by its door is a stage after it, with none)
-    expect(stages.map((s) => !!s.missionOn)).toEqual([true, ...stages.slice(1).map(() => false)]);
-    expect([m.kind, m.show]).toEqual(['geocube', 'geotown']);
-    expect(M.on).toBe('route');
-    expect(M.sections.map((s) => s.kind)).toEqual(m.mission.tasks.map((t) => t.id));
-    expect(m.blocks).toEqual(expect.arrayContaining(M.blocks));
-    const O = m.game.mechanics.find((x) => x.kind === 'objectives'), me = m.entities.find((e) => e.pilotable);
-    expect(O.tasks.every((t) => Number.isFinite(t.zone.radius))).toBe(true);
-    expect(m.game.mechanics.map((x) => x.kind)).toEqual(expect.arrayContaining(['fail-on-death', 'supplies']));
-    expect(m.game.complete).toBe(false);
-    expect(me.rule.loadout.length).toBeGreaterThan(0);
-    expect(m.entities.filter((e) => e.team === 'foes').every((e) => e.dormant)).toBe(true);
-    // a sealed way puts the body back where it is carried: at its eye over the ground, as it was set down
-    const door = M.sections[0].door, back = O.tasks[0].door.back;
-    expect(back[2]).toBeCloseTo(door.back[2] + me.rule.eye, 2);
-    expect(L.laws.every((l) => l.concern === 'mission')).toBe(true);
-    expect(L.laws.find((l) => l.law === 'gated').holds).toBe(true);
-    expect(proveMission(m)).toMatchObject({ proved: true });
-    // the proof reads the mission's own stage, and says a ground's mission is played on its page
-    const steps = runSteps(W, { ref: 'g' }), S = missionStageManifests(steps);
-    expect(S.keys).toEqual({ one: 'level-one-0' });
-    expect(proveMissions(W, S.manifests)).toEqual([expect.objectContaining({ level: 'one', proved: true, on: 'ground', play: null, unplayed: expect.stringMatching(/resolved page/) })]);
-  }, 120000);
-  it('is laid along a walk\'s first trail, from where the hero is set down to its exit', () => {
-    const W = onGround({ one: { name: 'The valley', walk: { nodes: { path: { trail: { run: 20 } } } }, mission: true } }), { L } = laid(W), m = L.args.manifest, M = m.mission.plan;
-    expect(m.kind).toBe('stage');
-    expect(M.on).toBe('route');
-    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), me = m.entities.find((e) => e.pilotable);
-    expect(d(M.anchors.spawn, me.transform.pos)).toBeLessThan(1.5);
-    expect(M.sections.at(-1).task).toMatchObject({ kind: 'reach', at: M.anchors.exit });
-    expect(m.blocks.length).toBe(M.blocks.length);
-    expect(proveMission(m)).toMatchObject({ proved: true });
-    expect(L.laws.filter((l) => !l.holds).map((l) => l.law)).toEqual([]);
-  }, 120000);
 });

@@ -18,8 +18,8 @@
  * Params:
  *   { id?: 'obj', tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, foes?, gun?, seconds?, every?, waves?,
  *                           door?: { at, back, radius? } }] }
- *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section on a way that
- *          turns): walking into it begins the task (none: it begins as the one
+ *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section in an open
+ *          place): walking into it begins the task (none: it begins as the one
  *          before is met; the first begins as the level starts)
  *   door   the way on, sealed until the task is met
  *
@@ -67,7 +67,7 @@ export function lowerObjectives(p, ctx) {
       if (t.waves !== undefined && (!Array.isArray(t.waves) || t.waves.some((w) => !Array.isArray(w) || !w.length || w.some((f) => typeof f !== 'string' || !f)))) fail(`${at}.waves is [[<foe id>, …], …]`);
     }
     for (const f of [...(t.foes ?? []), ...(t.waves ?? []).flat()]) { if (woken.has(f)) fail(`${at}: '${f}' is woken twice (a foe is woken once: name another)`); woken.add(f); }
-    if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one, on a way that turns)`);
+    if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one)`);
     if (t.door !== undefined && !(t.door && isVec(t.door.at) && isVec(t.door.back))) fail(`${at}.door is { at, back }: the way on and where a body is put back while it is sealed`);
   });
   const N = T.length, names = objectiveNames(id), cur = names.task, pre = `__${id}`;

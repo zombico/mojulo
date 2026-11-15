@@ -62,9 +62,7 @@
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
        mission?: true | { seed?, sections?, foes?, hold?, waves? },
-                                         // alone, in place of `walk`, or BESIDE a `walk` or a `geotown`, laid on that
-                                         // ground (along the first trail's lane, the town's walk: mission/route.js).
-                                         // The level is a MISSION (mission-level.js, lib/graph/mission):
+                                         // in place of `walk`: the level is a MISSION (mission-level.js, lib/graph/mission):
                                          // the firing range stretched into sections, each a band the world's guns are
                                          // for with a task in it (take, clear, hold, reach), the way on sealed until
                                          // it is met; laid from the guns the world carries (loadout.js), so a world
@@ -629,17 +627,12 @@ export function readGameworld(W) {
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
     if (L.mission !== undefined) {
-      // a mission: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's guns.
-      // Alone, its ground is its own (a greybox down one line). Beside a walk or a geotown it is laid on that ground:
-      // along the first trail's lane, or the town's walk (mission/route.js). Its foes and its tasks are its own either way
-      const beside = ['building', 'city', 'roadway', 'airspace', 'runner', 'glyphs', 'arena', 'goal', 'foes', 'course'].filter((k) => L[k] !== undefined);
-      if (beside.length) throw new Error(`gameworld: ${at}: a mission is laid on a ground of its own, on a walk's first trail or on a geotown's walk, and its foes and its tasks are its own: no ${beside.join(', ')} beside it${L.city !== undefined ? ' (a city level is laid in its own units with a walker of its own: a mission on one is not built; a geotown is)' : ''}`);
-      if (L.walk === undefined && L.geotown === undefined && (L.places !== undefined || L.ground !== undefined)) throw new Error(`gameworld: ${at}: a mission on a ground of its own holds no places and takes no ground (lay it on a walk: walk + mission)`);
+      // a mission level: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's
+      // guns; its foes, its tasks and its ground are its own
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course'].filter((k) => L[k] !== undefined);
+      if (beside.length) throw new Error(`gameworld: ${at}: a mission level is the mission alone (its ground, its foes and its tasks are its own): no ${beside.join(', ')} beside it`);
       try { readMission(L.mission, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
       if (!loadoutOf(W)) throw new Error(`gameworld: ${at}.mission is laid from the guns the world carries, and this world carries none: a quick shooter's arms, a gun in the hero's right hand (an item that serves 'shoot'), or a feel whose template shoots`);
-    }
-    if (L.mission !== undefined && L.walk === undefined && L.geotown === undefined) {
-      // (the mission alone: nothing else to read)
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
@@ -950,14 +943,6 @@ function complexOfLevel(G, id, B, spaces, seed) {
  * `built` who built them ({ town, castle } civilization ids); `ledger` every override, the level's and its parts'.
  */
 export function resolveLevel(world, id) {
-  const R = resolveLevelForm(world, id), L = world.levels?.[id];
-  // a mission laid on the level's own ground (a walk's first trail, a geotown's walk): its settings ride the resolved
-  // level for the stage that lays it (levels.js); a mission alone is the level's form, resolved as one
-  if (!L || L.mission === undefined || R.mission) return R;
-  const spec = readMission(L.mission, 'mission');
-  return { ...R, missionOn: { spec, seed: spec.seed ?? (R.seed >>> 0) } };
-}
-function resolveLevelForm(world, id) {
   const G = readGameworld(world);
   const L = G.levels[id];
   if (!L) throw new Error(`gameworld: '${id}' is not a level (levels: ${G.ids.join(', ')})`);
@@ -988,7 +973,7 @@ function resolveLevelForm(world, id) {
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a mission level: its settings as read, its seed the level's unless it names one (levels.js lays it)
-  if (L.mission && L.walk === undefined && L.geotown === undefined) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
+  if (L.mission) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
