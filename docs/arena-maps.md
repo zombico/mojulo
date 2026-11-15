@@ -5,7 +5,8 @@ costs. `control/lib/graph/arena-map/` holds that as data: a map is blocks on one
 combat are laws measured on it, and a generator grows a template a block at a time and keeps only what the laws allow.
 The rules of the fight (the run, the bands the guns are for) come from the firing range; the map is sized from them.
 
-Status: the blocks, the reading, the laws, four templates and the generator are built and tested, pure. Geocube buildings are
+Status: the blocks, the reading, the laws, four templates and the generator are built and tested, and a grown map is
+laid as a mission's ground. Geocube buildings are
 read against the laws (below).
 
 ## First principles
@@ -105,6 +106,23 @@ Machine gate only; nobody has played one.
   band, and a bridge is two cells wide so panels stagger along it. A template is sized to the kit it is for.
 - The templates as written are too open (their lines run past the band); the growing is what closes them.
 
+## Laid as a level
+
+`ground.js` `mapGround(map)` lays the blocks as a controllable page's faces and colliders. Floors become slabs, which a
+body stands on and walks under. Walls and rails stop a body. Ramps are slopes the platform rule walks, up and down.
+Ladders are the runtime's own `rungs` climb, set in the foot cell.
+
+`phases.js` `phasesOnMap(brief, map)` places a mission's phases from the map's own measures: arm up, a clear for each
+band, hold the heart, get out. Its laws are placed, unseen, two-ways, in-order and banded. A level's `mission.map`
+carries the grown blocks, so the level is rebuilt from them and never regrown: a change to the generator cannot move a
+level already made.
+
+Gaps:
+
+- There is no ceiling: a jump high enough to reach a slab is not stopped from below (the shooter's jump is not).
+- Zones read a place flat, so things to take and places to reach are laid only in cells with no floor above or below.
+- The headless gunner can stall on a ladder it takes hold of from above.
+
 ## Geocube buildings read against the laws
 
 `arena-map/read-geocube.js` reads a building's plan onto the grid: each room's floor at its storey, its walls snapped to
@@ -142,8 +160,5 @@ and no stair is gentler than about 1:1.5. A keep gains nothing: its packer canno
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
   somewhere, so a bigger court or a yard.
-- **Built into a scene.** `mapPieces` is the hand-off; nothing lays its panels, ramps and ladders as a level yet.
 - **Geocube plans that hold every law.** The fight dials close most of the gap; a gallery round several walls, cover in
   the core, and a gentler stair are not built.
-- **The mission on it.** The firing range's phases (arm up, clear by band, hold the heart, get out) placed on a map that
-  holds the laws.

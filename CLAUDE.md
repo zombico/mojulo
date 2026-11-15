@@ -312,7 +312,8 @@ Pointers only; each target carries its own design notes.
   `objectives` mechanic, `game/objectives.js`; its briefing, HUD, pause and debrief on mana-ui through the page's mission
   channel, `gameworld/mission-mana.js`; proved on the bus and played headless, `gameworld/mission-proof.js`):
   [docs/missions.md](docs/missions.md). Arena maps (a fighting map as blocks on a grid, the principles of line-of-sight
-  combat as laws, a generator that grows a template under them; pure, not yet laid as a level):
+  combat as laws, a generator that grows a template under them; laid as a mission's ground, `mission.map`, by `ground.js` and
+  `phases.js`; a building's `fight` dials are the geocube's answer to the same laws):
   [arena-map/](control/lib/graph/arena-map/), [docs/arena-maps.md](docs/arena-maps.md). The damage ring (where a hit came from, round the aim) is its own concept,
   `gameworld/damage-ring.js`: a mission draws it on mana-ui, a quick shooter's level and a deathmatch through the page's
   damage ring channel.
