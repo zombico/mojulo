@@ -274,9 +274,17 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   objective with its distance and its bearing on the compass, a lesson's keys as a prompt (no counter), the opening,
   a line said and a way held as cards on mana-ui's moment queue; the stamina under the hearts while it is spent. A place card as the hero comes into each named place of a planned map (`gameworld/hud-grammar.js` mapPlaces: the plan's key, each segment's square). A moveset's special is on Q too (`controls/schemes.js`: not every mouse has a forward
   button), and Q never strafes a hero with a moveset.
+- **Her items and her bag** (`gameworld/inventory.js`, a genre hero row's `items`): playscape's own inventory wired
+  onto each level. A healing draught restores two hearts (an item's `hearts` lowered to hp on the level's health,
+  never past its full), used on X from the bag; the bag opens on I (an inventory menu); a new game starts with one
+  and the bag is carried from level to level (the `bag` mechanic, the store's slice). The HUD's item slot is the
+  quick item, its count the bag's own var, greyed when there is none.
+- **The interface's look on the HUD** (`playscape/ui/interface-look.js`: the action RPG is `storybook`): the HUD
+  grammar is drawn in the game's look, the world's palette on it (`events.grammar.theme`), the hearts large in its
+  accent on no plate, each slot its thing's icon (`playscape/ui/item-icons.js`).
 - Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
   does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
-  hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's slots are letters (no icons) and its marked slot is always the weapon; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's marked slot is always the weapon; the bag's menu is still the old menu layer's (not mana-ui's, not in the game's look) and the quick item and the bag have no pad control; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
   cloth takes no texture on the anime body; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
   blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the

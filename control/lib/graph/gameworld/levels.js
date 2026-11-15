@@ -52,6 +52,8 @@ import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
+import { rowInventory, bagStart } from './inventory.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
@@ -949,7 +951,14 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (and the action-adventure's HUD where its genre's row asks: gameworld/hud-grammar.js; any other game, as it was)
-  const grammar = heroRef && !pilot ? levelGrammar(G, game?.mechanics ?? [], { places: stage.section === 'map' ? mapPlaces(stage.manifest?.level, stage.zone ?? null) : null }) : null;
+  // (its items and its bag, inventory.js: the quick item on its key, the bag on its own, carried level to level)
+  const inv = heroRef && !pilot ? rowInventory(G, game?.mechanics ?? []) : null;
+  if (inv) {
+    play = mergePlay(play, inv.play);
+    pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), inputs: [...(pilotPart.events?.inputs ?? []), ...inv.inputs] } };
+    if (inv.mechanics.length) game.mechanics = [...game.mechanics, ...inv.mechanics];
+  }
+  const grammar = heroRef && !pilot ? levelGrammar(G, game?.mechanics ?? [], { places: stage.section === 'map' ? mapPlaces(stage.manifest?.level, stage.zone ?? null) : null, quick: inv?.quick ?? null, theme: interfaceLook(G).theme }) : null;
   if (grammar) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), grammar } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
   const manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
@@ -1444,6 +1453,8 @@ export function gameStore(world, book) {
     const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: { ...BAG_START } };
     if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init };
   }
+  // a genre hero's items (inventory.js): its bag carried from level to level, holding what a new game starts with
+  if (bagStart(G)) { const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: bagStart(G) }; if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init: { ...(slices[bag].init ?? {}), items: { ...(slices[bag].init?.items ?? {}), ...bagStart(G) } } }; }
   // the minigames' winnings (minigames.js): gold in a bag carried from level to level
   if (G.minigames && !slices.some((x) => x.name === BAG_SLICE)) slices.push({ name: BAG_SLICE, kind: 'inventory' });
   return { slices };

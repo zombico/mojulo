@@ -7,6 +7,9 @@ import { inputMap } from './input-map.js';
 import { readHudGrammar, hudGrammarSpec, hudGrammarScript } from '../scene/channels/hud-grammar.js';
 import { manaUi } from '../../mana-ui/kernel.js';
 import { guideScript } from '../scene/channels/guide.js';
+import { rowInventory, bagStart, ITEM_KEYS } from './inventory.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
+import { readTheme } from '../../mana-ui/theme.js';
 
 const G = readGameworld(composeGameworld({ prompt: 'an anime action rpg like zelda', name: 'Artesia' }));
 const MECH = [{ kind: 'fail-on-death', startHp: 20, hits: 2, bar: true }, { kind: 'reach-exit', at: [70, -36, 2], radius: 2.5, holds: { who: 'foe-*', count: 3 } }, { kind: 'collect', into: 'bag', pickups: [{ item: 'healing draught', at: [1, 2, 0] }] }];
@@ -47,6 +50,32 @@ describe('a level\'s HUD grammar', () => {
     const g = levelGrammar(G, MECH, { places: all });
     expect(readHudGrammar(g).places).toHaveLength(2);
     expect(() => readHudGrammar({ ...g, places: [{ name: 'x' }] })).toThrow(/places/);
+  });
+  it('carries the game\'s items: the quick item its slot on its key, counted by the bag\'s own var; the bag on its key, carried level to level', () => {
+    const inv = rowInventory(G, MECH);
+    expect(Object.keys(inv.play.items)).toEqual(['healing draught']);
+    const use = inv.play.items['healing draught'].use;
+    // (two hearts of hp on the level's health, never past its full)
+    expect(use[0]).toEqual({ add: 'hp', by: 2 * 2 * HEART_HITS, max: 20 });
+    expect(inv.play.menus).toEqual([{ id: 'bag', kind: 'inventory', title: 'Bag' }]);
+    expect(inv.play.cues.map((c) => c.id)).toEqual(['open-bag', 'quick-item']);
+    expect(inv.inputs.map((i) => i.key)).toEqual([ITEM_KEYS.bag, ITEM_KEYS.quick]);
+    expect(inv.mechanics).toEqual([{ kind: 'bag', slice: 'bag' }]);
+    expect(rowInventory(G, [...MECH, { kind: 'bag', slice: 'bag' }]).mechanics).toEqual([]);
+    expect(inv.quick).toMatchObject({ item: 'healing draught', var: 'held:bag:healing-draught', key: 'X', icon: 'potion' });
+    expect(bagStart(G)).toEqual({ 'healing draught': 1 });
+    const g = levelGrammar(G, MECH, { quick: inv.quick });
+    expect(g.slots.at(-1)).toMatchObject({ id: 'item', keys: 'X', var: 'held:bag:healing-draught', icon: 'potion' });
+    expect(rowInventory({ intent: { from: 'no-such-genre' } }, MECH)).toBe(null);
+    expect(bagStart({ intent: { from: 'no-such-genre' } })).toBe(null);
+  });
+  it('is drawn in the game\'s look where it is given one: its theme\'s sheet, the hearts in its accent, each slot its icon', () => {
+    const theme = interfaceLook(G).theme;
+    const js = hudGrammarScript(levelGrammar(G, MECH, { quick: rowInventory(G, MECH).quick, theme }));
+    expect(js).toContain(readTheme(theme).tokens.accent);
+    expect(js).toContain('data:image/svg+xml');
+    expect(js).not.toContain('"theme":');
+    expect(() => readHudGrammar({ ...levelGrammar(G, MECH), theme: { frame: 'no-such-frame' } })).toThrow(/theme/);
   });
   it('takes what the level says from its guide: the guide gives its one thing as data and keeps its own line down', () => {
     const page = guideScript({ steps: [{ at: [0, 0, 0], radius: 3, say: 'On to the gate' }] });
