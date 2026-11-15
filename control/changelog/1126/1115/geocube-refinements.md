@@ -29,5 +29,7 @@
   block to the goal's heights, each way a step a tile at most (cut down into the higher terrace where a side way comes
   up from low ground), and asks for the cliffs. A sketch that does not ask, or whose heights never step that far, is
   read as before.
+- **The map designer draws the cliffs.** The world map in miniature and its greybox model (level/worldmap-view.js,
+  worldmap-model.js) read the same scarps the pages lay, so a map is looked at with its cliffs before it is built.
 - **Measured:** a zone's page of the world map is heavier for its bigger blocks: the goal's zone 42 tiles (25 its own)
   and about 217,000 faces, where it was 20 tiles and about 89,000.

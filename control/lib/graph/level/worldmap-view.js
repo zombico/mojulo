@@ -20,6 +20,7 @@
  *   worldmapView(level, { title? })              → the views' data, pure: { title, T, rows, cols, n, zones, gates, cells, … }
  *   worldmapHtml(view, { play?: { <S>: href }, model? }) → the page (`model`: the 3D model's page, worldmap-model.js)
  */
+import { mapScarps } from './map-cliffs.js';
 import { readGrid, placeDoors } from './grid.js';
 import { zoneOf } from './zones.js';
 import { mapItems } from './map-items.js';
@@ -39,7 +40,9 @@ const SHADE_K = 4;
 export function worldmapView(level, { title = null } = {}) {
   const G = readGrid(level.grid, 'level.grid'), P = G.plan;
   if (!P) throw new Error('worldmap: a world map is a planned map (level.grid.plan), each segment a zone');
-  const sketch = readSketch(level.sketch, P), rise = sketchRise(G, sketch);
+  // (its cliffs, map-cliffs.js: a scarp where the sketched heights step and no way crosses, as the pages lay them)
+  const sketch = readSketch(level.sketch, P), rise0 = sketchRise(G, sketch), scarps = sketch?.cliffs ? mapScarps(G, rise0) : null;
+  const rise = scarps ? { ...rise0, scarps: { e: scarps.e, s: scarps.s } } : rise0;
   const T = G.tile, seed = level.seed ?? 1, L = { seed, ...(rise ? { rise } : {}) };
   const status = sketchStatus(sketch, P);
   const ids = Object.keys(P.segments);
