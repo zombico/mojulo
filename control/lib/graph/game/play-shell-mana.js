@@ -6,22 +6,23 @@
  * this: no kernel, no sheet, no theme, no host.
  *
  *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
- *   shellManaSpec(ui)            → the spec: the screens (attract, title, levels, options, credits, end, result,
+ *   shellManaSpec(ui, { picks }) → (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
  *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
  *   shellManaCss(ui)             → the sheet and the theme, scoped to the mana root
  *   shellManaScript()            → the page's code: the kernel, the controls host, and `__mojMana`
- *   shellManaConfig(ui)          → cfg.mana: { spec, glyphs, controls: { keys, pad } }
+ *   shellManaConfig(ui, opts)    → cfg.mana: { spec, glyphs, controls: { keys, pad } }
  *   playShellManaRuntime(cfg, api) → (inlined) { draw(name), close(), loading(place), loaded(), pause(), unpause(),
  *                                  moment(text, sub?) }: the shell's api is
  *                                  { go, onOf, show, app, title, front, levels(), result(), run(), settings(),
  *                                  saveSettings, pushPrefs, reset, continueTo, runTitle(), pause: { resume, restart,
- *                                  quit, sound, rows(), owner(), homeWord() } }
+ *                                  quit, sound, rows(), owner(), homeWord(), open }, playing() }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '../../mana-ui/index.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const PICK = 'pick-screen';
 const USED = ['attract-screen', 'title-screen', 'mode-select', 'options-screen', 'results-screen', 'loading-screen', 'pause-menu'];
 const B = (p) => ({ bind: `ui.${p}` });
 
@@ -38,7 +39,7 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}) {
+export function shellManaSpec(ui = {}, { picks = false } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
   const screens = {
     attract: { use: 'attract-screen', props: { title: B('title'), prompt: B('press'), then: { emit: 'press' } } },
@@ -57,7 +58,7 @@ export function shellManaSpec(ui = {}) {
       { use: 'text', props: { value: B('title'), role: 'caption' } },
       button('continue', 'done'),
     ] }] },
-    result: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items') } },
+    result: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items'), bare: B('result.bare') } },
     // the pause over a held level: resume, restart, the controls, the sound, the way out (back resumes)
     pause: { use: 'pause-menu', props: { title: B('pause.title'), items: B('pause.items') } },
     // what the level's controls are, as the level says them (its live bindings): read, and back
@@ -68,20 +69,30 @@ export function shellManaSpec(ui = {}) {
     // over a level's frame while it loads: no number to claim, ready on its first frame, gone by itself (a quick load never shows)
     loading: { use: 'loading-screen', props: { place: B('load.place'), ready: B('load.ready'), auto: true, then: { emit: 'loaded' } } },
   };
+  // UNTAP (turn.js): one pick of a level's turn, the pick-screen idiom over what the shell says of it (the store's
+  // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
+  if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
-  const hud = { use: 'hud', children: [{ use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] }] };
+  // and the way into the pause while a level is the player's: a button in the corner, tapped or clicked (it takes no
+  // focus: a key or a pad pauses on its own binding); not drawn over a screen, a trigger or a held level
+  const hud = { use: 'hud', children: [
+    { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.6 } }] },
+    { use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('playing'), children: [{ use: 'button', props: { label: '☰' }, on: { accept: { emit: 'pause:open' } } }] },
+  ] };
   const full = withIdioms({ screens, hud, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
-  full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k)));
+  full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k) || (picks && k === PICK)));
   manaUi.readSpec(full);
   return full;
 }
 
 // (the image component draws a placeholder until it takes a picture: a game's screens show none of its marks, where a
 // wireframe would; a backdrop keeps its ground, the theme's own)
-export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
-export function shellManaConfig(ui = {}) {
+// (and the shell's own pause button gives way to mana-ui's: it stays in the page as the shell's word for whether a level
+// is the player's, never seen or pressed)
+export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
+export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
-  return { spec: shellManaSpec(ui), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
+  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
 }
 export const shellManaScript = () => `const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
@@ -95,6 +106,8 @@ const __mojMana = (${playShellManaRuntime.toString()});`;
  */
 export function playShellManaRuntime(cfg, api) {
   const M = cfg.mana, UI = { ui: { title: api.title, version: '', settings: { sound: api.settings().sfxOn ? 1 : 0 }, load: { place: '', ready: false }, moments: [], pause: { title: 'paused', controlsTitle: 'controls', items: [], rows: [] } } };
+  // (whether a level is the player's now, asked of the shell each time it is read: the pause button's)
+  Object.defineProperty(UI.ui, 'playing', { enumerable: true, get: () => !!api.playing() });
   const root = document.createElement('div');
   root.id = 'mana';
   document.body.appendChild(root);
@@ -111,6 +124,8 @@ export function playShellManaRuntime(cfg, api) {
   function act(e) {
     if (e.emit === 'mana:closed') {
       if (quiet) return;
+      // (a pick left by its back: the turn unwinds one pick, or is left)
+      if (up === 'pick') { up = null; api.turn.back(); return; }
       // (the pause left by its back: the game resumes)
       if (up === 'pause' || up === 'controls') { up = null; api.pause.resume(); return; }
       // a back that emptied the stack: the step's back, else the screen it left drawn again
@@ -119,6 +134,9 @@ export function playShellManaRuntime(cfg, api) {
       if (!(api.onOf('back') && api.go('back'))) draw(was);
       return;
     }
+    if (e.emit === 'turn:pick') { api.turn.pick(e.id); return; }
+    if (e.emit === 'turn:confirm') { api.turn.confirm(); return; }
+    if (e.emit === 'pause:open') { api.pause.open(); return; }
     if (e.emit === 'pause:resume') { api.pause.resume(); return; }
     if (e.emit === 'pause:restart') { api.pause.restart(); return; }
     if (e.emit === 'pause:quit') { api.pause.quit(); return; }
@@ -159,7 +177,7 @@ export function playShellManaRuntime(cfg, api) {
     if (name === 'options') u.optionsTitle = 'options';
     if (name === 'credits') u.credits = ((F.credits && F.credits.roll) || []).map((r) => ({ role: r.role, names: r.names.join(' · ') })).concat(F.credits && F.credits.attribution === false ? [] : [{ role: '', names: 'made with mojulo · github.com/zombico/mojulo' }]);
     if (name === 'end') { u.endMark = 'game complete'; u.endText = (F.end && F.end.text) || 'The end'; }
-    if (name === 'result' || name === 'run-result') u.result = name === 'result' ? api.result() : api.run();
+    if (name === 'result' || name === 'run-result') { u.result = name === 'result' ? api.result() : api.run(); u.result.bare = !((u.result.stats || []).length || u.result.rank); }
   }
   function draw(name) {
     if (!name) return false;
@@ -174,6 +192,9 @@ export function playShellManaRuntime(cfg, api) {
     close() { hush(() => rt.close()); up = null; view.paint(); },
     loading(place) { UI.ui.load = { place: place || '', ready: false }; open('loading'); },
     loaded() { UI.ui.load = Object.assign({}, UI.ui.load, { ready: true }); view.paint(); },
+    // untap: one pick of the turn, as the shell stands (what the pick-screen idiom reads)
+    // (`fresh`: another pick than the one up, so the cursor starts at its first row)
+    pick(what, fresh) { UI.ui.pick = what; api.app.textContent = ''; api.show('title'); if (up === 'pick' && !fresh) view.paint(); else { open('pick'); rt.focusAt(0); view.paint(); } },
     // the pause over a held level, and off again; a moment over the play (a run's map cleared)
     pause() { fillPause(); open('pause'); },
     unpause() { if (up === 'pause' || up === 'controls') { hush(() => rt.close()); up = null; view.paint(); } },

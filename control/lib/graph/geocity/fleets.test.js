@@ -8,8 +8,13 @@ describe('the metro\'s fleets and their yards', () => {
     // (one role a path: a car shelf card, a loft, a stand-in, a construction shelf machine)
     expect(fleetOf('civilian').every((f) => !f.model.includes(':'))).toBe(true);
     expect(fleetOf('bus')[0].model).toBe('loft:bus');
-    const fire = fleetOf('fire')[0];
-    expect(fire).toMatchObject({ vehicle: 'fire-engine', stand: 'box-truck', model: 'loft:straightTruck', extra: 'lightbar-r' });
+    // (a taxi stands as a sedan; a fire engine is its own body now, the hull kit's, road-civic.js)
+    expect(fleetOf('taxi')[0]).toMatchObject({ vehicle: 'taxi', stand: 'sedan', extra: 'taxi-sign' });
+    expect(fleetOf('fire')[0]).toMatchObject({ vehicle: 'fire-engine', model: 'loft:fireEngine' });
+    expect(fleetOf('fire')[0].stand).toBeUndefined();
+    // (the highway's rigs and an industrial lot's trucks, the hull kit's)
+    // (a row's brief in its model's key: a semi's trailer)
+    expect(fleetOf('freight').map((f) => f.model)).toEqual(['loft:semiSleeper', 'loft:semiSleeper|tanker', 'loft:semiCabover']);
     expect(fleetOf('construction').every((f) => f.model.startsWith('site:'))).toBe(true);
     expect(() => fleetOf('spaceship')).toThrow(/no role a metro keeps/);
     // (every yard keeps fleets there are)

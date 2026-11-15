@@ -765,6 +765,24 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // much across); the fixture's belt is straight, so its drift is 0 everywhere and its page plays as it did.
 // Re-pinned 2026-11-14 (the player's line on a drifting belt, brawl/brawl-yard.client.js): `brawl`. The line lies
 // along the band's diagonal where the player stands; the fixture's belt is straight, so its line lies as it did.
+// Re-pinned 2026-11-14 (the game turn's pick screen, mana-ui/idioms-front.js): `brawl` and `holo`, the two whose page
+// inlines the game UI kernel. A mount on an element with no box of its own (a bare div its root is laid out of) measures
+// its root's, so the frame is known there too, and the runtime's words gain `choose` and `choices`; a page that mounts
+// on a sized element and says neither word draws as it did, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 again (the game turn, played through): `brawl` and `holo`, for the same reason. A `when` or an
+// `unless` on a param a def was not given is a condition not met, where it was no condition at all (the play shell's
+// loading screen drew its failure's Retry and Quit while it loaded); a def given every param it tests draws as it did.
+// Re-pinned 2026-11-14 (the touch controller drawn by mana-ui): `brawl` and `holo`, the two whose page inlines the game
+// UI kernel and its sheet. The `touchpad` takes what the touch layer knows (`lane`, `held`, `down`), a stick at rest is
+// seen through, and the pad is as wide as its frame allows; neither page draws a touch pad, and every other fixture
+// holds byte for byte (a level with no mana-ui HUD emits the touch layer it did).
+// Re-pinned 2026-11-14 again (the touch controller's look): `brawl` and `holo`, for the same reason. A pad's pictogram
+// stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
+// whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
+// draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-15 (the release candidate merged into the side-scroll starter): `brawl`. Its page carries both
+// sides' changes at once (the belt's bends and the yard's client from the one, the game UI kernel and its sheet from the
+// other); each is said above, and neither changes how the fixture plays.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

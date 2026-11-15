@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { JSDOM } from 'jsdom';
+import { manaHudScript } from '../mana-hud.js';
 import { touchLayout, touchScript } from './touch.js';
 import { controllableChannelScript } from './index.js';
 import { DEVICES } from '../../../controls/devices.js';
@@ -73,6 +75,44 @@ describe('touch: a virtual pad laid out for the pilot and its camera, never for 
     const ents = hero({ type: 'platform', jumpSpeed: 8 }), cam = { rule: 'follow', target: 'hero' };
     expect(controllableChannelScript(ents, cam, {}, { touch: true, courseTouch: course })).toContain('const __tC = __TL.course;');
     expect(controllableChannelScript(ents, cam, {}, { courseTouch: course })).toBe(controllableChannelScript(ents, cam, {}));
+  });
+  it('a level whose HUD is mana-ui\'s: the layer draws nothing, the HUD carries the pad, a touch on a pad presses its control', () => {
+    const L = { look: true, lane: false, jump: true, fire: true, lift: false }, own = touchScript(L), mana = touchScript(L, { view: 'mana' });
+    // the same pad, no drawing of its own; a swipe layout has nothing to hand over
+    expect(own).toContain("__tRing.className = 'ring'");
+    for (const drawn of ['.ring', '.nub', "className = 'b'", 'createElement(\'style\')']) expect(mana).not.toContain(drawn);
+    expect(mana).toContain('mojulo touch pad (STANDARD GAMEPAD)');
+    expect(touchScript({ swipe: true }, { view: 'mana' })).toBe(touchScript({ swipe: true }));
+    // the HUD's spec gains the pad only for a level made for a screen
+    const hud = { spec: { hud: { use: 'hud', children: [] } }, theme: 'greybox' };
+    expect(manaHudScript(hud)).not.toContain('"use":"touchpad"');
+    expect(manaHudScript(hud, { touch: true })).toContain('"use":"touchpad"');
+    // played in a DOM: the view's pads stand in the HUD's place, and the layer reads them
+    const dom = new JSDOM('<!doctype html><body><div id="wrap"><div id="moj-mana-hud"><span class="mana-stick"></span><span class="mana-pad" data-control="south">jump</span><span class="mana-pad" data-control="rt">fire</span></div></div></body>', { runScripts: 'outside-only', url: 'http://localhost/level.html?touch=1', pretendToBeVisual: true });
+    const w = dom.window;
+    w.eval(`var wrap = document.getElementById('wrap'), __MOUSELOOK = false, __lookDX = 0, __lookDY = 0; ${mana}; window.__t = { pad: __touchPad, frame: __tFrame };`);
+    w.__t.frame();
+    const T = w.__mojTouch, pad = () => w.__t.pad(), ev = (type, id) => new w.MouseEvent(type, { bubbles: true, cancelable: true });
+    const fire = (el, type, id) => { const e = ev(type); Object.defineProperty(e, 'pointerId', { value: id }); el.dispatchEvent(e); };
+    expect(T.view()).toMatchObject({ on: true, lane: false, held: null, down: [] });
+    expect(T.view().buttons.map((b) => b.label)).toEqual(['jump', 'fire']);
+    const [jump, shoot] = w.document.querySelectorAll('.mana-pad');
+    fire(shoot, 'pointerdown', 7);
+    expect(pad().buttons[7].pressed).toBe(true);
+    expect(T.view().down).toEqual(['rt']);
+    fire(jump, 'pointerdown', 8);
+    expect(T.view().down).toEqual(['south', 'rt']);
+    fire(w, 'pointerup', 7);
+    expect(pad().buttons[7].pressed).toBe(false);
+    expect(pad().buttons[0].pressed).toBe(true);
+    // use is drawn only while the figure stands where it is used
+    w.__mojReach = true;
+    expect(T.view().buttons.map((b) => b.label)).toEqual(['jump', 'fire', 'use']);
+    // a menu holds the world: the pad is off and every control let go
+    w.__mojMenuOpen = true; w.__t.frame();
+    expect(T.view().on).toBe(false);
+    expect(pad().buttons[0].pressed).toBe(false);
+    w.close();
   });
 });
 

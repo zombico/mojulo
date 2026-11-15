@@ -181,4 +181,12 @@ describe('the cascade — a settled play direction\'s register dresses the title
     const { widgets } = normalizeHud([{ on: 'x', text: 'go', as: 'title' }], { register: { type: 'period', frame: 'bevel', motion: 'snap' } });
     expect(widgets[0]).toMatchObject({ theme: 'arcade', style: 'thin', edge: 'both', look: 'slam', caps: true, tempo: 0.45, steps: 1 });
   });
+  it('a button row: a thing to press that raises its event, bottom right unless it says; taught when it is short of one', () => {
+    const { widgets, errors } = normalizeHud([{ press: 'whistle', label: 'whistle' }, { press: 'map', label: 'map', slot: 'top-right' }]);
+    expect(errors).toEqual([]);
+    expect(widgets).toEqual([{ kind: 'button', press: 'whistle', label: 'whistle', slot: 'bottom-right' }, { kind: 'button', press: 'map', label: 'map', slot: 'top-right' }]);
+    expect(normalizeHud([{ press: 'whistle' }]).errors.join('\n')).toMatch(/a button needs a label/);
+    expect(normalizeHud([{ press: 3, label: 'x' }]).errors.join('\n')).toMatch(/press names the event the button raises/);
+    expect(normalizeHud([{ nothing: 1 }]).errors.join('\n')).toMatch(/or a button \{ press, label \}/);
+  });
 });

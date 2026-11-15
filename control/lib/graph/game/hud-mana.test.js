@@ -64,4 +64,18 @@ describe('the host carries a level\'s rows', () => {
     expect(levelHud('console', { screen: 'phone' }).theme).toEqual({ from: 'console', distance: 'hand' });
   });
   it('none ⇒ not a byte', () => { expect(manaHudScript(null, { rows: ROWS })).toBe(''); });
+  it('a level steered by a virtual pad: its legend says the thumbs while the pad is up, the keys otherwise', () => {
+    const rows = [{ kind: 'legend', slot: 'bottom', text: 'W A S D move' }];
+    const plain = JSON.stringify(hudToMana(rows).spec), touch = JSON.stringify(hudToMana(rows, { touch: true }).spec);
+    expect(plain).not.toContain('touch.');
+    expect(touch).toContain('"unless":{"bind":"touch.on"}');
+    expect(touch).toContain('"value":{"bind":"touch.hint"}');
+    expect(touch).toContain('W A S D move');
+  });
+  it('a button row is a button in its slot whose press is its event', () => {
+    const { spec } = hudToMana([{ press: 'whistle', label: 'whistle' }, { press: 'map', label: 'map', slot: 'top-right', id: 'map' }]);
+    const at = (slot) => JSON.stringify(spec.hud.children.find((r) => r.props.at === slot));
+    expect(at('bottom-right')).toContain('{"use":"button","props":{"label":"whistle"},"on":{"accept":{"emit":"whistle"}}}');
+    expect(at('top-right')).toMatch(/"on":\{"accept":\{"emit":"map"\}\},"when":\{"bind":"on\.r1"\}/);
+  });
 });

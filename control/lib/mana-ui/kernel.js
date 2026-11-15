@@ -138,7 +138,7 @@ export function buildManaUi() {
     resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail', language: 'Language',
     nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
     keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', tips: 'Tips', continue: 'Continue', gettingReady: 'Getting the world ready…', stillLoading: 'Still loading…', retry: 'Retry', quitToTitle: 'Quit to title',
-    modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
+    modes: 'Modes', choose: 'Choose', choices: 'Choices', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
@@ -181,7 +181,7 @@ export function buildManaUi() {
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
-    touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime', props: { stick: [B, true], buttons: [L, ['A', 'B']] } },
+    touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
     text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'] } },
@@ -243,7 +243,9 @@ export function buildManaUi() {
   const subst = (v, args) => {
     if (isObj(v) && Object.keys(v).length === 1 && typeof v.param === 'string') return args[v.param];
     if (Array.isArray(v)) return v.map((x) => subst(x, args));
-    if (isObj(v)) { const o = {}; for (const k in v) { const x = subst(v[k], args); if (x !== undefined) o[k] = x; } return o; }
+    // (a `when` or an `unless` on a param the user did not give is a condition that is not met, never no condition: a
+    // loading screen told no `error` draws no error)
+    if (isObj(v)) { const o = {}; for (const k in v) { const x = subst(v[k], args); if (x !== undefined) o[k] = x; else if ((k === 'when' || k === 'unless') && v[k] !== undefined) o[k] = false; } return o; }
     return v;
   };
   function checkType(t, v, where) {
@@ -802,10 +804,11 @@ export function buildManaUi() {
             return ['span', { class: 'mana-arc', style: `left:${pct(0.5 + 0.45 * Math.sin(t))};top:${pct(0.5 - 0.45 * Math.cos(t))};transform:translate(-50%,-50%) rotate(${Math.round(b)}deg)` }, '▲'];
           })];
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
-          case 'touchpad': return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left' }, ['i', null]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
+          case 'touchpad': { const H = isObj(p.held) ? p.held : null, px = (v) => `${Math.round(Number(v) || 0)}px`; return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left', 'data-lane': p.lane ? 'yes' : null, 'data-held': H ? 'yes' : null, style: H ? `transform:translate(${px(H.ox)},${px(H.oy)})` : null }, ['i', { style: H ? `transform:translate(${px(H.dx)},${px(H.dy)})` : null }]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
-            return ['span', { class: 'mana-pad', 'data-control': control }, label];
-          })]];
+            // (a pad named for what it does wears its pictogram where the theme draws them: jump, fire, use)
+            return ['span', { class: 'mana-pad', 'data-control': control, 'data-on': control && p.down.indexOf(control) >= 0 ? 'yes' : null }, ['b', { 'data-icon': iconName(label) }, label]];
+          })]]; }
           case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
@@ -1377,14 +1380,19 @@ export function buildManaUi() {
     // THE FRAME: the view's own box, measured now and whenever it changes (a phone turned, a window dragged), said to the
     // runtime so a spec that branches on it is laid again; held in the hand where the pointer is a finger
     const measure = () => {
-      const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      let r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      // (an element with no box of its own, a bare div its root is laid out of: the root's box is the frame)
+      const root = el.firstElementChild;
+      if (r && !(r.width && r.height) && root && root.getBoundingClientRect) r = root.getBoundingClientRect();
       if (!r || !r.width || !r.height) return;
       const was = rt.frame(), now = rt.frame({ w: Math.round(r.width), h: Math.round(r.height), hand: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches });
       if (now !== was) paint();
     };
     measure();
-    if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(el);   // (its own box only: a view listens to no window)
     paint();
+    // (its own box only, and its root's where it has none: a view listens to no window)
+    if (typeof ResizeObserver === 'function') { const ro = new ResizeObserver(measure); ro.observe(el); if (el.firstElementChild) ro.observe(el.firstElementChild); }
+    measure();
     return { paint };
   }
 

@@ -227,11 +227,11 @@ export const LIVE_IDIOMS = {
     example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { emit: 'open:party' } }, { label: 'Options', then: { emit: 'open:options' } }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'touch-controls': {
-    kind: 'hud', about: 'a phone\'s controls: the stick on the left, the buttons on the right (bottom)',
-    reads: 'buttons', emits: '— (the host reads the touches)',
-    params: ['buttons'],
-    node: region('bottom', [{ use: 'touchpad', props: { buttons: P('buttons') } }]),
-    example: { buttons: { bind: 'touch' } },
+    kind: 'hud', about: 'a phone\'s controls: the stick on the left, the buttons on the right (bottom); the stick risen where the thumb landed, a pad pressed filled, as the touch driver says them',
+    reads: 'buttons, lane, held ({ ox, oy, dx, dy }), down (the controls pressed)', emits: '— (the host reads the touches)',
+    params: ['buttons', 'lane', 'held', 'down'],
+    node: region('bottom', [{ use: 'touchpad', props: { buttons: P('buttons'), lane: P('lane'), held: P('held'), down: P('down') } }]),
+    example: { buttons: { bind: 'touch.buttons' }, lane: false, held: { bind: 'touch.held' }, down: { bind: 'touch.down' } },
   },
   // after play
   'match-results': {
