@@ -129,3 +129,8 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   seen no one and stood where it was put: on a map or in a building the hold was a clock. The foes a hold wakes are now
   sent: a mind with no perception knows where the body is and paths to it. A clear's foes keep their sight and memory.
   Measured headless on the court map: none of nine moved before, all nine after. They keep to the floor they wake on.
+- **A ladder between a map's floors is climbed by holding jump.** Stood under it, facing any way, holding the jump key
+  takes hold of it and goes up it rung by rung while the key is held; let go and the body hangs there; back goes down.
+  It is an opt-in on a climbable (`hold`, `holdReach`; `worlds/controllable/rules-basic.js`), set on an arena map's
+  ladders; walking into a ladder still climbs it, and any other ladder is as it was. The seventeen page fixtures that
+  inline the controllable runtime are re-pinned for the runtime's text; its trace holds.

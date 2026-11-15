@@ -764,6 +764,14 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-15 (1105-rc merged into 1115-shooting-rails): `mission` only. Its page inlines the game UI kernel,
 // which the candidate changed (pictograms, the frame, the touchpad, the pick screen), as `brawl` and `holo` were re-pinned
 // for there; the mission's own block is as it was.
+// Re-pinned 2026-11-15 (1115-shooting-rails: a ladder climbed by holding jump): the seventeen fixtures whose page
+// inlines the controllable runtime (`controllable`, `controllable-lock`, `action-hero`, `controllable-shadows`,
+// `cast-shadows`, `live-shadows-actors`, `live-shadows-both`, `controllable-smoke`, `controllable-figure`,
+// `controllable-hangar`, `fx`, `shoot-live`, `toon-ink-controllable`, `toon-ink-fx`, `capture-controllable`,
+// `kitchen-sink`, `kitchen-sink-capture`). The climb's owner (worlds/controllable/rules-basic.js) reads a climbable's
+// opt-in `hold` and `holdReach`: stood under it, holding jump takes hold and goes up while it is held. No fixture
+// carries a climbable that asks, so every one plays as it did (the runtime's trace holds); only the runtime's text
+// moved. Every fixture with no controllable runtime holds byte for byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

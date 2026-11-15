@@ -89,6 +89,21 @@ describe('a map laid as ground, walked on the runtime', () => {
     expect(x).toBeGreaterThan(3 * CELL);
     expect(x).toBeLessThan(4 * CELL);
   });
+  it('a ladder is climbed by standing at its foot and holding jump: up while it is held, hung when it is let go', () => {
+    expect(G.entities[0].rule.hold).toBe(true);
+    // (stood in its foot cell with its back to it, no step forward: the key alone)
+    const up = walk([3, 0, 0], W, 4, { jumpHeld: 1 });
+    expect(up.climbed).toMatchObject({ end: 'top' });
+    expect(up.foot).toBeCloseTo(RISE, 2);
+    // let go half way: it hangs there, neither fallen nor mounted
+    const hung = walk([3, 0, 0], W, 4, { jumpHeld: (t) => (t < 0.8 ? 1 : 0) });
+    expect(hung.climbed).toBeNull();
+    expect(hung.foot).toBeGreaterThan(0.5);
+    expect(hung.foot).toBeLessThan(RISE - 0.5);
+    // and a body nowhere near it only jumps
+    const far = walk([0, 2, 0], 0, 1.5, { jumpHeld: 1 });
+    expect(far.foot).toBeLessThan(1);
+  });
   it('every block has its pieces, in the greybox values; and a template is laid whole', () => {
     const groups = new Set(G.faces.map((f) => f.group));
     for (const g of ['map:floor:0', 'map:floor:1', 'map:under', 'map:wall', 'map:low-wall', 'map:ramp', 'map:ladder']) expect(groups.has(g)).toBe(true);

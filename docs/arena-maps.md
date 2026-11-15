@@ -110,7 +110,8 @@ Machine gate only; nobody has played one.
 
 `ground.js` `mapGround(map)` lays the blocks as a controllable page's faces and colliders. Floors become slabs, which a
 body stands on and walks under. Walls and rails stop a body. Ramps are slopes the platform rule walks, up and down.
-Ladders are the runtime's own `rungs` climb, set in the foot cell.
+Ladders are the runtime's own `rungs` climb, set in the foot cell: walked into, or climbed by standing at the foot and
+holding jump (the climbable's `hold`: up rung by rung while the key is held, hung where it is let go, back to go down).
 
 `phases.js` `phasesOnMap(brief, map)` places a mission's phases from the map's own measures: arm up, a clear for each
 band, hold the heart, get out. Its laws are placed, unseen, two-ways, in-order and banded. A level's `mission.map`

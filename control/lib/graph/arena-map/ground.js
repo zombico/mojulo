@@ -16,7 +16,8 @@
  *                      under a step), its sides drawn, and under it colliders in slices whose tops stay under the slope,
  *                      so a body beside it is stopped and one on it is not
  *   a ladder           the runtime's own climb (playscape/objects/ladder.js, the `rungs` variant, plumb): a `climbable`
- *                      entity the platform rule takes hold of walking into its face, mounted at the lip; it stands in
+ *                      entity the platform rule takes hold of walking into its face, or stood at its foot holding
+ *                      jump (`hold`: it goes up while the key is held), mounted at the lip; it stands in
  *                      its foot cell against the ledge's edge, the cell over its foot its shaft. Its rails and rungs are
  *                      drawn upright, so no rung is a step the probe stands on
  *
@@ -104,7 +105,9 @@ export function mapGround(M, { at = [0, 0, 0] } = {}) {
     const lip = [c[0] + di * CELL / 2, c[1] + dj * CELL / 2, Z(k + 1)];
     const p = ladderParams({ variant: 'rungs', from: [c[0], c[1], Z(k)], to: lip }), S = climbSurface(p);
     const id = `map-ladder-${n}`;
-    out.entities.push(...LADDER.lower(p, S, id).entities);
+    // (climbed by walking into it, as any ladder, and by standing at its foot and HOLDING JUMP: worlds/controllable
+    // rules-basic.js `hold`; its reach is most of its foot cell)
+    out.entities.push(...LADDER.lower(p, S, id).entities.map((e) => (e.rule?.type === 'climbable' ? { ...e, rule: { ...e.rule, hold: true, holdReach: 1.6 } } : e)));
     // drawn upright: two rails and the rungs as faces in the ladder's plane, off the edge by its standoff
     const U = p.U, Nh = p.Nh, off = S.off, w = p.width / 2, f0 = [lip[0] + Nh[0] * off, lip[1] + Nh[1] * off];
     const at2 = (u, z) => [f0[0] + U[0] * u, f0[1] + U[1] * u, z];
