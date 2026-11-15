@@ -20,6 +20,7 @@
 
 import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
+import { readRoll, rolledIds, pickupsOf } from '@/lib/graph/game/roll';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
@@ -827,7 +828,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics)
       && sketch.manifest.game.mechanics.length && sketch.manifest.game.decorate !== false) {
     const { decorateMechanics, mergeDecorFx } = await import('@/lib/graph/game/mechanic-decor');
-    const decor = decorateMechanics(sketch.manifest.game.mechanics);
+    // (`game.highlight`: what its mechanics lay to be taken is indicated, lit at its silhouette: game/highlight.js)
+    const { highlightFor, readHighlight } = await import('@/lib/graph/game/highlight');
+    const hl = highlightFor(sketch.manifest.game);
+    if (hl) readHighlight(hl, 'game.highlight');
+    const decor = decorateMechanics(sketch.manifest.game.mechanics, hl ? { highlight: hl } : {});
     decorReactions = decor.reactions;
     decorSuppress = new Set(decor.suppress);
     const m = sketch.manifest;
@@ -1107,11 +1112,24 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (parkedColliders.length) payload.colliders = [...(payload.colliders || []), ...parkedColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
+    const rolls = sketch.manifest.roll != null ? readRoll(sketch.manifest.roll, { blocks: sketch.manifest.blocks, pickups: pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics) }) : null;
+    let rolledThings = {};
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
-      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1 });
+      // a ROLL (below): the blocks its seed may leave out are things of their own, stood by the runtime
+      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1, ...(rolls && (rolls.cover || rolls.pattern) ? { rolled: rolledIds(rolls) } : {}) });
       payload.faces = [...(payload.faces || []), ...B.faces];
       payload.colliders = [...(payload.colliders || []), ...B.colliders];
+      if (rolls && (rolls.cover || rolls.pattern)) rolledThings = B.things;
     }
+    // the level's ROLL (game/roll.js): what its seed picks on it (its cover, its items, its start), in the runtime's
+    // shape; the page carries the roll's engine only then. Absent ⇒ byte-identical.
+    if (rolls) payload.roll = { ...(rolls.cover ? { cover: rolls.cover } : {}), ...(rolls.pattern ? { pattern: rolls.pattern } : {}), ...(rolls.cover || rolls.pattern ? { things: rolledThings } : {}), ...(rolls.items || rolls.with ? { items: rolls.items ?? [], ...(rolls.with ? { with: rolls.with } : {}), at: Object.fromEntries(pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics).map((p) => [p.zone, p.at])) } : {}), ...(rolls.start ? { start: rolls.start } : {}) };
+    // what moves in a level's scenery (gameworld/course-scenery.js: a train along its viaduct): the mover channel's own rows. Absent ⇒ nothing
+    if (Array.isArray(sketch.manifest.sceneryMovers) && sketch.manifest.sceneryMovers.length) payload.movers = [...(payload.movers || []), ...sketch.manifest.sceneryMovers];
+    // a course's touch (scene/channels/controllable/touch.js): its lanes and its hero's sideways push, for a screen's swipes
+    if (sketch.manifest.courseTouch) payload.courseTouch = sketch.manifest.courseTouch;
+    // the level's in-play HUD on mana-ui (scene/channels/mana-hud.js): its spec, its theme, what it reads. Absent ⇒ not a byte
+    if (sketch.manifest.manaHud) payload.manaHud = sketch.manifest.manaHud;
     // hangar: the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).
@@ -1706,6 +1724,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // ⇒ untouched. Carries hand-authored fx AND the U5 mechanic decoration merged above.
   if (payload && sketch.manifest.fx && typeof sketch.manifest.fx === 'object') {
     payload.fx = sketch.manifest.fx;
+    // (a HIGHLIGHT, game/highlight.js, wears the game's own rim: the juice floor's, the look's narrowness and band at the
+    // game type's strength, as its characters' rim does. A world with no juice keeps the highlight's own soft rim)
+    { const st = payload.fx && payload.fx.states, fxs = sketch.manifest.fxStyle;
+      if (st && fxs && typeof fxs === 'object' && Object.values(st).some((x) => x && typeof x === 'object' && x.highlight !== undefined)) {
+        const R = (await import('@/lib/graph/scene/juice-style.js')).juiceFloor(fxs).rim;
+        if (R.k > 0) payload.fx = { ...payload.fx, rim: { k: R.k, p: R.p, band: R.band || 0 } };
+      } }
   }
 
   // MECHANICS lowering (M1): if the level's `game` channel declares

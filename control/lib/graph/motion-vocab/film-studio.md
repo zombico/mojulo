@@ -1,0 +1,173 @@
+---
+{
+  "id": "film-studio",
+  "name": "Film studio (a film of scenes: its departments, boards, cut, the film shot in mojulo and its Blender packs)",
+  "family": "motion",
+  "entry": "forge_motion",
+  "summary": "A FILM of several scenes with one cast, its sets, its look and its edit, made the way an animation studio makes one: in departments and waves, each scene boarded and approved by the person, then cut as an animatic with its voices and dubs, then FILMED: shot in mojulo scene by scene and cut into one video (minutes, resumable), and, for the high-end render, in Blender.",
+  "when": "Reach for this on 'a short film in three scenes / an animated short with my characters / make the whole film / the edit / approve the boards / the animatic of the film / film it / the video of the film / render every scene in Blender / an episode'. One scene alone is the scene-film card."
+}
+---
+
+A film is a stored recipe (a sketch of kind `film`). Its page is its book: the departments' table, what to do next,
+and each scene with its board strip, its script, its advice and its approval. Every scene is played by the same core
+as one screenplay forged alone (`get_motion_vocab({ id: 'scene-film' })`), so a scene's words are that card's words.
+
+## Write it
+
+```
+forge_motion({ film: { write: {
+  title: 'The Key', look: 'anime',
+  cast: { ada: { persona: 'sk_…' }, jon: { hero: 'sk_…', style: 'thespian' } },
+  sets: { room: 'sk_…' },
+  scenes: [
+    { id: 'door', set: 'room', cast: { ada: {}, jon: {} }, script: 'ADA: You kept the *key*.\nJON (worried): I kept everything.',
+      voice: { 1: '/abs/l1.wav' }, dub: { fr: { 1: { audio: '/abs/fr1.wav', text: 'Tu as gardé la clé.' } } } },
+    { id: 'end', cast: { jon: {} }, script: 'JON: She never asked.' } ],
+  edit: { order: ['door', 'end'] } } } })
+```
+
+- The cast is the film's. Each part plays from a `persona` or a `hero` (none: the default realistic hero, advised),
+  with its `register`, `style`, `role` and `height`.
+- A scene names who is in it. `cast: { <who>: { mark?, style?, role?, register? } }` gives the scene's words over the
+  film's.
+- A set is a stored world, named once in `sets` and used by any scene's `set`. A scene's `hour` is the time of day
+  it is shot at there (the `scene-film` manual): one set, any hour. A scene's `clouds` is the sky over it, its `wind` moves the set's trees. A scene's `life: true` has a city's own traffic
+  drive and its own people walk through it in the Blender film (the same manual). The film shot in mojulo has a
+  world's own life in it always.
+- **A set can be asked for, with no world made first.** `sets: { lake: { words: 'a grassy field by a lake at dusk',
+  seed? } }` says a land in words; `sets: { street: { cube: 'valley-morning', show: 'geotown', seed? } }` names a
+  geocube preset and how it is laid (`path`, `trail`, `town`, `geotown`, `geocity`, `hall`; the presets and words are
+  the geocube's: `get_sketch_vocab({ id: 'geocube' })`).
+  - The film makes the place once, when it is written, and keeps its ref beside the words. The same words and seed
+    are the same place.
+  - Edit the film and the place is kept. Change the words and the same world is changed in place.
+  - The readout's `sets` says what the words read; a word nothing read is advised (`words-unread`). A place is made
+    of the land, what grows, the water, the sky and the hour: a thing or a person is not read (dress the scene with
+    it, `props`).
+  - A town or a city takes longer to make than a land, a city minutes.
+  - **Construction.** A place asked for by preset also takes what its builders build and how it is laid, in the
+    geocube's own keys: `style` (a starter: `tudor-market`, `art-deco`, `brutalist`, `bay-and-gable`, `main-street`,
+    `walk-up`…, or a style of your own), and `geotown`, `geocity` or `town` (`{ cube: 'valley-morning', show:
+    'geotown', style: 'tudor-market', geotown: { streetscape: 'leafy' } }`). The readout's `sets` says the style.
+- **A set can be a room asked for.** `sets: { den: { room: 'living', style?: 'dark-academia', brief?, size?: ['14ft',
+  '18ft'], windows?, doors? } }`: one of `living`, `bedroom`, `dining`, `study`, `entry`, drafted and decorated by the
+  interior designer (the `interior` card's styles and briefs). Its furniture, door and windows are places a script
+  names ("Ada crosses to the bookcase."). A new `style` or `brief` redecorates the same room; another room, size or
+  openings makes another. A room is lit by its own lights: a scene's `hour` does not light it.
+- **The set department proposes a place.** A scene with no set plays on a bare stage. Where its words name a place
+  (an order's notes on the event, else its script), the readout advises `no-set` with what they ask for and the
+  patch that takes it: a street of houses for a house, a door or a street; a city for a corner, a tower or traffic;
+  a land in the scene's own words for a field, a lake or a trail; a room for a lounge, a bedroom, a study or a scene
+  "inside"; and the hour they name. It proposes; take it, change
+  it (the preset is only a starting look), or leave the scene on its stage.
+- `look`: `film` | `anime`. `grade`, and `grain` (`twos`), cover the whole film.
+- `render: { light: 'setups', dof, motion_blur, samples }` sets the Blender render for every scene (the `scene-film`
+  card). The Look and light department owns it.
+- `edit.order` is the order the scenes play in.
+- Recordings are bound as they are written, so the row keeps no path.
+
+Then edit in place: `film: { ref, patch: [{ op: 'set' | 'remove', path: '/scenes/1/script', value }] }`. A call
+with only `{ ref }` reads.
+
+## The departments, in waves
+
+`script` and `edit` are the main agent's. The others can be a subagent's each, a wave at a time.
+
+| Department | Owns | Answers |
+|---|---|---|
+| script | the scenes' words | a scene that does not play, no one moving, a slowed line |
+| casting | who plays each part | a part with no body, a part in no scene |
+| set | the worlds, the marks | a wall between a camera and the actors, speakers too far apart |
+| performance | style, role, register | a speaker turned away, a speaking extra |
+| camera | the coverage, the grain | a shot held too long, no close-up, a cross that flips the line |
+| voice | recordings and dubs | a recording for other words, a dub running over, a half-recorded scene |
+| look | look and grade | |
+| edit | the order | |
+| render | boards, cut, the film, packs | an unapproved board, a scene changed since its approval, what the film shot in mojulo does not perform |
+
+The waves are script and look, then casting, set and edit, then performance and voice, then camera, then render.
+
+## A cutscene made to order
+
+Another studio (the game studio, for one) hands over what it already has and gets a cutscene back.
+
+```
+film: { order: {
+  title: 'The meeting at the lake', from: '<the game\'s ref>', for: 'the prologue',
+  cast:   { ada: 'sk_…', jon: 'sk_…' },            // its characters: a persona's or a hero's ref (or { persona | hero })
+  places: { lake: 'sk_…', street: 'sk_…' },        // its geocubes, levels, rooms: the sets (or a place asked for:
+                                                    //   { words } | { cube, show }, as a film's `sets`)
+  events: [{ id: 'arrival', place: 'lake', who: ['ada', 'jon'], notes: 'Ada finds Jon waiting. He has bad news.' },
+           { id: 'parting', place: 'street', notes: '…', script: 'ADA: …', props: { car: { thing: 'sedan', at: [3, 2] } } }],
+  deliver: 'animatic' } }                            // or 'film': the scenes filmed (shot in mojulo, or rendered in Blender)
+```
+
+- **It writes a film**, kept like any other: the cast is the client's characters, each place a set, each event a
+  scene in the order given. The brief is kept in the film (`order`) and shown at the top of its book.
+- **An event is the client's notes on what happens.** Where the client wrote a `script`, the scene plays it as given.
+  An event with notes only is `unwritten`: the script department is advised to write its screenplay from the notes
+  (`film: { ref, patch: [{ op: 'set', path: '/scenes/<n>/script', value }] }`). It does not play until then.
+- **The readout's `order`** says each event's state (`unwritten`, `written`, `boarded`, `approved`, `cut`, `filmed`:
+  its Blender pack made, `shot`: filmed in mojulo, `rendered`: Blender's render), which events the client is still
+  `waiting` for, and whether it is `ready`: every event cut into the animatic, or, where the order asked for the
+  film, shot in mojulo or rendered.
+- **`film: { ref, deliver: true }`** hands it back: the film's ref and book, the animatic (`animatic`, and
+  `animatic_file` to copy), the film shot in mojulo (`filmed`, `filmed_file`), the rendered cut where there is one,
+  and each event's state and board. An order not ready
+  is handed back as it stands and says what is `waiting`. A change after the hand-back reads as not current.
+- **`film: { ordered_by: '<the client\'s ref>' }`** lists every film that client ordered and how far each has got.
+  This is how the client finds its cutscenes.
+- **A game plays it.** A game's flow takes the film as a cutscene: a cinematic step `{ kind: 'cinematic', film:
+  '<the film\'s ref>', next }`, or a slot of the default flow, `cinematics: { opening | prologue | ending: { film } }`.
+  The game keeps the ref; the video is found each time the game is served or exported (the scenes rendered in Blender
+  where they are, else the film shot in mojulo, else the animatic), so a cutscene made again is the one that plays. `export_game` copies it into
+  `assets/cutscenes/`. A film with no video yet is passed over and named in `cutscenes_missing`.
+- Everything else is the film's own: its departments advise, its boards are approved by the person, its runs are the
+  same.
+
+## Approve, then run
+
+- **`film: { ref, run: 'storyboard' }`**: every scene's board in seconds, with no actor minted. The run's page is the
+  film's book with each scene's panels.
+- **`film: { ref, approve: { <scene>: 'board' } }`**: the person's call, made after they have looked. It is stamped
+  with what the board was drawn from, so a later edit reads as `stale`. `null` withdraws it.
+- **`film: { ref, run: 'animatic' }`**: ONE cut (`motion.mp4`), every scene's panels on one clock.
+  - Its voice track is the scenes' recordings laid end to end.
+  - Each dub is its own track. A scene with no dub falls back to its own voice.
+  - Captions are joined the same way, and each language is a tagged audio track and subtitle track.
+- **`film: { ref, run: 'film' }`**: THE FILM, SHOT IN MOJULO. Each scene is played on its set's own World page by
+  its cast and shot by its coverage (the `scene-film` manual's `film` form), then joined into ONE cut (`motion.mp4`)
+  with the film's sound, as the animatic's is laid. No other program runs.
+  - Minutes a scene: about a minute for a hero, then the set's own page sets the pace. A city or a bare stage draws
+    a few frames a second; a landscape (grass, trees, its own light) draws a frame every few seconds, about a
+    minute for each second of film.
+  - The call works until its budget (`MOJULO_RUN_BUDGET_MS`, else 300 s) and returns `pending`. Call it again: a
+    scene shot at its current stamp is kept, and a scene cut short keeps its frames and goes on from the next one
+    (`ran.scenes.<id>.pending: { frames, of }`). The cut is made once every scene is shot.
+  - `ran.scenes.<id>.shots` gives each shot a `still`. Nobody has looked at the film yet: look at the stills, then
+    show the person the cut.
+  - `ran.advice` says what a scene asks that this film does not perform (`native-unread`, `native-face`).
+- **`film: { ref, run: 'blender' }`**: the high-end film, where it is wanted: each scene's Blender film pack under `scenes/<id>/blender/`, plus `cut.py`,
+  which joins the scenes' renders in order, picture and sound.
+  - Minting is minutes per scene, and each hero is minted once a call. The call works until its budget
+    (`MOJULO_RUN_BUDGET_MS`, else 300 s) and returns `pending`. Call it again: scenes already made at their current
+    stamp are kept.
+  - **The render worker renders it, on a machine with Blender:** `node scripts/render-film.mjs <the run's folder>
+    --preset final [--budget-min 60]`.
+    - Each pack is built once and rendered chunk by chunk, a chunk never crossing a cut, then encoded with its voice.
+      `cut.py` then joins the scenes.
+    - It is resumable: frames on disk are never rendered again, and running it again goes on.
+    - Its `render.json` is what the readout shows: each scene's frames done and whether it is encoded. The next move
+      names the command.
+  - The tool never launches Blender.
+
+`scenes: [<id>]` limits any run to those scenes. Rendering unapproved boards is allowed, and the readout says so: the
+gate advises and never refuses.
+
+## Not yet
+
+- Cuts only: `edit.cuts` is kept but the cut joins scenes with cuts. There is no music or SFX bed yet.
+- The film shot in mojulo draws the cast in its own light, not the set's, with no shadow on the ground, and stands no
+  props (the `scene-film` manual's list).
+- Panel edits are written as script and coverage changes in words; a panel cannot be dragged.

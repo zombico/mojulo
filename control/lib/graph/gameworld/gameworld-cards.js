@@ -27,6 +27,7 @@ import { TEMPLATE_ARSENALS } from './combos.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
+import { DIFFICULTY_TIERS } from './setup.js';
 import { ARMS_KIT_WORDS, ARMS_MAX } from './arms-kit.js';
 // the carried arms a shooter's player holds (arms-kit.js): aimed with the right mouse, switched on the wheel
 const ARMS_LINE = `  arms: [${ARMS_KIT_WORDS.join(' | ')} | { item, model }] (1..${ARMS_MAX})   the player's own kit: right click aims down the sights (a scope zooms, Shift steadies it), R reloads, wheel or 1-5 switches, a bow draws while held`;
@@ -181,7 +182,10 @@ function studioCard() {
     'check: true walks each level and reads its first frame (`audits`, the machine gate). The eyes gate is the creator',
     'playing it (`play`): never say it passed.',
     '',
-    'THE FIRST SESSION: not the game done, the game started. The readout\'s `goalposts` say where it stands (met, partial,',
+    'THE FIRST SESSION, 0 TO LEVEL 1: not the game done, its first level played. Start from what the creator brings',
+    '(drawings, plans, docs): use what they say, set aside what has no place yet, ask only what is missing. Most games',
+    'are levels played in turns (set-up, load, play, results, on to the next); an open world (qow, a world map) is laid',
+    'differently. The readout\'s `goalposts` say where it stands (met, partial,',
     'open), each open one with the question only the creator answers, and `next`: where this session goes on, and the',
     'next picks up. A good first session leaves:',
     ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
@@ -586,6 +590,14 @@ function flowCard() {
     `flow: '${FLOW_IN_PLAY}'   the default STARTED IN PLAY: an opening cutscene (the story\'s opening moment, else the empty`,
     '  slot), then straight into the game, no attract, title or prologue first; the title is where quitting goes. A',
     '  game laid from a sentence says it.',
+    'A LEVEL STEP IS A TURN: before it loads the player may be asked things, and a scene may play as play starts or ends.',
+    '  level  { …, picks?: [{ id, from: { slice } | { options: [id | { id, name?, about? }] }, min?, max?, ask?, hint? }],',
+    '           start?: { scene | video, skip?, once? }, end?: { scene | video, skip?, when?: won | lost | left } }',
+    '  A pick from options is the game\'s own words; from a slice, which of a consumed slice\'s members go in (the party).',
+    `setup: { difficulty?: true | { ask?, hint?, options?: [${Object.keys(DIFFICULTY_TIERS).join(' | ')} | { id, name?, about? }] }, picks?: [pick] }`,
+    '  the set-up, said once on the world: asked before every level that asks nothing of its own. difficulty tunes the',
+    '  foes\' minds (the engine\'s tiers, named in the game\'s words). Say it when the creator asks for a difficulty select,',
+    '  a character or squad select, or a loadout before a level; the review\'s flow:sequence shows what each level asks.',
     'Every step reached from the start, every one with a way out, no loop of cinematics and holds alone: the read says',
     'which, and how. A cinematic waits for its scene to end; a level for its end; a screen for the player.',
   );
@@ -896,6 +908,73 @@ function mountsCard() {
   );
 }
 
+function rollCard() {
+  return lines(
+    'THE ROLL — a game that plays a different map each time. The recipe never changes: the seed its shell sends each play',
+    '  picks what is on a level. Seed 1 is the reference roll (a page with no shell, a capture, the books).',
+    'A WORLD\'S WORD   roll: true | { cover?, items? }   each walking level on a trail takes a roll over its own cover (walls and',
+    '  crates by the trail\'s beats, laid for the roll when the level has none: half or more stand, never all) and its own',
+    '  pickups (half or more lie, never all). A hero with no body is given one: no cover stops it without.',
+    '  Quick: design_game({ quick: { goal: \'collect\', world: { roll: true } } }).',
+    'AN OBSTACLE COURSE (a running game)   a level\'s obstacles: true | { slots?: 4…40, rest?: 0.2…3, dress? (gameworld-course-dress) }',
+    '  in place of walk: a lane of slots seen from behind the hero, a hurdle, a block or posts in each, rolled as one paced',
+    '  line. It is sized for the world\'s hero by what each ask needs in seconds, measured on its feel, and followed by a',
+    '  camera that frames it. A hero that runs on momentum (feel: commuter-rail-runner) is the one it is for.',
+    'A LEVEL\'S OWN (create_sketch / update_sketch on the level)   roll: {',
+    '    cover:   [{ of: [\'<block id>\', …], stand: n | [min, max] }]   groups of its blocks ({ id, form: wall | pillar | crate | slab, at, … })',
+    '    items:   [{ of: [\'<pickup id>\', …], lay: n | [min, max] }]     its collect\'s pickups ({ id, item, at })',
+    '    start:   [{ pos: [x, y, z], heading? }, …]                       where the pilot sets out',
+    '    pattern: [{ slots: [[id, …], …], kinds?, run?: 2, beat?, never?, forms?, ramp? }]   a LINE, one standing a slot, paced:',
+    '             never more than `run` of one kind running, never a pair of kinds repeated, `ramp` { form: [first, last] } its weights',
+    '  }   A group\'s picks know nothing of each other; a line\'s do. Left out, a thing is gone whole: nothing breaks.',
+    'A RUN OF ITS MAPS   create_game({ …, shell: \'play\', run: { length, repeat: true } }): one level that rolls, drawn again and',
+    '  again, each draw another map; the result says the map\'s number. Played again, a rolled level is the same map.',
+    'THE GATES (machine: they advise, they never refuse)   create_game answers `rolls` for each level that rolls: a sample of',
+    '  seeds walked in Node (a body, a way through, apart, won), or for a course played by the reaction bot, which sees only so',
+    '  far ahead and acts a reaction time after (fair, finishes, paced, apart). Say how many seeds were walked.',
+    'THE ROLL ROOM (before any level)   bible?book=practice&room=roll: a yard, or for a running game its course; R rolls the',
+    '  next seed. &view=map is the course map: the course from above, on its side, read left to right. Its measures are in',
+    '  design_game\'s readout (practice.measured.roll). Whether a roll reads as designed is the operator\'s to see.',
+    'NOT YET   foes a seed picks; the layout itself rolled; a start rolled by the world\'s word.',
+  );
+}
+
+function courseDressCard() {
+  return lines(
+    'THE COURSE\'S DRESS — how an obstacle course (a level\'s `obstacles`, gameworld-roll) looks: its way and asks, the WALLS',
+    '  beside it and the BACKDROP behind it. One dress, because they share one screen, read in thirds from the top: where',
+    '  stuff comes from (the backdrop\'s), where it comes to view (the walls\' and the asks\'), where you react (the character\'s).',
+    'A PREMISE FIRST   a dress coheres when one sentence says who runs here and toward what, and every thing on the screen is',
+    '  named in it. last-train (the default): a kid late for the last train runs down the tracks into the terminus; the lanes',
+    '  are tracks, a hurdle a crossing barrier, a block crates, posts stabled wagons, the walls stations and the cutting.',
+    'THE WORD   a level\'s obstacles.dress: \'last-train\' | \'rail-yard\' | \'greybox\' | {',
+    '    theme?:    the card every part left out falls back to (last-train unsaid)',
+    '    palette?:  { <role>: \'#rrggbb\' }   by ROLE, never thing by thing:',
+    '               the way ground ground2 sleeper rail kerb wall · the asks jump jump2 (go over) steer (go round) ·',
+    '               the tells tell-jump tell-steer · exit · the walls flank flank2 trim iron lamp · the backdrop sky horizon far land',
+    '    walls?:    { a?, b?, order? }   A the complex slice, B the plain one that lets A be seen. A slice is one segment long:',
+    '               a name (platform, cutting, shed, stacks, fence, bank) or { name, parts: [{ box: [u0, d0, z0, u1, d1, z1],',
+    '               role }] }, u 0…1 along it, d metres off the kerb outward, z metres up, a wall\'s role (40 parts at most).',
+    '               order: one side\'s own (\'ABBA\'), else the walls\' rule lays each side (never three alike, never ABAB).',
+    '    backdrop?: a name (terminus, yard, open) or { name, bands?: 3…12, skyline?: [{ at: -1…1, wide, tall }] }   the sky from',
+    '               `horizon` up to `sky`, silhouettes in `far`, the land in `land`, 400 m past the course\'s end.',
+    '  }',
+    'IN UNISON   design every layer in one patch and read one sheet: bible?book=practice&room=roll&view=sheet (&level=<id>).',
+    '  It draws the screen from the course\'s own geometry through its own camera, its thirds ruled, the slices in',
+    '  elevation, the palette by layer and every law. &view=map places the slices along the course. Work it as a wave:',
+    '  the levels chapter owns the asks and their pace, the world chapter\'s style gives the place and its palette, and',
+    '  both patch levels.<id>.obstacles.dress; neither is done until the sheet\'s laws hold for the whole dress.',
+    'THE LAWS (one machine gate over every layer; it advises)   readable: an ask stands out from the way, the walls and the',
+    '  backdrop. distinct: go over and go round differ by hue. quiet: nothing but an ask is vivid. told: a tell is in its',
+    '  ask\'s hue. premise: the theme has one and names every thing; a slice or backdrop of your own carries its name. receding: the skyline is nearer the horizon\'s colour than the walls are. interest: A has more parts than',
+    '  B. rhythm: each side keeps the walls\' rule and the sides differ. banded: the skyline stays in the top third.',
+    '  design_game\'s readout carries them (practice.measured.roll.dress: lost, says) and a `roll` step names what is lost.',
+    'ORDER OF WORK   the character\'s back, then the far end (quiet, so what is coming is read), then the middle third: make A',
+    '  interesting at a segment\'s size, then B plainer, then their order. The eyes gate is the operator\'s, on the game\'s page.',
+    'NOT YET   walls a seed re-orders each run; textured parts; tall tells in the top third.',
+  );
+}
+
 function wcdCard() {
   return lines(
     'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
@@ -1101,6 +1180,9 @@ function storyCard() {
     'A beat may be a CHOICE (the answer sets its flags; a later moment reads them: if: { flag }) or a SCRIPT, a',
     '  screenplay the cinematics department blocks, shoots and acts: write the words; the readout\'s story.notes are',
     '  its director\'s. Both: ui-scenes.',
+    'A CUTSCENE TO ORDER from the animation studio: hand it this game\'s characters, places and what happens,',
+    '  forge_motion({ film: { order: { from: <this ref>, for, cast, places, events: [{ id, notes }] } } }); it hands',
+    '  the cutscene back ({ film: { ordered_by: <this ref> } } finds it). get_motion_vocab({ id: \'film-studio\' }).',
     'quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag, moments?: [moment id] }] }]: every level keeps',
     '  the journal (J), its flags carried level to level. A moment in step n waits until step n - 1 is done (in step 1,',
     '  until the quest begins); its own if holds too. A step\'s flag is set by a moment\'s sets, an answer, or a cue',
@@ -1327,6 +1409,8 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
+  ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

@@ -25,6 +25,7 @@
 import { DRONE_ROLES, DRONE_ARCHETYPES } from './drone-archetypes.js';
 import { HELI_ARCHETYPES } from './heli-archetypes.js';
 import { BOAT_ROLES, BOAT_ARCHETYPES } from './boat-archetypes.js';
+import { ROCKET_ROLES, ROCKET_ARCHETYPES } from './rocket-archetypes.js';
 
 // The jobs a flying machine does, the same in air and in space: each role holds at least one craft
 // of each realm, so a game can swap the sky for the void and keep its cast.
@@ -517,3 +518,6 @@ Object.assign(CRAFT_ARCHETYPES, HELI_ARCHETYPES);
 // the boats (boat-archetypes.js): their roles and rows on the one shelf
 Object.assign(CRAFT_ROLES, BOAT_ROLES);
 Object.assign(CRAFT_ARCHETYPES, BOAT_ARCHETYPES);
+// the launch vehicles (rocket-archetypes.js): their own realm and roles, stood on their tails
+Object.assign(CRAFT_ROLES, ROCKET_ROLES);
+Object.assign(CRAFT_ARCHETYPES, ROCKET_ARCHETYPES);

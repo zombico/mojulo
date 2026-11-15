@@ -40,6 +40,14 @@
  * its slow motion and freezes on the world clock (the scene fires `tempo`), its cast acting it (Soul's `acting`). Space
  * stays the stage; Time is the track the beats run on: what a world carries on (consequence) is Time's, how worlds join
  * (reachability) Space's. Still open: the world held through a cinematic (`sequence: held`).
+ *
+ * Built 11-13 (a game starts in play): the flow's `cutscene` step, a sequence made elsewhere and played whole, and a
+ * gameworld's `flow: 'play'`, the default flow begun at that cutscene and straight into the game (`sequence: cutscene`,
+ * `in-play`); a cutscene may be a film the animation studio made to the game's order (`sequence: film`). Built 11-14 (the game turn, game/turn.js): a level step is a turn, what the player picks before it loads,
+ * the load, play, the pause, the results (`sequence: turn`). And what a world keeps to be read, never a mechanic
+ * (`lore`, 11-10): its backdrop, the setting's lore before play as its text has it (lorecube/backdrop.js: it feeds the
+ * pre-game, a place's starting state and what the cast remembers), and a level's library, publications on a shelf
+ * (playscape/ui/library.js).
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
@@ -84,9 +92,34 @@ export const TIME = Object.freeze({
       multi: true,
       values: {
         screens: { status: 'built', lowers: 'lib/graph/game/play-shell.js', note: 'the order the shell has always made: its title, its levels, a result, the end card (game/flow.js defaultFlow), stepped on events, never timers' },
-        own: { status: 'built', since: '2026-11-09', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen)' },
+        own: { status: 'built', since: '2026-11-09', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen); how it starts (cutscene, in-play) and what a level step asks (turn) are values of their own' },
         cinematics: { status: 'built', since: '2026-11-09', requires: ['time.shots=staged'], lowers: 'lib/graph/gameworld/story.js', note: 'a cinematic step staged on a level\'s page; the story\'s opening (first boot, the attract), prologue (after New Game, kept into play) and ending (the first full clear) placed in the flow' },
-        held: { status: 'partial', effort: 'M', requires: ['time.sequence=cinematics'], lowers: 'lib/graph/worlds/controllable/world-clock.js', note: 'the world held through a cinematic, its foes and hazards still while the scene\'s cast and camera move: the world freeze stops the clock the scene runs on, so it waits on a narrower freeze' },
+        held: { status: 'partial', effort: 'M', requires: ['time.sequence=cinematics'], lowers: 'lib/graph/worlds/controllable/world-clock.js', note: 'the world held through a cinematic, its foes and hazards still while the scene\'s cast and camera move: the world freeze stops the clock the scene runs on, so it waits on a narrower freeze (the opening cutscene of a game that starts in play runs before play, not over a held world)' },
+        // built 11-13 (a game starts in play): the cutscene step, a sequence made elsewhere and played whole, and a
+        // gameworld's `flow: 'play'` (flow.js startInPlay): the default flow begun at its opening cutscene and straight into
+        // the game, the title only where quitting goes back to
+        cutscene: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/game/flow.js', note: 'a cutscene step: a sequence made elsewhere and played whole, a video over the shell or a directed scene staged as a cinematic is, skipped by a key or a tap once it has been up a moment; with neither, the slot holds its place and is passed at once; a bare video is an address the page can reach; one that is a film\'s is found and carried by the game (sequence: film)' },
+        'in-play': { status: 'built', since: '2026-11-13', requires: ['time.sequence=cutscene'], lowers: 'lib/graph/gameworld/game-flow.js', note: 'a world\'s flow: play: the game starts in play, its opening a cutscene (the story\'s opening moment where it has one, else the empty slot), then the save\'s level, else the first, with no attract, title or prologue before it; the title stays, where quitting goes; what the sentence door writes' },
+        // built 11-13 (the animation studio, film/; game/flow-films.js): a cutscene that is a FILM, made to the game's order
+        // (film/order.js: the game studio hands over its characters, its places and its notes on each event, and the film
+        // is handed back). The flow keeps the film's ref, so the cutscene made again is the one that plays. The order is a
+        // rail between two studios, not a value; what a game can ask for is the film in its flow
+        film: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/game/flow-films.js', note: 'a cutscene that is a film of the animation studio\'s, named by its ref as the game\'s opening, prologue, ending or any cinematic step: its video plays over the game and can be skipped, is found each time the game is served or exported (an exported game carries it), and a film with no video yet is passed over, the export saying which' },
+        'moment-film': { status: 'partial', effort: 'M', requires: ['time.sequence=film', 'time.sequence=cinematics'], lowers: 'lib/graph/film/order.js', note: 'a story moment filmed to order: the animation studio takes a cutscene order (the cast, the places, notes on each event; an event with notes only waits on its script) and hands the film back with how far each event has got; the game studio fills the order in by hand: naming a story moment does not fill it, and a cutscene cannot yet take a moment\'s place by its name' },
+        // built 11-14 (the game turn, game/turn.js; a world's set-up, gameworld/setup.js): one level session in phases, the
+        // one path a play-shell game's levels share. The arena shell and versus still keep their own set-up
+        turn: { status: 'built', since: '2026-11-14', lowers: 'lib/graph/game/turn.js', note: 'a level step is a turn: what the player picks before it loads (a world\'s setup: difficulty in the engine\'s tiers, picks from the game\'s own options or a slice the level consumes, asked before every level or kept for the game), the load, play, the pause, the results, a scene or a video as play starts and as it ends; the picks drawn by mana-ui, a retry keeping them; the arena shell and versus keep their own set-up, and an end trigger that is a scene, a locked row and a quit recorded are not yet' },
+      },
+    },
+    // what a world keeps to be read (11-10: the lorecube's backdrop, lorecube/backdrop.js; publications, publication/):
+    // the setting's lore before play, extracted from its text and never authored, kept on the game and handed to its
+    // book chapter by chapter; and books on a shelf in a level, the same pages that print. Neither is a mechanic
+    lore: {
+      multi: true,
+      values: {
+        none: { status: 'built', note: 'a world with no history said and nothing to read' },
+        backdrop: { status: 'built', since: '2026-11-10', lowers: 'lib/graph/lorecube/backdrop.js', note: 'a gameworld\'s backdrop: the setting\'s lore as its text has it (who is in it, what happened in order and from what, how the world stands where the text stops, what each side wants and believes, what is open or unsaid), each reading with its basis, more added in later drops; shown in the game book, each chapter handed its own part (the world the places, the cast the people, the story what happened before play, the main quest the open conflicts); it feeds the story\'s timing and the world\'s starting state, never a mechanic' },
+        library: { status: 'partial', effort: 'M', lowers: 'lib/graph/playscape/ui/library.js', note: 'a level\'s shelf of books (play.library: a grimoire, a bestiary, a manual, a notebook, a comic), each there from the start or found on a flag, opened with L and turned a spread at a time, its pages the ones that print; written into a level\'s recipe: a designed gameworld has no word for it, no door mints a publication, and a book is found by a flag, not as a thing in the world' },
       },
     },
     chapters: {

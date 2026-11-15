@@ -50,7 +50,7 @@ export const CHAPTERS = Object.freeze([
   C('intent', 'production', 'What game it is', { paths: ['/id', '/name', '/seed', '/intent', '/brief', '/gameBrief', '/backdrop', '/quick', '/loop'], parts: ['intent'], cards: ['gameworld-guide', 'gameworld-brief', 'gameworld-intent', 'gameworld-intent-*', 'gameworld-quick'], outcome: 'intent' }),
   C('world', 'worlds', 'The world', { paths: ['/style', '/civilizations', '/grade'], parts: ['world', 'nature', 'civilizations', 'key', 'tech:*'], cards: ['gameworld-world', 'gameworld-colour'], reads: ['intent'], outcome: 'world' }),
   C('main-quest', 'production', 'The main quest', { paths: ['/mainQuest'], cards: ['gameworld-main-quest'], reads: ['intent', 'world'] }),
-  C('levels', 'worlds', 'The levels', { paths: ['/levels', '/links', '/start', '/hub', '/topology', '/megaworld', '/wcd', '/qow', '/room'], parts: ['level:*'], steps: ['level-*', 'map-*'], cards: ['gameworld-wcd', 'gameworld-course', 'gameworld-qow'], reads: ['world', 'main-quest'], outcome: 'levels' }),
+  C('levels', 'worlds', 'The levels', { paths: ['/levels', '/links', '/start', '/hub', '/topology', '/megaworld', '/wcd', '/qow', '/roll', '/room'], parts: ['level:*'], steps: ['level-*', 'map-*'], cards: ['gameworld-wcd', 'gameworld-course', 'gameworld-qow', 'gameworld-roll', 'gameworld-course-dress'], reads: ['world', 'main-quest'], outcome: 'levels' }),
   C('direction', 'characters', 'The direction', { paths: ['/characters/direction'], parts: ['characters:direction'], cards: ['gameworld-direction'], reads: ['intent', 'world'], outcome: 'characters' }),
   C('hero', 'characters', 'The hero', { paths: ['/characters/hero'], parts: ['hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base'], steps: ['hero'], cards: ['gameworld-looks'], reads: ['direction'], outcome: 'characters' }),
   C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
@@ -77,7 +77,7 @@ export const CHAPTERS = Object.freeze([
   C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/ui', '/hud'], parts: ['interface:*'], cards: ['gameworld-interface'], reads: ['intent', 'world', 'feel', 'systems', 'battles', 'cast', 'audio-direction'] }),
   // the game's flow, what plays when from the first screen to the credits: the game director's page, the main agent's own
   // (never a subagent's), reading the spine, the levels, the story's cinematics and the interface's screens (game-flow.js)
-  C('flow', 'production', 'The flow', { paths: ['/flow'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
+  C('flow', 'production', 'The flow', { paths: ['/flow', '/setup'], parts: ['flow:*'], cards: ['gameworld-flow'], reads: ['main-quest', 'levels', 'story', 'interface'] }),
   // the score (the cue sheet): each department's request for music answered on the game's one identity. The music
   // department's; it reads the direction, and what asks: the levels, the foes, the story's cinematics, the flow
   C('score', 'music', 'The score', { paths: ['/music/cues'], steps: ['cue-*'], reads: ['audio-direction', 'levels', 'foes', 'story', 'flow'] }),

@@ -30,7 +30,8 @@ export const SOUL = Object.freeze({
   settings: {
     hero: {
       values: {
-        hero: { status: 'built', lowers: 'lib/mcp/tools/create-character.js' },
+        // (11-13: a game laid from a sentence designs its protagonist where no body rail does, gameworld/hero-design.js)
+        hero: { status: 'built', lowers: 'lib/mcp/tools/create-character.js', note: 'a person made through create_character; a game laid from a sentence designs its protagonist as a person of its world where no body rail does: rolled in the game\'s setting, its looks pages written from its sheet, its garment the world\'s accent; a hero on a body rail (a comic hero, a fighter, a mascot) is still dressed plain' },
         // makeable and rigged, not yet a game's pilot: a world's figure takes a hero alone (heroRef, world-scene.js)
         creature: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no creatureRef' },
         animal: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; a stored animal is not pilotable on its own gaits: a world figure takes a hero (heroRef), no animalRef; an animal as a mascot is (soul.hero=mascot), and a horse is ridden (soul.mount=horse)' },
@@ -69,6 +70,29 @@ export const SOUL = Object.freeze({
     },
     // a creature's body and clips ride the GLB; how it behaves is a mind's
     species: { multi: true, source: { module: 'lib/graph/fauna/species.js', table: 'SPECIES' } },
+    // the peoples a foe is skinned as (foes/people.js: a bestiary entry's skin.people): a person, or a lineage of the
+    // egocube's; below the hero door a kin on the game's own rig (beast/cards.js). Built 11-13: the goblin and the orc,
+    // kins of their own (a skull of the relational creature head, a body card, their lineage's arm, a first shelf of
+    // helmets), fielded first by the meadow's era
+    people: {
+      multi: true,
+      source: {
+        module: 'lib/graph/foes/people.js', table: 'PEOPLE',
+        since: { goblin: '2026-11-13', orc: '2026-11-13' },
+        note: 'a foe skinned as a people (a bestiary entry\'s skin.people): any class that stands on two legs, at the people\'s own stature, carrying its lineage\'s arm where it has one and swings a blow, drawn as its game draws its people; a kin (a people below the hero door, on the game\'s own rig) is one body, told apart by soul.band',
+      },
+    },
+    // built 11-13 (one body, many foes: foes/packs.js): how a kin's foes are told apart, by what they wear and how big
+    // they stand, never by another body. What they wear is what the frame-adorned principles give them (egocube/outfit.js
+    // adornFromSheet), never a design by hand. The casting call reads which off the game's minds (gameworld/foe-casting.js):
+    // creatures of the place wild, a force come for the hero a pack
+    band: {
+      values: {
+        wild: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/foes/packs.js', note: 'bare, each its own size and coat (skin.body: a runt, a lean one, a squat one, a big one; a lineage swatch or a colour): a rabble, the creatures of a place' },
+        adorned: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/foes/packs.js', note: 'each geared by its own sheet, its role and its standing (skin.adorned): no two alike but by their work' },
+        pack: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/foes/packs.js', note: 'a band dressed alike (skin.pack: a style, a colourway, a mark): the same principles with what a band shares pinned, a member\'s class giving its role\'s gear and its rank how much it wears, its leaders more of the same under a helmet; a band of two kins is led by the bigger' },
+      },
+    },
     party: {
       values: {
         solo: { status: 'built', lowers: 'lib/graph/playscape/player.js' },
@@ -103,9 +127,9 @@ export const SOUL = Object.freeze({
         horse: { status: 'built', since: '2026-10-29', lowers: 'lib/graph/worlds/mount-units.js', note: 'a world\'s mounts: horses beside each walking level\'s spawn, ridden through walk, trot, canter and gallop, jumping a low wall; the mount lane to tune the ride' },
         // local 11-08 (1108-realism-combat-tester): the machines the artillery range drives and flies as a gun's base, each on
         // its own class's rule; a hero does not yet get into one in a gameworld
-        vehicle: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'a field vehicle of the library (a tank, an APC, a truck, a car, a motorcycle) or a walker of the mecha shelf, driven on its class\'s rule, its turret manned; the artillery range only' },
-        aircraft: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/rotorcraft.js', note: 'a fighter on the fly rule at its type\'s envelope, a helicopter or a drone on the hover rule (rules-hover.js), its gun aimed by hand; the artillery range only' },
-        boat: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/boats.js', note: 'a boat of the craft shelf driven on the water (rules-boat.js, boat-water.js) at sea off the range\'s shore; the artillery range only' },
+        vehicle: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'a field vehicle of the library (a tank, an APC, a truck, a car, a motorcycle) or a walker of the mecha shelf, driven on its class\'s rule, its turret manned; the artillery range only (opened by the practice door, gameworld/practice.js): no level puts a hero in one' },
+        aircraft: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/rotorcraft.js', note: 'a fighter on the fly rule at its type\'s envelope, a helicopter or a drone on the hover rule (rules-hover.js), its gun aimed by hand; the artillery range only (opened by the practice door, gameworld/practice.js): no level puts a hero in one' },
+        boat: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/boats.js', note: 'a boat of the craft shelf driven on the water (rules-boat.js, boat-water.js) at sea off the range\'s shore; the artillery range only (opened by the practice door, gameworld/practice.js): no level puts a hero in one' },
       },
     },
     // built 11-09 (screenplay scenes): how the cast plays a scene, the actor's (actor/): its takes on the page

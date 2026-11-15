@@ -10,7 +10,7 @@
  *          body's smooth normals, no light baked into its colours), so the bands move with Blender's lights
  *
  *   sceneFilmFiles({ S, coverage, actors, fps, width, height, title }) → [{ file, text }] (no GLBs: the caller writes
- *     each actor's as `actors/<who>.glb`)
+ *     each actor's as `actors/<who>.glb`, each prop's as `props/<name>.glb`)
  *     A coverage with a time map (shoot/time.js: the screenplay's slow motion and freezes, a grain) is laid on the
  *     screen's clock: the film runs its screen frames, each camera keyed at its own clock, scene.json's `clock` the
  *     scene's time each frame shows, each actor's place keyed every frame, and actors.py plays the takes through an NLA
@@ -32,6 +32,21 @@ import { directorsNotes } from './notes.js';
 import { programOf, shotAt } from '../shoot/sample.js';
 import { warped } from '../shoot/time.js';
 import { placeOn } from './scene.js';
+import { heightAt } from './relief.js';
+import { setupLights } from '../film/setup-light.js';
+import { EMPTY_BLEND } from '../film/render-plan.js';
+
+/** The scene pack's revision: raised when its scripts change what a build makes, so a film's kept scenes are made again
+ * (tools/film.js). 2: an empty film.blend, the hero's page left out of the cast, a bare stage where there is no set.
+ * 3: a set lit as its world declares (atmosphere.json, film_light.py). 5: a scene's props (props/<name>.glb).
+ * 6: ground that is not flat (a root's `z`, a prop's). 7: a prop that arrives (its `keys`). 8: a moving prop
+ * turns along its way (a key's `turn`). 9: a scene's weather (atmosphere.json weather, film_light.py).
+ * 10: a prop that walks (its keys' `p`, the cycles of its own clip gone by). 11: a scene's clouds (atmosphere.json
+ * clouds, clouds.png, film_light.py). 12: a scene's wind (atmosphere.json wind, film_light.py).
+ * 13: the set's lamps lit by the hour (scene.json set.posts, actors.py). */
+export const SCENE_PACK_REV = 13;
+/** how far apart a walk is keyed on ground that is not flat, metres */
+const WALK_KEY = 0.4;
 
 export const LOOKS = Object.freeze(['film', 'anime']);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -47,33 +62,55 @@ export function coverageCameraAt(coverage, t, shot = null) {
 }
 
 /** The pack's files (see the header) */
-export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null }) {
+export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, height = 1080, title = 'scene', grade = null, sound = null, set = null, render = null, atmosphere = null, props = [] }) {
   // (a time map lays the film on the screen's clock: the program at the film's fps, a grain stepped at it)
   const program = coverage.shots.some(warped) ? programOf({ ...coverage, fps }) : null;
   const frames = Math.max(1, Math.round((program ? program.total : S.seconds) * fps));
   const clock = program ? Array.from({ length: frames }, (_, f) => shotAt(program, f / fps)) : null;
+  // (on ground that is not flat, `set.relief`: the plan is level, so each camera is lifted by the ground under it and
+  //  looks at its subject on the ground under that)
+  const relief = set?.relief ?? null, lift = (x, y) => (relief ? heightAt(relief, x, y) : 0);
+  const onGround = (F) => (relief ? { ...F, cameraPosition: [F.cameraPosition[0], F.cameraPosition[1], F.cameraPosition[2] + lift(F.cameraPosition[0], F.cameraPosition[1])], lookAt: [F.lookAt[0], F.lookAt[1], F.lookAt[2] + lift(F.lookAt[0], F.lookAt[1])] } : F);
   // (each shot of the coverage a film shot, its camera keyed every frame it holds)
   const shots = coverage.shots.map((s, k) => {
     const cameras = [];
     if (program) {
       const P = program.shots[k], f0 = Math.round(P.start * fps), f1 = Math.max(f0 + 1, Math.round((P.start + P.length) * fps));
-      for (let f = f0; f < f1; f++) { const at = clock[Math.min(frames - 1, f)]; cameras.push(coverageCameraAt(coverage, at.camera_t ?? at.t, s).framing); }
+      for (let f = f0; f < f1; f++) { const at = clock[Math.min(frames - 1, f)]; cameras.push(onGround(coverageCameraAt(coverage, at.camera_t ?? at.t, s).framing)); }
     } else {
       const f0 = Math.round(s.span[0] * fps), f1 = Math.max(f0 + 1, Math.round(s.span[1] * fps));
-      for (let f = f0; f < f1; f++) cameras.push(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing);
+      for (let f = f0; f < f1; f++) cameras.push(onGround(coverageCameraAt(coverage, Math.min(S.seconds - 1e-6, f / fps)).framing));
     }
-    return filmShot({ motionRef: `${title}-${String(k + 1).padStart(2, '0')}`, worldRef: title, title: s.name, motion: 'scene', fps, width, height, cameras });
+    return filmShot({ motionRef: `${title}-${String(k + 1).padStart(2, '0')}`, worldRef: title, title: s.name, motion: 'scene', fps, width, height, cameras, ...(render?.dof ? { dof: { fstop: render.dof } } : {}) });
   });
   // (an actor's place: its root keys on the scene's clock, or, under a time map, sampled every screen frame)
-  const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : S.actors[who].root)
-    .map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), yaw: r6(k.yaw) }));
-  const film = emitBlenderFilm({ shot: shots[0], shots, title });
+  // (on ground that is not flat, `set.relief`: its height where it stands, and a walk keyed along its way so the feet
+  //  keep to the ground between the plan's keys)
+  const walked = (root) => root.flatMap((k, i) => {
+    const n = root[i + 1];
+    if (!n || (Math.abs(n.x - k.x) < 1e-6 && Math.abs(n.y - k.y) < 1e-6)) return [k];
+    const steps = Math.max(1, Math.ceil(Math.hypot(n.x - k.x, n.y - k.y) / WALK_KEY));
+    return Array.from({ length: steps }, (_, s) => (s ? { ...placeOn(root, k.t + ((n.t - k.t) * s) / steps), t: k.t + ((n.t - k.t) * s) / steps } : k));
+  });
+  const rootOf = (who) => (clock ? clock.map((at, f) => ({ ...placeOn(S.actors[who].root, at.t), t: f / fps })) : relief ? walked(S.actors[who].root) : S.actors[who].root)
+    .map((k) => ({ t: r6(k.t), x: r6(k.x), y: r6(k.y), ...(relief ? { z: r6(lift(k.x, k.y)) } : {}), yaw: r6(k.yaw) }));
+
+  // (a set's atmosphere, blender-film.js filmAtmosphere: film_light.py lights the set by it)
+  const film = emitBlenderFilm({ shot: shots[0], shots, title, ...(set && atmosphere ? { atmosphere } : {}) });
   const scene = {
     source: 'mojulo', film_version: BLENDER_FILM_VERSION, title, seconds: S.seconds, fps, frames, width, height, up: 'z', units: 'metres',
     ...(clock ? { clock: clock.map((at) => r6(at.t)) } : {}),
     ...(grade ? { grade } : {}),
+    ...(sound?.audio ? { audio: sound.audio, captions: sound.captions } : {}),
+    ...(sound?.dubs ? { dubs: sound.dubs } : {}),
+    // (the land's heights ride each root, camera and prop: the pack does not carry the grid itself)
+    ...(set ? { set: Object.fromEntries(Object.entries(set).filter(([k]) => k !== 'relief')) } : {}),
+    ...(props.length ? { props } : {}),
+    ...(render ? { render: Object.fromEntries(Object.entries({ samples: render.samples, motion_blur: render.motion_blur, dof: render.dof }).filter(([, v]) => v !== undefined && v !== null && v !== false)) } : {}),
+    // (each setup's lights stand about its subject: on ground that is not flat they rise with it)
+    ...(render?.light === 'setups' ? { lights: setupLights({ S, coverage, shots }).map((L) => { const dz = lift(L.subject[0], L.subject[1]), up = (p) => [p[0], p[1], r6(p[2] + dz)]; return relief ? { ...L, subject: up(L.subject), key: { ...L.key, pos: up(L.key.pos) }, fill: { ...L.fill, pos: up(L.fill.pos) }, rim: { ...L.rim, pos: up(L.rim.pos) } } : L; }) } : {}),
     actors: Object.fromEntries(Object.entries(actors).map(([who, A]) => [who, { glb: `actors/${who}.glb`, act: `act:${A.take}`, face: `face:${A.take}`, root: rootOf(who) }])),
-    turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text })),
+    turns: S.turns.map((T) => ({ who: T.who, at: T.at, end: T.end, text: T.text, ...(T.recording ? { recording: T.recording } : {}) })),
     coverage,
   };
   return [
@@ -81,8 +118,211 @@ export function sceneFilmFiles({ S, coverage, actors, fps = 24, width = 1920, he
     ...film.files.filter((f) => f.file !== 'FILM.md'),
     { file: 'actors.py', text: actorsPy() },
     { file: 'look.py', text: lookPy() },
-    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file) }) },
+    ...(set ? [{ file: 'set.py', text: setPy() }] : []),
+    ...(render?.light === 'setups' ? [{ file: 'light.py', text: lightPy() }] : []),
+    ...(sound?.dubs ? [{ file: 'dub.py', text: dubPy() }] : []),
+    { file: 'SCENE.md', text: sceneReadme({ title, S, coverage, frames, fps, grade, notes: directorsNotes(S, coverage), shotFiles: film.files.filter((f) => f.file.startsWith('shots/')).map((f) => f.file), sound, set, render }) },
   ];
+}
+
+/** set.py — constant text: the set's world (its pack under set/, built into film.blend by its own import_mojulo.py)
+ * lowered by the floor under the cast's marks, its root renamed so nothing takes it for an actor's */
+export function setPy() {
+  return String.raw`"""
+set.py - a mojulo scene's set into Blender (mojulo scene film v${BLENDER_FILM_VERSION}).
+
+The set is a mojulo world's own Blender pack (set/). Its import_mojulo.py builds film.blend first; this script then
+lowers the world by the floor under the cast's marks (scene.json set.floor, metres) so they stand on it, and names its
+root set:root. Run it once, after the set's import and before actors.py:
+
+  blender -b --python set/import_mojulo.py -- --mode run --blend film.blend
+  blender -b film.blend --python set.py
+"""
+import bpy
+import json
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def main():
+    with open(os.path.join(HERE, 'scene.json')) as f:
+        S = json.load(f)
+    st = S.get('set') or {}
+    root = bpy.data.objects.get('set:root') or bpy.data.objects.get('mojulo')
+    if root is None:
+        raise SystemExit('[mojulo set] no world root (run set/import_mojulo.py first)')
+    if root.name != 'set:root':
+        root.name = 'set:root'
+        root.location.z -= float(st.get('floor', 0.0))
+    print('[mojulo set] %s on its floor (%.3f m)' % (st.get('ref', 'the set'), float(st.get('floor', 0.0))))
+    bpy.ops.wm.save_mainfile()
+
+
+main()
+`;
+}
+
+/** light.py — constant text: each shot lit as its setup (scene.json lights: film/setup-light.js), a key, a fill and a
+ * rim of area lights, aimed at the shot's subject, each keyed at its shot's first frame and held through it (constant:
+ * the lights jump on the cut, as a crew relights a setup) */
+export function lightPy() {
+  return String.raw`"""
+light.py - a mojulo scene lit per setup (mojulo scene film v${BLENDER_FILM_VERSION}).
+
+Each shot of the coverage its own key (on the short side of the face), fill (across the lens) and rim (from behind),
+in the cast rig's colours (scene.json lights), as three area lights aimed at the shot's subject and keyed at the shot's
+first frame, holding to the next cut. Run it once, after film_shots.py:
+
+  blender -b film.blend --python light.py
+"""
+import bpy
+import json
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def srgb(hexstr):
+    h = hexstr.lstrip('#')
+    return tuple(((int(h[i:i + 2], 16) / 255.0) ** 2.2) for i in (0, 2, 4))
+
+
+def fcurves_of(act):
+    legacy = getattr(act, 'fcurves', None)
+    if legacy is not None:
+        try:
+            return list(legacy)
+        except Exception:
+            pass
+    out = []
+    for layer in getattr(act, 'layers', []):
+        for strip in getattr(layer, 'strips', []):
+            for bag in getattr(strip, 'channelbags', []):
+                out.extend(bag.fcurves)
+    return out
+
+
+def held(idb):
+    ad = getattr(idb, 'animation_data', None)
+    if ad and ad.action:
+        for fc in fcurves_of(ad.action):
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'CONSTANT'
+
+
+def main():
+    with open(os.path.join(HERE, 'scene.json')) as f:
+        S = json.load(f)
+    setups = S.get('lights') or []
+    if not setups:
+        raise SystemExit('[mojulo light] scene.json has no lights (the pack was written without render.light = setups)')
+    sc = bpy.context.scene
+    coll = bpy.data.collections.get('mojulo-light') or bpy.data.collections.new('mojulo-light')
+    if coll.name not in sc.collection.children:
+        sc.collection.children.link(coll)
+    aim = bpy.data.objects.get('light:subject') or bpy.data.objects.new('light:subject', None)
+    if aim.name not in coll.objects:
+        coll.objects.link(aim)
+    lamps = {}
+    for role in ('key', 'fill', 'rim'):
+        name = 'light:%s' % role
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            ob = bpy.data.objects.new(name, bpy.data.lights.new(name, 'AREA'))
+            coll.objects.link(ob)
+            track = ob.constraints.new('TRACK_TO')
+            track.target = aim
+            track.track_axis = 'TRACK_NEGATIVE_Z'
+            track.up_axis = 'UP_Y'
+        lamps[role] = ob
+    for L in setups:
+        fr = int(L['frame'])
+        aim.location = L['subject']
+        aim.keyframe_insert('location', frame=fr)
+        for role, ob in lamps.items():
+            spec = L[role]
+            ob.location = spec['pos']
+            ob.keyframe_insert('location', frame=fr)
+            ob.data.energy = float(spec['energy'])
+            ob.data.color = srgb(spec['color'])
+            ob.data.size = float(spec.get('size', 1.0))
+            ob.data.keyframe_insert('energy', frame=fr)
+            ob.data.keyframe_insert('color', frame=fr)
+    for ob in [aim, *lamps.values()]:
+        held(ob)
+        if ob.data is not None:
+            held(ob.data)
+    print('[mojulo light] %d setups lit (key, fill, rim)' % len(setups))
+    bpy.ops.wm.save_mainfile()
+
+
+main()
+`;
+}
+
+/** dub.py — constant text: each actor's face given a locale's dub take (face:dub-<locale>), or back to the scene's */
+export function dubPy() {
+  return String.raw`"""
+dub.py - a mojulo scene dubbed to picture (mojulo scene film v${BLENDER_FILM_VERSION}).
+
+Each actor's face plays the locale's take (face:dub-<locale>: the same acting, the mouth on the dub's recording), the
+body and the cameras unchanged. --locale none gives the scene's own take back. Render the locale's sound with
+film_render.py -- --locale <locale>.
+
+  blender -b film.blend --python dub.py -- --locale fr
+"""
+import bpy
+import sys
+
+def _opt(name):
+    a = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    return a[a.index(name) + 1] if name in a and a.index(name) + 1 < len(a) else None
+
+
+def target_of(name, locale):
+    """the face action a locale plays, keeping the import's suffix (face:scene.001 -> face:dub-fr.001)"""
+    base, dot, suffix = name.partition('.')
+    want = ('face:scene' if locale == 'none' else 'face:dub-%s' % locale) + (dot + suffix if dot else '')
+    return bpy.data.actions.get(want)
+
+
+def assign(holder, act):
+    holder.action = act
+    if hasattr(holder, 'action_slot') and getattr(act, 'slots', None):
+        holder.action_slot = act.slots[0]
+
+
+def main():
+    locale = _opt('--locale')
+    if not locale:
+        raise SystemExit('dub.py -- --locale <locale> | none')
+    done = 0
+    for key in bpy.data.shape_keys:
+        ad = key.animation_data
+        if ad is None:
+            continue
+        if ad.action is not None and ad.action.name.startswith('face:'):
+            act = target_of(ad.action.name, locale)
+            if act is not None:
+                assign(ad, act)
+                done += 1
+        for track in ad.nla_tracks:
+            for strip in track.strips:
+                if strip.action is not None and strip.action.name.startswith('face:'):
+                    act = target_of(strip.action.name, locale)
+                    if act is not None:
+                        assign(strip, act)
+                        done += 1
+    print('[mojulo dub] %s: %d faces' % (locale, done))
+    # (no face took the locale's take: the picture would be the original's under the dub's sound, so say so and stop)
+    if not done:
+        raise SystemExit('[mojulo dub] no face in this file has a take for %r (face:dub-%s): build film.blend again (actors.py)' % (locale, locale))
+    bpy.ops.wm.save_mainfile()
+
+
+main()
+`;
 }
 
 /** actors.py — constant text */
@@ -101,6 +341,7 @@ import bpy
 import json
 import math
 import os
+from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -182,6 +423,191 @@ def remap(owner, name, clock, fps):
             kp.interpolation = 'LINEAR'
 
 
+def carried(o):
+    """Whether an armature carries an object: skinned to one, or hung under one (a thing held on a bone)."""
+    if any(m.type == 'ARMATURE' for m in o.modifiers):
+        return True
+    p = o.parent
+    while p is not None:
+        if p.type == 'ARMATURE':
+            return True
+        p = p.parent
+    return False
+
+
+def principled(idb, colour, strength=None):
+    """A material's or a world's first shader given a colour (a world's a strength too), its nodes on."""
+    try:
+        idb.use_nodes = True
+    except Exception:
+        pass
+    for n in idb.node_tree.nodes:
+        if n.type == 'BSDF_PRINCIPLED':
+            n.inputs['Base Color'].default_value = colour
+            n.inputs['Roughness'].default_value = 0.9
+        if n.type == 'BACKGROUND':
+            n.inputs['Color'].default_value = colour
+            n.inputs['Strength'].default_value = strength
+
+
+def stage(S):
+    """A scene with no set plays on a BARE STAGE: a matte floor out past the widest shot, a soft even sky and, unless
+    each setup is lit (light.py), one key from the camera's side. Made once; a set brings its own floor and light."""
+    if S.get('set') or bpy.data.objects.get('stage:floor') is not None:
+        return
+    sc = bpy.context.scene
+    r = 200.0
+    me = bpy.data.meshes.new('stage:floor')
+    me.from_pydata([(-r, -r, 0.0), (r, -r, 0.0), (r, r, 0.0), (-r, r, 0.0)], [], [(0, 1, 2, 3)])
+    mat = bpy.data.materials.new('stage:floor')
+    principled(mat, (0.30, 0.31, 0.33, 1.0))
+    me.materials.append(mat)
+    sc.collection.objects.link(bpy.data.objects.new('stage:floor', me))
+    if sc.world is None:
+        sc.world = bpy.data.worlds.new('stage:sky')
+        principled(sc.world, (0.62, 0.66, 0.72, 1.0), 0.7)
+    if not S.get('lights'):
+        key = bpy.data.objects.new('stage:key', bpy.data.lights.new('stage:key', 'SUN'))
+        key.data.energy = 3.0
+        key.data.angle = math.radians(6.0)
+        key.rotation_euler = (math.radians(52.0), 0.0, math.radians(-38.0))
+        sc.collection.objects.link(key)
+    log('a bare stage: its floor, its sky%s' % ('' if S.get('lights') else ', its key'))
+
+
+def posts(S):
+    """THE SET'S LAMPS, lit by the scene's hour (scene.json set.posts: lib/graph/film/lamps.js): a point light under the
+    head of each lamp near the cast, at night, dusk and dawn. Made once."""
+    for i, Q in enumerate((S.get('set') or {}).get('posts') or []):
+        name = 'post:%d' % (i + 1)
+        if bpy.data.objects.get(name) is not None:
+            continue
+        L = bpy.data.lights.new(name, 'POINT')
+        L.energy = float(Q.get('watts', 900))
+        L.color = tuple(float(v) for v in (Q.get('color') or (1, 0.78, 0.52)))
+        L.shadow_soft_size = float(Q.get('radius', 0.12))
+        ob = bpy.data.objects.new(name, L)
+        ob.location = tuple(float(v) for v in Q['at'])
+        bpy.context.scene.collection.objects.link(ob)
+    if (S.get('set') or {}).get('posts'):
+        log('posts: %d lamps of the set lit' % len(S['set']['posts']))
+
+
+def house(S):
+    """A walled set with no light of its own (a room of a house: no sky reaches it, no lamp is declared) is lit as a
+    studio lights a room: one soft panel under each ceiling, the HOUSE LIGHTS (scene.json set.house). Made once."""
+    for i, H in enumerate((S.get('set') or {}).get('house') or []):
+        name = 'house:%d' % (i + 1)
+        if bpy.data.objects.get(name) is not None:
+            continue
+        lamp = bpy.data.lights.new(name, 'AREA')
+        lamp.shape = 'RECTANGLE'
+        lamp.size, lamp.size_y = float(H['size'][0]), float(H['size'][1])
+        lamp.energy = float(H['watts'])
+        lamp.color = tuple(H.get('color') or (1.0, 0.94, 0.86))
+        ob = bpy.data.objects.new(name, lamp)
+        ob.location = tuple(float(v) for v in H['at'])
+        bpy.context.scene.collection.objects.link(ob)
+        log('%s: %d W under the ceiling' % (name, round(lamp.energy)))
+
+
+def gait(objs, keys, fps, frames):
+    acts = []
+    for o in objs:
+        act = o.animation_data.action if o.animation_data else None
+        if act is not None and act not in acts:
+            acts.append(act)
+    ts, ps = [float(K['t']) for K in keys], [float(K.get('p', 0.0)) for K in keys]
+    def phase(t):
+        if t <= ts[0]:
+            return ps[0]
+        for i in range(1, len(ts)):
+            if t <= ts[i]:
+                u = (t - ts[i - 1]) / ((ts[i] - ts[i - 1]) or 1e-9)
+                return ps[i - 1] + (ps[i] - ps[i - 1]) * u
+        return ps[-1]
+    at = [phase((f - 1) / fps) % 1.0 for f in range(1, frames + 1)]
+    for act in acts:
+        f0, f1 = act.frame_range
+        for fc in fcurves_of(act):
+            vals = [fc.evaluate(f0 + p * (f1 - f0)) for p in at]
+            while len(fc.keyframe_points):
+                fc.keyframe_points.remove(fc.keyframe_points[0], fast=True)
+            fc.keyframe_points.add(frames)
+            flat = []
+            for i, v in enumerate(vals):
+                flat += [float(1 + i), v]
+            fc.keyframe_points.foreach_set('co', flat)
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
+            fc.update()
+
+
+def props(S):
+    """The scene's PROPS (scene.json props): each a thing mojulo made, its own model, stood where the plan stood it. Its
+    size is the one it was read at (dims, metres, before its turn), whatever unit its model came in; its middle is over
+    its place, its lowest point on the floor, turned clockwise from above. Made once."""
+    for Q in S.get('props') or []:
+        name = 'prop:%s' % Q['name']
+        if bpy.data.objects.get(name) is not None:
+            continue
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, Q['glb']))
+        new = [o for o in bpy.data.objects if o not in before]
+        # (a thing's page brings its view cameras and its lights: the film has its own)
+        for o in [o for o in new if o.type in ('CAMERA', 'LIGHT')]:
+            new.remove(o)
+            bpy.data.objects.remove(o, do_unlink=True)
+        holder = bpy.data.objects.new(name, None)
+        bpy.context.scene.collection.objects.link(holder)
+        for o in new:
+            if o.parent is None:
+                o.parent = holder
+            if o.name.startswith('mojulo'):
+                o.name = '%s:root' % name
+        bpy.context.view_layer.update()
+        lo, hi = [1e30] * 3, [-1e30] * 3
+        for o in new:
+            if o.type != 'MESH':
+                continue
+            for c in o.bound_box:
+                w = o.matrix_world @ Vector(c)
+                for i in range(3):
+                    lo[i], hi[i] = min(lo[i], w[i]), max(hi[i], w[i])
+        if lo[0] > hi[0]:
+            log('%s: no mesh in %s' % (name, Q['glb']))
+            continue
+        # (the size: by its longest side, so a model in millimetres or with no unit stands at the plan's)
+        ext, dims = [hi[i] - lo[i] for i in range(3)], [float(v) for v in Q['dims']]
+        ax = max(range(3), key=lambda i: dims[i])
+        k = dims[ax] / ext[ax] if ext[ax] > 1e-9 else 1.0
+        a = -math.radians(float(Q.get('turn', 0.0)))
+        cx, cy = k * (lo[0] + hi[0]) / 2.0, k * (lo[1] + hi[1]) / 2.0
+        holder.scale = (k, k, k)
+        holder.rotation_euler = (0.0, 0.0, a)
+        def place(x, y, z, a):
+            return (float(x) - (cx * math.cos(a) - cy * math.sin(a)), float(y) - (cx * math.sin(a) + cy * math.cos(a)), float(z) - k * lo[2])
+        holder.location = place(Q['at'][0], Q['at'][1], Q.get('z', 0.0), a)
+        # (a thing that MOVES, scene.json props keys: it goes along its way on the scene's clock, facing along it, and
+        #  rests at its place)
+        for K in Q.get('keys') or []:
+            ka = -math.radians(float(K['turn'])) if 'turn' in K else a
+            holder.rotation_euler = (0.0, 0.0, ka)
+            holder.location = place(K['x'], K['y'], K.get('z', 0.0), ka)
+            frame = 1 + float(K['t']) * float(S['fps'])
+            holder.keyframe_insert('location', frame=frame)
+            holder.keyframe_insert('rotation_euler', frame=frame)
+        if Q.get('keys') and holder.animation_data and holder.animation_data.action:
+            for fc in fcurves_of(holder.animation_data.action):
+                for kp in fc.keyframe_points:
+                    kp.interpolation = 'LINEAR'
+        # (a thing that WALKS, its keys' p: the cycles of its own clip gone by at each key. Each of its curves is read
+        #  again a frame at a time at that phase of the cycle, so it steps as far as it goes and stands where it waits)
+        if any('p' in K for K in Q.get('keys') or []):
+            gait(new, Q['keys'], float(S['fps']), int(S['frames']))
+        log('%s: %.2f x %.2f x %.2f m at [%.2f, %.2f]' % (name, k * ext[0], k * ext[1], k * ext[2], float(Q['at'][0]), float(Q['at'][1])))
+
+
 def build(S):
     sc = bpy.context.scene
     sc.render.fps = int(S['fps'])
@@ -198,7 +624,18 @@ def build(S):
         before, had = set(bpy.data.objects), set(bpy.data.actions)
         bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, A['glb']))
         new = [o for o in bpy.data.objects if o not in before]
+        # (a hero's GLB brings its page with it: the page's view cameras and the ground it stands on. The film has its
+        #  own cameras and its own floor, the set's or the stage's, so they go. A mesh no armature carries is the page's;
+        #  a thing the hero holds hangs under a bone and stays.)
+        if any(o.type == 'ARMATURE' for o in new):
+            for o in [o for o in new if o.type == 'CAMERA' or (o.type == 'MESH' and not carried(o))]:
+                new.remove(o)
+                bpy.data.objects.remove(o, do_unlink=True)
         mine = sorted([a for a in bpy.data.actions if a not in had], key=lambda a: a.name)
+        # (every take stays in the file: binding one clears the NLA that held the others, and Blender saves no
+        #  action that nothing uses, so a dub's faces, face:dub-<locale>, would be gone when dub.py asks for them)
+        for a in mine:
+            a.use_fake_user = True
         holder = bpy.data.objects.new(name, None)
         bpy.context.scene.collection.objects.link(holder)
         for o in new:
@@ -210,7 +647,7 @@ def build(S):
         # the place and the facing: the empty keyed every frame the root names, linear between
         for k in A['root']:
             frame = 1 + k['t'] * fps
-            holder.location = (k['x'], k['y'], 0.0)
+            holder.location = (k['x'], k['y'], float(k.get('z', 0.0)))
             holder.rotation_euler = (0.0, 0.0, -math.radians(k['yaw']))
             holder.keyframe_insert('location', frame=frame)
             holder.keyframe_insert('rotation_euler', frame=frame)
@@ -229,6 +666,10 @@ def build(S):
                 if b:
                     remap(owner, b, S['clock'], fps)
         log('%s: %d objects, bound %s%s' % (name, len(new), [b for _, b in bound if b], ' on the time map' if S.get('clock') else ''))
+    props(S)
+    stage(S)
+    house(S)
+    posts(S)
     sc.frame_set(1)
 
 
@@ -546,7 +987,7 @@ if __name__ == '__main__':
 }
 
 /** SCENE.md — the operator's page */
-export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles }) {
+export function sceneReadme({ title, S, coverage, frames, fps, grade = null, notes = [], shotFiles, sound = null, set = null, render = null }) {
   return `# ${title} — a mojulo scene for Blender
 
 ${Object.keys(S.actors).length} actors, ${S.seconds} s (${frames} frames at ${fps} fps), ${coverage.shots.length} shots on ${coverage.cameras.length} cameras.${coverage.shots.some(warped) ? `
@@ -554,19 +995,35 @@ The scene plays on a time map (its slow motion, its freezes${coverage.shots.some
 
 ## Build it (once, in an empty film.blend beside these files)
 
-    <blender> -b --python-expr "import bpy; bpy.ops.wm.save_as_mainfile(filepath='film.blend')"
-    <blender> -b film.blend --python actors.py -- && <blender> -b film.blend --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
-    <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}
+${set ? `    <blender> -b --python set/import_mojulo.py -- --mode run --blend film.blend
+    <blender> -b film.blend --python set.py
+    <blender> -b film.blend --python film_light.py -- --root set:root` : `    <blender> -b --python-expr "${EMPTY_BLEND}"`}
+    <blender> -b film.blend --python actors.py --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
+    <blender> -b film.blend --python film_shots.py -- --root none ${shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : ''}${render?.light === 'setups' ? `
+    <blender> -b film.blend --python light.py` : ''}
     <blender> -b film.blend --python look.py -- --look film      # or --look anime
     <blender> -b film.blend --python film_render.py
+${sound?.dubs ? `
+A dub (${Object.keys(sound.dubs).join(', ')}), to picture: the faces take the locale's mouths, then its sound renders with them.
 
-Or open film.blend and run actors.py, film_shots.py and look.py from the Scripting tab, in that order.
-
+${Object.keys(sound.dubs).map((L) => `    <blender> -b film.blend --python dub.py -- --locale ${L} && <blender> -b film.blend --python film_render.py -- --locale ${L}`).join('\n')}
+    <blender> -b film.blend --python dub.py -- --locale none      # the scene's own faces again
+` : ''}
+Or open film.blend and run ${set ? 'set.py, ' : ''}actors.py, film_shots.py and look.py from the Scripting tab, in that order.
+${set ? `
+The set is the world ${set.ref}${set.title ? ` (${set.title})` : ''}: its own Blender pack under \`set/\` (its README says what it is), lowered
+${set.floor} m so the cast stands on its floor.
+` : ''}${sound?.audio ? `
+The voice: \`${sound.audio}\`, every recorded line at its moment on the screen's clock; \`film_render.py\` lays it under
+the film (its \`--audio\` takes another). The captions: \`${sound.captions}\`.${sound.dubs ? ` Each dub's: ${Object.entries(sound.dubs).map(([L, D]) => `\`${D.audio}\` and \`${D.captions}\` (${L})`).join(', ')}.` : ''}
+` : ''}
 ## What is here
 
 - \`actors/<who>.glb\`: each actor's hero, skinned, its body's take \`act:scene\` and its face's \`face:scene\` on the scene's
   clock (the act's \`moj:act\` extras carry its place over time too). \`actors.py\` hangs each under an empty
   \`actor:<who>\` keyed on that place and facing.
+- \`props/<name>.glb\`, where the scene has props: each thing stood in it, its own model. \`actors.py\` stands each under
+  an empty \`prop:<name>\` at its place, its turn and the size the plan read it at (\`scene.json\` \`props\`).
 - \`scene.json\`: the scene (the actors, their places, the lines, the coverage). \`shot.json\` and \`shots/\`: the
   coverage's cameras, each shot keyed every frame, cut at markers by \`film_shots.py\`.
 - \`look.py\`: the look. \`film\` is the production look in Cycles; \`anime\` is the cel look shaded live in EEVEE, the

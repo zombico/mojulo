@@ -159,7 +159,28 @@ widgets under a pointer (only the view knows where they are).
   - `controlsRows(scheme)` lists a scheme on the controls screen as the kernel labels it, a clash marked.
   - `remap()` returns the conflicts it makes (advised, never refused).
 - **The drawn touch pad** is a look only: its buttons are named by the gamepad controls they are (`data-control`). The
-  virtual pad's driver is the controls layer's.
+  virtual pad's driver is the controls layer's (`scene/channels/controllable/touch.js`). On a level made for a screen
+  whose HUD is mana-ui's, the HUD carries the pad at its foot and the driver draws nothing: it reads the thumbs, finds
+  which pad a touch landed on from the view's own elements, and says what it knows each frame (`touch.on`, `lane`,
+  `held`, `down`, `buttons`). The `touchpad` draws that: a stick risen where the thumb landed with its nub under it,
+  a lane's stick as a bar, a pad pressed filled, `use` only while the figure stands where it is used. A game that
+  moves on W A S D needs nothing of its own: the stick is the pad's left stick, read through the pilot scheme. A
+  level with no mana-ui HUD, and a runner's or a course's swipes, keep the driver as it was.
+  - A pad named for what it does (jump, fire, use) wears its pictogram inside its round, where the theme draws icons.
+  - The pads fill from the screen's edge inward and from its foot up, so one pad is under the thumb.
+  - The HUD's bottom corners stand over the pad while it is drawn; a region whose every part is gated off draws no
+    empty plate.
+  - A level's hint line says what the thumbs do while the pad is up, and its keys otherwise.
+  - A game's own extra button is a level's HUD row, `events.hud: [{ press: '<event>', label, slot? }]` (bottom right
+    unless it says). Tapped or clicked, it raises that event on the level's bus as a key bound to it would
+    (`events.input` is its keyboard half); a cue or a rule that listens does the rest. The level's mana-ui HUD draws
+    it as a `button` and its host carries the press to the bus; a level with the page's own HUD draws it there. A
+    level with no such row carries none of it.
+  - **A level made for a screen never asks for a key a thumb cannot press** (`game/screen-keys.js`). Every key it
+    listens for that the pad has no control for gets a HUD button by itself, drawn only on a touch screen: the
+    level's own key inputs (`events.inputs`), the journal (J), the library (L), the party menu (P). Pressed, the
+    button is that key pressed (the same keydown), so no channel learns about touch. A key the level's HUD already
+    has a button for is left to it; a level with no screen, or no such key, is as it was.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
   they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
   held to the scheme by a test, and the same typing), never in the kernel.
@@ -531,7 +552,9 @@ The screens and HUD parts games share, as defs. Each one says what it reads, wha
 into the sample state (`samples.js`).
 
 - `idioms-front.js` — the front and the menus: attract (key art behind, a press-start that takes any button), title
-  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, character select (couch seats),
+  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, a choice
+  before a level (`pick-screen`: what is asked and how far along, what was chosen before, a list or a grid of faces
+  beside the one in focus; the play shell's turn draws its picks with it, [game-flow.md](game-flow.md)), character select (couch seats),
   arena select, pause, options (sections of fields), controls (keybinds; accept asks the host to capture), confirm,
   results (in sequence: the outcome slams in, the figures count, the rank is stamped), save slots.
 - `idioms-rpg.js` — the deep menus, each a list or grid beside the detail of what it has picked: party, skill tree,
@@ -900,6 +923,79 @@ A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itsel
   `data-world`). In a headset such anchors leave the panel and stand over their points instead: the view's anchors are
   laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
   the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
+
+### Pictograms
+
+`icons.js` holds the pictures a UI says things with in place of words: a coin, a heart, a clock, a lock, a gesture.
+Each is one outline on a 24 grid. A theme's `icons` word is the style they are all drawn in (`solid`, `line`,
+`chunky`, `badge`, `duo`; `none`, the default, keeps a name's initials), so a look changes its pictograms as it
+changes its frames. Nothing is loaded: the theme's sheet carries each as a mask, cut out of the ink of the words
+beside it. The runtime only names one (`data-icon` on an `icon`, a counter's `icon`, a prompt's glyph); a game's other
+words for it (`coins`, `time`, `hp`) are aliases in the library.
+
+A theme dresses them further. `icons` has eight styles: `solid`, `line`, `chunky`, `badge`, `duo`, `sketch` (drawn by
+hand), `stencil` (cut and sprayed) and `glow` (a lit tube). `iconTone: 'meaning'` colours each by what it means in the
+theme's own tokens (a heart the health's, a bolt the stamina's, a skull the harm's, what is won the accent). A badge's
+plate takes the theme's corner. `iconSwap` gives a look its own picture for a word (`{ coin: 'ticket' }`).
+
+### Stages: a show, not one pattern
+
+A theme's `stage` is the shape behind everything a screen holds. Beside the calm ones (`band`, `stripes`, `rings`,
+`shards`) the lively ones are `burst`, `chevrons`, `dots`, `confetti`, `tunnel`, `streaks` and `zigzag`: each a
+different kind of energy. A `stage` written as a list is a show, so a game's screens do not all wear one pattern:
+the title takes the first, a screen in the middle (a pause, a menu) the second, a full screen (loading) the third, a
+result the fourth, a count over the play the fifth; a short list goes round again and `none` leaves a kind bare.
+
+### A running game's shell and HUD
+
+A game of obstacle courses (`docs/course-dress-principles.md`) has its screens drawn here without asking: its
+title with the run's rules and best, its pause (the pause menu, the level's controls), a moment as a map is cleared,
+a loading screen that says which map is next, and a result with the map, the seconds, the coins and a rank. In play
+its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
+look the course's dress names (`toybox`, the toy family's first card).
+
+### Layout that adapts
+
+The frame a view is drawn in is state. A mount measures its own box, and measures it again when it changes (a phone
+turned, a window dragged); a host with no DOM says its own (`host.frame`, `rt.frame({ w, h, hand })`); unsaid, it is a
+desk at 1920 by 1080. A spec branches on it with a binding of its own, in any `when` or `unless`:
+
+| `{ frame: … }` | is true when |
+|---|---|
+| `portrait` / `landscape` | the frame is taller than wide / not |
+| `narrow` | it is under 640 wide (where splits already stack) |
+| `short` | it is under 420 high |
+| `hand` | the pointer is a finger |
+
+So one composition holds its wide and its tall layouts, and the frame says which stands; nothing is decided when
+the page is emitted. A row says what it does when it runs out of width with `fit` on its `stack`: `wrap` onto a
+second line, or `stack` as a column in a narrow frame (`fixed`, the default, writes nothing). The runner's HUD is
+laid this way: its corners in a wide frame, one plate in the top's middle in a tall one. Not yet live: a theme's
+`distance` (how large a unit is) is still chosen when the page is emitted.
+
+### One HUD for every level
+
+A world that says a `ui` has its levels' own HUD rows drawn here too. The level keeps writing the widget language it
+always wrote (`events.hud`: readouts, bars, counters, clocks, banners, toasts, legends); `game/hud-mana.js` lowers
+those rows to one composition, and the page's HUD host (`scene/channels/mana-hud.js`) draws it in the game's look,
+reading the level's bus each frame. So a level's readouts, its moments and the game's menus are one look.
+
+| a row | is drawn as |
+|---|---|
+| readout `text` | `stat` |
+| readout `counter` | `counter`, with its label's pictogram where the icon shelf has one |
+| readout `bar` | `bar`, its meaning read off its name (hp, mp, xp, stamina, shield, boss) |
+| readout `clock` | `timer` |
+| banner | a moment: one on screen at a time, by weight |
+| toast | a line of its slot's feed, gone after its ttl |
+| legend | words in its slot, for its ttl |
+| title | the carved letters, as before (`game/title-carve.js`) |
+
+A row's `id` and `when` gate it as they did. The pilot's own gauges (its health, its sprint) lead the top-left corner,
+read off the runtime; the runtime's own gauges and the old widget columns are hidden, not removed. A row's colour is
+not carried: the theme owns the look. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
+(`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
+same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
 
 ## What is next
 

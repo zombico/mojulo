@@ -529,7 +529,7 @@ export const FIXTURES = Object.freeze([
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'fixed', levelForm: 'rooms' },
-      power: { mechanics: ['clock', 'score', 'supplies'] },
+      power: { mechanics: ['work'] },   // a shift's cards worked before the bell (11-13); one cook is made today, the seats are the wait
       soul: { hero: 'hero', seats: 'four', contest: 'co-op', dependence: 'handoff', frame: 'fixed', input: 'real-time', pool: 'shared', join: 'drop-in' },
     },
   },

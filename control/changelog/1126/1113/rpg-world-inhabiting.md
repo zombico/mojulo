@@ -307,8 +307,12 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
 - **The fantasy dressing branch merged.** A cape minted before keeps its bytes: its inside skins as its outside only
   on a cape that says `arms: false` or a lining. The hero's cloak is wool by the cloth law and swings in her clips on
   a new mint; a shared corner is placed by its weights on the page, so her cape and skirt no longer split in a stride.
+- **Merged with the release candidate.** Its pause on mana-ui (`game/play-shell-mana.js`) is the one kept: this
+  theme's own was dropped for it, and Esc (MSG_MENU) opens it. Its level HUD on mana-ui (`game/hud-mana.js`) draws a
+  level's rows in the game's look; a level with a HUD grammar keeps the grammar alone, so nothing is drawn twice. The
+  game's `ui`, `screen` and `hud` are carried into the made game by the candidate's own fix.
 - Not here yet: a scabbard is not drawn (the blade
-  hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's marked slot is always the weapon; the bag's menu is still the old menu layer's (not mana-ui's, not in the game's look) and the quick item and the bag have no pad control; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  hangs bare at the hip); the HUD grammar is its own page layer, not yet a composition on the level HUD's host (`game/hud-mana.js`), so its cards and the level's banners are two lanes; the pause menu still says "quit to levels"; the HUD grammar's marked slot is always the weapon; the bag's menu is still the old menu layer's (not mana-ui's, not in the game's look) and the quick item and the bag have no pad control; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
   cloth takes no texture on the anime body; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
   blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the

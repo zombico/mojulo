@@ -39,7 +39,9 @@ flow: {
 
 - **Steps.** A `screen` is left by what the player picks there (each screen's events are `SCREEN_EVENTS`), or by its
   `idle` when it is left alone. A `cinematic` plays a scene on a level's page with control held and is left as the
-  scene ends. A `cutscene` is a sequence made elsewhere and played whole, the affordance an opening is handed to: a
+  scene ends, or is instead a video: `{ kind: 'cinematic', film: '<a film's ref>', next }` (the animation studio's
+  film, made to the game's order: its video is found when the game is served or exported) or `{ video: '<address>' }`,
+  played over the game and left as it ends or is skipped. A `cutscene` is a sequence made elsewhere and played whole, the affordance an opening is handed to: a
   `video` the shell plays over itself, or a directed `scene` on its `stage`, and with neither yet an empty slot the
   game passes at once; it is left as it ends, or at a skip (`skip: false`, unskippable). A `level` is left by its
   outcome (`won`, `lost`, `left`) or a door. A `hold` waits some seconds or for an event.
@@ -50,6 +52,88 @@ flow: {
   no way out, a special where it cannot stand, a cinematic staged on a level the game lacks, a kept cinematic not
   followed by its level, a cutscene that says both a video and a scene, and a loop of cinematics, cutscenes and holds
   with nothing for the player to press.
+
+## A level step is a turn
+
+One level session is a turn, in named phases (`control/lib/graph/game/turn.js`). The names are internal; the agent and
+the person read set up, loading, play, pause and results.
+
+| Phase | Who acts | What happens |
+|---|---|---|
+| untap | the player | the picks the level asks for, one at a time; back unwinds one |
+| upkeep | the app | the picks checked, the seed, the load, the level started; its only screen is the loading one |
+| main | the game | an optional start trigger, play, an optional end trigger |
+| cleanup | the app | the outcome applied to the store, the save written, the unlocks worked out |
+| end | the player | the results, and what next |
+
+The pause is an interrupt: legal in play only, never a phase. A quit from it is a level left, through cleanup.
+
+A level step says its turn in three optional keys; a step that says none plays as it always has:
+
+```js
+play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
+  picks: [{ id: 'difficulty', ask: 'Choose a difficulty', from: { options: ['easy', { id: 'hard', name: 'Hard', about: 'Foes come two at a time.' }] } },
+          { id: 'squad', ask: 'Choose your squad', hint: 'Two go in.', from: { slice: 'party' }, max: 2 }],
+  start: { scene: 'arrival' },                 // as play starts, control held; once a save, never on a retry
+  end:   { scene: 'farewell', when: 'won' } }  // once the outcome is known, before cleanup
+```
+
+- **Picks.** Each lands in the turn's session under its `id`; `ask` is the question as the screen says it and `hint`
+  a line under it. From `options` it is the game's own words (a difficulty, a mode), each a word or `{ id, name?,
+  about? }`. From a `slice` it is which members of a slice the level consumes go in; what is there, and
+  what is locked and why, is the store's answer, never the screen's.
+- **How long a pick lasts.** `keep: 'level'` (the default) asks before every level. `keep: 'game'` asks once: the
+  save holds the choice beside what it has seen, later turns load with it unasked, and a reset forgets it.
+- **Triggers.** A `scene` the level has (scripted motion, talking) or a `video`. `skip: false` makes one
+  unskippable. The end trigger plays on the outcomes its `when` names (won and lost when not said).
+- **Exits.** A retry loads again with the same picks. A load that fails goes back to the last pick with its reason.
+- **The kernel** (`buildTurnKernel`: `beginTurn`, `stepTurn`, `walkTurn`) is self-contained, to be inlined in a shell
+  beside the flow kernel. It draws nothing: a shell draws each phase.
+
+**The play shell runs it** (`play-shell.js`). A game whose steps say no turn carries no key and none of the kernel.
+
+- The picks are drawn by mana-ui's `pick-screen` idiom, one screen a pick, in the game's `ui` (the greybox when it
+  says none): the question and how far along the choices it is, what was chosen before, the rows beside the one in
+  focus. Options are a list, each with what it means; a party slice is a grid of faces, each member with its tags,
+  level and figures (a figure against the most anyone in the roster has); a carried thing says its count. Back
+  unwinds one pick, then leaves the turn the way it was come into. A pick of several is marked row by row and
+  confirmed.
+- The level is handed the game's own words as `params.__picks`, and of a consumed slice the members picked and no
+  others.
+- A retry (`$again`) and the pause's restart load again with the same picks.
+- Back on a turn's first pick leaves it for the screen it was come into from; come into from a cutscene or a level
+  (a game started in play, the next level), it goes home.
+- A game with a `screen` has the shell's mana-ui screens drawn in the box its levels are (the frame's aspect, up to
+  the reach), centred, so a phone game's menus are a phone's on a monitor too.
+- A level's title that is only an id (`small-meadow-1 · approach-a`) is said in words on every shell screen.
+- A start trigger that is a scene is staged on the level's page (`params.__stage`); a video plays over the held
+  level. The pause does nothing while it plays. A save that has seen it does not see it again.
+- An end trigger that is a video plays after the level's own end card, before the flow goes on; the store's write is
+  already made by then, so closing the page mid-video loses nothing.
+
+### The set-up: said once on a world
+
+A gameworld says what is asked before a level in one key, `setup` (`control/lib/graph/gameworld/setup.js`), and
+`design_game` lowers it into the turn of every level step that asks nothing of its own:
+
+```js
+setup: { difficulty: true }                                   // easy, medium, max in default words
+setup: { difficulty: { ask: 'How cruel?', options: ['easy', { id: 'max', name: 'Merciless' }] },
+         picks: [{ id: 'squad', from: { slice: 'party' }, max: 2 }] }
+```
+
+- **Difficulty** is the engine's own tiers (`easy`, `medium`, `max`), named in the game's words, asked once and held
+  by the save (`keep: 'level'` asks before every level). The play shell hands
+  the level the pick as `params.difficulty`, which tunes its foes' minds (how quick, how bold); a level whose foes
+  have no mind plays as it did.
+- **Picks** are a turn's picks, as above; a slice is one of the game's store that its levels consume.
+- A world with a set-up plays the default flow with it (or its own flow, or the flow started in play). The review's
+  `flow:sequence` says what each level asks (`asks`), and the flow's card (`gameworld-flow`) teaches it.
+- A world that says none hands its game the order it always did.
+
+Not yet: an end trigger that is a scene is passed (a level cannot be told to play a scene after it has started); a
+row is never locked (the store has no word for it yet); a face is a placeholder until mana-ui draws pictures; one
+cursor, not one a seat; a quit from the pause is not recorded.
 
 ## How a game starts
 
@@ -117,8 +201,9 @@ cinematics a save has seen beside it, so an opening plays on a first boot, and f
 
 - Holding the world through a scene: the world freeze stops the clock the scene itself runs on, so a hold needs a
   narrower freeze (foes and hazards still, the scene's cast and camera moving).
+- The arena shell and versus do not run a turn (above): their set-up screens are still their own.
 - The arena shell, versus, tabletop, table-rpg and pixelizer keep their own screen machines.
 - The play shell's screens are drawn by mana-ui only for a game with a `ui` (play-shell-mana.js: the look resolved,
   the game's languages; design_game writes it from a world's `ui`); without one they stay the shell's own DOM and the
-  front's. Under mana-ui the pause panel is still the shell's, the theme's UI sounds are not played, and the title's
+  front's. Under mana-ui the pause menu and the pause button in play are mana-ui's too; the theme's UI sounds are not played, and the title's
   key art is mana-ui's placeholder (its image component draws no picture yet, so the front's cover does not reach it).

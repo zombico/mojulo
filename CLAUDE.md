@@ -27,6 +27,15 @@ whole game end to end on the web (`export_game`); developers and teams get a han
 their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
 validated the loop (the `engine-handoff` theme).
 
+The game rails take a person with an idea or a sketch from 0 to level 1. Every rail, studio tool and geocube
+orchestration serves that: decide the characters, validate the loop, build the level, tune the play, run it in a shell
+that links to the next level. The first session's goalposts ([goalposts.js](control/lib/graph/gameworld/goalposts.js))
+are that path, and `design_game`'s readout says which is next. The level played as a turn (set-up, load, play, pause,
+results: `game/turn.js`, mana-ui drawing it) is most games and the default to build toward; an open world (the quest
+open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered four starts
+(a character, a game, an object, a 3D exhibit) by the `initialize` preamble; one who brings drawings, plans or docs has
+them read first, and the loop runs on what is missing.
+
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
 open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
 never how (no departments, requisitions, orders, gates or install weight). The drawers and the `initialize` preamble
@@ -342,6 +351,11 @@ Pointers only; each target carries its own design notes.
   own shader, so they light nothing else; one key a page). Its clients: a fight's and a brawl's bodies under a register,
   the hero a player pilots on a form page, a vehicle's form body. It is light only: a body moves as its client moves it.
   [docs/hero-form-light.md](docs/hero-form-light.md).
+- The animation studio (a FILM of scenes: one cast, sets, a look, an edit; a sketch of kind `film`, its page its book):
+  [film/](control/lib/graph/film/) (the recipe, its departments and their waves, the readout, the book), the door
+  `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
+  [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
+  its Blender film pack); craft in [docs/cinematics.md](docs/cinematics.md).
 - The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
   theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
   could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of

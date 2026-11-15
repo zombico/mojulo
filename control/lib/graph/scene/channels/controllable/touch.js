@@ -14,8 +14,12 @@
 import { swipeOf } from '../../../controls/swipe.js';
 
 /** The touch layout for a level's pilot and camera: { look, lane, jump, fire, lift } (and `swipe` for a runner: the
- * whole screen a swipe, no stick: left and right a lane, up a jump, down a slide). Pure. */
-export function touchLayout(entities, camera, { runner = false } = {}) {
+ * whole screen a swipe, no stick: left and right a lane, up a jump, down a slide; and `course` for an obstacle course:
+ * swipes that steer a free-running hero a whole track over, the hero running by itself). Pure. */
+export function touchLayout(entities, camera, { runner = false, course = null } = {}) {
+  // (an obstacle course, gameworld/roll-course.js: the hero runs by itself, a swipe takes the next track over, a tap or
+  // a swipe up jumps. Its lanes and how hard its hero pushes sideways are the course's own)
+  if (course) return { look: false, lane: false, jump: false, fire: false, lift: false, swipe: true, course: { lanes: course.lanes.slice(), accel: course.accel } };
   if (runner) return { look: false, lane: false, jump: false, fire: false, lift: false, swipe: true };
   const pilot = (entities || []).find((e) => e && e.pilotable) || null;
   const r = (pilot && pilot.rule) || {};
@@ -31,8 +35,10 @@ export function touchLayout(entities, camera, { runner = false } = {}) {
 
 /** The layer's script, for a layout (touchLayout's). Defines __touchPad() (the virtual pad, or null while the layer is
  * off), __touchOn() and __touchRows() (the pause sheet's rows). Reads the channel's __lookDX / __lookDY / __MOUSELOOK and
- * the page's `wrap`. */
-export function touchScript(L) {
+ * the page's `wrap`. `view: 'mana'`: the level's mana-ui HUD draws the pad (touchManaScript, below). */
+export function touchScript(L, { view = null } = {}) {
+  // (a level whose HUD is mana-ui's: the HUD draws the stick and the pads, this only reads the thumbs)
+  if (view === 'mana' && !L.swipe) return touchManaScript(L);
   return `// ---- TOUCH (channels/controllable/touch.js): a virtual standard pad drawn on the screen ----
 const __TL = ${JSON.stringify(L)};
 const __touchOpt = new URLSearchParams(location.search).get('touch');
@@ -62,7 +68,41 @@ __tRest();
 if (__TL.swipe) __tRing.style.display = 'none';
 const __T_R = 56;   // the stick's travel, px: full deflection at its edge
 let __tStick = null, __tLook = null;
-${L.swipe ? `// a RUNNER's swipe (controls/swipe.js): it fires as the finger passes the travel, not on release; each a short
+${L.course ? `// a COURSE's touch (gameworld/roll-course.js): the hero runs by itself (the stick held forward), a swipe left or right
+// takes the next track over (the stick steered to that track's middle, braked as a hand learns to, so a flick is a
+// whole lane), a tap or a swipe up jumps (held through the leap, so it is the full jump). No stick, no button drawn.
+${swipeOf.toString()}
+const __tC = __TL.course;
+let __tSw = null, __tLane = -1, __tJump = null, __tPX = null, __tPT = 0;
+const __tStep = (d) => { __tLane = Math.max(0, Math.min(__tC.lanes.length - 1, __tLane + d)); };
+const __tLeap = () => { if (!__tJump) __tJump = { t: performance.now(), flown: false }; };
+__tZone.addEventListener('pointerdown', (e) => { e.preventDefault(); __tZone.setPointerCapture(e.pointerId); __tSw = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; });
+__tZone.addEventListener('pointermove', (e) => {
+  if (!__tSw || e.pointerId !== __tSw.id || __tSw.fired) return;
+  const g = swipeOf(e.clientX - __tSw.x, e.clientY - __tSw.y, performance.now() - __tSw.t, { travel: 28, ms: 450 });
+  if (g && g !== 'tap') { __tSw.fired = true; if (g === 'left') __tStep(-1); else if (g === 'right') __tStep(1); else if (g === 'up') __tLeap(); }
+});
+__tZone.addEventListener('pointerup', (e) => {
+  if (!__tSw || e.pointerId !== __tSw.id) return;
+  if (!__tSw.fired && swipeOf(e.clientX - __tSw.x, e.clientY - __tSw.y, performance.now() - __tSw.t) === 'tap') __tLeap();
+  __tSw = null;
+});
+__tZone.addEventListener('pointercancel', (e) => { if (__tSw && e.pointerId === __tSw.id) __tSw = null; });
+(function __tRun() {
+  requestAnimationFrame(__tRun);
+  const me = typeof __world !== 'undefined' && __world.pilotId ? __world.byId[__world.pilotId] : null;
+  if (!__tOn || !me || window.__mojMenuOpen) { __tAxes[0] = 0; __tAxes[1] = 0; __tBtn[0].pressed = false; __tBtn[0].value = 0; __tPX = null; return; }
+  const now = performance.now(), x = me.transform.pos[0], dt = Math.max(0.004, (now - __tPT) / 1000), vx = __tPX === null ? 0 : (x - __tPX) / dt;
+  __tPX = x; __tPT = now;
+  // (the track it is on, till a swipe says another: the nearest when the layer comes up)
+  if (__tLane < 0) { let b = 0; for (let i = 1; i < __tC.lanes.length; i++) if (Math.abs(__tC.lanes[i] - x) < Math.abs(__tC.lanes[b] - x)) b = i; __tLane = b; }
+  const slide = (vx * Math.abs(vx)) / (2 * (__tC.accel || 7)), err = __tC.lanes[__tLane] - (x + slide);
+  __tAxes[0] = Math.abs(err) > 0.12 ? (err > 0 ? 1 : -1) : 0;
+  __tAxes[1] = -1;
+  if (__tJump) { if (me.grounded === false) __tJump.flown = true; if ((__tJump.flown && me.grounded !== false) || now - __tJump.t > 1400) __tJump = null; }
+  __tBtn[0].pressed = !!__tJump; __tBtn[0].value = __tJump ? 1 : 0;
+})();
+` : L.swipe ? `// a RUNNER's swipe (controls/swipe.js): it fires as the finger passes the travel, not on release; each a short
 // pulse on the pad (the stick to a side, down, or the jump button), read by the runner as one press
 ${swipeOf.toString()}
 let __tSw = null;
@@ -130,7 +170,7 @@ __tUse.style.display = 'none';
 (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__tEl);
 const __touchOn = () => __tOn;
 // what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
-const __tRowsOf = () => __TL.swipe ? [['swipe ← →', 'change lane'], ['swipe ↑', 'jump'], ['swipe ↓', 'slide']] : [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
+const __tRowsOf = () => __TL.course ? [['swipe ← →', 'change track'], ['tap, or swipe ↑', 'jump'], ['it runs', 'by itself']] : __TL.swipe ? [['swipe ← →', 'change lane'], ['swipe ↑', 'jump'], ['swipe ↓', 'slide']] : [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
   ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
 const __touchRows = () => __tRowsOf();
 const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
@@ -165,6 +205,116 @@ function __touchPad() {
   if (!reach) { __tBtn[2].pressed = false; __tBtn[2].value = 0; }
   return __tPad;
 }
-window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL, hint: __tHint };
+window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL, hint: __tHint${L.course ? ', lane: () => __tLane' : ''} };
+`;
+}
+
+/**
+ * The layer's script when the level's HUD is mana-ui's (channels/mana-hud.js): the same virtual pad, the same zones and
+ * the same arithmetic, and nothing drawn. The stick and the pads are the HUD's `touchpad` (mana-ui's look, the game's
+ * theme and frame); this reads the thumbs, finds which pad a touch landed on from the view's own elements
+ * (`.mana-pad[data-control]`) and says what it knows as window.__mojTouch.view(): { on, lane, held, down, buttons },
+ * which the HUD's host copies into its state each frame. Never a swipe layout (it draws nothing to hand over).
+ */
+function touchManaScript(L) {
+  return `// ---- TOUCH (channels/controllable/touch.js): a virtual standard pad, drawn by the level's mana-ui HUD ----
+const __TL = ${JSON.stringify(L)};
+const __touchOpt = new URLSearchParams(location.search).get('touch');
+let __tOn = __touchOpt === '1' || (__touchOpt !== '0' && !!(window.matchMedia && matchMedia('(pointer: coarse)').matches));
+const __tAxes = [0, 0, 0, 0], __tBtn = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
+const __tPad = { id: 'mojulo touch pad (STANDARD GAMEPAD)', mapping: 'standard', connected: true, index: -1, axes: __tAxes, buttons: __tBtn };
+const __tEl = document.createElement('div');
+__tEl.id = 'moj-touch';
+__tEl.style.cssText = 'position:absolute;inset:0;z-index:20;pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none';
+const __tZoneOf = (css) => { const z = document.createElement('div'); z.style.cssText = 'position:absolute;bottom:0;pointer-events:auto;touch-action:none;' + css; __tEl.appendChild(z); return z; };
+// the stick: the left of the screen's lower half; the view's stick rises where the thumb lands
+const __tZone = __tZoneOf('left:0;width:50%;height:55%');
+const __T_R = 56;   // the stick's travel, px: full deflection at its edge
+let __tStick = null, __tLook = null, __tHeld = null, __tShown = null;
+__tZone.addEventListener('pointerdown', (e) => {
+  if (__tStick) return;
+  e.preventDefault(); __tZone.setPointerCapture(e.pointerId);
+  // (where the stick rests, as the view drew it: the thumb's place is said from there)
+  const el = document.querySelector('#moj-mana-hud .mana-stick'), r = el ? el.getBoundingClientRect() : null;
+  __tStick = { id: e.pointerId, ox: e.clientX, oy: e.clientY };
+  __tHeld = { ox: r ? e.clientX - (r.left + r.width / 2) : 0, oy: r ? e.clientY - (r.top + r.height / 2) : 0, dx: 0, dy: 0 };
+});
+__tZone.addEventListener('pointermove', (e) => {
+  if (!__tStick || e.pointerId !== __tStick.id) return;
+  let dx = e.clientX - __tStick.ox, dy = __TL.lane ? 0 : e.clientY - __tStick.oy;
+  const m = Math.hypot(dx, dy); if (m > __T_R) { dx *= __T_R / m; dy *= __T_R / m; }
+  __tAxes[0] = dx / __T_R; __tAxes[1] = dy / __T_R;
+  __tHeld = { ox: __tHeld.ox, oy: __tHeld.oy, dx: dx, dy: dy };
+});
+const __tStickEnd = (e) => { if (!__tStick || e.pointerId !== __tStick.id) return; __tStick = null; __tHeld = null; __tAxes[0] = 0; __tAxes[1] = 0; };
+__tZone.addEventListener('pointerup', __tStickEnd); __tZone.addEventListener('pointercancel', __tStickEnd);
+// the look zone: the right of the screen; a drag looks as the mouse does (the pads lie over it and take their own touches)
+if (__TL.look) {
+  const z = __tZoneOf('right:0;width:50%;top:0');
+  z.addEventListener('pointerdown', (e) => { if (__tLook) return; e.preventDefault(); z.setPointerCapture(e.pointerId); __tLook = { id: e.pointerId, x: e.clientX, y: e.clientY }; });
+  z.addEventListener('pointermove', (e) => {
+    if (!__tLook || e.pointerId !== __tLook.id) return;
+    const dx = e.clientX - __tLook.x, dy = e.clientY - __tLook.y; __tLook.x = e.clientX; __tLook.y = e.clientY;
+    if (__MOUSELOOK) { __lookDX -= dx; __lookDY -= dy; } else { __lookDX += dx; __lookDY += dy; }
+  });
+  const end = (e) => { if (__tLook && e.pointerId === __tLook.id) __tLook = null; };
+  z.addEventListener('pointerup', end); z.addEventListener('pointercancel', end);
+}
+// the pads: the view's, each named by the pad control it is (south jump, east kneel / down, west use, rt fire); a
+// touch that lands on one presses that control, and lets go when its finger lifts
+const __T_IDX = { south: 0, east: 1, west: 2, north: 3, rt: 7 }, __tDown = {};
+const __tSet = (i, on) => { __tBtn[i].pressed = on; __tBtn[i].value = on ? 1 : 0; };
+document.addEventListener('pointerdown', (e) => {
+  if (!__tShown) return;
+  const p = e.target && e.target.closest ? e.target.closest('#moj-mana-hud .mana-pad[data-control]') : null, i = p ? __T_IDX[p.getAttribute('data-control')] : undefined;
+  if (i === undefined) return;
+  e.preventDefault(); __tDown[e.pointerId] = i; __tSet(i, true);
+}, true);
+const __tLift = (e) => { const i = __tDown[e.pointerId]; if (i === undefined) return; delete __tDown[e.pointerId]; if (!Object.keys(__tDown).some((k) => __tDown[k] === i)) __tSet(i, false); };
+window.addEventListener('pointerup', __tLift, true); window.addEventListener('pointercancel', __tLift, true);
+(typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__tEl);
+const __touchOn = () => __tOn;
+// the pads the pilot answers to, as the view draws them; use shows only while the figure stands where it is used
+const __tPads = [...(__TL.jump ? [{ label: 'jump', control: 'south' }] : []), ...(__TL.lift ? [{ label: 'up', control: 'south' }, { label: 'down', control: 'east' }] : []), ...(__TL.fire ? [{ label: 'fire', control: 'rt' }] : [])];
+const __tPadsUse = __tPads.concat([{ label: 'use', control: 'west' }]);
+// what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
+const __tRowsOf = () => [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
+  ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
+const __touchRows = () => __tRowsOf();
+const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
+// what the view draws, said again only when it has changed (the HUD's host copies it into its state)
+let __tView = null, __tSig = '';
+function __tViewOf() {
+  const down = Object.keys(__T_IDX).filter((c) => __tBtn[__T_IDX[c]].pressed), reach = !!window.__mojReach;
+  const sig = (__tShown ? 1 : 0) + '|' + (reach ? 1 : 0) + '|' + down.join(',') + '|' + (__tHeld ? [__tHeld.ox, __tHeld.oy, __tHeld.dx, __tHeld.dy].map(Math.round).join(',') : '');
+  if (sig !== __tSig || !__tView) { __tSig = sig; __tView = { on: !!__tShown, lane: !!__TL.lane, held: __tHeld, down: down, buttons: reach ? __tPadsUse : __tPads, hint: __tHint }; }
+  return __tView;
+}
+// the layer's place on the screen: off while a menu, a battle or a journal holds the world (they take the taps), the
+// HUD's bottom slots lifted over the pad while it shows (--thumb, --thumb-c), and the legend saying what the thumbs do
+function __tFrame() {
+  const show = __tOn && !window.__mojMenuOpen;
+  if (show !== __tShown) {
+    __tShown = show;
+    __tEl.style.display = show ? '' : 'none';
+    if (!show) { __tStick = null; __tLook = null; __tHeld = null; __tAxes[0] = 0; __tAxes[1] = 0; for (const k in __tDown) delete __tDown[k]; for (const b of __tBtn) { b.pressed = false; b.value = 0; } }
+    const host = typeof wrap !== 'undefined' ? wrap : document.documentElement;
+    host.style.setProperty('--thumb', __tOn ? '196px' : '0px');
+    host.style.setProperty('--thumb-c', __tOn && document.documentElement.dataset.orientation === 'portrait' ? '196px' : '0px');
+  }
+  for (const el of document.querySelectorAll('.moj-w-legend')) {
+    if (__tOn && el.dataset.keys === undefined) { el.dataset.keys = el.textContent; el.textContent = __tHint; }
+    else if (!__tOn && el.dataset.keys !== undefined) { el.textContent = el.dataset.keys; delete el.dataset.keys; }
+  }
+  requestAnimationFrame(__tFrame);
+}
+requestAnimationFrame(__tFrame);
+function __touchPad() {
+  if (!__tOn) return null;
+  // use: let go when the figure leaves where it is used (its pad is no longer drawn)
+  if (!window.__mojReach) __tSet(2, false);
+  return __tPad;
+}
+window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL, hint: __tHint, view: __tViewOf };
 `;
 }

@@ -82,6 +82,8 @@ What it makes, by what people do with it:
 - **Hear**: scores, sound effects and voices: \`create_beats\`, \`create_voice\`.
 - **Observe**: any of them watched: turntables, flythroughs, recorded runs: \`forge_motion\`.
 
+**No ask yet?** Offer four starts: make a character, design a game, design an object, make a 3D exhibit. For a game, ask first whether they have drawings, plans or documents to turn into its plan: use what those say, set aside what you cannot place, and run \`design_game\` on what is missing. A first session takes a game from the idea to its first level played (the readout's \`goalposts\`). Most games are levels played in turns; an open world is laid differently.
+
 **Workflows** orchestrate the rest for batches and variations: a plan that chains calls once (\`execute_plan\`), sweeps, stash → cook, and catalysts that reach the other workers and MCPs on this host.
 
 **Secrets:** never \`cat\` or \`Read\` a \`.env\` under \`$MOJULO_HOME\` or in any directory mojulo generated.

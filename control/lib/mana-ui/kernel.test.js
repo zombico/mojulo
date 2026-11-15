@@ -483,4 +483,28 @@ describe('mana-ui: form and the kernel', () => {
     expect(() => manaUiPage({ screens: { a: { use: 'nope' } } })).toThrow(/is a component/);
     expect(manaUiBoard()).not.toMatch(/\b(src|href)=["']?https?:/);
   });
+  it('a `when` on a param a def was not given is not met; an `unless` on one is', () => {
+    const def = { params: ['error'], node: { use: 'screen', children: [{ use: 'text', props: { value: 'failed' }, when: { param: 'error' } }, { use: 'text', props: { value: 'fine' }, unless: { param: 'error' } }] } };
+    const html = (props) => { const rt = manaUi.runtime({ screens: { s: { use: 'load', props } }, defs: { load: def }, start: 's' }, { read: () => undefined, act: () => {} }); return JSON.stringify(rt.view()); };
+    expect(html({})).toContain('fine');
+    expect(html({})).not.toContain('failed');
+    expect(html({ error: 'no route' })).toContain('failed');
+    expect(html({ error: 'no route' })).not.toContain('fine');
+  });
+  it('the touch pad draws what its driver knows: a lane, a stick under a thumb where it rose, a pad pressed', () => {
+    const st = { touch: { held: null, down: [] } };
+    const rt = manaUi.runtime({ screens: {}, hud: { use: 'hud', children: [{ use: 'region', props: { at: 'bottom' }, children: [{ use: 'touchpad', props: { lane: true, held: { bind: 'touch.held' }, down: { bind: 'touch.down' }, buttons: [{ label: 'jump', control: 'south' }, { label: 'fire', control: 'rt' }] } }] }] } }, host(st));
+    const html = () => rt.view();
+    expect(html()).toContain('data-lane="yes"');
+    expect(html()).not.toContain('data-held="yes"');
+    expect(html()).not.toContain('data-on="yes"');
+    st.touch = { held: { ox: 40.4, oy: -12, dx: 30, dy: 0 }, down: ['rt'] };
+    rt.tick();
+    expect(html()).toContain('data-held="yes"');
+    expect(html()).toContain('transform:translate(40px,-12px)');
+    expect(html()).toContain('transform:translate(30px,0px)');
+    expect(html()).toMatch(/data-control="rt"[^>]*data-on="yes"/);
+    // (a pad named for what it does carries its pictogram's name: the theme draws it where it draws icons)
+    expect(html()).toMatch(/data-control="south"><b data-icon="jump">jump<\/b>/);
+  });
 });
