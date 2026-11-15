@@ -43,8 +43,28 @@ export function riseAt(x, y, R) {
   const at = (r, c) => R.z[Math.max(0, Math.min(R.rows - 1, r)) * R.cols + Math.max(0, Math.min(R.cols - 1, c))];
   const ease = (t) => t * t * (3 - 2 * t), fu = R.cols > 1 ? ease(u - Math.max(0, i)) : 0, fv = R.rows > 1 ? ease(v - Math.max(0, j)) : 0;
   const c0 = Math.max(0, i), r0 = Math.max(0, j);
+  if (R.scarps) return scarpRise(x, y, R, at, r0, c0, u - c0, v - r0, ease);
   const top = mix(at(r0, c0), at(r0, c0 + 1), fu), bot = mix(at(r0 + 1, c0), at(r0 + 1, c0 + 1), fu);
   return mix(top, bot, fv);
+}
+
+/**
+ * A SCARP (`rise.scarps`, level/map-cliffs.js: the edges between two tiles the land stands as a cliff on): there the
+ * rise does not ease from one tile's middle to the next's but steps at their shared edge, over SCARP.face metres, its
+ * line wandered on the level's frame (one wander down a whole column or row of edges) so no cliff is ruled. Each pair of tile middles has its own step (eased, or a
+ * scarp's); between two pairs the step turns from one to the other, so a cliff ends by easing into the slope beside it
+ * and the land stays one height over the whole map. scarps: { e: [per tile: the edge to its east], s: [to its south] }.
+ */
+export const SCARP = Object.freeze({ face: 2.4, wander: 2.2, stride: 13 });
+function scarpRise(x, y, R, at, r0, c0, tu, tv, ease) {
+  const T = R.tile, S = R.scarps, w = SCARP.face / 2 / T, cols = R.cols, rows = R.rows;
+  const sharp = (t, along, k) => { const j = (SCARP.wander / T) * (2 * vnoise(along / SCARP.stride, k * 7.31, 977) - 1); return smooth(0.5 + j - w, 0.5 + j + w, t); };
+  // (the step across a pair: east from (r, c) at the fraction `t`, read along y; south from (r, c), read along x)
+  const east = (r, c) => (cols > 1 && r < rows && S.e[r * cols + c] ? sharp(tu, y, c) : cols > 1 ? ease(tu) : 0);
+  const south = (r, c) => (rows > 1 && c < cols && S.s[r * cols + c] ? sharp(tv, x, 4096 + r) : rows > 1 ? ease(tv) : 0);
+  const r1 = Math.min(rows - 1, r0 + 1), c1 = Math.min(cols - 1, c0 + 1);
+  const top = mix(at(r0, c0), at(r0, c0 + 1), east(r0, c0)), bot = mix(at(r0 + 1, c0), at(r0 + 1, c0 + 1), east(r1, c0));
+  return mix(top, bot, mix(south(r0, c0), south(r0, c1), ease(tu)));
 }
 
 // an edge's middle in the tile's frame

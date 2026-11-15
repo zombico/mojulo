@@ -9,6 +9,7 @@
  *   sketch: {
  *     concept?: { pitch?, hold?, journey: [{ id, say, kind, at: '<segment>', teach?, faces? }] },
  *     segments?: { <S>: { status?: 'draft' | 'approved', ground?: [rows], height?: [rows], marks?: [mark], notes? } },
+ *     cliffs?: true,   // the approved heights stand as CLIFFS where they step and no way crosses (level/map-cliffs.js)
  *   }
  *   ground   a glyph a tile (SKETCH_GROUND): f forest, g grove, m meadow, r rocks, c cliff, w water, s scrub; '.' its
  *            region's own
@@ -40,6 +41,7 @@
 import { gateTile } from './plan.js';
 import { readGrid, mapStart } from './grid.js';
 import { paceOf, paceLaws } from './pace.js';
+import { mapScarps } from './map-cliffs.js';
 
 const readGridOf = (level, at) => readGrid(level.grid, at);
 
@@ -141,7 +143,8 @@ function readScenario(sc, segs, n, segments, at) {
 export function readSketch(sketch, P, at = 'level.sketch') {
   if (sketch === undefined) return null;
   if (!isObj(sketch)) throw fail(`${at} is { scenario? | concept?, segments? }: the level decided in miniature before it is built`);
-  for (const k of Object.keys(sketch)) if (!['scenario', 'concept', 'segments'].includes(k)) throw fail(`${at}.${k} is not a sketch's word (scenario, concept, segments)`);
+  for (const k of Object.keys(sketch)) if (!['scenario', 'concept', 'segments', 'cliffs'].includes(k)) throw fail(`${at}.${k} is not a sketch's word (scenario, concept, segments, cliffs)`);
+  if (sketch.cliffs !== undefined && sketch.cliffs !== true) throw fail(`${at}.cliffs is true (its approved heights stand as cliffs where they step and no way crosses), or left out`);
   if (sketch.scenario !== undefined && sketch.concept !== undefined) throw fail(`${at} is written as a scenario or as a concept, not both (the scenario says the concept and its marks)`);
   if (!P) throw fail(`${at} sketches a planned map (level.grid.plan): its segments are what is sketched`);
   const segs = Object.keys(P.segments ?? P.at), n = P.size;
@@ -197,6 +200,7 @@ export function readSketch(sketch, P, at = 'level.sketch') {
     }
   }
   if (sketch.scenario !== undefined) Object.assign(out, readScenario(sketch.scenario, segs, n, out.segments, `${at}.scenario`));
+  if (sketch.cliffs) out.cliffs = true;
   return out;
 }
 
@@ -409,5 +413,9 @@ export function levelGrid(level, at = 'level.grid', read = null) {
     }));
     for (const m of v.marks) { marks.push({ ...m, segment: seg, tile: [r0 + m.at[0], c0 + m.at[1]] }); laid.marks++; }
   }
-  return { ...base, rise: sketchRise(base, only), sketch: { approved: approved.map(([k]) => k), ground, marks, laid, unlaid } };
+  // (THE CLIFFS, map-cliffs.js: where the approved heights step and no way crosses, the land stands as a cliff; the
+  // scarps ride in the rise, so every reader of the level's land reads the same one)
+  const rise = sketchRise(base, only), scarps = K.cliffs ? mapScarps(base, rise) : null;
+  if (scarps) laid.cliffs += scarps.count;
+  return { ...base, rise: scarps ? { ...rise, scarps: { e: scarps.e, s: scarps.s } } : rise, sketch: { approved: approved.map(([k]) => k), ground, marks, laid, unlaid } };
 }

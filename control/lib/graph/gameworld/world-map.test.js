@@ -8,7 +8,9 @@ import { composeGameworld } from './compose.js';
 import { castingCall } from './foe-casting.js';
 import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
-import { readSketch, sketchLaws } from '../level/map-sketch.js';
+import { readSketch, sketchLaws, levelGrid } from '../level/map-sketch.js';
+import { mapWay } from '../level/map-items.js';
+import { walkFrom } from '../level/grid.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { SIGHTS } from '../mind/vocab.js';
 import { FLOW_IN_PLAY, readFlow, walkFlow } from '../game/flow.js';
@@ -69,6 +71,47 @@ describe('the world map', () => {
     expect(level.glyphs.sketch.scenario.beats.filter((b) => b.at === P.route[0]).map((b) => b.id)).toEqual(['controls', 'lone', 'pair']);
     expect(level.glyphs.sketch.scenario.beats.at(-1)).toMatchObject({ kind: 'climax', foes: { boss: 1 } });
     for (const l of lawsOf(level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+
+  it('is an open world: blocks laid by the trail library, side ways that close loops, the opening\'s one way out kept', () => {
+    const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan, [A, B, , D, E] = P.route;
+    const G = readGrid({ tile: g.tile, plan: P, segments: g.segments }, 'grid'), id = (x) => `${x.r},${x.c}`;
+    // (a side way wherever two blocks lie side by side off the walk; none out of the opening)
+    expect(P.joins).toEqual([[B, E]]);
+    expect(G.plan.gates.filter((x) => x.from === A || x.to === A)).toHaveLength(1);
+    // (each block past the opening names a template; never one line from gate to gate through every block)
+    for (const S of P.route.slice(1)) expect(Object.keys(WORLD_MAP.fills).some((k) => [].concat(WORLD_MAP.fills[k]).includes(P.key[S].fill)), S).toBe(true);
+    expect(new Set(P.route.slice(1).map((S) => P.key[S].fill)).size).toBeGreaterThan(1);
+    // (a loop: with the walk's own gate from the town to the goal shut, the goal is still reached, by the side way)
+    const goal = G.cells.find((x) => x.kind === 'place' && x.place.goal), start = mapWay(G).start;
+    const shut = (a, b) => ({ ...G, cells: G.cells.map((x) => (x.open ? { ...x, open: x.open.filter((s) => { const y = G.at(x.r + { n: -1, s: 1, e: 0, w: 0 }[s], x.c + { n: 0, s: 0, e: 1, w: -1 }[s]); return !(y && ((x.region === a && y.region === b) || (x.region === b && y.region === a))); }) } : x)) });
+    expect(walkFrom(shut(D, E), start).dist.has(id(goal))).toBe(true);
+    expect(walkFrom(shut(B, E), start).dist.has(id(goal))).toBe(true);
+    // (the walk itself keeps to its route: the side way is never the way on, so every block of the walk is on it)
+    const way = mapWay(G).way;
+    expect(new Set(way.map((x) => x.region))).toEqual(new Set(P.route));
+    for (let i = 1; i < way.length; i++) expect(Math.abs(P.route.indexOf(way[i].region) - P.route.indexOf(way[i - 1].region))).toBeLessThanOrEqual(1);
+  });
+
+  it('its cliffs make sense: terraces that climb to the goal, a way a step a tile at most, a cliff only where no way crosses', () => {
+    const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan;
+    const G = levelGrid({ grid: { tile: g.tile, plan: P, segments: g.segments }, sketch: g.sketch }), z = (x) => G.rise.z[x.r * G.cols + x.c];
+    const SIDE = { e: [0, 1], s: [1, 0] }, S = G.rise.scarps;
+    // (the goal's block stands highest, the opening's on the low ground)
+    const top = (seg) => Math.max(...G.cells.filter((x) => x.region === seg).map(z));
+    expect(top(P.route.at(-1))).toBeGreaterThan(top(P.route[0]));
+    expect(top(P.route.at(-1))).toBe(Math.max(...P.route.map(top)));
+    expect(G.sketch.laid.cliffs).toBeGreaterThan(0);
+    let crossed = 0, cliffs = 0;
+    for (const x of G.cells) for (const [s, [dr, dc]] of Object.entries(SIDE)) {
+      const y = G.at(x.r + dr, x.c + dc); if (!y) continue;
+      const way = (x.open ?? []).includes(s) || (y.open ?? []).includes(s === 'e' ? 'w' : 'n'), scarp = S[s][x.r * G.cols + x.c] === 1;
+      // (no cliff across a way; a way climbs a step at most; a cliff is a real step)
+      if (way) { crossed++; expect(scarp, `${x.r},${x.c} ${s}`).toBe(false); expect(Math.abs(z(x) - z(y))).toBeLessThanOrEqual(3); }
+      if (scarp) { cliffs++; expect(Math.abs(z(x) - z(y))).toBeGreaterThanOrEqual(6); }
+    }
+    expect(crossed).toBeGreaterThan(0);
+    expect(cliffs).toBe(G.sketch.laid.cliffs);
   });
 
   it('the sentence door lays the action RPG as a world map travelled zone to zone, and the casting call fields it', () => {
