@@ -618,7 +618,7 @@ export dispatch: object/figure → \`export_model\` (print-ready 3MF | STL, mm, 
 Guards:
   - revise the same ref — never re-mint to change a thing
   - underdetermined form → ask one question; the answer routes
-  - no ask yet → offer four starts (a character, a game, an object, a 3D exhibit); a game runs from the idea, or the drawings and docs they bring, to its first level played
+  - no ask yet → offer four starts (a character, a game, an object, a 3D exhibit); a game runs from the idea, or the docs they bring, to its first level, machine-proved, theirs to approve
   - speaks 3D-modeler ("retopo", "blockout", "kitbash") → \`translate_modeler_lingo\`
   - fuzzy ask → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` returns the family card whole`;
 

@@ -136,6 +136,7 @@ import { readQow } from '../qow/qow.js';
 import { readMainQuest, mainQuestContext } from './main-quest.js';
 import { readGameBrief } from './gmn.js';
 import { readBackdrop } from '../lorecube/backdrop.js';
+import { readIntake } from './intake.js';
 import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
@@ -258,7 +259,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -881,6 +882,8 @@ export function readGameworld(W) {
   // its backdrop (lorecube/backdrop.js): the setting's narrative lore, extracted: what happened before play, how the
   // world stands, what is open. Read here and carried; the book hands it to each chapter (chapterDigest). It lays
   // nothing on a level: a world without one is unchanged
+  // what the creator brought, read before the first goalpost (intake.js): a record, never a page
+  if (W.intake !== undefined) readIntake(W.intake);
   if (W.backdrop !== undefined && W.backdrop !== null) { try { readBackdrop(W.backdrop); } catch (e) { throw new Error(`gameworld: backdrop${e.message.replace(/^lorecube: backdrop/, '')}`); } }
   const megaworld = readMegaworld(W.megaworld, W.levels);
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
