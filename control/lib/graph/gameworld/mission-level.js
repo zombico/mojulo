@@ -85,6 +85,19 @@ const BG = '#9aa0a8';
 /** The practice door's spec: a world with a firing range has a mission. */
 export function missionFor(G) { return loadoutOf(G) ? {} : null; }
 
+// a map grown once for its template, seed and kit (growing is a second or three; a world's run reads its stages more
+// than once): kept by those, a few at a time
+const GROWN = new Map(), GROWN_KEPT = 8;
+function grownMap(template, seed, kit) {
+  const k = JSON.stringify([template, seed, kit]);
+  if (!GROWN.has(k)) {
+    if (GROWN.size >= GROWN_KEPT) GROWN.delete(GROWN.keys().next().value);
+    GROWN.set(k, growArenaMap({ template, seed, kit }));
+  }
+  const g = GROWN.get(k);
+  return { ...g, map: structuredClone(g.map) };
+}
+
 /** The composition and its laws, for a world and a level's own `mission` (true or its settings). */
 export function missionPlan(G, { seed = null, spec = {}, grown = null } = {}) {
   const S = spec === true ? {} : spec, brief = missionBrief(G, S);
@@ -93,7 +106,7 @@ export function missionPlan(G, { seed = null, spec = {}, grown = null } = {}) {
   if (brief.map) {
     // ON A MAP: the map grown for the kit under its laws (or the blocks a level carries: growing is the design step, the
     // map its data from then on), the phases placed from its measures; its laws and the map's own, as advice
-    const kit = kitOf(brief), G2 = grown ? { template: brief.map.template, seed: dice, map: grown, laws: [] } : growArenaMap({ template: brief.map.template, seed: dice, kit });
+    const kit = kitOf(brief), G2 = grown ? { template: brief.map.template, seed: dice, map: grown, laws: [] } : grownMap(brief.map.template, dice, kit);
     const mission = phasesOnMap(brief, G2.map, { seed: dice });
     mission.climbs = mapGround(G2.map).entities;
     const mapLawsHeld = G2.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }));
@@ -215,9 +228,10 @@ export function missionLevel(G, { refs = {}, seed = null, spec = true, quiet = f
   const { brief, mission: M, laws } = P, C = missionCast(G, M, { refs, quiet }), stage = missionStage(G, P);
   // the body: the range's walker, or (a feel written) the platform rule its card is lowered onto, at the eye
   const felt = G?.feel != null ? feelRule(G.feel) : null, eye = brief.eye;
+  // (on a fighting map, the platform rule with or without a feel: the walker climbs no ramp and drops off no edge)
   const rule = felt
     ? { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye, step: 0.3, ...felt, turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule }
-    : { ...C.body.rule };
+    : M.on === 'map' ? { ...C.body.rule, type: 'platform', walkSpeed: 1.6, step: 0.3 } : { ...C.body.rule };
   const A = M.anchors;
   const player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [A.spawn[0], A.spawn[1], A.spawn[2] + eye], heading: M.heading } };
   const name = G?.name ?? G?.id ?? 'game';

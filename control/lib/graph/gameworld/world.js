@@ -61,12 +61,14 @@
        runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
-       mission?: true | { seed?, sections?, foes?, hold?, waves? },
+       mission?: true | { seed?, sections?, foes?, hold?, waves?, map?: true | <arena-map template> },
                                          // in place of `walk`: the level is a MISSION (mission-level.js, lib/graph/mission):
                                          // the firing range stretched into sections, each a band the world's guns are
                                          // for with a task in it (take, clear, hold, reach), the way on sealed until
                                          // it is met; laid from the guns the world carries (loadout.js), so a world
-                                         // that carries none has no mission; briefed, played and debriefed on mana-ui
+                                         // that carries none has no mission; briefed, played and debriefed on mana-ui.
+                                         // `map`: fought on a fighting map grown under the arena laws in place of the
+                                         // line (arena-map/: its phases placed from the map's own measures)
                                          // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
                                          // rings, its ground laid by scapeshift, a runway (one by default) and a gate
                                          // course (by default); a flight on it flies the course and lands

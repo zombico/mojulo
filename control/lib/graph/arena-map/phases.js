@@ -15,6 +15,8 @@
  *               sight on the spawns and the quiet places, coming in by different ways and levels; it begins as the
  *               last clear is met, wherever the body is (a zone would begin nothing for a body already in it)
  *   get out     (reach) the spawn farthest from the heart by a way the mission has not yet walked
+ *   (what lies on the floor, and a place a take or a reach is met at, stands only in a cell with no floor over or under
+ *   it: the runtime's zones read a place flat, so one under a gallery would be taken from the floor below)
  *
  *   phasesOnMap(brief, map, { seed?, at? }) → the composition the mission level consumes (gameworld/mission-level.js):
  *     { on: 'map', seed, heading, sections: [{ id, kind, band, entry, foes: [{ id, at, heading }], drops, task, door: null,
@@ -83,6 +85,11 @@ export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
   const sees = (a, b) => { const x = V.index.get(a), y = V.index.get(b); return x != null && y != null && V.vis[x * n + y] === 1; };
   const walks = new Map(), walk = (id) => { if (!walks.has(id)) walks.set(id, walkFrom(I, id)); return walks.get(id); };
   const far = (a, b) => walk(a).D.get(b) ?? Infinity;
+  // (a place a thing lies or a task is met in is read flat by the runtime's zones, objectives' and supplies', planar: so
+  // it is laid only in a cell with no other floor over or under it, where flat is the same as there)
+  const column = new Map();
+  for (const id of V.ids) { const c = cellOf(id), k2 = `${c[0]},${c[1]}`; column.set(k2, (column.get(k2) ?? 0) + 1); }
+  const alone = (id) => column.get(`${cellOf(id)[0]},${cellOf(id)[1]}`) === 1;
   const heart = F.items.find((x) => x.major) ? idOf(F.items.find((x) => x.major).at) : V.ids[V.seenBy.indexOf(Math.max(...V.seenBy))];
   // THE START: a spawn far from the heart (the two farthest, the dice between them)
   const spawns = F.spawns.map(idOf).filter((id) => Number.isFinite(far(id, heart)));
@@ -99,8 +106,8 @@ export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
     if (role === 'arm') {
       // the small thing nearest the start by walking, a few steps off it (so walking to it is walking: a take begun
       // inside its own place is never met)
-      const small = F.items.filter((x) => !x.major).map((x) => idOf(x.at)).filter((id) => !taken.has(id) && far(here, id) >= CELL && Number.isFinite(far(here, id)));
-      const near = [...(small.length ? small : V.ids.filter((id) => !taken.has(id) && far(here, id) >= CELL && far(here, id) <= 3 * CELL))].sort((a, b) => far(here, a) - far(here, b) || (a < b ? -1 : 1));
+      const small = F.items.filter((x) => !x.major).map((x) => idOf(x.at)).filter((id) => !taken.has(id) && alone(id) && far(here, id) >= CELL && Number.isFinite(far(here, id)));
+      const near = [...(small.length ? small : V.ids.filter((id) => !taken.has(id) && alone(id) && far(here, id) >= CELL && far(here, id) <= 3 * CELL))].sort((a, b) => far(here, a) - far(here, b) || (a < b ? -1 : 1));
       const it = near[0] ?? here;
       taken.add(it); walked(here, it);
       out.drops.push({ at: pt(it), gives: 'ammo' });
@@ -159,12 +166,12 @@ export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
       out.task = { kind: 'hold', text: row.text, seconds: brief.hold, every: r2(brief.hold / (brief.waves + 1)), waves: W2.map((wv) => wv.map((f) => f.id)), at: pt(heart) };
       out.cells = { at: cellOf(heart), waves: waves.map((wv) => wv.map(cellOf)), ways: [...ways.keys()].map(cellOf) };
       // what lies at the heart for the hold: the map's first prize, read as the mission's health and rounds
-      out.drops.push({ at: pt(heart), gives: 'health' });
+      if (alone(heart)) out.drops.push({ at: pt(heart), gives: 'health' });
       here = heart;
     } else {
       // the way out: the spawn farthest from the heart, by a way not walked yet (the start's last)
       const W = walk(here), fresh = (id) => (routeTo(W, id) ?? []).slice(OUT).filter((x) => used.has(x)).length;
-      const pool = [...F.spawns.map(idOf).filter((id) => id !== start && W.D.has(id)), ...(W.D.has(start) ? [start] : [])];
+      const pool0 = [...F.spawns.map(idOf).filter((id) => id !== start && W.D.has(id)), ...(W.D.has(start) ? [start] : [])], pool = pool0.some(alone) ? pool0.filter(alone) : pool0;
       const exit = [...pool].sort((a, b) => (W.D.get(b) - CELL * 2 * fresh(b)) - (W.D.get(a) - CELL * 2 * fresh(a)) || (a < b ? -1 : 1))[0] ?? here;
       out.task = { kind: 'reach', text: row.text, at: pt(exit) };
       out.cells = { at: cellOf(exit), fresh: fresh(exit) };
@@ -174,7 +181,7 @@ export function phasesOnMap(brief, map, { seed = 1, at = [0, 0, 0] } = {}) {
   }
   // the map's other things on its floor from the start: its prizes and small things, as rounds and health
   const lying = new Set(sections.flatMap((S) => S.drops.map((d) => d.at.join(','))));
-  for (const x of F.items) { const p = mapPoint(x.at, at); if (!lying.has(p.join(',')) && sections[0]) { sections[0].drops.push({ at: p, gives: x.gives === 'health' ? 'health' : 'ammo' }); lying.add(p.join(',')); } }
+  for (const x of F.items) { const p = mapPoint(x.at, at); if (alone(idOf(x.at)) && !lying.has(p.join(',')) && sections[0]) { sections[0].drops.push({ at: p, gives: x.gives === 'health' ? 'health' : 'ammo' }); lying.add(p.join(',')); } }
   const exitS = sections.findLast((S) => S.task?.kind === 'reach'), H = pt(heart), S0 = pt(start);
   return {
     on: 'map', seed, heading: r2(Math.atan2(H[1] - S0[1], H[0] - S0[0])), sections, primitives: [],

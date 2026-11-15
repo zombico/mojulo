@@ -82,8 +82,25 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
     well), sized for a kit of close and mid guns. Each grows to every law held in one to three seconds, on every seed
     tried: a law not held names what mends it (a line to break, an edge to rail, a floor no ramp reaches) and the
     generator's repairs do that where the dice fall.
-  - Not built yet: laying a map's blocks as a level, a geocube building or town read against the laws, the mission's
-    phases on one.
-- **In progress, not finished: a mission laid along a trail's lane or a town's walk** (`mission/route.js`). The route
-  composition, the reader and the level order are in; its bus proof does not pass since the ways on were moved past
-  each section's end (two tests fail), and a fighting map is the direction taken instead.
+  - Not built yet: a geocube building or town read against the laws.
+- **A mission fought on a fighting map** (`mission: { map: true | '<template>' }`, on the practice door's spec and a
+  level's own form). The firing range decides the rules, the map is grown under the arena laws for the kit's bands
+  (`true` picks by the longest band: close guns a tower, the mid band a court, a long gun the figure of eight) and the
+  phases are placed from its own measures (`arena-map/phases.js`): set down on a spawn far from the heart, arm up at the
+  small thing nearest it, a clear a band with its foes woken out of sight at that band's distance over different
+  approaches and levels, hold the heart (the most seen place) against waves from the quiet places by more than one way,
+  get out at a far spawn by a way not walked yet. Its laws, advice: placed, unseen, two ways, in order, banded; the
+  map's own ride beside them.
+  - **The map laid as ground** (`arena-map/ground.js` `mapGround`): floors (an upper one a slab walked under and stood
+    on), walls and rails, solids, ramps as slopes the platform rule walks up and down (sliced colliders under them stop a
+    body at their sides), ladders as the runtime's own climb (`rungs`, plumb in the foot cell, mounted at the ledge).
+    Walked headless on the runtime: up a ramp and down, off an open edge, stopped by a wall and a rail and a ramp's side,
+    up a ladder, under a slab.
+  - **Recipes, not renders:** the level carries the map as grown (`mission.plan.map`: its template, seed and blocks)
+    and is rebuilt from those blocks; it is never regrown on a read, so a change to the generator cannot move a minted
+    level. The greybox mission (no `map`) is as it was.
+  - The bus proof reads a task done as the mechanic's var moves past it (a task with no zone begins as the one before is
+    met, and may be done in the same breath). The headless gunner walks a map on its own graph (the shortest way cell to
+    cell, up its ramps and ladders, off an edge where the way drops) and finishes a climb before it fights. Machine gate:
+    with the shooter feel it wins the practice room on every template; as a level on two seeds it won six of eight (it
+    stalls on a ladder taken from above, and once went down in the lane), said, not tuned away. Nobody has played one.

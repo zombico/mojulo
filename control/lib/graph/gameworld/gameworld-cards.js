@@ -90,7 +90,8 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
-import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS } from '../mission/index.js';
+import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS } from '../mission/index.js';
+import { TEMPLATE_IDS } from '../arena-map/templates.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -833,13 +834,15 @@ function missionCard() {
     '  where the game\'s guns are written and tried (bible?book=practice&room=range); the mission is the same guns, the same',
     '  body and the same bands laid down one line, briefed, played and debriefed on mana-ui.',
     '',
-    'levels.<id>.mission   true (what the guns ask for) | { seed?, sections?, foes?, hold?, waves? }',
+    'levels.<id>.mission   true (what the guns ask for) | { seed?, sections?, foes?, hold?, waves?, map? }',
     '  in place of `walk`: its ground, its foes and its tasks are its own (no goal, foes, course or arena beside it).',
     '  Laid from the guns the world carries (a quick shooter\'s arms, a gun in the hero\'s right hand, a feel whose',
     '  template shoots): a world that carries none has no mission.',
     `  foes   how many the lane stands, ${MISSION_LIMITS.foes[0]} to ${MISSION_LIMITS.foes[1]} (${MISSION_DEFAULTS.foes}): every fight in proportion`,
     `  hold   the yard's clock, ${MISSION_LIMITS.hold[0]} to ${MISSION_LIMITS.hold[1]} s (${MISSION_DEFAULTS.hold}); waves ${MISSION_LIMITS.waves[0]} to ${MISSION_LIMITS.waves[1]} (${MISSION_DEFAULTS.waves})`,
     '  sections   the sections in order, in place of the ones the kit\'s bands choose; it ends at a way out',
+    `  map    fought on a FIGHTING MAP, not down a line: true (the kit picks: ${Object.entries(MISSION_MAPS).map(([b, m]) => `${b} ${m.template}`).join(', ')}) | a`,
+    `         template (${TEMPLATE_IDS.join(', ')}), grown under the arena laws; arm up, a clear a band, hold the heart, get out`,
     'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',
     ...Object.entries(SECTIONS).map(([k, v]) => `  ${k.padEnd(12)} ${v.task.padEnd(6)} ${v.band ? `${v.band} band, ${BANDS[v.band].m} m` : 'no fight'}: ${v.teaches}${v.gap ? ' (a GAP: designed, not built; refused with what it waits on)' : ''}`),
     `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,

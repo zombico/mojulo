@@ -10,15 +10,18 @@
  *
  * THE MISSION PLAYED (the player's proof, a machine gate too): the level's resolved page payload stepped headless on the
  * runtime it ships (game/level-sim.js), by a player that gives input only, as the playthrough's do (playthrough.js):
- *   gunner   walks the mission (the laws' own grid, the walk to each task's place), stands and fires at what it sees
+ *   gunner   walks the mission (the laws' own grid, the walk to each task's place; on a map the map's own graph: the
+ *            way between its cells, arena-map/phases.js mapRoute, steered cell centre to cell centre, up its ramps and
+ *            its ladders, off an edge only where the way drops), stands and fires at what it sees
  *            down a clear line (the nearest first: the mouse brought onto it, the sights up past a room's length, an
  *            automatic in short bursts, the carried gun whose band the range is), reloads when nothing is in sight, takes health
  *            when it is low and a drop is near. No cover used, no flank, no knife: the floor of play
  *   still    holds no input: a mission a player who does nothing wins has no game in it
  *
- *   playMission(level, M, { player?, seconds? }) → { player, outcome, won, t, hp: { start, left }, shots, downs, foes,
+ *   playMission(level, M, { player?, seconds?, map? }) → { player, outcome, won, t, hp: { start, left }, shots, downs, foes,
  *     tasks: [ids done], at: <task in hand>, hpAt: { <task>: hp it was finished with }, reason }
- *     level: the level's manifest as stored, or its resolved page payload; M: the composition (missionLevel's `mission`)
+ *     level: the level's manifest as stored, or its resolved page payload; M: the composition (missionLevel's `mission`);
+ *     map: the blocks a mission on a map is fought on (else the ones its manifest carries: mission.plan.map)
  *   missionPlaySummary(R) → one line a report reads
  *   missionStageManifests(steps) → { manifests, keys }   each level's stage that carries a mission, from a run's steps
  *   proveMissions(world, manifests) → [{ level, proved, says, play, won, advice?, assumed }] | null   each mission level
@@ -37,7 +40,10 @@ import { walled } from './playthrough.js';
 import { missionGrid, ARCHETYPE_BAND, BANDS } from '../mission/index.js';
 import { ARMS_KIT } from './arms-kit.js';
 import { readGameworld, resolveLevel } from './world.js';
-import { missionPlan } from './mission-level.js';
+import { missionPlan, missionMapOf } from './mission-level.js';
+import { indexMap } from '../arena-map/map.js';
+import { mapRoute, nodeAt } from '../arena-map/phases.js';
+import { mapPoint } from '../arena-map/ground.js';
 
 const B = buildBus();
 
@@ -48,8 +54,12 @@ export function proveMission(manifest) {
   const c = composeMechanics(mechs, { player, spawn, fall: 'none' }), ev = c.events, s = B.createBusState(ev, ev.entities);
   const woke = [], won = Object.keys(c.on).filter((k) => c.on[k].end === 'success');
   let at = spawn.slice(), prev, warped = 0;
+  // (a task is done when the mechanic's var moves on past it: a task that begins as the one before is met may be done in
+  // the same breath, its foes' falls given as they wake)
+  const cur = objectiveNames(O.id ?? 'obj').task, done = [];
   const pump = (list) => {
     B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); }
+    while (done.length < Math.min(O.tasks.length, s.vars[cur] ?? 0)) done.push(O.tasks[done.length].id);
     const ops = s._ctrlOps ?? []; s._ctrlOps = [];
     const spawned = ops.filter((o) => o.op === 'spawn').map((o) => o.who);
     // (a body put back by a sealed way stands where it was put)
@@ -63,9 +73,7 @@ export function proveMission(manifest) {
   pump(ev.initial ?? []);
   stand(at);
   let sealed = 0, early = 0;
-  // (the task in hand is the mechanic's own var: a task is done when it moves on by one as that task is played)
-  const cur = objectiveNames(O.id ?? 'obj').task, done = [];
-  O.tasks.forEach((t, k) => {
+  O.tasks.forEach((t) => {
     // the way on, tried before the task is met: a body put back, the way still shut
     if (t.door) { const w0 = warped; stand(t.door.at); if (warped > w0) sealed++; else early++; }
     if (t.zone) stand(t.zone.at);
@@ -73,7 +81,6 @@ export function proveMission(manifest) {
     if (t.kind === 'hold') time(t.seconds + 3);
     time(0.3);
     // through the way on, into the next section
-    if (s.vars[cur] === k + 1) done.push(t.id);
     if (t.door) { const w0 = warped; stand(t.door.at); if (warped > w0) early++; }
   });
   const log = s.log.map((r) => r.type);
@@ -97,7 +104,7 @@ const INPUTS = ['forward', 'strafe', 'turn', 'lookDX', 'lookDY', 'jump', 'fire',
 const LOOK_MAX = 160, BURST = 3, REST = 5, AIM_PAST = 10, ON_TARGET = 0.03, LOW_HP = 45, LOW_MAG = 0.3;
 
 /** The mission played (see the header). */
-export function playMission(payload, M, { player = 'gunner', seconds = 300, trace = null } = {}) {
+export function playMission(payload, M, { player = 'gunner', seconds = 300, trace = null, map = null } = {}) {
   if (!MISSION_PLAYERS.includes(player)) throw new Error(`mission: player is ${MISSION_PLAYERS.join(' or ')}`);
   // (a manifest as it is stored carries the recipe: its mechanics lowered here as the page's resolve lowers them, one
   // lowering: game/level-synth.js; a resolved payload carries them lowered already)
@@ -111,10 +118,21 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
   if (!hero) return { player, outcome: null, won: false, t: 0, reason: 'the level has no pilot to play' };
   const cur = objectiveNames('obj').task, tasks = M.sections.map((S) => S.id);
   const foes0 = W.entities.filter((e) => e.team === 'foes' && e.body && Number.isFinite(e.body.hp));
-  // (the walk: the laws' grid, a body's width and a little off every box, the doors as they stand when open)
-  const grid = missionGrid(M, { pad: 0.5 }), fields = new Map();
+  // (the walk: down one line the laws' grid, a body's width and a little off every box, the doors as they stand when
+  // open; on a map the map's own ways, cell to cell, toward the next cell's centre on the way)
+  const onMap = M.on === 'map', blocks = onMap ? map ?? missionMapOf(payload)?.blocks ?? null : null;
+  if (onMap && !blocks) return { player, outcome: null, won: false, t: 0, reason: 'a mission on a map is walked on its blocks: none given, none carried' };
+  const grid = onMap ? null : missionGrid(M, { pad: 0.5 }), fields = new Map(), I = onMap ? indexMap(blocks) : null, routes = new Map();
   const fieldTo = (at) => { const k = `${r1(at[0])},${r1(at[1])}`; if (!fields.has(k)) fields.set(k, grid.field(at)); return fields.get(k); };
-  const stepToward = (goal, pos) => grid.toward(fieldTo(goal), pos, 6);
+  const stepToward = (goal, pos) => {
+    if (!onMap) return grid.toward(fieldTo(goal), pos, 6);
+    const a = nodeAt(I, pos, hero.rule?.eye ?? 0), b = nodeAt(I, [goal[0], goal[1], goal[2] + 0.5]);
+    if (!a || !b || a === b) return { at: goal };
+    const k = `${a}>${b}`;
+    if (!routes.has(k)) routes.set(k, mapRoute(I, a, b));
+    const R = routes.get(k);
+    return { at: R && R.length > 1 ? mapPoint(I.at.get(R[1])) : goal };
+  };
   const hpNow = () => (Number.isFinite(sim.bus.vars.hp) ? sim.bus.vars.hp : null);
   // (what lies on the floor, each taken once: walked over, it is gone)
   const drops = M.sections.flatMap((S) => S.drops.map((d) => ({ at: d.at, gives: d.gives, section: S.id, taken: false })));
@@ -124,12 +142,12 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
   const goalOf = (n) => {
     const S = M.sections[Math.min(n, M.sections.length - 1)], T = S.task, begun = sim.bus.vars[`__obj_in${Math.min(n, M.sections.length - 1)}`] === 1;
     if (n >= M.sections.length) return M.anchors.exit;
-    if (!begun) return [S.x[0] + 2.4, S.entry[1], 0];
+    if (!begun && !onMap) return [S.x[0] + 2.4, S.entry[1], 0];
     if (T.kind === 'take' || T.kind === 'reach') return T.at;
-    if (T.kind === 'hold') return [S.line - 1, S.entry[1], 0];
+    if (T.kind === 'hold') return onMap ? T.at : [S.line - 1, S.entry[1], 0];
     // a clear: toward the nearest of its foes still standing
     const left = S.foes.map((f) => W.byId[f.id]).filter(alive).sort((a, b) => flatD(a.transform.pos, hero.transform.pos) - flatD(b.transform.pos, hero.transform.pos));
-    return left.length ? left[0].transform.pos : [S.x[1] - 2, S.door ? S.door.at[1] : 0, 0];
+    return left.length ? left[0].transform.pos : onMap ? S.entry : [S.x[1] - 2, S.door ? S.door.at[1] : 0, 0];
   };
   // the carried gun a range asks for, by each slot's band (the kit's archetype: mission/sections.js)
   const slots = (hero.rule?.loadout ?? []).map((sl) => ARCHETYPE_BAND[ARMS_KIT[sl.name]?.as] ?? (sl.weapon?.fireClass === 'lob' ? 'mid' : 'mid'));
@@ -156,7 +174,8 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
         inp.lookDX = Math.max(-LOOK_MAX, Math.min(LOOK_MAX, dy / sens)); inp.lookDY = Math.max(-LOOK_MAX, Math.min(LOOK_MAX, -(me.pitch || 0) / sens));
         inp.forward = Math.abs(dy) < 0.5 ? 1 : 0;
       };
-      if (seen.length && !(dry && near('ammo'))) {
+      // (on a ladder the climb holds the body and its facing: a person finishes the climb before it fights)
+      if (seen.length && !hero.climbing && !(dry && near('ammo'))) {
         // the mouse onto the nearest: its chest, from the eye
         const f = seen[0], p = f.transform.pos, egg = f.body.egg, d = flatD(p, me.pos);
         // (the eye: where the body stands for a body-less first person, over its feet for a hero)
@@ -225,7 +244,8 @@ export function proveMissions(world, manifests) {
   return ids.map((id) => {
     const m = manifests[id];
     if (!m) return { level: id, proved: false, says: 'no stage made for it', assumed: [] };
-    const P = proveMission(m), plan = missionPlan(G, resolveLevel(G, id).mission), R = playMission(m, plan.mission);
+    // (a mission on a map is planned on the blocks its level carries: never regrown)
+    const P = proveMission(m), carried = missionMapOf(m), plan = missionPlan(G, { ...resolveLevel(G, id).mission, ...(carried ? { grown: carried.blocks } : {}) }), R = playMission(m, plan.mission);
     // (a level the floor of play loses: where, and the dials that move it; advice, never a refusal)
     const advice = R.won ? null : `the gunner ${R.reason}: fewer foes there (mission.foes), a shorter hold (mission.hold, mission.waves), or a gun carried for that section's band`;
     return { level: id, proved: P.proved, says: P.says, play: missionPlaySummary(R), won: R.won, ...(advice ? { advice } : {}), assumed: P.assumed };

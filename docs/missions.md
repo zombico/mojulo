@@ -6,7 +6,8 @@ down one line as sections, each with one task; briefed, played and debriefed on 
 gives a firing range has one, so every game the range makes has a level 1.
 
 Status: the composition, the tasks on the bus, the level form, the practice room, the mana-ui channel and both machine
-gates are built. A mounted gun to man and a machine as the hero are designed, not built (see the end).
+gates are built, down one line and on a fighting map (see "On a map"). A mounted gun to man and a machine as the hero
+are designed, not built (see the end).
 
 ## Where it comes from
 
@@ -95,11 +96,43 @@ Three doors reach it:
 | door | how |
 |---|---|
 | the practice door | `bible?book=practice&room=mission`: played from the world alone, before any level |
-| a level | `levels.<id>.mission: true \| { seed?, sections?, foes?, hold?, waves? }`, in place of `walk` |
+| a level | `levels.<id>.mission: true \| { seed?, sections?, foes?, hold?, waves?, map? }`, in place of `walk` |
 | a quick shooter | `quick: { goal: 'shoot', arms: [...], mission: true }`: its level in place of the trail |
 
 `design_game` proposes it (a `mission` step in `next`, with its patch) for a world with a firing range and no mission
 level. A run makes the foes' figure (a gunner rolled in the game's setting), the level and the game.
+
+## On a map
+
+An arena shooter's mission is fought on a fighting map, not walked down a line. `mission: { map: true | '<template>' }`
+(on the practice door's spec and on a level's own form) keeps the firing range as the rules (the guns, the hp, the
+bands, the run, the hold's clock) and grows the ground under the arena laws ([arena-maps.md](arena-maps.md)), sized
+from the same kit. `true` picks by the longest band the kit serves (`mission/brief.js` `MISSION_MAPS`, a row a band):
+close guns alone a tower round a well, the mid band a court under a gallery, a long gun the figure of eight (the
+longest lines the templates have; none is sized for the long band yet).
+
+The phases are placed from the map's own measures (`arena-map/phases.js` `phasesOnMap`), in the brief's own sections:
+
+| section | on a map |
+|---|---|
+| `staging` | arm up: take the small thing nearest the spawn the body is set down on (the spawn farthest from the heart) |
+| `contact`, `lane`, `overwatch` | clear: its foes woken out of sight of where the body stands as it begins, at the band's distance by walking or by the line, over different approaches and levels |
+| `holdout` | hold the heart (the first prize's place, the most seen): its waves woken out of the heart's sight, on the spawns first, by more than one way |
+| `extract` | get out: the spawn farthest from the heart by a way the mission has not walked |
+
+Nothing seals: a phase with no zone begins as the one before is met, wherever the body is, so the hold begins as the
+last clear is met (a zone begins nothing for a body already in it). Its laws (`phaseLaws`), advice: **placed** (every
+place stands on the map and is reached), **unseen** (no foe woken in sight within the close band of where its phase
+begins), **two-ways** (the hold's waves come in by two ways at least), **in-order**, **banded** (where the map allows).
+The map's own laws ride beside them as `map:<law>`.
+
+The level is still `kind: 'controllable'`, its cast, tasks and HUD the mission's; its ground is the map's blocks laid
+by `arena-map/ground.js` `mapGround` (floors, slabs, walls, rails, solids, ramps as slopes, ladders as the runtime's
+climb). The manifest carries the map as grown (`mission.plan.map`: template, seed and blocks), and the page and the
+proofs are rebuilt from those blocks, never regrown: growing is the design step (a second or three), and a change to the
+generator cannot move a level already made. The headless gunner walks a map on its own graph (the shortest way the map
+gives, cell centre to cell centre, up ramps and ladders, off an edge only where the way drops) and finishes a climb
+before it fights.
 
 ## On mana-ui, end to end
 
@@ -156,6 +189,10 @@ Eyes: nobody has played one. Whether a mission is a good first level is the crea
 - A magazine changed while it still holds rounds loses them. A player that reloads whenever nothing is in sight runs
   dry by the yard; the gunner reloads below a third.
 - An SMG alone is lost in the yard by the gunner. It is reported, not tuned away.
+- On a map, with the shooter feel template, the practice room (seed 1) is won by the gunner on every template, in
+  seventy to a hundred seconds. As a level's own form on seeds 1 and 3 it won six of eight: it stalls on a ladder it
+  took hold of from above (the climb holds its facing, and the gunner walks only when it faces its way), and once it went
+  down in the lane. Reported, not tuned away. Machine gate only.
 - A world's `ui` never reached its made game: the runner wrote it and `create_game` dropped it. It is carried now, as
   `flow` is, so a made game's shell is on mana-ui when its world asks.
 
@@ -171,5 +208,7 @@ Eyes: nobody has played one. Whether a mission is a good first level is the crea
 - **The arm everywhere it is carried.** The mission and the firing range ask for the library's arm in the hands. A
   quick shooter's trail, a deathmatch, the knife in the free hand and a hero's gun seen over the shoulder still draw the
   proxy; each is one ask (`armDetailed`) away, with its page's pins.
+- **A map's hunters on its levels.** Whether a hunter crosses a map's ramps and ladders to come for the body is not
+  measured yet; the gunner's wins end with most of its hp, so the fights may be easier than the map asks.
 - **Dress.** The mission is greybox. The game room's trades and areas, or the world's kit, could dress it.
 - **Cover used.** There is no crouch, so half cover hides nothing; the gunner stands in the open.

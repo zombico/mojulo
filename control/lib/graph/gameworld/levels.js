@@ -830,8 +830,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const felt = G.feel ? feelRule(G.feel) : null;
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: felt ? `${controls} · Space  jump${felt.sprintSpeed ? ' · Shift  sprint' : ''}` : controls });   // for its legend only: no figure is kept
     // (a building on storeys: it looks for its ground over its feet, so it climbs the treads, never onto the floor above)
-    const rule = felt
-      ? { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE_FALLBACK, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...felt, ...(look ? { turnMode: 'look', lookPitch: true, strafe: 1 } : {}) }
+    // (a mission on a fighting map is walked on the platform rule with or without a feel: its ramps, its drops, its ladders)
+    const rule = felt || stage.mission?.mission?.on === 'map'
+      ? { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE_FALLBACK, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), ...(look ? { turnMode: 'look', lookPitch: true, strafe: 1 } : {}) }
       : { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(look ? { turnMode: 'look', lookPitch: true, strafe: 1 } : {}), ...(stage.manifest.buildings ? { collideRadius: 0.3 } : {}), ...(ends.storeyed ? { probe: PROBE } : {}) };
     pilotPart = {
       entities: [{ id: 'player', pilotable: true, rule, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
