@@ -42,7 +42,7 @@
         "trim": "#c9a24a", "accent": "#78b0ec", "leather": "#5e4d3e", "metal": "#5d6168"}, "symmetry": "asymmetric",
         "side": "R"}},_ELEMENTS), in the words the hero door reads.
  *
- *   GENRE_HERO      { <genre>: { id, says, garment, reads: [..], looks, carry?, run?, foes? } }
+ *   GENRE_HERO      { <genre>: { id, says, garment, reads: [..], looks, carry?, run?, foes?, hud? } }
  *   rowFoe(G, e)          → a game's foe entity under its genre row's `foes` (how hard its foes are)
  *   rowGaits(G, gaits)    → a hero's own gaits its level plays on, less the jog where its row runs the library's (`run`)
  *   carriedBlade(G, gear) → a hero's gear with its row's blade (`carry.blade`: build words over the blade in the hand)
@@ -115,6 +115,8 @@ export const GENRE_HERO = fz({
     carry: { sheath: 'hip', blade: { parts: { endLength: 58 } } },
     // (she runs the move library's run, the hero's standard: her own calibrated jog read as a schoolgirl's dash)
     run: 'library',
+    // (her HUD: hearts, a compass with the goal on it, the actions on their controls: scene/channels/hud-grammar.js)
+    hud: 'grammar',
     // (her foes: harder than the cast's as rolled. Never floored by a string's finisher (they reel and come on), a
     // temper up (relentless: they close faster and stand nearer), quicker to answer (veteran), half again the health
     // and a little faster on their feet. A boss keeps its own temper and phases)

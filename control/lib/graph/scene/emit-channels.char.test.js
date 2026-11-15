@@ -28,6 +28,11 @@ import { emitThreeWorld } from './scene-three.js';
 // Then (the input map): the pilot scheme's pause legend gained a moveset's rows (schemes.js: its attacks, its
 // sidearm, its specials, its guard; `fire` hidden beside them) and the legend's flags say `moveset` and `sidearm`
 // (controllable/index.js: one line added); the same fixtures re-pinned again.
+// Then (the special on Q): a moveset's special is read on its key beside the mouse and the pad, and its key never
+// strafes (controllable/index.js: two lines replaced on a page with a moveset; any other page as it was); the
+// scheme's legend says so. The same fixtures re-pinned again.
+// Then (the HUD grammar): the radar's wrap carries a class a HUD can hide it by (controllable/index.js: one line
+// replaced; it draws as before). The same fixtures re-pinned again.
 // Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
 // (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
 //

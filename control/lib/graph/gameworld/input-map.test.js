@@ -17,6 +17,8 @@ describe('the input map', () => {
     // (an attack has no key: it is the mouse's)
     expect(rows.find((r) => r.id === 'light').keys).toBe('click');
     expect(rows.find((r) => r.id === 'special').what).toBe('bow (hold)');
+    // (the special has a key: not every mouse has a forward button)
+    expect(rows.find((r) => r.id === 'special').keys).toBe('Q');
   });
   it('a hero with no moveset has no attack rows; the legend of one with a kit says its attacks and its sidearm', () => {
     expect(inputMap({}).map((r) => r.id)).toEqual(['pause']);

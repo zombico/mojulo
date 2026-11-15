@@ -264,9 +264,16 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   rows, on keys and on a pad). The wireframe board has an adventure HUD frame (`mana-ui/board.js`): vitals, the action
   cluster, a compass, the objective, one prompt, one card at a time. The first step of the action RPG's interface,
   designed from its inputs.
+- **The HUD grammar** (`scene/channels/hud-grammar.js`, `gameworld/hud-grammar.js`): the action-adventure's HUD on
+  mana-ui, in the greybox, where its genre's row asks (`hud: 'grammar'`). The hero's health as hearts (two hits a
+  heart), a compass strip with the goal's bearing and the objective under it, and the actions on their controls (the
+  weapon in hand, the sidearm, what is collected with its count; keys, or a pad once one has spoken). The page hosts
+  it: each frame it reads the bus's vars and the pilot. The health chip, the item chip, the legend line and the radar
+  are not shown beside it. A moveset's special is on Q too (`controls/schemes.js`: not every mouse has a forward
+  button), and Q never strafes a hero with a moveset.
 - Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
   does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
-  hangs bare at the hip); the pause menu still says "quit to levels"; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's objective is one of two stock lines, its slots are letters (no icons), its stamina is still the old gauge and the lesson banner sits under it, not yet in one card lane; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
   cloth takes no texture on the anime body; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
   blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the
