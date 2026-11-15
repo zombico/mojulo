@@ -34,6 +34,12 @@ In progress. Built so far, all in the practice door's game room
 - **Fixed: a swing trail from a weapon that is put away.** A hero that switches to the fist keeps its other figure,
   blade in hand, animated out of sight, and that hidden blade still left its trail. A body that is not drawn leaves
   none now. Every page that carries swing trails has that one line more.
+- **Built: a building to fight through** (`era/programs.js` `citadel`). A pathed plan of four rooms in a chain, each
+  sized for a fight of a kind as the stylish kit asks it: a gate court (a duel's), the great hall (a melee's), the
+  long gallery (a gallery's), the sanctum (a boss fight's), with the route through its doorways. A new law, `fits`,
+  says whether any room a level gives holds a fight (its ring, the way round it, the headroom a launch asks). It
+  is built on the seventh-generation basis: the ashlar kit (`gothic-ashlar`), read in `gen-7`. Its fights are not
+  laid in it yet: today it is walked, or stood with foes room by room as any building level is.
 - Not yet: urns that pay and fonts that heal in play, a fight approved on its own or edited piece by piece, and
   everything below.
 

@@ -20,6 +20,9 @@
  *   lock         nothing tall stands between the ring's centre and a foe's spot: the lock holds what the hero sees
  *   put-back     a walker put back from a sealed way lands on free floor
  *   fightLaws(room, needs) → [{ law, holds, says }]   (roomLaws' and the fight's)
+ *   fitsLaw(box, needs, kind) → { law: 'fits', holds, says }: whether a place a level gives (a building's room: its
+ *                          { w, d, h } in metres) holds a fight of a kind: its ring with the walk round it and where its
+ *                          waves come in, and the headroom a launch asks. Advice: a larger room, or a smaller fight
  *   askedBy(rooms, needs)  → { law: 'asked', holds, says }: every ask of the kit is answered by one of the fights
  *   floorGrid(room, { pad }) → { at(x, y) free?, cells, step, flood(from) }
  *
@@ -147,4 +150,18 @@ export function askedBy(rooms, needs) {
   const asks = Object.keys(needs.asks ?? {}), got = new Set(rooms.flatMap((r) => r.answers ?? []));
   const left = asks.filter((a) => !got.has(a));
   return { law: 'asked', holds: !left.length, says: left.length ? `asked by the kit and answered by no fight: ${left.map((a) => `${a} (${needs.asks[a].by.join(', ')})`).join('; ')}` : `every ask of the kit is answered (${asks.join(', ') || 'none'})` };
+}
+
+// what stands between a fight's ring and the walls of the place it is laid in: where the waves come in and a walk round
+const ROUND = Object.freeze({ duel: 2, melee: 4.5, gallery: 4.5, boss: 5 });
+export function fitsLaw(box, needs, kind) {
+  const asks = needs.asks ?? {}, R0 = asks.ring?.r ?? 3.5;
+  const R = kind === 'duel' ? Math.min(R0, 3.5) : kind === 'boss' ? Math.min(8, R0 + 1.5) : kind === 'gallery' ? Math.min(R0, 3) : R0;
+  const across = 2 * (R + (ROUND[kind] ?? 4.5)), along = kind === 'gallery' ? across + (asks['run-up']?.length ?? 5) : across;
+  const short = Math.min(box.w, box.d), long = Math.max(box.w, box.d), head = asks.air?.headroom ?? 0;
+  const small = short < across - 1e-9 || long < along - 1e-9, low = head > 0 && box.h < head - 1e-9;
+  const says = small || low
+    ? [small ? `${box.w} by ${box.d} m holds no ${kind}: its ring and the way round it ask ${Math.round(across * 10) / 10} by ${Math.round(along * 10) / 10} m` : null, low ? `${box.h} m high: a launch asks ${head} m` : null].filter(Boolean).join('; ')
+    : `${box.w} by ${box.d} by ${box.h} m holds a ${kind}`;
+  return { law: 'fits', holds: !small && !low, says };
 }

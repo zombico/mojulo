@@ -199,3 +199,14 @@ stored; the waves are its own, by role or by a foe's id, else the kind's. The ro
 laws it loses, and whether together they answer everything the kit asks. A world that fights hand to hand and
 keeps none is offered one of each kind as a patch, on the room's step; it is never laid unasked. Approving a fight
 on its own, and editing a composition piece by piece, are not built yet.
+
+## Where a fight is laid
+
+A level gives the place. `laws.js` `fitsLaw(box, needs, kind)` says whether a room a level gives (its width, depth
+and height) holds a fight of a kind: the ring, the way round it where the waves come in, and the headroom a launch
+asks. A building laid for living in holds few (a keep's great hall holds a melee, a crypt's chambers none).
+
+The building use `citadel` (`era/programs.js`) is laid to be fought through: a gate court, the great hall, the
+long gallery and the sanctum, in a chain, each sized for its fight (a duel, a melee, a gallery, a boss fight) and
+tall enough for a launch. It is made for the seventh generation: the ashlar kit (`gothic-ashlar`, drawn for tall
+rooms) read in `gen-7`. Laying the fights into its rooms, sealed at its doorways, is next.
