@@ -34,6 +34,7 @@
  */
 import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
 import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
+import { genreHero } from './hero-rows.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { carriedOf } from './carried.js';
 
@@ -185,7 +186,8 @@ export function armLevel(G, manifest) {
   // (each foe's health in the kit's strings, by its rank: one scale)
   const foe = (e) => {
     if (!(e && e.team === 'foes' && e.body && Number.isFinite(e.body.hp))) return e;
-    const body = { ...e.body, hp: foeHealth(e.rule?.mind?.rank ?? 'minion', R.arsenal), ...(combo && e.body.combo === undefined ? { combo } : {}) };
+    // (times its genre row's share, where its game's foes are made harder: hero-rows.js `foes.hp`)
+    const body = { ...e.body, hp: Math.round(foeHealth(e.rule?.mind?.rank ?? 'minion', R.arsenal) * (genreHero(G)?.foes?.hp ?? 1)), ...(combo && e.body.combo === undefined ? { combo } : {}) };
     // (a boss's phases never step into the counter a string cannot answer: bossPhases)
     const phases = bossPhases(e.rule?.mind);
     return { ...e, body, ...(phases ? { rule: { ...e.rule, mind: { ...e.rule.mind, phases } } } : {}) };

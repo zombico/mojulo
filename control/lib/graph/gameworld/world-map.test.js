@@ -3,8 +3,9 @@
 // way out), its first zone after it, a zone a block after that, travelled zone to zone. The concept on two cases, one
 // per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
-import { worldMapLevel, WORLD_MAP } from './world-map.js';
-import { composeGameworld } from './compose.js';
+import { worldMapLevel, WORLD_MAP, PLACE_LIGHT } from './world-map.js';
+import { composeGameworld, MAP_FLORA } from './compose.js';
+import { readGeocube } from '../era/geocube.js';
 import { castingCall } from './foe-casting.js';
 import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
@@ -16,6 +17,9 @@ import { SIGHTS } from '../mind/vocab.js';
 import { FLOW_IN_PLAY, readFlow, walkFlow } from '../game/flow.js';
 import { runSteps } from './runner.js';
 import { gameworldMapHtml, plannedMaps } from './map-designer.js';
+import { soundSheet } from './sound-sheet.js';
+import { cueSheet } from './cue-sheet.js';
+import { readGameworld } from './world.js';
 
 const lawsOf = (level) => {
   const g = level.glyphs, G = readGrid({ tile: g.tile, plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) }, 'grid');
@@ -144,6 +148,27 @@ describe('the world map', () => {
     expect(W.levels[ids[0]].walk).toBeUndefined();
     expect(W.levels[ids[0]].glyphs.plan.route.length).toBe(WORLD_MAP.first + 2);
     expect(W.brief.worldMap.level).toBe(ids[0]);
+    // (it GROWS: its cube names no flora, so the map takes the meadow kit's own, and the brief says so; a sentence that
+    // names what grows keeps its own)
+    const plain = composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 });
+    expect(readGeocube(plain.style.geocube).biocube).toBe(MAP_FLORA.biocube);
+    expect(plain.brief.worldMap.grows).toMatch(/meadow/);
+    // (this one's forests are its sentence's: its cube's flora is theirs, and the brief claims nothing)
+    expect(readGeocube(W.style.geocube).biocube).toBeTruthy();
+    expect(readGeocube(W.style.geocube).biocube).not.toBe(MAP_FLORA.biocube);
+    expect(W.brief.worldMap.grows).toBeUndefined();
+    // (each place its own light: home's blocks unmoved, every place with a row the world's palette moved by it)
+    for (const r of Object.values(W.levels[ids[0]].glyphs.plan.key)) expect(r.palette, r.name).toEqual(PLACE_LIGHT[r.name] ? { shift: PLACE_LIGHT[r.name].shift } : undefined);
+    expect(Object.values(W.levels[ids[0]].glyphs.plan.key).some((r) => r.palette)).toBe(true);
+    // (it is HEARD: on the sound sheet and scored, both empty words the game's own to fill; the sheet solves its sword and
+    // its ground, the cue sheet asks for its level, and the brief says so. A game with no map is laid silent as before)
+    expect(W.sound).toEqual({});
+    expect(W.music).toEqual({});
+    expect(W.brief.audio).toMatch(/sound sheet.*cue sheet/);
+    const sheet = soundSheet(readGameworld(W));
+    expect(sheet.slots.swing && sheet.slots.strike && sheet.slots.step).toBeTruthy();
+    expect(cueSheet(W, { ref: 'gw' }).requests.some((r) => r.id.startsWith('level:'))).toBe(true);
+    expect(composeGameworld({ prompt: 'a haunted forest of misty hills', seed: 2 }).sound).toBeUndefined();
     // (it starts in play: its opening a cutscene's slot, then straight into the game; the brief says so)
     expect(W.flow).toBe(FLOW_IN_PLAY);
     expect(W.brief.start).toMatch(/cutscene.*straight into play/);

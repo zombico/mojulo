@@ -34,6 +34,19 @@ sentence, kept as a row so the same choices are offered to every game. It never 
 stays the world's own; a direction says where the value and the chroma are spent (a quiet land that leaves colour to
 the figures; a script that travels across the levels). A new direction is a row.
 
+One direction names hues, and they are not a pick: `kit-card` gives the land back to its kit's card
+(`cardPaletteSpec`: the card's character in the theorist's terms, a row in `CARD_CHARACTER`, and each role locked to
+the card's own middle stop, read from the card's swatches). Solved, it is the card; shifted, it is the card somewhere
+else. It is offered only where the world's kit has a row.
+
+## Each place its own light
+
+A world's palette is home's. Every other place is that palette MOVED (a `shift`: its values, chroma and warmth moved,
+its seed and hue relations kept), so a map reads as one world and each place as itself. On a world map each block may
+carry one as its region's word, `palette: { shift }` (`gameworld/world-map.js` `PLACE_LIGHT`: a row a place, said in
+a sentence), and the grid scene paints that block's tiles in the level's cube moved by it. The cast is seen on every
+place's land (`colour.js` `landsOf`), so a figure painted clear is clear everywhere it will stand.
+
 ## A game, read into those terms
 
 `gameworld/world-palette.js` reads the world: the palette spec it is solved from, its accent, and what a figure on
@@ -72,3 +85,4 @@ Every one of these is recipe data the creator can rewrite. An existing world is 
   written, so the options' patches reach it.
 - A new direction: a row in `COLOUR_DIRECTIONS`.
 - A decision for a genre: a row in `GENRE_COLOUR`.
+- A kit whose card can be a palette: a row in `CARD_CHARACTER`. A place's light: a row in `PLACE_LIGHT`.

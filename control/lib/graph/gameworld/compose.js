@@ -35,6 +35,8 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
+import { arsenalFor } from './combos.js';
+import { GENRE_HERO } from './hero-rows.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
@@ -155,6 +157,8 @@ export const BIOMES = Object.freeze({
   desert: Object.freeze({ biocube: 'desert', palette: 'desert-haze', skin: 'sandstone' }),
 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** What a world map grows where its cube names no flora: the meadow kit's own card flora (era/biocube.js). */
+export const MAP_FLORA = Object.freeze({ kit: 'isekai-meadow', biocube: 'meadow' });
 /** A cube (a preset id or { from, …changes }) with the land the words name laid on it: open (`outside.cliff: false`),
  * wildflowers in its grass (its biocube's, else the meadow's, with `flowers.share`), its snow, its water (`outside.water`),
  * its dunes (`outside.dunes`),
@@ -527,10 +531,18 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const wet = Object.keys(water).length ? water : null;
   // (the colour DIRECTION its genre is laid in (world-palette.js GENRE_COLOUR: a choice made at the eyes gate, a row): the
   // axes it moves on the cube's own palette, written as the cube's palette words under any the sentence's own name)
-  const direction = genre && cubeId ? genrePaletteWords(genre.id, GEOCUBE_PALETTES[cubeId] ?? {}) : null;
+  const direction = genre && cubeId ? genrePaletteWords(genre.id, GEOCUBE_PALETTES[cubeId] ?? {}, style.kit) : null;
   if (direction) { palette = { ...direction.words, ...(palette ?? {}) }; world.brief.colour = { direction: direction.direction }; }
   if (style.geocube !== undefined && (open || flowers !== null || snowy || wet || dunes !== null || biome || biocube || palette)) style.geocube = cubeWithLand(style.geocube, { open, flowers, snow: snowy, water: wet, dunes, biome, biocube, palette });
   if (openWord !== null && !open) for (const r of world.brief.read) r.decides = r.decides.map((d) => (d === 'outside.cliff' ? `outside.cliff (gave way to ${cliffWord ?? 'a thing'})` : d));
+  // WHAT GROWS ON A WORLD MAP: a cube's land is polygons, and grass stands on it only where a biocube brings it back
+  // (era/isekai.js), so a map painted in a cube that names no flora was bare ground from edge to edge. A meadow kit's map
+  // takes the meadow's own (the kit's card flora, era/biocube.js: its groves, its tufts and the live field), unless the
+  // cube or a word of the sentence names what grows (a desert, an alpine, a coast keep theirs)
+  if (world.brief.worldMap && style.kit === MAP_FLORA.kit && style.geocube !== undefined && !readGeocube(style.geocube).biocube) {
+    style.geocube = cubeWithLand(style.geocube, { biocube: MAP_FLORA.biocube });
+    world.brief.worldMap.grows = `the ${MAP_FLORA.biocube}'s flora (its cube names none): grass on the land, groves beside the ways`;
+  }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {
     const r = world.brief.read.find((x) => x.word === w);
@@ -558,6 +570,25 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // sequence is handed to (the story's opening moment where it has one; empty until then, and passed at once), and from
   // it straight into play; the title only where quitting goes back to. The flow page is the game director's to rewrite.
   world.flow = FLOW_IN_PLAY;
+  // HOW IT SOUNDS (gameworld/sound-sheet.js, cue-sheet.js): a world map's game is heard. It is put on the SOUND SHEET
+  // (an empty `sound`: every sound solved from what the game already is, its arsenal's swings and blows, its foes'
+  // voices, its ground underfoot, a bed a place) and given a SCORE (an empty `music`: the audio direction solved from
+  // its words, every level scored from the cue sheet). Play's sounds only: the interface keeps its own (mana-ui's set,
+  // which the direction names and never replaces). Both are the creator's to rewrite, word by word
+  // HOW IT FIGHTS (gameworld/arsenal.js): a world map's game whose feel has a kit plays it (`arsenal: 'auto'`): its
+  // weapons, their strings and specials, and its sidearm (the action-adventure's sword, its three cuts and its spin,
+  // and the bow); a feel with no kit, the hero's one blow as before
+  if (world.brief.worldMap && world.feel !== undefined && world.arsenal === undefined && arsenalFor(world.feel)) world.arsenal = 'auto';
+  // ITS GENRE'S OWN (hero-rows.js): the juice's dials its row turns (a hero whose blows leave no trail), and a game
+  // that fills its window (`screen: 'fill'`: no frame written, so no bars on a window of another shape)
+  const row = genre ? GENRE_HERO[genre.id] : null;
+  if (row?.juice && world.juice === 'auto') world.juice = { ...row.juice };
+  if (row?.screen === 'fill') delete world.screen;
+  // HOW ITS SCREENS LOOK (playscape/ui/interface-look.js): a world map's game has an interface (an empty `ui`: its look
+  // the world's, by its intent, its colours the world's palette), so the play shell's screens are mana-ui's in that look
+  // (game/play-shell-mana.js) as its HUD is; a game with no map keeps the shell's own screens
+  if (world.brief.worldMap && world.ui === undefined) world.ui = {};
+  if (world.brief.worldMap) { world.sound = {}; world.music = {}; world.brief.audio = 'on the sound sheet and scored from the cue sheet: its sounds and its music solved from the game, the interface\'s sounds its own'; }
   world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
   readGameworld(world);
   return world;

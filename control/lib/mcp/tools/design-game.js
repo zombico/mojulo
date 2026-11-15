@@ -22,6 +22,8 @@ import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
+import { createBeatsHandler, updateBeatsHandler } from './beats.js';
+import { fieldCue, parseFieldSpec } from '../../graph/beats/field-cue.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
 import { createGameHandler, auditGameLevel } from './create-game.js';
@@ -66,6 +68,8 @@ import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpo
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
+import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
+import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
 import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
 import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
@@ -176,6 +180,16 @@ async function realize(step, action) {
     if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: `design_game: ${key === 'hero' ? 'the motion page' : 'a cast member\'s motion'}` });
     return pin ? { pin } : {};
   }
+  if (key.startsWith('cue-')) {
+    // a cue of the game's score (gameworld/cue-sheet.js): a beats-composition from the sheet's answer, minted as
+    // create_beats mints a field score; a changed answer writes its recipe whole in place
+    if (action === 'make') await createBeatsHandler({ title: order.title, score: order.score, ref });
+    else {
+      const { kind: _k, title: _t, ...body } = fieldCue(parseFieldSpec({ score: order.score }));
+      await updateBeatsHandler({ ref, title: order.title, manifest: { kind: 'beats-composition', title: order.title, ...body, score: order.score }, note: 'design_game: the score\'s cue' });
+    }
+    return {};
+  }
   if (key === 'ride') {
     // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
@@ -234,7 +248,7 @@ async function realize(step, action) {
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(ui ? { ui } : {}), ...(screen ? { screen } : {}), ...(front ? { front } : {}), ...(run ? { run } : {}), ...(flow ? { flow } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(hud ? { hud } : {}), ...(ui ? { ui } : {}), ...(screen ? { screen } : {}), ...(front ? { front } : {}), ...(run ? { run } : {}), ...(flow ? { flow } : {}), ...(order.music ? { music: order.music } : {}) } });
     }
     return {};
   }
@@ -557,6 +571,10 @@ function readout(ref, world, context = {}) {
   // lays out what it is now and the ways it could be oriented, each one a patch (the theorist's aid, the same for any game)
   const colour = (() => { try { const { kind: _k, ...W } = world; return colourOfGame(readGameworld(W)); } catch { return null; } })();
   if (colour?.sinks.length) next.push({ step: 'colour', sinks: colour.sinks, book: `/api/sketches/${encodeURIComponent(ref)}/bible?book=colour`, card: 'gameworld-colour' });
+  // its audio (gameworld/sound-sheet.js, cue-sheet.js): a game on no sound sheet, or with no music, is told what writing
+  // one lays (suggested, never laid: each changes every level's bytes); its books are where the creator listens
+  if (world.sound === undefined && world.quick?.sfx === undefined) next.push({ step: 'sound', suggest: {}, why: 'no sound sheet: its levels are built without sound effects. An empty `sound` lays the sheet solved from the game (its ground, its arsenal, its foes) on every level', patch: [{ op: 'set', path: '/sound', value: {} }], book: 'sound', card: 'gameworld-sound' });
+  if (world.music === undefined && world.quick?.music === undefined) next.push({ step: 'music', suggest: {}, why: 'no music: its levels are built unscored. An empty `music` scores every level from the cue sheet (its place, its fights, its boss) on one identity', patch: [{ op: 'set', path: '/music', value: {} }], book: 'score', card: 'gameworld-music' });
   // its weapons and strings (gameworld/arsenal.js): the kit its striking hero plays on every level, or the one its feel's
   // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
   const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
@@ -602,7 +620,17 @@ function readout(ref, world, context = {}) {
   const unread = intakeAdvice(world);
   if (unread) { advice.intake = [unread.says]; next.splice(unasked ? 1 : 0, 0, unread.next); }
   const brought = (() => { try { return intakeReport(world); } catch { return null; } })();
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
+  // a lore part on a page is an order its chapter runs (gameworld/battles-manual.js): a manual on the battles, said with
+  // how deep it has been taken; the rungs still derived are the battles chapter's next pass
+  const manual = (() => { try { return world.battles?.manual !== undefined ? manualOrder(world.battles.manual) : null; } catch { return null; } })();
+  if (manual?.open.length) { advice.lore = [`the battles' manual is at its ${manual.rung}: its ${manual.open.join(' and ')} ${manual.open.length === 1 ? 'is' : 'are'} derived (the polarity gives the affinities, the roles the levels); write them to make them yours`]; next.push({ step: 'lore', part: 'manual', at: manual.rung, open: manual.open, chapter: 'battles', card: 'gameworld-battles' }); }
+  // (and its skill trees, battles-tree.js: each school a class, its order and its costs derived while it says none)
+  const trees = (() => { try { return world.battles?.tree !== undefined ? treesOf(world.battles.tree).map(treeOrder) : []; } catch { return []; } })();
+  for (const T of trees.filter((t) => t.open.length)) {
+    (advice.lore ||= []).push(`the battles' tree '${T.id}' is at its ${T.rung}: its ${T.open.join(' and ')} ${T.open.length === 1 ? 'is' : 'are'} derived (learned rank by rank as written, dearer the deeper); write them to make them yours`);
+    next.push({ step: 'lore', part: 'tree', id: T.id, at: T.rung, open: T.open, chapter: 'battles', card: 'gameworld-battles' });
+  }
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(manual || trees.length ? { lore: { ...(manual ? { manual } : {}), ...(trees.length ? { trees } : {}) } } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */

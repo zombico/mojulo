@@ -40,7 +40,7 @@ export const INTENT_LOOKS = Object.freeze({
   'co-op-brawler': 'street', 'city-stalker': 'street', 'co-op-scroller': 'street',
   shooter: 'mecha', 'air-combat': 'mecha', 'flight-sim': 'mecha', 'driver-and-gunner': 'mecha', 'split-deathmatch': 'mecha', stealth: 'terminal',
   'party-mash': 'idol', 'co-op-kitchen': 'idol', 'match-3-saga': 'idol', collectathon: 'idol', 'co-op-platformer': 'idol', 'kart-racer': 'idol',
-  farming: 'storybook', 'top-down-adventure': 'storybook', metroidvania: 'console',
+  farming: 'storybook', 'top-down-adventure': 'storybook', 'action-rpg': 'storybook', metroidvania: 'console',
   racing: 'modern', 'athletics-meet': 'modern', 'net-game': 'modern', 'turn-sport': 'modern', 'team-goal-game': 'modern',
 });
 // looks that keep still on purpose: an anime register does not make them snap

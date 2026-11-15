@@ -71,6 +71,7 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
+import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair', 'becomes'];
@@ -380,8 +381,10 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
   };
-  part.entities.push(e);
-  return e;
+  // (its genre's row: how hard a game's foes are, hero-rows.js rowFoe)
+  const made = rowFoe(G, e);
+  part.entities.push(made);
+  return made;
 }
 
 /** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL): each waits on the land behind the lane
@@ -458,10 +461,11 @@ export function withFoeWin(G, level, ends, mechanics) {
   return mechanics.some((m) => m.kind === 'reach-exit') ? mechanics.map((m) => (m.kind === 'reach-exit' ? clear : m)) : [...mechanics, clear];
 }
 
-export function withFoeHits(mechanics) {
+export function withFoeHits(mechanics, { bar = false } = {}) {
   const i = mechanics.findIndex((m) => m.kind === 'fail-on-death');
   if (i >= 0) return mechanics.map((m, j) => (j === i && m.hits === undefined ? { ...m, hits: LEVEL_GOAL.hit } : m));
-  const death = { kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit };
+  // (`bar`: the hp read as a health bar, a hero designed for its genre's: hero-rows.js)
+  const death = { kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit, ...(bar ? { bar: true } : {}) };
   return [...mechanics.slice(0, -1), death, ...mechanics.slice(-1)];
 }
 

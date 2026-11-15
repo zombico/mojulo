@@ -66,10 +66,11 @@ const PILOT = {
     { id: 'tackle', label: 'tackle', group: 'combat', in: ['ground'], bind: { keyboard: ['Shift'], gamepad: ['north'], xr: ['left.primary'] } },
     { id: 'fire', label: 'fire', group: 'combat', hold: true, in: ARMED, bind: { mouse: ['left'], gamepad: ['rt'], xr: ['right.trigger'], sim: ['button1'] } },
     // an action game's three attacks (a hero with a moveset): light the left click and the pad's left face, heavy the
-    // right click and the top face, special the mouse's forward button and the right face; the bottom face jumps
+    // right click and the top face, special the mouse's forward button and the right face (and Q: not every mouse has a
+    // forward button, and a hero with a moveset strafes on A and D, so Q is free of the strafe); the bottom face jumps
     { id: 'light', label: 'light attack', group: 'combat', in: ['melee'], bind: { mouse: ['left'], gamepad: ['west'] } },
     { id: 'heavy', label: 'heavy attack', group: 'combat', in: ['melee'], bind: { mouse: ['right'], gamepad: ['north'] } },
-    { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
+    { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { keyboard: ['KeyQ'], mouse: ['forward'], gamepad: ['east'] } },
     // the guard, held (a hero with a feel's guard: combat-melee.js stepGuard): Shift, the pad's left shoulder (block on L1)
     { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['Shift'], gamepad: ['lb'] } },
     // the MODIFIER, held (a moveset's specials, gameworld/combos.js mL mH mS): a face pressed with it is that face's
@@ -106,7 +107,7 @@ const PILOT = {
     keyboard: [
       { quad: MOVE4, label: { _: 'move & turn', space: 'thrust & turn', vehicle: 'throttle & steer' } },
       { text: { _: 'mouse drag', mouselook: 'mouse · click to capture' }, label: 'look / aim' },
-      { ids: ['strafeRight', 'strafeLeft'], label: 'strafe' },
+      { ids: ['strafeRight', 'strafeLeft'], label: 'strafe', unless: 'moveset' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump'], label: 'jump', unless: 'space' },
       { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint'] },
@@ -115,7 +116,14 @@ const PILOT = {
       { ids: ['walk'], label: 'walk (hold)', when: 'walker', unless: 'space' },
       { ids: ['kneel'], label: 'kneel', when: 'kneel', unless: 'space' },
       { ids: ['tackle'], label: 'tackle', when: 'tackle', unless: 'space' },
-      { ids: ['fire'], dev: 'mouse', label: 'fire', when: 'armed' },
+      { ids: ['fire'], dev: 'mouse', label: 'fire', when: 'armed', unless: 'moveset' },
+      // (a hero with a MOVESET, gameworld/combos.js: its three attacks on the mouse, the guard and the specials' modifier
+      // held; `sidearm` where its special is a sidearm, a bow or guns, held to draw or to fire)
+      { ids: ['light'], dev: 'mouse', label: 'light attack', when: 'moveset' },
+      { ids: ['heavy'], dev: 'mouse', label: 'heavy attack', when: 'moveset' },
+      { ids: ['special'], with: 'mouse', label: { _: 'special', sidearm: 'sidearm (hold)' }, when: 'moveset' },
+      { ids: ['modifier'], label: 'specials, with an attack', when: 'moveset' },
+      { ids: ['guard'], label: 'guard', when: 'moveset' },
       { ids: ['cycleWeapon'], range: ['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'], label: 'cycle · select weapon', when: 'armed' },
       { ids: ['lock'], with: 'mouse', label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },
@@ -129,6 +137,9 @@ const PILOT = {
       { quad: LOOK4, label: 'look / aim' },
       { ids: ['fire', 'boost'], label: { _: 'fire / boost (tap-tap: dodge)', vehicle: 'throttle / brake' } },
       { ids: ['cycleWeapon'], label: 'tap: next weapon · hold: selector', when: 'armed' },
+      { ids: ['light', 'heavy', 'special'], sep: ' · ', label: { _: 'light · heavy · special', sidearm: 'light · heavy · sidearm (hold)' }, when: 'moveset' },
+      { ids: ['modifier'], label: 'specials (hold, with an attack)', when: 'moveset' },
+      { ids: ['guard'], label: 'guard (hold)', when: 'moveset' },
       { chord: 'cycleWeapon', faces: ['west', 'north'], label: 'main weapon / main melee', when: 'armed' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump', 'tackle'], sep: ' · ', label: 'jump · tackle', unless: 'space' },

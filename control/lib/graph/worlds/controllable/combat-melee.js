@@ -158,7 +158,9 @@ export function buildCombatMelee(E) {
       // strike params (a throw's swing carries none) and not already reeling. The blades MEET
       // instead of landing: no damage either way — beginClash locks the pair, and the lock
       // consumes THIS swing outright (no further targets this swing).
-      if (tg.swingT != null && tg.strikeParams && tg.staggerT == null) { out.push({ tg, kind: 'clash', v, flat }); break; }
+      // (`rule.clash: false` on either body: its blades never lock: the swing lands as a hit, a game whose foes are cut
+      // down, never crossed with)
+      if (tg.swingT != null && tg.strikeParams && tg.staggerT == null && !(e.rule && e.rule.clash === false) && !(tg.rule && tg.rule.clash === false)) { out.push({ tg, kind: 'clash', v, flat }); break; }
       out.push({ tg, kind: 'hit', v, flat });
     }
     return out;

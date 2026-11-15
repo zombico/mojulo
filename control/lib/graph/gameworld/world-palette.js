@@ -16,8 +16,9 @@
  *   GENRE_COLOUR       the colour direction (color-theorist/directions.js) a genre is laid in from a sentence, where one
  *                        was chosen at the eyes gate: a row per decision, so the next genre's is one more row and never
  *                        a guess. A genre with no row is laid as its cube paints it
- *   genrePaletteWords(genre, cubeSpec) → { direction, words } | null: the axes that direction moves on the cube's own
- *                        palette, as the cube's `palette` words (compose.js cubeWithLand)
+ *   genrePaletteWords(genre, cubeSpec, kit?) → { direction, words } | null: the axes that direction moves on the cube's
+ *                        own palette, as the cube's `palette` words (compose.js cubeWithLand); `kit` the world's kit,
+ *                        for a direction that reads its card
  *
  * `G` is a read world (readGameworld's). Pure.
  */
@@ -59,12 +60,14 @@ export function groundOf(G) {
   return against.some((a) => a.what === 'ground') ? { against, from: 'kit' } : null;
 }
 
-export const GENRE_COLOUR = Object.freeze({ 'action-rpg': 'quiet-land' });
+export const GENRE_COLOUR = Object.freeze({ 'action-rpg': 'kit-card' });
 
-export function genrePaletteWords(genre, cubeSpec = {}) {
+export function genrePaletteWords(genre, cubeSpec = {}, kit = undefined) {
   const id = GENRE_COLOUR[genre];
   if (!id) return null;
-  const moved = directSpec(cubeSpec, id), words = {};
+  const moved = directSpec(cubeSpec, id, { kit }), words = {};
   for (const [k, v] of Object.entries(moved)) if (JSON.stringify(v) !== JSON.stringify(cubeSpec[k])) words[k] = v;
+  // (what the direction left out of the cube's own spec is taken out: a card's colours replace the cube's hues whole)
+  for (const k of Object.keys(cubeSpec)) if (moved[k] === undefined && k === 'hues') words[k] = {};
   return Object.keys(words).length ? { direction: id, words } : null;
 }
