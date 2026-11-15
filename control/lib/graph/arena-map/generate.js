@@ -6,7 +6,9 @@
  * worse: so what comes out is not the template but a map of its kind that the laws allow, and another seed is another
  * map. The laws are the only judge of what is kept.
  *
- *   growArenaMap({ template?, seed?, passes?, drift?, kit? }) → { template, seed, map, laws, held, of, complete, passes, furnished, measures }
+ *   growArenaMap({ template?, map?, seed?, passes?, drift?, kit? }) → { template, seed, map, laws, held, of, complete, passes, furnished, measures }
+ *     map   a given map in place of a template (a town's cut, a building read): its masses, its water and its fences are
+ *           kept as they are, and only what stands on its open ground is grown (`template` then says 'given')
  *   mapAscii(M, furnished?)   → the map drawn a level at a time, for a readout
  *   mapPieces(M)              → [{ form, at: [x, y, z] (m), … }] every block in metres, for what builds it
  *
@@ -21,10 +23,11 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const score = (R) => R.laws.reduce((s, l) => s + (l.holds ? 1000 : -10 * Math.min(l.n, 40)), 0) - R.short;
 
 // one change, on the dice; null when the dice ask for nothing
-function change(M, rnd, mend = null) {
+function change(M, rnd, mend = null, fixed = null) {
   const pick = (xs) => xs[Math.floor(rnd() * xs.length)], N = structuredClone(M), has = (c) => N.floors.some((f) => f[0] === c[0] && f[1] === c[1] && f[2] === c[2]);
   const wallOn = (a, b, kind) => {
     const e = b[0] !== a[0] ? { at: [Math.min(a[0], b[0]), a[1], a[2]], side: 'e' } : { at: [a[0], Math.min(a[1], b[1]), a[2]], side: 'n' };
+    if (fixed && fixed.has(`w${e.at},${e.side}`)) return;
     const at = N.walls.findIndex((w) => w.at[0] === e.at[0] && w.at[1] === e.at[1] && w.at[2] === e.at[2] && w.side === e.side);
     if (at >= 0) N.walls.splice(at, 1);
     N.walls.push({ ...e, kind });
@@ -66,12 +69,13 @@ function change(M, rnd, mend = null) {
   if (op < 0.4) {
     // a wall panel between two floor cells: set, lowered or taken
     const side = rnd() < 0.5 ? 'e' : 'n', b = side === 'e' ? [i + 1, j, k] : [i, j + 1, k];
-    if (!has([i, j, k]) || !has(b)) return null;
+    if (!has([i, j, k]) || !has(b) || (fixed && fixed.has(`w${[i, j, k]},${side}`))) return null;
     const at = N.walls.findIndex((w) => w.at[0] === i && w.at[1] === j && w.at[2] === k && w.side === side), kind = pick(['none', 'low', 'full']);
     if (at >= 0) N.walls.splice(at, 1);
     if (kind !== 'none') N.walls.push({ at: [i, j, k], side, kind });
   } else if (op < 0.55) {
-    // a pillar on the ground: stood or taken
+    // a pillar on the ground: stood or taken (never where a given map's own mass or water is)
+    if (fixed && fixed.has(`${i},${j},0`)) return null;
     const at = N.solids.findIndex((s) => s[0] === i && s[1] === j && s[2] === 0);
     if (at >= 0) N.solids.splice(at, 1); else N.solids.push([i, j, 0]);
   } else if (op < 0.7) {
@@ -104,23 +108,29 @@ function change(M, rnd, mend = null) {
 }
 
 /** A map grown from a template under the laws (see the header). */
-export function growArenaMap({ template = 'courtyard', seed = 1, passes = 1500, drift = 120, kit = kitOf() } = {}) {
-  const T = TEMPLATES[template];
-  if (!T) throw new Error(`arena-map: template is one of ${TEMPLATE_IDS.join(', ')}`);
+export function growArenaMap({ template = 'courtyard', map = null, seed = 1, passes = 1500, drift = 120, kit = kitOf() } = {}) {
+  const T = map ? null : TEMPLATES[template];
+  if (!map && !T) throw new Error(`arena-map: template is one of ${TEMPLATE_IDS.join(', ')}`);
   const rnd = mulberry32(seed | 0);
-  let M = T.build(), R = mapLaws(M, kit), s = score(R), tried = 0, kept = 0;
+  // (a GIVEN map, a place read onto the grid (read-town.js, read-geocube.js): what it is made of is kept, its masses,
+  // its ground with no floor (water) and its low walls (a fence), and only what stands on its open ground is grown)
+  const fixed = map ? new Set([...(map.solids ?? []).map((c) => `${c}`), ...(map.walls ?? []).filter((w) => w.kind === 'low').map((w) => `w${w.at},${w.side}`)]) : null;
+  if (map) { const fl = new Set(map.floors.map((c) => `${c}`)); for (let j = 0; j < map.ny; j++) for (let i = 0; i < map.nx; i++) if (!fl.has(`${i},${j},0`)) fixed.add(`${i},${j},0`); }
+  let M = map ? seal(structuredClone(map)) : T.build(), R = mapLaws(M, kit), s = score(R), tried = 0, kept = 0;
   // (it stops once every law is held and it has drifted `drift` passes from its template; `passes` is the most it tries)
   let p = 0;
   for (; p < passes && !(R.held === R.of && p >= drift); p++) {
-    const N = change(M, rnd, R.mend);
+    const N = change(M, rnd, R.mend, fixed);
     if (!N) continue;
     tried++;
     const RN = mapLaws(N, kit), sn = score(RN);
+    // (a given map is never cut in two or opened to the outside to hold another law: a place stays one place)
+    if (map && ['bounded', 'connected'].some((id) => R.laws.find((l) => l.law === id).holds && !RN.laws.find((l) => l.law === id).holds)) continue;
     // (kept when the laws are held no worse: better always, as well half the time, so a map that already holds
     // them still drifts from its template)
     if (sn > s || (sn === s && rnd() < 0.5)) { M = N; R = RN; s = sn; kept++; }
   }
-  return { template, seed, map: M, laws: R.laws, held: R.held, of: R.of, complete: R.held === R.of, passes: { asked: passes, ran: p, tried, kept }, furnished: R.furnished, measures: R.measures };
+  return { template: map ? 'given' : template, seed, map: M, laws: R.laws, held: R.held, of: R.of, complete: R.held === R.of, passes: { asked: passes, ran: p, tried, kept }, furnished: R.furnished, measures: R.measures };
 }
 
 /** The map drawn a level at a time (north up): # a mass, . a floor, / a ramp, H a ladder's foot, S a spawn, a capital a prize, a small letter a small thing. */

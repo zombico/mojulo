@@ -64,7 +64,7 @@
        runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
-       mission?: true | { seed?, sections?, foes?, hold?, waves?, map?: true | <arena-map template> },
+       mission?: true | { seed?, sections?, foes?, hold?, waves?, map?: true | <arena-map template> | { town, block?, size? } | { city, on?, size? } },
                                          // in place of `walk`: the level is a MISSION (mission-level.js, lib/graph/mission):
                                          // the firing range stretched into sections, each a band the world's guns are
                                          // for with a task in it (take, clear, hold, reach), the way on sealed until

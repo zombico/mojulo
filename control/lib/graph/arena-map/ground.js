@@ -34,9 +34,9 @@ import { ladderParams, climbSurface, LADDER } from '../playscape/objects/ladder.
 
 export const MAP_GREY = Object.freeze({
   floor: Object.freeze([['#8b929a', '#848b93'], ['#96908a', '#8f8983'], ['#8f938a', '#888c83']]),
-  under: '#6c7077', edge: '#7a7e85', wall: '#6f7278', low: '#7d8086', solid: '#686b71', ramp: '#9a958c', rampSide: '#7f7b74', ladder: '#b8935c',
+  water: Object.freeze(['#4f6b7d', '#4a6677']), under: '#6c7077', edge: '#7a7e85', wall: '#6f7278', low: '#7d8086', solid: '#686b71', ramp: '#9a958c', rampSide: '#7f7b74', ladder: '#b8935c',
 });
-const T = 0.2, SLICE = 0.25;
+const T = 0.2, SLICE = 0.25, WATER = { drop: 0.5, kerb: 0.6 };
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const P = (p) => p.map(r3);
 const quad = (a, b, c, d, fill, group, two = false) => ({ corners: [P(a), P(b), P(c), P(d)], fill, group, ...(two ? { doubleSided: true } : {}) });
@@ -72,6 +72,13 @@ export function mapGround(M, { at = [0, 0, 0] } = {}) {
     if (!floor.has(`${i},${j + 1},${k}`)) out.faces.push(quad([x1, y1, zb], [x0, y1, zb], [x0, y1, z], [x1, y1, z], MAP_GREY.edge, 'map:edge'));
     if (!floor.has(`${i},${j - 1},${k}`)) out.faces.push(quad([x0, y0, zb], [x1, y0, zb], [x1, y0, z], [x0, y0, z], MAP_GREY.edge, 'map:edge'));
     out.colliders.push({ min: P([x0, y0, zb]), max: P([x1, y1, z]) });
+  }
+  // WATER (a place's cut, read-town.js `read.water`): a cell with no floor, its surface drawn under the ground's level
+  // and a kerb's height kept over it, so a body stops at the shore and a line and a round cross it
+  for (const [i, j] of M.read?.water ?? []) {
+    const x0 = X(i), x1 = X(i + 1), y0 = Y(j), y1 = Y(j + 1), z = Z(0);
+    out.faces.push(quad([x0, y0, z - WATER.drop], [x1, y0, z - WATER.drop], [x1, y1, z - WATER.drop], [x0, y1, z - WATER.drop], MAP_GREY.water[(i + j) % 2], 'map:water'));
+    out.colliders.push({ min: P([x0, y0, z - WATER.drop]), max: P([x1, y1, z + WATER.kerb]) });
   }
   // SOLIDS: the cell filled a level high
   for (const [i, j, k] of M.solids ?? []) box(out, X(i), Y(j), Z(k), X(i + 1), Y(j + 1), Z(k + 1), MAP_GREY.solid, 'map:solid');

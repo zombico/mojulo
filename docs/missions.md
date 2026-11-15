@@ -154,6 +154,25 @@ generator cannot move a level already made. The headless gunner walks a map on i
 gives, cell centre to cell centre, up ramps and ladders, off an edge only where the way drops) and finishes a climb
 before it fights.
 
+### On a place
+
+`mission.map` also takes a place: a window of a designed town or city, cut onto the grid and grown for the kit
+(`arena-map/read-town.js`, [arena-maps.md](arena-maps.md#a-town-or-a-city-cut-as-a-map)).
+
+```
+levels.<id>: { mission: { map: { town: { segment: 'main-street' }, block?, size? } } }
+levels.<id>: { mission: { map: { city: true | <geocity recipe>, on: 'quay' | 'pier' | 'storage' | …, size? } } }
+```
+
+`size` is the cut's side in metres (36 when absent). The cut's buildings, water and fences are kept and cover is grown
+on its open ground under the laws; the phases are placed on it as on any map, and the blocks are carried as grown. A
+law of the map it does not hold is said as advice (`map:loops` on a pier). Water is drawn under the ground's level and
+a body stops at the shore.
+
+What the first runs found (machine gate only; the shooter feel, seed 1, played headless on the resolved page): the
+gunner wins the quay, the pier, the container yard and the main street in 66 to 74 s, and goes down in the hold on the
+houses block and the beach. Said, not tuned. The level is greybox: a place reads as its shape, not its look.
+
 ## In a building
 
 A first mission can be fought inside a building of the geocube's own, drawn by the seventh generation's form render

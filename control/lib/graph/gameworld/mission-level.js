@@ -53,6 +53,7 @@ import { blocksOf, PRIMITIVES } from '../gameroom/primitives.js';
 import { missionBrief, readMission, composeMission, missionWalls, missionLaws, SECTIONS, BANDS } from '../mission/index.js';
 import { MISSION_LOOK } from './mission-mana.js';
 import { growArenaMap } from '../arena-map/generate.js';
+import { readTownMap, readCityMap } from '../arena-map/read-town.js';
 import { kitOf } from '../arena-map/laws.js';
 import { mapGround, mapFloors } from '../arena-map/ground.js';
 import { phasesOnMap, phaseLaws } from '../arena-map/phases.js';
@@ -90,11 +91,13 @@ export function missionFor(G) { return loadoutOf(G) ? {} : null; }
 // a map grown once for its template, seed and kit (growing is a second or three; a world's run reads its stages more
 // than once): kept by those, a few at a time
 const GROWN = new Map(), GROWN_KEPT = 8;
-function grownMap(template, seed, kit) {
-  const k = JSON.stringify([template, seed, kit]);
+function grownMap(template, seed, kit, place = null) {
+  const k = JSON.stringify([template, seed, kit, place]);
   if (!GROWN.has(k)) {
     if (GROWN.size >= GROWN_KEPT) GROWN.delete(GROWN.keys().next().value);
-    GROWN.set(k, growArenaMap({ template, seed, kit }));
+    // (a PLACE: a town's or a city's cut read onto the grid, arena-map/read-town.js, then grown with what it is made of kept)
+    const given = place ? (place.town ? readTownMap(place.town, { seed, size: place.size, ...(place.block ? { block: place.block } : {}) }) : readCityMap(place.city, { seed, on: place.on, size: place.size })) : null;
+    GROWN.set(k, growArenaMap({ template, seed, kit, ...(given ? { map: given } : {}) }));
   }
   const g = GROWN.get(k);
   return { ...g, map: structuredClone(g.map) };
@@ -108,7 +111,7 @@ export function missionPlan(G, { seed = null, spec = {}, grown = null } = {}) {
   if (brief.map) {
     // ON A MAP: the map grown for the kit under its laws (or the blocks a level carries: growing is the design step, the
     // map its data from then on), the phases placed from its measures; its laws and the map's own, as advice
-    const kit = kitOf(brief), G2 = grown ? { template: brief.map.template, seed: dice, map: grown, laws: [] } : grownMap(brief.map.template, dice, kit);
+    const kit = kitOf(brief), G2 = grown ? { template: brief.map.template, seed: dice, map: grown, laws: [] } : grownMap(brief.map.template, dice, kit, brief.map.place ?? null);
     const mission = phasesOnMap(brief, G2.map, { seed: dice });
     mission.climbs = mapGround(G2.map).entities;
     // (the map's upper floors and the ramps up to them, for the minds a hold sends: arena-map/ground.js mapFloors)

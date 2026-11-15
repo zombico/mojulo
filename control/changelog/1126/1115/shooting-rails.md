@@ -153,3 +153,13 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   upper rooms out of sight of the ground: none of nine within 8 m before, all nine after; the gunner still wins the
   building. One storey only (the floor over the ground). The seventeen runtime fixtures are re-pinned for the runtime's
   text; no fixture's flight carries a `way`.
+- **A town or a city, cut as a fighting map.** `arena-map/read-town.js` reads a window of a designed geotown (a block:
+  its buildings on its streets, alley and yards) or geocity (an industrial block's halls, tanks, containers and fence;
+  a shore's ground, piers and water) onto the arena grid, named or picked by the most edge between ground and what is
+  not. Water is a cell with no floor: nothing stands in it and a line crosses it; the map's ground draws it and keeps a
+  body out. As read every cut fails the sight laws (real ground is open); the generator now takes a given map
+  (`growArenaMap({ map })`), keeps what the place is made of and grows cover on its open ground, never cutting it in
+  two: of eight 36 m cuts three reach all fourteen laws and the rest twelve or thirteen, what stays unheld being the
+  place's own shape (a pier is a dead end). A mission takes a place as its map (`mission.map: { town } | { city, on }`):
+  played headless, the gunner wins the quay, the pier, the container yard and the main street and goes down in the hold
+  on the houses block and the beach. Greybox only; a place's hedges, cars and pavilions are the scenes' and are not read.

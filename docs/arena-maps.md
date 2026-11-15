@@ -169,9 +169,64 @@ and said (`placed-in-plan`). The grid's ramps are a reading, not where the stair
 own way. The level is a building's stage, so read in the seventh generation it is drawn by the form render
 ([docs/missions.md](missions.md), "In a building").
 
+## A town or a city, cut as a map
+
+`arena-map/read-town.js` reads a window of a designed geotown or geocity onto the arena grid, as `read-geocube.js` reads
+a building. A neighbourhood block is a hundred metres and a city block more, far past an arena's size, so the map is a
+**cut**: a window (54 m by default) walled at its edge, named by its middle or its rect, or picked: the window over the
+segment and the streets round it with the most edge inside it between open ground and what is not.
+
+```
+readTownMap({ segment: 'main-street' }, { seed, block?, at?, size?, cut? })
+readCityMap(<geocity recipe>, { seed, on: 'works' | 'storage' | 'quay' | …, at?, size?, cut? })
+```
+
+How a design is read (each approximation is said in the map's `read.notes`):
+
+- **One level.** The land's hills and a street's grade are not read.
+- **Water is a cell with no floor.** Nothing stands in it and every line crosses it; the blocks needed no new row. Its
+  cells are in `read.water`, and the ground (`ground.js`) draws them under the floor's level with a kerb's height kept
+  over them, so a body stops at the shore and a round does not.
+- **A town's buildings are their envelopes, closed.** The fight is in the streets, the alley and the yards. Hedges,
+  gates, parked cars and trees are the scene's and are not read.
+- **A city's industry is its block's own plan:** halls, tanks, silos, a stack and containers as masses; gantries, pipe
+  racks and pylons are frames a line passes and are left out; a chain-link fence is a low wall with no gate.
+- **A city's waterfront is its strip out to its shore and its finger piers.** Pavilions, boats and pontoons are not read.
+- **One ground.** A yard no way leads to, or the far side of a fence, is read as mass.
+
+### What the cuts hold
+
+As read, every cut fails the same sight laws: real ground is open, so its lines run the cut's whole length, far past a
+close or a mid gun's band. A 36 m cut, the default kit, seed 1:
+
+| cut | as read | grown |
+|---|---|---|
+| town, houses | 10 | 14 |
+| town, main-street | 9 | 13 |
+| city, works | 10 | 12 |
+| city, storage | 10 | 13 |
+| city, tanks | 9 | 13 |
+| city, pier | 9 | 13 |
+| city, quay | 10 | 14 |
+| city, beach | 10 | 14 |
+
+(of the laws' fourteen.) **Grown** is the generator given the cut in place of a template (`growArenaMap({ map })`): what
+the place is made of is kept (its masses, its water, its fences) and only what stands on its open ground is grown: wall
+panels, low walls, pillars. A given map is never cut in two or opened to hold another law. What stays unheld is the
+place's own shape: `loops` on a pier, an alley or a tank farm's lanes (a pier is a dead end, and the law says so), and
+`line-cap` down a works' yard the fixed halls leave no way to break.
+
+A mission takes a place as its map (`mission.map: { town } | { city, on }`, [missions.md](missions.md#on-a-place)).
+
 ## Next
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
   somewhere, so a bigger court or a yard.
+- **A place drawn as itself.** A cut is laid in greybox: a house is a grey mass, a container a grey block. Its own
+  render (the geotown's and the geocity's scenes) is not on the map's page.
+- **A place's low things.** Hedges, parked cars, planters and bollards are the cover a street already has; they live
+  in the scenes, not the designs, so the reader cannot see them and the generator grows panels in their place.
+- **A city's other blocks.** Only industry and the waterfront are read at a building's grain; a tower block, a
+  mid-rise court and an outskirts block of houses read as open ground.
 - **Geocube plans that hold every law.** The fight dials close most of the gap; a gallery round several walls, cover in
   the core, and a gentler stair are not built.

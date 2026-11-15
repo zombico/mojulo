@@ -12,6 +12,8 @@
  *     hold, waves          the holdout's clock (15 to 180 s, 40) and its waves (1 to 5, 3)
  *     map                  fought on a fighting map in place of the line (arena-map/): true (the map the kit's longest
  *                          band picks, MISSION_MAPS) or a template's id (arena-map/templates.js TEMPLATE_IDS)
+ *                          or a PLACE: { town: true | <geotown recipe>, block?, size? } or { city: true | <geocity
+ *                          recipe>, on?, size? }: a window of the design cut as the map (arena-map/read-town.js)
  *     (gun                 the emplacement's mounted gun: a gap, refused with what it waits on: sections.js)
  *   missionBrief(G, spec) → { guns: [{ name, band }], serves: { close, mid, long }, sections: [kind], yard, run, eye, width,
  *                             scale, hold, waves, camera, map: { template } | null, why: { <need>: words } } | null (a world
@@ -26,6 +28,12 @@ import { ARMS_KIT } from '../gameworld/arms-kit.js';
 import { feelCard } from '../gameworld/feel/lower.js';
 import { SECTIONS, SECTION_IDS, ARCHETYPE_BAND, FIRE_BAND } from './sections.js';
 import { TEMPLATE_IDS } from '../arena-map/templates.js';
+import { INDUSTRY_SEGMENTS } from '../geocity/segments.js';
+import { WATERFRONT_KINDS } from '../geocity/waterfront.js';
+
+// (what a city's cut is held to: arena-map/read-town.js CITY_ONS, read from its two tables here so the brief does not
+// carry the designs)
+const CITY_ONS = [...INDUSTRY_SEGMENTS, ...WATERFRONT_KINDS];
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -70,11 +78,33 @@ export function readMission(v, at = 'mission') {
   }
   for (const k of ['foes', 'waves']) if (v[k] !== undefined) { if (!Number.isInteger(v[k]) || v[k] < L[k][0] || v[k] > L[k][1]) no(`.${k} is ${L[k][0]} to ${L[k][1]}`); out[k] = v[k]; }
   if (v.hold !== undefined) { if (!Number.isFinite(v.hold) || v.hold < L.hold[0] || v.hold > L.hold[1]) no(`.hold is the seconds the yard is held, ${L.hold[0]} to ${L.hold[1]}`); out.hold = v.hold; }
-  if (v.map !== undefined) { if (v.map !== true && !TEMPLATE_IDS.includes(v.map)) no(`.map is true (the map the kit picks) or a template: ${TEMPLATE_IDS.join(', ')}`); out.map = v.map; }
+  if (v.map !== undefined) {
+    if (isPlace(v.map)) out.map = readPlace(v.map, no);
+    else { if (v.map !== true && !TEMPLATE_IDS.includes(v.map)) no(`.map is true (the map the kit picks), a template (${TEMPLATE_IDS.join(', ')}), or a place: { town: <a geotown> } or { city: <a geocity>, on: ${CITY_ONS.join(' | ')} }`); out.map = v.map; }
+  }
   // (the emplacement and its gun: a gap, said with what would close it; nothing is laid half)
   if (v.gun !== undefined) no(`.gun asks for the emplacement, which is designed, not built: ${SECTIONS.emplacement.gap}`);
   return out;
 }
+
+// A PLACE (`map: { town } | { city, on }`): a window of a designed geotown or geocity cut as the map (arena-map/
+// read-town.js), then grown under the laws with its buildings, water and fences kept. `size` its side in metres
+const isPlace = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
+const PLACE_KEYS = ['town', 'city', 'on', 'block', 'size'];
+function readPlace(v, no) {
+  const bad = Object.keys(v).find((k) => !PLACE_KEYS.includes(k));
+  if (bad) no(`.map.${bad} is not a place's word (${PLACE_KEYS.join(', ')})`);
+  if ((v.town === undefined) === (v.city === undefined)) no('.map is a place of a town or of a city: { town: <a geotown recipe> } or { city: <a geocity recipe>, on }');
+  const obj = (x) => x === true || (x != null && typeof x === 'object' && !Array.isArray(x));
+  if (v.town !== undefined && !obj(v.town)) no('.map.town is true (one block of houses) or a geotown recipe ({ segment: \'main-street\' })');
+  if (v.city !== undefined && !obj(v.city)) no('.map.city is true (the metro as it is) or a geocity recipe');
+  if (v.on !== undefined && (v.city === undefined || !CITY_ONS.includes(v.on))) no(`.map.on is what a city's cut is held to: ${CITY_ONS.join(', ')}`);
+  if (v.block !== undefined && (v.town === undefined || typeof v.block !== 'string')) no('.map.block is a town\'s block by its id (A1)');
+  if (v.size !== undefined && !(Number.isFinite(v.size) && v.size >= PLACE_SIZE[0] && v.size <= PLACE_SIZE[1])) no(`.map.size is the cut's side in metres, ${PLACE_SIZE[0]} to ${PLACE_SIZE[1]}`);
+  return { ...(v.town !== undefined ? { town: v.town === true ? {} : structuredClone(v.town), ...(v.block ? { block: v.block } : {}) } : { city: v.city === true ? {} : structuredClone(v.city), on: v.on ?? CITY_ONS[0] }), size: v.size ?? PLACE_SIZE[2] };
+}
+/** A place's cut: its least and most side, and the side a mission cuts when it names none (metres). */
+export const PLACE_SIZE = Object.freeze([24, 54, 36]);
 
 // the band a weapon is carried for: a kit word its archetype's, a weapon written by its fire type that type's
 function bandOf(w) {
@@ -105,8 +135,8 @@ export function missionBrief(G, spec = {}) {
   why.yard = yard === 'mid' ? 'the yard is held at the mid band: a gun carried reaches it' : 'the yard is a room\'s length: no gun carried reaches further';
   const foes = spec.foes ?? MISSION_DEFAULTS.foes;
   why.foes = `${foes} down the lane, every fight in proportion`;
-  const top = serves.long ? 'long' : serves.mid ? 'mid' : 'close', map = spec.map === undefined ? null : { template: spec.map === true ? MISSION_MAPS[top].template : spec.map };
-  if (map) why.map = spec.map === true ? MISSION_MAPS[top].why : `the ${map.template} map, written on the level`;
+  const top = serves.long ? 'long' : serves.mid ? 'mid' : 'close', map = spec.map === undefined ? null : isPlace(spec.map) ? { template: 'given', place: spec.map } : { template: spec.map === true ? MISSION_MAPS[top].template : spec.map };
+  if (map) why.map = map.place ? `a ${map.place.size} m cut of ${map.place.town ? `a town's ${map.place.town.segment ?? 'houses'} block` : `a city's ${map.place.on}`}, its buildings and water kept, cover grown on its open ground under the laws` : spec.map === true ? MISSION_MAPS[top].why : `the ${map.template} map, written on the level`;
   return {
     guns, serves, sections, yard, run, eye: 1.7, width, scale: foes / MISSION_DEFAULTS.foes,
     hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, camera: G?.camera ?? null, map, why,

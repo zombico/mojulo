@@ -24,7 +24,7 @@ describe('a mission on a map', () => {
   it('reads `map` as true or a template, and the kit picks one by its longest band', () => {
     expect(readMission({ map: true })).toEqual({ map: true });
     expect(readMission({ map: SMALLEST })).toEqual({ map: SMALLEST });
-    expect(() => readMission({ map: 'maze' })).toThrow(/is true \(the map the kit picks\) or a template/);
+    expect(() => readMission({ map: 'maze' })).toThrow(/is true \(the map the kit picks\), a template .*or a place/);
     const B = missionBrief(WORLD, { map: true }), top = B.serves.long ? 'long' : B.serves.mid ? 'mid' : 'close';
     expect(B.map).toEqual({ template: MISSION_MAPS[top].template });
     expect(Object.values(MISSION_MAPS).every((m) => TEMPLATE_IDS.includes(m.template))).toBe(true);
@@ -85,4 +85,39 @@ describe('a hold\'s wave on a map with floors', () => {
     const clear = R.mission.sections.find((S) => S.task.kind === 'clear');
     for (const f of clear.foes) { expect(by[f.id].rule.floors).toBeUndefined(); expect(by[f.id].rule.navLedges).toBeUndefined(); }
   });
+});
+
+// A PLACE AS THE MAP (`mission.map: { town } | { city, on }`): a window of a designed town or city cut onto the grid
+// (arena-map/read-town.js) and grown for the kit with what it is made of kept. One place, a town's block (the quickest
+// design), chosen from the segment table in code.
+import { SEGMENTS } from '../geotown/pattern.js';
+import { PLACE_SIZE } from '../mission/brief.js';
+
+describe('a mission on a place', () => {
+  const SEG = Object.keys(SEGMENTS).find((k) => SEGMENTS[k].rows.length && !SEGMENTS[k].main);
+  it('reads a place of a town or of a city, its cut\'s side its own or the mission\'s, and refuses what is off its words', () => {
+    expect(readMission({ map: { town: { segment: SEG } } })).toEqual({ map: { town: { segment: SEG }, size: PLACE_SIZE[2] } });
+    expect(readMission({ map: { city: true, size: PLACE_SIZE[0] } }).map).toMatchObject({ city: {}, size: PLACE_SIZE[0] });
+    expect(readMission({ map: { city: true } }).map.on).toBeTruthy();
+    expect(() => readMission({ map: { town: true, city: true } })).toThrow(/of a town or of a city/);
+    expect(() => readMission({ map: { town: true, on: 'quay' } })).toThrow(/what a city's cut is held to/);
+    expect(() => readMission({ map: { city: true, on: 'forest' } })).toThrow(/what a city's cut is held to/);
+    expect(() => readMission({ map: { town: true, size: 500 } })).toThrow(/the cut's side in metres/);
+    expect(() => readMission({ map: { town: true, hills: 3 } })).toThrow(/not a place's word/);
+    expect(missionBrief(WORLD, { map: { town: { segment: SEG }, size: PLACE_SIZE[2] } }).map).toEqual({ template: 'given', place: { town: { segment: SEG }, size: PLACE_SIZE[2] } });
+  });
+  const L = missionLevel(WORLD, { quiet: true, spec: { map: { town: { segment: SEG } } }, seed: 1 }), m = L.manifest;
+  it(`(${SEG}) is the place's cut grown under the laws, its buildings kept, carried and rebuilt as any map is`, () => {
+    const carried = missionMapOf(m);
+    expect(carried.template).toBe('given');
+    expect(carried.blocks.nx).toBe(PLACE_SIZE[2] / 3);
+    expect(carried.blocks.read.notes.join(' ')).toMatch(/a cut of block/);
+    expect(carried.blocks.read.masses).toBeGreaterThan(0);
+    expect(mapGround(carried.blocks).faces).toEqual(m.faces);
+    expect(missionPlan(WORLD, { spec: readMission({ map: { town: { segment: SEG } } }), seed: L.map.seed, grown: carried.blocks }).mission).toEqual(L.mission);
+    expect(L.brief.why.map).toMatch(/cut of a town/);
+    // (its tasks proved on the bus; a law of the map it does not hold is said, as advice)
+    expect(proveMission(m)).toMatchObject({ proved: true });
+    expect(L.laws.filter((l) => !l.holds).every((l) => l.law.startsWith('map:'))).toBe(true);
+  }, 60000);
 });
