@@ -235,12 +235,15 @@ screen) is now played on a page; before, only its practice yard was.
 - The starter's own fights were set against it, and a deep test holds them to it. A brawl: a held screen opens with
   two bodies (three before), every box holds a roast chicken (an apple in every other before), the boss's screen a
   joint of meat at its door. A run & gun: two shooters and one rushing in on a held screen (a shooter more each), and
-  its last screen is a LAST STAND, a rocket behind its shooters, with no brawler boss: a gunner had no answer to one,
-  measured. The difficulty tiers (`STREET_DIFFICULTY`): easy and medium send one body at a time (medium with a breath
+  its boss is a shooter (below), not the brawler it first ended on: a gunner had no answer to one, measured. The difficulty tiers (`STREET_DIFFICULTY`): easy and medium send one body at a time (medium with a breath
   between them; it was the crowd's own two at once), max is the crowd's own pace with a boss on its sharpest mind.
+- A BOSS OF THE CROWD'S OWN KIND: a wave's `boss` may be `{ type, name?, hp?, volley? }` in place of a fighter's
+  recipe: a crowd type's body as the boss, on its type's mind (a shooter holds its range and fires its volleys), with
+  a boss's health (four times its type's unless said), its bar on the screen and the street won when it falls. A run &
+  gun's starter boss is the crowd's rocket with two shooters beside it.
 - A player's round breaks a box open (it stops there): a gunner has no blow to open a crate with.
-- Not yet (run & gun): cover placed from the dress's own pieces, lives and one-hit play, a gunner's boss (a boss that
-  shoots, with its bar), two gunners checked on a page.
+- Not yet (run & gun): cover placed from the dress's own pieces, lives and one-hit play, a boss with
+  a fight of its own (phases, its own attacks), two gunners checked on a page.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

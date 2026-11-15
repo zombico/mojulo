@@ -33,12 +33,13 @@ describe('the play types', () => {
 
 describe('a run & gun\'s map, laid when it names nothing', () => {
   const W = playWaves('gun', belt), T = playThings('gun', belt, { cover: SETTING_COVER.base });
-  it('every screen has a wave of shooters; the held one a rush with them, the last a last stand with a rocket and no brawler', () => {
+  it('every screen has a wave of shooters; the held one a rush with them, the last its boss, a shooter', () => {
     expect(W.map((w) => w.screen)).toEqual([0, 1, 2]);
     for (const w of W) expect(w.crowd.some((c) => CROWD_TYPES[c.type].gun)).toBe(true);
     expect(W[1].crowd.some((c) => !CROWD_TYPES[c.type].gun)).toBe(true);
-    expect(W[2].boss).toBeUndefined();
-    expect(W[2].crowd.some((c) => c.type === 'bazooka')).toBe(true);
+    // (its boss a shooter of the crowd's own kind, never a brawler)
+    expect(W[2].boss).toMatchObject({ type: 'bazooka' });
+    expect(W[2].boss.recipe).toBeUndefined();
     expect(() => readWaves(W, belt)).not.toThrow();
     // (a crew's own: its shooters shoot, its others rush)
     const own = playWaves('gun', belt, ['grenadier', 'knife']);
@@ -112,5 +113,30 @@ describe('a wave fought on the move', () => {
   it('plays the same twice', () => {
     const go = () => { let st = streetOf({ belt, players: [hero()], waves, gunner }); st = run(st, 400, (s, k) => ({ x: 1, z: k % 40 < 20 ? 1 : -1, a: 1 })); return JSON.stringify(st.s.bodies.map((b) => [b.x, b.z, b.hp])); };
     expect(go()).toBe(go());
+  });
+});
+
+describe('a boss of the crowd\'s own kind', () => {
+  const waves = [{ screen: 2, crowd: [], boss: { type: 'bazooka', name: 'Big Rocket', hp: 500 } }];
+  it('is read: a crowd type, a name, its health; a fault is said', () => {
+    expect(readWaves(waves, belt)[0].boss).toEqual({ type: 'bazooka', name: 'Big Rocket', hp: 500 });
+    expect(readWaves([{ screen: 2, boss: { type: 'rifleman' } }], belt)[0].boss).toMatchObject({ name: 'The Boss', hp: CROWD_TYPES.rifleman.hp * 4 });
+    expect(() => readWaves([{ screen: 2, boss: { type: 'wizard' } }], belt)).toThrow(/boss.type/);
+    expect(() => readWaves([{ screen: 2, boss: { type: 'bazooka', plays: ['chain'] } }], belt)).toThrow(/boss.plays/);
+    expect(() => readWaves([{ screen: 1, boss: { type: 'bazooka' } }], belt)).toThrow(/boss screen/);
+  });
+  it('stands on the street as its type, with its gun, its health and its bar; felled, the street is won', () => {
+    let st = streetOf({ belt, players: [hero()], waves, gunner });
+    const id = Number(Object.keys(st.mind.bosses)[0]), B = st.s.bodies[id];
+    expect(B.hp).toBe(500);
+    expect(st.ctx.guns[B.gn].id).toBe(CROWD_TYPES.bazooka.gun);
+    st.s.bodies[0].x = (belt.screens[2].from + 3) * 1000;
+    let fired = false, bar = null;
+    for (let k = 0; k < 900 && !fired; k++) { st = stepStreet(st, [{}]); fired = st.s.events.some((e) => e.t === 'fire' && e.p === id); if (!st.s.bodies[id].gone) bar = streetRead(st, []).boss; }
+    expect(bar).toMatchObject({ on: true, name: 'Big Rocket' });
+    expect(fired).toBe(true);
+    st.s.bodies[id].hp = 0; st.s.bodies[id].ko = 1;
+    for (let k = 0; k < 5; k++) st = stepStreet(st, [{}]);
+    expect(streetRead(st, []).won).toBe(true);
   });
 });

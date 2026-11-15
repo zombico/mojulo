@@ -156,6 +156,10 @@ levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
   what it walks over: a gun lying on the map (`{ kind: 'gun', what }`, usually in a crate) is held over the sidearm
   until it is spent. Unsaid, the map gets shooters on every screen with a rush between them, the setting's cover
   across the band, a gun crate on each held screen and food before the boss. The end reads accuracy too.
+- **A boss may be one of the crowd's own kind.** A wave's `boss` is a fighter's recipe (a brawler on the fight's
+  mind), or `{ type, name?, hp?, volley? }`: a crowd type's body as the boss, on its type's mind, with a boss's health
+  and its bar. A run & gun's boss is a shooter (the starter's is the crowd's rocket): a gunner has no answer to a boss
+  that fights at arm's length.
 - **A wave on an open screen is fought on the move**, in either play: it comes in as the player walks in, the camera is
   not held, and it is let go once the player is on the next wave's screen. Holds stay for the screens that are gated
   and the boss's.

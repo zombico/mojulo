@@ -38,7 +38,7 @@ export const PLAY_TYPES = Object.freeze({
     asks: Object.freeze(['fighter', 'gun']),
     hud: 'health, the gun held and its rounds, the grenades, the held screens as pips, the crowd left, the boss\'s bar',
     stands: 'cover on every screen (the setting\'s own), a crate holding a gun on the held ones, food before the boss',
-    waves: 'shooters on every screen with a rush between them: on an open screen fought on the move, on a held one until beaten; the last screen a last stand, a rocket behind its shooters',
+    waves: 'shooters on every screen with a rush between them: on an open screen fought on the move, on a held one until beaten; the last screen its boss, a rocket with its shooters',
     result: Object.freeze(['time', 'health', 'accuracy', 'rank']),
   }),
 });
@@ -59,7 +59,7 @@ const SHOOTS = (t) => !!CROWD_TYPES[t]?.gun;
 /**
  * A RUN & GUN'S WAVES when a map names none. Every screen has one: an open screen's is fought on the move (two
  * shooters, then a third), a held one's until it is beaten (two shooters and one of the crew's own rushing in, a
- * shooter more each); the boss's screen THE LAST STAND, a rocket behind its shooters. Counts measured against the
+ * shooter more each); the boss's screen its BOSS, the crowd's rocket with a boss's health and bar, its shooters beside it. Counts measured against the
  * fight laws (brawl-measure.js). `types`: how the crew fights (its crowd
  * types): its shooters shoot, its others rush; a crew with no gun gets riflemen and a gunner.
  */
@@ -72,9 +72,10 @@ export function playWaves(play, belt, types = null) {
   let open = 0, held = 0;
   belt.screens.forEach((sc, screen) => {
     const shooters = (n, from) => Array.from({ length: n }, (_, i) => G[(i + from) % G.length]);
-    // (THE LAST STAND, the boss's screen: a rocket behind its shooters, no brawler: a gunner has no answer to a boss
-    // that fights at arm's length, measured (brawl-measure.js); a map's own waves may still name a boss)
-    if (sc.boss) out.push({ screen, crowd: tally(['bazooka', ...shooters(2 + Math.min(1, held), held)]) });
+    // (THE BOSS, a shooter: the crowd's own rocket as the boss (brawl-crowd.js, a boss of a crowd type), its bar on the
+    // screen, its shooters beside it. Never a brawler: a gunner has no answer to a boss that fights at arm's length,
+    // measured (brawl-measure.js); a map's own waves may still name one)
+    if (sc.boss) out.push({ screen, crowd: tally(shooters(2, held)), boss: { type: 'bazooka', name: 'The Boss', hp: 640 } });
     else if (sc.gate) { out.push({ screen, crowd: tally([...shooters(2 + held, held), R[held % R.length]]) }); held++; }
     else { out.push({ screen, crowd: tally(shooters(Math.min(3, 2 + open), open)) }); open++; }
   });

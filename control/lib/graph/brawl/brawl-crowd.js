@@ -175,13 +175,21 @@ export function readWaves(waves, belt) {
     }
     if (w.boss !== undefined) {
       if (!sc.boss) throw new Error(`brawl: ${at}.boss: a boss stands on the belt's boss screen (its last)`);
+      // (A BOSS OF THE CROWD'S OWN KIND, `{ type, name?, hp?, volley? }`: a crowd type's body as the boss, on its type's
+      // mind, with its bar: a shooter a gunner can fight, a heavy with a name)
+      if (w.boss && typeof w.boss === 'object' && w.boss.type !== undefined) {
+        for (const k of Object.keys(w.boss)) if (!['type', 'name', 'hp', 'volley', 'cpu'].includes(k)) throw new Error(`brawl: ${at}.boss.${k}: a boss of a crowd type is { type, name?, hp?, volley? }`);
+        if (!CROWD_TYPES[w.boss.type]) throw new Error(`brawl: ${at}.boss.type is one of ${CROWD_TYPE_IDS.join(', ')}`);
+        if (w.boss.name !== undefined && (typeof w.boss.name !== 'string' || !w.boss.name || w.boss.name.length > 40)) throw new Error(`brawl: ${at}.boss.name is a short name`);
+        if (w.boss.volley !== undefined && !(Number.isInteger(w.boss.volley) && w.boss.volley >= 1 && w.boss.volley <= 8)) throw new Error(`brawl: ${at}.boss.volley is 1 to 8 rounds a volley`);
+      } else
       if (!w.boss || typeof w.boss !== 'object' || !w.boss.recipe) throw new Error(`brawl: ${at}.boss is { recipe, cpu?, hp?, tune?, plays?, weapon? } (a fighter's recipe: the fight's characters)`);
-      if (w.boss.weapon !== undefined && !WEAPONS[w.boss.weapon]) throw new Error(`brawl: ${at}.boss.weapon is one of ${Object.keys(WEAPONS).join(', ')}`);
-      if (w.boss.plays !== undefined && Array.isArray(w.boss.plays) && w.boss.plays.includes('grab')) throw new Error(`brawl: ${at}.boss.plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
+      if (w.boss.type === undefined && w.boss.weapon !== undefined && !WEAPONS[w.boss.weapon]) throw new Error(`brawl: ${at}.boss.weapon is one of ${Object.keys(WEAPONS).join(', ')}`);
+      if (w.boss.type === undefined && w.boss.plays !== undefined && Array.isArray(w.boss.plays) && w.boss.plays.includes('grab')) throw new Error(`brawl: ${at}.boss.plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
       if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
       if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}) })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}) })), ...(w.boss && w.boss.type !== undefined ? { boss: { type: w.boss.type, name: w.boss.name ?? 'The Boss', hp: w.boss.hp ?? CROWD_TYPES[w.boss.type].hp * 4, ...(w.boss.volley ? { volley: w.boss.volley } : {}) } } : w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -211,7 +219,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, gunn
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a street has 1 to 4 players');
   const W = readWaves(waves, belt);
   const fighters = players.map((p) => brawlFighter(p.recipe, { style: p.style }));
-  const types = [...new Set(W.flatMap((w) => w.crowd.map((c) => c.type)))];
+  const types = [...new Set(W.flatMap((w) => [...w.crowd.map((c) => c.type), ...(w.boss?.type ? [w.boss.type] : [])]))];
   const typeAt = {};
   for (const t of types) { typeAt[t] = fighters.length; fighters.push(crowdFighter(t)); }
   const half = viewHalf(belt), [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
@@ -231,7 +239,12 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, gunn
   const armory = crowdGuns(types, mine);
   W.forEach((w, k) => {
     // (the boss first of its wave: it comes in as the wave does)
-    if (w.boss) {
+    if (w.boss && w.boss.type) {
+      // (a boss of the crowd's own kind: its type's body and mind, its health and its name its own)
+      const BT = CROWD_TYPES[w.boss.type];
+      bosses[bodies.length] = { name: w.boss.name, kind: Object.freeze({ ...BT, ...(w.boss.volley ? { volley: w.boss.volley } : {}) }), hp: w.boss.hp };
+      bodies.push({ fighter: typeAt[w.boss.type], side: 'crowd', x: 0, z: 0, wave: k, ...(BT.plays.includes('grab') ? {} : { grabs: false }), ...(BT.gun ? { gun: armory.at[BT.gun] } : {}), poise: Math.max(BT.poise ?? 0, 120) }); kinds.push('boss');
+    } else if (w.boss) {
       // (a body as every other: a brawler's fighter in its own tune, its plays on it)
       const BF = brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}) }, { tune: w.boss.tune });
       bosses[bodies.length] = { cpu: w.boss.cpu, name: w.boss.recipe.name ?? w.boss.recipe.id ?? 'boss', plays: readPlays(w.boss.plays, BF, `waves[${k}].boss.plays`), combo: Math.max(1, BF.brawl.chain - 1), knees: 3 };   // (its chain to the blow before the last: an ender's place)
@@ -247,13 +260,14 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, gunn
   players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(brawlFighter({ ...pl.recipe, weapon: w }, { style: pl.style })); } });
   const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}), ...(armory.guns.length ? { guns: armory.guns } : {}) };
   const s = newBrawl(ctx, { bodies, rules, ...(T.length ? { things: T } : {}) });
+  for (const [id, B] of Object.entries(bosses)) if (B.kind) s.bodies[id].hp = B.hp;
   // (a held screen with no wave holds nothing: its gate is open from the start)
   // (a gunner's first gun over its sidearm, loaded)
   if (gunner) for (const p of s.bodies) if (p.side === 'player') { p.sd = 0; if (mine[p.gn].ammo !== null) p.am = mine[p.gn].ammo; }
   s.cleared = belt.screens.map((sc, i) => (sc.gate && !W.some((w) => w.screen === i) ? i : -1)).filter((i) => i >= 0);
   // (each crowd body's type, by its id)
   const type = Object.fromEntries(kinds.map((t, j) => [players.length + j, t]));
-  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, cpu: Object.fromEntries(Object.keys(bosses).map((id) => [id, newCpuMemory()])) } };
+  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, cpu: Object.fromEntries(Object.keys(bosses).filter((id) => !bosses[id].kind).map((id) => [id, newCpuMemory()])) } };
 }
 
 /** The street a frame on: the crowd thinks, the core steps, the waves come in and their gates open. */
@@ -342,7 +356,7 @@ function think(s, ctx, M) {
     }
     const T = p.tg >= 0 ? B[p.tg] : null;
     // (what it is: a boss's own plays, else its type's)
-    const kind = M.bosses[p.id] ?? CROWD_TYPES[M.type[p.id]], F = ctx.fighters[p.fi];
+    const kind = M.bosses[p.id]?.kind ?? M.bosses[p.id] ?? CROWD_TYPES[M.type[p.id]], F = ctx.fighters[p.fi];
     if (m.cool > 0) m.cool--;
     // struck: the token given back; once up, back off and wait
     // held, a body with the desperation in its plays breaks out with it (paying its price), a moment in
@@ -361,7 +375,7 @@ function think(s, ctx, M) {
       continue;
     }
     if (!T) { pads[p.id] = {}; continue; }
-    if (M.bosses[p.id]) { pads[p.id] = bossPad(s, ctx, M, p, T, lineUp, claimed, m, kind); continue; }
+    if (M.bosses[p.id] && !M.bosses[p.id].kind) { pads[p.id] = bossPad(s, ctx, M, p, T, lineUp, claimed, m, kind); continue; }
     const side0 = sgn(p.x - T.x) || (p.id % 2 ? 1 : -1);
     const mine = holding(M, T.id);
     const has = mine.includes(p.id);

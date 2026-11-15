@@ -209,7 +209,7 @@ export function fightLaws(runs) {
   law('max-can-be-won', top, top?.result === 'won', top && `at max a careful player did not finish: ${stopped(top)}`);
   if (mid) {
     const worst = mid.waves.filter((w) => w.reached).sort((a, b) => b.lost - a.lost)[0], slow = mid.waves.filter((w) => w.reached && w.held).sort((a, b) => b.seconds - a.seconds)[0], first = mid.waves.find((w) => w.reached);
-    law('no-spike', mid, !worst || worst.lost <= FIGHT_LIMITS.spike, worst && `${where(worst)} takes ${pct(worst.lost)} of the health bar: fewer shooters at once, cover before it, or food after`);
+    law('no-spike', mid, !worst || worst.lost <= FIGHT_LIMITS.spike, worst && `${where(worst)} takes ${pct(worst.lost)} of the health bar: fewer bodies at once, cover or food before it`);
     law('no-slog', mid, !slow || slow.seconds <= FIGHT_LIMITS.slog, slow && `${where(slow)} lasts ${Math.round(slow.seconds)} s: fewer bodies, or less health on them`);
     law('it-opens-gently', mid, !first || !worst || first === worst ? mid.waves.filter((w) => w.reached).length < 2 || first.lost <= 0.15 : true, first && `the first wave is the hardest (${pct(first.lost)} of the health bar): open with fewer`);
   }
