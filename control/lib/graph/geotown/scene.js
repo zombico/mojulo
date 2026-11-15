@@ -570,6 +570,9 @@ export function assembleGeotownScene(m, ctx = {}) {
         if (top > In.h) colliders.push({ min: P3([I[0], I[1], pad + In.h]), max: P3([I[2], I[3], pad + top]), of: `${pl.id}:house` });
         for (const r of rectLess([lo[0], lo[1], hi[0], hi[1]], I).flatMap((q) => rectLess(q, way))) colliders.push({ min: P3([r[0], r[1], pad]), max: P3([r[2], r[3], pad + top]), of: `${pl.id}:house` });
         store.transforms.push({ pos: P3(o), rotZ: r5(Math.atan2(Xd[1], Xd[0])) });
+        // (its floor as the town's ground, under its inside's own: what a walker and a game's hero stand on, from its
+        // door's sill to its back)
+        for (const q of [box2(In.x0, 0, In.x1, In.y1), box2(-S.door.w / 2, -0.3, S.door.w / 2, 0)]) { const zf = pad + 0.01, fill = shadeHex(col.path, [0, 0, 1], LIGHT), cs = [[q[0], q[1], zf], [q[2], q[1], zf], [q[2], q[3], zf], [q[0], q[3], zf]].map(P3); faces.push({ corners: cs, normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'geotown:floor', fill, cornerFills: cs.map(() => fill) }); }
         const w3 = (q) => P3([...pt(q[0], q[1]), pad + q[2]]);
         storeAt = { card: S.card, door: P3(o), ...(S.till ? { till: w3(S.till) } : {}), inside: { min: P3([I[0], I[1], pad]), max: P3([I[2], I[3], pad + In.h]) } };
         entered.push({ id: pl.id, key: store.key, S, door: o, in: pt(0, 1), out: pt(0, -1) });

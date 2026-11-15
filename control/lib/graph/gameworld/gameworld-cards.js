@@ -1020,7 +1020,8 @@ function qowCard() {
     '',
     'ERRANDS (its element, as the escape room is the WCD\'s), on a map world (topology: interconnected): sent out, home with the goods.',
     "errands [{ id, giver: '<level>', reward?: [{ item, n? }], list: [{ item, at: '<level>', count?, min?, needs?: ['<item>'],",
-    "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> } }] }]: needs spent where it is had; from, a bounty;",
+    "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> }, shop?: '<store card>' }] }]: needs spent where it is had; from, a bounty;",
+    "        shop, had over that kind of store's counter (pharmacy, convenience, diner…): at its till where the level's town has one walked into (geotown.enter);",
     '        the giver asks for the roots. Laws (advice.errands): ' + Object.keys(ERRAND_LAWS).join(', ') + '.',
   );
 }

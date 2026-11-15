@@ -18,3 +18,8 @@
 - **A city shop has a real door and a step up to it.** Its doorway now clears a person's height, and where the shop
   stands above the pavement a short flight of steps leads up to it. Where the shop stands far above the pavement its floor is set
   lower than the block around it, so the flight is never more than three steps and every shop on a sloping street opens.
+- **An errand can send you into a shop.** An item on an errand's list can name the kind of store it is bought in (a
+  pharmacy, a convenience store, a diner). Where the level's town has its shops open, you walk in and make the trade at
+  that store's counter; where it does not, the trade is placed as before.
+- **A game's hero can walk into an open shop.** In a level set in a town with open shops the hero has floor to stand on
+  inside, the fixtures block the way, and the level no longer swaps to a separate interior for a shop that is already open.

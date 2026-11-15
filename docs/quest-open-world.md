@@ -30,7 +30,8 @@ blocks), spread (the quests in more than one ring of the city).
 
 The QOW's element, as the escape room is the WCD's: sent out with a list, home with the goods. A map world's `errands`
 (`gameworld/errand.js`): each a giver's level, a reward, and a list of items, each had in a level by a trade (a shelf, or
-a shop that spends its `needs`) or as a bounty's proof (`from: { foe }`, a foe's fall). What is carried accumulates in
+a shop that spends its `needs`; with `shop`, the kind of store, the trade stands at the till of such a store where the
+level's town has its shops walked into, the geotown's `enter`) or as a bounty's proof (`from: { foe }`, a foe's fall). What is carried accumulates in
 the bag and rides from level to level; a cargo has a state (`fragile`: a unit lost to each hit and fall; `perishable`: a
 unit each period while carried), and the giver asks for at least its `min`. The verbs are mechanics (`trade`, `cargo`,
 `bounty`, `deliver`: `game/errand-mechanics.js`); each level's last stage lays its legs on beats of their own. Laws in
