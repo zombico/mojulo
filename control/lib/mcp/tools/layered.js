@@ -52,6 +52,8 @@ import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-ou
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readKit, kitDress } from '@/lib/graph/sportswear/kits.js';
 import { headgearErrors, wearHeadgear } from '@/lib/graph/headgear/wear.js';
+import { HEADWEAR, headwearOf } from '@/lib/graph/headgear/realistic.js';
+import { withHeadgear } from '@/lib/graph/headgear/cards.js';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
 import { heroPlan, planScale, castOf, lawCast, FORM_BODY, formBodied, formBodyPole, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, ANIME_FRAME, isAnimeFrame, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
@@ -628,8 +630,20 @@ function realisticExpand(plan, hero) {
     // (what the authored kernel still makes, a panel, a cape, a hood, hangs over the tailor's cloth: its `over`, the trunk's
     // and the legs' cloth, a cape's and a hood's the sleeves' too)
     const cloth = Object.keys(wear.parts), trunkCloth = cloth.filter((k) => /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL])$/.test(k)), allCloth = cloth.filter((k) => /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL]|arm[RL]|upperArm[RL]|foreArm[RL]|neck)$/.test(k));
-    const hangs = (g) => (/^(panel|cape|hood)$/.test(g.fit) ? { ...g, over: [...(g.over || []), ...(g.fit === 'panel' ? trunkCloth : allCloth)] } : g);
-    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
+    // (a MANTLE, outfit laws 2's shoulder cape, `lie` from its first ring to a hem on the torso: on this body it lies on the
+    // shoulders with less ease, takes the arm softly and rolls its hem as fur: body-garment.js capePart `capeArm`)
+    const mantle = (g) => g.fit === 'cape' && g.lie === 0 && g.to?.part === 'torso';
+    // (and a CLOAK, under outfit laws 2, takes the arm by a wider reach: the cloth behind a swinging arm goes back with it)
+    const lawsTwo = outfitLawsOf(hero) >= 2;
+    const hangs = (g) => (/^(panel|cape|hood)$/.test(g.fit) ? { ...g, over: [...(g.over || []), ...(g.fit === 'panel' ? trunkCloth : allCloth)], ...(mantle(g) ? { ease: Math.round(g.ease * MANTLE_LIE.ease * 1e4) / 1e4, capeArm: MANTLE_LIE.capeArm } : g.fit === 'cape' && lawsTwo ? { capeArm: CLOAK_ARM } : g.fit === 'hood' && lawsTwo ? { hoodRound: true, ...(g.worn === 'down' ? { group: liningOf(g.group) } : {}) } : {}) } : g);
+    // (and, under outfit laws 2, what is worn ON a body segment, a mantle's clasp on the torso, a bracer on the forearm, rides
+    // the tailor's cloth on that segment, never sunk under it: the cloth is named for the tube it made, `_body`, `_arm<S>`,
+    // `_leg<S>`, which the shell's own search by the segment's name missed)
+    const CLOTH_ON = { torso: /_(body|torso)$/, pelvis: /_(body|pelvis)$/, upperArm: /_(arm|upperArm)$/, foreArm: /_(arm|foreArm)$/, thigh: /_(leg|thigh)$/, shank: /_(leg|shank)$/ };
+    const clasped = (A) => { if (!lawsTwo || A.mode !== 'shell' || typeof A.part !== 'string') return A; const m = A.part.match(/^(torso|pelvis|upperArm|foreArm|thigh|shank)([RL]?)$/); if (!m) return A;
+      const on = cloth.filter((k) => CLOTH_ON[m[1]].test(k.replace(/[RL]$/, '')) && (!m[2] || k.endsWith(m[2])) && !(A.over || []).includes(k));
+      return on.length ? { ...A, over: [...(A.over || []), ...on] } : A; };
+    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).map((A) => (wear.necklaces?.has(A.id) ? { ...A, signature: wear.necklaces.get(A.id) } : A)).flatMap(moved).map(clasped) } : {}),
       ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
   }
   // THE KIT'S PIECES (realistic laws 8, body-relational-kit.js): a pouch, a strap and a leg's band made as the things they
@@ -753,8 +767,13 @@ function realisticExpand(plan, hero) {
     }
   }
   if (S.correctives) R.correctives = garmentCorrectives(S.correctives, R.parts);
+  // (a down hood's LINING, shown where it lies folded on the back: its cloth's colour a shade down, unless the operator names it)
+  for (const g of Object.values(R.parts)) if (typeof g.group === 'string' && g.group.endsWith(LINING) && !hero.palette?.[g.group]) { const c = R.palette?.[g.group.slice(0, -LINING.length)]; if (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) R.palette = { ...R.palette, [g.group]: shadeHex(c, LINING_SHADE) }; }
   return R;
 }
+/** a hood worn down shows its lining: its group `<cloth's group>Lining`, a shade down from the cloth (realisticExpand) */
+const LINING = 'Lining', LINING_SHADE = 0.72, liningOf = (group) => (typeof group === 'string' ? `${group}${LINING}` : group);
+const shadeHex = (hex, k) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('')}`;
 /** a body's correctives worn by its garments: a garment ring copied from a body ring (the same station id; a garment's
  * own between-rings carry `mix: [a, b, f]`, read from the body's rings either side) takes the body point's offset, slot
  * for slot, so a raised arm's pauldron lifts the sleeve with the skin under it */
@@ -824,7 +843,7 @@ function expandAware(plan, hero) {
   // (a hero's kit on the game body made as pieces on its cloth before the kernel bakes the rest: authored-kit.js; an
   // armour build's straps and ridges are its plates' own, stacked over them by the kernel)
   // (and the XENO MAKE-UP's appliances last, on the head the expansion made: lib/graph/xeno; none ⇒ the recipe as made)
-  try { const full = drawnPlan(compileOutfit(plan, { rounds: bodyRoundsOf(hero) })); return withXeno(hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full, hero && !isArmorBuild(hero.adorn) ? { kit: authoredKit } : {}), plan?.creatureHead), hero), hero); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan, { rounds: bodyRoundsOf(hero) })); return withXeno(hero?.form === 'realistic' ? withSkin(withHeadwear(realisticExpand(full, hero), hero), hero) : authoredWear(creatureHeadOn(expandPlan(full, hero && !isArmorBuild(hero.adorn) ? { kit: authoredKit } : {}), plan?.creatureHead), hero), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -832,6 +851,26 @@ function expandAware(plan, hero) {
   }
 }
 
+/** THE MANTLE on the realistic body: its ease's share kept, and how it takes the arm and rolls its hem (capePart `shoulder`) */
+/** the outfit laws an outfit build was stamped with (outfit/principles.js), 1 for anything else */
+const outfitLawsOf = (hero) => (hero?.outfit && typeof hero.outfit === 'object' && !Array.isArray(hero.outfit) ? hero.outfit.laws ?? 1 : 1);
+/** THE CLOAK on the realistic body (outfit laws 2): how far from an arm its cloth still takes the arm (capePart `capeArm`) */
+const CLOAK_ARM = Object.freeze({ near: 0.05, far: 0.24, share: 1 });
+const MANTLE_LIE = Object.freeze({ ease: 1, capeArm: Object.freeze({ near: 0.05, far: 0.2, share: 1, roll: 0.01 }) });
+/** THE HEADWEAR on the realistic head (hero laws 23: a headgear card's realistic side, headgear/realistic.js): the circlet or
+ * a hat built over the hair and the hood the expansion made, one part pinned to the head's skin, its colours the card's
+ * under the operator's palette. None: the recipe as made. */
+function withHeadwear(R, hero) {
+  // (the mint expands the record, the readers the worn hero: the word read either way)
+  const id = hero?.headwear ?? (HEADWEAR[hero?.headgear] ? hero.headgear : null), W = id && HEADWEAR[id];
+  if (!W) return R;
+  const H = headwearOf(R.parts, R.headFit, W);
+  if (!H) return R;
+  // (its groups' colours: the card's, under the operator's own)
+  const own = hero.palette || {}, card = withHeadgear({}, 'realistic', id).palette || {};
+  const tones = Object.fromEntries([W.group, W.gemGroup, W.trimGroup].filter(Boolean).map((g) => [g, own[g] ?? card[g]]).filter(([, v]) => v));
+  return { ...R, parts: { ...R.parts, ...H.parts }, palette: { ...(R.palette || {}), ...tones } };
+}
 /** An anime hero's LOOK stamp kept with its words: re-resolved only when the list changed (a re-tuned look word never
  * changes a stored row until its list is edited); an emptied or removed look drops its stamp. Anything else as given. */
 /** a worn object's ref read from this machine's sketches (hero-attach.js attachRecord): its manifest, or null */
@@ -1463,14 +1502,16 @@ export function heroRecord(spec, { staleScale = false } = {}) {
 /** The plan a hero record generates: the humanoid starter when it wears the landmark head (the default), the bare hero
  * form with a blank trunk (`head: 'none'`) or a baked include; the door's clips (`clips`) merged over its own, and the
  * stand (`gesture`) as its first clip. */
+/** The hero every pass of its plan reads: a sport's KIT (sportswear/kits.js) lowered first, into the dress, and the
+ * HEADGEAR word (headgear/wear.js) over it; then the STYLISM tuner, into the outfit (and an armour build's dials); then a
+ * statue's card, standing, stilling and draping the hero beneath its own words (statue/expand.js passes 1 and 2). Each
+ * absent ⇒ the hero as it is. */
+function dressedHero(hero) {
+  hero = styledHero(wornHero(hero));
+  return statueHero(hero, { female: femaleOf(hero), structured: (hero.core ?? DEFAULT_CORE) === 'structured' });
+}
 export function heroPlanOf(hero) {
-  // a sport's KIT (sportswear/kits.js) lowers first, into the dress every pass below reads, and the HEADGEAR word
-  // (headgear/wear.js) over it; absent ⇒ the hero as it is
-  hero = wornHero(hero);
-  // the STYLISM tuner resolves first, into the outfit (and an armour build's dials) every pass below reads; absent ⇒ the hero
-  hero = styledHero(hero);
-  // a statue's card stands, stills and drapes the hero beneath its own words (statue/expand.js passes 1 and 2)
-  hero = statueHero(hero, { female: femaleOf(hero), structured: (hero.core ?? DEFAULT_CORE) === 'structured' });
+  hero = dressedHero(hero);
   // the door's clips merge over the form's own (hero-gesture.js withHeroClips); the stand rides as a one-key `gesture`
   // clip listed first; the anime hero's default is read here, so a /hero/head switch takes it on or drops it; neither ⇒
   // the plan as it was
@@ -1492,24 +1533,31 @@ function designedPieces(plan, hero) {
   // (the card's own gear first, a team's kit, then the build's: outfit/expand.js outfitPieces)
   const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
-  const { worn } = sortPieces(plan, O);
-  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }, { rounds: bodyRoundsOf(hero) }) : plan;
+  const { worn } = sortPieces(plan, O, { once: true });
+  // (under the outfit laws the build was stamped with: outfit/principles.js, the pieces' own laws)
+  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn, ...(O.laws !== undefined ? { laws: O.laws } : {}) } }, { rounds: bodyRoundsOf(hero) }) : plan;
 }
 /** Which designed pieces sit on this body: each compiled alone, kept when every place it reads is a number on its part
  * (a piece built for a creature's landmarks may find none on a person's: a necklace's pin on a layered chest); the
- * rest are said (heroReadout), never dropped without a word. → { worn, unworn: [{ kind, why }] } */
-export function sortPieces(plan, O) {
-  const worn = [], unworn = [], before = plan.adorn?.length ?? 0;
+ * rest are said (heroReadout), never dropped without a word. `once`: on the plan the pieces are worn over, a piece whose
+ * thing the outfit already wears (the card's belt) is said and left off too. → { worn, unworn: [{ kind, why }] } */
+export function sortPieces(plan, O, { once = false } = {}) {
+  const worn = [], unworn = [], before = plan.adorn?.length ?? 0, taken = new Set(once ? (plan.adorn || []).map((A) => A.id) : []);
   const finite = (v) => (typeof v === 'number' ? Number.isFinite(v) : Array.isArray(v) ? v.every(finite) : v && typeof v === 'object' ? Object.values(v).every(finite) : true);
   const segOf = (n) => plan.segments.find((g) => g.name === n);
   for (const piece of O.pieces) {
     let c;
-    try { c = compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: [piece] } }); } catch (e) { unworn.push({ kind: piece.kind, why: e.message }); continue; }
+    try { c = compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: [piece], ...(O.laws !== undefined ? { laws: O.laws } : {}) } }); } catch (e) { unworn.push({ kind: piece.kind, why: e.message }); continue; }
     const added = c.adorn.slice(before), grown = c.segments.slice(plan.segments.length);
     const off = added.find((A) => !finite(A) || (A.mode === 'shell' && Array.isArray(A.s) && segOf(A.part)?.stations && A.s[1] > uOfStation(segOf(A.part).stations.at(-1), segOf(A.part).stations.length - 1)))
       ?? grown.map((g) => ({ id: g.name, g })).find(({ g }) => !finite(g) || (Array.isArray(g.stations) && g.stations.some((st) => !Array.isArray(st.at) || st.at.length !== 3 || st.r === undefined)));
-    if (off) unworn.push({ kind: piece.kind, why: `no place on this body for its ${off.id} yet (it was designed on a creature's landmarks)` });
-    else worn.push(piece);
+    // ONE OF EACH (`once`, on the plan the pieces are worn over): a piece the outfit already wears (the card's belt; a
+    // kit's, hero-dress.js) keeps the first, as a kit's belt keeps over an outfit's, and the second is said and left off,
+    // never refused at the rig gate as a name worn twice
+    const twice = once && added.find((A) => taken.has(A.id));
+    if (off) unworn.push({ kind: piece.kind, why: `its ${off.id} hangs on a creature's landmarks (a neck chain, a chest plate) that this body does not carry yet, so it is left off` });
+    else if (twice) unworn.push({ kind: piece.kind, why: `the outfit already wears a ${twice.id} (its card's, or an earlier piece's): that one is kept and this one left off` });
+    else { worn.push(piece); for (const A of added) taken.add(A.id); }
   }
   return { worn, unworn };
 }
@@ -1868,9 +1916,10 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const coreBands = { ...(formBodied(hero) ? FORM_BODY.coreBands[coreBody] : {}), ...(anime ? animeStyleOf(hero, castHeadPoleOf(hero))?.coreBands : {}) };
   const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody, Object.keys(coreBands).length ? coreBands : null) } : null;
   if (core && core.core === 'structured') warnings.push(...core.advice);
-  // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
-  const styledOutfit = styledHero(hero).outfit;
-  if (isOutfitBuild(styledOutfit) && outfitPieces(styledOutfit).length) for (const u of sortPieces(plan, { ...styledOutfit, pieces: outfitPieces(styledOutfit) }).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
+  // a designed piece with no place on this body, or one the outfit already wears, is said, never dropped without a word:
+  // sorted on the plan the pieces were worn over (designedPieces), so a worn piece is not read as worn twice
+  const dressed = dressedHero(hero), styledOutfit = dressed.outfit;
+  if (isOutfitBuild(styledOutfit) && outfitPieces(styledOutfit).length) for (const u of sortPieces(heroFormPlan(dressed), { ...styledOutfit, pieces: outfitPieces(styledOutfit) }, { once: true }).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
   const clips = clipsReadout(hero, recipe);
   const budget = heroBudget(plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);

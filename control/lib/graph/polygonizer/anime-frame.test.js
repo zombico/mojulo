@@ -13,8 +13,8 @@ const A21 = recipeOf({ head: 'anime' }), A20 = recipeOf({ head: 'anime', laws: 2
 
 describe('the anime frame', () => {
   it('is minted now, on the anime proportions\' structured core only', () => {
-    expect(HERO_LAWS_VERSION).toBe(22);
-    expect(heroRecord(withDefaultForm({ head: 'anime' })).laws).toBe(22);
+    expect(HERO_LAWS_VERSION).toBeGreaterThanOrEqual(22);   // (laws 23, 2026-11-14: the cloth on strings, read at the pack, over the frame)
+    expect(heroRecord(withDefaultForm({ head: 'anime' })).laws).toBe(HERO_LAWS_VERSION);
     expect(isAnimeFrame({ laws: 22, proportions: 'anime', core: 'structured' })).toBe(true);
     expect(isAnimeFrame({ laws: 21, proportions: 'anime', core: 'structured' })).toBe(false);
     expect(isAnimeFrame({ laws: 22, proportions: 'hero', core: 'structured' })).toBe(false);

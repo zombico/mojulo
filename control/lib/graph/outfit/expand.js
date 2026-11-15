@@ -75,7 +75,7 @@ export function validateOutfitBuild(build) {
   if (build.intent !== undefined && !(build.intent && typeof build.intent === 'object' && !Array.isArray(build.intent))) errs.push('outfit.intent: { palette: { base, secondary, trim, accent, leather? }, symmetry?, side?, distort? }');
   if (build.intent !== undefined && build.pieces === undefined) errs.push('outfit.intent: the intent of designed pieces; give outfit.pieces with it');
   for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws', 'detail', 'pieces', 'intent'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws, detail, pieces, intent)`);
-  if (build.laws !== undefined && build.laws !== OUTFIT_LAWS_VERSION) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws ${OUTFIT_LAWS_VERSION}`);
+  if (build.laws !== undefined && !(Number.isInteger(build.laws) && build.laws >= 1 && build.laws <= OUTFIT_LAWS_VERSION)) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws 1 … ${OUTFIT_LAWS_VERSION}`);
   return errs;
 }
 // a slot of another KIND (a skirt for trousers) replaces the card's, never merges with it: a trouser's fit or cut is no
@@ -123,6 +123,9 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // law 6 + 8: the finished edges' depth (torso and pelvis stations; a cuff a share of its piece), broader with stylize
   const EDGE = { hem: r6(0.16 * law.trim), waistband: r6(0.35 * law.trim), cuff: r6(0.07 * law.trim) };
   const easeOf = (fam) => FAMILIES[fam ?? 'woven'].ease * law.ease * k, hangOf = (fam) => FAMILIES[fam ?? 'woven'].ease * law.hang * k;
+  // (outfit laws 2: a piece on the trunk carries its cloth over the shoulder, into its sleeve's head or to an armhole on the
+  // shoulder point, on a body with shoulder forms, the tiered body's: body-garment.js `shoulder`; elsewhere it is no change)
+  const shoulderOf = (sleeved) => ((build.laws ?? OUTFIT_LAWS_VERSION) >= 2 ? { shoulder: sleeved ? 'sleeved' : 'sleeveless' } : {});
 
   // ── 1 CUT + 2 FIT: the pieces, their windows on landmarks, their ease and hang
   const tops = [], bottoms = [], shoes = [], lengths = {};
@@ -131,7 +134,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     const sleeve = lengths.sleeve = stepLength('sleeve', top.sleeve ?? 'short', dials.coverage), hem = lengths.hem = stepLength('hem', top.hem ?? 'hip', dials.coverage);
     // the finished edges carry rings of their own (law 6): the neckline's rib and, where the torso is the hem, the hem
     const tail = structured && (hem === 'hip' || hem === 'tunic'), t0 = hem === 'crop' ? 1.4 : 0;
-    tops.push({ id: 'top', part: 'torso', ...(hem === 'crop' ? { u: [1.4, 4], flare: [h * 0.5, 0] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(1.2 / law.hang), ...(tail ? {} : { rings: { u: [t0 + EDGE.hem] } }), group: 'Top' });
+    const sleeved = !!{ cap: 1, short: 1, elbow: 1, threeQuarter: 1, long: 1 }[sleeve];
+    tops.push({ id: 'top', part: 'torso', ...(hem === 'crop' ? { u: [1.4, 4], flare: [h * 0.5, 0] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(1.2 / law.hang), ...(tail ? {} : { rings: { u: [t0 + EDGE.hem] } }), group: 'Top', ...shoulderOf(sleeved) });
     if (tail) tops.push({ id: 'topTail', part: 'pelvis', u: [hem === 'tunic' ? 1.5 : 4, 6], ease: e, flare: [tuck ? 0 : h * 0.5, 0], rings: { u: [(hem === 'tunic' ? 1.5 : 4) + EDGE.hem] }, group: 'Top' });
     const arm = { cap: [0, 0.25], short: [0, 0.5], elbow: [0, 1], threeQuarter: [0, 1], long: [0, 1] }[sleeve];
     const fore = sleeve === 'threeQuarter' || sleeve === 'long' ? [0, sleeve === 'long' ? 0.92 : 0.5] : null;
@@ -170,7 +174,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   const vest = lang.waistcoat && top ? (lang.waistcoat === true ? {} : lang.waistcoat) : null, vests = [], vestEase = vest ? easeOf('woven') * 0.5 : 0;
   if (vest) {
     const e = easeOf(top.family ?? 'knit') + vestEase;
-    vests.push({ id: 'vest', part: 'torso', ease: e, over: ['pectoral', 'bust', 'navel'], group: 'Waistcoat' });
+    vests.push({ id: 'vest', part: 'torso', ease: e, over: ['pectoral', 'bust', 'navel'], group: 'Waistcoat', ...shoulderOf(false) });
     if (structured) vests.push({ id: 'vestTail', part: 'pelvis', u: [4.6, 6], ease: e * 1.1, rings: { u: [4.6 + EDGE.hem] }, group: 'Waistcoat' });
   }
   // an OUTER layer over both (law 4): more ease than what it covers; to the hip or the tunic's length it is a body and a
@@ -179,7 +183,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   if (outer) {
     const fam = outer.family ?? 'woven', e = easeOf(fam) * 1.5 + (top && top.fit !== 'skin' ? easeOf(top.family ?? 'knit') : 0) + vestEase, h = hangOf(fam);   // over a second skin, nothing to clear
     const sleeve = lengths.outerSleeve = stepLength('sleeve', outer.sleeve ?? 'none', dials.coverage), hem = lengths.outerHem = stepLength('coat', outer.hem ?? 'hip', dials.coverage);
-    outs.push({ id: 'outer', part: 'torso', ...(hem === 'waist' ? { u: [1.4, 4] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(1 / law.hang), ...(hem === 'waist' ? { rings: { u: [1.4 + EDGE.hem] } } : {}), group: 'Outer' });
+    const sleeved = !!{ cap: 1, short: 1, elbow: 1, threeQuarter: 1, long: 1 }[sleeve];
+    outs.push({ id: 'outer', part: 'torso', ...(hem === 'waist' ? { u: [1.4, 4] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(1 / law.hang), ...(hem === 'waist' ? { rings: { u: [1.4 + EDGE.hem] } } : {}), group: 'Outer', ...shoulderOf(sleeved) });
     if (structured && (hem === 'hip' || hem === 'tunic')) outs.push({ id: 'outerTail', part: 'pelvis', u: [hem === 'tunic' ? 1.5 : 4, 6], ease: e * 1.25, flare: [h, 0], rings: { u: [(hem === 'tunic' ? 1.5 : 4) + EDGE.hem] }, group: 'Outer' });
     const to = { knee: { part: 'thigh', run: 1 }, midi: { part: 'shank', run: 0.5 }, maxi: { part: 'shank', run: 0.9 } }[hem];
     // over a skirt, the coat's skirt clears it: its flare at least the skirt's and its ease beyond the skirt's (two hulls
