@@ -282,6 +282,19 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
 - **The interface's look on the HUD** (`playscape/ui/interface-look.js`: the action RPG is `storybook`): the HUD
   grammar is drawn in the game's look, the world's palette on it (`events.grammar.theme`), the hearts large in its
   accent on no plate, each slot its thing's icon (`playscape/ui/item-icons.js`).
+- **Its screens in the same look** (`gameworld/compose.js`: a world map's game has an interface, an empty `ui`): the
+  play shell's screens (the levels, a result, the options, the loading) are mana-ui's in the game's look, as its HUD
+  is. And **the pause is one of them** (`game/play-shell-mana.js` `pause`, any game with a `ui`): resume, restart, the
+  controls the level lists (each a control and what it does), the options, the way out; backing out of it resumes.
+  A game without a `ui` keeps the shell's own panel.
+- **The HUD after a play** (the operator's notes): the actions are one row of icons at the bottom (the weapon, the
+  sidearm, the item, the guard, the sprint, the lock, each on its control), and no reminder text is drawn: a lesson's
+  line and a fight's keys are what the row shows. The compass has no box: its marks and the objective stand on the
+  world, white with a dark edge. A step is softer again (STEP_GAIN 0.15). Her blows leave no trail (a genre row's
+  `juice: { trail: 0 }`). Her game fills its window whatever its shape (a row's `screen: 'fill'`: no frame written, so
+  no bars). The viewer's strip (the view cams, wireframe, fly and walk, reverse view, the AI switch) and its corner
+  hint are not shown on a page with a HUD grammar, however the page is opened. The game's `ui` is carried into the made game (`mcp/tools/create-game.js`, `design-game.js`: it was
+  dropped at the mint and at a remake, so a world's interface never reached its shell).
 - Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
   does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
   hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's marked slot is always the weapon; the bag's menu is still the old menu layer's (not mana-ui's, not in the game's look) and the quick item and the bag have no pad control; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's

@@ -531,7 +531,7 @@ export function playShellRuntime(cfg, K) {
     const d = e.data;
     if (!d || !session || e.source !== frame.contentWindow) return;
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
-    if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
+    if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused && !MANA) renderPause(); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
     if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
@@ -619,9 +619,11 @@ export function playShellRuntime(cfg, K) {
   function setPaused(on, by) {
     paused = on;
     pauseBy = on ? by || null : null;
-    pauseEl.style.display = on ? 'flex' : 'none';
+    // (with mana-ui the pause is its screen, in the game's look: play-shell-mana.js; else the shell's own panel)
+    const owner = on && pauseBy && seatList.find((x) => x.controller === pauseBy);
+    if (MANA) MANA.pause(on, ctlRows, owner ? owner.label : null); else pauseEl.style.display = on ? 'flex' : 'none';
     if (screen === 'level') post({ moj: W.pause, on });
-    if (on) renderPause();
+    if (on && !MANA) renderPause();
   }
   function renderPause(view) {
     pauseEl.textContent = '';
@@ -797,6 +799,8 @@ export function playShellRuntime(cfg, K) {
     reset: () => { resetStore(); persist(); },
     levels: () => LEVELS.map((lv) => ({ ref: lv.ref, title: lv.title, open: isOpen(lv), cleared: cleared(lv.ref), lock: isOpen(lv) ? null : lv.gate && !K.evalGate(SCHEMA, state, lv.gate) ? needs(lv.gate) : 'not found yet' })),
     result: resultInfo, run: runInfo,
+    // (the pause's ways out: play-shell-mana.js pause)
+    resume: () => setPaused(false), restart: () => { setPaused(false); launch(session.level); }, quit: () => { setPaused(false); session = null; home(); }, homeWord,
   }) : null;
 
   // ---- the flow runner ----

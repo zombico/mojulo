@@ -41,11 +41,18 @@ export function levelGrammar(G, mechanics = [], { places = null, quick = null, t
   const A = arsenalOfGame(G)?.arsenal ?? null, side = A?.ranged?.[0] ?? null;
   const M = Object.fromEntries(inputMap({ moveset: !!A, sidearm: side?.name?.toLowerCase() ?? null, interact: true }).map((r) => [r.id, r]));
   const key = (id) => (M[id] ? { ...(M[id].keys ? { keys: M[id].keys } : {}), ...(M[id].pad ? { pad: M[id].pad } : {}) } : {});
+  const M2 = Object.fromEntries(inputMap({ moveset: !!A, sprint: true, lock: true }).map((r) => [r.id, r]));
+  const key2 = (id) => (M2[id] ? { ...(M2[id].keys ? { keys: M2[id].keys } : {}), ...(M2[id].pad ? { pad: M2[id].pad } : {}) } : {});
   const slots = A ? [{ id: 'weapon', name: A.weapons[0]?.name ?? 'Weapon', ...key('light') }, ...(side ? [{ id: 'sidearm', name: side.name, ...key('special') }] : [])] : [];
   // (the item on the quick key, inventory.js: its count the bag's own var; a game with no bag, what the level collects,
   // each a slot counted by the level's var of its label)
   if (quick) slots.push({ id: 'item', name: quick.name, keys: quick.key, var: quick.var, ...(quick.icon ? { icon: quick.icon } : {}) });
   else for (const m of mechanics) if (m && m.kind === 'collect') for (const it of [...new Set((m.pickups ?? []).map((p) => p.item).filter((x) => typeof x === 'string'))].slice(0, 2)) slots.push({ id: `item:${it}`, name: it[0].toUpperCase() + it.slice(1), label: it });
+  // (what the body does, after what it holds: the guard, the sprint, the lock, each an icon on its control; said
+  // here so no line of reminder text is needed on the screen)
+  if (A) slots.push({ id: 'guard', name: 'Guard', icon: 'shield', ...key2('guard') });
+  slots.push({ id: 'sprint', name: 'Sprint', icon: 'dash', ...key2('boost') }, { id: 'lock', name: 'Lock on', icon: 'target', ...key2('lock') });
+  slots.splice(6);
   const exit = mechanics.find((m) => m && m.kind === 'reach-exit' && Array.isArray(m.at));
   const held = exit?.holds || mechanics.some((m) => m && m.kind === 'defeat-all');
   return { hearts: { var: 'hp', per, max }, slots, ...(theme ? { theme } : {}), ...(places?.length ? { places } : {}), ...(exit ? { goal: [exit.at[0], exit.at[1]] } : {}), objective: held ? 'Defeat the foes that hold the way' : 'Follow the way on' };

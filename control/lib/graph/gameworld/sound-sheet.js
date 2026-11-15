@@ -329,7 +329,7 @@ export function variesHits(G) {
 /** The level's audio word for the sheet (beats-world.js resolves `sfx: { sheet }`): what the shelf plays each slot and cue by. */
 /** How loud a step is played beside the game's other sounds (a share of a cue's own level): it sounds twice a stride
  * for as long as the hero moves, so at a blow's level it is all a player hears. A game's own: `sound.steps`. */
-export const STEP_GAIN = 0.35;
+export const STEP_GAIN = 0.15;
 export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
   const space = levelSpace(G, opts);

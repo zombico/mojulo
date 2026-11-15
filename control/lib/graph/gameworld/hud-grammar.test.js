@@ -19,7 +19,9 @@ describe('a level\'s HUD grammar', () => {
     const g = levelGrammar(G, MECH);
     expect(g.hearts).toEqual({ var: 'hp', per: 2 * HEART_HITS, max: 5 });
     const M = Object.fromEntries(inputMap({ moveset: true, sidearm: 'bow' }).map((r) => [r.id, r]));
-    expect(g.slots.map((s) => s.id)).toEqual(['weapon', 'sidearm', 'item:healing draught']);
+    // (what it holds, then what the body does: each an icon on its control, so no reminder text is needed)
+    expect(g.slots.map((s) => s.id)).toEqual(['weapon', 'sidearm', 'item:healing draught', 'guard', 'sprint', 'lock']);
+    expect(g.slots.find((s) => s.id === 'sprint')).toMatchObject({ icon: 'dash', keys: 'F' });
     expect(g.slots[0]).toMatchObject({ keys: M.light.keys, pad: M.light.pad });
     expect(g.slots[1]).toMatchObject({ name: 'Bow', keys: M.special.keys, pad: M.special.pad });
     expect(g.goal).toEqual([70, -36]);
@@ -65,7 +67,7 @@ describe('a level\'s HUD grammar', () => {
     expect(inv.quick).toMatchObject({ item: 'healing draught', var: 'held:bag:healing-draught', key: 'X', icon: 'potion' });
     expect(bagStart(G)).toEqual({ 'healing draught': 1 });
     const g = levelGrammar(G, MECH, { quick: inv.quick });
-    expect(g.slots.at(-1)).toMatchObject({ id: 'item', keys: 'X', var: 'held:bag:healing-draught', icon: 'potion' });
+    expect(g.slots.find((s) => s.id === 'item')).toMatchObject({ keys: 'X', var: 'held:bag:healing-draught', icon: 'potion' });
     expect(rowInventory({ intent: { from: 'no-such-genre' } }, MECH)).toBe(null);
     expect(bagStart({ intent: { from: 'no-such-genre' } })).toBe(null);
   });
@@ -84,6 +86,6 @@ describe('a level\'s HUD grammar', () => {
     const js = hudGrammarScript(levelGrammar(G, MECH));
     expect(js).toContain('__mojGuide.view');
     // (the parts it stands in for are hidden beside it)
-    for (const c of ['.moj-w-legend', '.moj-c-radar', '.moj-c-gauge', '.moj-hud-top-left']) expect(js).toContain(c);
+    for (const c of ['.moj-w-legend', '.moj-c-radar', '.moj-c-gauge', '.moj-hud-top-left', '.hud,.hint']) expect(js).toContain(c);
   });
 });

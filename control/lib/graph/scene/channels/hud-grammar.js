@@ -7,9 +7,10 @@
  *   top           NAVIGATION  a compass strip (the camera's heading), the goal's bearing on it, under it the objective in
  *                             a line with its distance, and THE CARD LANE: what the level says (its opening, a line
  *                             said, a way held), one at a time on mana-ui's moment queue
- *   bottom        THE PROMPT  the keys at hand (a lesson, a fight's own keys): each a control and what it does
- *   bottom-right  THE ACTIONS what each button does now: the weapon in hand, the sidearm, the item held with its count,
- *                             each under the control of the device in hand (keys, or a pad once one has spoken)
+ *   bottom        THE ACTIONS what each button does, a row of icons and never words: the weapon in hand, the sidearm,
+ *                             the item held with its count, the guard, the sprint, the lock, each under the control of
+ *                             the device in hand (keys, or a pad once one has spoken). The level's key reminders (a
+ *                             lesson's line, a fight's keys) are not drawn: the row is what they pointed at
  *
  * The page is its host: each frame it reads the bus's vars (events.js `window.__mojBus`) and the pilot
  * (controllable/index.js `window.__mojCtrl`) into the state mana-ui draws, and takes no input (a HUD never has the focus).
@@ -64,24 +65,23 @@ export function hudGrammarSpec(g) {
       { use: 'compass', props: { heading: B('heading'), markers: B('markers') } },
       { use: 'text', props: { value: B('objective'), role: 'label' }, when: B('objective') },
       { use: 'moments', props: { rows: B('moments'), as: 'toast' } },
-    ] }]),
-    region('bottom', [{ use: 'each', props: { dir: 'row', rows: B('prompts'), row: { use: 'prompt', props: { glyph: I('glyph'), label: I('label') } } } }], { when: B('prompting') }),
-    ...(G.slots.length ? [region('bottom-right', [{ use: 'each', props: { dir: 'row', rows: B('slots'), row: { use: 'slot', props: { name: I('name'), key: I('key'), count: I('count'), active: I('active'), disabled: I('disabled') } } } }], {}, true)] : []),
+    ] }], {}, true),
+    ...(G.slots.length ? [region('bottom', [{ use: 'each', props: { dir: 'row', rows: B('slots'), row: { use: 'slot', props: { name: I('name'), key: I('key'), count: I('count'), active: I('active'), disabled: I('disabled') } } } }], {}, true)] : []),
   ] } };
 }
 
 // (what it stands in for is not shown beside it; the layer over the canvas, taking no pointer)
 const HOST_CSS = '.moj-hg{position:absolute;inset:0;pointer-events:none;z-index:7}.moj-hg .mana-root{background:none}'
-  + '.moj-hud-top-left,.moj-w-legend,.moj-c-radar,.moj-c-gauge{display:none!important}';
+  + '.moj-hud-top-left,.moj-w-legend,.moj-c-radar,.moj-c-gauge{display:none!important}'
+  // (a game's page shows no viewer's strip (the view cams, wireframe, fly and walk, reverse view, the AI switch) and no
+  // corner hint, however it is opened: their keys still answer)
+  + '.hud,.hint{display:none!important}';
 
 /** The page's side (inlined by toString): the state, the runtime mounted, a frame's read of the bus and the pilot. */
 export function hudGrammarPage(cfg, ui, spec, css) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-hg'; (document.getElementById('wrap') || document.body).appendChild(root);
-  const S = { hud: { hearts: cfg.hearts.max, heartsMax: cfg.hearts.max, stamina: 100, spent: false, heading: 0, markers: [], objective: cfg.objective || '', slots: [], moments: [], prompts: [], prompting: false } };
-  // (a key line, 'F F  dodge · F  sprint': each part its control before the double space, the rest what it does)
-  // (a note after a key's words was the old line's, 'the green bar is your stamina': the HUD shows what it pointed at)
-  const promptsOf = (lines) => { const out = []; for (const line of lines) for (const part of String(line).split(' · ')) { const i = part.indexOf('  '); if (i < 0) { if (!out.length) out.push({ glyph: '', label: part }); } else out.push({ glyph: part.slice(0, i), label: part.slice(i + 2) }); } return out; };
+  const S = { hud: { hearts: cfg.hearts.max, heartsMax: cfg.hearts.max, stamina: 100, spent: false, heading: 0, markers: [], objective: cfg.objective || '', slots: [], moments: [] } };
   const WEIGHT = { intro: 'major', held: 'normal', say: 'normal' };
   let said = '', nth = 0, view = null, place = '';
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
@@ -116,8 +116,6 @@ export function hudGrammarPage(cfg, ui, spec, css) {
     if (me && cfg.places) { const x = me.transform.pos[0], y = me.transform.pos[1], at = cfg.places.find((p) => x >= p.box[0] && x < p.box[2] && y >= p.box[1] && y < p.box[3]); if (at && at.name !== place) { place = at.name; S.hud.moments = S.hud.moments.concat([{ id: 'p' + (++nth), text: at.name, weight: 'major' }]).slice(-6); } }
     if (GV) {
       S.hud.objective = GV.goal ? GV.goal.say + (Number.isFinite(GV.goal.d) ? ' · ' + GV.goal.d + ' m' : '') : (GV.mode === 'way' ? GV.text : '');
-      const keys = GV.mode === 'keys' ? promptsOf(GV.keys) : [];
-      if (JSON.stringify(keys) !== JSON.stringify(S.hud.prompts)) { S.hud.prompts = keys; S.hud.prompting = keys.length > 0; }
       // (a line said, the opening, a way held: each a card once, on the queue)
       const card = WEIGHT[GV.mode] ? GV.mode + ':' + GV.text : '';
       if (card && card !== said) S.hud.moments = S.hud.moments.concat([{ id: 'g' + (++nth), text: GV.text, weight: WEIGHT[GV.mode] }]).slice(-6);
@@ -131,19 +129,29 @@ export function hudGrammarPage(cfg, ui, spec, css) {
   return { state: S, rt };
 }
 
+// (icons the item set has none for: the sprint, the lock, the guard is its shield)
+const OWN_ICONS = Object.freeze({
+  dash: '<path d="M4 6l6 6-6 6M11 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  target: '<circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>',
+});
 // THE DRESS over the theme: the hearts large, in the theme's accent, on no plate (the world behind them); each slot its
 // thing's icon (playscape/ui/item-icons.js, by its `icon` or its name's words) in the theme's ink, its letters not drawn
 const uri = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 function dressCss(G) {
   const T = readTheme(G.theme ?? 'greybox').tokens, ink = T.ink, heart = T.accent;
-  const icon = (id) => iconSvg(id).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').split('currentColor').join(ink).split('var(--moj-icon-line,rgba(0,0,0,.55))').join(ink).split('stroke-width="1.2"').join('stroke-width="1.6"')
+  const svgOf = (id) => (OWN_ICONS[id] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${OWN_ICONS[id]}</svg>` : iconSvg(id));
+  const icon = (id) => svgOf(id).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').split('currentColor').join(ink).split('var(--moj-icon-line,rgba(0,0,0,.55))').join(ink).split('stroke-width="1.2"').join('stroke-width="1.6"')
     // (an attribute said twice is an error in an image's XML, where a page's HTML forgave it: the first stands)
     .replace(/(<[a-z]+\b[^>]*?\sstroke-width="[^"]*"[^>]*?)\sstroke-width="[^"]*"/g, '$1');
   return [
     // (a plateless place has no frame of the theme's either: its parts are their own)
     '.moj-hg .mana-region[data-variant=bare],.moj-hg .mana-region[data-variant=bare]::before,.moj-hg .mana-region[data-variant=bare]::after{border:0!important;outline:0!important;background:none!important;box-shadow:none!important}',
+    // (the compass no box of its own: its marks on the world, haloed)
+    '.moj-hg .mana-compass{background:transparent!important;border:0!important;box-shadow:none!important;border-bottom:2px solid rgba(255,255,255,.85)!important}'
+      + '.moj-hg .mana-compass *,.moj-hg .mana-region[data-variant=bare] .mana-text{color:#fff!important;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 5px rgba(0,0,0,.8),0 0 10px rgba(0,0,0,.45)!important}'
+      + '.moj-hg .mana-region[data-variant=bare] .mana-text{font-size:17px;letter-spacing:.2px}',
     `.moj-hg .mana-pips[data-shape=heart] .mana-glyphs{color:${heart};font-size:34px;letter-spacing:3px;text-shadow:0 1px 0 rgba(255,255,255,.55),0 2px 6px rgba(0,0,0,.45)}`,
-    ...G.slots.map((s) => { const id = s.icon && ICONS[s.icon] ? s.icon : iconFor({ key: s.name.toLowerCase(), name: s.name }); return id && ICONS[id] ? `.moj-hg .mana-slot[title=${JSON.stringify(s.name)}] .mana-icon{color:transparent;width:70%;height:70%;background:${uri(icon(id))} center/contain no-repeat}` : ''; }),
+    ...G.slots.map((s) => { const id = s.icon && (ICONS[s.icon] || OWN_ICONS[s.icon]) ? s.icon : iconFor({ key: s.name.toLowerCase(), name: s.name }); return id && (ICONS[id] || OWN_ICONS[id]) ? `.moj-hg .mana-slot[title=${JSON.stringify(s.name)}] .mana-icon{color:transparent;width:70%;height:70%;background:${uri(icon(id))} center/contain no-repeat}` : ''; }),
   ].filter(Boolean).join('\n');
 }
 

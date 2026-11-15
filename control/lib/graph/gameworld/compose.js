@@ -36,6 +36,7 @@ import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { arsenalFor } from './combos.js';
+import { GENRE_HERO } from './hero-rows.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
@@ -578,6 +579,15 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // weapons, their strings and specials, and its sidearm (the action-adventure's sword, its three cuts and its spin,
   // and the bow); a feel with no kit, the hero's one blow as before
   if (world.brief.worldMap && world.feel !== undefined && world.arsenal === undefined && arsenalFor(world.feel)) world.arsenal = 'auto';
+  // ITS GENRE'S OWN (hero-rows.js): the juice's dials its row turns (a hero whose blows leave no trail), and a game
+  // that fills its window (`screen: 'fill'`: no frame written, so no bars on a window of another shape)
+  const row = genre ? GENRE_HERO[genre.id] : null;
+  if (row?.juice && world.juice === 'auto') world.juice = { ...row.juice };
+  if (row?.screen === 'fill') delete world.screen;
+  // HOW ITS SCREENS LOOK (playscape/ui/interface-look.js): a world map's game has an interface (an empty `ui`: its look
+  // the world's, by its intent, its colours the world's palette), so the play shell's screens are mana-ui's in that look
+  // (game/play-shell-mana.js) as its HUD is; a game with no map keeps the shell's own screens
+  if (world.brief.worldMap && world.ui === undefined) world.ui = {};
   if (world.brief.worldMap) { world.sound = {}; world.music = {}; world.brief.audio = 'on the sound sheet and scored from the cue sheet: its sounds and its music solved from the game, the interface\'s sounds its own'; }
   world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
   readGameworld(world);

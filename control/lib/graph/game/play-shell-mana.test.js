@@ -37,7 +37,8 @@ describe('the play shell\'s screens in mana-ui', () => {
     const plain = emit({ front: {} }), drawn = emit({ front: {}, ui: { theme: 'grim' } });
     for (const marker of ['__manaUi', '.mana-root', '__manaHostK']) { expect(plain).not.toContain(marker); expect(drawn).toContain(marker); }
     expect(drawn).not.toContain('const __mojFront = (');  // the front's words are mana-ui's to draw
-    expect(Object.keys(shellManaSpec().screens)).toEqual(['attract', 'title', 'levels', 'options', 'credits', 'end', 'result', 'loading']);
+    // (the pause over a level and the level's controls are its screens too)
+    expect(Object.keys(shellManaSpec().screens)).toEqual(['attract', 'title', 'levels', 'options', 'credits', 'end', 'result', 'pause', 'controls', 'loading']);
   });
 
   it('the title\'s menu starts the first level over a loading screen that goes once the level is drawn; its result says what next', async () => {
