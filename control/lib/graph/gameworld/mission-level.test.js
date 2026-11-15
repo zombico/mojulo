@@ -167,3 +167,15 @@ describe('the era a mission is read in', () => {
     expect(missionCube({ style: { geocube: sixth } })).toEqual(sixth);
   });
 });
+
+// A WAVE IS SENT TO THE FIGHT: one mission a case. The concept: the foes a hold wakes know where the body is (no
+// perception: they path to it), the foes of a clear keep their class's sight and memory (they are found).
+describe('the minds a mission wakes', () => {
+  it('sends a hold\'s waves to the fight, and leaves a clear\'s foes to their own sight and memory', () => {
+    const { manifest, mission } = missionLevel(WORLD), by = Object.fromEntries(manifest.entities.map((e) => [e.id, e]));
+    const hold = mission.sections.find((S) => S.task.kind === 'hold'), clear = mission.sections.find((S) => S.task.kind === 'clear');
+    expect(hold.foes.length).toBeGreaterThan(0);
+    for (const f of hold.foes) { expect(by[f.id].rule.mind.perception).toBeUndefined(); expect(by[f.id].rule.mind.pathing).toBe('navmesh'); }
+    for (const f of clear.foes) expect(by[f.id].rule.mind.perception).toBe('memory');
+  });
+});

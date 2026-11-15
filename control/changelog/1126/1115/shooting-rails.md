@@ -125,3 +125,7 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   bus; played on its resolved page, where the gunner wins a warehouse and an armoury and the hold's waves never come.
   Fixed on the way: a gallery's doorway over a ground-floor doorway on the same span was walled by the lower one's lintel
   and walled the lower one with its own sill, so neither could be walked through.
+- **A hold's waves come to the fight.** A hunter knows a target by sight and memory, so a wave woken out of sight had
+  seen no one and stood where it was put: on a map or in a building the hold was a clock. The foes a hold wakes are now
+  sent: a mind with no perception knows where the body is and paths to it. A clear's foes keep their sight and memory.
+  Measured headless on the court map: none of nine moved before, all nine after. They keep to the floor they wake on.

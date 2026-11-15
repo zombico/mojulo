@@ -89,6 +89,12 @@ mechanic card.
   ask yet.
 - **The foes:** hunters, each a body of the range's own health, so the rounds the range counted to drop a body are the
   rounds a foe takes. Dormant on their spots until their section is walked into.
+- **Their minds** (the cosmos cube's mind facet, run by the engine's mind): the foes of a clear keep their class's
+  sight and memory, so they are found where they stand and hunt what they have seen. The foes a hold wakes are sent to
+  the fight: a mind with no perception knows where the body is and paths to it round what stands in its way. A hunter
+  woken out of sight has seen no one and stood where it was put: on the court map none of a hold's nine moved, and sent
+  all nine came (up to 28 m), on the headless run. A mind's path is one floor at the body's height unless it is given
+  the floors and their flights (`rule.floors`); a mission gives none yet, so a wave comes on the floor it wakes on.
 - **The hp and the floor:** the level's own hp (`fail-on-death`), rounds and health to walk over (`supplies`).
 - **The ground:** greybox. Each section's floor in its own value, the firing lines and the exit marked.
 

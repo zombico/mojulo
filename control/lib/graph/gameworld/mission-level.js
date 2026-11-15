@@ -177,6 +177,11 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   const tune = { ...SHOOT_TUNE, body: { ...SHOOT_TUNE.body, hp: MISSION_HP.foe } };
   let n = 0;
   for (const S of M.sections) for (const f of S.foes) standFoe(null, part, { id: f.id, entry: SHOOT_FOE, at: f.at.slice(), heading: f.heading }, { figure: pool ? libraryFigure(pool[n++ % pool.length]) : standIn(), tune, more: { dormant: true } });
+  // A WAVE IS SENT TO THE FIGHT: the foes a hold wakes know where the body is (the mind with no `perception`: the arena's
+  // brain, worlds/controllable/mind.js) and path to it, where a hunter by sight and memory woken out of sight has seen
+  // no one and stands where it was put. The foes of a clear keep their class's sight and memory: they are found
+  const sent = new Set(M.sections.filter((S) => S.task.kind === 'hold').flatMap((S) => S.foes.map((f) => f.id)));
+  for (const e of entities) if (sent.has(e.id) && e.rule?.mind?.perception) { const { perception: _p, ...mind } = e.rule.mind; e.rule = { ...e.rule, mind }; }
   // (a map's ladders: the runtime's climbs, arena-map/ground.js)
   if (M.climbs?.length) entities.push(...structuredClone(M.climbs));
   // (a hero's guns are fired from its eye over its feet, and over its shoulder they converge on the crosshair: the kit's
