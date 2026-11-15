@@ -31,5 +31,10 @@
   read as before.
 - **The map designer draws the cliffs.** The world map in miniature and its greybox model (level/worldmap-view.js,
   worldmap-model.js) read the same scarps the pages lay, so a map is looked at with its cliffs before it is built.
+- **A map is looked at before it is made.** A gameworld's planned map is served in miniature as a book
+  (`/api/sketches/<ref>/bible?book=map[&level=<id>]`, gameworld/map-designer.js): its blocks, ways, side ways, heights,
+  cliffs and beats from the recipe alone, no tile built. `design_game`'s `worldmap` step carries it as `look`, and the
+  next-moves card says to open it and show the creator first, before a block is written or a page built, and after each
+  change; the card's ceiling moves 4864 → 5120.
 - **Measured:** a zone's page of the world map is heavier for its bigger blocks: the goal's zone 42 tiles (25 its own)
   and about 217,000 faces, where it was 20 tiles and about 89,000.

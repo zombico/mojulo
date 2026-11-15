@@ -73,6 +73,8 @@ describe('the rail\'s cards', () => {
     // 4543 with them)
     // gameworld-next 4864 (2026-11-12, 1111-design-code-rail-alignment: the first slice's room and a world map's blocks,
     // two steps the rails now say)
+    // gameworld-next 5120 (2026-11-15, 1115-geocube-refinements: a world map is looked at in the map designer before a
+    // block is written or a page built: the step's `look`, two lines)
     // gameworld-foes 5248 (2026-11-13, 1113-rpg-world-inhabiting: a people's `gear`, what its hands carry, one line,
     // and the goblin joining the peoples the card lists from the table; 5108 bytes before, 5226 with them)
     // gameworld-foes 5632 (2026-11-13, 1113-rpg-world-inhabiting: a kin's `body`, `adorned` and `pack`, three lines, and
@@ -84,7 +86,7 @@ describe('the rail\'s cards', () => {
     // creator brings, the level turn as most games and the open world as the exception, four lines; 4086 bytes before,
     // 4472 with them; 4608 the same day for the seats, one line naming the director, the assistant director and the
     // producer: 4594)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 5120, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

@@ -15,6 +15,7 @@ import { FOE_CLASSES } from '../foes/index.js';
 import { SIGHTS } from '../mind/vocab.js';
 import { FLOW_IN_PLAY, readFlow, walkFlow } from '../game/flow.js';
 import { runSteps } from './runner.js';
+import { gameworldMapHtml, plannedMaps } from './map-designer.js';
 
 const lawsOf = (level) => {
   const g = level.glyphs, G = readGrid({ tile: g.tile, plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) }, 'grid');
@@ -156,6 +157,16 @@ describe('the world map', () => {
     expect(D.topology).toBeUndefined();
     expect(Object.values(D.levels).every((l) => l.walk || l.building)).toBe(true);
   });
+  it('is looked at before it is built: the map designer draws it in miniature from its recipe, side ways and all', () => {
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
+    const [id] = plannedMaps(W), html = gameworldMapHtml(W), P = W.levels[id].glyphs.plan;
+    expect(Object.keys(W.levels)).toEqual([id]);
+    for (const S of P.route) expect(html, S).toContain(P.key[S].name);
+    expect(html).toContain('A band holds the short way');
+    expect(() => gameworldMapHtml(W, { level: 'nowhere' })).toThrow(/no planned map of this world/);
+    expect(() => gameworldMapHtml({ levels: { a: { walk: {} } } })).toThrow(/no level of this world is a planned map/);
+  });
+
   it('the game made of it starts in play: its flow an opening cutscene\'s empty slot, then its first page, no screen before', () => {
     const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
     const game = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'game').order, refs = game.levels.map((l) => l.ref);
