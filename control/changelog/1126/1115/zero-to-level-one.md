@@ -11,5 +11,12 @@
   the work of a first session runs from the idea to its first level: who is in it, what the player does again and
   again, the level built, how it feels, and a game that loads it and leads to the next one. Most games are made of
   levels played this way; an open world is made differently, and the guidance says so.
-- Designed, not built yet: one step that reads your material and reports which of the game's first decisions it
-  already answers.
+- **What you brought is kept on the game.** When a game is started the agent is now asked, once, what you brought.
+  Each drawing, map, document, piece of lore or set of rules is recorded with what it says and where it went, or why
+  it has no place yet; nothing is quietly dropped. The game then says which of its first decisions your material
+  already answered and which are still open, so you are not asked again what a document already said. Bringing
+  nothing is an answer too. A quick one-level game and a game made from one sentence are not asked.
+- **A producer beside the director.** The agent's guidance now names three seats on a game: the director decides,
+  the assistant director holds each piece of work to what was asked, and the producer runs the work (what was
+  brought, what is open, what is next). The producer never chooses between two looks: what is unclear is listed and
+  asked.

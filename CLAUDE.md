@@ -36,7 +36,10 @@ results: `game/turn.js`, mana-ui drawing it) is most games and the default to bu
 open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered four starts
 (a character, a game, an object, a 3D exhibit) by the `initialize` preamble; for a game the agent expects
 attachments (drawings, plans, docs) and knows what to do with each, where it would otherwise guess from the start;
-the loop runs on what is missing.
+the loop runs on what is missing. That step is the producer's ([intake.js](control/lib/graph/gameworld/intake.js), the
+`gameworld-producer` card: the seat that runs the work beside the director, who decides, and the assistant director,
+who holds a unit to its remit): a gameworld's `intake` records each thing brought as placed or set aside, never
+dropped, and the readout says which goalposts it answered. A new kind of material is a row of `INTAKE_KINDS`.
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
 open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
