@@ -19,8 +19,9 @@
  *                                  storeys, floorH, use: 'residential' | 'office' | 'mixed', ground: 'shops' | 'entries'
  *                                  | 'lobby' | 'windows' | 'none', windows?: false (its ground only), balconies?: true,
  *                                  palette: { frame, shop, sign, awning, door, rail } (lists of hex), frames? (the
- *                                  windows' baked paints: a window its frame's variant), open?: true (its shops
- *                                  OPEN, each walked into: wider bays, no leaf in its door) }; R its dice
+ *                                  windows' baked paints: a window its frame's variant), open?: true | [a bay's
+ *                                  place along it…] (its shops OPEN, each or those named walked into: wider bays, no
+ *                                  leaf in an open one's door) }; R its dice
  *   shopBays(L, ground, least?)    → { lob, bays: [{ u, w }] }: a wall's shops as its front lays them
  *   TINT(hex)                      a paint as an instance's tint (linear rgb)
  *
@@ -33,9 +34,9 @@ export const FACINGS = Object.freeze({ s: [0, -1], n: [0, 1], e: [1, 0], w: [-1,
 export const FRONTAGE = Object.freeze({
   bay: { residential: 3.4, office: 3.0, mixed: 3.2 },
   // a storefront's nominal width and storey (its template's; each stretched to its share of the wall and its storey)
-  // (its door, in its template: its middle from the shop's, its width, its head; an OPEN shop's bay, `open`, at least
-  // `enter` wide: it holds a store, retail/store-slot.js)
-  shop: { w: 5, h: 4, least: 4.2, awning: 0.45, door: { u: 1.725, w: 0.95, h: 2.45 }, enter: 6.2 },
+  // (its door, in its template: its middle from the shop's, its width, its head; an OPEN shop's door's head, `open`,
+  // and its bay at least `enter` wide: it holds a store, retail/store-slot.js)
+  shop: { w: 5, h: 4, least: 4.2, awning: 0.45, door: { u: 1.725, w: 0.95, h: 2.45 }, open: { h: 2.8 }, enter: 6.2 },
   lobby: { w: 6, h: 4.5 },
   entry: { every: 18, w: 2.6 },
   balcony: { share: 0.45 },
@@ -95,7 +96,8 @@ const PIECES = {
   // a band along a wall (a cornice, a band over its shops): a unit box, stretched along the wall and in its height
   band: [B(0, 1, 0, 0.4, 0, 0.5, 'band')],
 };
-PIECES.shopopen = PIECES.shop.filter((it) => it.part !== 'doorglass');
+// (its door's head raised to a body's clearance at a three-metre storey, where the shut shop's is a picture's)
+PIECES.shopopen = PIECES.shop.filter((it) => it.part !== 'doorglass').map((it) => (it.box && it.box[0] === 1.25 && it.box[4] === 2.45 ? B(1.25, 2.2, 0, 0.1, FRONTAGE.shop.open.h, 3.0, 'frame') : it));
 // each part's paint: a fixed one, or white for its instance's tint (TINTS: the parts a building or a shop paints)
 const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS };
 const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band']);
@@ -180,11 +182,12 @@ export function frontsOf(wall, spec, R) {
   // the ground floor, by its use
   const taken = new Set();
   if (spec.ground === 'shops' || spec.ground === 'lobby') {
-    const { lob, bays } = shopBays(L, spec.ground, spec.open ? FRONTAGE.shop.enter : FRONTAGE.shop.least), piece = spec.open ? 'shopopen' : 'shop';
+    // (an open wall's bays: each open, or those its `open` names by their place along it; the rest shut, as wide)
+    const { lob, bays } = shopBays(L, spec.ground, spec.open ? FRONTAGE.shop.enter : FRONTAGE.shop.least), pieceOf = (i) => (spec.open === true || spec.open?.includes?.(i) ? 'shopopen' : 'shop');
     if (lob) put('lobby', L / 2, z0, { frame: pick(P.frame), canopy: pick(P.rail) }, sc(1, Math.max(0.85, floorH / FRONTAGE.lobby.h)));
-    for (const { u, w } of bays) {
+    for (const [i, { u, w }] of bays.entries()) {
       const frame = pick(P.shop), sign = pick(P.sign);
-      put(piece, u, z0, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
+      put(pieceOf(i), u, z0, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
       if (R() < FRONTAGE.shop.awning) put('awning', u, z0, { awning: pick(P.awning) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
     }
     // (a band over the shops, the storey's floor)
