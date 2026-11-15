@@ -66,7 +66,7 @@ export const PROGRAMS = Object.freeze({
   // asks it (a ring, the rifts round it, headroom for a launch), one after another to the sanctum: a gate court (a duel's),
   // the great hall (a melee's), the long gallery (a gallery's, its run-up down the spine), the sanctum (a boss's)
   citadel: { reads: 'a gate court, the great hall, the long gallery, the sanctum at its head: each a room to fight in, one after another', shape: 'chain', tall: 'hall', goal: 'sanctum',
-    rooms: [R('gate', [14, 14], [14, 14], null, { h: 1.5 }), R('hall', [20, 22], [20, 22], 'gate', { h: 'tall' }), R('gallery', [20, 22], [24, 26], 'hall', { h: 'tall' }), R('sanctum', [24, 26], [24, 26], 'gallery', { h: 'tall' })] },
+    rooms: [R('gate', [14, 14], [14, 14], null, { h: 1.7 }), R('hall', [20, 22], [20, 22], 'gate', { h: 'tall' }), R('gallery', [20, 22], [24, 26], 'hall', { h: 'tall' }), R('sanctum', [24, 26], [24, 26], 'gallery', { h: 'tall' })] },
   crypt: { reads: 'a stair down, a long gallery, chambers off it, the tomb at the end', shape: 'chain', goal: 'tomb',
     rooms: [R('stair', [5, 6], [5, 6]), R('gallery', [4, 4], [10, 14], 'stair'), R('chamber', [6, 8], [6, 7], 'gallery', { n: 2 }), R('tomb', [8, 10], [8, 10], 'chamber', { h: 1.2 })] },
   guardhouse: { reads: 'the guard room on the gate, bunks and the cells off it, the armoury behind', shape: 'hub', goal: 'armoury',

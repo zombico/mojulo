@@ -1675,6 +1675,8 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const feelOver = X?.pilot?.rule && G.feel ? feelRule(G.feel) : null;
   const piloted = (p) => (X?.pilot ? { ...p, ...X.pilot, rule: { ...p.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p.body, ...(X.pilot.body ?? {}) } } : p);
   if (X?.play) base = { ...base, play: mergePlay(base.play, X.play) };
+  // (a level's tasks' pieces, tasks.js: the fights' pillars, perches, urns, standing in its rooms as the stage's props)
+  if (X?.props?.length) base = { ...base, props: [...(Array.isArray(base.props) ? base.props : []), ...X.props] };
   if (extra && X?.mechanics?.length) base = { ...base, level: { ...base.level, mechanics: [...(base.level?.mechanics ?? []), ...X.mechanics.filter((m) => !(base.level?.mechanics ?? []).some((x) => x.kind === m.kind && x.slice === m.slice))] } };
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };

@@ -170,6 +170,7 @@ import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
 import { readGameArsenal, arsenalOfGame } from './arsenal.js';
 import { readFights } from './fights.js';
+import { readTasks } from './task-read.js';
 import { readLoadout } from './carried.js';
 import { readGameGrade } from './grade.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
@@ -607,6 +608,14 @@ export function readGameworld(W) {
         if (Gl.boss || Gl.health) throw new Error(`gameworld: ${at}.goal: a gauntlet owns the hero's hp and ends the level when its last wave is down: no boss or health beside it`);
         if (L.walk === undefined) throw new Error(`gameworld: ${at}.goal.gauntlet stands on a walk's last stage (a building's arena is to come)`);
       }
+    }
+    // its TASKS (tasks.js): its fights in order, each a fight the world keeps, laid in a room of its building; they own
+    // the hero's hp and the last one down ends the level
+    if (L.goal?.tasks !== undefined) {
+      const Gl = L.goal;
+      if (L.building === undefined || L.building?.ref !== undefined || L.building?.complex !== undefined) throw new Error(`gameworld: ${at}.goal.tasks are laid in a building's rooms (building: { use })`);
+      for (const k of ['boss', 'health', 'escape', 'gauntlet']) if (Gl[k] !== undefined) throw new Error(`gameworld: ${at}.goal: its tasks own the hero's hp and end the level when the last is down: no ${k} beside them`);
+      try { readTasks(Gl.tasks, { fights: W.fights ?? {}, at: `${at}.goal.tasks` }); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
     }
     // the level's platforming COURSE (course.js): floors and gaps over its trails, sized by the hero's reach
     if (L.course !== undefined) {

@@ -38,8 +38,22 @@ In progress. Built so far, all in the practice door's game room
   sized for a fight of a kind as the stylish kit asks it: a gate court (a duel's), the great hall (a melee's), the
   long gallery (a gallery's), the sanctum (a boss fight's), with the route through its doorways. A new law, `fits`,
   says whether any room a level gives holds a fight (its ring, the way round it, the headroom a launch asks). It
-  is built on the seventh-generation basis: the ashlar kit (`gothic-ashlar`), read in `gen-7`. Its fights are not
-  laid in it yet: today it is walked, or stood with foes room by room as any building level is.
+  is built on the seventh-generation basis: the ashlar kit (`gothic-ashlar`), read in `gen-7`.
+- **Built: a level's tasks** (`gameworld/tasks.js`). A building level says its fights in order,
+  `goal: { tasks: [{ fight, at }] }`, each a fight the world keeps, laid in a room: composed on the square the room
+  holds, turned to the doorway the hero comes in by, its pieces standing as the stage's props (new pieces: a pillar,
+  a perch, an urn, a font, a dais), its foes asleep until their wave. A fight begins when the hero steps into its
+  ring and seals its own room's doorways until its last wave is down; a death begins that fight again at its
+  doorway; the last one down ends the level. The wave gauntlet takes an arena's own `seals` and `start` for it, and
+  arms the next entered arena at the clear.
+- **Built: the action game's first level** (`gameworld/action-first-level.js`): the citadel with a duel, a melee, a
+  gallery fight and a boss, against zombies and armed skeletons (the slow dead, the armed skeleton, the archer, the
+  armoured dead, the knight).
+- **Measured:** the scripted floor player walks the citadel's rooms in order and wins all four fights; one who does
+  nothing wins nothing. The scripted player now walks a level that ends on its fights point by point. Nobody has
+  played it. Not yet: making it from `design_game` end to end with made figures, the task said on the HUD.
+- A prop's surface a kit does not carry is painted in the kit's nearest of its own (a pillar in a gothic hall is its
+  pilasters' stone); a kit that carries the surface reads as it did.
 - Not yet: urns that pay and fonts that heal in play, a fight approved on its own or edited piece by piece, and
   everything below.
 

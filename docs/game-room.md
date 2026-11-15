@@ -209,4 +209,26 @@ asks. A building laid for living in holds few (a keep's great hall holds a melee
 The building use `citadel` (`era/programs.js`) is laid to be fought through: a gate court, the great hall, the
 long gallery and the sanctum, in a chain, each sized for its fight (a duel, a melee, a gallery, a boss fight) and
 tall enough for a launch. It is made for the seventh generation: the ashlar kit (`gothic-ashlar`, drawn for tall
-rooms) read in `gen-7`. Laying the fights into its rooms, sealed at its doorways, is next.
+rooms) read in `gen-7`.
+
+### A level's tasks
+
+A building level says its fights in order (`gameworld/tasks.js`):
+`goal: { tasks: [{ fight: '<a kept fight>', at: '<a room>' }, …] }`. Each is one of the world's kept fights, laid
+in that room by `gameroom/fight.js` `layFight`: composed on the largest square the room holds, turned so the hero
+comes in by the doorway that leads to it, set at the room's centre. The room's doorways are the fight's ways; a
+piece or a rift that would stand before one is left out and said. Its pieces stand as the stage's props
+(`era/compose-dress.js`: a pillar, a perch, an urn, a font, a dais, a barrier), painted in the kit's own stone.
+
+The tasks are one wave gauntlet, an arena a task. A fight begins when the hero steps into its ring; its own
+doorways are sealed from then until its last wave is down (a walker is turned back into the room); the next is
+armed at once, so the walk to it is the breath. The hero's hp is the tasks'; a death begins the fight it fell in
+again, at the doorway it was come into by. The last task down ends the level.
+
+`gameworld/action-first-level.js` is the action game's first level: the citadel with a duel in its gate court, a
+melee in its great hall, a gallery fight in its long gallery and the boss in its sanctum, against zombies and armed
+skeletons (the undead form library's: the slow dead, the armed skeleton, the archer, the armoured dead, the
+knight).
+
+Its machine gate is the playthrough (the e2e tier): the floor player walks the rooms in order, fells every wave of
+all four fights and ends the level; one who does nothing wins nothing. Nobody has played it.

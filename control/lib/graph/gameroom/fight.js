@@ -23,6 +23,16 @@
  *     `rifts` where waves come in, `reserves` the floor kept clear, `answers` which of the kit's asks it answers,
  *     `headroom` the height over the ring (null: open above, as the practice room is)
  *
+ *   composeFight's `size`: the side it is given (a room's), in place of the one its kind would take
+ *
+ *   layFight(needs, { kind, seed?, box: { x, y, w, d, h, z? }, ways: [{ id, at: [x, y] }], entry? }) → the fight LAID IN A
+ *       PLACE a level gives (a building's room): composed on the largest square the room holds, turned so the hero
+ *       comes in by `entry` (a way's id; the first unsaid; or `from`: a point, where it comes in by no way of the
+ *       room's, a building's own way in), set at the room's centre, in the level's own metres. Its
+ *       `ways` are the room's (each with the `back` a walker is put to, inside the room), a piece or a rift standing
+ *       before a way is left out (`left`), and its headroom is the room's. The same shape as composeFight's, and
+ *       `local` (the composition before it was turned, which the fight's laws are read on), `turned` (quarter turns)
+ *
  * Pure, seeded.
  */
 import { PRIMITIVES, footprint } from './primitives.js';
@@ -46,14 +56,14 @@ const overlaps = (a, b, gap) => a.x[0] - gap < b.x[1] && b.x[0] - gap < a.x[1] &
 /** Whether a plan box comes within a circle. */
 export const inCircle = (f, c, r) => Math.hypot(Math.max(f.x[0] - c[0], 0, c[0] - f.x[1]), Math.max(f.y[0] - c[1], 0, c[1] - f.y[1])) < r;
 
-export function composeFight(needs, { kind = 'melee', seed = 1 } = {}) {
+export function composeFight(needs, { kind = 'melee', seed = 1, size: given = null } = {}) {
   const K = FIGHT_KINDS[kind];
   if (!K) throw new Error(`game room: no fight '${kind}' (${FIGHT_KIND_IDS.join(', ')})`);
   const dice = streamOf(seed, 'gameroom', 'fight', kind);
   const asks = needs.asks ?? {}, R0 = asks.ring?.r ?? 3.5, jump = needs.jump ?? 0.9;
   const R = kind === 'duel' ? Math.min(R0, 3.5) : kind === 'boss' ? clamp(R0 + 1.5, 4, 8) : kind === 'gallery' ? Math.min(R0, 3) : R0;
   const runUp = kind === 'gallery' ? { length: asks['run-up']?.length ?? 5, width: asks['run-up']?.width ?? 1.8 } : null;
-  const size = kind === 'duel' ? Math.max(14, even(2 * (R + 4))) : kind === 'gallery' ? Math.max(20, even(needs.size ?? 20), even((runUp.length + 2 * R + 11))) : even(2 * (R + (kind === 'boss' ? 8 : 7)));
+  const size = Number.isFinite(given) ? given : kind === 'duel' ? Math.max(14, even(2 * (R + 4))) : kind === 'gallery' ? Math.max(20, even(needs.size ?? 20), even((runUp.length + 2 * R + 11))) : even(2 * (R + (kind === 'boss' ? 8 : 7)));
   const half = size / 2;
   const spawn = [0, r3(-half + 2), 0], goal = [0, r3(half - 2), 0];
   const ways = [{ id: 'back', side: 's', at: [0, -half, 0], back: spawn.slice() }, { id: 'on', side: 'n', at: [0, half, 0], back: [0, r3(half - 4.2), 0] }];
@@ -125,5 +135,39 @@ export function composeFight(needs, { kind = 'melee', seed = 1 } = {}) {
     anchors: { spawn, goal, foes, ways, rifts, ring: { at: ring.at.slice(), r: ring.r }, ...(boss ? { boss } : {}) },
     reserves: { ring: { at: ring.at.slice(), r: ring.r }, ...(runUp ? { runUp: { x: keep[0].x.map(r3), y: keep[0].y.map(r3) } } : {}) },
     answers, headroom: null, work: null, seed,
+  };
+}
+
+const WAY_CLEAR = 2.4;   // the floor kept clear before a way: nothing stands where the hero comes in or goes on
+export function layFight(needs, { kind = 'melee', seed = 1, box, ways = [], entry = null, from = null } = {}) {
+  const S = Math.max(8, Math.floor(Math.min(box.w, box.d) - 1)), F = composeFight(needs, { kind, seed, size: S });
+  const c = [box.x + box.w / 2, box.y + box.d / 2], z0 = box.z ?? 0, e = from ? { at: from } : ways.find((w) => w.id === entry) ?? ways[0] ?? null;
+  // quarter turns: the composition's south to the side the hero comes in by
+  const ex = e ? (e.at[0] - c[0]) / box.w : 0, ey = e ? (e.at[1] - c[1]) / box.d : -1;
+  const q = Math.abs(ex) > Math.abs(ey) ? (ex > 0 ? 1 : 3) : ey > 0 ? 2 : 0;
+  const turn = ([x, y, z = 0]) => { const [u, v] = q === 0 ? [x, y] : q === 1 ? [-y, x] : q === 2 ? [-x, -y] : [y, -x]; return [r3(c[0] + u), r3(c[1] + v), r3(z0 + z)]; };
+  const near = (at) => ways.some((w) => Math.hypot(w.at[0] - at[0], w.at[1] - at[1]) < WAY_CLEAR);
+  const left = [], prims = [];
+  for (const p of F.primitives) {
+    const at = turn(p.at);
+    // (a deck's step faces the composition's south: turned, it would face a wall, so it is left out)
+    if (near(at) || (p.kind === 'platform' && q !== 0)) { left.push(p.id); continue; }
+    prims.push({ ...p, at, rot: q % 2 ? (p.rot === 90 ? 0 : 90) : p.rot ?? 0 });
+  }
+  const kept = new Set(prims.map((p) => p.id));
+  const perchAt = F.primitives.filter((p) => p.kind === 'perch' && !kept.has(p.id)).map((p) => `${p.at[0]},${p.at[1]}`);
+  const A = F.anchors, back = (w) => { const d = Math.hypot(c[0] - w.at[0], c[1] - w.at[1]) || 1; return [r3(w.at[0] + ((c[0] - w.at[0]) / d) * WAY_CLEAR), r3(w.at[1] + ((c[1] - w.at[1]) / d) * WAY_CLEAR), z0]; };
+  const laidWays = ways.map((w) => ({ id: w.id, at: [w.at[0], w.at[1], z0], back: back(w) }));
+  const lane = F.reserves.runUp ? (() => { const P = [[F.reserves.runUp.x[0], F.reserves.runUp.y[0]], [F.reserves.runUp.x[1], F.reserves.runUp.y[1]]].map(turn); return { x: [Math.min(P[0][0], P[1][0]), Math.max(P[0][0], P[1][0])], y: [Math.min(P[0][1], P[1][1]), Math.max(P[0][1], P[1][1])] }; })() : null;
+  const ring = { at: turn(A.ring.at), r: A.ring.r };
+  return {
+    kind, size: S, half: S / 2, primitives: prims,
+    anchors: {
+      spawn: e ? back(e) : turn(A.spawn), goal: null,
+      foes: A.foes.filter((s) => !perchAt.includes(`${s[0]},${s[1]}`)).map(turn), ways: laidWays,
+      rifts: A.rifts.filter((r) => kept.has(r.id)).map((r) => ({ id: r.id, at: turn(r.at), spots: r.spots.map(turn) })), ring,
+      ...(A.boss ? { boss: turn([A.boss[0], A.boss[1], 0]) } : {}),
+    },
+    reserves: { ring, ...(lane ? { runUp: lane } : {}) }, answers: F.answers, headroom: box.h ?? null, work: null, seed, box, turned: q, left, local: { ...F, headroom: box.h ?? null },
   };
 }

@@ -87,7 +87,7 @@ export function fightCast(G, kind, waves = null) {
 export const fightWaves = (G, kind, waves = null) => fightCast(G, kind, waves).map((w) => w.reduce((o, x) => ({ ...o, [x.eid]: (o[x.eid] ?? 0) + x.n }), {}));
 
 /** Where each foe of each wave stands (see the header). `waves`: the cast (fightCast), or waves by id. */
-export function fightPlacements(G, room, waves) {
+export function fightPlacements(G, room, waves, { tag = 'f' } = {}) {
   const A = room.anchors, c = A.ring?.at ?? [0, 0, 0], counts = {}, B = bestiaryOf(G ?? {}), R = castRoles(G);
   const cast = waves.map((w) => (Array.isArray(w) ? w : Object.entries(w).map(([eid, n]) => ({ eid, n, role: eid === R.shooter && eid !== R.grunt ? 'shooter' : null }))));
   const perches = A.foes.filter((s) => (s[2] ?? 0) > 0.5 && !(A.boss && s[0] === A.boss[0] && s[1] === A.boss[1]));
@@ -108,7 +108,7 @@ export function fightPlacements(G, room, waves) {
       else { const a = (2 * Math.PI * ringed++) / list.length + w * 0.7, d = (A.ring?.r ?? 3) + 1; at = [r3(c[0] + d * Math.cos(a)), r3(c[1] + d * Math.sin(a)), 0]; }
       // (the rank its role stands it at, where the entry's own is lower)
       const as = ROLE_RANK[role], rank = as && RANK_ORDER.indexOf(as) > RANK_ORDER.indexOf(B[eid]?.rank ?? 'minion') ? as : null;
-      return { id: `foe-${eid}-f${counts[eid]}`, eid, at: at.slice(), heading: r3(Math.atan2(c[1] - at[1], c[0] - at[0])), ...(rank ? { rank } : {}) };
+      return { id: `foe-${eid}-${tag}${tag === 'f' ? '' : 'f'}${counts[eid]}`, eid, at: at.slice(), heading: r3(Math.atan2(c[1] - at[1], c[0] - at[0])), ...(rank ? { rank } : {}) };
     });
   });
 }
@@ -139,3 +139,13 @@ export function readFights(v, G) {
   return v;
 }
 export const fightOf = (G, name) => (isObj(G?.fights) && isObj(G.fights[name]) ? { name, seed: Number.isInteger(G.seed) ? G.seed : 1, ...G.fights[name] } : null);
+
+/** The bestiary ids the levels' tasks wake (tasks.js `goal.tasks`: each a kept fight): fielded, so made. */
+export function taskFoeIds(G) {
+  const out = new Set();
+  for (const id of Object.keys(G?.levels ?? {})) for (const T of G.levels[id]?.goal?.tasks ?? []) {
+    const F = fightOf(G, T.fight);
+    if (F) for (const W of fightWaves(G, F.kind, F.waves ?? null)) for (const eid of Object.keys(W)) out.add(eid);
+  }
+  return [...out];
+}

@@ -33,6 +33,8 @@ export const E2E = [
   'lib/graph/gameworld/practice-room.live.test.js',
   // a fight composed in the game room, resolved whole and played headless by the playthrough's players
   'lib/graph/gameworld/fight-play.test.js',
+  // the action game's first level, a building of four fights, resolved whole and played through headless
+  'lib/graph/gameworld/citadel-play.test.js',
   'lib/graph/scene/action-hero.live.test.js',
   'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',

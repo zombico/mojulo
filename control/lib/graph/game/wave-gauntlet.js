@@ -27,6 +27,9 @@
  *                        clock; the first arena's waits from the start, a later one's from the clear before it
  *   seals                [{ at, radius?, back? }]: the other ways held while the gauntlet stands (the way back), each a
  *                        seal and a zone that turns a walker away (`gauntlet:held:<id>`, put `back`); they lift with the way out's
+ *   an arena's `seals`   the same, held only while THAT arena stands: from its beginning (its `enter`, or its first
+ *                        wave) to its last wave down. Fights along a level, each sealing its own room's doorways
+ *   an arena's `start`   where a death in it puts the player (the gauntlet's `start` unsaid)
  *
  * Params:
  *   { id?: 'gauntlet', arenas: [{ waves: [{ foes: ['<entity id>' | { id, at }], after? }], after?, enter? }],
@@ -84,6 +87,11 @@ export function lowerWaveGauntlet(p, ctx) {
   const enters = p.arenas.map((A) => A.enter ?? null), entered = enters.some(Boolean);
   enters.forEach((e, a) => { if (e !== null && !(e && isVec(e.at) && (e.radius === undefined || (Number.isFinite(e.radius) && e.radius > 0)))) fail(`arenas[${a}].enter is { at: [x, y, z], radius? }: where the player walks in to begin it`); });
   if (entered && pace === 'timed') fail('a timed gauntlet\'s waves come on the clock: no arena waits to be entered');
+  const sealsOk = (L) => Array.isArray(L) && !L.some((q) => !(q && isVec(q.at) && (q.back === undefined || isVec(q.back)) && (q.radius === undefined || (Number.isFinite(q.radius) && q.radius > 0))));
+  p.arenas.forEach((A, a) => {
+    if (A.seals !== undefined && !sealsOk(A.seals)) fail(`arenas[${a}].seals is [{ at: [x, y, z], radius?, back? }]: the ways held while it stands`);
+    if (A.start !== undefined && !isVec(A.start)) fail(`arenas[${a}].start is [x, y, z]: where a death in it puts the player`);
+  });
   const seals = p.seals === undefined ? [] : p.seals;
   if (!Array.isArray(seals) || seals.some((q) => !(q && isVec(q.at) && (q.back === undefined || isVec(q.back)) && (q.radius === undefined || (Number.isFinite(q.radius) && q.radius > 0))))) fail('seals is [{ at: [x, y, z], radius?, back? }]: the other ways held while it stands');
   const endure = pace === 'timed' || outlast !== null;
@@ -131,7 +139,8 @@ export function lowerWaveGauntlet(p, ctx) {
       // (after the pause, only if it is still cleared: a death in the pause zeroed it, and the arena begins again instead)
       world.sequences.push({ id: `${pre}:next:${k}`, trigger: { on: clearedE(k) }, steps: [{ await: { timer: pause } }, { do: 'emit', type: `${pre}:on:${k}` }] });
       // (the next arena entered: it is armed, and its zone brings its first wave)
-      if (next.arena !== x.arena && enters[next.arena]) world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'set', var: arm, to: next.arena });
+      // (armed at the clear, with no pause: the walk to it is the breath, and a player already on the way is not missed)
+      if (next.arena !== x.arena && enters[next.arena]) world.reactions.push({ on: clearedE(k), do: 'set', var: arm, to: next.arena });
       else world.reactions.push({ on: `${pre}:on:${k}`, if: { var: waveV(k), gte: x.foes.length }, do: 'emit', type: waveE(k + 1) });
     } else world.reactions.push({ on: clearedE(k), do: 'emit', type: clearE });
   });
@@ -164,7 +173,8 @@ export function lowerWaveGauntlet(p, ctx) {
         world.reactions.push({ on: back, do: 'set', var: waveV(k), to: 0 });
       });
       world.reactions.push({ on: back, do: 'set', var: 'hp', to: hp0 }, { on: back, do: 'emit', type: 'gauntlet:again', arena: from + 1 });
-      if (p.start) world.reactions.push({ on: back, do: 'move', target: ctx.player, to: p.start.slice() });
+      const startAt = p.arenas[from].start ?? p.start;
+      if (startAt) world.reactions.push({ on: back, do: 'move', target: ctx.player, to: startAt.slice() });
       world.sequences.push({ id: `${pre}:again:${a}`, trigger: { on: back }, steps: [{ await: { timer: 2 } }, { do: 'emit', type: waveE(first) }] });
     }
   }
@@ -190,6 +200,24 @@ export function lowerWaveGauntlet(p, ctx) {
     world.reactions.push({ on: endE, do: 'toggle', target: sid, to: false }, { on: 'enter', match: { zone }, if: { var: open, lt: 1 }, do: 'emit', type: sealedE, way: j + 1 },
       ...(q.back ? [{ on: 'enter', match: { zone }, if: { var: open, lt: 1 }, do: 'move', target: ctx.player, to: q.back.slice() }] : []));
     if (!j) { if (!p.at) world.reactions.push({ on: endE, do: 'set', var: open, to: 1 }); world.hud.push({ on: sealedE, text: 'sealed: clear the arena', as: 'toast', ttl: 1.4 }); }
+  });
+  // an ARENA's own ways, sealed while it stands: up at its beginning, down at its last wave's clear
+  let heldSaid = seals.length > 0;
+  p.arenas.forEach((A, a) => {
+    if (!A.seals || !A.seals.length) return;
+    const on = `${pre}_s${a}`, lastK = W.reduce((m, x, k) => (x.arena === a ? k : m), -1), firstK = W.findIndex((x) => x.arena === a), heldE = `gauntlet:held:${id}`;
+    world.vars[on] = 0;
+    const begin = enters[a] ? inE(a) : waveE(firstK);
+    world.reactions.push({ on: begin, do: 'set', var: on, to: 1 }, { on: clearedE(lastK), do: 'set', var: on, to: 0 });
+    A.seals.forEach((q, j) => {
+      const sid = `${id}-seal-${a + 1}-${j + 1}`, zone = `${id}-way-${a + 1}-${j + 1}`;
+      world.entities.push({ id: sid, type: 'seal', on: false, position: q.at.slice(), radius: 0.9, color: '#7a1f1a' });
+      world.sources.push({ type: 'zone', zone, at: q.at.slice(), radius: Number.isFinite(q.radius) ? q.radius : 2, planar: true, watch: ctx.player });
+      world.reactions.push({ on: begin, do: 'toggle', target: sid, to: true }, { on: clearedE(lastK), do: 'toggle', target: sid, to: false },
+        { on: 'enter', match: { zone }, if: { var: on, gte: 1 }, do: 'emit', type: heldE, arena: a + 1, way: j + 1 },
+        ...(q.back ? [{ on: 'enter', match: { zone }, if: { var: on, gte: 1 }, do: 'move', target: ctx.player, to: q.back.slice() }] : []));
+    });
+    if (!heldSaid) { heldSaid = true; world.hud.push({ on: heldE, text: 'sealed: clear the room', as: 'toast', ttl: 1.4 }); }
   });
   world.hud.push(
     { var: 'hp', label: 'HP', as: 'bar', max: hp0 },
