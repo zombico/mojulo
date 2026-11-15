@@ -1,6 +1,6 @@
 ### Shops you can walk into
 
-- **A town's shops can be entered.** Ask for it on a town (its `enter` setting) and each shop on a main street gets a real
+- **A town's shops can be entered.** Ask for it on a town (its `shops` setting) and each shop on a main street gets a real
   doorway and a furnished interior behind it, taken from the same store designs the shopping mall uses: clothing,
   electronics, a bookshop, homewares (a cafe or a food hall when you name them). A town made without it is unchanged.
 - **Interiors are drawn only when you are close.** Each inside appears as you approach its door and is left undrawn
@@ -23,3 +23,6 @@
   that store's counter; where it does not, the trade is placed as before.
 - **A game's hero can walk into an open shop.** In a level set in a town with open shops the hero has floor to stand on
   inside, the fixtures block the way, and the level no longer swaps to a separate interior for a shop that is already open.
+- **A shopkeeper behind the counter.** In a game whose level is a town with open shops and townspeople, each open
+  shop's keeper now stands behind its counter facing the till, and you can talk to them there. The town's other
+  people stand by their own doors, as they do in other towns.

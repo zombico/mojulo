@@ -88,7 +88,7 @@
  *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
  *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
  *
- *     enter         true | { cards?: [a seeded store card's id…], near?: metres }: its rows of shops walked into, each
+ *     shops         true | { cards?: [a seeded store card's id…], near?: metres }: its rows of shops walked into, each
  *                   bay a store from a card behind its own door, its inside drawn near the camera only
  *                   (retail/store-slot.js); a geotown composed into it takes it too
  *     under         true | { at?: '<block id>' }: an evocation's (its blocks at a building's detail) core podiums walked
@@ -188,9 +188,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'enter']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'enter']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -307,7 +307,7 @@ export function readGeocity(spec = {}) {
   if (M.grades !== undefined && (!isObj(M.grades) || Object.keys(M.grades).some((k) => !['collector', 'local'].includes(k)) || Object.values(M.grades).some((g) => !num(g, 0.01, 0.4)))) no('grades is { collector?, local? }: the steepest of each neighbourhood street, rise over run, 0.01 to 0.4');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
   // building's detail
   // (its shops walked into, retail/store-slot.js: each shop of a row of shops a store from a card, entered by its door)
-  const enter = readEnter(spec.enter, no);
+  const shops = readEnter(spec.shops, no);
   const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
   if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');
   if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
@@ -362,5 +362,5 @@ export function readGeocity(spec = {}) {
     slope = { streets: { ...S.streets } };
     if (!profile) profile = {};
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(enter ? { enter } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }

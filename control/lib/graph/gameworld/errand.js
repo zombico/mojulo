@@ -12,7 +12,7 @@
  *   min      how much must reach the giver (the count, by default): a fragile cargo's margin is count − min
  *   from     a bounty: the item is the proof the foe's fall drops; its level must field that foe (`foes`)
  *   shop     the kind of store it is had in (a seeded store card's id): where its level's town has such a shop walked
- *            into (the geotown's `enter`), the trade stands at its till; else on a spot, as any trade
+ *            into (the geotown's `shops`), the trade stands at its till; else on a spot, as any trade
  *   what the giver asks for is the list's roots: the items nothing on the list needs
  *
  * Refused (malformed): an unknown key, level or item; an item twice; a need on no list; a cycle; a bounty whose level

@@ -15,6 +15,9 @@
  *                                  `shops`: { merchant?, inn?: { id, prompt } } the world's shops kept by the town's own
  *                                  (its shopkeeper the merchant; the inn a second shopkeeper, else the first house's head)
  *
+ * A town on a cube (a geotown level) grows its people the same way, from its own houses (the level's ends' `townLots`);
+ * a shop walked into where it stands (geotown.shops) keeps its keeper behind its counter, facing its till.
+ *
  * WHERE THEY STAND. By their house (`town-<use>-<n>`, the stage's `townDoors`): a service's first person inside at
  * its room when the house is walked into (the elder on the dais, the master at the work floor), else beside the door;
  * the rest of the house in a row along the frontage beside it, clear of the way in, facing out. A house the street
@@ -37,6 +40,7 @@ import { libraryFigure, stand, standRule } from './stage-figures.js';
 import { folkDay } from '../folk/routines.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { fingerprint } from './review.js';
+import { stageEnds } from './levels.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // beside the door (m): out from the wall, along the frontage, and the step between neighbours
@@ -54,6 +58,8 @@ const POTTER = Object.freeze({ out: [1.2, 2.6], along: [0.6, 2], speed: 0.85, ev
 
 export function stageFolk(G, stage) {
   const ask = G?.characters?.folk, town = stage?.manifest?.town;
+  // (a town on a cube, geotown/: its people from its own houses, the level's ends' `townLots`, levels.js geotownEnds)
+  if (ask && !town && stage?.manifest?.kind === 'geocube' && stage.manifest.show === 'geotown') return geotownFolk(G, stage, ask);
   if (!ask || !town) return null;
   // (the kit the street is drawn in: the stage's own, or on a stage a geocube paints the cube's look, as the stage's
   // builder lowers it (era/stage.js assembleStageScene): the same lots, so the folk stand by the houses drawn)
@@ -65,6 +71,18 @@ export function stageFolk(G, stage) {
   const folk = folkOfTown({ seed: street.seed, heartbeat: street.town.heartbeat, lots }, { setting, folk: ask, gameSeed: Number.isInteger(G.seed) ? G.seed : 1 });
   const bodies = folkBodies(folk, { kit, setting, pool: ask.pool });
   return { town: fingerprint({ kit, town, seed: stage.manifest.seed ?? null }), kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}), ...(ask.day ? { day: ask.day } : {}), ...(ask.life === false ? { still: true } : {}) };
+}
+
+/** A geotown's people: grown from its houses as they stand (its ends' lots, each a door `town-<use>-<n>`), in the game's
+ *  setting; a shop walked into (geotown.shops) keeps its keeper behind its counter. */
+function geotownFolk(G, stage, ask) {
+  const E = stageEnds(stage.manifest), lots = E.townLots ?? [], houseOf = {};
+  if (!lots.length) return null;
+  lots.forEach((l, n) => { houseOf[lotKey(l)] = E.townDoors[n].id; });
+  const setting = settingOfGame(G), seed = stage.manifest.seed ?? 1;
+  const folk = folkOfTown({ seed, lots }, { setting, folk: ask, gameSeed: Number.isInteger(G.seed) ? G.seed : 1 });
+  const bodies = folkBodies(folk, { kit: G.style?.kit, setting, pool: ask.pool });
+  return { town: fingerprint({ geotown: stage.manifest.geotown ?? null, cube: stage.manifest.cube ?? null, seed }), kit: G.style?.kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}), ...(ask.day ? { day: ask.day } : {}), ...(ask.life === false ? { still: true } : {}) };
 }
 
 // (one met in every town is keyed by their look: towns that dress them alike mint them once)
@@ -110,7 +128,11 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
       const id = `folk-${fingerprint(p.path)}`, [nx, ny] = door.N, tx = -ny, ty = nx;
       const room = !p.parent && p.service ? roomOf(door, p.room) : null;
       let at, heading;
-      if (room) {
+      if (room?.stand) {
+        // at the place its room keeps for it (a shop walked into: behind its counter), facing where it is met (its till)
+        at = room.stand.at.slice();
+        heading = r3(Math.atan2(room.stand.face[1] - at[1], room.stand.face[0] - at[0]));
+      } else if (room) {
         // inside at its room: past the middle of its floor away from the way in (behind its counter, where the room has
         // one at its middle: the town's stock, era/stocking.js), facing the way in
         const mx = (room.box.min[0] + room.box.max[0]) / 2, my = (room.box.min[1] + room.box.max[1]) / 2, dx = mx - door.at[0], dy = my - door.at[1], dl = Math.hypot(dx, dy) || 1;

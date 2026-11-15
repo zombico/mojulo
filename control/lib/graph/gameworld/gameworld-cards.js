@@ -1021,7 +1021,7 @@ function qowCard() {
     'ERRANDS (its element, as the escape room is the WCD\'s), on a map world (topology: interconnected): sent out, home with the goods.',
     "errands [{ id, giver: '<level>', reward?: [{ item, n? }], list: [{ item, at: '<level>', count?, min?, needs?: ['<item>'],",
     "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> }, shop?: '<store card>' }] }]: needs spent where it is had; from, a bounty;",
-    "        shop, had over that kind of store's counter (pharmacy, convenience, diner…): at its till where the level's town has one walked into (geotown.enter);",
+    "        shop, had over that kind of store's counter (pharmacy, convenience, diner…): at its till where the level's town has one walked into (geotown.shops);",
     '        the giver asks for the roots. Laws (advice.errands): ' + Object.keys(ERRAND_LAWS).join(', ') + '.',
   );
 }
@@ -1164,6 +1164,7 @@ function storyCard() {
 function folkCard() {
   return lines(
     'THE TOWN\'S PEOPLE — characters.folk: each town a level lays (places: { town, street }) peopled from its own houses.',
+    'A geotown level\'s town is peopled the same way; where its shops are walked into (geotown.shops) a shop\'s keeper stands behind its counter.',
     'characters.folk: true | { seed?, cap?, pool?, domicile?, domiciles?, say?, sidequests?, recurring?, day? }',
     '  A house\'s use roots its first person: a dwelling a townie, a shop its keeper, a workshop its master, a barn a',
     '  farmhand, the hall its elder, the tower its captain; each grows the rest (an apprentice, the watch). Each is rolled',

@@ -330,11 +330,11 @@ export function assembleGeocityScene(m, ctx = {}) {
   const seamsOf = [];
   // (each building as it is laid: its footprint, foot, eave and top, its group, for the physical ring)
   const shells = [], shell = (x0, y0, x1, y1, z0, ze, z1, group, flat = false) => shells.push({ id: `geocity-b${shells.length}`, min: [x0, y0, z0], max: [x1, y1, z1], eave: ze, group, ...(flat ? { flat: true } : {}) });
-  // ── the SHOPS WALKED INTO (the metro's `enter`, metro.js): each bay of a row of shops a store from a card built to its
+  // ── the SHOPS WALKED INTO (the metro's `shops`, metro.js): each bay of a row of shops a store from a card built to its
   // slot (retail/store-slot.js), behind the door its front lays (frontage.js `shopBays`, its open shop's): the row's wall
   // cut at each door, its box left open round each inside and through each door, each inside stamped where it stands
   // and drawn near the camera only ──
-  const ENTER = d.spec.enter ?? null, cityStores = new Map(), entered = [], steep = { n: 0 };
+  const ENTER = d.spec.shops ?? null, cityStores = new Map(), entered = [], steep = { n: 0 };
   // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most its door stands over its
   // walk (three risers), and the most its floor is sunk under its pad to keep it so)
   const STOOP = { riser: 0.18, tread: 0.28, side: 0.25, most: 0.54, sunk: 2 }, sunk = [];
@@ -390,7 +390,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       transforms.push({ pos: P3(o), rotZ: r5(Math.atan2(t[1], t[0])) });
       opened.push(i);
       if (St.sign) signs[i] = St.sign;
-      entered.push({ id, block: b.id, key, S: St, rise: r5(Math.max(0, rise)), sink: r5(sink), door: o, N: n, in: pt(0, 1), out: pt(0, -1), ...(St.till ? { till: P3([...pt(St.till[0], St.till[1]), zf + St.till[2]]) } : {}), inside: { min: P3([I[0], I[1], zf]), max: P3([I[2], I[3], zf + In.h]) } });
+      entered.push({ id, block: b.id, key, S: St, rise: r5(Math.max(0, rise)), sink: r5(sink), door: o, N: n, in: pt(0, 1), out: pt(0, -1), ...(St.till ? { till: P3([...pt(St.till[0], St.till[1]), zf + St.till[2]]), keeper: P3([...pt(St.keeper[0], St.keeper[1]), zf + St.keeper[2]]) } : {}), inside: { min: P3([I[0], I[1], zf]), max: P3([I[2], I[3], zf + In.h]) } });
     });
     faces.splice(faces.indexOf(wallFace), 1, ...wall);
     // (its box round each inside, down to its deepest floor)
@@ -697,7 +697,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       return;
     }
-    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.enter === undefined ? { ...T.spec, enter: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.shops === undefined ? { ...T.spec, shops: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
     const mv = (p) => [r5(p[0] + ox), r5(p[1] + oy), p[2]], at0 = faces.length;
     for (const f of P.faces) faces.push({ ...f, corners: f.corners.map(mv) });
     seamsOf.push({ id: r.id, rect: [ox, oy, ox + W, oy + D], from: at0, to: faces.length });
@@ -724,7 +724,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       return;
     }
-    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.enter === undefined ? { ...T.spec, enter: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.shops === undefined ? { ...T.spec, shops: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
     const mv = (p) => [r5(p[0] + dx), r5(p[1] + dy), p[2]], at0 = faces.length;
     for (const f of P.faces) {
       const c = f.corners, cx = c.reduce((a, p) => a + p[0], 0) / c.length, cy = c.reduce((a, p) => a + p[1], 0) / c.length;
@@ -1359,7 +1359,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), st = storeys + (Rb() < 0.3 ? 1 : 0);
         box(q[0], q[1], q[2], q[3], z0, z0 + st * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
         // (its shops on its street, flats or offices over them)
-        // (walked into, `enter`: its bays opened, those its walk can step up to; its front lays them open)
+        // (walked into, `shops`: its bays opened, those its walk can step up to; its front lays them open)
         frontOf(b, q, z0, st, STOREY, group === 'geocity:avenue' ? 'office' : 'residential', { only: [s], ...(ENTER ? openShops(b, s, q, z0, z0 + st * STOREY + 0.6) : {}) });
       }
     };
@@ -1886,7 +1886,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
     ...(podia.length || SUB || entered.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
-      ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till } : {}), inside: e.inside } })),
+      ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till, keeper: e.keeper } : {}), inside: e.inside } })),
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),
       ...podia.map((P) => ({ id: `podium-${P.block}`, kind: 'building', use: 'podium', enter: 'walk', at: P.I.door.at, N: P.I.door.N, floor: P.I.door.z0, rise: P.I.rise, storeys: 2, rooms: P.I.rooms, through: P.I.through, down: P.I.down, ports: P.I.ports.map((q) => ({ id: q.id, side: q.side, at: P3(q.side.endsWith('y') ? [q.u, q.plane, q.z0] : [q.plane, q.u, q.z0]), reach: q.reach })) })),
@@ -1908,7 +1908,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
       ...(Object.keys(towns).length ? { geotowns: towns } : {}),
       // (its shops walked into: how many, on how many templates, their cards, the faces their templates hold)
-      ...(ENTER ? { enter: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, shut: steep.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
+      ...(ENTER ? { stores: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, shut: steep.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
       ...(UN ? { under: inside ? {
         podium: inside.block, plan: inside.I.plan, rise: inside.I.rise,
         podia: podia.map((P) => ({ id: P.block, plan: P.I.plan, ports: P.I.ports.length, findings: P.I.findings })),

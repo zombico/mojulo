@@ -535,7 +535,7 @@ function mapEnds(manifest) {
 // THE TOWN'S ENDS (a geotown level, geotown/scene.js): the hero set down at the start of the walk round its first block,
 // facing along it, its exit the far side of that walk; beats along the way every dozen metres; its ground the town's
 // ground faces (its streets, walks, yards, squares: never a roof), what stands on it its houses' and sites' boxes
-// (and a shop's floor, where the town's shops are walked into: `geotown.enter`)
+// (and a shop's floor, where the town's shops are walked into: `geotown.shops`)
 const TOWN_GROUND = new RegExp(`^geotown:(${[...GEOTOWN_SURFACES.filter((k) => k !== 'house'), 'floor'].join('|')})$`);
 function geotownEnds(manifest) {
   const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOTOWN_KEYS.includes(k))), P = assembleGeotownScene(own, {});
@@ -553,8 +553,14 @@ function geotownEnds(manifest) {
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
-  Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
-  // (the tills of its shops walked into, geotown.enter: where an errand's trade had in a shop of that kind stands)
+  // (the town's houses as its folk stand by them, folk-cast.js: each anchor's door `town-<use>-<n>` in the town's own
+  // order, the way it faces out; a shop walked into has its shop floor, where its keeper stands behind its counter
+  // facing its till. Its lots, the same houses in the same order, root its people: folk/folk.js)
+  const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
+  Object.defineProperty(out, 'townDoors', { value: houses.map((a, n) => ({ id: `town-${a.use}-${n + 1}`, use: a.use, at: a.at, N: a.N, enter: a.store ? 'walk' : null,
+    ...(a.store?.keeper ? { rooms: [{ id: 'shopfloor', box: a.store.inside, stand: { at: a.store.keeper.map(r3), face: a.store.till.map(r3) } }] } : {}) })), enumerable: false });
+  Object.defineProperty(out, 'townLots', { value: houses.map((a, n) => ({ route: 'geotown', side: a.row ?? 'row', s: n, use: a.use })), enumerable: false });
+  // (the tills of its shops walked into, geotown.shops: where an errand's trade had in a shop of that kind stands)
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.store?.till).map((a) => ({ id: a.id.replace(/^house-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   return out;
 }
@@ -563,7 +569,7 @@ function geotownEnds(manifest) {
 // hero is set down on, entered at its door into a scene of its own (interiorStage): its zone on the walk before the door,
 // where a walker coming back out stands a few steps out, facing away from it
 function geotownDoors(P, enter, route, ground, seed) {
-  // (a shop walked into where it stands, geotown.enter, is no door to a scene of its own)
+  // (a shop walked into where it stands, geotown.shops, is no door to a scene of its own)
   const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N) && !a.store);
   const off = (p) => { let m = Infinity; for (let i = 1; i < route.length; i++) { const a = route[i - 1], b = route[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); m = Math.min(m, Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)); } return m; };
   const taken = new Set(), doors = [];

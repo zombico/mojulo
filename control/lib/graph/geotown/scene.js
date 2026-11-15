@@ -72,7 +72,7 @@ export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'see
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
-// an open shop's glass (a shop walked into, `enter`): how much of its paint it keeps over what stands behind it
+// an open shop's glass (a shop walked into, `shops`): how much of its paint it keeps over what stands behind it
 const PANE_ALPHA = 0.28;
 export const GEOTOWN_FACES = 60000, SEGMENT_FACES = 13500;   // (a main-street segment's shopfronts and its houses' zoned yards, 10.1k; its streets' paint and furniture, ~0.6k more)
 // (a denser streetscape puts more buildings in a segment: an evocation's budget at least this a building it stands)
@@ -338,9 +338,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   const carIn = (pl, u, v, z, along, hex, key) => { const [x, y] = W(pl, u, v, 0); carAt(x, y, z, along === 'u' ? pl.ex : pl.ey, hex, key); };
   const shopPrev = new Map();
   const builtOf = {};
-  // the shops walked into (the town's `enter`, read.js): each shop of a row its card by its own dice, built to its slot once a size
+  // the shops walked into (the town's `shops`, read.js): each shop of a row its card by its own dice, built to its slot once a size
   // (retail/store-slot.js), stamped where it stands and drawn near the camera only
-  const enter = d.spec.enter ?? null, stores = new Map(), entered = [], tenantPrev = new Map();
+  const enter = d.spec.shops ?? null, stores = new Map(), entered = [], tenantPrev = new Map();
   const storeOf = (pl, house) => {
     if (!enter || !pl.shopfront || house.mirror) return null;
     const dz = house.design, env = pl.house.env, T = SLOT.wall, sg = pl.ex[0] * pl.ey[1] - pl.ex[1] * pl.ey[0] < 0 ? -1 : 1;
@@ -371,7 +371,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       let Kf = K?.front;
       if (Kf?.shop) { const rk = `${pl.block}:${pl.side}`; Kf = { ...Kf, shop: shopfrontOf(P.shopfronts, streamOf(seed, 'shopfront', pl.id), shopPrev.get(rk)) }; shopPrev.set(rk, Kf.shop); pl.shopfront = Kf.shop; }
       if (pl.duplex) Kf = { ...Kf, doors: 2, porch2: true, porch: Kf?.porch ?? 'door' };
-      // (a shop walked into, `enter`: its store, and its front open: its glass seen through)
+      // (a shop walked into, `shops`: its store, and its front open: its glass seen through)
       const doorU = env[0] + (mirror ? envW - dx : dx), store = storeOf(pl, { design: dz, mirror, doorU });
       // (its sign in its store's own colour: a sign agrees with its inside)
       if (store && Kf?.shop) Kf = { ...Kf, shop: { ...Kf.shop, open: true, ...(store.S.sign ? { signHex: store.S.sign } : {}) } };
@@ -574,7 +574,7 @@ export function assembleGeotownScene(m, ctx = {}) {
         // door's sill to its back)
         for (const q of [box2(In.x0, 0, In.x1, In.y1), box2(-S.door.w / 2, -0.3, S.door.w / 2, 0)]) { const zf = pad + 0.01, fill = shadeHex(col.path, [0, 0, 1], LIGHT), cs = [[q[0], q[1], zf], [q[2], q[1], zf], [q[2], q[3], zf], [q[0], q[3], zf]].map(P3); faces.push({ corners: cs, normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'geotown:floor', fill, cornerFills: cs.map(() => fill) }); }
         const w3 = (q) => P3([...pt(q[0], q[1]), pad + q[2]]);
-        storeAt = { card: S.card, door: P3(o), ...(S.till ? { till: w3(S.till) } : {}), inside: { min: P3([I[0], I[1], pad]), max: P3([I[2], I[3], pad + In.h]) } };
+        storeAt = { card: S.card, door: P3(o), ...(S.till ? { till: w3(S.till), keeper: w3(S.keeper) } : {}), inside: { min: P3([I[0], I[1], pad]), max: P3([I[2], I[3], pad + In.h]) } };
         entered.push({ id: pl.id, key: store.key, S, door: o, in: pt(0, 1), out: pt(0, -1) });
       } else colliders.push({ min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]), of: `${pl.id}:house` });
       anchors.push({ ...(storeAt ? { store: storeAt } : {}), id: `house-${pl.id}`, kind: 'house', use: house.kit?.use ?? pl.use ?? 'dwelling', row: pl.kind, ...(pl.form === 'mansion' ? { mansion: true } : {}), at: P3(W(pl, house.doorU, env[1], pad)), N: P3([-pl.ey[0], -pl.ey[1], 0]), floor: r5(pad), box: { min: P3([lo[0], lo[1], pad]), max: P3([hi[0], hi[1], pad + top]) }, ...(house.kit ? { type: house.kit.type } : {}) });
@@ -1182,7 +1182,7 @@ export function assembleGeotownScene(m, ctx = {}) {
       // (its streets' profiles and its slope, where it asks them: each street's crossings, climb and stretches)
       ...(d.profile ? { profile: d.profile } : {}), ...(d.spec.slope ? { slope: d.spec.slope } : {}),
       // (its shops walked into: each its card, the templates they share, what each inside shed to fit)
-      ...(enter ? { enter: { near: enter.near, shops: Object.fromEntries(entered.map((e) => [e.id, { card: e.S.card, slot: e.key, faces: e.S.faceCount, ok: e.S.assessment.ok, shed: e.S.shed, degraded: e.S.degraded }])), templates: stores.size, faces: [...stores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
+      ...(enter ? { stores: { near: enter.near, shops: Object.fromEntries(entered.map((e) => [e.id, { card: e.S.card, slot: e.key, faces: e.S.faceCount, ok: e.S.assessment.ok, shed: e.S.shed, degraded: e.S.degraded }])), templates: stores.size, faces: [...stores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
       ...(evoked ? { stands: d.evoked.stands, shows: d.evoked.shows, yards: Object.fromEntries(d.plots.filter((pl) => pl.yard).map((pl) => [pl.id, pl.yard])), features: yardsOf, shopfronts: Object.fromEntries(d.plots.filter((pl) => pl.shopfront).map((pl) => [pl.id, { sign: pl.shopfront.sign, awning: pl.shopfront.awning }])) } : {}),
     },
   };

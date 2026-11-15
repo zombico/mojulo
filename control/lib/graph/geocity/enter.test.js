@@ -7,15 +7,15 @@ import { SLOT } from '../retail/store-slot.js';
 import { mulberry32 } from '../city/plan/dice.js';
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
-const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon', geocity: { ...geocity, enter: { cards: ['electronics'] } } };
-const P = assembleGeocityScene(M), E = P.geocity.enter, shops = (P.anchors ?? []).filter((a) => a.kind === 'shop');
+const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon', geocity: { ...geocity, shops: { cards: ['electronics'] } } };
+const P = assembleGeocityScene(M), E = P.geocity.stores, shops = (P.anchors ?? []).filter((a) => a.kind === 'shop');
 const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
 
 describe('a metro\'s shops walked into', () => {
   it('reads its setting', () => {
-    expect(readGeocity(geocity).enter).toBeUndefined();
-    expect(readGeocity({ ...geocity, enter: true }).enter.near).toBe(SLOT.near);
-    expect(() => readGeocity({ ...geocity, enter: { cards: [] } })).toThrow(/enter.cards/);
+    expect(readGeocity(geocity).shops).toBeUndefined();
+    expect(readGeocity({ ...geocity, shops: true }).shops.near).toBe(SLOT.near);
+    expect(() => readGeocity({ ...geocity, shops: { cards: [] } })).toThrow(/shops.cards/);
   });
   it('its rows of shops are entered, by its law, on fewer templates than shops', () => {
     expect(shops.length).toBeGreaterThan(0);

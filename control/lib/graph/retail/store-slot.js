@@ -9,11 +9,11 @@
  *   SLOT                          the slot's numbers: the least it holds, the wall it keeps inside the building's, its
  *                                 floor's lift over the pad, its ring, the faces an inside is held to, the steps a
  *                                 size is rounded to (so shops of one size share one template)
- *   readEnter, tenantOf, TENANCY  a place's `enter` and the stores a street lets to (store-enter.js)
+ *   readEnter, tenantOf, TENANCY  a place's `shops` and the stores a street lets to (store-enter.js)
  *   slotOf({ w, d, h, door: { x, w } }) → the slot rounded to its steps, { w, d, h, door, slack: [x, y], key }, or
  *                                 null when it holds no store. `w` along the front, `d` into the building, `h` the
  *                                 storey's clear height, `door.x` its centre from the slot's left as you walk in; metres
- *   storeSlot(card, slot, { seed? }) → { card, key, sign?, faces, boxes, inside, door, till, faceCount, assessment, shed,
+ *   storeSlot(card, slot, { seed? }) → { card, key, sign?, faces, boxes, inside, door, till, keeper, faceCount, assessment, shed,
  *                                 degraded } in the SLOT FRAME: the origin the door's centre at the floor on the front
  *                                 line, +x your right hand as you walk in, +y into the store, +z up; metres
  *   openingLess(faces, rect)      a wall's faces less a door's opening ({ x0, x1, z0, z1, y0, y1 }: the opening and
@@ -104,8 +104,8 @@ export function storeSlot(cardIn, slot, { seed } = {}) {
     card: card0.id, key, faces, boxes, faceCount: faces.length, ...(card0.finishes?.sign ? { sign: card0.finishes.sign } : {}),
     inside: { x0: r5(-ex * FT), x1: r5((Wf - ex) * FT), y0: 0, y1: slot.d, h: r5(slot.h + SLOT.lift) },
     door: { x: 0, w: r5(s.entry.width * FT) },
-    // (the till: before the counter, on the door's side of it)
-    ...(cq ? { till: at([(cq[0] + cq[2]) / 2, cq[1] - 2, 0]) } : {}),
+    // (the till: before the counter, on the door's side of it; its keeper's place behind it, facing the till)
+    ...(cq ? { till: at([(cq[0] + cq[2]) / 2, cq[1] - 2, 0]), keeper: at([(cq[0] + cq[2]) / 2, cq[3] + 1.2, 0]) } : {}),
     assessment: { ok: A.ok, invariants: inv.map((f) => f.id) },
     shed: s.sub.shed?.length ?? 0, degraded: s.fitOut.report.degraded?.length ?? 0,
   };

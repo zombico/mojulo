@@ -4,16 +4,16 @@ import { SLOT, readEnter } from '../retail/store-slot.js';
 import { frontOf } from './fronts.js';
 
 // the smallest town with a row of shops: one main-street segment, its shops one card (the street's lightest)
-const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, geotown: { enter: { cards: ['electronics'] }, evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12 } };
-const P = assembleGeotownScene(M), E = P.geotown.enter, shops = P.anchors.filter((a) => a.store);
+const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, geotown: { shops: { cards: ['electronics'] }, evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12 } };
+const P = assembleGeotownScene(M), E = P.geotown.stores, shops = P.anchors.filter((a) => a.store);
 const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
 
 describe('a town\'s shops walked into', () => {
   it('reads its setting', () => {
     expect(readEnter(undefined)).toBeNull(); expect(readEnter(false)).toBeNull();
     expect(readEnter(true).near).toBe(SLOT.near);
-    expect(() => readEnter({ cards: ['nowhere'] })).toThrow(/enter.cards/);
-    expect(() => readEnter({ doors: 2 })).toThrow(/enter.doors/);
+    expect(() => readEnter({ cards: ['nowhere'] })).toThrow(/shops.cards/);
+    expect(() => readEnter({ doors: 2 })).toThrow(/shops.doors/);
   });
   it('every shop of its row is entered, by its law', () => {
     expect(shops.length).toBeGreaterThan(0);

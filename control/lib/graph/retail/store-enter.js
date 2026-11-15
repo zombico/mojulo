@@ -1,5 +1,5 @@
 /**
- * A PLACE'S `enter` — the setting a town or a city reads to have its shops walked into (store-slot.js builds them),
+ * A PLACE'S `shops` — the setting a town or a city reads to have its shops walked into (store-slot.js builds them),
  * and a street's TENANCY: which stores it lets to. Its own small module, so a reader of settings (geotown/read.js,
  * geocity/metro.js) takes it without the store's builders.
  *
@@ -30,11 +30,11 @@ export const ENTER_NEAR = 40;
 
 export function readEnter(v, no = (msg) => { throw new Error(msg); }) {
   if (v === undefined || v === null || v === false) return null;
-  if (v !== true && (typeof v !== 'object' || Array.isArray(v))) no('enter is true or { cards?, near? }');
+  if (v !== true && (typeof v !== 'object' || Array.isArray(v))) no('shops is true or { cards?, near? }');
   const o = v === true ? {} : v;
-  for (const k of Object.keys(o)) if (!['cards', 'near'].includes(k)) no(`enter.${k} is not a setting (cards, near)`);
-  if (o.cards !== undefined && o.cards !== null && (!Array.isArray(o.cards) || !o.cards.length || o.cards.some((c) => typeof c !== 'string' || !resolveCard(c)))) no('enter.cards is a list of seeded store cards\' ids');
-  if (o.near !== undefined && !(Number.isFinite(o.near) && o.near >= 10 && o.near <= 320)) no('enter.near is metres in [10, 320]');
+  for (const k of Object.keys(o)) if (!['cards', 'near'].includes(k)) no(`shops.${k} is not a setting (cards, near)`);
+  if (o.cards !== undefined && o.cards !== null && (!Array.isArray(o.cards) || !o.cards.length || o.cards.some((c) => typeof c !== 'string' || !resolveCard(c)))) no('shops.cards is a list of seeded store cards\' ids');
+  if (o.near !== undefined && !(Number.isFinite(o.near) && o.near >= 10 && o.near <= 320)) no('shops.near is metres in [10, 320]');
   return { cards: o.cards ? [...o.cards] : null, near: o.near ?? ENTER_NEAR };
 }
 
