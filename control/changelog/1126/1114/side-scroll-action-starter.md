@@ -250,6 +250,9 @@ screen) is now played on a page; before, only its practice yard was.
   wreck as they were). A run & gun that names no things takes each screen's cover from the set that screen wears
   (`dressCover`), its setting's where the set has none (`settingCover`, read off the sets: the table by setting is
   gone), each piece stood clear of the band's edges. A map with no dress keeps sandbags and crates.
+- Fixed: what stands in the band (a breakable, a piece of cover, what either leaves broken) was drawn paler than the
+  same piece against the wall: its colours reached the renderer unconverted. They are brought to linear light on the
+  page, and a thing in the band now matches the dress it comes from.
 - Not yet (run & gun): lives and one-hit play, a boss with
   a fight of its own (phases, its own attacks), two gunners checked on a page.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.

@@ -794,7 +794,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // read (the gun held, the rounds tallied) and the yard's client (a street's play: the gunner's buttons); the fixture is
 // a brawler's practice yard with no gun on it, and plays as it did. Again the same day (the fight measured,
 // brawl/brawl-measure.js): the core (a player's round breaks a box open), the street's read (the difficulty tiers)
-// and the crowd (a boss of the crowd's own kind); and the yard's client (cover drawn as the dress's own piece).
+// and the crowd (a boss of the crowd's own kind); and the yard's client (cover drawn as the dress's own piece, a
+// band's models' colours brought to linear light).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

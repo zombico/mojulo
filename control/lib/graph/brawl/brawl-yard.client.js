@@ -626,7 +626,9 @@ const COVER_LOOK = { sandbags: '#b39a6b', crates: '#9a7444', wall: '#8d8f93' };
 const BOXES = BRAWL_YARD.boxes || {};
 // (cover drawn as the dress's own piece, BRAWL_YARD.covers: the thing that stands beside the fight, stood in it)
 const COVERS = BRAWL_YARD.covers || {};
-const modelOf = (M) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(M.col.map((v) => v / 255), 3)); g.computeVertexNormals(); return castOn(new THREE.Mesh(g, RIG ? RIG.material({ color: '#ffffff', vertexColors: true }) : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))); };
+// (its colours are the dress's own, written as the eye reads them: brought to the renderer's linear light here, or
+// every piece in the band stands paler than the same piece against the wall)
+const modelOf = (M) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(M.col.map((v) => Math.pow(v / 255, 2.2)), 3)); g.computeVertexNormals(); return castOn(new THREE.Mesh(g, RIG ? RIG.material({ color: '#ffffff', vertexColors: true }) : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))); };
 const WRECKS = [];
 function wreckAt(e) { const M = e.cover ? COVERS[e.what] : BOXES[e.what]; if (!M) return; const m = modelOf(M.wreck); m.position.set(e.x / 1000, e.z / 1000 + DR(e.x), FL(e.x)); m.rotation.z = (e.x % 628) / 100; YARD.add(m); WRECKS.push(m); if (WRECKS.length > 24) YARD.remove(WRECKS.shift()); }
 function placeThings() {
