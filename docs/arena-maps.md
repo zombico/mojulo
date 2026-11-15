@@ -86,26 +86,29 @@ each other as the map allows; the small things lie in the quiet places.
 middle, three rooms in a row with a bridge, a tower round a well). A template is a start, sound as written (bounded,
 joined, its ramps and ladders clear), never a finished map.
 
-`generate.js` `growArenaMap({ template, seed, passes, kit })`: each pass tries one change on the seed's dice (a wall
-panel set, lowered or taken; a pillar; a floor panel; a ladder; a ramp; a rail; or a panel on a line the laws call too
-long) and keeps it only when the laws are held no worse. Another seed is another map. `mapAscii` draws it a level at a
+`generate.js` `growArenaMap({ template, seed, passes, drift, kit })`: each pass tries one change on the seed's dice and
+keeps it only when the laws are held no worse. A change is either free (a wall panel set, lowered or taken; a pillar; a
+floor panel; a ladder; a ramp; a rail) or a repair of what a law names (`mapLaws(...).mend`): a line broken by a panel
+across it or a pillar in it (through open air, a pillar from the ground or a wall at the edge of the floor it leaves),
+an open edge railed, a ramp cut up to a floor that has none (the floor over the ramp opened for it). It stops once
+every law is held and it has drifted from its template; another seed is another map. `mapAscii` draws it a level at a
 time; `mapPieces` lists every block in metres for what will build it.
 
 ## What the first runs found
 
 Machine gate only; nobody has played one.
 
-- The two-rings template grows to every law held: its longest line under the kit's band, most lines broken within a
-  second's run, a lap of the prizes of about 25 s.
-- The other three reach twelve or thirteen of the fourteen in 600 passes. What is left is said: lines longer than the
-  kit's longest band on the court and the three rooms, a level reached by ladders alone on the tower.
-- The templates as written are all too open for a kit of close and mid guns (their longest lines run 25 to 48 m against
-  a 22 m band); the growing is what closes them.
+- Every template grows to every law held, on each seed tried, in one to three seconds, for a kit of close and mid
+  guns: the longest line under the kit's band, most lines broken within a second's run, a lap of the prizes of 18 to 32 s.
+- A way one cell wide and longer than the kit's longest band cannot be mended: the only block that breaks its line also
+  cuts its loop. Two templates were written that way at first and never finished; a gallery is now no longer than the
+  band, and a bridge is two cells wide so panels stagger along it. A template is sized to the kit it is for.
+- The templates as written are too open (their lines run past the band); the growing is what closes them.
 
 ## Next
 
-- **A stronger search.** One block a pass is weak against a law that wants a whole partition; a repair per law (as the
-  long line has) would finish the other templates.
+- **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
+  somewhere, so a bigger court or a yard.
 - **Built into a scene.** `mapPieces` is the hand-off; nothing lays its panels, ramps and ladders as a level yet.
 - **A geocube map read against the laws.** A building's rooms, doorways and stairs, or a terrain with buildings, read
   onto this grid so the same laws say what it holds and what a design must change.

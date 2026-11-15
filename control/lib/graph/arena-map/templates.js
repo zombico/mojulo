@@ -30,11 +30,13 @@ export const TEMPLATES = Object.freeze({
     about: 'a court under a gallery: the gallery rings the court a level up and looks down into it',
     plan: 'one ring on the ground under the gallery, one ring on it, the court the heart both see; a ramp at two sides, a ladder at the other two',
     build() {
-      const M = blank(10, 10, 2);
-      M.floors.push(...rect(0, 0, 9, 9, 1).filter(([i, j]) => i === 0 || j === 0 || i === 9 || j === 9));
-      M.solids.push([3, 3, 0], [6, 6, 0], [3, 6, 0], [6, 3, 0]);
-      M.ramps.push({ at: [2, 4, 0], dir: [-1, 0], run: 2 }, { at: [7, 5, 0], dir: [1, 0], run: 2 });
-      M.ladders.push({ at: [4, 1, 0], dir: [0, -1] }, { at: [5, 8, 0], dir: [0, 1] });
+      // (a side no longer than the mid band reaches: a gallery one cell wide cannot have its line broken without
+      // cutting its ring, so its sides are short enough to need none)
+      const M = blank(8, 8, 2);
+      M.floors.push(...rect(0, 0, 7, 7, 1).filter(([i, j]) => i === 0 || j === 0 || i === 7 || j === 7));
+      M.solids.push([2, 5, 0], [5, 2, 0]);
+      M.ramps.push({ at: [2, 3, 0], dir: [-1, 0], run: 2 }, { at: [5, 4, 0], dir: [1, 0], run: 2 });
+      M.ladders.push({ at: [3, 1, 0], dir: [0, -1] }, { at: [4, 6, 0], dir: [0, 1] });
       return seal(M);
     },
   }),
@@ -54,11 +56,13 @@ export const TEMPLATES = Object.freeze({
     about: 'three rooms in a row, two doors between each pair, a balcony in each end room and a bridge through the middle one',
     plan: 'the end rooms are close quarters, the middle one the long line; the bridge crosses it in the open',
     build() {
-      const M = blank(15, 9, 2);
-      wallsAlong(M, 4, 0, 8, 0, [1, 7]); wallsAlong(M, 9, 0, 8, 0, [1, 7]);
-      M.floors.push(...rect(0, 0, 1, 8, 1), ...rect(13, 0, 14, 8, 1), ...rect(2, 4, 12, 4, 1));
-      M.ramps.push({ at: [3, 1, 0], dir: [-1, 0], run: 2 }, { at: [11, 7, 0], dir: [1, 0], run: 2 });
-      M.ladders.push({ at: [2, 6, 0], dir: [-1, 0] }, { at: [12, 2, 0], dir: [1, 0] }, { at: [7, 3, 0], dir: [0, 1] });
+      // (the rooms walled apart on both levels; the bridge two cells wide, so panels can stagger along it)
+      const M = blank(12, 8, 2);
+      wallsAlong(M, 3, 0, 7, 0, [1, 6]); wallsAlong(M, 7, 0, 7, 0, [1, 6]);
+      wallsAlong(M, 3, 0, 7, 1, [3, 4]); wallsAlong(M, 7, 0, 7, 1, [3, 4]);
+      M.floors.push(...rect(0, 0, 0, 7, 1), ...rect(11, 0, 11, 7, 1), ...rect(1, 3, 10, 4, 1));
+      M.ramps.push({ at: [2, 1, 0], dir: [-1, 0], run: 2 }, { at: [9, 6, 0], dir: [1, 0], run: 2 });
+      M.ladders.push({ at: [1, 6, 0], dir: [-1, 0] }, { at: [10, 1, 0], dir: [1, 0] }, { at: [5, 2, 0], dir: [0, 1] });
       return seal(M);
     },
   }),

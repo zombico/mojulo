@@ -125,6 +125,16 @@ describe('a map grown under the laws', () => {
     expect(G.map).not.toEqual(TEMPLATES[small].build());
     expect(() => growArenaMap({ template: 'maze' })).toThrow(/template is one of/);
   });
+  it('left to run, holds every law: the repairs mend what the laws name', () => {
+    const done = growArenaMap({ template: small, seed: 5 });
+    expect(done.laws.filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`)).toEqual([]);
+    expect(done.complete).toBe(true);
+    expect(done.passes.ran).toBeLessThan(done.passes.asked);
+    // and a law not held names what a repair mends: a line to break, an edge to rail, a floor no ramp reaches
+    const open = mapLaws(TEMPLATES[small].build());
+    expect(open.mend).toMatchObject({ lines: expect.any(Array), rails: expect.any(Array), unwalked: expect.any(Array) });
+    expect(open.mend.lines.length + open.mend.rails.length + open.mend.unwalked.length).toBeGreaterThan(0);
+  });
   it('is drawn a level at a time and listed as blocks in metres', () => {
     expect(mapAscii(G.map, G.furnished).split('level ').length - 1).toBe(G.map.nz);
     const P = mapPieces(G.map);

@@ -79,7 +79,9 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
     ran into.
   - Spawns and things are read off the map's own shape, never placed by hand.
   - Four templates (a court under a gallery, two rings sharing a middle, three rooms with a bridge, a tower round a
-    well). The two rings grow to every law held; the others to twelve or thirteen of fourteen, and say what is left.
+    well), sized for a kit of close and mid guns. Each grows to every law held in one to three seconds, on every seed
+    tried: a law not held names what mends it (a line to break, an edge to rail, a floor no ramp reaches) and the
+    generator's repairs do that where the dice fall.
   - Not built yet: laying a map's blocks as a level, a geocube building or town read against the laws, the mission's
     phases on one.
 - **In progress, not finished: a mission laid along a trail's lane or a town's walk** (`mission/route.js`). The route

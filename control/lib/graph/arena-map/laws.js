@@ -7,7 +7,7 @@
  *   PRINCIPLES            { <law>: { group, why, asks } }   the table: structure, access, sight, economy
  *   kitOf(brief?)         → { run, bands, longest, want }   the numbers a map is sized from (a mission's brief, or a person's)
  *   furnish(I, V, kit)    → { spawns: [[i, j, k]], items: [{ at, gives, major }] }   where the map's own shape puts them
- *   mapLaws(M, kit?)      → { laws: [{ law, group, holds, n, says }], held, of, short, long, furnished, measures }
+ *   mapLaws(M, kit?)      → { laws: [{ law, group, holds, n, says }], held, of, short, mend, furnished, measures }
  *                           (short: how far the sight and spawn laws are from held, for a search to climb)
  *
  * Pure, no dice: what is placed is read off the map (the least seen cells spawn, the most seen holds the prize).
@@ -200,7 +200,13 @@ export function mapLaws(M, kit = kitOf()) {
   const over = fars.reduce((t, f) => t + Math.max(0, f - kit.longest), 0) / Math.max(1, n), tight = kit.bands.includes('close') ? eighth.reduce((t, f) => t + Math.max(0, f - BANDS.close.reach[1]), 0) / eighth.length : 0;
   const short = 10 * over + Math.max(0, kit.want - longest) + 100 * Math.max(0, LIMITS.broken - broken) + 10 * tight + 3 * sp.length;
   return { laws, held, of: laws.length, short: Math.round(short * 100) / 100, furnished: { spawns: F.spawns, items: F.items.map(({ at, gives, major }) => ({ at, gives, major })) },
-    // (the lines over the cap, the longest first: what a repair breaks)
-    long: [...Array(n).keys()].filter((x) => V.far[x] > kit.longest && V.farTo[x] >= 0).sort((a, b) => V.far[b] - V.far[a]).slice(0, 12).map((x) => [V.at[x], V.at[V.farTo[x]]]),
+    // WHAT A REPAIR MENDS (generate.js): the lines to break (those over the cap, the longest first; a spawn's line to
+    // another spawn or to a prize), the open edges to rail, the upper floors no ramp reaches
+    mend: {
+      lines: [...[...Array(n).keys()].filter((x) => V.far[x] > kit.longest && V.farTo[x] >= 0).sort((a, b) => V.far[b] - V.far[a]).slice(0, 24).map((x) => [V.at[x], V.at[V.farTo[x]]]),
+        ...S.flatMap((a, q) => [...S.slice(q + 1), ...majors.map((m) => m.x)].filter((b) => V.vis[a * n + b]).map((b) => [V.at[a], V.at[b]]))],
+      rails: I.dropEdges,
+      unwalked: I.platforms.filter((p) => !p.walked || p.up < 2).map((p) => p.cells.map((id) => I.at.get(id))),
+    },
     measures: { places: n, levels: M.nz, longest: r1(longest), close: Math.round(near * 100) / 100, share: Object.fromEntries(BAND_IDS.map((b) => [b, Math.round(share[b] * 100) / 100])), broken: Math.round(broken * 100) / 100, lap: r1(secs), platforms: I.platforms.length, ramps: of('ramp').length, ladders: of('ladder').length } };
 }

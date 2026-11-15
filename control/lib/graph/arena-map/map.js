@@ -91,7 +91,7 @@ export function indexMap(M) {
     adj.get(a).push({ to: b, cost, kind });
     if (!oneWay) { adj.get(b).push({ to: a, cost, kind }); und.get(a).push(b); und.get(b).push(a); }
   };
-  const dropFaults = [];
+  const dropFaults = [], dropEdges = [];
   for (const id of [...nodes]) {
     const c = at.get(id);
     for (const [di, dj] of DIRS) {
@@ -101,6 +101,7 @@ export function indexMap(M) {
       if (c[2] === 0 || !inside(...b) || wallAt(c, b, c[2]) || floor.has(key(...b)) || solid.has(key(...b)) || onRamp.has(key(...b)) || onRamp.has(key(b[0], b[1], c[2] - 1))) continue;
       let k2 = c[2] - 1;
       while (k2 >= 0 && !standable(b[0], b[1], k2) && !solid.has(key(b[0], b[1], k2)) && !onRamp.has(key(b[0], b[1], k2))) k2--;
+      if (k2 < 0 || !standable(b[0], b[1], k2) || c[2] - k2 > FALL) dropEdges.push([c, b]);
       if (k2 < 0 || !standable(b[0], b[1], k2)) dropFaults.push(`an open edge at ${c} over nothing to land on at ${b.slice(0, 2)}: rail it`);
       else if (c[2] - k2 > FALL) dropFaults.push(`a drop of ${c[2] - k2} levels from ${c} to ${[b[0], b[1], k2]}: rail it (a body drops ${FALL} at most)`);
       else link(id, key(b[0], b[1], k2), CELL + (c[2] - k2) * 0.5, 'drop', true);
@@ -133,7 +134,7 @@ export function indexMap(M) {
     const ways = connectors.filter((x) => !x.faults.length && mine.has(key(...x.to)));
     platforms.push({ level: c[2], cells, up: ways.length, walked: ways.filter((x) => x.kind === 'ramp').length });
   }
-  return { M, floor, solid, walls, inside, standable, wallAt, nodes, at, adj, und, connectors, dropFaults, platforms, onRamp };
+  return { M, floor, solid, walls, inside, standable, wallAt, nodes, at, adj, und, connectors, dropFaults, dropEdges, platforms, onRamp };
 }
 
 /** A clear line from a body's eye in cell a to one in cell b (cells as [i, j, k]). */
