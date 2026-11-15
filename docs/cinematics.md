@@ -181,6 +181,275 @@ in Blender, never baked:
 The export is the lit one: the realistic body's smooth normals and no light baked into its colours, so either look
 shades it.
 
+The agent asks for it at `forge_motion`: a `screenplay` subject (a cast, marks and a script), shot by its `coverage`,
+with `export: 'blender'`. Each part plays from a persona (its hero, register, style and role; the part's own words win),
+from a minted hero, or from a hero spec. The door and the script write through one core
+(`control/lib/mcp/tools/scene-film.js`), so the same scene makes the same pack byte for byte. The tool never launches
+Blender: its answer names the command that builds the pack (`export-scene-blender.mjs --build <dir>`). The manual is
+the `scene-film` motion-vocab card.
+
+Before the film there is the storyboard, the default form, which mints no actor (`actor/storyboard.js`). It has a
+panel for each coverage shot. Each panel has:
+
+- its frame: stand-in mannequins drawn by the book press (`book/drawn-plate.js`, a wash), seen from the shot's
+  camera. The plate's eye is level, so a pitched camera is drawn by moving the horizon. On a set with a walled room
+  (a decorated room), `roomForms` stands the room round them: its four walls, each door and window cut through its wall
+  (the room's `openings`: a span along a wall, a sill and a head), and each piece that stands on its floor, as upright
+  blocks at their heights, lit from above. Any other set is drawn as open ground, as before;
+- the blocking from above, with the camera. A set's rooms are drawn in it, and in a furnished room each standing
+  piece too, a door as a gap in the wall and a window as a thin line across one, with only the places a cross goes
+  to named;
+- its span, its lens, its move, its lines and crosses, and its notes.
+
+`export: 'mp4'` adds the animatic: the panels held on the screen's clock, with the line spoken under each. A panel
+is a shot of the same coverage the Blender pack cuts, so the board and the film never disagree.
+
+**The set** (`world_ref`, `actor/set.js`): a stored world's named places are marks the script can name.
+- Each room's middle is `room-<id>`, and each side of a door has a stand.
+- A part with no mark stands in the largest room.
+- The coverage is still framed from the marks, so a wall between a camera and the actors is advised by
+  `shoot/clearance.js` `shootSightlines`.
+- A decorated room (`interior/places.js`) is a set: its payload carries the room (`walled`, its ceiling `h`, the tall
+  pieces as `solids`, and `stand`, the open floor a cast with no marks is put on) and an anchor by each piece, feature,
+  door and window, named by the piece's word (`sofa`, `fireplace`, `door`).
+  - In a `walled` room every camera is kept inside (`actor/coverage.js` `fitRoom`): brought back along its line of
+    sight to the wall or to the first tall piece, its lens opened to hold the framing.
+  - A cross is routed (`actor/route.js` `routeWalk`): the room's `blocks` (every standing piece) and the other actors
+    are walked round over their corners, the shortest clear way inside the room. The walk's `via` holds the corners;
+    its root keys turn onto each leg in its first steps. A set with no `blocks`, or a cross with no way round, is
+    the straight line.
+- **Any world is a set, with nothing said by it** (`actor/ground.js`). Every world resolves to faces
+  (`worlds/world-scene.js`), and the scene reads those:
+  - `standingOf(faces, { about })` reads the ground about the marks the scene uses on a grid: a cell is taken where a
+    face passes between `STEP` and `HEAD` above the floor. The taken cells are gathered into `blocks`, the same shape
+    a decorated room gives, so `routeWalk` and the storyboard need no second path. A world that states its own
+    `blocks` is taken at its word.
+  - `fitSight(framing, sight)` (`actor/coverage.js`) brings each camera along its line of sight past whatever stands
+    between it and its subject, with `faceSight(faces)` (`shoot/clearance.js`) as the line of sight. It runs after
+    `fitRoom` on every set.
+  - A world that names no place gets one, `ground`: `openGround` finds the clear ground nearest the world's middle,
+    under the open sky first, and the floor is the ground under that spot (`floorUnder`).
+  - An object's own page stands it on a studio floor (faces marked `studio`); the scene leaves those out.
+- **A window, and what stands by instancing** (`mcp/tools/scene-film.js` `setFaces`, `standingExtras`). On a set
+  with no walled room only the faces with a corner within `WINDOW` of the scene's marks are read. With them, within
+  `NEAR`: each instance of `payload.repeats` (its template through its place and scale, the faces within a body's
+  height of its foot, capped per instance) and each collider box nothing names (a parked vehicle's:
+  `vehicle-registry/parked.js`). They join the set's faces before the ground is read, so they are blocks to the
+  routes, the cameras and the board; they are not part of the relief. `playFilm` hands `prepareScreenplay` a map of
+  the worlds it has read (`worlds`), for the one call.
+- **Ground that is not flat** (`actor/relief.js`). A scene is planned on a level floor; where the land about its marks
+  rises or falls by more than a step, the film keeps that plan and carries the land beside it.
+  - The land is walked outward from the scene's marks with the world's own ground probe (`network/walk-gate.js`
+    `walk.ground`): a cell at a time, a step taken within a riser up or a drop down. What the walk never reaches (the
+    inside of a house, a roof, past a cliff) takes the height of the nearest ground it did.
+  - The set is then read with that ground laid level (`levelled`), so a hillside is clear ground to `standingOf`,
+    the routes and the cameras, and what stands on it still stands.
+  - The set carries the lift as `relief` (heights over its `floor`). The Blender pack keys each actor's root in `z`,
+    keys a walk along its way, and lifts each camera, its point of interest, each setup's lights and each prop by the
+    ground under it. A level set has no `relief` and is written as before.
+  - The storyboard draws it (`storyboard.js` `landForms`): the land out to where the cast stands as low terraces
+    over the lowest ground in view, which is the plate's ground; the camera, what it looks at, the cast and the
+    blocks are each raised by the ground under them. Terraces step 0.3 m at the finest and coarsen past thirty.
+  - A rise between a camera and what it looks at is read from the land itself (`landBetween`), since the planned
+    sightlines see the ground laid level; it is advised as `set-blocks`.
+- **Standing places in an open world** (`actor/set.js`, `mcp/tools/scene-film.js`). An anchor with a `box` and a
+  front (`N`), a town's house, is stood before its front. In a world with no rooms, a mark the scene uses that is
+  not on clear ground is moved to the nearest that is, and the parts with no mark stand in their line on clear ground.
+  A geocube's world is read for the places it knows and does not name (`setPlaces`): `start` from its walk's spawn,
+  a town's `street`s and `crossing` from its ports, a city's `corner`s from the signals nearest its seat (each at
+  the height its walker goes, a hint the relief reads the ground from). Its walkers' paths are carried as
+  `floor_plan.paths`, and a cross whose two ends stand by one path follows it (`route.js` `pathWalk`).
+- **A prop that moves** (`props.<name>.from`, `start`, `to`, `leave`, `speed`; `ARRIVE_SPEED`, `arrivalKeys`). It is
+  placed and read at its `at` (its faces join the set there), turned along its way in, or its way out when it only
+  leaves, unless it names a turn. `set.props` carries `move: { from?, start?, to?, leave?, speed }` as written; the
+  pack lowers it with the played scene to `keys` ([{ t, x, y, z? }], a couple of metres apart): a time is a second
+  or a line's start or end (`S.turns`), a leaving with no time sets off as the last line begins, never before the
+  arrival ends. `from` and `to` are routes (a point or a list); each key carries `turn`, the heading of the stretch
+  it is on (the key at a corner the next stretch's), unwrapped so no key is more than a half turn from the one
+  before. The relief takes every point of a prop's `at`, `from` and `to` as seeds, so the keys are on the ground
+  along the way. `actors.py` keys the prop's empty on them, place and turn, linear.
+- **Dressing by word** (`mcp/tools/set-things.js`). A prop's `thing` is a word read on the shelves in order: the
+  corner props (`era/props.js`), the furniture styles and kinds (`furnishings/forms.js`, and a room piece's word
+  through `furnishings/roster.js`), the vehicle registry (`vehicle-registry/roster.js`, lowered as the vehicle door
+  shows it parked, its realistic build first). `thingPayload` resolves a recipe held in memory, never stored, and
+  `thingScale` stands it at the shelf's measure (`dimsOf`). A thing a film wants that no shelf has is a row on that
+  shelf, not a film's own object. The Sets department owns `/scenes/*/props`.
+- **Props** (`screenplay.props`, `mcp/tools/scene-film.js` `placeProp`): anything mojulo made, resolved to faces the
+  same way, stood with its lowest point on the floor and its middle at `at`, turned and scaled. Its faces join the
+  set's, so the ground, the cameras and the board treat it like the rest. Its name becomes a mark on the clear ground
+  beside it. The plan plays the screenplay without `props`; the recipe keeps them as written. With no `world_ref`
+  the set's kind is `props` and the cast get marks of their own. The Blender pack carries each as its own
+  model, `props/<name>.glb` (`scene.json` `props`: its place, its turn, its size as read), and `actors.py` stands it
+  under an empty `prop:<name>` at that size, whatever unit the model came in.
+- The storyboard draws every set: `groundForms(blocks)` stands the nearest blocks as boxes in each panel. When a set
+  is drawn, `panelStation(framing, { square: true })` turns the world by quarter turns only, so the blocks stay
+  axis-aligned boxes (cheap for the plate), and the station takes the rest of the angle.
+- The world's own Blender pack goes under the actors, lowered so its floor is the scene's.
+
+**The voice** (`voice`): recorded lines set the scene's clock.
+- A recorded line lasts its recording, and its read is fitted to it: its rate is tuned until the read meets the
+  recording's length, and its words come from the alignment.
+- So the face, the stresses and the listener's nods land on the recording, and the line's first beat speaks it (the
+  mouth from its phonemes).
+- The voice track and captions are on the screen's clock: a slowed stretch never drags a word.
+
+**The dub** (`dub`, `actor/dub.js`): to picture.
+- The timing, the blocking, the bodies and the acting are the original's. Only the mouths are re-solved, as
+  `face:dub-<locale>`.
+- A dub that runs into the next line is advised.
+- The animatic carries each language as its own audio and subtitle track. In Blender, `dub.py` switches the faces and
+  `film_render.py -- --locale` the sound.
+
+## The film
+
+Several scenes make a FILM (`control/lib/graph/film/`), the animation studio's recipe: one cast, its sets, one look
+and an edit, stored as a sketch of kind `film` whose page is its book. Each scene is a screenplay played by the same
+core as one forged alone (`film.js` `sceneScreenplay`).
+
+- **Departments** (`departments.js`), in the game studio's chapters' shape: script, casting, set, performance, camera,
+  voice, look, edit and render. Each owns paths in the recipe and the advice it answers; every director's note has
+  exactly one home. The waves are read from what each department reads.
+- **The readout** (`readout.js`) gives each scene, each department's state, all advice and what to do next. A scene
+  that does not play is said by name, and the film reads on.
+- **The eyes gate is the person's, per scene.** An approval of a scene's board is stamped with what the board was
+  drawn from, so a later edit reads as stale.
+- **The door is `forge_motion`'s `film`** (`lib/mcp/tools/film.js`): write, patch, approve, run.
+  - `storyboard` boards every scene.
+  - `animatic` cuts them into one MP4 with the film's voice and dub tracks laid end to end.
+  - `film` shoots each scene in mojulo and joins them into one MP4 with the film's sound (below). Resumable.
+  - `blender` writes each scene's pack and `cut.py`, which joins their renders: the high-end outcome. It is
+    resumable: a run works until its budget and leaves the rest `pending`.
+- **The book** is `book.js`. The manual is the `film-studio` motion-vocab card.
+- **The film shot in mojulo** (`film/native.js`, `mcp/tools/scene-film.js` `writeNativeFilm`; a screenplay's
+  `export: 'film'`, a film's `run: 'film'`). The scene is played on its set's own World page and shot by the page's
+  capture (`motion/world-frames.js`), so nothing is written for what the world already does: its traffic, signals
+  and people, its weather, a geocube's hour and clouds (`nativeSet` lays the scene's ask on the set's recipe).
+  - The cast is each hero's page figure with the scene's take packed as a clip (`worlds/world-scene.js` `heroFigure`
+    `takes`, the path a game's cutscene uses), previewed once per actor (`figure.preview` as a list) and carried along
+    its blocking by the rig preview's `travel` (`scene/channels/rig-preview.js`): the place every frame, the take
+    read once on the scene's clock. Actors on one hero share a figure.
+  - The cameras are `nativeShots`: the coverage's program a frame at a time, in the page's units, lifted by the
+    set's floor and ground; the page's clock is the world's at the scene's start plus the scene's time.
+  - The page is tens of megabytes, so it is written to disk and read from the file, and the frames are written as
+    they are shot (`renderWorldFrames` `file`, `sink`), then encoded (`encode-mp4.js` `encodeFrameDirMp4`).
+  - A long take is resumed: `writeNativeFilm`'s `budgetMs` and `stamp` keep the frames shot so far on disk
+    (`frames/take.json`), and the next call shoots from the next frame. The page's picture at a frame is its clock's
+    alone, so a take shot over several calls is the take shot in one.
+  - The viewer's own stand-in (a walker the page follows) is left out, as `film/life.js` leaves it out.
+  - A film's run shoots each scene silent (`scenes/<id>/film.mp4`, its record `film.json`), then joins them without
+    another encode and lays the sound with the animatic's own `cutSound`. `made.native` keeps each scene's stamp and
+    the cut's; `filmVideoOf` serves it over the animatic. An order's event is `shot`.
+  - Known limits: the cast is drawn unlit by the set (its own baked light, no ground shadow), props are not stood,
+    the anime face plays no take on the page, the wind is the world's own.
+- **The scene's hour** (`screenplay.hour`, `mcp/tools/scene-film.js` `hourPreset`; a film's `scenes/*/hour`, the
+  look and light department's). Read with `era/geocube-hours.js` `readHour`. It is taken out of what the plan plays
+  (`set.hour`), so the blocking, the coverage and the board do not move. When the pack is written the set's
+  atmosphere takes the hour's preset (`day`, `dawn`, `dusk`, `night`: what `film_light.py` lights by); a geocube set
+  is resolved at that hour for its own sky (its faces are the same at every hour). `scene.json`'s `set` records
+  `hour` and `lit`. The lamps ride the set's own pack, made at the set's own hour, so a night's street lamps are
+  only there if the world was made with them.
+- **The scene's weather** (`screenplay.weather`, `film/weather.js` `weatherSpec`; a film's `scenes/*/weather`, the
+  look and light department's). One of the world's weather states (`matte-paint/sky.js` `CLOUDS_OF_WEATHER`, less the
+  two that are things on the wind), lowered to `{ cover, sun, soften, sky?, air?, rain?, snow?, about, reach }` and
+  written into the set's `atmosphere.json` as `weather`. `film_light.py` performs it: the sun's energy times `sun`
+  and its angle `soften`; under cloud the world's background is the cover's grey, not the sky model; `air` is the
+  fog volume, in metres, unless the world declares a thicker fog; `rain` and `snow` are geometry nodes over one
+  plane about the cast (`precip`), each point's height a function of the scene's time alone, so a frame renders the
+  same alone or in order and nothing is simulated or baked. Like the hour it is taken out of what the plan plays.
+- **The set's lamps by the hour** (`film/lamps.js`; no key: the light's preset decides). Most worlds stand their
+  lamps as form only, so `lampHeads` finds them in the lit payload: a face or a repeated thing whose `group` ends in a
+  lamp word, the faces of one lamp those within a step of each other, an instanced lamp's head its template's through
+  the instance's place, scale and turn. At night, dusk and dawn the nearest to the cast ride `scene.json` `set.posts`
+  and `actors.py` `posts` stands a point light under each head. By day a world's declared lamps (`payload.lights`)
+  are put out: `atmosphere.json` `lamps_lit: false`, read by `film_light.py`.
+- **The scene's clouds** (`screenplay.clouds`, `film/clouds.js` `cloudsSpec`, `cloudsPng`; a film's
+  `scenes/*/clouds`, the look and light department's). One of the world's skies (`matte-paint/sky.js` `WEATHERS`, read
+  by `readClouds`). Two things reach the pack: `atmosphere.json`'s `clouds` (the weather's own cover table slid by
+  `cover`: `sun`, `soften`, a grey `sky` at a full cover, and the band's `top` and `gain`) and `clouds.png`, the band a
+  geocube's dome wears (`paintCloudBand`), painted for the film's sun (its bearing, its height at the hour's preset).
+  `film_light.py` `clouded` lays it round the world's background over the sky model or the cover's grey: azimuth from
+  +x toward +y, the horizon up to `top` degrees, its alpha the mix; `gain` stands a painted colour against a physical
+  sky. With `weather` the light is the darker and softer of the two. An interior preset has no sky: advised.
+- **The scene's wind** (`screenplay.wind`, `film/wind.js` `windSpec`; a film's `scenes/*/wind`, the look and light
+  department's). A word, a number, the weather's own (`weather/weather.js` `STATES` `wind`, `gust`) or its speed, gust
+  and bearing, lowered into `atmosphere.json`'s `wind`: `lean` and `sway` as shares of a plant's height (by the speed
+  squared), `hz` for an 8 m tree, `flutter` in metres, and `plants`, the whole words a plant's object is known by (the
+  shelves' own and the grower's species, `vegetation/species.js`). `film_light.py` `wind` takes the nearest plants
+  within reach of the cast and gives each a geometry-nodes modifier: a vertex moved by its world height up the plant
+  squared, along the wind, on the scene's time; no simulation, so a frame renders alone. Each plant has a small node
+  group of its own round the shared one, since a modifier's properties are not settable in every Blender.
+- **The set's life** (`screenplay.life`, `film/life.js` `flowLife`; a film's `scenes/*/life`, the set
+  department's). A metro's traffic is a plan its page drives (`geocity/flow.js`, `scene/channels/flow.js`): a lane a
+  signalised model (`traffic-model.js`). The film reads the same plan with the same model: each lane within reach of
+  the cast stepped on the world's clock from `clock`, each vehicle that comes within reach keyed every quarter second
+  on the road's height, facing along its lane. A vehicle is built as the parked ones are (`geotown/cars.js`
+  `carModel`, its paint the plan's tint) and written as `life/<model>-<n>.glb`; it rides `scene.json`'s `props` as a
+  thing that moves (its `keys`), so `actors.py` needs nothing new. A vehicle that wraps round its lane's ring during
+  the scene is left out. Advice: `life-unused` (the set has no traffic), `life-crosses` (a vehicle within half its
+  width and 0.4 m of a part's root at the same second). A planned city's people (`walkLife`: its `walkers`, each read
+  on the world's clock as a camera follows it, `shoot/subjects.js`, in metres) are written once a figure as
+  `life/<figure>.glb` with its walk clip and ride `props` the same way, each key also carrying `p`, the cycles of
+  the gait gone by (ground covered over the stride, the page's rule): `actors.py` reads each of the figure's curves
+  again a frame at a time at that phase, so a walker held at a kerb stands. The walker a view follows is left out.
+  The planned city's cars (`carLife`: its `cars` on the same subjects, the signalised model and its turns at the
+  junctions) are written once a baked mesh as `life/<car>.glb` (`carFaces`: the bake's triangles, its linear
+  colours as sRGB fills, turned to face +y) at the size the bake measured. On the board (`lifeOf`, `actor/storyboard.js`
+  `lifeForms`): the world that moves rides the prepared set unlisted, and each panel stands what is near its look-at
+  at its moment, a vehicle as capsules along its heading (a box lies along the axes only), a walker as a mannequin.
+- **A location in words** (`film/film.js` `setErrors`, `setRef`, `setAsk`; the door's write step). A film's set is a
+  stored world's ref, or a place asked for: `{ words, seed? }` or `{ cube, show, seed? }`, the geocube kind's own
+  keys. The door makes it into a geocube sketch once (`createSketchHandler`), writes its `ref` beside the ask in the
+  recipe, and on a later write compares the ask with the film as it was last written: the same ask keeps the place,
+  another changes the same world in place (`updateSketchHandler`). `sceneScreenplay` plays the scene on that ref. The
+  readout's `sets` carries the geocube's own `brief` (what its words read, which nothing read); an unread word is
+  advised as `words-unread` in the set department. An order's `places` take the same.
+- **The set department's jobs** (`film/location.js`, `film/readout.js`, `film/film.js` `SET_KEYS`). LOCATION:
+  `proposeLocation(text)` reads a scene's words (an order's event notes, else its script) by two small tables
+  (`SHOW_WORDS`: what asks for a neighbourhood or a metro; `LAND_HINTS`: land words the geocube's table does not
+  read) and the geocube's own (`sceneOfWords`), and gives a set ask, the hour and the words that decided. A scene
+  with no set whose words name a place is advised `no-set` with the patch that takes the proposal. CONSTRUCTION: a
+  set ask carries the geocube's `style`, `geotown`, `geocity` and `town` to the geocube as given; the readout's
+  `sets` says the style. DRESSING: a prop's `thing` (above). INDOORS: a set ask with `room` (`film.js` `SET_ROOMS`, `isRoomAsk`) is made by
+  the interior designer's door (`designInteriorHandler`: a house section drafted, the room fitted out); the same room
+  is redecorated when only its style or brief changes; `ROOM_WORDS` proposes one for a scene indoors.
+- **A film made to order** (`film/order.js`, the door's `order`, `deliver` and `ordered_by`): a client studio's
+  characters, places and event notes written as a film (`filmOfOrder`), the brief kept in the recipe's `order`. An
+  event with notes and no script holds the notes in its scene (`draftScript`) and reads `unwritten`, advised in the
+  script department, until it is written. `orderReadout` derives each event's state from the film's stamps and runs.
+  `deliver` records the hand-back in the row's `made.delivered` (the film, its book, the animatic and its file, the
+  rendered cut where there is one), stamped by every scene's stamp so a later change reads as not current.
+  `ordered_by` finds a client's films by `order.from`.
+- **A game plays a film as a cutscene** (`game/flow.js`, `game/flow-films.js`, `game/play-cine.js`). A flow's
+  cinematic step takes `film` (a film's ref) or `video` (an address) in place of a scene on a stage. The recipe keeps
+  the ref; `withFlowVideos` gives the step its video when the game is served (the `/game` route) or exported
+  (`export_game` copies it to `assets/cutscenes/<ref>.mp4`), from `filmVideoOf` (`tools/film.js`: the rendered cut,
+  else the animatic). The play shell inlines the player only where a flow has such a step; a game with none carries
+  not a byte of it. It plays over the game, is skipped with Esc, Enter, Space or its button unless `skip: false`,
+  and a step with no video or one that will not play goes straight on.
+- **Light per setup** (`film/setup-light.js`, opt-in with `render.light: 'setups'`): each shot is lit as a crew relights
+  a setup, in the cast rig's colours and ratios.
+  - The key goes on the short side of the face: in front of where it is turned, away from the lens.
+  - The fill goes across the lens. The rim comes from behind.
+  - They jump on the cut (`light.py`).
+- **Focus and blur:** `render.dof` puts the focus on the subject the camera looks at. `render.motion_blur` and
+  `render.samples` go to `film_render.py`.
+- **The render worker** (`scripts/render-film.mjs`, `film/render-plan.js`) renders a pack, or a whole film:
+  - it builds once and renders chunks that never cross a cut, under a budget, resumable from the frames on disk;
+  - it encodes each scene with its voice, then `cut.py` joins the scenes;
+  - it writes `render.json`, which the film's readout reads back. The tools never launch Blender;
+  - a pack made again since its render (the scene edited) is another pack (`film/pack-stamp.js`): it is built and
+    rendered again, the other scenes are kept, and the film is cut again.
+- **A set's light** is its world's: the pack carries the world's `atmosphere.json` and `film_light.py` performs it
+  after `set.py` (the sky, a sun or none indoors, the lamps at their power). `render.light: 'setups'` adds each setup's
+  key, fill and rim over it.
+- **House lights:** a walled set whose world declares no sky and no lamp gets one area light under each ceiling
+  (`scene.json` `set.house`, made by `actors.py`), so a room of a house does not render black.
+- **A dub's frames** are its own (`film/frames-<preset>-<locale>`): the worker gives the faces the locale's mouths, or
+  the scene's own back, before it draws. A scene with no dub in the locale keeps its own frames and voice.
+- **The stage:** a scene with no set plays on a bare stage (`actors.py`): a matte floor, a soft sky and, where the
+  setups are not lit, one key. `film.blend` starts empty, and a hero's page (its view cameras, its ground) stays out
+  of the film.
+
 ## The scene in a game
 
 In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's

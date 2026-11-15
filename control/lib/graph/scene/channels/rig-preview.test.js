@@ -116,5 +116,19 @@ describe('rig preview channel', () => {
     const js = rigPreviewChannelScript(pv, { body: faced });
     for (const needle of ['__rpMorph(fig, part, geo)', 'mesh.updateMorphTargets()', '__rpFace(r, r.state.clip, phase, sec)', '__mq(']) expect(js).toContain(needle);
   });
+  it('travel: an actor is carried along its blocking and plays its take once; a page without one keeps every byte', () => {
+    const pv = { figure: 'body', clips: ['bob'], period: 4 };
+    const plain = rigPreviewChannelScript([pv], { body: fig });
+    for (const needle of ['__rpTravel', 'clip.once']) expect(plain).not.toContain(needle);
+    const travel = { from: 30, fps: 2, scale: 0.5, keys: [0, 0, 0, 0, 4, 0, 1, 1.5] };
+    const js = rigPreviewChannelScript([{ ...pv, travel }], { body: fig });
+    for (const needle of ['function __rpTravel(r, at)', 'r.rig.group.position.set(', 'r.rig.group.scale.setScalar(', "r.pv.travel ? Math.min(1, Math.max(0, (sec - (r.pv.travel.from || 0)) / r.period))", 'const one = clip.once === true']) expect(js).toContain(needle);
+    // (a figure previewed more than once: one bank entry, a preview an actor)
+    const page = emitThreeWorld({ ...base, figures: { cast: { ...fig, preview: [{ clips: ['bob'], period: 4, travel }, { clips: ['bob'], period: 4, travel: { ...travel, keys: [1, 1, 0, 0] } }] } } });
+    expect(page.split('"clips":{"bob"').length - 1).toBe(1);
+    expect(page.split('"figure":"cast"').length - 1).toBe(2);
+    // (a single preview is the list of one)
+    expect(emitThreeWorld({ ...base, figures: { body: { ...fig, preview: [{ clips: ['bob'], hide: 'body', period: 2 }] } } })).toBe(emitThreeWorld({ ...base, figures: { body: { ...fig, preview: { clips: ['bob'], hide: 'body', period: 2 } } } }));
+  });
 });
 

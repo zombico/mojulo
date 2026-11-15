@@ -1007,7 +1007,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
   // on this page (the eyes gate for a rigged layered solid). The bank carries the figure once, without
   // its preview key. Absent ⇒ zero bytes.
-  const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').map(([name, f]) => ({ figure: name, ...f.preview }));
+  const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').flatMap(([name, f]) => (Array.isArray(f.preview) ? f.preview : [f.preview]).map((pv) => ({ figure: name, ...pv })));   // (a list: one figure previewed more than once, a film's cast sharing a hero)
   const previewBank = {};
   for (const pv of previewList) { const { preview, ...fig } = packedFigures[pv.figure]; previewBank[pv.figure] = fig; }
   // a previewed figure with the PAINTED face (face-paint-rig.js `paintTex`) hides its static textured face with the solid,

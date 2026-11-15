@@ -40,6 +40,7 @@ import { chapterById, chapterWaves } from './chapters.js';
 import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, SHAPES, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
 import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
 import { GOALPOSTS } from './goalposts.js';
+import { INTAKE_KINDS } from './intake.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -143,6 +144,36 @@ function ledgerCard() {
   );
 }
 
+// the producer: the seat that runs the work (its intake of what the creator brought, the order of the units), beside
+// the director, who decides, and the assistant director, who holds a unit to its remit. Its intake rows are the table's
+function producerCard() {
+  return lines(
+    'THE PRODUCER — the seat that runs the work, versed in doing it, not in making the art. Three seats work a game:',
+    '  the director            decides: what the game is, which proposal is kept, the vertical slice (gameworld-ledger)',
+    '  the assistant director  holds a unit to its remit: assistive, strict or elevating (the production\'s style)',
+    '  the producer            runs the work: what was brought, what is answered, what is open, which unit is next',
+    'One agent may sit in all three; say which seat a move is made from. The producer never picks between two looks and',
+    'never fills a gap with taste: what is ambiguous is listed as open and asked, the director\'s or the creator\'s to say.',
+    '',
+    'THE INTAKE, before the first goalpost. A game starts from what the creator HAS: expect attachments. Ask once:',
+    '"do you have drawings, plans or documents for this game?" Then, for each thing brought, by its kind:',
+    ...Object.entries(INTAKE_KINDS).map(([id, K]) => `  ${id.padEnd(10)}${K.name} → ${K.door}  (answers: ${K.answers.join(', ')})`),
+    'You read it (you can see it); the pages are yours to write by `patch`, each from what the attachment SAYS, never',
+    'from what it might have meant. Then write the record, so the next session knows what was brought:',
+    '  { ref, patch: [{ op: \'add\', path: \'/intake\', value: { items: [{ id, kind, says, placed | aside, answers?, basis? }] } }] }',
+    '  placed  the page it went to (a JSON pointer) or a chapter\'s id        aside  why it has no place yet',
+    '  basis   stated (it says so) | inferred (read between its lines: say so to the creator)',
+    'Nothing brought is dropped: an item is placed or set aside, with why. Brought nothing: `intake: \'none\'`.',
+    'The readout\'s `intake` then says which goalposts their material answered and which are open: run the loop on',
+    'the open ones only, and do not ask again what a document already said.',
+    '',
+    'THE WORK, after it: the readout\'s `goalposts` are the path from 0 to level 1 and `next` the move. Raise a unit',
+    'for what is open ({ req: { unit } }, gameworld-ledger), one at a time, each with its `ask`. Level 1 is proved by',
+    'the machine gate (`check: true`) and approved by the creator, who plays it: it is the game they want to play.',
+    'What a thing brought asks for that nothing makes yet is said by name and set aside, never quietly left out.',
+  );
+}
+
 // the studio: the book worked a chapter at a time, in the waves the chapters' reads make (chapters.js chapterWaves): the
 // card is generated from the registry, so its order is the chapters' own
 function studioCard() {
@@ -180,11 +211,16 @@ function studioCard() {
     'check: true walks each level and reads its first frame (`audits`, the machine gate). The eyes gate is the creator',
     'playing it (`play`): never say it passed.',
     '',
-    'THE FIRST SESSION: not the game done, the game started. The readout\'s `goalposts` say where it stands (met, partial,',
+    'THE FIRST SESSION, 0 TO LEVEL 1: not the game done, its first level: proved by the machine gate, approved by the',
+    'creator playing it. Expect attachments: ask for the drawings, plans and docs they have, use what they say, set',
+    'aside what has no place yet, ask only what is missing, never guess a document. Most games',
+    'are levels played in turns (set-up, load, play, results, on to the next); an open world (qow, a world map) is laid',
+    'differently. The readout\'s `goalposts` say where it stands (met, partial,',
     'open), each open one with the question only the creator answers, and `next`: where this session goes on, and the',
     'next one picks up. A good first session leaves:',
     ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
     '',
+    'THE SEATS: the director decides, the assistant director holds the remit, the producer runs the work (gameworld-producer).',
     'One level, a simple goal: the quick path (gameworld-quick).',
   );
 }
@@ -1107,6 +1143,9 @@ function storyCard() {
     'A beat may be a CHOICE (the answer sets its flags; a later moment reads them: if: { flag }) or a SCRIPT, a',
     '  screenplay the cinematics department blocks, shoots and acts: write the words; the readout\'s story.notes are',
     '  its director\'s. Both: ui-scenes.',
+    'A CUTSCENE TO ORDER from the animation studio: hand it this game\'s characters, places and what happens,',
+    '  forge_motion({ film: { order: { from: <this ref>, for, cast, places, events: [{ id, notes }] } } }); it hands',
+    '  the cutscene back ({ film: { ordered_by: <this ref> } } finds it). get_motion_vocab({ id: \'film-studio\' }).',
     'quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag, moments?: [moment id] }] }]: every level keeps',
     '  the journal (J), its flags carried level to level. A moment in step n waits until step n - 1 is done (in step 1,',
     '  until the quest begins); its own if holds too. A step\'s flag is set by a moment\'s sets, an answer, or a cue',
@@ -1312,6 +1351,7 @@ const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
   ['gameworld-ledger', 'The ledger', 'a game made one unit at a time: a req per chapter or level, its jobs for agents, its received gate, the game built up to the last accepted level', 'one level at a time, requisition, req, remit, precedent, subagents, jobs, author, diverge, critic, probe, received, accepted, composite', ledgerCard],
+  ['gameworld-producer', 'The producer', 'the seat that runs the work: the intake of what the creator brought (drawings, plans, docs), what it answers and what is open, the order of the units; beside the director and the assistant director', 'I have a design doc, here are my sketches, turn my notes into a game, I drew a map, my game plan, where do we start, who does what, producer, planner', producerCard],
   ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-brief', 'The Game Brief', 'what the game is about, above its genre: the motivations and labours, and the orders they make for the composer', 'what my game is about, the story and its shape, save the princess, storm the citadel, catch them all', briefCard],

@@ -40,6 +40,30 @@ describe('design_game: the routing', () => {
     expect(out.advice.intent).toBeUndefined();
   });
 
+  it('asks a book at its start what its creator brought, the producer\'s step leading; the record answers it and is read back', async () => {
+    const { foes: _f, ...bare } = WORLD;
+    let out = await designGameHandler({ ref: 'fresh', world: { ...bare, id: 'fresh' } });
+    expect(out.advice.intake).toHaveLength(1);
+    expect(out.next[0]).toEqual({ step: 'intake', card: 'gameworld-producer' });
+    expect(out.intake).toBeUndefined();
+    // a book that owes an ask too: the ask leads, the intake after it
+    expect((await designGameHandler({ ref: 'owing', world: { ...WORLD, id: 'owing' } })).next.slice(0, 2).map((n) => n.step)).toEqual(['ask', 'intake']);
+
+    // what was brought, recorded: a sketch placed, a note set aside; the step is gone and the readout says what it answered
+    out = await designGameHandler({ ref: 'fresh', patch: [{ op: 'set', path: '/intake', value: { items: [
+      { id: 'map', kind: 'map', says: 'a yard with one gate', placed: '/levels/yard' },
+      { id: 'magic', kind: 'rules', says: 'four elements that oppose', aside: 'no page takes a power system yet' },
+    ] } }] });
+    expect(out.advice.intake).toBeUndefined();
+    expect(out.next.some((n) => n.step === 'intake')).toBe(false);
+    expect(out.intake).toMatchObject({ items: 2, answered: { 'first-plan': ['map'] }, aside: [{ id: 'magic' }] });
+    expect(out.intake.open).not.toContain('first-plan');
+    // nothing brought is an answer too
+    out = await designGameHandler({ ref: 'fresh', patch: [{ op: 'set', path: '/intake', value: 'none' }] });
+    expect(out.intake).toEqual({ none: true });
+    expect(out.next.some((n) => n.step === 'intake')).toBe(false);
+  });
+
   it('leaves a world that stands on no intent as it was: no advice, no move', async () => {
     const { foes: _f, ...bare } = WORLD;
     const out = await designGameHandler({ ref: 'bare', world: { ...bare, id: 'bare' } });

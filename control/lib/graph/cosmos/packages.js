@@ -35,6 +35,12 @@ export const PACKAGES = Object.freeze({
   'game-ui': { name: 'The rest of play on mana-ui: a level\'s talk menus and quest log as compositions of the one runtime, and the HUD host on a world that says no `ui`, so a theme, a language and a headset reach every screen', effort: 'M' },
   // crewed machines (11-10): the artillery range drives and flies them; a gameworld's hero does not get into one yet
   crewed: { name: 'Crewed machines from a gameworld: the hero gets into a tank, a truck, a walker, a boat, a helicopter or a fighter and drives or flies it, its gun on a turret', effort: 'L' },
+  // the lorecube (11-15): its join tables, its manual and its tree are made and checked; no gameworld key takes a part.
+  // Named for the join, as the film's order is one: the parts are structured orders the departments can be handed
+  lorecube: { name: 'Orders from lore: a world says its power system (what opposes what, its reserve, who holds a share, a manual, a tree) and its levels are laid from it: elements and weaknesses on an action game\'s foes, the reserve on its gauge, a book\'s battles fielding the manual and its party the tree', effort: 'L' },
+  // a room's condition (11-15): debris, weathering, wetness and daylight are a stage recipe's words; the join is the
+  // level keys of a designed game that carry them
+  condition: { name: 'A room\'s condition from a gameworld: the level keys that carry a place\'s state of repair, its debris, its wetness and its daylight onto a designed game\'s levels', effort: 'M' },
   replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },
   keying: { name: 'Keying: a body\'s clips stepped on twos or threes in play, each layer its own grain (characters on twos, the camera on ones)', effort: 'M' },
   // the main quest (11-04): what a long game's spine still waits on, priced so the sweep ranks it

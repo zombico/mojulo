@@ -39,7 +39,9 @@ flow: {
 
 - **Steps.** A `screen` is left by what the player picks there (each screen's events are `SCREEN_EVENTS`), or by its
   `idle` when it is left alone. A `cinematic` plays a scene on a level's page with control held and is left as the
-  scene ends. A `cutscene` is a sequence made elsewhere and played whole, the affordance an opening is handed to: a
+  scene ends, or is instead a video: `{ kind: 'cinematic', film: '<a film's ref>', next }` (the animation studio's
+  film, made to the game's order: its video is found when the game is served or exported) or `{ video: '<address>' }`,
+  played over the game and left as it ends or is skipped. A `cutscene` is a sequence made elsewhere and played whole, the affordance an opening is handed to: a
   `video` the shell plays over itself, or a directed `scene` on its `stage`, and with neither yet an empty slot the
   game passes at once; it is left as it ends, or at a skip (`skip: false`, unskippable). A `level` is left by its
   outcome (`won`, `lost`, `left`) or a door. A `hold` waits some seconds or for an event.

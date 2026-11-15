@@ -469,7 +469,9 @@ A fate thread is a separate call on a sheet that already exists, never part of t
 
 ## Where it plugs in
 
-- **The cosmos soul facet**: its `party` value is partial today; the Egocube is what fills a cast.
+- **The cosmos soul facet**: the Egocube is what fills a cast (`party`, built), and its lineages are the peoples a foe
+  is skinned as (`people`, read live from the foe shelf: the goblin and the orc among them; a kin's foes are told
+  apart by `band`).
 - **The create-hero catalyst**, step 0 THESIS: role, silhouette word, face read. The sheet answers it.
 - **The gameworld character book**: `direction` (motif, primary, secondary) and the looks pages; the unmerged
   story-cast branch reuses them for cast members.
