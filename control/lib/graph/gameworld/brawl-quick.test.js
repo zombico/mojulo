@@ -61,6 +61,11 @@ describe('the run', () => {
     expect(street.cast['*'].length).toBeGreaterThan(1);            // (a wave is not one face)
     expect(street.roster[street.cast.boss[0]].hero.ref).toBe(steps.find((s) => s.key === 'foes-crowd-boss').ref);
   });
+  it('is made for a wide screen unless it says another: a side view is not for an upright phone', () => {
+    expect(world({}).screen).toBe('screen');
+    expect(world({ screen: 'tablet' }).screen).toBe('tablet');
+    expect(steps.find((s) => s.key === 'game').order.screen).toBe('screen');
+  });
   it('its look: the western register unless it names one, every body a muscular one under the western head, the heavies hulking', () => {
     expect(world({}).quick.register).toBe('western');
     expect(world({ register: 'anime' }).quick.register).toBe('anime');

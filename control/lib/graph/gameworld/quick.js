@@ -1061,7 +1061,10 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
-  const { camera: named, moves, screen, xr: xrNamed, ...quick } = given;
+  // (a BRAWL is read from the side: made for a wide screen unless it or its world says another, never the upright
+  // phone a new game is for, game/screen.js NEW_GAME_SCREEN)
+  const { camera: named, moves, screen: screenSaid, xr: xrNamed, ...quick } = given;
+  const screen = screenSaid ?? (given.goal === 'brawl' && rest.screen === undefined ? 'screen' : undefined);
   // a shooter aims: without a camera named, from the eye
   // a work shift is high concept: the work is what is shown, so it is seen from overhead and worked by a mascot (unless
   // the creator names a camera, a hero, or no hero)

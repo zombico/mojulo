@@ -177,6 +177,9 @@ screen) is now played on a page; before, only its practice yard was.
   tier is the street as written). A world's own `setup` is kept, the fighter pick added unless it asks one.
   Proven on test streets (`scripts/spikes/brawler/turns.mjs`: three blockouts, one straight, one that rises, one that
   drifts, two fighters; designed, made, exported and played through the shell in headless Chrome).
+- A brawl is made for a wide screen: a quick brawl's world says `screen: 'screen'` unless it or its quick says
+  another (a new game's default is the upright phone, and the shell now draws its screens in the game's frame: a
+  side view in a phone's column). Found by playing the turn through.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
