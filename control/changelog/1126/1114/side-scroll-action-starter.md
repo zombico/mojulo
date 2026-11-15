@@ -160,6 +160,13 @@ screen) is now played on a page; before, only its practice yard was.
   face that crosses a bend cut there first (so a wall and its windows stay together), its instanced things (lamps,
   trees) moved whole; its dress follows its ground (`follows`: a thing on the floor moved across, a mark on the wall
   sheared with it). Where a dress's ground stands still, what would be left in the drifted band is left out. Three principles join the doc (the drift).
+- The walk bends, in any place: the three bends (rise, turn, drift) are said of the walk and the place round it, never
+  of a street as such ("here is how a room turns"). The principles doc's three sections are one, `The walk bends`
+  (what each bend keeps still, that the walk always scrolls sideways, that a bend is eased and is where the map turns a
+  page, that the place goes with the walk), and the card teaches the three words as a level's own. A building's rooms
+  take them as a street does (`{ kind: 'stage', kit, rise, turn, drift }`): `brawl-warp.js` placeWarp shears any place
+  that already stands, across by the drift and (rooms, whose ground does not climb of itself) up by the rise, a face
+  cut at a bend first, its lights, rooms, colliders and anchors moved with it; its dress follows its ground.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

@@ -638,12 +638,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   }
   // a brawl street's DRESS (brawl/brawl-dress.js): what stands along the belt beside the band, a set a screen. Its
   // faces join here, before the material / AO / texture passes. Absent ⇒ nothing.
-  // a brawl's band that DRIFTS over a town that already stands (brawl/brawl-warp.js): the town sheared across the belt
-  // by the band's drift, so its street runs on the band's diagonal. Before the dress (which stands on the moved
-  // ground) and before the material / AO / texture passes. A straight belt, or another kind of level, warps nothing.
-  if (payload && sketch.manifest.brawl?.belt?.drift && sketch.manifest.kind === 'geocube' && sketch.manifest.show === 'geotown') {
-    const { driftWarp } = await import('@/lib/graph/brawl/brawl-warp.js');
-    driftWarp(payload, sketch.manifest.brawl.belt);
+  // a brawl's walk that BENDS through a place that already stands (brawl/brawl-warp.js): the place sheared by its belt,
+  // across by the band's drift and (a building's rooms, whose ground does not climb of itself) up by its rise, so the
+  // place runs along the band's line. A blockout is laid along it where it is made, and is not sheared again. Before
+  // the dress (which stands on the moved ground) and the material / AO / texture passes. A straight, level belt
+  // warps nothing.
+  if (payload && sketch.manifest.brawl?.belt && sketch.manifest.kind !== 'greybox' && (sketch.manifest.brawl.belt.drift || (sketch.manifest.brawl.belt.rise && sketch.manifest.kind === 'stage'))) {
+    const { placeWarp } = await import('@/lib/graph/brawl/brawl-warp.js');
+    placeWarp(payload, sketch.manifest.brawl.belt, { rise: sketch.manifest.kind === 'stage' });
   }
   if (payload && sketch.manifest.brawl?.dress && sketch.manifest.brawl.belt) {
     const { dressSceneFaces } = await import('@/lib/graph/brawl/brawl-dress.js');

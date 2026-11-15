@@ -337,7 +337,7 @@ export function readDress(dress, belt, where = 'dress') {
   if (dress.setting !== undefined && !DRESS_SETTINGS[dress.setting]) throw new Error(`brawl: ${where}.setting is the kind of place it is: ${DRESS_SETTING_IDS.join(', ')}`);
   const settingId = dress.setting ?? 'street', raw = dress.sets ?? dressSets(belt, settingId);
   if (!Array.isArray(raw) || raw.length !== belt.screens.length) throw new Error(`brawl: ${where}.sets is a set a screen (${belt.screens.length}): a name (${DRESS_SET_IDS.join(', ')}), null for a bare one, or a set of its own { far: { piece: weight }, wall?, gap?, marks?, near? }`);
-  // (`follows`: on a belt whose band drifts, the dress's ground moves with the band (a blockout, a town sheared by it,
+  // (`follows`: on a belt whose band drifts, the dress's ground moves with the band (a blockout, a place sheared by it,
   // brawl-warp.js): its strips and its fronts' lines are the band's own, wherever it has drifted. Unsaid, the ground
   // stands still and the band drifts over it: what would be left standing in the band is left out)
   if (dress.follows !== undefined && typeof dress.follows !== 'boolean') throw new Error(`brawl: ${where}.follows is true (its ground moves with a drifting band) or false`);

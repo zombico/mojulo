@@ -273,3 +273,15 @@ describe('a level whose band drifts', () => {
     expect(dressPlan(D, up).filter((p) => p.side === 'far').length).toBeLessThan(dressPlan(D, belt).filter((p) => p.side === 'far').length);
   });
 });
+
+describe('a room turns as a street does', () => {
+  it('a building\'s bays take the walk\'s rise, turn and drift by the same words; its dress follows its ground', () => {
+    const kit = DRESS_SETTING_IDS.flatMap((id) => DRESS_SETTINGS[id].kits)[0];
+    const drift = [[0, 0], [14, 0], [30, 8], [62, 8]], rise = [[0, 0], [30, 0], [36, 1.5], [62, 1.5]], turn = [[0, 0], [40, 0], [50, 25], [62, 25]];
+    const L = brawlLevel({ kind: 'stage', kit, drift, rise, turn }), B = L.brawl.belt;
+    expect(B.drift).toEqual(drift); expect(B.rise).toEqual(rise); expect(B.turn).toEqual(turn);
+    expect(L.brawl.dress.follows).toBe(true);
+    for (const l of dressLaws(L.brawl.dress, B)) expect(l.ok, `${l.law}: ${l.what}`).toBe(true);
+    expect(brawlLevel({ kind: 'stage', kit }).brawl.belt).not.toHaveProperty('drift');
+  });
+});

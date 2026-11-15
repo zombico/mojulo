@@ -213,7 +213,7 @@ function brawlStage(words) {
   const D = Math.ceil((band + 2 * front) / g) * g;
   // (a kit dressed as a place of its own is framed as the street is: the band low, its backdrop over it)
   const dressedKit = words.dress !== false && (isObj(words.dress) || !!settingOfKit(kit));
-  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? (dressedKit ? 'street' : 'classic'), ...(words.turn ? { turn: words.turn } : {}) }, 'level');
+  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? (dressedKit ? 'street' : 'classic'), ...(words.turn ? { turn: words.turn } : {}), ...(words.rise ? { rise: words.rise } : {}), ...(words.drift ? { drift: words.drift } : {}) }, 'level');
   const rooms = open
     ? [{ id: 'street', x: 0, y: 0, w: belt.length, d: D, h: height, open: ['-y'] }]
     : belt.screens.map((sc, i) => ({ id: `screen-${i + 1}`, x: sc.from, y: 0, w: sc.length, d: D, h: height, open: ['-y'] }));
@@ -229,7 +229,7 @@ function brawlStage(words) {
   const wallN = r3(D - belt.at[1] - 0.12), far = [r3(belt.depth[1] + 0.25), r3(wallN - 0.05)];
   const { kit: _k, ...laid } = own ?? {};
   const dress = words.dress === false || (!own && !settingId) || far[1] - far[0] < 0.6 ? null
-    : readDress({ ...(settingId ? { setting: settingId } : {}), ...laid, far, wall: wallN, ...(open ? {} : { fronts: belt.screens.map((sc) => ({ from: r3(sc.from + 0.5), to: r3(sc.to - 0.5), wall: wallN })) }) }, belt, 'level.dress');
+    : readDress({ ...(settingId ? { setting: settingId } : {}), ...laid, far, wall: wallN, ...(open ? {} : { fronts: belt.screens.map((sc) => ({ from: r3(sc.from + 0.5), to: r3(sc.to - 0.5), wall: wallN })) }), ...(belt.drift ? { follows: true } : {}) }, belt, 'level.dress');
   return {
     manifest: {
       kind: 'stage', kit, ...(look ? { reference: look } : {}), ...(words.title ? { title: words.title } : {}),
@@ -266,8 +266,8 @@ function brawlTown(words) {
   // (its rise read off the town's own ground along the street, a point every two metres)
   const rise = climb ? Array.from({ length: Math.floor(flatBelt.length / 2) + 1 }, (_, i) => { const sv = Math.min(flatBelt.length, i * 2); return [r3(sv), r3(D.land.S(x0 + sv, main.at) - flatBelt.floor)]; }).filter((p, i, a) => !i || p[0] > a[i - 1][0]) : null;
   const belt = rise || words.turn || words.drift ? readBelt({ at: flatBelt.at, heading: 0, floor: flatBelt.floor, depth: flatBelt.depth, screens, angle: flatBelt.angle, ...(rise ? { rise } : {}), ...(words.turn ? { turn: words.turn } : {}), ...(words.drift ? { drift: words.drift } : {}) }, 'level') : flatBelt;
-  // (a town on a band that DRIFTS is sheared across by it where its page is made, brawl-warp.js: its street runs on
-  // the band's diagonal, and its dress follows its ground)
+  // (a place that already stands, on a band that DRIFTS, is sheared across by it where its page is made, brawl-warp.js:
+  // it runs on the band's diagonal, and its dress follows its ground)
   if (belt.length > x1 - x0 + 1e-6) throw new Error(`brawl: the town's block holds a street of ${Math.floor(x1 - x0)} m between its cross streets (the screens run ${r3(belt.length)} m): fewer or shorter screens`);
   // ITS DRESS (brawl-dress.js): on the far walk between the band and the fronts, and on the fronts themselves; a set
   // a screen. `dress: false` leaves the street the town's own
@@ -297,7 +297,7 @@ export const BRAWL_LEVELS = Object.freeze({
   }),
   stage: Object.freeze({
     reads: `the belt laid in the indoor level's rooms (a kit: ${BRAWL_STAGE_KITS.join(', ')}), a room a screen through doorways as wide as the band, its camera side open; the plaza one long street`,
-    words: ['kit', 'look', 'height', 'screens', 'depth', 'angle', 'dress', 'turn', 'title'],
+    words: ['kit', 'look', 'height', 'screens', 'depth', 'angle', 'dress', 'turn', 'rise', 'drift', 'title'],
     build: brawlStage,
   }),
   town: Object.freeze({

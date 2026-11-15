@@ -2,7 +2,7 @@
 
 A side-scrolling map is a belt: a strip of floor walked along and across, seen from one side by a camera that never
 turns. Everything a player learns about the place comes from one picture that slides. These are the principles the
-brawl's street was built to, said so a place of any kind (a street, a plant, a base, an office, one of an agent's own)
+brawl's street was built to, said of the walk and the place round it and never of a street as such, so a place of any kind (a street, a plant, a base, an office, one of an agent's own)
 can be laid to them. The code is `control/lib/graph/brawl/brawl-dress.js`; the agent's card is `gameworld-side-scroll`.
 
 They are laws in the house sense: measured where they can be (`dressLaws`), and they advise. A map that loses one is
@@ -55,42 +55,46 @@ still made, and says which.
 13. **How far gone is one dial.** A set is tidy or rough as a whole: the wear on its walls, the rubbish on its floor
     and how many of its vessels lie broken go together.
 
-## The ground
+## The walk bends
 
-14. **The ground may rise along the walk, never across it.** A street that climbs, a flight of steps between two
-    screens, a ramp down to a dock: the floor's height changes with how far along the belt a body stands (`rise`), and
-    the camera rises with the floor it looks at, so the picture stays side-on and the band's lines stay true. Across
-    the belt the floor is level: a blow must share a line, and a line that tilts cannot be read.
-15. **A change of level is a change of place.** Put the rise where the map turns a page: between two held screens, or
-    on the way in. A fight on a stair is hard to read; a fight on the landing above it is remembered.
-16. **What stands beside the walk stands on its own ground.** Buildings step up a climbing street, each on its pad;
-    a piece of the dress stands on the floor under its own middle; nothing floats and nothing is buried.
+A map is a walk through a place, and a walk is not always a straight, level line. These principles are about the walk
+and the place round it, whatever the place is: a street climbs, a corridor doglegs, a hall's floor steps down to a
+dock, an office floor jogs past its lift core, a room turns. Think "here is how a room turns", never "here is how a
+street curves": the street is one case.
 
-## The turn
+A walk bends in three ways, and each keeps something still.
 
-17. **A road that turns still scrolls sideways.** The walk is always along the belt and the band always across it. When
-    the road turns, what changes is where the walk points on the screen: it runs across it, then heads up it (or down
-    it), as the old arcade stages did. The camera swings round the point it looks at (`turn`), so the bodies never
-    leave the middle of the frame and the controls never change: along is still along.
-18. **A turn is walked round, not snapped.** The swing eases in and out over a stretch of the walk, and never goes so
-    far that the walk runs into the screen: past about half a right angle the fight is no longer read from the side.
-19. **A turn opens the way on.** Turned down the street, the frame shows what is coming: the next screen's set, the
-    boss's corner at the end. Use it where the map wants the player to look ahead; keep the fight's own screens
-    nearer square, where the lines across the band read best.
+14. **It rises.** The floor's height changes with how far along the walk a body stands (`rise`): a ramp, a flight of
+    steps, a climb. The camera rises with the floor it looks at. *Across* the walk the floor stays level: a blow must
+    share a line, and a line that tilts cannot be read.
+15. **It turns.** The view swings to look down the walk the way it runs (`turn`), so the walk that crossed the screen
+    now heads up it. The place does not move; what moves is where the walk points in the picture. The bodies stay in
+    the middle of the frame and along is still along.
+16. **It drifts.** The band slides across the walk's line (`drift`): north or south of it, on a diagonal, and back. The
+    view stays square and follows the band up or down the screen. Here the place moves with the walk: its floor, its
+    walls and what stands along them lie on the diagonal.
 
-## The drift
+And for all three:
 
-20. **The band may leave the straight line.** North or south of it, on a diagonal, and back: the walkway slides across
-    the belt as it is walked (`drift`) and the camera, still square to the street, follows it up or down the screen.
-    This is the arcade street that runs from the top corner of the screen to the bottom: the road, its kerbs and its
-    fronts all lie along the diagonal, smooth, never stepped.
-21. **Turn or drift, by what should stay still.** A turn swings the view and keeps the street's geometry; a drift keeps
-    the view and moves the street. Use a drift where the map should read as a street that really goes somewhere else
-    on the plan, a turn where the same street should open ahead.
-22. **The street goes with the band.** A street built for the map (a blockout) is laid along the diagonal piece by
-    piece. A street that already stands (a town's) is sheared across by the band's drift: its road, kerbs, walks and
-    fronts lie along the diagonal, its buildings' plans parallelograms with their party walls still square to the
-    walk, as an arcade street draws them; its lamps, trees and dress move whole and are never skewed. Where a ground
+17. **The walk always scrolls sideways.** However it bends, the walk is along the belt and the band across it. The
+    fight is played on a straight, level band and drawn on the bent one, so nothing about how it plays changes: not
+    the controls, not the lines a blow must share, not a foe's reach.
+18. **A bend is walked round, not snapped.** It eases in and out over a stretch of the walk, and stops short of where
+    the fight could no longer be read from the side: a stair, not a wall; half a right angle, not a corner.
+19. **A bend is where the map turns a page.** Put it between two held screens or on the way in. A fight on a stair or
+    across a corner is hard to read; a fight on the landing above it, or in the room the corridor opened into, is
+    remembered.
+20. **Choose the bend by what should stay still.** A turn keeps the place and moves the view: use it to open the way
+    ahead (the next room seen down the corridor, the boss's corner at the end of the street). A drift keeps the view
+    and moves the place: use it where the map should read as going somewhere else on the plan. A rise changes the
+    level: use it where the place itself changes (down to the dock, up to the command post).
+21. **The place goes with the walk.** A place built for the map (a blockout) is laid along the band's line piece by
+    piece. A place that already stands (a town's street, a building's rooms) is sheared by it: across by the drift, up
+    by the rise, so its floor is a ramp and its plan a parallelogram, with its cross walls still square to the walk
+    and its walls still plumb. What stands on its own (a lamp, a tree, a crate, a desk) is moved whole and never
+    skewed; what is set into a surface (a window, a poster, a shutter) goes with its surface.
+22. **What stands beside the walk stands on its own ground.** Buildings step up a climbing street, each on its pad; a
+    piece of the dress stands on the floor under its own middle; nothing floats and nothing is buried. Where a ground
     cannot move, the band may still drift over it, and anything left standing in the band is cleared.
 
 ## Writing a place
