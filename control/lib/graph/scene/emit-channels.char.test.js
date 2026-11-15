@@ -35,6 +35,9 @@ import { emitThreeWorld } from './scene-three.js';
 // replaced; it draws as before). The same fixtures re-pinned again.
 // Then (one card lane): the guide gives what it says as data (guide.js `view()`) and stays down beside a HUD grammar
 // (its `put` gained the data and the check). Any fixture with a guide re-pinned.
+// Then (Esc asks for the menu): a level a shell plays tells it when Esc is pressed there or the captured mouse is
+// let go (scene-three.js: a block added before the pause's listener, inert on a page with no parent). Every fixture
+// re-pinned.
 // Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
 // (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
 //

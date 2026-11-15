@@ -2,7 +2,8 @@
  * PROTAGONISTS BY GENRE — a hero DESIGNED AT THE EYES GATE, kept as a row, so a game of that genre laid from a sentence
  * opens on a protagonist somebody chose and not on a roll. hero-design.js rolls a person of the world and dresses them
  * by principle; that is the floor. Where a genre has a row here, the row is the hero: its looks pages whole (the body,
- * the head, the hair, the colour, the underlayer: characters.js       body: {"cast": "female", "tune": {"waist": 0.94, "hips": 1.06, "neck": 1.06}},
+ * the head, the hair, the colour, the underlayer: characters.js       body: {"cast": "female", "tune": {"waist": 1.02, "hips": 1.2, "neck": 1.06, "shoulders": 1.1, "depth": 1.15, "head": 1.16, "legs": 0.95,
+        "thigh": 1.38, "calf": 1.25, "upperArm": 1.2, "forearm": 1.15}},
       head: {"sculpt": {"browAngle": 3}, "expression": {"blink": 0.1, "smile": 0.3, "open": 0, "brow": 0},
         "face": {"jaw": 0.94, "chin": 0.9, "eyeWidth": 1.03, "eyeHeight": 1.06}},
       hair: {"hair": {"style": "bob", "volume": 1.05, "length": 1, "taper": 0.6, "clump": 1.05, "backNotch": 1,
@@ -57,6 +58,10 @@
  * Her sword is an arming sword cut short (`carry.blade`), worn at the left hip out of combat (`carry.sheath`: the hero
  * door's `hip` slot, levels.js sheathedSpec), where the cape and the sword hand both clear it.
  *
+ * HER BUILD is a heroine's, not the anime frame's fashion figure: that frame alone stood her 8.7 heads tall on thighs
+ * narrower than her calves, a stick figure at the play camera's distance. Her tune stands her about 7.4 heads: a larger
+ * head, thighs and calves that taper, fuller arms, hips and shoulders a little wider, legs a little shorter.
+ *
  * A row is recipe data: the creator rewrites any page (design_game { patch } at /characters/hero/looks/<page>) and the
  * row is no longer read (hero-design.js: pages written are theirs). Pure data.
  */
@@ -72,7 +77,8 @@ export const GENRE_HERO = fz({
       'two bands of braid above the breast; a leather belt clasped on a gemmed crest, one pouch beside it',
       'indigo boots ringed in gold; a blonde bell bob, the fringe in strands, a level brow and a slight smile'],
     looks: {
-      body: {"cast": "female", "tune": {"waist": 0.94, "hips": 1.06, "neck": 1.06}},
+      body: {"cast": "female", "tune": {"waist": 1.02, "hips": 1.2, "neck": 1.06, "shoulders": 1.1, "depth": 1.15, "head": 1.16, "legs": 0.95,
+        "thigh": 1.38, "calf": 1.25, "upperArm": 1.2, "forearm": 1.15}},
       head: {"sculpt": {"browAngle": 3}, "expression": {"blink": 0.1, "smile": 0.3, "open": 0, "brow": 0},
         "face": {"jaw": 0.94, "chin": 0.9, "eyeWidth": 1.03, "eyeHeight": 1.06}},
       hair: {"hair": {"style": "bob", "volume": 1.05, "length": 1, "taper": 0.6, "clump": 1.05, "backNotch": 1,

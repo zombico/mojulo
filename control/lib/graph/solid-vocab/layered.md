@@ -166,14 +166,28 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   bracers …) and their `intent` palette: worn over the cut on the hero's landmarks, a piece with no place on a person's
   body said in `warnings`. A `robe`, `gown` or `tunic` is a bodice on rounded rings and a skirt that is one round hull
   over the hips and legs (`hem`: thigh | knee | shin | ankle, `flare` m per m of fall, `sleeve`: none | long | bell,
-  `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). A `cloak`
+  `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). On the tiered body (outfit laws 2) every top's cloth, the
+  cut's shirt and coat and a piece's bodice alike, runs from its neckline over the shoulder: into its sleeve's head when
+  sleeved, to an armhole on the shoulder point when not, the shoulder's ball and web laid under it, the shirt's shoulder
+  inside a sleeveless tunic's; its front and back rise from the chest to a shallow round neckline at the neck's root as
+  one surface (no level edge across the upper chest), a sleeveless piece's side runs up from the chest to its armhole, and
+  a bodice under a belt or a sash at the waist is taken in under it, its skirt hung from under the belt. A `cloak`
   hangs from the shoulders round the back and over the arms to the calf (`wrap` 0.2–0.95 of a turn, 0.6 by default;
   `hem`; `rigidity`, `soft` by default), round where a flat board was, and DRAPES ON THE ARMS: the cloth over an arm
   goes with it, so a swing does not pass through it. A `bow` (`at`: back | collar | wrists; `tails` m; `loops: false`
-  a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open }`, degrees each side of the face) raises
-  a hood from the shoulders over the head, open at the face, turning with the head. Robes, gowns, tunics and cloaks take
+  a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open, worn, point, depth }`) raises
+  a hood draped from the shoulders over the head as cloth: close on the skull, the hair behind its brim tucked under it
+  (the fringe and the locks that frame the face kept), the face framed by a rolled
+  brim (`depth` deep | shallow; `open` degrees each side), a `point` behind the crown (none | short | long, a liripipe
+  that flows), its foot gathered on the collar; `worn: 'down'` lies it collapsed flat on the back, the head bare. On the
+  realistic body a robe's, a gown's or a tunic's bodice and sleeves are the tailor's cloth, a layer over the card's shirt,
+  and its skirt hangs on strings from the hips (outfit laws 2), so a stride carries it clear of the legs; the cloak
+  sways a little below the hanging hand and keeps its skin above. Robes, gowns, tunics and cloaks take
   `trim: { hem?: 'binding' | 'embroidery', cuffs?: 'binding', chest?: 'emblem', motif? }` (a band of the secondary
-  cloth; the motif in the trim's thread). PLATE (`pauldron`, `chestPlate`, `bracers`, the metal bands) is drawn as games
+  cloth; the motif in the trim's thread, a hem's along the skirt's hem: on the realistic body a thread in peaks over a
+  rule). A `medallion` hangs on its chain from the neck's root over the bodice, under a cloak or a mantle (on the
+  realistic body too, laid on the cloth it is worn over). A skirt that flows is carried by the legs in a stride (the trailing
+  heel moves its back out, never through it). PLATE (`pauldron`, `chestPlate`, `bracers`, the metal bands) is drawn as games
   draw armour: a hollow plate (a thin wall, a rolled edge in the trim, its inside in shade), within the figure's own width
   (`shoulder` no longer broadens: a wide shoulder line is a `mantle` under the plate), segmented (a cop over lames down
   the arm; a breastplate over a fauld that tapers to the waist, `cover` 0.4–1 how much of the chest it takes, 0.8 at most
@@ -574,7 +588,22 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (`lib/graph/outfit/`): a seeded card (`casual`, `office`, `athlete`, `adventurer`; on the female cast `sundress`,
   `blouse`, `athleisure`; the anime silhouette `traveler` (a second-skin top, tapered trousers, an open jacket, split
   coattails) and `warden` (a tabard and tassets); or an inline card: plain JSON) over laws (`principles.js`), stamped
-  with the laws version it was minted under. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
+  with the laws version it was minted under. THE FANTASY WARDROBE: `style: 'ranger' | 'mage' | 'peasant' | 'noble' |
+  'cleric' | 'rogue'` dresses an archetype in its own layers, never a modern card under a robe: its cut is the
+  underlayer (a linen shirt, legs, boots or shoes) and its `pieces` are worn over it in order (the over-garment, a
+  girdle at the natural waist, the outer layer, what hangs over all), each cloth named by its material (silk, linen,
+  wool, leather, fur) so it hangs and flows by the cloth law, values dark at the feet and light at the chest. RANGER: a
+  linen tunic over a shirt and trousers into boots, a wool cloak to the calf with its hood up (a short point, shallow),
+  bracers. MAGE: a silk wizard's robe, belled sleeves, its hood up with a long point, a starred hem, cuffs bound, an
+  emblem on the chest. PEASANT: a sleeveless linen tunic over a shirt, its hood down, a satchel. NOBLE: an open sleeveless
+  wine coat to the knee over a gold silk shirt, band-collared, and trousers into boots, a fur mantle, a gold-buckled girdle. CLERIC: a blue linen
+  scapular to the ankle over a white alb, its hood down, a gold girdle, a medallion. ROGUE: a leather jerkin over a dark
+  shirt and close trousers into boots, a wool half-cloak to the hip with its hood up (a long point, deep), a thigh pouch.
+  Make one your own as an inline card (copy it, change its words); `outfit.pieces` adds to its own, `intent.palette`
+  recolours its pieces' roles, the operator's `palette` its cut. On the realistic body the cloak sways only below the
+  hanging hand and a robe's skirt is the tailor's shell hung on strings from the hips; the hats and the circlet fit the
+  game body only. Hats and a circlet are headgear words (`headgear: 'wizardHat' |
+  'travelerHat' | 'circlet'`); over a card whose hood is up, use an inline card with the hood `worn: 'down'`. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
   the body's ratios (its ease scales with each ring's radius, on a rounded dense ring), so the calf still reads over
   the ankle and the waist under the ribs; a top falls from the bust and returns to the waist; a hem falls away only
   where it is CUT to. Reach for these, not `detail: 'clothed'` (which adds bulk): TIGHT is `fit: 'skin'` (a painted

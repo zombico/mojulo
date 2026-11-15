@@ -127,11 +127,18 @@ the sourced VRoid and VRM practice. It is not a documented miHoYo rule.
    hulls over hulls instead, which is the waist's +23–42 cm.
 3. **Garments live in the body's bone frames, and dressing tightens them.** VRoid 2.0 fits clothes by
    bone adjustment, and creators shrink the waist bones when dressing [snippet]. The hero's ring copy
-   already does the first half; the second half (pulling in to the body at the waist) is missing.
+   already does the first half. The second half (pulling in to the body at the waist) exists in one case: under
+   outfit laws 2 on the tiered body, a robe's, a gown's or a tunic's bodice worn under a belt or a sash at the waist
+   is taken in under it (`body-garment.js` `cinch`), and its skirt hangs from under the belt. Elsewhere it is missing.
 4. **The drape is a separate chain of spring bones colliding with body capsules.** The VRMC_springBone
    spec covers "hair and costumes": per-joint stiffness, gravity and drag, with sphere and capsule
    colliders on body nodes [spec]. `hero-flow.js` is already this, with rigidity words and capsules.
-   It is used for skirts and hair only.
+   Since the hero laws 23 a hero's loose cloth (a cloak, a robe's or a gown's skirt, a card's panels)
+   hangs on it, each clip's swing baked into bone keys (`hero-cloth.js`), every clip then played over one duration on
+   the page and in an export; the hair is not baked yet. On the realistic body (outfit laws 2) a robe's skirt, the
+   tailor's rings, hangs on the register's strings from its first ring below the hips, and the cape sways on a few stiff
+   strings only below the hanging hand, its shoulders and sides kept on their skin (hung whole it sheared into flaps
+   where the arm carries it).
 5. **The silhouette comes from a few deliberate pieces, and the body line stays tight.** In BotW, art
    director Takizawa described a style that "makes it easy to lie" while keeping a feeling of reality, and
    Link's hat was cut for not reading well [snippet: GDC 2017 coverage]. Putting the silhouette in

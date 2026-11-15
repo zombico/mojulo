@@ -295,8 +295,19 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   no bars). The viewer's strip (the view cams, wireframe, fly and walk, reverse view, the AI switch) and its corner
   hint are not shown on a page with a HUD grammar, however the page is opened. The game's `ui` is carried into the made game (`mcp/tools/create-game.js`, `design-game.js`: it was
   dropped at the mint and at a remake, so a world's interface never reached its shell).
-- Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
-  does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
+- **Her build is a heroine's** (`gameworld/hero-rows.js`, the row's body page). On the anime frame alone she stood 8.7
+  heads tall on thighs narrower than her calves (10 cm against 13), a stick figure at the play camera's distance. Her
+  tune stands her about 7.4 heads: a larger head, thighs and calves that taper (17 and 16 cm), fuller arms, hips and
+  shoulders a little wider, legs a little shorter. Measured off the mesh; the look is the operator's to judge.
+- **Esc opens the pause** (`game/level-contract.js` MSG_MENU, `scene/scene-three.js`, `game/play-shell.js`): a level a
+  shell plays tells it when Esc is pressed there, or when the captured mouse is let go by it (the browser takes that
+  press itself); Esc on the shell's own page does the same. With the pause up, Esc is the menu's back. Not while one
+  of the level's own menus is up (its Esc closes that). The pause's controls list is the level's own rows, filled as
+  they arrive (it showed the stock three).
+- **The fantasy dressing branch merged.** A cape minted before keeps its bytes: its inside skins as its outside only
+  on a cape that says `arms: false` or a lining. The hero's cloak is wool by the cloth law and swings in her clips on
+  a new mint; a shared corner is placed by its weights on the page, so her cape and skirt no longer split in a stride.
+- Not here yet: a scabbard is not drawn (the blade
   hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's marked slot is always the weapon; the bag's menu is still the old menu layer's (not mana-ui's, not in the game's look) and the quick item and the bag have no pad control; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
   cloth takes no texture on the anime body; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands

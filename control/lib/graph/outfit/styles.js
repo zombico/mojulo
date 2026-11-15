@@ -323,8 +323,69 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "pattern": "multicam" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots", "pockets": "cargo", "pattern": "multicam" }, "head": { "helmet": "highcut", "cover": true, "nvg": true, "headset": true }, "feet": "combatBoots", "tuck": true, "focal": "belt" },
     "pieces": [{ "kind": "vest", "cut": "plate" }, { "kind": "kneepads" }, { "kind": "elbowpads" }, { "kind": "thighPouch" }],
     "tones": { "OutfitTrim": "#5a4f3a", "OutfitSecond": "#6f6450", "Leather": "#3a3328", "Buckle": "#4a4a46" }
+  },
+  // THE FANTASY WARDROBE (1114): each archetype dressed in its own layers, worn in the order the research found in shipped
+  // games (base, over-garment, belt, outer): the card's own cut is the UNDERLAYER (a linen shirt, hose or trousers, boots
+  // or shoes: an alb under a cleric's scapular, a doublet's shirt under a noble's coat), its `pieces` the designed
+  // garments over it in that order (polygonizer/outfit-plan.js OUTFIT_KINDS: a tunic, a robe or a wizard's robe; the
+  // girdle at the natural waist, its id its own so a cut that spends a belt keeps both; a cloak or a mantle; what hangs
+  // over all). Each piece names what it is made of (polygonizer/cloth-law.js MATERIALS), so the cloth hangs and flows by
+  // its law under the hero laws 23, and the hood is the draped hood's words. Values run DARK LOW, LIGHT HIGH (the boots
+  // and the legs the darkest, the chest the lightest of the cloth, the detail there: docs/garment-principles.md "one
+  // focal", the research's principle 15), neighbouring layers a value step apart or of another cloth. The cut spends its
+  // collar alone (ornament 1, the collar the focal) so no belt of the cut's sits hidden under the over-garment; the trims
+  // are the pieces' own.
+  ranger: {
+    "id": "ranger",
+    "dials": { "stylize": 0.4, "fit": 0.45, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "into": "boots" }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "pieces": [{ "kind": "tunic", "material": "linen", "sleeve": "none", "trim": { "hem": "binding" } }, { "kind": "belt", "id": "girdle", "at": "waist" },
+      { "kind": "cloak", "hem": "calf", "material": "wool", "hood": { "worn": "up", "point": "short", "depth": "shallow" } }, { "kind": "bracers" }],
+    "tones": { "Top": "#bfb08a", "Bottom": "#3a3226", "Shoes": "#251c14", "OutfitBase": "#6d7f45", "OutfitSecond": "#2e3b29", "OutfitTrim": "#b8925a", "OutfitAccent": "#9c3b26", "Leather": "#5b3b22", "Buckle": "#b8925a" }
+  },
+  mage: {
+    "id": "mage",
+    "dials": { "stylize": 0.45, "fit": 0.4, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "pieces": [{ "kind": "wizardRobe", "material": "silk", "hood": { "worn": "up", "point": "long", "depth": "deep" }, "trim": { "hem": "embroidery", "cuffs": "binding", "chest": "emblem", "motif": "star" } },
+      { "kind": "belt", "id": "girdle", "at": "waist" }],
+    "tones": { "Top": "#ddd3bb", "Bottom": "#2a2733", "Shoes": "#1d1a22", "OutfitBase": "#3f5aa0", "OutfitSecond": "#6a4a8e", "OutfitTrim": "#e0bd62", "OutfitAccent": "#e0bd62", "Leather": "#3b2a3f", "Buckle": "#e0bd62" }
+  },
+  peasant: {
+    "id": "peasant",
+    "dials": { "stylize": 0.3, "fit": 0.6, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "pieces": [{ "kind": "tunic", "material": "linen", "sleeve": "none", "hood": { "worn": "down", "point": "short" } }, { "kind": "belt", "id": "girdle", "at": "waist" }, { "kind": "satchel" }],
+    "tones": { "Top": "#d8ccb0", "Bottom": "#5a4a38", "Shoes": "#3b2c1e", "OutfitBase": "#9c8a66", "OutfitSecond": "#6b5a44", "OutfitTrim": "#6b5a40", "OutfitAccent": "#8a3a2a", "Leather": "#4a3423", "Buckle": "#8a7a5a" }
+  },
+  noble: {
+    "id": "noble",
+    "dials": { "stylize": 0.35, "fit": 0.35, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": "band", "cloth": "silk" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "into": "boots" },
+      "outer": { "family": "woven", "sleeve": "none", "hem": "knee", "open": true, "cut": "aline", "fit": "fitted", "cloth": "wool" }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "pieces": [{ "kind": "belt", "id": "girdle", "at": "waist", "buckleColour": "trim" }, { "kind": "mantle", "material": "fur", "flare": 0.18 }],
+    "tones": { "Top": "#d9b45a", "Bottom": "#2e2224", "Shoes": "#1c1414", "Outer": "#8a2a3a", "OutfitSecond": "#ece4d4", "OutfitTrim": "#d9b45a", "OutfitAccent": "#d9b45a", "Leather": "#2a1c18", "Buckle": "#d9b45a", "Trim": "#d9b45a" }
+  },
+  cleric: {
+    "id": "cleric",
+    "dials": { "stylize": 0.35, "fit": 0.5, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "pieces": [{ "kind": "robe", "material": "linen", "sleeve": "none", "hood": { "worn": "down", "point": "none" }, "trim": { "hem": "binding" } }, { "kind": "belt", "id": "girdle", "at": "waist", "colour": "trim" }, { "kind": "medallion" }],
+    "tones": { "Top": "#eeeadf", "Bottom": "#3a3640", "Shoes": "#2a2420", "OutfitBase": "#3d5a8a", "OutfitSecond": "#d9c79a", "OutfitTrim": "#d6b25e", "OutfitAccent": "#e2c46a", "Leather": "#3a2a20", "Buckle": "#d6b25e" }
+  },
+  rogue: {
+    "id": "rogue",
+    "dials": { "stylize": 0.45, "fit": 0.3, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "skinny", "fit": "fitted", "into": "boots" },
+      "outer": { "family": "woven", "sleeve": "none", "hem": "hip", "open": false, "fit": "fitted", "cloth": "leather" }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "pieces": [{ "kind": "belt", "id": "girdle", "at": "waist" }, { "kind": "cloak", "hem": "hip", "wrap": 0.55, "material": "wool", "hood": { "worn": "up", "point": "long", "depth": "deep" } }, { "kind": "thighPouch" }],
+    "tones": { "Top": "#45404a", "Bottom": "#24211f", "Shoes": "#151313", "Outer": "#86623e", "OutfitSecond": "#2b2a2e", "OutfitTrim": "#8a8a8a", "OutfitAccent": "#9a2a2a", "Leather": "#3a2a20", "Buckle": "#9a9a9a" }
   }
 });
+
+/** the FANTASY WARDROBE's cards (above), each an archetype in its own layers: the outfit card's `style` word on the hero
+ * door (create_character as 'hero', `outfit: { type: 'outfit', style: 'ranger' }`) */
+export const FANTASY_OUTFITS = Object.freeze(['ranger', 'mage', 'peasant', 'noble', 'cleric', 'rogue']);
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];

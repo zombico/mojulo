@@ -166,6 +166,8 @@ export function playShellManaRuntime(cfg, api) {
       pausing = true;
       open('pause');
     },
+    // (the level's controls, come after the pause opened: the list filled where it stands)
+    controls(rows) { if (!pausing || !rows) return; UI.ui.controls = rows.map((r) => ({ keys: r[0], what: r[1] })); view.paint(); },
     loading(place) { UI.ui.load = { place: place || '', ready: false }; open('loading'); },
     loaded() { UI.ui.load = Object.assign({}, UI.ui.load, { ready: true }); view.paint(); },
   };
