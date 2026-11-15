@@ -12,6 +12,8 @@
  * Pure: no clock, no dice.
  */
 export const streetRank = (share) => (share >= 0.75 ? 'S' : share >= 0.5 ? 'A' : share >= 0.25 ? 'B' : 'C');
+/** a gun's two letters for a seat's panel: its words' initials (Machine Gun → MG), or its first two letters (Spread → SP) */
+export const gunCode = (G) => { const w = gunName(G).split(/\s+/).filter(Boolean); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase(); };
 export const gunName = (G) => G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 /** A gunner's ROUNDS, tallied off a frame's events (the range's own count): `tally` { fired, landed } → the same, added to. */
 export function tallyRounds(tally, events, players = 1) {

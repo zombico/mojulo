@@ -266,6 +266,15 @@ screen) is now played on a page; before, only its practice yard was.
   again, and could be handed a crowd's grunt to play. Its name, health and gun stand under the first player's; the
   street is lost when every seated player is down. Checked on a page: `node scripts/spikes/brawler/street.mjs --coop
   --play gun` (a pad the page reads as any sits down, walks in and fires; exit 0 only if it held).
+- THE SCREEN of a side-scrolling action game in play, redone for both plays: FOUR SEATS across the top, a quarter of
+  the screen each, so a seat never moves when another is taken. A seat taken shows its tag in its own colour (the
+  look's sides; the mark its player stands on wears it too), its name, its health read by its length, and for a run &
+  gun the gun in its hands as two letters (`gunCode`: MG, SP, FL, RK), its rounds (marked LOW at a fifth of a
+  magazine) and its grenades. A seat open says how to sit down; a seat the game has not leaves its quarter empty. The
+  way through and who is left moved to the foot's corners, the boss's bar between them: the middle of the screen is
+  the fight's. A new look, `brawl-street` (a theme card: the brawl yard's asphalt and hazard yellow with stencilled
+  pictograms coloured by what they mean), on the street's screen and on a brawl's shell; the practice yard keeps
+  `brawl-yard`. Two pictograms joined the icon shelf: `bullet` (also said ammo, rounds) and `grenade`.
 - Not yet (run & gun): lives and one-hit play, a boss's own attacks (a pattern only it has), the turn asking each
   seat its fighter and gun (a second player takes the next playable and the first's gun), the fight measured with two.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.

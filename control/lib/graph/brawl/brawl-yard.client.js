@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global joinStreet, newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global gunCode, joinStreet, newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -177,7 +177,8 @@ function build() {
   bodies = room.s.bodies.map((b, i) => {
     const E = entryOf(i), skin = skinOf(E && E.character), player = i < SEATED.length;
     const B = skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(E ? E.color : '#9a8f86', room.ctx.fighters[b.fi], false);
-    if (player) B.line = lineOf(E.color);
+    // (a street's player stands on its SEAT's colour, the one its quarter of the screen wears)
+    if (player) B.line = lineOf(STREET && STREET.sides && STREET.sides[i] ? STREET.sides[i] : E.color);
     return B;
   });
   for (const m of things.values()) YARD.remove(m);
@@ -812,7 +813,7 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { street: { p2: { on: false, name: '', hp: 0, hpMax: 1, gun: '' }, p3: { on: false, name: '', hp: 0, hpMax: 1, gun: '' }, p4: { on: false, name: '', hp: 0, hpMax: 1, gun: '' }, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { street: { p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
@@ -936,8 +937,14 @@ function streetScreen() {
   if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
   // (a boss turning: its phase's word, or its number)
   while (TURNS.length) { const e = TURNS.shift(); say((e.says || 'PHASE ' + (e.k + 1)).toUpperCase(), 'major'); }
-  const M8 = R.mates, mate = (k) => (M8[k] && M8[k].on ? { on: true, name: BY.roster[seatsOf()[k + 1]].name, hp: M8[k].hp, hpMax: M8[k].hpMax, gun: M8[k].gun ? M8[k].gun + ' ' + M8[k].ammo : '' } : { on: false, name: '', hp: 0, hpMax: 1, gun: '' });
-  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: { ...R.boss, phased: !!R.phase, phase: R.phase ? R.phase.at : 0, phases: R.phase ? R.phase.of : 1 }, p2: mate(0), p3: mate(1), p4: mate(2), ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
+  // (each seat's quarter: taken (its name, health, gun, rounds: low at a fifth of a magazine, grenades), open, or none)
+  const seat = (k) => {
+    const OFF = { on: false, open: false, name: '', hp: 0, hpMax: 1, gun: '', ammo: '', low: false, grenades: 0 };
+    if (k >= picks.length) return k < picks.length + SPARE.length ? { ...OFF, open: true } : OFF;
+    const p = room.s.bodies[k], G = p.gn !== undefined ? room.ctx.guns[p.gn] : null;
+    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(G ? { gun: gunCode(G), ammo: p.am === undefined ? '∞' : String(p.am), low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0 } : {}) };
+  };
+  Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, boss: { ...R.boss, phased: !!R.phase, phase: R.phase ? R.phase.at : 0, phases: R.phase ? R.phase.of : 1 }, p1: seat(0), p2: seat(1), p3: seat(2), p4: seat(3), ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
   if (!over) { S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); S.rank = R.won ? R.rank : '—'; }
   if (!over && (R.won || R.lost)) {
     over = R.won ? 'won' : 'lost';

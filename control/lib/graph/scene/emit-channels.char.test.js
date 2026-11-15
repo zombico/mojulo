@@ -796,7 +796,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // brawl/brawl-measure.js): the core (a player's round breaks a box open), the street's read (the difficulty tiers)
 // and the crowd (a boss of the crowd's own kind); and the yard's client (cover drawn as the dress's own piece, a
 // band's models' colours brought to linear light). Again (a boss's phases, a second seat taken mid-street): the
-// crowd, the street's read and the yard's client; the fixture is a yard, with neither.
+// crowd, the street's read and the yard's client; the fixture is a yard, with neither. Again (the street's seats):
+// the street's read (a gun's letters) and the yard's client (each seat's quarter).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

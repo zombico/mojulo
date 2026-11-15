@@ -3,7 +3,7 @@
 // screens beaten, the crowd left, the boss's bar, the two ends.
 import { describe, it, expect } from 'vitest';
 import { CROWD_RULES as RULES_OF_CROWD } from './brawl-crowd.js';
-import { streetSpec, streetScreenOf, readStreet } from './brawl-street.js';
+import { SEATS, seatState, streetSpec, streetScreenOf, readStreet } from './brawl-street.js';
 import { streetRead, streetRank, streetSession, STREET_DIFFICULTY } from './brawl-street-read.js';
 import { brawlPreset, brawlLevel } from './brawl-levels.js';
 import { brawlYardData, BRAWL_ROSTER } from './brawl-page.js';
@@ -76,9 +76,23 @@ describe('its screen', () => {
   it('is a spec the runtime reads, in the brawler\'s look, and draws on its state', () => {
     expect(() => manaUi.readSpec(streetSpec())).not.toThrow();
     expect(streetScreenOf().css).toContain('.mana-');
-    const state = { brawl: { street: { hp: 400, hpMax: 1000, name: 'Kai', cleared: 1, of: 3, left: 4, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:31', moves: [] } } };
+    const state = { brawl: { street: { p1: { ...seatState(), on: true, name: 'Kai', hp: 400, hpMax: 1000 }, p2: { ...seatState(), open: true }, p3: seatState(), p4: seatState(), hp: 400, hpMax: 1000, cleared: 1, of: 3, left: 4, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:31', moves: [] } } };
     const rt = manaUi.runtime(streetSpec(), { read: (p) => manaUi.readPath(state, p), act() {}, now: () => 1 });
     expect(rt.view()).toContain('Kai');
+    // (THE SEATS: four across the top sharing its width; one taken, one open and saying how to sit down, two the game
+    // has not, their quarters kept)
+    const top = rt.view().split('data-at="bottom')[0];
+    expect(top).toContain('data-fill="yes"');
+    expect(top).toContain('1P');
+    expect(top).toContain('Press start');
+    expect(top.match(/Press start/g)).toHaveLength(1);
+    expect(top).not.toContain('3P');
+    expect(SEATS).toHaveLength(4);
+    // (a brawl's seat shows no gun; a run & gun's its gun's letters, its rounds, a mark when they are low, its grenades)
+    expect(top).not.toContain('data-icon="bullet"');
+    const gs = { brawl: { street: { ...state.brawl.street, p1: { ...state.brawl.street.p1, gun: 'MG', ammo: '12', low: true, grenades: 2 } } } };
+    const gv = manaUi.runtime(streetSpec('gun'), { read: (p) => manaUi.readPath(gs, p), act() {}, now: () => 1 }).view().split('data-at="bottom')[0];
+    for (const w of ['MG', '12', 'Low', 'bullet', 'grenade']) expect(gv, w).toContain(w);
     expect(rt.view()).not.toContain('Big Rig');
     state.brawl.street.boss = { on: true, name: 'Big Rig', hp: 90, hpMax: 150 };
     rt.tick();                                            // (a value it read changed: drawn again)

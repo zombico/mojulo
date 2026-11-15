@@ -9,8 +9,9 @@
  *   readStreet(street, belt, where?) → the settled `{ players, waves, things?, cast? }` of a world's `brawl.street` (throws
  *                       naming the fault before the page is made)
  *
- * The state it reads (the page writes it from brawl-street-read.js streetRead): brawl.street { hp, hpMax, name,
- * cleared, of, left, boss { on, name, hp, hpMax }, moments [], time, moves [] }.
+ * The state it reads (the page writes it from brawl-street-read.js streetRead): brawl.street { p1 … p4 (each seat:
+ * seatState), cleared, of, left, boss { on, name, hp, hpMax, phased, phase, phases }, moments [], time, hp, hpMax,
+ * rank, accuracy, moves [] }.
  *
  * Pure: no clock, no dice.
  */
@@ -30,6 +31,10 @@ const endOf = (title, sub, play) => ({ use: 'screen', props: { layer: 'overlay',
 ] }] });
 
 /** How a street is PLAYED (the play types: brawl-play.js): the brawler's kit, or the run & gun's. */
+/** the seats a street's screen has: four, a quarter of its width each */
+export const SEATS = Object.freeze(['p1', 'p2', 'p3', 'p4']);
+/** a seat's state as the screen reads it, empty (the page fills it: brawl-yard.client.js) */
+export const seatState = () => ({ on: false, open: false, name: '', hp: 0, hpMax: 1, gun: '', ammo: '', low: false, grenades: 0 });
 export const STREET_PLAYS = Object.freeze(['brawl', 'gun']);
 export const STREET_GUNS = Object.freeze(['machine-gun']);
 const stats = (play) => [{ use: 'stat', props: { label: 'time', value: b('time') } }, { use: 'stat', props: { label: 'health', value: b('hp'), max: b('hpMax') } }, ...(play === 'gun' ? [{ use: 'stat', props: { label: 'accuracy', value: b('accuracy') } }] : []), { use: 'stat', props: { label: 'rank', value: b('rank') } }];
@@ -38,20 +43,24 @@ export function streetSpec(play = 'brawl') {
   return {
     defs: { 'command-list': { params: IDIOMS['command-list'].params, node: IDIOMS['command-list'].node } },
     hud: { use: 'hud', children: [
-      { use: 'region', props: { at: 'top-left' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, children: [
-        { use: 'text', props: { value: b('name'), role: 'label' } },
-        { use: 'bar', props: { value: b('hp'), max: b('hpMax'), variant: 'hp', size: 'large', figures: false } },
-        // (THE OTHER SEATS, once taken: each its name, its health, the gun it holds)
-        ...['p2', 'p3', 'p4'].map((k) => ({ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, when: b(`${k}.on`), children: [
-          { use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [{ use: 'text', props: { value: b(`${k}.name`), role: 'label' } }, { use: 'text', props: { value: b(`${k}.gun`), role: 'label' }, when: b(`${k}.gun`) }] },
-          { use: 'bar', props: { value: b(`${k}.hp`), max: b(`${k}.hpMax`), variant: 'hp', figures: false } }] }))] }] },
-      { use: 'region', props: { at: 'top' }, children: [{ use: 'pips', props: { value: b('cleared'), max: b('of'), shape: 'square', label: 'street' } }] },
-      { use: 'region', props: { at: 'top-right' }, children: [{ use: 'counter', props: { label: 'left', value: b('left'), icon: 'skull' } }] },
-      // (A RUN & GUN's: the gun held, its rounds, the grenades, under the health)
-      ...(play === 'gun' ? [{ use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
-        { use: 'counter', props: { label: b('gun.name'), value: b('gun.ammo'), icon: 'bolt' } },
-        { use: 'counter', props: { label: 'grenades', value: b('gun.grenades'), icon: 'flame' } }] }] }] : []),
-      // (the boss's bar along the foot, clear of the corners' readouts)
+      // THE SEATS: four across the top, a quarter of the screen each, whoever sits in them (docs/side-scroll-map-
+      // principles.md "The screen"). A seat taken: its tag in its own colour and its name, its health read by its
+      // length, and (a run & gun's) the gun in its hands, its rounds (marked LOW at a fifth of a magazine) and its grenades.
+      // A seat open: its tag and how to sit down. A seat the game has not: its quarter left empty, so no seat moves.
+      { use: 'region', props: { at: 'top', variant: 'bare' }, children: [{ use: 'stack', props: { dir: 'row', fill: true, gap: 'normal', align: 'start' }, children: SEATS.map((p, k) => ({ use: 'stack', props: { gap: 'tight', align: 'stretch' }, children: [
+        { use: 'window', props: { variant: 'plain' }, when: b(`${p}.on`), children: [{ use: 'stack', props: { gap: 'tight', align: 'stretch' }, children: [
+          { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'badge', props: { value: `${k + 1}P`, side: k, variant: 'strong' } }, { use: 'text', props: { value: b(`${p}.name`), role: 'label' } }] },
+          { use: 'bar', props: { value: b(`${p}.hp`), max: b(`${p}.hpMax`), variant: 'hp', size: 'large', figures: false } },
+          // (the gun in its hands, as its two letters (MG, SP, FL, RK: a name does not fit a quarter of a screen and is
+          // read slower than the gun itself), its rounds; its grenades at the row's far end)
+          ...(play === 'gun' ? [{ use: 'stack', props: { dir: 'row', gap: 'tight', align: 'apart' }, children: [
+            { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'badge', props: { value: b(`${p}.gun`), variant: 'strong' } }, { use: 'counter', props: { label: '', value: b(`${p}.ammo`), icon: 'bullet' } }, { use: 'badge', props: { value: 'Low', variant: 'stamp' }, when: b(`${p}.low`) }] },
+            { use: 'counter', props: { label: '', value: b(`${p}.grenades`), icon: 'grenade' } }] }] : [])] }] },
+        { use: 'window', props: { variant: 'ghost' }, when: b(`${p}.open`), children: [{ use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'badge', props: { value: `${k + 1}P`, side: k, variant: 'muted' } }, { use: 'text', props: { value: 'Press start', role: 'caption' } }] }] }] })) }] },
+      // (the way through and who is left, at the foot's corners: the middle of the screen is the fight's)
+      { use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'pips', props: { value: b('cleared'), max: b('of'), shape: 'square', label: 'stage' } }] },
+      { use: 'region', props: { at: 'bottom-right' }, children: [{ use: 'counter', props: { label: 'left', value: b('left'), icon: 'skull' } }] },
+      // (the boss's bar along the foot, between them)
       { use: 'region', props: { at: 'bottom' }, when: b('boss.on'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [
         // (a boss with phases: the one it is in, as pips over its bar)
         { use: 'pips', props: { value: b('boss.phase'), max: b('boss.phases'), shape: 'square', label: 'phase' }, when: b('boss.phased') },
@@ -71,7 +80,7 @@ export function streetSpec(play = 'brawl') {
 }
 
 export function streetScreenOf(play = 'brawl') {
-  return { spec: streetSpec(play), css: `${manaCss()}\n${themeCss(cardTheme('brawl-yard'))}`, theme: 'brawl-yard' };
+  return { spec: streetSpec(play), css: `${manaCss()}\n${themeCss(cardTheme('brawl-street'))}`, theme: 'brawl-street', sides: cardTheme('brawl-street').sides };
 }
 
 /** A world's `brawl.street`, settled: who plays (roster indices, one to four), the waves a held screen (read against

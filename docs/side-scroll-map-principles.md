@@ -177,6 +177,23 @@ levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
   not held, and it is let go once the player is on the next wave's screen. Holds stay for the screens that are gated
   and the boss's.
 
+## The screen
+
+What a side-scrolling action game shows while it is played (`control/lib/graph/brawl/brawl-street.js`, drawn by the
+game UI runtime in the `brawl-street` look), in either play:
+
+- **Four seats, a quarter of the screen each.** The top is divided in four, one quarter a seat, whoever sits in them,
+  so a seat never moves when another is taken. A seat's colour is its own (the look's `sides`): on its tag, and on the
+  mark its player stands on.
+- **A seat taken** shows its tag and name, its health read by its length, and for a run & gun the gun in its hands as
+  two letters, its rounds (marked LOW at a fifth of a magazine) and its grenades.
+- **A seat open** shows its tag and how to sit down. A seat the game does not have leaves its quarter empty.
+- **The middle of the screen is the fight's.** The way through (the held screens as marks) and who is left stand at the
+  foot's corners, the boss's bar between them with a mark a phase. Words (GO, a boss's name, a phase) cross the middle
+  for a moment and leave.
+- **Pictures for what is counted.** Rounds, grenades and the crowd left are pictograms (`mana-ui/icons.js`), in the
+  look's own style.
+
 ## The fight, measured
 
 A map's encounters have a machine gate (`control/lib/graph/brawl/brawl-measure.js`). The street is fought down on the

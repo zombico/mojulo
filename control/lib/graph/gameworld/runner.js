@@ -952,7 +952,7 @@ function quickSteps(world, G, ref, lookup) {
       }
       const streets = brawlStreets(Q, { title, roster, cast, types, colour: crowd.colour, holder: crowd.name }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
       const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));
-      const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-yard') };
+      const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-street') };
       const game0 = { title, store: quickStore(Q), levels: streets.map((s) => ({ ref: s.ref, title: s.name })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
       // EACH STREET A TURN (game/turn.js): the game's flow, every street's step asking the brawl's set-up before it
       // loads (how hard, asked once; who plays, asked each time), so the shell stitches the streets: set up, load,
