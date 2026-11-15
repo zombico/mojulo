@@ -26,8 +26,10 @@
  *     front?: { cover?, layout?, tagline?, press?, menu?, credits?, end? }   // the light shell's title over a cover,
  *                                          // its start menu, options, credits and end (play-front.js)
  *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // the screen it is made for (screen.js)
- *     run?: { length },                    // RUNS (the play shell): each run draws `length` of the levels in a seeded
- *                                          // order; a clear goes on, a death ends the run; the store carries over
+ *     run?: { length, repeat? },           // RUNS (the play shell): each run draws `length` of the levels in a seeded
+ *                                          // order; a clear goes on, a death ends the run; the store carries over.
+ *                                          // `repeat: true`: a level may be drawn more than once, so a run may be longer
+ *                                          // than its pool (one level that rolls, game/roll.js, is a run of its maps)
  *     atlas?: { slice, shape?, rings },    // A MEGAWORLD (the play shell): the current map kept in a flags slice, leaving by an exit never
  *                                          // completes a level, Continue resumes where the player is, the travel screen a mandala
  *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
@@ -175,7 +177,9 @@ export function validateGameManifest(manifest) {
   // RUNS: the levels are a pool a run draws from (the light shell only; no links, no map travel within a run)
   if (manifest.run !== undefined) {
     const r = manifest.run, n = Array.isArray(manifest.levels) ? manifest.levels.length : 0;
-    if (!r || typeof r !== 'object' || !Number.isInteger(r.length) || r.length < 1 || r.length > n) errors.push(`run must be { length: 1 to ${n} } (how many of the levels a run draws)`);
+    const again = !!r && typeof r === 'object' && r.repeat === true, most = again ? 99 : n;
+    if (!r || typeof r !== 'object' || !Number.isInteger(r.length) || r.length < 1 || r.length > most) errors.push(again ? 'run must be { length: 1 to 99, repeat: true } (how many levels a run draws, a level drawn more than once)' : `run must be { length: 1 to ${n} } (how many of the levels a run draws; repeat: true draws a level more than once, for levels that roll)`);
+    else if (r.repeat !== undefined && typeof r.repeat !== 'boolean') errors.push('run.repeat is true or false (a level may be drawn more than once in a run)');
     if (manifest.shell !== 'play') errors.push("run plays in the light shell: add shell: 'play'");
     if (manifest.links !== undefined) errors.push('run and links: a run draws its levels, it does not walk between them');
   }

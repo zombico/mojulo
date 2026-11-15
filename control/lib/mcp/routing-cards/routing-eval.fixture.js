@@ -93,6 +93,14 @@ export const FIXTURE = [
   ['record the hero clearing the chasm and show me the clip', 'forge_motion'],
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
+  // a scene film: a screenplay acted by the person's 3D characters, filmed in Blender (forge_motion's screenplay subject)
+  ['make a little movie of my two characters having an argument in the kitchen, rendered in blender', 'forge_motion'],
+  ['I wrote a short dialogue scene, can my personas act it out and you shoot it like a director would', 'forge_motion'],
+  ['before we render anything, sketch out the shots of my scene panel by panel so I can approve them', 'forge_motion'],
+  ['I recorded both actors reading their lines, put my wav files into the scene so their mouths match', 'forge_motion'],
+  // a film of scenes: the studio's departments, approved boards, the cut, Blender (forge_motion's `film`)
+  ['I want a three scene animated short with my two characters, from the boards to the final render', 'forge_motion', 'film'],
+  ['put the kitchen scene before the station scene and cut the whole short together', 'forge_motion', 'film'],
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
@@ -142,6 +150,9 @@ export const FIXTURE = [
   ['a stealth game where you sneak up four floors of an office block to the boardroom', 'design_game', 'quick'],
   ['a shooter level fighting room to room through a research lab building', 'design_game', 'quick'],
   ['a horror level creeping through a warehouse and its offices at night', 'design_game', 'quick'],
+  // a game whose levels ROLL (gameworld card `gameworld-roll`): a world's `roll`, a running game's obstacle course
+  ['a collecting game that plays a different map every time I start it', 'design_game'],
+  ['an obstacle course runner where the hurdles and gates change each run', 'design_game'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

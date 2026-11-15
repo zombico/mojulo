@@ -28,6 +28,8 @@ import * as objects from '../playscape/objects/index.js';
 import * as scenes from '../playscape/ui/scenes.js';
 import * as juiceStyle from '../scene/juice-style.js';
 import * as gameBodies from '../gameworld/game-bodies.js';
+import * as foePeople from '../foes/people.js';
+import * as condition from '../era/condition.js';
 
 // the modules a facet's source may name, by their path under control/ (read when the registry is first asked for)
 const MODULES = {
@@ -52,6 +54,8 @@ const MODULES = {
   'lib/graph/playscape/ui/scenes.js': scenes,
   'lib/graph/scene/juice-style.js': juiceStyle,
   'lib/graph/gameworld/game-bodies.js': gameBodies,
+  'lib/graph/foes/people.js': foePeople,
+  'lib/graph/era/condition.js': condition,
 };
 
 // a table's values: an object's keys, an array's items, a string as itself

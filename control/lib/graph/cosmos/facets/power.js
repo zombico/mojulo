@@ -64,7 +64,7 @@ export const POWER = Object.freeze({
         // local 11-08 (1108-realism-combat-tester): a big gun on a mount (worlds/controllable/turret.js), aimed by hand on any
         // base, its rounds' flight and drag (ordnance.js) and what they do to matter (terminal.js: a hole, a breach, a
         // spall, a crater); played on the artillery range, not yet from a gameworld
-        artillery: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'one gun on a mount aimed by hand on any base (a plinth, a tracked hull, a field vehicle, a walker, a fighter, a helicopter, a boat), its rounds flown with drag and answered by matter (ordnance.js, terminal.js); the artillery range only, not yet from a gameworld' },
+        artillery: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'one gun on a mount aimed by hand on any base (a plinth, a tracked hull, a field vehicle, a walker, a fighter, a helicopter, a boat), its rounds flown with drag and answered by matter (ordnance.js, terminal.js); the artillery range only, which the practice door opens from a gameworld whose feel owns a frame (gameworld/practice.js); no level carries a turret' },
       },
     },
     // how much of a world breaks, and by what law (a gameworld's mechanics.destruction, breakability.js DEGREES): counted
@@ -171,5 +171,22 @@ export const POWER = Object.freeze({
       },
     },
     idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS' } },
+    // partial 11-10 (the lorecube, lorecube/): a setting's lore of power as parts a game can be laid from, each made in
+    // passes (a premise, then deepened: passes.js). Its JOIN is three tables over what the runtime already has: what
+    // opposes what over the studio's element words, one reserve and the gauge that can carry it, who holds a share and
+    // what can be theirs alone. Its slices lower to the party RPG's own words (a manual its foes, a tree a class and its
+    // skills), read back by that game's reader, and print as a bestiary and a grimoire (publication/from-lore.js). No
+    // gameworld key takes a part yet, so no level is laid from one: one piece of work, priced whole
+    lorecube: {
+      multi: true,
+      values: {
+        none: { status: 'built', note: 'the powers a game\'s pages say, with no system over them' },
+        polarity: { status: 'partial', effort: 'L', pkg: 'lorecube', lowers: 'lib/graph/lorecube/polarity.js', note: 'what opposes what, over the element words the studio already has (a character\'s, a vayo move\'s, a party skill\'s, a beast\'s): poles, pairs, a ring or a wheel, named or written, held so every element has a weakness and none stands over the rest; it gives a monster its weak and resist lists; no game reads it in play: an action game\'s foes carry no element' },
+        reserve: { status: 'partial', effort: 'L', pkg: 'lorecube', lowers: 'lib/graph/lorecube/reserve.js', note: 'one reserve of power said once (what empties it, how it comes back, what empty does, its numbers) and the gauge that can carry it (an arsenal\'s MP, the vayo meter, the sprint\'s or the guard\'s stamina, the actions page\'s resource, a party member\'s MP), with what no gauge can do named (a reserve poured into an ordinary attack); a map of the gauges: nothing lays it on one' },
+        holders: { status: 'partial', effort: 'L', pkg: 'lorecube', lowers: 'lib/graph/lorecube/holder.js', note: 'who holds a share of the power (the hero, a party class, a foe, a faction) and what of it is theirs alone, the whole game\'s, or nobody\'s, so a setting that asks two sides to differ by something a game has one of is told before anything is built; a faction is only how its things look; nothing lays a share' },
+        manual: { status: 'partial', effort: 'L', pkg: 'lorecube', requires: ['power.lorecube=polarity', 'power.combat=turn-based'], lowers: 'lib/graph/lorecube/manual.js', note: 'a monster manual from a few lines: creatures by element and role, their weaknesses and resistances following from the polarity, their numbers from their role and how far in they are met; lowered to the party RPG\'s foes and the skills they use, printed as a bestiary; no gameworld key takes one, so a book\'s battles do not field it' },
+        tree: { status: 'partial', effort: 'L', pkg: 'lorecube', requires: ['power.combat=turn-based'], lowers: 'lib/graph/lorecube/tree.js', note: 'a skill tree from a school\'s techniques: what each does, learned at a rank or bought after the ones it builds on, costs by depth; lowered to a party RPG class and its skills, printed as a grimoire; no gameworld key takes one, so a book\'s party does not learn it' },
+      },
+    },
   },
 });

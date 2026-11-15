@@ -47,6 +47,15 @@ import { MORPH_DECODE } from '../../figures/morph-sparse.js';
 // TIMING (a bank clip carrying `s`, its designed duration — the anime hero's, station-loft-rig packLayeredRig
 // `seconds`): that clip plays one cycle over `s` seconds, the length the GLB gives it; a clip without
 // one keeps the preview's period (3 s). No clip carrying `s` ⇒ the phase line is its old text ⇒ byte-identical.
+//
+// TRAVEL (`travel` on a preview: an actor in a film's scene, film/native.js): the figure is carried along its blocking
+// while it plays its take ONCE. `{ from, fps, scale, keys }`: `from` the page's clock (seconds) when the take starts,
+// `keys` its place every 1/`fps` s of the take as [x, y, z, turn] rows (the page's units, radians about +z, unwrapped
+// by who wrote them), `scale` the figure's size in the page's units. The clip is read at the take's own time over the
+// preview's `period`, held at its ends, and a one-shot clip (`once`: 0 … 1 inclusive) is read as the game's runtime
+// reads one, never wrapped to its first key. One figure may be previewed more than once (a figure's `preview` a
+// list): a cast sharing a hero is one figure on the page, each actor a take on it. No preview carrying `travel` ⇒
+// every interpolation below is its old text ⇒ byte-identical.
 export function rigPreviewChannelScript(previews, bank, { toonInk = null, layers = false } = {}) {
   // rim (shader-look phase 4): a bank figure carrying `rim: [r,g,b,strength,power]` gets
   // ms-contrast's additive fresnel edge on every part material. The patch is DUPLICATED from the
@@ -166,6 +175,16 @@ function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill
       __rpBone(fig, clip, phase, o.bone, __rpq, __rpHead); const rh = fig.bones[o.bone].head;
       __rph.set(rh[0], rh[1], rh[2]).applyQuaternion(__rpq); __rpv.set(__rpHead[0] - __rph.x, __rpHead[1] - __rph.y, __rpHead[2] - __rph.z);
       o.mesh.matrix.compose(__rpv, __rpq, __rpONE); }` : '';
+  const travels = previews.some((pv) => pv && pv.travel && Array.isArray(pv.travel.keys));
+  const travelBlock = travels ? `
+function __rpTravel(r, at) {   // an actor's place on its blocking, \`at\` seconds into its take
+  const T = r.pv.travel, K = T.keys, n = K.length / 4, f = Math.min(n - 1, Math.max(0, at * T.fps)), i = Math.max(0, Math.min(n - 2, Math.floor(f))), u = n > 1 ? f - i : 0, o = i * 4, q = n > 1 ? o + 4 : o;
+  r.rig.group.position.set(K[o] + (K[q] - K[o]) * u, K[o + 1] + (K[q + 1] - K[o + 1]) * u, K[o + 2] + (K[q + 2] - K[o + 2]) * u);
+  r.rig.group.rotation.set(0, 0, K[o + 3] + (K[q + 3] - K[o + 3]) * u);
+  r.rig.group.scale.setScalar(T.scale > 0 ? T.scale : 1);
+}` : '';
+  const travelStep = travels ? `
+    if (r.pv.travel) __rpTravel(r, sec - (r.pv.travel.from || 0));` : '';
   const stand = previews.some((pv) => pv && pv.solid === 'stand');
   const standStart = stand ? " || pv.solid === 'stand'" : '';
   const restLabel = stand ? "(pv.solid === 'stand' ? 'stand (the solid)' : 'rest (the solid)')" : "'rest (the solid)'";
@@ -185,7 +204,7 @@ const RPREV = ${safeJson(previews)};
 const RBANK = ${safeJson(bank)};${rimBlock}${inkBlock}${layerBlock}
 const __rpONE = new THREE.Vector3(1, 1, 1);
 const __rpq = new THREE.Quaternion(), __rph = new THREE.Vector3(), __rpv = new THREE.Vector3();
-const __rpHead = [0, 0, 0];
+const __rpHead = [0, 0, 0];${travelBlock}
 ${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per figure
   if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; }
   return fig.__tex;
@@ -243,8 +262,10 @@ function __rpFace(r, clipName, phase, sec) {   // the face's weights on its bone
 // keys (wrapping), byte-for-byte the walkers / controllable runtime's math.
 function __rpBone(fig, clip, p, bi, outQ, outP) {
   const nb = fig.bones.length, K = clip.k, B = clip.b;
-  const kf = (((p % 1) + 1) % 1) * K;
-  const i0 = Math.floor(kf) % K, i1 = (i0 + 1) % K, t = kf - Math.floor(kf);
+${travels ? `  // (a one-shot clip, a take's: read 0 … 1 inclusive and held at its last key, never wrapped to its first)
+  const one = clip.once === true, kf = one ? Math.min(1, Math.max(0, p)) * (K - 1) : (((p % 1) + 1) % 1) * K;
+  const i0 = one ? Math.min(K - 1, Math.floor(kf)) : Math.floor(kf) % K, i1 = one ? Math.min(K - 1, i0 + 1) : (i0 + 1) % K, t = kf - Math.floor(kf);` : `  const kf = (((p % 1) + 1) % 1) * K;
+  const i0 = Math.floor(kf) % K, i1 = (i0 + 1) % K, t = kf - Math.floor(kf);`}
   const o0 = (i0 * nb + bi) * 7, o1 = (i1 * nb + bi) * 7;
   const sgn = (B[o0] * B[o1] + B[o0 + 1] * B[o1 + 1] + B[o0 + 2] * B[o1 + 2] + B[o0 + 3] * B[o1 + 3]) < 0 ? -1 : 1;
   outQ.set(B[o0] + (sgn * B[o1] - B[o0]) * t, B[o0 + 1] + (sgn * B[o1 + 1] - B[o0 + 1]) * t,
@@ -280,7 +301,7 @@ stepRigPreview = (t) => {
     const probe = window.__mojRigPreview[ri]; probe.clip = r.state.clip;
     if (!playing) continue;
     const clip = fig.clips[r.state.clip];
-    const phase = (sec / ${timed ? '(clip.s > 0 ? clip.s : r.period)' : 'r.period'}) % 1;
+    const phase = ${travels ? 'r.pv.travel ? Math.min(1, Math.max(0, (sec - (r.pv.travel.from || 0)) / r.period)) : ' : ''}(sec / ${timed ? '(clip.s > 0 ? clip.s : r.period)' : 'r.period'}) % 1;${travelStep}
     for (let bi = 0; bi < fig.bones.length; bi++) {
       const mesh = r.rig.boneMeshes[bi];
       if (!mesh) continue;

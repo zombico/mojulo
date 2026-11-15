@@ -11,6 +11,7 @@
  */
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '../polygonizer/floorplan-structure.js';
 import { compileInterior } from './compile.js';
+import { interiorPlaces } from './places.js';
 import { wallFrame } from './place.js';
 import { MM_PER_FT } from './units.js';
 
@@ -103,5 +104,6 @@ export function assembleInteriorWorldScene(m, house, opts = {}) {
     scene = { ...scene, faces: scene.faces.filter((f) => inSection(f, box)) };
     if (scene.itemRefs) scene.itemRefs = scene.itemRefs.filter((ref) => ref.center[0] >= box.x0 && ref.center[0] <= box.x1 && ref.center[1] >= box.y0 && ref.center[1] <= box.y1);
   }
-  return scene;
+  // the room's places (interior/places.js): what a scene set in it stands its cast on and sends them to
+  return { ...scene, ...interiorPlaces(c) };
 }

@@ -1,0 +1,38 @@
+{
+  "id": "floodlight",
+  "name": "Floodlight",
+  "about": "A night match under the lights: pitch green going to black, a lime that glows, thin rules and stepped motion like a stadium board.",
+  "family": "broadcast",
+  "tags": [
+    "sport",
+    "night",
+    "arcade",
+    "broadcast"
+  ],
+  "author": "mojulo",
+  "from": "street",
+  "tokens": {
+    "ink": "#f4fff0",
+    "panel": "#0d2b1c",
+    "line": "#baf7a0",
+    "accent": "#b8ff3c",
+    "accent2": "#ffffff",
+    "harm": "#ff6a5c"
+  },
+  "frame": "rule",
+  "corner": "square",
+  "plate": "gradient",
+  "case": "upper",
+  "slant": "light",
+  "motion": "stepped",
+  "scale": "large",
+  "stage": [
+    "stripes",
+    "chevrons",
+    "band",
+    "streaks",
+    "none"
+  ],
+  "icons": "line",
+  "sounds": "clack"
+}

@@ -70,6 +70,15 @@ export const SPACE = Object.freeze({
         // across it, cut into screens the camera scrolls through, each held at a gate until its wave is beaten, the last
         // the boss's; the angle locked a stage; laid on the greybox street or an indoor level's rooms (brawl-levels.js)
         belt: { status: 'local', effort: 'M', pkg: 'brawler', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'a beat-em-up\'s street: a depth band cut into screens, the camera held at each gate until its wave falls, its angle locked (classic, high, low, ahead); the greybox street or an indoor level\'s rooms (brawl-levels.js); reached from a greybox\'s brawl block, not yet from a gameworld' },
+        // local 11-13 (the game room, gameroom/): one room composed for the game out of room primitives (cover, pillars,
+        // decks, a shift's counters), seeded, held to the room laws, dressed by its trade and stood in its area (a world's
+        // `room: { dress?, area? }`); played in the practice door before any level (gameworld/game-room.js). The join the
+        // board names: a made room laid in the book as a level
+        room: { status: 'local', effort: 'M', lowers: 'lib/graph/gameroom/compose.js', note: 'one room composed for the game from room primitives: its size a few seconds\' crossing at the hero\'s run, cover and pillars for a fight hand to hand, decks where the jump makes them worth having, a shift\'s line down the middle, its foes behind cover; held to the room laws, dressed by its trade in its area (a world\'s room); the practice door\'s game room only: no level of a game is one yet' },
+        // built 11-13 (emergent gameplay, gameworld/roll-course.js): a level that is an obstacle course (levels.<id>.obstacles,
+        // in place of walk): a lane run at speed by a hero on momentum, seen from behind on three lanes, its slots a paced
+        // line of a roll, so every play is another course; sized by time on the rule the game ships, held by the reaction bot
+        obstacles: { status: 'built', since: '2026-11-13', requires: ['space.levelDesign=roll'], lowers: 'lib/graph/gameworld/roll-course.js', note: 'an obstacle course run at speed (levels.<id>.obstacles): three lanes seen from behind, hurdles and blocks to jump and posts that leave a lane open, each slot one thing a seed stands, spaced by what the hero\'s measured pace gives a player time for; coloured by role from a dress with its walls and backdrop, its tells painted on the way, its camera framing the screen in thirds, a HUD of its own on mana-ui; held by the reaction bot (it sees only so far ahead and acts a reaction time after)' },
         // built 10-19 (mobile genres): a runner level, the run alone on its floor, its rows laid ahead as it is played
         run: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'an endless run down lanes (worlds/controllable/runner.js): its rows laid at play time from its seed, drawn round the hero' },
         mission: { status: 'built', since: '2026-11-15', lowers: 'lib/graph/gameworld/mission-level.js', note: 'a shooter\'s first level (levels.<id>.mission, a quick shooter\'s `mission`): the firing range stretched into sections, each a band the world\'s guns are for with a task in it (take, clear, hold, reach), the way on sealed until it is met; laid from the guns the world carries, proved on the bus and played headless; greybox' },
@@ -103,12 +112,20 @@ export const SPACE = Object.freeze({
       },
     },
     // what level design lays on a written map to make its walk worth walking (11-07 the scenario, 11-08 the play layer:
-    // level design its own department). Both stand on a map level's plan
+    // level design its own department; 11-13 the opening, how a game starts on its map, and the roll). The first three
+    // stand on a map level's plan; a roll on a walked trail or a course
     levelDesign: {
       multi: true,
       values: {
-        scenario: { status: 'built', since: '2026-11-07', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/pace.js', note: 'a level\'s scenario beat by beat (a fight, a find, a meeting, a climax) on its tiles, each beat doing something in play, and how much happens: the pace measured on the map\'s own paths at the hero\'s run (dead air, the shape of calm, tension, peak and rest, a segment\'s interest)' },
+        // (11-13: a beat's `after`, a fight that comes when the one before it is down, its foes minted asleep and woken
+        // by the play layer's cues)
+        scenario: { status: 'built', since: '2026-11-07', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/pace.js', note: 'a level\'s scenario beat by beat (a fight, a find, a meeting, a climax) on its tiles, each beat doing something in play, and how much happens: the pace measured on the map\'s own paths at the hero\'s run (dead air, the shape of calm, tension, peak and rest, a segment\'s interest); a fight may come after another (a beat\'s after: its foes woken once the fight before it is down)' },
+        // built 11-13 (how a game starts, gameworld/world-map.js): a world map's first block alone, a page of its own; the
+        // controls as the guide's lessons with the hero in hand (level/guide.js), then an enemy trail
+        opening: { status: 'built', since: '2026-11-13', requires: ['space.levelDesign=scenario', 'space.worldMap=zones'], lowers: 'lib/graph/gameworld/world-map.js', note: 'how a game starts on its map: the first block a page of its own, no bigger than its tasks; the controls as lessons with the hero in hand, one at a time, each up until the pilot does it; then an enemy trail whose fights come to the hero one after another, their keys shown where they are fought, the way out held until they are won; what the sentence door lays a world map with; the lessons name the keyboard\'s keys only' },
         'play-layer': { status: 'built', since: '2026-11-08', requires: ['space.levelForm=map'], lowers: 'lib/graph/level/play-layer.js', note: 'the play layer a block at a time (glyphs.play): foes cast in place, obstacles and cover in the world\'s style, pickups and gates, each a point in world metres and a yaw, so a terrain rebuilt under it keeps every piece and flags the ones it no longer suits' },
+        // built 11-13 (emergent gameplay): a level's `roll`, and a world's (`roll: true`): the session's seed picks what stands
+        roll: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/game/roll.js', note: 'a level that plays a different map each time: the session\'s seed picks its cover, its pickups, its start and a paced line of obstacles (game/roll.js; the same whole-number dice on the page and in Node), the recipe and the page unchanged; a world says `roll` and its trail levels and its course take one; held by the seeds audit (a sample of seeds walked and played through) and tried in the roll room' },
       },
     },
     // the frame a game is made for (11-05 the screen, game/screen.js; 11-06 the headset, scene/channels/xr.js): the camera
@@ -116,7 +133,7 @@ export const SPACE = Object.freeze({
     screen: {
       values: {
         monitor: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a monitor or a TV (screen: screen, 16:9; a wider one shows more at the sides)' },
-        phone: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a phone held upright (9:16, what design_game starts a game on): the frame, and a virtual pad drawn from the pilot\'s rule and camera, the menus risen to the thumb' },
+        phone: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a phone held upright (9:16, what design_game starts a game on): the frame, and a virtual pad drawn from the pilot\'s rule and camera, the menus risen to the thumb; on a world whose screens are mana-ui\'s the pad is drawn by its HUD (11-14), and a key a thumb cannot press gets a HUD button (game/screen-keys.js)' },
         tablet: { status: 'built', since: '2026-11-05', lowers: 'lib/graph/game/screen.js', note: 'a tablet on its side (4:3), or stood up' },
         // partial 11-06 (mana-xr): a world's `xr` opens each stage level in a WebXR session, the controllers a game pad,
         // mana-ui's screens on a panel; what is left is said in the note

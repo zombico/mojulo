@@ -40,6 +40,16 @@ const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
 // a field tyre's width, by its radius (a light 4x4's, a truck's)
 const tyreWidth = (r) => (r > 0.5 ? 0.38 : 0.3);
 
+// (a dual pair's two tyres a hand's width apart, about the hub the pair turns on)
+const DUAL_GAP = 0.03;
+/** A wheel's tyres on its hub: one, or a dual pair either side of it (both on the one hub, turning as one). */
+function tyres(w, { r, width, dual, paint, lugs }) {
+  const one = (hub) => milWheel({ hub, r, width, ...(paint ? { paint } : {}), ...(lugs !== undefined ? { lugs } : {}) });
+  if (!dual) return one(w.hub);
+  const d = (width + DUAL_GAP) / 2, s = Math.sign(w.hub[0]) || 1;
+  return [...one([w.hub[0] - s * d, w.hub[1], w.hub[2]]), ...one([w.hub[0] + s * d, w.hub[1], w.hub[2]])];
+}
+
 // the gun's faces (a turret's gun and its mantlet) moved onto a bone of their own: → { trunnion, muzzle } (vehicle space)
 function splitGun(body) {
   const of = (f) => f.bone === 'turret' && /^(gun|mantlet)/.test(f.part ?? ''), g = body.filter(of);
@@ -58,16 +68,19 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
   const tracked = v.running === 'track';
-  const { hull, fittings, zones, livery: L, spinners, bones: parts = {} } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery, words: sheet.unread?.words ?? [], ...(pose ? { pose } : {}) });
+  const { hull, fittings, zones, livery: L, spinners, bones: parts = {}, wheelSet, axles: bodyAxles } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery, words: sheet.unread?.words ?? [], ...(pose ? { pose } : {}) });
+  // (a body's own wheels axle by axle, road-military.js `wheelSet`: { r?, w?, dual?, lugs?, rim? } each; absent, every
+  // wheel its class's, as it always was)
+  const set = (axle) => wheelSet?.[axle] ?? {}, rOf = (axle) => set(axle).r ?? spec.r, wOf = (axle) => set(axle).w ?? spec.tyreW;
   // the wheels: each axle's pair, the front pair first, left (−x) and right; or a tracked body's spinners (its road
   // wheels first, the sprocket, the idler and the rollers), each its own bone
-  const axles = tracked ? trackedGear(cls).wheels.map((w) => w.y) : militaryAxles(cls);
+  const axles = tracked ? trackedGear(cls).wheels.map((w) => w.y) : bodyAxles ?? militaryAxles(cls);
   const wheels = tracked
     ? [...spinners].sort((a, b) => (a.kind === 'road') === (b.kind === 'road') ? 0 : a.kind === 'road' ? -1 : 1).map((sp) => ({ id: sp.id, side: -sp.side, hub: sp.hub, faces: sp.faces }))
-    : axles.flatMap((y, axle) => [1, -1].map((side) => ({ axle, side, hub: [-side * spec.track / 2, y, spec.r] })));
+    : axles.flatMap((y, axle) => [1, -1].map((side) => ({ axle, side, hub: [-side * spec.track / 2, y, rOf(axle)] })));
   const name = (w) => { if (w.id) return w.id; const lr = w.side > 0 ? 'L' : 'R'; return w.axle === 0 ? `wheelF${lr}` : w.axle === 1 ? `wheelR${lr}` : `wheel${w.axle + 1}${lr}`; };
   // (a track runs under no arch: its fenders are its body's)
-  const wells = tracked ? [] : smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })));
+  const wells = tracked ? [] : smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: rOf(w.axle), width: (set(w.axle).dual ? 2 : 1) * wOf(w.axle) + (set(w.axle).dual ? DUAL_GAP : 0) })));
   // its wear (mil-wear.js): the operator's word, else the sheet's when a brief asked one, else a working vehicle's; its
   // soil the setting's, read from the livery's camo
   // (an airside vehicle works on concrete, a city's on its streets: kept clean unless a wear is asked)
@@ -76,7 +89,7 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   const wet = !!setting?.wet, soak = (fs) => (wet ? wetFaces(fs) : fs);
   const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil, scale: sizeOf(cls) }));
   // (the rims in the livery's base: a camo's first colour, a mono's own; a tracked body's spinners its own)
-  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}), ...(roadWorker(cls) ? { lugs: 0 } : {}) }), W, { soil })));
+  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? tyres(w, { r: rOf(w.axle), width: wOf(w.axle), dual: set(w.axle).dual, ...(L ? { paint: liveryBase(L) } : {}), ...(set(w.axle).rim ? { paint: set(w.axle).rim } : {}), ...(set(w.axle).lugs !== undefined ? { lugs: set(w.axle).lugs } : roadWorker(cls) ? { lugs: 0 } : {}) }), W, { soil })));
   // centred on its footprint (the body is built centred; the census holds it); a part that turns on its own (a turret)
   // its own bone, its faces those its body tagged with it, held still by the roll
   // (`gun`, opt-in: the gun and its mantlet split off the turret into a bone of their own, its head the trunnion (the

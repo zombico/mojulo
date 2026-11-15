@@ -290,6 +290,20 @@ export function normalizeHud(rows, ctx = {}) {
     if (r.when !== undefined && !(Array.isArray(r.when) && r.when.every((k) => Number.isInteger(k) && k >= 0))) errors.push(`${where}.when is a list of phase indices`);
     const gate = { id: isStr(r.id) && /^[a-z][a-z0-9-]*$/.test(r.id) ? r.id : undefined, when: Array.isArray(r.when) && r.when.every((k) => Number.isInteger(k) && k >= 0) ? [...r.when] : undefined };
 
+    // A BUTTON: a thing on the screen to press (a tap, a click), which raises `press` on the level's bus as a key bound
+    // to it would (events.input); what it does is whatever listens for that event. A touch screen's extra control
+    // or, with `key` (and its `code`), it is that key pressed: the keydown whatever listens for the key hears (the journal's
+    // J on a touch screen, game/screen-keys.js). `touch: true`: drawn only on a touch screen, where there is no key
+    if (r.press !== undefined || r.key !== undefined) {
+      const keyed = r.press === undefined;
+      if (!keyed && !isStr(r.press)) errors.push(`${where}.press names the event the button raises on the bus (a cue or a rule listens for it)`);
+      if (keyed && !isStr(r.key)) errors.push(`${where}.key is the key the button presses, as a keyboard says it (j, Escape)`);
+      if (keyed && r.code !== undefined && !isStr(r.code)) errors.push(`${where}.code is the key's code (KeyJ)`);
+      if (r.touch !== undefined && typeof r.touch !== 'boolean') errors.push(`${where}.touch is true (drawn only on a touch screen) or false`);
+      if (!isStr(r.label)) errors.push(`${where}: a button needs a label (its word, or what it does: jump, use, a pictogram's name)`);
+      if (isStr(keyed ? r.key : r.press) && isStr(r.label)) widgets.push({ kind: 'button', ...(keyed ? { key: r.key, code: isStr(r.code) ? r.code : r.key } : { press: r.press }), label: r.label, slot: slot || 'bottom-right', ...(r.touch === true ? { touch: true } : {}), ...gate });
+      return;
+    }
     if (isStr(r.var) && r.as === 'toast') {   // the var toast: its own widget, never merged with the readout
       if (r.text !== undefined && !isStr(r.text)) errors.push(`${where}.text must be a string (default '{delta}')`);
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
@@ -348,7 +362,7 @@ export function normalizeHud(rows, ctx = {}) {
       widgets.push({ kind: 'legend', text: r.text, slot: slot || 'bottom', ttl: ttl(null), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
-    errors.push(`${where} must be a readout { var, label? }, a banner { on, text } or a legend { text }`);
+    errors.push(`${where} must be a readout { var, label? }, a banner { on, text }, a legend { text } or a button { press, label }`);
   });
   // fill readout defaults AFTER merging so a later row's slot/kind can still land on the first
   const out = widgets.map((w) => {

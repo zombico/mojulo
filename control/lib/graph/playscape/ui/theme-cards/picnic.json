@@ -1,0 +1,46 @@
+{
+  "id": "picnic",
+  "name": "Picnic",
+  "about": "A handmade afternoon: cream paper, brown ink, terracotta for what matters and a leaf green beside it. Round, soft, nothing in a hurry.",
+  "family": "cosy",
+  "tags": [
+    "cosy",
+    "farming",
+    "casual",
+    "handmade",
+    "puzzle"
+  ],
+  "author": "mojulo",
+  "from": "storybook",
+  "tokens": {
+    "ink": "#4a3728",
+    "panel": "#fff6e6",
+    "line": "#d9b98a",
+    "accent": "#c9573f",
+    "accent2": "#5f8a4c",
+    "harm": "#b3261e",
+    "stamina": "#5f8a4c"
+  },
+  "type": {
+    "body": "rounded",
+    "display": "rounded",
+    "mono": "mono"
+  },
+  "frame": "rule",
+  "corner": "round",
+  "plate": "textured",
+  "material": "paper",
+  "case": "none",
+  "motion": "ease",
+  "scale": "large",
+  "stage": [
+    "dots",
+    "none",
+    "dots",
+    "confetti",
+    "none"
+  ],
+  "icons": "sketch",
+  "sounds": "paper",
+  "iconTone": "meaning"
+}

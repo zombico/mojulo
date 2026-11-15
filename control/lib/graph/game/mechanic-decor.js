@@ -46,6 +46,7 @@ export function formForItem(item) {
  *   sfx       — [{ verb, at, color?, params? }] (→ payload.effects via the sfx composer)
  *   reactions — bus reactions the decoration adds (emit the per-pickup burst signal)
  *   suppress  — mechanic marker ids to drop (the glyph replaces the box)
+ *   ctx.highlight — a highlight state (game/highlight.js highlightFor) laid on every thing to be taken and on the exit
  */
 export function decorateMechanics(mechanics, ctx = {}) {
   const entities = [];
@@ -55,6 +56,9 @@ export function decorateMechanics(mechanics, ctx = {}) {
   const reactions = [];
   const suppress = [];
   const list = Array.isArray(mechanics) ? mechanics : [];
+  // (a level that asks for it, `game.highlight`: each thing laid to be taken is INDICATED, lit at its silhouette under
+  // its motion, and so is where the level ends: game/highlight.js)
+  const H = ctx.highlight ?? null, lit = (motion) => (H ? { ...H, as: motion } : motion);
 
   list.forEach((m, i) => {
     if (!m || !m.kind) return;
@@ -66,7 +70,7 @@ export function decorateMechanics(mechanics, ctx = {}) {
         const gid = `dec_${zone}`;
         const at = Array.isArray(pk.at) ? pk.at : [0, 0, 0];
         entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: formForItem(pk.item) } });
-        states[gid] = 'float';
+        states[gid] = lit('float');
         sfx.push({ verb: 'sparkle', at });
         // burst the glyph when the player enters the pickup's zone. The fx wrap matches this key
         // against the enter event's SOURCE (the zone id) — a top-level fact, so it fires (emit-ted
@@ -79,7 +83,7 @@ export function decorateMechanics(mechanics, ctx = {}) {
       (Array.isArray(m.pickups) ? m.pickups : []).forEach((pk, j) => {
         const zone = `cn_${i}_${j}`, gid = `dec_${zone}`, at = Array.isArray(pk.at) ? pk.at : [0, 0, 0];
         entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'coin', scale: COIN_SCALE } });
-        states[gid] = 'float';
+        states[gid] = lit('float');
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);
       });
@@ -89,7 +93,7 @@ export function decorateMechanics(mechanics, ctx = {}) {
       (Array.isArray(m.drops) ? m.drops : []).forEach((d, j) => {
         const zone = `sp_${i}_${j}`, gid = `dec_${zone}`, at = Array.isArray(d.at) ? d.at : [0, 0, 0];
         entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: { health: 'heart', armor: 'gem', overdrive: 'star' }[d.gives] ?? 'orb' } });
-        states[gid] = 'float';
+        states[gid] = lit('float');
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);
       });
@@ -97,6 +101,7 @@ export function decorateMechanics(mechanics, ctx = {}) {
       // (marker: false, an exit the place itself shows the way to: a party RPG's road or door, no flag over it)
       const at = Array.isArray(m.at) ? m.at : [0, 0, 0];
       entities.push({ id: `dec_exit_${i}`, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
+      if (H) states[`dec_exit_${i}`] = { ...H };
       sfx.push({ verb: 'aura', at, color: [0.25, 1.0, 0.45], params: { base: 0.3, pulse: 0.35, r: 1.0, cz: 1.0 } });
     } else if (m.kind === 'escape-room') {
       // an escape room (game/escape-room.js): a glyph for each key (by its item), floating, burst when taken (its marker
@@ -106,7 +111,7 @@ export function decorateMechanics(mechanics, ctx = {}) {
         if (!L || !L.key || !Array.isArray(L.key.at)) return;
         const zone = N.key(L.id === undefined ? String(k + 1) : L.id), gid = `dec_${zone}`;
         entities.push({ id: gid, transform: { pos: L.key.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: formForItem(L.key.item ?? 'key') } });
-        states[gid] = 'float';
+        states[gid] = lit('float');
         sfx.push({ verb: 'sparkle', at: L.key.at });
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);
@@ -116,11 +121,12 @@ export function decorateMechanics(mechanics, ctx = {}) {
       // a trade (game/errand-mechanics.js): what is had there, floating, its marker hidden
       const zone = `trade-${String(m.item).trim().toLowerCase().replace(/\s+/g, '-')}`, gid = `dec_${zone}`;
       entities.push({ id: gid, transform: { pos: m.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: formForItem(m.item) } });
-      states[gid] = 'float';
+      states[gid] = lit('float');
       on[zone] = { gesture: 'burst', target: gid };
       suppress.push(zone);
     } else if (m.kind === 'deliver' && Array.isArray(m.at)) {
       entities.push({ id: `dec_deliver_${i}`, transform: { pos: m.at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
+      if (H) states[`dec_deliver_${i}`] = { ...H };
       sfx.push({ verb: 'aura', at: m.at, color: [1.0, 0.8, 0.3], params: { base: 0.3, pulse: 0.35, r: 1.0, cz: 1.0 } });
     } else if (m.kind === 'hazard-damage') {
       const hazards = Array.isArray(m.hazards) ? m.hazards : [];

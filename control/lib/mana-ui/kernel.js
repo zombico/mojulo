@@ -77,6 +77,9 @@
  *     .input(mode, layout?)  what the player is using: keys | pad | xr (the focus shows as a cursor) | touch | mouse (it
  *                         does not: what is tapped is selected, and a touch screen's lists scroll and its targets grow);
  *                         a pad's printed layout (xbox | playstation | nintendo) picks its glyphs
+ *     .frame({ w, h, hand? })  the frame the view is drawn in (a mount measures it and says it: no host call needed in a
+ *                         page); a spec branches on it with { frame: 'portrait' | 'landscape' | 'narrow' | 'short' |
+ *                         'hand' } in a `when` / `unless`; unsaid, a 1920 by 1080 desk
  *     .glyphs(table)      what each action's control is called, per family: { keys: { <action>: 'Enter' }, pad: {
  *                         <layout>: { <action>: 'A' } }, xr?: { … }, touch?: { … } } (controls/mana-controls.js builds
  *                         it from the control schemes); a prompt and a legend print the one the player is holding
@@ -135,7 +138,7 @@ export function buildManaUi() {
     resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail', language: 'Language',
     nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
     keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', tips: 'Tips', continue: 'Continue', gettingReady: 'Getting the world ready…', stillLoading: 'Still loading…', retry: 'Retry', quitToTitle: 'Quit to title',
-    modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
+    modes: 'Modes', choose: 'Choose', choices: 'Choices', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
@@ -165,7 +168,7 @@ export function buildManaUi() {
     // layout
     screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor; its legend bar is drawn from what it holds unless it names one (`legend: none` for none); `press: any` takes any face or shoulder button as accept (press start)', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom', 'sheet'], 'center'], seats: [N, 1], legend: [['auto', 'none'], 'auto'], press: [['focus', 'any'], 'focus'] }, children: true, verbs: ['back'] },
     window: { group: 'layout', about: 'a framed panel', props: { title: [T], variant: [['plain', 'inset', 'ghost'], 'plain'] }, children: true },
-    stack: { group: 'layout', about: 'children in a column or a row; `fill` a row that takes its place\'s width, its children sharing it (two fighters\' bars)', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'], fill: [B, false] }, children: true },
+    stack: { group: 'layout', about: 'children in a column or a row; `fill` a row that takes its place\'s width, its children sharing it (two fighters\' bars); `fit` what a row does when it runs out of width: wrap onto a second line, or stack as a column in a narrow frame', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'], fill: [B, false], fit: [['fixed', 'wrap', 'stack'], 'fixed'] }, children: true },
     split: { group: 'layout', about: 'two panes: the first a list, the second its detail', props: { ratio: [['narrow', 'even', 'wide'], 'narrow'] }, children: true },
     tabs: { group: 'layout', about: 'tabs, one open, [ and ] turn them: tab children, or `pages` (a list) drawn by `page` and named by their `label` field', props: { pages: [L], page: [ND], label: [T, 'label'] }, children: 'tab' },
     tab: { group: 'layout', about: 'one tab of tabs', props: { label: [T, undefined, true] }, children: true },
@@ -178,7 +181,7 @@ export function buildManaUi() {
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
-    touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime', props: { stick: [B, true], buttons: [L, ['A', 'B']] } },
+    touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
     text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'] } },
@@ -228,7 +231,11 @@ export function buildManaUi() {
     textentry: { group: 'input', about: 'a name typed from a grid of letters (a pad can type): a draft until done', props: { label: [T], value: [T, ''], max: [N, 12], charset: [['letters', 'alnum'], 'letters'] }, verbs: ['done'] },
   };
   const COMPONENT_IDS = Object.keys(COMPONENTS);
-  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param', 'word'];
+  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param', 'word', 'frame'];
+  // THE FRAME a view is drawn in, as words a spec branches on ({ frame: 'portrait' } in a `when` / `unless`): its shape
+  // (portrait | landscape), its room (narrow: under 640 wide; short: under 420 high), and whether it is held (hand)
+  const FRAME_WORDS = ['portrait', 'landscape', 'narrow', 'short', 'hand', 'w', 'h'];
+  const frameOf = (f) => { const w = Number(f && f.w) > 0 ? Number(f.w) : 1920, h = Number(f && f.h) > 0 ? Number(f.h) : 1080; return { w, h, portrait: h > w, landscape: h <= w, narrow: w < 640, short: h < 420, hand: !!(f && f.hand) }; };
   const isBinding = (v) => isObj(v) && Object.keys(v).length === 1 && BINDS.includes(Object.keys(v)[0]);
   const CHARSETS = { letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ', alnum: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ' };
 
@@ -236,7 +243,9 @@ export function buildManaUi() {
   const subst = (v, args) => {
     if (isObj(v) && Object.keys(v).length === 1 && typeof v.param === 'string') return args[v.param];
     if (Array.isArray(v)) return v.map((x) => subst(x, args));
-    if (isObj(v)) { const o = {}; for (const k in v) { const x = subst(v[k], args); if (x !== undefined) o[k] = x; } return o; }
+    // (a `when` or an `unless` on a param the user did not give is a condition that is not met, never no condition: a
+    // loading screen told no `error` draws no error)
+    if (isObj(v)) { const o = {}; for (const k in v) { const x = subst(v[k], args); if (x !== undefined) o[k] = x; else if ((k === 'when' || k === 'unless') && v[k] !== undefined) o[k] = false; } return o; }
     return v;
   };
   function checkType(t, v, where) {
@@ -345,6 +354,8 @@ export function buildManaUi() {
   const numOf = (x) => (typeof x === 'number' && isFinite(x) ? x : typeof x === 'string' && x.trim() !== '' && isFinite(Number(x)) ? Number(x) : null);
   // why a disabled thing cannot be done: its reason, drawn with it (the sheet shows it under the focus, the pointer or a press)
   const whyOf = (off, why) => (off && why !== undefined && why !== null && why !== '' ? ['span', { class: 'mana-why' }, words(why)] : null);
+  // an icon's name as the theme's sheet finds it (icons.js): lower case, its words joined by a dash; null for none
+  const iconName = (s) => String(s === undefined || s === null ? '' : s).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || null;
   const initials = (s) => words(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
   // a tree's tiers: a node one past the deepest it requires
   function tiersOf(nodes) {
@@ -382,7 +393,7 @@ export function buildManaUi() {
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), loads: new Map(), later: [], guard: -Infinity, held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), loads: new Map(), later: [], guard: -Infinity, held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in', frame: frameOf(H.frame) };
     // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
     // (a cursor's sound says the way it went, a stepper's the step it took, so a sound set can pitch them)
     const cue = (name, seat = 0, more) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name, ...(more || {}) }, { screen: top(), key: null, verb: 'cue', seat }); };
@@ -527,6 +538,7 @@ export function buildManaUi() {
       if (k === 'input') return scope.input;
       if (k === 'seat') return scope.seat === undefined ? 0 : scope.seat;
       if (k === 'word') return W(a);
+      if (k === 'frame') return S.frame[a];
       // a format's {field} reads the row, its {@key} the runtime's words
       if (k === 'format') return String(a).replace(/\{(@?)([a-zA-Z0-9_.]+)\}/g, (_, at, f) => (at ? W(f) : words(readPath(scope.item, f))));
       if (k === 'pick') {
@@ -654,7 +666,7 @@ export function buildManaUi() {
           // a window's layers, under what it holds: the plate, the thing it sits on, the crest over its edge (drawn when
           // the theme lays a window in layers; a ghost window, words over the world, has none)
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.variant === 'ghost' ? null : ['i', { class: 'mana-layers', 'aria-hidden': 'true' }, ['b', null]], p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
-          case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null }, ...kids()];
+          case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null, 'data-fit': p.fit !== 'fixed' ? p.fit : null }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
           case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null, 'data-variant': n.use === 'region' && p.variant !== 'plain' ? p.variant : null }, ...kids()];
           case 'each': return ['div', { class: cls, 'data-dir': p.dir }, ...p.rows.map((item, i) => draw(n.props.row, `${key}.${i}`, { ...scope, item }))];
@@ -712,13 +724,13 @@ export function buildManaUi() {
             const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
             return ['div', { class: cls, 'data-shape': p.shape }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-glyphs', ...chOf(changeOf(key, v)) }, on.repeat(v) + offc.repeat(max - v)]];
           }
-          case 'counter': { const c = changeOf(key, p.value); return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's' }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, words(counting(key, p.value, c, false)), p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null, gainOf(c)]]; }
+          case 'counter': { const c = changeOf(key, p.value); return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's', 'data-icon': iconName(p.icon) }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, words(counting(key, p.value, c, false)), p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null, gainOf(c)]]; }
           case 'timer': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-num' }, clock(p.seconds, p.format)]];
           case 'compare': {
             const d = p.to - p.from, good = p.better === 'up' ? d > 0 : d < 0;
             return ['div', { class: cls, 'data-way': d === 0 ? 'same' : good ? 'better' : 'worse' }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, String(p.from)], ['span', { class: 'mana-mark' }, d === 0 ? '=' : good ? '▲' : '▼'], ['span', { class: 'mana-num' }, String(p.to)]];
           }
-          case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
+          case 'icon': return ['span', { class: cls, 'data-size': p.size, 'data-icon': iconName(p.name), title: p.name }, initials(p.name)];
           case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name && p.caption ? ['span', { class: 'mana-caption' }, p.name] : null];
           case 'loader': {
             const L = loadOf(key, p, n, scope, ctx), G = L.G, state = L.failed ? 'failed' : G.ready !== null ? 'ready' : 'loading';
@@ -792,11 +804,12 @@ export function buildManaUi() {
             return ['span', { class: 'mana-arc', style: `left:${pct(0.5 + 0.45 * Math.sin(t))};top:${pct(0.5 - 0.45 * Math.cos(t))};transform:translate(-50%,-50%) rotate(${Math.round(b)}deg)` }, '▲'];
           })];
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
-          case 'touchpad': return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left' }, ['i', null]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
+          case 'touchpad': { const H = isObj(p.held) ? p.held : null, px = (v) => `${Math.round(Number(v) || 0)}px`; return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left', 'data-lane': p.lane ? 'yes' : null, 'data-held': H ? 'yes' : null, style: H ? `transform:translate(${px(H.ox)},${px(H.oy)})` : null }, ['i', { style: H ? `transform:translate(${px(H.dx)},${px(H.dy)})` : null }]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
-            return ['span', { class: 'mana-pad', 'data-control': control }, label];
-          })]];
-          case 'prompt': return ['div', { class: cls }, ['span', { class: 'mana-key' }, p.glyph || glyphOf(p.action) || p.action], ['span', null, p.label]];
+            // (a pad named for what it does wears its pictogram where the theme draws them: jump, fire, use)
+            return ['span', { class: 'mana-pad', 'data-control': control, 'data-on': control && p.down.indexOf(control) >= 0 ? 'yes' : null }, ['b', { 'data-icon': iconName(label) }, label]];
+          })]]; }
+          case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
           case 'minimap': return ['div', { class: cls, 'data-shape': p.shape }, ...p.markers.map((m) => {
@@ -1183,6 +1196,13 @@ export function buildManaUi() {
       const L = typeof layout === 'string' && layout ? layout : S.layout;
       if (S.input !== mode || S.layout !== L) { S.input = mode; S.layout = L; render(); }
     }
+    // the frame the view is drawn in (a mount measures its own and says it here; a host with no DOM says its own)
+    function frame(f) {
+      if (f === undefined) return S.frame;
+      const n = frameOf({ hand: S.frame.hand, ...f });
+      if (FRAME_WORDS.some((k) => n[k] !== S.frame[k])) { S.frame = n; render(); }
+      return S.frame;
+    }
     function glyphs(table) {
       if (table !== null && !isObj(table)) throw new Error('glyphs: { keys?, pad?: { <layout>: { <action>: label } }, xr?, touch? }');
       S.glyphs = table;
@@ -1223,7 +1243,7 @@ export function buildManaUi() {
     if (start) open(start); else render();
     S.booting = false;
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, reduceFlash, textScale, subtitlePlate, language, typing, type, erase, submit,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, frame, hold, reduceMotion, reduceFlash, textScale, subtitlePlate, language, typing, type, erase, submit,
       languages: () => codesOf(),
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
@@ -1357,11 +1377,26 @@ export function buildManaUi() {
     el.addEventListener('pointercancel', () => { down = null; });
     // a frame: a value the screen read changed, or the game opened or closed a screen itself
     if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; const loop = () => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    // THE FRAME: the view's own box, measured now and whenever it changes (a phone turned, a window dragged), said to the
+    // runtime so a spec that branches on it is laid again; held in the hand where the pointer is a finger
+    const measure = () => {
+      let r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      // (an element with no box of its own, a bare div its root is laid out of: the root's box is the frame)
+      const root = el.firstElementChild;
+      if (r && !(r.width && r.height) && root && root.getBoundingClientRect) r = root.getBoundingClientRect();
+      if (!r || !r.width || !r.height) return;
+      const was = rt.frame(), now = rt.frame({ w: Math.round(r.width), h: Math.round(r.height), hand: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches });
+      if (now !== was) paint();
+    };
+    measure();
     paint();
+    // (its own box only, and its root's where it has none: a view listens to no window)
+    if (typeof ResizeObserver === 'function') { const ro = new ResizeObserver(measure); ro.observe(el); if (el.firstElementChild) ro.observe(el.firstElementChild); }
+    measure();
     return { paint };
   }
 
-  return { WORDS, COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { WORDS, COMPONENTS, COMPONENT_IDS, FRAME_WORDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();

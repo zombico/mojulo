@@ -29,6 +29,9 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { DRESS_THEMES, readDress } from './course-dress.js';
+import { THEMES } from '../../mana-ui/theme.js';
+import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { atlasOf, coreOf } from './megaworld.js';
 import { ARMS_LEGEND } from './arms-kit.js';
 import { railOfWord, gameBody, lowerBody, bookRail, bodyWords } from './game-bodies.js';
@@ -50,8 +53,8 @@ import { gauntletCast } from './gauntlet-cast.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
+import { withSetup } from './setup.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
-import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { MISSION_LOOK } from './mission-mana.js';
 import { defaultFlow, startInPlay, FLOW_IN_PLAY } from '../game/flow.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
@@ -185,8 +188,17 @@ const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? aud
 // (a world with a mission level and no `ui` of its own: the mission's look, so the game is on mana-ui end to end, its
 // front and its result as its briefing and its HUD are: mission-mana.js MISSION_LOOK)
 function shellUi(G) {
-  if (G.ui === undefined) return G.ids.some((id) => G.levels[id].mission !== undefined) ? { ui: { theme: cardTheme(MISSION_LOOK) } } : {};
+  // (a game of obstacle courses says no `ui` and still gets its screens from the game UI runtime, in its course's own
+  // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
+  if (G.ui === undefined) { const look = courseLook(G); return look ? { ui: { theme: look } } : G.ids.some((id) => G.levels[id].mission !== undefined) ? { ui: { theme: cardTheme(MISSION_LOOK) } } : {}; }
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
+}
+/** The look a world's first obstacle course is dressed for (its dress's `ui`: a preset's name, or a card's theme), or null. */
+function courseLook(G) {
+  const id = (G.ids ?? []).find((k) => G.levels[k]?.obstacles);
+  if (!id) return null;
+  const named = DRESS_THEMES[readDress(G.levels[id].obstacles.dress).theme].ui;
+  return !named ? null : THEMES[named] ? named : cardTheme(named);
 }
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
@@ -487,6 +499,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
       if (!m.missing.length) flow = { ...m.flow, steps: Object.fromEntries(Object.entries(m.flow.steps).map(([id, st]) => [id, staged(st)])) };
     }
     if (!flow && Object.keys(cinematics).length) flow = defaultFlow({ ...game0, cinematics });
+    // THE SET-UP (setup.js): what is asked before a level loads, on every level step that asks nothing of its own
+    if (G.setup) flow = withSetup(flow ?? defaultFlow(game0), G.setup);
     const game = flow ? { ...game0, flow } : game0;
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
@@ -689,7 +703,10 @@ function worldSteps(world, G, ref, composite) {
     const game0 = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // (a world that STARTS IN PLAY, as one laid from a sentence does: flow.js startInPlay over the flow its levels and
     // front make; it has no story yet, so its opening cutscene is the empty slot, passed at once)
-    const game = G.flow === FLOW_IN_PLAY ? { ...game0, flow: startInPlay(defaultFlow(game0)) } : game0;
+    const flow0 = G.flow === FLOW_IN_PLAY ? startInPlay(defaultFlow(game0)) : null;
+    // (THE SET-UP, setup.js: what is asked before a level loads)
+    const flowS = G.setup ? withSetup(flow0 ?? defaultFlow(game0), G.setup) : flow0;
+    const game = flowS ? { ...game0, flow: flowS } : game0;
     // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, composite));

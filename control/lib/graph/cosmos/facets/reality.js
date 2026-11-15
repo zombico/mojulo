@@ -41,7 +41,7 @@ export const REALITY = Object.freeze({
         'comic-night': { status: 'absent', effort: 'S', pkg: 'comic-look', requires: ['reality.look=comic-day'], note: 'the comic look by night: the same ink and bands, a city-night palette, rim light on the cast' },
       },
     },
-    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS' } },
+    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', since: { 'gothic-ashlar': '2026-11-11' } } },
     medium: {
       values: {
         '3d': { status: 'built', lowers: 'lib/graph/scene/scene-three.js' },
@@ -77,7 +77,7 @@ export const REALITY = Object.freeze({
         themed: { status: 'built', since: '2026-11-09', requires: ['reality.interface=front'], lowers: 'lib/graph/game/play-shell-mana.js', note: 'a world\'s ui: the shell\'s attract, title, level list, options, results and loading screens on mana-ui, in the world\'s look (its guide lowered to a theme: type on a frame sized by the screen and the seat, a halo over the world, a legend bar, lean, transitions, sound cues), in its languages' },
         // partial 11-06 (the RPG on mana-ui; 11-09 the brawl yard, the fighter\'s lab): some games\' own screens run on
         // mana-ui; a level\'s HUD, talk, quest log and pause do not yet
-        'in-game': { status: 'partial', effort: 'L', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, a mission\'s briefing, HUD, pause and debrief (gameworld/mission-mana.js); any other level\'s HUD, its talk menus, quest log and pause are still the page\'s own DOM, so a headset gets them as lines' },
+        'in-game': { status: 'partial', effort: 'M', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, a mission\'s briefing, HUD, pause and debrief (gameworld/mission-mana.js), the strategy boards, the board-game tables and the holo arena (11-10), the practice, work and game rooms\' menu (the shell\'s pause, 11-13); since 11-13 a level\'s own HUD rows on a world that says `ui` (game/hud-mana.js, one host a level page), a course\'s HUD, the pause button and the touch pad (11-14), a turn\'s picks; a level\'s talk menus and its quest log are still the page\'s own DOM, and a world with no `ui` keeps the page\'s HUD' },
       },
     },
     // what a game sounds like. A quick game says its music and its effects; a designed gameworld has no sound word of
@@ -88,7 +88,44 @@ export const REALITY = Object.freeze({
         none: { status: 'built', note: 'silent, as a world is until it says otherwise' },
         score: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/score-suggest.js', note: 'a field score by the level\'s place and play, an explore and a combat score crossfaded on the fight (auto), a rhythm run on its beat: a quick game\'s music; a designed gameworld\'s levels have no word for it' },
         sfx: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/sfx-palettes.js', note: 'action sounds wired to the goal\'s events in the music\'s key, in a palette (arcade, foley, orchestral, synth): a quick game\'s sfx; a designed gameworld\'s levels have no word for it' },
-        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the mount lane and the fighter only: no level reads it by word' },
+        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the work room and the game room, the mount lane and the fighter only: no level reads it by word' },
+      },
+    },
+    // the game's colour (11-13, gameworld/colour.js, docs/colour.md): the bridge from a game to the colour theorist. The
+    // cast is read as FIGURES on the ground they stand on and solved clear of it (color-theorist/figures.js); the land is
+    // oriented by a DIRECTION (color-theorist/directions.js COLOUR_DIRECTIONS: where value and chroma are spent, never a
+    // hue). Each is a patch the colour book offers (/bible?book=colour); the pick is the eyes gate's. Absent, the kit's or
+    // the look's own colours, or the palette the world names (style.palette).
+    // (The directions are hand values, not a source: their table loads the palette solver, whose imports come back round
+    // to this registry. registry.test.js holds them to the table, so a new direction is a row there and a value here)
+    colour: {
+      multi: true,
+      values: {
+        figures: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/gameworld/colour.js', note: 'the cast painted clear of the ground it stands on and of each other, for every eye: the hero\'s garment in the world\'s accent, a kin foe\'s coat moved in value and chroma inside its hue family, a pack\'s mark in the second accent; measured for any gameworld (design_game\'s colour step), written as a patch, laid once when the sentence door stores a game; a crew\'s dress, a beast\'s coat and a quick game\'s rolled people are not read yet' },
+        'quiet-land': { status: 'built', since: '2026-11-13', lowers: 'lib/graph/color-theorist/directions.js', note: 'a colour direction: the land grouped into three bands of value and taken down in chroma, so colour is spent on who walks it, the cast solved against the land that makes; a patch on the palette\'s spec, never a hue; the action RPG\'s from a sentence' },
+        dusk: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/color-theorist/directions.js', note: 'a colour direction: a colour script across the levels, day into night, each place its own light and the last the darkest; a world of two levels or more' },
+      },
+    },
+    // the frame finished over the baked light (11-11 the World page's light, scene/page-light.js: a world recipe's
+    // `light.finish`, opt-in on a painted page and no byte where it is not asked; a page drawn as form takes it unless it
+    // says otherwise): one light record every lit channel reads, the sky in a specular face, bloom over a frame with
+    // headroom, emitters drawn past white. The grade is laid over it as before. Priced whole: what the theme left open
+    // (exposure that adapts, water under the finish) and the word a designed gameworld lacks
+    finish: {
+      values: {
+        none: { status: 'built', note: 'the frame as the bake draws it' },
+        finished: { status: 'partial', effort: 'M', lowers: 'lib/graph/scene/page-light.js', note: 'a world\'s light.finish: a specular face reflects the page\'s sky beside its highlight, what is past white blooms, and a lit window, a lamp\'s face, a sign, the sun\'s disc and a fire are drawn past white; a level drawn as form takes it by default, a painted one only where its own recipe asks: a designed gameworld has no word that lays it on its levels; exposure that adapts and water under the finish are not built (a room\'s own capture and a wet floor are the form render\'s: reality.era=gen-7)' },
+      },
+    },
+    // partial 11-12 (a room's condition, era/condition.js): a place's state of repair as the word people say for it. One
+    // word sets together what has come down and lies where it rests (era/skandart.js), how far its surfaces have
+    // weathered, whether anyone still sweeps, and how far a kit's own story of decay went. A stage recipe's word: no key
+    // of a designed game's level carries it, nor a place's wetness (era/wetness.js) or a room's own daylight, the join
+    // the board names, priced as one package
+    condition: {
+      source: {
+        module: 'lib/graph/era/condition.js', table: 'CONDITIONS', status: 'partial', effort: 'M', pkg: 'condition',
+        note: 'a room\'s state of repair in one word (a stage recipe\'s condition), setting its debris, its weathering, its sweeping and its kit\'s decay together (a kit that answers no debris question takes the weathering alone); a world recipe\'s word: no key of a designed game\'s level carries it',
       },
     },
   },

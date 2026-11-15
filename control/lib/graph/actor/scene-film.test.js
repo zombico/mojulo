@@ -20,6 +20,21 @@ describe('the scene film pack', () => {
     expect(files.filter((f) => f.file.startsWith('shots/'))).toHaveLength(C.shots.length);
   });
 
+  it('actors.py leaves a hero\'s page out of the film (its view cameras, its ground) and stands a scene with no set on a bare stage', () => {
+    const py = byName['actors.py'];
+    // (the page's cameras and the meshes no armature carries go; a thing held on a bone stays)
+    expect(py).toContain("o.type == 'CAMERA' or (o.type == 'MESH' and not carried(o))");
+    expect(py).toContain('bpy.data.objects.remove(o, do_unlink=True)');
+    // (the stage: made once, only where there is no set; its key only where the setups are not lit)
+    expect(py).toContain("if S.get('set') or bpy.data.objects.get('stage:floor') is not None:");
+    expect(py).toContain("if not S.get('lights'):");
+    expect(byName['SCENE.md']).toContain('read_factory_settings(use_empty=True)');
+    // (a dub's face takes outlive the save: Blender keeps no action that nothing uses)
+    expect(py).toContain('a.use_fake_user = True');
+    // (a walled set with no light of its own: its house lights, made by actors.py from scene.json set.house)
+    expect(py).toContain("'house:%d' % (i + 1)");
+  });
+
   it('scene.json: each actor\'s GLB, its takes and its place over time; the coverage; the lines', () => {
     const J = JSON.parse(byName['scene.json']);
     expect(J.frames).toBe(Math.round(S.seconds * FPS));
@@ -45,6 +60,45 @@ describe('the scene film pack', () => {
     for (const look of LOOKS) expect(lookPy()).toContain(`'${look}'`);
     expect(lookPy()).toMatch(/ShaderNodeShaderToRGB/);
     expect(lookPy()).toMatch(/SOLIDIFY/);
+  });
+
+  it('carries a scene\'s props: each its model, its place, its turn and its size; none adds nothing', () => {
+    const props = [{ name: 'car', ref: 'sk_car', glb: 'props/car.glb', at: [4.5, 3], turn: 90, dims: [4.5, 2.2, 1.9] }];
+    const withProps = Object.fromEntries(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked', props }).map((f) => [f.file, f.text]));
+    expect(JSON.parse(withProps['scene.json']).props).toEqual(props);
+    expect(JSON.parse(files.find((f) => f.file === 'scene.json').text).props).toBeUndefined();
+    // (the build stands each under its own empty, at the plan's size)
+    expect(actorsPy()).toMatch(/def props\(S\)/);
+    expect(actorsPy()).toMatch(/'prop:%s' % Q\['name'\]/);
+  });
+
+  it('on ground that is not flat, lifts each actor, camera and prop onto the ground under it; a level set adds nothing', () => {
+    // a slope rising 1 in 4 along x, as a set's relief carries it (actor/relief.js)
+    const nx = 80, ny = 80, relief = { x0: -20, y0: -20, cell: 0.5, nx, ny, z: Array.from({ length: nx * ny }, (_, k) => ((k % nx) + 0.5) * 0.5 * 0.25 - 5) };
+    const on = Object.fromEntries(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked', set: { ref: 'sk_hill', floor: 2, pack: 'set/', relief } }).map((f) => [f.file, f.text]));
+    const flat = JSON.parse(files.find((f) => f.file === 'scene.json').text), sc = JSON.parse(on['scene.json']);
+    for (const who of ['mara', 'jon']) {
+      for (const k of sc.actors[who].root) expect(k.z).toBeCloseTo(k.x * 0.25, 2);
+      expect(flat.actors[who].root.every((k) => k.z === undefined)).toBe(true);
+      // (a walk is keyed along its way, so the feet keep to the ground between the plan's keys)
+      expect(sc.actors[who].root.length).toBeGreaterThanOrEqual(flat.actors[who].root.length);
+    }
+    expect(sc.set.relief).toBeUndefined();
+    const cam = (text) => JSON.parse(text).cameras[0], a = cam(files.find((f) => f.file === 'shot.json').text), b = cam(on['shot.json']);
+    expect(JSON.stringify(b)).not.toBe(JSON.stringify(a));
+    expect(actorsPy()).toMatch(/k\.get\('z', 0\.0\)/);
+    expect(actorsPy()).toMatch(/Q\.get\('z', 0\.0\)/);
+  });
+
+  it('carries a prop that arrives: its way keyed on the scene\'s clock; one that stands has no keys', () => {
+    const keys = [{ t: 1, x: 4.5, y: -10, turn: 0 }, { t: 2, x: 4.5, y: -3.5, turn: 0 }, { t: 3, x: 4.5, y: 3, turn: 0 }];
+    const props = [{ name: 'car', thing: 'sedan', glb: 'props/car.glb', at: [4.5, 3], turn: 0, dims: [2, 4.9, 1.4], keys }];
+    const on = JSON.parse(sceneFilmFiles({ S, coverage: C, actors: { mara: { take: 'scene' }, jon: { take: 'scene' } }, fps: FPS, title: 'blocked', props }).find((f) => f.file === 'scene.json').text);
+    expect(on.props[0].keys).toEqual(keys);
+    expect(actorsPy()).toMatch(/for K in Q\.get\('keys'\) or \[\]:/);
+    expect(actorsPy()).toMatch(/frame = 1 \+ float\(K\['t'\]\) \* float\(S\['fps'\]\)/);
+    // (and it faces along its way: its turn keyed with its place)
+    expect(actorsPy()).toMatch(/holder\.keyframe_insert\('rotation_euler', frame=frame\)/);
   });
 
   it('is deterministic', () => {

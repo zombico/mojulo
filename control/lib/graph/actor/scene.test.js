@@ -1,7 +1,7 @@
 // actors in a scene: a screenplay on one clock, in a set of marks; each speaks to the other and listens; a cross walks
 import { describe, it, expect } from 'vitest';
 import { parseScreenplay } from './screenplay.js';
-import { actScene, TURN, WALK } from './scene.js';
+import { actScene, TURN, WALK, PAIR } from './scene.js';
 import { BASELINE } from './baseline.js';
 import { laws, readReadings } from './readings.js';
 import { STYLES, STYLE_NAMES } from './style.js';
@@ -28,7 +28,8 @@ describe('the screenplay', () => {
 
   it('refuses a speaker outside the cast, a cross to no mark, and a script with no line', () => {
     expect(() => parseScreenplay('ANNA: Hi.', { cast: CAST, marks: MARKS })).toThrow(/not in the cast/);
-    expect(() => parseScreenplay('MARA: Hi.\nMara crosses to Jon.', { cast: CAST, marks: MARKS })).toThrow(/crosses to a mark/);
+    expect(() => parseScreenplay('MARA: Hi.\nMara crosses to Mara.', { cast: CAST, marks: MARKS })).toThrow(/to another actor, not to 'Mara'/);
+    expect(parseScreenplay('MARA: Hi.\nMara crosses to Jon.', { cast: CAST, marks: MARKS }).at(-1)).toEqual({ kind: 'cross', who: 'mara', to: { actor: 'jon' } });
     expect(() => parseScreenplay('Mara waits.', { cast: CAST, marks: MARKS })).toThrow(/no line/);
   });
 });
@@ -59,6 +60,18 @@ describe('the scene on one clock', () => {
     const J = S.actors.jon.root.at(-1), toMara = (Math.atan2(MARKS.table[0] - J.x, MARKS.table[1] - J.y) * 180) / Math.PI;
     expect(J.yaw).toBeCloseTo(toMara, 1);
     expect(S.actors.jon.root.at(-1).t - S.actors.jon.root.at(-2).t).toBeCloseTo(TURN, 3);
+  });
+
+  it('a cross to another actor walks up to them and stops a conversation\'s distance short; from nearer, no one moves', () => {
+    const far = { cast: { ada: { mark: 'a' }, jon: { mark: 'b' } }, marks: { a: [-3, 0], b: [3, 4] }, script: 'ADA: Wait.\nAda crosses to Jon.\nADA: There.' };
+    const W = actScene(far).actors.ada.walks;
+    expect(W).toHaveLength(1);
+    expect(W[0].toward).toBe('jon');
+    expect(Math.hypot(W[0].to[0] - 3, W[0].to[1] - 4)).toBeCloseTo(PAIR, 2);
+    expect(W[0].distance).toBeCloseTo(Math.hypot(6, 4) - PAIR, 2);
+    // (on the line between them: the walker has not gone round)
+    expect((W[0].to[0] + 3) / 6).toBeCloseTo(W[0].to[1] / 4, 2);
+    expect(actScene({ cast: { ada: {}, jon: {} }, script: 'ADA: Wait.\nAda crosses to Jon.\nADA: There.' }).actors.ada.walks).toEqual([]);
   });
 
   it('the speaker looks at whom it speaks to, the listener at the speaker, listening', () => {

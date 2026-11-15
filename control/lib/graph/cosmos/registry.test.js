@@ -70,6 +70,16 @@ describe('cosmos registry', () => {
     expect(n).toBeGreaterThan(0);
   });
 
+  it('names the colour directions the theorist\'s table holds, hand values that they are', async () => {
+    // (reality.colour lists them by hand: the table loads the palette solver, whose imports come back round to this
+    // registry, so read-sources.js cannot import it; a new direction is a row there and a value here)
+    const { COLOUR_DIRECTION_IDS } = await import('../color-theorist/directions.js');
+    const { figures, ...directions } = capabilityRegistry().reality.colour.values;
+    expect(figures.status).toBe('built');
+    expect(Object.keys(directions)).toEqual(COLOUR_DIRECTION_IDS);
+    for (const [id, row] of Object.entries(directions)) expect(row.lowers, id).toBe('lib/graph/color-theorist/directions.js');
+  });
+
   it('holds the six facets in order, each with a question', () => {
     expect(FACETS.map((f) => f.id)).toEqual(['reality', 'space', 'power', 'soul', 'mind', 'time']);
     for (const f of FACETS) expect(f.asks).toMatch(/\?$/);

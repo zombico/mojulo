@@ -26,7 +26,7 @@ export const BLENDER_FILM_VERSION = '0.1.0';
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
 /** The shot.json body for one world camera motion. `cameras` are worldFraming objects. */
-export function filmShot({ motionRef = null, worldRef, title = null, motion, fps, width, height, cameras }) {
+export function filmShot({ motionRef = null, worldRef, title = null, motion, fps, width, height, cameras, dof = null }) {
   if (!Array.isArray(cameras) || cameras.length < 1) throw new Error('filmShot: no cameras');
   return {
     source: 'mojulo',
@@ -39,6 +39,7 @@ export function filmShot({ motionRef = null, worldRef, title = null, motion, fps
     width,
     height,
     frame_count: cameras.length,
+    ...(dof ? { dof } : {}),
     up: 'z',
     units: 'world units (the pack root scales them to metres)',
     cameras: cameras.map((w) => ({
@@ -185,6 +186,12 @@ def load_shot(path, start, M):
     fovs = [c['hfov_deg'] for c in shot['cameras']]
     zooms = max(fovs) - min(fovs) > 1e-4
     cd.angle = math.radians(fovs[0])
+    # depth of field (a shot that asks for it: { fstop }): the focus on the target, the subject the camera looks at, so
+    # it follows the shot with no key of its own
+    if shot.get('dof'):
+        cd.dof.use_dof = True
+        cd.dof.focus_object = target
+        cd.dof.aperture_fstop = float(shot['dof'].get('fstop', 2.8))
     for i, c in enumerate(shot['cameras']):
         fr = start + i
         cam.location = M @ Vector(c['pos'])
@@ -355,6 +362,8 @@ Reads atmosphere.json beside it - the world's sky preset, fog and water - and pe
   interior     no sun, a faint fill; the world's own lights carry it
   lamps        mojulo's lamps arrive in model.glb as point lights; each is set to its intensity x --lamp-gain watts
   fog          a ground-hugging volume to the recipe's fog height, thinning with height (EEVEE and Cycles)
+  weather      a scene's own (atmosphere.json weather): the sun through cloud and its soft shadow, a grey sky, a haze,
+               a mist or a fog, rain or snow falling about the cast
   water        the water surfaces the pack leaves out, rebuilt as a reflective water mesh
 plus a ground to the horizon and AgX.
 
@@ -369,6 +378,7 @@ import bpy
 import json
 import math
 import os
+import re
 import sys
 from mathutils import Matrix, Vector
 
@@ -432,18 +442,66 @@ def scene_box():
             Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts))))
 
 
-def sun(name, elevation, azimuth, energy, color):
+def sun(name, elevation, azimuth, energy, color, soften=0.6):
     sd = bpy.data.lights.new(name, 'SUN')
     sd.energy = energy
     sd.color = color
-    sd.angle = math.radians(0.6)
+    # (its disc: a clear sun is small and its shadow hard; under cloud the light comes from everywhere)
+    sd.angle = math.radians(soften)
     ob = rig(bpy.data.objects.new(name, sd))
     d = Vector((math.sin(azimuth) * math.cos(elevation), math.cos(azimuth) * math.cos(elevation), math.sin(elevation)))
     ob.rotation_euler = (-d).to_track_quat('-Z', 'Y').to_euler()
     return ob
 
 
-def world(preset, el, az):
+def clouded(nt, base, C):
+    """THE CLOUDS SEEN (atmosphere.json clouds: a scene's own, lib/graph/film/clouds.js): the world's painted cloud band
+    laid round the sky over base (a colour socket), from the horizon up to its top. Round the dome the band runs from
+    +x toward +y; up it, row 0 is its top. Returns the socket the background takes."""
+    path = os.path.join(_here(), C.get('band') or 'clouds.png')
+    if not os.path.exists(path):
+        return base
+    img = nt.nodes.new('ShaderNodeTexImage')
+    img.image = bpy.data.images.load(path, check_existing=True)
+    img.extension = 'REPEAT'
+    img.interpolation = 'Linear'
+    co = nt.nodes.new('ShaderNodeTexCoord')
+    xyz = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(co.outputs['Generated'], xyz.inputs['Vector'])
+    def math_node(op, a, b=None):
+        n = nt.nodes.new('ShaderNodeMath')
+        n.operation = op
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = float(v)
+            else:
+                nt.links.new(v, n.inputs[i])
+        return n.outputs[0]
+    u = math_node('DIVIDE', math_node('ARCTAN2', xyz.outputs['Y'], xyz.outputs['X']), 2.0 * math.pi)
+    v = math_node('DIVIDE', math_node('ARCSINE', xyz.outputs['Z']), math.radians(float(C.get('top', 62))))
+    uv = nt.nodes.new('ShaderNodeCombineXYZ')
+    nt.links.new(u, uv.inputs['X'])
+    nt.links.new(v, uv.inputs['Y'])
+    nt.links.new(uv.outputs['Vector'], img.inputs['Vector'])
+    # (only between the horizon and the band's top: above it the sky is clear, below it the ground's)
+    mask = math_node('MULTIPLY', math_node('GREATER_THAN', v, 0.0), math_node('LESS_THAN', v, 1.0))
+    fac = math_node('MULTIPLY', img.outputs['Alpha'], mask)
+    lit = nt.nodes.new('ShaderNodeMixRGB')
+    lit.blend_type = 'MULTIPLY'
+    lit.inputs['Fac'].default_value = 1.0
+    nt.links.new(img.outputs['Color'], lit.inputs['Color1'])
+    g = float(_opt('--clouds', C.get('gain', 1.0)))
+    lit.inputs['Color2'].default_value = (g, g, g, 1)
+    mix = nt.nodes.new('ShaderNodeMixRGB')
+    nt.links.new(fac, mix.inputs['Fac'])
+    nt.links.new(base, mix.inputs['Color1'])
+    nt.links.new(lit.outputs['Color'], mix.inputs['Color2'])
+    return mix.outputs['Color']
+
+
+def world(preset, el, az, cover=None, clouds=None):
     sc = bpy.context.scene
     w = bpy.data.worlds.new('film-world')
     sc.world = w
@@ -453,9 +511,23 @@ def world(preset, el, az):
     bg = nt.nodes.new('ShaderNodeBackground')
     out = nt.nodes.new('ShaderNodeOutputWorld')
     nt.links.new(bg.outputs['Background'], out.inputs['Surface'])
+    def flat(color):
+        # (a sky of one colour: under the clouds seen it is a node, so the band is laid over it)
+        if not clouds or preset == 'interior':
+            bg.inputs['Color'].default_value = color
+            return
+        rgb = nt.nodes.new('ShaderNodeRGB')
+        rgb.outputs[0].default_value = color
+        nt.links.new(clouded(nt, rgb.outputs[0], clouds), bg.inputs['Color'])
     if preset in ('night', 'interior'):
-        bg.inputs['Color'].default_value = (0.004, 0.006, 0.014, 1) if preset == 'night' else (0.02, 0.02, 0.02, 1)
+        flat((0.004, 0.006, 0.014, 1) if preset == 'night' else (0.02, 0.02, 0.02, 1))
         bg.inputs['Strength'].default_value = 1.0
+        return
+    # (the weather's sky: under cloud the sky is the cloud, one grey light from everywhere, dimmer at a low sun)
+    if cover:
+        dim = 0.45 if preset in ('dawn', 'dusk') else 1.0
+        flat((*[float(v) * dim for v in cover['color']], 1))
+        bg.inputs['Strength'].default_value = float(cover.get('strength', 0.85))
         return
     sky = nt.nodes.new('ShaderNodeTexSky')
     for t in ('MULTIPLE_SCATTERING', 'NISHITA', 'SINGLE_SCATTERING'):
@@ -466,7 +538,7 @@ def world(preset, el, az):
             continue
     sky.sun_elevation = el
     sky.sun_rotation = az
-    nt.links.new(sky.outputs['Color'], bg.inputs['Color'])
+    nt.links.new(clouded(nt, sky.outputs['Color'], clouds) if clouds else sky.outputs['Color'], bg.inputs['Color'])
     bg.inputs['Strength'].default_value = float(_opt('--sky', 0.35))
 
 
@@ -565,6 +637,233 @@ def water(faces, M):
     log('water: %d surfaces' % len(polys))
 
 
+def wind(Wd):
+    """THE WIND (atmosphere.json wind: a scene's own, lib/graph/film/wind.js): the set's plants near the cast lean
+    downwind and sway. A plant is an object known by one of the pack's plant words; the nearest most within reach of
+    the cast each take one geometry-nodes modifier: a vertex is moved by its height up the plant squared (its foot
+    stands), along the wind, by a lean and a swing on the scene's time, a gust that comes and goes, and a quiver of its
+    own. Each frame is a function of the time alone: any frame renders alone."""
+    # (the rig rebuilt, --force: the wind is made again with it)
+    for o in bpy.context.scene.objects:
+        for m in [m for m in o.modifiers if m.name == 'film-wind']:
+            o.modifiers.remove(m)
+    for g in [g for g in bpy.data.node_groups if g.name.startswith('film-wind')]:
+        bpy.data.node_groups.remove(g)
+    if not Wd:
+        return
+    words = set(str(w).lower() for w in Wd.get('plants') or [])
+    ax, ay = [float(v) for v in (Wd.get('about') or [0, 0])]
+    reach, most = float(Wd.get('reach', 60)), int(Wd.get('most', 120))
+    found = []
+    for o in bpy.context.scene.objects:
+        # (a plant's word is a whole word of the object's name: maple-L2:3, geocity:tree-maple-L0:12, form:flora:0:oak)
+        if o.type != 'MESH' or o.get('film_rig') or not (set(re.split('[^a-z]+', o.name.lower())) & words):
+            continue
+        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+        hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+        d = math.hypot(max(lo.x - ax, 0.0, ax - hi.x), max(lo.y - ay, 0.0, ay - hi.y))
+        if d <= reach and hi.z - lo.z > 0.3:
+            found.append((d, o.name, o, lo, hi))
+    found.sort(key=lambda f: (f[0], f[1]))
+    found = found[:most]
+    if not found:
+        log('wind: no plant of the set within %.0f m of the cast' % reach)
+        return
+    ng = bpy.data.node_groups.new('film-wind', 'GeometryNodeTree')
+    for name, kind, io in (('Geometry', 'NodeSocketGeometry', 'INPUT'), ('Push', 'NodeSocketVector', 'INPUT'), ('Up', 'NodeSocketVector', 'INPUT'), ('Foot', 'NodeSocketFloat', 'INPUT'), ('Phase', 'NodeSocketFloat', 'INPUT'),
+                           ('Hz', 'NodeSocketFloat', 'INPUT'), ('Quiver', 'NodeSocketFloat', 'INPUT'), ('Geometry', 'NodeSocketGeometry', 'OUTPUT')):
+        ng.interface.new_socket(name=name, in_out=io, socket_type=kind)
+    N, L = ng.nodes, ng.links
+    gin, gout = N.new('NodeGroupInput'), N.new('NodeGroupOutput')
+    def math_node(op, a, b=None):
+        m = N.new('ShaderNodeMath')
+        m.operation = op
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                m.inputs[i].default_value = float(v)
+            else:
+                L.new(v, m.inputs[i])
+        return m.outputs[0]
+    def vec_scale(v, s):
+        m = N.new('ShaderNodeVectorMath')
+        m.operation = 'SCALE'
+        L.new(v, m.inputs[0])
+        L.new(s, m.inputs['Scale'])
+        return m.outputs['Vector']
+    pos = N.new('GeometryNodeInputPosition')
+    xyz = N.new('ShaderNodeSeparateXYZ')
+    L.new(pos.outputs['Position'], xyz.inputs['Vector'])
+    # (its height up the plant, 0 at its foot to 1 at its top, squared: the trunk's foot stands, the crown goes. Up is
+    #  the world's up in the plant's own space over its height, Foot its foot's share: a model may lie on any axis)
+    dot = N.new('ShaderNodeVectorMath')
+    dot.operation = 'DOT_PRODUCT'
+    L.new(pos.outputs['Position'], dot.inputs[0])
+    L.new(gin.outputs['Up'], dot.inputs[1])
+    up = math_node('ADD', dot.outputs['Value'], gin.outputs['Foot'])
+    w = math_node('POWER', math_node('MINIMUM', math_node('MAXIMUM', up, 0.0), 1.0), 2.0)
+    t = N.new('GeometryNodeInputSceneTime').outputs['Seconds']
+    tau = 2.0 * math.pi
+    # (the swing: its own beat and a faster one over it, a neighbour a little out of step; the gust slow under both)
+    across = math_node('MULTIPLY', math_node('ADD', xyz.outputs['X'], xyz.outputs['Y']), 0.35)
+    beat = math_node('ADD', math_node('ADD', math_node('MULTIPLY', math_node('MULTIPLY', t, gin.outputs['Hz']), tau), gin.outputs['Phase']), across)
+    swing = math_node('ADD', math_node('MULTIPLY', math_node('SINE', beat), 0.7), math_node('MULTIPLY', math_node('SINE', math_node('MULTIPLY', beat, 2.3)), 0.3))
+    gust = math_node('ADD', 1.0, math_node('MULTIPLY', math_node('SINE', math_node('ADD', math_node('MULTIPLY', t, tau * 0.11), math_node('MULTIPLY', gin.outputs['Phase'], 0.3))), float(Wd.get('gust', 0.0))))
+    lean, sway = float(Wd.get('lean', 0.0)), float(Wd.get('sway', 0.02))
+    amount = math_node('MULTIPLY', w, math_node('MULTIPLY', gust, math_node('ADD', lean, math_node('MULTIPLY', swing, sway))))
+    # (the leaves' own quiver: a noise through the plant, moving on the time)
+    noise = N.new('ShaderNodeTexNoise')
+    noise.noise_dimensions = '4D'
+    noise.inputs['Scale'].default_value = 1.7
+    L.new(pos.outputs['Position'], noise.inputs['Vector'])
+    L.new(math_node('MULTIPLY', t, 2.6), noise.inputs['W'])
+    half = N.new('ShaderNodeVectorMath')
+    half.operation = 'SUBTRACT'
+    L.new(noise.outputs['Color'], half.inputs[0])
+    half.inputs[1].default_value = (0.5, 0.5, 0.5)
+    quiver = vec_scale(half.outputs['Vector'], math_node('MULTIPLY', w, gin.outputs['Quiver']))
+    add = N.new('ShaderNodeVectorMath')
+    add.operation = 'ADD'
+    L.new(vec_scale(gin.outputs['Push'], amount), add.inputs[0])
+    L.new(quiver, add.inputs[1])
+    setp = N.new('GeometryNodeSetPosition')
+    L.new(gin.outputs['Geometry'], setp.inputs['Geometry'])
+    L.new(add.outputs['Vector'], setp.inputs['Offset'])
+    L.new(setp.outputs['Geometry'], gout.inputs['Geometry'])
+    # (it blows FROM a bearing, clockwise from north (+y): the plants are pushed the other way)
+    a = math.radians(float(Wd.get('from', 250)))
+    blow = Vector((-math.sin(a), -math.cos(a), 0.0))
+    for d, name, o, lo, hi in found:
+        H = hi.z - lo.z
+        inv = o.matrix_world.to_3x3().inverted_safe()
+        # (each plant its own small group round the one that sways: its push, its beat and its quiver are that group's
+        #  own values, so nothing rides the modifier's properties)
+        own = bpy.data.node_groups.new('film-wind:%s' % name, 'GeometryNodeTree')
+        own.interface.new_socket(name='Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+        own.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+        oi, oo, core = own.nodes.new('NodeGroupInput'), own.nodes.new('NodeGroupOutput'), own.nodes.new('GeometryNodeGroup')
+        core.node_tree = ng
+        own.links.new(oi.outputs['Geometry'], core.inputs['Geometry'])
+        own.links.new(core.outputs['Geometry'], oo.inputs['Geometry'])
+        # (the push in the plant's own space, as long as its height: the lean and the swing are shares of it)
+        core.inputs['Push'].default_value = tuple(inv @ (blow * H))
+        M = o.matrix_world
+        core.inputs['Up'].default_value = (M[2][0] / H, M[2][1] / H, M[2][2] / H)
+        core.inputs['Foot'].default_value = (M[2][3] - lo.z) / H
+        core.inputs['Phase'].default_value = ((lo.x + hi.x) * 0.37 + (lo.y + hi.y) * 0.23) % tau
+        core.inputs['Hz'].default_value = float(Wd.get('hz', 0.4)) * math.sqrt(8.0 / max(H, 0.5))
+        core.inputs['Quiver'].default_value = float(Wd.get('flutter', 0.02)) * inv.to_scale()[2]
+        mod = o.modifiers.new('film-wind', 'NODES')
+        mod.node_group = own
+    log('wind: %d plants of the set within %.0f m of the cast sway (speed %.2f, from %.0f)' % (len(found), reach, float(Wd.get('speed', 0)), float(Wd.get('from', 250))))
+
+
+def precip(W, kind):
+    """What FALLS (atmosphere.json weather rain | snow, 0..1): streaks of rain or flakes of snow about the cast, out to
+    its reach, falling on the scene's clock. Made of geometry nodes over one plane, each point's height a function of
+    the frame alone: any frame renders alone, in any order, the same (no simulation, nothing to bake)."""
+    amount = float(W.get(kind) or 0)
+    if amount <= 0:
+        return
+    rain = kind == 'rain'
+    ax, ay, az = [float(v) for v in (W.get('about') or [0, 0, 0])]
+    reach = float(W.get('reach', 22))
+    H = 14.0 if rain else 10.0                      # the height it falls through, metres
+    speed = 9.0 if rain else 1.3                    # metres a second
+    per_m2 = (9.0 if rain else 14.0) * amount       # how many are in the air over a square metre
+    ng = bpy.data.node_groups.new('film-%s' % kind, 'GeometryNodeTree')
+    if hasattr(ng, 'interface'):
+        ng.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+    else:
+        ng.outputs.new('NodeSocketGeometry', 'Geometry')
+    N, L = ng.nodes, ng.links
+    out = N.new('NodeGroupOutput')
+    grid = N.new('GeometryNodeMeshGrid')
+    grid.inputs['Size X'].default_value = reach * 2
+    grid.inputs['Size Y'].default_value = reach * 2
+    grid.inputs['Vertices X'].default_value = 2
+    grid.inputs['Vertices Y'].default_value = 2
+    pts = N.new('GeometryNodeDistributePointsOnFaces')
+    pts.inputs['Density'].default_value = per_m2
+    pts.inputs['Seed'].default_value = 7
+    L.new(grid.outputs['Mesh'], pts.inputs['Mesh'])
+    # each point's own phase, 0..1 (a float by its index: the same every run)
+    rnd = N.new('FunctionNodeRandomValue')
+    rnd.data_type = 'FLOAT'
+    phase = [o for o in rnd.outputs if o.type == 'VALUE' and o.enabled][0]
+    time = N.new('GeometryNodeInputSceneTime')
+    def math_node(op, a, b):
+        m = N.new('ShaderNodeMath')
+        m.operation = op
+        for i, v in enumerate((a, b)):
+            if isinstance(v, (int, float)):
+                m.inputs[i].default_value = float(v)
+            else:
+                L.new(v, m.inputs[i])
+        return m.outputs[0]
+    # its height: H at the top of its fall, down to 0, and round again
+    fallen = math_node('ADD', math_node('MULTIPLY', time.outputs['Seconds'], speed), math_node('MULTIPLY', phase, H))
+    z = math_node('SUBTRACT', H, math_node('FLOORED_MODULO', fallen, H))
+    xyz = N.new('ShaderNodeCombineXYZ')
+    L.new(z, xyz.inputs['Z'])
+    if not rain:
+        # (a flake drifts as it falls)
+        sway = math_node('MULTIPLY', math_node('SINE', math_node('ADD', math_node('MULTIPLY', time.outputs['Seconds'], 1.3), math_node('MULTIPLY', phase, 40.0)), 0.0), 0.35)
+        L.new(sway, xyz.inputs['X'])
+    setp = N.new('GeometryNodeSetPosition')
+    L.new(pts.outputs['Points'], setp.inputs['Geometry'])
+    L.new(xyz.outputs['Vector'], setp.inputs['Offset'])
+    if rain:
+        drop = N.new('GeometryNodeMeshCylinder')
+        drop.inputs['Vertices'].default_value = 3
+        drop.inputs['Radius'].default_value = 0.0045
+        drop.inputs['Depth'].default_value = 0.5
+    else:
+        drop = N.new('GeometryNodeMeshIcoSphere')
+        drop.inputs['Radius'].default_value = 0.02
+        drop.inputs['Subdivisions'].default_value = 1
+    inst = N.new('GeometryNodeInstanceOnPoints')
+    L.new(setp.outputs['Geometry'], inst.inputs['Points'])
+    L.new(drop.outputs['Mesh'], inst.inputs['Instance'])
+    m = bpy.data.materials.new('film-%s' % kind)
+    m.use_nodes = True
+    p = m.node_tree.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0.78, 0.83, 0.9, 1) if rain else (0.95, 0.96, 1.0, 1)
+    p.inputs['Roughness'].default_value = 0.2 if rain else 0.9
+    # (it shows against a dark sky: a little of its own light)
+    for name in ('Emission Color', 'Emission'):
+        if name in p.inputs:
+            p.inputs[name].default_value = (0.8, 0.85, 0.92, 1)
+            break
+    if 'Emission Strength' in p.inputs:
+        p.inputs['Emission Strength'].default_value = 0.35 if rain else 0.25
+    if rain:
+        p.inputs['Alpha'].default_value = 0.55
+        for attr, v in (('blend_method', 'BLEND'), ('surface_render_method', 'BLENDED')):
+            try:
+                setattr(m, attr, v)
+            except (AttributeError, TypeError):
+                pass
+    setm = N.new('GeometryNodeSetMaterial')
+    setm.inputs['Material'].default_value = m
+    L.new(inst.outputs['Instances'], setm.inputs['Geometry'])
+    L.new(setm.outputs['Geometry'], out.inputs[0])
+    me = bpy.data.meshes.new('film-%s' % kind)
+    me.from_pydata([(0, 0, 0)], [], [])
+    ob = rig(bpy.data.objects.new('film-%s' % kind, me))
+    ob.location = (ax, ay, az)
+    ob.modifiers.new('fall', 'NODES').node_group = ng
+    # (what falls casts no shadow worth its cost)
+    for attr in ('visible_shadow',):
+        try:
+            setattr(ob, attr, False)
+        except AttributeError:
+            pass
+    log('%s: %.2f, about [%.1f, %.1f, %.1f] out to %.0f m' % (kind, amount, ax, ay, az, reach))
+
+
 def main():
     sc = bpy.context.scene
     path = os.path.join(_here(), 'atmosphere.json')
@@ -572,6 +871,13 @@ def main():
     M = root_matrix()
     unit = M.to_scale()[0]
     preset = _opt('--preset') or atm.get('preset') or 'day'
+    # THE WEATHER (atmosphere.json weather: a scene's own, lib/graph/film/weather.js): how much sun gets through and how
+    # soft it is, the sky under cloud, the air, and what falls. Absent: the light as it was
+    W = atm.get('weather') or {}
+    # THE CLOUDS (atmosphere.json clouds: a scene's own, lib/graph/film/clouds.js): the sun through them, the darker and
+    # the softer of the two where the scene has weather too, and the band seen round the sky
+    K = atm.get('clouds') or {}
+    through, soften = min(float(W.get('sun', 1.0)), float(K.get('sun', 1.0))), max(float(W.get('soften', 0.6)), float(K.get('soften', 0.6)))
     force = _flag('--force')
 
     lamps = [o for o in sc.objects if o.type == 'LIGHT' and o.name.startswith('light:')]
@@ -587,25 +893,35 @@ def main():
         default_el = {'night': 40, 'dawn': 12, 'dusk': 12}.get(preset, 35)
         el = math.radians(float(_opt('--sun-elevation', default_el)))
         az = math.radians(float(_opt('--sun-azimuth', 215)))
-        world(preset, el, az)
+        world(preset, el, az, W.get('sky') or K.get('sky'), K or None)
         if preset == 'night':
-            sun('film-moon', el, az, float(_opt('--sun', 0.12)), (0.65, 0.75, 1.0))
+            sun('film-moon', el, az, float(_opt('--sun', 0.12)) * through, (0.65, 0.75, 1.0), soften)
         elif preset in ('dawn', 'dusk'):
-            sun('film-sun', el, az, float(_opt('--sun', 2.0)), (1.0, 0.72, 0.48))
+            sun('film-sun', el, az, float(_opt('--sun', 2.0)) * through, (1.0, 0.72, 0.48), soften)
         elif preset != 'interior':
-            sun('film-sun', el, az, float(_opt('--sun', 2.6)), (1.0, 1.0, 1.0))
+            sun('film-sun', el, az, float(_opt('--sun', 2.6)) * through, (1.0, 1.0, 1.0), soften)
         # mojulo lamp intensity -> watts; the glTF importer's own conversion leaves a street lamp near-dark
         gain = float(_opt('--lamp-gain', 3.0))
         table = {l['name']: l['intensity'] for l in atm.get('lamps', [])}
         for o in lamps:
             key = o.name[len('light:'):].split('.')[0]
             if key in table:
-                o.data.energy = table[key] * gain
+                # (by day a scene's set has its lamps out: atmosphere.json lamps_lit false, lib/graph/film/lamps.js)
+                o.data.energy = table[key] * gain if atm.get('lamps_lit', True) else 0.0
                 o.data.shadow_soft_size = 0.1 * unit
         if not _flag('--no-ground'):
             ground(scene_box()[0].z - 0.05)
-        if atm.get('fog') and not _flag('--no-fog'):
-            fog(atm['fog'], unit)
+        # (the weather's air: a haze, a mist or a fog, where the world declares none thicker; in metres, the scene's)
+        air = W.get('air')
+        own = atm.get('fog')
+        if air and not _flag('--no-fog') and (not own or float(air['density']) > float(own['density'])):
+            fog({'height': air['height'], 'density': air['density'], 'color': air['color'], 'reach': 150}, 1.0)
+        elif own and not _flag('--no-fog'):
+            fog(own, unit)
+        if preset != 'interior':
+            precip(W, 'rain')
+            precip(W, 'snow')
+            wind(atm.get('wind'))
         sc.view_settings.view_transform = 'AgX'
         try:
             sc.view_settings.look = 'AgX - Medium High Contrast'
@@ -632,11 +948,20 @@ film_render.py - render a mojulo film to a PNG sequence, then H.264 (mojulo blen
 Frames first, so a crash loses one frame; a re-run skips frames already on disk. The MP4 is cut in
 Blender's own sequencer - no ffmpeg install needed. Markers switch the camera at each cut.
 
-  blender -b film.blend --python film_render.py -- [--preset draft|final] [--engine EEVEE|CYCLES]
+  blender -b film.blend --python film_render.py -- [--preset draft|final] [--engine EEVEE|CYCLES] [--audio voice.wav] [--locale fr]
+                                                   [--frames 25-48] [--no-encode]
+
+--frames renders that range alone (a chunk: scripts/render-film.mjs renders a film chunk by chunk, resumable) and
+--no-encode stops at the frames; frames already on disk are never rendered again. A scene pack's scene.json render
+settings (samples, motion_blur) are taken under the preset (the arguments win).
+
+A scene's pack (scene.json beside this) lays its voice under the film: scene.json's audio, a dub's with --locale, or
+--audio's; a world's film has none.
           [--samples 128] [--res 100] [--out film/]
     draft: EEVEE at the shot size        final: Cycles, 128 samples, denoised, at 200 %
 """
 import bpy
+import json
 import os
 import sys
 import time
@@ -656,6 +981,42 @@ def log(*a):
     print('[film]', *a)
 
 
+def render_of(here):
+    """a scene pack's render settings (scene.json render: samples, motion_blur); none for a world film"""
+    sj = os.path.join(here, 'scene.json')
+    if not os.path.exists(sj):
+        return {}
+    with open(sj) as f:
+        return json.load(f).get('render') or {}
+
+
+def sound_of(here):
+    """the film's sound: --audio, else a scene pack's scene.json audio (a dub's with --locale); none for a world film"""
+    given = _opt('--audio')
+    if given:
+        return os.path.abspath(given)
+    sj = os.path.join(here, 'scene.json')
+    if not os.path.exists(sj):
+        return None
+    with open(sj) as f:
+        S = json.load(f)
+    locale = _opt('--locale')
+    # (a scene with no dub in the locale plays its own voice)
+    rel = (((S.get('dubs') or {}).get(locale) or {}).get('audio') if locale else None) or S.get('audio')
+    return os.path.join(here, rel) if rel else None
+
+
+def dubbed(here):
+    """the locale whose mouths the frames show: --locale where the scene pack has that dub, else none. A dub's frames
+    are its own (frames-<preset>-<locale>): the picture is the original's but for the mouths."""
+    locale = _opt('--locale')
+    sj = os.path.join(here, 'scene.json')
+    if not locale or not os.path.exists(sj):
+        return None
+    with open(sj) as f:
+        return locale if locale in (json.load(f).get('dubs') or {}) else None
+
+
 PRESETS = {'draft': ('EEVEE', 0, 100), 'final': ('CYCLES', 128, 200)}
 
 
@@ -664,12 +1025,16 @@ def main():
     if preset not in PRESETS:
         raise SystemExit('--preset must be draft or final')
     engine, samples, res = PRESETS[preset]
+    here = os.path.dirname(bpy.data.filepath) if bpy.data.filepath else os.getcwd()
+    own = render_of(here)
+    if preset == 'final' and own.get('samples'):
+        samples = int(own['samples'])
     engine = (_opt('--engine') or engine).upper()
     samples = int(_opt('--samples', samples))
     res = int(_opt('--res', res))
-    here = os.path.dirname(bpy.data.filepath) if bpy.data.filepath else os.getcwd()
     out = os.path.abspath(_opt('--out', os.path.join(here, 'film')))
-    frames_dir = os.path.join(out, 'frames-%s' % preset)
+    spoken = dubbed(here)
+    frames_dir = os.path.join(out, 'frames-%s%s' % (preset, '-' + spoken if spoken else ''))
 
     sc = bpy.context.scene
     if engine == 'CYCLES':
@@ -701,15 +1066,29 @@ def main():
         except Exception as e:
             log('GPU unavailable, CPU render:', e)
 
+    if own.get('motion_blur'):
+        sc.render.use_motion_blur = True
+        if hasattr(sc.render, 'motion_blur_shutter'):
+            sc.render.motion_blur_shutter = float(own.get('shutter', 0.5))
+
     os.makedirs(frames_dir, exist_ok=True)
     sc.render.image_settings.file_format = 'PNG'
     sc.render.use_overwrite = False
     sc.render.use_placeholder = True
     sc.render.filepath = os.path.join(frames_dir, '')
     t = time.time()
+    whole = (sc.frame_start, sc.frame_end)
+    chunk = _opt('--frames')
+    if chunk:
+        a, b = (int(x) for x in chunk.split('-'))
+        sc.frame_start, sc.frame_end = max(whole[0], a), min(whole[1], b)
     bpy.ops.render.render(animation=True)
     n = sc.frame_end - sc.frame_start + 1
     log('%d frames (%s) in %.1f s' % (n, preset, time.time() - t))
+    print('MOJ_FILM_FRAMES_DONE', sc.frame_start, sc.frame_end, round(time.time() - t, 2))
+    sc.frame_start, sc.frame_end = whole
+    if '--no-encode' in _argv():
+        return
 
     # encode: a throwaway scene whose sequencer plays the PNGs
     files = sorted(f for f in os.listdir(frames_dir) if f.endswith('.png'))
@@ -729,7 +1108,13 @@ def main():
     enc.render.ffmpeg.format = 'MPEG4'
     enc.render.ffmpeg.codec = 'H264'
     enc.render.ffmpeg.constant_rate_factor = 'HIGH'
-    enc.render.filepath = os.path.join(out, 'film-%s.mp4' % preset)
+    sound = sound_of(here)
+    if sound and os.path.exists(sound):
+        strips.new_sound('voice', sound, channel=2, frame_start=1)
+        enc.render.ffmpeg.audio_codec = 'AAC'
+        log('sound', sound)
+    locale = _opt('--locale')
+    enc.render.filepath = os.path.join(out, 'film-%s%s.mp4' % (preset, '-' + locale if locale else ''))
     with bpy.context.temp_override(scene=enc):
         bpy.ops.render.render(animation=True, scene=enc.name)
     log('encoded', enc.render.filepath)

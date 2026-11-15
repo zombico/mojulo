@@ -158,6 +158,26 @@ describe('runs: the levels a pool each run draws from', () => {
   });
 });
 
+describe('runs over levels that roll (game/roll.js): one level, a run of its maps', () => {
+  const ONE = normalizeGameManifest({ ...GAME, levels: [{ ref: 'run-1' }], run: { length: 5, repeat: true } });
+  it('repeat lets a run be longer than its pool; without it the pool holds the length', () => {
+    expect(validateGameManifest(ONE)).toEqual({ ok: true, errors: [] });
+    expect(validateGameManifest({ ...ONE, run: { length: 5 } }).errors.join(' ')).toMatch(/run must be \{ length: 1 to 1 \}.*repeat: true draws a level more than once/);
+    expect(validateGameManifest({ ...ONE, run: { length: 100, repeat: true } }).errors.join(' ')).toMatch(/length: 1 to 99, repeat: true/);
+    expect(validateGameManifest({ ...ONE, run: { length: 1, repeat: 'yes' } }).errors.join(' ')).toMatch(/run\.repeat is true or false/);
+  });
+  it('the page carries it; a level that rolls is marked, so its map is named and played again as it was', () => {
+    const s = script(emitPlayShell(ONE, [{ ...LEVELS[0], rolls: true }]));
+    expect(s).toContain('"run":{"length":5,"repeat":true}');
+    expect(s).toContain('"rolls":true');
+    expect(() => new Function(s)).not.toThrow();
+    // no repeat, no level that rolls: neither word is in the page's table
+    const plain = script(emitPlayShell(normalizeGameManifest({ ...GAME, levels: [{ ref: 'run-1' }, { ref: 'run-2' }], run: { length: 2 } }), LEVELS));
+    expect(plain).not.toContain('"repeat"');
+    expect(plain).not.toContain('"rolls"');
+  });
+});
+
 describe('the end: a final level', () => {
   it('validates in the light shell, one of the game\'s levels, not a run; without one, not a byte of it', () => {
     const fin = normalizeGameManifest({ ...GAME, final: 'run-2' });
