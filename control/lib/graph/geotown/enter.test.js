@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { assembleGeotownScene, readEnter } from './scene.js';
 import { SLOT } from '../retail/store-slot.js';
+import { frontOf } from './fronts.js';
 
 // the smallest town with a row of shops: one main-street segment, its shops one card (the street's lightest)
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, enter: { cards: ['electronics'] }, geotown: { evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12 } };
@@ -41,5 +42,38 @@ describe('a town\'s shops walked into', () => {
     for (const r of reps) for (const t of r.transforms) expect(doors).toContain(t.pos.join(','));
     // (no inside's faces among the town's own: its budget is the town's)
     expect(P.geotown.laws.find((l) => l.law === 'faces').ok).toBe(true);
+  });
+  it('its glass is seen through: a pane each side of its door, the wall behind them cut', () => {
+    const panes = P.faces.filter((f) => f.group === 'geotown:pane');
+    expect(panes.length).toBeGreaterThanOrEqual(shops.length);
+    expect(panes.every((f) => f.alpha > 0 && f.alpha < 1)).toBe(true);
+    // (no face of the building's own wall stands across a pane's middle)
+    for (const a of shops) {
+      const N = a.N, mine = panes.filter((f) => f.corners.every((c) => c[0] > a.box.min[0] - 0.01 && c[0] < a.box.max[0] + 0.01));
+      expect(mine.length).toBeGreaterThan(0);
+      for (const f of mine) {
+        const mid = [0, 1, 2].map((i) => f.corners.reduce((s, c) => s + c[i], 0) / f.corners.length), k = Math.abs(N[0]) > 0.5 ? 0 : 1, o = 1 - k;
+        const behind = P.faces.filter((g) => g.group.startsWith('town:') && g.corners.every((c) => Math.abs(c[k] - mid[k]) < 0.5) && Math.min(...g.corners.map((c) => c[o])) < mid[o] - 0.05 && Math.max(...g.corners.map((c) => c[o])) > mid[o] + 0.05 && Math.min(...g.corners.map((c) => c[2])) < mid[2] - 0.05 && Math.max(...g.corners.map((c) => c[2])) > mid[2] + 0.05);
+        expect(behind.map((g) => g.group)).toEqual([]);
+      }
+    }
+  });
+});
+
+describe('a shopfront', () => {
+  const house = { W: 7, n: 2, storeyH: 2.9, doorX: 2.5, doorW: 1 };
+  it('open, tells its panes and keeps its panel only round them; shut, it is as it was', () => {
+    const shut = frontOf({ shop: { sign: 'band', awning: 'none' } }, house), open = frontOf({ shop: { sign: 'band', awning: 'none', open: true } }, house);
+    expect(shut.panes).toBeUndefined();
+    expect(shut.faces.some((f) => f.see)).toBe(false);
+    expect(open.panes).toHaveLength(2);
+    expect(open.faces.filter((f) => f.see)).toHaveLength(2);
+    for (const [x0, x1, z0, z1] of open.panes) {
+      const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+      // (nothing opaque across a pane's whole middle but its own mullions and rail)
+      const over = open.faces.filter((f) => !f.see && f.role === 'trim' && Math.min(...f.corners.map((c) => c[0])) <= x0 && Math.max(...f.corners.map((c) => c[0])) >= x1 && Math.min(...f.corners.map((c) => c[2])) < mz - 0.3 && Math.max(...f.corners.map((c) => c[2])) > mz + 0.3);
+      expect(over).toHaveLength(0);
+      expect(mx).toBeGreaterThan(0);
+    }
   });
 });

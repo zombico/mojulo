@@ -9,7 +9,7 @@
  *   SLOT                          the slot's numbers: the least it holds, the wall it keeps inside the building's, its
  *                                 floor's lift over the pad, its ring, the faces an inside is held to, the steps a
  *                                 size is rounded to (so shops of one size share one template)
- *   ENTER_CARDS                   the cards a street's shop takes unless it is told its own
+ *   ENTER_CARDS                   the cards a street's shop takes unless it is told its own (the light ones)
  *   slotOf({ w, d, h, door: { x, w } }) → the slot rounded to its steps, { w, d, h, door, slack: [x, y], key }, or
  *                                 null when it holds no store. `w` along the front, `d` into the building, `h` the
  *                                 storey's clear height, `door.x` its centre from the slot's left as you walk in; metres
@@ -43,7 +43,9 @@ export const SLOT = Object.freeze({
   // the pier the store keeps at each end of its front (ft), inside the client's own front
   pier: 0.5,
 });
-export const ENTER_CARDS = Object.freeze(['apparel', 'electronics', 'cafe', 'bookstore', 'homewares', 'food']);
+// (the cafe and the food hall are left out until their fixtures are lighter: at a street's slot they stand over the
+// slot's faces or shed what makes them themselves; a town may still name them)
+export const ENTER_CARDS = Object.freeze(['apparel', 'electronics', 'bookstore', 'homewares']);
 
 const down = (v, s) => Math.floor(v / s + 1e-9) * s;
 const near = (v, s) => Math.round(v / s) * s;

@@ -73,6 +73,8 @@ export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'see
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
+// an open shop's glass (a shop walked into, `enter`): how much of its paint it keeps over what stands behind it
+const PANE_ALPHA = 0.28;
 export const GEOTOWN_FACES = 60000, SEGMENT_FACES = 13500;   // (a main-street segment's shopfronts and its houses' zoned yards, 10.1k; its streets' paint and furniture, ~0.6k more)
 // (a denser streetscape puts more buildings in a segment: an evocation's budget at least this a building it stands)
 export const BUILDING_FACES = 1200;
@@ -380,8 +382,11 @@ export function assembleGeotownScene(m, ctx = {}) {
       let Kf = K?.front;
       if (Kf?.shop) { const rk = `${pl.block}:${pl.side}`; Kf = { ...Kf, shop: shopfrontOf(P.shopfronts, streamOf(seed, 'shopfront', pl.id), shopPrev.get(rk)) }; shopPrev.set(rk, Kf.shop); pl.shopfront = Kf.shop; }
       if (pl.duplex) Kf = { ...Kf, doors: 2, porch2: true, porch: Kf?.porch ?? 'door' };
+      // (a shop walked into, `enter`: its store, and its front open: its glass seen through)
+      const doorU = env[0] + (mirror ? envW - dx : dx), store = storeOf(pl, { design: dz, mirror, doorU });
+      if (store && Kf?.shop) Kf = { ...Kf, shop: { ...Kf.shop, open: true } };
       const front = K ? frontOf(fitFront(Kf, env[1]), { W: dz.dims.W0, n: dz.dims.n, storeyH: dz.dims.storeyH, doorX: dx, doorW: dz.dims.doorW }) : null;
-      house = { design: dz, mirror, doorU: env[0] + (mirror ? envW - dx : dx), kit: K, front, porch: front?.porch ?? 0 };
+      house = { design: dz, mirror, doorU, kit: K, front, porch: front?.porch ?? 0, store };
     }
     const R = streamOf(seed, 'yard', pl.id), lawn = mix(col.lawn, R() < 0.5 ? col.hedge : '#ffffff', 0.04 + 0.08 * R());
     // the path to the door (or the envelope's middle), inside the front yard
@@ -532,11 +537,13 @@ export function assembleGeotownScene(m, ctx = {}) {
       built++; builtOf[familyOf(pl)] = (builtOf[familyOf(pl)] ?? 0) + 1;
       const dz = house.design, X = (x) => env[0] + (house.mirror ? envW - x : x), toW = (c) => W(pl, X(c[0]), env[1] + c[1], pad + c[2]);
       // (a shop walked into: its door's opening cut through its wall and its front, in the design's frame)
-      const store = storeOf(pl, house), dxD = house.doorU - env[0];
-      const open = store ? (fs) => openingLess(fs, { x0: dxD - dz.dims.doorW / 2, x1: dxD + dz.dims.doorW / 2, z0: 0.02, z1: dz.dims.doorH ?? 2.1, y0: -0.25, y1: 0.4 }) : (fs) => fs;
+      // (and each pane of its glass through the wall behind it)
+      const store = house.store, dxD = house.doorU - env[0], band = { y0: -0.25, y1: 0.4 };
+      const open = store ? (fs) => openingLess(fs, { x0: dxD - dz.dims.doorW / 2, x1: dxD + dz.dims.doorW / 2, z0: 0.02, z1: dz.dims.doorH ?? 2.1, ...band }) : (fs) => fs;
+      const openWall = store ? (fs) => (house.front?.panes ?? []).reduce((xs, [x0, x1, z0, z1]) => openingLess(xs, { x0, x1, z0, z1, ...band }), open(fs)) : open;
       let top = 0, lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
       const Dr = house.kit ? house.kit.dress : dress;
-      for (const f of open(evoked ? [...dz.faces, ...dz.tile] : dz.faces)) {
+      for (const f of openWall(evoked ? [...dz.faces, ...dz.tile] : dz.faces)) {
         const cs = (house.mirror ? f.corners.slice().reverse() : f.corners).map(toW), nl = f.normal ?? [0, 0, 1], nn = unit([pl.ex[0] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[0] * nl[1], pl.ex[1] * (house.mirror ? -nl[0] : nl[0]) + pl.ey[1] * nl[1], nl[2]]);
         for (const c of cs) { top = Math.max(top, c[2] - pad); lo = [Math.min(lo[0], c[0]), Math.min(lo[1], c[1])]; hi = [Math.max(hi[0], c[0]), Math.max(hi[1], c[1])]; }
         const fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * litV(nn))), F0 = { corners: cs.map(P3), group: `town:${f.part}`, fill, cornerFills: cs.map(() => fill), normal: P3(nn), outNormal: P3(nn) };
@@ -557,7 +564,7 @@ export function assembleGeotownScene(m, ctx = {}) {
           // (a face with its own paint, a shop's frame, sign or awning, wears it)
           const [grp, v] = f.hex ? [null, 0] : f.role === 'wall' ? [W0.group, W0.value] : f.role === 'roof' ? [dz.dims.covering, 0.34] : f.role === 'trim' ? ['str:paint', 0.92] : f.role === 'deck' ? ['str:timber', 0.5] : [null, 0];
           const own = f.hex ?? (f.role === 'sign' ? house.kit.sign ?? col.door : f.role === 'canvas' ? house.kit.awning ?? col.canvas : f.role === 'door' ? col.door : f.role === 'canopy' ? col.metal : col.glass);
-          const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : formB ? own : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf) };
+          const fill = grp ? Pt(grp, Math.min(1, v * litV(nf))) : formB ? own : shadeHex(own, nf, LIGHT), F0 = { corners: cw.map(P3), group: `geotown:${f.see ? 'pane' : f.role === 'glass' ? 'glass' : f.role === 'wall' ? 'bay' : f.role === 'deck' ? 'porch' : f.role}`, fill, cornerFills: cw.map(() => fill), normal: P3(nf), outNormal: P3(nf), ...(f.see ? { alpha: PANE_ALPHA } : {}) };
           faces.push(grp && Dr && f.role !== 'deck' ? dressTownFace(F0, grp, Dr) : F0);
         }
       }
