@@ -807,7 +807,7 @@ const quickShared = () => [
 function battlesCard() {
   return lines(
     'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, looks?,',
-    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
+    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules?, manual? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
@@ -833,6 +833,9 @@ function battlesCard() {
     '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
     'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss? } }: a row',
     '        REPLACES its preset whole, its skills and drops too: name them again.',
+    'manual  a setting\'s creatures, fielded: { polarity, creatures: [{ id, element, role }], affinity?, levels? } (a',
+    '        lorecube manual at any depth): its foes, their skills, a ladder of packs by role and level, its boss; the',
+    '        page\'s own foes, packs and boss win. What it lacks is derived and said (`lore`): write it to own it.',
     'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
     '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
     'juice   what the moments feel like: { on: { <happening>: juice }, also?, <name>: [steps] } over the defaults (false:',

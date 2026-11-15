@@ -16,6 +16,11 @@
   it has no place yet; nothing is quietly dropped. The game then says which of its first decisions your material
   already answered and which are still open, so you are not asked again what a document already said. Bringing
   nothing is an answer too. A quick one-level game and a game made from one sentence are not asked.
+- **A book of monsters becomes the game's enemies.** Hand over the creatures of a setting (each one's element and
+  the part it plays: the bulk, a quick threat, a tougher test, the boss) and a party role-playing game now fights
+  them: what each is weak to and resists, how strong each is, which groups are met in what order, and the boss last.
+  Anything you write yourself wins over what was worked out for you, and the game says which parts were worked out
+  so you can make them your own. An action game's enemies cannot carry elements yet.
 - **A producer beside the director.** The agent's guidance now names three seats on a game: the director decides,
   the assistant director holds each piece of work to what was asked, and the producer runs the work (what was
   brought, what is open, what is next). The producer never chooses between two looks: what is unclear is listed and

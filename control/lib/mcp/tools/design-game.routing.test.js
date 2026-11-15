@@ -64,6 +64,23 @@ describe('design_game: the routing', () => {
     expect(out.next.some((n) => n.step === 'intake')).toBe(false);
   });
 
+  it('says a manual on the battles page as an order its chapter runs: how deep it is, what is still derived', async () => {
+    const creatures = [{ id: 'ember-imp', element: 'fire', role: 'grunt' }, { id: 'storm-king', element: 'wind', role: 'boss' }];
+    const { foes: _f, ...bare } = WORLD;
+    let out = await designGameHandler({ ref: 'lore', world: { ...bare, id: 'lore', intake: 'none', battles: { manual: { polarity: 'classical-four', creatures } } } });
+    expect(out.lore.manual).toMatchObject({ rung: 'premise', open: ['affinity', 'levels'], creatures: 2 });
+    expect(out.advice.lore).toHaveLength(1);
+    expect(out.next.find((n) => n.step === 'lore')).toEqual({ step: 'lore', part: 'manual', at: 'premise', open: ['affinity', 'levels'], chapter: 'battles', card: 'gameworld-battles' });
+    // deepened by a pass: written, the rungs are the author's and the step is gone
+    out = await designGameHandler({ ref: 'lore', patch: [
+      { op: 'set', path: '/battles/manual/affinity', value: { 'ember-imp': { weak: ['water'] }, 'storm-king': { absorb: ['wind'] } } },
+      { op: 'set', path: '/battles/manual/levels', value: { 'ember-imp': 1, 'storm-king': 4 } },
+    ] });
+    expect(out.lore.manual).toMatchObject({ rung: 'numbered', open: [] });
+    expect(out.advice.lore).toBeUndefined();
+    expect(out.next.some((n) => n.step === 'lore')).toBe(false);
+  });
+
   it('leaves a world that stands on no intent as it was: no advice, no move', async () => {
     const { foes: _f, ...bare } = WORLD;
     const out = await designGameHandler({ ref: 'bare', world: { ...bare, id: 'bare' } });
