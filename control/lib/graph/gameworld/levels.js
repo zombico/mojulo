@@ -51,7 +51,7 @@ import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
-import { levelGrammar } from './hud-grammar.js';
+import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
@@ -949,7 +949,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (and the action-adventure's HUD where its genre's row asks: gameworld/hud-grammar.js; any other game, as it was)
-  const grammar = heroRef && !pilot ? levelGrammar(G, game?.mechanics ?? []) : null;
+  const grammar = heroRef && !pilot ? levelGrammar(G, game?.mechanics ?? [], { places: stage.section === 'map' ? mapPlaces(stage.manifest?.level, stage.zone ?? null) : null }) : null;
   if (grammar) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), grammar } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
   const manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });

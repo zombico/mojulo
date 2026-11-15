@@ -1,11 +1,12 @@
 // A LEVEL'S HUD GRAMMAR: asked for by the genre's row, filled from the level's own mechanics, drawn by mana-ui.
 import { describe, it, expect } from 'vitest';
-import { levelGrammar, HEART_HITS } from './hud-grammar.js';
+import { levelGrammar, mapPlaces, HEART_HITS } from './hud-grammar.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
 import { inputMap } from './input-map.js';
 import { readHudGrammar, hudGrammarSpec, hudGrammarScript } from '../scene/channels/hud-grammar.js';
 import { manaUi } from '../../mana-ui/kernel.js';
+import { guideScript } from '../scene/channels/guide.js';
 
 const G = readGameworld(composeGameworld({ prompt: 'an anime action rpg like zelda', name: 'Artesia' }));
 const MECH = [{ kind: 'fail-on-death', startHp: 20, hits: 2, bar: true }, { kind: 'reach-exit', at: [70, -36, 2], radius: 2.5, holds: { who: 'foe-*', count: 3 } }, { kind: 'collect', into: 'bag', pickups: [{ item: 'healing draught', at: [1, 2, 0] }] }];
@@ -34,5 +35,26 @@ describe('a level\'s HUD grammar', () => {
     expect(js).not.toContain('"label":"healing draught"');
     expect(() => readHudGrammar({ hearts: { var: 'hp', per: 0, max: 5 }, slots: [] })).toThrow(/hearts/);
     expect(readHudGrammar(null)).toBe(null);
+  });
+  it('names the places of a planned map on its page, each its segment\'s square: a card on coming into one', () => {
+    const level = { grid: { tile: 24, plan: { size: 3, rows: ['A B C', '. E D'], key: { A: { name: 'the village' }, B: { name: 'the meadow road' }, E: {} } } } };
+    const all = mapPlaces(level);
+    expect(all.map((p) => p.name)).toEqual(['The village', 'The meadow road']);
+    expect(all[0].box).toEqual([0, -72, 72, 0]);
+    expect(all[1].box).toEqual([72, -72, 144, 0]);
+    expect(mapPlaces(level, ['B', 'C']).map((p) => p.name)).toEqual(['The meadow road']);
+    expect(mapPlaces({})).toEqual([]);
+    const g = levelGrammar(G, MECH, { places: all });
+    expect(readHudGrammar(g).places).toHaveLength(2);
+    expect(() => readHudGrammar({ ...g, places: [{ name: 'x' }] })).toThrow(/places/);
+  });
+  it('takes what the level says from its guide: the guide gives its one thing as data and keeps its own line down', () => {
+    const page = guideScript({ steps: [{ at: [0, 0, 0], radius: 3, say: 'On to the gate' }] });
+    expect(page).toContain('view: () => V');
+    expect(page).toContain('window.__mojHudGrammar');
+    const js = hudGrammarScript(levelGrammar(G, MECH));
+    expect(js).toContain('__mojGuide.view');
+    // (the parts it stands in for are hidden beside it)
+    for (const c of ['.moj-w-legend', '.moj-c-radar', '.moj-c-gauge', '.moj-hud-top-left']) expect(js).toContain(c);
   });
 });

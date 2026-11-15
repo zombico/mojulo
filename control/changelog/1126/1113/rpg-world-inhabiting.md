@@ -269,11 +269,14 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
   heart), a compass strip with the goal's bearing and the objective under it, and the actions on their controls (the
   weapon in hand, the sidearm, what is collected with its count; keys, or a pad once one has spoken). The page hosts
   it: each frame it reads the bus's vars and the pilot. The health chip, the item chip, the legend line and the radar
-  are not shown beside it. A moveset's special is on Q too (`controls/schemes.js`: not every mouse has a forward
+  and the stamina gauge are not shown beside it. What the level says is one lane: its guide gives its one thing as
+  data (`scene/channels/guide.js` `view()`) and keeps its own line down, and the HUD draws it: the current beat as the
+  objective with its distance and its bearing on the compass, a lesson's keys as a prompt (no counter), the opening,
+  a line said and a way held as cards on mana-ui's moment queue; the stamina under the hearts while it is spent. A place card as the hero comes into each named place of a planned map (`gameworld/hud-grammar.js` mapPlaces: the plan's key, each segment's square). A moveset's special is on Q too (`controls/schemes.js`: not every mouse has a forward
   button), and Q never strafes a hero with a moveset.
 - Not here yet: when she sprints, what is worn at the waist still shows through the cape in a row of slits (the cape
   does not lift or flow in play: the flow simulation is not run on a played page); a scabbard is not drawn (the blade
-  hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's objective is one of two stock lines, its slots are letters (no icons), its stamina is still the old gauge and the lesson banner sits under it, not yet in one card lane; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  hangs bare at the hip); the pause menu still says "quit to levels"; the HUD grammar's slots are letters (no icons) and its marked slot is always the weapon; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
   cloth takes no texture on the anime body; the back of
   light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
   blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the

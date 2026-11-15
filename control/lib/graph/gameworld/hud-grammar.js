@@ -4,7 +4,10 @@
  * takes, its arsenal's weapon and sidearm on the input map's controls (input-map.js), what it collects, where its way
  * ends.
  *
- *   levelGrammar(G, mechanics) → the level's `events.grammar`, or null (a world with no row, a level with no health)
+ *   levelGrammar(G, mechanics, { places? }) → the level's `events.grammar`, or null (a world with no row, a level with
+ *                                             no health)
+ *   mapPlaces(level, zone?)    → a planned map's named places on a page ([{ name, box }]: the plan's key, each
+ *                                segment's square), for its place cards; [] for a level with no plan or no names
  *
  * HEARTS: a heart holds two hits (HEART_HITS), so a blow takes half a heart and the row of hearts is short enough to
  * read at a glance; never more than HEARTS_MAX. Pure.
@@ -15,8 +18,22 @@ import { inputMap } from './input-map.js';
 
 export const HEART_HITS = 2, HEARTS_MAX = 10;
 
+/** A planned map's named places on a page (see the header): `level` a map level's ({ grid: { tile, plan } }), `zone` the
+ * segments its page holds (all of them when none is said). */
+export function mapPlaces(level, zone = null) {
+  const P = level?.grid?.plan, T = level?.grid?.tile;
+  if (!P || !Number.isFinite(T) || !Array.isArray(P.rows) || !Number.isFinite(P.size)) return [];
+  const on = zone == null ? null : new Set([zone].flat()), out = [], n = P.size;
+  P.rows.forEach((row, r) => String(row).split(/\s+/).filter(Boolean).forEach((S, c) => {
+    const name = P.key?.[S]?.name;
+    if (S === '.' || typeof name !== 'string' || !name || (on && !on.has(S))) return;
+    out.push({ name: name[0].toUpperCase() + name.slice(1), box: [c * n * T, -(r + 1) * n * T, (c + 1) * n * T, -r * n * T].map((v) => v + 0) });   // (+ 0: never a −0)
+  }));
+  return out;
+}
+
 /** The level's HUD grammar (see the header). */
-export function levelGrammar(G, mechanics = []) {
+export function levelGrammar(G, mechanics = [], { places = null } = {}) {
   if (genreHero(G)?.hud !== 'grammar') return null;
   const death = mechanics.find((m) => m && m.kind === 'fail-on-death' && Number.isFinite(m.startHp) && Number.isFinite(m.hits));
   if (!death) return null;
@@ -29,5 +46,5 @@ export function levelGrammar(G, mechanics = []) {
   for (const m of mechanics) if (m && m.kind === 'collect') for (const it of [...new Set((m.pickups ?? []).map((p) => p.item).filter((x) => typeof x === 'string'))].slice(0, 2)) slots.push({ id: `item:${it}`, name: it[0].toUpperCase() + it.slice(1), label: it });
   const exit = mechanics.find((m) => m && m.kind === 'reach-exit' && Array.isArray(m.at));
   const held = exit?.holds || mechanics.some((m) => m && m.kind === 'defeat-all');
-  return { hearts: { var: 'hp', per, max }, slots, ...(exit ? { goal: [exit.at[0], exit.at[1]] } : {}), objective: held ? 'Defeat the foes that hold the way' : 'Follow the way on' };
+  return { hearts: { var: 'hp', per, max }, slots, ...(places?.length ? { places } : {}), ...(exit ? { goal: [exit.at[0], exit.at[1]] } : {}), objective: held ? 'Defeat the foes that hold the way' : 'Follow the way on' };
 }

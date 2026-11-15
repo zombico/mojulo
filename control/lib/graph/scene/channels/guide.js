@@ -31,7 +31,13 @@ export function guideScript(guide) {
   const slot = document.createElement('div'); slot.className = 'moj-gd off'; host.appendChild(slot);
   // (what is up, and its text: redrawn only when it changes)
   let shown = '', mode = '';
-  function put(m, html) { if (m === mode && html === shown) return; mode = m; shown = html; slot.className = 'moj-gd ' + m + (html ? '' : ' off'); slot.innerHTML = html; }
+  // (what it says, as data: a HUD that has its own card lane draws it, hud-grammar.js, and this line stays down)
+  const V = { mode: '', text: '', keys: [], goal: null };
+  function put(m, html, text, keys) {
+    V.mode = m; V.text = text || ''; V.keys = keys || [];
+    if (window.__mojHudGrammar) { if (shown !== '') { shown = ''; slot.className = 'moj-gd off'; slot.innerHTML = ''; } return; }
+    if (m === mode && html === shown) return; mode = m; shown = html; slot.className = 'moj-gd ' + m + (html ? '' : ' off'); slot.innerHTML = html;
+  }
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   // (a key line, 'F F  dodge · …': the keys before the double space as caps, the rest the words)
   const capped = (line) => { const i = line.indexOf('  '); if (i < 0) return '<span class="kw">' + esc(line) + '</span>'; return line.slice(0, i).split(' ').map((k) => '<span class="cap">' + esc(k) + '</span>').join('') + '<span class="kw">' + esc(line.slice(i + 2)) + '</span>'; };
@@ -89,24 +95,25 @@ export function guideScript(guide) {
       if (phase === 'lessons' && p) lesson(p, now);
       const atHeld = p && GD.held && GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5) && W.entities.some(standing);
       // ONE THING: the line just said, the opening, a held way, a lesson at hand, else the way on
-      if (now < sayUntil) put('say', esc(sayText));
-      else if (phase === 'intro') put('intro', esc(GD.intro));
-      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys));
-      else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''));
-      else if (atHeld) put('held', 'The way on is held while foes stand here');
+      V.goal = cur ? { say: cur.say, at: cur.at, d: Math.round(d) } : null;
+      if (now < sayUntil) put('say', esc(sayText), sayText);
+      else if (phase === 'intro') put('intro', esc(GD.intro), GD.intro);
+      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
+      else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''), '', GD.introKeys);
+      else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)
-      else if (cur && cur.keys && cur.keys.length && p && (d < Math.max(cur.radius * 2, 18) || (cur.fight && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 14)))) put('keys', cur.keys.map(capped).join(''));
-      else if (!cur) put('way', 'The way on lies past this place');
+      else if (cur && cur.keys && cur.keys.length && p && (d < Math.max(cur.radius * 2, 18) || (cur.fight && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 14)))) put('keys', cur.keys.map(capped).join(''), '', cur.keys);
+      else if (!cur) put('way', 'The way on lies past this place', 'The way on lies past this place');
       else if (p) {
         let yaw = p.transform.heading;
         if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }
-        put('way', '<span class="ar" style="transform:rotate(' + (-(Math.atan2(dy, dx) - yaw)).toFixed(2) + 'rad)">▲</span>' + esc(cur.say) + '<span class="m">' + Math.round(d) + ' m</span>');
+        put('way', '<span class="ar" style="transform:rotate(' + (-(Math.atan2(dy, dx) - yaw)).toFixed(2) + 'rad)">▲</span>' + esc(cur.say) + '<span class="m">' + Math.round(d) + ' m</span>', cur.say);
       }
     }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-  window.__mojGuide = { step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0 };
+  window.__mojGuide = { view: () => V, step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0 };
 })();
 `;
 }

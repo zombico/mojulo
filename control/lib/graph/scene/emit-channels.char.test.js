@@ -33,6 +33,8 @@ import { emitThreeWorld } from './scene-three.js';
 // scheme's legend says so. The same fixtures re-pinned again.
 // Then (the HUD grammar): the radar's wrap carries a class a HUD can hide it by (controllable/index.js: one line
 // replaced; it draws as before). The same fixtures re-pinned again.
+// Then (one card lane): the guide gives what it says as data (guide.js `view()`) and stays down beside a HUD grammar
+// (its `put` gained the data and the check). Any fixture with a guide re-pinned.
 // Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
 // (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
 //
