@@ -64,6 +64,8 @@ describe('the rail\'s cards', () => {
     // the actions card too (2026-11-05, 1104-vayo-effects: the vayo moves join the powers' line, the vayo jump, its air
     // dash and its jetpack, each with the words that say it; 4031 bytes before, 4542 with them)
     // (2026-11-09: gameworld-world 5248 → 5376: a glyph map's water and its ways' ranks, and its style's geocube, two lines)
+    // (2026-11-15, 1115-geocity-refinements: gameworld-world 5376 → 5760: a level that is a district of a metro, the
+    // geocity level, two lines; the card stood a few bytes under its ceiling before)
     // the feel card too (2026-11-09, 1109-gen-bodywork merging 1108-practice-room: the two lines' feel words met, 4157
     // bytes)
     // and again (2026-11-10, 1110-practice-room-slice: the arsenal, its kits and its edits, three lines; 4082
@@ -84,7 +86,7 @@ describe('the rail\'s cards', () => {
     // creator brings, the level turn as most games and the open world as the exception, four lines; 4086 bytes before,
     // 4472 with them; 4608 the same day for the seats, one line naming the director, the assistant director and the
     // producer: 4594)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5760, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

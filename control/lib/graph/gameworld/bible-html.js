@@ -45,6 +45,8 @@ import { wcdPage, WCD_CSS } from './wcd-page.js';
 import { battlesPage } from './battles-page.js';
 import { designGeotown } from '../geotown/design.js';
 import { geotownSheet } from '../geotown/sheet.js';
+import { designGeocity } from '../geocity/design.js';
+import { geocitySheet } from '../geocity/sheet.js';
 import { escapePage } from './escape-page.js';
 import { errandPage, ERRAND_CSS } from './errand-page.js';
 import { gauntletPage } from './gauntlet-page.js';
@@ -135,7 +137,7 @@ function armyHtml(G, cid) {
   return `<div class="tech tech-army"><h4>What it fields in a skirmish</h4><table class="vocab"><tr><th>unit</th><th>role</th><th>tier</th><th>hp</th><th>strike</th><th>reach</th><th>pace</th><th>supply</th><th>gold</th></tr>${units}</table><p><b>Buildings</b> ${houses}</p>${ladder ? `<p><b>Its ladder</b> ${ladder}, at the ${esc(r.buildings[Object.values(L)[0].at].name)}</p>` : ''}<ul class="ledger">${r.ledger.map((l) => `<li>${esc(l.line)}</li>`).join('')}</ul></div>`;
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
-const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway', airspace: 'airspace', geotown: 'town', map: 'map' };
+const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway', airspace: 'airspace', geotown: 'town', geocity: 'district', map: 'map' };
 
 /** A MAP level in plan (a planned glyph map, level/plan.js; an action RPG's world map, gameworld/world-map.js): each
  * block a square in its place with its letter and its name, the walk through them in order, the blocks one page shows
@@ -199,6 +201,11 @@ function buildLevel(G, id) {
   if (R.city) {
     const d = designCity(inferCity(R.city.plan).recipe);
     return { R, laid: { stages: [{ node: 'city', section: 'city' }], order: ['city'] }, town: null, paint, walk: [{ node: 'city', section: 'city', svg: cityPlanSvg(d, { width: 460 }) }] };
+  }
+  // a geocity level: the metro's sheet, north up (geocity/sheet.js), its district on it
+  if (R.geocity) {
+    const d = designGeocity(R.geocity.spec, { seed: R.seed });
+    return { R, laid: { stages: [{ node: 'district', section: 'geocity' }], order: ['district'] }, town: null, paint, walk: [{ node: 'district', section: 'geocity', svg: geocitySheet(d, { px: 0.5 }) }] };
   }
   // a geotown level: the town's sheet, north up (geotown/sheet.js)
   if (R.geotown) {
@@ -432,7 +439,7 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : R.geotown ? 'The town' : R.glyphs ? 'The map' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}${b.finishes?.tiles.length ? `<div class="finishes"><h4>Its finishes</h4>${finishesHtml(b.finishes, esc)}</div>` : ''}${FX ? FX.onLevel(id) : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}${playedHtml(world.made, id)}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : R.geotown ? 'The town' : R.geocity ? 'The district' : R.glyphs ? 'The map' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}${b.finishes?.tiles.length ? `<div class="finishes"><h4>Its finishes</h4>${finishesHtml(b.finishes, esc)}</div>` : ''}${FX ? FX.onLevel(id) : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}${playedHtml(world.made, id)}</aside></div></section>`;
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not

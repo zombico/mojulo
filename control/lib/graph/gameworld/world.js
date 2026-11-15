@@ -196,8 +196,11 @@ import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 import { readGeotown } from '../geotown/read.js';
+import { readGeocity } from '../geocity/metro.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
+// the evocations a geocity level may be (geocity/metro.js EVOKES): a district, never the metro or its skyline
+export const GEOCITY_LEVEL_EVOKES = Object.freeze(['neighbourhood', 'corridor', 'segment']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch } from '../level/map-sketch.js';
@@ -267,7 +270,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'obstacles'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -631,7 +634,7 @@ export function readGameworld(W) {
     if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
-      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
       if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
       for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
       try { readGrid(gridOfGlyphs(L.glyphs), 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
@@ -657,6 +660,14 @@ export function readGameworld(W) {
         if (L.glyphs.plan === undefined) throw new Error(`gameworld: ${at}.glyphs.zoned builds a planned map a segment a page: write its plan (glyphs.plan)`);
         if (W.topology !== 'interconnected') throw new Error(`gameworld: ${at}.glyphs.zoned is a world map, travelled zone to zone: set topology: 'interconnected'`);
       } else if (L.glyphs.apron !== undefined) throw new Error(`gameworld: ${at}.glyphs.apron is a zoned map's (glyphs.zoned: true): how many tiles of a zone's neighbours its page shows`);
+    } else if (L.geocity !== undefined) {
+      // a geocity level: a DISTRICT of a metro (geocity/: an evocation, one neighbourhood, corridor or block at a
+      // building's detail, the rest of the metro its skyline), drawn on the level's geocube and walked from its streets
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'geotown'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a geocity level is the district alone: no walk, building, city, roadway, airspace, runner, places, ground, arena or geotown`);
+      if (!isObj(L.geocity)) throw new Error(`gameworld: ${at}.geocity is { metro?, evoke: 'neighbourhood' | 'corridor' | 'segment', at?, along?, shops?, … } (the geocube kind's geocity)`);
+      let Gc;
+      try { Gc = readGeocity(L.geocity); } catch (e) { throw new Error(`gameworld: ${at}.geocity: ${e.message.replace(/^geocity:\s*/, '')}`); }
+      if (!GEOCITY_LEVEL_EVOKES.includes(Gc.evoke)) throw new Error(`gameworld: ${at}.geocity.evoke is ${GEOCITY_LEVEL_EVOKES.join(', ')}: a level is a district of the metro, not the metro (a whole metro is no page a host shows)`);
     } else if (L.geotown !== undefined) {
       // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
       // the level's geocube and walked from its streets; the town is its own ground
@@ -967,6 +978,11 @@ export function resolveLevel(world, id) {
     const painted = style.geocube !== undefined && L.glyphs.kit === undefined && words.geocube === undefined;
     const cube = painted ? { geocube: cubeInPalette(style.geocube, style.palette), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.hour !== undefined ? { hour: style.hour } : {}) } : {};
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { ...(painted ? {} : { kit }), seed: seed >>> 0, grid, ...cube, ...words } };
+  }
+  // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
+  if (L.geocity) {
+    const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light

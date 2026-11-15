@@ -37,7 +37,7 @@ export const FRONTAGE = Object.freeze({
   // a storefront's nominal width and storey (its template's; each stretched to its share of the wall and its storey)
   // (its door, in its template: its middle from the shop's, its width, its head; an OPEN shop's door's head, `open`,
   // and its bay at least `enter` wide: it holds a store, retail/store-slot.js)
-  shop: { w: 5, h: 4, least: 4.2, awning: 0.45, door: { u: 1.725, w: 0.95, h: 2.45 }, open: { h: 2.8 }, enter: 6.2 },
+  shop: { w: 5, h: 4, least: 4.2, awning: 0.45, door: { u: 1.725, w: 0.95, h: 2.45 }, open: { u: 0.95, w: 0.95, h: 2.8 }, enter: 6.2 },
   lobby: { w: 6, h: 4.5 },
   entry: { every: 18, w: 2.6 },
   balcony: { share: 0.45 },
@@ -97,8 +97,20 @@ const PIECES = {
   // a band along a wall (a cornice, a band over its shops): a unit box, stretched along the wall and in its height
   band: [B(0, 1, 0, 0.4, 0, 0.5, 'band')],
 };
-// (its door's head raised to a body's clearance at a three-metre storey, where the shut shop's is a picture's)
-PIECES.shopopen = PIECES.shop.filter((it) => it.part !== 'doorglass').map((it) => (it.box && it.box[0] === 1.25 && it.box[4] === 2.45 ? B(1.25, 2.2, 0, 0.1, FRONTAGE.shop.open.h, 3.0, 'frame') : it));
+// an OPEN storefront (a shop walked into): the same front, its door stood in from its end (a store behind it keeps its
+// own pier inside the party wall, so a door at the bay's end would stand in it), no leaf in it, its head raised to a
+// body's clearance at a three-metre storey, glazing either side of it
+{
+  const D = FRONTAGE.shop.open, a = D.u - D.w / 2, b = D.u + D.w / 2;
+  PIECES.shopopen = [
+    Q([[-2.2, 0.05, 0.55], [a - 0.25, 0.05, 0.55], [a - 0.25, 0.05, 3.0], [-2.2, 0.05, 3.0]], [0, 1, 0], 'shopglass'),
+    Q([[b + 0.25, 0.05, 0.55], [2.2, 0.05, 0.55], [2.2, 0.05, 3.0], [b + 0.25, 0.05, 3.0]], [0, 1, 0], 'shopglass'),
+    Q([[-2.2, 0.05, 3.08], [2.2, 0.05, 3.08], [2.2, 0.05, 3.3], [-2.2, 0.05, 3.3]], [0, 1, 0], 'transom'),
+    B(-2.25, a - 0.2, 0, 0.12, 0, 0.55, 'frame'), B(b + 0.2, 2.25, 0, 0.12, 0, 0.55, 'frame'), B(-2.5, -2.2, 0, 0.2, 0, 3.36, 'frame'), B(2.2, 2.5, 0, 0.2, 0, 3.36, 'frame'),
+    B(a - 0.25, a, 0, 0.1, 0, 3.0, 'frame'), B(b, b + 0.25, 0, 0.1, 0, 3.0, 'frame'), B(a, b, 0, 0.1, D.h, 3.0, 'frame'), B(-2.2, 2.2, 0, 0.1, 3.0, 3.08, 'frame'), B(-1.2, -1.14, 0, 0.08, 0.55, 3.0, 'frame'),
+    B(-2.5, 2.5, 0, 0.24, 3.36, 3.95, 'sign'),
+  ];
+}
 // each part's paint: a fixed one, or white for its instance's tint (TINTS: the parts a building or a shop paints)
 const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS };
 const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band']);

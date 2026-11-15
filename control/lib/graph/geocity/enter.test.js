@@ -75,12 +75,12 @@ describe('a row\'s front, where it is dressed', () => {
 
 describe('a shop\'s door, walked through', () => {
   it('an open shop\'s door clears a body at a three-metre storey, where a shut shop\'s is a picture', () => {
-    const T = frontageTemplates(null, { flat: true }), D = FRONTAGE.shop.door;
+    const T = frontageTemplates(null, { flat: true });
     // (the lowest edge of anything across the door's middle, in the template; stretched to a 3 m storey)
-    const head = (piece) => Math.min(...Object.entries(T).filter(([k]) => k.startsWith(`${piece}-`) && k.endsWith(':s')).flatMap(([, fs]) => fs)
+    const head = (piece, D) => Math.min(...Object.entries(T).filter(([k]) => k.startsWith(`${piece}-`) && k.endsWith(':s')).flatMap(([, fs]) => fs)
       .filter((f) => Math.min(...f.corners.map((c) => c[0])) < D.u && Math.max(...f.corners.map((c) => c[0])) > D.u && Math.max(...f.corners.map((c) => c[2])) > 1).map((f) => Math.min(...f.corners.map((c) => c[2]))));
-    expect(head('shopopen') * shopRise(3)).toBeGreaterThanOrEqual(2.05);
-    expect(head('shop')).toBeLessThan(0.1);   // (its leaf's glass, from its foot)
+    expect(head('shopopen', { ...FRONTAGE.shop.door, ...FRONTAGE.shop.open }) * shopRise(3)).toBeGreaterThanOrEqual(2.05);
+    expect(head('shop', FRONTAGE.shop.door)).toBeLessThan(0.1);   // (its leaf's glass, from its foot)
   });
   it('is stepped up to from its walk: treads a riser each from the walk to its pad, none where the pad meets the walk', () => {
     const stoops = P.colliders.filter((c) => c.of.endsWith(':stoop'));
@@ -105,7 +105,9 @@ describe('a shop\'s door, walked through', () => {
       const { inside, door, sink } = a.store, mid = [(inside.min[0] + inside.max[0]) / 2, (inside.min[1] + inside.max[1]) / 2];
       // (no ground of the metro's over its floor and under its ceiling at its middle; its pad still stands beside it)
       const over = (x, y) => P.faces.filter((f) => (f.normal?.[2] ?? 0) > 0.5 && Math.min(...f.corners.map((c) => c[0])) < x && Math.max(...f.corners.map((c) => c[0])) > x && Math.min(...f.corners.map((c) => c[1])) < y && Math.max(...f.corners.map((c) => c[1])) > y).map((f) => Math.max(...f.corners.map((c) => c[2])));
-      expect(over(mid[0], mid[1]).filter((z) => z > inside.min[2] - 0.01 && z < inside.max[2] - 0.05)).toHaveLength(0);
+      // (its own floor is the metro's ground there, a hair over its floor's level)
+      expect(over(mid[0], mid[1]).filter((z) => z > inside.min[2] + 0.05 && z < inside.max[2] - 0.05)).toHaveLength(0);
+      expect(over(mid[0], mid[1]).some((z) => Math.abs(z - inside.min[2]) < 0.03)).toBe(true);
       const k = Math.abs(a.N[0]) > 0.5 ? 1 : 0, beside = [...mid]; beside[k] = inside.min[k] - 0.2;
       expect(over(beside[0], beside[1]).some((z) => Math.abs(z - (door[2] + sink)) < 0.01)).toBe(true);
       // (the face holding its pad over its walk is open at its door)

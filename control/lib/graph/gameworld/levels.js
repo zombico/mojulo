@@ -30,6 +30,7 @@ import { PARTY_CHASE } from '../playscape/hero-chase.js';
 import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
+import { assembleGeocityScene, GEOCITY_KEYS } from '../geocity/scene.js';
 import { SURFACE_IDS as GEOTOWN_SURFACES } from '../geotown/pattern.js';
 import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
@@ -171,6 +172,8 @@ export function gameStages(world) {
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
+    // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
+    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
@@ -237,7 +240,7 @@ export function gameStages(world) {
   // no cube paints (a section in its own kit, a level with no cube, a building, a city, a track…) is lit as before, and
   // says so (`unlit`: stageLevelOrder's advice). An inside has no outside to light. No hour: every stage as it was
   if (!Object.keys(hours).length) return out;
-  const lit = (s) => ((s.section === 'trail' || s.section === 'meru') && s.manifest?.geocube !== undefined) || s.section === 'geotown' || (s.section === 'map' && s.manifest?.level?.geocube !== undefined);
+  const lit = (s) => ((s.section === 'trail' || s.section === 'meru') && s.manifest?.geocube !== undefined) || s.section === 'geotown' || s.section === 'geocity' || (s.section === 'map' && s.manifest?.level?.geocube !== undefined);
   return out.map((s) => (hours[s.level] === undefined || s.section === 'interior' || lit(s) ? s : { ...s, unlit: hours[s.level] }));
 }
 
@@ -447,7 +450,7 @@ export function climbRoute(manifest) {
 
 export function stageEnds(manifest) {
   const key = JSON.stringify(manifest);
-  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'map' && manifest.level?.grid ? mapEnds(manifest) : manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : isStrip(manifest) ? sideEnds(manifest) : readEnds(manifest)); }
+  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'map' && manifest.level?.grid ? mapEnds(manifest) : manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : manifest.kind === 'geocube' && manifest.show === 'geocity' ? geocityEnds(manifest) : isStrip(manifest) ? sideEnds(manifest) : readEnds(manifest)); }
   return ENDS.get(key);
 }
 function readEnds(manifest) {
@@ -564,6 +567,35 @@ function geotownEnds(manifest) {
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.store?.till).map((a) => ({ id: a.id.replace(/^house-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   return out;
 }
+
+// THE DISTRICT'S ENDS (a geocity level, geocity/scene.js: an evocation): the hero set down at the start of the walk its
+// metro lays (its evoked street's), facing along it, its exit the far side of that walk; beats along the way every dozen
+// metres; its ground the district's ground faces (its walks, roads, pads, courts, stoops and its open shops' floors:
+// never a roof), what stands on it its boxes; the tills of its shops walked into (geocity.shops)
+const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|highway|platform)$/;
+function geocityEnds(manifest) {
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), P = assembleGeocityScene(own, {});
+  const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
+  if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
+  const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
+  const spawn = on(route[0]), far = route.reduce((m, p, i) => (Math.hypot(p[0] - spawn[0], p[1] - spawn[1]) > Math.hypot(route[m][0] - spawn[0], route[m][1] - spawn[1]) ? i : m), 0);
+  const exit = on(route[far]), heading = r3(Math.atan2(route[1][1] - route[0][1], route[1][0] - route[0][0]));
+  const beats = [];
+  let last = route[0];
+  for (const p of route.slice(1, far)) if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 12) { beats.push({ beat: 'along', at: on(p) }); last = p; }
+  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]) };
+  Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
+  Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
+  Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
+  Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
+  Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
+  Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
+  // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
+  Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
+  return out;
+}
+// (what plays in a metro is the level's, layered over it by the page: never the district's own settings)
+const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
 // hero is set down on, entered at its door into a scene of its own (interiorStage): its zone on the walk before the door,
