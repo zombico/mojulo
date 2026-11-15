@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { assembleGeotownScene, readEnter } from './scene.js';
-import { SLOT } from '../retail/store-slot.js';
+import { assembleGeotownScene } from './scene.js';
+import { SLOT, readEnter } from '../retail/store-slot.js';
 import { frontOf } from './fronts.js';
 
 // the smallest town with a row of shops: one main-street segment, its shops one card (the street's lightest)
-const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, enter: { cards: ['electronics'] }, geotown: { evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12 } };
+const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, geotown: { enter: { cards: ['electronics'] }, evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12 } };
 const P = assembleGeotownScene(M), E = P.geotown.enter, shops = P.anchors.filter((a) => a.store);
 const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
 

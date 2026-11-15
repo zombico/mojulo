@@ -36,8 +36,7 @@
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only.
  */
 import { designGeotown, DRIVE_STAND } from './design.js';
-import { SLOT, ENTER_CARDS, slotOf, storeSlot, openingLess, rectLess } from '../retail/store-slot.js';
-import { resolveCard } from '../retail/store-cards.js';
+import { SLOT, slotOf, storeSlot, openingLess, rectLess } from '../retail/store-slot.js';
 import { SURFACES } from './pattern.js';
 import { readGeocube, cubeBuildings, settlementStyle, CUBE_STREET_PAINT, geocubeReadout } from '../era/geocube.js';
 import { readPaint, cubeLookSpec, lookLight, hourSky } from '../city/plan/look.js';
@@ -69,7 +68,7 @@ import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
 import { unlift } from '../matte-paint/detail.js';
 
-export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'cone', 'enter']);
+export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'cone']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
@@ -236,19 +235,6 @@ export function shopfrontOf(Sf, R, prev = null) {
 /** The street a block's row fronts: its line's id and its section. */
 const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.x[B.i] } : side === 'e' ? { id: `ns-${B.i1 + 1}`, S: d.sections.x[B.i1 + 1] } : side === 's' ? { id: `ew-${B.j}`, S: d.sections.y[B.j] } : { id: `ew-${B.j1 + 1}`, S: d.sections.y[B.j1 + 1] });
 
-/** A town's `enter`: its shops walked into (retail/store-slot.js). true, or { cards?: [a seeded card's id…], near?: the
- *  metres past its door an inside is drawn }. → { cards, near } | null */
-export function readEnter(v) {
-  if (v === undefined || v === null || v === false) return null;
-  if (v !== true && (typeof v !== 'object' || Array.isArray(v))) no('enter is true or { cards?, near? }');
-  const o = v === true ? {} : v;
-  for (const k of Object.keys(o)) if (!['cards', 'near'].includes(k)) no(`enter.${k} is not a setting (cards, near)`);
-  const cards = o.cards ?? ENTER_CARDS;
-  if (!Array.isArray(cards) || !cards.length || cards.some((c) => typeof c !== 'string' || !resolveCard(c))) no('enter.cards is a list of seeded store cards\' ids');
-  if (o.near !== undefined && !(Number.isFinite(o.near) && o.near >= 10 && o.near <= 320)) no('enter.near is metres in [10, 320]');
-  return { cards: [...cards], near: o.near ?? SLOT.near };
-}
-
 /** The geocube kind's geotown: the town's map stood on the cube's land at its hour. */
 export function assembleGeotownScene(m, ctx = {}) {
   for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone)`);
@@ -352,9 +338,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   const carIn = (pl, u, v, z, along, hex, key) => { const [x, y] = W(pl, u, v, 0); carAt(x, y, z, along === 'u' ? pl.ex : pl.ey, hex, key); };
   const shopPrev = new Map();
   const builtOf = {};
-  // the shops walked into (`enter`): each shop of a row its card by its own dice, built to its slot once a size
+  // the shops walked into (the town's `enter`, read.js): each shop of a row its card by its own dice, built to its slot once a size
   // (retail/store-slot.js), stamped where it stands and drawn near the camera only
-  const enter = readEnter(m.enter), stores = new Map(), entered = [];
+  const enter = d.spec.enter ?? null, stores = new Map(), entered = [];
   const storeOf = (pl, house) => {
     if (!enter || !pl.shopfront || house.mirror) return null;
     const dz = house.design, env = pl.house.env, T = SLOT.wall, sg = pl.ex[0] * pl.ey[1] - pl.ex[1] * pl.ey[0] < 0 ? -1 : 1;

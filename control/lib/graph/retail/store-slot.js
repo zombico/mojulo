@@ -9,7 +9,7 @@
  *   SLOT                          the slot's numbers: the least it holds, the wall it keeps inside the building's, its
  *                                 floor's lift over the pad, its ring, the faces an inside is held to, the steps a
  *                                 size is rounded to (so shops of one size share one template)
- *   ENTER_CARDS                   the cards a street's shop takes unless it is told its own (the light ones)
+ *   readEnter, ENTER_CARDS        a place's `enter` and the cards a street takes (store-enter.js)
  *   slotOf({ w, d, h, door: { x, w } }) → the slot rounded to its steps, { w, d, h, door, slack: [x, y], key }, or
  *                                 null when it holds no store. `w` along the front, `d` into the building, `h` the
  *                                 storey's clear height, `door.x` its centre from the slot's left as you walk in; metres
@@ -26,6 +26,9 @@
 import { buildStandaloneStore } from './store-concept.js';
 import { assessStoreConcept } from './store-assess.js';
 import { resolveCard } from './store-cards.js';
+import { ENTER_CARDS, ENTER_NEAR, readEnter } from './store-enter.js';
+
+export { ENTER_CARDS, readEnter };
 
 const FT = 0.3048;
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -34,8 +37,9 @@ const strHash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) 
 export const SLOT = Object.freeze({
   least: Object.freeze({ w: 4.2, d: 7, h: 2.6 }),
   most: Object.freeze({ d: 16, h: 3.7 }),
-  // the wall the inside keeps within the building's own; its floor over the pad; how far past its door it is drawn
-  wall: 0.3, lift: 0.03, near: 40,
+  // the wall the inside keeps within the building's own; its floor over the pad; how far past its door it is drawn; how far
+  // into that wall a slot may slide to stand its door on the client's
+  wall: 0.3, lift: 0.03, near: ENTER_NEAR, slide: 0.15,
   // the faces an inside is held to (a law, advice)
   faces: 6000,
   // a slot's size rounded down to these (m), its door's place to the nearest
@@ -43,9 +47,6 @@ export const SLOT = Object.freeze({
   // the pier the store keeps at each end of its front (ft), inside the client's own front
   pier: 0.5,
 });
-// (the cafe and the food hall are left out until their fixtures are lighter: at a street's slot they stand over the
-// slot's faces or shed what makes them themselves; a town may still name them)
-export const ENTER_CARDS = Object.freeze(['apparel', 'electronics', 'bookstore', 'homewares']);
 
 const down = (v, s) => Math.floor(v / s + 1e-9) * s;
 const near = (v, s) => Math.round(v / s) * s;
@@ -53,13 +54,15 @@ const near = (v, s) => Math.round(v / s) * s;
 export function slotOf({ w, d, h, door }) {
   const S = SLOT, W = r5(down(w, S.step.w)), D = r5(Math.min(S.most.d, down(d, S.step.d))), H = r5(Math.min(S.most.h, down(h, S.step.h)));
   if (!(W >= S.least.w && D >= S.least.d && H >= S.least.h) || !door || !(door.w > 0.6)) return null;
-  // (the slack the rounding left, shared either side; the door where it falls in the rounded slot, to its step)
-  const sx = (w - W) / 2, dw = r5(Math.ceil(door.w / 0.1 - 1e-9) * 0.1), half = dw / 2 + S.pier * FT + 0.1;
-  const dx = r5(near(door.x - sx, S.step.door));
+  // (the slack the rounding left, shared either side; the door where it falls in the rounded slot, to its step, kept
+  // clear of the store's own piers; the slot then slid so its door stands on the client's, by the rounding's remainder
+  // and no further than `slide` into the wall it keeps)
+  const sx = (w - W) / 2, dw = r5(Math.ceil(door.w / 0.05 - 1e-9) * 0.05), half = dw / 2 + S.pier * FT + 0.07, st = S.step.door;
+  const dx = r5(Math.max(Math.ceil(half / st - 1e-9) * st, Math.min(down(W - half, st), near(door.x - sx, st))));
   if (dx < half || dx > W - half) return null;
-  // (the slot slid so its door stands on the client's: the rounding's remainder, within the wall it keeps)
-  const slide = door.x - sx - dx;
-  return { w: W, d: D, h: H, door: { x: dx, w: dw }, slack: [r5(sx + slide), 0], key: `${W}x${D}x${H}@${dx}/${dw}` };
+  const left = door.x - dx;
+  if (left < -S.slide || left > w - W + S.slide) return null;
+  return { w: W, d: D, h: H, door: { x: dx, w: dw }, slack: [r5(left), 0], key: `${W}x${D}x${H}@${dx}/${dw}` };
 }
 
 export function storeSlot(cardIn, slot, { seed } = {}) {
