@@ -848,7 +848,7 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
   members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
   // (its colour: the colourway's trim, what the street it holds is marked in)
   const colour = S.colourways[colourway].palette?.Trim ?? null;
-  return { faction: C.faction, colourway, ...(typeof colour === 'string' && /^#[0-9a-f]{6}$/i.test(colour) ? { colour } : {}), members };
+  return { faction: C.faction, name: `the ${S.name.toLowerCase()}`, colourway, ...(typeof colour === 'string' && /^#[0-9a-f]{6}$/i.test(colour) ? { colour } : {}), members };
 }
 /** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, drawn from
  * how its crew fights (`types`: the crowd types its grunts are, in their order; a knife among thugs with none said), no
@@ -869,6 +869,20 @@ export function defaultWaves(belt, types = null) {
     else if (sc.gate) { out.push({ screen, crowd: wave(3 + k) }); k++; }
   });
   return out;
+}
+/**
+ * A STREET'S SCENES when it names none (brawl/brawl-scenes.js): `arrive`, played as play starts (the street's name on
+ * a card, who holds it under it, the camera brought back from the way on to where the player stands), and `leave`,
+ * played once it is won (a card, the camera on to the way out). A street's own `scenes` are kept whole: these are a
+ * starter, written to be read and changed. `scenes: false` on a street plays none.
+ */
+export const BRAWL_SCENES = Object.freeze({ start: 'arrive', end: 'leave' });
+export function defaultScenes(belt, { name, holder } = {}) {
+  const r1 = (v) => Math.round(v * 10) / 10, first = belt.screens[0], ahead = r1(Math.min(belt.length, first.to + 6)), home = r1(Math.min(first.to, 6)), last = belt.screens[belt.screens.length - 1];
+  return {
+    [BRAWL_SCENES.start]: [{ look: ahead }, { title: name ?? 'The street', ...(holder ? { sub: `held by ${holder}` } : {}), secs: 2 }, { pan: [ahead, home], secs: 1.6 }],
+    [BRAWL_SCENES.end]: [{ title: `${name ?? 'The street'} is clear`, secs: 1.8 }, { pan: [r1(last.from + 4), r1(belt.length)], secs: 1.4 }],
+  };
 }
 /**
  * A BRAWL'S TURN (game/turn.js; setup.js): what is asked before each street loads, when the world says no set-up of its
@@ -909,12 +923,12 @@ export function brawlBody(created, heavy = false) {
 }
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries
  * the hosted level's contract, so the play shell runs them one after another. */
-export function brawlStreets(Q, { title, roster, cast, types, colour } = {}) {
-  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves, things }) => {
+export function brawlStreets(Q, { title, roster, cast, types, colour, holder } = {}) {
+  return (Q.streets ?? [BRAWL_STREET]).map(({ id, name, level, waves, things, scenes }) => {
     // (a town street's dress wears the crew's colour, unless the street says its own)
     const L0 = level ?? BRAWL_STREET.level, L = colour && (L0.kind === 'town' || (L0.kind === 'stage' && (isObj(L0.dress) || (L0.dress === undefined && brawlLevel(L0).brawl.dress)))) && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(isObj(L0.dress) ? L0.dress : {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt, boxes = B0.dress?.setting ? DRESS_SETTINGS[B0.dress.setting].boxes : null;
-    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const street = { players: [0], waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder }) }), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };
@@ -934,7 +948,7 @@ function readBrawl(Q) {
       if (!isObj(s) || typeof s.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(s.id)) throw fail(`.streets[${i}] needs an id (a short lower-case name)`);
       if (ids.has(s.id)) throw fail(`.streets[${i}].id '${s.id}' is taken`);
       ids.add(s.id);
-      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves', 'things'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves, things)`);
+      for (const k of Object.keys(s)) if (!['id', 'name', 'level', 'waves', 'things', 'scenes'].includes(k)) throw fail(`.streets[${i}].${k} is not a street's word (id, name, level, waves, things, scenes)`);
       if (s.level !== undefined) { try { readBrawlLevel(s.level); } catch (e) { throw fail(`.streets[${i}].level: ${e.message.replace(/^brawl: /, '')}`); } }
     });
   }

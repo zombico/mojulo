@@ -108,6 +108,11 @@ And for all three:
     it starts and plays it. A map played on its own, or by a game that asks nothing, plays as it is written.
 25. **Ask once what holds for the game, each time what belongs to the map.** How hard is a game's choice; who walks
     into this map is this map's.
+27. **A map names its scenes; the game calls them.** What happens as a map begins and as it ends (a card, a line, the
+    camera shown the way) is a few beats the map says by name, played on its own page with the play held. Which of
+    them plays, and on what outcome, is the game's to say. A scene is short, can be put away, and never plays twice on
+    a retry.
+
 26. **A map says how it ended, and nothing more.** Won or lost, how long, how much was left: the shell turns that into
     the results, the rank, the next map. A map never names the map after it.
 

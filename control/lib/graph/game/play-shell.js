@@ -549,6 +549,7 @@ export function playShellRuntime(cfg, K) {
       if (Object.keys(picked.picks).length) params.__picks = picked.picks;
       // (the difficulty picked is the dial the level's foes read: the engine's tier, params.difficulty)
       if (typeof picked.picks.difficulty === 'string') params.difficulty = picked.picks.difficulty;
+      if (picked.end) params.__end = picked.end;
       for (const sl in picked.slices) {
         const v = state[sl], key = v && v.roster ? 'roster' : 'items', out = {};
         if (!v || !v[key]) continue;
@@ -1050,7 +1051,10 @@ export function playShellRuntime(cfg, K) {
     const kept = TK.keptPicks(T, turn.s);
     if (Object.keys(kept).length) { seenSteps.$picks = Object.assign({}, seenSteps.$picks, kept); try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ } }
     const t = peek && peek.sub === 'start' ? peek.trigger : null, stage = t && t.scene ? { scene: t.scene, ...(t.skip ? {} : { skip: false }) } : null;
-    launch(turn.lv, turn.arrive, turn.carry, stage, TK.turnParams(T, turn.s));
+    // (an END trigger that is a scene is the level's to play: named to it as it loads (__end), played on its page once
+    // its outcome is known and before it says so, so the store's write and the results come after it)
+    const endT = T.end && T.end.scene ? { scene: T.end.scene, when: T.end.when, ...(T.end.skip ? {} : { skip: false }) } : null;
+    launch(turn.lv, turn.arrive, turn.carry, stage, Object.assign(TK.turnParams(T, turn.s), endT ? { end: endT } : {}));
     // (a level that never says its scene ended, a page from before stages, is given two minutes)
     if (stage) { pauseBtn.style.display = 'none'; setTimeout(() => { if (turn === me) turnSceneEnd(); }, 120000); }
   }

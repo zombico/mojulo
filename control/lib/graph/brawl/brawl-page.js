@@ -31,17 +31,17 @@ import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
 import { streetScreenOf, readStreet } from './brawl-street.js';
-import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+import { MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SCENE_END, MSG_SHOWN, CONTRACT_VERSION } from '../game/level-contract.js';
 
 // the level wire a street hosted in a game's shell speaks (the shell's own handshake: ready → init → outcome)
-export const STREET_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
+export const STREET_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, sceneEnd: MSG_SCENE_END, shown: MSG_SHOWN, version: CONTRACT_VERSION });
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 // (the order matters: each module only uses names from the ones before it)
 export const BRAWL_VERSUS_MODULES = Object.freeze(['versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-input.js', 'versus-cpu.js', 'versus-solver.js', 'versus-figure.js']);
-export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-pose.js', 'brawl-yard-read.js']);
+export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-scenes.js', 'brawl-pose.js', 'brawl-yard-read.js']);
 
 /** The names a module exports (one per `export function|const|let|class` line). */
 export function exportsOf(src) {
@@ -129,7 +129,7 @@ export function brawlYardData(block, bodies = null) {
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
       ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
-    ...(ST ? { street: { waves: ST.waves, ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
+    ...(ST ? { street: { waves: ST.waves, ...(ST.scenes ? { scenes: ST.scenes } : {}), ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: ST ? [] : YARD_SETTINGS },
   };
 }

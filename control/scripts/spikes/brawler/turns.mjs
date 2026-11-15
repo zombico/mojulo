@@ -3,7 +3,8 @@
 // turn"). A quick brawl of three TEST STREETS (blockouts: one straight, one that rises, one that drifts), two fighters
 // to choose from, is designed, made, exported and played through its shell in headless Chrome. What it answers: does
 // the shell ask the set-up before each street (how hard, once; who plays, each time), does the street play who was
-// picked at the tier picked, and does the street's end reach the results and the next street, to the last.
+// picked at the tier picked, does each street play its arrive scene as play starts and its leave scene once it is won,
+// and does the street's end reach the results and the next street, to the last.
 //   node control/scripts/spikes/brawler/turns.mjs [--out dir] [--town] (--town: the dressed town street as the third)
 import { register as registerLoader } from 'node:module';
 import fs from 'node:fs/promises';
@@ -55,19 +56,27 @@ const words = async () => (await page.evaluate(() => document.body.innerText.rep
 const frameOf = async () => { for (const f of page.frames()) if (f !== page.mainFrame() && await f.evaluate(() => !!(window.__mojBrawl && window.__mojBrawl.room)).catch(() => false)) return f; return null; };
 // the walk through the shell: each screen it shows said once; a pick answered (the second fighter on the second
 // street, so the pick is seen to change who plays); a street in play felled to its end
-const seen = [], played = [];
+const seen = [], played = [], scenes = [];
 let last = '', shots = 0, idle = 0;
 for (let step = 0; step < 400 && played.length < streets.length + 0 && idle < 40; step++) {
   const F = await frameOf(), text = await words();
-  const live = F ? await F.evaluate(() => { const B = window.__mojBrawl; return { over: B.over, session: B.session, name: B.read.name, cleared: B.read.cleared, of: B.read.of }; }).catch(() => null) : null;
+  const live = F ? await F.evaluate(() => { const B = window.__mojBrawl; return { over: B.over, session: B.session, name: B.read.name, cleared: B.read.cleared, of: B.read.of, scene: B.scene }; }).catch(() => null) : null;
+  // (a scene playing on the street: said once, a still taken, and let play: the fight is held under it)
+  if (live && live.scene) {
+    const k = `${played.length + (live.over ? 0 : 1)}:${live.scene.id}`;
+    if (!scenes.includes(k)) { scenes.push(k); say('scene', { street: played.length + (live.over ? 0 : 1), id: live.scene.id, shows: live.scene.shows }); await wait(600); await page.screenshot({ path: path.join(out, `scene-${scenes.length}.png`) }); }
+    await wait(300); idle = 0; continue;
+  }
   if (live && !live.over && !/Choose|LOADING|Loading|CLEARED|results|Results/i.test(text)) {
     // in play: say who plays and how hard once, then fell the street as it comes
     const key = `play ${played.length + 1}`;
-    if (last !== key) { last = key; say(key, { plays: live.name, session: live.session }); await page.screenshot({ path: path.join(out, `play-${played.length + 1}.png`) }); }
+    // (the player sits down at the street with a button, as a person does: attack, once)
+    if (last !== key) { last = key; say(key, { plays: live.name, session: live.session }); await page.keyboard.press('KeyK'); await wait(300); await page.screenshot({ path: path.join(out, `play-${played.length + 1}.png`) }); }
     await F.evaluate(() => { const B = window.__mojBrawl; for (const b of B.room.s.bodies) if (b.side !== 'player' && !b.gone && !b.ko) { b.ko = 1; b.hp = 0; b.st = 'ko'; b.sf = 0; } });
     await page.keyboard.down('KeyD'); await wait(700); await page.keyboard.up('KeyD');
     const end = await F.evaluate(() => window.__mojBrawl.over).catch(() => null);
-    if (end) { played.push({ street: played.length + 1, over: end, cleared: `${live.cleared}/${live.of}`, session: live.session }); say('street end', played[played.length - 1]); await wait(2500); }
+    if (end) { for (let w = 0; w < 30 && await F.evaluate(() => !!window.__mojBrawl.scene).catch(() => false); w++) { const sc = await F.evaluate(() => window.__mojBrawl.scene).catch(() => null); const k = `${played.length + 1}:${sc ? sc.id : '?'}`; if (sc && !scenes.includes(k)) { scenes.push(k); say('scene', { street: played.length + 1, id: sc.id, shows: sc.shows }); await page.screenshot({ path: path.join(out, `scene-${scenes.length}.png`) }); } await wait(300); }
+      played.push({ street: played.length + 1, over: end, cleared: `${live.cleared}/${live.of}`, session: live.session }); say('street end', played[played.length - 1]); await wait(2500); }
     idle = 0; continue;
   }
   if (text !== last) {
@@ -75,8 +84,9 @@ for (let step = 0; step < 400 && played.length < streets.length + 0 && idle < 40
     if (shots < 14) await page.screenshot({ path: path.join(out, `shell-${String(++shots).padStart(2, '0')}.png`) });
     // (the fighter asked before the second street: the second one)
     if (/Choose your fighter/i.test(text) && played.length === 1) { await page.keyboard.press('ArrowDown'); await wait(300); }
+    if (/LOADING/i.test(text)) { await wait(400); continue; }
     await wait(500); await page.keyboard.press('Enter'); await wait(1200);
-  } else { idle++; await wait(700); if (idle % 6 === 5) await page.keyboard.press('Enter'); }
+  } else { idle++; await wait(400); if (idle % 10 === 9 && !/LOADING/i.test(text)) await page.keyboard.press('Enter'); }
 }
 await wait(1500); say('shell at the end', await words()); await page.screenshot({ path: path.join(out, 'end.png') });
 // the proof, said plainly
@@ -86,8 +96,9 @@ const proof = {
   difficultyAsked: asks(/Choose a difficulty/i), fighterAsked: asks(/Choose your fighter/i),
   whoPlayed: played.map((p) => p.session.players[0]), tier: played.map((p) => p.session.difficulty),
   everyStreetWon: played.every((p) => p.over === 'won'),
+  scenes,
 };
 say('proof', proof); say('errors', errs.slice(0, 6));
 await fs.writeFile(path.join(out, 'turns.json'), JSON.stringify({ log, proof, errs }, null, 1));
 await browser.close(); server.close();
-process.exit(proof.streetsPlayed === streets.length && proof.difficultyAsked === 1 && proof.fighterAsked === streets.length && proof.whoPlayed[1] !== proof.whoPlayed[0] && proof.tier.every(Boolean) && proof.everyStreetWon ? 0 : 1);
+process.exit(proof.streetsPlayed === streets.length && proof.difficultyAsked === 1 && proof.fighterAsked === streets.length && proof.whoPlayed[1] !== proof.whoPlayed[0] && proof.tier.every(Boolean) && proof.everyStreetWon && streets.every((_, i) => scenes.includes(`${i + 1}:arrive`) && scenes.includes(`${i + 1}:leave`)) ? 0 : 1);

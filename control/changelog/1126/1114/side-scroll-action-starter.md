@@ -180,6 +180,22 @@ screen) is now played on a page; before, only its practice yard was.
 - A brawl is made for a wide screen: a quick brawl's world says `screen: 'screen'` unless it or its quick says
   another (a new game's default is the upright phone, and the shell now draws its screens in the game's frame: a
   side view in a phone's column). Found by playing the turn through.
+- A street's scenes, in its turn (`brawl/brawl-scenes.js`). A street names its scenes (`street.scenes: { <id>:
+  [beat…] }`), a beat one of a card (`title`, `sub`), a line someone says (`say`, `who`), the camera travelling the
+  belt (`pan: [from, to]`) or cut to a place on it (`look`), or a rest (`wait`); read against its belt, stepped by
+  frames, a line or a card put away by accept, the scene ended by start where it may be skipped. The game calls them:
+  a quick brawl's street step says `start: { scene: 'arrive' }` (every street its own, never on a retry) and `end:
+  { scene: 'leave', when: 'won' }`. The page plays a staged scene with the fight held under the cinema bars and says
+  when it ends; an end scene is played once the street is over and BEFORE its outcome is told, so the save and the
+  results come after it. A street that names none is given a starter pair (`quick.js` defaultScenes: its name and who
+  holds it, the camera brought back to the player; a card and the way out); its own are kept whole; `scenes: false`
+  plays none.
+- A hosted street says when its first frame is drawn (the level wire's `shown`), so the shell's loading screen lifts on
+  it and the turn's start scene begins then, never under the loading screen. Found by playing the turn through: the
+  arrive scene had played hidden.
+- The play shell hands a level its end scene (`game/play-shell.js`): an end trigger that is a scene is named to the
+  level as it loads (`params.__end: { scene, when, skip? }`) for the level to play on its own page; a video still
+  plays over the shell as before ([docs/game-flow.md](../../../../docs/game-flow.md)).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in

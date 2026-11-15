@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -104,6 +104,25 @@ const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!((RANGE && RANGE.wave
 let picks = BY.players.slice(0, 4);
 // (a street in a game's turn: who plays and how hard, as the turn's picks say; none said, as the street is written)
 let SESSION = { players: picks, difficulty: null };
+// A SCENE PLAYING (brawl-scenes.js): the street's own beats, the fight held under it. `STAGED` what the game's turn asks
+// of this session (the play shell's params: __stage as play starts, __end once the outcome is known); `CINE` the one
+// on now: { id, beats, state, then } (then: what happens when it ends)
+let STAGED = { start: null, end: null }, CINE = null;
+// (the session's first frame, still to be drawn: the shell is told when it is, its veil lifts, and the start scene
+// begins THEN, never under the loading screen)
+let FRESH = false;
+const SCENES = (BY.street && BY.street.scenes) || {};
+function playScene(id, then) {
+  const beats = SCENES[id];
+  if (!beats) { then(true); return; }
+  CINE = { id, beats, state: sceneOf(), then };
+}
+function sceneFrame(pad) {
+  CINE.state = stepScene(CINE.beats, CINE.state, pad);
+  const show = sceneShows(CINE.beats, CINE.state), S = UI.state.brawl.street;
+  S.scene = show.done ? { on: false } : { on: true, title: show.title || '', sub: show.sub || '', say: show.say || '', who: show.who || '' };
+  if (show.done) { const then = CINE.then; CINE = null; then(false); }
+}
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 let readers = [], hp0 = [], over = null, seenClear = 0, bossSaid = false, said = 0;
@@ -132,7 +151,7 @@ function build() {
     readers = picks.map(() => newReader());
     hp0 = room.s.bodies.map((b) => b.hp);
     over = null; seenClear = 0; bossSaid = false;
-    Object.assign(UI.state.brawl.street, { moments: [], time: '0:00' });
+    Object.assign(UI.state.brawl.street, { moments: [], time: '0:00', scene: { on: false } });
   } else room = practiceOf({ belt: BELT, players: who, dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee });
   for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
   rounds.clear();
@@ -814,7 +833,7 @@ function menuEdges(b) {
 const vP = new THREE.Vector3();
 const project = (x, z, y) => { YARD.localToWorld(vP.set(x / 1000, z / 1000, y / 1000)).project(camera); return [(vP.x + 1) / 2, (1 - vP.y) / 2]; };
 function frameCamera() {
-  const C = beltCamera(BELT, room.s.cam / 1000);
+  const C = beltCamera(BELT, CINE && CINE.state.cam !== null ? Math.max(viewHalf(BELT), Math.min(BELT.length - viewHalf(BELT), CINE.state.cam)) : room.s.cam / 1000);
   const aspect = (innerWidth || 16) / (innerHeight || 9);
   const v = (2 * Math.atan(Math.tan((C.horizontalFov * Math.PI) / 360) / aspect) * 180) / Math.PI;
   if (Math.abs(camera.fov - v) > 0.01) { camera.fov = v; camera.updateProjectionMatrix(); }
@@ -834,6 +853,8 @@ function tick() {
     if (!STREET && !UI.rt.state().screen) applySettings();
     return;
   }
+  // (a scene playing: the fight held; accept puts its line away, start skips it where it may be skipped)
+  if (CINE) { sceneFrame({ accept: !!edge.accept, skip: !!edge.start && CINE.skip !== false }); streetScreen(); return; }
   if (edge.start && !STREET) { UI.rt.open('settings'); UI.view.paint(); return; }
   if (edge.list) { const ML = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); if (STREET) UI.state.brawl.street.moves = ML; else UI.state.brawl.practice.moves = ML; UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
@@ -866,6 +887,11 @@ function tick() {
   runs.splice(0, runs.length, ...next);
 }
 function draw() {
+  if (FRESH) {
+    FRESH = false;
+    window.parent.postMessage({ moj: BY.wire.shown }, '*');
+    if (STAGED.start && STAGED.start.scene) { const sid = STAGED.start.scene; playScene(sid, (missing) => window.parent.postMessage({ moj: BY.wire.sceneEnd, scene: sid, ...(missing ? { missing: true } : {}) }, '*')); if (CINE) CINE.skip = STAGED.start.skip; }
+  }
   frameCamera();
   if (RIG) RIG.follow(room.s.cam / 1000);
   room.s.bodies.forEach((p, i) => placeBody(bodies[i], p, room.ctx.fighters[p.fi]));
@@ -890,17 +916,20 @@ function streetScreen() {
     over = R.won ? 'won' : 'lost';
     // (in a game's shell the street's end is the shell's: the outcome goes up the wire, with what the street kept, and
     // the shell shows what comes next; on its own page the street shows its own end)
-    if (HOSTED) window.parent.postMessage({ moj: BY.wire.outcome, envelope: { contractVersion: BY.wire.version, levelRef: 'street', result: R.won ? 'success' : 'fail', events: [], stats: { street: { cleared: R.cleared, of: R.of, seconds: secs, health: R.hp, healthOf: R.hpMax }, ...(R.won ? { rank: R.rank } : {}), kept: [{ label: 'time', value: secs, unit: ' s', best: 'low' }, { label: 'health', value: R.hp, best: 'high' }] } } }, '*');
+    const tell = () => { if (HOSTED) window.parent.postMessage({ moj: BY.wire.outcome, envelope: { contractVersion: BY.wire.version, levelRef: 'street', result: R.won ? 'success' : 'fail', events: [], stats: { street: { cleared: R.cleared, of: R.of, seconds: secs, health: R.hp, healthOf: R.hpMax }, ...(R.won ? { rank: R.rank } : {}), kept: [{ label: 'time', value: secs, unit: ' s', best: 'low' }, { label: 'health', value: R.hp, best: 'high' }] } } }, '*');
     // (and the keys go back to the shell: its result is driven from them)
-    if (HOSTED) { try { window.parent.focus(); } catch (err) { /* an opaque parent */ } }
-    else { UI.rt.open(over); UI.view.paint(); }
+      if (HOSTED) { try { window.parent.focus(); } catch (err) { /* an opaque parent */ } }
+      else { UI.rt.open(over); UI.view.paint(); } };
+    // (THE END SCENE the game's turn asks for, on the outcomes it names: played here, the outcome told after it)
+    const E = STAGED.end;
+    if (E && E.scene && SCENES[E.scene] && (!E.when || E.when.indexOf(over) >= 0)) { playScene(E.scene, tell); if (CINE) CINE.skip = E.skip; } else tell();
   }
 }
 // A STREET IN A GAME'S SHELL: it says it is ready, and begins again from its start when the shell says go (a retry is a
 // new session of the same page)
 const HOSTED = !!(STREET && BY.wire && window.parent !== window);
 if (HOSTED) {
-  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version) { const S0 = streetSession(d.params, BY.roster, BY.players), changed = S0.difficulty !== SESSION.difficulty || S0.players.join() !== picks.join(); SESSION = S0; picks = S0.players.slice(); if (over || changed) build(); try { window.focus(); } catch (err) { /* a frame that may not */ } } });
+  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version) { const S0 = streetSession(d.params, BY.roster, BY.players), changed = S0.difficulty !== SESSION.difficulty || S0.players.join() !== picks.join(); SESSION = S0; picks = S0.players.slice(); const P0 = d.params || {}; STAGED = { start: P0.__stage || null, end: P0.__end || null }; CINE = null; if (over || changed) build(); FRESH = true; try { window.focus(); } catch (err) { /* a frame that may not */ } } });
   window.parent.postMessage({ moj: BY.wire.ready, contractVersion: BY.wire.version, levelRef: 'street' }, '*');
   // (the keys are read in this frame: it takes the focus as it starts and whenever it is pressed on, so a player who
   // started the game on the shell's screen plays without a click)
@@ -920,4 +949,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { wreck: (e) => wreckAt(e), get session() { return { players: picks.slice(), difficulty: SESSION.difficulty }; }, get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };
+window.__mojBrawl = { wreck: (e) => wreckAt(e), get session() { return { players: picks.slice(), difficulty: SESSION.difficulty }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

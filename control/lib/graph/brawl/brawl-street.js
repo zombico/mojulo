@@ -14,6 +14,7 @@
  *
  * Pure: no clock, no dice.
  */
+import { readScenes } from './brawl-scenes.js';
 import { IDIOMS } from '../../mana-ui/idioms.js';
 import { manaCss } from '../../mana-ui/css.js';
 import { themeCss } from '../../mana-ui/theme.js';
@@ -39,6 +40,10 @@ export function streetSpec() {
       // (the boss's bar along the foot, clear of the corners' readouts)
       { use: 'region', props: { at: 'bottom' }, when: b('boss.on'), children: [{ use: 'bar', props: { value: b('boss.hp'), max: b('boss.hpMax'), variant: 'boss', size: 'large', label: b('boss.name'), figures: false } }] },
       { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: b('moments'), as: 'banner', hold: 1.1, read: 0.4 } }] },
+      // A SCENE (brawl-scenes.js): the cinema bars while one plays, its card across the middle, its line along the foot
+      { use: 'letterbox', when: b('scene.on') },
+      { use: 'region', props: { at: 'center', variant: 'bare' }, when: b('scene.title'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [{ use: 'text', props: { value: b('scene.title'), role: 'display' } }, { use: 'text', props: { value: b('scene.sub'), role: 'heading' }, when: b('scene.sub') }] }] },
+      { use: 'region', props: { at: 'bottom' }, when: b('scene.say'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'start' }, children: [{ use: 'text', props: { value: b('scene.who'), role: 'label' }, when: b('scene.who') }, { use: 'text', props: { value: b('scene.say'), role: 'body' } }] }] },
     ] },
     screens: {
       won: end('Street cleared', 'every screen beaten'),
@@ -56,11 +61,11 @@ export function streetScreenOf() {
  * the belt, so a fault is said before the page), the things on it. */
 export function readStreet(street, belt, where = 'brawl.street') {
   if (!street || typeof street !== 'object' || Array.isArray(street)) throw new Error(`brawl: ${where} is { players?, roster?, waves: [{ screen, crowd: [{ type, n }], boss? }], things? }`);
-  for (const k of Object.keys(street)) if (!['players', 'roster', 'waves', 'things', 'cast'].includes(k)) throw new Error(`brawl: ${where}.${k} is not a street's word (players, roster, waves, things, cast)`);
+  for (const k of Object.keys(street)) if (!['players', 'roster', 'waves', 'things', 'cast', 'scenes'].includes(k)) throw new Error(`brawl: ${where}.${k} is not a street's word (players, roster, waves, things, cast, scenes)`);
   // (`cast`: who the crowd is DRAWN as: a crowd type, `boss`, or `*` for the rest → a roster index, that character's body;
   // a list of them is taken in turn, body by body, so a wave is not one face)
   if (street.cast !== undefined && (!street.cast || typeof street.cast !== 'object' || Array.isArray(street.cast) || Object.values(street.cast).some((v) => { const L = Array.isArray(v) ? v : [v]; return !L.length || L.some((k) => !Number.isInteger(k) || k < 0); }))) throw new Error(`brawl: ${where}.cast is { <crowd type> | boss | *: a roster index, or a list of them taken in turn }`);
   if (!Array.isArray(street.waves) || !street.waves.length) throw new Error(`brawl: ${where}.waves is a list of { screen, crowd: [{ type, n }] }, at least one: a street with no wave is a walk`);
   readWaves(street.waves, belt);
-  return { players: street.players ?? [0], waves: street.waves, things: street.things ?? [], ...(street.roster ? { roster: street.roster } : {}), ...(street.cast ? { cast: street.cast } : {}) };
+  return { players: street.players ?? [0], waves: street.waves, things: street.things ?? [], ...(street.roster ? { roster: street.roster } : {}), ...(street.cast ? { cast: street.cast } : {}), ...(street.scenes ? { scenes: readScenes(street.scenes, belt, `${where}.scenes`) } : {}) };
 }
