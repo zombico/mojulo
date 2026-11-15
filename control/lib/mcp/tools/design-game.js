@@ -75,7 +75,7 @@ import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 import { gauntletLaws } from '@/lib/graph/gameworld/gauntlet.js';
 import { proveGauntlets } from '@/lib/graph/gameworld/gauntlet-proof.js';
-import { proveMissions } from '@/lib/graph/gameworld/mission-proof.js';
+import { proveMissions, missionStageManifests } from '@/lib/graph/gameworld/mission-proof.js';
 import { proveErrands, lastStageManifests } from '@/lib/graph/gameworld/errand-proof.js';
 
 
@@ -534,7 +534,12 @@ function readout(ref, world, context = {}) {
   // mission in the practice door and proposed it as a level, with its patch (suggested, never laid)
   if (door.rooms.includes('mission') && !Object.values(world.levels ?? {}).some((L) => L?.mission !== undefined) && !isObj(world.quick)) {
     const id = Object.keys(world.levels ?? {}).includes('mission-1') ? 'first-mission' : 'mission-1';
-    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], card: 'gameworld-mission' });
+    // (and, for a world that already has a ground to play on, the same mission laid on it: the first level that is a
+    // walk or a geotown with nothing a mission's own foes and tasks would stand beside. An alternative, never both)
+    const NOT_BESIDE = ['building', 'city', 'roadway', 'airspace', 'runner', 'glyphs', 'arena', 'goal', 'foes', 'course'];
+    const on = Object.keys(world.levels ?? {}).find((k) => { const L = world.levels[k]; return isObj(L) && (L.walk !== undefined || L.geotown !== undefined) && !NOT_BESIDE.some((b) => L[b] !== undefined); });
+    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }],
+      ...(on ? { on_ground: { why: `or laid on the ground of '${on}' (${world.levels[on].geotown !== undefined ? 'the town\'s walk' : 'its first trail\'s lane'}) in place of a ground of its own`, patch: [{ op: 'set', path: `/levels/${on}/mission`, value: true }] } } : {}), card: 'gameworld-mission' });
   }
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block
@@ -1411,8 +1416,19 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   })() : {};
   // a run's missions proved on the bus and played by the headless gunner on the levels it made (machine gate,
   // gameworld/mission-proof.js): the structure holds, and a player that only gives input wins it
-  const missionProof = ran && Object.values(W.levels ?? {}).some((L) => L?.mission !== undefined) ? (() => {
-    try { return { mission_proof: { gate: 'machine', levels: proveMissions(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } }; } catch (e) { return { mission_proof: { gate: 'machine', error: e.message } }; }
+  const missionProof = ran && Object.values(W.levels ?? {}).some((L) => L?.mission !== undefined) ? await (async () => {
+    try {
+      const { manifests, keys } = missionStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }));
+      // (a mission laid on a ground that was there stands on that ground's land, which only its resolved page has: the
+      // made level resolved, while the run's budget lasts; past it the level is said as not played)
+      const payloads = {}, t0 = Date.now(), budget = runBudgetMs();
+      for (const [id, m] of Object.entries(manifests)) {
+        const made = m.mission?.plan?.on === 'route' ? W.made?.[keys[id]]?.ref : null, row = made ? SketchRepository.getByRef(made) : null;
+        if (!row || (budget > 0 && Date.now() - t0 >= budget)) continue;
+        try { const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js'); payloads[id] = (await resolveWorldScene(row)).payload; } catch { /* said as unplayed */ }
+      }
+      return { mission_proof: { gate: 'machine', levels: proveMissions(W, manifests, payloads), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } };
+    } catch (e) { return { mission_proof: { gate: 'machine', error: String(e?.message ?? e).slice(0, 200) } }; }
   })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {

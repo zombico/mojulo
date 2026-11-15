@@ -19,8 +19,11 @@
  *
  *   missionFor(G)            → the practice door's spec: {} for a world with a firing range, else null
  *   missionPlan(G, { seed?, spec? }) → { brief, mission, laws } | null   (pure: the composition and its laws)
- *   missionTasks(M)          → the objectives mechanic's tasks, from a composition
- *   missionMechanics(M)      → the level's mechanics: objectives, fail-on-death, supplies
+ *   missionOnRoute(G, { points, ground?, seed?, spec? }) → the same on a ground that is already there (mission/route.js):
+ *                              laid along the way it gives a body to walk (a geocube trail's lane, a geotown's walk)
+ *   missionTasks(M, { lift? })      → the objectives mechanic's tasks, from a composition (lift: how high over its feet the
+ *                                     body is carried, a first person's eye: where a sealed way puts it back)
+ *   missionMechanics(M, { lift? })  → the level's mechanics: objectives, fail-on-death, supplies
  *   missionGround(M)         → { faces, colliders } the greybox
  *   missionCast(G, M, { refs?, hero?, camera? }) → { figures, entities, pilot, camera?, legend, audio? } the foes on their
  *                              spots and what the pilot carries (levels.js lays it over its own pilot; the practice room
@@ -42,7 +45,7 @@ import { libraryFigure, FIGURE_LIBRARY } from './stage-figures.js';
 import { playerStates } from '../playscape/player.js';
 import { feelRule } from './feel/lower.js';
 import { blocksOf, PRIMITIVES } from '../gameroom/primitives.js';
-import { missionBrief, readMission, composeMission, missionWalls, missionLaws, SECTIONS, BANDS } from '../mission/index.js';
+import { missionBrief, readMission, composeMission, missionWalls, missionLaws, makeRoute, composeOnRoute, routeLaws, SECTIONS, BANDS } from '../mission/index.js';
 import { MISSION_LOOK } from './mission-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 
@@ -83,25 +86,35 @@ export function missionPlan(G, { seed = null, spec = {} } = {}) {
   return { brief, mission, laws: missionLaws(mission, brief) };
 }
 
+/** The composition and its laws on a ground that is already there (mission/route.js): `points` the way the ground gives a
+ * body to walk (a trail's lane, a town's walk), `ground(x, y)` its height. */
+export function missionOnRoute(G, { points, ground = null, seed = null, spec = {} } = {}) {
+  const S = spec === true ? {} : spec, brief = missionBrief(G, S);
+  if (!brief) return null;
+  const mission = composeOnRoute(brief, makeRoute(points, ground), { seed: seed ?? S.seed ?? (Number.isInteger(G?.seed) ? G.seed : 1) });
+  return { brief, mission, laws: routeLaws(mission, brief) };
+}
+
 /** The objectives mechanic's tasks: a section each, its box the zone that begins it, its doorway the way on. */
-export function missionTasks(M) {
+export function missionTasks(M, { lift = 0 } = {}) {
   return M.sections.map((S) => {
-    const [x0, x1] = S.x, T = S.task;
+    const [x0, x1] = S.x ?? S.s, T = S.task;
     return {
       id: S.id, kind: T.kind, text: T.text,
-      zone: { at: [r2((x0 + x1) / 2), 0, 1], half: [r2((x1 - x0) / 2 - 0.8), M.half, 3] },
+      // (on a ground of its own, the section's box; on a route, the round zone the route gave it)
+      zone: S.zone ? { at: S.zone.at.slice(), radius: S.zone.radius } : { at: [r2((x0 + x1) / 2), 0, 1], half: [r2((x1 - x0) / 2 - 0.8), M.half, 3] },
       ...(T.at ? { at: T.at.slice() } : {}), ...(T.foes ? { foes: T.foes.slice() } : {}), ...(T.gun ? { gun: T.gun } : {}),
       ...(T.kind === 'hold' ? { seconds: T.seconds, every: T.every, waves: T.waves.map((w) => w.slice()) } : {}),
-      ...(S.door ? { door: { at: S.door.at.slice(), back: S.door.back.slice() } } : {}),
+      ...(S.door ? { door: { at: S.door.at.slice(), back: [S.door.back[0], S.door.back[1], r2(S.door.back[2] + lift)], ...(S.door.radius ? { radius: S.door.radius } : {}) } } : {}),
     };
   });
 }
 
 /** The level's mechanics: the tasks, the level's own hp, what lies on the floor. */
-export function missionMechanics(M) {
+export function missionMechanics(M, { lift = 0 } = {}) {
   const drops = M.sections.flatMap((S) => S.drops.map((d) => ({ at: d.at.slice(), gives: d.gives, amount: d.gives === 'health' ? MISSION_HP.health : MISSION_HP.rounds })));
   return [
-    { kind: 'objectives', id: 'obj', tasks: missionTasks(M) },
+    { kind: 'objectives', id: 'obj', tasks: missionTasks(M, { lift }) },
     { kind: 'fail-on-death', startHp: MISSION_HP.hp, hits: MISSION_HP.hit },
     ...(drops.length ? [{ kind: 'supplies', max: MISSION_HP.hp, drops }] : []),
   ];
@@ -111,7 +124,7 @@ export function missionMechanics(M) {
 export function missionGround(M) {
   const faces = [], colliders = [], H = M.half;
   for (const S of M.sections) {
-    const [x0, x1] = S.x, tone = FLOOR[S.kind] ?? GREY.floor;
+    const [x0, x1] = S.x, tone = FLOOR[S.kind] ?? FLOOR.staging;
     for (let x = x0, i = 0; x < x1 - 1e-6; x += CELL, i++) for (let y = -H, j = 0; y < H - 1e-6; y += CELL, j++) faces.push(flat(x, y, Math.min(x + CELL, x1), Math.min(y + CELL, H), 0, tone[(i + j) % 2], `mission:floor:${S.id}`));
     if (SECTIONS[S.kind].fight) faces.push(flat(S.line - 0.06, -H, S.line + 0.06, H, 0.012, LINE, 'mission:line'));
   }
@@ -157,7 +170,8 @@ export function missionUi(G, M, brief, { laws = [] } = {}) {
   return {
     title: name,
     theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK,
-    plan: { heading: M.heading, half: M.half, length: M.length, anchors: { spawn: M.anchors.spawn.slice(), exit: M.anchors.exit.slice() }, sections: M.sections.map((S) => ({ id: S.id, x: S.x.slice(), entry: S.entry.slice() })) },
+    // (the composition whole: levels.js reads its ends off it, and its proofs play it: mission-proof.js)
+    plan: M,
     tasks: M.sections.map((S) => ({ id: S.id, text: S.task.text, kind: S.task.kind, ...(S.task.kind === 'hold' ? { seconds: S.task.seconds } : {}), ...(S.foes.length ? { foes: S.foes.length } : {}) })),
     briefing: {
       kit: brief.guns.map((g) => `${g.name}${g.band ? `: the ${g.band} band, ${BANDS[g.band].m} m` : ': the free hand'}`),
@@ -194,7 +208,7 @@ export function missionLevel(G, { refs = {}, seed = null, spec = true, quiet = f
     ...(C.audio ? { audio: C.audio } : {}),
     // (played alone, before it is a level of a game: its own name; levels.js names a level's. Its result card is put away:
     // the debrief is mana-ui's, or the shell's own result screen)
-    game: { levelRef: `${G?.id ?? 'game'}-mission`, mechanics: missionMechanics(M), fall: { mode: 'respawn' }, complete: false },
+    game: { levelRef: `${G?.id ?? 'game'}-mission`, mechanics: missionMechanics(M, { lift: eye }), fall: { mode: 'respawn' }, complete: false },
   };
   return { manifest, brief, mission: M, laws };
 }
