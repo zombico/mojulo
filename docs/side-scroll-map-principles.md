@@ -97,6 +97,20 @@ And for all three:
     piece of the dress stands on the floor under its own middle; nothing floats and nothing is buried. Where a ground
     cannot move, the band may still drift over it, and anything left standing in the band is cleared.
 
+## The game: maps stitched by the turn
+
+23. **A map is one turn.** A game does not launch a level; it runs a turn (`control/lib/graph/game/turn.js`,
+    [game-flow.md](game-flow.md)): the player sets up, the level loads, it is played, its outcome is kept, the results
+    are shown. Every map is entered and left the same way, so a game of several is stitched by the shell and never by
+    the levels themselves.
+24. **A map asks, and plays what it is told.** What the player chooses before a map (how hard it fights, who plays,
+    what is carried in) is said once on the game and asked by the shell's own screens; the map reads the answer when
+    it starts and plays it. A map played on its own, or by a game that asks nothing, plays as it is written.
+25. **Ask once what holds for the game, each time what belongs to the map.** How hard is a game's choice; who walks
+    into this map is this map's.
+26. **A map says how it ended, and nothing more.** Won or lost, how long, how much was left: the shell turns that into
+    the results, the rank, the next map. A map never names the map after it.
+
 ## Writing a place
 
 A place is three tables, and a new one is rows:

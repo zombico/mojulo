@@ -2,8 +2,9 @@
 // spec, and what the street says of itself as it is played on the brawl's own sim: the player's health, the held
 // screens beaten, the crowd left, the boss's bar, the two ends.
 import { describe, it, expect } from 'vitest';
+import { CROWD_RULES as RULES_OF_CROWD } from './brawl-crowd.js';
 import { streetSpec, streetScreenOf, readStreet } from './brawl-street.js';
-import { streetRead, streetRank } from './brawl-street-read.js';
+import { streetRead, streetRank, streetSession, STREET_DIFFICULTY } from './brawl-street-read.js';
 import { brawlPreset, brawlLevel } from './brawl-levels.js';
 import { brawlYardData, BRAWL_ROSTER } from './brawl-page.js';
 import { streetOf, stepStreet, CROWD_TYPE_IDS } from './brawl-crowd.js';
@@ -101,5 +102,24 @@ describe('what a street says of itself', () => {
     let seen = 0;
     for (let f = 0; f < 60 * 20 && !seen; f++) { S = stepStreet(S, [{ x: 1, z: 0 }]); seen = streetRead(S, hp0).left; }
     expect(seen).toBeGreaterThan(0);
+  });
+});
+
+describe('a street\'s session: what a game\'s turn hands it', () => {
+  const roster = [{ id: 'fighter-1' }, { id: 'fighter-2' }, { id: 'crowd-1' }];
+  it('who plays is the roster entry picked, by its id; several are a seat each; none picked, as the street is written', () => {
+    expect(streetSession({ __picks: { fighter: 'fighter-2' } }, roster, [0]).players).toEqual([1]);
+    expect(streetSession({ __picks: { fighter: ['fighter-2', 'fighter-1'] } }, roster, [0]).players).toEqual([1, 0]);
+    expect(streetSession({ __picks: { fighter: 'nobody' } }, roster, [0]).players).toEqual([0]);
+    expect(streetSession({}, roster, [0])).toEqual({ players: [0], difficulty: null });
+    expect(streetSession(undefined, roster, [0, 1])).toEqual({ players: [0, 1], difficulty: null });
+  });
+  it('how hard is the engine\'s tier, a row each: the middle one the street as written, the others a crowd\'s rules over it', () => {
+    expect(streetSession({ difficulty: 'max' }, roster, [0]).difficulty).toBe('max');
+    expect(streetSession({ difficulty: 'nightmare' }, roster, [0]).difficulty).toBeNull();
+    expect(Object.keys(STREET_DIFFICULTY.medium.crowd)).toHaveLength(0);
+    const keys = Object.keys(typeof RULES_OF_CROWD === 'undefined' ? { tokens: 1, cool: 1, limit: 1 } : RULES_OF_CROWD);
+    for (const T of Object.values(STREET_DIFFICULTY)) for (const k of Object.keys(T.crowd)) expect(keys).toContain(k);
+    expect(STREET_DIFFICULTY.easy.crowd.tokens).toBeLessThan(STREET_DIFFICULTY.max.crowd.tokens);
   });
 });

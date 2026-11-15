@@ -870,6 +870,19 @@ export function defaultWaves(belt, types = null) {
   });
   return out;
 }
+/**
+ * A BRAWL'S TURN (game/turn.js; setup.js): what is asked before each street loads, when the world says no set-up of its
+ * own. How hard it fights (the engine's tiers, asked once and held by the save), and WHO PLAYS, asked before every
+ * street when the roster has more than one to choose from: the pick is the roster entry's id, and the street plays it
+ * (brawl-street-read.js streetSession). A world's own `setup` is kept, the fighter pick added to it unless it asks one.
+ * `playable`: [{ id, name, about? }] the roster's players, in order.
+ */
+export function brawlSetup(setup, playable = []) {
+  const own = isObj(setup) ? setup : null, picks = own?.picks ?? [];
+  const who = playable.length > 1 && !picks.some((p) => p.id === 'fighter')
+    ? [{ id: 'fighter', ask: 'Choose your fighter', hint: 'Asked before every street.', from: { options: playable.map((f) => ({ id: f.id, name: f.name, ...(f.about ? { about: f.about } : {}) })) } }] : [];
+  return { ...(own ?? { difficulty: true }), ...(picks.length || who.length ? { picks: [...picks, ...who] } : {}) };
+}
 /** What a street has standing on it to be broken when it names none (brawl-things.js THINGS.box, drawn as skandart's
  * vessels): two on each held screen, toward its far side, a barrel, a crate and a steel drum in turn; every other one
  * holds something to eat, the boss's screen a roast chicken. */

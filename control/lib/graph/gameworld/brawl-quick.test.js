@@ -1,10 +1,11 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, brawlStreets, defaultWaves, defaultThings, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
+import { quickWorld, brawlStreets, defaultWaves, defaultThings, brawlSetup, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
 import { runSteps } from './runner.js';
 import { brawlPreset } from '../brawl/brawl-levels.js';
 import { GENRES } from '../egocube/setting.js';
+import { readFlow } from '../game/flow.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 
@@ -128,5 +129,31 @@ describe('its crowd, a crew of the comic pack\'s', () => {
     const street = steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
     for (const w of street.waves) for (const c of w.crowd) expect(street.cast[c.type] ?? street.cast['*']).toBeTruthy();
     for (const k of Object.values(street.cast).flat()) expect(street.roster[k].hero.ref).toMatch(/foes-crowd-/);
+  });
+});
+
+describe('each street a turn: the shell stitches the streets', () => {
+  const TWO = [ME, { archetype: 'explorer', style: 'rushdown' }];
+  const gameOf = (quick, more = {}) => runSteps(quickWorld({ id: 'w', name: 'Brawl', quick: { goal: 'brawl', ...quick }, ...more }), { ref: 'gw' });
+  it('the game\'s flow asks the set-up before every street: how hard, once; who plays, each time, from the roster\'s players', () => {
+    const steps = gameOf({ roster: TWO, streets: [{ id: 'a', level: { kind: 'greybox', preset: 'street' } }, { id: 'b', level: { kind: 'greybox', preset: 'street' } }] });
+    const game = steps.find((s) => s.key === 'game').order, levels = Object.values(game.flow.steps).filter((s) => s.kind === 'level');
+    expect(readFlow(game.flow, game)).toEqual([]);
+    expect(levels.length).toBeGreaterThan(0);
+    for (const L of levels) {
+      expect(L.picks.map((p) => p.id)).toEqual(['difficulty', 'fighter']);
+      expect(L.picks[0].keep).toBe('game'); expect(L.picks[1].keep).toBeUndefined();
+      // (the pick is the roster entry's id, the one the street's page holds: never a crowd's)
+      const street = steps.find((s) => s.key === 'level-street-a').order.manifest.brawl.street, ids = L.picks[1].from.options.map((o) => o.id);
+      expect(ids).toEqual(street.roster.slice(0, 2).map((r) => r.id));
+    }
+  });
+  it('one to play: no fighter asked; a world\'s own set-up is kept, the fighter added unless it asks one', () => {
+    expect(brawlSetup(undefined, [{ id: 'fighter-1', name: 'A' }])).toEqual({ difficulty: true });
+    const two = [{ id: 'fighter-1', name: 'A' }, { id: 'fighter-2', name: 'B', about: 'rushdown' }];
+    expect(brawlSetup({ difficulty: { keep: 'level' } }, two).picks.map((p) => p.id)).toEqual(['fighter']);
+    expect(brawlSetup({ picks: [{ id: 'fighter', from: { options: ['fighter-2'] } }] }, two).picks).toHaveLength(1);
+    const game = gameOf({ roster: TWO }, { setup: { difficulty: { ask: 'How rough?' } } }).find((s) => s.key === 'game').order;
+    expect(Object.values(game.flow.steps).find((s) => s.kind === 'level').picks[0].ask).toBe('How rough?');
   });
 });

@@ -783,6 +783,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-15 (the release candidate merged into the side-scroll starter): `brawl`. Its page carries both
 // sides' changes at once (the belt's bends and the yard's client from the one, the game UI kernel and its sheet from the
 // other); each is said above, and neither changes how the fixture plays.
+// Re-pinned 2026-11-15 (a street in a game's turn, brawl/brawl-street-read.js): `brawl`. Its page inlines the
+// street's read (its session: who plays and how hard, as a turn's picks say) and the yard's client (a hosted street
+// reads it when the shell starts it); the fixture is a practice yard on no shell, and plays as it did.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -29,3 +29,24 @@ export function streetRead(street, hp0 = []) {
     rank: streetRank(Math.max(0, me.hp) / (hp0[me.id] || me.hp || 1)),
   };
 }
+
+/**
+ * A STREET'S SESSION, from what the game's turn hands it (game/turn.js: the picks made before the level loaded, the
+ * play shell's `params`): who plays and how hard the street fights. A street played on its own, or by a game that asks
+ * nothing, plays as it is written.
+ *   params.__picks.fighter   the roster entry (its id), or several (a seat each, to four), the player chose
+ *   params.difficulty        the engine's tier (easy | medium | max): STREET_DIFFICULTY's row
+ *   streetSession(params, roster, players) → { players: [roster index…], difficulty: tier | null }
+ * `roster` [{ id }] the street's roster as its page holds it; `players` the indices it was written with.
+ */
+export const STREET_DIFFICULTY = Object.freeze({
+  easy: Object.freeze({ says: 'one at a time, slow to come back, fewer on the street; a boss on its easiest mind', crowd: Object.freeze({ tokens: 1, cool: Object.freeze([85, 160]), limit: 4 }), cpu: 'first' }),
+  medium: Object.freeze({ says: 'the street as it is written', crowd: Object.freeze({}), cpu: null }),
+  max: Object.freeze({ says: 'three at once, quick to come back, more on the street; a boss on its sharpest mind', crowd: Object.freeze({ tokens: 3, cool: Object.freeze([28, 75]), limit: 8 }), cpu: 'last' }),
+});
+export function streetSession(params, roster, players) {
+  const P = params && typeof params === 'object' ? params : {}, picks = P.__picks && typeof P.__picks === 'object' ? P.__picks : {};
+  const asked = picks.fighter === undefined ? [] : Array.isArray(picks.fighter) ? picks.fighter : [picks.fighter];
+  const chosen = asked.map((id) => roster.findIndex((r) => r && r.id === id)).filter((k) => k >= 0).slice(0, 4);
+  return { players: chosen.length ? chosen : players.slice(0, 4), difficulty: typeof P.difficulty === 'string' && STREET_DIFFICULTY[P.difficulty] ? P.difficulty : null };
+}

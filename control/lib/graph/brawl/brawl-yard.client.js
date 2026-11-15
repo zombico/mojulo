@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -102,6 +102,8 @@ const RANGE = BY.range || null;
 const STREET = BY.street || null;
 const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!((RANGE && RANGE.waves) || BY.waves), mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
+// (a street in a game's turn: who plays and how hard, as the turn's picks say; none said, as the street is written)
+let SESSION = { players: picks, difficulty: null };
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 let readers = [], hp0 = [], over = null, seenClear = 0, bossSaid = false, said = 0;
@@ -123,7 +125,10 @@ function build() {
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
   const who = picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style }));
   if (STREET) {
-    room = streetOf({ belt: BELT, players: who, waves: STREET.waves, ...(BY.things.length ? { things: BY.things } : {}) });
+    // (how hard the street fights, by the game's turn: the tier's crowd rules over the street's, its bosses' minds)
+    const tier = SESSION.difficulty ? STREET_DIFFICULTY[SESSION.difficulty] : null, minds = Object.keys(CPU_LEVELS);
+    const waves = tier && tier.cpu ? STREET.waves.map((w) => (w.boss ? { ...w, boss: { ...w.boss, cpu: tier.cpu === 'first' ? minds[0] : minds[minds.length - 1] } } : w)) : STREET.waves;
+    room = streetOf({ belt: BELT, players: who, waves, ...(BY.things.length ? { things: BY.things } : {}), ...(tier && Object.keys(tier.crowd).length ? { crowd: tier.crowd } : {}) });
     readers = picks.map(() => newReader());
     hp0 = room.s.bodies.map((b) => b.hp);
     over = null; seenClear = 0; bossSaid = false;
@@ -895,7 +900,7 @@ function streetScreen() {
 // new session of the same page)
 const HOSTED = !!(STREET && BY.wire && window.parent !== window);
 if (HOSTED) {
-  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version) { if (over) build(); try { window.focus(); } catch (err) { /* a frame that may not */ } } });
+  window.addEventListener('message', (e) => { const d = e.data; if (d && typeof d === 'object' && d.moj === BY.wire.init && d.contractVersion === BY.wire.version) { const S0 = streetSession(d.params, BY.roster, BY.players), changed = S0.difficulty !== SESSION.difficulty || S0.players.join() !== picks.join(); SESSION = S0; picks = S0.players.slice(); if (over || changed) build(); try { window.focus(); } catch (err) { /* a frame that may not */ } } });
   window.parent.postMessage({ moj: BY.wire.ready, contractVersion: BY.wire.version, levelRef: 'street' }, '*');
   // (the keys are read in this frame: it takes the focus as it starts and whenever it is pressed on, so a player who
   // started the game on the shell's screen plays without a click)
@@ -915,4 +920,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { wreck: (e) => wreckAt(e), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };
+window.__mojBrawl = { wreck: (e) => wreckAt(e), get session() { return { players: picks.slice(), difficulty: SESSION.difficulty }; }, get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

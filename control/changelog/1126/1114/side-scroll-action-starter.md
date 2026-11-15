@@ -167,6 +167,16 @@ screen) is now played on a page; before, only its practice yard was.
   take them as a street does (`{ kind: 'stage', kit, rise, turn, drift }`): `brawl-warp.js` placeWarp shears any place
   that already stands, across by the drift and (rooms, whose ground does not climb of itself) up by the rise, a face
   cut at a bend first, its lights, rooms, colliders and anchors moved with it; its dress follows its ground.
+- Each street a turn (the game turn, `game/turn.js`, merged from the release candidate): a quick brawl's game now
+  carries a flow whose every street asks the brawl's set-up before it loads (`quick.js` brawlSetup, lowered by
+  `gameworld/setup.js`): how hard it fights, asked once and held by the save, and who plays, asked before every street
+  when the roster has more than one player (the pick is the roster entry's id). The play shell draws the picks on
+  mana-ui, loads the street, and takes its end to the results and the next street, so the shell stitches the game. A
+  hosted street reads its session when the shell starts it (`brawl-street-read.js` streetSession: the fighter picked
+  plays, to four seats; STREET_DIFFICULTY: the tier's crowd rules over the street's and its bosses' minds; the middle
+  tier is the street as written). A world's own `setup` is kept, the fighter pick added unless it asks one.
+  Proven on test streets (`scripts/spikes/brawler/turns.mjs`: three blockouts, one straight, one that rises, one that
+  drifts, two fighters; designed, made, exported and played through the shell in headless Chrome).
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one
   block, the town's page under a host's size limit (a town street's page is about 18 MB and slow where a box draws in
