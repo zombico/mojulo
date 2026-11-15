@@ -93,6 +93,26 @@ describe('the world map', () => {
     for (let i = 1; i < way.length; i++) expect(Math.abs(P.route.indexOf(way[i].region) - P.route.indexOf(way[i - 1].region))).toBeLessThanOrEqual(1);
   });
 
+  it('a shortcut costs more: a band holds each side way at its gate, off the walk, more of them than any block\'s own fight', () => {
+    const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan, beats = g.sketch.scenario.beats;
+    const G = readGrid({ tile: g.tile, plan: P, segments: g.segments }, 'grid'), count = (b) => Object.values(b.foes ?? {}).reduce((a, c) => a + c, 0);
+    const guards = beats.filter((b) => /-shortcut$/.test(b.id));
+    expect(guards).toHaveLength(P.joins.length);
+    for (const [i, [X, Y]] of P.joins.entries()) {
+      const b = guards[i], gate = G.plan.gates.find((x) => x.join && x.from === X && x.to === Y), [r0, c0] = G.plan.segments[Y].at;
+      expect(b.at).toBe(Y);
+      // (at the side way's gate in the block it comes out in, and never on the walk's own way)
+      expect([r0 + b.tile[0], c0 + b.tile[1]]).toEqual(gate.tiles[1]);
+      expect(mapWay(G).way.some((x) => x.r === gate.tiles[1][0] && x.c === gate.tiles[1][1])).toBe(false);
+      // (significantly more: twice any other fight short of the climax, at the least)
+      const most = Math.max(...beats.filter((x) => x.kind === 'fight' && !guards.includes(x)).map(count));
+      expect(count(b)).toBeGreaterThanOrEqual(2 * most);
+      expect(count(b)).toBe(WORLD_MAP.shortcut.grunt + WORLD_MAP.shortcut.elite);
+    }
+    for (const l of lawsOf(level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    for (const l of lawsOf(worldMapLevel({ n: 6 }).level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+
   it('its cliffs make sense: terraces that climb to the goal, a way a step a tile at most, a cliff only where no way crosses', () => {
     const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan;
     const G = levelGrid({ grid: { tile: g.tile, plan: P, segments: g.segments }, sketch: g.sketch }), z = (x) => G.rise.z[x.r * G.cols + x.c];

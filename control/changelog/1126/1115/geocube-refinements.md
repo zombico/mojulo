@@ -16,6 +16,9 @@
   two ways. The opening keeps its one way out. Fights stand at each block's heart, on its ways; finds beside them. The
   walk itself (map-items.js `mapWay`) keeps to its route where a join would shortcut it, so every block still holds its
   pack and the guide leads the long way. The world's bible draws the side ways, dotted, on its map.
+- **A shortcut costs more.** A side way that skips blocks of the walk is held: a band stands at its gate in the block
+  it comes out in (five of the rank and file and two elites by default, `WORLD_MAP.shortcut`, against a block's own
+  fight of three), off the walk, so only a player who takes the short way meets them. The long way stays the taught way.
 - **Cliffs that make sense** (level/map-cliffs.js, era/out-tile.js `riseAt`). A sketch may say `cliffs: true`: where its
   approved heights stand 6 m or more apart between two tiles side by side and no way crosses that edge, the land no
   longer eases from one to the other across both tiles (a long ramp nobody asked for): each holds its height to their

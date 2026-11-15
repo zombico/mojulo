@@ -24,6 +24,10 @@
  *   THE JOINS    wherever two blocks lie side by side and the walk does not step between them, a side way joins them
  *                (the plan's `joins`), so the map has loops and a block is reached two ways; the opening alone keeps its
  *                one way out, the game's first lesson
+ *   A SHORTCUT COSTS MORE   a side way that skips blocks of the walk is never free: it is HELD, a band standing at its
+ *                gate in the block it comes out in, significantly more of them than any block's own fight
+ *                (WORLD_MAP.shortcut), off the walk so only one who takes the shortcut meets them. The long way is the
+ *                taught way; the short way is paid for in skill
  *   THE CLIFFS   the land climbs a step a block along the walk to the goal's heights, each block a terrace; a way climbs
  *                a step a tile at most, cut down into the higher terrace where it must, and where two terraces stand
  *                two steps or more apart with no way between them the land is a cliff (level/map-cliffs.js). So a cliff
@@ -48,6 +52,8 @@ import { readGrid, SIDES } from '../level/grid.js';
 
 // (`fills`: the first zone's two blocks, the zones after in turn, the goal's: level/block-fills.js)
 export const WORLD_MAP = Object.freeze({ size: 5, tile: 24, opening: 1, first: 3, wide: 3,
+  // (a shortcut's band: how many hold a side way, against a block's own fight of three)
+  shortcut: Object.freeze({ grunt: 5, elite: 2 }),
   fills: Object.freeze({ road: 'loop', ruins: 'crossroads', town: 'crossroads', zones: Object.freeze(['loop', 'round', 'spur']), goal: 'loop' }) });
 // (the blocks' names, by their place on the walk: the first zone's three, the zones between, the goal's)
 const MIDDLE_NAMES = ['the river town', 'the high pass', 'the old outpost', 'the marsh crossing', 'the watchtower'];
@@ -165,6 +171,13 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
     beats.push(
       { id: 'climb', at: last, tile: inOf(last), kind: 'climb', say: `Climb to ${key[last].name}`, pace: 'tension' },
       { id: 'climax', at: last, tile: mid, kind: 'climax', say: `What holds ${key[last].name} waits before its keep`, foes: { [boss]: 1 }, pace: 'peak' });
+  }
+  // A SHORTCUT COSTS MORE: each side way's band at its gate in the later block, after that block's first beat (so the
+  // walk's own beats keep their order and their pace), off the walk's way
+  for (const [X, Y] of joins) {
+    const side = Object.keys(P.ways[Y]).find((sd) => P.ways[Y][sd] === X), i = beats.findIndex((b) => b.at === Y), K = WORLD_MAP.shortcut;
+    const foes = elite === grunt ? { [grunt]: K.grunt + K.elite } : { [grunt]: K.grunt, [elite]: K.elite };
+    beats.splice(i + 1, 0, { id: `${X.toLowerCase()}-${Y.toLowerCase()}-shortcut`, at: Y, tile: gateTile(size, side), kind: 'fight', say: `A band holds the short way from ${key[X].name} up to ${key[Y].name}`, foes, pace: 'tension' });
   }
   const written = Object.keys(segments).length ? { segments } : {};
   // THE TERRACES AND THEIR CLIFFS: the opening and the road on the low ground, then a step a block up the walk to the
