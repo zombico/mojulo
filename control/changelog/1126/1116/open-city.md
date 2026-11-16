@@ -19,3 +19,9 @@
   street of them stays light.
 - **Cars sit on the road.** A car now pitches and leans with the ground under it instead of standing level on a
   slope, both parked and while you drive.
+- **The city tells you what to do.** A town or city-district game with cars now opens with a line saying what it is,
+  teaches the keys one at a time with your character in hand (walk, get in and out of a car, drive), and then keeps
+  one instruction at the top of the screen with an arrow, the distance and a pillar of light where to go: get into
+  a car, pick up the job, deliver it. A job that repeats sends you round again; with no job it says the city is open.
+- **Your earnings stay on screen.** A repeating job's pay is shown as a running count in the corner, and the key hints
+  now mention the car key.

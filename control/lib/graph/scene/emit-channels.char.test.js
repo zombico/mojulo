@@ -20,6 +20,9 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-16 (the open city: a driver in a cab stands in zones where its car is): the event bus the page
+// embeds reads a body sent away that rides in a cab as present (worlds/event-bus.js deriveZoneEvents: one line replaced),
+// so an errand is done from a car. Every fixture that embeds the bus re-pinned; the pages draw and play as before.
 // Re-pinned 2026-11-14 (the action RPG: foes that never lock blades, steps at their own level): the runtime's melee
 // contact reads `rule.clash === false` on either body before a clash (combat-melee.js: one line replaced in place; a
 // rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one

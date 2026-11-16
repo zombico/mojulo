@@ -503,7 +503,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // (the people of its pavements, people.js: a district's; rolled by the world's keys, worn by its scene's walkers)
     const people = s.section === 'geocity' ? peopleExtra(G) : null;
     const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people);
-    const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
+    // (a stage with cars says its key: the same press gets in and out)
+    const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore) });

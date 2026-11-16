@@ -97,10 +97,19 @@ describe('a shop\'s door, walked through', () => {
     for (const a of level.slice(0, 1)) expect(at(a)).toHaveLength(0);
     expect(Math.max(...shops.map((a) => a.store.rise))).toBeLessThanOrEqual(0.541);
   });
-  it('a shop on a pad high over its walk is sunk under it: its floor under the pad, the pad and its face cut round it', () => {
+  it('a row on a pad high over its walk stands on a forecourt: the walk raised to its floor along its front, railed where it drops', () => {
+    // (the ground a door opens on, a stride out from it, is its floor's; three strides out, the walk well below it)
+    const top = (x, y) => Math.max(-Infinity, ...P.faces.filter((f) => /^geocity:(stoop|walk|road|pad|paving|floor)$/.test(f.group) && (f.normal?.[2] ?? 0) > 0.5 && Math.min(...f.corners.map((c) => c[0])) <= x && Math.max(...f.corners.map((c) => c[0])) >= x && Math.min(...f.corners.map((c) => c[1])) <= y && Math.max(...f.corners.map((c) => c[1])) >= y).map((f) => Math.max(...f.corners.map((c) => c[2]))));
+    const raised = shops.filter((a) => Math.abs(top(a.at[0] + a.N[0] * 1, a.at[1] + a.N[1] * 1) - a.store.door[2]) < 0.05 && top(a.at[0] + a.N[0] * 3.6, a.at[1] + a.N[1] * 3.6) < a.store.door[2] - 0.5);
+    expect(E.forecourts).toBeGreaterThan(0);
+    expect(raised.length).toBeGreaterThan(0);
+    for (const a of raised) { expect(a.store.rise).toBeLessThan(0.02); expect(a.store.sink ?? 0).toBe(0); }
+    expect(P.faces.some((f) => f.group === 'geocity:handrail')).toBe(true);
+    expect(P.colliders.some((c) => String(c.of).endsWith(':forecourt'))).toBe(true);
+  });
+  it('a shop on a pad too high for a forecourt is sunk under it: its floor under the pad, the pad and its face cut round it', () => {
     const low = shops.filter((a) => a.store.sink > 0);
-    expect(low.length).toBeGreaterThan(0);
-    expect(E.sunk).toBe(low.length);
+    expect(E.sunk ?? 0).toBe(low.length);
     for (const a of low.slice(0, 1)) {
       const { inside, door, sink } = a.store, mid = [(inside.min[0] + inside.max[0]) / 2, (inside.min[1] + inside.max[1]) / 2];
       // (no ground of the metro's over its floor and under its ceiling at its middle; its pad still stands beside it)

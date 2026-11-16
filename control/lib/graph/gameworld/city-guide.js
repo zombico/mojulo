@@ -36,7 +36,8 @@ export function cityGuide(manifest) {
   const from = hero.transform.pos, d = (e) => Math.hypot(e.transform.pos[0] - from[0], e.transform.pos[1] - from[1]);
   const car = cabs.reduce((m, e) => (d(e) < d(m) ? e : m), cabs[0]);
   const mechanics = Array.isArray(M.game?.mechanics) ? M.game.mechanics : [];
-  const steps = [{ id: 'car', say: 'Get into a car', kind: 'find', at: at3(car.transform.pos), radius: CITY_GUIDE.car }];
+  // (the car is reached by being in one, whichever: standing beside it is not it. `cab`: scene/channels/guide.js)
+  const steps = [{ id: 'car', say: 'Get into a car', kind: 'find', at: at3(car.transform.pos), radius: CITY_GUIDE.car, cab: true }];
   // each job's legs in the order it is done: what it asks for picked up where it is had, then handed in
   let loop = null;
   const jobs = mechanics.filter((m) => m && m.kind === 'deliver' && Array.isArray(m.at));
@@ -53,7 +54,8 @@ export function cityGuide(manifest) {
   }
   const job = jobs.length > 0;
   return {
-    intro: `${M.title ? `${M.title}. ` : ''}${job ? 'Take any car. A job waits where the light stands.' : 'Take any car. The city is open.'}`,
+    // (the game's name: a level's title is `<game> · <level> · <stage>`)
+    intro: `${M.title ? `${String(M.title).split(' · ')[0]}. ` : ''}${job ? 'Take any car. A job waits where the light stands.' : 'Take any car. The city is open.'}`,
     lessons: CITY_GUIDE.lessons.map((l) => ({ ...l })),
     steps,
     ...(loop !== null ? { loop } : {}),

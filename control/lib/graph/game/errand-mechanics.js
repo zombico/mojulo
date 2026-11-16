@@ -140,6 +140,8 @@ export function lowerDeliver(p, ctx) {
   if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what the giver pays');
   for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: ok }, frag);
   frag.reactions.push({ on: ok, do: 'emit', type: done });
+  // (a standing job's pay is kept in view: what it has earned, counted up)
+  if (p.repeat === true) for (const r of reward) frag.hud.push({ var: heldVar(BAG, r.item), label: itemKey(r.item).replace(/-/g, ' '), as: 'counter', slot: 'top-right' });
   if (p.repeat === true) frag.hud.push({ on: done, as: 'toast', text: reward.length ? `paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'done', ttl: 1.8 });
   frag.hud.push({ on: short, as: 'toast', text: `bring ${wants.map((w) => `${w.min ?? 1} ${itemKey(w.item).replace(/-/g, ' ')}`).join(', ')}`, ttl: 1.8 });
   const shape = Array.isArray(p.half) ? { half: p.half } : { radius: Number.isFinite(p.radius) ? p.radius : 2 };
