@@ -946,6 +946,11 @@ export function streetPlay(play, belt, { waves, things, types = null, setting = 
   if ((play ?? 'brawl') !== 'gun') return { waves: waves ?? defaultWaves(belt, types), things: things ?? defaultThings(belt, boxes) };
   return { play: 'gun', guns: guns ?? QUICK_GUNS.slice(), ...(grenades !== undefined ? { grenades } : {}), waves: waves ?? playWaves('gun', belt, types), things: things ?? playThings('gun', belt, { boxes, cover: dress ? dressCover(dress, belt) : setting ? settingCover(setting) : null }) };
 }
+/** what a street written at its design lays on a place of its own (brawl-cast.js streetLevel `ground`): its play's
+ * things and the starter's scenes */
+export const STREET_LAY = Object.freeze({ layThings: (play, belt, dress) => streetPlay(play, belt, { waves: [], dress, setting: dress?.setting ?? null }).things, layScenes: (belt, name) => defaultScenes(belt, { name: name ?? undefined }) });
+/** a flow whose level steps call a street's scenes (arrive as play starts, leave once it is won), where none is said */
+export const withStreetScenes = (flow) => ({ ...flow, steps: Object.fromEntries(Object.entries(flow.steps).map(([k, st]) => [k, st.kind === 'level' ? { ...st, ...(st.start ? {} : { start: { scene: BRAWL_SCENES.start, once: false } }), ...(st.end ? {} : { end: { scene: BRAWL_SCENES.end, when: 'won' } }) } : st])) });
 /** the guns a game's set-up asks from: the first run & gun street's (none: no street is one) */
 export const brawlGuns = (streets) => streets.map((s) => s.manifest.brawl.street).find((st) => st.play === 'gun')?.guns ?? [];
 /** A brawl's streets as stage recipes (each a level the brawl is fought down): → [{ id, name, manifest }]. Each carries

@@ -1,4 +1,4 @@
-// THE FIGHT MEASURED for a world (fight-measure.js): its sideways maps read off the world, the decisive cases run.
+// THE FIGHT MEASURED for a world (fight-measure.js): its streets read off the world, the decisive cases run.
 import { describe, it, expect } from 'vitest';
 import { fightMeasured } from './fight-measure.js';
 
@@ -7,7 +7,7 @@ const level = { kind: 'greybox', preset: 'street', belt: { screens: [{ length: 1
 const easy = [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }], wall = [{ screen: 1, crowd: [{ type: 'heavy', n: 6 }, { type: 'knife', n: 6 }] }];
 
 describe('a world\'s fight, measured', () => {
-  it('a world with no sideways map has none', () => {
+  it('a world with no street has none', () => {
     expect(fightMeasured({ id: 'w', levels: { a: {} } })).toBeNull();
     expect(fightMeasured({ id: 'w', quick: { goal: 'reach' } })).toBeNull();
   });
@@ -21,9 +21,14 @@ describe('a world\'s fight, measured', () => {
     expect(M.worst.advice).toMatch(/screen 2/);
     expect(M.lost).toBe(M.maps[1].lost.length);
   });
-  it('a composed world\'s sideways level, played as it says', () => {
-    const M = fightMeasured({ id: 'w', levels: { dock: { name: 'Dock', sideways: { ground: level, play: 'gun', waves: [{ screen: 1, crowd: [{ type: 'rifleman', n: 1 }] }], things: [] } }, town: {} } });
+  it('a designed game\'s street level: its stops on its ground, read as its page reads it', () => {
+    const ground = { kind: 'greybox', preset: 'street' };
+    const M = fightMeasured({ id: 'w', levels: { dock: { name: 'Dock', street: { ground, stops: [{ wave: { grunt: 1 } }], lives: 3, things: [] } }, town: {} } });
     expect(M.maps).toHaveLength(1);
-    expect(M.maps[0]).toMatchObject({ id: 'dock', name: 'Dock', play: 'gun', lost: [] });
+    expect(M.maps[0]).toMatchObject({ id: 'dock', name: 'Dock', play: 'brawl' });
+    expect(M.maps[0].runs.map((r) => r.result)).toEqual(['won', 'won']);
+    // (a run & gun's by its guns)
+    const G = fightMeasured({ id: 'w', levels: { dock: { street: { ground, stops: [{ wave: { grunt: 1 } }], guns: true, things: [] } } } });
+    expect(G.maps[0].play).toBe('gun');
   });
 });

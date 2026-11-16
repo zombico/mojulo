@@ -22,7 +22,6 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
-import { sidewaysStage } from './sideways.js';
 import { levelHud } from '../game/hud-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
@@ -49,7 +48,7 @@ import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
-import { SHOOT, PERSON, shoulderOf } from './quick.js';
+import { SHOOT, PERSON, shoulderOf, STREET_LAY } from './quick.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
@@ -196,11 +195,9 @@ export function gameStages(world) {
     }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
-    // a level walked sideways is one stage: the place and its belt (sideways.js), its street laid by the run
-    if (R.sideways) { out.push({ level, node: 'street', section: 'sideways', index: 0, manifest: sidewaysStage(R.sideways) }); continue; }
     // a street level is one stage: the street (brawl-cast.js streetLevel), laid again on the game's hero and foes when
     // its level is made (levelOrder)
-    if (R.brawlStreet) { out.push({ level, node: 'street', section: 'street', index: 0, street: R.brawlStreet, manifest: streetLevel(G, R.brawlStreet, { title: R.name }).manifest }); continue; }
+    if (R.brawlStreet) { out.push({ level, node: 'street', section: 'street', index: 0, street: R.brawlStreet, manifest: streetLevel(G, R.brawlStreet, { title: R.name, ...STREET_LAY }).manifest }); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
     if (R.runner) { out.push({ level, node: 'runner', section: 'runner', index: 0, manifest: runnerStage(R.runner) }); continue; }
     // an obstacle course is one stage: the lane (roll-course.js), its slots filled by the level's roll, sized for the hero
@@ -749,7 +746,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
-  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
+  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal

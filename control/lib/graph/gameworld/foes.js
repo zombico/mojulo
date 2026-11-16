@@ -50,7 +50,6 @@
  *
  * Pure and deterministic: no dice (a foe's place is its beat's).
  */
-import { sidewaysFoes } from './sideways-read.js';
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
@@ -208,8 +207,6 @@ export function readLevelFoes(LF, bestiary, at) {
 export function fieldedIds(G) {
   const used = new Set();
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
-  // (and who a level walked sideways casts as its crowd: sideways-read.js)
-  for (const f of sidewaysFoes(G)) used.add(f);
   // (and what a level's wave gauntlet wakes: gauntlet.js)
   for (const f of gauntletIds(G)) used.add(f);
   // (and what its tasks' fights wake: fights.js)

@@ -198,7 +198,6 @@ import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
 import { readFlow, FLOW_IN_PLAY } from '../game/flow.js';
 import { readSetup } from './setup.js';
-import { readSideways } from './sideways-read.js';
 import { readUi } from '../playscape/ui/interface-look.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { readMounts } from '../worlds/mount-units.js';
@@ -278,7 +277,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'sideways', 'street'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -700,10 +699,6 @@ export function readGameworld(W) {
       // an obstacle course: a lane of slots a seed fills, run at speed (roll-course.js), sized for the world's hero
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: an obstacle course is the lane alone: no walk, building, city, roadway, airspace, runner, places, ground or arena beside it`);
       try { readObstacles(L.obstacles); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
-    } else if (L.sideways !== undefined) {
-      // a level walked SIDEWAYS (sideways.js): a side-scrolling map, its belt down a place; who is on it is the world's
-      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'geotown', 'glyphs', 'obstacles', 'foes'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a sideways level is its map alone (its ground, cast, waves, things and scenes are said in \`sideways\`): no walk, building, city, roadway, airspace, runner, places, ground, arena, geotown, glyphs, obstacles or foes beside it`);
-      try { readSideways(L.sideways, { foes, where: 'sideways' }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
     } else if (L.street !== undefined) {
       // a street level: a beat-em-up's or a run & gun's street (brawl-cast.js), its stops and its boss the level's design,
       // its crowd the world's bestiary
@@ -1031,8 +1026,6 @@ export function resolveLevel(world, id) {
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   // an obstacle course: its settings (levels.js lays the lane for the world's hero)
   if (L.obstacles) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, obstacles: readObstacles(L.obstacles) };
-  // a level walked sideways: its map's words (levels.js lays the stage, the run its street)
-  if (L.sideways) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, sideways: readSideways(L.sideways) };
   // a street level: its words (levels.js lays it on the game's hero and foes: brawl-cast.js streetLevel)
   if (L.street) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, brawlStreet: L.street };
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };

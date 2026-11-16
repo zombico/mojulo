@@ -57,7 +57,6 @@ import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan,
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
 import { withSetup } from './setup.js';
-import { sidewaysLevelOrder, sidewaysTurn } from './sideways.js';
 import { FIGHT_REGISTERS } from '../versus/versus-levels.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { defaultFlow, startInPlay, FLOW_IN_PLAY } from '../game/flow.js';
@@ -67,7 +66,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -470,17 +469,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const M = mapLevelOrder(G, { ref: m.ref, dots: m.dots, name: m.name, seed: `map-${k + 1}`, geocube: stages[m.at[0]].manifest?.geocube, scenes: told?.byEpoch[k]?.begin ?? [] });
     steps.push({ key: `map-${k + 1}`, ref: m.ref, ready: ready.systems.ready, ...waits(ready.systems), order: M.args, print: fingerprint(M.args) });
   });
-  // (the levels walked SIDEWAYS, sideways.js, as they are ordered: who can be played on them, whether they have scenes)
-  const sideways = [];
   stages.forEach((s, i) => {
-    // A LEVEL WALKED SIDEWAYS: its street laid with the world's own, the hero and the party its players, its cast's
-    // foes the crowd's faces, in the world's tradition; a level the game's turn runs like any other
-    if (s.section === 'sideways') {
-      const trad = settingOfGame(G).tradition, L = sidewaysLevelOrder(G, s, { ref: levelRefs[i], hero: pilot, heroName: GL.characters?.hero?.name ?? G.characters?.hero?.name ?? null, party, foeRefs, ...(FIGHT_REGISTERS.includes(trad) ? { register: trad } : {}) });
-      sideways.push(L);
-      steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
-      return;
-    }
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
     // a book fighting on boards: a stage that meets packs is a tactics battle on its own ground, the whole level
@@ -550,10 +539,10 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     }
     if (!flow && Object.keys(cinematics).length) flow = defaultFlow({ ...game0, cinematics });
     // THE SET-UP (setup.js): what is asked before a level loads, on every level step that asks nothing of its own
-    // (a world of levels walked sideways: each level's turn asks who plays too, and calls the street's scenes where
-    // every level is one and has them; sideways.js sidewaysTurn)
-    if (sideways.length) flow = sidewaysTurn(flow ?? defaultFlow(game0), { setup: G.setup ?? null, playable: sideways[0].playable, guns: sideways.find((L) => L.guns)?.guns ?? [], staged: sideways.length === C.stages.length && sideways.every((L) => L.staged) });
-    else if (G.setup) flow = withSetup(flow ?? defaultFlow(game0), G.setup);
+    if (G.setup) flow = withSetup(flow ?? defaultFlow(game0), G.setup);
+    // (a world whose every level is a street with scenes: each level's turn calls them, arrive as play starts, leave
+    // once it is won; quick.js withStreetScenes)
+    if (C.stages.length && C.stages.every((s) => s.section === 'street' && s.manifest?.brawl?.practice?.street?.scenes)) flow = withStreetScenes(flow ?? defaultFlow(game0));
     const game = withCues(steps, flow ? { ...game0, flow } : game0, runScore, G, ref);
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));

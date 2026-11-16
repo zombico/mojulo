@@ -25,7 +25,7 @@
 import { streetOf, stepStreet, CROWD_TYPES } from './brawl-crowd.js';
 import { newReader, readButtons } from './brawl-moves.js';
 import { newGunReader, readGunButtons } from './brawl-gunner.js';
-import { STREET_DIFFICULTY, tallyRounds, accuracyOf } from './brawl-street-read.js';
+import { STREET_DIFFICULTY, tallyRounds, accuracyOf, streetRead } from './brawl-street-read.js';
 import { CPU_LEVELS } from '../versus/versus-cpu.js';
 import { THINGS } from './brawl-things.js';
 import { viewHalf } from './brawl-belt.js';
@@ -164,14 +164,18 @@ function oneTake(street, { bot, tier, secs, watch, wait }) {
     if (on >= 0 && W[on].from !== null && !st.s.cleared.includes(W[on].screen) && !W[on].passed) W[on].seconds = (f - W[on].from) / 60;
     if (play === 'gun') tally = tallyRounds(tally, st.s.events, 1);
     if (watch) watch(st, f, buttons);
-    if (now.ko) result = 'lost';
-    else if (held.length && held.every((i) => st.s.cleared.includes(i))) result = 'won';
+    // (its end the street's own: lost when every player is down with no fall left, won at its last held screen)
+    const R = streetRead(st, []);
+    if (R.lost) result = 'lost';
+    else if (R.won) result = 'won';
   }
   const r2 = (v) => Math.round(v * 100) / 100, me = st.s.bodies[0];
   return {
     bot, tier, play, result: result ?? 'timeout', seconds: Math.round(f / 6) / 10, health: r2(Math.max(0, me.hp) / hp0), at: Math.round(me.x / 100) / 10,
     waves: W.map(({ from, ...w }) => ({ ...w, seconds: Math.round(w.seconds * 10) / 10, lost: r2(w.lost / hp0), reached: from !== null })),
     ...(play === 'gun' ? { rounds: { ...tally, accuracy: accuracyOf(tally) } } : {}),
+    // (a street with lives: the falls it took, of those allowed)
+    ...(st.mind.lives ? { falls: st.mind.lives.falls, lives: st.mind.lives.of } : {}),
   };
 }
 

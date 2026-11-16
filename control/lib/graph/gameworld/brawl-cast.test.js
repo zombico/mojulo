@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { brawlPlay, brawlCast, brawlBodies, withBodies, readBrawlWaves, BRAWL_PLAYS, brawlStreet, readStreet, withStreetBodies, STREET } from './brawl-cast.js';
 import { readBelt } from '../brawl/brawl-belt.js';
-import { readLevelStreet, streetFoeIds, streetLevel } from './brawl-cast.js';
+import { readLevelStreet, streetFoeIds, streetLevel, STREET_UNSAID } from './brawl-cast.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { fieldedIds } from './foes.js';
@@ -190,5 +190,39 @@ describe('a street as a level of a designed game', () => {
     expect(S.manifest.brawl.practice.range).toBeUndefined();
     expect(streetLevel({ ...G, intent: { from: 'run-and-gun' } }, street, {}).manifest.brawl.practice.range).toEqual({});
     expect(streetLevel(G, { ...street, guns: ['spread'] }, {}).manifest.brawl.practice.range).toEqual({ guns: ['spread'] });
+  });
+});
+
+// A STREET ON A PLACE OF ITS OWN (`ground`, the fold of the sideways level into the street): the design's stops laid
+// along a town's street, a stage or a blockout, with what stands on it and how it arrives.
+describe('a street level on a ground', () => {
+  const lay = { layThings: (play, belt) => [{ kind: play === 'gun' ? 'cover' : 'box', what: play === 'gun' ? 'sandbags' : 'barrel', at: belt.screens[1].from + 2 }], layScenes: (belt, name) => ({ arrive: [{ title: name ?? 'x', secs: 1 }] }) };
+  const ground = { kind: 'greybox', preset: 'street', belt: { rise: [[0, 0], [10, 0], [14, 1]] } };
+  it('is read: a place in a kit\'s stead, its screens the street\'s; true or no stops is the street unsaid', () => {
+    expect(readLevelStreet(true).design).toEqual({ ...STREET_UNSAID });
+    expect(readLevelStreet({ ground }).design.stops).toHaveLength(STREET_UNSAID.stops.length);
+    expect(readLevelStreet({ ground, stops: [{ wave: { grunt: 1 } }] })).toMatchObject({ ground, things: null, scenes: null });
+    expect(() => readLevelStreet({ ground, kit: 'island-plaza' })).toThrow(/no `kit` beside it/);
+    expect(() => readLevelStreet({ ground: { kind: 'town', screens: [{ length: 10 }] } })).toThrow(/its screens are the street's stops/);
+    expect(() => readLevelStreet({ ground: { kind: 'moon' } })).toThrow(/kind is one of/);
+    expect(() => readLevelStreet({ scenes: 3 })).toThrow(/scenes/);
+  });
+  it('is laid on its ground: the stops its screens, its bends kept, its play\'s things and the starter\'s scenes unless said', () => {
+    const words = { ground, stops: [{ wave: { grunt: 1 } }, { wave: { grunt: 2 } }] };
+    const M = streetLevel({}, words, { title: 'Dock', ...lay }).manifest, P = M.brawl.practice;
+    expect(M.kind).toBe('greybox');
+    expect(M.brawl.belt.screens.map((s) => !!s.gate)).toEqual([false, true, true]);
+    expect(M.brawl.belt.rise).toBeTruthy();
+    expect(P.things).toHaveLength(1);
+    expect(P.street.scenes.arrive[0].title).toBe('Dock');
+    // (its own, kept; none, laid none; a kit's street as it was: nothing laid)
+    const own = streetLevel({}, { ...words, things: [], scenes: false }, lay).manifest.brawl.practice;
+    expect(own.things).toEqual([]);
+    expect(own.street.scenes).toBeUndefined();
+    const kit = streetLevel({}, { stops: words.stops }, lay).manifest.brawl.practice;
+    expect(kit.things).toBeUndefined();
+    expect(kit.street.scenes).toBeUndefined();
+    // (a run & gun's: its play's things)
+    expect(streetLevel({}, { ...words, guns: true }, lay).manifest.brawl.practice.things[0].kind).toBe('cover');
   });
 });

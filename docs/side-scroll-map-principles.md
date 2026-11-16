@@ -116,24 +116,28 @@ And for all three:
 26. **A map says how it ended, and nothing more.** Won or lost, how long, how much was left: the shell turns that into
     the results, the rank, the next map. A map never names the map after it.
 
-## In a composed world
+## In a designed game
 
-The sideways map is a level's own in a composed world (the game book), not a game apart
-(`control/lib/graph/gameworld/sideways.js`):
+A street is a level of a designed game (the game book), not a game apart (`control/lib/graph/gameworld/brawl-cast.js`):
 
 ```js
-levels: { dock: { name: 'Dock Road', sideways: { ground: { kind: 'town', drift: [[0, 0], [20, 0], [34, 8]] },
-                                                 cast: { '*': 'punk', boss: 'chief' } } } }
+levels: { dock: { name: 'Dock Road', street: { ground: { kind: 'town', drift: [[0, 0], [20, 0], [34, 8]] },
+                                               stops: [{ wave: { grunt: 3 } }, { wave: { grunt: 3, shooter: 1 } }],
+                                               boss: 'boss', lives: 3 } } }
 ```
 
-- **The level says its map; the world says who is on it.** `ground` is the place and its belt (its screens, dress,
-  rise, turn and drift); `waves`, `things` and `scenes` are the street's, the starter's when not said.
-- **Who plays is the book's hero, and each of its cast who joins.** They are made as the book makes them; with more
-  than one, the turn asks which before each level.
-- **Who is fought is the book's bestiary.** `cast` says which foe the crowd is drawn as, under how it fights, under `*`
-  for the rest, under `boss` for the boss. A foe dressed as a crew (`skin.dress`) is one of the comic pack's grunts.
+- **The level says its street; the world says who is on it.** Its `stops` hold the view until their wave falls, its
+  `boss` waits at the end, and each wave is written by the part someone plays (grunt, shooter, elite, boss) or by a
+  foe's name, cast from the world's own bestiary. `street: true`, or a street with no stops, is three stops that build
+  to the cast's boss.
+- **Its place is its `ground`.** A place of its own in a kit's stead: a town's street, a stage on a kit, a blockout,
+  with its dress and its rise, turn and drift. The stops are laid along it. On a ground, what stands on the street is
+  its play's (breakables with food; a run & gun's cover from the dress and its gun crates) and it arrives and leaves
+  by the starter's scenes, unless it says its own `things` and `scenes` (`scenes: false` for none).
+- **Who plays is the game's hero, and each of its cast who joins**, a seat each up to four; anyone with a body can
+  drop in on a second controller.
 - **The game is the world's.** Its levels are stitched by the turn like any other world's; its own `setup` and `flow`
-  are kept.
+  are kept. Where every level is a street with scenes, each level's turn calls them.
 
 ## How it is played
 
@@ -143,11 +147,12 @@ A map is not a game type. One map (its belt, its bends, its dress, its scenes, i
 screen shows, what stands in the band, how the map is held, what the end reads back. A new way to play a sideways map
 is a row and its idioms, never a second map.
 
-`play` is said on a quick brawl (every street), on one street, or on a composed world's `sideways` level:
+`play` is said on a quick brawl (every street) or on one of its streets; a designed game's street level is a run &
+gun by its `guns` (or the game's intent):
 
 ```js
 { goal: 'brawl', play: 'gun', streets: [{ id: 'gate', level: { kind: 'stage', kit: 'bay-military' } }] }
-levels: { dock: { sideways: { play: 'gun', ground: { kind: 'town' } } } }
+levels: { dock: { street: { guns: true, ground: { kind: 'town' } } } }
 ```
 
 - **A brawl** is the brawler's kit: a crowd on each held screen, breakables with food.
@@ -210,7 +215,7 @@ The runs are read against the **fight laws** (`FIGHT_LAWS`): the floor player fi
 written; the hardest tier can still be won; no wave is a spike; no held wave is a slog; the map opens gently; every run
 ends. A law lost names the wave and says what to change. It advises and refuses nothing.
 
-`design_game`'s readout measures each sideways map (the two decisive cases) and, where a law is lost, adds a `fight`
+`design_game`'s readout measures each street (the two decisive cases) and, where a law is lost, adds a `fight`
 step naming the map, the law and the wave. The whole table:
 
 ```bash

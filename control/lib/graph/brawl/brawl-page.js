@@ -31,6 +31,7 @@ import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
 import { gunName } from './brawl-street-read.js';
+import { readScenes } from './brawl-scenes.js';
 import { streetScreenOf, readStreet } from './brawl-street.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SCENE_END, MSG_SHOWN, CONTRACT_VERSION } from '../game/level-contract.js';
 
@@ -162,7 +163,7 @@ export function brawlYardData(block, bodies = null) {
       // (who each crowd body is drawn as, in the street's order: a wave at a time by screen, its boss first, then those
       // its boss calls, its crowd)
       const castAt = [...W].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => c.roster ?? null))]);
-      return { street: { sides: Y.sides, waves: W, lives: readStakes(PS.stakes ?? 3), ...(castAt.some((k) => k !== null) ? { castAt } : {}), ...(PS.tune ? { tune: PS.tune } : {}),
+      return { street: { sides: Y.sides, waves: W, ...(PS.street.scenes ? { scenes: readScenes(PS.street.scenes, block.belt, 'practice.street.scenes') } : {}), lives: readStakes(PS.stakes ?? 3), ...(castAt.some((k) => k !== null) ? { castAt } : {}), ...(PS.tune ? { tune: PS.tune } : {}),
         ...(guns ? { play: 'gun', guns, grenades: PS.range.grenades ?? 3, names: guns.map((g) => gunName(readGun(g))), ids: guns.map((g) => readGun(g).id) } : {}) }, wire: STREET_WIRE };
     })() : {}),
     // (its tuning, brawl-tunings.js roomTune: the room reads it, and says what is wrong with it)
