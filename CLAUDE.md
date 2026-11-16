@@ -325,6 +325,14 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
+- The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
+  dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
+  turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the
+  `hilltop` theme card and the `sherbet-orchard` geocube; offered by `design_game` as `next: first-level`, never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
+  [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
+  the round is skinned by [gameworld/course-skin.js](control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
+  dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit). The
+  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](docs/side-strip-principles.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
