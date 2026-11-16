@@ -29,6 +29,7 @@ export const AXES = Object.freeze({
   weight: 'light ↔ heavy: how much the knees give, how high the foot lifts, how far the body lists',
   poise: 'loose ↔ composed: the hip sway, the trunk twist, the steadiness of the head',
   confidence: 'timid ↔ bold: the carriage upright or hunched, the head, the stride, the arm carry',
+  stance: 'narrow ↔ wide: how far apart the feet land, and how much the hips turn and sway to bring them in',
 });
 
 /** Words for how someone moves, each a vector over the axes. A creator's own word that is not here goes to the brief. */
@@ -56,7 +57,11 @@ export const VIBES = Object.freeze({
   swagger:   { confidence: 0.8, poise: -0.5, energy: 0.1 },
   noble:     { poise: 0.7, confidence: 0.6 },
   // a champion's run: the chest up and the head steady, a long driving stride, the arms pumping, leant into it
-  heroic:    { energy: 0.9, confidence: 1, poise: 0.7, weight: 0.1 },
+  // (and a wide base: the feet land under the hips, never on one line, the hips square to the run)
+  heroic:    { energy: 0.9, confidence: 1, poise: 0.7, weight: 0.1, stance: 1 },
+  // the base alone
+  'wide-stanced': { stance: 0.8 },
+  dainty:    { stance: -0.6, weight: -0.4 },
   menacing:  { weight: 0.6, confidence: 0.6, energy: -0.2 },
 });
 
@@ -65,7 +70,7 @@ const RANGE = Object.freeze({
   strideLength: [0.15, 0.9], swingLift: [10, 80], armSwing: [0, 70], stanceKnee: [0, 30], weightShift: [0, 0.8],
   hipSway: [0, 0.2], spineTwist: [0, 0.3], pelvisRot: [0, 12], shoulderRot: [0, 12], headLevel: [0, 14],
   wristGive: [0, 15], lean: [0, 0.5], headTilt: [-10, 25], hipDrive: [0.8, 2], swingTuck: [60, 140],
-  flightLift: [0, 0.12], dutyFactor: [0.28, 0.5], spineGive: [0, 0.08], tilt: [0, 35],
+  flightLift: [0, 0.12], dutyFactor: [0.28, 0.5], spineGive: [0, 0.08], tilt: [0, 35], stepWidth: [0, 0.42],
 });
 const SECONDS = Object.freeze({ walk: [0.7, 1.8], jog: [0.45, 1.1], sprint: [0.4, 0.9] });
 
@@ -94,6 +99,14 @@ export const AXIS_SPANS = Object.freeze({
     walk:   { lean: -0.06, headTilt: -5, strideLength: 0.06, armSwing: 5, shoulderRot: 2 },
     jog:    { lean: -0.04, strideLength: 0.04, armSwing: 4 },
     sprint: { lean: -0.04, strideLength: 0.04, armSwing: 4 },
+  },
+  // (a run's feet land 3 cm apart as minted, a man's 9, and read from behind as legs on one line: at +1 they land wider
+  // than the hip joints, about 35 cm, each leg clear of the other, and the pelvis that turned to bring them onto one
+  // line stays square; the shoulders carry the turn instead)
+  stance: {
+    walk:   { stepWidth: 0.19, pelvisRot: -2, hipSway: -0.02 },
+    jog:    { stepWidth: 0.33, pelvisRot: -5, shoulderRot: 4 },
+    sprint: { stepWidth: 0.33, pelvisRot: -5, shoulderRot: 4 },
   },
 });
 
@@ -172,7 +185,7 @@ function standFor(a) {
  */
 export function resolveMotion(M) {
   const m = readMotion(M ?? {}), reasons = [], unread = [], read = [];
-  const sum = { energy: 0, weight: 0, poise: 0, confidence: 0 };
+  const sum = Object.fromEntries(Object.keys(AXES).map((k) => [k, 0]));
   for (const w of m.vibe ?? []) {
     if (!VIBES[w]) { unread.push(w); continue; }
     read.push(w);

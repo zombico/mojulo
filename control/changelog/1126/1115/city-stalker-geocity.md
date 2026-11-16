@@ -23,6 +23,8 @@
   stretched and it flings the hero faster along its way; the low point of the swing is where it is loaded most. A
   line cast low over the street stretches less, so the hero is never dropped onto the road.
 - **A heroic way of moving.** A hero's movement can now be described as "heroic": chest up and head steady, a
-  long driving stride, the arms pumping, leaning into the run.
+  long driving stride, the arms pumping, leaning into the run, and the feet landing wide apart with the hips
+  square. How wide a hero's feet land is now its own quality of a movement, from narrow to wide, so a run no longer
+  has to put one foot in front of the other.
 - **A sky for a city level.** A game can say what clouds hang over a city level (clear, fair, overcast, storm,
   haze, high), painted round the sky at the level's hour, so a city at golden hour has lit cloud behind its towers.
