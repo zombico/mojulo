@@ -326,9 +326,9 @@ Pointers only; each target carries its own design notes.
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
-  dimensions: `2d` the side-scroller, one strip and one turn on the flow a game has always had; `3d` opt-in, courses
-  up a hill, a turn each, its own flow round the courses screen; offered by `design_game` as `next: first-level`,
-  never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
+  dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
+  turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side and the
+  `hilltop` theme card; offered by `design_game` as `next: first-level`, never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
   [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card.
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,

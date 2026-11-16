@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN } from './platformer-game.js';
+import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK } from './platformer-game.js';
+import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
+import { readTheme, themeAdvice } from '../../mana-ui/theme.js';
 import { firstLevel, firstLevelSegments, FIRST_LEVEL_COURSES, FIRST_LEVEL_SEGMENTS } from './first-level.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
 import { gameStages, stageLevelOrder, isStrip } from './levels.js';
@@ -10,19 +12,20 @@ import { readFront } from '../game/play-front.js';
 import { runSteps } from './index.js';
 import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 
-// A PLATFORMER'S GAME in its two dimensions: the side-scroller as it was (one strip, one turn, the flow a game has always
-// had), and the 3D platformer (courses up a hill, a turn each, its own flow round the courses screen).
+// A PLATFORMER'S GAME in its two dimensions: the side-scroller (one strip, one turn, its title its home) and the 3D
+// platformer (courses up a hill, a turn each, the courses screen its home); both on one flow shape, one start menu, a
+// screen on its side and the Hilltop look.
 const hero = () => { const W = { ...MEADOWMARK_HERO }; delete W.links; delete W.start; delete W.hub; delete W.levels; delete W.review; return W; };
 const world = (dimension, more = {}) => ({ ...hero(), ...platformerGame({ dimension, ...more }).words });
 
 describe('the rail, as words', () => {
-  it('2d is the side-scroller as it was: the side camera, the first level as firstLevel lays it, no flow of its own', () => {
+  it('2d is the side-scroller: the side camera, the first level as firstLevel lays it, its home the title', () => {
     const G = platformerGame();
     expect(G.dimension).toBe('2d');
     expect(G.words.camera).toBe('side');
     expect(G.words.levels).toEqual({ first: firstLevel() });
-    expect(G.words.flow).toBeUndefined();
-    expect(platformerFlow('2d')).toBeNull();
+    expect(G.words.flow).toMatchObject({ start: 'title', home: 'title', steps: { level: { kind: 'level', on: { left: 'title' } } } });
+    expect(readFlow(G.words.flow, { levels: ['first'] })).toEqual([]);
     expect(G.words.feel).toEqual({ pole: 'jumping-giuseppe', takes: true });
   });
 
@@ -33,13 +36,7 @@ describe('the rail, as words', () => {
     expect(Object.values(L.course).map((c) => c.teach)).toEqual(Object.values(firstLevel({ boss: true }).course).map((c) => c.teach));
     expect(L.foes.density.grounds).toBe('none');
     expect(L.goal).toEqual({ boss: { win: 'rival' } });
-    // (its start menu: the way into the courses screen and back to a save; the side-scroller's title is the plain one)
-    expect(G.words.front).toEqual({ menu: ['continue', 'play', 'levels'] });
-    expect(readFront(G.words.front, { levels: 5 })).toEqual([]);
-    expect(platformerGame().words.front).toBeUndefined();
-    // (made for a screen on its side; a stored world's upright phone is said, never changed)
-    expect(G.words.screen).toBe('screen');
-    expect(platformerGame().words.screen).toBeUndefined();
+    expect(G.words.flow.home).toBe('courses');
     expect(platformerGame({ dimension: '3d', camera: 'follow' }).words.camera).toBe('follow');
     expect(() => platformerGame({ dimension: '3d', camera: 'side' })).toThrow(/orbit \| follow/);
     expect(() => platformerGame({ dimension: '4d' })).toThrow(/2d .* or 3d/);
@@ -47,6 +44,20 @@ describe('the rail, as words', () => {
     const other = Object.keys(PLATFORMER_DIMENSIONS).length && 'galaxy-boy';
     expect(() => platformerGame({ dimension: '3d', pole: other })).toThrow(/played in 2d/);
     expect(platformerGame({ pole: other }).words.feel.pole).toBe(other);
+  });
+
+  it('both say the same start menu, screen and look: the menu a save is continued from, a screen on its side, Hilltop', () => {
+    for (const d of Object.keys(PLATFORMER_DIMENSIONS)) {
+      const W = platformerGame({ dimension: d }).words;
+      expect(W.front, d).toEqual({ menu: d === '3d' ? ['continue', 'play', 'levels'] : ['continue', 'play'] });
+      expect(readFront(W.front, { levels: d === '3d' ? 4 : 1 }), d).toEqual([]);
+      expect(W.screen, d).toBe('screen');
+      expect(W.ui, d).toEqual({ theme: PLATFORMER_LOOK });
+      expect(W.mechanics, d).toEqual({ lives: 3, coins: true, legend: 'menu' });
+    }
+    // (the look is a card of the toy family that reads: its advice is empty)
+    expect(THEME_CARDS[PLATFORMER_LOOK]).toMatchObject({ family: 'toy' });
+    expect(themeAdvice(readTheme(cardTheme(PLATFORMER_LOOK)))).toEqual([]);
   });
 
   it('the default first level is untouched by the dimension word', () => {
@@ -69,8 +80,7 @@ describe('the 3D flow: every course a turn, entered from the courses screen and 
     expect(readFlow(F, { levels })).toEqual([]);
     const G = readGameworld(world('3d'));
     expect(worldFlow(G)).toMatchObject({ source: 'own', flow: { home: 'courses' } });
-    // (the side-scroller says none: it plays the flow a game has always had)
-    expect(readGameworld(world('2d')).flow).toBeUndefined();
+    expect(worldFlow(readGameworld(world('2d')))).toMatchObject({ source: 'own', flow: { home: 'title' } });
   });
 
   it('a new game plays the first course; won, its result goes on to the next course', () => {
@@ -81,6 +91,14 @@ describe('the 3D flow: every course a turn, entered from the courses screen and 
     expect(names(['play', 'won', 'next'], ctx(false))).toEqual(['title', 'course', 'result', 'courses']);
     expect(names(['play', 'left'], ctx(true))).toEqual(['title', 'course', 'courses']);
     expect(names(['play', 'lost', 'again'], ctx(true))).toEqual(['title', 'course', 'result', 'course']);
+  });
+
+  it('the side-scroller walks the same shape home to its title', () => {
+    const S = platformerFlow('2d'), walk = (events, c) => walkFlow(S, events, c).map((s) => s.step);
+    expect(walk(['play', 'won', 'next'], ctx(true))).toEqual(['title', 'level', 'result', 'level']);
+    expect(walk(['play', 'won', 'next'], ctx(false))).toEqual(['title', 'level', 'result', 'title']);
+    expect(walk(['play', 'left'], ctx(true))).toEqual(['title', 'level', 'title']);
+    expect(S.steps.levels).toBeUndefined();
   });
 
   it('differs from the flow a game has always had only as said: a title first, the courses its home', () => {
@@ -129,6 +147,8 @@ describe('laid in a world', () => {
         expect(g.flow).toMatchObject({ start: 'title', home: 'courses', steps: { course: { kind: 'level', level: '$any' } } });
         expect(g.front).toEqual({ menu: ['continue', 'play', 'levels'] });
         expect(g.levels).toHaveLength(FIRST_LEVEL_COURSES.length);
+        expect(g.ui.theme).toEqual(cardTheme(PLATFORMER_LOOK));
+        expect(g.screen).toBe('screen');
       }
     });
 
@@ -183,8 +203,9 @@ describe('the rail offered to a world', () => {
       expect(P.mechanics).toMatchObject({ lives: 5, coins: true, legend: 'menu' });
       expect(P.feel).toEqual({ pole: 'jumping-giuseppe', takes: true });
       expect(P.levels.meadow).toEqual(W.levels.meadow);
-      expect(!!P.flow).toBe(d === '3d');
-      expect(!!P.front).toBe(d === '3d');
+      expect(P.flow.home).toBe(d === '3d' ? 'courses' : 'title');
+      expect(P.front.menu.includes('levels')).toBe(d === '3d');
+      expect(P.ui).toEqual({ theme: PLATFORMER_LOOK });
       // (the hero is the creator's: said where the world has none, never laid)
       expect(S.needs).toBeUndefined();
       expect(platformerSuggestion({ ...W, characters: undefined }).needs).toMatch(/a hero/);

@@ -4,37 +4,44 @@
  * set up, load, play, pause, results) the play shell runs and mana-ui draws. One rail, two games:
  *
  *   2d   THE SIDE-SCROLLER (the default, the card's own view). A side camera; the first level's trails are the segments
- *        of one strip, so the level is ONE page and ONE turn: the title, the run from the first step to the exit, its
- *        result, on to the next level. It says no flow of its own: the flow a game has always had is its flow, so a
- *        side-scroller made before this rail and one made by it are the same game.
+ *        of one strip, so the level is ONE page and ONE turn. Its flow: the title (continue, a new game),
+ *        the level played from its first step to its exit, its result (on to the next level, again, or the title); a
+ *        level quit goes back to the title with no result.
  *   3d   THE 3D PLATFORMER (opt-in: the world's camera says it, or the brief does). A chase the player turns (`orbit`)
  *        or one that follows by itself (`follow`); the first level's trails are COURSES up a hill, each its own page and
- *        its own turn. Its flow is its own: the title (continue, or a new game from the first course), the COURSES
+ *        its own turn. Its flow: the title (continue, a new game from the first course, the courses), the COURSES
  *        screen (the place every course is entered from and left to: each one won opens the next), a course played,
  *        its result (on to the next course, again, or back to the courses); a course quit goes back to the courses
- *        with no result. Its front is the start menu that flow is entered through (continue, play, the courses),
- *        and it is made for a screen on its side.
- *        Coins lie along every course (levels.js trailCoins), lives are the game's.
+ *        with no result.
  *
- * Both are words on the gameworld, never a second runtime: the feel with its takes (the hero's own jumps, its wall, its
- * run button), the camera, lives and coins, the first level and (3d) the flow. A rail proposes; the recipe is the
- * creator's: `platformerSuggestion` is a patch design_game's readout offers (next: `first-level`), 2d by default and 3d
- * as its other reading where the template has one, and nothing is laid until it is written.
+ * WHAT BOTH SAY, the same way: the feel with its takes (the hero's own jumps, its wall, its run button); lives and
+ * coins (a strip's and a trail's course both carry coins: levels.js); a front that is the start menu its flow is
+ * entered through (a plain title offers play alone); a screen on its side (a platformer is read across its width); and
+ * the look its menus, pause, result and HUD are drawn in by mana-ui, the HILLTOP card of the toy family
+ * (playscape/ui/theme-cards/hilltop.json): cream sticker plates in a cocoa outline, a sunburst behind the title,
+ * confetti on a result, screens opened and closed on an iris.
+ *
+ * All of it is words on the gameworld, never a second runtime. A rail proposes; the recipe is the creator's:
+ * `platformerSuggestion` is a patch design_game's readout offers (next: `first-level`), 2d by default and 3d as its
+ * other reading where the template has one, keeping what the world already says, and nothing is laid until written.
  *
  *   PLATFORMER_DIMENSIONS            { 2d, 3d }: each { camera, cameras, level, after, says, poles? (the templates it is
  *                                    offered for; absent: every platformer's) }
  *   PLATFORMER_TURN                  { 2d, 3d }: the turn's phases as each game plays them (the readout's and the card's)
- *   platformerFlow(dimension)        → the flow it says in the world's level ids (3d), or null (2d: the default)
- *   platformerFront(dimension)       → the start menu that flow is entered through (3d), or null (2d: the plain title)
+ *   PLATFORMER_LOOK                  the theme card both are drawn in (`ui.theme`)
+ *   platformerFlow(dimension)        → the flow it says, in the world's level ids
+ *   platformerFront(dimension)       → the start menu that flow is entered through
  *   platformerGame({ dimension?, pole?, id?, name?, seed?, kit?, boss?, camera? })
- *                                    → { dimension, level, words: { feel, camera, mechanics, levels, screen?, front?, flow? }, turn, says }
+ *                                    → { dimension, level, words: { feel, camera, mechanics, levels, screen, ui, front,
+ *                                    flow }, turn, says }
  *   dimensionOf(world)               → '2d' | '3d' | null: the dimension its camera says (side; orbit or follow, the
  *                                    chases W A S D steer by the camera; null: none said, or another camera)
  *   platformerPole(world)            → { pole, from: 'feel' | 'suggested' } | null: the platformer template it plays
- *   platformerSuggestion(world)      → { dimension, pole, level, why, patch, turn, needs?, advise?, or? } | null: the rail as a patch
- *                                    over the world as it stands (what it already says is kept); null for a world that
- *                                    is no platformer's, has a course already, or plays through another camera.
- *                                    `or` is the other dimension, the same shape, where the template has one
+ *   platformerSuggestion(world)      → { dimension, pole, level, why, patch, turn, needs?, advise?, or? } | null: the
+ *                                    rail as a patch over the world as it stands (what it already says is kept); null
+ *                                    for a world that is no platformer's, has a course already, or plays through
+ *                                    another camera. `or` is the other dimension, the same shape, where the template
+ *                                    has one
  *   platformerStart(world)           → { dimension, pole, why, world: <the words to write>, turn, or? } | null: the same
  *                                    for a book with no level yet (nothing to patch: the words the first write takes)
  *
@@ -61,12 +68,12 @@ export const PLATFORMER_DIMENSIONS = Object.freeze({
 /** The turn (game/turn.js TURN_PHASES, and the pause) as each dimension's game plays it. */
 export const PLATFORMER_TURN = Object.freeze({
   '2d': Object.freeze({
-    untap: 'nothing is asked: the strip is the one way on',
+    untap: 'the level is picked from the title: a new game starts on the first, continue goes to the save\'s',
     upkeep: 'the strip is loaded, one page for the whole level',
     main: 'the run from the first step to the exit; lives and coins counted on the HUD',
-    interrupt: 'the pause, with the controls (the legend is in the menu)',
+    interrupt: 'the pause, with the controls; quit goes back to the title, no result',
     cleanup: 'the outcome kept by the save; a level won opens the next',
-    end: 'the result: on to the next level, or again',
+    end: 'the result: on to the next level, again, or the title',
   }),
   '3d': Object.freeze({
     untap: 'the course is picked on the courses screen (a new game starts on the first; continue goes to the save\'s)',
@@ -82,26 +89,31 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const poleOfFeel = (f) => (typeof f === 'string' ? f : isObj(f) && typeof f.pole === 'string' ? f.pole : null);
 const readDimension = (d) => { if (!FIRST_LEVEL_DIMENSIONS.includes(d)) throw new Error(`platformer: dimension is ${Object.entries(PLATFORMER_DIMENSIONS).map(([k, v]) => `${k} (${v.after})`).join(' or ')}`); return d; };
 
-/** The flow a dimension says, in the world's level ids: the 3D platformer's own; null for the side-scroller (the flow a
- * game has always had, game/flow.js defaultFlow, is its flow). */
+/** The theme card both dimensions are drawn in (playscape/ui/theme-cards/). */
+export const PLATFORMER_LOOK = 'hilltop';
+
+/** The flow a dimension says, in the world's level ids. The side-scroller's home is its title, the 3D platformer's its
+ * courses screen; in both a level won shows its result and goes on, and one quit goes home with no result. */
 export function platformerFlow(dimension = '2d') {
-  if (readDimension(dimension) === '2d') return null;
+  const round = readDimension(dimension) === '3d', list = round ? 'courses' : 'levels', home = round ? 'courses' : 'title', play = round ? 'course' : 'level';
   return {
-    start: 'title', home: 'courses',
+    start: 'title', home,
     steps: {
-      title: { kind: 'screen', screen: 'title', on: { continue: '$continue', play: '$first', levels: 'courses' } },
-      courses: { kind: 'screen', screen: 'levels', on: { pick: '$picked', back: 'title' } },
-      course: { kind: 'level', level: '$any', on: { won: 'result', lost: 'result', left: 'courses' } },
-      result: { kind: 'screen', screen: 'result', on: { next: ['$next', 'courses'], again: '$again', home: 'courses' } },
+      // (the side-scroller's first game is one level, the strip: a levels screen lists nothing yet, so it has none; a
+      // game that grows levels adds the entry and the screen, as the 3D platformer's courses are)
+      title: { kind: 'screen', screen: 'title', on: { continue: '$continue', play: '$first', ...(round ? { levels: list } : {}) } },
+      ...(round ? { [list]: { kind: 'screen', screen: 'levels', on: { pick: '$picked', back: 'title' } } } : {}),
+      [play]: { kind: 'level', level: '$any', on: { won: 'result', lost: 'result', left: home } },
+      result: { kind: 'screen', screen: 'result', on: { next: ['$next', home], again: '$again', home } },
     },
   };
 }
 
-/** The front a dimension's flow is entered through: the 3D platformer's start menu (continue, a new game, the courses:
- * a plain title offers play alone, and the courses screen would be reached only after a course); none for the
- * side-scroller (its title is the plain one). The cover, the tagline and the credits stay the interface's to add. */
+/** The front a flow is entered through: the start menu (continue, a new game, and the 3D platformer's courses: a plain
+ * title offers play alone, so a save could not be continued and the courses would be reached only after one). The cover, the
+ * tagline and the credits stay the interface's to add. */
 export function platformerFront(dimension = '2d') {
-  return readDimension(dimension) === '3d' ? { menu: ['continue', 'play', 'levels'] } : null;
+  return { menu: readDimension(dimension) === '3d' ? ['continue', 'play', 'levels'] : ['continue', 'play'] };
 }
 
 /** The rail's game in a dimension: the words to write on a gameworld (see the header). */
@@ -116,10 +128,10 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     camera: camera ?? D.camera,
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     levels: { [level]: firstLevel({ name, seed, kit, boss, dimension }) },
-    // (a 3D platformer is made for a screen on its side: a chase camera needs the width; game/screen.js)
-    ...(dimension === '3d' ? { screen: 'screen' } : {}),
-    ...(front ? { front } : {}),
-    ...(flow ? { flow } : {}),
+    // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)
+    screen: 'screen',
+    ui: { theme: PLATFORMER_LOOK },
+    front, flow,
   };
   return { dimension, level, words, turn: PLATFORMER_TURN[dimension], says: `${POLES[pole].name} as ${D.after}: ${D.says}` };
 }
@@ -165,13 +177,14 @@ function patchFor(world, dimension, pole, boss) {
   ops.push({ op: 'set', path: `/levels/${id}`, value: G.words.levels[id] });
   // (played first: a world that already has levels starts on the one the rail lays)
   if (taken.length && (world.start ?? taken[0]) !== id) ops.push({ op: 'set', path: '/start', value: id });
+  if (world.ui === undefined) ops.push({ op: 'set', path: '/ui', value: G.words.ui });
   if (G.words.front && world.front === undefined) ops.push({ op: 'set', path: '/front', value: G.words.front });
   if (G.words.flow && world.flow === undefined) ops.push({ op: 'set', path: '/flow', value: G.words.flow });
   // (a platformer watches its hero: a world with no character book is walked first person, its camera kept for the run
   // that has its hero. The hero is the creator's to design, so it is said, never laid)
   // (the screen is the creator's decision, and a stored world always says one: a phone held upright is said, never changed)
-  const upright = dimension === '3d' && (world.screen === 'phone' || (isObj(world.screen) && world.screen.orientation === 'portrait'));
-  const advise = upright ? 'its screen is held upright: a 3D platformer\'s chase camera wants the width (screen: \'screen\', a monitor or a TV)' : null;
+  const upright = (world.screen === 'phone' || (isObj(world.screen) && world.screen.orientation === 'portrait'));
+  const advise = upright ? 'its screen is held upright: a platformer is read across its width, a lane or a chase camera (screen: \'screen\', a monitor or a TV)' : null;
   if (G.words.screen && world.screen === undefined) ops.push({ op: 'set', path: '/screen', value: G.words.screen });
   const needs = isObj(world.characters) ? null : 'a hero: the world has no character book yet (characters: its direction and its hero, gameworld-direction). Until it has one its levels are walked first person, the camera kept for the run that has its hero';
   return { dimension, level: id, courses: firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise ? { advise } : {}) };
