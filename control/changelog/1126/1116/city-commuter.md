@@ -10,3 +10,8 @@
 - **A car stays on the street in a city district.** A driven car no longer climbs a building's raised ground, cars are
   parked only where the road is open from nose to tail, and a level that starts under an elevated highway now starts
   on the street below it rather than up on the highway.
+- **Cars are solid to each other and to people.** A car you drive into a parked car stops against it and loses its
+  speed instead of passing through, and you can no longer walk through a car on foot.
+- **A city's traffic reacts to you.** The traffic already driving a city's main streets now brakes and queues behind
+  your car, or behind you on foot, when you are in its lane, and drives on when you leave. Its vehicles are solid:
+  drive into one and you stop against it. Cars parked for you at the kerb are kept out of the traffic's lanes.

@@ -607,7 +607,7 @@ function geocityEnds(manifest) {
   // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a walk of the start, its
   // own fleet's at the kerb there)
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
-  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground)), ...lots], enumerable: false });
+  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [])), ...lots], enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
@@ -625,12 +625,16 @@ const parkedCars = (list) => list.filter((c) => !c.model.startsWith('loft:') && 
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
 // apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
 // the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
-const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 60 });
-function kerbSpots(route, road, colliders, top = null) {
+const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 60, lane: 2.4 });
+function kerbSpots(route, road, colliders, top = null, lanes = []) {
   if (route.length < 2) return [];
   const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
   const blocked = (x, y, z) => colliders.some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
-  const open = (x, y) => { const z = road(x, y); return z !== null && (!top || Math.abs((top(x, y) ?? z) - z) < 0.1) && !blocked(x, y, z); };
+  // (never in a lane its traffic drives, geocity/flow.js: a car parked there would hold the lane for good)
+  // (a lane at the road's own height: a highway's, carried over the street, is none of its)
+  const laneZ = (g, u) => { let k = 0; while (k + 2 < g.length && g[k + 2] <= u) k += 2; const t = k + 2 < g.length ? Math.min(1, Math.max(0, (u - g[k]) / (g[k + 2] - g[k] || 1))) : 0; return g[k + 1] + ((g[k + 3] ?? g[k + 1]) - g[k + 1]) * t; };
+  const driven = (x, y, z) => lanes.some((L) => { const u = L.axis === 'y' ? y : x, off = (L.axis === 'y' ? x : y) - L.cross; return u >= L.lo && u <= L.hi && Math.abs(off) < KERB.lane && Math.abs(laneZ(L.ground, u) - z) < 2.5; });
+  const open = (x, y) => { const z = road(x, y); return z !== null && !driven(x, y, z) && (!top || Math.abs((top(x, y) ?? z) - z) < 0.1) && !blocked(x, y, z); };
   let side = null;
   for (let s = KERB.step; s <= KERB.reach && !side; s += KERB.step) for (const k of [1, -1]) { const n = [-f[1] * k, f[0] * k]; if (top ? open(x0 + n[0] * s, y0 + n[1] * s) && open(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) : road(x0 + n[0] * s, y0 + n[1] * s) !== null && road(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) !== null) { side = { n, s: s + KERB.into }; break; } }
   if (!side) return [];

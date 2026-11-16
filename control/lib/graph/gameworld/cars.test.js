@@ -95,7 +95,8 @@ describe('a car driven on the town\'s street (the level\'s own bodies on the run
     expect(hero.gone).toBe(false);
     expect(boxed(hero)).toBe(false);
     expect(E.ground(hero.transform.pos[0], hero.transform.pos[1])).not.toBeNull();
-    // (and walks on)
+    // (and walks on, away from the car it left: a car is not walked through)
+    hero.transform.heading = Math.atan2(hero.transform.pos[1] - car.transform.pos[1], hero.transform.pos[0] - car.transform.pos[0]);
     const h0 = hero.transform.pos.slice(); run(1, { forward: 1 });
     expect(Math.hypot(hero.transform.pos[0] - h0[0], hero.transform.pos[1] - h0[1])).toBeGreaterThan(0.5);
   });

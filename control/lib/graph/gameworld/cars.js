@@ -15,7 +15,7 @@
  *
  * Pure, no dice: a car's place, model and paint are its town's.
  */
-import { CAR_CARDS } from '../car-shelf/car-library.js';
+import { CAR_CARDS, composeCar } from '../car-shelf/car-library.js';
 import { vehicleRule } from '../roads/vehicles.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -24,6 +24,8 @@ export const CAB = Object.freeze({
   reach: 3.2,
   // its door, in the car's frame (+y forward, +x its right): on its left, a little forward of its middle
   stand: Object.freeze([-1.35, 0.25]),
+  // (how far off its side its driver stands at the door: clear of its hull, a body's half width and a hand)
+  door: 0.5,
   in: 0.35, out: 0.35, slow: 1.5,
   camera: Object.freeze({ dist: 8.5, height: 3.2, lookH: 1.1 }),
   // its box against a wall: half its width, its height; a kerb it climbs
@@ -48,11 +50,13 @@ export function carsExtra() {
     const part = { figures: {}, entities: [] };
     cars.forEach((c, i) => {
       const key = figureKey(c), rule = vehicleRule(CAR_CARDS[c.model].class, { tuning: 'arcade' });
+      // (its hull against another car and a body on foot, mount.js: half its width, half its length)
+      const F = composeCar({ preset: c.model }).frame, hull = [r3(F.W / 2), r3(F.L / 2)];
       part.figures[key] = { loft: { car: { preset: c.model, paint: { colour: c.paint } }, light: 'form' } };
       part.entities.push({
         id: `car-${i + 1}`, pilotable: false,
         rule: { ...rule, eye: 0, collideRadius: CAB.radius, collideHeight: CAB.height, step: CAB.step },
-        mount: { cab: true, reach: CAB.reach, stand: [...CAB.stand], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...CAB.camera } },
+        mount: { cab: true, hull, reach: CAB.reach, stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...CAB.camera } },
         body: { type: 'figure-rig', figure: key },
         transform: { pos: [r3(c.at[0]), r3(c.at[1]), r3(c.at[2])], heading: r3(c.heading) },
       });

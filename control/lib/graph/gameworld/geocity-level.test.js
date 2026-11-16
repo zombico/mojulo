@@ -92,14 +92,16 @@ describe('a car driven in the district (the level\'s own bodies on the runtime, 
   const st = R.createWorld({ entities: level.entities, colliders: E.colliders, camera: level.camera });
   const run = (s, input = {}, each = null) => { for (let i = 0; i < Math.max(1, Math.round(s / DT)); i++) { R.stepWorld(st, input, DT, { ground }); if (each) each(); } };
   it('the hero gets into a car the district parked and drives off: on the ground\'s grade all the way, up no pad, into no box', () => {
-    const hero = st.byId.hero, car = st.byId['car-1'], K = { at: car.transform.pos.slice(), heading: car.transform.heading }, f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
+    // (the front car of the row at the kerb: the one behind it would stop against it, as a car does)
+    const row = st.entities.filter((e) => e.mount?.cab), h0 = row[0].transform.heading, car = row.reduce((m, e) => ((e.transform.pos[0] - m.transform.pos[0]) * Math.cos(h0) + (e.transform.pos[1] - m.transform.pos[1]) * Math.sin(h0) > 0 ? e : m), row[0]);
+    const hero = st.byId.hero, K = { at: car.transform.pos.slice(), heading: car.transform.heading }, f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
     expect(car).toBeTruthy();
     // (the district's lots lie blocks from its start: the car by it is its own fleet's, on the road that is the ground)
-    expect(Math.hypot(K.at[0] - E.spawn[0], K.at[1] - E.spawn[1])).toBeLessThan(20);
+    expect(Math.hypot(K.at[0] - E.spawn[0], K.at[1] - E.spawn[1])).toBeLessThan(25);
     expect(Math.abs(E.ground(K.at[0], K.at[1]) - K.at[2])).toBeLessThan(0.1);
     hero.transform.pos = [K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4, E.ground(K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4) ?? K.at[2]];
     run(DT, { interact: 1 }); run(5);
-    expect(st.pilotId).toBe('car-1');
+    expect(st.pilotId).toBe(car.id);
     // (driven on, then steered hard at whatever stands beside the street: its grade never a wall's)
     let steepest = 0, went = 0, last = car.transform.pos.slice();
     const watch = () => { const p = car.transform.pos, dxy = Math.hypot(p[0] - last[0], p[1] - last[1]); if (dxy > 0.05) { went += dxy; steepest = Math.max(steepest, Math.abs(p[2] - last[2]) / dxy); last = p.slice(); } };

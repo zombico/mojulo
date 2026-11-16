@@ -47,6 +47,71 @@ export function buildMount(E) {
   const local = (h, p) => { const a = h.transform.heading - Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return [h.transform.pos[0] + p[0] * c - p[1] * s, h.transform.pos[1] + p[0] * s + p[1] * c, h.transform.pos[2]]; };
   const wrapA = (a) => { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; };
 
+  // ── THE CABS' HULLS (`mount.hull`: [half width, half length], a box turned with its car) ──────────────────────
+  // After every body has moved: a cab that overlaps another is pushed back out of it along the least overlap (the one
+  // that moves gives way, two that move share it; one that stands holds) and loses the speed it carried into it; a
+  // walker (a body on foot with a `collideRadius`) is pushed out of every hull. The traffic the page hands the world
+  // (`state.trafficHulls`: [{ p, heading, hull }], scene/channels/flow.js) holds as a parked car does. Facts: e.bumped (the speed lost, the
+  // step it struck). A cab with no hull, and a world with no cab, are as they were.
+  const axes = (h) => { const a = h.transform.heading, c = Math.cos(a), sn = Math.sin(a); return { f: [c, sn], r: [sn, -c], hw: h.mount.hull[0], hl: h.mount.hull[1], p: h.transform.pos }; };
+  // the least push that takes box A out of box B (separating axes, on the ground plane), or null where they are apart
+  function apart(A, B) {
+    const d = [A.p[0] - B.p[0], A.p[1] - B.p[1]];
+    let best = null;
+    for (const n of [A.f, A.r, B.f, B.r]) {
+      const ra = A.hl * Math.abs(n[0] * A.f[0] + n[1] * A.f[1]) + A.hw * Math.abs(n[0] * A.r[0] + n[1] * A.r[1]);
+      const rb = B.hl * Math.abs(n[0] * B.f[0] + n[1] * B.f[1]) + B.hw * Math.abs(n[0] * B.r[0] + n[1] * B.r[1]);
+      const c = d[0] * n[0] + d[1] * n[1], pen = ra + rb - Math.abs(c);
+      if (pen <= 0) return null;
+      if (!best || pen < best.pen) best = { pen, n: c < 0 ? [-n[0], -n[1]] : n };
+    }
+    return best;
+  }
+  function hulls(state, cabs) {
+    const H = cabs.filter((h) => h.mount.cab && h.mount.hull && !h.gone);
+    if (!H.length && !(state.trafficHulls && state.trafficHulls.length)) return;
+    const moves = (h) => Math.abs(h.speed || 0) > 0.01;
+    const struck = (h, n) => { const v = h.speed || 0, into = -(Math.cos(h.transform.heading) * n[0] + Math.sin(h.transform.heading) * n[1]) * Math.sign(v); if (into > 0) { const lost = Math.abs(v) * into; h.speed = v * (1 - into); if (lost > 0.2) h.bumped = lost; } };
+    for (let i = 0; i < H.length; i++) for (let j = i + 1; j < H.length; j++) {
+      const a = H[i], b = H[j];
+      if (Math.abs(a.transform.pos[2] - b.transform.pos[2]) > 2 || (!moves(a) && !moves(b))) continue;
+      const hit = apart(axes(a), axes(b));
+      if (!hit) continue;
+      const wa = moves(a) ? (moves(b) ? 0.5 : 1) : 0, wb = 1 - wa;
+      a.transform.pos[0] += hit.n[0] * hit.pen * wa; a.transform.pos[1] += hit.n[1] * hit.pen * wa;
+      b.transform.pos[0] -= hit.n[0] * hit.pen * wb; b.transform.pos[1] -= hit.n[1] * hit.pen * wb;
+      if (wa) struck(a, hit.n);
+      if (wb) struck(b, [-hit.n[0], -hit.n[1]]);
+    }
+    // (the traffic near the pilot, scene/channels/flow.js: boxes that hold; a cab that moves is pushed out of them)
+    const T = (state.trafficHulls || []).map((x) => ({ f: [Math.cos(x.heading), Math.sin(x.heading)], r: [Math.sin(x.heading), -Math.cos(x.heading)], hw: x.hull[0], hl: x.hull[1], p: x.p }));
+    for (const a of H) {
+      if (!moves(a)) continue;
+      for (const X of T) {
+        if (Math.abs(a.transform.pos[2] - X.p[2]) > 2) continue;
+        const hit = apart(axes(a), X);
+        if (!hit) continue;
+        a.transform.pos[0] += hit.n[0] * hit.pen; a.transform.pos[1] += hit.n[1] * hit.pen; struck(a, hit.n);
+      }
+    }
+    const boxes = [...H.map(axes), ...T];
+    for (const e of state.entities) {
+      const cr = e.rule && e.rule.collideRadius;
+      if (!(cr > 0) || e.mount || e.mountedOn || e.gone || e.isCamera) continue;
+      for (const X of boxes) {
+        const dx = e.transform.pos[0] - X.p[0], dy = e.transform.pos[1] - X.p[1];
+        if (Math.abs(e.transform.pos[2] - (e.rule.eye || 0) - X.p[2]) > 2) continue;
+        const u = dx * X.r[0] + dy * X.r[1], v = dx * X.f[0] + dy * X.f[1], cu = clamp(u, -X.hw, X.hw), cv = clamp(v, -X.hl, X.hl);
+        let ou = u - cu, ov = v - cv, d = Math.hypot(ou, ov), pen;
+        if (d > 1e-9) { if (d >= cr) continue; pen = cr - d; ou /= d; ov /= d; }
+        // (its middle inside the box: out through the nearer side)
+        else if (X.hw - Math.abs(u) < X.hl - Math.abs(v)) { ou = u < 0 ? -1 : 1; ov = 0; pen = X.hw - Math.abs(u) + cr; }
+        else { ou = 0; ov = v < 0 ? -1 : 1; pen = X.hl - Math.abs(v) + cr; }
+        e.transform.pos[0] += (ou * X.r[0] + ov * X.f[0]) * pen; e.transform.pos[1] += (ou * X.r[1] + ov * X.f[1]) * pen;
+      }
+    }
+  }
+
   // ── THE RIDE RULE ────────────────────────────────────────────────────────────────────────────────────────────────
   function ride(e, input, dt, world) {
     const r = e.rule, t = e.transform, G = r.gaits || [];
@@ -185,6 +250,7 @@ export function buildMount(E) {
       }
     }
     step(state, input, dt, hooks);
+    hulls(state, horses);
     // the moment after: the rider carried in its horse's frame, playing the horse's clip
     for (const h of horses) {
       const p = h.riderId && state.byId[h.riderId];

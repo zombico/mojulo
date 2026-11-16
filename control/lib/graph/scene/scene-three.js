@@ -1059,7 +1059,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const trafficSpec = Array.isArray(signals) && signals.length && Array.isArray(trafficLanes) ? { lanes: trafficLanes, signals, T: trafficConstants || undefined } : null;
   const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: castsActors, traffic: trafficSpec }) : '';
   // a metro's traffic (channels/flow.js): its lanes stepped and its vehicles drawn near the camera; none ⇒ ''
-  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec) : '';
+  // (a played page with a car to get into: the traffic gives way to it and stands in its way, flow.js `play`)
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab) }) : '';
   // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
   const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked

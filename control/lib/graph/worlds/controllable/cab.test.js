@@ -100,3 +100,68 @@ describe('a cab', () => {
     expect(mountRideScript()).toContain("ask = 'ride'");
   });
 });
+
+describe('a cab\'s hull (mount.hull: a box turned with its car)', () => {
+  const hulled = (id, pos, heading = 0) => { const c = car(id, pos, heading); return { ...c, mount: { ...c.mount, hull: [0.9, 2.2], stand: [-1.4, 0.2] } }; };
+  const two = (other) => E.createWorld({ entities: [
+    { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, collideRadius: 0.3 }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 2, 0], heading: 0 } },
+    hulled('car-1', [0, 0, 0]), other,
+    { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero', dist: 5.5 } },
+  ] });
+  const overlap = (a, b) => Math.abs(a.transform.pos[0] - b.transform.pos[0]) < 4.4 - 1e-6 && Math.abs(a.transform.pos[1] - b.transform.pos[1]) < 1.8 - 1e-6;
+  it('a car driven into a parked one stops against it: never inside it, its speed lost, the parked one where it stood', () => {
+    const st = two(hulled('car-2', [12, 0, 0]));
+    getIn(st);
+    expect(st.pilotId).toBe('car-1');
+    run(st, 6, { forward: 1 });
+    const a = st.byId['car-1'], b = st.byId['car-2'];
+    expect(b.transform.pos.slice(0, 2)).toEqual([12, 0]);
+    expect(overlap(a, b)).toBe(false);
+    expect(a.transform.pos[0]).toBeGreaterThan(7); expect(a.transform.pos[0]).toBeLessThanOrEqual(12 - 4.4 + 1e-6);
+    expect(Math.abs(a.speed)).toBeLessThan(1);
+    expect(a.bumped).toBeGreaterThan(0.2);
+  });
+  it('struck on its corner by a car across its way, it is pushed out the nearer side', () => {
+    const st = two(hulled('car-2', [8, 0.6, 0], Math.PI / 2));
+    getIn(st); run(st, 5, { forward: 1 });
+    const a = st.byId['car-1'], b = st.byId['car-2'];
+    // (car-2 stands across: its box 1.8 along x, 4.4 along y)
+    expect(a.transform.pos[0] + 2.2).toBeLessThanOrEqual(8 - 0.9 + 0.05);
+    expect(b.transform.pos.slice(0, 2)).toEqual([8, 0.6]);
+  });
+  it('a body on foot does not walk through a car, and one with no hull is as it was', () => {
+    const st = two(hulled('car-2', [40, 40, 0]));
+    // (the hero beside car-1's left side, walking at it: -y)
+    st.byId.hero.transform.heading = -Math.PI / 2;
+    run(st, 3, { forward: 1 });
+    expect(st.byId.hero.transform.pos[1]).toBeGreaterThanOrEqual(0.9 + 0.3 - 1e-6);
+    const bare = world(); bare.byId.hero.transform.pos = [2, 4, 0]; bare.byId.hero.transform.heading = -Math.PI / 2;
+    run(bare, 3, { forward: 1 });
+    expect(bare.byId.hero.transform.pos[1]).toBeLessThan(0);
+  });
+});
+
+describe('the traffic the page hands the world (state.trafficHulls)', () => {
+  const hulled = (id, pos, heading = 0) => { const c = car(id, pos, heading); return { ...c, mount: { ...c.mount, hull: [0.9, 2.2], stand: [-1.4, 0.2] } }; };
+  it('holds: a car driven into one stops against it, and a body on foot does not walk through it', () => {
+    const st = E.createWorld({ entities: [
+      { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, collideRadius: 0.3 }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 2, 0], heading: 0 } },
+      hulled('car-1', [0, 0, 0]),
+      { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero', dist: 5.5 } },
+    ] });
+    // (a van stopped across the road ahead, and one beside where the hero will be set down)
+    st.trafficHulls = [{ p: [14, 0, 0], heading: 0, hull: [1, 2.6] }, { p: [40, 0, 0], heading: 0, hull: [1, 2.6] }];
+    getIn(st); run(st, 6, { forward: 1 });
+    const a = st.byId['car-1'];
+    expect(a.transform.pos[0]).toBeGreaterThan(7);
+    expect(a.transform.pos[0] + 2.2).toBeLessThanOrEqual(14 - 2.6 + 1e-6);
+    expect(Math.abs(a.speed)).toBeLessThan(1);
+    // (on foot, walked at it: stopped at its tail)
+    a.speed = 0; run(st, 0.5); run(st, DT, { interact: 1 }); run(st, 2);
+    expect(st.pilotId).toBe('hero');
+    const h = st.byId.hero; h.transform.pos = [30, 0, 0]; h.transform.heading = 0;
+    run(st, 3, { forward: 1 });
+    expect(h.transform.pos[0]).toBeGreaterThan(33);
+    expect(h.transform.pos[0]).toBeLessThanOrEqual(40 - 2.6 - 0.3 + 1e-6);
+  });
+});
