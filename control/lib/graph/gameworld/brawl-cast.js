@@ -26,6 +26,10 @@
  * each a screen the camera is held on until its wave has fallen, then its BOSS's screen when it has one.
  *   street: { open?: m, stops: [{ wave: { <role or foe id>: n }, length?: m, name? }], boss?: '<role or foe id>' |
  *             { foe, with?: { <role or foe id>: n }, hp?, cpu?, length?, stages? } }
+ *     boss.gun      a boss that fights at range in patterns (brawl-crowd.js GUN_BOSS_PLAYS: high, a volley at the chest
+ *                   to duck; low, one at the knee to jump; lob, a grenade to move off): a run & gun's boss unless it
+ *                   says false; true, a gun's name or its dials. `plays` its pattern, `volley`, `beat`; a stage may say
+ *                   its own, and one that says none builds the pattern up (GUN_BOSS_STAGES)
  *     boss.stages   the boss fight in acts (brawl-crowd.js readStages): how many (2 to 5: each a level harder than the
  *                   one before, its health shared evenly), or each written, [{ at?, cpu?, plays?, name?, calls? }]:
  *                   the share of its health it begins at, how it fights from there, what it is called, and who it
@@ -148,8 +152,19 @@ export function withBodies(waves, rosterAt) {
 }
 
 export const STREET = Object.freeze({ open: 14, stop: 16, stops: [1, 12], length: [8, 48], kit: 'island-plaza', lives: 3 });
-const STREET_WORDS = ['open', 'stops', 'boss'], STOP_WORDS = ['wave', 'length', 'name'], BOSS_WORDS = ['foe', 'with', 'hp', 'cpu', 'length', 'stages'];
-const STAGE_WORDS = ['at', 'cpu', 'plays', 'name', 'calls'];
+const STREET_WORDS = ['open', 'stops', 'boss'], STOP_WORDS = ['wave', 'length', 'name'], BOSS_WORDS = ['foe', 'with', 'hp', 'cpu', 'length', 'stages', 'gun', 'plays', 'volley', 'beat'];
+const STAGE_WORDS = ['at', 'cpu', 'plays', 'name', 'calls', 'volley', 'beat'];
+// A RUN & GUN'S BOSS fights at range in patterns (brawl-crowd.js GUN_BOSS_PLAYS), never closing to strike: it tests what
+// the street taught. Its stages, where they say no pattern, build it: the chest-high volley (duck), then the low one
+// beside it (jump), then the grenade among them and two rounds a volley, each stage resting less. Its health, unsaid,
+// is a long fight's: measured with the scripted players (brawl/brawl-playthrough.js), one who never dodges loses it with
+// every fall gone and one who jumps and ducks wins it with a fall or two.
+export const GUN_BOSS_STAGES = Object.freeze([
+  Object.freeze({ plays: Object.freeze(['high']), volley: 1, beat: 100 }),
+  Object.freeze({ plays: Object.freeze(['high', 'low']), volley: 1, beat: 80 }),
+  Object.freeze({ plays: Object.freeze(['high', 'low', 'lob', 'low']), volley: 2, beat: 60 }),
+]);
+export const GUN_BOSS_HP = 1600;
 // (the levels a boss's stages step up through when they say none: versus-cpu.js CPU_LEVELS, in order)
 const CPU_STEPS = ['novice', 'regular', 'veteran', 'ace'];
 const metres = (v, at) => { if (!(typeof v === 'number' && v >= STREET.length[0] && v <= STREET.length[1])) throw fail(`${at} is a screen's length, ${STREET.length[0]} to ${STREET.length[1]} m`); return v; };
@@ -189,9 +204,14 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
   const bossWords = S.boss === undefined ? null : typeof S.boss === 'string' ? { foe: S.boss } : S.boss;
   // (a boss's stages, brawl-crowd.js readStages: how many (each a level up from the one before, sharing its health
   // evenly) or each written; who a stage calls is cast as a stop's wave is)
-  const stagesIn = bossWords?.stages === undefined ? null : Number.isInteger(bossWords.stages)
-    ? Array.from({ length: bossWords.stages }, (_, k) => ({ cpu: CPU_STEPS[Math.min(CPU_STEPS.length - 1, Math.max(0, CPU_STEPS.indexOf(bossWords.cpu ?? 'regular')) + k)] }))
+  // (a run & gun's boss is a gunner unless its street says `gun: false`: it fights at range in patterns; a beat-em-up's
+  // closes and strikes)
+  const gunner = !!bossWords && (bossWords.gun === undefined ? gun : bossWords.gun !== false);
+  const patterned = (st, k, n) => { const D = GUN_BOSS_STAGES[n <= GUN_BOSS_STAGES.length ? Math.round((k * (GUN_BOSS_STAGES.length - 1)) / Math.max(1, n - 1)) : Math.min(k, GUN_BOSS_STAGES.length - 1)]; return { ...st, plays: st.plays ?? [...D.plays], volley: st.volley ?? D.volley, beat: st.beat ?? D.beat }; };
+  const stages0 = bossWords?.stages === undefined ? null : Number.isInteger(bossWords.stages)
+    ? Array.from({ length: bossWords.stages }, (_, k) => (gunner ? {} : { cpu: CPU_STEPS[Math.min(CPU_STEPS.length - 1, Math.max(0, CPU_STEPS.indexOf(bossWords.cpu ?? 'regular')) + k)] }))
     : bossWords.stages;
+  const stagesIn = stages0 && gunner ? stages0.map(({ cpu: _cpu, ...st }, k) => patterned(st, k, stages0.length)) : stages0;
   const callers = (stagesIn ?? []).map((st, k) => (st.calls ? { k, foes: st.calls } : null)).filter(Boolean);
   const C = brawlCast(G, [...S.stops.map((st) => ({ foes: st.wave, ...(st.name ? { name: st.name } : {}) })), ...(bossWords?.with ? [{ foes: bossWords.with }] : []), ...callers.map((c) => ({ foes: c.foes }))], { gun, plays });
   const screens = [{ length: S.open ?? STREET.open }, ...S.stops.map((st) => ({ length: st.length ?? STREET.stop, gate: true }))];
@@ -207,7 +227,7 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
     const withAt = S.stops.length, callsAt = withAt + (bossWords.with ? 1 : 0);
     const called = callers.flatMap((c, n) => C.waves[callsAt + n].crowd.map((e) => ({ ...e, stage: c.k })));
     const stages = stagesIn ? stagesIn.map(({ calls: _c, ...st }) => st) : null;
-    waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : {}), ...(bossWords.cpu ? { cpu: bossWords.cpu } : {}), ...(stages ? { stages } : {}) } });
+    waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : gunner ? { hp: GUN_BOSS_HP } : {}), ...(bossWords.cpu && !gunner ? { cpu: bossWords.cpu } : {}), ...(gunner ? { gun: bossWords.gun === undefined || bossWords.gun === true ? true : bossWords.gun, ...(bossWords.plays ? { plays: bossWords.plays } : stages ? {} : { plays: [...GUN_BOSS_STAGES[1].plays] }), ...(bossWords.volley ? { volley: bossWords.volley } : {}), ...(bossWords.beat ? { beat: bossWords.beat } : {}) } : {}), ...(stages ? { stages } : {}) } });
   } else says.push('the street ends on its last stop: it names no boss');
   // (a street builds: a stop that meets fewer than the one before it is said)
   const met = waves.filter((w) => !w.boss).map((w) => w.crowd.reduce((a, c) => a + c.n, 0));

@@ -47,7 +47,9 @@ session leaves.
 5. **The build.** `run: true` makes every ready step through the real doors (each level a world row, then the game
    row), keeping what did not move. Its `compile` readout is the pre-build check: blockers, advises, an estimate.
 6. **The machine gate.** `run: true, check: true` walks each level in headless Chrome to its win (`audits`), and for a
-   fight level sends a scripted player that must win and a still one that must not (`playthrough`).
+   fight level sends a scripted player that must win and a still one that must not (`playthrough`). A run & gun's
+   street its basic player loses is played by one that jumps and ducks; won that way, it passes and says it `asks`
+   for them.
 7. **The eyes gate.** The `play` step. The person plays it; nothing in mojulo ever says a person has looked.
 8. **Keep it.** `export_game` writes the web build (or a desktop app); `export_model { engine }` hands a team's engine
    the levels and assets. Where it is built and where it can be seen: [workshop.md](workshop.md).

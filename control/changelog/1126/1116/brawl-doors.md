@@ -71,8 +71,19 @@
   called, and who it calls in to help. As a stage begins the boss cannot be hurt for a moment, a banner names the
   stage, and its bar across the top shows the stages as segments.
 - **A game made from a sentence gets a three-stage boss.** It fights harder at each stage and calls two of its
-  rank and file in at the second and third. Measured with the simple player: won in a beat-em-up with two of five
-  falls, and in a run & gun with three of five.
+  rank and file in at the second and third in a beat-em-up, where the simple player won with two of five falls. A
+  run and gun's boss fights alone, in the pattern described below.
+- **A run and gun's boss is a different fight.** It no longer walks up and strikes. It keeps its distance and
+  fires in a pattern the game's designer writes: a shot at the chest to duck under, a shot at the knee to jump, a
+  grenade to walk out from under. Each stage of the fight can have its own pattern, how many rounds come at once,
+  and how long the boss rests between them. Left unwritten, the stages build up: first the high shot, then high
+  and low, then the grenade among them with two rounds at a time. So the boss tests what the street taught. Measured
+  with two scripted players on a three-stage boss: the one that only lines up and fires lost with every fall gone;
+  the one that also ducks and jumps won with two falls to spare. With two players either wins. A beat-em-up's boss
+  is unchanged, and a run and gun can ask for that kind with one word.
+- **The check knows when a level asks for dodging.** When the simple player loses a run and gun level, a second
+  one that jumps and ducks plays it. If that one wins, the level passes and the report says it is won only by
+  dodging. If neither wins, it says where they fell and what would ease it.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or

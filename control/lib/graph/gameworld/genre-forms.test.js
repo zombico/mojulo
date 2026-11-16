@@ -150,7 +150,9 @@ describe('the street genres are registered', () => {
     const W = composeGameworld({ prompt: 'a run and gun through a ruined factory', levels: 1, seed: 1 });
     expect(W.intent).toEqual({ from: 'run-and-gun' });
     expect(W.screen).toBe('screen');
-    expect(Object.values(W.levels)[0].street).toMatchObject({ lives: 5, boss: { cpu: 'novice' } });
+    expect(Object.values(W.levels)[0].street).toMatchObject({ lives: 5, boss: { foe: 'boss', stages: 3 } });
+    // (a beat-em-up's boss closes and strikes, its help called in; a run & gun's is a gunner alone)
+    expect(Object.values(composeGameworld({ prompt: 'a beat em up in a port town', levels: 1, seed: 1 }).levels)[0].street.boss).toMatchObject({ cpu: 'novice' });
     expect(W.characters?.hero).toBeDefined();
     expect(() => readGameworld(W)).not.toThrow();
     const feel = composeGameworld({ prompt: 'a mega man style run and gun across stormy cliffs', seed: 1 });

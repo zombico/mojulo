@@ -39,7 +39,9 @@ export const GENRE_FORMS = Object.freeze({
   // fought hand to hand, a run & gun with guns (the world's intent decides: the same level form). A street runs across
   // the screen, and a hero plays it (a stand-in where the world has none yet)
   'co-op-brawler': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: STREET_FROM_A_SENTENCE }) }),
-  'run-and-gun': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: STREET_FROM_A_SENTENCE }) }),
+  // (a run & gun's boss is a gunner that fights alone, its three stages building its pattern: brawl-cast.js
+  // GUN_BOSS_STAGES. Measured, one player: lining up and firing loses it, jumping and ducking wins with falls to spare)
+  'run-and-gun': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: { ...STREET_FROM_A_SENTENCE, boss: { foe: 'boss', stages: 3 } } }) }),
   'city-stalker': Object.freeze({ form: 'city', name: 'District', hero: Object.freeze({ moves: Object.freeze(['wall', 'swinger']) }), level: () => ({ city: { stalker: true } }) }),
 });
 

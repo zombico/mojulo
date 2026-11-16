@@ -162,7 +162,29 @@ const vary = (id, k = 0) => { let h = (id * 2654435761 + k * 40503) >>> 0; h ^= 
  * its wave marked for that stage (a crowd entry's `stage`) are called in.
  */
 export const STAGE_PAUSE = 45;
-function readStages(stages, where) {
+/**
+ * A GUNNER BOSS (`boss.gun`, the run & gun's): it holds its range and fires in PATTERNS, never closing to strike. Its gun
+ * (a name or dials, brawl-guns.js) is wide across the street by default, so a step off its line is not the way out: its
+ * rounds are answered with the two skills the street taught. Its `plays` are its pattern, a step after another:
+ *   high   a volley at the chest: duck under it
+ *   low    a volley at the knee: jump it
+ *   lob    a grenade arced at where its target stands: move off the spot
+ * `volley` its rounds a volley (1 to 6), `beat` the frames it rests between two steps (20 to 300); a stage may say its
+ * own plays, volley and beat. Each volley is warned of for its gun's telegraph, at the height it will come.
+ */
+export const GUN_BOSS_PLAYS = Object.freeze({ high: 'a volley at the chest: duck under it', low: 'a volley at the knee: jump it', lob: 'a grenade arced at where you stand: move off the spot' });
+export const GUN_BOSS = Object.freeze({ gun: Object.freeze({ from: 'rifle', line: 1400, speed: 150, telegraph: 28, damage: 60, size: 150, rate: 9 }), plays: Object.freeze(['high']), volley: 1, beat: 100, far: 4200, grenades: 99 });
+function readGunPlays(plays, where) {
+  if (!Array.isArray(plays) || !plays.length || plays.length > 12) throw new Error(`brawl: ${where} is a gunner boss's pattern, 1 to 12 steps of ${Object.keys(GUN_BOSS_PLAYS).join(', ')}`);
+  for (const p of plays) if (!GUN_BOSS_PLAYS[p]) throw new Error(`brawl: ${where} has no step '${p}' (${Object.keys(GUN_BOSS_PLAYS).join(', ')})`);
+  return plays;
+}
+function readPace(o, where) {
+  if (o.volley !== undefined && !(Number.isInteger(o.volley) && o.volley >= 1 && o.volley <= 6)) throw new Error(`brawl: ${where}.volley is its rounds a volley, 1 to 6`);
+  if (o.beat !== undefined && !(Number.isInteger(o.beat) && o.beat >= 20 && o.beat <= 300)) throw new Error(`brawl: ${where}.beat is the frames it rests between two steps, 20 to 300`);
+  return { ...(o.volley ? { volley: o.volley } : {}), ...(o.beat ? { beat: o.beat } : {}) };
+}
+function readStages(stages, where, gunner = false) {
   if (stages === undefined) return undefined;
   if (!Array.isArray(stages) || stages.length < 2 || stages.length > 5) throw new Error(`brawl: ${where} is two to five stages, each { at?, cpu?, plays?, name? }`);
   let last = 1.0001;
@@ -172,8 +194,9 @@ function readStages(stages, where) {
     if (!(typeof at === 'number' && at > 0 && at <= 1) || (k === 0 && at !== 1) || (k > 0 && at >= last)) throw new Error(`brawl: ${where}[${k}].at is the share of its health the stage begins at: 1 the first, each after it lower`);
     last = at;
     if (st.cpu !== undefined && !CPU_LEVELS[st.cpu]) throw new Error(`brawl: ${where}[${k}].cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
-    if (st.plays !== undefined && Array.isArray(st.plays) && st.plays.includes('grab')) throw new Error(`brawl: ${where}[${k}].plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
-    return { at, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}), ...(typeof st.name === 'string' && st.name ? { name: st.name } : {}) };
+    if (gunner && st.plays !== undefined) readGunPlays(st.plays, `${where}[${k}].plays`);
+    if (!gunner && st.plays !== undefined && Array.isArray(st.plays) && st.plays.includes('grab')) throw new Error(`brawl: ${where}[${k}].plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
+    return { at, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}), ...(typeof st.name === 'string' && st.name ? { name: st.name } : {}), ...(gunner ? readPace(st, `${where}[${k}]`) : {}) };
   });
 }
 
@@ -208,9 +231,11 @@ export function readWaves(waves, belt) {
       if (w.boss.plays !== undefined && Array.isArray(w.boss.plays) && w.boss.plays.includes('grab')) throw new Error(`brawl: ${at}.boss.plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
       if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
       if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
-      readStages(w.boss.stages, `${at}.boss.stages`);
+      // (a gunner boss, above: its gun, and its plays its pattern)
+      if (w.boss.gun !== undefined) { readGun(w.boss.gun === true ? GUN_BOSS.gun : w.boss.gun, `${at}.boss.gun`); if (w.boss.plays !== undefined) readGunPlays(w.boss.plays, `${at}.boss.plays`); readPace(w.boss, `${at}.boss`); }
+      readStages(w.boss.stages, `${at}.boss.stages`, w.boss.gun !== undefined);
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}), ...(c.stage ? { stage: c.stage } : {}) })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS, ...(w.boss.stages ? { stages: readStages(w.boss.stages, `${at}.boss.stages`) } : {}) } } : {}) };
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}), ...(c.stage ? { stage: c.stage } : {}) })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? (w.boss.gun !== undefined ? GUN_BOSS.plays : BOSS_PLAYS), ...(w.boss.gun !== undefined ? { gun: w.boss.gun === true ? GUN_BOSS.gun : w.boss.gun, ...readPace(w.boss, `${at}.boss`) } : {}), ...(w.boss.stages ? { stages: readStages(w.boss.stages, `${at}.boss.stages`, w.boss.gun !== undefined) } : {}) } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -263,11 +288,15 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, rang
     if (w.boss) {
       // (a body as every other: a brawler's fighter in its own tune, its plays on it)
       const BF = brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}) }, { tune: w.boss.tune });
-      bosses[bodies.length] = { cpu: w.boss.cpu, name: w.boss.recipe.name ?? w.boss.recipe.id ?? 'boss', plays: readPlays(w.boss.plays, BF, `waves[${k}].boss.plays`), combo: Math.max(1, BF.brawl.chain - 1), knees: 3,
+      // (a gunner boss: its gun and the grenade it lobs join the street's guns; its plays are its pattern, read above)
+      const gunner = w.boss.gun !== undefined, bossGun = gunner ? { gun: armory.guns.push(readGun(w.boss.gun, `waves[${k}].boss.gun`)) - 1, grenadeGun: armory.guns.push(readGun('lob')) - 1, grenades: GUN_BOSS.grenades } : null;
+      const playsOf = (pl, where) => (gunner ? pl : readPlays(pl, BF, where));
+      bosses[bodies.length] = { cpu: w.boss.cpu, name: w.boss.recipe.name ?? w.boss.recipe.id ?? 'boss', plays: playsOf(w.boss.plays, `waves[${k}].boss.plays`), combo: Math.max(1, BF.brawl.chain - 1), knees: 3,
+        ...(gunner ? { gunner: 1, volley: w.boss.volley ?? GUN_BOSS.volley, beat: w.boss.beat ?? GUN_BOSS.beat } : {}),
         // (its stages, each one's plays read on its fighter: readStages above; it comes in at its first)
-        ...(w.boss.stages ? { stage: 0, stages: w.boss.stages.map((st, n) => ({ ...st, ...(st.plays ? { plays: readPlays(st.plays, BF, `waves[${k}].boss.stages[${n}].plays`) } : {}) })) } : {}) };   // (its chain to the blow before the last: an ender's place)
+        ...(w.boss.stages ? { stage: 0, stages: w.boss.stages.map((st, n) => ({ ...st, ...(st.plays ? { plays: playsOf(st.plays, `waves[${k}].boss.stages[${n}].plays`) } : {}) })) } : {}) };   // (its chain to the blow before the last: an ender's place)
       fighters.push(BF);
-      bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
+      bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k, ...(bossGun ?? {}), ...(gunner ? { grabs: false } : {}) }); kinds.push('boss');
     }
     for (const c of w.crowd) for (let j = 0; j < c.n; j++) { if (c.stage) calls[bodies.length] = c.stage; if (c.entrance || c.ambush) entries[bodies.length] = { how: c.entrance ?? 'walk', ...(c.ambush ? { ambush: 1 } : {}), ...(c.mount ? { mount: c.mount } : {}) }; bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}), ...(CROWD_TYPES[c.type].poise ? { poise: CROWD_TYPES[c.type].poise } : {}) }); kinds.push(c.type); }
   });
@@ -283,7 +312,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, rang
   // (each crowd body's type, by its id)
   const type = Object.fromEntries(kinds.map((t, j) => [players.length + j, t]));
   // (a staged boss's health as it comes in: what its stages' shares are of; and it comes in fighting as its first stage says)
-  for (const id of Object.keys(bosses)) if (bosses[id].stages) { const K = bosses[id], first = K.stages[0]; bosses[id] = { ...K, hpMax: s.bodies[id].hp, ...(first.cpu ? { cpu: first.cpu } : {}), ...(first.plays ? { plays: first.plays } : {}) }; }
+  for (const id of Object.keys(bosses)) if (bosses[id].stages) { const K = bosses[id], first = K.stages[0]; bosses[id] = { ...K, hpMax: s.bodies[id].hp, ...(first.cpu ? { cpu: first.cpu } : {}), ...(first.plays ? { plays: first.plays } : {}), ...(first.volley ? { volley: first.volley } : {}), ...(first.beat ? { beat: first.beat } : {}) }; }
   return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, ...(Object.keys(calls).length ? { calls } : {}), cpu: Object.fromEntries(Object.keys(bosses).map((id) => [id, newCpuMemory()])) } };
 }
 
@@ -322,6 +351,33 @@ function pickPlay(kind, p, s) {
 }
 // a pad that walks toward a point, still within `dead` of it
 const toward = (p, x, z, dead) => ({ x: Math.abs(x - p.x) > dead ? sgn(x - p.x) : 0, z: Math.abs(z - p.z) > dead ? sgn(z - p.z) : 0 });
+
+/** A gunner boss's pad (GUN_BOSS_PLAYS): it keeps its range, comes onto its target's line, and steps through its
+ * pattern, each step warned of at the height it will come and rested after. `m` is its own memory. */
+function gunBossPad(s, ctx, p, T, m, kind) {
+  const side = sgn(p.x - T.x) || 1, dx = Math.abs(p.x - T.x), dz = T.z - p.z, aim = [-side, 0];
+  // a volley under way: its warning, its rounds, then its rest
+  if (m.fire) {
+    const G = ctx.guns[p.gn];
+    m.fire = { ...m.fire, t: m.fire.t + 1 };
+    const low = m.fire.low ? { low: 1 } : {};
+    if (m.fire.t <= G.telegraph) return { aim: m.fire.aim, ...low };
+    if (m.fire.n < (kind.volley ?? 1)) { if ((p.fc ?? 0) <= 1) m.fire = { ...m.fire, n: m.fire.n + 1 }; return { fire: m.fire.aim, ...low }; }
+    delete m.fire; m.rest = kind.beat ?? GUN_BOSS.beat;
+    return {};
+  }
+  // between two steps: back to its range, onto its target's line (slowly: its volley is wide)
+  if ((m.rest ?? 30) > 0) {
+    m.rest = (m.rest ?? 30) - 1;
+    return { x: dx < GUN_BOSS.far - 600 ? side : dx > GUN_BOSS.far + 1200 ? -side : 0, z: Math.abs(dz) > 500 ? sgn(dz) : 0 };
+  }
+  if (!FREE.has(p.st)) return {};
+  const step = kind.plays[(m.pi ?? 0) % kind.plays.length];
+  m.pi = (m.pi ?? 0) + 1;
+  if (step === 'lob') { m.rest = kind.beat ?? GUN_BOSS.beat; return { lob: aim }; }
+  m.fire = { t: 0, n: 0, aim, ...(step === 'low' ? { low: 1 } : {}) };
+  return { aim, ...(step === 'low' ? { low: 1 } : {}) };
+}
 
 /** The crowd's pads this frame (its mind `M` changed in place: tokens, each body's mode): the bodies of the crowd it is
  * given a type for (`M.type`), any boss among them by `M.bosses`. A practice room's crowd thinks with it. */
@@ -392,6 +448,7 @@ function think(s, ctx, M) {
       continue;
     }
     if (!T) { pads[p.id] = {}; continue; }
+    if (M.bosses[p.id]?.gunner) { pads[p.id] = gunBossPad(s, ctx, p, T, m, kind); continue; }
     if (M.bosses[p.id]) { pads[p.id] = bossPad(s, ctx, M, p, T, lineUp, claimed, m, kind); continue; }
     const side0 = sgn(p.x - T.x) || (p.id % 2 ? 1 : -1);
     const mine = holding(M, T.id);
@@ -565,7 +622,7 @@ function waves(s, ctx, M) {
     while (k + 1 < K.stages.length && staged.hp <= Math.round(K.hpMax * K.stages[k + 1].at)) k++;
     if (k !== K.stage) {
       // (what a stage does not say is the stage before it: its cpu and its plays carried on)
-      const now = K.stages.slice(0, k + 1).reduce((o, st) => ({ ...o, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}) }), { cpu: K.cpu, plays: K.plays });
+      const now = K.stages.slice(0, k + 1).reduce((o, st) => ({ ...o, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}), ...(st.volley ? { volley: st.volley } : {}), ...(st.beat ? { beat: st.beat } : {}) }), { cpu: K.cpu, plays: K.plays, ...(K.volley ? { volley: K.volley } : {}), ...(K.beat ? { beat: K.beat } : {}) });
       M.bosses = { ...M.bosses, [staged.id]: { ...K, ...now, stage: k } };
       staged.inv = Math.max(staged.inv, STAGE_PAUSE);
       s.events.push({ t: 'bossStage', p: staged.id, k: k + 1, of: K.stages.length, ...(K.stages[k].name ? { name: K.stages[k].name } : {}) });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { brawlPlay, brawlCast, brawlBodies, withBodies, readBrawlWaves, BRAWL_PLAYS, brawlStreet, readStreet, withStreetBodies, STREET } from './brawl-cast.js';
+import { brawlPlay, brawlCast, brawlBodies, withBodies, readBrawlWaves, BRAWL_PLAYS, brawlStreet, readStreet, withStreetBodies, STREET, GUN_BOSS_STAGES, GUN_BOSS_HP } from './brawl-cast.js';
 import { readBelt } from '../brawl/brawl-belt.js';
 import { readLevelStreet, streetFoeIds, streetLevel } from './brawl-cast.js';
 import { readGameworld } from './world.js';
@@ -127,6 +127,35 @@ describe('a brawl\'s street', () => {
 
 // A STREET AS A LEVEL of a designed game: a level says it is a street, the world's bestiary is its crowd, the game's
 // hero and its made foes its bodies; the run makes it as it makes any level.
+describe('a run & gun\'s boss', () => {
+  const one = { stops: [{ wave: { grunt: 1 } }] };
+  const last = (boss, opts = { gun: true }) => brawlStreet(G, { ...one, boss }, opts).waves.at(-1).boss;
+  it('is a gunner unless its street says not: a pattern, a long fight\'s health, never a cpu level', () => {
+    expect(last({ foe: 'warlord', cpu: 'novice' })).toEqual({ foe: 'warlord', hp: GUN_BOSS_HP, gun: true, plays: ['high', 'low'] });
+    expect(last({ foe: 'warlord', hp: 900, plays: ['lob'], volley: 2, beat: 50 })).toEqual({ foe: 'warlord', hp: 900, gun: true, plays: ['lob'], volley: 2, beat: 50 });
+    // (a beat-em-up's boss, and a run & gun's that says `gun: false`, closes and strikes as before)
+    expect(last({ foe: 'warlord', cpu: 'novice' }, {})).toEqual({ foe: 'warlord', cpu: 'novice' });
+    expect(last({ foe: 'warlord', cpu: 'novice', gun: false })).toEqual({ foe: 'warlord', cpu: 'novice' });
+    // (and a beat-em-up's boss may be given one)
+    expect(last({ foe: 'warlord', gun: true }, {})).toMatchObject({ gun: true, hp: GUN_BOSS_HP });
+  });
+
+  it('its stages build the pattern up: the chest, then the knee beside it, then the grenade among them, each resting less', () => {
+    expect(last({ foe: 'warlord', stages: 3 }).stages.map((s) => ({ plays: s.plays, volley: s.volley, beat: s.beat }))).toEqual(GUN_BOSS_STAGES.map((s) => ({ plays: [...s.plays], volley: s.volley, beat: s.beat })));
+    // (two stages: the first and the last; a stage that says its own keeps it, with its name and its call)
+    expect(last({ foe: 'warlord', stages: 2 }).stages.map((s) => s.plays)).toEqual([['high'], ['high', 'low', 'lob', 'low']]);
+    const written = last({ foe: 'warlord', stages: [{}, { plays: ['low'], name: 'Low sweep', calls: { grunt: 2 } }] }).stages;
+    expect(written[1]).toMatchObject({ plays: ['low'], name: 'Low sweep' });
+    expect(written[0].plays).toEqual(['high']);
+    // (the sim reads what the street wrote)
+    const S = brawlStreet(G, { ...one, boss: { foe: 'warlord', stages: 3 } }, { gun: true });
+    const belt = readBelt({ at: [0, 0], heading: 0, depth: [-1.25, 1.25], angle: 'classic', screens: S.screens }, 'belt');
+    const boss = solveFighter({ id: 'warlord', archetype: 'grappler' }).recipe;
+    const W = readWaves(S.waves.filter((w) => w.boss).map((w) => ({ ...w, crowd: [], boss: { ...w.boss, recipe: { ...boss, archetype: 'grappler' } } })), belt).at(-1);
+    expect(W.boss.stages.map((s) => s.plays.length)).toEqual([1, 2, 4]);
+  });
+});
+
 describe('a street as a level of a designed game', () => {
   const street = { stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3 } }], boss: 'warlord' };
   const W = { id: 'row', name: 'Row', mode: 'autonomous', foes: G.foes, levels: { row: { name: 'The Row', street } } };

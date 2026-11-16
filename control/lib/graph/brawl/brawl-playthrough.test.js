@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { playStreet, streetSummary, PLAYERS } from './brawl-playthrough.js';
 import { brawlYardData } from './brawl-page.js';
-import { brawlStreet, withStreetBodies } from '../gameworld/brawl-cast.js';
+import { brawlStreet, withStreetBodies, streetLevel } from '../gameworld/brawl-cast.js';
 import { brawlArenas, readQuick, BRAWL_STREET } from '../gameworld/quick.js';
 
 // A STREET PLAYED: the scripted players on the room the page steps. The basic one (line up, close, press attack; on a
@@ -40,8 +40,20 @@ describe('a street played', () => {
     expect(playStreet(yardOf('brawl', { ...BRAWL_STREET, boss: 'boss' }, { players: 2 })).won).toBe(true);
   }, 120_000);
 
+  it('a run & gun\'s staged boss asks for the jump and the duck: one player who only lines up and fires loses it, one who dodges wins', () => {
+    const three = { stops: [{ wave: { goon: 3 } }, { wave: { slinger: 2, goon: 2 } }], boss: { foe: 'king', stages: 3 } };
+    const Y = brawlYardData(streetLevel({ ...G, screen: 'screen' }, { ...three, guns: true }, {}).manifest.brawl);
+    const basic = playStreet(Y, { player: 'basic' }), dodger = playStreet(Y, { player: 'dodger' });
+    expect(basic).toMatchObject({ outcome: 'lost', boss: { down: false } });
+    expect(dodger).toMatchObject({ outcome: 'won', boss: { down: true } });
+    expect(dodger.struck).toBeLessThan(basic.struck);
+    // (on a beat-em-up there is no fire to read: the dodger is the basic player)
+    const B = yardOf('brawl', BRAWL_STREET);
+    expect({ ...playStreet(B, { player: 'dodger' }), player: 'basic' }).toEqual(playStreet(B, { player: 'basic' }));
+  }, 240_000);
+
   it('plays a street only, by a player it knows', () => {
-    expect(PLAYERS).toEqual(['basic', 'still']);
+    expect(PLAYERS).toEqual(['basic', 'dodger', 'still']);
     expect(() => playStreet({})).toThrow(/plays a street/);
     expect(() => playStreet(yardOf('brawl', BRAWL_STREET), { player: 'expert' })).toThrow(/player is one of/);
   });

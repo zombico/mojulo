@@ -8,6 +8,9 @@
  *           closes to its reach and presses attack at a person's pace (a press, a few frames held, a few let go), the
  *           reader's buffer and chain taking them; on a run & gun it lines up and holds fire down the street. No strong
  *           blow, no special, no jump, no roll, no grenade: the floor of play, not its ceiling
+ *   dodger  the basic player who also reads the fire coming at it, on a run & gun: a round at the chest on its line it
+ *           ducks under, one at the knee it jumps, a grenade in the air it walks out from under; between them it
+ *           fights as the basic one does. What a street's guns and its boss ask beyond lining up
  *   still   holds nothing: a street a player who does nothing wins has no fight on it
  * Every seat is played the same way (a street's players are one to four).
  *
@@ -20,8 +23,9 @@
  * Deterministic: the sim's fixed step, the player a pure function of what it sees.
  */
 import { streetRoomOf, stepYard } from './brawl-practice.js';
+import { GUN_MUZZLE } from './brawl-guns.js';
 
-export const PLAYERS = Object.freeze(['basic', 'still']);
+export const PLAYERS = Object.freeze(['basic', 'dodger', 'still']);
 // a person's pace: a press held four frames, let go six
 const HOLD = 4, EVERY = 10;
 // (how near its line a body must be before it swings, mm across the street; the reach it closes to, mm along it)
@@ -50,6 +54,34 @@ function basicButtons(room, i, f) {
   return { x: Math.sign(dx) || me.face, ...((f + i * 3) % EVERY < HOLD ? { a: true } : {}) };
 }
 
+// (the dodger's reading: a round within this many frames of it, on its line; one leaving below this share of a standing
+// muzzle is at the knee; a grenade landing within this of it, mm)
+const SOON = 14, JUMP_AT = 9, ROUND_LINE = 320, KNEE = 0.8, BURST = 900;
+/** One seat's buttons this frame, the fire coming at it read first. */
+function dodgerButtons(room, i, f) {
+  const me = room.s.bodies[i];
+  if (me.ko || !room.yard.range) return basicButtons(room, i, f);
+  let duck = false, jump = false, flee = 0;
+  for (const t of room.s.shots) {
+    if (t.side !== 'crowd') continue;
+    if (t.lob) {
+      // (where it comes down: its arc run on to the ground; under it, the seat walks toward the street's middle)
+      let y = t.y, vy = t.vy, n = 0;
+      while (y > 0 && n < 240) { y += vy; vy -= t.g; n++; }
+      if (Math.abs(t.x + t.vx * n - me.x) < BURST && Math.abs(t.z + (t.vz ?? 0) * n - me.z) < BURST) flee = me.z > 0 ? -1 : 1;
+      continue;
+    }
+    if (!t.vx || Math.abs(t.z - me.z) > ROUND_LINE || Math.sign(me.x - t.x) !== Math.sign(t.vx)) continue;
+    const eta = Math.abs(me.x - t.x) / Math.abs(t.vx);
+    if (eta > SOON) continue;
+    if (t.y - me.y < GUN_MUZZLE[1] * KNEE) { if (eta <= JUMP_AT) jump = true; } else duck = true;
+  }
+  if (jump && !me.y) return { j: f % 2 === 0 };
+  if (duck && !jump) return { h: true, z: -1, a: true };
+  if (flee) return { z: flee };
+  return basicButtons(room, i, f);
+}
+
 /** A street played to its end, or to the clock. */
 export function playStreet(yard, { player = 'basic', seconds = 240 } = {}) {
   if (!PLAYERS.includes(player)) throw new Error(`brawl: a playthrough's player is one of ${PLAYERS.join(', ')}`);
@@ -57,7 +89,7 @@ export function playStreet(yard, { player = 'basic', seconds = 240 } = {}) {
   const P = room.yard.players, limit = Math.round(seconds * 60);
   let struck = 0, landed = 0, cleared = 0, boss = null;
   for (let f = 0; f < limit && !room.yard.over; f++) {
-    const buttons = Array.from({ length: P }, (_, i) => (player === 'still' ? {} : basicButtons(room, i, f)));
+    const buttons = Array.from({ length: P }, (_, i) => (player === 'still' ? {} : player === 'dodger' ? dodgerButtons(room, i, f) : basicButtons(room, i, f)));
     room = stepYard(room, buttons);
     for (const e of room.s.events) {
       if (e.t === 'hit' && e.d !== undefined && e.d < P) struck++;

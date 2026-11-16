@@ -1519,9 +1519,14 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
       if (payload.brawl?.street) {
         const { playStreet, streetSummary } = await import('@/lib/graph/brawl/brawl-playthrough.js');
         const basic = playStreet(payload.brawl, { player: 'basic' }), still = playStreet(payload.brawl, { player: 'still' });
-        // (a street its basic player loses: where, and the two words that ease it; advice, the design is the creator's)
-        const eases = basic.won ? {} : { eases: `the basic player ${basic.outcome === 'lost' ? `ran out of falls at stop ${Math.min(basic.stops.of, basic.stops.cleared + 1)} of ${basic.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or stand its boss at cpu: 'novice'` };
-        levels.push({ level: key, pass: basic.won && !still.won, basic: streetSummary(basic), still: streetSummary(still), ...eases });
+        // (a run & gun's street its basic player loses is played by the one who jumps and ducks: a street that asks for
+        // them is a design, and the readout says it does)
+        const dodger = !basic.won && payload.brawl.range ? playStreet(payload.brawl, { player: 'dodger' }) : null;
+        const won = dodger?.won ? dodger : basic;
+        // (a street no scripted player wins: where, and the words that ease it; advice, the design is the creator's)
+        const eases = won.won ? {} : { eases: `the ${won.player} player ${won.outcome === 'lost' ? `ran out of falls at stop ${Math.min(won.stops.of, won.stops.cleared + 1)} of ${won.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or ${payload.brawl.range ? 'lower its boss\'s hp or slow its pattern (boss.beat)' : 'stand its boss at cpu: \'novice\''}` };
+        const asks = dodger?.won ? { asks: 'won only by jumping the low rounds and ducking the high ones: lining up and firing alone loses it' } : {};
+        levels.push({ level: key, pass: won.won && !still.won, basic: streetSummary(basic), ...(dodger ? { dodger: streetSummary(dodger) } : {}), still: streetSummary(still), ...asks, ...eases });
         continue;
       }
       const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });

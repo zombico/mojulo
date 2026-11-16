@@ -58,14 +58,17 @@ describe('a street\'s tuning', () => {
     expect(rifle.speed).toBeGreaterThan(GUNS.rifle.speed);
   });
 
-  it('held by the scripted player: one basic player wins the default arcade street, taking hits, with falls to spare', () => {
-    const one = playStreet(yard()), still = playStreet(yard(), { player: 'still', seconds: 60 });
+  it('held by the scripted players: one who jumps and ducks wins the default arcade street with falls to spare; one who only fires meets its boss and loses', () => {
+    // (a run & gun's own sentence street: its boss a gunner alone, in three stages)
+    const lone = { boss: { foe: 'boss', stages: 3 } };
+    const one = playStreet(yard(lone), { player: 'dodger' }), plain = playStreet(yard(lone)), still = playStreet(yard(lone), { player: 'still', seconds: 60 });
     expect(one).toMatchObject({ won: true, boss: { down: true } });
     expect(one.struck).toBeGreaterThan(5);
     expect(one.falls).toBeLessThan(one.stakes);
+    expect(plain).toMatchObject({ won: false, stops: { cleared: 3 }, boss: { down: false } });
     expect(still.won).toBe(false);
     // (the same street on the sim's own numbers is the longer fight: its soldiers take many more rounds)
-    const slow = playStreet(yard({ tuning: 'measured' }));
+    const slow = playStreet(yard({ ...lone, tuning: 'measured' }), { player: 'dodger' });
     expect(slow.landed).toBeGreaterThan(one.landed);
   }, 120_000);
 
