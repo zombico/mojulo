@@ -6,11 +6,13 @@
  * it (`deliver`) and pays the `reward`.
  *
  *   errands: [{ id, giver: '<level>', reward?: [{ item, n? }],
- *     list: [{ item, at: '<level>', count?: 1, min?, needs?: ['<item>'], from?: { foe: '<bestiary id>' },
+ *     list: [{ item, at: '<level>', count?: 1, min?, needs?: ['<item>'], from?: { foe: '<bestiary id>' }, shop?: '<store card>',
  *              cargo?: { fragile?: true, perishable?: <seconds a unit> } }] }]
  *   needs    the list's items spent where this one is had, each its whole `count` (3 coin for the eggs)
  *   min      how much must reach the giver (the count, by default): a fragile cargo's margin is count − min
  *   from     a bounty: the item is the proof the foe's fall drops; its level must field that foe (`foes`)
+ *   shop     the kind of store it is had in (a seeded store card's id): where its level's town has such a shop walked
+ *            into (the geotown's `shops`), the trade stands at its till; else on a spot, as any trade
  *   what the giver asks for is the list's roots: the items nothing on the list needs
  *
  * Refused (malformed): an unknown key, level or item; an item twice; a need on no list; a cycle; a bounty whose level
@@ -26,11 +28,15 @@
  *                                   levels, ids, links, start, topology, foes)
  *   errandLegs(errands, level)    → the mechanics a level's last stage lays for them, without places yet:
  *                                   [{ kind: 'trade' | 'bounty' | 'deliver', … }], plus each cargo (on every level)
- *   layErrand(legs, spots)        → the legs with a place each (`spots`: free beats, in order), and the bag
+ *   layErrand(legs, spots, tills?) → the legs with a place each (`spots`: free beats, in order; a trade had in a shop at
+ *                                   the till of a store of its kind, `tills`: [{ id, card, at }], where the stage has
+ *                                   one walked into), and the bag
+ *   TILL_REACH                    how near a till a trade is made (m)
  *
  * Pure, no dice.
  */
 import { readLevelFoes } from './foes.js';
+import { resolveCard } from '../retail/store-cards.js';
 
 export const ERRAND_LAWS = Object.freeze({
   solvable: 'Solvable: from the start, each leg is reached with what it needs in the bag, and the giver after the last.',
@@ -38,7 +44,8 @@ export const ERRAND_LAWS = Object.freeze({
   survivable: 'Survivable: a fragile or perishable cargo carries a margin to lose on the way.',
 });
 const KEYS = ['id', 'giver', 'reward', 'list'];
-const NODE_KEYS = ['item', 'at', 'count', 'min', 'needs', 'from', 'cargo'];
+export const TILL_REACH = 1.6;
+const NODE_KEYS = ['item', 'at', 'count', 'min', 'needs', 'from', 'cargo', 'shop'];
 const WORD = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const posInt = (v) => Number.isInteger(v) && v >= 1;
@@ -74,7 +81,10 @@ function readOne(E, k, G) {
       const C = N.cargo;
       if (!isObj(C) || Object.keys(C).some((x) => !['fragile', 'perishable'].includes(x)) || (C.fragile !== undefined && C.fragile !== true) || (C.perishable !== undefined && !(Number.isFinite(C.perishable) && C.perishable > 0)) || (!C.fragile && !C.perishable)) no(`${w}.cargo is { fragile?: true, perishable?: <seconds a unit> }, one at least`);
     }
-    return { item: N.item, at: N.at, count, min, needs: [...(N.needs ?? [])], ...(N.from ? { from: { foe: N.from.foe } } : {}), ...(N.cargo ? { cargo: { ...N.cargo } } : {}) };
+    // (had over a shop's counter: the kind of store, a seeded store card's; a bounty is had by a fall, at no counter)
+    if (N.shop !== undefined && (typeof N.shop !== 'string' || !resolveCard(N.shop))) no(`${w}.shop is the kind of store it is had in, a seeded store card's id (pharmacy, convenience, diner)`);
+    if (N.shop !== undefined && N.from !== undefined) no(`${w}: a bounty is had by a fall, at no shop's counter`);
+    return { item: N.item, at: N.at, count, min, needs: [...(N.needs ?? [])], ...(N.from ? { from: { foe: N.from.foe } } : {}), ...(N.cargo ? { cargo: { ...N.cargo } } : {}), ...(N.shop !== undefined ? { shop: N.shop } : {}) };
   });
   const by = new Map();
   for (const N of list) { if (by.has(N.item)) no(`: '${N.item}' is on the list twice`); by.set(N.item, N); }
@@ -161,7 +171,7 @@ export function errandLegs(errands, level) {
       if (N.at !== level) continue;
       legs.push(N.from
         ? { kind: 'bounty', item: N.item, who: `foe-${N.from.foe}-*`, n: N.count }
-        : { kind: 'trade', item: N.item, count: N.count, ...(N.needs.length ? { needs: N.needs.map((n) => ({ item: n, n: count(n) })) } : {}) });
+        : { kind: 'trade', item: N.item, count: N.count, ...(N.needs.length ? { needs: N.needs.map((n) => ({ item: n, n: count(n) })) } : {}), ...(N.shop ? { shop: N.shop } : {}) });
     }
     if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}) });
   }
@@ -171,10 +181,14 @@ export function errandLegs(errands, level) {
 
 /** The legs placed: a trade and the hand-in each on a spot of its own (a free beat, in order); a bounty and a cargo stand
  * nowhere. With any, the bag (the store keeps what moves). */
-export function layErrand(legs, spots) {
+export function layErrand(legs, spots, tills = []) {
   if (!legs.length) return [];
-  const placed = legs.filter((l) => l.kind === 'trade' || l.kind === 'deliver');
+  // (a trade had in a shop stands at the till of a store of its kind the stage has walked into, each till once; with
+  // none, on a spot like any other: the shop is its dress, the trade the same)
+  const free = tills.map((t) => ({ ...t })), tillOf = (l) => { const k = l.shop ? free.findIndex((t) => t.card === l.shop && !t.taken) : -1; if (k < 0) return null; free[k].taken = true; return free[k]; };
+  const stood = legs.map((l) => (l.kind === 'trade' ? tillOf(l) : null));
+  const placed = legs.filter((l, i) => (l.kind === 'trade' || l.kind === 'deliver') && !stood[i]);
   if (placed.length > spots.length) throw new Error(`levels: an errand lays ${placed.length} places on a stage with room for ${spots.length}: spread its legs over more levels`);
   let j = 0;
-  return [{ kind: 'bag', slice: 'bag' }, ...legs.map((l) => (l.kind === 'trade' || l.kind === 'deliver' ? { ...l, at: spots[j++].slice() } : l))];
+  return [{ kind: 'bag', slice: 'bag' }, ...legs.map(({ shop, ...l }, i) => (stood[i] ? { ...l, at: stood[i].at.slice(), radius: TILL_REACH, till: stood[i].id } : l.kind === 'trade' || l.kind === 'deliver' ? { ...l, at: spots[j++].slice() } : l))];
 }

@@ -29,7 +29,7 @@ import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
-import { assembleGeocityScene } from '@/lib/graph/geocity/scene';
+import { assembleGeocityScene, GEOCITY_KEYS } from '@/lib/graph/geocity/scene';
 import { styleReadout } from '@/lib/graph/era/arch-style';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
@@ -598,7 +598,9 @@ export const WORLD_KINDS = {
       if (m.show === 'side') return assembleSideStrip(m, { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
-      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
+      // stand-in walks it)
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => p : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

@@ -404,6 +404,8 @@ function worldCard() {
     '  civilization? } | { ref } | { complex } for the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
+    '  or geocity: { evoke: neighbourhood | corridor | segment, at?, shops?, … } (card geocube): a DISTRICT of a metro in detail, the rest its',
+    '    skyline, walked along its street; shops: true opens its shops (an errand\'s `shop` trade at a till). A big page (tens of MB): over a cloud session\'s limit, fine locally.',
     '  or glyphs: { rows, key?, regions?, tile? }: one world on one page as a glyph grid (# path, . land, a letter a place { use, goal? };',
     '    regions: a second grid, each { name, rise?, biocube? }), walked from its far end to the goal\'s door.',
     '    ~ water: its edge a beach or a cliff (a region\'s shore: beach | cliff). ways: ranked (roads by places, tracks, paths,',
@@ -1096,7 +1098,8 @@ function qowCard() {
     '',
     'ERRANDS (its element, as the escape room is the WCD\'s), on a map world (topology: interconnected): sent out, home with the goods.',
     "errands [{ id, giver: '<level>', reward?: [{ item, n? }], list: [{ item, at: '<level>', count?, min?, needs?: ['<item>'],",
-    "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> } }] }]: needs spent where it is had; from, a bounty;",
+    "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> }, shop?: '<store card>' }] }]: needs spent where it is had; from, a bounty;",
+    "        shop, had over that kind of store's counter (pharmacy, convenience, diner…): at its till where the level's town has one walked into (geotown.shops);",
     '        the giver asks for the roots. Laws (advice.errands): ' + Object.keys(ERRAND_LAWS).join(', ') + '.',
   );
 }
@@ -1239,6 +1242,7 @@ function storyCard() {
 function folkCard() {
   return lines(
     'THE TOWN\'S PEOPLE — characters.folk: each town a level lays (places: { town, street }) peopled from its own houses.',
+    'A geotown level\'s town is peopled the same way; where its shops are walked into (geotown.shops) a shop\'s keeper stands behind its counter.',
     'characters.folk: true | { seed?, cap?, pool?, domicile?, domiciles?, say?, sidequests?, recurring?, day? }',
     '  A house\'s use roots its first person: a dwelling a townie, a shop its keeper, a workshop its master, a barn a',
     '  farmhand, the hall its elder, the tower its captain; each grows the rest (an apprentice, the watch). Each is rolled',

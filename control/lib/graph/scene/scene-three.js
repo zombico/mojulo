@@ -245,6 +245,18 @@ function packGroupArrays(gm) {
   for (let i = 0; i < c.length; i++) c[i] = toSrgb8(gm.colors[i]);
   return { q: b64(q), o, s, c8: b64(c) };
 }
+/** A repeat's template packed compact: `q` its positions as Int16 steps over its own box (`qb`: the box's least corner
+ *  and a step's size on each axis), `c8` its colours as sRGB bytes (packGroupArrays's way, for a repeat). */
+function compactRepeat(gm) {
+  const P = gm.positions, n = P.length / 3, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < P.length; i++) { const k = i % 3; if (P[i] < lo[k]) lo[k] = P[i]; if (P[i] > hi[k]) hi[k] = P[i]; }
+  // (the box and the step said to nine figures, and the steps taken from what is said: the page reads the same numbers)
+  for (let k = 0; k < 3; k++) lo[k] = n ? Number(lo[k].toPrecision(9)) : 0;
+  const step = lo.map((v, k) => (n && hi[k] > v ? Number(((hi[k] - v) / 65535).toPrecision(9)) : 1)), q = new Int16Array(P.length), c = new Uint8Array(gm.colors.length);
+  for (let i = 0; i < P.length; i++) { const k = i % 3; q[i] = Math.max(0, Math.min(65535, Math.round((P[i] - lo[k]) / step[k]))) - 32768; }
+  for (let i = 0; i < c.length; i++) c[i] = toSrgb8(gm.colors[i]);
+  return { q: b64(q), qb: [...lo, ...step], c8: b64(c) };
+}
 function packTex(g, suns = null, lits = null) {
   const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [], sun = suns ? [] : null, lit = lits ? [] : null;
   for (let i = 0; i < n; i++) {
@@ -446,8 +458,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const hasTint = r.transforms.some((t) => Array.isArray(t.tint));
     return {
       name: r.group || `repeat:${i}`,
-      pos: b64(gm.positions),
-      col: b64(gm.colors),
+      // (a COMPACT template, `compact: true`, a shop's inside: its corners as 16-bit steps of its own box and its
+      // colours as sRGB bytes, three eighths of the bytes; the page unpacks them to the same arrays. Absent, as before)
+      ...(r.compact === true ? compactRepeat(gm) : { pos: b64(gm.positions), col: b64(gm.colors) }),
       radius: gm.radius,
       // a per-axis scale ([sx, sy, sz]: a unit box stretched to a mass) rides as three more numbers; a uniform one as one
       t: r.transforms.map((t) => [(t.pos || [0, 0, 0])[0], (t.pos || [0, 0, 0])[1], (t.pos || [0, 0, 0])[2], t.rotZ || 0, ...(Array.isArray(t.scale) && t.scale.length === 3 && t.scale.every(Number.isFinite) ? t.scale : [Number.isFinite(t.scale) ? t.scale : 1])]),
@@ -574,6 +587,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
+  const hasCompact = packedRepeats.some((r) => r.q);   // absent: no compact template, not one byte
   const hasPool = packedRepeats.some((r) => r.pool);   // none: no pools, not one byte
   const hasConeTiles = packedRepeats.some((r) => r.cone);   // absent: the ring alone, not one byte of the cone's rule
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
@@ -1257,7 +1271,7 @@ const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
 const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${resampled ? resampleScript(resampled) : ''}${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
-function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
+function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }${hasCompact ? `\nfunction __q16(s, b){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); const q=new Int16Array(u.buffer), o=new Float32Array(q.length); for(let i=0;i<q.length;i++){ const k=i%3; o[i]=b[k]+(q[i]+32768)*b[3+k]; } return o; }\nfunction __c8(s){ const bin=atob(s); const o=new Float32Array(bin.length); for(let i=0;i<bin.length;i++){ const v=bin.charCodeAt(i)/255; o[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4); } return o; }` : ''}
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
 
 const wrap = document.getElementById('wrap'), canvas = document.getElementById('c'), hud = document.getElementById('hud');
@@ -1411,8 +1425,8 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
 };
 ` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));${hasRepLit ? `
+  geo.setAttribute('position', new THREE.BufferAttribute(${hasCompact ? 'r.q ? __q16(r.q, r.qb) : ' : ''}decodeF32(r.pos), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(${hasCompact ? 'r.c8 ? __c8(r.c8) : ' : ''}decodeF32(r.col), 3));${hasRepLit ? `
   if (r.lt) geo.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(r.lt), 3));   // (a template baked for the form render)
   if (r.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(r.sun), 1));` : ''}
   geo.computeBoundingSphere();
