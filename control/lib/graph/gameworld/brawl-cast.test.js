@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { brawlPlay, brawlCast, brawlBodies, withBodies, readBrawlWaves, BRAWL_PLAYS } from './brawl-cast.js';
+import { brawlPlay, brawlCast, brawlBodies, withBodies, readBrawlWaves, BRAWL_PLAYS, brawlStreet, readStreet, withStreetBodies, STREET } from './brawl-cast.js';
+import { readBelt } from '../brawl/brawl-belt.js';
+import { readWaves } from '../brawl/brawl-crowd.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
 import { practiceOf } from '../brawl/brawl-practice.js';
@@ -61,5 +63,47 @@ describe('a brawl\'s cast', () => {
     expect(brawlYardData(block([{ type: 'thug', n: 1, roster: 1 }], 1))).toMatchObject({ playable: 1 });
     expect(brawlYardData(block([{ type: 'thug', n: 1 }])).playable).toBeUndefined();
     expect(() => brawlYardData(block([{ type: 'thug', n: 1, roster: 5 }]))).toThrow(/the roster holds 2/);
+  });
+});
+
+// THE STREET: the level design's page. A free first screen, then its stops (each held until its wave falls), then its
+// boss's screen; the waves are the cast's, and what the design leaves thin is said, never refused.
+describe('a brawl\'s street', () => {
+  const street = { stops: [{ wave: { grunt: 2 }, name: 'the alley mouth' }, { wave: { grunt: 2, shooter: 1 }, length: 20 }], boss: { foe: 'warlord', with: { grunt: 1 }, hp: 900 } };
+  it('is a free screen, a held screen a stop, and the boss\'s last: a belt and waves the street\'s sim takes', () => {
+    const S = brawlStreet(G, street);
+    expect(S.screens).toEqual([{ length: STREET.open }, { length: STREET.stop, gate: true }, { length: 20, gate: true }, { length: STREET.stop, boss: true }]);
+    expect(S.waves.map((w) => w.screen)).toEqual([1, 2, 3]);
+    expect(S.waves[0]).toMatchObject({ name: 'the alley mouth', crowd: [{ type: 'thug', n: 2, foe: 'goon' }] });
+    expect(S.waves[2]).toMatchObject({ crowd: [{ type: 'thug', n: 1, foe: 'goon' }], boss: { foe: 'warlord', hp: 900 } });
+    expect(S.boss).toBe('warlord');
+    expect(S.foes).toEqual(['goon', 'slinger', 'warlord']);
+    // (the sim reads them: its gates hold a wave each, its boss stands on the boss's screen)
+    const belt = readBelt({ at: [0, 0], heading: 0, depth: [-2.5, 2.5], angle: 'classic', screens: S.screens }, 'belt');
+    const page = withStreetBodies(S.waves, { goon: 1, warlord: 3 }).map((w) => (w.boss ? { ...w, boss: { ...w.boss, recipe: { id: 'w', archetype: 'grappler' } } } : w));
+    expect(page[0].crowd).toEqual([{ type: 'thug', n: 2, roster: 1 }]);
+    expect(page[2].boss).toMatchObject({ fighter: 3, hp: 900 });
+    expect(() => readWaves(page.map(({ name: _n, ...w }) => w), belt)).not.toThrow();
+  });
+
+  it('a boss by its role; a boss with no body is stood in by a fighter, and said', () => {
+    expect(brawlStreet(G, { stops: [{ wave: { grunt: 1 } }], boss: 'boss' }).boss).toBe('warlord');
+    const S = brawlStreet(G, { stops: [{ wave: { grunt: 1 } }], boss: 'hound' });
+    expect(S.says.some((x) => /^hound is drawn as a jointed figure/.test(x))).toBe(true);
+    expect(withStreetBodies(S.waves, { goon: 1 })[1].boss).toMatchObject({ archetype: 'grappler', name: 'hound' });
+  });
+
+  it('advises, never refuses: a street with no boss, a stop that meets fewer than the one before', () => {
+    const S = brawlStreet(G, { stops: [{ wave: { grunt: 3 } }, { wave: { grunt: 1 } }] });
+    expect(S.boss).toBeNull();
+    expect(S.screens).toHaveLength(3);
+    expect(S.says).toEqual(expect.arrayContaining([expect.stringMatching(/names no boss/), expect.stringMatching(/stop 2 meets 1, fewer than the 3 before it/)]));
+  });
+
+  it('its words are checked: its stops, its lengths, its boss', () => {
+    expect(() => readStreet({ stops: [] })).toThrow(/stops is where the street holds/);
+    expect(() => readStreet({ stops: [{ wave: { grunt: 1 }, length: 2 }] })).toThrow(/8 to 48 m/);
+    expect(() => readStreet({ stops: [{ wave: { grunt: 1 } }], boss: { hp: 5 } })).toThrow(/street\.boss is/);
+    expect(() => brawlStreet(G, { stops: [{ wave: { grunt: 1 } }], boss: 'nobody' })).toThrow(/street\.boss: a role/);
   });
 });

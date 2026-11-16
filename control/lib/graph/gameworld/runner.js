@@ -64,7 +64,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, brawlArenas, brawlHeroes, castWaves, BRAWL_ROLE_WAVES, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, brawlArenas, brawlHeroes, castWaves, BRAWL_STREET, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -72,7 +72,7 @@ import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
-import { brawlCast, brawlBodies, withBodies } from './brawl-cast.js';
+import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
@@ -976,13 +976,16 @@ function quickSteps(world, G, ref, lookup) {
     // cast: each foe that comes made as the game's foes are (foeSteps), fighting as what it is, drawn in its own body
     // where it has one. A world with neither meets the street's stock bodies (the harness)
     let cast = null, castLaws = null;
-    if (G.foes !== undefined || castWaves(Q.waves)) {
-      const C = brawlCast(G, castWaves(Q.waves) ? Q.waves : BRAWL_ROLE_WAVES, { gun: Q.goal === 'rungun' });
+    if (G.foes !== undefined || castWaves(Q.waves) || Q.street !== undefined) {
+      // (THE LEVEL DESIGN, brawl-cast.js brawlStreet: a street of stops and a boss, the world's own or, where it keeps a
+      // bestiary and writes no waves, the one that builds to its boss; role waves alone are a wave set on one screen)
+      const gun = Q.goal === 'rungun', streetWords = Q.street ?? (castWaves(Q.waves) ? null : BRAWL_STREET);
+      const C = streetWords ? brawlStreet(G, streetWords, { gun }) : brawlCast(G, Q.waves, { gun });
       const has = brawlBodies(G, C), bodied = C.foes.filter((id) => has[id]), heroes = roster.length;
       heroSteps.push(...foeSteps(G, ref, { ready: true }, bodied));
       const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes + k]));
       for (const id of bodied) roster.push({ id: `foe-${id}`, name: id, hero: { ref: childRef(ref, `foes-${id}`) } });
-      cast = { waves: withBodies(C.waves, rosterAt), playable: heroes };
+      cast = streetWords ? { street: { screens: C.screens, waves: withStreetBodies(C.waves, rosterAt) }, playable: heroes } : { waves: withBodies(C.waves, rosterAt), playable: heroes };
       castLaws = [{ concern: 'cast', law: 'foes', holds: !C.says.length, says: C.says.length ? C.says.join('; ') : `the street's crowd is the game's own cast (${C.foes.join(', ')}), each in its own body` }];
     }
     const arenas = brawlArenas(Q, { title, roster, cast }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));

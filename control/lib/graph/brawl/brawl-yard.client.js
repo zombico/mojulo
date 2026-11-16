@@ -110,7 +110,9 @@ function build() {
   const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades, ...(RANGE.waves && SET.waves ? { waves: RANGE.waves, loop: RANGE.loop } : {}) } } : {};
   // (the brawler yard's own waves while the settings' Waves is on)
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
-  room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee, ...(BY.stakes ? { stakes: BY.stakes } : {}) });
+  // (A STREET, a level's: its waves at their gates and its boss, a game on it; a run & gun's with the range's guns)
+  if (BY.street) room = streetRoomOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), waves: BY.street.waves, things: BY.things, stakes: BY.stakes || 3, ...range });
+  else room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee, ...(BY.stakes ? { stakes: BY.stakes } : {}) });
   for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
   rounds.clear();
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)

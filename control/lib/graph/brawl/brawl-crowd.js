@@ -205,7 +205,7 @@ export function readPlays(plays, F, where = 'plays') {
 }
 
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
-export function streetOf({ belt, players, waves = [], things, rules, crowd } = {}) {
+export function streetOf({ belt, players, waves = [], things, rules, crowd, range } = {}) {
   if (!belt) throw new Error('brawl: a street needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a street has 1 to 4 players');
   const W = readWaves(waves, belt);
@@ -214,13 +214,18 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
   const typeAt = {};
   for (const t of types) { typeAt[t] = fighters.length; fighters.push(crowdFighter(t)); }
   const half = viewHalf(belt), [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
-  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((i + 1) * (n1 - n0)) / (players.length + 1)) }));
+  // (a RUN & GUN's street, `range: { guns?, grenades? }`: its players carry guns, the first over the sidearm, and grenades,
+  // as on the practice range, brawl-practice.js; their guns the first of ctx.guns, the crowd's after them)
+  if (range !== undefined && (!range || typeof range !== 'object')) throw new Error('brawl: a street\'s range is { guns?, grenades? }');
+  const playerGuns = range ? [readGun('sidearm'), ...(range.guns ?? ['machine-gun', 'spread', 'flame', 'rocket']).map((g, k) => readGun(g, `range.guns[${k}]`)), readGun('grenade')] : [];
+  const arms = range ? { gun: 1, grenades: range.grenades ?? 3, grenadeGun: playerGuns.length - 1 } : {};
+  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((i + 1) * (n1 - n0)) / (players.length + 1)), ...arms }));
   const kinds = [];
   const bosses = {};
   // (a crowd body's own entrance or ambush, by its id)
   const entries = {};
   // (the shooting crowd's guns, each its index in ctx.guns)
-  const armory = crowdGuns(types);
+  const armory = crowdGuns(types, playerGuns);
   W.forEach((w, k) => {
     // (the boss first of its wave: it comes in as the wave does)
     if (w.boss) {

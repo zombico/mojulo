@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readQuick, brawlArenas, brawlHeroes, QUICK_GOALS, BRAWL, BRAWL_WAVES, RUNGUN_WAVES } from './quick.js';
+import { readQuick, brawlArenas, brawlHeroes, QUICK_GOALS, BRAWL, BRAWL_WAVES, RUNGUN_WAVES, BRAWL_STREET } from './quick.js';
+import { brawlStreet, withStreetBodies } from './brawl-cast.js';
 import { QUICK_GENRE } from './intent.js';
 import { brawlYardData } from '../brawl/brawl-page.js';
 import { practiceOf, yardOver } from '../brawl/brawl-practice.js';
@@ -55,6 +56,26 @@ describe('the brawl doors', () => {
     // (the roster the run made reaches the level's room: who is played is a character, drawn in its own body)
     const roster = [{ id: 'a', hero: { ref: 'sk_a' } }];
     expect(brawlArenas(readQuick({ goal: 'brawl' }), { title: 'T', roster })[0].manifest.brawl.practice.roster).toEqual(roster);
+  });
+
+  it('a street reaches the level: its screens the belt\'s, its waves and boss the room\'s; guns on a run & gun\'s', () => {
+    const G = { foes: { goon: { class: 'walker', skin: { people: 'goblin' } }, king: { class: 'brute', rank: 'boss', skin: { people: 'orc' } } } };
+    for (const goal of ['brawl', 'rungun']) {
+      const S = brawlStreet(G, BRAWL_STREET, { gun: goal === 'rungun' });
+      const cast = { street: { screens: S.screens, waves: withStreetBodies(S.waves, { goon: 1, king: 2 }) }, playable: 1 };
+      const roster = [{ id: 'h', archetype: 'all-rounder' }, { id: 'goon', archetype: 'rushdown' }, { id: 'king', archetype: 'grappler' }];
+      const L = brawlArenas(readQuick({ goal }), { title: 'T', roster, cast })[0].manifest;
+      expect(L.brawl.belt.screens.map((sc) => [!!sc.gate, !!sc.boss])).toEqual([[false, false], [true, false], [true, false], [true, false], [true, true]]);
+      expect(L.brawl.practice).toMatchObject({ playable: 1, stakes: BRAWL.lives, street: { waves: cast.street.waves } });
+      expect(L.brawl.practice.waves).toBeUndefined();
+      expect(!!L.brawl.practice.range).toBe(goal === 'rungun');
+      // (the page reads it: its boss the roster's fighter, its street ready for the room)
+      const Y = brawlYardData(L.brawl);
+      expect(Y.street.waves.at(-1).boss).toMatchObject({ roster: 2 });
+      expect(Y.street.waves.at(-1).boss.recipe).toBeDefined();
+    }
+    expect(() => readQuick({ goal: 'brawl', street: { stops: [{ wave: { grunt: 1 } }] }, waves: [{ grunt: 1 }] })).toThrow(/no `waves` beside it/);
+    expect(() => readQuick({ goal: 'brawl', street: { stops: [] } })).toThrow(/gameworld: quick\.street\.stops/);
   });
 
   it('the page is given a game that can end: its room built from the level starts, not over', () => {

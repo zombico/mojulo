@@ -221,6 +221,7 @@ import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-le
 import { brawlLevel } from '../brawl/brawl-levels.js';
 import { readRangeWaves, RANGE_WAVES } from '../brawl/brawl-waves.js';
 import { readGun } from '../brawl/brawl-guns.js';
+import { readStreet } from './brawl-cast.js';
 import { settingOfGame } from './cast-setting.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 import { SCENARIOS } from '../worksim/scenarios.js';
@@ -289,7 +290,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'armed', 'guns'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'armed', 'guns', 'street'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -791,7 +792,7 @@ export function tabletopArenas(Q, { title, seed = 1, ui } = {}) {
 // what a brawl takes (a beat-em-up and a run & gun are one structure, brawl/: a street, the crowd in waves, one to four
 // players on one screen; what differs is the action and the hitting: blows lined up across the street, or rounds that
 // fly). Its own simulation: no hero, trail, building, ride or run
-const BRAWL_KEYS = ['goal', 'players', 'roster', 'waves', 'lives', 'register', 'armed', 'guns', 'theme', 'screen'];
+const BRAWL_KEYS = ['goal', 'players', 'roster', 'street', 'waves', 'lives', 'register', 'armed', 'guns', 'theme', 'screen'];
 /** a brawl's numbers: the falls its players may take between them, and its street's one open screen (m) */
 export const BRAWL = Object.freeze({ lives: 3, street: 24, kit: 'island-plaza' });
 /** the waves a beat-em-up meets unless it says: the street's own, then quicker and armed, then a big one among them */
@@ -818,6 +819,8 @@ function readBrawl(Q) {
   // (its waves: the game's own cast by role or foe id, gameworld/brawl-cast.js, read against the world's bestiary where
   // the level is laid; or the street's stock bodies by type, the harness's)
   if (Q.waves !== undefined && !castWaves(Q.waves)) { try { readRangeWaves(Q.waves); } catch (e) { throw fail(`.waves: ${e.message.replace(/^brawl: /, '')}`); } }
+  // (its street, the level design's page: brawl-cast.js; its stops' waves read against the bestiary where it is laid)
+  if (Q.street !== undefined) { if (Q.waves !== undefined) throw fail('.street lays its own waves, a stop each: no `waves` beside it'); try { readStreet(Q.street); } catch (e) { throw fail(e.message.replace(/^gameworld: brawl/, '')); } }
   // (its heroes: the fight's roster, every one a character; as many at least as play)
   if (Q.roster !== undefined) {
     if (!Array.isArray(Q.roster) || !Q.roster.length || Q.roster.length > 4) throw fail('.roster is 1 to 4 heroes, each a character as a fight\'s fighter is (an archetype word, a brief, { brief?, facets?, … } or { hero: { ref } })');
@@ -827,6 +830,8 @@ function readBrawl(Q) {
 }
 /** are these waves written from the game's cast (by role or foe id), not by the street's stock types? */
 export const castWaves = (waves) => Array.isArray(waves) && waves.length > 0 && waves.every((w) => isObj(w) && !Array.isArray(w.crowd));
+/** the street a brawl is fought down when its world keeps a bestiary and says none: three stops that build, a boss last */
+export const BRAWL_STREET = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: 'boss' });
 /** the waves a brawl meets when its world keeps a bestiary and says none: its cast by role, a boss last */
 export const BRAWL_ROLE_WAVES = Object.freeze([{ grunt: 2 }, { grunt: 3, shooter: 1 }, { elite: 1, grunt: 2 }, { boss: 1, grunt: 2 }].map((w) => Object.freeze(w)));
 /** A brawl's heroes: the fight's fighters (fightFighters: each a sheet the run makes into a character, or one already
@@ -839,8 +844,14 @@ export function brawlArenas(Q, { title, roster, cast } = {}) {
   // (`cast`: the waves cast from the world's bestiary and how many of the roster are played, the run's: brawl-cast.js)
   const gun = Q.goal === 'rungun', waves = cast?.waves ?? Q.waves ?? (gun ? RUNGUN_WAVES : BRAWL_WAVES);
   const players = Array.from({ length: Q.players ?? 1 }, (_, i) => i);
-  const practice = { ...(roster ? { roster } : {}), ...(cast?.playable ? { playable: cast.playable } : {}), players, dummies: [], stakes: Q.lives ?? BRAWL.lives, ...(gun ? { range: { ...(Q.guns ? { guns: Q.guns } : {}), waves, loop: false } } : { waves, loop: false }) };
-  const m = brawlLevel({ kind: 'stage', kit: BRAWL.kit, screens: [{ length: BRAWL.street }] }, { ...(title ? { title } : {}), ...(Q.register ? { register: Q.register } : {}), ...(Q.armed ? { armed: true } : {}), practice });
+  // (a STREET, cast.street: its screens the belt's, its waves at their gates and its boss; else one open screen and a
+  // wave set, the harness's)
+  const street = cast?.street ?? null;
+  const room = street
+    ? { street: { waves: street.waves }, ...(gun ? { range: { ...(Q.guns ? { guns: Q.guns } : {}) } } : {}) }
+    : gun ? { range: { ...(Q.guns ? { guns: Q.guns } : {}), waves, loop: false } } : { waves, loop: false };
+  const practice = { ...(roster ? { roster } : {}), ...(cast?.playable ? { playable: cast.playable } : {}), players, dummies: [], stakes: Q.lives ?? BRAWL.lives, ...room };
+  const m = brawlLevel({ kind: 'stage', kit: BRAWL.kit, screens: street ? street.screens : [{ length: BRAWL.street }] }, { ...(title ? { title } : {}), ...(Q.register ? { register: Q.register } : {}), ...(Q.armed ? { armed: true } : {}), practice });
   const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the street' } };
   return [{ id: 'street', name: m.title ?? title ?? 'The street', manifest: { ...m, game: contract } }];
 }

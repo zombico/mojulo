@@ -16,9 +16,16 @@
   rank and file, a shooter, a tougher one, the boss) or by name, and each enemy fights the way it is: a big one
   grabs and throws, a quick one cuts and runs, a shooter keeps its distance. Enemies that are people are made as
   characters and drawn in their own bodies. In a run & gun everyone on the street carries a gun.
+- **You design the street.** Say how far it runs, where it holds your players and who waits at the end. It opens
+  on a quiet stretch where nothing comes, so the controls can be learned. Then come its stops: at each one the view
+  holds until everyone who came there has fallen, then the street opens again. At the end is the boss, with
+  whoever stands with it. Beating the last of them wins the level. The same street works for a beat-em-up and a
+  run & gun.
+- **The studio says what a street is missing, and builds it anyway.** A street with no boss, or a stop that meets
+  fewer enemies than the one before it, is pointed out for you to decide on.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
-  plain figures: that path is kept for testing. The street is one open screen:
-  the longer street that holds you at a gate until each wave falls, the things lying on it and its boss fight are
-  not laid yet. The readouts on screen are the practice room's. Nobody has played these; the studio has only checked
-  that each level loads, runs and ends.
+  plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
+  break are not laid, a game is one street long, and the readouts on screen are still the practice room's. Nobody
+  has played these; the studio has checked that each level loads, that the street holds at a stop and brings its
+  enemies in, and that winning and losing end the level.

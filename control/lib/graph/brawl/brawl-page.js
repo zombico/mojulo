@@ -29,6 +29,7 @@ import { BRAWL_STYLES } from './brawl-moves.js';
 import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
+import { readWaves } from './brawl-crowd.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -91,6 +92,18 @@ export const BRAWL_ARMED_ROSTER = Object.freeze(BRAWL_ROSTER.map((r) => {
  */
 const readPlayable = (v, n) => { if (!(Number.isInteger(v) && v >= 1 && v <= n)) throw new Error(`brawl: practice.playable is how many of the roster are played, 1 to ${n}`); return v; };
 const castIn = (waves, n) => { for (const w of waves) for (const c of w.crowd) if (c.roster !== undefined && c.roster >= n) throw new Error(`brawl: a wave's crowd is drawn as roster ${c.roster}: the roster holds ${n}`); return waves; };
+function streetWaves(waves, roster, belt) {
+  if (!Array.isArray(waves) || !waves.length) throw new Error('brawl: practice.street.waves is a list of { screen, crowd, boss? }, one at least');
+  const out = waves.map((w, i) => {
+    if (!w || typeof w !== 'object' || !w.boss) return w;
+    const { fighter, ...boss } = w.boss;
+    if (fighter === undefined) return { ...w, boss: { ...boss, recipe: boss.recipe ?? rosterEntry(boss, i).recipe } };
+    if (!(Number.isInteger(fighter) && fighter >= 0 && fighter < roster.length)) throw new Error(`brawl: practice.street.waves[${i}].boss.fighter is a roster index, 0 to ${roster.length - 1}`);
+    return { ...w, boss: { ...boss, recipe: { ...roster[fighter].recipe, name: boss.name ?? roster[fighter].name }, roster: fighter } };
+  });
+  readWaves(out, belt);
+  return castIn(out.map((w) => ({ ...w, crowd: w.crowd ?? [] })), roster.length);
+}
 const readStakes = (v) => { if (!(Number.isInteger(v) && v >= 1 && v <= 9)) throw new Error('brawl: practice.stakes is the falls the players may take, 1 to 9'); return v; };
 export function brawlYardData(block, bodies = null) {
   const P = block.practice ?? {};
@@ -124,6 +137,9 @@ export function brawlYardData(block, bodies = null) {
     ...(P.range ? { range: { guns: (P.range.guns ?? RANGE_GUNS).map((g, k) => { readGun(g, `practice.range.guns[${k}]`); return g; }), grenades: P.range.grenades ?? 3,
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
       ...(P.range.waves ? { waves: castIn(readRangeWaves(P.range.waves), roster.length), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
+    // (A STREET, a level's: brawl-practice.js streetRoomOf. Its waves held at the belt's gates, a boss on its last screen;
+    // a boss is a roster entry (`fighter`) or a fighter's intent; read here so a fault is said before the page)
+    ...(P.street ? { street: { waves: streetWaves(P.street.waves, roster, block.belt) } } : {}),
     ...(bodies ? { bodies } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
   };
