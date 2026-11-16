@@ -89,3 +89,11 @@ or a recipe key; the spike mints through the real doors and measures.
   operative's climb clip is keyed for it.
 - **The chase keeps its distance by anything the body gets over**: it is pulled in neither by a thing it vaults nor by
   one it climbs, so it does not close in as the body comes up to a crate and is not let out again as it goes up.
+- **What a watcher sees, drawn** (`rule.sightShown`, scene/channels/controllable/sight-view.js, opt-in): the cone of a
+  body with a mind's sight laid on the floor as a fan, its range and half-angle the rule's own, each ray stopped by
+  what stops the mind's line of sight (a box across its eye's height), calm while it sees no one and hot while it
+  sees the pilot; a fresh sighting is said on the screen with the count. It reads the world and changes nothing.
+- **A guard in the infiltration yard**: a patrol in a person's skin walking its round across the far half, its sight
+  drawn. It engages what it sees and takes up its round again; it can be struck and shot.
+- **The chase's pull-in reads what the thing is**: a `freeRun` page skips a hit only on a thing whose top its body
+  gets over (by the runtime's own boxes), where it skipped by the hit's height and stood behind a tall wall.

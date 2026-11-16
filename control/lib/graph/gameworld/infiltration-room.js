@@ -16,6 +16,8 @@
  *                 thing climbed by holding the stick into it, the gun put away for it (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
+ *   the guard     a patrol across the far half of the yard, its round between two posts; what it sees is drawn on the
+ *                 floor as a fan that stops at what stops its sight, hot while it sees the hero; a sighting is said
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
@@ -26,7 +28,8 @@
  */
 import { playerWorld, traversalStates } from '../playscape/player.js';
 import { feelRule, readFeel } from './feel/lower.js';
-import { floorOf } from './practice-room.js';
+import { floorOf, dummyFigure } from './practice-room.js';
+import { standFoe } from './foes.js';
 import { loadoutOf } from './loadout.js';
 import { armsLoadout, knifeOf } from './arms-kit.js';
 import { SHOOT, SHOULDER, PERSON } from './quick.js';
@@ -47,6 +50,11 @@ const BLOCKS = Object.freeze([
 // a person's box at each range of the start, and one behind the corner
 const TARGETS = Object.freeze([{ id: 'target-5', at: [2, -8, 0] }, { id: 'target-15', at: [6, 2, 0] }, { id: 'target-30', at: [-1, 15, 0] }, { id: 'target-corner', at: [-8, 2, 0] }]);
 const TARGET_HP = 100;
+// THE GUARD: a patrol in a person's skin (foes/classes/patrol.js: it walks its round and back, watching ahead in a
+// narrow beam, engages what it sees and takes up its round again), across the yard's far half, its sight drawn on the
+// floor (scene/channels/controllable/sight-view.js). It can be struck and shot
+const GUARD = Object.freeze({ id: 'guard-1', entry: Object.freeze({ class: 'patrol', skin: Object.freeze({ people: 'human' }) }), at: Object.freeze([-8, 10.5, 0]), heading: 0 });
+const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true }), body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
 // (the box a hero's vault clip is solved for where the door is given none: the middle of the speed vault's band, about
 // half a metre; the yard's low walls are a metre, and the body is lifted by the rest: free-run.js `clipH`)
 const VAULT_CLIP_H = 0.5;
@@ -107,8 +115,12 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     // (and lit as a form page lights it, the cast rig: the skinned body, its cloth closed over its joints)
     castLight: { cube: { from: 'theatre-grey' } },
   };
+  // (the guard, stood as every hostile is: foes.js standFoe; a stand-in person its figure)
+  const part = { figures: manifest.figures, entities: manifest.entities };
+  standFoe(null, part, { id: GUARD.id, entry: GUARD.entry, at: GUARD.at.slice(), heading: GUARD.heading }, { figure: dummyFigure(cast), tune: GUARD_TUNE });
+  manifest.figures = part.figures; manifest.entities = part.entities;
   // (the fists, laid as a level's arsenal is, their clips the figure's own)
   const armed = armLevel({ ...(G ?? {}), arsenal: FISTS }, manifest);
   if (armed !== manifest) { manifest.figures = armed.figures; manifest.entities = armed.entities.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, moveClips: true, ...FIST_BLOW } } : e)); }
-  return { manifest, kit: kit ? kit.map((s) => s.name) : [], knife: hasKnife, hero: own ? 'own' : 'stand-in', targets: TARGETS.map((t) => t.id) };
+  return { manifest, kit: kit ? kit.map((s) => s.name) : [], knife: hasKnife, hero: own ? 'own' : 'stand-in', targets: TARGETS.map((t) => t.id), guards: [GUARD.id] };
 }

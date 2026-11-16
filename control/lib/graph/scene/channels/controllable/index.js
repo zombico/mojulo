@@ -19,6 +19,7 @@ import { followPullIn } from './follow-pull-in.js';
 import { gunplayScript } from './gunplay-view.js';
 import { aimViewScript } from './aim-view-view.js';
 import { carryScript } from './carry-view.js';
+import { sightScript } from './sight-view.js';
 import { specialsPaletteScript } from './specials-palette.js';
 import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
 import { groundGridScript } from './ground-grid.js';
@@ -778,6 +779,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const carry = entities.some((e) => e && e.rule && e.rule.carry);
   // getting over things (free-run.js): a body whose rule says freeRun; absent, nothing is emitted
   const freeRun = entities.some((e) => e && e.rule && e.rule.freeRun);
+  // what a watcher sees, drawn (sight-view.js): a body whose rule says sightShown; absent, nothing is emitted
+  const sightShown = entities.some((e) => e && e.rule && e.rule.sightShown);
   // a gun on a mount aimed by hand (worlds/controllable/turret.js, turret-view.js): an entity with a turret; absent, nothing
   const turretOn = entities.some((e) => e && e.turret);
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
@@ -2736,7 +2739,10 @@ const __avHides = (e) => { const r = __world.camera && __world.camera.rule; retu
 ` : ''}${freeRun ? `// getting over things (free-run.js): the chase is not pulled in on what its body gets over: a thing it vaults out of
 // the run or climbs (its top within the hands' reach of the feet). It neither closes in as the body comes up to such a
 // thing nor is let out again as it goes over or up
-const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)); return hit.point.z < feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
+// (the top of what stands at a point, by the runtime's own boxes: a wall laid in courses or crates stacked are one
+// thing; nothing known to stand there, null)
+const __frTop = (x, y, feet) => { const C = __world.colliders; if (!C) return null; let top = null, grew = true; while (grew) { grew = false; for (const b of C) { if (x < b.min[0] - 0.08 || x > b.max[0] + 0.08 || y < b.min[1] - 0.08 || y > b.max[1] + 0.08 || b.max[2] <= (top ?? feet) + 1e-6 || b.min[2] > (top ?? feet + 0.35) + 0.05) continue; top = b.max[2]; grew = true; } } return top; };
+const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)), top = __frTop(hit.point.x, hit.point.y, feet); return top != null && top <= feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
 const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
@@ -4762,7 +4768,7 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).
