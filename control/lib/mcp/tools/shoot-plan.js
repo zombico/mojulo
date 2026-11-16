@@ -8,7 +8,10 @@
  * Both tools read the world first (its moving subjects, its faces, its metres per unit), write through
  * `update_sketch`'s patch path so the world pays its own gate and keeps its revision, and answer with the readout:
  * timings, path lengths and speeds in metres, what each camera follows, the frames where a camera jumps, and the
- * places a move passes through the world (clearance). Gates advise; nothing here refuses a plan it can read.
+ * places a move passes through the world (clearance), and what each shot frames (the frame read, shoot/frame.js:
+ * `composition`, the shot sizes and the advice on headroom, lead room, jump cuts and screen direction). A key may be
+ * said in words (`frame: { on, size, angle, side, place }`, shoot/framing.js), solved here against the world's
+ * subjects. Gates advise; nothing here refuses a plan it can read.
  */
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -45,16 +48,21 @@ async function commit({ ref, raw, world, note, notes = [] }) {
   const { normalizeShoot, shootReadout, liveNotes } = await import('@/lib/graph/shoot/plan');
   const { worldIsLive } = await import('@/lib/graph/shoot/subjects');
   const { shootClearance, shootTraffic } = await import('@/lib/graph/shoot/clearance');
-  const { plan, warnings } = normalizeShoot(raw, { subjects: world.subjects });
+  const { frameRead } = await import('@/lib/graph/shoot/frame');
+  const mpu = world.payload.metersPerUnit ?? 1;
+  const { plan, warnings } = normalizeShoot(raw, { subjects: world.subjects, metersPerUnit: mpu });
   if (!plan) throw new Error(`Nothing in the plan is a camera with a keyed position: ${warnings.join('; ')} — manual: get_motion_vocab({ id: 'shoot' })`);
   await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/shoot', value: plan }], ...(note ? { note } : {}) });
   const clearance = shootClearance(plan, world.payload.faces, { subjects: world.subjects });
   const traffic = shootTraffic(plan, world.subjects);
+  const composition = frameRead(plan, { subjects: world.subjects, metersPerUnit: mpu });
+  const framed = composition.shots.some((s) => s.about) || composition.notes.length;
   return {
     ok: true,
     ref,
     world_url: `/api/sketches/${encodeURIComponent(ref)}/world`,
-    readout: shootReadout(plan, { subjects: world.subjects, metersPerUnit: world.payload.metersPerUnit ?? 1 }),
+    readout: shootReadout(plan, { subjects: world.subjects, metersPerUnit: mpu }),
+    ...(framed ? { composition: { ...composition, note: 'advisory: each shot read at its start, middle and end on the subject it is about (size: ecu | cu | mcu | ms | mls | fs | ws | ews; headroom and eyes: shares of the frame from the top; across: 0 left, 1 right); the eyes gate is looking through the camera on the World page' } } : {}),
     ...(clearance.length || traffic.length ? { clearance: {
       ...(clearance.length ? { passes_through: clearance } : {}),
       ...(traffic.length ? { runs_into: traffic } : {}),
@@ -88,14 +96,15 @@ export async function updateShootPlanHandler(input = {}) {
   }
   const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
   const { applyShootOp } = await import('@/lib/graph/shoot/ops');
-  let plan = normalizeShoot(stored, { subjects: world.subjects }).plan;
+  const mpu = world.payload.metersPerUnit ?? 1;
+  let plan = normalizeShoot(stored, { subjects: world.subjects, metersPerUnit: mpu }).plan;
   if (!plan) throw new Error(`the stored plan on '${ref}' no longer reads; shoot: { plan } replaces it`);
   const notes = [];
   ops.forEach((op, i) => {
     let res;
     try { res = applyShootOp(plan, op); } catch (err) { throw new Error(`op ${i} (${op && op.op}): ${err.message}`); }
     notes.push(res.note);
-    plan = normalizeShoot(res.plan, { subjects: world.subjects }).plan;
+    plan = normalizeShoot(res.plan, { subjects: world.subjects, metersPerUnit: mpu }).plan;
     if (!plan) throw new Error(`op ${i} (${op.op}) left no camera with a keyed position`);
   });
   const out = await commit({ ref, raw: plan, world, note, notes });
@@ -145,7 +154,7 @@ export function registerShootPlanTools() {
         ops: {
           type: 'array',
           minItems: 1,
-          items: { type: 'object', additionalProperties: true, properties: { op: { type: 'string', enum: ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime', 'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set'] } }, required: ['op'] },
+          items: { type: 'object', additionalProperties: true, properties: { op: { type: 'string', enum: ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime', 'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set', 'frame'] } }, required: ['op'] },
           description: `In order; cameras by id, keys by \`t\` (s), shots by name or index. E.g. { op:'set_key', camera:'a', t:2, lens:'85mm', ease:'easy ease in' }. pos/poi: ${POINT}.`,
         },
         subjects_at: { type: 'number', description: 'List the followable subjects where they are at this time (s).' },

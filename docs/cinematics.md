@@ -84,6 +84,29 @@ What a director would shoot, in the shoot plan's own shape and the scenes card's
 - **Let a shot be read.** A cut that would hold for less than about a second is folded into the one before it.
 - **Cut on the line.** Shots change as lines begin, so the cut lands on whoever is about to speak.
 
+## The frame
+
+Where a camera stands is the clearance gate's; what it puts in its frame is the frame read's (`shoot/frame.js`), and a
+camera can be placed from the same words (`shoot/framing.js`, a shoot-plan key's `frame` or the op `frame`).
+
+- **Size by the cut.** A shot's size is where the frame's bottom edge cuts the figure, read off its landmarks (the eyes,
+  the chin, the chest, the waist, the knees): extreme close-up to medium long shot. A figure shown whole is sized by
+  how much of the frame it fills: full, wide, extreme wide. From far above or below a figure is sized by its length
+  across the frame. The sizes are rows (`SIZES`), each with the lens it reaches for.
+- **The dials apart.** Size, angle (the lens's tilt: eye, high, low, overhead, worm), side (where the camera stands round
+  the subject, from its facing), place (a third, the centre, or lead) and dutch combine freely. A framed key on a
+  subject rides it, so the framing holds as it moves.
+- **Headroom and the upper third.** A medium shot or wider keeps the crown in; the eyes sit near the upper third.
+- **Never cut at a joint.** The bottom edge falls between the knees and the ankles, not on them.
+- **Lead room.** A figure facing across the frame sits on the side it faces away from, its room ahead of it.
+- **Thirty degrees or two sizes.** The next shot of the same subject turns 30° or more round it, or changes its size by
+  two steps; less, and the cut jumps.
+- **Screen direction.** A mover going frame right keeps going frame right after the cut, unless a shot along its path
+  (toward or away) turns it.
+
+The read rides the shoot door's answer as `composition`: each shot's subject, size, headroom, eyes, place and facing, and
+advice with its fix. It reads; the eyes gate (LOOK THROUGH on the World page) is the person's.
+
 ## The director's notes
 
 Suggestions read off a scene and its coverage (`actor/notes.js` `directorsNotes`), each with its principle and a change
