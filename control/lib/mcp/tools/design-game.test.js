@@ -33,11 +33,11 @@ const AUTO = { ...MEADOWMARK_HERO, mode: 'autonomous' };
 describe('design_game', () => {
   beforeEach(() => { closeDb(); });
 
-  it('a new game is made for a phone unless another screen is named; a recipe re-sent whole keeps its screen', async () => {
+  it('a new game is made for a monitor unless another screen is named; a recipe re-sent whole keeps its screen', async () => {
     await designGameHandler({ world: GATED, ref: 'gw-phone' });
-    expect(stored('gw-phone').screen).toBe('phone');
+    expect(stored('gw-phone').screen).toBe('screen');
     await designGameHandler({ world: GATED, ref: 'gw-phone' });   // re-sent whole, no screen in it
-    expect(stored('gw-phone').screen).toBe('phone');
+    expect(stored('gw-phone').screen).toBe('screen');
     await designGameHandler({ world: { ...GATED, screen: 'tablet' }, ref: 'gw-tablet' });
     expect(stored('gw-tablet').screen).toBe('tablet');
     await designGameHandler({ world: { ...GATED, screen: null }, ref: 'gw-none' });

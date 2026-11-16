@@ -67,7 +67,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -75,6 +75,7 @@ import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
+import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
@@ -513,7 +514,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
@@ -653,10 +654,10 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
  * an ooze makes dressed from its kit's ramps, the colour theorist's when the world names a palette, and its own coat
  * taken to them: animal.js `coat: 'world'`), as its people are;
  * and the refs each stage's foes stand on. */
-const foeSteps = (G, ref, ready) => {
+const foeSteps = (G, ref, ready, ids = null) => {
   // (its coat in the world's colours too, where the world has ramps: a foe belongs to its world's palette)
   const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {}, hench = bookRail(G);
-  return fieldedIds(G).flatMap((id) => {
+  return (ids ?? fieldedIds(G)).flatMap((id) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
     if (isModel(entry)) return [];
@@ -742,7 +743,7 @@ function worldSteps(world, G, ref, composite) {
     if (s.building?.ref) return;
     // (its foes stand beside its goal's cast; the walker is first person, so it is hit under its eye)
     const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, false, lastOf[s.level] === s.index);
-    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s, runScore) });
+    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...(s.section === 'street' ? { foeRefs } : {}), ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s, runScore) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const C = composedStages(stages, levelRefs, map, composite);
@@ -908,10 +909,12 @@ function sportLaws(Q, A, manifest) {
  * goal placed on its anchors, piloted by the hero or in first person, then the game in the play shell (play-shell.js).
  * Nothing waits: a quick game has no book to review. */
 function quickSteps(world, G, ref, lookup) {
-  const Q = world.quick, steps = [];
+  // (A BRAWL is written by its streets or at its street's design, quick.js brawlByDesign: by its streets, a `rungun` is
+  // a brawl played with guns)
+  const Q0 = world.quick, byDesign = brawlByDesign(Q0, !!(G.foes && Object.keys(G.foes).length)), Q = byDesign ? Q0 : brawlAsStreets(Q0), steps = [];
   // a fight is its own simulation (versus/): one game row, its roster solved where it plays
   // (a BRAWL's players are made the same way: the fight's roster; its levels its streets, in the play shell)
-  if (Q.goal === 'fight' || Q.goal === 'brawl') {
+  if (Q.goal === 'fight' || (Q.goal === 'brawl' && !byDesign)) {
     // every fighter a character: a sheet (an egocube) made into one through the character loop, or one already made;
     // then each arena a stage world the fight runs on (a level), then the game that picks among them
     const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
@@ -1005,6 +1008,45 @@ function quickSteps(world, G, ref, lookup) {
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
     const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
     return [...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+  }
+  // a brawl (brawl/): one level, its street carrying the brawl and the hosted level's contract; the game plays it in the
+  // shell. A beat-em-up and a run & gun are the one structure: what differs is in the level's room
+  if (byDesign) {
+    const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
+    // its heroes, every one a character made through the character loop as a fight's fighters are (a sheet rolled in the
+    // game's setting, then the character; or one already made), drawn in its own body on the street
+    const setting = Q.register ? { ...settingOfGame(G, Q), tradition: Q.register } : settingOfGame(G, Q);
+    const heroSteps = [], roster = [];
+    for (const { over, roll: own0, hero, moves: _m, ...own } of brawlHeroes(Q, seed)) {
+      if (hero) { roster.push({ ...own, hero, ...over }); continue; }
+      const roll = { ...own0, setting }, sheet = rollEgocube(roll);
+      if (sheet.ancestry.door !== 'hero' && !beastOnTiered(sheet)) throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door with no tiered body: a brawl's hero is a person or a beast-kin`);
+      const sheetKey = `fighter-${own.id}-sheet`, key = `fighter-${own.id}`, sheetRef = childRef(ref, sheetKey), charRef = childRef(ref, key);
+      const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
+      heroSteps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
+      heroSteps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
+      roster.push({ ...own, hero: { ref: charRef }, ...over });
+    }
+    // THE FOES (gameworld/brawl-cast.js): a world that keeps a bestiary, or writes its waves by role, is met by its own
+    // cast: each foe that comes made as the game's foes are (foeSteps), fighting as what it is, drawn in its own body
+    // where it has one. A world with neither meets the street's stock bodies (the harness)
+    let cast = null, castLaws = null;
+    if (G.foes !== undefined || castWaves(Q.waves) || Q.street !== undefined) {
+      // (THE LEVEL DESIGN, brawl-cast.js brawlStreet: a street of stops and a boss, the world's own or, where it keeps a
+      // bestiary and writes no waves, the one that builds to its boss; role waves alone are a wave set on one screen)
+      const gun = Q.goal === 'rungun', streetWords = Q.street ?? (castWaves(Q.waves) ? null : BRAWL_STREET);
+      const C = streetWords ? brawlStreet(G, streetWords, { gun }) : brawlCast(G, Q.waves, { gun });
+      const has = brawlBodies(G, C), bodied = C.foes.filter((id) => has[id]), heroes = roster.length;
+      heroSteps.push(...foeSteps(G, ref, { ready: true }, bodied));
+      const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes + k]));
+      for (const id of bodied) roster.push({ id: `foe-${id}`, name: id, hero: { ref: childRef(ref, `foes-${id}`) } });
+      cast = streetWords ? { street: { screens: C.screens, waves: withStreetBodies(C.waves, rosterAt) }, playable: heroes } : { waves: withBodies(C.waves, rosterAt), playable: heroes };
+      castLaws = [{ concern: 'cast', law: 'foes', holds: !C.says.length, says: C.says.length ? C.says.join('; ') : `the street's crowd is the game's own cast (${C.foes.join(', ')}), each in its own body` }];
+    }
+    const arenas = brawlArenas(Q, { title, roster, cast }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
+    const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title ?? a.name, manifest: a.manifest }, print: fingerprint(a.manifest) }));
+    const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
+    return [...heroSteps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(castLaws ? { laws: castLaws } : {}) }];
   }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;

@@ -21,8 +21,19 @@ export const SCREENS = Object.freeze({
   tablet: Object.freeze({ aspect: Object.freeze([4, 3]), says: 'a tablet on its side, iPad-shaped (4:3; orientation portrait stands it up)' }),
   screen: Object.freeze({ aspect: Object.freeze([16, 9]), says: 'a monitor or a TV (16:9; a wider one shows more at the sides)' }),
 });
-/** The screen design_game writes into a gameworld it starts when none is named. */
-export const NEW_GAME_SCREEN = 'phone';
+/** The screen design_game writes into a gameworld it starts when none is named: a monitor or a TV, on its side (where a
+ * game is first seen and where most kinds of game are played). A game that runs up the screen is made for a phone held
+ * upright instead (newGameScreen). It was 'phone' for every new game until 2026-11-16; a game already made keeps the
+ * screen written into it. */
+export const NEW_GAME_SCREEN = 'screen';
+/** the screen of a new game whose levels run up the screen (a runner's lanes, an obstacle course's lane) */
+export const UPRIGHT_GAME_SCREEN = 'phone';
+/** The screen a new game is made for when it names none: upright for one that runs up the screen, else NEW_GAME_SCREEN. */
+export function newGameScreen(world) {
+  const levels = isObj(world?.levels) ? Object.values(world.levels) : [];
+  const upright = world?.quick?.goal === 'runner' || levels.some((L) => isObj(L) && (L.runner !== undefined || L.obstacles !== undefined));
+  return upright ? UPRIGHT_GAME_SCREEN : NEW_GAME_SCREEN;
+}
 /** How much longer than the frame a device's long axis may show before the page bars it. */
 export const REACH = 4 / 3;
 const ORIENTATIONS = ['portrait', 'landscape'];

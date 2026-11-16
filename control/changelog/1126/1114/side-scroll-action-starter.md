@@ -275,7 +275,23 @@ screen) is now played on a page; before, only its practice yard was.
   the fight's. A new look, `brawl-street` (a theme card: the brawl yard's asphalt and hazard yellow with stencilled
   pictograms coloured by what they mean), on the street's screen and on a brawl's shell; the practice yard keeps
   `brawl-yard`. Two pictograms joined the icon shelf: `bullet` (also said ammo, rounds) and `grenade`.
-- Not yet (run & gun): lives and one-hit play, a boss's own attacks (a pattern only it has), the turn asking each
+- ONE STREET, TWO DOORS IN (the street's design door merged in: the `brawl-doors` theme beside this one). A street
+  written at its DESIGN (a designed game's `levels.<id>.street`, a quick `brawl` or `rungun` that says `street`,
+  `waves`, `lives`, `players`, `armed` or `guns`, a game made from a sentence: its stops and its boss, its crowd the
+  game's own cast by role) and one written by its STREETS (`streets`, `crowd`, `play`, a composed world's
+  `levels.<id>.sideways`: a place of its own, its dress, its bends, its scenes) are both played on the one street: the
+  seats, the fight laws' numbers, cover, pickups and the turn are the same under either. The page reads a design's
+  street (`brawl.practice.street`) as it reads a street's block. What the design door brought onto the street:
+  LIVES (`lives`: the falls its players share; a player knocked out is back on its feet where it fell, whole, until
+  the last one allowed; hearts at the foot of the screen), a TUNING (`tune`: its players' health, the crowd's as a
+  share of its own, the crowd's guns and rules), a crowd body drawn as the cast member its wave names, a fighter boss
+  in STAGES (beside a crowd-kind boss's phases; either turns the boss's marks and says its word), and DUCKING and
+  JUMPING a round. A quick brawl or rungun that says none of the design's words, in a world with no `foes`, is the
+  starter's (the dressed town street, a crew of the comic pack's; a rungun played with guns).
+- Not yet (the two doors): a design's street takes a stage kit, not yet a place with its dress and bends (`ground`);
+  the design door's scripted player and this theme's fight measure both read a street (one check would do); the
+  practice room that ends (`stakes`) is still its own path for a wave set with no street.
+- Not yet (run & gun): one-hit play, a boss's own attacks (a pattern only it has), the turn asking each
   seat its fighter and gun (a second player takes the next playable and the first's gun), the fight measured with two.
 - Not yet (sound): footsteps, a street's bed, the score and its stingers (the cue sheet), the screen's own sounds.
 - Not yet: a crowd of its own per street, a boss with a fight of its faction's own, a street of more than one

@@ -58,7 +58,9 @@ export function streetSpec(play = 'brawl') {
             { use: 'counter', props: { label: '', value: b(`${p}.grenades`), icon: 'grenade' } }] }] : [])] }] },
         { use: 'window', props: { variant: 'ghost' }, when: b(`${p}.open`), children: [{ use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'badge', props: { value: `${k + 1}P`, side: k, variant: 'muted' } }, { use: 'text', props: { value: 'Press start', role: 'caption' } }] }] }] })) }] },
       // (the way through and who is left, at the foot's corners: the middle of the screen is the fight's)
-      { use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'pips', props: { value: b('cleared'), max: b('of'), shape: 'square', label: 'stage' } }] },
+      { use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [{ use: 'pips', props: { value: b('cleared'), max: b('of'), shape: 'square', label: 'stage' } },
+        // (the falls left, where the street has lives: hearts, shared by its players)
+        { use: 'pips', props: { value: b('lives.left'), max: b('lives.of'), shape: 'heart', label: 'lives' }, when: b('lives.on') }] }] },
       { use: 'region', props: { at: 'bottom-right' }, children: [{ use: 'counter', props: { label: 'left', value: b('left'), icon: 'skull' } }] },
       // (the boss's bar along the foot, between them)
       { use: 'region', props: { at: 'bottom' }, when: b('boss.on'), children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [

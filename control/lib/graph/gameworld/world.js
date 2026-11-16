@@ -159,6 +159,7 @@ import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
 import { readGauntletGoal } from './gauntlet.js';
 import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
+import { readLevelStreet, brawlStreet } from './brawl-cast.js';
 import { readCourse } from './course.js';
 import { readBossWin } from './first-level.js';
 import { readIntent, cubeOfWorld } from './intent.js';
@@ -277,7 +278,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'sideways'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'sideways', 'street'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -584,7 +585,9 @@ export function readGameworld(W) {
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
   // the BESTIARY (foes.js): the foe classes the world fields, each resolved once so a bad word says so here
   const quickGame = W.quick !== undefined && W.quick !== null;
-  if (W.foes !== undefined && W.foes !== null && quickGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
+  // (a quick brawl's or run & gun's crowd IS the world's bestiary: gameworld/brawl-cast.js)
+  const brawlGame = quickGame && isObj(W.quick) && (W.quick.goal === 'brawl' || W.quick.goal === 'rungun');
+  if (W.foes !== undefined && W.foes !== null && quickGame && !brawlGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
   const foes = W.foes === undefined || W.foes === null ? null : readBestiary(W.foes);
   const ids = Object.keys(W.levels), levels = {}, sceneSets = {};
   for (const id of ids) {
@@ -701,6 +704,11 @@ export function readGameworld(W) {
       // a level walked SIDEWAYS (sideways.js): a side-scrolling map, its belt down a place; who is on it is the world's
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'geotown', 'glyphs', 'obstacles', 'foes'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a sideways level is its map alone (its ground, cast, waves, things and scenes are said in \`sideways\`): no walk, building, city, roadway, airspace, runner, places, ground, arena, geotown, glyphs, obstacles or foes beside it`);
       try { readSideways(L.sideways, { foes, where: 'sideways' }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+    } else if (L.street !== undefined) {
+      // a street level: a beat-em-up's or a run & gun's street (brawl-cast.js), its stops and its boss the level's design,
+      // its crowd the world's bestiary
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'goal', 'foes'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a street level is the street alone: no walk, building, city, roadway, airspace, runner, places, ground, arena, goal or foes beside it (its stops name who comes)`);
+      try { readLevelStreet(L.street); brawlStreet({ foes: W.foes ?? undefined }, readLevelStreet(L.street).design); } catch (e) { throw new Error(`gameworld: ${at}${e.message.replace(/^gameworld: brawl/, '')}`); }
     } else if (L.runner !== undefined) {
       // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
@@ -1025,6 +1033,8 @@ export function resolveLevel(world, id) {
   if (L.obstacles) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, obstacles: readObstacles(L.obstacles) };
   // a level walked sideways: its map's words (levels.js lays the stage, the run its street)
   if (L.sideways) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, sideways: readSideways(L.sideways) };
+  // a street level: its words (levels.js lays it on the game's hero and foes: brawl-cast.js streetLevel)
+  if (L.street) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, brawlStreet: L.street };
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {

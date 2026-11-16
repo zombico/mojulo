@@ -353,7 +353,11 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // so they are laid for it. Only a clear read: a genre's own name, or the first genre ahead of the second on two of its
   // words (one word, "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the
   // words point at
-  const genre = readGenre(prompt), leadWords = new Set((genre?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  // (a genre named only by words the brief's FEEL already claims is the feel's, not a genre: "a mega man style run and
+  // gun" names a game whose feel is known, a platformer that shoots, not a street to fight down)
+  const genre0 = readGenre(prompt);
+  const genre = genre0 && said && said.matched.length > genre0.matched.length && genre0.matched.every((w) => said.matched.includes(w)) ? null : genre0;
+  const leadWords = new Set((genre?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   // a genre that is another door's medium is said, not laid; one the registry cannot make yet is refused with what it
   // waits on (genre-forms.js), nothing laid in its place
   if (genre && HAND_OFFS[genre.id]) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is made by ${HAND_OFFS[genre.id].door}: ${HAND_OFFS[genre.id].why}. Nothing is laid here.`);

@@ -37,11 +37,15 @@ export function streetRead(street, hp0 = []) {
     hp: Math.max(0, me.hp), hpMax: hp0[me.id] || me.hp || 1, name: ctx.fighters[me.fi].name || '',
     cleared, of: held.length, screen: Math.min(held.length, cleared + 1), left: on.length,
     boss: B && !B.ko ? { on: true, name: mind.bosses[bossId].name, hp: Math.max(0, B.hp), hpMax: hp0[bossId] || B.hp || 1 } : { on: false, name: '', hp: 0, hpMax: 1 },
-    won: held.length > 0 && cleared === held.length, lost: sat.every((b) => b.ko), f: s.f,
+    won: held.length > 0 && cleared === held.length, lost: sat.every((b) => b.ko) && (!mind.lives || mind.lives.falls >= mind.lives.of), f: s.f,
+    // (its lives, where it has them: the falls left of those allowed)
+    ...(mind.lives ? { lives: { left: Math.max(0, mind.lives.of - mind.lives.falls), of: mind.lives.of } } : {}),
     // (THE OTHER SEATS, two to four: each its name, its health, its gun where it holds one; `on` once it is taken)
     mates: players.slice(1).map((b) => ({ on: !b.aw, name: ctx.fighters[b.fb ?? b.fi].name || '', hp: Math.max(0, b.hp), hpMax: hpOf(b), ...(b.gn !== undefined ? { gun: gunName(ctx.guns[b.gn]), ammo: b.am === undefined ? '∞' : String(b.am) } : {}) })),
     // (a boss with phases: the one it is in, of how many)
     ...(B && !B.ko && mind.bosses[bossId].phases ? { phase: { at: (mind.phase?.[bossId] ?? 0) + 1, of: mind.bosses[bossId].phases.length + 1 } } : {}),
+    // (a fighter boss in stages, brawl-crowd.js readStages: the one it is in)
+    ...(B && !B.ko && mind.bosses[bossId].stages ? { phase: { at: (mind.bosses[bossId].stage ?? 0) + 1, of: mind.bosses[bossId].stages.length } } : {}),
     // a street's RANK, by the health it was cleared with: S three quarters or more, A a half, B a quarter, else C
     rank: streetRank(Math.max(0, me.hp) / (hp0[me.id] || me.hp || 1)),
     // (a gunner's: the gun held, its rounds left (null: never out), its grenades)

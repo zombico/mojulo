@@ -67,7 +67,7 @@ describe('design_game quick', () => {
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['hero', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
     const L = stored('rn-level-run-0');
     expect(L.runner).toMatchObject({ seed: expect.any(Number) });
-    expect(L.screen).toMatchObject({ pole: 'phone' });   // a new game is made for a phone
+    expect(L.screen).toMatchObject({ pole: 'phone' });   // a runner runs up the screen: made for a phone held upright
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('rn-level-run-0'));
     expect(payload.runner).toEqual(L.runner);
     const html = emitThreeWorld({ ...payload, inline: true });
