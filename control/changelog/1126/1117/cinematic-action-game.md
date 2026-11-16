@@ -109,3 +109,9 @@ or a recipe key; the spike mints through the real doors and measures.
   the action is. The infiltration yard's operative has it.
 - **The yard's guard fires its carbine**: the carbine is its one weapon slot in place of the patrol's blow, so what it
   sees it shoots, in short bursts from where it stands off (a round 8 of the hero's 100).
+- **Hurt, it looks round** (`rule.startle`, worlds/controllable/startle.js, opt-in): a watcher that takes damage from
+  what it has not seen stops, turns to where the blow came from and sweeps its gaze there. Who it then sees its mind
+  has, as on any sighting; a striker that has got behind cover before it has turned is not seen, and it takes up what
+  it was doing after its seconds. It only turns the body: what is seen is the mind's own to say. The yard's guard has
+  it: struck from behind in the open it turned in about a second and fired; with the striker behind cover it looked
+  and went back to its round.

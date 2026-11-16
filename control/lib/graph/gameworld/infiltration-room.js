@@ -19,7 +19,7 @@
  *                 fire over, crates; the start at its south
  *   the takedown  the action behind a guard that has not seen the hero puts it down (worlds/controllable/takedown.js)
  *   the guard     a patrol across the far half of the yard, armed with a carbine it fires on what it sees, its round
- *                 between two posts; what it sees is drawn on the
+ *                 between two posts; hurt by what it has not seen it turns there and looks, and fires on who it finds; what it sees is drawn on the
  *                 floor as a fan that stops at what stops its sight, hot while it sees the hero; a sighting is said
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
@@ -63,6 +63,8 @@ const guardFigure = (ref, cast) => { const { hero, ...rest } = dummyFigure(cast)
 // turns and shoots rather than closing to strike)
 const GUARD_CARBINE = Object.freeze({ fireClass: 'sight', auto: false, cooldown: 0.28, magazine: 30, reload: 2.2, damage: 8, impact: 1, range: 40, coreAngle: 1.5, eye: 1.4, round: SHOOT.rifle.round });
 const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true, standoff: 9, burst: 0.5, pause: 1.1, meleeSeek: false,
+  // (hurt by what it has not seen, it stops, turns to where the blow came from and looks: startle.js)
+  startle: Object.freeze({}),
   // (the carbine its one slot, in place of the patrol's own blow: a body with a loadout fires what its slot carries)
   loadout: Object.freeze([Object.freeze({ name: 'carbine', figure: GUARD.id, weapon: GUARD_CARBINE })]) }), weapon: GUARD_CARBINE, body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
 // (the box a hero's vault clip is solved for where the door is given none: the middle of the speed vault's band, about
