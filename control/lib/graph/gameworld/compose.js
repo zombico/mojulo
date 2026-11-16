@@ -49,6 +49,9 @@ import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
+import { ISEKAI_STYLES } from '../era/isekai-tiles.js';
+import { SWATCHES } from '../era/style/swatches.js';
+import { rgbToHex } from '../color-theorist/oklab.js';
 import { composerFills } from './resonance.js';
 import { readFoeWords, foePacks } from './foe-words.js';
 
@@ -542,6 +545,22 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (world.brief.worldMap && style.kit === MAP_FLORA.kit && style.geocube !== undefined && !readGeocube(style.geocube).biocube) {
     style.geocube = cubeWithLand(style.geocube, { biocube: MAP_FLORA.biocube });
     world.brief.worldMap.grows = `the ${MAP_FLORA.biocube}'s flora (its cube names none): grass on the land, groves beside the ways`;
+  }
+  // HOW ITS LAND IS DRAWN (a genre hero row's `land`, hero-rows.js): rocks and cliff lips kept bare (`hats: false`, a
+  // glyph map's word carried to each tile's stage), and the kit's card's own sky and air over the cube's (`sky: 'card'`:
+  // the card's dome ends and its haze colour written as the cube's `light.sky`, its haze density as the cube's share of
+  // its reference's, `light.outsideFog`). A world whose row says neither, or with no map or no cube, is as it was
+  const land = genre ? GENRE_HERO[genre.id]?.land : null;
+  if (land?.hats === false && world.brief.worldMap) world.levels[world.brief.worldMap.level].glyphs.hats = false;
+  if (land?.sky === 'card' && style.geocube !== undefined) {
+    const card = ISEKAI_STYLES[style.kit], dome = SWATCHES[style.kit]?.land?.sky, fog = card?.air?.fog;
+    const cube = typeof style.geocube === 'string' ? { from: style.geocube } : { ...style.geocube };
+    const ref = SIXTH_GEN_REFERENCES[resolveLook(readGeocube(style.geocube).light.reference)];
+    if (Array.isArray(dome) && fog && ref?.air?.fog?.density > 0 && cube.light?.sky === undefined) {
+      const share = Math.min(4, Math.max(0.01, +(fog.density / ref.air.fog.density).toFixed(4)));
+      cube.light = { ...(cube.light ?? {}), outsideFog: share, sky: { zenith: rgbToHex(dome[0]).toLowerCase(), horizon: rgbToHex(dome[dome.length - 1]).toLowerCase(), fog: fog.color } };
+      style.geocube = cube;
+    }
   }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {
