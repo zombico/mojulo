@@ -19,6 +19,10 @@
 import { dryRun } from '../cosmos/cosmos.js';
 import { genreCube, GENRES } from './intent.js';
 
+// (the street a sentence lays: three stops that build to the cast's boss, a novice for a first street, and five falls
+// allowed: measured with a hero the sentence door made, the brawl's basic player lost it at three and won it at five,
+// brawl/brawl-playthrough.js)
+export const STREET_FROM_A_SENTENCE = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice' }), lives: 5 });
 /** The book level forms the sentence door lays a genre's levels in. */
 export const GENRE_FORMS = Object.freeze({
   // the flight genres: an airspace a level (skyscape/airspace.js): a runway, a gate course, the genre's craft
@@ -29,6 +33,11 @@ export const GENRE_FORMS = Object.freeze({
   // endless run down lanes (worlds/controllable/runner.js), the city swung through by its rooftops (city/plan/level.js)
   // (a runner is made for a phone held upright: its lanes run up the screen)
   'endless-runner': Object.freeze({ form: 'runner', name: 'Run', hero: Object.freeze({}), screen: 'phone', level: () => ({ runner: true }) }),
+  // the street genres (brawl-cast.js): a level a street of stops and a boss, the world's cast its crowd; a beat-em-up
+  // fought hand to hand, a run & gun with guns (the world's intent decides: the same level form). A street runs across
+  // the screen, and a hero plays it (a stand-in where the world has none yet)
+  'co-op-brawler': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: STREET_FROM_A_SENTENCE }) }),
+  'run-and-gun': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: STREET_FROM_A_SENTENCE }) }),
   'city-stalker': Object.freeze({ form: 'city', name: 'District', hero: Object.freeze({ moves: Object.freeze(['wall', 'swinger']) }), level: () => ({ city: { stalker: true } }) }),
 });
 

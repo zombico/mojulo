@@ -45,6 +45,12 @@
   boss. It tells you; it does not change your design.
 - **The street a game gets by default can be won by one player.** Its boss now fights as a novice. Measured: at the
   usual level one simple player lost at the boss with all three falls gone, while two players won.
+- **Ask for one in a sentence.** "A beat em up in a port town" or "a run and gun through a factory" now gives you
+  that game: streets for its levels, a hero made for it, a wide screen. Before, the studio answered that these kinds
+  of game could not be made yet. A "side-scrolling shooter" is read as a run & gun. A sentence that names a game
+  whose feel the studio knows ("a Mega Man style run and gun") still gets that feel, not a street.
+- **A first street forgives more.** The street a sentence lays allows five falls. Measured with a hero made from a
+  sentence: the simple player lost it at three falls and won it at five.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
