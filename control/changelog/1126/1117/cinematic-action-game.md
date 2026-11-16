@@ -141,3 +141,8 @@ or a recipe key; the spike mints through the real doors and measures.
   under the centre of the over-the-shoulder view, but its reticle was drawn out along the body's own line, which lies
   beside that centre by the shoulder's offset. Over the shoulder the reticle now sits at the view's centre; from the
   eye it is the body's line as before.
+- **The operative in a facility** (`scripts/spikes/mission/facility.mjs`): the yard's hero, its kit and its guard stood
+  in a geocube level of the seventh generation, a military hangar bay on a land with its hall dressed as a garage and a
+  siege walker parked in it. A geocube recipe takes no pilot, so the script lays the hero's camera and events on the
+  resolved payload; the level's own start is the walk's, under the hall's slab, so the hero starts on the hall floor.
+  Played headless: it stands, runs and vaults the hall's barriers under the level's light, the guard walks its round.
