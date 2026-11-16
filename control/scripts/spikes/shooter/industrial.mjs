@@ -4,7 +4,7 @@
 // play are the operator's.
 //
 //   node scripts/spikes/shooter/industrial.mjs [--out <page.html>] [--feel conscription] [--seed 1]
-//     [--industrial '{"use":"hangar-bay","depth":33,"hour":"night","weather":"rain","walker":"siege-walker"}']
+//     [--industrial '{"depth":33,"hour":"golden","wet":"wet","tower":true}']
 import fs from 'node:fs';
 import path from 'node:path';
 import { register } from 'node:module';

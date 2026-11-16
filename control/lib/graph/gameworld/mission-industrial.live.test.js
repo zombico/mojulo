@@ -1,13 +1,14 @@
 // AN INDUSTRIAL LEVEL, WHOLE (the e2e tier: it resolves the place, a building on its land). One world, the default
 // yard. The concepts: what was planned with nothing resolved is what the geocube builds: the building's floor stands
 // where it was asked, each container the design stood is a mass on the page, each barrier a low one, the yard fenced,
-// a flood for each mast, the walker on the yard, the place wet under its rain; and the mission laid before it was built
+// its tower a deck a level up with its stairs' steps under a body's step, the ground wet under no rain; and the mission laid before it was built
 // is played on it: the gunner walks the place's own colliders and its tasks are met. Machine gate only.
 import { describe, expect, it } from 'vitest';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { playMission, proveMissions } from './mission-proof.js';
 import { SEAT } from './mission-industrial.js';
+import { RISE } from '../arena-map/blocks.js';
 import { TEMPLATE_LOADOUTS } from './loadout.js';
 import { POLES } from './feel/cards.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
@@ -26,10 +27,13 @@ describe('an industrial level, on its page', () => {
     expect(tall).toHaveLength(Y.stacks.length);
     expect(low).toHaveLength(Y.barriers.length);
     expect(Pg.colliders.filter((c) => typeof c.of === 'string' && c.of.endsWith(':fence'))).toHaveLength(3);
-    expect(Pg.form.room.reflect.floods).toHaveLength(Y.masts.length);
-    expect(Pg.form.room.reflect.wet).toMatchObject({ rain: 1 });
-    expect(Pg.weather).toBeTruthy();
-    expect(Object.keys(Pg.figures).some((k) => k.startsWith('parked'))).toBe(true);
+    expect(Pg.form.room.reflect.wet).toMatchObject({ rain: 0 });
+    expect(Pg.form.room.reflect.wet.amount).toBeGreaterThan(0.5);
+    // (its tower: a deck whose top stands a level over the floor, and stairs whose every step is under a body's step)
+    const tower = Pg.colliders.filter((c) => typeof c.of === 'string' && c.of.endsWith(':tower')), tops = [...new Set(tower.map((c) => Math.round(c.max[2] * 1000) / 1000))].sort((a, b) => a - b);
+    expect(tops).toContain(SEAT.floor + RISE);
+    const steps = tops.filter((z) => z <= SEAT.floor + RISE + 1e-6);
+    for (let k = 1; k < steps.length; k++) expect(steps[k] - steps[k - 1]).toBeLessThan(0.3);
     // (a stack stands where the design put it: the first, carried from the plan onto the land)
     const [sx, sy] = P.seat.toWorld(Y.stacks[0].at);
     expect(tall.some((c) => sx > c.min[0] - 0.01 && sx < c.max[0] + 0.01 && sy > c.min[1] - 0.01 && sy < c.max[1] + 0.01)).toBe(true);

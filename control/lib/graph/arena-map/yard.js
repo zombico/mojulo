@@ -15,6 +15,9 @@
  *                                complete, furnished, lights, passes }
  *     door    the column of the far edge (j = ny - 1, the building's) its way out stands at: kept clear before it
  *     fixed   [{ kind, cells: [[i, j]] }] what stands there already, kept
+ *     towers  [{ i, j }] high ground: a deck a level up (TOWER.deck cells a side, its south-west cell at i, j) over open
+ *             ground, railed, a stair up to it from the west and one from the east (two ways, as the laws ask);
+ *             the design keeps its stairs and their feet clear
  *     lights  [[i, j]] where its floodlights stand: over its prizes (the laws' own measures: the most seen places are
  *             the lit ones), kept apart, each at a corner of its cell
  *
@@ -29,6 +32,10 @@ export const PIECES = Object.freeze({
   barrier: Object.freeze({ about: 'a concrete barrier on the line between two places: over a knee, under an eye', cells: 0, sight: 'stops a line below it, and a body' }),
 });
 export const YARD = Object.freeze({ passes: 500, drift: 60, stacks: 36, barriers: 40, lights: 4, apart: 5, clear: 2 });
+/** A tower on the grid: its deck's side in cells, its stair's run in cells (it climbs east, onto the deck's south-west cell). */
+export const TOWER = Object.freeze({ deck: 2, run: 2 });
+/** The cells a tower keeps clear of the yard's pieces: under its deck, its stair, and the landing at its foot. */
+export const towerCells = (t) => [...Array.from({ length: TOWER.deck * TOWER.deck }, (_, k) => [t.i + (k % TOWER.deck), t.j + Math.floor(k / TOWER.deck)]), ...Array.from({ length: TOWER.run + 1 }, (_, k) => [t.i - 1 - k, t.j]), ...Array.from({ length: TOWER.run + 1 }, (_, k) => [t.i + TOWER.deck + k, t.j + TOWER.deck - 1])];
 const k2 = (i, j) => `${i},${j}`;
 const cellsOf = (p) => Array.from({ length: PIECES[p.kind].cells }, (_, t) => (p.along === 'y' ? [p.i, p.j + t] : [p.i + t, p.j]));
 const score = (R) => R.laws.reduce((s, l) => s + (l.holds ? 1000 : -10 * Math.min(l.n, 40)), 0) - R.short;
@@ -46,15 +53,27 @@ export function yardMap(Y) {
     const b = p.side === 'e' ? [p.i + 1, p.j] : [p.i, p.j + 1];
     if (!solid.has(k2(p.i, p.j)) && !solid.has(k2(...b))) walls.push({ at: [p.i, p.j, 0], side: p.side, kind: 'low' });
   }
-  return { nx, ny, nz: 1, floors, solids: [...solid].map((s) => [...s.split(',').map(Number), 0]), walls, ramps: [], ladders: [] };
+  // A TOWER: a deck a level up over open ground, railed round but at its stairs' heads; two stairs, since the laws ask
+  // two ways onto any high ground: one a ramp from the west onto its south-west cell, one from the east onto its
+  // north-east
+  const ramps = [];
+  for (const t of Y.towers ?? []) {
+    const { i, j } = t, n = TOWER.deck;
+    for (let b = 0; b < n; b++) for (let a = 0; a < n; a++) floors.push([i + a, j + b, 1]);
+    for (let a = 0; a < n; a++) walls.push({ at: [i + a, j - 1, 1], side: 'n', kind: 'low' }, { at: [i + a, j + n - 1, 1], side: 'n', kind: 'low' });
+    for (let b = 0; b < n; b++) { if (b < n - 1) walls.push({ at: [i + n - 1, j + b, 1], side: 'e', kind: 'low' }); if (b > 0) walls.push({ at: [i - 1, j + b, 1], side: 'e', kind: 'low' }); }
+    ramps.push({ at: [i - TOWER.run, j, 0], dir: [1, 0], run: TOWER.run }, { at: [i + n - 1 + TOWER.run, j + n - 1, 0], dir: [-1, 0], run: TOWER.run });
+  }
+  return { nx, ny, nz: ramps.length ? 2 : 1, floors, solids: [...solid].map((s) => [...s.split(',').map(Number), 0]), walls, ramps, ladders: [] };
 }
 
 /** A yard designed under the laws (see the header). */
-export function designYard({ nx, ny, door = null, fixed = [], seed = 1, passes = YARD.passes, drift = YARD.drift, kit = kitOf() } = {}) {
+export function designYard({ nx, ny, door = null, fixed = [], towers = [], seed = 1, passes = YARD.passes, drift = YARD.drift, kit = kitOf() } = {}) {
   const rnd = mulberry32(seed | 0), pick = (xs) => xs[Math.floor(rnd() * xs.length)];
   // (kept clear: the ground before the way out, so the door is never built over)
   const keep = new Set();
   if (door !== null) for (let j = ny - YARD.clear; j < ny; j++) for (let i = door - 1; i <= door + 1; i++) keep.add(k2(i, j));
+  for (const t of towers) { if (t.i - TOWER.run - 1 < 0 || t.i + TOWER.deck + TOWER.run >= nx || t.j < 0 || t.j + TOWER.deck > ny) throw new Error(`arena-map: a tower at ${t.i},${t.j} does not stand in a yard ${nx} by ${ny} with a stair and its foot to its west and to its east`); for (const c of towerCells(t)) keep.add(k2(...c)); }
   const taken = (Y, skip = null) => { const s = new Set(); for (const f of Y.fixed) for (const c of f.cells) s.add(k2(...c)); for (const p of Y.pieces) if (p !== skip && p.kind !== 'barrier') for (const c of cellsOf(p)) s.add(k2(...c)); return s; };
   const fits = (Y, p, skip = null) => { const T = taken(Y, skip); return cellsOf(p).every(([i, j]) => i >= 0 && j >= 0 && i < nx && j < ny && !T.has(k2(i, j)) && !keep.has(k2(i, j))); };
   const count = (Y, f) => Y.pieces.filter(f).length;
@@ -85,7 +104,7 @@ export function designYard({ nx, ny, door = null, fixed = [], seed = 1, passes =
     if (!fits(N, q, p)) return null;
     N.pieces[at] = q; return N;
   };
-  let Y = { nx, ny, fixed: fixed.map((f) => ({ kind: f.kind, cells: f.cells.map((c) => c.slice()) })), pieces: [] }, M = yardMap(Y), R = mapLaws(M, kit), s = score(R), tried = 0, kept = 0, p = 0;
+  let Y = { nx, ny, towers: towers.map((t) => ({ i: t.i, j: t.j })), fixed: fixed.map((f) => ({ kind: f.kind, cells: f.cells.map((c) => c.slice()) })), pieces: [] }, M = yardMap(Y), R = mapLaws(M, kit), s = score(R), tried = 0, kept = 0, p = 0;
   const held = (X, id) => X.laws.find((l) => l.law === id).holds;
   for (; p < passes && !(R.held === R.of && p >= drift); p++) {
     const N = change(Y, R.mend);
@@ -103,14 +122,15 @@ export function designYard({ nx, ny, door = null, fixed = [], seed = 1, passes =
     if (lights.some((l) => Math.hypot(l[0] - x.at[0], l[1] - x.at[1]) < YARD.apart)) continue;
     lights.push([x.at[0], x.at[1]]);
   }
-  return { nx, ny, pieces: Y.pieces, fixed: Y.fixed, map: M, laws: R.laws, held: R.held, of: R.of, complete: R.held === R.of, furnished: R.furnished, lights, passes: { asked: passes, ran: p, tried, kept } };
+  return { nx, ny, pieces: Y.pieces, fixed: Y.fixed, towers: Y.towers, map: M, laws: R.laws, held: R.held, of: R.of, complete: R.held === R.of, furnished: R.furnished, lights, passes: { asked: passes, ran: p, tried, kept } };
 }
 
 /** A yard drawn as letters, north (the building) at the top: # a container (2 where it is stacked), W what was stood
- *  there, . ground, with its barriers not shown. */
+ *  there, T a tower's deck and / its stair, . ground, with its barriers not shown. */
 export function yardAscii(D) {
   const g = Array.from({ length: D.ny }, () => Array(D.nx).fill('.'));
   for (const f of D.fixed) for (const [i, j] of f.cells) g[j][i] = 'W';
+  for (const t of D.towers ?? []) towerCells(t).forEach(([i, j], k) => { g[j][i] = k < TOWER.deck * TOWER.deck ? 'T' : (k - TOWER.deck * TOWER.deck) % (TOWER.run + 1) === TOWER.run ? '.' : '/'; });
   for (const p of D.pieces) if (p.kind !== 'barrier') for (const [i, j] of cellsOf(p)) g[j][i] = p.high > 1 ? '2' : '#';
   for (const [i, j] of D.lights ?? []) if (g[j][i] === '.') g[j][i] = '*';
   return g.reverse().map((r) => r.join('')).join('\n');

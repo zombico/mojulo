@@ -84,18 +84,22 @@ const YARD_LINES = Object.freeze([[0.62, 0.2, 0.14], [0.13, 0.27, 0.5], [0.16, 0
 // sheens, a container's enamel more, poured concrete barely
 // a yard's floodlight: its mast's height (m), its light where its falloff is whole (linear, the solve's units) and its reach
 const FLOOD = Object.freeze({ h: 9, key: Object.freeze([2.9, 2.4, 1.5]), radius: 34 });   // (a sodium lamp's amber)
-const BUILT_SURFACES = Object.freeze({ 'yard:barrier': { rough: 0.85 }, 'yard:fence': { rough: 0.5, metal: 1 }, 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
+const BUILT_SURFACES = Object.freeze({ 'yard:deck': { rough: 0.4, metal: 1 }, 'yard:barrier': { rough: 0.85 }, 'yard:fence': { rough: 0.5, metal: 1 }, 'building:wall': { rough: 0.5 }, 'building:gable': { rough: 0.5 }, 'building:roof': { rough: 0.42 }, 'building:apron': { rough: 0.86 }, 'yard:container': { rough: 0.36 }, 'yard:mast': { rough: 0.45, metal: 1 } });
 // a yard's concrete barrier (m): its length, its foot's and its head's width, its height (over a knee, under an eye)
 const BARRIER = Object.freeze({ len: 3, base: 0.6, top: 0.24, h: 1.1, fill: '#b9b5aa' });
 // a yard's fence: how far inside the apron's edge it stands, and how high its collider is
 const FENCE = Object.freeze({ in: 0.4, h: 2.5 });
+// a yard's tower (m): a steel deck on posts, railed, a stair up to it. Its deck's size and its height over the building's
+// floor where it names none, the deck's thickness, a post's side, a rail's height, a step's rise at most (under a body's
+// step), the stair's run and width
+const TOWER = Object.freeze({ size: [6, 6], high: 3, slab: 0.2, post: 0.3, rail: 1.1, step: 0.25, run: 6, wide: 2.4, steel: '#6b7076', tread: '#7c8187', paint: '#c9a227' });
 /** The yard's depth before a building's front that a recipe may ask (m). */
 export const YARD_DEPTH = Object.freeze([9, 60]);
 // A building's `yard`, read: { containers?, floods?, floodsAt?, depth?, stacks?, barriers?, masts?, fence? }; throws,
 // teaching. `stacks`, `barriers` and `masts` are a design's own placements, in the building's plan metres (its front
 // wall along x, its yard at lower y than it)
 function readYard(Y, at) {
-  const no = (m) => { throw new Error(`stage: ${at}${m}`); }, xy = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite), KEYS = ['containers', 'floods', 'floodsAt', 'depth', 'stacks', 'barriers', 'masts', 'fence'];
+  const no = (m) => { throw new Error(`stage: ${at}${m}`); }, xy = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite), KEYS = ['containers', 'floods', 'floodsAt', 'depth', 'stacks', 'barriers', 'masts', 'fence', 'towers'];
   if (!Y || typeof Y !== 'object' || Array.isArray(Y) || Object.keys(Y).some((k) => !KEYS.includes(k))) no(` is { containers?: 1 to 40, floods?: 1 to 8 (floodlights on masts), floodsAt?: 'edge' (along its yard's outer edge) | 'middle' (down the middle of its yard), depth?: metres of yard before its front, stacks?, barriers?, masts?, fence? }`);
   if (Y.floodsAt !== undefined && !['edge', 'middle'].includes(Y.floodsAt)) no(`.floodsAt is 'edge' or 'middle'`);
   if (Y.containers !== undefined && !(Number.isInteger(Y.containers) && Y.containers >= 1 && Y.containers <= 40)) no('.containers is 1 to 40');
@@ -105,6 +109,8 @@ function readYard(Y, at) {
   const list = (k, most, each) => { if (Y[k] === undefined) return; if (!Array.isArray(Y[k]) || Y[k].length > most) no(`.${k} is a list of at most ${most}`); Y[k].forEach((v, n) => each(v, `.${k}[${n}]`)); };
   list('stacks', 60, (v, w) => { if (!v || !xy(v.at) || (v.along !== undefined && !['x', 'y'].includes(v.along)) || (v.high !== undefined && !(Number.isInteger(v.high) && v.high >= 1 && v.high <= 3)) || (v.half !== undefined && typeof v.half !== 'boolean')) no(`${w} is { at: [x, y] (its middle, plan metres), along?: 'x' | 'y', high?: 1 to 3, half?: true (a twenty-foot box) }`); });
   list('barriers', 80, (v, w) => { if (!v || !xy(v.at) || (v.along !== undefined && !['x', 'y'].includes(v.along))) no(`${w} is { at: [x, y] (its middle, plan metres), along?: 'x' | 'y' }`); });
+  list('towers', 4, (v, w) => { const st = (q) => q && ['+x', '-x', '+y', '-y'].includes(q.way) && (q.run === undefined || (q.run >= 3 && q.run <= 18)) && (q.wide === undefined || (q.wide >= 1 && q.wide <= 6)) && (q.off === undefined || Number.isFinite(q.off));
+    if (!v || !xy(v.at) || (v.size !== undefined && !(xy(v.size) && v.size.every((n) => n >= 3 && n <= 18))) || (v.high !== undefined && !(v.high >= 2.4 && v.high <= 6)) || !Array.isArray(v.stairs) || !v.stairs.length || v.stairs.length > 4 || !v.stairs.every(st)) no(`${w} is { at: [x, y] (its deck's middle, plan metres), stairs: [{ way: '+x' | '-x' | '+y' | '-y' (the way it climbs, its head at the deck's edge), run?: 3 to 18, wide?: 1 to 6, off?: metres it stands off the deck's middle line }] (1 to 4), size?: [w, d] 3 to 18, high?: 2.4 to 6 (its deck over the building's floor) }`); });
   list('masts', 8, (v, w) => { if (!xy(v)) no(`${w} is [x, y], where a floodlight's mast stands (plan metres)`); });
 }
 const APRON = Object.freeze({ side: 3, front: 9, under: 0.1, fall: 5, over: 0.02, edge: 0.35, bank: 3, reach: 18, steep: 1.5, hard: 0.15, wet: 0.55, skirt: 0.25 });
@@ -1045,6 +1051,55 @@ export function withBuildings(payload, manifest, ctx = {}) {
         for (const [cs, n0] of faces) { const nn = nrm(n0); yardF.push({ ...quad(cs.map((c0) => pt(...c0)), 'yard:barrier', BARRIER.fill), normal: P3(nn), outNormal: P3(nn), doubleSided: true, node: `${id}:barrier-${n + 1}` }); }
         const a = toWorld(ay ? [bx - wb, by - L2] : [bx - L2, by - wb]), c2 = toWorld(ay ? [bx + wb, by + L2] : [bx + L2, by + wb]);
         colliders.push({ min: P3([Math.min(a[0], c2[0]), Math.min(a[1], c2[1]), floor + zt]), max: P3([Math.max(a[0], c2[0]), Math.max(a[1], c2[1]), floor + zt + H]), of: `${id}:yard` });
+      }
+      // ITS TOWERS (`yard.towers`): high ground a body walks. A steel deck on four posts, its top `high` over the
+      // building's floor, railed round but where its stair meets it; the stair in steps under a body's step, each a
+      // collider from the slab up, so it is climbed as any step is and nothing is walked under it. The deck is a slab:
+      // a body walks under it
+      for (const [n, tw] of (b.yard.towers ?? []).entries()) {
+        const [tx, ty] = tw.at, [sw, sd] = tw.size ?? TOWER.size, top = (tw.high ?? TOWER.high) - zt, hw = sw / 2, hd = sd / 2, node = `${id}:tower-${n + 1}`;
+        const pt = (x, y, z) => W([x, y, zt + z]), face = (cs, n0, fill, two) => { const nn = turnN(n0); yardF.push({ ...quad(cs.map((c0) => pt(...c0)), 'yard:deck', fill), normal: P3(nn), outNormal: P3(nn), ...(two ? { doubleSided: true } : {}), node }); };
+        const col = (ax, ay0, z0, bx2, by2, z1) => { const a = toWorld([Math.min(ax, bx2), Math.min(ay0, by2)]), c2 = toWorld([Math.max(ax, bx2), Math.max(ay0, by2)]); colliders.push({ min: P3([Math.min(a[0], c2[0]), Math.min(a[1], c2[1]), floor + zt + z0]), max: P3([Math.max(a[0], c2[0]), Math.max(a[1], c2[1]), floor + zt + z1]), of: `${id}:tower` }); };
+        const boxF = (ax, ay0, z0, bx2, by2, z1, fill, lid) => {
+          face([[ax, ay0, z0], [bx2, ay0, z0], [bx2, ay0, z1], [ax, ay0, z1]], [0, -1, 0], fill); face([[bx2, by2, z0], [ax, by2, z0], [ax, by2, z1], [bx2, by2, z1]], [0, 1, 0], fill);
+          face([[ax, by2, z0], [ax, ay0, z0], [ax, ay0, z1], [ax, by2, z1]], [-1, 0, 0], fill); face([[bx2, ay0, z0], [bx2, by2, z0], [bx2, by2, z1], [bx2, ay0, z1]], [1, 0, 0], fill);
+          if (lid) face([[ax, ay0, z1], [bx2, ay0, z1], [bx2, by2, z1], [ax, by2, z1]], [0, 0, 1], lid);
+        };
+        // (the deck: its plate, its underside, its edge)
+        boxF(tx - hw, ty - hd, top - TOWER.slab, tx + hw, ty + hd, top, TOWER.steel, TOWER.tread);
+        face([[tx - hw, ty + hd, top - TOWER.slab], [tx + hw, ty + hd, top - TOWER.slab], [tx + hw, ty - hd, top - TOWER.slab], [tx - hw, ty - hd, top - TOWER.slab]], [0, 0, -1], TOWER.steel);
+        col(tx - hw, ty - hd, top - TOWER.slab, tx + hw, ty + hd, top);
+        // (its posts, inside its corners)
+        for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const px = tx + cx * (hw - TOWER.post), py = ty + cy * (hd - TOWER.post), h = TOWER.post / 2; boxF(px - h, py - h, 0, px + h, py + h, top - TOWER.slab, TOWER.steel); col(px - h, py - h, 0, px + h, py + h, top - TOWER.slab); }
+        // (its stairs: `way` the way each climbs, its head at the deck's edge on the side it comes from; u along the
+        // climb from its foot, v across it)
+        const gaps = [];
+        for (const sr of tw.stairs) {
+          const run = sr.run ?? TOWER.run, wide = sr.wide ?? TOWER.wide, off = sr.off ?? 0, ax = sr.way[1] === 'x', sg = sr.way[0] === '+' ? 1 : -1;
+          const head = ax ? tx - sg * hw : ty - sg * hd, mid = (ax ? ty : tx) + off, steps = Math.ceil(top / TOWER.step), rise = top / steps, going = run / steps;
+          const uv = (u, v) => (ax ? [head - sg * (run - u), mid + v] : [mid + v, head - sg * (run - u)]), up = ax ? [sg, 0, 0] : [0, sg, 0], across = ax ? [0, 1, 0] : [1, 0, 0];
+          gaps.push({ side: `${sg > 0 ? '-' : '+'}${ax ? 'x' : 'y'}`, lo: mid - wide / 2, hi: mid + wide / 2 });
+          for (let q = 0; q < steps; q++) {
+            const u0 = q * going, u1 = u0 + going, z1 = (q + 1) * rise, a = uv(u0, -wide / 2), c2 = uv(u1, wide / 2);
+            face([[...uv(u0, -wide / 2), z1], [...uv(u1, -wide / 2), z1], [...uv(u1, wide / 2), z1], [...uv(u0, wide / 2), z1]], [0, 0, 1], TOWER.tread, true);
+            face([[...uv(u0, -wide / 2), z1 - rise], [...uv(u0, wide / 2), z1 - rise], [...uv(u0, wide / 2), z1], [...uv(u0, -wide / 2), z1]], up.map((v) => -v), TOWER.steel, true);
+            for (const sv of [-1, 1]) face([[...uv(u0, sv * wide / 2), 0], [...uv(u1, sv * wide / 2), 0], [...uv(u1, sv * wide / 2), z1], [...uv(u0, sv * wide / 2), z1]], across.map((v) => v * sv), TOWER.steel, true);
+            col(a[0], a[1], 0, c2[0], c2[1], z1);
+          }
+          // (its handrails: a painted bar a rail's height over the treads' line, each side; drawn, no collider)
+          for (const sv of [-1, 1]) face([[...uv(0, sv * wide / 2), TOWER.rail - 0.08], [...uv(run, sv * wide / 2), top + TOWER.rail - 0.08], [...uv(run, sv * wide / 2), top + TOWER.rail], [...uv(0, sv * wide / 2), TOWER.rail]], across.map((v) => v * sv), TOWER.paint, true);
+        }
+        // (its rails: round the deck, open where a stair's head meets it; a painted top bar, a mid bar, a kick plate)
+        const rail = (x0r, y0r, x1r, y1r, n0) => { if (Math.hypot(x1r - x0r, y1r - y0r) < 0.05) return;
+          for (const [za, zb, fill] of [[TOWER.rail - 0.08, TOWER.rail, TOWER.paint], [TOWER.rail * 0.5 - 0.03, TOWER.rail * 0.5 + 0.03, TOWER.paint], [0, 0.15, TOWER.steel]]) face([[x0r, y0r, top + za], [x1r, y1r, top + za], [x1r, y1r, top + zb], [x0r, y0r, top + zb]], n0, fill, true);
+          col(x0r - 0.04, y0r - 0.04, top, x1r + 0.04, y1r + 0.04, top + TOWER.rail); };
+        for (const [side, n0] of [['-x', [-1, 0, 0]], ['+x', [1, 0, 0]], ['-y', [0, -1, 0]], ['+y', [0, 1, 0]]]) {
+          const sx = side[1] === 'x', e = side[0] === '+' ? 1 : -1, fix = sx ? tx + e * hw : ty + e * hd, lo = sx ? ty - hd : tx - hw, hi = sx ? ty + hd : tx + hw;
+          const seg = (a, c2) => { if (c2 - a > 0.05) (sx ? rail(fix, a, fix, c2, n0) : rail(a, fix, c2, fix, n0)); };
+          let from = lo;
+          for (const g of gaps.filter((q) => q.side === side).sort((a, c2) => a.lo - c2.lo)) { seg(from, Math.max(lo, g.lo)); from = Math.min(hi, g.hi); }
+          seg(from, hi);
+        }
       }
       // ITS FENCE (`yard.fence`): chain-link round the yard's three outer sides, the geocity's own panel three metres at a
       // time (geocity/industry.js), from the building's front line out round its yard and back: it stops a body

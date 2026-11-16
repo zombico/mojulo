@@ -4,7 +4,7 @@
 // that bounds it; it is one ground; designed, it holds its laws no worse than it did empty; its lights stand over its
 // prizes; the same seed designs the same yard and another seed another.
 import { describe, expect, it } from 'vitest';
-import { designYard, yardMap, PIECES, YARD } from './yard.js';
+import { designYard, yardMap, yardAscii, towerCells, PIECES, YARD, TOWER } from './yard.js';
 import { mapLaws } from './laws.js';
 import { indexMap, sees } from './map.js';
 
@@ -54,3 +54,18 @@ describe('a yard, designed', () => {
     expect(designYard({ ...ASK, seed: 2 }).pieces).not.toEqual(D.pieces);
   });
 }, 240000);
+
+describe('a yard with a tower', () => {
+  it('is high ground with two ways up, its stairs and their feet kept clear, and nothing of the yard cut off by it', () => {
+    const T = { i: 6, j: 3 }, D = designYard({ nx: 14, ny: 8, door: 2, towers: [T], seed: 1, passes: 160 }), held = (id) => D.laws.find((l) => l.law === id).holds;
+    expect(D.map.nz).toBe(2);
+    expect(D.map.floors.filter((f) => f[2] === 1)).toHaveLength(TOWER.deck * TOWER.deck);
+    expect(D.map.ramps).toHaveLength(2);
+    expect(held('connected')).toBe(true);
+    expect(held('levels-twice')).toBe(true);
+    const keep = new Set(towerCells(T).map((c) => c.join(',')));
+    for (const p of D.pieces.filter((q) => q.kind !== 'barrier')) for (let t = 0; t < PIECES[p.kind].cells; t++) expect(keep.has((p.along === 'y' ? [p.i, p.j + t] : [p.i + t, p.j]).join(','))).toBe(false);
+    expect(yardAscii(D)).toMatch(/T/);
+    expect(() => designYard({ nx: 14, ny: 8, towers: [{ i: 1, j: 3 }] })).toThrow(/does not stand in a yard/);
+  }, 120000);
+});

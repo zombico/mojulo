@@ -263,34 +263,45 @@ camera that is the page's.
 ## An industrial level
 
 The geocube's visual blocks, laid out by the laws. `levels.<id>: { industrial: true | { use?, depth?, hour?, weather?,
-walker? }, mission?: { seed?, foes?, hold?, waves? } }` is a level's form (`gameworld/mission-industrial.js`): a fenced
-yard before a base building, by night in the rain where it names none, a siege walker parked on it.
+wet?, tower?, walker? }, mission?: { seed?, foes?, hold?, waves? } }` is a level's form
+(`gameworld/mission-industrial.js`): a fenced yard before a base building, at sunset on wet ground where it names
+neither, a tower to climb in its middle. A walker named (`walker: 'siege-walker'`) is parked in the tower's place; a
+weather named wets the ground itself.
 
 - **The blocks are the geocube's** (`era/stage-buildings.js`): the building on its land, its slab in jointed bays,
-  shipping containers in corrugated steel, concrete barriers, floodlights on masts, chain-link, the weather and its wet.
-  A yard takes a design's own placements as words, in the building's plan metres: `yard: { depth, fence, stacks:
-  [{ at, along?, high?, half? }], barriers: [{ at, along? }], masts: [[x, y]] }`; a building takes the height its floor is
-  asked to stand at (`at.floor`).
+  shipping containers in corrugated steel, concrete barriers, floodlights on masts (lit once the sun is down),
+  chain-link, a steel tower, the hour and the wet. A yard takes a design's own placements as words, in the building's
+  plan metres: `yard: { depth, fence, stacks: [{ at, along?, high?, half? }], barriers: [{ at, along? }], masts:
+  [[x, y]], towers: [{ at, stairs: [{ way, run?, wide?, off? }], size?, high? }] }`; a building takes the height its
+  floor is asked to stand at (`at.floor`).
+- **A tower is high ground a body walks**: a steel deck on four posts, its top a level over the floor, railed round but
+  where a stair meets it, each stair in steps under a body's step. A body walks under the deck and not under a stair.
+  On the map it is a floor a level up with a ramp for each stair, so the laws judge it as any high ground: the level's
+  tower has two stairs because `levels-twice` asks two ways onto every upper floor.
 - **The layout is the laws'** (`arena-map/yard.js`). A yard is designed piece by piece, never cell by cell: a
   forty-foot container, a twenty-foot one, a barrier on a line. Each pass stands, turns, moves or takes one (or lays a
   container across a line the laws name too long) and keeps the change only when the yard holds its laws no worse and
-  stays one ground. The walker is a mass the design works round; the floodlights stand over the yard's prizes, since
-  the laws already put the best thing in the most seen place; the building's door is the way out.
+  stays one ground. The tower's stairs and their feet are kept clear; a walker is a mass the design works round; the
+  floodlights stand over the yard's prizes, since the laws already put the best thing in the most seen place; the
+  building's door is the way out.
 - **Laid before it is built.** The building's seat is the builder's own frame (`buildingSeat`) and its floor is asked
   for, so the yard's pieces and the mission's places are known with nothing resolved: the level is planned in seconds
-  and is a pure stage, as any level is.
+  and is a pure stage, as any level is. The deck and its stairs are told to the mission's minds (`mission.floors`) and
+  to its proof's walker (`frame.stairs`).
 
 `bounded` now asks for what stops a body, a wall or a rail, on every floor: a fenced yard is bounded as a walled one is.
 
-What the first run found (machine gate; the shooter feel, seed 1): the default yard, nineteen cells by ten with the
-walker in it, holds thirteen of the fourteen laws with twenty containers and twenty-one barriers; `line-cap` is not
-held (an aisle of the yard runs longer than the kit's longest band). Built, its floor stands where it was asked and
-each piece is on the page where the design put it; played on the place's own colliders the gunner wins it in 74 s,
-all five tasks met.
+What the first run found (machine gate; the shooter feel, seed 1): the default yard, nineteen cells by ten with its
+tower, holds twelve of the fourteen laws; `loops` is not held (a pocket of the yard hangs off one way) and `line-cap`
+is not (an aisle runs longer than the kit's longest band). Built, its floor stands where it was asked and each piece is
+on the page where the design put it; played on the place's own colliders the gunner wins it in 78 s, all five tasks
+met; a player walked up the west stair in headless Chrome stands on the deck and is stopped by its far rail. With a
+walker in the tower's place the yard holds thirteen.
 
-Said: the level's page is forty megabytes and takes minutes to resolve, the land with it; the fence stops a mind's
-sight as a wall does (it is a collider), where the laws read it as a rail; the land is cut deep where the yard meets
-its cliff; only buildings with a hall take a yard this way.
+Said: the level's page is about forty megabytes and takes minutes to resolve, the land with it; the fence stops a
+mind's sight as a wall does (it is a collider), where the laws read it as a rail; the tower's steel is plain, flat
+colour, dark against a low sun; the land is cut deep where the yard meets its cliff; only buildings with a hall take a
+yard this way.
 
 ## Next
 

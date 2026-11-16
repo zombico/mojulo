@@ -22,10 +22,10 @@
 import { missionBrief } from '../mission/index.js';
 import { missionCast, missionMechanics, missionUi, missionCube } from './mission-level.js';
 import { feelRule } from './feel/lower.js';
-import { designYard } from '../arena-map/yard.js';
+import { designYard, TOWER } from '../arena-map/yard.js';
 import { phasesOnMap, phaseLaws } from '../arena-map/phases.js';
 import { kitOf } from '../arena-map/laws.js';
-import { CELL } from '../arena-map/blocks.js';
+import { CELL, RISE } from '../arena-map/blocks.js';
 import { buildingSeat } from '../era/stage-buildings.js';
 import { INDUSTRIAL, readIndustrial } from './industrial-words.js';
 
@@ -53,7 +53,9 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
   // (the walker: a mass the design works round, clear of the building's wall and of the way to its door)
   const w0 = Math.min(nx - WALKER.along - 2, Math.max(door + 3, Math.floor(nx / 2) - 1)), wj = ny - WALKER.off - WALKER.out;
   const fixed = I.walker ? [{ kind: 'walker', cells: Array.from({ length: WALKER.along * WALKER.out }, (_, k) => [w0 + (k % WALKER.along), wj + Math.floor(k / WALKER.along)]) }] : [];
-  const design = designYard({ nx, ny, door, fixed, seed: dice, kit: kitOf(brief) });
+  // (the tower: high ground in the walker's place, its stair climbing along the building's front)
+  const tower = I.tower ? { i: Math.max(TOWER.run + 1, Math.min(nx - TOWER.deck - TOWER.run - 1, w0 + 1)), j: wj } : null;
+  const design = designYard({ nx, ny, door, fixed, towers: tower ? [tower] : [], seed: dice, kit: kitOf(brief) });
   // THE PLACE: the geocube's recipe, the design's pieces as its yard's own words
   const stacks = design.pieces.filter((p) => p.kind !== 'barrier').map((p) => {
     const n = p.kind === 'container-40' ? 4 : 2, a = cellAt(p.i, p.j), b = cellAt(p.along === 'y' ? p.i : p.i + n - 1, p.along === 'y' ? p.j + n - 1 : p.j);
@@ -61,27 +63,37 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
   });
   const barriers = design.pieces.filter((p) => p.kind === 'barrier').map((p) => { const c = cellAt(p.i, p.j); return p.side === 'e' ? { at: [r2(c[0] + CELL / 2), c[1]], along: 'y' } : { at: [c[0], r2(c[1] + CELL / 2)], along: 'x' }; });
   const masts = design.lights.map(([i, j]) => { const c = cellAt(i, j); return [r2(c[0] - CELL / 2 + 0.35), r2(c[1] - CELL / 2 + 0.35)]; });
+  const deckMid = tower ? (() => { const a = cellAt(tower.i, tower.j), b = cellAt(tower.i + TOWER.deck - 1, tower.j + TOWER.deck - 1); return [r2((a[0] + b[0]) / 2), r2((a[1] + b[1]) / 2)]; })() : null;
+  const towers = tower ? [{ at: deckMid, size: [TOWER.deck * CELL, TOWER.deck * CELL], high: RISE, stairs: [{ way: '+x', run: TOWER.run * CELL, wide: CELL - 0.6, off: r2(cellAt(tower.i, tower.j)[1] - deckMid[1]) }, { way: '-x', run: TOWER.run * CELL, wide: CELL - 0.6, off: r2(cellAt(tower.i, tower.j + TOWER.deck - 1)[1] - deckMid[1]) }] }] : [];
   const toW = (p) => { const [x, y] = seat.toWorld(p); return [r3(x), r3(y)]; };
   const parked = I.walker ? (() => { const a = cellAt(w0, wj), b = cellAt(w0 + WALKER.along - 1, wj + WALKER.out - 1), c = toW([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]), u = seat.toWorld([1, 0]), o = seat.toWorld([0, 0]);
     // (its nose along the building's front: the plan's x as the land turns it)
     return [{ vehicle: I.walker, at: [c[0], c[1], SEAT.floor], heading: r3(Math.atan2(u[1] - o[1], u[0] - o[0])) }]; })() : null;
   const recipe = {
-    kind: 'geocube', cube: I.cube ?? missionCube(G), show: 'path', trail: { ground: { room: SEAT.room } }, hour: I.hour, ...(I.weather ? { weather: I.weather } : {}), shadows: { actors: true, hour: true },
-    buildings: [{ ...building, yard: { depth: I.depth, fence: true, ...(stacks.length ? { stacks } : {}), ...(barriers.length ? { barriers } : {}), ...(masts.length ? { masts } : {}) } }],
+    kind: 'geocube', cube: I.cube ?? missionCube(G), show: 'path', trail: { ground: { room: SEAT.room } }, hour: I.hour, ...(I.weather ? { weather: I.weather } : {}), ...(I.wet ? { wet: I.wet } : {}), shadows: { actors: true, hour: true },
+    buildings: [{ ...building, yard: { depth: I.depth, fence: true, ...(stacks.length ? { stacks } : {}), ...(barriers.length ? { barriers } : {}), ...(masts.length ? { masts } : {}), ...(towers.length ? { towers } : {}) } }],
     ...(parked ? { parked } : {}),
   };
   // THE MISSION: its phases placed from the yard's own measures, the way out the building's door; each place carried
   // from the yard's grid to the plan and from the plan onto the land
   const M0 = phasesOnMap(brief, design.map, { seed: dice, exits: [[door, ny - 1, 0]] });
-  const place = (p) => { const [x, y] = toW([xa + p[0], ya + p[1]]); return [x, y, r3(SEAT.floor + (p[2] ?? 0))]; };
+  const up = r3(SEAT.floor + RISE), place = (p) => { const [x, y] = toW([xa + p[0], ya + p[1]]); return [x, y, (p[2] ?? 0) > RISE / 2 ? up : r3(SEAT.floor)]; };
   const o = seat.toWorld([0, 0]), ux = seat.toWorld([1, 0]), turn = Math.atan2(ux[1] - o[1], ux[0] - o[0]);
   const sections = M0.sections.map((S) => ({ ...S, entry: place(S.entry), foes: S.foes.map((f) => ({ ...f, at: place(f.at) })), drops: S.drops.map((d) => ({ ...d, at: place(d.at) })), task: { ...S.task, ...(Array.isArray(S.task.at) ? { at: place(S.task.at) } : {}) } }));
   const mission = {
     ...M0, on: 'building', heading: r3(M0.heading + turn), sections, anchors: { spawn: place(M0.anchors.spawn), exit: place(M0.anchors.exit) }, heart: place(M0.heart),
     // (walked on the place's own colliders at its floor, as a building's ground is: mission-proof.js)
-    frame: { origin: toW([xa, ya]), cell: CELL, floors: [SEAT.floor], stairs: [] },
+    frame: { origin: toW([xa, ya]), cell: CELL, floors: tower ? [SEAT.floor, up] : [SEAT.floor], stairs: [] },
   };
   delete mission.climbs; delete mission.floors;
+  if (tower) {
+    // (the tower's stairs, each walked foot to head; the deck a floor a mind crosses to by them: a mind's `rule.floors`)
+    const e = tower.i + TOWER.deck - 1, n = tower.j + TOWER.deck - 1, half = (c, d) => [c[0] + d * CELL / 2, c[1]];
+    const ways = [[cellAt(tower.i - TOWER.run - 1, tower.j), half(cellAt(tower.i - TOWER.run, tower.j), -1), cellAt(tower.i, tower.j)], [cellAt(e + TOWER.run + 1, n), half(cellAt(e + TOWER.run, n), 1), cellAt(e, n)]].map((w) => w.map(toW));
+    const a = toW([deckMid[0] - TOWER.deck * CELL / 2, deckMid[1] - TOWER.deck * CELL / 2]), b = toW([deckMid[0] + TOWER.deck * CELL / 2, deckMid[1] + TOWER.deck * CELL / 2]);
+    for (const way of ways) mission.frame.stairs.push({ z0: SEAT.floor, z1: up, way });
+    mission.floors = [{ area: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], z: up, flights: ways.map((way) => ({ bottom: way[0].slice(), top: way.at(-1).slice(), way: way.map((q) => q.slice()) })) }];
+  }
   const laws = [...phaseLaws(M0, design.map), ...design.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }))];
   return { brief, recipe, design, map: design.map, mission, laws, seat, grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
 }

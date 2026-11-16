@@ -3,6 +3,7 @@
 // the design's pieces written as its yard's words in the plan's metres, inside the yard; the mission's places are on the
 // land, inside the yard's own ground, the way out at the building's door; its tasks are proved on the bus; it is a
 // level's form, staged and ordered as one, and refuses what does not go beside it. The level whole is the e2e tier's.
+import { RISE } from '../arena-map/blocks.js';
 import { describe, expect, it } from 'vitest';
 import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, SEAT } from './mission-industrial.js';
 import { proveMission } from './mission-proof.js';
@@ -19,8 +20,13 @@ const FLAT = PROGRAM_IDS.find((u) => PROGRAMS[u].shape === 'core' && !PROGRAMS[u
 
 describe('an industrial level, read', () => {
   it('is what it is when it names nothing, and takes each word on its rail', () => {
-    expect(readIndustrial(true)).toEqual({ ...INDUSTRIAL });
-    expect(readIndustrial({ walker: false, weather: false, hour: 'noon', depth: 24 })).toMatchObject({ walker: null, weather: false, hour: 'noon', depth: 24 });
+    expect(readIndustrial(true)).toEqual({ ...INDUSTRIAL, walker: null });
+    expect(readIndustrial(true)).toMatchObject({ tower: true, walker: null, weather: false, wet: 'wet' });
+    expect(readIndustrial({ hour: 'noon', depth: 24, wet: false })).toMatchObject({ hour: 'noon', depth: 24, wet: false });
+    // (one thing in the yard's middle: a walker named takes the tower's place; a weather named wets the ground itself)
+    expect(readIndustrial({ walker: 'siege-walker', weather: 'rain' })).toMatchObject({ walker: 'siege-walker', tower: false, weather: 'rain', wet: null });
+    expect(() => readIndustrial({ walker: 'siege-walker', tower: true })).toThrow(/a tower or a walker/);
+    expect(() => readIndustrial({ wet: 'soaked' })).toThrow(/wet is true, a degree/);
     expect(() => readIndustrial({ use: FLAT })).toThrow(/a building with a hall/);
     expect(() => readIndustrial({ depth: 20 })).toThrow(/18 to 36 m in 3s/);
     expect(() => readIndustrial({ hour: 'teatime' })).toThrow(/hour is a number/);
@@ -34,7 +40,8 @@ describe('an industrial level, planned', () => {
   it('is the geocube\'s own recipe, the design\'s pieces its yard\'s words in the plan\'s metres, inside the yard', () => {
     expect(P.recipe.kind).toBe('geocube');
     expect(ERAS[P.recipe.cube.era].surface).toBe('form');
-    expect(P.recipe).toMatchObject({ hour: INDUSTRIAL.hour, weather: INDUSTRIAL.weather });
+    expect(P.recipe).toMatchObject({ hour: INDUSTRIAL.hour, wet: INDUSTRIAL.wet });
+    expect(P.recipe.weather).toBeUndefined();
     expect(P.recipe.buildings[0].at).toEqual({ x: SEAT.x, y: SEAT.y, facing: SEAT.facing, floor: SEAT.floor });
     expect(Y).toMatchObject({ depth: INDUSTRIAL.depth, fence: true });
     expect(Y.stacks.length).toBe(P.design.pieces.filter((p) => p.kind !== 'barrier').length);
@@ -45,25 +52,34 @@ describe('an industrial level, planned', () => {
       expect(p[0]).toBeGreaterThan(bx0 - P.seat.side); expect(p[0]).toBeLessThan(bx1 + P.seat.side);
       expect(p[1]).toBeLessThan(by0); expect(p[1]).toBeGreaterThan(by0 - INDUSTRIAL.depth);
     }
-    expect(P.recipe.parked).toHaveLength(1);
-    expect(P.recipe.parked[0]).toMatchObject({ vehicle: INDUSTRIAL.walker });
-    // (with no walker nothing is parked and the design is the yard's alone; a dry day asks for no weather)
-    const bare = industrialPlan(G, readIndustrial({ walker: false, weather: false }), { seed: 1 });
-    expect(bare.recipe.parked).toBeUndefined();
-    expect(bare.recipe.weather).toBeUndefined();
-    expect(bare.design.fixed).toEqual([]);
+    // (its high ground: one tower, two stairs up to it, a floor a level up the mission's minds and its walker are told)
+    expect(Y.towers).toHaveLength(1);
+    expect(Y.towers[0].stairs).toHaveLength(2);
+    expect(P.recipe.parked).toBeUndefined();
+    expect(P.map.nz).toBe(2);
+    expect(P.mission.frame.floors).toEqual([SEAT.floor, SEAT.floor + RISE]);
+    expect(P.mission.frame.stairs).toHaveLength(2);
+    expect(P.mission.floors[0].flights).toHaveLength(2);
+    // (a walker in its place: parked, a mass of the design, and the yard one level)
+    const W = industrialPlan(G, readIndustrial({ walker: 'siege-walker', weather: 'rain' }), { seed: 1 });
+    expect(W.recipe.parked[0]).toMatchObject({ vehicle: 'siege-walker' });
+    expect(W.recipe).toMatchObject({ weather: 'rain' });
+    expect(W.recipe.wet).toBeUndefined();
+    expect(W.design.fixed).toHaveLength(1);
+    expect(W.map.nz).toBe(1);
+    expect(W.mission.floors).toBeUndefined();
   }, 240000);
   it('lays the mission on the land inside the yard, the way out at the building\'s door, and proves its tasks', () => {
     const M = P.mission, inYard = (p) => { const [x, y] = P.seat.toPlan(p); return x > bx0 - P.seat.side && x < bx1 + P.seat.side && y < by0 + 0.5 && y > by0 - INDUSTRIAL.depth; };
     const places = [M.anchors.spawn, M.anchors.exit, ...M.sections.flatMap((S) => [S.entry, ...S.foes.map((f) => f.at), ...S.drops.map((d) => d.at)])];
     expect(places.length).toBeGreaterThan(8);
-    for (const p of places) { expect(inYard(p), `${p}`).toBe(true); expect(p[2]).toBe(SEAT.floor); }
+    for (const p of places) { expect(inYard(p), `${p}`).toBe(true); expect([SEAT.floor, SEAT.floor + RISE]).toContain(p[2]); }
     // (the way out stands before the door: within two cells of it along the front, at the building's wall)
     const exit = P.seat.toPlan(M.anchors.exit);
     expect(Math.abs(exit[0] - P.seat.doorPlan[0])).toBeLessThan(6);
     expect(by0 - exit[1]).toBeLessThan(3.5);
     expect(M.on).toBe('building');
-    expect(M.frame.floors).toEqual([SEAT.floor]);
+    expect(M.frame.floors).toEqual([SEAT.floor, SEAT.floor + RISE]);
     const m = industrialManifest(G, P);
     expect(m.entities.filter((e) => e.team === 'foes').every((e) => e.dormant)).toBe(true);
     expect(proveMission(m)).toMatchObject({ proved: true, done: M.sections.map((S) => S.id) });

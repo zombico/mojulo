@@ -64,7 +64,7 @@
        runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
-       industrial?: true | { use?, depth?, hour?, weather?, walker?, cube? },
+       industrial?: true | { use?, depth?, hour?, weather?, wet?, tower?, walker?, cube? },
                                          // an INDUSTRIAL level (mission-industrial.js): a yard before a base building,
                                          // its containers, barriers and floodlights stood under the arena's laws, built
                                          // by the geocube; its `mission` its play (the default one where none is named)

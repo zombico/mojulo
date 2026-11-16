@@ -180,8 +180,8 @@ houses block and the beach. Said, not tuned. The level is greybox: a place reads
 ### An industrial level
 
 `levels.<id>: { industrial: true }` is a level of its own: a fenced yard before a base building, its containers,
-barriers and floodlights stood under the arena's laws and built by the geocube, a walker parked on it, its mission its
-play ([arena-maps.md](arena-maps.md#an-industrial-level)). `design_game` offers it beside the first mission.
+barriers, floodlights and a tower to climb stood under the arena's laws and built by the geocube, at sunset on wet
+ground, its mission its play ([arena-maps.md](arena-maps.md#an-industrial-level)). `design_game` offers it beside the first mission.
 
 ## In a building
 
